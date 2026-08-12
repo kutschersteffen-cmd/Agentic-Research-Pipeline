@@ -39,6 +39,19 @@ class Settings(BaseSettings):
     # SEC EDGAR requires a descriptive User-Agent identifying the requester.
     edgar_user_agent: str = Field(default="Agentic Research Pipeline research@example.com")
 
+    # Indirect (input-output) exposure tier. Off by default -- requires an
+    # ICIO-format industry x industry matrix; see docs/METHODOLOGY.md.
+    icio_matrix_path: Path | None = Field(
+        default=None, description="Path to an industry x industry intermediate-flows CSV. None disables this tier."
+    )
+    icio_industries_path: Path | None = Field(
+        default=None, description="Path to the companion industries.csv (isic_code, label, total_output)."
+    )
+    icio_edition_label: str = Field(default="sample")
+    indirect_exposure_review_threshold: float = Field(
+        default=0.3, description="Structural exposure share above which a no-direct-evidence company is flagged."
+    )
+
     # Web discovery
     discovery_user_agent: str = Field(default="ARP-DiscoveryBot/0.1 (+research use; respects robots.txt)")
     discovery_webhook_url: str | None = Field(default=None)

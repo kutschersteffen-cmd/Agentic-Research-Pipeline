@@ -16,6 +16,8 @@ from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.factory import build_llm_client
 from arp.research.activity_generator import build_theme
+from arp.research.indirect_exposure.core_sectors import classify_theme_core_sectors
+from arp.research.indirect_exposure.factory import build_leontief_model
 from arp.research.pipeline import run_thematic_universe
 from arp.schemas.common import DocType
 from arp.schemas.datapoints import DataPointSchema
@@ -55,18 +57,63 @@ def theme_decompose(name: str, description: str = "", out: Path = typer.Option(.
     typer.echo(f"Wrote theme with {len(theme.activities)} activities to {out}")
 
 
+@theme_app.command("classify-sectors")
+def theme_classify_sectors(
+    theme_file: Path = typer.Option(..., "--theme"),
+    out: Path = typer.Option(..., help="Where to write the ThemeDefinition JSON with core_isic_codes populated."),
+    use_sample_icio: bool = typer.Option(
+        False, help="Use the bundled illustrative sample dataset instead of the configured ICIO paths."
+    ),
+) -> None:
+    """Populates each activity's core_isic_codes -- one classification call
+    per activity against the input-output model's fixed industry list, run
+    once per theme (not per company) before enabling the indirect-exposure
+    tier in `theme run --use-sample-icio` / a configured ARP_ICIO_* path.
+    """
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    theme = ThemeDefinition.model_validate_json(theme_file.read_text())
+    model = build_leontief_model(settings, use_sample=use_sample_icio)
+    if model is None:
+        typer.echo(
+            "No ICIO data available: set ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH or pass --use-sample-icio.",
+            err=True,
+        )
+        raise typer.Exit(1)
+    updated_theme, _usage = asyncio.run(classify_theme_core_sectors(theme, model, llm))
+    out.write_text(updated_theme.model_dump_json(indent=2))
+    classified = sum(1 for a in updated_theme.activities if a.core_isic_codes)
+    typer.echo(f"Classified core sectors for {classified}/{len(updated_theme.activities)} activities. Wrote {out}")
+
+
 @theme_app.command("run")
 def theme_run(
     theme_file: Path = typer.Option(..., "--theme", help="ThemeDefinition JSON (from `theme decompose` or hand-written)."),
     universe: Path = typer.Option(..., help="Company universe CSV or JSON."),
+    use_sample_icio: bool = typer.Option(
+        False,
+        "--use-sample-icio",
+        help="Enable the indirect-exposure tier using the bundled illustrative sample dataset (demo only).",
+    ),
 ) -> None:
     settings = get_settings()
     llm = build_llm_client(settings)
     theme = ThemeDefinition.model_validate_json(theme_file.read_text())
     companies = load_company_universe(universe)
+    indirect_model = build_leontief_model(settings, use_sample=use_sample_icio)
+    if indirect_model is not None:
+        typer.echo(f"Indirect exposure tier enabled ({indirect_model.edition_label}).")
     typer.echo(f"Running theme '{theme.name}' against {len(companies)} companies...")
     run_id = asyncio.run(
-        run_thematic_universe(theme, companies, llm=llm, registry=_registry(), settings=settings, run_store=_run_store())
+        run_thematic_universe(
+            theme,
+            companies,
+            llm=llm,
+            registry=_registry(),
+            settings=settings,
+            run_store=_run_store(),
+            indirect_model=indirect_model,
+        )
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 

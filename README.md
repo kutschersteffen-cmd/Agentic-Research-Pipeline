@@ -17,6 +17,11 @@ precision at scale (designed for up to ~4,000 companies per run).
    crawls it for disclosure documents, downloads new/changed ones, and
    raises an event the moment something new appears. Runs manually or on
    an automatic schedule.
+4. **Indirect Exposure Tier** *(opt-in)* — scores a company's *structural*
+   supply-chain exposure to a theme via input-output propagation (OECD
+   ICIO), catching companies whose disclosures are silent about a theme but
+   whose economic position says otherwise. Purely quantitative, zero LLM
+   calls in the computation itself.
 
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches.
@@ -71,6 +76,10 @@ source backend/.venv/bin/activate
 arp theme decompose "Electrification" --description "..." --out theme.json
 arp theme run --theme theme.json --universe companies.csv
 
+# ...with the indirect (input-output) exposure tier enabled
+arp theme classify-sectors --theme theme.json --out theme.json --use-sample-icio
+arp theme run --theme theme.json --universe companies.csv --use-sample-icio
+
 # Data-point extraction
 arp extract draft-schema "green capex" --out schema.json
 arp extract run --schema schema.json --universe companies.csv
@@ -104,6 +113,25 @@ known for the most precise document discovery and EDGAR lookup).
 - Earnings-call transcripts have no free public API; supply them via the
   local file store or extend `DocumentSource` with a paid connector.
 
+## The indirect exposure tier
+
+Off by default. Enable it by pointing at a real, pre-aggregated OECD ICIO
+extract:
+
+```bash
+# .env
+ARP_ICIO_MATRIX_PATH=/path/to/icio_matrix.csv
+ARP_ICIO_INDUSTRIES_PATH=/path/to/industries.csv
+ARP_ICIO_EDITION_LABEL=oecd-icio-2025
+```
+
+or use `--use-sample-icio` (CLI) / `use_sample_icio: true` (API) to try it
+against the small bundled illustrative dataset first. Company universe rows
+can supply `isic_code` directly for the most precise mapping; see
+[`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the exact CSV format, the
+upstream/downstream exposure definitions, and the classification steps
+around the input-output math.
+
 ## Precision controls at a glance
 
 - Programmatic (non-LLM) grounding check on every citation
@@ -113,5 +141,7 @@ known for the most precise document discovery and EDGAR lookup).
 - Confidence scoring + mandatory human review queue for anything uncertain
 - Resumable, checkpointed, per-company-isolated batch execution
 - Disk-backed LLM response cache (idempotent, free reruns during dev)
+- Opt-in indirect (input-output) exposure tier for companies with no direct
+  textual evidence but real structural supply-chain linkage
 
 Full detail in [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md).

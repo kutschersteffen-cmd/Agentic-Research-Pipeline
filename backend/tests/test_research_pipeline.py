@@ -1,6 +1,8 @@
 from arp.config import Settings
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.research.indirect_exposure.icio_loader import load_sample_icio
+from arp.research.indirect_exposure.leontief import build_model
 from arp.research.matcher_agents import AdjudicatorOutput
 from arp.research.pipeline import _match_company
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
@@ -126,3 +128,48 @@ async def test_match_company_no_evidence_skips_llm_calls_entirely(tmp_path, fake
     result = await _match_company(company, theme, registry=registry, llm=llm, settings=_settings(tmp_path))
     assert result.matches[0].verdict == MatchVerdict.EXCLUDE
     assert llm.calls == []
+
+
+async def test_match_company_no_evidence_with_high_structural_exposure_is_flagged(tmp_path, fake_llm):
+    """No direct textual evidence, but the company's own industry IS the
+    theme's core sector -- indirect exposure should be high and the
+    no-evidence auto-exclude should be upgraded to a review flag instead
+    of a flat, unreviewed exclude."""
+    doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
+    theme, activity = _theme()
+    activity.core_isic_codes = ["27"]
+    company = CompanyRef(company_id="c1", name="Acme Electricals", ticker="ACME", isic_code="27")
+
+    llm = fake_llm({})  # company_isic is supplied and matches the model, so no LLM call should occur
+    registry = DocumentSourceRegistry([_FixedDocSource([doc])])
+    model = build_model(load_sample_icio(), "test-sample")
+
+    result = await _match_company(
+        company, theme, registry=registry, llm=llm, settings=_settings(tmp_path), indirect_model=model
+    )
+    match = result.matches[0]
+    assert match.verdict == MatchVerdict.EXCLUDE
+    assert match.indirect_exposure is not None
+    assert match.indirect_exposure.core_sector is True
+    assert match.flagged_for_review is True
+    assert llm.calls == []
+
+
+async def test_match_company_no_evidence_with_low_structural_exposure_not_flagged(tmp_path, fake_llm):
+    doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
+    theme, activity = _theme()
+    activity.core_isic_codes = ["27"]
+    # retail/trade (45) has low structural linkage to electrical equipment (27) in the sample model
+    company = CompanyRef(company_id="c1", name="Acme Retail", ticker="ACME", isic_code="45")
+
+    llm = fake_llm({})
+    registry = DocumentSourceRegistry([_FixedDocSource([doc])])
+    model = build_model(load_sample_icio(), "test-sample")
+
+    result = await _match_company(
+        company, theme, registry=registry, llm=llm, settings=_settings(tmp_path), indirect_model=model
+    )
+    match = result.matches[0]
+    assert match.indirect_exposure is not None
+    assert match.flagged_for_review is False
+    assert match.confidence == 1.0

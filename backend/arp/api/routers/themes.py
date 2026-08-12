@@ -3,13 +3,14 @@ from __future__ import annotations
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from arp.api.deps import get_llm_client, get_registry, get_run_store, settings_dep
 from arp.config import Settings
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.review_queue import latest_decisions, record_review_decision
 from arp.research.activity_generator import build_theme
+from arp.research.indirect_exposure.factory import build_leontief_model
 from arp.research.pipeline import create_theme_run, execute_theme_run
 from arp.schemas.common import CompanyRef
 from arp.schemas.thematic import ThemeDefinition
@@ -37,6 +38,13 @@ class RunRequest(BaseModel):
     theme: ThemeDefinition
     companies: list[CompanyRef] | None = None
     universe_path: str | None = None
+    use_sample_icio: bool = Field(
+        default=False,
+        description=(
+            "Enable the indirect (input-output) exposure tier using the bundled illustrative sample dataset. "
+            "For a real run, configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH instead and leave this false."
+        ),
+    )
 
 
 @router.post("/runs")
@@ -52,14 +60,22 @@ async def start_theme_run(
 
     run_id = create_theme_run(req.theme, companies, settings, run_store)
     llm = get_llm_client()  # raises a clear 4xx-worthy error before we schedule anything if unconfigured
+    indirect_model = build_leontief_model(settings, use_sample=req.use_sample_icio)
 
     async def _background() -> None:
         await execute_theme_run(
-            run_id, req.theme, companies, llm=llm, registry=registry, settings=settings, run_store=run_store
+            run_id,
+            req.theme,
+            companies,
+            llm=llm,
+            registry=registry,
+            settings=settings,
+            run_store=run_store,
+            indirect_model=indirect_model,
         )
 
     asyncio.create_task(_background())
-    return {"run_id": run_id, "company_count": len(companies)}
+    return {"run_id": run_id, "company_count": len(companies), "indirect_exposure_enabled": indirect_model is not None}
 
 
 @router.get("/runs/{run_id}")

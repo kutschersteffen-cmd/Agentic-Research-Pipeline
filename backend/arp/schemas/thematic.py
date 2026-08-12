@@ -5,6 +5,7 @@ from enum import StrEnum
 from pydantic import BaseModel, Field
 
 from arp.schemas.common import Citation, now_iso, new_id
+from arp.schemas.exposure import IndirectExposureResult
 
 
 class ActivityDefinition(BaseModel):
@@ -25,6 +26,14 @@ class ActivityDefinition(BaseModel):
     )
     seed_keywords: list[str] = Field(
         default_factory=list, description="Seed keywords/bigrams for evidence-chunk retrieval (Sautner et al. style)."
+    )
+    core_isic_codes: list[str] = Field(
+        default_factory=list,
+        description=(
+            "ISIC Rev.4 industry codes that make up this activity's core value-chain sectors, used for "
+            "input-output-based indirect exposure scoring. Empty means the indirect-exposure tier is skipped "
+            "for this activity. Populate via `arp theme classify-sectors` or supply by hand."
+        ),
     )
 
 
@@ -71,6 +80,13 @@ class CompanyMatch(BaseModel):
     opposing: AgentOpinion
     adjudicator_rationale: str
     citations: list[Citation] = Field(default_factory=list, description="Adjudicator's final, grounding-checked citation set.")
+    indirect_exposure: IndirectExposureResult | None = Field(
+        default=None,
+        description=(
+            "Structural supply-chain exposure via input-output propagation, kept separate from exposure_estimate "
+            "since it is a purely quantitative signal, not part of the Advocate/Opposing/Adjudicator judgment."
+        ),
+    )
     flagged_for_review: bool = False
     generated_at: str = Field(default_factory=now_iso)
 

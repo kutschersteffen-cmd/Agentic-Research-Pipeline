@@ -12,6 +12,9 @@ from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
 from arp.research.candidate_sourcer import prefilter_chunks_for_activity
+from arp.research.indirect_exposure.company_mapper import resolve_company_isic
+from arp.research.indirect_exposure.exposure import compute_indirect_exposure
+from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.matcher_agents import run_adjudicator, run_advocate, run_opposing
 from arp.schemas.common import CompanyRef
 from arp.schemas.thematic import AgentOpinion, CompanyMatch, ExposureEstimate, MatchVerdict, ThemeDefinition
@@ -44,19 +47,44 @@ async def _match_company(
     registry: DocumentSourceRegistry,
     llm: LLMClient,
     settings: Settings,
+    indirect_model: LeontiefModel | None = None,
 ) -> CompanyMatchesResult:
     documents = await registry.fetch_all(company)
     documents_by_id = {d.doc_id: d for d in documents}
     usages: list[LLMUsage] = []
     matches: list[CompanyMatch] = []
 
+    # Resolved once per company (not per activity) since it's the same
+    # answer regardless of which activity is being screened.
+    company_isic: str | None = None
+    if indirect_model is not None:
+        company_isic, u_isic = await resolve_company_isic(company, indirect_model, llm)
+        usages.append(u_isic)
+
     for activity in theme.activities:
+        indirect = None
+        if indirect_model is not None and company_isic and activity.core_isic_codes:
+            indirect = compute_indirect_exposure(
+                company.company_id, company_isic, indirect_model, set(activity.core_isic_codes), indirect_model.edition_label
+            )
+
         all_chunks = []
         for doc in documents:
             all_chunks.extend(chunk_document(doc, keywords=activity.seed_keywords))
         evidence = prefilter_chunks_for_activity(all_chunks, activity)
 
         if not evidence:
+            structural_flag = bool(
+                indirect
+                and max(indirect.upstream_exposure, indirect.downstream_exposure)
+                >= settings.indirect_exposure_review_threshold
+            )
+            rationale = "No evidence of this activity was found in the available documents."
+            if structural_flag:
+                rationale += (
+                    " However, input-output propagation shows structural exposure to this activity's core "
+                    "sectors above the review threshold -- routed for a second look rather than excluded outright."
+                )
             matches.append(
                 CompanyMatch(
                     company_id=company.company_id,
@@ -66,12 +94,13 @@ async def _match_company(
                     activity_name=activity.name,
                     verdict=MatchVerdict.EXCLUDE,
                     exposure_estimate=ExposureEstimate.NONE,
-                    confidence=1.0,
+                    confidence=0.5 if structural_flag else 1.0,
                     advocate=_no_evidence_opinion(),
                     opposing=_no_evidence_opinion(),
-                    adjudicator_rationale="No evidence of this activity was found in the available documents.",
+                    adjudicator_rationale=rationale,
                     citations=[],
-                    flagged_for_review=False,
+                    indirect_exposure=indirect,
+                    flagged_for_review=structural_flag,
                 )
             )
             continue
@@ -107,6 +136,7 @@ async def _match_company(
                 opposing=opposing,
                 adjudicator_rationale=adjudication.adjudicator_rationale,
                 citations=grounded_citations,
+                indirect_exposure=indirect,
                 flagged_for_review=flagged,
             )
         )
@@ -139,11 +169,16 @@ async def execute_theme_run(
     registry: DocumentSourceRegistry,
     settings: Settings,
     run_store: RunStore,
+    indirect_model: LeontiefModel | None = None,
 ) -> str:
     """Orchestrates the Advocate/Opposing/Adjudicator pipeline across the
     whole company universe for every activity in the theme, with
     checkpointed, resumable, bounded-concurrency execution against an
     already-created run (see create_theme_run).
+
+    `indirect_model`, if supplied, additionally computes an input-output
+    structural exposure score per (company, activity) -- see
+    arp/research/indirect_exposure/. Off by default.
     """
     job_manager = JobManager(run_store)
 
@@ -172,7 +207,9 @@ async def execute_theme_run(
     await run_batch(
         companies,
         item_key=lambda c: c.company_id,
-        worker=lambda c: _match_company(c, theme, registry=registry, llm=llm, settings=settings),
+        worker=lambda c: _match_company(
+            c, theme, registry=registry, llm=llm, settings=settings, indirect_model=indirect_model
+        ),
         results_path=run_store.results_path(run_id),
         errors_path=run_store.errors_path(run_id),
         concurrency=settings.max_concurrent_llm_calls,
@@ -193,10 +230,18 @@ async def run_thematic_universe(
     registry: DocumentSourceRegistry,
     settings: Settings,
     run_store: RunStore,
+    indirect_model: LeontiefModel | None = None,
 ) -> str:
     """Convenience wrapper (create + execute in one call) for synchronous
     callers such as the CLI, where blocking until completion is expected."""
     run_id = create_theme_run(theme, companies, settings, run_store)
     return await execute_theme_run(
-        run_id, theme, companies, llm=llm, registry=registry, settings=settings, run_store=run_store
+        run_id,
+        theme,
+        companies,
+        llm=llm,
+        registry=registry,
+        settings=settings,
+        run_store=run_store,
+        indirect_model=indirect_model,
     )

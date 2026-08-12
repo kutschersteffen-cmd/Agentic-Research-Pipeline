@@ -43,6 +43,9 @@ class CompanyRef(BaseModel):
     cik: str | None = Field(default=None, description="SEC CIK, if known (enables direct EDGAR lookup).")
     country: str | None = None
     sector: str | None = None
+    isic_code: str | None = Field(
+        default=None, description="ISIC Rev.4 industry code, if known (enables indirect/structural exposure scoring)."
+    )
 
 
 class SourceDocument(BaseModel):

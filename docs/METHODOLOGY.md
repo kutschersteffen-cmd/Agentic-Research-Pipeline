@@ -51,6 +51,25 @@ baskets) motivates the `ExposureEstimate` enum (`pure_play` / `significant`
 is rarely binary, and collapsing it to a boolean discards information a
 portfolio manager needs.
 
+**OECD [Inter-Country Input-Output (ICIO)
+Tables](https://www.oecd.org/en/data/datasets/inter-country-input-output-tables.html)**
+(45 industries, ISIC Rev.4). The Advocate/Opposing/Adjudicator debate above
+answers "does this company's own disclosed activity fall in scope" — it has
+nothing to say about a company that is structurally entangled with a theme
+through its supply chain but never mentions the theme in its own words (a
+specialty-chemicals supplier three hops upstream of battery manufacturing,
+say). The indirect-exposure tier (`backend/arp/research/indirect_exposure/`)
+answers that second question with a **purely quantitative, non-LLM** signal:
+a Leontief inverse `L = (I - A)⁻¹` computed from an industry x industry
+flow table gives, for any industry, the direct-plus-indirect share of its
+inputs/outputs that traces to a theme's core sectors. It's the same
+underlying mathematics EEIO models use for Scope 3 emissions accounting,
+applied to a thematic value chain instead of carbon. This tier is opt-in
+(off unless an ICIO dataset is configured) and its results are kept in a
+separate `indirect_exposure` field on `CompanyMatch`, deliberately not
+blended into the qualitative `exposure_estimate` the debate produces — see
+"The indirect (input-output) exposure tier" below.
+
 ## The precision controls, concretely
 
 1. **Programmatic grounding, not LLM self-report** (`backend/arp/grounding.py`).
@@ -90,6 +109,59 @@ portfolio manager needs.
    successful result is flushed to disk immediately; a re-run skips
    already-completed companies; one company's exception never aborts the
    batch or is silently swallowed (it's logged to `errors.jsonl`).
+
+## The indirect (input-output) exposure tier
+
+Disabled by default; enabling it requires an industry x industry
+intermediate-flows table (see below). When enabled, it runs alongside —
+never instead of — the qualitative Advocate/Opposing/Adjudicator pipeline,
+and its main practical effect is on the *no-evidence* path: a company whose
+disclosures never mention an activity is normally excluded at full
+confidence with zero LLM calls (the correct default at scale, since that's
+the overwhelmingly common outcome). With this tier enabled, that shortcut
+is upgraded: if the company's own industry shows structural exposure to
+the activity's core sectors above `confidence_review_threshold`'s sibling
+setting (`indirect_exposure_review_threshold`, default 0.3), it's routed to
+the review queue instead of silently excluded.
+
+**Two directions are tracked separately** rather than blended into one
+score, because they answer different portfolio questions:
+- `upstream_exposure` — how much of this industry's own input requirement
+  traces back to the theme's core sectors (a mining company supplying
+  battery manufacturers).
+- `downstream_exposure` — how much of this industry's output flows into the
+  theme's core sectors as an input (a utility whose demand is increasingly
+  driven by EV charging load).
+
+**Data format.** The loader (`icio_loader.py`) intentionally does not parse
+the raw OECD release (a country x industry x country x industry matrix,
+hundreds of megabytes) — it expects a pre-aggregated industry x industry
+table:
+- `industries.csv`: `isic_code,label,total_output` (one row per industry).
+- `icio_matrix.csv`: a square matrix, header row and first column both
+  equal to the industry codes in `industries.csv`, same order; cell
+  `[i, j]` is intermediate flow value from supplying industry `i` to using
+  industry `j`.
+
+Technical coefficients are computed as `A[i,j] = flow[i,j] / total_output[j]`
+— the standard formula, using only intermediate flows (no separate final-
+demand series required, since `total_output` is supplied directly per
+industry). A small illustrative sample dataset (10 industries, real ISIC
+Rev.4 codes, plausible but not official flow values) ships in
+`arp/research/indirect_exposure/sample_data/` for demos and tests; replace
+it with a real OECD ICIO extract, aggregated across countries, for
+production use.
+
+**Two classification steps sit around the math**, both designed to be cheap
+because they're one-time, not per-company: `core_sectors.py` maps a theme's
+activities to the model's ISIC codes (one LLM call per activity, or
+zero if supplied by hand via `arp theme classify-sectors`), and
+`company_mapper.py` maps a company to its ISIC code (supplied directly on
+the company universe file is the precise, zero-cost path; an LLM fallback
+against the model's fixed, closed industry list otherwise). Both reject a
+code the model doesn't actually contain rather than silently coercing it,
+since a wrong industry code would corrupt every exposure number computed
+from it.
 
 ## What's deliberately out of scope
 

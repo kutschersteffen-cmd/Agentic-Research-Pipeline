@@ -19,6 +19,7 @@ dependencies = [
     "APScheduler>=3.10",
     "python-multipart>=0.0.9",
     "python-dotenv>=1.0",
+    "numpy>=1.26",
 ]
 
 [project.optional-dependencies]
@@ -36,6 +37,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["arp*"]
+
+[tool.setuptools.package-data]
+"arp.research.indirect_exposure" = ["sample_data/*.csv", "sample_data/*.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
