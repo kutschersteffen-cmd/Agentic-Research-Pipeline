@@ -184,31 +184,85 @@ versioned artifact** (`Taxonomy`, wrapping a `ThemeDefinition`) with:
   than an implicit assumption that whoever last edited the file knew what
   they were doing.
 
-**Two derivation methods today**, chosen per `arp taxonomy create`:
+### The research step: discovering candidate sources
 
-1. **`llm_draft`** — the freeform decomposition `activity_generator.py`
-   always did: theme name and description in, MECE activities out. Fast,
-   flexible, but the boundary the model draws is only as good as its own
-   background knowledge of the theme.
-2. **`industry_anchored`** — the same drafting call, but grounded against
-   a real, closed industry reference list (today: the ISIC codes from a
+Two of the methods below (`authority_source`, `etf_index_holdings`) need a
+real, named external reference before they can run -- an actual IEA
+publication, an actual ETF ticker -- and the tool doesn't expect the user
+to already know which one. `POST /api/taxonomies/discover-sources` /
+`arp taxonomy discover-sources <name>` web-searches for candidates (varied
+query phrasings per type: "{theme} official taxonomy classification",
+"{theme} IEA definition taxonomy", "{theme} ETF", "{theme} thematic index
+fund", ...) and returns a `SourceCandidate` list -- name, URL, snippet --
+for the user to read and choose from. **Nothing is fetched or used
+automatically here**; discovery only proposes, selection is a separate,
+explicit step (`--authority-url` / `authority_urls`, or downloading a
+selected fund's holdings export and passing it as `--holdings` /
+`holdings_path`).
+
+The default search backend is the same no-API-key DuckDuckGo client the
+document-discovery crawler uses (`arp/discovery/site_finder.py`) --
+`WebSearchClient` is an interface specifically so a paid search API can be
+swapped in without touching the discovery logic itself if a deployment
+needs more reliable results than a free HTML-scrape search provides.
+
+### Six derivation methods, chosen per `arp taxonomy create --method`
+
+1. **`llm_draft`** — the freeform decomposition: theme name and
+   description in, MECE activities out. Fast, flexible, but the boundary
+   the model draws is only as good as its own background knowledge.
+2. **`industry_anchored`** — the same drafting call, grounded against a
+   real, closed industry reference list (today: the ISIC codes from a
    loaded input-output model) instead of letting the model invent
-   categories freely. It's instructed to populate `core_isic_codes`
-   directly where a clean match exists and leave it empty otherwise —
-   never force-fit the closest-sounding code — which means a taxonomy
-   drafted this way is immediately usable by the indirect-exposure tier
-   with no separate `classify-sectors` pass required.
+   categories freely. Populates `core_isic_codes` directly where a clean
+   match exists and leaves it empty otherwise, so the result is
+   immediately usable by the indirect-exposure tier with no separate
+   `classify-sectors` pass.
+3. **`authority_source`** — grounded against one or more user-selected
+   authoritative documents (an official taxonomy, a standards body's
+   definition) found via the research step above. The source text is
+   fetched and passed to the model as grounding context with an
+   instruction to prefer the source's own categories and terminology over
+   inventing new ones, and to flag when it had to extrapolate beyond what
+   the source actually says. A source that fails to fetch is skipped, not
+   fatal, and every URL used (or skipped) is recorded in `source_notes`.
+4. **`etf_index_holdings`** — bottom-up synthesis from an existing
+   thematic ETF or index's holdings. Fetching holdings automatically isn't
+   attempted: fund-provider export formats aren't standardized and several
+   financial-data domains are unreachable from some network environments,
+   so a user-downloaded holdings CSV (name/ticker/sector/description
+   columns, in whatever variant the provider uses) is the robust input.
+   The research step points the user at candidate funds to download from.
+5. **`news_transcript_mining`** — bottom-up synthesis from current news
+   search results plus keyword-in-context passages mined from any
+   earnings-call transcripts already available for a supplied sample of
+   companies (the same Sautner et al.-style approach cited above, applied
+   to taxonomy construction instead of exposure scoring).
+6. **`empirical`** — bottom-up synthesis from the Extraction Engine's own
+   readings: a lightweight ad-hoc schema ("describe this company's primary
+   business activities, especially anything related to the theme") is run
+   across a sample of the universe, and the resulting per-company
+   descriptions become the corpus.
+
+Methods 4-6 share one synthesis step
+(`taxonomy_sources/corpus_synthesis.py`): a corpus of real snippets in,
+activities out, with every proposed activity expected to trace back to
+something that actually appears in the corpus, and an honest
+`corpus_assessment` when the material is too thin to support a real
+taxonomy rather than padded-out activities. They differ only in how the
+corpus is gathered, which is also why adding a further corpus source later
+(e.g. regulatory filings search) means writing one gathering function, not
+a whole new pipeline.
 
 A version created by hand (`arp taxonomy new-version --theme edited.json`)
-is recorded as `manual`. A **bottom-up / empirical** method — clustering
-real segment and product descriptions pulled via the Extraction Engine
-from a sample of the universe, letting the activity categories emerge from
-what companies actually say rather than an a-priori list — is defined in
-the schema (`DerivationMethod.EMPIRICAL`) as a placeholder for future work
-but not implemented yet. As a rule of thumb across all four: an industry
-classification or published literature scaffolds a well-understood theme
-fastest; empirical clustering is worth its extra cost specifically for a
-genuinely novel theme with no existing reference to anchor to.
+is recorded as `manual`. As a rule of thumb across all six: an industry
+classification or an authority source scaffolds a well-understood theme
+fastest and most defensibly; ETF holdings and news/transcript mining are
+worth their extra cost for a theme where you specifically want the
+taxonomy to reflect how the market or the companies themselves currently
+talk about it, which can drift from any official definition; empirical
+extraction is the fallback for a genuinely novel theme with no existing
+reference to anchor to at all.
 
 ## What's deliberately out of scope
 

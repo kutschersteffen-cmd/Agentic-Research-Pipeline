@@ -81,7 +81,12 @@ arp theme classify-sectors --theme theme.json --out theme.json --use-sample-icio
 arp theme run --theme theme.json --universe companies.csv --use-sample-icio
 
 # The taxonomy library -- a reusable, versioned theme instead of a one-off file
-arp taxonomy create "Electrification" --description "..." --use-sample-icio
+arp taxonomy discover-sources "Electrification"          # research candidate authority sources & thematic ETFs
+arp taxonomy create "Electrification" --description "..." --method industry_anchored --use-sample-icio
+arp taxonomy create "Electrification" --method authority_source --authority-url https://...  # from discover-sources
+arp taxonomy create "Electrification" --method empirical --universe companies.csv
+arp taxonomy create "Electrification" --method news_transcript_mining --universe companies.csv
+arp taxonomy create "Electrification" --method etf_index_holdings --holdings holdings.csv     # a fund's downloaded export
 arp taxonomy list
 arp taxonomy ratify tax_xxxxxxxxxxxx --by "jane.analyst"
 arp theme run --taxonomy tax_xxxxxxxxxxxx --universe companies.csv

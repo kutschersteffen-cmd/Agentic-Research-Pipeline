@@ -11,8 +11,11 @@ from arp.schemas.thematic import ThemeDefinition
 class DerivationMethod(StrEnum):
     LLM_DRAFT = "llm_draft"  # LLM brainstorm from the theme name/description alone
     INDUSTRY_ANCHORED = "industry_anchored"  # LLM draft grounded against a real industry classification list
+    AUTHORITY_SOURCE = "authority_source"  # grounded against a user-selected authoritative document (IEA, EU taxonomy, a standards body, ...)
+    ETF_INDEX_HOLDINGS = "etf_index_holdings"  # synthesized bottom-up from an existing thematic ETF/index's holdings
+    NEWS_TRANSCRIPT_MINING = "news_transcript_mining"  # synthesized bottom-up from news search + earnings-call transcript mining
+    EMPIRICAL = "empirical"  # synthesized bottom-up from the Extraction Engine's readings of a sample company universe
     MANUAL = "manual"  # hand-authored, no LLM involvement
-    EMPIRICAL = "empirical"  # derived bottom-up by clustering real company disclosures
 
 
 class TaxonomyStatus(StrEnum):
