@@ -15,23 +15,27 @@ from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.factory import build_llm_client
-from arp.research.activity_generator import build_theme
+from arp.research.activity_generator import build_theme, build_theme_industry_anchored
 from arp.research.indirect_exposure.core_sectors import classify_theme_core_sectors
 from arp.research.indirect_exposure.factory import build_leontief_model
 from arp.research.pipeline import run_thematic_universe
 from arp.schemas.common import DocType
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.discovery import DiscoveryScheduleConfig
+from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.run_store import RunStore
+from arp.storage.taxonomy_store import TaxonomyStore
 from arp.universe import load_company_universe
 
 app = typer.Typer(help="Agentic Research Pipeline CLI -- the headless path for 1000s-of-companies batch runs.")
 theme_app = typer.Typer(help="Thematic investment universe screening.")
+taxonomy_app = typer.Typer(help="The reusable, versioned taxonomy library.")
 extract_app = typer.Typer(help="Schema-driven data-point extraction.")
 discover_app = typer.Typer(help="Document discovery: find and download company disclosures.")
 runs_app = typer.Typer(help="Inspect and export runs.")
 app.add_typer(theme_app, name="theme")
+app.add_typer(taxonomy_app, name="taxonomy")
 app.add_typer(extract_app, name="extract")
 app.add_typer(discover_app, name="discover")
 app.add_typer(runs_app, name="runs")
@@ -46,6 +50,10 @@ def _registry() -> DocumentSourceRegistry:
 
 def _run_store() -> RunStore:
     return RunStore(get_settings().runs_dir)
+
+
+def _taxonomy_store() -> TaxonomyStore:
+    return TaxonomyStore(get_settings().taxonomies_dir)
 
 
 @theme_app.command("decompose")
@@ -88,7 +96,11 @@ def theme_classify_sectors(
 
 @theme_app.command("run")
 def theme_run(
-    theme_file: Path = typer.Option(..., "--theme", help="ThemeDefinition JSON (from `theme decompose` or hand-written)."),
+    theme_file: Path = typer.Option(
+        None, "--theme", help="ThemeDefinition JSON (from `theme decompose` or hand-written)."
+    ),
+    taxonomy_id: str = typer.Option(None, "--taxonomy", help="Load a saved taxonomy instead of --theme."),
+    taxonomy_version: int = typer.Option(None, "--taxonomy-version", help="Defaults to the latest version."),
     universe: Path = typer.Option(..., help="Company universe CSV or JSON."),
     use_sample_icio: bool = typer.Option(
         False,
@@ -98,7 +110,18 @@ def theme_run(
 ) -> None:
     settings = get_settings()
     llm = build_llm_client(settings)
-    theme = ThemeDefinition.model_validate_json(theme_file.read_text())
+    if theme_file is not None:
+        theme = ThemeDefinition.model_validate_json(theme_file.read_text())
+    elif taxonomy_id is not None:
+        taxonomy = _taxonomy_store().get(taxonomy_id, taxonomy_version)
+        if taxonomy is None:
+            typer.echo(f"Taxonomy not found: {taxonomy_id}", err=True)
+            raise typer.Exit(1)
+        theme = taxonomy.theme
+        typer.echo(f"Using taxonomy {taxonomy.taxonomy_id} v{taxonomy.version} ({taxonomy.status.value}).")
+    else:
+        typer.echo("Provide either --theme or --taxonomy.", err=True)
+        raise typer.Exit(1)
     companies = load_company_universe(universe)
     indirect_model = build_leontief_model(settings, use_sample=use_sample_icio)
     if indirect_model is not None:
@@ -116,6 +139,84 @@ def theme_run(
         )
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
+
+
+@taxonomy_app.command("create")
+def taxonomy_create(
+    name: str,
+    description: str = "",
+    use_sample_icio: bool = typer.Option(
+        False, help="Anchor the draft against the bundled illustrative ISIC reference list."
+    ),
+) -> None:
+    """Drafts and saves a new taxonomy (v1) -- a reusable, versioned
+    artifact, unlike `theme decompose`'s throwaway JSON file."""
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    if use_sample_icio:
+        model = build_leontief_model(settings, use_sample=True)
+        assert model is not None
+        theme, _usage = asyncio.run(build_theme_industry_anchored(name, description, model.industry_reference_list(), llm))
+        method = DerivationMethod.INDUSTRY_ANCHORED
+        notes = f"Anchored against {model.edition_label} ({len(model.codes)} industries)."
+    else:
+        theme, _usage = asyncio.run(build_theme(name, description, llm))
+        method = DerivationMethod.LLM_DRAFT
+        notes = "Freeform LLM draft, no industry anchor."
+    taxonomy = _taxonomy_store().create(name, theme, method, notes)
+    typer.echo(f"Created taxonomy {taxonomy.taxonomy_id} v{taxonomy.version} with {len(theme.activities)} activities.")
+
+
+@taxonomy_app.command("list")
+def taxonomy_list() -> None:
+    for t in _taxonomy_store().list_all():
+        typer.echo(f"{t.taxonomy_id}\tv{t.version}\t{t.status.value}\t{t.derivation_method.value}\t{t.name}")
+
+
+@taxonomy_app.command("show")
+def taxonomy_show(taxonomy_id: str, version: int = typer.Option(None)) -> None:
+    taxonomy = _taxonomy_store().get(taxonomy_id, version)
+    if taxonomy is None:
+        typer.echo("Not found", err=True)
+        raise typer.Exit(1)
+    typer.echo(json.dumps(taxonomy.model_dump(mode="json"), indent=2))
+
+
+@taxonomy_app.command("new-version")
+def taxonomy_new_version(
+    taxonomy_id: str,
+    theme_file: Path = typer.Option(..., "--theme", help="Edited ThemeDefinition JSON."),
+    notes: str = typer.Option("Manual edit.", "--notes"),
+) -> None:
+    theme = ThemeDefinition.model_validate_json(theme_file.read_text())
+    try:
+        taxonomy = _taxonomy_store().new_version(taxonomy_id, theme, DerivationMethod.MANUAL, notes)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"Created {taxonomy.taxonomy_id} v{taxonomy.version}")
+
+
+@taxonomy_app.command("ratify")
+def taxonomy_ratify(
+    taxonomy_id: str,
+    by: str = typer.Option(..., help="Name/identifier of the person ratifying this version."),
+    version: int = typer.Option(None, help="Defaults to the latest version."),
+) -> None:
+    store = _taxonomy_store()
+    resolved_version = version
+    if resolved_version is None:
+        current = store.get(taxonomy_id)
+        if current is None:
+            typer.echo(f"Taxonomy not found: {taxonomy_id}", err=True)
+            raise typer.Exit(1)
+        resolved_version = current.version
+    try:
+        store.ratify(taxonomy_id, resolved_version, by)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"Ratified {taxonomy_id} v{resolved_version} by {by}")
 
 
 @extract_app.command("draft-schema")

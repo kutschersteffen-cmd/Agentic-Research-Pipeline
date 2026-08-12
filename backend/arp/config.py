@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     # Paths (all file-based storage lives under these)
     runs_dir: Path = Field(default=REPO_ROOT / "runs")
+    taxonomies_dir: Path = Field(default=REPO_ROOT / "taxonomies")
     documents_dir: Path = Field(default=REPO_ROOT / "data" / "documents")
     cache_dir: Path = Field(default=REPO_ROOT / "backend" / ".cache")
     discovery_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".discovery_state")
@@ -63,7 +64,7 @@ class Settings(BaseSettings):
     discovery_schedule_universe_path: Path | None = Field(default=None)
 
     def ensure_dirs(self) -> None:
-        for d in (self.runs_dir, self.documents_dir, self.cache_dir, self.discovery_state_dir):
+        for d in (self.runs_dir, self.taxonomies_dir, self.documents_dir, self.cache_dir, self.discovery_state_dir):
             d.mkdir(parents=True, exist_ok=True)
 
 

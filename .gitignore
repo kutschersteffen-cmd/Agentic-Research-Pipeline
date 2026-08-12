@@ -23,6 +23,8 @@ frontend/.vite/
 # Runtime data (file-based storage) - keep folder structure, not contents
 runs/*
 !runs/.gitkeep
+taxonomies/*
+!taxonomies/.gitkeep
 data/documents/*
 !data/documents/.gitkeep
 backend/.cache/

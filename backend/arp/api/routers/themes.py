@@ -5,7 +5,7 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from arp.api.deps import get_llm_client, get_registry, get_run_store, settings_dep
+from arp.api.deps import get_llm_client, get_registry, get_run_store, get_taxonomy_store, settings_dep
 from arp.config import Settings
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.review_queue import latest_decisions, record_review_decision
@@ -15,6 +15,7 @@ from arp.research.pipeline import create_theme_run, execute_theme_run
 from arp.schemas.common import CompanyRef
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.run_store import RunStore
+from arp.storage.taxonomy_store import TaxonomyStore
 from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/themes", tags=["themes"])
@@ -35,7 +36,9 @@ async def decompose_theme(req: DecomposeRequest) -> ThemeDefinition:
 
 
 class RunRequest(BaseModel):
-    theme: ThemeDefinition
+    theme: ThemeDefinition | None = None
+    taxonomy_id: str | None = Field(default=None, description="Load a saved taxonomy instead of an inline theme.")
+    taxonomy_version: int | None = Field(default=None, description="Defaults to the taxonomy's latest version.")
     companies: list[CompanyRef] | None = None
     universe_path: str | None = None
     use_sample_icio: bool = Field(
@@ -53,19 +56,30 @@ async def start_theme_run(
     settings: Settings = Depends(settings_dep),
     run_store: RunStore = Depends(get_run_store),
     registry: DocumentSourceRegistry = Depends(get_registry),
+    taxonomy_store: TaxonomyStore = Depends(get_taxonomy_store),
 ) -> dict:
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 
-    run_id = create_theme_run(req.theme, companies, settings, run_store)
+    if req.theme is not None:
+        theme = req.theme
+    elif req.taxonomy_id is not None:
+        taxonomy = taxonomy_store.get(req.taxonomy_id, req.taxonomy_version)
+        if taxonomy is None:
+            raise HTTPException(404, f"Taxonomy not found: {req.taxonomy_id}")
+        theme = taxonomy.theme
+    else:
+        raise HTTPException(400, "Provide either `theme` or `taxonomy_id`.")
+
+    run_id = create_theme_run(theme, companies, settings, run_store)
     llm = get_llm_client()  # raises a clear 4xx-worthy error before we schedule anything if unconfigured
     indirect_model = build_leontief_model(settings, use_sample=req.use_sample_icio)
 
     async def _background() -> None:
         await execute_theme_run(
             run_id,
-            req.theme,
+            theme,
             companies,
             llm=llm,
             registry=registry,

@@ -80,6 +80,12 @@ arp theme run --theme theme.json --universe companies.csv
 arp theme classify-sectors --theme theme.json --out theme.json --use-sample-icio
 arp theme run --theme theme.json --universe companies.csv --use-sample-icio
 
+# The taxonomy library -- a reusable, versioned theme instead of a one-off file
+arp taxonomy create "Electrification" --description "..." --use-sample-icio
+arp taxonomy list
+arp taxonomy ratify tax_xxxxxxxxxxxx --by "jane.analyst"
+arp theme run --taxonomy tax_xxxxxxxxxxxx --universe companies.csv
+
 # Data-point extraction
 arp extract draft-schema "green capex" --out schema.json
 arp extract run --schema schema.json --universe companies.csv
@@ -143,5 +149,8 @@ around the input-output math.
 - Disk-backed LLM response cache (idempotent, free reruns during dev)
 - Opt-in indirect (input-output) exposure tier for companies with no direct
   textual evidence but real structural supply-chain linkage
+- Versioned taxonomy library with an explicit ratification step, so a
+  theme's activity boundaries are a recorded, auditable decision rather
+  than an implicit assumption baked into a one-off run
 
 Full detail in [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md).

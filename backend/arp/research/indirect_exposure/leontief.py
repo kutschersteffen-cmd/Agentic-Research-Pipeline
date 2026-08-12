@@ -46,6 +46,14 @@ class LeontiefModel:
         except ValueError:
             return None
 
+    def industry_reference_list(self) -> list[tuple[str, str]]:
+        """(code, label) pairs in this model's order -- the reference list
+        for industry-anchored taxonomy drafting (see
+        arp/research/activity_generator.py) and for the core-sector /
+        company-industry classification prompts.
+        """
+        return [(code, self.labels.get(code, "")) for code in self.codes]
+
 
 def build_model(icio: ICIOData, edition_label: str) -> LeontiefModel:
     a = compute_technical_coefficients(icio)

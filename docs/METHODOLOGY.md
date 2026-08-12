@@ -163,6 +163,53 @@ code the model doesn't actually contain rather than silently coercing it,
 since a wrong industry code would corrupt every exposure number computed
 from it.
 
+## The taxonomy library: defining and deriving activities
+
+A `ThemeDefinition` produced by `arp theme decompose` is, by itself, a
+one-off run parameter: drafted, maybe edited, used once, then whatever the
+user does with the JSON file. That's fine for exploration but wrong for a
+theme worth reusing, auditing, or improving over multiple research cycles
+— which is most of them in practice. `arp/schemas/taxonomy.py` and
+`arp/storage/taxonomy_store.py` promote the definition to a **named,
+versioned artifact** (`Taxonomy`, wrapping a `ThemeDefinition`) with:
+
+- a stable `taxonomy_id` across edits, so "the electrification taxonomy"
+  is one thing with a history, not a series of unrelated JSON files;
+- `derivation_method` and `source_notes` recorded on every version, so how
+  the boundary was drawn is answerable later, not just what the boundary
+  currently is;
+- an explicit **ratification** step (`status`, `ratified_by`,
+  `ratified_at`) — the recorded-fact version of the domain-expert sign-off
+  MSCI describes doing with GARI for their adaptation taxonomy, rather
+  than an implicit assumption that whoever last edited the file knew what
+  they were doing.
+
+**Two derivation methods today**, chosen per `arp taxonomy create`:
+
+1. **`llm_draft`** — the freeform decomposition `activity_generator.py`
+   always did: theme name and description in, MECE activities out. Fast,
+   flexible, but the boundary the model draws is only as good as its own
+   background knowledge of the theme.
+2. **`industry_anchored`** — the same drafting call, but grounded against
+   a real, closed industry reference list (today: the ISIC codes from a
+   loaded input-output model) instead of letting the model invent
+   categories freely. It's instructed to populate `core_isic_codes`
+   directly where a clean match exists and leave it empty otherwise —
+   never force-fit the closest-sounding code — which means a taxonomy
+   drafted this way is immediately usable by the indirect-exposure tier
+   with no separate `classify-sectors` pass required.
+
+A version created by hand (`arp taxonomy new-version --theme edited.json`)
+is recorded as `manual`. A **bottom-up / empirical** method — clustering
+real segment and product descriptions pulled via the Extraction Engine
+from a sample of the universe, letting the activity categories emerge from
+what companies actually say rather than an a-priori list — is defined in
+the schema (`DerivationMethod.EMPIRICAL`) as a placeholder for future work
+but not implemented yet. As a rule of thumb across all four: an industry
+classification or published literature scaffolds a well-understood theme
+fastest; empirical clustering is worth its extra cost specifically for a
+genuinely novel theme with no existing reference to anchor to.
+
 ## What's deliberately out of scope
 
 This system does not invent a company universe — the user supplies it

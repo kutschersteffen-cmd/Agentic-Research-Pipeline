@@ -10,6 +10,7 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient
 from arp.llm.factory import build_llm_client
 from arp.storage.run_store import RunStore
+from arp.storage.taxonomy_store import TaxonomyStore
 
 
 def settings_dep() -> Settings:
@@ -19,6 +20,11 @@ def settings_dep() -> Settings:
 @lru_cache
 def get_run_store() -> RunStore:
     return RunStore(get_settings().runs_dir)
+
+
+@lru_cache
+def get_taxonomy_store() -> TaxonomyStore:
+    return TaxonomyStore(get_settings().taxonomies_dir)
 
 
 @lru_cache
