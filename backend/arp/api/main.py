@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from arp.api.deps import get_scheduler, settings_dep
-from arp.api.routers import discovery, documents, extraction, overlap, runs, taxonomies, themes, universe
+from arp.api.routers import discovery, documents, extraction, overlap, revenue_catalogue, runs, taxonomies, themes, universe
 
 logging.basicConfig(level=logging.INFO)
 
@@ -42,6 +42,7 @@ app.include_router(runs.router)
 app.include_router(universe.router)
 app.include_router(taxonomies.router)
 app.include_router(overlap.router)
+app.include_router(revenue_catalogue.router)
 
 
 @app.exception_handler(RuntimeError)

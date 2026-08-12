@@ -16,6 +16,7 @@ from arp.research.indirect_exposure.company_mapper import resolve_company_isic
 from arp.research.indirect_exposure.exposure import compute_indirect_exposure
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.matcher_agents import run_adjudicator, run_advocate, run_opposing
+from arp.research.revenue_exposure.resolver import RevenueResolverContext, band_exposure, resolve_company_activity_exposure
 from arp.schemas.common import CompanyRef
 from arp.schemas.thematic import AgentOpinion, CompanyMatch, ExposureEstimate, MatchVerdict, ThemeDefinition
 from arp.storage.run_store import RunStore
@@ -48,6 +49,7 @@ async def _match_company(
     llm: LLMClient,
     settings: Settings,
     indirect_model: LeontiefModel | None = None,
+    revenue_resolver: RevenueResolverContext | None = None,
 ) -> CompanyMatchesResult:
     documents = await registry.fetch_all(company)
     documents_by_id = {d.doc_id: d for d in documents}
@@ -55,10 +57,14 @@ async def _match_company(
     matches: list[CompanyMatch] = []
 
     # Resolved once per company (not per activity) since it's the same
-    # answer regardless of which activity is being screened.
+    # answer regardless of which activity is being screened. Reused for
+    # both the indirect-exposure tier and the revenue-exposure resolver's
+    # sector-relevance gate, so enabling one doesn't force a second,
+    # redundant classification call if the other later gets enabled too.
     company_isic: str | None = None
-    if indirect_model is not None:
-        company_isic, u_isic = await resolve_company_isic(company, indirect_model, llm)
+    isic_model = indirect_model or (revenue_resolver.isic_model if revenue_resolver else None)
+    if isic_model is not None:
+        company_isic, u_isic = await resolve_company_isic(company, isic_model, llm)
         usages.append(u_isic)
 
     for activity in theme.activities:
@@ -67,6 +73,48 @@ async def _match_company(
             indirect = compute_indirect_exposure(
                 company.company_id, company_isic, indirect_model, set(activity.core_isic_codes), indirect_model.edition_label
             )
+
+        if revenue_resolver is not None:
+            revenue_exposure, u_rev = await resolve_company_activity_exposure(
+                company, activity, company_isic, documents=documents, ctx=revenue_resolver, llm=llm
+            )
+            usages.append(u_rev)
+
+            if revenue_exposure.revenue.value_pct is not None:
+                # Path 1 (catalogue) or path 2 (extraction) resolved a hard
+                # number -- the qualitative debate (path 3) is skipped
+                # entirely for this pair, both for cost and because a real
+                # disclosed/extracted figure shouldn't be second-guessed by
+                # a categorical LLM judgment over the same question.
+                revenue = revenue_exposure.revenue
+                banded = band_exposure(revenue.value_pct, settings)
+                verdict = MatchVerdict.EXCLUDE if banded == ExposureEstimate.NONE else MatchVerdict.INCLUDE
+                source_desc = "structured revenue catalogue" if revenue.source == "catalogue" else "an extracted, grounded disclosure figure"
+                rationale = f"Resolved via {source_desc}: {revenue.value_pct:.1%} of revenue attributed to this activity. {revenue.notes}".strip()
+                citations = [revenue.citation] if revenue.citation else []
+                ungrounded = revenue.citation is not None and not revenue.citation.grounded
+                flagged = revenue.source == "extracted" and (revenue.confidence < settings.confidence_review_threshold or ungrounded)
+
+                matches.append(
+                    CompanyMatch(
+                        company_id=company.company_id,
+                        ticker=company.ticker,
+                        name=company.name,
+                        activity_id=activity.activity_id,
+                        activity_name=activity.name,
+                        verdict=verdict,
+                        exposure_estimate=banded,
+                        confidence=revenue.confidence,
+                        adjudicator_rationale=rationale,
+                        citations=citations,
+                        indirect_exposure=indirect,
+                        revenue_exposure=revenue_exposure,
+                        flagged_for_review=flagged,
+                    )
+                )
+                continue
+        else:
+            revenue_exposure = None
 
         all_chunks = []
         for doc in documents:
@@ -100,6 +148,7 @@ async def _match_company(
                     adjudicator_rationale=rationale,
                     citations=[],
                     indirect_exposure=indirect,
+                    revenue_exposure=revenue_exposure,
                     flagged_for_review=structural_flag,
                 )
             )
@@ -137,6 +186,7 @@ async def _match_company(
                 adjudicator_rationale=adjudication.adjudicator_rationale,
                 citations=grounded_citations,
                 indirect_exposure=indirect,
+                revenue_exposure=revenue_exposure,
                 flagged_for_review=flagged,
             )
         )
@@ -170,6 +220,7 @@ async def execute_theme_run(
     settings: Settings,
     run_store: RunStore,
     indirect_model: LeontiefModel | None = None,
+    revenue_resolver: RevenueResolverContext | None = None,
 ) -> str:
     """Orchestrates the Advocate/Opposing/Adjudicator pipeline across the
     whole company universe for every activity in the theme, with
@@ -179,6 +230,12 @@ async def execute_theme_run(
     `indirect_model`, if supplied, additionally computes an input-output
     structural exposure score per (company, activity) -- see
     arp/research/indirect_exposure/. Off by default.
+
+    `revenue_resolver`, if supplied, resolves each (company, activity)
+    pair's exposure via structured revenue/capex data first (catalogue,
+    then extraction from disclosures), falling back to the qualitative
+    debate only where both miss -- see arp/research/revenue_exposure/.
+    Off by default; existing behavior is unchanged when None.
     """
     job_manager = JobManager(run_store)
 
@@ -208,7 +265,7 @@ async def execute_theme_run(
         companies,
         item_key=lambda c: c.company_id,
         worker=lambda c: _match_company(
-            c, theme, registry=registry, llm=llm, settings=settings, indirect_model=indirect_model
+            c, theme, registry=registry, llm=llm, settings=settings, indirect_model=indirect_model, revenue_resolver=revenue_resolver
         ),
         results_path=run_store.results_path(run_id),
         errors_path=run_store.errors_path(run_id),
@@ -231,6 +288,7 @@ async def run_thematic_universe(
     settings: Settings,
     run_store: RunStore,
     indirect_model: LeontiefModel | None = None,
+    revenue_resolver: RevenueResolverContext | None = None,
 ) -> str:
     """Convenience wrapper (create + execute in one call) for synchronous
     callers such as the CLI, where blocking until completion is expected."""
@@ -244,4 +302,5 @@ async def run_thematic_universe(
         settings=settings,
         run_store=run_store,
         indirect_model=indirect_model,
+        revenue_resolver=revenue_resolver,
     )

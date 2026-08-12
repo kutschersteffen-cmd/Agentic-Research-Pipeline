@@ -3,7 +3,7 @@ import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import { ConfidenceBadge, VerdictBadge, GroundedBadge } from "../components/ConfidenceBadge";
-import type { ActivityDefinition, CompanyMatch, Taxonomy, ThemeDefinition } from "../types";
+import type { ActivityCatalogueMapping, ActivityDefinition, CompanyMatch, Taxonomy, ThemeDefinition } from "../types";
 
 export function ThemeBuilder() {
   const [name, setName] = useState("Electrification");
@@ -22,6 +22,10 @@ export function ThemeBuilder() {
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [selectedTaxonomyId, setSelectedTaxonomyId] = useState("");
   const [loadedTaxonomy, setLoadedTaxonomy] = useState<Taxonomy | null>(null);
+  const [cataloguePath, setCataloguePath] = useState<string | null>(null);
+  const [catalogueStatus, setCatalogueStatus] = useState("");
+  const [catalogueMappings, setCatalogueMappings] = useState<ActivityCatalogueMapping[]>([]);
+  const [mappingBusy, setMappingBusy] = useState(false);
 
   useEffect(() => {
     api.listTaxonomies().then((res) => setTaxonomies((res as { taxonomies: Taxonomy[] }).taxonomies)).catch(() => {});
@@ -66,7 +70,14 @@ export function ThemeBuilder() {
     setBusy(true);
     setError(null);
     try {
-      const res = await api.startThemeRun({ theme, universe_path: universePath, use_sample_icio: useSampleIcio });
+      const res = await api.startThemeRun({
+        theme,
+        universe_path: universePath,
+        use_sample_icio: useSampleIcio,
+        ...(cataloguePath && catalogueMappings.length > 0
+          ? { revenue_catalogue_path: cataloguePath, catalogue_mapping: catalogueMappings }
+          : {}),
+      });
       setRunId(res.run_id);
       setResults([]);
     } catch (err) {
@@ -74,6 +85,48 @@ export function ThemeBuilder() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function uploadCatalogue(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCatalogueStatus("Uploading...");
+    try {
+      const res = await api.rawUpload(file);
+      setCataloguePath(res.path);
+      setCatalogueStatus(`Ready: ${file.name}`);
+      setCatalogueMappings([]);
+    } catch (err) {
+      setCatalogueStatus(`Upload failed: ${(err as Error).message}`);
+    }
+  }
+
+  async function suggestMapping() {
+    if (!cataloguePath || !loadedTaxonomy) return;
+    setMappingBusy(true);
+    setError(null);
+    try {
+      const res = (await api.suggestCatalogueMapping({
+        taxonomy_id: loadedTaxonomy.taxonomy_id,
+        taxonomy_version: loadedTaxonomy.version,
+        catalogue_path: cataloguePath,
+      })) as { mappings: ActivityCatalogueMapping[] };
+      setCatalogueMappings(res.mappings);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setMappingBusy(false);
+    }
+  }
+
+  function updateMappingLabels(idx: number, labelsText: string) {
+    setCatalogueMappings((prev) =>
+      prev.map((m, i) => (i === idx ? { ...m, matched_labels: labelsText.split(",").map((s) => s.trim()).filter(Boolean) } : m))
+    );
+  }
+
+  function activityName(activityId: string): string {
+    return theme?.activities.find((a) => a.activity_id === activityId)?.name ?? activityId;
   }
 
   async function refreshResults() {
@@ -175,6 +228,46 @@ export function ThemeBuilder() {
             illustrative only; for a real run, configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH on the
             backend instead and leave this off.
           </p>
+
+          <p className="help-text" style={{ marginTop: 16 }}>
+            Optional: a structured revenue/CapEx catalogue -- resolves exposure from hard disclosed numbers
+            (catalogue match, then extraction from disclosures) before falling back to the qualitative debate above.
+          </p>
+          <input type="file" accept=".csv" onChange={uploadCatalogue} />
+          {catalogueStatus && <p className="status-text">{catalogueStatus}</p>}
+          {cataloguePath && !loadedTaxonomy && (
+            <p className="help-text">Load a saved taxonomy above first -- mapping suggestion needs a taxonomy_id to reference.</p>
+          )}
+          {cataloguePath && loadedTaxonomy && (
+            <button onClick={suggestMapping} disabled={mappingBusy}>
+              Suggest activity -&gt; catalogue-label mapping
+            </button>
+          )}
+          {catalogueMappings.length > 0 && (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Activity</th>
+                  <th>Metric</th>
+                  <th>Matched labels</th>
+                  <th>Rationale</th>
+                </tr>
+              </thead>
+              <tbody>
+                {catalogueMappings.map((m, idx) => (
+                  <tr key={`${m.activity_id}-${m.metric}`}>
+                    <td>{activityName(m.activity_id)}</td>
+                    <td>{m.metric}</td>
+                    <td>
+                      <input value={m.matched_labels.join(", ")} onChange={(e) => updateMappingLabels(idx, e.target.value)} />
+                    </td>
+                    <td className="muted">{m.rationale}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
           <button onClick={startRun} disabled={busy || !universePath}>
             Run screen against {companyCount || "..."} companies
           </button>
@@ -202,6 +295,7 @@ export function ThemeBuilder() {
                   <th>Verdict</th>
                   <th>Exposure</th>
                   <th>Confidence</th>
+                  <th>Source</th>
                   <th>Structural</th>
                   <th>Review</th>
                 </tr>
@@ -210,6 +304,7 @@ export function ThemeBuilder() {
                 {results.map((m) => {
                   const key = `${m.company_id}:${m.activity_id}`;
                   const io = m.indirect_exposure;
+                  const revenue = m.revenue_exposure?.revenue;
                   return (
                     <Fragment key={key}>
                       <tr onClick={() => setExpanded(expanded === key ? null : key)} className="clickable-row">
@@ -218,6 +313,15 @@ export function ThemeBuilder() {
                         <td><VerdictBadge verdict={m.verdict} /></td>
                         <td>{m.exposure_estimate}</td>
                         <td><ConfidenceBadge value={m.confidence} /></td>
+                        <td>
+                          {revenue && revenue.value_pct != null ? (
+                            <span className={revenue.source === "catalogue" ? "badge badge-high" : "badge badge-mid"}>
+                              {revenue.source} ({(revenue.value_pct * 100).toFixed(1)}%)
+                            </span>
+                          ) : (
+                            <span className="muted">qualitative</span>
+                          )}
+                        </td>
                         <td>
                           {io ? (
                             <span className="muted">
@@ -231,7 +335,7 @@ export function ThemeBuilder() {
                       </tr>
                       {expanded === key && (
                         <tr>
-                          <td colSpan={7} className="detail-cell">
+                          <td colSpan={8} className="detail-cell">
                             <p><strong>Rationale:</strong> {m.adjudicator_rationale}</p>
                             <p><strong>Citations:</strong></p>
                             <ul>
@@ -241,6 +345,26 @@ export function ThemeBuilder() {
                                 </li>
                               ))}
                             </ul>
+                            {m.revenue_exposure && (
+                              <>
+                                <p><strong>Revenue/CapEx exposure:</strong></p>
+                                <ul>
+                                  <li>
+                                    Revenue: {m.revenue_exposure.revenue.value_pct != null ? `${(m.revenue_exposure.revenue.value_pct * 100).toFixed(1)}%` : "unresolved"}
+                                    {" "}({m.revenue_exposure.revenue.source})
+                                    {m.revenue_exposure.revenue.matched_catalogue_labels.length > 0 &&
+                                      ` -- ${m.revenue_exposure.revenue.matched_catalogue_labels.join(", ")}`}
+                                  </li>
+                                  <li>
+                                    CapEx: {m.revenue_exposure.capex.value_pct != null ? `${(m.revenue_exposure.capex.value_pct * 100).toFixed(1)}%` : "unresolved"}
+                                    {" "}({m.revenue_exposure.capex.source})
+                                    {m.revenue_exposure.capex.matched_catalogue_labels.length > 0 &&
+                                      ` -- ${m.revenue_exposure.capex.matched_catalogue_labels.join(", ")}`}
+                                  </li>
+                                  <li className="muted">Sector-relevant to this company: {m.revenue_exposure.sector_relevant ? "yes" : "no"}</li>
+                                </ul>
+                              </>
+                            )}
                             {io && (
                               <>
                                 <p>

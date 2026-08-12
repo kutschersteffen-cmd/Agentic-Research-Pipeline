@@ -65,6 +65,12 @@ class Settings(BaseSettings):
     sic_crosswalk_path: Path | None = Field(default=None, description="ISIC Rev.4 -> SIC correspondence CSV.")
     gics_reference_path: Path | None = Field(default=None, description="GICS code/label/level reference CSV (requires a GICS license for the full structure).")
 
+    # Revenue/CapEx exposure resolution (catalogue -> extraction -> qualitative
+    # debate cascade). Thresholds mirror MSCI's published revenue-share bands.
+    revenue_exposure_pure_play_threshold: float = Field(default=0.5)
+    revenue_exposure_significant_threshold: float = Field(default=0.2)
+    revenue_exposure_minor_threshold: float = Field(default=0.05)
+
     # Web discovery
     discovery_user_agent: str = Field(default="ARP-DiscoveryBot/0.1 (+research use; respects robots.txt)")
     discovery_webhook_url: str | None = Field(default=None)

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from arp.schemas.common import Citation, now_iso, new_id
 from arp.schemas.exposure import IndirectExposureResult
+from arp.schemas.revenue_exposure import RevenueExposureResult
 from arp.schemas.standards import ActivityStandardsMapping
 
 
@@ -85,8 +86,10 @@ class CompanyMatch(BaseModel):
     verdict: MatchVerdict
     exposure_estimate: ExposureEstimate
     confidence: float = Field(ge=0.0, le=1.0)
-    advocate: AgentOpinion
-    opposing: AgentOpinion
+    advocate: AgentOpinion | None = Field(
+        default=None, description="None when a hard revenue number (catalogue or extracted) resolved the match and the debate was skipped."
+    )
+    opposing: AgentOpinion | None = None
     adjudicator_rationale: str
     citations: list[Citation] = Field(default_factory=list, description="Adjudicator's final, grounding-checked citation set.")
     indirect_exposure: IndirectExposureResult | None = Field(
@@ -94,6 +97,13 @@ class CompanyMatch(BaseModel):
         description=(
             "Structural supply-chain exposure via input-output propagation, kept separate from exposure_estimate "
             "since it is a purely quantitative signal, not part of the Advocate/Opposing/Adjudicator judgment."
+        ),
+    )
+    revenue_exposure: RevenueExposureResult | None = Field(
+        default=None,
+        description=(
+            "Revenue/capex-based exposure resolved via the catalogue -> extraction -> qualitative-debate cascade "
+            "(arp/research/revenue_exposure/). None when no revenue catalogue/mapping was supplied for this run."
         ),
     )
     flagged_for_review: bool = False

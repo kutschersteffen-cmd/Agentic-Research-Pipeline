@@ -112,13 +112,42 @@ export interface CompanyMatch {
   verdict: "include" | "exclude" | "uncertain";
   exposure_estimate: "pure_play" | "significant" | "minor" | "none";
   confidence: number;
-  advocate: AgentOpinion;
-  opposing: AgentOpinion;
+  advocate?: AgentOpinion | null;
+  opposing?: AgentOpinion | null;
   adjudicator_rationale: string;
   citations: Citation[];
   indirect_exposure?: IndirectExposureResult | null;
+  revenue_exposure?: RevenueExposureResult | null;
   flagged_for_review: boolean;
   generated_at: string;
+}
+
+// --- Revenue/CapEx exposure resolution ---
+
+export type RevenueCapexMetric = "revenue" | "capex";
+export type ExposureDataSource = "catalogue" | "extracted" | "qualitative" | "unresolved";
+
+export interface ActivityCatalogueMapping {
+  activity_id: string;
+  metric: RevenueCapexMetric;
+  matched_labels: string[];
+  rationale: string;
+}
+
+export interface MetricExposure {
+  value_pct?: number | null;
+  source: ExposureDataSource;
+  confidence: number;
+  matched_catalogue_labels: string[];
+  citation?: Citation | null;
+  notes: string;
+}
+
+export interface RevenueExposureResult {
+  activity_id: string;
+  revenue: MetricExposure;
+  capex: MetricExposure;
+  sector_relevant: boolean;
 }
 
 // --- Data-point extraction ---

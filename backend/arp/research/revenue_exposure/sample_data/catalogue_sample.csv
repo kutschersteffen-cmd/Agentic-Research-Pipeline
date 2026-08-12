@@ -1,0 +1,10 @@
+data_point_id,company_id,metric,label,description,value,unit,period,as_pct_of_total
+dp_001,ACME,revenue,Total Revenue,Company total reported revenue,10000000000,USD,FY2025,
+dp_002,ACME,revenue,EV Battery Systems,Revenue from electric vehicle battery pack sales,2500000000,USD,FY2025,
+dp_003,ACME,revenue,Legacy Combustion Parts,Revenue from internal-combustion engine components,4000000000,USD,FY2025,
+dp_004,ACME,capex,Total CapEx,Company total reported capital expenditure,1200000000,USD,FY2025,
+dp_005,ACME,capex,EV Manufacturing Capacity,Capital expenditure on battery/EV assembly line expansion,600000000,USD,FY2025,
+dp_006,GLOBALGRID,revenue,Grid Modernization Services,Revenue share from smart grid and transmission upgrade contracts,,USD,FY2025,0.34
+dp_007,GLOBALGRID,revenue,Legacy Fossil Generation,Revenue share from conventional fossil-fuel generation,,USD,FY2025,0.41
+dp_008,SUNCELL,revenue,Total Revenue,Company total reported revenue,800000000,USD,FY2025,
+dp_009,SUNCELL,revenue,Solar Module Manufacturing,Revenue from photovoltaic module and cell production,760000000,USD,FY2025,

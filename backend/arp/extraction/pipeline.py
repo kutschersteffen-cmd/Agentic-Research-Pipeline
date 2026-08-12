@@ -14,7 +14,7 @@ from arp.orchestration.batch_runner import run_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
-from arp.schemas.common import CompanyRef
+from arp.schemas.common import CompanyRef, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, ExtractionRecord
 from arp.storage.run_store import RunStore
 
@@ -34,8 +34,14 @@ async def _extract_company(
     registry: DocumentSourceRegistry,
     llm: LLMClient,
     settings: Settings,
+    documents: list[SourceDocument] | None = None,
 ) -> ExtractionRecordResult:
-    documents = await registry.fetch_all(company)
+    """`documents`, when supplied, skips the registry fetch -- for callers
+    (like the revenue-exposure resolver) that already fetched a company's
+    documents once and are running several ad hoc single-field schemas
+    against the same company, so a fresh fetch per field isn't repeated."""
+    if documents is None:
+        documents = await registry.fetch_all(company)
     documents_by_id = {d.doc_id: d for d in documents}
     usages: list[LLMUsage] = []
     fields = []

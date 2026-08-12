@@ -163,6 +163,83 @@ code the model doesn't actually contain rather than silently coercing it,
 since a wrong industry code would corrupt every exposure number computed
 from it.
 
+## Revenue/CapEx-based exposure resolution
+
+Off by default; enabling it requires a structured revenue/capex data
+catalogue and a confirmed taxonomy->catalogue mapping (below). Where the
+indirect-exposure tier *adds* a structural signal alongside the qualitative
+debate, this tier can *replace* it for a given company x activity pair: if
+a hard revenue number is found, the qualitative Advocate/Opposing/
+Adjudicator debate is skipped entirely for that pair, both because it's
+cheaper and because a real disclosed number shouldn't be second-guessed by
+a categorical judgment over the same question.
+
+This implements the three-path structure described earlier in this
+project's design discussion of how MSCI actually uses revenue data:
+structured/tagged data first, LLM extraction from prose second, and the
+existing qualitative debate only as the last resort.
+
+**Path 1 — structured catalogue (no LLM call for the number itself).**
+`arp/research/revenue_exposure/catalogue.py` loads a user-supplied CSV of
+revenue/capex line items (`data_point_id, company_id, metric, label,
+value, unit, period, as_pct_of_total`) — a vendor's revenue-by-product-line
+feed, or a company's own internal segment database, in whatever export
+format is available. Nothing about this catalogue is fetched or fabricated;
+same "bring your own data" posture as every other external dataset in this
+system. Before it can be used, `mapping.py::suggest_catalogue_mapping`
+proposes which catalogue labels correspond to which taxonomy activity — one
+structured call per (activity, metric) against the catalogue's closed label
+list, with a required rationale and hallucinated-label filtering, the same
+discipline as `standards_mapping/gics.py::classify_gics`. This mapping is a
+**reviewable draft, never auto-applied** — `resolver.py::
+resolve_from_catalogue` only ever computes against the confirmed mapping
+the caller passes in, and is pure arithmetic (a row either matches a
+confirmed label or it doesn't).
+
+**Path 2 — extraction from disclosures.** When the catalogue has no data
+for a company x activity x metric, `resolver.py::resolve_from_extraction`
+builds an ad hoc single-field `DataPointSchema` on the fly (mirrors
+`taxonomy_sources/empirical.py::_activity_description_schema`'s pattern)
+and runs it through the *exact same* Extractor -> independent Verifier ->
+programmatic grounding check the Extraction Engine already uses for every
+other data point — this is not a separate extraction mechanism, it's the
+existing one applied to a dynamically-generated field. A missing/null
+extracted value is treated the same way "not disclosed" already is
+everywhere else in this system: reported plainly, never estimated.
+
+**Path 2 is gated by sector relevance, as a cost control.** Before spending
+an extraction call, `resolver.py::is_sector_relevant` checks whether the
+company's own resolved ISIC code (reusing `indirect_exposure/
+company_mapper.py::resolve_company_isic`) plausibly overlaps the activity's
+`core_isic_codes`, by digit-prefix containment. This only gates path 2 —
+path 1 (a free dict lookup) and the path-3 fallback (today's existing,
+unchanged recall behavior) are unaffected, since a company outside an
+activity's obvious sector can still have a real, disclosed revenue line
+there; the gate exists only to avoid an unconditional per-company-per-
+activity extraction call across a 4,000-company x N-activity grid.
+
+**Path 3 — the existing qualitative debate**, unchanged, run only when
+paths 1 and 2 both come back empty for the `revenue` metric specifically
+(revenue is the gating metric, since MSCI's exposure bands are revenue-
+percentage bands; a CapEx-only resolution doesn't by itself establish
+theme relevance and so doesn't suppress the debate on its own). `capex` is
+resolved through the same path-1/path-2 cascade independently and attached
+to the result either way.
+
+**Banding.** A resolved revenue share is converted to the same
+`pure_play/significant/minor/none` categories used everywhere else in this
+system, via configurable thresholds (`revenue_exposure_pure_play_threshold`
+etc. in `Settings`, defaulting to the MSCI-style 50%/20%/5% bands) — so
+`CompanyMatch.exposure_estimate` means the same thing regardless of which
+path produced it.
+
+CLI: `arp revenue-catalogue suggest-mapping <taxonomy_ref> <catalogue.csv>
+--out mapping.json` (review the draft, then) `arp theme run --taxonomy
+<ref> --universe <csv> --revenue-catalogue <catalogue.csv>
+--catalogue-mapping mapping.json`. API: `POST /api/revenue-catalogue/
+suggest-mapping`, then `revenue_catalogue_path`/`catalogue_mapping` on
+`POST /api/themes/runs`.
+
 ## The taxonomy library: defining and deriving activities
 
 A `ThemeDefinition` produced by `arp theme decompose` is, by itself, a

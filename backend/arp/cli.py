@@ -32,6 +32,10 @@ from arp.research.taxonomy_sources.etf_holdings import (
 from arp.research.taxonomy_sources.overlap import compute_holdings_overlap
 from arp.research.taxonomy_sources.news_mining import build_theme_from_news_and_transcripts
 from arp.research.standards_mapping.mapper import format_standards_csv, map_theme_to_standards
+from arp.research.revenue_exposure.catalogue import distinct_labels, load_catalogue, by_company as catalogue_by_company
+from arp.research.revenue_exposure.mapping import suggest_catalogue_mapping
+from arp.research.revenue_exposure.resolver import RevenueResolverContext
+from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.schemas.common import DocType
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.discovery import DiscoveryScheduleConfig
@@ -48,12 +52,14 @@ extract_app = typer.Typer(help="Schema-driven data-point extraction.")
 discover_app = typer.Typer(help="Document discovery: find and download company disclosures.")
 runs_app = typer.Typer(help="Inspect and export runs.")
 universe_app = typer.Typer(help="Build reusable company universes.")
+revenue_catalogue_app = typer.Typer(help="Structured revenue/capex data catalogue mapping.")
 app.add_typer(theme_app, name="theme")
 app.add_typer(taxonomy_app, name="taxonomy")
 app.add_typer(extract_app, name="extract")
 app.add_typer(discover_app, name="discover")
 app.add_typer(runs_app, name="runs")
 app.add_typer(universe_app, name="universe")
+app.add_typer(revenue_catalogue_app, name="revenue-catalogue")
 
 
 def _registry() -> DocumentSourceRegistry:
@@ -122,6 +128,12 @@ def theme_run(
         "--use-sample-icio",
         help="Enable the indirect-exposure tier using the bundled illustrative sample dataset (demo only).",
     ),
+    revenue_catalogue: Path = typer.Option(
+        None, "--revenue-catalogue", help="A structured revenue/capex catalogue CSV (see `revenue-catalogue suggest-mapping`)."
+    ),
+    catalogue_mapping: Path = typer.Option(
+        None, "--catalogue-mapping", help="The reviewed activity->catalogue-label mapping JSON (required alongside --revenue-catalogue)."
+    ),
 ) -> None:
     settings = get_settings()
     llm = build_llm_client(settings)
@@ -141,6 +153,19 @@ def theme_run(
     indirect_model = build_leontief_model(settings, use_sample=use_sample_icio)
     if indirect_model is not None:
         typer.echo(f"Indirect exposure tier enabled ({indirect_model.edition_label}).")
+
+    if bool(revenue_catalogue) != bool(catalogue_mapping):
+        typer.echo("Provide both --revenue-catalogue and --catalogue-mapping together, or neither.", err=True)
+        raise typer.Exit(1)
+    revenue_resolver = None
+    if revenue_catalogue is not None:
+        catalogue = load_catalogue(revenue_catalogue)
+        mappings = [ActivityCatalogueMapping.model_validate(m) for m in json.loads(catalogue_mapping.read_text())]
+        revenue_resolver = RevenueResolverContext(
+            catalogue_by_company=catalogue_by_company(catalogue), mappings=mappings, registry=_registry(), settings=settings, isic_model=indirect_model
+        )
+        typer.echo(f"Revenue-exposure resolution enabled ({len(mappings)} confirmed activity mapping(s)).")
+
     typer.echo(f"Running theme '{theme.name}' against {len(companies)} companies...")
     run_id = asyncio.run(
         run_thematic_universe(
@@ -151,6 +176,7 @@ def theme_run(
             settings=settings,
             run_store=_run_store(),
             indirect_model=indirect_model,
+            revenue_resolver=revenue_resolver,
         )
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
@@ -416,6 +442,26 @@ def taxonomy_export_standards(ref: str, out: Path = typer.Option(..., help="Wher
     taxonomy = _resolve_taxonomy_ref_or_exit(ref)
     out.write_text(format_standards_csv(taxonomy.theme))
     typer.echo(f"Wrote {out}")
+
+
+@revenue_catalogue_app.command("suggest-mapping")
+def revenue_catalogue_suggest_mapping(
+    taxonomy_ref: str,
+    catalogue_file: Path = typer.Argument(..., help="A structured revenue/capex catalogue CSV."),
+    out: Path = typer.Option(..., help="Where to write the draft activity->catalogue-label mapping JSON (review before use)."),
+) -> None:
+    """Proposes which catalogue labels represent each taxonomy activity's
+    revenue/capex, for both metrics -- a draft only; review/edit the output
+    file, then pass it to `theme run --catalogue-mapping`. Never applied
+    automatically."""
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    taxonomy = _resolve_taxonomy_ref_or_exit(taxonomy_ref)
+    catalogue = load_catalogue(catalogue_file)
+    labels_by_metric = {"revenue": distinct_labels(catalogue, "revenue"), "capex": distinct_labels(catalogue, "capex")}
+    mappings, _usage = asyncio.run(suggest_catalogue_mapping(taxonomy.theme, labels_by_metric, llm))
+    out.write_text(json.dumps([m.model_dump(mode="json") for m in mappings], indent=2))
+    typer.echo(f"Wrote {len(mappings)} proposed mapping(s) to {out}. Review before using with `theme run --catalogue-mapping`.")
 
 
 @extract_app.command("draft-schema")

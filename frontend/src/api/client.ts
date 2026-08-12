@@ -119,4 +119,8 @@ export const api = {
   // ETF holdings overlap
   computeOverlap: (funds: Record<string, string>) =>
     request("/api/etf-overlap", { method: "POST", body: JSON.stringify({ funds }) }),
+
+  // Revenue/CapEx catalogue mapping
+  suggestCatalogueMapping: (body: { taxonomy_id: string; taxonomy_version?: number | null; catalogue_path: string }) =>
+    request("/api/revenue-catalogue/suggest-mapping", { method: "POST", body: JSON.stringify(body) }),
 };

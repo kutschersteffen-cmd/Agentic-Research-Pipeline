@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -12,7 +13,10 @@ from arp.orchestration.review_queue import latest_decisions, record_review_decis
 from arp.research.activity_generator import build_theme
 from arp.research.indirect_exposure.factory import build_leontief_model
 from arp.research.pipeline import create_theme_run, execute_theme_run
+from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company, load_catalogue
+from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.common import CompanyRef
+from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
@@ -48,6 +52,12 @@ class RunRequest(BaseModel):
             "For a real run, configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH instead and leave this false."
         ),
     )
+    revenue_catalogue_path: str | None = Field(
+        default=None, description="Server-side path to a structured revenue/capex catalogue CSV (see POST /api/revenue-catalogue/suggest-mapping)."
+    )
+    catalogue_mapping: list[ActivityCatalogueMapping] | None = Field(
+        default=None, description="The reviewed activity->catalogue-label mapping. Required alongside revenue_catalogue_path."
+    )
 
 
 @router.post("/runs")
@@ -72,9 +82,23 @@ async def start_theme_run(
     else:
         raise HTTPException(400, "Provide either `theme` or `taxonomy_id`.")
 
+    if bool(req.revenue_catalogue_path) != bool(req.catalogue_mapping):
+        raise HTTPException(400, "Provide both revenue_catalogue_path and catalogue_mapping together, or neither.")
+
     run_id = create_theme_run(theme, companies, settings, run_store)
     llm = get_llm_client()  # raises a clear 4xx-worthy error before we schedule anything if unconfigured
     indirect_model = build_leontief_model(settings, use_sample=req.use_sample_icio)
+
+    revenue_resolver = None
+    if req.revenue_catalogue_path:
+        catalogue = load_catalogue(Path(req.revenue_catalogue_path))
+        revenue_resolver = RevenueResolverContext(
+            catalogue_by_company=catalogue_by_company(catalogue),
+            mappings=req.catalogue_mapping or [],
+            registry=registry,
+            settings=settings,
+            isic_model=indirect_model,
+        )
 
     async def _background() -> None:
         await execute_theme_run(
@@ -86,10 +110,16 @@ async def start_theme_run(
             settings=settings,
             run_store=run_store,
             indirect_model=indirect_model,
+            revenue_resolver=revenue_resolver,
         )
 
     asyncio.create_task(_background())
-    return {"run_id": run_id, "company_count": len(companies), "indirect_exposure_enabled": indirect_model is not None}
+    return {
+        "run_id": run_id,
+        "company_count": len(companies),
+        "indirect_exposure_enabled": indirect_model is not None,
+        "revenue_exposure_enabled": revenue_resolver is not None,
+    }
 
 
 @router.get("/runs/{run_id}")

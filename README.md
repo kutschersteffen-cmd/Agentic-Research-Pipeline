@@ -101,6 +101,11 @@ arp theme run --taxonomy tax_xxxxxxxxxxxx --universe companies.csv
 arp universe from-holdings fund_holdings.csv --out universe.json
 arp universe overlap fund_a_holdings.csv fund_b_holdings.csv --name "Fund A" --name "Fund B"
 
+# Revenue/CapEx-based exposure: structured catalogue -> extraction -> qualitative debate cascade
+arp revenue-catalogue suggest-mapping tax_xxxxxxxxxxxx revenue_catalogue.csv --out mapping.json  # draft, review it
+arp theme run --taxonomy tax_xxxxxxxxxxxx --universe companies.csv \
+  --revenue-catalogue revenue_catalogue.csv --catalogue-mapping mapping.json
+
 # Data-point extraction
 arp extract draft-schema "green capex" --out schema.json
 arp extract run --schema schema.json --universe companies.csv
@@ -176,5 +181,10 @@ around the input-output math.
   correspondence tables, never guessed by the model; only GICS (no public
   ISIC crosswalk exists) is LLM-classified, against a fixed reference list
   with a required rationale
+- Opt-in revenue/CapEx exposure cascade: a structured data catalogue
+  resolves exposure with zero LLM judgment where possible, falling back to
+  grounded extraction from disclosures and only then to the qualitative
+  debate -- a hard disclosed number is never second-guessed by a
+  categorical LLM judgment over the same question
 
 Full detail in [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md).
