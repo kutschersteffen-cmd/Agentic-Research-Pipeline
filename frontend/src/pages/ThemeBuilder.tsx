@@ -1,9 +1,9 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import { ConfidenceBadge, VerdictBadge, GroundedBadge } from "../components/ConfidenceBadge";
-import type { ActivityDefinition, CompanyMatch, ThemeDefinition } from "../types";
+import type { ActivityDefinition, CompanyMatch, Taxonomy, ThemeDefinition } from "../types";
 
 export function ThemeBuilder() {
   const [name, setName] = useState("Electrification");
@@ -19,6 +19,13 @@ export function ThemeBuilder() {
   const [results, setResults] = useState<CompanyMatch[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [useSampleIcio, setUseSampleIcio] = useState(false);
+  const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
+  const [selectedTaxonomyId, setSelectedTaxonomyId] = useState("");
+  const [loadedTaxonomy, setLoadedTaxonomy] = useState<Taxonomy | null>(null);
+
+  useEffect(() => {
+    api.listTaxonomies().then((res) => setTaxonomies((res as { taxonomies: Taxonomy[] }).taxonomies)).catch(() => {});
+  }, []);
 
   async function decompose() {
     setBusy(true);
@@ -26,11 +33,21 @@ export function ThemeBuilder() {
     try {
       const drafted = (await api.decomposeTheme(name, description)) as ThemeDefinition;
       setTheme(drafted);
+      setLoadedTaxonomy(null);
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setBusy(false);
     }
+  }
+
+  function loadFromTaxonomy() {
+    const t = taxonomies.find((tax) => tax.taxonomy_id === selectedTaxonomyId);
+    if (!t) return;
+    setName(t.theme.name);
+    setDescription(t.theme.description);
+    setTheme(t.theme);
+    setLoadedTaxonomy(t);
   }
 
   function updateActivity(idx: number, patch: Partial<ActivityDefinition>) {
@@ -82,6 +99,30 @@ export function ThemeBuilder() {
         <button onClick={decompose} disabled={busy}>
           Decompose into activities
         </button>
+
+        <p className="help-text" style={{ marginTop: 16 }}>
+          Or load an existing, versioned taxonomy from the Taxonomy Library instead of drafting a new one:
+        </p>
+        <div className="inline-fields">
+          <select value={selectedTaxonomyId} onChange={(e) => setSelectedTaxonomyId(e.target.value)}>
+            <option value="">Select a saved taxonomy...</option>
+            {taxonomies.map((t) => (
+              <option key={t.taxonomy_id} value={t.taxonomy_id}>
+                {t.name} (v{t.version}, {t.status})
+              </option>
+            ))}
+          </select>
+          <button onClick={loadFromTaxonomy} disabled={!selectedTaxonomyId}>
+            Load
+          </button>
+        </div>
+        {loadedTaxonomy && (
+          <p className="status-text">
+            Loaded {loadedTaxonomy.name} v{loadedTaxonomy.version} ({loadedTaxonomy.derivation_method},{" "}
+            {loadedTaxonomy.status}) -- {loadedTaxonomy.theme.activities.length} activities. Edits below are local to
+            this run and aren't saved back to the taxonomy; use the Taxonomy Library to save changes permanently.
+          </p>
+        )}
       </section>
 
       {theme && (
