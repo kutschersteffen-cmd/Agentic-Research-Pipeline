@@ -7,7 +7,10 @@ precision at scale (designed for up to ~4,000 companies per run).
 1. **Thematic Universe Builder** — turn a macro theme ("electrification",
    "AI") into a defensible list of business activities, matched companies,
    exposure estimates, and cited rationale, via an Advocate/Opposing/
-   Adjudicator agent pipeline.
+   Adjudicator agent pipeline. Results are filterable/sortable in the UI
+   (verdict, activity, flagged-only, confidence/exposure), and a filtered
+   result set can be sent straight into the Extraction Engine as a new
+   company universe with one click.
 2. **Data-Point Extraction Engine** — pull specific, schema-defined data
    points (e.g. "green capex", forward-looking business outlook) out of
    sustainability reports, annual reports, and earnings-call transcripts,
@@ -42,7 +45,11 @@ runs/             file-based run state: manifest, results, errors,
 Every run type (`theme`, `extraction`, `discovery`) is checkpointed and
 resumable: results are appended to `runs/<run_id>/results.jsonl` as soon as
 each company finishes, so a batch interrupted partway through picks back up
-without redoing completed work.
+without redoing completed work. Any running/pending run can also be
+cancelled cooperatively (`arp runs cancel <run_id>` /
+`POST /api/runs/{id}/cancel`) and later picked back up
+(`arp theme resume <run_id>` / `POST /api/themes/runs/{id}/resume`,
+theme runs only for now) without redoing already-completed companies.
 
 ## Setup
 
@@ -105,6 +112,10 @@ arp universe overlap fund_a_holdings.csv fund_b_holdings.csv --name "Fund A" --n
 arp revenue-catalogue suggest-mapping tax_xxxxxxxxxxxx revenue_catalogue.csv --out mapping.json  # draft, review it
 arp theme run --taxonomy tax_xxxxxxxxxxxx --universe companies.csv \
   --revenue-catalogue revenue_catalogue.csv --catalogue-mapping mapping.json
+
+# Cancel / resume a long-running batch
+arp runs cancel <run_id>       # cooperative stop -- in-flight items still finish and checkpoint
+arp theme resume <run_id>      # picks back up; already-completed companies are skipped
 
 # Data-point extraction
 arp extract draft-schema "green capex" --out schema.json

@@ -7,17 +7,22 @@ import { RunHistory } from "./pages/RunHistory";
 import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
 
 const TABS = [
-  { id: "theme", label: "Thematic Universe", render: () => <ThemeBuilder /> },
-  { id: "taxonomy", label: "Taxonomy Library", render: () => <TaxonomyLibrary /> },
-  { id: "extraction", label: "Data Extraction", render: () => <ExtractionBuilder /> },
-  { id: "discovery", label: "Document Discovery", render: () => <DocumentDiscovery /> },
-  { id: "review", label: "Review Queue", render: () => <ReviewQueue /> },
-  { id: "history", label: "Run History", render: () => <RunHistory /> },
+  { id: "theme", label: "Thematic Universe" },
+  { id: "taxonomy", label: "Taxonomy Library" },
+  { id: "extraction", label: "Data Extraction" },
+  { id: "discovery", label: "Document Discovery" },
+  { id: "review", label: "Review Queue" },
+  { id: "history", label: "Run History" },
 ] as const;
 
 function App() {
   const [active, setActive] = useState<(typeof TABS)[number]["id"]>("theme");
-  const activeTab = TABS.find((t) => t.id === active)!;
+  const [pendingUniverse, setPendingUniverse] = useState<{ path: string; count: number } | null>(null);
+
+  function sendToExtraction(path: string, count: number) {
+    setPendingUniverse({ path, count });
+    setActive("extraction");
+  }
 
   return (
     <div className="app-shell">
@@ -32,7 +37,14 @@ function App() {
           </button>
         ))}
       </nav>
-      <main className="app-main">{activeTab.render()}</main>
+      <main className="app-main">
+        {active === "theme" && <ThemeBuilder onSendToExtraction={sendToExtraction} />}
+        {active === "taxonomy" && <TaxonomyLibrary />}
+        {active === "extraction" && <ExtractionBuilder pendingUniverse={pendingUniverse} />}
+        {active === "discovery" && <DocumentDiscovery />}
+        {active === "review" && <ReviewQueue />}
+        {active === "history" && <RunHistory />}
+      </main>
     </div>
   );
 }

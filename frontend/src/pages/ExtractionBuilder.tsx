@@ -5,13 +5,17 @@ import { UniversePicker } from "../components/UniversePicker";
 import { ConfidenceBadge, GroundedBadge } from "../components/ConfidenceBadge";
 import type { DataPointSchema, ExtractionRecord, FieldDefinition } from "../types";
 
-export function ExtractionBuilder() {
+interface Props {
+  pendingUniverse?: { path: string; count: number } | null;
+}
+
+export function ExtractionBuilder({ pendingUniverse }: Props = {}) {
   const [criteria, setCriteria] = useState("Green capex (USD millions, most recent fiscal year)");
   const [schema, setSchema] = useState<DataPointSchema | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [universePath, setUniversePath] = useState<string | null>(null);
-  const [companyCount, setCompanyCount] = useState(0);
+  const [universePath, setUniversePath] = useState<string | null>(pendingUniverse?.path ?? null);
+  const [companyCount, setCompanyCount] = useState(pendingUniverse?.count ?? 0);
   const [runId, setRunId] = useState<string | null>(null);
   const [results, setResults] = useState<ExtractionRecord[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -110,6 +114,12 @@ export function ExtractionBuilder() {
       {schema && (
         <section className="card">
           <h3>3. Choose the company universe</h3>
+          {pendingUniverse && universePath === pendingUniverse.path && (
+            <p className="status-text">
+              Using {pendingUniverse.count} companies sent from a Thematic Universe screen. Upload a different
+              universe below to replace it.
+            </p>
+          )}
           <UniversePicker
             onResolved={(path, count) => {
               setUniversePath(path);
@@ -127,7 +137,7 @@ export function ExtractionBuilder() {
       {runId && (
         <section className="card">
           <h3>4. Run progress</h3>
-          <RunProgress runId={runId} />
+          <RunProgress runId={runId} runType="extraction" />
           <div className="toolbar">
             <button onClick={refreshResults}>Refresh results</button>
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">

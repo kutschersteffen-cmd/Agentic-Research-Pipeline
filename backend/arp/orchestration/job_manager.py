@@ -57,9 +57,22 @@ class JobManager:
         if error:
             manifest.status = JobStatus.FAILED
             manifest.error = error
+        elif manifest.cancel_requested and manifest.completed_count + manifest.failed_count < manifest.company_count:
+            # Cancelled before every item was processed -- distinct from a
+            # legitimate partial failure, so the UI/CLI can tell "the user
+            # stopped this" apart from "some items errored out".
+            manifest.status = JobStatus.CANCELLED
         elif manifest.failed_count > 0:
             manifest.status = JobStatus.PARTIALLY_COMPLETED
         else:
             manifest.status = JobStatus.COMPLETED
+        self.store.save_manifest(manifest)
+        return manifest
+
+    def request_cancel(self, run_id: str) -> RunManifest:
+        manifest = self.store.load_manifest(run_id)
+        if manifest is None:
+            raise ValueError(f"Unknown run_id: {run_id}")
+        manifest.cancel_requested = True
         self.store.save_manifest(manifest)
         return manifest

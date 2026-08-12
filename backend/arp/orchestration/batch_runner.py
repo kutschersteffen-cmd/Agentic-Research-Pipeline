@@ -46,6 +46,7 @@ async def run_batch(
     on_success: Callable[[ItemT, ResultT], None] | None = None,
     on_error: Callable[[ItemT, Exception], None] | None = None,
     resume: bool = True,
+    cancel_check: Callable[[], bool] | None = None,
 ) -> None:
     """Runs `worker` over `items` with bounded concurrency.
 
@@ -59,6 +60,11 @@ async def run_batch(
       `errors_path` and does not cancel or affect any other item.
     - **Bounded concurrency**: an `asyncio.Semaphore` caps in-flight work
       to respect API rate limits and be a polite web citizen.
+    - **Cooperative cancellation**: `cancel_check`, if supplied, is polled
+      before each item that hasn't started yet; once it returns True, no
+      further items are launched. Items already in flight still finish and
+      checkpoint normally -- this is a soft stop (no work is lost or left
+      half-written), not a hard kill.
     """
     import json
 
@@ -72,6 +78,8 @@ async def run_batch(
     async def _run_one(item: ItemT) -> None:
         key = item_key(item)
         if key in already_done:
+            return
+        if cancel_check and cancel_check():
             return
         async with sem:
             try:

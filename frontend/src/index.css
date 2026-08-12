@@ -156,6 +156,7 @@ button.link-button { background: transparent; color: var(--accent); padding: 4px
 .status-partially_completed { color: var(--mid); border-color: var(--mid); }
 .status-failed { color: var(--low); border-color: var(--low); }
 .status-pending { color: var(--muted); }
+.status-cancelled { color: var(--mid); border-color: var(--mid); }
 
 .progress-bar { background: #0c0e12; border-radius: 999px; height: 8px; overflow: hidden; margin: 8px 0; }
 .progress-bar-fill { background: var(--accent); height: 100%; transition: width 0.4s ease; }

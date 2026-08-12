@@ -7,7 +7,7 @@ export type DocType =
   | "product_page"
   | "other";
 
-export type JobStatus = "pending" | "running" | "completed" | "partially_completed" | "failed";
+export type JobStatus = "pending" | "running" | "completed" | "partially_completed" | "failed" | "cancelled";
 
 export interface CompanyRef {
   company_id: string;

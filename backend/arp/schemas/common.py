@@ -21,6 +21,7 @@ class JobStatus(StrEnum):
     COMPLETED = "completed"
     PARTIALLY_COMPLETED = "partially_completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class DocType(StrEnum):
@@ -98,3 +99,6 @@ class RunManifest(BaseModel):
     estimated_cost_usd: float = 0.0
     model: str | None = None
     error: str | None = None
+    cancel_requested: bool = Field(
+        default=False, description="Set by POST /api/runs/{id}/cancel; checked cooperatively before each new item starts. In-flight items still finish."
+    )

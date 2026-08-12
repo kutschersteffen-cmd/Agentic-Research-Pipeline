@@ -1,36 +1,79 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { RunManifest } from "../types";
 
-export function RunProgress({ runId, pollMs = 2500 }: { runId: string; pollMs?: number }) {
+const RESUMABLE_STATUSES = new Set(["failed", "partially_completed", "cancelled"]);
+
+export function RunProgress({
+  runId,
+  pollMs = 2500,
+  runType = "theme",
+}: {
+  runId: string;
+  pollMs?: number;
+  runType?: "theme" | "extraction";
+}) {
   const [manifest, setManifest] = useState<RunManifest | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const timerRef = useRef<number | undefined>(undefined);
+  const cancelledRef = useRef(false);
+
+  async function poll() {
+    try {
+      const m = (await api.getRun(runId)) as RunManifest;
+      if (cancelledRef.current) return;
+      setManifest(m);
+      if (m.status === "running" || m.status === "pending") {
+        timerRef.current = window.setTimeout(poll, pollMs);
+      }
+    } catch {
+      if (!cancelledRef.current) timerRef.current = window.setTimeout(poll, pollMs * 2);
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false;
-    let timer: number | undefined;
-
-    async function poll() {
-      try {
-        const m = await api.getRun(runId);
-        if (!cancelled) setManifest(m as RunManifest);
-        const status = (m as RunManifest).status;
-        if (!cancelled && (status === "running" || status === "pending")) {
-          timer = window.setTimeout(poll, pollMs);
-        }
-      } catch {
-        if (!cancelled) timer = window.setTimeout(poll, pollMs * 2);
-      }
-    }
+    cancelledRef.current = false;
     poll();
     return () => {
-      cancelled = true;
-      if (timer) window.clearTimeout(timer);
+      cancelledRef.current = true;
+      if (timerRef.current) window.clearTimeout(timerRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId, pollMs]);
+
+  async function cancelRun() {
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      await api.cancelRun(runId);
+      await poll();
+    } catch (err) {
+      setActionError((err as Error).message);
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function resumeRun() {
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      await api.resumeThemeRun(runId);
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      await poll(); // status is "running" again server-side -- re-arms continued polling
+    } catch (err) {
+      setActionError((err as Error).message);
+    } finally {
+      setActionBusy(false);
+    }
+  }
 
   if (!manifest) return <p>Loading run status...</p>;
 
   const pct = manifest.company_count > 0 ? Math.round((manifest.completed_count / manifest.company_count) * 100) : 0;
+  const canCancel = manifest.status === "running" || manifest.status === "pending";
+  const canResume = runType === "theme" && RESUMABLE_STATUSES.has(manifest.status);
 
   return (
     <div className="run-progress">
@@ -48,6 +91,21 @@ export function RunProgress({ runId, pollMs = 2500 }: { runId: string; pollMs?: 
         <span>${manifest.estimated_cost_usd.toFixed(2)} est. cost</span>
         <span>{(manifest.input_tokens + manifest.output_tokens).toLocaleString()} tokens</span>
       </div>
+      {(canCancel || canResume) && (
+        <div className="toolbar">
+          {canCancel && (
+            <button onClick={cancelRun} disabled={actionBusy}>
+              Cancel run
+            </button>
+          )}
+          {canResume && (
+            <button onClick={resumeRun} disabled={actionBusy}>
+              Resume run
+            </button>
+          )}
+        </div>
+      )}
+      {actionError && <p className="error-text">{actionError}</p>}
       {manifest.error && <p className="error-text">{manifest.error}</p>}
     </div>
   );

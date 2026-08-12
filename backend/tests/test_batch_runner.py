@@ -67,6 +67,32 @@ async def test_run_batch_isolates_failures(tmp_path):
     assert error_rows[0]["key"] == "bad"
 
 
+async def test_run_batch_cancel_check_stops_new_items(tmp_path):
+    results_path = tmp_path / "results.jsonl"
+    errors_path = tmp_path / "errors.jsonl"
+    calls = []
+
+    async def worker(item: str) -> str:
+        calls.append(item)
+        return item
+
+    await run_batch(
+        ["a", "b", "c", "d", "e"],
+        item_key=lambda i: i,
+        worker=worker,
+        results_path=results_path,
+        errors_path=errors_path,
+        concurrency=1,
+        result_to_json=lambda r: {"value": r},
+        cancel_check=lambda: len(calls) >= 2,
+    )
+    # Cancellation must have actually stopped something -- not every item ran,
+    # and whatever did run is a clean, uncorrupted checkpoint.
+    assert len(calls) < 5
+    rows = [json.loads(line) for line in results_path.read_text().splitlines()]
+    assert {r["value"] for r in rows} == set(calls)
+
+
 async def test_run_batch_no_resume_reruns_everything(tmp_path):
     results_path = tmp_path / "results.jsonl"
     errors_path = tmp_path / "errors.jsonl"

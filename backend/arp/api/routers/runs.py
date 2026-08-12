@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from arp.api.deps import get_run_store
+from arp.orchestration.job_manager import JobManager
 from arp.storage.run_store import RunStore
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
@@ -23,6 +24,20 @@ def get_run(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
     if manifest is None:
         raise HTTPException(404, "Run not found")
     return manifest.model_dump(mode="json")
+
+
+@router.post("/{run_id}/cancel")
+def cancel_run(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+    """Requests a cooperative stop: no further items start once the
+    currently in-flight ones finish and checkpoint. Works for any run type
+    (theme, extraction) since both run through the same batch runner."""
+    manifest = run_store.load_manifest(run_id)
+    if manifest is None:
+        raise HTTPException(404, "Run not found")
+    if manifest.status not in ("running", "pending"):
+        raise HTTPException(400, f"Run {run_id} is already {manifest.status.value} -- nothing to cancel.")
+    updated = JobManager(run_store).request_cancel(run_id)
+    return updated.model_dump(mode="json")
 
 
 @router.get("/{run_id}/errors")

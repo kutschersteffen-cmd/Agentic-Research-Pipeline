@@ -1,11 +1,17 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import { ConfidenceBadge, VerdictBadge, GroundedBadge } from "../components/ConfidenceBadge";
 import type { ActivityCatalogueMapping, ActivityDefinition, CompanyMatch, Taxonomy, ThemeDefinition } from "../types";
 
-export function ThemeBuilder() {
+const EXPOSURE_RANK: Record<string, number> = { pure_play: 3, significant: 2, minor: 1, none: 0 };
+
+interface Props {
+  onSendToExtraction?: (path: string, count: number) => void;
+}
+
+export function ThemeBuilder({ onSendToExtraction }: Props = {}) {
   const [name, setName] = useState("Electrification");
   const [description, setDescription] = useState(
     "The shift of energy generation, transport, industry, and buildings from fossil fuels to electricity."
@@ -26,6 +32,13 @@ export function ThemeBuilder() {
   const [catalogueStatus, setCatalogueStatus] = useState("");
   const [catalogueMappings, setCatalogueMappings] = useState<ActivityCatalogueMapping[]>([]);
   const [mappingBusy, setMappingBusy] = useState(false);
+  const [verdictFilter, setVerdictFilter] = useState("all");
+  const [activityFilter, setActivityFilter] = useState("all");
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<"confidence_desc" | "confidence_asc" | "exposure_desc" | "name_asc">("confidence_desc");
+  const [sendBusy, setSendBusy] = useState(false);
+  const [sendStatus, setSendStatus] = useState("");
+  const [sentUniverse, setSentUniverse] = useState<{ path: string; count: number } | null>(null);
 
   useEffect(() => {
     api.listTaxonomies().then((res) => setTaxonomies((res as { taxonomies: Taxonomy[] }).taxonomies)).catch(() => {});
@@ -133,6 +146,52 @@ export function ThemeBuilder() {
     if (!runId) return;
     const res = (await api.getThemeResults(runId)) as { results: CompanyMatch[] };
     setResults(res.results);
+  }
+
+  const filteredResults = useMemo(() => {
+    let rows = results;
+    if (verdictFilter !== "all") rows = rows.filter((m) => m.verdict === verdictFilter);
+    if (activityFilter !== "all") rows = rows.filter((m) => m.activity_id === activityFilter);
+    if (flaggedOnly) rows = rows.filter((m) => m.flagged_for_review);
+    const sorted = [...rows];
+    switch (sortBy) {
+      case "confidence_desc":
+        sorted.sort((a, b) => b.confidence - a.confidence);
+        break;
+      case "confidence_asc":
+        sorted.sort((a, b) => a.confidence - b.confidence);
+        break;
+      case "exposure_desc":
+        sorted.sort((a, b) => (EXPOSURE_RANK[b.exposure_estimate] ?? 0) - (EXPOSURE_RANK[a.exposure_estimate] ?? 0));
+        break;
+      case "name_asc":
+        sorted.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+    }
+    return sorted;
+  }, [results, verdictFilter, activityFilter, flaggedOnly, sortBy]);
+
+  async function sendToExtraction() {
+    setSendBusy(true);
+    setSendStatus("");
+    setSentUniverse(null);
+    try {
+      const seen = new Set<string>();
+      const companies = filteredResults
+        .filter((m) => (seen.has(m.company_id) ? false : (seen.add(m.company_id), true)))
+        .map((m) => ({ company_id: m.company_id, name: m.name, ticker: m.ticker }));
+      if (companies.length === 0) {
+        setSendStatus("No companies match the current filters.");
+        return;
+      }
+      const res = await api.universeFromCompanies(companies, `${theme?.name ?? "theme"}_screen`);
+      setSendStatus(`Saved ${res.company_count} companies as a universe.`);
+      setSentUniverse({ path: res.path, count: res.company_count });
+    } catch (err) {
+      setSendStatus(`Failed: ${(err as Error).message}`);
+    } finally {
+      setSendBusy(false);
+    }
   }
 
   return (
@@ -287,6 +346,50 @@ export function ThemeBuilder() {
             </a>
           </div>
           {results.length > 0 && (
+            <>
+              <div className="inline-fields">
+                <select value={verdictFilter} onChange={(e) => setVerdictFilter(e.target.value)}>
+                  <option value="all">All verdicts</option>
+                  <option value="include">Include</option>
+                  <option value="exclude">Exclude</option>
+                  <option value="uncertain">Uncertain</option>
+                </select>
+                <select value={activityFilter} onChange={(e) => setActivityFilter(e.target.value)}>
+                  <option value="all">All activities</option>
+                  {theme?.activities.map((a) => (
+                    <option key={a.activity_id} value={a.activity_id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={flaggedOnly} onChange={(e) => setFlaggedOnly(e.target.checked)} />
+                  Flagged for review only
+                </label>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+                  <option value="confidence_desc">Sort: confidence (high to low)</option>
+                  <option value="confidence_asc">Sort: confidence (low to high)</option>
+                  <option value="exposure_desc">Sort: exposure (strongest first)</option>
+                  <option value="name_asc">Sort: company name (A-Z)</option>
+                </select>
+              </div>
+              <p className="muted">
+                Showing {filteredResults.length} of {results.length} results.
+              </p>
+              <div className="toolbar">
+                <button onClick={sendToExtraction} disabled={sendBusy || filteredResults.length === 0}>
+                  Save {new Set(filteredResults.map((m) => m.company_id)).size} companies as a universe
+                </button>
+                {sentUniverse && (
+                  <button onClick={() => onSendToExtraction?.(sentUniverse.path, sentUniverse.count)}>
+                    Go to Extraction Engine &rarr;
+                  </button>
+                )}
+              </div>
+              {sendStatus && <p className="status-text">{sendStatus}</p>}
+            </>
+          )}
+          {filteredResults.length > 0 && (
             <table className="data-table">
               <thead>
                 <tr>
@@ -301,7 +404,7 @@ export function ThemeBuilder() {
                 </tr>
               </thead>
               <tbody>
-                {results.map((m) => {
+                {filteredResults.map((m) => {
                   const key = `${m.company_id}:${m.activity_id}`;
                   const io = m.indirect_exposure;
                   const revenue = m.revenue_exposure?.revenue;

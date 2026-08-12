@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import time
 
-from fastapi import APIRouter, Depends, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from pydantic import BaseModel
 
 from arp.api.deps import settings_dep
 from arp.config import Settings
 from arp.research.taxonomy_sources.etf_holdings import load_universe_from_holdings
+from arp.schemas.common import CompanyRef
 from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/universe", tags=["universe"])
@@ -69,3 +72,26 @@ async def universe_from_holdings(file: UploadFile, settings: Settings = Depends(
         "company_count": len(companies),
         "sample": [c.model_dump() for c in companies[:5]],
     }
+
+
+class FromCompaniesRequest(BaseModel):
+    companies: list[CompanyRef]
+    name: str = "derived"
+
+
+@router.post("/from-companies")
+async def universe_from_companies(req: FromCompaniesRequest, settings: Settings = Depends(settings_dep)) -> dict:
+    """Saves an already-in-hand company list (e.g. the matched companies
+    from a completed thematic run, filtered down to a verdict/exposure
+    subset in the UI) as a reusable universe file -- the bridge from a
+    thematic screen's results straight into a new run (extraction, another
+    theme run) without re-uploading or hand-editing a CSV.
+    """
+    if not req.companies:
+        raise HTTPException(400, "Provide at least one company.")
+    dest_dir = settings.runs_dir / "_universes"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in req.name) or "derived"
+    dest_path = dest_dir / f"{safe_name}_{int(time.time())}.json"
+    dest_path.write_text(json.dumps([c.model_dump(mode="json") for c in req.companies], indent=2))
+    return {"path": str(dest_path), "company_count": len(req.companies), "sample": [c.model_dump() for c in req.companies[:5]]}

@@ -77,6 +77,15 @@ export const api = {
   getRun: (runId: string) => request(`/api/runs/${runId}`),
   getRunErrors: (runId: string) => request(`/api/runs/${runId}/errors`),
   exportRunCsvUrl: (runId: string) => `${API_BASE}/api/runs/${runId}/export.csv`,
+  cancelRun: (runId: string) => request(`/api/runs/${runId}/cancel`, { method: "POST" }),
+  resumeThemeRun: (runId: string) => request(`/api/themes/runs/${runId}/resume`, { method: "POST" }),
+
+  // Universe from an in-hand company list (e.g. filtered thematic-run matches)
+  universeFromCompanies: (companies: unknown[], name: string) =>
+    request<{ path: string; company_count: number; sample: unknown[] }>("/api/universe/from-companies", {
+      method: "POST",
+      body: JSON.stringify({ companies, name }),
+    }),
 
   // Taxonomy library
   discoverTaxonomySources: (name: string) =>

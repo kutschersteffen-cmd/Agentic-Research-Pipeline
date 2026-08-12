@@ -137,6 +137,10 @@ async def execute_extraction_run(
     def _on_error(company: CompanyRef, exc: Exception) -> None:
         job_manager.record_progress(run_id, failed_delta=1)
 
+    def _cancel_check() -> bool:
+        current = run_store.load_manifest(run_id)
+        return current is not None and current.cancel_requested
+
     async def _worker(company: CompanyRef) -> ExtractionRecordResult:
         result = await _extract_company(company, schema, registry=registry, llm=llm, settings=settings)
         result.record.run_id = run_id
@@ -152,6 +156,7 @@ async def execute_extraction_run(
         result_to_json=lambda r: r.record.model_dump(mode="json"),
         on_success=_on_success,
         on_error=_on_error,
+        cancel_check=_cancel_check,
     )
 
     job_manager.finish_run(run_id)

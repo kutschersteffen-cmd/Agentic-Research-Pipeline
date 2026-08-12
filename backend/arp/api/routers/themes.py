@@ -12,7 +12,7 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.review_queue import latest_decisions, record_review_decision
 from arp.research.activity_generator import build_theme
 from arp.research.indirect_exposure.factory import build_leontief_model
-from arp.research.pipeline import create_theme_run, execute_theme_run
+from arp.research.pipeline import create_theme_run, execute_theme_run, resume_theme_run
 from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company, load_catalogue
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.common import CompanyRef
@@ -85,7 +85,13 @@ async def start_theme_run(
     if bool(req.revenue_catalogue_path) != bool(req.catalogue_mapping):
         raise HTTPException(400, "Provide both revenue_catalogue_path and catalogue_mapping together, or neither.")
 
-    run_id = create_theme_run(theme, companies, settings, run_store)
+    run_id = create_theme_run(
+        theme, companies, settings, run_store,
+        universe_path=req.universe_path,
+        use_sample_icio=req.use_sample_icio,
+        revenue_catalogue_path=req.revenue_catalogue_path,
+        catalogue_mapping=req.catalogue_mapping,
+    )
     llm = get_llm_client()  # raises a clear 4xx-worthy error before we schedule anything if unconfigured
     indirect_model = build_leontief_model(settings, use_sample=req.use_sample_icio)
 
@@ -128,6 +134,38 @@ def get_theme_run(run_id: str, run_store: RunStore = Depends(get_run_store)) -> 
     if manifest is None:
         raise HTTPException(404, "Run not found")
     return manifest.model_dump(mode="json")
+
+
+@router.post("/runs/{run_id}/resume")
+async def resume_theme_run_endpoint(
+    run_id: str,
+    settings: Settings = Depends(settings_dep),
+    run_store: RunStore = Depends(get_run_store),
+    registry: DocumentSourceRegistry = Depends(get_registry),
+) -> dict:
+    """Re-invokes execute_theme_run for a run that was interrupted, failed,
+    partially completed, or cancelled -- reconstructed from what
+    create_theme_run persisted (theme.json, universe_path,
+    catalogue_mapping.json). Already-completed companies are skipped
+    automatically (run_batch's own resumability); nothing is redone.
+    """
+    manifest = run_store.load_manifest(run_id)
+    if manifest is None:
+        raise HTTPException(404, "Run not found")
+    if manifest.run_type != "theme":
+        raise HTTPException(400, f"Run {run_id} is a {manifest.run_type} run, not a theme run.")
+    if manifest.status == "completed":
+        raise HTTPException(400, "This run already completed successfully -- nothing to resume.")
+    if not manifest.params.get("universe_path"):
+        raise HTTPException(400, "This run has no stored universe_path (it predates resume support, or was started with inline `companies`) and can't be reconstructed.")
+
+    llm = get_llm_client()  # surfaces a clean 503 before we schedule anything if unconfigured
+
+    async def _background() -> None:
+        await resume_theme_run(run_id, llm=llm, registry=registry, settings=settings, run_store=run_store)
+
+    asyncio.create_task(_background())
+    return {"run_id": run_id, "status": "resumed"}
 
 
 @router.get("/runs/{run_id}/results")

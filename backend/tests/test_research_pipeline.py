@@ -1,16 +1,20 @@
+import json
+
 from arp.config import Settings
 from arp.extraction.extractor_agent import ExtractionDraft
 from arp.extraction.verifier_agent import VerifierOutput
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.orchestration.job_manager import JobManager
 from arp.research.indirect_exposure.icio_loader import load_sample_icio
 from arp.research.indirect_exposure.leontief import build_model
 from arp.research.matcher_agents import AdjudicatorOutput
-from arp.research.pipeline import _match_company
+from arp.research.pipeline import _match_company, create_theme_run, resume_theme_run
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
-from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
+from arp.schemas.common import Citation, CompanyRef, DocType, JobStatus, SourceDocument
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping, CatalogueDataPoint
 from arp.schemas.thematic import ActivityDefinition, AgentOpinion, ExposureEstimate, MatchVerdict, ThemeDefinition
+from arp.storage.run_store import RunStore
 
 
 class _FixedDocSource(DocumentSource):
@@ -275,3 +279,58 @@ async def test_match_company_revenue_unresolved_falls_through_to_qualitative_deb
     assert match.revenue_exposure is not None
     assert match.revenue_exposure.revenue.source == "unresolved"
     assert match.verdict == MatchVerdict.INCLUDE
+
+
+async def test_resume_theme_run_skips_already_completed_companies(tmp_path, fake_llm):
+    """Reconstructs a run from what create_theme_run persisted and confirms
+    resume_theme_run only processes the company missing from results.jsonl
+    -- run_batch's own resumability, exercised end to end through the
+    resume entrypoint rather than called directly."""
+    settings = _settings(tmp_path)
+    store = RunStore(settings.runs_dir)
+    theme, _activity = _theme()
+    universe_path = tmp_path / "universe.csv"
+    universe_path.write_text("company_id,name\nc1,Acme\nc2,Beta\n")
+
+    run_id = create_theme_run(
+        theme,
+        [CompanyRef(company_id="c1", name="Acme"), CompanyRef(company_id="c2", name="Beta")],
+        settings,
+        store,
+        universe_path=str(universe_path),
+    )
+    # Simulate c1 having already completed in a prior (interrupted) invocation,
+    # and that the run was cancelled before c2 got a chance to run.
+    store.results_path(run_id).write_text(json.dumps({"company_matches": [], "_key": "c1"}) + "\n")
+    JobManager(store).request_cancel(run_id)
+    assert store.load_manifest(run_id).cancel_requested is True
+
+    doc = SourceDocument(company_id="c2", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
+    registry = DocumentSourceRegistry([_FixedDocSource([doc])])
+    llm = fake_llm({})  # no evidence for either company -> no LLM calls needed
+
+    resumed_run_id = await resume_theme_run(run_id, llm=llm, registry=registry, settings=settings, run_store=store)
+    assert resumed_run_id == run_id
+
+    manifest = store.load_manifest(run_id)
+    assert manifest.status == JobStatus.COMPLETED
+    assert manifest.cancel_requested is False  # resume clears the stale cancel flag
+
+    rows = store.read_jsonl(store.results_path(run_id))
+    keys = {r["_key"] for r in rows}
+    assert keys == {"c1", "c2"}  # c1's pre-existing row preserved, c2 newly processed
+
+
+async def test_resume_theme_run_unknown_universe_path_raises(tmp_path, fake_llm):
+    settings = _settings(tmp_path)
+    store = RunStore(settings.runs_dir)
+    theme, _activity = _theme()
+    run_id = create_theme_run(theme, [CompanyRef(company_id="c1", name="Acme")], settings, store)  # no universe_path
+
+    llm = fake_llm({})
+    registry = DocumentSourceRegistry([_FixedDocSource([])])
+    try:
+        await resume_theme_run(run_id, llm=llm, registry=registry, settings=settings, run_store=store)
+        assert False, "expected ValueError"
+    except ValueError as exc:
+        assert "universe_path" in str(exc)

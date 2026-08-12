@@ -19,7 +19,7 @@ from arp.llm.factory import build_llm_client
 from arp.research.activity_generator import build_theme, build_theme_industry_anchored
 from arp.research.indirect_exposure.core_sectors import classify_theme_core_sectors
 from arp.research.indirect_exposure.factory import build_leontief_model
-from arp.research.pipeline import run_thematic_universe
+from arp.research.pipeline import resume_theme_run, run_thematic_universe
 from arp.research.taxonomy_sources.authority import build_theme_from_authority_sources
 from arp.research.taxonomy_sources.compare import compare_taxonomies, merge_taxonomies
 from arp.research.taxonomy_sources.discovery import discover_authority_sources, discover_thematic_funds
@@ -36,7 +36,8 @@ from arp.research.revenue_exposure.catalogue import distinct_labels, load_catalo
 from arp.research.revenue_exposure.mapping import suggest_catalogue_mapping
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
-from arp.schemas.common import DocType
+from arp.orchestration.job_manager import JobManager
+from arp.schemas.common import DocType, JobStatus
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.discovery import DiscoveryScheduleConfig
 from arp.schemas.taxonomy import DerivationMethod, TaxonomyRef
@@ -158,6 +159,7 @@ def theme_run(
         typer.echo("Provide both --revenue-catalogue and --catalogue-mapping together, or neither.", err=True)
         raise typer.Exit(1)
     revenue_resolver = None
+    mappings: list[ActivityCatalogueMapping] | None = None
     if revenue_catalogue is not None:
         catalogue = load_catalogue(revenue_catalogue)
         mappings = [ActivityCatalogueMapping.model_validate(m) for m in json.loads(catalogue_mapping.read_text())]
@@ -177,9 +179,29 @@ def theme_run(
             run_store=_run_store(),
             indirect_model=indirect_model,
             revenue_resolver=revenue_resolver,
+            universe_path=str(universe),
+            use_sample_icio=use_sample_icio,
+            revenue_catalogue_path=str(revenue_catalogue) if revenue_catalogue else None,
+            catalogue_mapping=mappings,
         )
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
+
+
+@theme_app.command("resume")
+def theme_resume(run_id: str) -> None:
+    """Re-invokes a theme run that was interrupted, failed, partially
+    completed, or cancelled -- reconstructed from what `theme run`
+    persisted at creation time. Already-completed companies are skipped
+    automatically."""
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    try:
+        run_id = asyncio.run(resume_theme_run(run_id, llm=llm, registry=_registry(), settings=settings, run_store=_run_store()))
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"Resumed run complete: {run_id} (see runs/{run_id}/)")
 
 
 @taxonomy_app.command("discover-sources")
@@ -525,6 +547,23 @@ def runs_list(run_type: str = typer.Option(None)) -> None:
     manifests = _run_store().list_runs(run_type)
     for m in manifests:
         typer.echo(f"{m.run_id}\t{m.run_type}\t{m.status.value}\t{m.completed_count}/{m.company_count} done\t${m.estimated_cost_usd:.2f}")
+
+
+@runs_app.command("cancel")
+def runs_cancel(run_id: str) -> None:
+    """Requests a cooperative stop for a running/pending run -- in-flight
+    items still finish and checkpoint; no new ones start. Works for any
+    run type. Resume it later with `arp theme resume` (theme runs only)."""
+    store = _run_store()
+    manifest = store.load_manifest(run_id)
+    if manifest is None:
+        typer.echo("Run not found", err=True)
+        raise typer.Exit(1)
+    if manifest.status not in (JobStatus.RUNNING, JobStatus.PENDING):
+        typer.echo(f"Run {run_id} is already {manifest.status.value} -- nothing to cancel.", err=True)
+        raise typer.Exit(1)
+    JobManager(store).request_cancel(run_id)
+    typer.echo(f"Cancellation requested for {run_id}.")
 
 
 @runs_app.command("show")

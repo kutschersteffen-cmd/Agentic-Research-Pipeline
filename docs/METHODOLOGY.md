@@ -108,7 +108,18 @@ blended into the qualitative `exposure_estimate` the debate produces — see
    fetch timing out, a malformed filing, a transient rate limit. Every
    successful result is flushed to disk immediately; a re-run skips
    already-completed companies; one company's exception never aborts the
-   batch or is silently swallowed (it's logged to `errors.jsonl`).
+   batch or is silently swallowed (it's logged to `errors.jsonl`). This
+   resumability is also exposed directly as a control, not just an
+   internal recovery mechanism: `POST /api/runs/{id}/cancel` /
+   `arp runs cancel` requests a cooperative stop (`RunManifest
+   .cancel_requested`, polled by `run_batch` before each new item --
+   in-flight items still finish and checkpoint, nothing is left half-
+   written), and `POST /api/themes/runs/{id}/resume` / `arp theme resume`
+   picks a stopped, failed, or interrupted run back up from exactly where
+   it left off, reconstructed from what `create_theme_run` persisted
+   (`theme.json`, the universe path, and any revenue-catalogue mapping) --
+   no need to redo already-completed companies or re-supply the original
+   inputs by hand.
 
 ## The indirect (input-output) exposure tier
 
