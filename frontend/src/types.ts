@@ -70,6 +70,17 @@ export interface AgentOpinion {
   exposure_estimate: "pure_play" | "significant" | "minor" | "none";
 }
 
+export interface IndirectExposureResult {
+  company_id: string;
+  isic_code: string;
+  isic_label?: string | null;
+  upstream_exposure: number;
+  downstream_exposure: number;
+  core_sector: boolean;
+  icio_edition: string;
+  generated_at: string;
+}
+
 export interface CompanyMatch {
   company_id: string;
   ticker?: string | null;
@@ -83,6 +94,7 @@ export interface CompanyMatch {
   opposing: AgentOpinion;
   adjudicator_rationale: string;
   citations: Citation[];
+  indirect_exposure?: IndirectExposureResult | null;
   flagged_for_review: boolean;
   generated_at: string;
 }

@@ -18,6 +18,7 @@ export function ThemeBuilder() {
   const [runId, setRunId] = useState<string | null>(null);
   const [results, setResults] = useState<CompanyMatch[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [useSampleIcio, setUseSampleIcio] = useState(false);
 
   async function decompose() {
     setBusy(true);
@@ -48,7 +49,7 @@ export function ThemeBuilder() {
     setBusy(true);
     setError(null);
     try {
-      const res = await api.startThemeRun({ theme, universe_path: universePath });
+      const res = await api.startThemeRun({ theme, universe_path: universePath, use_sample_icio: useSampleIcio });
       setRunId(res.run_id);
       setResults([]);
     } catch (err) {
@@ -123,6 +124,16 @@ export function ThemeBuilder() {
               setCompanyCount(count);
             }}
           />
+          <label className="checkbox-label">
+            <input type="checkbox" checked={useSampleIcio} onChange={(e) => setUseSampleIcio(e.target.checked)} />
+            Enable indirect (input-output) exposure tier using the bundled sample dataset
+          </label>
+          <p className="help-text">
+            Structural supply-chain exposure via OECD ICIO input-output propagation -- catches companies with no
+            direct textual evidence but real economic linkage to the theme's core sectors. The sample dataset is
+            illustrative only; for a real run, configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH on the
+            backend instead and leave this off.
+          </p>
           <button onClick={startRun} disabled={busy || !universePath}>
             Run screen against {companyCount || "..."} companies
           </button>
@@ -150,12 +161,14 @@ export function ThemeBuilder() {
                   <th>Verdict</th>
                   <th>Exposure</th>
                   <th>Confidence</th>
+                  <th>Structural</th>
                   <th>Review</th>
                 </tr>
               </thead>
               <tbody>
                 {results.map((m) => {
                   const key = `${m.company_id}:${m.activity_id}`;
+                  const io = m.indirect_exposure;
                   return (
                     <Fragment key={key}>
                       <tr onClick={() => setExpanded(expanded === key ? null : key)} className="clickable-row">
@@ -164,11 +177,20 @@ export function ThemeBuilder() {
                         <td><VerdictBadge verdict={m.verdict} /></td>
                         <td>{m.exposure_estimate}</td>
                         <td><ConfidenceBadge value={m.confidence} /></td>
+                        <td>
+                          {io ? (
+                            <span className="muted">
+                              &uarr;{Math.round(io.upstream_exposure * 100)}% &darr;{Math.round(io.downstream_exposure * 100)}%
+                            </span>
+                          ) : (
+                            ""
+                          )}
+                        </td>
                         <td>{m.flagged_for_review ? "⚑" : ""}</td>
                       </tr>
                       {expanded === key && (
                         <tr>
-                          <td colSpan={6} className="detail-cell">
+                          <td colSpan={7} className="detail-cell">
                             <p><strong>Rationale:</strong> {m.adjudicator_rationale}</p>
                             <p><strong>Citations:</strong></p>
                             <ul>
@@ -178,6 +200,19 @@ export function ThemeBuilder() {
                                 </li>
                               ))}
                             </ul>
+                            {io && (
+                              <>
+                                <p>
+                                  <strong>Indirect (structural) exposure:</strong> {io.isic_label ?? io.isic_code}{" "}
+                                  {io.core_sector && <span className="badge badge-high">core sector</span>}
+                                </p>
+                                <ul>
+                                  <li>Upstream exposure: {(io.upstream_exposure * 100).toFixed(1)}% -- share of this industry's total input requirement traceable to the activity's core sectors</li>
+                                  <li>Downstream exposure: {(io.downstream_exposure * 100).toFixed(1)}% -- share of this industry's output propagation landing in the activity's core sectors</li>
+                                  <li className="muted">Computed from {io.icio_edition}</li>
+                                </ul>
+                              </>
+                            )}
                           </td>
                         </tr>
                       )}
