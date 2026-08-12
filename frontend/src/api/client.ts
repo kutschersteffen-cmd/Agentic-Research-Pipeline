@@ -1,0 +1,80 @@
+const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const isFormData = init?.body instanceof FormData;
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: isFormData ? init?.headers : { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      detail = body.detail ?? JSON.stringify(body);
+    } catch {
+      /* ignore parse failure */
+    }
+    throw new Error(`${res.status}: ${detail}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+export const api = {
+  base: API_BASE,
+
+  // Universe
+  uploadUniverse: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<{ path: string; company_count: number; sample: unknown[] }>("/api/universe/upload", {
+      method: "POST",
+      headers: {},
+      body: form,
+    });
+  },
+
+  // Themes
+  decomposeTheme: (name: string, description: string) =>
+    request("/api/themes/decompose", { method: "POST", body: JSON.stringify({ name, description }) }),
+  startThemeRun: (body: unknown) => request<{ run_id: string; company_count: number }>("/api/themes/runs", { method: "POST", body: JSON.stringify(body) }),
+  getThemeResults: (runId: string, offset = 0, limit = 500) =>
+    request(`/api/themes/runs/${runId}/results?offset=${offset}&limit=${limit}`),
+  getThemeReviewQueue: (runId: string) => request(`/api/themes/runs/${runId}/review-queue`),
+  submitThemeReview: (runId: string, body: unknown) =>
+    request(`/api/themes/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
+
+  // Extraction
+  draftSchema: (criteriaText: string) =>
+    request("/api/extraction/schemas/draft", { method: "POST", body: JSON.stringify({ criteria_text: criteriaText }) }),
+  startExtractionRun: (body: unknown) =>
+    request<{ run_id: string; company_count: number }>("/api/extraction/runs", { method: "POST", body: JSON.stringify(body) }),
+  getExtractionResults: (runId: string, offset = 0, limit = 500) =>
+    request(`/api/extraction/runs/${runId}/results?offset=${offset}&limit=${limit}`),
+  getExtractionReviewQueue: (runId: string) => request(`/api/extraction/runs/${runId}/review-queue`),
+  submitExtractionReview: (runId: string, body: unknown) =>
+    request(`/api/extraction/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
+
+  // Documents
+  uploadDocument: (companyId: string, docType: string, file: File) => {
+    const form = new FormData();
+    form.append("company_id", companyId);
+    form.append("doc_type", docType);
+    form.append("file", file);
+    return request("/api/documents/upload", { method: "POST", headers: {}, body: form });
+  },
+  listDocuments: (companyId: string) => request(`/api/documents/${companyId}`),
+
+  // Discovery
+  startDiscoveryRun: (body: unknown) =>
+    request<{ run_id: string; company_count: number }>("/api/discovery/runs", { method: "POST", body: JSON.stringify(body) }),
+  getDiscoveryEvents: (since?: string) => request(`/api/discovery/events${since ? `?since=${encodeURIComponent(since)}` : ""}`),
+  getDiscoverySchedule: () => request("/api/discovery/schedule"),
+  updateDiscoverySchedule: (config: unknown) =>
+    request("/api/discovery/schedule", { method: "PUT", body: JSON.stringify(config) }),
+
+  // Runs (generic)
+  listRuns: (runType?: string) => request(`/api/runs${runType ? `?run_type=${runType}` : ""}`),
+  getRun: (runId: string) => request(`/api/runs/${runId}`),
+  getRunErrors: (runId: string) => request(`/api/runs/${runId}/errors`),
+  exportRunCsvUrl: (runId: string) => `${API_BASE}/api/runs/${runId}/export.csv`,
+};

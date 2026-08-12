@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Runtime data (file-based storage) - keep folder structure, not contents
+runs/*
+!runs/.gitkeep
+data/documents/*
+!data/documents/.gitkeep
+backend/.cache/
+backend/.discovery_state/
+
+# OS
+.DS_Store
