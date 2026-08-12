@@ -12,16 +12,25 @@ from arp.schemas.thematic import ActivityDefinition
 
 _SYSTEM_PROMPT = """\
 You classify a thematic investment activity against a fixed list of GICS \
-(Global Industry Classification Standard) entries, identifying which ones \
-best describe the activity's primary business.
+(Global Industry Classification Standard) entries spanning all four levels \
+of the hierarchy -- sector, industry group, industry, and sub-industry \
+(each entry's level is given in parentheses).
+
+Prefer the most specific level that genuinely fits: pick a sub-industry \
+when the activity clearly matches one, and only fall back to a broader \
+industry/industry group/sector match when no sub-industry (or industry) \
+is specific enough to be accurate. Do not select both a sub-industry and \
+its parent industry/industry group/sector for the same match -- pick the \
+single most specific applicable level.
 
 Select only entries that are a direct, primary match for the activity as \
 described -- not merely economically adjacent or a plausible customer/
 supplier. Most activities match exactly one entry; select more than one \
-only when the activity plainly spans multiple GICS categories. If nothing \
-in the list is a good match, return an empty list rather than picking the \
-closest-sounding one. For every entry you select, give a one-sentence \
-rationale grounded in the activity's own in-scope description."""
+only when the activity plainly spans multiple distinct GICS categories. \
+If nothing in the list is a good match, return an empty list rather than \
+picking the closest-sounding one. For every entry you select, give a \
+one-sentence rationale grounded in the activity's own in-scope \
+description."""
 
 
 @dataclass

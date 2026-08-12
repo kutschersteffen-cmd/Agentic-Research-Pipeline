@@ -26,14 +26,34 @@ and a published ISIC-SIC crosswalk.
 
 ## `gics_reference_sample.csv` (GICS reference list)
 
-Sector level only (the 11 GICS sectors, stable since the 2018 revision) --
-GICS Industry Group/Industry/Sub-Industry codes are part of the licensed
-MSCI/S&P GICS structure and aren't redistributed here. Activities are
-LLM-classified against whatever reference list is loaded
-(`gics.py::classify_gics`), so with only this sample loaded, GICS mapping
-tops out at sector-level granularity. Supply your own licensed
-`code,label,level` GICS file via `ARP_GICS_REFERENCE_PATH` for
-industry/sub-industry-level classification.
+**⚠ Unverified, best-effort reconstruction from LLM training knowledge --
+not sourced from MSCI/S&P's official published structure.** All four
+levels (11 sectors, 25 industry groups, 76 industries, 163 sub-industries)
+are included, matching the expected shape of the standard, but:
+
+- it was written from memory, not fetched from an authoritative source
+  (this environment's network egress is blocked for general web access,
+  so it couldn't be cross-checked against MSCI's live GICS structure page
+  at build time);
+- GICS has been revised more than once (2016 Real Estate split, 2018
+  creation of Communication Services, a 2023 restructuring touching parts
+  of Real Estate, Financial Services, and Consumer sectors) -- this file
+  most likely reflects a ~2021-2022 vintage and may be missing later
+  renames/reclassifications;
+- individual codes or labels may simply be wrong at the sub-industry
+  level, where MSCI/S&P's licensed structure has ~163 entries to get
+  exactly right.
+
+The 11 top-level sector codes/names are stable, public, and high-
+confidence; treat anything below sector level here as a **draft
+approximation for testing the mapping pipeline, not a citable
+classification**. For any real use, verify against MSCI's current
+published GICS structure (or your Bloomberg/FactSet/MSCI subscription)
+and supply the corrected/current file via `ARP_GICS_REFERENCE_PATH` --
+that path always wins over this bundled sample (see `mapper.py::
+_resolve_table_path`), and GICS Industry Group/Industry/Sub-Industry
+codes are MSCI/S&P-licensed, so redistributing a verified copy here
+still isn't appropriate even once corrected.
 
 ## Format
 

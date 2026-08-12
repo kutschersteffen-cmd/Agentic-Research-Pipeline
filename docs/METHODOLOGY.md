@@ -373,12 +373,18 @@ The four standards are **not** all handled the same way, deliberately:
   So GICS is a **closed-list LLM classification** instead
   (`standards_mapping/gics.py::classify_gics`), the exact same pattern as
   the indirect-exposure tier's `classify_core_sectors`: one call per
-  activity against a fixed reference list, a rationale required for every
+  activity against a fixed reference list spanning all four GICS levels
+  (sector/industry group/industry/sub-industry), instructed to prefer the
+  most specific level that genuinely fits, a rationale required for every
   match, and any code the model returns that isn't actually in the
-  reference list is dropped. Because the full GICS Industry Group/Industry/
-  Sub-Industry structure is MSCI/S&P-licensed, only the 11 stable, public
-  GICS sector codes are bundled as the sample; supply your own licensed
-  `ARP_GICS_REFERENCE_PATH` file for sub-industry-level classification.
+  reference list is dropped. **The bundled sample's sector level (11
+  codes) is stable and public; everything below sector level was
+  reconstructed from LLM training knowledge, not fetched from MSCI's
+  official structure, and is explicitly flagged as unverified** (see
+  `sample_data/README.md`) -- GICS below sector level is MSCI/S&P-licensed
+  and revised periodically (most recently 2023), so treat it as a draft
+  for testing the pipeline, not a citable classification, until you
+  supply a verified `ARP_GICS_REFERENCE_PATH` file.
 
 Each of the four standards resolves independently -- a deployment with a
 real NACE table but no GICS license is normal; that standard just comes

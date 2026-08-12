@@ -215,7 +215,10 @@ function LibraryView({ taxonomies, onChange }: { taxonomies: Taxonomy[]; onChang
                     <p className="help-text">
                       Uses configured ARP_NACE_CROSSWALK_PATH / ARP_NAICS_CROSSWALK_PATH / ARP_SIC_CROSSWALK_PATH /
                       ARP_GICS_REFERENCE_PATH by default; check the sample boxes to use the bundled illustrative data
-                      instead. Saves a new taxonomy version.
+                      instead. Saves a new taxonomy version. <strong>The bundled GICS data below sector level is an
+                      unverified, LLM-reconstructed approximation of the licensed MSCI/S&amp;P structure</strong> --
+                      fine for testing this pipeline, not for citing. Supply a verified ARP_GICS_REFERENCE_PATH
+                      before relying on sub-industry-level GICS output.
                     </p>
                     {error && <p className="error-text">{error}</p>}
                   </td>

@@ -1,5 +1,10 @@
-from arp.research.standards_mapping.gics import GicsReferenceEntry, _GicsSelection, _GicsSelectionList, classify_gics
+from collections import Counter
+from pathlib import Path
+
+from arp.research.standards_mapping.gics import GicsReferenceEntry, _GicsSelection, _GicsSelectionList, classify_gics, load_gics_reference
 from arp.schemas.thematic import ActivityDefinition
+
+_SAMPLE_PATH = Path(__file__).parent.parent / "arp/research/standards_mapping/sample_data/gics_reference_sample.csv"
 
 
 def _activity() -> ActivityDefinition:
@@ -43,3 +48,17 @@ async def test_empty_reference_list_skips_llm(fake_llm):
     assert matches == []
     assert usage.input_tokens == 0
     assert llm.calls == []
+
+
+def test_bundled_sample_covers_all_four_gics_levels_with_no_duplicate_codes():
+    """Regression guard on the bundled (unverified, LLM-reconstructed --
+    see sample_data/README.md) full GICS hierarchy: right shape, no
+    accidental duplicate/colliding codes across levels."""
+    entries = load_gics_reference(_SAMPLE_PATH)
+    counts = Counter(e.level for e in entries)
+    assert counts["sector"] == 11
+    assert counts["industry_group"] == 25
+    assert counts["industry"] > 60
+    assert counts["sub_industry"] > 150
+    codes = [e.code for e in entries]
+    assert len(codes) == len(set(codes))
