@@ -21,14 +21,20 @@ from arp.research.indirect_exposure.core_sectors import classify_theme_core_sect
 from arp.research.indirect_exposure.factory import build_leontief_model
 from arp.research.pipeline import run_thematic_universe
 from arp.research.taxonomy_sources.authority import build_theme_from_authority_sources
+from arp.research.taxonomy_sources.compare import compare_taxonomies, merge_taxonomies
 from arp.research.taxonomy_sources.discovery import discover_authority_sources, discover_thematic_funds
 from arp.research.taxonomy_sources.empirical import build_theme_empirical
-from arp.research.taxonomy_sources.etf_holdings import build_theme_from_holdings
+from arp.research.taxonomy_sources.etf_holdings import (
+    build_theme_from_holdings,
+    load_holdings_with_weights,
+    load_universe_from_holdings,
+)
+from arp.research.taxonomy_sources.overlap import compute_holdings_overlap
 from arp.research.taxonomy_sources.news_mining import build_theme_from_news_and_transcripts
 from arp.schemas.common import DocType
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.discovery import DiscoveryScheduleConfig
-from arp.schemas.taxonomy import DerivationMethod
+from arp.schemas.taxonomy import DerivationMethod, TaxonomyRef
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
@@ -40,11 +46,13 @@ taxonomy_app = typer.Typer(help="The reusable, versioned taxonomy library.")
 extract_app = typer.Typer(help="Schema-driven data-point extraction.")
 discover_app = typer.Typer(help="Document discovery: find and download company disclosures.")
 runs_app = typer.Typer(help="Inspect and export runs.")
+universe_app = typer.Typer(help="Build reusable company universes.")
 app.add_typer(theme_app, name="theme")
 app.add_typer(taxonomy_app, name="taxonomy")
 app.add_typer(extract_app, name="extract")
 app.add_typer(discover_app, name="discover")
 app.add_typer(runs_app, name="runs")
+app.add_typer(universe_app, name="universe")
 
 
 def _registry() -> DocumentSourceRegistry:
@@ -318,6 +326,56 @@ def taxonomy_ratify(
     typer.echo(f"Ratified {taxonomy_id} v{resolved_version} by {by}")
 
 
+def _parse_taxonomy_ref(ref: str) -> TaxonomyRef:
+    """Parses 'tax_xxx' or 'tax_xxx:3' (id, or id:version)."""
+    if ":" in ref:
+        taxonomy_id, version_str = ref.rsplit(":", 1)
+        return TaxonomyRef(taxonomy_id=taxonomy_id, version=int(version_str))
+    return TaxonomyRef(taxonomy_id=ref, version=None)
+
+
+def _resolve_taxonomy_ref_or_exit(ref_str: str):
+    store = _taxonomy_store()
+    ref = _parse_taxonomy_ref(ref_str)
+    taxonomy = store.get(ref.taxonomy_id, ref.version)
+    if taxonomy is None:
+        typer.echo(f"Taxonomy not found: {ref_str}", err=True)
+        raise typer.Exit(1)
+    return taxonomy
+
+
+@taxonomy_app.command("compare")
+def taxonomy_compare(ref_a: str, ref_b: str) -> None:
+    """Diffs two taxonomies' activity sets. Refs are 'taxonomy_id' (latest
+    version) or 'taxonomy_id:version'."""
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    taxonomy_a = _resolve_taxonomy_ref_or_exit(ref_a)
+    taxonomy_b = _resolve_taxonomy_ref_or_exit(ref_b)
+    comparison, _usage = asyncio.run(compare_taxonomies(taxonomy_a, taxonomy_b, llm))
+    typer.echo(json.dumps(comparison.model_dump(mode="json"), indent=2))
+
+
+@taxonomy_app.command("merge")
+def taxonomy_merge(
+    refs: list[str] = typer.Argument(..., help="Two or more taxonomy refs ('id' or 'id:version')."),
+    name: str = typer.Option(..., help="Name for the merged taxonomy."),
+    description: str = typer.Option(""),
+    out: Path = typer.Option(..., help="Where to write the merged ThemeDefinition JSON (a draft -- review before saving)."),
+) -> None:
+    if len(refs) < 2:
+        typer.echo("Provide at least two taxonomy refs to merge.", err=True)
+        raise typer.Exit(1)
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    taxonomies = [_resolve_taxonomy_ref_or_exit(r) for r in refs]
+    theme, notes, _usage = asyncio.run(merge_taxonomies(taxonomies, name, description, llm))
+    out.write_text(theme.model_dump_json(indent=2))
+    typer.echo(f"Wrote merged draft ({len(theme.activities)} activities) to {out}")
+    typer.echo(notes)
+    typer.echo(f"Review and save with: arp taxonomy new-version <existing_id> --theme {out}  (or create a new taxonomy from it)")
+
+
 @extract_app.command("draft-schema")
 def extract_draft_schema(criteria_text: str, out: Path = typer.Option(...)) -> None:
     settings = get_settings()
@@ -388,6 +446,42 @@ def runs_show(run_id: str) -> None:
         typer.echo("Run not found", err=True)
         raise typer.Exit(1)
     typer.echo(json.dumps(manifest.model_dump(mode="json"), indent=2))
+
+
+@universe_app.command("from-holdings")
+def universe_from_holdings(
+    holdings: Path,
+    out: Path = typer.Option(..., help="Where to write the normalized universe JSON."),
+) -> None:
+    """Builds a company universe from a fund/index holdings export (a
+    sector SPDR, a broad index ETF, ...) instead of a hand-written list --
+    reuses the same holdings CSV parser the etf_index_holdings taxonomy
+    method uses."""
+    companies = load_universe_from_holdings(holdings)
+    if not companies:
+        typer.echo(f"No usable rows found in {holdings}", err=True)
+        raise typer.Exit(1)
+    out.write_text(json.dumps([c.model_dump(mode="json") for c in companies], indent=2))
+    typer.echo(f"Wrote {len(companies)} companies to {out}")
+
+
+@universe_app.command("overlap")
+def universe_overlap(
+    holdings: list[Path] = typer.Argument(..., help="Two or more holdings CSVs to compare."),
+    names: list[str] = typer.Option(None, "--name", help="Display name per file, in order (defaults to filenames)."),
+) -> None:
+    """Computes deterministic holdings overlap across two or more funds --
+    pure set/weight math, no LLM."""
+    if len(holdings) < 2:
+        typer.echo("Provide at least two holdings files.", err=True)
+        raise typer.Exit(1)
+    fund_names = names or [p.stem for p in holdings]
+    if len(fund_names) != len(holdings):
+        typer.echo("--name count must match the number of holdings files.", err=True)
+        raise typer.Exit(1)
+    fund_holdings = {name: load_holdings_with_weights(path) for name, path in zip(fund_names, holdings)}
+    result = compute_holdings_overlap(fund_holdings)
+    typer.echo(json.dumps(result.model_dump(mode="json"), indent=2))
 
 
 if __name__ == "__main__":

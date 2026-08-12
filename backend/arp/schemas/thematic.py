@@ -35,6 +35,10 @@ class ActivityDefinition(BaseModel):
             "for this activity. Populate via `arp theme classify-sectors` or supply by hand."
         ),
     )
+    source_citation: Citation | None = Field(
+        default=None,
+        description="Verbatim, grounding-checked quote this activity was extracted from, when derived from an authority source.",
+    )
 
 
 class ThemeDefinition(BaseModel):

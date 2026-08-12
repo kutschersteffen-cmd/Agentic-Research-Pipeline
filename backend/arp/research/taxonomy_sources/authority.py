@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from arp.llm.base import LLMClient, LLMUsage
-from arp.research.activity_generator import build_theme
+from arp.orchestration.cost_tracker import combine_usage
+from arp.research.taxonomy_sources.activity_merge import merge_activity_sets
+from arp.research.taxonomy_sources.authority_extraction import extract_activities_from_source
 from arp.research.taxonomy_sources.fetch import fetch_source_text
 from arp.schemas.thematic import ThemeDefinition
 
@@ -15,26 +17,50 @@ async def build_theme_from_authority_sources(
     llm: LLMClient,
     user_agent: str,
 ) -> tuple[ThemeDefinition, str, LLMUsage]:
-    """Fetches each user-selected authority source and grounds the activity
-    draft in their actual text (see activity_generator.generate_activities'
-    extra_context). A source that fails to fetch is skipped, not fatal --
-    one dead link shouldn't block a derivation that has other sources.
+    """Fetches each user-selected authority source, extracts a grounded
+    activity list from each independently (see authority_extraction.py),
+    then -- if more than one source was selected -- consolidates them into
+    one MECE set via the same merge primitive taxonomy comparison/merge
+    uses. A source that fails to fetch, or yields no grounded activities,
+    is skipped rather than failing the whole derivation.
     """
-    fetched: list[tuple[str, str]] = []
+    per_source_activities: list[list] = []
+    fetched_urls: list[str] = []
+    empty_urls: list[str] = []
+    unreachable_urls: list[str] = []
+    total_usage = LLMUsage()
+
     for url in source_urls:
         text = await fetch_source_text(url, user_agent)
-        if text:
-            fetched.append((url, text[:_MAX_CHARS_PER_SOURCE]))
+        if not text:
+            unreachable_urls.append(url)
+            continue
+        activities, usage = await extract_activities_from_source(url, text[:_MAX_CHARS_PER_SOURCE], llm)
+        total_usage = combine_usage(total_usage, usage)
+        if not activities:
+            empty_urls.append(url)
+            continue
+        fetched_urls.append(url)
+        per_source_activities.append(activities)
 
-    if not fetched:
-        raise ValueError("None of the provided authority source URLs could be fetched.")
+    if not per_source_activities:
+        raise ValueError(
+            "No grounded activities could be extracted from the provided authority source URLs "
+            f"(unreachable: {unreachable_urls or 'none'}; no groundable activities found: {empty_urls or 'none'})."
+        )
 
-    extra_context = "\n\n".join(f"[Source: {url}]\n{text}" for url, text in fetched)
-    theme, usage = await build_theme(theme_name, theme_description, llm, extra_context=extra_context)
+    merged_activities, merge_notes, merge_usage = await merge_activity_sets(
+        theme_name, theme_description, per_source_activities, llm
+    )
+    total_usage = combine_usage(total_usage, merge_usage)
 
-    fetched_urls = [url for url, _ in fetched]
-    skipped = [u for u in source_urls if u not in fetched_urls]
-    notes = f"Grounded against {len(fetched)} authority source(s): {', '.join(fetched_urls)}."
-    if skipped:
-        notes += f" Could not fetch: {', '.join(skipped)}."
-    return theme, notes, usage
+    theme = ThemeDefinition(name=theme_name, description=theme_description, activities=merged_activities)
+
+    notes = f"Grounded extraction from {len(fetched_urls)} authority source(s): {', '.join(fetched_urls)}."
+    if len(per_source_activities) > 1:
+        notes += f" {merge_notes}"
+    if unreachable_urls:
+        notes += f" Could not fetch: {', '.join(unreachable_urls)}."
+    if empty_urls:
+        notes += f" No groundable activities found in: {', '.join(empty_urls)}."
+    return theme, notes, total_usage

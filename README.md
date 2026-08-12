@@ -30,8 +30,10 @@ built on and exactly what each precision control catches.
 
 ```
 backend/   Python (FastAPI + Typer CLI) — all agent pipelines
-frontend/  React + TypeScript (Vite) — theme/schema authoring, run
-           monitoring, review queue, run history
+frontend/  React + TypeScript (Vite) — theme/schema authoring, taxonomy
+           library (derivation wizard, source inspector, compare/merge,
+           universe builder, ETF holdings overlap), run monitoring,
+           review queue, run history
 data/documents/   local document store (manual uploads + discovery downloads)
 runs/             file-based run state: manifest, results, errors,
                    review queue — no database
@@ -81,15 +83,21 @@ arp theme classify-sectors --theme theme.json --out theme.json --use-sample-icio
 arp theme run --theme theme.json --universe companies.csv --use-sample-icio
 
 # The taxonomy library -- a reusable, versioned theme instead of a one-off file
-arp taxonomy discover-sources "Electrification"          # research candidate authority sources & thematic ETFs
+arp taxonomy discover-sources "Electrification"          # research & rank candidate authority sources + thematic ETFs
 arp taxonomy create "Electrification" --description "..." --method industry_anchored --use-sample-icio
-arp taxonomy create "Electrification" --method authority_source --authority-url https://...  # from discover-sources
+arp taxonomy create "Electrification" --method authority_source --authority-url https://...  # from discover-sources, grounded extraction
 arp taxonomy create "Electrification" --method empirical --universe companies.csv
 arp taxonomy create "Electrification" --method news_transcript_mining --universe companies.csv
 arp taxonomy create "Electrification" --method etf_index_holdings --holdings holdings.csv     # a fund's downloaded export
 arp taxonomy list
 arp taxonomy ratify tax_xxxxxxxxxxxx --by "jane.analyst"
+arp taxonomy compare tax_aaaaaaaaaaaa tax_bbbbbbbbbbbb                 # diff two taxonomies' activities
+arp taxonomy merge tax_aaaaaaaaaaaa tax_bbbbbbbbbbbb --name "Merged" --out merged.json  # draft only, review then save
 arp theme run --taxonomy tax_xxxxxxxxxxxx --universe companies.csv
+
+# Universe builder + ETF holdings overlap (reuses the same holdings CSV parser)
+arp universe from-holdings fund_holdings.csv --out universe.json
+arp universe overlap fund_a_holdings.csv fund_b_holdings.csv --name "Fund A" --name "Fund B"
 
 # Data-point extraction
 arp extract draft-schema "green capex" --out schema.json
@@ -157,5 +165,10 @@ around the input-output math.
 - Versioned taxonomy library with an explicit ratification step, so a
   theme's activity boundaries are a recorded, auditable decision rather
   than an implicit assumption baked into a one-off run
+- Authority-source-derived activities carry a verbatim, grounding-checked
+  citation into the source document; ungrounded quotes are dropped, not
+  just flagged
+- Deterministic (non-LLM) holdings overlap across ETFs/indices, and a
+  reusable company universe built straight from a fund's constituents
 
 Full detail in [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md).

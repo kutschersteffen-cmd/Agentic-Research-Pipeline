@@ -45,6 +45,8 @@ export interface ActivityDefinition {
   in_scope_description: string;
   out_of_scope_description: string;
   seed_keywords: string[];
+  core_isic_codes?: string[];
+  source_citation?: Citation | null;
 }
 
 export interface ThemeDefinition {
@@ -180,4 +182,82 @@ export interface DiscoveryScheduleConfig {
 export interface ReviewQueueResponse {
   pending: Record<string, unknown>[];
   decided: { item: Record<string, unknown>; decision: Record<string, unknown> }[];
+}
+
+// --- Taxonomy library ---
+
+export type DerivationMethod =
+  | "llm_draft"
+  | "industry_anchored"
+  | "authority_source"
+  | "etf_index_holdings"
+  | "news_transcript_mining"
+  | "empirical"
+  | "merged"
+  | "manual";
+
+export type TaxonomyStatus = "draft" | "ratified";
+
+export interface Taxonomy {
+  taxonomy_id: string;
+  name: string;
+  version: number;
+  theme: ThemeDefinition;
+  derivation_method: DerivationMethod;
+  source_notes: string;
+  status: TaxonomyStatus;
+  ratified_by?: string | null;
+  ratified_at?: string | null;
+  based_on_version?: number | null;
+  created_at: string;
+}
+
+export interface TaxonomyRef {
+  taxonomy_id: string;
+  version?: number | null;
+}
+
+export interface ActivityDuplicateCandidate {
+  activity_a_id: string;
+  activity_b_id: string;
+  similarity_note: string;
+}
+
+export interface TaxonomyComparison {
+  unique_to_a: string[];
+  unique_to_b: string[];
+  likely_duplicates: ActivityDuplicateCandidate[];
+}
+
+export type SourceCandidateType = "authority" | "thematic_fund";
+
+export interface SourceCandidate {
+  candidate_id: string;
+  source_type: SourceCandidateType;
+  name: string;
+  url: string;
+  snippet: string;
+  authority_score?: number | null;
+  authority_reasoning?: string | null;
+  discovered_at: string;
+}
+
+export interface DiscoverSourcesResponse {
+  authority_sources: SourceCandidate[];
+  thematic_funds: SourceCandidate[];
+}
+
+export interface HoldingRow {
+  ticker: string;
+  name?: string | null;
+  weight?: number | null;
+  sector?: string | null;
+}
+
+export interface HoldingsOverlapResult {
+  fund_names: string[];
+  core_tickers: string[];
+  union_tickers: string[];
+  ticker_presence: Record<string, string[]>;
+  pairwise_overlap_pct: Record<string, number>;
 }

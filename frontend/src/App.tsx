@@ -4,9 +4,11 @@ import { ExtractionBuilder } from "./pages/ExtractionBuilder";
 import { DocumentDiscovery } from "./pages/DocumentDiscovery";
 import { ReviewQueue } from "./pages/ReviewQueue";
 import { RunHistory } from "./pages/RunHistory";
+import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
 
 const TABS = [
   { id: "theme", label: "Thematic Universe", render: () => <ThemeBuilder /> },
+  { id: "taxonomy", label: "Taxonomy Library", render: () => <TaxonomyLibrary /> },
   { id: "extraction", label: "Data Extraction", render: () => <ExtractionBuilder /> },
   { id: "discovery", label: "Document Discovery", render: () => <DocumentDiscovery /> },
   { id: "review", label: "Review Queue", render: () => <ReviewQueue /> },

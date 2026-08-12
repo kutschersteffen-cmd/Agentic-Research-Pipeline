@@ -184,7 +184,7 @@ versioned artifact** (`Taxonomy`, wrapping a `ThemeDefinition`) with:
   than an implicit assumption that whoever last edited the file knew what
   they were doing.
 
-### The research step: discovering candidate sources
+### The research step: discovering and ranking candidate sources
 
 Two of the methods below (`authority_source`, `etf_index_holdings`) need a
 real, named external reference before they can run -- an actual IEA
@@ -200,13 +200,35 @@ explicit step (`--authority-url` / `authority_urls`, or downloading a
 selected fund's holdings export and passing it as `--holdings` /
 `holdings_path`).
 
+Authority candidates are then scored and explained
+(`taxonomy_sources/discovery.py::rank_authority_sources`): one structured
+LLM call reads each candidate's title/URL/snippet and returns an
+`authority_score` (0-1) plus plain-language `authority_reasoning` -- *why*
+this looks like (or doesn't look like) a credible reference for the theme,
+not just a bare relevance rank. This deliberately isn't a hardcoded
+domain allowlist (`iea.org`, `ec.europa.eu`, ...): the right authority for
+"electrification" isn't the right one for "gene therapy", so the judgment
+call is made per-theme and shown to the user rather than baked into a
+fixed list. Ranking degrades gracefully -- if no LLM is configured, the
+unranked search results are still returned rather than failing discovery
+outright.
+
+Before selecting a source, the user can inspect it in its original form:
+`GET /api/taxonomies/sources/inspect?url=` streams the cached/fetched
+original bytes (PDF or HTML, whatever the source actually is) with the
+right content-type, and the frontend renders it in an in-app viewer --
+so "authoritative" is judged by reading the actual document, not a
+search-result snippet. Fetched originals are cached to disk by
+`sha256(url)` (`fetch.py::fetch_source_original`) so re-inspecting a
+source doesn't refetch it.
+
 The default search backend is the same no-API-key DuckDuckGo client the
 document-discovery crawler uses (`arp/discovery/site_finder.py`) --
 `WebSearchClient` is an interface specifically so a paid search API can be
 swapped in without touching the discovery logic itself if a deployment
 needs more reliable results than a free HTML-scrape search provides.
 
-### Six derivation methods, chosen per `arp taxonomy create --method`
+### Seven derivation methods, chosen per `arp taxonomy create --method`
 
 1. **`llm_draft`** — the freeform decomposition: theme name and
    description in, MECE activities out. Fast, flexible, but the boundary
@@ -220,12 +242,24 @@ needs more reliable results than a free HTML-scrape search provides.
    `classify-sectors` pass.
 3. **`authority_source`** — grounded against one or more user-selected
    authoritative documents (an official taxonomy, a standards body's
-   definition) found via the research step above. The source text is
-   fetched and passed to the model as grounding context with an
-   instruction to prefer the source's own categories and terminology over
-   inventing new ones, and to flag when it had to extrapolate beyond what
-   the source actually says. A source that fails to fetch is skipped, not
-   fatal, and every URL used (or skipped) is recorded in `source_notes`.
+   definition) found via the research step above. Rather than stuffing
+   fetched text into a freeform prompt, each source is chunked
+   (`arp/ingestion/parsing.py::chunk_document`, the same chunker the
+   Extraction Engine uses) and run through a schema-forced extraction call
+   that must attach a verbatim `source_quote` per proposed activity --
+   checked against the fetched text with the same non-LLM
+   `arp/grounding.py::is_grounded` gate every other pipeline in this
+   system uses. An activity whose quote fails grounding is **dropped**,
+   not flagged: authority-sourced activities are supposed to be
+   traceable to the document, not the model's paraphrase of it, so a
+   failed check disqualifies rather than warns. A grounded activity keeps
+   its citation as `ActivityDefinition.source_citation`, visible end-to-
+   end through to the taxonomy library UI. When more than one source is
+   selected, each is extracted independently and the results are
+   consolidated by the same merge primitive `merged` (below) uses. A
+   source that fails to fetch is skipped, not fatal, and every URL used
+   (or skipped) is recorded in `source_notes`; the whole derivation only
+   fails if *no* selected source yields any grounded activity.
 4. **`etf_index_holdings`** — bottom-up synthesis from an existing
    thematic ETF or index's holdings. Fetching holdings automatically isn't
    attempted: fund-provider export formats aren't standardized and several
@@ -233,6 +267,18 @@ needs more reliable results than a free HTML-scrape search provides.
    so a user-downloaded holdings CSV (name/ticker/sector/description
    columns, in whatever variant the provider uses) is the robust input.
    The research step points the user at candidate funds to download from.
+   The same holdings CSV parser also backs two other things: building a
+   reusable company universe straight from a fund's constituents
+   (`load_universe_from_holdings`, `POST /api/universe/from-holdings`,
+   `arp universe from-holdings`) instead of a hand-written list, and
+   computing deterministic **holdings overlap** across two or more funds
+   (`taxonomy_sources/overlap.py::compute_holdings_overlap`,
+   `POST /api/etf-overlap`, `arp universe overlap`) -- which tickers are
+   common core holdings, and a weight-adjusted pairwise overlap percentage
+   when weight data is available (falling back to a ticker-count ratio
+   otherwise). Overlap is pure set/weight math, no LLM, the same
+   preference for non-LLM computation wherever possible as the Leontief
+   exposure tier.
 5. **`news_transcript_mining`** — bottom-up synthesis from current news
    search results plus keyword-in-context passages mined from any
    earnings-call transcripts already available for a supplied sample of
@@ -243,6 +289,21 @@ needs more reliable results than a free HTML-scrape search provides.
    business activities, especially anything related to the theme") is run
    across a sample of the universe, and the resulting per-company
    descriptions become the corpus.
+7. **`merged`** — consolidated from two or more *existing, saved*
+   taxonomies rather than derived from a fresh source. `POST
+   /api/taxonomies/merge` / `arp taxonomy merge` takes each taxonomy's
+   activity list and asks the model to identify near-duplicates and
+   propose one MECE set with a rationale -- the same primitive
+   (`taxonomy_sources/activity_merge.py::merge_activity_sets`) that
+   consolidates multiple `authority_source` documents above, since
+   "combine several activity lists into one" is the same operation either
+   way. The result is always handed back as an **editable draft, never
+   auto-saved**: the caller reviews/edits it in the output panel and then
+   explicitly saves it as a new taxonomy. A lighter-weight `POST
+   /api/taxonomies/compare` / `arp taxonomy compare` is available first,
+   for just seeing the diff (activities unique to each side, and
+   LLM-flagged likely-duplicate pairs with a similarity note) without
+   committing to a merge.
 
 Methods 4-6 share one synthesis step
 (`taxonomy_sources/corpus_synthesis.py`): a corpus of real snippets in,
@@ -255,14 +316,32 @@ corpus is gathered, which is also why adding a further corpus source later
 a whole new pipeline.
 
 A version created by hand (`arp taxonomy new-version --theme edited.json`)
-is recorded as `manual`. As a rule of thumb across all six: an industry
+is recorded as `manual`. As a rule of thumb across all seven: an industry
 classification or an authority source scaffolds a well-understood theme
 fastest and most defensibly; ETF holdings and news/transcript mining are
 worth their extra cost for a theme where you specifically want the
 taxonomy to reflect how the market or the companies themselves currently
 talk about it, which can drift from any official definition; empirical
 extraction is the fallback for a genuinely novel theme with no existing
-reference to anchor to at all.
+reference to anchor to at all; merging is for once two or more of the
+above already exist and need reconciling into one canonical version.
+
+### The taxonomy library UI
+
+`TaxonomyLibrary.tsx` is the browser-based front end for all of the
+above: a library list with inline edit-and-save-new-version and ratify
+actions; a new-taxonomy wizard covering all six creatable methods with
+method-specific inputs (source discovery cards with score/reasoning and
+an "Inspect" button opening the original-document viewer, for
+`authority_source`; a holdings-CSV upload for `etf_index_holdings`; the
+existing universe picker for `empirical`/`news_transcript_mining`); a
+compare & merge view; a universe builder (fund/sector search plus a
+holdings-CSV-to-universe upload); and an ETF holdings overlap view
+(upload two or more funds' holdings, compute overlap, inspect each
+fund's raw holdings client-side). Every draft the wizard or the merge
+view produces goes through the same editable `ActivityEditorTable`
+before being saved, so "the model proposed it" and "it's now part of the
+taxonomy" are always separated by an explicit human review-and-save step.
 
 ## What's deliberately out of scope
 

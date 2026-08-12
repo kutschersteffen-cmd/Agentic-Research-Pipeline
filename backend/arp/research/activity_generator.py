@@ -32,21 +32,13 @@ class _ActivityDraftList(BaseModel):
     activities: list[_ActivityDraft]
 
 
-_EXTRA_CONTEXT_PREAMBLE = (
-    "Ground your activities in the following authoritative source material wherever it's relevant -- prefer its "
-    "own categories and terminology over inventing new ones, and note in a description when you had to extrapolate "
-    "beyond what the source actually says:\n\n"
-)
-
-
 async def generate_activities(
-    theme_name: str, theme_description: str, llm: LLMClient, *, extra_context: str | None = None
+    theme_name: str, theme_description: str, llm: LLMClient
 ) -> tuple[list[ActivityDefinition], LLMUsage]:
     prompt = (
         f"Macro theme: {theme_name}\n"
         f"Theme description: {theme_description}\n\n"
-        + (f"{_EXTRA_CONTEXT_PREAMBLE}{extra_context}\n\n" if extra_context else "")
-        + "Decompose this theme into MECE business activities per your instructions."
+        "Decompose this theme into MECE business activities per your instructions."
     )
     draft, usage = await llm.complete_structured(
         system=_SYSTEM_PROMPT, prompt=prompt, output_model=_ActivityDraftList
@@ -63,10 +55,8 @@ async def generate_activities(
     return activities, usage
 
 
-async def build_theme(
-    name: str, description: str, llm: LLMClient, *, extra_context: str | None = None
-) -> tuple[ThemeDefinition, LLMUsage]:
-    activities, usage = await generate_activities(name, description, llm, extra_context=extra_context)
+async def build_theme(name: str, description: str, llm: LLMClient) -> tuple[ThemeDefinition, LLMUsage]:
+    activities, usage = await generate_activities(name, description, llm)
     return ThemeDefinition(name=name, description=description, activities=activities), usage
 
 

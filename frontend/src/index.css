@@ -167,3 +167,60 @@ button.link-button { background: transparent; color: var(--accent); padding: 4px
 .review-json { white-space: pre-wrap; word-break: break-word; background: #0c0e12; padding: 10px; border-radius: 6px; font-size: 0.78rem; max-height: 260px; overflow: auto; }
 
 .field-detail { border-top: 1px solid var(--panel-border); padding: 8px 0; }
+
+.sub-nav {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.source-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.source-card {
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.source-card.selected { border-color: var(--accent); }
+
+.inline-block { margin-top: 10px; }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+}
+.modal-panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  width: min(900px, 100%);
+  height: min(80vh, 100%);
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+.modal-header { display: flex; justify-content: space-between; align-items: center; }
+.modal-header h4 { margin: 0; }
+.modal-iframe { flex: 1; border: none; background: white; border-radius: 6px; margin-top: 10px; }
+.modal-text {
+  flex: 1;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #0c0e12;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  margin-top: 10px;
+}

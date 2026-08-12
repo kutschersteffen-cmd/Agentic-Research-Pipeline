@@ -15,6 +15,7 @@ class DerivationMethod(StrEnum):
     ETF_INDEX_HOLDINGS = "etf_index_holdings"  # synthesized bottom-up from an existing thematic ETF/index's holdings
     NEWS_TRANSCRIPT_MINING = "news_transcript_mining"  # synthesized bottom-up from news search + earnings-call transcript mining
     EMPIRICAL = "empirical"  # synthesized bottom-up from the Extraction Engine's readings of a sample company universe
+    MERGED = "merged"  # consolidated from two or more existing taxonomies
     MANUAL = "manual"  # hand-authored, no LLM involvement
 
 
@@ -51,3 +52,24 @@ class Taxonomy(BaseModel):
         default=None, description="The prior version this one edits or supersedes, if any."
     )
     created_at: str = Field(default_factory=now_iso)
+
+
+class TaxonomyRef(BaseModel):
+    """Points at one specific version of a saved taxonomy."""
+
+    taxonomy_id: str
+    version: int | None = Field(default=None, description="None means the latest version.")
+
+
+class ActivityDuplicateCandidate(BaseModel):
+    activity_a_id: str
+    activity_b_id: str
+    similarity_note: str = Field(description="Why these two activities from different taxonomies look like the same thing.")
+
+
+class TaxonomyComparison(BaseModel):
+    """A structured diff between two taxonomies' activity sets."""
+
+    unique_to_a: list[str] = Field(description="activity_ids present only in taxonomy A.")
+    unique_to_b: list[str] = Field(description="activity_ids present only in taxonomy B.")
+    likely_duplicates: list[ActivityDuplicateCandidate] = Field(default_factory=list)

@@ -77,4 +77,43 @@ export const api = {
   getRun: (runId: string) => request(`/api/runs/${runId}`),
   getRunErrors: (runId: string) => request(`/api/runs/${runId}/errors`),
   exportRunCsvUrl: (runId: string) => `${API_BASE}/api/runs/${runId}/export.csv`,
+
+  // Taxonomy library
+  discoverTaxonomySources: (name: string) =>
+    request<{ authority_sources: unknown[]; thematic_funds: unknown[] }>("/api/taxonomies/discover-sources", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  inspectSourceUrl: (url: string) => `${API_BASE}/api/taxonomies/sources/inspect?url=${encodeURIComponent(url)}`,
+  createTaxonomy: (body: unknown) => request("/api/taxonomies", { method: "POST", body: JSON.stringify(body) }),
+  listTaxonomies: () => request<{ taxonomies: unknown[] }>("/api/taxonomies"),
+  getTaxonomy: (taxonomyId: string, version?: number) =>
+    request(`/api/taxonomies/${taxonomyId}${version ? `?version=${version}` : ""}`),
+  listTaxonomyVersions: (taxonomyId: string) => request<{ versions: unknown[] }>(`/api/taxonomies/${taxonomyId}/versions`),
+  newTaxonomyVersion: (taxonomyId: string, body: unknown) =>
+    request(`/api/taxonomies/${taxonomyId}/versions`, { method: "POST", body: JSON.stringify(body) }),
+  ratifyTaxonomy: (taxonomyId: string, body: unknown) =>
+    request(`/api/taxonomies/${taxonomyId}/ratify`, { method: "POST", body: JSON.stringify(body) }),
+  compareTaxonomies: (body: unknown) => request("/api/taxonomies/compare", { method: "POST", body: JSON.stringify(body) }),
+  mergeTaxonomies: (body: unknown) => request("/api/taxonomies/merge", { method: "POST", body: JSON.stringify(body) }),
+
+  // Universe builder
+  rawUpload: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<{ path: string }>("/api/universe/raw-upload", { method: "POST", headers: {}, body: form });
+  },
+  universeFromHoldings: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<{ path: string; company_count: number; sample: unknown[] }>("/api/universe/from-holdings", {
+      method: "POST",
+      headers: {},
+      body: form,
+    });
+  },
+
+  // ETF holdings overlap
+  computeOverlap: (funds: Record<string, string>) =>
+    request("/api/etf-overlap", { method: "POST", body: JSON.stringify({ funds }) }),
 };
