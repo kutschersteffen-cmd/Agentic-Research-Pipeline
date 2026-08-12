@@ -47,6 +47,26 @@ export interface ActivityDefinition {
   seed_keywords: string[];
   core_isic_codes?: string[];
   source_citation?: Citation | null;
+  standards_mapping?: ActivityStandardsMapping | null;
+}
+
+export interface StandardCodeMatch {
+  code: string;
+  label: string;
+}
+
+export interface GicsMatch {
+  code: string;
+  label: string;
+  rationale: string;
+}
+
+export interface ActivityStandardsMapping {
+  nace_codes: StandardCodeMatch[];
+  naics_codes: StandardCodeMatch[];
+  sic_codes: StandardCodeMatch[];
+  gics: GicsMatch[];
+  unmapped_isic_codes: string[];
 }
 
 export interface ThemeDefinition {

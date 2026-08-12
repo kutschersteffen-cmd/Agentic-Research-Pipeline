@@ -87,6 +87,8 @@ function LibraryView({ taxonomies, onChange }: { taxonomies: Taxonomy[]; onChang
   const [activities, setActivities] = useState<ActivityDefinition[]>([]);
   const [notes, setNotes] = useState("Manual edit.");
   const [ratifiedBy, setRatifiedBy] = useState("");
+  const [useSampleIcio, setUseSampleIcio] = useState(false);
+  const [useSampleStandards, setUseSampleStandards] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -115,6 +117,23 @@ function LibraryView({ taxonomies, onChange }: { taxonomies: Taxonomy[]; onChang
     setError(null);
     try {
       await api.ratifyTaxonomy(t.taxonomy_id, { version: t.version, ratified_by: ratifiedBy });
+      onChange();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function mapStandards(t: Taxonomy) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.mapStandards(t.taxonomy_id, {
+        version: t.version,
+        use_sample_icio: useSampleIcio,
+        use_sample_standards: useSampleStandards,
+      });
       onChange();
     } catch (err) {
       setError((err as Error).message);
@@ -177,6 +196,27 @@ function LibraryView({ taxonomies, onChange }: { taxonomies: Taxonomy[]; onChang
                         </button>
                       </div>
                     )}
+                    <div className="toolbar">
+                      <label className="checkbox-label">
+                        <input type="checkbox" checked={useSampleIcio} onChange={(e) => setUseSampleIcio(e.target.checked)} />
+                        sample ICIO (for ISIC classification)
+                      </label>
+                      <label className="checkbox-label">
+                        <input type="checkbox" checked={useSampleStandards} onChange={(e) => setUseSampleStandards(e.target.checked)} />
+                        sample NACE/NAICS/SIC/GICS reference data
+                      </label>
+                      <button onClick={() => mapStandards(t)} disabled={busy}>
+                        Map to NACE / NAICS / SIC / GICS
+                      </button>
+                      <a href={api.standardsCsvUrl(t.taxonomy_id)} target="_blank" rel="noreferrer">
+                        Export standards CSV
+                      </a>
+                    </div>
+                    <p className="help-text">
+                      Uses configured ARP_NACE_CROSSWALK_PATH / ARP_NAICS_CROSSWALK_PATH / ARP_SIC_CROSSWALK_PATH /
+                      ARP_GICS_REFERENCE_PATH by default; check the sample boxes to use the bundled illustrative data
+                      instead. Saves a new taxonomy version.
+                    </p>
                     {error && <p className="error-text">{error}</p>}
                   </td>
                 </tr>

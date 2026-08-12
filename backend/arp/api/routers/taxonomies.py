@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from arp.api.deps import get_llm_client, get_registry, get_taxonomy_store, settings_dep
@@ -20,6 +20,7 @@ from arp.research.taxonomy_sources.empirical import build_theme_empirical
 from arp.research.taxonomy_sources.etf_holdings import build_theme_from_holdings
 from arp.research.taxonomy_sources.fetch import fetch_source_original
 from arp.research.taxonomy_sources.news_mining import build_theme_from_news_and_transcripts
+from arp.research.standards_mapping.mapper import format_standards_csv, map_theme_to_standards
 from arp.schemas.common import CompanyRef
 from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyComparison, TaxonomyRef
 from arp.schemas.taxonomy_sources import SourceCandidate
@@ -293,3 +294,49 @@ async def merge_taxonomies_endpoint(req: MergeRequest, store: TaxonomyStore = De
     llm = get_llm_client()
     theme, notes, _usage = await merge_taxonomies(taxonomies, req.name, req.description, llm)
     return MergeResponse(theme=theme, source_notes=notes)
+
+
+class MapStandardsRequest(BaseModel):
+    version: int | None = None
+    use_sample_icio: bool = False
+    use_sample_standards: bool = False
+
+
+@router.post("/{taxonomy_id}/map-standards", response_model=Taxonomy)
+async def map_standards(
+    taxonomy_id: str,
+    req: MapStandardsRequest,
+    settings: Settings = Depends(settings_dep),
+    store: TaxonomyStore = Depends(get_taxonomy_store),
+) -> Taxonomy:
+    """Cross-references every activity's core_isic_codes into NACE, NAICS,
+    SIC (deterministic crosswalk) and GICS (closed-list LLM classification)
+    and saves the result as a new taxonomy version. See
+    docs/METHODOLOGY.md for why GICS alone needs an LLM call.
+    """
+    taxonomy = store.get(taxonomy_id, req.version)
+    if taxonomy is None:
+        raise HTTPException(404, "Taxonomy not found")
+    llm = get_llm_client()
+    updated_theme, _usage = await map_theme_to_standards(
+        taxonomy.theme, settings, llm, use_sample_icio=req.use_sample_icio, use_sample_standards=req.use_sample_standards
+    )
+    return store.new_version(
+        taxonomy_id, updated_theme, DerivationMethod.MANUAL,
+        "Standards mapping added: NACE, NAICS, SIC (ISIC crosswalk), GICS (LLM-classified).",
+    )
+
+
+@router.get("/{taxonomy_id}/standards.csv")
+def export_standards_csv(
+    taxonomy_id: str, version: int | None = None, store: TaxonomyStore = Depends(get_taxonomy_store)
+) -> StreamingResponse:
+    taxonomy = store.get(taxonomy_id, version)
+    if taxonomy is None:
+        raise HTTPException(404, "Taxonomy not found")
+    csv_text = format_standards_csv(taxonomy.theme)
+    return StreamingResponse(
+        iter([csv_text]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={taxonomy_id}_v{taxonomy.version}_standards.csv"},
+    )

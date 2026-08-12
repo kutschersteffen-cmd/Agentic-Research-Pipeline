@@ -93,6 +93,8 @@ arp taxonomy list
 arp taxonomy ratify tax_xxxxxxxxxxxx --by "jane.analyst"
 arp taxonomy compare tax_aaaaaaaaaaaa tax_bbbbbbbbbbbb                 # diff two taxonomies' activities
 arp taxonomy merge tax_aaaaaaaaaaaa tax_bbbbbbbbbbbb --name "Merged" --out merged.json  # draft only, review then save
+arp taxonomy map-standards tax_xxxxxxxxxxxx --use-sample-standards    # cross-reference activities into NACE/NAICS/SIC/GICS
+arp taxonomy export-standards tax_xxxxxxxxxxxx --out standards.csv    # flat CSV: activity -> codes per standard
 arp theme run --taxonomy tax_xxxxxxxxxxxx --universe companies.csv
 
 # Universe builder + ETF holdings overlap (reuses the same holdings CSV parser)
@@ -170,5 +172,9 @@ around the input-output math.
   just flagged
 - Deterministic (non-LLM) holdings overlap across ETFs/indices, and a
   reusable company universe built straight from a fund's constituents
+- NACE/NAICS/SIC codes are cross-referenced via deterministic ISIC
+  correspondence tables, never guessed by the model; only GICS (no public
+  ISIC crosswalk exists) is LLM-classified, against a fixed reference list
+  with a required rationale
 
 Full detail in [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md).

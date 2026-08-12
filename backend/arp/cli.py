@@ -31,6 +31,7 @@ from arp.research.taxonomy_sources.etf_holdings import (
 )
 from arp.research.taxonomy_sources.overlap import compute_holdings_overlap
 from arp.research.taxonomy_sources.news_mining import build_theme_from_news_and_transcripts
+from arp.research.standards_mapping.mapper import format_standards_csv, map_theme_to_standards
 from arp.schemas.common import DocType
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.discovery import DiscoveryScheduleConfig
@@ -374,6 +375,47 @@ def taxonomy_merge(
     typer.echo(f"Wrote merged draft ({len(theme.activities)} activities) to {out}")
     typer.echo(notes)
     typer.echo(f"Review and save with: arp taxonomy new-version <existing_id> --theme {out}  (or create a new taxonomy from it)")
+
+
+@taxonomy_app.command("map-standards")
+def taxonomy_map_standards(
+    ref: str,
+    use_sample_icio: bool = typer.Option(
+        False, help="Classify any activity missing core_isic_codes using the bundled sample ICIO dataset first."
+    ),
+    use_sample_standards: bool = typer.Option(
+        False, help="Use the bundled illustrative NACE/NAICS/SIC/GICS reference data instead of configured ARP_*_PATH files."
+    ),
+    no_save: bool = typer.Option(False, "--no-save", help="Print the mapping without saving a new taxonomy version."),
+) -> None:
+    """Cross-references every activity's core_isic_codes into NACE, NAICS,
+    SIC (deterministic crosswalk) and GICS (closed-list LLM classification,
+    since no official ISIC->GICS correspondence table exists). Saves the
+    result as a new taxonomy version unless --no-save is passed."""
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    taxonomy = _resolve_taxonomy_ref_or_exit(ref)
+    updated_theme, _usage = asyncio.run(
+        map_theme_to_standards(taxonomy.theme, settings, llm, use_sample_icio=use_sample_icio, use_sample_standards=use_sample_standards)
+    )
+    mapped = sum(1 for a in updated_theme.activities if a.standards_mapping)
+    typer.echo(f"Mapped standards for {mapped}/{len(updated_theme.activities)} activities.")
+    if no_save:
+        typer.echo(updated_theme.model_dump_json(indent=2))
+        return
+    saved = _taxonomy_store().new_version(
+        taxonomy.taxonomy_id, updated_theme, DerivationMethod.MANUAL, "Standards mapping added: NACE, NAICS, SIC (ISIC crosswalk), GICS (LLM-classified)."
+    )
+    typer.echo(f"Saved {saved.taxonomy_id} v{saved.version}")
+
+
+@taxonomy_app.command("export-standards")
+def taxonomy_export_standards(ref: str, out: Path = typer.Option(..., help="Where to write the standards-mapping CSV.")) -> None:
+    """Exports the activity -> NACE/NAICS/SIC/GICS mapping already saved on
+    a taxonomy (run `taxonomy map-standards` first) as a flat CSV."""
+    taxonomy = _resolve_taxonomy_ref_or_exit(ref)
+    out.write_text(format_standards_csv(taxonomy.theme))
+    typer.echo(f"Wrote {out}")
 
 
 @extract_app.command("draft-schema")

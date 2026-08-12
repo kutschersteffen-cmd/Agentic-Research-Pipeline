@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from arp.schemas.common import Citation, now_iso, new_id
 from arp.schemas.exposure import IndirectExposureResult
+from arp.schemas.standards import ActivityStandardsMapping
 
 
 class ActivityDefinition(BaseModel):
@@ -38,6 +39,10 @@ class ActivityDefinition(BaseModel):
     source_citation: Citation | None = Field(
         default=None,
         description="Verbatim, grounding-checked quote this activity was extracted from, when derived from an authority source.",
+    )
+    standards_mapping: ActivityStandardsMapping | None = Field(
+        default=None,
+        description="Cross-reference into NACE/NAICS/SIC/GICS, populated by `arp taxonomy map-standards`. None means mapping hasn't been run for this activity.",
     )
 
 

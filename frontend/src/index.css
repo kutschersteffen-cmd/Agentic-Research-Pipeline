@@ -190,6 +190,16 @@ button.link-button { background: transparent; color: var(--accent); padding: 4px
 
 .inline-block { margin-top: 10px; }
 
+.standards-mapping {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+  font-size: 0.85rem;
+}
+.standards-chip { color: var(--muted); }
+.standards-chip strong { color: inherit; margin-right: 4px; }
+
 .modal-overlay {
   position: fixed;
   inset: 0;

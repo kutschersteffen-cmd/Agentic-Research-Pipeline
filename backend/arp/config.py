@@ -53,6 +53,18 @@ class Settings(BaseSettings):
         default=0.3, description="Structural exposure share above which a no-direct-evidence company is flagged."
     )
 
+    # Standards mapping (NACE/NAICS/SIC/GICS). Each resolves independently
+    # to a real, configured file; falls back to the bundled illustrative
+    # sample only when --use-sample-standards is passed explicitly. NACE/
+    # NAICS/SIC paths point at an official ISIC correspondence CSV
+    # (isic_code,target_code,target_label); the GICS path points at a
+    # sector/industry reference CSV (code,label,level) -- GICS structure
+    # below sector level is MSCI/S&P-licensed, so it isn't bundled.
+    nace_crosswalk_path: Path | None = Field(default=None, description="ISIC Rev.4 -> NACE Rev.2 correspondence CSV.")
+    naics_crosswalk_path: Path | None = Field(default=None, description="ISIC Rev.4 -> NAICS correspondence CSV.")
+    sic_crosswalk_path: Path | None = Field(default=None, description="ISIC Rev.4 -> SIC correspondence CSV.")
+    gics_reference_path: Path | None = Field(default=None, description="GICS code/label/level reference CSV (requires a GICS license for the full structure).")
+
     # Web discovery
     discovery_user_agent: str = Field(default="ARP-DiscoveryBot/0.1 (+research use; respects robots.txt)")
     discovery_webhook_url: str | None = Field(default=None)

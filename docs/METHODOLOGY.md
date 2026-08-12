@@ -343,6 +343,52 @@ view produces goes through the same editable `ActivityEditorTable`
 before being saved, so "the model proposed it" and "it's now part of the
 taxonomy" are always separated by an explicit human review-and-save step.
 
+### Cross-referencing to NACE, NAICS, SIC and GICS
+
+Once a taxonomy's activities carry `core_isic_codes` (from `industry_anchored`
+derivation, or `arp theme classify-sectors`), `arp taxonomy map-standards` /
+`POST /api/taxonomies/{id}/map-standards` cross-references each activity into
+four widely-used external classification standards and saves the result as a
+new taxonomy version -- so "which NACE/GICS code does this activity belong
+to" is answered per taxonomy, not re-derived by hand for every downstream
+use (fund mandates, regulatory reporting, index construction).
+
+The four standards are **not** all handled the same way, deliberately:
+
+- **NACE Rev.2, NAICS, SIC** are derived by a **deterministic crosswalk**
+  from `core_isic_codes` (`standards_mapping/crosswalk.py::CrosswalkTable`),
+  never guessed by the model. NACE Rev.2 aligns almost exactly with ISIC
+  Rev.4 at the 2-digit division level by design (same codes, near-identical
+  titles), so the bundled sample crosswalk is a close correspondence, not
+  just illustrative; NAICS and SIC don't align numerically with ISIC at all,
+  so the bundled sample there is a small, explicitly-illustrative set of
+  hand-picked matches for the 10 divisions in the sample ICIO dataset. For
+  production use, point `ARP_NACE_CROSSWALK_PATH` / `ARP_NAICS_CROSSWALK_PATH`
+  / `ARP_SIC_CROSSWALK_PATH` at the real official UN Statistics Division /
+  Eurostat RAMON / US Census correspondence tables -- same "bundled sample,
+  replace for production" pattern as the OECD ICIO data itself.
+- **GICS** has no public official correspondence table from ISIC (or
+  anything else) -- it's a proprietary MSCI/S&P classification assigned by
+  a company's principal business activity, not derivable by table lookup.
+  So GICS is a **closed-list LLM classification** instead
+  (`standards_mapping/gics.py::classify_gics`), the exact same pattern as
+  the indirect-exposure tier's `classify_core_sectors`: one call per
+  activity against a fixed reference list, a rationale required for every
+  match, and any code the model returns that isn't actually in the
+  reference list is dropped. Because the full GICS Industry Group/Industry/
+  Sub-Industry structure is MSCI/S&P-licensed, only the 11 stable, public
+  GICS sector codes are bundled as the sample; supply your own licensed
+  `ARP_GICS_REFERENCE_PATH` file for sub-industry-level classification.
+
+Each of the four standards resolves independently -- a deployment with a
+real NACE table but no GICS license is normal; that standard just comes
+back empty for every activity rather than blocking the other three.
+`arp taxonomy export-standards` / `GET /api/taxonomies/{id}/standards.csv`
+flattens the result into one CSV row per activity
+(`activity_id, activity_name, isic_codes, nace_codes, naics_codes,
+sic_codes, gics_codes, gics_labels, gics_rationale, unmapped_isic_codes`)
+for use outside the tool.
+
 ## What's deliberately out of scope
 
 This system does not invent a company universe — the user supplies it
