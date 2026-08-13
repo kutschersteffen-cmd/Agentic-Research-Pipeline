@@ -257,9 +257,12 @@ async def generate_demo_dataset(
                     observation_count += 1
 
     news_source = MockNewsSource()
+    already_ingested = {(n.company_id, n.headline) for n in store.list_news()}
     news_count = 0
     for company in companies:
         for item in await news_source.fetch(company):
+            if (item.company_id, item.headline) in already_ingested:
+                continue  # news_id is randomly generated per fetch, so dedupe on content to keep re-seeding idempotent
             store.append_news(item)
             news_count += 1
 

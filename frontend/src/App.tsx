@@ -5,12 +5,16 @@ import { DocumentDiscovery } from "./pages/DocumentDiscovery";
 import { ReviewQueue } from "./pages/ReviewQueue";
 import { RunHistory } from "./pages/RunHistory";
 import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
+import { PortfolioRisk } from "./pages/PortfolioRisk";
+import { ClimateAnalytics } from "./pages/ClimateAnalytics";
 
 const TABS = [
   { id: "theme", label: "Thematic Universe" },
   { id: "taxonomy", label: "Taxonomy Library" },
   { id: "extraction", label: "Data Extraction" },
   { id: "discovery", label: "Document Discovery" },
+  { id: "portfolio", label: "Portfolio Risk" },
+  { id: "climate", label: "Climate Analytics" },
   { id: "review", label: "Review Queue" },
   { id: "history", label: "Run History" },
 ] as const;
@@ -28,7 +32,7 @@ function App() {
     <div className="app-shell">
       <header className="app-header">
         <h1>Agentic Research Pipeline</h1>
-        <p className="tagline">Thematic investment universes &amp; schema-driven document research, at scale.</p>
+        <p className="tagline">Thematic investment universes, schema-driven document research, and portfolio risk &amp; climate analytics, at scale.</p>
       </header>
       <nav className="app-nav">
         {TABS.map((t) => (
@@ -42,6 +46,8 @@ function App() {
         {active === "taxonomy" && <TaxonomyLibrary />}
         {active === "extraction" && <ExtractionBuilder pendingUniverse={pendingUniverse} />}
         {active === "discovery" && <DocumentDiscovery />}
+        {active === "portfolio" && <PortfolioRisk />}
+        {active === "climate" && <ClimateAnalytics />}
         {active === "review" && <ReviewQueue />}
         {active === "history" && <RunHistory />}
       </main>

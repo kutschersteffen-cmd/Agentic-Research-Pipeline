@@ -235,3 +235,26 @@ button.link-button { background: transparent; color: var(--accent); padding: 4px
   font-size: 0.8rem;
   margin-top: 10px;
 }
+
+.stat-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.stat-tile {
+  background: #0c0e12;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.stat-tile .stat-value { font-size: 1.4rem; font-weight: 600; }
+.stat-tile .stat-label { color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
+
+.coverage-bar-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-size: 0.85rem; }
+.coverage-bar-label { width: 110px; flex-shrink: 0; color: var(--muted); }
+.coverage-bar-track { flex: 1; background: #0c0e12; border-radius: 999px; height: 10px; overflow: hidden; }
+.coverage-bar-fill { display: block; background: var(--accent); height: 100%; }
+.coverage-bar-count { width: 40px; text-align: right; flex-shrink: 0; }
+
+.answer-text { white-space: pre-wrap; background: #0c0e12; padding: 10px 12px; border-radius: 6px; font-size: 0.88rem; }
