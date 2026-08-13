@@ -32,6 +32,7 @@ class LLMClient(ABC):
         output_model: type[T],
         max_validation_retries: int = 2,
         temperature: float = 0.0,
+        max_tokens: int = 8192,
     ) -> tuple[T, LLMUsage]:
         """Call the model and return a validated instance of `output_model`.
 

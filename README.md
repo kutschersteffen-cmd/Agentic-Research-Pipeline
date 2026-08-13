@@ -15,7 +15,14 @@ precision at scale (designed for up to ~4,000 companies per run).
    points (e.g. "green capex", forward-looking business outlook) out of
    sustainability reports, annual reports, and earnings-call transcripts,
    with an independent verifier pass and a hard programmatic grounding
-   check on every citation.
+   check on every citation. A grounded citation carries its exact source --
+   PDF page number or xlsx sheet name, resolved programmatically from the
+   verified match position, never LLM-reported -- with a "view source"
+   link that opens the original document straight to that location. Every
+   extracted field can be marked reviewed, overridden with a corrected
+   value, or rejected, each with an optional comment; every decision is
+   appended to a permanent, per-field audit trail (nothing is ever
+   overwritten) and shown in a History panel.
 3. **Document Discovery** — finds each company's investor-relations site,
    crawls it for disclosure documents, downloads new/changed ones, and
    raises an event the moment something new appears. Runs manually or on

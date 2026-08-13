@@ -85,3 +85,26 @@ async def test_no_tool_use_retry_can_stay_plain_text(tmp_path, monkeypatch):
     retry_message = fake_client.messages.calls[1]["messages"][-1]
     assert retry_message["role"] == "user"
     assert isinstance(retry_message["content"], str)
+
+
+async def test_max_tokens_defaults_generously_and_is_overridable(tmp_path, monkeypatch):
+    """A richer structured output (e.g. an expanded, many-field schema
+    draft) can legitimately need more than a small hardcoded max_tokens --
+    a live run against the real API hit exactly this: the response was cut
+    off mid-JSON and failed validation with a required field entirely
+    missing. max_tokens must default well above the old 4096 and remain
+    overridable per call."""
+    response = _FakeResponse([_ToolUseBlock("tu_1", {"value": 1})])
+    fake_client = _FakeAsyncAnthropic([response])
+    monkeypatch.setattr(anthropic_client_module, "AsyncAnthropic", lambda api_key: fake_client)
+    client = AnthropicLLMClient(api_key="test", model="test-model", cache_dir=tmp_path, cache_enabled=False)
+
+    await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)
+    assert fake_client.messages.calls[0]["max_tokens"] > 4096
+
+    response2 = _FakeResponse([_ToolUseBlock("tu_2", {"value": 2})])
+    fake_client2 = _FakeAsyncAnthropic([response2])
+    monkeypatch.setattr(anthropic_client_module, "AsyncAnthropic", lambda api_key: fake_client2)
+    client2 = AnthropicLLMClient(api_key="test", model="test-model", cache_dir=tmp_path, cache_enabled=False)
+    await client2.complete_structured(system="sys", prompt="prompt", output_model=_Target, max_tokens=16000)
+    assert fake_client2.messages.calls[0]["max_tokens"] == 16000

@@ -83,6 +83,10 @@ export interface Citation {
   quote: string;
   location?: string | null;
   grounded: boolean;
+  page?: number | null;
+  sheet?: string | null;
+  company_id?: string | null;
+  source_filename?: string | null;
 }
 
 export interface AgentOpinion {
@@ -197,6 +201,18 @@ export interface ExtractionRecord {
   overall_confidence: number;
   needs_review: boolean;
   generated_at: string;
+}
+
+// --- Review decisions (per-item audit trail; item_key granularity is
+// caller-defined, e.g. "{company_id}:{activity_id}" or "{company_id}:{field_id}") ---
+
+export interface ReviewDecision {
+  item_key: string;
+  decision: "approve" | "edit" | "reject";
+  reviewer?: string | null;
+  edited_value?: { value?: unknown } | null;
+  comment?: string | null;
+  decided_at: string;
 }
 
 // --- Discovery ---

@@ -78,6 +78,11 @@ blended into the qualitative `exposure_estimate` the debate produces — see
    This is checked in code with string matching, not by asking the model
    "are you sure?" — a model that fabricates a quote is caught
    mechanically, every time, regardless of how confident its prose sounds.
+   The same discipline extends to *where* a grounded quote lives: its PDF
+   page number or xlsx sheet name is computed from the verified match's
+   real character offset in the source text (never asked of the model),
+   so a "view source" link only ever appears for a location that was
+   actually checked, and always points at the right page.
 
 2. **Adversarial verification, not single-pass judgment.**
    - Thematic matching: Advocate argues for inclusion, Opposing

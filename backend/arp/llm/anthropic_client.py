@@ -52,6 +52,7 @@ class AnthropicLLMClient(LLMClient):
         output_model: type[T],
         max_validation_retries: int = 2,
         temperature: float = 0.0,
+        max_tokens: int = 8192,
     ) -> tuple[T, LLMUsage]:
         schema = output_model.model_json_schema()
         cache_key = self.cache.make_key(
@@ -77,7 +78,7 @@ class AnthropicLLMClient(LLMClient):
         last_error: ValidationError | None = None
 
         for attempt in range(1, max_validation_retries + 2):
-            response = await self._call_with_backoff(system=system, messages=messages, tool=tool)
+            response = await self._call_with_backoff(system=system, messages=messages, tool=tool, max_tokens=max_tokens)
             total_input_tokens += response.usage.input_tokens
             total_output_tokens += response.usage.output_tokens
 
@@ -123,7 +124,7 @@ class AnthropicLLMClient(LLMClient):
         assert last_error is not None
         raise last_error
 
-    async def _call_with_backoff(self, *, system: str, messages: list[dict], tool: dict):
+    async def _call_with_backoff(self, *, system: str, messages: list[dict], tool: dict, max_tokens: int = 8192):
         @retry(
             reraise=True,
             stop=stop_after_attempt(self._max_network_retries),
@@ -133,7 +134,7 @@ class AnthropicLLMClient(LLMClient):
         async def _do_call():
             return await self._client.messages.create(
                 model=self.model,
-                max_tokens=4096,
+                max_tokens=max_tokens,
                 system=system,
                 messages=messages,
                 tools=[tool],

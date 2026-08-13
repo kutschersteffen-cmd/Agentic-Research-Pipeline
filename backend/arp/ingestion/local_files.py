@@ -15,7 +15,7 @@ _PDF_SUFFIXES = {".pdf"}
 _XLSX_SUFFIXES = {".xlsx", ".xlsm"}
 
 
-def _extract_pdf_text(path: Path) -> str:
+def _extract_pdf_text(path: Path) -> tuple[str, list[int]]:
     from pypdf import PdfReader
 
     reader = PdfReader(str(path))
@@ -25,7 +25,15 @@ def _extract_pdf_text(path: Path) -> str:
         # empty user password succeeds for those. A real password-protected
         # file still fails decrypt() and surfaces as a normal parse error.
         reader.decrypt("")
-    return "\n\n".join((page.extract_text() or "") for page in reader.pages)
+    parts: list[str] = []
+    page_breaks: list[int] = []
+    cursor = 0
+    for page in reader.pages:
+        text = page.extract_text() or ""
+        page_breaks.append(cursor)
+        parts.append(text)
+        cursor += len(text) + 2  # matches the "\n\n" join below
+    return "\n\n".join(parts), page_breaks
 
 
 def _extract_html_text(path: Path) -> str:
@@ -67,17 +75,25 @@ def _extract_xlsx_text(path: Path) -> str:
     return "\n\n".join(sections)
 
 
-def parse_file_to_text(path: Path) -> str:
+def parse_file_to_text_with_pages(path: Path) -> tuple[str, list[int]]:
+    """Like parse_file_to_text, but also returns PDF page-start char
+    offsets (empty for every other format) -- the raw material for
+    resolving a grounded citation's exact page number in grounding.py."""
     suffix = path.suffix.lower()
     if suffix in _PDF_SUFFIXES:
         return _extract_pdf_text(path)
     if suffix in _HTML_SUFFIXES:
-        return _extract_html_text(path)
+        return _extract_html_text(path), []
     if suffix in _TEXT_SUFFIXES:
-        return path.read_text(errors="ignore")
+        return path.read_text(errors="ignore"), []
     if suffix in _XLSX_SUFFIXES:
-        return _extract_xlsx_text(path)
+        return _extract_xlsx_text(path), []
     raise ValueError(f"Unsupported document file type: {suffix}")
+
+
+def parse_file_to_text(path: Path) -> str:
+    text, _page_breaks = parse_file_to_text_with_pages(path)
+    return text
 
 
 class LocalFileDocumentSource(DocumentSource):
@@ -112,7 +128,7 @@ class LocalFileDocumentSource(DocumentSource):
                 if not file_path.is_file():
                     continue
                 try:
-                    text = parse_file_to_text(file_path)
+                    text, page_breaks = parse_file_to_text_with_pages(file_path)
                 except Exception as exc:  # noqa: BLE001 - isolate one bad file from the whole fetch
                     logger.warning("Failed to parse %s: %s", file_path, exc)
                     continue
@@ -126,6 +142,7 @@ class LocalFileDocumentSource(DocumentSource):
                         local_path=str(file_path),
                         full_text=text,
                         sha256=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+                        page_breaks=page_breaks,
                     )
                 )
         return docs

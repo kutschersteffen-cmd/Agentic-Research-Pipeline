@@ -1,12 +1,31 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Form, UploadFile
+import mimetypes
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 
 from arp.api.deps import settings_dep
 from arp.config import Settings
 from arp.schemas.common import DocType
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
+
+
+def _safe_document_path(documents_dir: Path, company_id: str, doc_type: str, filename: str) -> Path:
+    """Resolves company_id/doc_type/filename to a real file strictly under
+    documents_dir, rejecting any path-traversal attempt (a filename
+    containing "/" or ".." segments) before touching the filesystem.
+    """
+    if Path(filename).name != filename:
+        raise HTTPException(400, "Invalid filename")
+    resolved = (documents_dir / company_id / doc_type / filename).resolve()
+    if not resolved.is_relative_to(documents_dir.resolve()):
+        raise HTTPException(400, "Invalid path")
+    if not resolved.is_file():
+        raise HTTPException(404, "Document not found")
+    return resolved
 
 
 @router.post("/upload")
@@ -25,6 +44,23 @@ async def upload_document(
     dest_path = dest_dir / file.filename
     dest_path.write_bytes(await file.read())
     return {"path": str(dest_path)}
+
+
+@router.get("/{company_id}/{doc_type}/{filename}/raw")
+def get_document_raw(
+    company_id: str, doc_type: DocType, filename: str, settings: Settings = Depends(settings_dep)
+) -> FileResponse:
+    """Serves the raw on-disk file inline (not as a download) so a citation's
+    "view source" link opens it directly in the browser's native viewer --
+    for a PDF, that's what lets a `#page=N` URL fragment jump straight to
+    the cited page."""
+    path = _safe_document_path(settings.documents_dir, company_id, doc_type.value, filename)
+    media_type, _ = mimetypes.guess_type(path.name)
+    return FileResponse(
+        path,
+        media_type=media_type or "application/octet-stream",
+        headers={"Content-Disposition": f'inline; filename="{path.name}"'},
+    )
 
 
 @router.get("/{company_id}")

@@ -3,14 +3,25 @@ import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import { ConfidenceBadge, GroundedBadge } from "../components/ConfidenceBadge";
-import type { DataPointSchema, ExtractionRecord, FieldDefinition } from "../types";
+import { ReviewControls } from "../components/ReviewControls";
+import type { DataPointSchema, ExtractionRecord, FieldDefinition, ReviewDecision } from "../types";
+
+const DEFAULT_CRITERIA =
+  "Green capex: total green/sustainable capital expenditure in USD/EUR millions for the most recent fiscal " +
+  "year, and as a % of total capex. Separately capture: (a) whether reported per the EU Taxonomy (eligible vs " +
+  "aligned) vs. a self-defined/internal definition -- both if disclosed, clearly labeled; (b) breakdown by EU " +
+  "Taxonomy environmental objective (climate mitigation, adaptation, water, circular economy, pollution, " +
+  "biodiversity) where disclosed; (c) the company's own stated definition/methodology as a separate string " +
+  "field with its own citation; (d) prior-year comparative figure; (e) forward-looking green capex " +
+  "targets/guidance as a SEPARATE field from the actual reported figure -- extraction_instructions must " +
+  "explicitly forbid conflating a target with an actual reported number.";
 
 interface Props {
   pendingUniverse?: { path: string; count: number } | null;
 }
 
 export function ExtractionBuilder({ pendingUniverse }: Props = {}) {
-  const [criteria, setCriteria] = useState("Green capex (USD millions, most recent fiscal year)");
+  const [criteria, setCriteria] = useState(DEFAULT_CRITERIA);
   const [schema, setSchema] = useState<DataPointSchema | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +30,8 @@ export function ExtractionBuilder({ pendingUniverse }: Props = {}) {
   const [runId, setRunId] = useState<string | null>(null);
   const [results, setResults] = useState<ExtractionRecord[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [reviewDecisions, setReviewDecisions] = useState<Record<string, ReviewDecision>>({});
+  const [reviewer, setReviewer] = useState("");
 
   async function draft() {
     setBusy(true);
@@ -57,6 +70,8 @@ export function ExtractionBuilder({ pendingUniverse }: Props = {}) {
     if (!runId) return;
     const res = (await api.getExtractionResults(runId)) as { results: ExtractionRecord[] };
     setResults(res.results);
+    const decisionsRes = (await api.getExtractionReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
+    setReviewDecisions(decisionsRes.decisions);
   }
 
   return (
@@ -143,6 +158,15 @@ export function ExtractionBuilder({ pendingUniverse }: Props = {}) {
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
               Export CSV
             </a>
+            <label className="field-label" style={{ marginLeft: "auto" }}>
+              Reviewing as
+            </label>
+            <input
+              placeholder="your name"
+              value={reviewer}
+              onChange={(e) => setReviewer(e.target.value)}
+              style={{ maxWidth: 160 }}
+            />
           </div>
           {results.length > 0 && (
             <table className="data-table">
@@ -166,20 +190,44 @@ export function ExtractionBuilder({ pendingUniverse }: Props = {}) {
                     {expanded === r.company_id && (
                       <tr>
                         <td colSpan={4} className="detail-cell">
-                          {r.fields.map((f) => (
-                            <div key={f.field_id} className="field-detail">
-                              <strong>{f.field_name}:</strong> {String(f.value ?? "not disclosed")}{" "}
-                              <ConfidenceBadge value={f.confidence} /> <GroundedBadge grounded={f.grounded} />
-                              {f.verifier_notes && <p className="muted">{f.verifier_notes}</p>}
-                              <ul>
-                                {f.citations.map((c, ci) => (
-                                  <li key={ci}>
-                                    [{c.doc_type}] "{c.quote}"
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          ))}
+                          {r.fields.map((f) => {
+                            const itemKey = `${r.company_id}:${f.field_id}`;
+                            return (
+                              <div key={f.field_id} className="field-detail">
+                                <strong>{f.field_name}:</strong> {String(f.value ?? "not disclosed")}{" "}
+                                <ConfidenceBadge value={f.confidence} /> <GroundedBadge grounded={f.grounded} />
+                                {f.verifier_notes && <p className="muted">{f.verifier_notes}</p>}
+                                <ul>
+                                  {f.citations.map((c, ci) => (
+                                    <li key={ci}>
+                                      [{c.doc_type}] "{c.quote}"
+                                      {c.grounded && c.company_id && c.source_filename && (
+                                        <>
+                                          {" "}
+                                          <a
+                                            href={`${api.documentRawUrl(c.company_id, c.doc_type, c.source_filename)}${
+                                              c.page ? `#page=${c.page}` : ""
+                                            }`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                          >
+                                            view source{c.page ? ` (p. ${c.page})` : c.sheet ? ` (${c.sheet})` : ""}
+                                          </a>
+                                        </>
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                                <ReviewControls
+                                  runId={runId}
+                                  itemKey={itemKey}
+                                  current={reviewDecisions[itemKey]}
+                                  reviewer={reviewer}
+                                  onDone={refreshResults}
+                                />
+                              </div>
+                            );
+                          })}
                         </td>
                       </tr>
                     )}

@@ -60,6 +60,13 @@ class SourceDocument(BaseModel):
     fetched_at: str = Field(default_factory=now_iso)
     full_text: str = Field(repr=False)
     sha256: str | None = None
+    page_breaks: list[int] = Field(
+        default_factory=list,
+        description=(
+            "Char offsets in full_text where PDF page N+1 begins (page_breaks[i] = start of page i+1). "
+            "Empty for non-paginated formats (html/txt/xlsx) or non-local sources."
+        ),
+    )
 
 
 class DocumentChunk(BaseModel):
@@ -79,8 +86,19 @@ class Citation(BaseModel):
     doc_id: str
     doc_type: DocType
     quote: str = Field(description="Verbatim substring copied from the source chunk. Must be checkable.")
-    location: str | None = Field(default=None, description="Section/page/speaker-turn hint.")
+    location: str | None = Field(default=None, description="Section/page/speaker-turn hint, as reported by the LLM.")
     grounded: bool = Field(default=False, description="Set by the programmatic grounding checker, not the LLM.")
+    page: int | None = Field(
+        default=None,
+        description="1-indexed PDF page, resolved programmatically from the verified match position -- never LLM-reported. Set only when grounded.",
+    )
+    sheet: str | None = Field(
+        default=None, description="xlsx sheet name, resolved the same way as `page`. Set only when grounded."
+    )
+    company_id: str | None = Field(
+        default=None, description="Resolved from the cited SourceDocument by grounding, so a citation is self-contained for building a 'view source' link."
+    )
+    source_filename: str | None = Field(default=None, description="On-disk filename, resolved by grounding.")
 
 
 class RunManifest(BaseModel):

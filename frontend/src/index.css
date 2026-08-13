@@ -169,6 +169,11 @@ button.link-button { background: transparent; color: var(--accent); padding: 4px
 
 .field-detail { border-top: 1px solid var(--panel-border); padding: 8px 0; }
 
+.review-controls { margin-top: 6px; padding: 8px; background: #0c0e12; border-radius: 6px; }
+.review-controls textarea { width: 100%; margin-top: 6px; }
+.review-history { list-style: none; padding: 0; margin: 8px 0 0; font-size: 0.82rem; }
+.review-history li { padding: 4px 0; border-top: 1px solid var(--panel-border); }
+
 .sub-nav {
   display: flex;
   gap: 6px;

@@ -53,6 +53,9 @@ export const api = {
   getExtractionReviewQueue: (runId: string) => request(`/api/extraction/runs/${runId}/review-queue`),
   submitExtractionReview: (runId: string, body: unknown) =>
     request(`/api/extraction/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
+  getExtractionReviewDecisions: (runId: string) => request(`/api/extraction/runs/${runId}/review-decisions`),
+  getExtractionReviewHistory: (runId: string, itemKey: string) =>
+    request(`/api/extraction/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
 
   // Documents
   uploadDocument: (companyId: string, docType: string, file: File) => {
@@ -63,6 +66,8 @@ export const api = {
     return request("/api/documents/upload", { method: "POST", headers: {}, body: form });
   },
   listDocuments: (companyId: string) => request(`/api/documents/${companyId}`),
+  documentRawUrl: (companyId: string, docType: string, filename: string) =>
+    `${API_BASE}/api/documents/${encodeURIComponent(companyId)}/${encodeURIComponent(docType)}/${encodeURIComponent(filename)}/raw`,
 
   // Discovery
   startDiscoveryRun: (body: unknown) =>

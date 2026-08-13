@@ -10,7 +10,7 @@ from arp.config import Settings
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.schema_builder import draft_schema
 from arp.ingestion.registry import DocumentSourceRegistry
-from arp.orchestration.review_queue import latest_decisions, record_review_decision
+from arp.orchestration.review_queue import decision_history, latest_decisions, record_review_decision
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema
 from arp.storage.run_store import RunStore
@@ -88,16 +88,32 @@ def get_extraction_review_queue(run_id: str, run_store: RunStore = Depends(get_r
     return {"pending": pending, "decided": [{"item": r, "decision": decisions[r["item_key"]]} for r in rows if r["item_key"] in decisions]}
 
 
+@router.get("/runs/{run_id}/review-decisions")
+def get_extraction_review_decisions(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+    """Latest decision per item_key across the whole run (company- and
+    field-level keys mixed) -- one call so the results table can show
+    every field's review status without a request per field."""
+    return {"decisions": latest_decisions(run_store, run_id)}
+
+
+@router.get("/runs/{run_id}/review-history")
+def get_extraction_review_history(
+    run_id: str, item_key: str, run_store: RunStore = Depends(get_run_store)
+) -> dict:
+    return {"item_key": item_key, "history": decision_history(run_store, run_id, item_key)}
+
+
 class ReviewDecisionRequest(BaseModel):
     item_key: str
     decision: str
     reviewer: str | None = None
     edited_value: dict | None = None
+    comment: str | None = None
 
 
 @router.post("/runs/{run_id}/review")
 def submit_extraction_review(
     run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store)
 ) -> dict:
-    record_review_decision(run_store, run_id, req.item_key, req.decision, req.reviewer, req.edited_value)
+    record_review_decision(run_store, run_id, req.item_key, req.decision, req.reviewer, req.edited_value, req.comment)
     return {"status": "recorded"}
