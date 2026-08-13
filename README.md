@@ -146,7 +146,17 @@ known for the most precise document discovery and EDGAR lookup).
   company's IR site (from a supplied URL, or a best-effort web search
   fallback), does a bounded, same-domain, robots.txt-respecting crawl for
   annual reports / sustainability reports / proxy statements / investor
-  presentations / transcripts, and downloads matches.
+  presentations / transcripts, and downloads matches. A company whose
+  homepage/IR URL is known but could not actually be fetched (DNS/network
+  failure, 4xx/5xx) is reported as `homepage_unreachable: true` with a
+  `crawl_error` message and routed to the review queue -- this is kept
+  distinct from a genuine "crawled fine, nothing matched" result of zero
+  documents, and from `homepage_used: null` (no URL known at all). Failures
+  on links found *deeper* in a crawl (not the root URL) stay a routine,
+  silent skip, since that's expected at scale and not evidence the whole
+  company was unreachable. `arp discover run` prints a `WARNING` block
+  listing any unreachable companies; the Document Discovery page's results
+  table shows the same per-company status.
 - Earnings-call transcripts have no free public API; supply them via the
   local file store or extend `DocumentSource` with a paid connector.
 

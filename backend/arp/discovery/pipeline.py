@@ -4,7 +4,7 @@ import logging
 
 from arp.config import Settings
 from arp.discovery.change_detector import ChangeDetector
-from arp.discovery.crawler import CrawlConfig, crawl_for_documents
+from arp.discovery.crawler import CrawlConfig, HomepageUnreachableError, crawl_for_documents
 from arp.discovery.downloader import download_documents
 from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient, resolve_company_homepage
 from arp.orchestration.batch_runner import run_batch
@@ -36,7 +36,10 @@ async def _discover_for_company(
         max_pages=settings.discovery_max_pages_per_company,
         request_delay_seconds=settings.discovery_request_delay_seconds,
     )
-    candidates = await crawl_for_documents(homepage, crawl_config)
+    try:
+        candidates = await crawl_for_documents(homepage, crawl_config)
+    except HomepageUnreachableError as exc:
+        return DiscoveryCompanyResult(company_id=company.company_id, name=company.name, homepage_used=homepage, homepage_unreachable=True, crawl_error=str(exc))
     if doc_types:
         candidates = [c for c in candidates if c.doc_type in doc_types]
 
@@ -92,7 +95,7 @@ async def execute_discovery_run(
         job_manager.record_progress(
             run_id,
             completed_delta=1,
-            review_delta=1 if not result.homepage_used else 0,
+            review_delta=1 if (not result.homepage_used or result.homepage_unreachable) else 0,
         )
 
     def _on_error(company: CompanyRef, exc: Exception) -> None:

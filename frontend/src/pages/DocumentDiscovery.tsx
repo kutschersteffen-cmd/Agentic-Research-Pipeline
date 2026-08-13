@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
-import type { DiscoveryScheduleConfig, DocumentEvent } from "../types";
+import type { DiscoveryCompanyResult, DiscoveryScheduleConfig, DocumentEvent } from "../types";
 
 export function DocumentDiscovery() {
   const [universePath, setUniversePath] = useState<string | null>(null);
@@ -10,6 +10,7 @@ export function DocumentDiscovery() {
   const [runId, setRunId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [results, setResults] = useState<DiscoveryCompanyResult[]>([]);
 
   const [schedule, setSchedule] = useState<DiscoveryScheduleConfig | null>(null);
   const [events, setEvents] = useState<DocumentEvent[]>([]);
@@ -26,10 +27,17 @@ export function DocumentDiscovery() {
     setEvents(res.events.slice().reverse());
   }
 
+  async function refreshResults() {
+    if (!runId) return;
+    const res = (await api.getDiscoveryResults(runId)) as { results: DiscoveryCompanyResult[] };
+    setResults(res.results);
+  }
+
   async function runNow() {
     if (!universePath) return;
     setBusy(true);
     setError(null);
+    setResults([]);
     try {
       const res = await api.startDiscoveryRun({ universe_path: universePath });
       setRunId(res.run_id);
@@ -75,7 +83,44 @@ export function DocumentDiscovery() {
           Search for documents across {companyCount || "..."} companies
         </button>
         {error && <p className="error-text">{error}</p>}
-        {runId && <RunProgress runId={runId} />}
+        {runId && <RunProgress runId={runId} runType="extraction" />}
+        {runId && (
+          <>
+            <button onClick={refreshResults}>Refresh results</button>
+            {results.length > 0 && (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Company</th>
+                    <th>Homepage used</th>
+                    <th>Status</th>
+                    <th>Documents found</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.map((r) => (
+                    <tr key={r.company_id}>
+                      <td>{r.name}</td>
+                      <td>{r.homepage_used ?? "(none known)"}</td>
+                      <td>
+                        {r.homepage_unreachable ? (
+                          <span className="error-text" title={r.crawl_error ?? undefined}>
+                            ⚠️ site unreachable{r.crawl_error ? `: ${r.crawl_error}` : ""}
+                          </span>
+                        ) : !r.homepage_used ? (
+                          <span className="muted">no homepage known</span>
+                        ) : (
+                          "ok"
+                        )}
+                      </td>
+                      <td>{r.documents_found.length}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </>
+        )}
       </section>
 
       {schedule && (

@@ -60,6 +60,14 @@ def get_discovery_run(run_id: str, run_store: RunStore = Depends(_run_store)) ->
     return manifest.model_dump(mode="json")
 
 
+@router.get("/runs/{run_id}/results")
+def get_discovery_results(
+    run_id: str, offset: int = 0, limit: int = 200, run_store: RunStore = Depends(_run_store)
+) -> dict:
+    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    return {"total": len(rows), "results": rows[offset : offset + limit]}
+
+
 @router.get("/events")
 def get_discovery_events(
     since: str | None = None, limit: int = 200, settings: Settings = Depends(settings_dep)

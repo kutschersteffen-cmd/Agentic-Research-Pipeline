@@ -210,6 +210,17 @@ export interface DiscoveredDocument {
   discovered_at: string;
 }
 
+export interface DiscoveryCompanyResult {
+  company_id: string;
+  name: string;
+  homepage_used?: string | null;
+  homepage_unreachable: boolean;
+  crawl_error?: string | null;
+  documents_found: DiscoveredDocument[];
+  new_events: DocumentEvent[];
+  generated_at: string;
+}
+
 export interface DocumentEvent {
   event_id: string;
   event_type: "new_document" | "updated_document";

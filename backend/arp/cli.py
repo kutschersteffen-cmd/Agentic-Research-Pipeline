@@ -520,10 +520,17 @@ def discover_run(
     companies = load_company_universe(universe)
     types = [DocType(t.strip()) for t in doc_types.split(",") if t.strip()] or None
     typer.echo(f"Discovering documents for {len(companies)} companies...")
+    run_store = _run_store()
     run_id = asyncio.run(
-        run_discovery(companies, settings=settings, run_store=_run_store(), doc_types=types, triggered_by="manual")
+        run_discovery(companies, settings=settings, run_store=run_store, doc_types=types, triggered_by="manual")
     )
+    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    unreachable = [r for r in rows if r.get("homepage_unreachable")]
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/, new documents under data/documents/)")
+    if unreachable:
+        typer.echo(f"WARNING: {len(unreachable)}/{len(companies)} companies' homepage could not be reached (not the same as \"no documents found\"):", err=True)
+        for r in unreachable:
+            typer.echo(f"  {r['company_id']}: {r.get('crawl_error')}", err=True)
 
 
 @discover_app.command("schedule")

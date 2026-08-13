@@ -36,6 +36,16 @@ class CandidateDocumentLink(BaseModel):
     link_text: str
 
 
+class HomepageUnreachableError(Exception):
+    """The crawl's starting URL itself couldn't be fetched -- distinct from
+    a normal empty result (crawled fine, nothing matched, or robots.txt
+    disallowed everything). Raised only for the root URL: a broken link
+    found later, deeper in the site, is a routine crawl outcome and stays
+    silent (logged, skipped), but if the very first page never loads there
+    is nothing else this crawl could have found, and that's worth
+    surfacing rather than reporting identically to "zero documents"."""
+
+
 @dataclass
 class CrawlConfig:
     user_agent: str
@@ -112,11 +122,16 @@ async def crawl_for_documents(root_url: str, config: CrawlConfig) -> list[Candid
                 continue
 
             await asyncio.sleep(config.request_delay_seconds)
+            is_root = url == root_url
             try:
                 resp = await client.get(url)
             except httpx.HTTPError as exc:
+                if is_root:
+                    raise HomepageUnreachableError(f"Could not fetch {url}: {exc}") from exc
                 logger.info("Failed to fetch %s: %s", url, exc)
                 continue
+            if is_root and resp.status_code >= 400:
+                raise HomepageUnreachableError(f"{url} returned HTTP {resp.status_code}")
             content_type = resp.headers.get("content-type", "")
             if "text/html" not in content_type:
                 continue

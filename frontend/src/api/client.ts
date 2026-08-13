@@ -67,6 +67,8 @@ export const api = {
   // Discovery
   startDiscoveryRun: (body: unknown) =>
     request<{ run_id: string; company_count: number }>("/api/discovery/runs", { method: "POST", body: JSON.stringify(body) }),
+  getDiscoveryResults: (runId: string, offset = 0, limit = 500) =>
+    request(`/api/discovery/runs/${runId}/results?offset=${offset}&limit=${limit}`),
   getDiscoveryEvents: (since?: string) => request(`/api/discovery/events${since ? `?since=${encodeURIComponent(since)}` : ""}`),
   getDiscoverySchedule: () => request("/api/discovery/schedule"),
   updateDiscoverySchedule: (config: unknown) =>

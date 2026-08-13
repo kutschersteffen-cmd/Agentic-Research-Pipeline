@@ -42,6 +42,15 @@ class DiscoveryCompanyResult(BaseModel):
     company_id: str
     name: str
     homepage_used: str | None = None
+    homepage_unreachable: bool = Field(
+        default=False,
+        description=(
+            "True when a homepage/IR URL was known but the crawl's root page couldn't be fetched (network "
+            "failure, 4xx/5xx) -- distinct from homepage_used=None (no URL known at all) and from a normal "
+            "empty result (fetched fine, nothing matched). Never silently reported as '0 documents found'."
+        ),
+    )
+    crawl_error: str | None = Field(default=None, description="Why the homepage was unreachable, when homepage_unreachable is True.")
     documents_found: list[DiscoveredDocument] = Field(default_factory=list)
     new_events: list[DocumentEvent] = Field(default_factory=list)
     generated_at: str = Field(default_factory=now_iso)
