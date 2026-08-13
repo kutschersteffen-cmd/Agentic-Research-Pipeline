@@ -1,3 +1,5 @@
+import type { CompanyBallot, ResearchDossier, StewardshipReport, TriggerEvent, VoteRecord, VoteReviewDecision } from "../types";
+
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -139,4 +141,91 @@ export const api = {
   // Revenue/CapEx catalogue mapping
   suggestCatalogueMapping: (body: { taxonomy_id: string; taxonomy_version?: number | null; catalogue_path: string }) =>
     request("/api/revenue-catalogue/suggest-mapping", { method: "POST", body: JSON.stringify(body) }),
+
+  // Engagement (stewardship)
+  listEngagementRecords: () => request<{ records: unknown[] }>("/api/engagement/records"),
+  createEngagementRecord: (body: { company_id: string; name: string; sector?: string | null }) =>
+    request("/api/engagement/records", { method: "POST", body: JSON.stringify(body) }),
+  getEngagementRecord: (companyId: string) => request(`/api/engagement/records/${encodeURIComponent(companyId)}`),
+  getEngagementRecordEvents: (companyId: string) =>
+    request<{ events: Record<string, unknown>[] }>(`/api/engagement/records/${encodeURIComponent(companyId)}/events`),
+  addEngagementContact: (companyId: string, body: unknown) =>
+    request(`/api/engagement/records/${encodeURIComponent(companyId)}/contacts`, { method: "POST", body: JSON.stringify(body) }),
+  openEngagementIssue: (companyId: string, name: string, body: { theme: string; severity?: string; source_detail?: string; sector?: string | null }) =>
+    request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues?name=${encodeURIComponent(name)}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  getEngagementNextAction: (companyId: string, issueId: string) =>
+    request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/next-action`),
+  escalateEngagementIssue: (companyId: string, issueId: string, body: { stage: string; decided_by: string; reason?: string }) =>
+    request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/escalate`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  triggerScan: (body: { companies: unknown[]; signals: unknown[] }) =>
+    request<{ events: TriggerEvent[] }>("/api/engagement/trigger-scan", { method: "POST", body: JSON.stringify(body) }),
+  draftDossier: (companyId: string, issueId: string, company: unknown) =>
+    request<{ dossier: ResearchDossier; needs_review: boolean }>(
+      `/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/dossier`,
+      { method: "POST", body: JSON.stringify(company) },
+    ),
+  draftOutreachLetter: (companyId: string, issueId: string, body: { company_name: string; recipient: string; dossier: unknown; house_style_notes?: string }) =>
+    request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/outreach-letter`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  draftTalkingPoints: (companyId: string, issueId: string, body: { company_name: string; dossier: unknown }) =>
+    request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/talking-points`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  draftMeetingSummary: (companyId: string, issueId: string, body: { company_name: string; notes_or_transcript: string }) =>
+    request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/meeting-summary`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  logOutreachSent: (companyId: string, issueId: string, body: { summary: string; sent_by: string; doc_ref?: string | null }) =>
+    request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/log-outreach-sent`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  logMeetingSummaryValidated: (
+    companyId: string,
+    issueId: string,
+    body: { summary: string; commitments?: string[]; validated_by: string },
+  ) =>
+    request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/log-meeting-summary-validated`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  verifyCommitment: (companyId: string, issueId: string, body: { commitment_id: string; verified_by: string }) =>
+    request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/verify-commitment`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  getStewardshipReport: (periodLabel: string, runId?: string) =>
+    request<StewardshipReport>(
+      `/api/engagement/report?period_label=${encodeURIComponent(periodLabel)}${runId ? `&run_id=${encodeURIComponent(runId)}` : ""}`,
+    ),
+
+  // Voting (proxy)
+  startVotingRun: (body: { companies?: unknown[]; universe_path?: string; meeting_dates?: Record<string, string> }) =>
+    request<{ run_id: string; company_count: number }>("/api/voting/runs", { method: "POST", body: JSON.stringify(body) }),
+  getVotingRun: (runId: string) => request(`/api/voting/runs/${runId}`),
+  getVotingBallots: (runId: string) => request<{ ballots: CompanyBallot[] }>(`/api/voting/runs/${runId}/ballots`),
+  getVotingReviewQueue: (runId: string) =>
+    request<{ pending: Record<string, unknown>[]; decided: { item: Record<string, unknown>; decision: VoteReviewDecision }[] }>(
+      `/api/voting/runs/${runId}/review-queue`,
+    ),
+  getVotingReviewHistory: (runId: string, itemKey: string) =>
+    request<{ item_key: string; history: VoteReviewDecision[] }>(
+      `/api/voting/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`,
+    ),
+  submitVotingReview: (
+    runId: string,
+    body: { item_key: string; decision: "approve" | "edit" | "reject"; reviewer: string; vote?: string | null; co_signed_by?: string | null; comment?: string | null },
+  ) => request(`/api/voting/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
+  castVotes: (runId: string) => request<{ cast_count: number; votes: VoteRecord[] }>(`/api/voting/runs/${runId}/cast`, { method: "POST" }),
+  getCastVotes: (runId: string) => request<{ votes: VoteRecord[] }>(`/api/voting/runs/${runId}/cast`),
 };

@@ -117,7 +117,6 @@ async def execute_voting_run(
     meeting_dates = meeting_dates or {}
 
     def _on_success(company: CompanyRef, result: CompanyBallotResult) -> None:
-        result.ballot.votes = [v.model_copy(update={"run_id": run_id}) for v in result.ballot.votes]
         for vote in result.ballot.votes:
             queue_for_review(
                 run_store, run_id, _item_key(company.company_id, vote.proposal.proposal_number), vote.model_dump(mode="json")
@@ -140,7 +139,7 @@ async def execute_voting_run(
         return current is not None and current.cancel_requested
 
     async def _worker(company: CompanyRef) -> CompanyBallotResult:
-        return await _process_company(
+        result = await _process_company(
             company,
             meeting_dates.get(company.company_id),
             registry=registry,
@@ -150,6 +149,10 @@ async def execute_voting_run(
             rules=rules,
             fund_name=fund_name,
         )
+        # Set before result_to_json/on_success run, so both the persisted
+        # results.jsonl row and the review-queue entry agree on run_id.
+        result.ballot.votes = [v.model_copy(update={"run_id": run_id}) for v in result.ballot.votes]
+        return result
 
     await run_batch(
         companies,
