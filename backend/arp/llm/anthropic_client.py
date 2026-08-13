@@ -106,10 +106,17 @@ class AnthropicLLMClient(LLMClient):
                 messages.append(
                     {
                         "role": "user",
-                        "content": (
-                            f"Your `{_TOOL_NAME}` call failed schema validation with these errors:\n"
-                            f"{exc}\n\nCall `{_TOOL_NAME}` again with a corrected input that fixes every error."
-                        ),
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": tool_use.id,
+                                "is_error": True,
+                                "content": (
+                                    f"Your `{_TOOL_NAME}` call failed schema validation with these errors:\n"
+                                    f"{exc}\n\nCall `{_TOOL_NAME}` again with a corrected input that fixes every error."
+                                ),
+                            }
+                        ],
                     }
                 )
 
