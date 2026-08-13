@@ -29,6 +29,12 @@ precision at scale (designed for up to ~4,000 companies per run).
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches.
 
+A third pillar, **Portfolio Risk & Exposure Monitoring** — aggregating
+holdings across portfolios, on-the-fly analytics, direct Q&A ("how many
+EUR million of exposure to BMW"), and a dedicated climate analytics
+section — is scoped but not yet built; see
+[`docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md`](docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md).
+
 ## Architecture
 
 ```
