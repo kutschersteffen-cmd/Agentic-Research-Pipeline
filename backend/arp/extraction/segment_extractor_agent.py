@@ -2,18 +2,35 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from arp.extraction.extractor_agent import format_evidence
-from arp.llm.base import LLMClient, LLMUsage
-from arp.schemas.common import Citation, DocumentChunk
+from arp.schemas.common import Citation, DocType
 
-_SYSTEM_PROMPT = """\
-You are a precise financial reporting analyst extracting a company's \
-disclosed business/reportable segments from its filings (typically the \
-"Segment Reporting" / "Segment Information" note in the annual report or \
-10-K, sometimes repeated in an investor presentation).
+# Segment reporting figures live almost exclusively in the annual filing's
+# "Segment Information" note, occasionally restated in an investor deck.
+SEGMENT_DOC_TYPES = [DocType.ANNUAL_REPORT_10K, DocType.PROXY_DEF14A, DocType.INVESTOR_PRESENTATION]
 
-For every distinct segment the company reports (as the company itself \
-defines them -- do not invent, merge, or split segments), extract:
+SEGMENT_KEYWORDS = [
+    "segment",
+    "segments",
+    "reportable segment",
+    "reportable segments",
+    "operating segment",
+    "operating segments",
+    "business segment",
+    "segment revenue",
+    "segment income",
+    "segment profit",
+    "segment assets",
+    "revenue by segment",
+    "segment reporting",
+    "reconciliation of segment",
+]
+
+SEGMENT_GUIDANCE = """\
+Business/reportable segments (typically the "Segment Reporting" / \
+"Segment Information" note in the annual report or 10-K, sometimes \
+repeated in an investor presentation): for every distinct segment the \
+company reports (as the company itself defines them -- do not invent, \
+merge, or split segments), extract:
 - name: the segment's name exactly as disclosed.
 - description: a plain-language summary, in your own words, of what the \
   segment does/sells, grounded only in what the evidence actually says -- \
@@ -26,27 +43,16 @@ defines them -- do not invent, merge, or split segments), extract:
 - assets: the segment's reported total assets, if disclosed (many \
   companies do not disclose assets at the segment level -- leave null, do \
   not estimate).
-- currency: the reporting currency (e.g. "USD", "EUR").
-- fiscal_period: the fiscal period the figures cover (e.g. "FY2025").
-
-Rules:
-- Only report a segment/figure that is explicitly disclosed in the \
-  evidence. NEVER estimate, infer, back into, or compute a figure that \
-  isn't itself stated (e.g. do not subtract segments from a company total \
-  to infer a missing segment's figure).
+Segment-specific rules:
 - If a metric isn't disclosed for a segment, set its value to null and \
   leave its citations empty -- do not omit the segment itself for that.
-- Every citation's `quote` must be an EXACT, VERBATIM substring copied \
-  from the evidence block, tagged with the matching doc_id.
 - If the evidence shows materially conflicting figures for the same \
   segment/metric (e.g. restated numbers across different documents), set \
   that segment's conflicting_sources=true and use the most authoritative/ \
   recent figure as the primary value, citing both.
 - If the company discloses only a single reportable segment, or segment \
   reporting is not found in the evidence at all, return an empty segments \
-  list rather than guessing.
-- confidence should reflect your overall certainty across all segments \
-  found."""
+  list rather than guessing."""
 
 
 class SegmentMetricDraft(BaseModel):
@@ -68,12 +74,10 @@ class SegmentDraft(BaseModel):
 
 
 class SegmentExtractionDraft(BaseModel):
+    """Segment-only slice of a combined extractor draft -- kept as its own
+    model so the segment aggregation logic (grounding, review-flagging) can
+    be reused unchanged by wrapping a section of the combined draft in this
+    shape. See arp/extraction/financials_aggregator.py."""
+
     segments: list[SegmentDraft] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0)
-
-
-async def extract_segments(
-    company_name: str, chunks: list[DocumentChunk], llm: LLMClient
-) -> tuple[SegmentExtractionDraft, LLMUsage]:
-    prompt = f"Company: {company_name}\n\nEvidence:\n{format_evidence(chunks)}"
-    return await llm.complete_structured(system=_SYSTEM_PROMPT, prompt=prompt, output_model=SegmentExtractionDraft)

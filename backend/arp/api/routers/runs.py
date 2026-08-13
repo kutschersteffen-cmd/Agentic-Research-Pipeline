@@ -71,31 +71,27 @@ def export_run_csv(run_id: str, run_store: RunStore = Depends(get_run_store)) ->
                     [record["company_id"], record.get("ticker"), record["name"], f["field_name"], f["value"],
                      f["confidence"], f["grounded"], record["needs_review"], f.get("verifier_notes")]
                 )
-    elif manifest.run_type == "segments":
+    elif manifest.run_type == "financials":
         writer = csv.writer(buf)
         writer.writerow(
-            ["company_id", "ticker", "name", "segment_name", "description", "currency", "fiscal_period",
-             "revenue", "income", "assets", "confidence", "grounded", "needs_review", "verifier_notes"]
+            ["company_id", "ticker", "name", "currency", "fiscal_period",
+             "segment_name", "segment_description", "segment_revenue", "segment_income", "segment_assets", "segment_grounded",
+             "capex_total", "capex_description", "capex_grounded",
+             "rnd_total", "rnd_description", "rnd_grounded",
+             "overall_confidence", "needs_review"]
         )
         for record in rows:
-            for s in record.get("segments", []):
+            segments = record.get("segments") or [None]
+            for s in segments:
                 writer.writerow(
-                    [record["company_id"], record.get("ticker"), record["name"], s["name"], s.get("description"),
-                     s.get("currency"), s.get("fiscal_period"), s["revenue"]["value"], s["income"]["value"],
-                     s["assets"]["value"], s["confidence"], s["grounded"], record["needs_review"], s.get("verifier_notes")]
+                    [record["company_id"], record.get("ticker"), record["name"], record.get("currency"), record.get("fiscal_period"),
+                     s["name"] if s else None, s.get("description") if s else None,
+                     s["revenue"]["value"] if s else None, s["income"]["value"] if s else None, s["assets"]["value"] if s else None,
+                     s["grounded"] if s else None,
+                     record["capex"]["total"]["value"], record["capex"].get("description"), record["capex"]["grounded"],
+                     record["rnd"]["total"]["value"], record["rnd"].get("description"), record["rnd"]["grounded"],
+                     record["overall_confidence"], record["needs_review"]]
                 )
-    elif manifest.run_type == "spend":
-        writer = csv.writer(buf)
-        writer.writerow(
-            ["company_id", "ticker", "name", "topic", "total", "currency", "fiscal_period", "description",
-             "confidence", "grounded", "needs_review", "verifier_notes"]
-        )
-        for record in rows:
-            writer.writerow(
-                [record["company_id"], record.get("ticker"), record["name"], record["topic"], record["total"]["value"],
-                 record.get("currency"), record.get("fiscal_period"), record.get("description"), record["confidence"],
-                 record["grounded"], record["needs_review"], record.get("verifier_notes")]
-            )
     else:  # discovery
         writer = csv.writer(buf)
         writer.writerow(["company_id", "name", "homepage_used", "doc_type", "url", "local_path"])

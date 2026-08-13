@@ -203,7 +203,9 @@ export interface ExtractionRecord {
   generated_at: string;
 }
 
-// --- Business segment extraction ---
+// --- Company Financials: business segments + CapEx + R&D, extracted
+// together in a single combined pass per company (they're almost always
+// wanted together, so this avoids re-fetching/re-extracting per topic) ---
 
 export interface SegmentMetric {
   value?: number | null;
@@ -227,21 +229,6 @@ export interface BusinessSegment {
   conflicting_sources: boolean;
 }
 
-export interface SegmentExtractionRecord {
-  company_id: string;
-  ticker?: string | null;
-  name: string;
-  run_id: string;
-  segments: BusinessSegment[];
-  overall_confidence: number;
-  needs_review: boolean;
-  generated_at: string;
-}
-
-// --- CapEx / R&D spend extraction ---
-
-export type SpendTopic = "capex" | "rnd";
-
 export interface AmountMetric {
   value?: number | null;
   raw_value_text?: string | null;
@@ -259,22 +246,28 @@ export interface SpendCategory {
   conflicting_sources: boolean;
 }
 
-export interface SpendExtractionRecord {
-  company_id: string;
-  ticker?: string | null;
-  name: string;
-  topic: SpendTopic;
-  run_id: string;
+export interface SpendSummary {
   total: AmountMetric;
   description?: string | null;
   description_citations: Citation[];
-  currency?: string | null;
-  fiscal_period?: string | null;
   categories: SpendCategory[];
   confidence: number;
   grounded: boolean;
   verifier_notes?: string | null;
   conflicting_sources: boolean;
+}
+
+export interface CompanyFinancialsRecord {
+  company_id: string;
+  ticker?: string | null;
+  name: string;
+  run_id: string;
+  currency?: string | null;
+  fiscal_period?: string | null;
+  segments: BusinessSegment[];
+  segments_verifier_notes?: string | null;
+  capex: SpendSummary;
+  rnd: SpendSummary;
   overall_confidence: number;
   needs_review: boolean;
   generated_at: string;

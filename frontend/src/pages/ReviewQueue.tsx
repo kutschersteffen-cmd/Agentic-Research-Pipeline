@@ -1,20 +1,18 @@
 import { useState } from "react";
 import { api } from "../api/client";
 
-type RunKind = "theme" | "extraction" | "segments" | "spend";
+type RunKind = "theme" | "extraction" | "financials";
 
 const QUEUE_FNS: Record<RunKind, (runId: string) => Promise<unknown>> = {
   theme: api.getThemeReviewQueue,
   extraction: api.getExtractionReviewQueue,
-  segments: api.getSegmentReviewQueue,
-  spend: api.getSpendReviewQueue,
+  financials: api.getFinancialsReviewQueue,
 };
 
 const SUBMIT_FNS: Record<RunKind, (runId: string, body: unknown) => Promise<unknown>> = {
   theme: api.submitThemeReview,
   extraction: api.submitExtractionReview,
-  segments: api.submitSegmentReview,
-  spend: api.submitSpendReview,
+  financials: api.submitFinancialsReview,
 };
 
 export function ReviewQueue() {
@@ -56,8 +54,7 @@ export function ReviewQueue() {
         <select value={kind} onChange={(e) => setKind(e.target.value as RunKind)}>
           <option value="theme">Thematic universe</option>
           <option value="extraction">Data-point extraction</option>
-          <option value="segments">Business segments</option>
-          <option value="spend">CapEx / R&D</option>
+          <option value="financials">Company financials</option>
         </select>
         <label className="field-label">Run ID</label>
         <input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="theme_xxxxxxxxxxxx" />

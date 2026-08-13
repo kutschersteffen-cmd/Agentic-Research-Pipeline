@@ -4,24 +4,11 @@ import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import { ConfidenceBadge, GroundedBadge } from "../components/ConfidenceBadge";
 import { ReviewControls } from "../components/ReviewControls";
-import type { Citation, ReviewDecision, SpendExtractionRecord, SpendTopic } from "../types";
+import type { BusinessSegment, Citation, CompanyFinancialsRecord, ReviewDecision, SpendSummary } from "../types";
 
 interface Props {
   pendingUniverse?: { path: string; count: number } | null;
 }
-
-const TOPICS: { id: SpendTopic; label: string; help: string }[] = [
-  {
-    id: "capex",
-    label: "CapEx",
-    help: "Total capital expenditure for the most recent fiscal year, what it's funding, and any disclosed category breakdown (maintenance vs. growth, capitalized software, green capex, etc.).",
-  },
-  {
-    id: "rnd",
-    label: "R&D",
-    help: "Total R&D expense for the most recent fiscal year, what it's funding, and any disclosed program/focus-area breakdown.",
-  },
-];
 
 function fmtAmount(value?: number | null): string {
   return value == null ? "—" : value.toLocaleString();
@@ -52,23 +39,60 @@ function CitationList({ citations }: { citations: Citation[] }) {
   );
 }
 
-function SpendDetail({ record }: { record: SpendExtractionRecord }) {
+function SegmentDetail({ segment }: { segment: BusinessSegment }) {
   return (
     <div className="field-detail">
-      <strong>Total:</strong> {fmtAmount(record.total.value)}
-      {record.total.raw_value_text && <span className="muted"> ({record.total.raw_value_text})</span>}{" "}
-      <GroundedBadge grounded={record.total.grounded} /> <ConfidenceBadge value={record.confidence} />
-      {record.currency && record.fiscal_period && (
-        <span className="muted"> · {record.currency} · {record.fiscal_period}</span>
+      <strong>{segment.name}</strong> <GroundedBadge grounded={segment.grounded} /> <ConfidenceBadge value={segment.confidence} />
+      {segment.description && <p>{segment.description}</p>}
+      <CitationList citations={segment.description_citations} />
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Value</th>
+            <th>Grounded</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(["revenue", "income", "assets"] as const).map((metric) => (
+            <tr key={metric}>
+              <td style={{ textTransform: "capitalize" }}>{metric}</td>
+              <td>
+                {fmtAmount(segment[metric].value)}
+                {segment[metric].raw_value_text && <span className="muted"> ({segment[metric].raw_value_text})</span>}
+              </td>
+              <td><GroundedBadge grounded={segment[metric].grounded} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {(["revenue", "income", "assets"] as const).map((metric) =>
+        segment[metric].citations.length > 0 ? (
+          <div key={metric}>
+            <span className="muted" style={{ textTransform: "capitalize" }}>{metric} citations:</span>
+            <CitationList citations={segment[metric].citations} />
+          </div>
+        ) : null
       )}
-      <CitationList citations={record.total.citations} />
-      {record.description && (
+      {segment.conflicting_sources && <p className="error-text">Conflicting figures across sources.</p>}
+    </div>
+  );
+}
+
+function SpendDetail({ label, spend }: { label: string; spend: SpendSummary }) {
+  return (
+    <div className="field-detail">
+      <strong>{label} total:</strong> {fmtAmount(spend.total.value)}
+      {spend.total.raw_value_text && <span className="muted"> ({spend.total.raw_value_text})</span>}{" "}
+      <GroundedBadge grounded={spend.grounded} /> <ConfidenceBadge value={spend.confidence} />
+      <CitationList citations={spend.total.citations} />
+      {spend.description && (
         <>
-          <p>{record.description}</p>
-          <CitationList citations={record.description_citations} />
+          <p>{spend.description}</p>
+          <CitationList citations={spend.description_citations} />
         </>
       )}
-      {record.categories.length > 0 && (
+      {spend.categories.length > 0 && (
         <>
           <p className="muted">Category breakdown:</p>
           <table className="data-table">
@@ -81,7 +105,7 @@ function SpendDetail({ record }: { record: SpendExtractionRecord }) {
               </tr>
             </thead>
             <tbody>
-              {record.categories.map((c, ci) => (
+              {spend.categories.map((c, ci) => (
                 <tr key={ci}>
                   <td>{c.name}</td>
                   <td>{c.description ?? "—"}</td>
@@ -93,32 +117,29 @@ function SpendDetail({ record }: { record: SpendExtractionRecord }) {
           </table>
         </>
       )}
-      {record.verifier_notes && <p className="muted">{record.verifier_notes}</p>}
-      {record.conflicting_sources && <p className="error-text">Conflicting figures across sources.</p>}
+      {spend.verifier_notes && <p className="muted">{spend.verifier_notes}</p>}
+      {spend.conflicting_sources && <p className="error-text">Conflicting figures across sources.</p>}
     </div>
   );
 }
 
-export function SpendExtraction({ pendingUniverse }: Props = {}) {
-  const [topic, setTopic] = useState<SpendTopic>("capex");
+export function CompanyFinancials({ pendingUniverse }: Props = {}) {
   const [universePath, setUniversePath] = useState<string | null>(pendingUniverse?.path ?? null);
   const [companyCount, setCompanyCount] = useState(pendingUniverse?.count ?? 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
-  const [results, setResults] = useState<SpendExtractionRecord[]>([]);
+  const [results, setResults] = useState<CompanyFinancialsRecord[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [reviewDecisions, setReviewDecisions] = useState<Record<string, ReviewDecision>>({});
   const [reviewer, setReviewer] = useState("");
-
-  const activeTopic = TOPICS.find((t) => t.id === topic)!;
 
   async function startRun() {
     if (!universePath) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await api.startSpendRun(topic, { universe_path: universePath });
+      const res = await api.startFinancialsRun({ universe_path: universePath });
       setRunId(res.run_id);
       setResults([]);
     } catch (err) {
@@ -130,40 +151,25 @@ export function SpendExtraction({ pendingUniverse }: Props = {}) {
 
   async function refreshResults() {
     if (!runId) return;
-    const res = (await api.getSpendResults(runId)) as { results: SpendExtractionRecord[] };
+    const res = (await api.getFinancialsResults(runId)) as { results: CompanyFinancialsRecord[] };
     setResults(res.results);
-    const decisionsRes = (await api.getSpendReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
+    const decisionsRes = (await api.getFinancialsReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
     setReviewDecisions(decisionsRes.decisions);
   }
 
   return (
     <div className="page">
-      <h2>CapEx / R&amp;D Extraction</h2>
+      <h2>Company Financials</h2>
       <p className="help-text">
-        Extract total capital expenditure or R&amp;D spend, a plain-language description of what it's funding, and
-        any disclosed category breakdown -- from annual reports, sustainability reports, investor decks, and
-        earnings call transcripts -- with the same independent-verifier and grounding-check precision controls as
-        the other extraction pipelines.
+        Extract a company's disclosed business segments (name, description, revenue, operating income, assets),
+        total CapEx, and total R&amp;D -- each with a grounded description and any disclosed category breakdown --
+        in a single combined pass per company. These are almost always wanted together, so this fetches each
+        company's documents once and makes one extractor + one independent verifier call instead of three separate
+        pipelines, with the same programmatic grounding check on every citation.
       </p>
 
       <section className="card">
-        <h3>1. Choose topic and company universe</h3>
-        <div className="sub-nav">
-          {TOPICS.map((t) => (
-            <button
-              key={t.id}
-              className={t.id === topic ? "nav-tab active" : "nav-tab"}
-              onClick={() => {
-                setTopic(t.id);
-                setRunId(null);
-                setResults([]);
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <p className="help-text">{activeTopic.help}</p>
+        <h3>1. Choose the company universe</h3>
         {pendingUniverse && universePath === pendingUniverse.path && (
           <p className="status-text">
             Using {pendingUniverse.count} companies sent from a Thematic Universe screen. Upload a different
@@ -177,7 +183,7 @@ export function SpendExtraction({ pendingUniverse }: Props = {}) {
           }}
         />
         <button onClick={startRun} disabled={busy || !universePath}>
-          Extract {activeTopic.label} across {companyCount || "..."} companies
+          Extract financials across {companyCount || "..."} companies
         </button>
       </section>
 
@@ -186,7 +192,7 @@ export function SpendExtraction({ pendingUniverse }: Props = {}) {
       {runId && (
         <section className="card">
           <h3>2. Run progress</h3>
-          <RunProgress runId={runId} runType="spend" />
+          <RunProgress runId={runId} runType="financials" />
           <div className="toolbar">
             <button onClick={refreshResults}>Refresh results</button>
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
@@ -202,7 +208,9 @@ export function SpendExtraction({ pendingUniverse }: Props = {}) {
               <thead>
                 <tr>
                   <th>Company</th>
-                  <th>Total</th>
+                  <th>Segments</th>
+                  <th>CapEx</th>
+                  <th>R&amp;D</th>
                   <th>Confidence</th>
                   <th>Needs review</th>
                 </tr>
@@ -212,22 +220,36 @@ export function SpendExtraction({ pendingUniverse }: Props = {}) {
                   <Fragment key={r.company_id}>
                     <tr className="clickable-row" onClick={() => setExpanded(expanded === r.company_id ? null : r.company_id)}>
                       <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
-                      <td>{fmtAmount(r.total.value)} {r.currency ?? ""}</td>
-                      <td><ConfidenceBadge value={r.confidence} /></td>
+                      <td>{r.segments.length === 0 ? "none found" : `${r.segments.length} segment(s)`}</td>
+                      <td>{fmtAmount(r.capex.total.value)} {r.currency ?? ""}</td>
+                      <td>{fmtAmount(r.rnd.total.value)} {r.currency ?? ""}</td>
+                      <td><ConfidenceBadge value={r.overall_confidence} /></td>
                       <td>{r.needs_review ? "⚑" : ""}</td>
                     </tr>
                     {expanded === r.company_id && (
                       <tr>
-                        <td colSpan={4} className="detail-cell">
-                          <SpendDetail record={r} />
+                        <td colSpan={6} className="detail-cell">
+                          <h4>Business Segments</h4>
+                          {r.segments.length === 0 && <p className="muted">No segment reporting evidence found.</p>}
+                          {r.segments.map((s, si) => (
+                            <SegmentDetail key={si} segment={s} />
+                          ))}
+                          {r.segments_verifier_notes && <p className="muted">{r.segments_verifier_notes}</p>}
+
+                          <h4>CapEx</h4>
+                          <SpendDetail label="CapEx" spend={r.capex} />
+
+                          <h4>R&amp;D</h4>
+                          <SpendDetail label="R&D" spend={r.rnd} />
+
                           <ReviewControls
                             runId={runId}
                             itemKey={r.company_id}
                             current={reviewDecisions[r.company_id]}
                             reviewer={reviewer}
                             onDone={refreshResults}
-                            submitFn={api.submitSpendReview}
-                            historyFn={api.getSpendReviewHistory}
+                            submitFn={api.submitFinancialsReview}
+                            historyFn={api.getFinancialsReviewHistory}
                           />
                         </td>
                       </tr>

@@ -23,29 +23,28 @@ precision at scale (designed for up to ~4,000 companies per run).
    value, or rejected, each with an optional comment; every decision is
    appended to a permanent, per-field audit trail (nothing is ever
    overwritten) and shown in a History panel.
-3. **Business Segment Extraction** — pulls each company's disclosed
-   reportable/operating segments out of its annual report (the "Segment
-   Reporting" note), one grounded pass per company: segment name,
-   description, revenue, operating income, and assets, each figure with
-   its own citation and independent-verifier + grounding check. A
-   segment/figure not explicitly disclosed is left null rather than
-   estimated or backed into from a total. Designed so a structured vendor
-   segment-data feed can be plugged in ahead of the LLM pass later,
-   mirroring the revenue/CapEx catalogue cascade.
-4. **CapEx / R&D Extraction** — pulls each company's total capital
-   expenditure or R&D expense for the most recent fiscal year, a
-   plain-language description (grounded, cited) of what the spend is
-   going toward, and any category/program breakdown the company itself
-   discloses (e.g. maintenance vs. growth capex, green capex, R&D focus
-   areas) -- broader than a single "green capex" field, with the same
-   independent-verifier + grounding-check controls. Pulls from annual
-   reports, sustainability reports, investor decks, and earnings-call
-   transcripts.
-5. **Document Discovery** — finds each company's investor-relations site,
+3. **Company Financials Extraction** — pulls a company's disclosed business
+   segments (name, description, revenue, operating income, assets), total
+   CapEx, and total R&D -- each spend figure with a grounded plain-language
+   description of what it's going toward and any category/program
+   breakdown the company discloses (e.g. maintenance vs. growth capex,
+   green capex, R&D focus areas) -- broader than a single "green capex"
+   field. These three are almost always wanted together, so they're
+   extracted in a single combined pass per company: one document fetch, one
+   evidence-gathering step, and one extractor + one independent-verifier
+   LLM call pair instead of three separate round trips, with the same
+   programmatic grounding check on every citation and per-section review
+   flagging (a problem in one section doesn't block review of the others).
+   A segment/figure not explicitly disclosed is left null rather than
+   estimated or backed into from a total. Pulls from annual reports,
+   sustainability reports, investor decks, and earnings-call transcripts.
+   Designed so a structured vendor data feed can be plugged in ahead of the
+   LLM pass later, mirroring the revenue/CapEx catalogue cascade.
+4. **Document Discovery** — finds each company's investor-relations site,
    crawls it for disclosure documents, downloads new/changed ones, and
    raises an event the moment something new appears. Runs manually or on
    an automatic schedule.
-6. **Indirect Exposure Tier** *(opt-in)* — scores a company's *structural*
+5. **Indirect Exposure Tier** *(opt-in)* — scores a company's *structural*
    supply-chain exposure to a theme via input-output propagation (OECD
    ICIO), catching companies whose disclosures are silent about a theme but
    whose economic position says otherwise. Purely quantitative, zero LLM
@@ -146,12 +145,8 @@ arp theme resume <run_id>      # picks back up; already-completed companies are 
 arp extract draft-schema "green capex" --out schema.json
 arp extract run --schema schema.json --universe companies.csv
 
-# Business segment extraction (name, description, revenue, income, assets per segment)
-arp extract segments-run --universe companies.csv
-
-# CapEx / R&D extraction (total + description + category breakdown)
-arp extract capex-run --universe companies.csv
-arp extract rnd-run --universe companies.csv
+# Company financials: business segments + CapEx + R&D, one combined pass per company
+arp extract financials-run --universe companies.csv
 
 # Document discovery
 arp discover run --universe companies.csv

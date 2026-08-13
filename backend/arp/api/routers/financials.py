@@ -7,15 +7,14 @@ from pydantic import BaseModel
 
 from arp.api.deps import get_llm_client, get_registry, get_run_store, settings_dep
 from arp.config import Settings
-from arp.extraction.spend_pipeline import create_spend_extraction_run, execute_spend_extraction_run
+from arp.extraction.financials_pipeline import create_financials_extraction_run, execute_financials_extraction_run
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.review_queue import decision_history, latest_decisions, record_review_decision
 from arp.schemas.common import CompanyRef
-from arp.schemas.spend import SpendTopic
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
-router = APIRouter(prefix="/api/spend", tags=["spend"])
+router = APIRouter(prefix="/api/financials", tags=["financials"])
 
 
 class RunRequest(BaseModel):
@@ -23,9 +22,8 @@ class RunRequest(BaseModel):
     universe_path: str | None = None
 
 
-@router.post("/{topic}/runs")
-async def start_spend_extraction_run(
-    topic: SpendTopic,
+@router.post("/runs")
+async def start_financials_extraction_run(
     req: RunRequest,
     settings: Settings = Depends(settings_dep),
     run_store: RunStore = Depends(get_run_store),
@@ -35,12 +33,12 @@ async def start_spend_extraction_run(
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 
-    run_id = create_spend_extraction_run(topic, companies, settings, run_store)
+    run_id = create_financials_extraction_run(companies, settings, run_store)
     llm = get_llm_client()
 
     async def _background() -> None:
-        await execute_spend_extraction_run(
-            run_id, topic, companies, llm=llm, registry=registry, settings=settings, run_store=run_store
+        await execute_financials_extraction_run(
+            run_id, companies, llm=llm, registry=registry, settings=settings, run_store=run_store
         )
 
     asyncio.create_task(_background())
@@ -48,7 +46,7 @@ async def start_spend_extraction_run(
 
 
 @router.get("/runs/{run_id}")
-def get_spend_extraction_run(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+def get_financials_extraction_run(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
     manifest = run_store.load_manifest(run_id)
     if manifest is None:
         raise HTTPException(404, "Run not found")
@@ -56,7 +54,7 @@ def get_spend_extraction_run(run_id: str, run_store: RunStore = Depends(get_run_
 
 
 @router.get("/runs/{run_id}/results")
-def get_spend_extraction_results(
+def get_financials_extraction_results(
     run_id: str, offset: int = 0, limit: int = 200, run_store: RunStore = Depends(get_run_store)
 ) -> dict:
     rows = run_store.read_jsonl(run_store.results_path(run_id))
@@ -64,7 +62,7 @@ def get_spend_extraction_results(
 
 
 @router.get("/runs/{run_id}/review-queue")
-def get_spend_review_queue(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+def get_financials_review_queue(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
     rows = run_store.read_jsonl(run_store.review_queue_path(run_id))
     decisions = latest_decisions(run_store, run_id)
     pending = [r for r in rows if r["item_key"] not in decisions]
@@ -75,12 +73,15 @@ def get_spend_review_queue(run_id: str, run_store: RunStore = Depends(get_run_st
 
 
 @router.get("/runs/{run_id}/review-decisions")
-def get_spend_review_decisions(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+def get_financials_review_decisions(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+    """Latest decision per item_key (keyed at company_id -- the review unit
+    is a company's whole segments/CapEx/R&D record, since a misread evidence
+    set usually affects more than one section)."""
     return {"decisions": latest_decisions(run_store, run_id)}
 
 
 @router.get("/runs/{run_id}/review-history")
-def get_spend_review_history(run_id: str, item_key: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+def get_financials_review_history(run_id: str, item_key: str, run_store: RunStore = Depends(get_run_store)) -> dict:
     return {"item_key": item_key, "history": decision_history(run_store, run_id, item_key)}
 
 
@@ -93,6 +94,8 @@ class ReviewDecisionRequest(BaseModel):
 
 
 @router.post("/runs/{run_id}/review")
-def submit_spend_review(run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store)) -> dict:
+def submit_financials_review(
+    run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store)
+) -> dict:
     record_review_decision(run_store, run_id, req.item_key, req.decision, req.reviewer, req.edited_value, req.comment)
     return {"status": "recorded"}

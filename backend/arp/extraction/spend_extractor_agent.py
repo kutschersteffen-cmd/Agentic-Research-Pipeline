@@ -2,12 +2,42 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from arp.extraction.extractor_agent import format_evidence
-from arp.llm.base import LLMClient, LLMUsage
-from arp.schemas.common import Citation, DocumentChunk
+from arp.schemas.common import Citation, DocType
 from arp.schemas.spend import SpendTopic
 
-_TOPIC_GUIDANCE: dict[SpendTopic, str] = {
+# CapEx/R&D figures and their qualitative discussion show up more broadly
+# than segment reporting notes: 10-Ks, sustainability reports (green capex),
+# investor decks, and earnings call commentary.
+SPEND_DOC_TYPES = [
+    DocType.ANNUAL_REPORT_10K,
+    DocType.SUSTAINABILITY_REPORT,
+    DocType.INVESTOR_PRESENTATION,
+    DocType.EARNINGS_TRANSCRIPT,
+]
+
+SPEND_KEYWORDS: dict[SpendTopic, list[str]] = {
+    SpendTopic.CAPEX: [
+        "capital expenditure",
+        "capital expenditures",
+        "capex",
+        "capital investment",
+        "purchases of property and equipment",
+        "property, plant and equipment",
+        "capitalized software",
+        "additions to property, plant and equipment",
+        "investing activities",
+    ],
+    SpendTopic.RND: [
+        "research and development",
+        "r&d expense",
+        "r&d expenditure",
+        "research and development costs",
+        "product development",
+        "engineering and development",
+    ],
+}
+
+TOPIC_GUIDANCE: dict[SpendTopic, str] = {
     SpendTopic.CAPEX: (
         "Total capital expenditure (CapEx): the company's total capital spend for the most recent fiscal year "
         "-- typically 'purchases of property, plant and equipment' / 'additions to PP&E' / capitalized software "
@@ -25,28 +55,7 @@ _TOPIC_GUIDANCE: dict[SpendTopic, str] = {
     ),
 }
 
-
-def _system_prompt(topic: SpendTopic) -> str:
-    return f"""\
-You are a precise financial reporting analyst extracting a company's \
-disclosed {topic.value} from its filings (annual report/10-K, \
-sustainability report, investor presentation, or earnings call \
-transcript).
-
-What to extract:
-{_TOPIC_GUIDANCE[topic]}
-
-Also extract:
-- description: a plain-language summary, in your own words but grounded \
-  only in what the evidence actually says, of what the spend is going \
-  toward -- e.g. what it's funding, stated priorities/focus areas, or \
-  strategic rationale the company itself gives. Cite the sentence(s) it's \
-  based on. Leave null if the evidence contains only a bare figure with no \
-  qualitative discussion.
-- currency: the reporting currency (e.g. "USD", "EUR").
-- fiscal_period: the fiscal period the total figure covers (e.g. "FY2025").
-
-Rules:
+SPEND_RULES = """\
 - Only report a figure that is explicitly disclosed in the evidence. \
   NEVER estimate, infer, back into, or compute a figure that isn't itself \
   stated (e.g. do not derive CapEx from a depreciation schedule).
@@ -55,14 +64,10 @@ Rules:
   disclosed.
 - If the company doesn't break the spend into categories, return an empty \
   categories list rather than inventing a breakdown.
-- Every citation's `quote` must be an EXACT, VERBATIM substring copied \
-  from the evidence block, tagged with the matching doc_id.
 - If the evidence shows materially conflicting figures for the total \
   (e.g. restated numbers across different documents), set \
   conflicting_sources=true and use the most authoritative/recent figure \
-  as the primary value, citing both.
-- confidence should reflect your overall certainty in the total figure \
-  and description together."""
+  as the primary value, citing both."""
 
 
 class AmountMetricDraft(BaseModel):
@@ -80,6 +85,11 @@ class SpendCategoryDraft(BaseModel):
 
 
 class SpendExtractionDraft(BaseModel):
+    """CapEx- or R&D-only slice of a combined extractor draft -- kept as its
+    own model so the spend aggregation logic (grounding, review-flagging)
+    can be reused unchanged by wrapping a section of the combined draft in
+    this shape. See arp/extraction/financials_aggregator.py."""
+
     total: AmountMetricDraft = Field(default_factory=AmountMetricDraft)
     description: str | None = None
     description_citations: list[Citation] = Field(default_factory=list)
@@ -88,10 +98,3 @@ class SpendExtractionDraft(BaseModel):
     categories: list[SpendCategoryDraft] = Field(default_factory=list)
     conflicting_sources: bool = False
     confidence: float = Field(ge=0.0, le=1.0)
-
-
-async def extract_spend(
-    topic: SpendTopic, company_name: str, chunks: list[DocumentChunk], llm: LLMClient
-) -> tuple[SpendExtractionDraft, LLMUsage]:
-    prompt = f"Company: {company_name}\n\nEvidence:\n{format_evidence(chunks)}"
-    return await llm.complete_structured(system=_system_prompt(topic), prompt=prompt, output_model=SpendExtractionDraft)
