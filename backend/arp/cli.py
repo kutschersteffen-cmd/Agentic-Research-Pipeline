@@ -13,6 +13,8 @@ from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.extraction.pipeline import run_extraction
 from arp.extraction.schema_builder import draft_schema
 from arp.extraction.segment_pipeline import run_segment_extraction
+from arp.extraction.spend_pipeline import run_spend_extraction
+from arp.schemas.spend import SpendTopic
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -526,6 +528,45 @@ def extract_segments_run(
     typer.echo(f"Extracting business segments across {len(companies)} companies...")
     run_id = asyncio.run(
         run_segment_extraction(companies, llm=llm, registry=_registry(), settings=settings, run_store=_run_store())
+    )
+    typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
+
+
+@extract_app.command("capex-run")
+def extract_capex_run(
+    universe: Path = typer.Option(...),
+) -> None:
+    """Extracts each company's total capital expenditure (broader than just
+    green capex), a plain-language description of what it's going toward,
+    and any disclosed category breakdown, with the same independent-
+    verifier + programmatic-grounding precision controls as `extract run`."""
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    companies = load_company_universe(universe)
+    typer.echo(f"Extracting CapEx across {len(companies)} companies...")
+    run_id = asyncio.run(
+        run_spend_extraction(
+            SpendTopic.CAPEX, companies, llm=llm, registry=_registry(), settings=settings, run_store=_run_store()
+        )
+    )
+    typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
+
+
+@extract_app.command("rnd-run")
+def extract_rnd_run(
+    universe: Path = typer.Option(...),
+) -> None:
+    """Extracts each company's total R&D expense, a plain-language
+    description of what it's funding, and any disclosed program/focus-area
+    breakdown, with the same precision controls as `extract run`."""
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    companies = load_company_universe(universe)
+    typer.echo(f"Extracting R&D across {len(companies)} companies...")
+    run_id = asyncio.run(
+        run_spend_extraction(
+            SpendTopic.RND, companies, llm=llm, registry=_registry(), settings=settings, run_store=_run_store()
+        )
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 

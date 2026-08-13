@@ -57,6 +57,30 @@ export const api = {
   getExtractionReviewHistory: (runId: string, itemKey: string) =>
     request(`/api/extraction/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
 
+  // Business segment extraction
+  startSegmentRun: (body: unknown) =>
+    request<{ run_id: string; company_count: number }>("/api/segments/runs", { method: "POST", body: JSON.stringify(body) }),
+  getSegmentResults: (runId: string, offset = 0, limit = 500) =>
+    request(`/api/segments/runs/${runId}/results?offset=${offset}&limit=${limit}`),
+  getSegmentReviewQueue: (runId: string) => request(`/api/segments/runs/${runId}/review-queue`),
+  submitSegmentReview: (runId: string, body: unknown) =>
+    request(`/api/segments/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
+  getSegmentReviewDecisions: (runId: string) => request(`/api/segments/runs/${runId}/review-decisions`),
+  getSegmentReviewHistory: (runId: string, itemKey: string) =>
+    request(`/api/segments/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
+
+  // CapEx / R&D spend extraction
+  startSpendRun: (topic: "capex" | "rnd", body: unknown) =>
+    request<{ run_id: string; company_count: number }>(`/api/spend/${topic}/runs`, { method: "POST", body: JSON.stringify(body) }),
+  getSpendResults: (runId: string, offset = 0, limit = 500) =>
+    request(`/api/spend/runs/${runId}/results?offset=${offset}&limit=${limit}`),
+  getSpendReviewQueue: (runId: string) => request(`/api/spend/runs/${runId}/review-queue`),
+  submitSpendReview: (runId: string, body: unknown) =>
+    request(`/api/spend/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
+  getSpendReviewDecisions: (runId: string) => request(`/api/spend/runs/${runId}/review-decisions`),
+  getSpendReviewHistory: (runId: string, itemKey: string) =>
+    request(`/api/spend/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
+
   // Documents
   uploadDocument: (companyId: string, docType: string, file: File) => {
     const form = new FormData();

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { ThemeBuilder } from "./pages/ThemeBuilder";
 import { ExtractionBuilder } from "./pages/ExtractionBuilder";
+import { SegmentExtraction } from "./pages/SegmentExtraction";
+import { SpendExtraction } from "./pages/SpendExtraction";
 import { DocumentDiscovery } from "./pages/DocumentDiscovery";
 import { ReviewQueue } from "./pages/ReviewQueue";
 import { RunHistory } from "./pages/RunHistory";
@@ -10,6 +12,8 @@ const TABS = [
   { id: "theme", label: "Thematic Universe" },
   { id: "taxonomy", label: "Taxonomy Library" },
   { id: "extraction", label: "Data Extraction" },
+  { id: "segments", label: "Business Segments" },
+  { id: "spend", label: "CapEx / R&D" },
   { id: "discovery", label: "Document Discovery" },
   { id: "review", label: "Review Queue" },
   { id: "history", label: "Run History" },
@@ -41,6 +45,8 @@ function App() {
         {active === "theme" && <ThemeBuilder onSendToExtraction={sendToExtraction} />}
         {active === "taxonomy" && <TaxonomyLibrary />}
         {active === "extraction" && <ExtractionBuilder pendingUniverse={pendingUniverse} />}
+        {active === "segments" && <SegmentExtraction pendingUniverse={pendingUniverse} />}
+        {active === "spend" && <SpendExtraction pendingUniverse={pendingUniverse} />}
         {active === "discovery" && <DocumentDiscovery />}
         {active === "review" && <ReviewQueue />}
         {active === "history" && <RunHistory />}

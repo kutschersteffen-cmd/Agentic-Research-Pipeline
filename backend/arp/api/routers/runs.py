@@ -84,6 +84,18 @@ def export_run_csv(run_id: str, run_store: RunStore = Depends(get_run_store)) ->
                      s.get("currency"), s.get("fiscal_period"), s["revenue"]["value"], s["income"]["value"],
                      s["assets"]["value"], s["confidence"], s["grounded"], record["needs_review"], s.get("verifier_notes")]
                 )
+    elif manifest.run_type == "spend":
+        writer = csv.writer(buf)
+        writer.writerow(
+            ["company_id", "ticker", "name", "topic", "total", "currency", "fiscal_period", "description",
+             "confidence", "grounded", "needs_review", "verifier_notes"]
+        )
+        for record in rows:
+            writer.writerow(
+                [record["company_id"], record.get("ticker"), record["name"], record["topic"], record["total"]["value"],
+                 record.get("currency"), record.get("fiscal_period"), record.get("description"), record["confidence"],
+                 record["grounded"], record["needs_review"], record.get("verifier_notes")]
+            )
     else:  # discovery
         writer = csv.writer(buf)
         writer.writerow(["company_id", "name", "homepage_used", "doc_type", "url", "local_path"])

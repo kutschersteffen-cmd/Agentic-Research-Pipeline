@@ -203,6 +203,83 @@ export interface ExtractionRecord {
   generated_at: string;
 }
 
+// --- Business segment extraction ---
+
+export interface SegmentMetric {
+  value?: number | null;
+  raw_value_text?: string | null;
+  citations: Citation[];
+  grounded: boolean;
+}
+
+export interface BusinessSegment {
+  name: string;
+  description?: string | null;
+  description_citations: Citation[];
+  revenue: SegmentMetric;
+  income: SegmentMetric;
+  assets: SegmentMetric;
+  currency?: string | null;
+  fiscal_period?: string | null;
+  confidence: number;
+  grounded: boolean;
+  verifier_notes?: string | null;
+  conflicting_sources: boolean;
+}
+
+export interface SegmentExtractionRecord {
+  company_id: string;
+  ticker?: string | null;
+  name: string;
+  run_id: string;
+  segments: BusinessSegment[];
+  overall_confidence: number;
+  needs_review: boolean;
+  generated_at: string;
+}
+
+// --- CapEx / R&D spend extraction ---
+
+export type SpendTopic = "capex" | "rnd";
+
+export interface AmountMetric {
+  value?: number | null;
+  raw_value_text?: string | null;
+  citations: Citation[];
+  grounded: boolean;
+}
+
+export interface SpendCategory {
+  name: string;
+  description?: string | null;
+  description_citations: Citation[];
+  amount: AmountMetric;
+  confidence: number;
+  grounded: boolean;
+  conflicting_sources: boolean;
+}
+
+export interface SpendExtractionRecord {
+  company_id: string;
+  ticker?: string | null;
+  name: string;
+  topic: SpendTopic;
+  run_id: string;
+  total: AmountMetric;
+  description?: string | null;
+  description_citations: Citation[];
+  currency?: string | null;
+  fiscal_period?: string | null;
+  categories: SpendCategory[];
+  confidence: number;
+  grounded: boolean;
+  verifier_notes?: string | null;
+  conflicting_sources: boolean;
+  overall_confidence: number;
+  needs_review: boolean;
+  generated_at: string;
+}
+
 // --- Review decisions (per-item audit trail; item_key granularity is
 // caller-defined, e.g. "{company_id}:{activity_id}" or "{company_id}:{field_id}") ---
 
