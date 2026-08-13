@@ -25,6 +25,8 @@ runs/*
 !runs/.gitkeep
 taxonomies/*
 !taxonomies/.gitkeep
+portfolios/*
+!portfolios/.gitkeep
 data/documents/*
 !data/documents/.gitkeep
 backend/.cache/

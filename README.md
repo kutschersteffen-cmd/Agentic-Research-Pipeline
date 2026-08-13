@@ -29,11 +29,18 @@ precision at scale (designed for up to ~4,000 companies per run).
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches.
 
-A third pillar, **Portfolio Risk & Exposure Monitoring** — aggregating
-holdings across portfolios, on-the-fly analytics, direct Q&A ("how many
-EUR million of exposure to BMW"), and a dedicated climate analytics
-section — is scoped but not yet built; see
-[`docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md`](docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md).
+5. **Portfolio Risk & Exposure Monitoring** — aggregates holdings across
+   every portfolio, with a deterministic (zero-LLM) engine for grouping by
+   portfolio, asset class, issuer, sector, or country, an Analytics
+   Builder + natural-language Q&A agent ("how many EUR million of
+   exposure to BMW") where the LLM only drafts the query and the engine
+   computes the real number, and a dedicated **Climate Analytics** section
+   (WACI, PCAF-style financed emissions, coverage reporting) sourced from
+   an internal ESG API and cross-validated against the Extraction Engine's
+   independent read of company disclosures. See
+   [`docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md`](docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md)
+   for the full design and `arp portfolio --help` / `arp climate --help`
+   below to try it against the built-in mock dataset.
 
 ## Architecture
 
@@ -134,6 +141,20 @@ arp discover schedule --universe companies.csv --interval-hours 24 --enable
 # Inspect runs
 arp runs list
 arp runs show <run_id>
+
+# Portfolio risk & exposure monitoring (see docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md)
+arp portfolio seed-demo                             # seeds the built-in illustrative multi-portfolio dataset
+arp portfolio list                                    # 4 mock portfolios
+arp portfolio review-queue                              # the one deliberately unresolved demo instrument
+arp portfolio aggregate --group-by portfolio_id --metric market_value_sum --company-id bmw
+arp portfolio aggregate --group-by sector --metric market_value_sum
+arp portfolio ask "How many EUR million is our exposure to BMW?"   # requires ARP_ANTHROPIC_API_KEY
+arp portfolio classify-news                              # requires ARP_ANTHROPIC_API_KEY
+
+# Climate analytics
+arp climate waci --group-by portfolio_id
+arp climate financed-emissions
+arp climate coverage climate_carbon_intensity
 ```
 
 `companies.csv` columns: `company_id, name, ticker, website, cik, country,

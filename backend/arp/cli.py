@@ -37,11 +37,17 @@ from arp.research.revenue_exposure.mapping import suggest_catalogue_mapping
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.orchestration.job_manager import JobManager
-from arp.schemas.common import DocType, JobStatus
+from arp.portfolio import analytics, qa_agent
+from arp.portfolio.climate import metrics as climate_metrics
+from arp.portfolio.mock_data import generate_demo_dataset
+from arp.portfolio.news.classifier import classify_article
+from arp.schemas.common import CompanyRef, DocType, JobStatus
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.discovery import DiscoveryScheduleConfig
+from arp.schemas.portfolio import AggregationResult, AnalyticSpec, SecurityRef
 from arp.schemas.taxonomy import DerivationMethod, TaxonomyRef
 from arp.schemas.thematic import ThemeDefinition
+from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.universe import load_company_universe
@@ -54,6 +60,8 @@ discover_app = typer.Typer(help="Document discovery: find and download company d
 runs_app = typer.Typer(help="Inspect and export runs.")
 universe_app = typer.Typer(help="Build reusable company universes.")
 revenue_catalogue_app = typer.Typer(help="Structured revenue/capex data catalogue mapping.")
+portfolio_app = typer.Typer(help="Portfolio holdings aggregation, analytics, and NL Q&A.")
+climate_app = typer.Typer(help="Portfolio climate analytics: WACI, financed emissions, coverage.")
 app.add_typer(theme_app, name="theme")
 app.add_typer(taxonomy_app, name="taxonomy")
 app.add_typer(extract_app, name="extract")
@@ -61,6 +69,8 @@ app.add_typer(discover_app, name="discover")
 app.add_typer(runs_app, name="runs")
 app.add_typer(universe_app, name="universe")
 app.add_typer(revenue_catalogue_app, name="revenue-catalogue")
+app.add_typer(portfolio_app, name="portfolio")
+app.add_typer(climate_app, name="climate")
 
 
 def _registry() -> DocumentSourceRegistry:
@@ -76,6 +86,16 @@ def _run_store() -> RunStore:
 
 def _taxonomy_store() -> TaxonomyStore:
     return TaxonomyStore(get_settings().taxonomies_dir)
+
+
+def _portfolio_store() -> PortfolioStore:
+    return PortfolioStore(get_settings().portfolios_dir)
+
+
+def _portfolio_directories(store: PortfolioStore) -> tuple[dict[str, SecurityRef], dict[str, CompanyRef]]:
+    securities = {s.security_id: s for s in store.list_securities()}
+    companies = {c.company_id: c for c in store.list_companies()}
+    return securities, companies
 
 
 @theme_app.command("decompose")
@@ -616,6 +636,161 @@ def universe_overlap(
     fund_holdings = {name: load_holdings_with_weights(path) for name, path in zip(fund_names, holdings)}
     result = compute_holdings_overlap(fund_holdings)
     typer.echo(json.dumps(result.model_dump(mode="json"), indent=2))
+
+
+@portfolio_app.command("seed-demo")
+def portfolio_seed_demo() -> None:
+    """Seeds the built-in illustrative multi-portfolio demo dataset (see
+    arp/portfolio/mock_data.py): companies, securities (incl. one
+    deliberately unresolved instrument), 4 quarterly holdings snapshots
+    across 4 portfolios, climate data-point observations with a validated
+    internal-API/extraction cross-check, and ingested news items.
+    Deterministic and safe to re-run.
+    """
+    settings = get_settings()
+    summary = asyncio.run(
+        generate_demo_dataset(_portfolio_store(), settings.portfolio_confidence_review_threshold, settings.climate_validation_tolerance_pct)
+    )
+    typer.echo(json.dumps(summary.__dict__, indent=2))
+
+
+@portfolio_app.command("list")
+def portfolio_list() -> None:
+    for p in _portfolio_store().list_portfolios():
+        typer.echo(f"{p.portfolio_id}\t{p.name}\t{','.join(p.tags)}")
+
+
+@portfolio_app.command("review-queue")
+def portfolio_review_queue() -> None:
+    """Securities whose issuer entity resolution fell below the confidence
+    threshold -- never auto-matched, always surfaced here instead."""
+    rows = _portfolio_store().list_resolutions_needing_review()
+    if not rows:
+        typer.echo("Nothing pending review.")
+        return
+    for r in rows:
+        typer.echo(f"{r.security_id}\tbest_guess_company_id={r.company_id}\tconfidence={r.confidence:.2f}\tmethod={r.method}")
+
+
+@portfolio_app.command("aggregate")
+def portfolio_aggregate(
+    group_by: str = typer.Option(..., help="portfolio_id | asset_class | company_id | company_name | sector | country | currency"),
+    metric: str = typer.Option("market_value_sum", help="market_value_sum | weighted_avg_datapoint | count"),
+    portfolio: list[str] = typer.Option(None, "--portfolio", help="Restrict to these portfolio_ids; repeatable."),
+    company_id: str = typer.Option(None, help="Filter to one issuer, e.g. bmw."),
+    asset_class: str = typer.Option(None),
+    data_point_field_id: str = typer.Option(None, help="Required for metric=weighted_avg_datapoint, e.g. climate_carbon_intensity."),
+    as_of: str = typer.Option(None, help="Snapshot date; defaults to the latest available."),
+    name: str = typer.Option("cli query"),
+) -> None:
+    """Runs a query against the deterministic aggregation engine -- the
+    same "how many EUR million exposure to BMW" primitive the API and the
+    NL Q&A agent both use underneath."""
+    store = _portfolio_store()
+    security_filter: dict[str, str] = {}
+    if company_id:
+        security_filter["company_id"] = company_id
+    if asset_class:
+        security_filter["asset_class"] = asset_class
+    spec = AnalyticSpec(
+        name=name, portfolio_filter=portfolio or [], security_filter=security_filter, group_by=group_by,
+        metric=metric, data_point_field_id=data_point_field_id, as_of=as_of,
+    )
+    securities, companies = _portfolio_directories(store)
+    try:
+        result = analytics.execute(spec, store, securities, companies)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    if isinstance(result, AggregationResult):
+        typer.echo(json.dumps(result.model_dump(mode="json"), indent=2))
+    else:
+        typer.echo(json.dumps([point.model_dump(mode="json") for point in result], indent=2))
+
+
+@portfolio_app.command("ask")
+def portfolio_ask(question: str) -> None:
+    """Answers a plain-language portfolio question end to end: the LLM
+    only drafts a query, the deterministic engine computes it, and the
+    printed answer shows the real numbers behind it. Requires
+    ARP_ANTHROPIC_API_KEY."""
+    llm = build_llm_client(get_settings())
+    store = _portfolio_store()
+    securities, companies = _portfolio_directories(store)
+    answer, _usage = asyncio.run(qa_agent.answer_question(question, llm, store, securities, companies))
+    if not answer.resolvable:
+        typer.echo(f"Could not resolve the question: {answer.clarification_needed}")
+        raise typer.Exit(1)
+    typer.echo(answer.answer_text)
+
+
+@portfolio_app.command("classify-news")
+def portfolio_classify_news() -> None:
+    """Runs the LLM risk classifier over ingested, not-yet-classified news
+    items and persists any resulting grounded risk flags. Requires
+    ARP_ANTHROPIC_API_KEY."""
+    llm = build_llm_client(get_settings())
+    store = _portfolio_store()
+    already_classified = {f.news_id for f in store.list_flags()}
+    pending = [item for item in store.list_news() if item.news_id not in already_classified]
+
+    async def _run() -> int:
+        created = 0
+        for item in pending:
+            flag, _usage = await classify_article(item, llm)
+            if flag is not None:
+                store.append_flag(flag)
+                created += 1
+        return created
+
+    created = asyncio.run(_run())
+    typer.echo(f"Classified {len(pending)} article(s), created {created} risk flag(s).")
+
+
+@climate_app.command("waci")
+def climate_waci(
+    group_by: str = typer.Option("portfolio_id"),
+    portfolio: list[str] = typer.Option(None, "--portfolio"),
+    as_of: str = typer.Option(None),
+) -> None:
+    store = _portfolio_store()
+    securities, companies = _portfolio_directories(store)
+    dates = store.all_snapshot_dates()
+    resolved_as_of = as_of or (dates[-1] if dates else None)
+    if resolved_as_of is None:
+        typer.echo("No holdings snapshots available -- run `arp portfolio seed-demo` first.", err=True)
+        raise typer.Exit(1)
+    holdings = store.load_holdings_as_of(resolved_as_of, portfolio or None)
+    result = climate_metrics.compute_waci(
+        store, holdings, securities, companies, as_of=resolved_as_of, group_by=group_by, portfolio_filter=portfolio or None
+    )
+    typer.echo(json.dumps(result.model_dump(mode="json"), indent=2))
+
+
+@climate_app.command("financed-emissions")
+def climate_financed_emissions(
+    portfolio: list[str] = typer.Option(None, "--portfolio"), as_of: str = typer.Option(None)
+) -> None:
+    store = _portfolio_store()
+    securities, _companies = _portfolio_directories(store)
+    dates = store.all_snapshot_dates()
+    resolved_as_of = as_of or (dates[-1] if dates else None)
+    if resolved_as_of is None:
+        typer.echo("No holdings snapshots available -- run `arp portfolio seed-demo` first.", err=True)
+        raise typer.Exit(1)
+    holdings = store.load_holdings_as_of(resolved_as_of, portfolio or None)
+    result = climate_metrics.compute_financed_emissions(
+        store, holdings, securities, as_of=resolved_as_of, portfolio_filter=portfolio or None
+    )
+    typer.echo(json.dumps(result, indent=2))
+
+
+@climate_app.command("coverage")
+def climate_coverage(field_id: str, as_of: str = typer.Option(None)) -> None:
+    store = _portfolio_store()
+    securities, _companies = _portfolio_directories(store)
+    result = climate_metrics.coverage_report(store, securities, field_id, as_of)
+    typer.echo(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,17 @@
 # Portfolio Risk & Exposure Monitoring — Plan
 
-Status: **proposal**, not yet built. This document scopes a third pillar for
+Status: **Phases 0-2 built** (schemas, storage, entity resolution,
+deterministic aggregation engine, data-point mapping, Analytics Builder,
+NL Q&A agent) plus most of **Phase 4** (climate schemas, mock internal-API
++ extraction cross-check, WACI/financed-emissions/coverage), all against
+the mock connectors decision 4 stands in for -- see `backend/arp/portfolio/`,
+`backend/arp/api/routers/{portfolio,climate}.py`, and `arp portfolio
+--help` / `arp climate --help`. Real custodian/ESG-API/news-vendor
+connectors (replacing the `mock_*` modules) and the frontend UI are not
+built yet. This document scopes the pillar end to end; the rest of this
+status block aside, it otherwise describes the target design.
+
+This document scopes a third pillar for
 the Agentic Research Pipeline, alongside the existing Thematic Universe
 Builder and Data-Point Extraction Engine: a **portfolio-level** aggregation
 and analytics layer, plus a dedicated **climate analytics** section, that
@@ -467,26 +478,41 @@ API-dependent pieces:
 
 ## 11. Phased roadmap
 
-- **Phase 0 — Foundations**: `schemas/portfolio.py`, `PortfolioSource`
-  connector interface + custodian API implementation, entity resolution +
-  review queue, append-only `portfolios/` snapshot store.
-- **Phase 1 — Aggregation & direct answers**: deterministic aggregation
-  engine (§3) incl. `as_of`/`date_range`, built-in dimensions, API + CLI
-  for grouped market-value queries. This alone answers "how many EUR
-  million exposure to BMW," at the latest snapshot or any past one.
-- **Phase 2 — Data-point mapping & Analytics Builder**: datapoint mapping
-  cascade (§4), `AnalyticSpec` + saved analytics, Analytics Builder UI.
-- **Phase 3 — NL Q&A agent**: `qa_agent.py`, question → spec → grounded
-  answer, chat-style UI panel.
-- **Phase 4 — Climate Analytics**: built-in climate schemas, internal ESG
-  API connector + report-validation cross-check (§6a), news feed connector
-  + classifier (§6b), WACI/financed-emissions engine with trend charts,
-  coverage reporting, dedicated dashboard tab.
+- **Phase 0 — Foundations** ✅ *(built, mock connector)*: `schemas/portfolio.py`,
+  `PortfolioSource` connector interface + `MockCustodianSource` standing in
+  for the real custodian API, entity resolution + review queue,
+  append-only `portfolios/` snapshot store (`storage/portfolio_store.py`).
+- **Phase 1 — Aggregation & direct answers** ✅ *(built)*: deterministic
+  aggregation engine (`portfolio/aggregation.py`) incl. `as_of`/`date_range`,
+  built-in dimensions, API + CLI for grouped market-value queries. This
+  alone answers "how many EUR million exposure to BMW," at the latest
+  snapshot or any past one -- verified against the mock dataset.
+- **Phase 2 — Data-point mapping & Analytics Builder** ✅ *(built)*:
+  datapoint mapping cascade (`portfolio/datapoint_mapping.py`),
+  `AnalyticSpec` + saved analytics (`portfolio/analytics.py`), API/CLI
+  query execution. The Analytics Builder *UI* itself is not built.
+- **Phase 3 — NL Q&A agent** ✅ *(built, needs a live API key to run)*:
+  `qa_agent.py`, question → spec → grounded answer, `arp portfolio ask` /
+  `POST /api/portfolio/ask`. Unit-tested via the existing `FakeLLMClient`
+  convention; a chat-style UI panel is not built.
+- **Phase 4 — Climate Analytics** ✅ *(mostly built, mock connectors)*:
+  built-in climate schemas (`climate/schemas.py`), a mock internal-ESG-API
+  connector (`climate/mock_esg_source.py`) + report-validation cross-check
+  (`climate/validation.py`), a mock news connector + LLM classifier
+  (`news/mock_source.py`, `news/classifier.py`), WACI/financed-emissions/
+  coverage engine (`climate/metrics.py`) incl. trend mode. Trend *charts*
+  and the dedicated dashboard tab (both frontend) are not built; the real
+  ESG-API/news-vendor connectors (replacing the `mock_*` modules) are not
+  built.
 - **Phase 5 — Estimated/proxy tier & scenario analysis**: opt-in
   structural climate proxy, what-if reweighting ("if we exit BMW, how does
   portfolio WACI change" — a pure re-run of §3's engine on a hypothetical
-  holdings set, still zero-LLM).
+  holdings set, still zero-LLM). Not started.
 
 Phases 0–2 are the minimum viable version of the request; Phase 3 is what
 makes it feel "agentic" end-to-end; Phase 4 is the explicitly-requested
-separate climate section; Phase 5 is stretch.
+separate climate section; Phase 5 is stretch. What remains everywhere
+above: the React frontend (no UI was built this pass -- everything is
+reachable via the CLI and the FastAPI routers), and swapping each `mock_*`
+connector for a real one once decision 4's actual API/vendor details
+(§10) are available.
