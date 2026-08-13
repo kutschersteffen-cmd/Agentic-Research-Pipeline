@@ -19,6 +19,12 @@ def _extract_pdf_text(path: Path) -> str:
     from pypdf import PdfReader
 
     reader = PdfReader(str(path))
+    if reader.is_encrypted:
+        # Many disclosure PDFs are encrypted only to restrict printing/
+        # copying in the viewer, not to gate reading -- opening with an
+        # empty user password succeeds for those. A real password-protected
+        # file still fails decrypt() and surfaces as a normal parse error.
+        reader.decrypt("")
     return "\n\n".join((page.extract_text() or "") for page in reader.pages)
 
 
