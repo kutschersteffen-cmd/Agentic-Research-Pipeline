@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { AggregationResultTable } from "../components/AggregationResultTable";
+import { AggregationView, TrendView } from "../components/ResultView";
+import { PivotTable } from "../components/PivotTable";
 import { PortfolioFilterPicker } from "../components/PortfolioFilterPicker";
 import { ConfidenceBadge } from "../components/ConfidenceBadge";
 import {
@@ -9,14 +10,17 @@ import {
   type AggregationResult,
   type DataPointSchema,
   type DemoSeedSummary,
+  type PivotResult,
   type PortfolioSummary,
   type QAAnswer,
   type SecurityResolution,
+  type TrendPoint,
 } from "../types";
 
 const SUB_TABS = [
   { id: "overview", label: "Overview" },
   { id: "explore", label: "Explore" },
+  { id: "pivot", label: "Pivot" },
   { id: "ask", label: "Ask" },
 ] as const;
 
@@ -58,6 +62,7 @@ export function PortfolioRisk() {
 
       {sub === "overview" && <OverviewTab portfolios={portfolios} onSeeded={refreshPortfolios} />}
       {sub === "explore" && <ExploreTab portfolios={portfolios} climateSchema={climateSchema} />}
+      {sub === "pivot" && <PivotTab portfolios={portfolios} climateSchema={climateSchema} />}
       {sub === "ask" && <AskTab />}
     </div>
   );
@@ -187,6 +192,22 @@ function OverviewTab({ portfolios, onSeeded }: { portfolios: PortfolioSummary[];
   );
 }
 
+function DataPointFieldSelect({ schema, value, onChange }: { schema: DataPointSchema | null; value: string; onChange: (v: string) => void }) {
+  return (
+    <>
+      <label className="field-label">Data point field</label>
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">-- select a field --</option>
+        {(schema?.fields ?? []).map((f) => (
+          <option key={f.field_id} value={f.field_id}>
+            {f.name} ({f.unit ?? f.data_type})
+          </option>
+        ))}
+      </select>
+    </>
+  );
+}
+
 function ExploreTab({ portfolios, climateSchema }: { portfolios: PortfolioSummary[]; climateSchema: DataPointSchema | null }) {
   const [groupBy, setGroupBy] = useState<string>("portfolio_id");
   const [metric, setMetric] = useState<AggregationMetric>("market_value_sum");
@@ -195,17 +216,23 @@ function ExploreTab({ portfolios, climateSchema }: { portfolios: PortfolioSummar
   const [fieldId, setFieldId] = useState("");
   const [selectedPortfolios, setSelectedPortfolios] = useState<string[]>([]);
   const [asOf, setAsOf] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [result, setResult] = useState<AggregationResult | null>(null);
+  const [trend, setTrend] = useState<TrendPoint[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
 
   async function run() {
     setRunning(true);
     setError(null);
+    setTrend(null);
+    setResult(null);
     try {
       const securityFilter: Record<string, string> = {};
       if (companyId.trim()) securityFilter.company_id = companyId.trim();
       if (assetClass) securityFilter.asset_class = assetClass;
+      const wantsTrend = Boolean(dateFrom.trim() && dateTo.trim());
       const res = await api.runPortfolioAggregate({
         name: "Explore query",
         portfolio_filter: selectedPortfolios,
@@ -213,12 +240,13 @@ function ExploreTab({ portfolios, climateSchema }: { portfolios: PortfolioSummar
         group_by: groupBy,
         metric,
         data_point_field_id: metric === "weighted_avg_datapoint" ? fieldId || null : null,
-        as_of: asOf || null,
+        as_of: wantsTrend ? null : asOf || null,
+        date_range: wantsTrend ? [dateFrom.trim(), dateTo.trim()] : null,
       });
-      setResult(Array.isArray(res) ? res[res.length - 1]?.result ?? null : res);
+      if (Array.isArray(res)) setTrend(res);
+      else setResult(res);
     } catch (e) {
       setError(String(e));
-      setResult(null);
     } finally {
       setRunning(false);
     }
@@ -229,7 +257,8 @@ function ExploreTab({ portfolios, climateSchema }: { portfolios: PortfolioSummar
       <h3>Build a query</h3>
       <p className="help-text">
         e.g. "how many EUR million is the exposure to stocks from BMW": group by portfolio_id, filter company_id =
-        bmw, asset_class = equity, metric = market_value_sum.
+        bmw, asset_class = equity, metric = market_value_sum. Fill in a date range to see the same query as a trend
+        instead of a single point in time.
       </p>
 
       <label className="field-label">Group by</label>
@@ -248,19 +277,141 @@ function ExploreTab({ portfolios, climateSchema }: { portfolios: PortfolioSummar
         <option value="count">Holding count</option>
       </select>
 
-      {metric === "weighted_avg_datapoint" && (
-        <>
-          <label className="field-label">Data point field</label>
-          <select value={fieldId} onChange={(e) => setFieldId(e.target.value)}>
-            <option value="">-- select a field --</option>
-            {(climateSchema?.fields ?? []).map((f) => (
-              <option key={f.field_id} value={f.field_id}>
-                {f.name} ({f.unit ?? f.data_type})
+      {metric === "weighted_avg_datapoint" && <DataPointFieldSelect schema={climateSchema} value={fieldId} onChange={setFieldId} />}
+
+      <div className="inline-fields">
+        <div>
+          <label className="field-label">Issuer (company_id)</label>
+          <input type="text" placeholder="e.g. bmw" value={companyId} onChange={(e) => setCompanyId(e.target.value)} />
+        </div>
+        <div>
+          <label className="field-label">Asset class</label>
+          <select value={assetClass} onChange={(e) => setAssetClass(e.target.value)}>
+            {ASSET_CLASSES.map((a) => (
+              <option key={a} value={a}>
+                {a || "(any)"}
               </option>
             ))}
           </select>
-        </>
+        </div>
+        <div>
+          <label className="field-label">As of (blank = latest)</label>
+          <input type="text" placeholder="YYYY-MM-DD" value={asOf} onChange={(e) => setAsOf(e.target.value)} disabled={Boolean(dateFrom || dateTo)} />
+        </div>
+      </div>
+
+      <div className="inline-fields">
+        <div>
+          <label className="field-label">Trend from (optional)</label>
+          <input type="text" placeholder="YYYY-MM-DD" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+        </div>
+        <div>
+          <label className="field-label">Trend to (optional)</label>
+          <input type="text" placeholder="YYYY-MM-DD" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="inline-block">
+        <PortfolioFilterPicker portfolios={portfolios} selected={selectedPortfolios} onChange={setSelectedPortfolios} />
+      </div>
+
+      <button onClick={run} disabled={running}>
+        {running ? "Running..." : "Run query"}
+      </button>
+      {error && <p className="error-text">{error}</p>}
+      {result && (
+        <div className="inline-block">
+          <AggregationView result={result} />
+        </div>
       )}
+      {trend && (
+        <div className="inline-block">
+          <TrendView trend={trend} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PivotTab({ portfolios, climateSchema }: { portfolios: PortfolioSummary[]; climateSchema: DataPointSchema | null }) {
+  const [rowDim, setRowDim] = useState("sector");
+  const [colDim, setColDim] = useState("portfolio_id");
+  const [metric, setMetric] = useState<AggregationMetric>("market_value_sum");
+  const [companyId, setCompanyId] = useState("");
+  const [assetClass, setAssetClass] = useState("");
+  const [fieldId, setFieldId] = useState("");
+  const [selectedPortfolios, setSelectedPortfolios] = useState<string[]>([]);
+  const [asOf, setAsOf] = useState("");
+  const [result, setResult] = useState<PivotResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+
+  async function run() {
+    setRunning(true);
+    setError(null);
+    try {
+      const securityFilter: Record<string, string> = {};
+      if (companyId.trim()) securityFilter.company_id = companyId.trim();
+      if (assetClass) securityFilter.asset_class = assetClass;
+      const res = await api.runPortfolioPivot({
+        name: "Explore pivot",
+        portfolio_filter: selectedPortfolios,
+        security_filter: securityFilter,
+        row_dim: rowDim,
+        col_dim: colDim,
+        metric,
+        data_point_field_id: metric === "weighted_avg_datapoint" ? fieldId || null : null,
+        as_of: asOf || null,
+      });
+      setResult(res);
+    } catch (e) {
+      setError(String(e));
+      setResult(null);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <section className="card">
+      <h3>Cross-tab two dimensions</h3>
+      <p className="help-text">
+        e.g. row = sector, column = portfolio_id, metric = market value sum: every sector's exposure broken out
+        across every portfolio in one grid, instead of filtering one dimension at a time.
+      </p>
+
+      <div className="inline-fields">
+        <div>
+          <label className="field-label">Rows</label>
+          <select value={rowDim} onChange={(e) => setRowDim(e.target.value)}>
+            {AGGREGATION_DIMENSIONS.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="field-label">Columns</label>
+          <select value={colDim} onChange={(e) => setColDim(e.target.value)}>
+            {AGGREGATION_DIMENSIONS.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="field-label">Metric</label>
+          <select value={metric} onChange={(e) => setMetric(e.target.value as AggregationMetric)}>
+            <option value="market_value_sum">Market value sum (EUR)</option>
+            <option value="weighted_avg_datapoint">Weighted-average data point</option>
+            <option value="count">Holding count</option>
+          </select>
+        </div>
+      </div>
+
+      {metric === "weighted_avg_datapoint" && <DataPointFieldSelect schema={climateSchema} value={fieldId} onChange={setFieldId} />}
 
       <div className="inline-fields">
         <div>
@@ -288,12 +439,12 @@ function ExploreTab({ portfolios, climateSchema }: { portfolios: PortfolioSummar
       </div>
 
       <button onClick={run} disabled={running}>
-        {running ? "Running..." : "Run query"}
+        {running ? "Running..." : "Run pivot"}
       </button>
       {error && <p className="error-text">{error}</p>}
       {result && (
         <div className="inline-block">
-          <AggregationResultTable result={result} />
+          <PivotTable result={result} />
         </div>
       )}
     </section>
@@ -349,7 +500,7 @@ function AskTab() {
       {answer && answer.resolvable && (
         <>
           <p className="answer-text">{answer.answer_text}</p>
-          {answer.result && <AggregationResultTable result={answer.result} />}
+          {answer.result && <AggregationView result={answer.result} />}
           {answer.spec && (
             <p className="muted">
               Query: group_by={answer.spec.group_by}, metric={answer.spec.metric}, filter=

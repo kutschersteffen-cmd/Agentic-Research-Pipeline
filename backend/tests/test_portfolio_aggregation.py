@@ -1,6 +1,6 @@
 import pytest
 
-from arp.portfolio.aggregation import aggregate, aggregate_trend
+from arp.portfolio.aggregation import aggregate, aggregate_trend, pivot
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import Holding, SecurityRef
 
@@ -82,6 +82,53 @@ def test_count_metric():
     holdings = [_holding("p1", "a", "2026-01-01", 1.0), _holding("p2", "a", "2026-01-01", 2.0)]
     result = aggregate(holdings, securities, companies, group_by="company_id", metric="count", as_of="2026-01-01")
     assert result.rows[0].holding_count == 2
+
+
+def test_pivot_cross_tabs_two_dimensions():
+    securities = {
+        "bmw_eq": _security("bmw_eq", "bmw", asset_class="equity"),
+        "bmw_bond": _security("bmw_bond", "bmw", asset_class="corporate_bond"),
+        "sap_eq": _security("sap_eq", "sap", asset_class="equity"),
+    }
+    companies = {"bmw": CompanyRef(company_id="bmw", name="BMW"), "sap": CompanyRef(company_id="sap", name="SAP")}
+    holdings = [
+        _holding("p1", "bmw_eq", "2026-01-01", 10.0),
+        _holding("p1", "bmw_bond", "2026-01-01", 5.0),
+        _holding("p1", "sap_eq", "2026-01-01", 20.0),
+    ]
+    result = pivot(holdings, securities, companies, row_dim="company_id", col_dim="asset_class", metric="market_value_sum", as_of="2026-01-01")
+
+    by_cell = {(c.row_value, c.col_value): c.market_value_eur for c in result.cells}
+    assert by_cell == {("bmw", "corporate_bond"): 5.0, ("bmw", "equity"): 10.0, ("sap", "equity"): 20.0}
+    assert result.row_values == ["bmw", "sap"]
+    assert result.col_values == ["corporate_bond", "equity"]
+    # sap/corporate_bond has no holdings -- absent from cells, not a fabricated zero
+    assert ("sap", "corporate_bond") not in by_cell
+
+
+def test_pivot_weighted_avg_datapoint_matches_aggregate():
+    securities = {"a": _security("a", "co_a"), "b": _security("b", "co_b")}
+    companies = {"co_a": CompanyRef(company_id="co_a", name="A"), "co_b": CompanyRef(company_id="co_b", name="B")}
+    holdings = [_holding("p1", "a", "2026-01-01", 60.0), _holding("p1", "b", "2026-01-01", 40.0)]
+
+    agg = aggregate(
+        holdings, securities, companies, group_by="portfolio_id", metric="weighted_avg_datapoint", as_of="2026-01-01",
+        data_point_values={"co_a": 10.0, "co_b": 20.0},
+    )
+    piv = pivot(
+        holdings, securities, companies, row_dim="portfolio_id", col_dim="company_id", metric="weighted_avg_datapoint", as_of="2026-01-01",
+        data_point_values={"co_a": 10.0, "co_b": 20.0},
+    )
+
+    # (60*10 + 40*20) / 100 = 14.0, computed identically by both entry points
+    assert agg.rows[0].weighted_avg_value == 14.0
+    cell_values = {c.col_value: c.weighted_avg_value for c in piv.cells}
+    assert cell_values == {"co_a": 10.0, "co_b": 20.0}
+
+
+def test_pivot_requires_valid_metric():
+    with pytest.raises(ValueError):
+        pivot([], {}, {}, row_dim="portfolio_id", col_dim="asset_class", metric="bogus", as_of="2026-01-01")
 
 
 def test_aggregate_trend_runs_per_date():

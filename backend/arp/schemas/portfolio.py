@@ -128,6 +128,44 @@ class TrendPoint(BaseModel):
     result: AggregationResult
 
 
+class PivotSpec(BaseModel):
+    """A two-dimension permutation of the same primitives AnalyticSpec uses --
+    e.g. sector (rows) x asset_class (columns), or company_id (rows) x
+    portfolio_id (columns) to see one exposure figure broken out across
+    every portfolio at once. Point-in-time only (no trend mode)."""
+
+    name: str = ""
+    portfolio_filter: list[str] = Field(default_factory=list)
+    security_filter: dict[str, str] = Field(default_factory=dict)
+    row_dim: str
+    col_dim: str
+    metric: AggregationMetric
+    data_point_field_id: str | None = None
+    as_of: str | None = None
+
+
+class PivotCell(BaseModel):
+    row_value: str
+    col_value: str
+    market_value_eur: float | None = None
+    weighted_avg_value: float | None = None
+    coverage_pct: float | None = None
+    holding_count: int = 0
+
+
+class PivotResult(BaseModel):
+    spec_name: str
+    as_of: str
+    metric: AggregationMetric
+    row_dim: str
+    col_dim: str
+    row_values: list[str]
+    col_values: list[str]
+    cells: list[PivotCell]
+    total_market_value_eur: float
+    unresolved_market_value_eur: float = 0.0
+
+
 class NewsItem(BaseModel):
     news_id: str = Field(default_factory=lambda: new_id("news"))
     company_id: str | None = None

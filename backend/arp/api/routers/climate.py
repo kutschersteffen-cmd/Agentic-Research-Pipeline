@@ -3,11 +3,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from arp.api.deps import get_portfolio_store
+from arp.portfolio import analytics
 from arp.portfolio.climate import metrics as climate_metrics
 from arp.portfolio.climate.schemas import build_climate_schema
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema
-from arp.schemas.portfolio import AggregationResult, SecurityRef, TrendPoint
+from arp.schemas.portfolio import AggregationResult, PivotResult, PivotSpec, SecurityRef, TrendPoint
 from arp.storage.portfolio_store import PortfolioStore
 
 router = APIRouter(prefix="/api/climate", tags=["climate"])
@@ -77,3 +78,32 @@ def financed_emissions(
 def coverage(field_id: str, as_of: str | None = None, store: PortfolioStore = Depends(get_portfolio_store)) -> dict:
     securities, _companies = _directories(store)
     return climate_metrics.coverage_report(store, securities, field_id, as_of)
+
+
+@router.get("/pivot/{field_id}", response_model=PivotResult)
+def climate_pivot(
+    field_id: str,
+    row_dim: str = "sector",
+    col_dim: str = "portfolio_id",
+    as_of: str | None = None,
+    portfolio_id: list[str] | None = Query(default=None),
+    store: PortfolioStore = Depends(get_portfolio_store),
+) -> PivotResult:
+    """A climate field broken out across two dimensions at once, e.g.
+    weighted-average carbon intensity by sector x portfolio -- reuses the
+    same pivot executor as /api/portfolio/pivot, just pre-set to
+    weighted_avg_datapoint against a climate field."""
+    spec = PivotSpec(
+        name=f"{field_id} pivot",
+        portfolio_filter=portfolio_id or [],
+        row_dim=row_dim,
+        col_dim=col_dim,
+        metric="weighted_avg_datapoint",
+        data_point_field_id=field_id,
+        as_of=as_of,
+    )
+    securities, companies = _directories(store)
+    try:
+        return analytics.execute_pivot(spec, store, securities, companies)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc

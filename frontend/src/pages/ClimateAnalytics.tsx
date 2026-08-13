@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { AggregationResultTable } from "../components/AggregationResultTable";
+import { AggregationView, TrendView } from "../components/ResultView";
+import { PivotTable } from "../components/PivotTable";
 import { PortfolioFilterPicker } from "../components/PortfolioFilterPicker";
 import { GroundedBadge } from "../components/ConfidenceBadge";
 import {
@@ -11,6 +12,7 @@ import {
   type FinancedEmissionsResult,
   type NewsItem,
   type NewsRiskFlag,
+  type PivotResult,
   type PortfolioSummary,
   type TrendPoint,
 } from "../types";
@@ -19,8 +21,11 @@ const SUB_TABS = [
   { id: "waci", label: "WACI" },
   { id: "financed", label: "Financed Emissions" },
   { id: "coverage", label: "Coverage" },
+  { id: "pivot", label: "Pivot" },
   { id: "news", label: "News & Flags" },
 ] as const;
+
+const CARBON_INTENSITY_UNIT = "tCO2e / EUR M revenue";
 
 export function ClimateAnalytics() {
   const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("waci");
@@ -51,6 +56,7 @@ export function ClimateAnalytics() {
       {sub === "waci" && <WaciTab portfolios={portfolios} />}
       {sub === "financed" && <FinancedEmissionsTab portfolios={portfolios} />}
       {sub === "coverage" && <CoverageTab schema={schema} />}
+      {sub === "pivot" && <ClimatePivotTab portfolios={portfolios} schema={schema} />}
       {sub === "news" && <NewsTab />}
     </div>
   );
@@ -118,46 +124,9 @@ function WaciTab({ portfolios }: { portfolios: PortfolioSummary[] }) {
         </button>
       </div>
       {error && <p className="error-text">{error}</p>}
-      {result && <AggregationResultTable result={result} />}
-      {trend && <WaciTrendTable trend={trend} />}
+      {result && <AggregationView result={result} unit={CARBON_INTENSITY_UNIT} />}
+      {trend && <TrendView trend={trend} unit={CARBON_INTENSITY_UNIT} />}
     </section>
-  );
-}
-
-function WaciTrendTable({ trend }: { trend: TrendPoint[] }) {
-  const dates = trend.map((t) => t.as_of);
-  const groupValues = Array.from(new Set(trend.flatMap((t) => t.result.rows.map((r) => r.group_value)))).sort();
-  const valueAt = (groupValue: string, date: string) => {
-    const point = trend.find((t) => t.as_of === date);
-    const row = point?.result.rows.find((r) => r.group_value === groupValue);
-    return row?.weighted_avg_value ?? null;
-  };
-
-  return (
-    <div className="inline-block">
-      <p className="muted">Weighted-average carbon intensity by snapshot date:</p>
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Group</th>
-            {dates.map((d) => (
-              <th key={d}>{d}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {groupValues.map((gv) => (
-            <tr key={gv}>
-              <td>{gv}</td>
-              {dates.map((d) => {
-                const v = valueAt(gv, d);
-                return <td key={d}>{v != null ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "--"}</td>;
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }
 
@@ -289,6 +258,95 @@ function CoverageTab({ schema }: { schema: DataPointSchema | null }) {
               <span className="coverage-bar-count">{count}</span>
             </div>
           ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ClimatePivotTab({ portfolios, schema }: { portfolios: PortfolioSummary[]; schema: DataPointSchema | null }) {
+  const [fieldId, setFieldId] = useState("");
+  const [rowDim, setRowDim] = useState("sector");
+  const [colDim, setColDim] = useState("portfolio_id");
+  const [selectedPortfolios, setSelectedPortfolios] = useState<string[]>([]);
+  const [asOf, setAsOf] = useState("");
+  const [result, setResult] = useState<PivotResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!fieldId && schema?.fields.length) setFieldId(schema.fields[0].field_id);
+  }, [schema, fieldId]);
+
+  async function run() {
+    if (!fieldId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      setResult(
+        await api.getClimatePivot(fieldId, {
+          row_dim: rowDim,
+          col_dim: colDim,
+          as_of: asOf || undefined,
+          portfolio_id: selectedPortfolios.length ? selectedPortfolios : undefined,
+        })
+      );
+    } catch (e) {
+      setError(String(e));
+      setResult(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <section className="card">
+      <h3>Cross-tab a climate field</h3>
+      <p className="help-text">e.g. weighted-average carbon intensity by sector x portfolio, in one grid.</p>
+      <label className="field-label">Field</label>
+      <select value={fieldId} onChange={(e) => setFieldId(e.target.value)}>
+        {(schema?.fields ?? []).map((f) => (
+          <option key={f.field_id} value={f.field_id}>
+            {f.name}
+          </option>
+        ))}
+      </select>
+      <div className="inline-fields">
+        <div>
+          <label className="field-label">Rows</label>
+          <select value={rowDim} onChange={(e) => setRowDim(e.target.value)}>
+            {AGGREGATION_DIMENSIONS.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="field-label">Columns</label>
+          <select value={colDim} onChange={(e) => setColDim(e.target.value)}>
+            {AGGREGATION_DIMENSIONS.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="field-label">As of (blank = latest)</label>
+          <input type="text" placeholder="YYYY-MM-DD" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+        </div>
+      </div>
+      <div className="inline-block">
+        <PortfolioFilterPicker portfolios={portfolios} selected={selectedPortfolios} onChange={setSelectedPortfolios} />
+      </div>
+      <button onClick={run} disabled={loading || !fieldId}>
+        {loading ? "Running..." : "Run"}
+      </button>
+      {error && <p className="error-text">{error}</p>}
+      {result && (
+        <div className="inline-block">
+          <PivotTable result={result} />
         </div>
       )}
     </section>

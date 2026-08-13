@@ -7,6 +7,8 @@ import type {
   FinancedEmissionsResult,
   NewsItem,
   NewsRiskFlag,
+  PivotRequest,
+  PivotResult,
   PortfolioSummary,
   QAAnswer,
   SecurityResolution,
@@ -170,6 +172,7 @@ export const api = {
   listSecuritiesNeedingReview: () => request<SecurityResolution[]>("/api/portfolio/securities-needing-review"),
   runPortfolioAggregate: (body: AnalyticRequest) =>
     request<AggregationResult | TrendPoint[]>("/api/portfolio/aggregate", { method: "POST", body: JSON.stringify(body) }),
+  runPortfolioPivot: (body: PivotRequest) => request<PivotResult>("/api/portfolio/pivot", { method: "POST", body: JSON.stringify(body) }),
   askPortfolio: (question: string) => request<QAAnswer>("/api/portfolio/ask", { method: "POST", body: JSON.stringify({ question }) }),
   listPortfolioNews: (companyId?: string) => request<NewsItem[]>(`/api/portfolio/news${buildQuery({ company_id: companyId })}`),
   classifyPortfolioNews: () =>
@@ -186,4 +189,6 @@ export const api = {
     request<FinancedEmissionsResult>(`/api/climate/financed-emissions${buildQuery(params)}`),
   getClimateCoverage: (fieldId: string, asOf?: string) =>
     request<CoverageBySource>(`/api/climate/coverage/${fieldId}${buildQuery({ as_of: asOf })}`),
+  getClimatePivot: (fieldId: string, params: { row_dim?: string; col_dim?: string; as_of?: string; portfolio_id?: string[] }) =>
+    request<PivotResult>(`/api/climate/pivot/${fieldId}${buildQuery(params)}`),
 };

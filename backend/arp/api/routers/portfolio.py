@@ -10,7 +10,7 @@ from arp.portfolio import analytics, qa_agent
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.news.classifier import classify_article
 from arp.schemas.common import CompanyRef
-from arp.schemas.portfolio import AggregationResult, AnalyticSpec, Portfolio, SecurityRef, TrendPoint
+from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotResult, PivotSpec, Portfolio, SecurityRef, TrendPoint
 from arp.storage.portfolio_store import PortfolioStore
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
@@ -94,6 +94,39 @@ def run_aggregation(
     if req.save:
         analytics.save_analytic(store, spec)
     return result
+
+
+class PivotRequest(BaseModel):
+    name: str = "ad hoc pivot"
+    portfolio_filter: list[str] = Field(default_factory=list)
+    security_filter: dict[str, str] = Field(default_factory=dict)
+    row_dim: str
+    col_dim: str
+    metric: str
+    data_point_field_id: str | None = None
+    as_of: str | None = None
+
+
+@router.post("/pivot", response_model=PivotResult)
+def run_pivot(req: PivotRequest, store: PortfolioStore = Depends(get_portfolio_store)) -> PivotResult:
+    """A two-dimension permutation of /aggregate -- e.g. sector x asset
+    class, or issuer x portfolio to see one exposure figure broken out
+    across every portfolio at once in a single query."""
+    spec = PivotSpec(
+        name=req.name,
+        portfolio_filter=req.portfolio_filter,
+        security_filter=req.security_filter,
+        row_dim=req.row_dim,
+        col_dim=req.col_dim,
+        metric=req.metric,
+        data_point_field_id=req.data_point_field_id,
+        as_of=req.as_of,
+    )
+    securities, companies = _directories(store)
+    try:
+        return analytics.execute_pivot(spec, store, securities, companies)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @router.get("/analytics", response_model=list[AnalyticSpec])

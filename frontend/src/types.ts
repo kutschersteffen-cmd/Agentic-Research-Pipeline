@@ -431,3 +431,36 @@ export interface FinancedEmissionsResult {
 }
 
 export type CoverageBySource = Record<string, number>;
+
+export interface PivotRequest {
+  name?: string;
+  portfolio_filter?: string[];
+  security_filter?: Record<string, string>;
+  row_dim: string;
+  col_dim: string;
+  metric: AggregationMetric;
+  data_point_field_id?: string | null;
+  as_of?: string | null;
+}
+
+export interface PivotCell {
+  row_value: string;
+  col_value: string;
+  market_value_eur?: number | null;
+  weighted_avg_value?: number | null;
+  coverage_pct?: number | null;
+  holding_count: number;
+}
+
+export interface PivotResult {
+  spec_name: string;
+  as_of: string;
+  metric: AggregationMetric;
+  row_dim: string;
+  col_dim: string;
+  row_values: string[];
+  col_values: string[];
+  cells: PivotCell[];
+  total_market_value_eur: number;
+  unresolved_market_value_eur: number;
+}

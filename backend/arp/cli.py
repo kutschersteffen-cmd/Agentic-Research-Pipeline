@@ -44,7 +44,7 @@ from arp.portfolio.news.classifier import classify_article
 from arp.schemas.common import CompanyRef, DocType, JobStatus
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.discovery import DiscoveryScheduleConfig
-from arp.schemas.portfolio import AggregationResult, AnalyticSpec, SecurityRef
+from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotSpec, SecurityRef
 from arp.schemas.taxonomy import DerivationMethod, TaxonomyRef
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.portfolio_store import PortfolioStore
@@ -706,6 +706,40 @@ def portfolio_aggregate(
         typer.echo(json.dumps(result.model_dump(mode="json"), indent=2))
     else:
         typer.echo(json.dumps([point.model_dump(mode="json") for point in result], indent=2))
+
+
+@portfolio_app.command("pivot")
+def portfolio_pivot(
+    row_dim: str = typer.Option(..., help="portfolio_id | asset_class | company_id | company_name | sector | country | currency"),
+    col_dim: str = typer.Option(..., help="Same choices as --row-dim."),
+    metric: str = typer.Option("market_value_sum", help="market_value_sum | weighted_avg_datapoint | count"),
+    portfolio: list[str] = typer.Option(None, "--portfolio", help="Restrict to these portfolio_ids; repeatable."),
+    company_id: str = typer.Option(None, help="Filter to one issuer, e.g. bmw."),
+    asset_class: str = typer.Option(None),
+    data_point_field_id: str = typer.Option(None, help="Required for metric=weighted_avg_datapoint, e.g. climate_carbon_intensity."),
+    as_of: str = typer.Option(None, help="Snapshot date; defaults to the latest available."),
+    name: str = typer.Option("cli pivot"),
+) -> None:
+    """A two-dimension permutation of `arp portfolio aggregate` -- e.g.
+    --row-dim sector --col-dim asset_class to see the whole exposure
+    breakdown as a single cross-tab instead of one dimension at a time."""
+    store = _portfolio_store()
+    security_filter: dict[str, str] = {}
+    if company_id:
+        security_filter["company_id"] = company_id
+    if asset_class:
+        security_filter["asset_class"] = asset_class
+    spec = PivotSpec(
+        name=name, portfolio_filter=portfolio or [], security_filter=security_filter, row_dim=row_dim, col_dim=col_dim,
+        metric=metric, data_point_field_id=data_point_field_id, as_of=as_of,
+    )
+    securities, companies = _portfolio_directories(store)
+    try:
+        result = analytics.execute_pivot(spec, store, securities, companies)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(json.dumps(result.model_dump(mode="json"), indent=2))
 
 
 @portfolio_app.command("ask")
