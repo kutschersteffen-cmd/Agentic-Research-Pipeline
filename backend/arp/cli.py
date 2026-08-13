@@ -12,6 +12,7 @@ from arp.discovery.scheduler import DiscoveryScheduler
 from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.extraction.pipeline import run_extraction
 from arp.extraction.schema_builder import draft_schema
+from arp.extraction.segment_pipeline import run_segment_extraction
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -507,6 +508,24 @@ def extract_run(
     typer.echo(f"Extracting schema '{schema.name}' ({len(schema.fields)} fields) across {len(companies)} companies...")
     run_id = asyncio.run(
         run_extraction(schema, companies, llm=llm, registry=_registry(), settings=settings, run_store=_run_store())
+    )
+    typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
+
+
+@extract_app.command("segments-run")
+def extract_segments_run(
+    universe: Path = typer.Option(...),
+) -> None:
+    """Extracts each company's disclosed business segments (name,
+    description, revenue, income, assets) from annual reports/10-Ks, with
+    the same independent-verifier + programmatic-grounding precision
+    controls as `extract run`."""
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    companies = load_company_universe(universe)
+    typer.echo(f"Extracting business segments across {len(companies)} companies...")
+    run_id = asyncio.run(
+        run_segment_extraction(companies, llm=llm, registry=_registry(), settings=settings, run_store=_run_store())
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 

@@ -23,11 +23,20 @@ precision at scale (designed for up to ~4,000 companies per run).
    value, or rejected, each with an optional comment; every decision is
    appended to a permanent, per-field audit trail (nothing is ever
    overwritten) and shown in a History panel.
-3. **Document Discovery** — finds each company's investor-relations site,
+3. **Business Segment Extraction** — pulls each company's disclosed
+   reportable/operating segments out of its annual report (the "Segment
+   Reporting" note), one grounded pass per company: segment name,
+   description, revenue, operating income, and assets, each figure with
+   its own citation and independent-verifier + grounding check. A
+   segment/figure not explicitly disclosed is left null rather than
+   estimated or backed into from a total. Designed so a structured vendor
+   segment-data feed can be plugged in ahead of the LLM pass later,
+   mirroring the revenue/CapEx catalogue cascade.
+4. **Document Discovery** — finds each company's investor-relations site,
    crawls it for disclosure documents, downloads new/changed ones, and
    raises an event the moment something new appears. Runs manually or on
    an automatic schedule.
-4. **Indirect Exposure Tier** *(opt-in)* — scores a company's *structural*
+5. **Indirect Exposure Tier** *(opt-in)* — scores a company's *structural*
    supply-chain exposure to a theme via input-output propagation (OECD
    ICIO), catching companies whose disclosures are silent about a theme but
    whose economic position says otherwise. Purely quantitative, zero LLM
@@ -127,6 +136,9 @@ arp theme resume <run_id>      # picks back up; already-completed companies are 
 # Data-point extraction
 arp extract draft-schema "green capex" --out schema.json
 arp extract run --schema schema.json --universe companies.csv
+
+# Business segment extraction (name, description, revenue, income, assets per segment)
+arp extract segments-run --universe companies.csv
 
 # Document discovery
 arp discover run --universe companies.csv
