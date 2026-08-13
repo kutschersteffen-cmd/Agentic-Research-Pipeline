@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 _TEXT_SUFFIXES = {".txt", ".md"}
 _HTML_SUFFIXES = {".html", ".htm"}
 _PDF_SUFFIXES = {".pdf"}
+_XLSX_SUFFIXES = {".xlsx", ".xlsm"}
 
 
 def _extract_pdf_text(path: Path) -> str:
@@ -33,6 +34,33 @@ def _extract_html_text(path: Path) -> str:
     return BeautifulSoup(raw, "lxml").get_text("\n")
 
 
+def _extract_xlsx_text(path: Path) -> str:
+    """Renders every sheet as a pipe-delimited text table, in document
+    order, prefixed by its sheet name -- this is disclosure data (e.g. EU
+    Taxonomy revenue/capex/opex tables, GHG footprint statbooks), so
+    row/column structure and cross-sheet labels carry the meaning; a naive
+    cell dump loses which KPI a number belongs to. Empty rows are skipped;
+    trailing empty cells on a row are dropped so ragged tables don't turn
+    into walls of pipes."""
+    from openpyxl import load_workbook
+
+    wb = load_workbook(path, data_only=True, read_only=True)
+    sections = []
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        lines = [f"## Sheet: {sheet_name}"]
+        for row in ws.iter_rows(values_only=True):
+            cells = list(row)
+            while cells and cells[-1] is None:
+                cells.pop()
+            if not cells:
+                continue
+            lines.append(" | ".join("" if c is None else str(c) for c in cells))
+        if len(lines) > 1:
+            sections.append("\n".join(lines))
+    return "\n\n".join(sections)
+
+
 def parse_file_to_text(path: Path) -> str:
     suffix = path.suffix.lower()
     if suffix in _PDF_SUFFIXES:
@@ -41,6 +69,8 @@ def parse_file_to_text(path: Path) -> str:
         return _extract_html_text(path)
     if suffix in _TEXT_SUFFIXES:
         return path.read_text(errors="ignore")
+    if suffix in _XLSX_SUFFIXES:
+        return _extract_xlsx_text(path)
     raise ValueError(f"Unsupported document file type: {suffix}")
 
 
