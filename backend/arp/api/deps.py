@@ -9,8 +9,10 @@ from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient
 from arp.llm.factory import build_llm_client
+from arp.storage.engagement_store import EngagementStore
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
+from arp.voting.ballot_casting import BallotPlatform, ManualInstructionBallotPlatform
 
 
 def settings_dep() -> Settings:
@@ -49,3 +51,13 @@ def get_llm_client() -> LLMClient:
 @lru_cache
 def get_scheduler() -> DiscoveryScheduler:
     return DiscoveryScheduler(get_settings(), get_run_store())
+
+
+@lru_cache
+def get_engagement_store() -> EngagementStore:
+    return EngagementStore(get_settings().engagements_dir)
+
+
+@lru_cache
+def get_ballot_platform() -> BallotPlatform:
+    return ManualInstructionBallotPlatform(get_settings().ballots_dir)

@@ -10,6 +10,9 @@ from arp.config import get_settings
 from arp.discovery.pipeline import run_discovery
 from arp.discovery.scheduler import DiscoveryScheduler
 from arp.discovery.site_finder import DuckDuckGoSearchClient
+from arp.engagement.orchestrator import decide_next_action
+from arp.engagement.reporting_agent import compile_report
+from arp.engagement.triggers import ControversySignal, StaticControversySource, run_trigger_screen, scan_for_stalled_issues
 from arp.extraction.pipeline import run_extraction
 from arp.extraction.schema_builder import draft_schema
 from arp.ingestion.edgar import EdgarDocumentSource
@@ -40,11 +43,15 @@ from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import DocType, JobStatus
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.discovery import DiscoveryScheduleConfig
+from arp.schemas.engagement import CorrespondenceEntry, EscalationStage, IssueSeverity, TriggerSource
 from arp.schemas.taxonomy import DerivationMethod, TaxonomyRef
 from arp.schemas.thematic import ThemeDefinition
+from arp.storage.engagement_store import EngagementStore
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.universe import load_company_universe
+from arp.voting.ballot_casting import ManualInstructionBallotPlatform
+from arp.voting.pipeline import cast_approved_votes, get_ballots, get_cast_votes, run_voting
 
 app = typer.Typer(help="Agentic Research Pipeline CLI -- the headless path for 1000s-of-companies batch runs.")
 theme_app = typer.Typer(help="Thematic investment universe screening.")
@@ -54,6 +61,8 @@ discover_app = typer.Typer(help="Document discovery: find and download company d
 runs_app = typer.Typer(help="Inspect and export runs.")
 universe_app = typer.Typer(help="Build reusable company universes.")
 revenue_catalogue_app = typer.Typer(help="Structured revenue/capex data catalogue mapping.")
+engagement_app = typer.Typer(help="Stewardship engagement: record store, triggers, and the escalation-lever checkpoint.")
+voting_app = typer.Typer(help="Proxy voting: proposal analysis, policy application, review, and ballot casting.")
 app.add_typer(theme_app, name="theme")
 app.add_typer(taxonomy_app, name="taxonomy")
 app.add_typer(extract_app, name="extract")
@@ -61,6 +70,16 @@ app.add_typer(discover_app, name="discover")
 app.add_typer(runs_app, name="runs")
 app.add_typer(universe_app, name="universe")
 app.add_typer(revenue_catalogue_app, name="revenue-catalogue")
+app.add_typer(engagement_app, name="engagement")
+app.add_typer(voting_app, name="voting")
+
+
+def _engagement_store() -> EngagementStore:
+    return EngagementStore(get_settings().engagements_dir)
+
+
+def _ballot_platform() -> ManualInstructionBallotPlatform:
+    return ManualInstructionBallotPlatform(get_settings().ballots_dir)
 
 
 def _registry() -> DocumentSourceRegistry:
@@ -616,6 +635,213 @@ def universe_overlap(
     fund_holdings = {name: load_holdings_with_weights(path) for name, path in zip(fund_names, holdings)}
     result = compute_holdings_overlap(fund_holdings)
     typer.echo(json.dumps(result.model_dump(mode="json"), indent=2))
+
+
+@engagement_app.command("record-list")
+def engagement_record_list() -> None:
+    for r in _engagement_store().list_all():
+        open_issues = sum(1 for i in r.issues if i.status.value == "open")
+        typer.echo(f"{r.company_id}\t{r.name}\t{len(r.issues)} issue(s), {open_issues} open")
+
+
+@engagement_app.command("record-show")
+def engagement_record_show(company_id: str) -> None:
+    record = _engagement_store().get(company_id)
+    if record is None:
+        typer.echo("Not found", err=True)
+        raise typer.Exit(1)
+    typer.echo(json.dumps(record.model_dump(mode="json"), indent=2))
+
+
+@engagement_app.command("issue-open")
+def engagement_issue_open(
+    company_id: str,
+    name: str,
+    theme: str = typer.Option(...),
+    severity: IssueSeverity = typer.Option(IssueSeverity.MEDIUM),
+) -> None:
+    _record, issue = _engagement_store().open_issue(company_id, name, theme=theme, severity=severity, source=TriggerSource.ANALYST_RAISED)
+    typer.echo(f"Opened issue {issue.issue_id} ({theme}) for {company_id}")
+
+
+@engagement_app.command("issue-next-action")
+def engagement_issue_next_action(company_id: str, issue_id: str) -> None:
+    settings = get_settings()
+    store = _engagement_store()
+    record = store.get(company_id)
+    if record is None:
+        typer.echo("Record not found", err=True)
+        raise typer.Exit(1)
+    issue = next((i for i in record.issues if i.issue_id == issue_id), None)
+    if issue is None:
+        typer.echo("Issue not found", err=True)
+        raise typer.Exit(1)
+    decision = decide_next_action(issue, settings.engagement_sla_days)
+    typer.echo(f"{decision.action.value}: {decision.reason}")
+
+
+@engagement_app.command("issue-escalate")
+def engagement_issue_escalate(
+    company_id: str,
+    issue_id: str,
+    stage: EscalationStage = typer.Option(..., help="The next escalation-ladder step."),
+    by: str = typer.Option(..., help="Who made this escalation-lever decision -- the non-negotiable human checkpoint."),
+    reason: str = typer.Option(""),
+) -> None:
+    _engagement_store().set_escalation_stage(company_id, issue_id, stage, by, reason)
+    typer.echo(f"Escalated {company_id}/{issue_id} to {stage.value} (by {by})")
+
+
+@engagement_app.command("log-correspondence")
+def engagement_log_correspondence(
+    company_id: str,
+    issue_id: str,
+    type: str = typer.Option(..., help="letter | call | meeting | email | other"),
+    summary: str = typer.Option(...),
+    logged_by: str = typer.Option(None),
+) -> None:
+    _engagement_store().add_correspondence(company_id, issue_id, CorrespondenceEntry(type=type, summary=summary, logged_by=logged_by))
+    typer.echo("Logged.")
+
+
+@engagement_app.command("verify-commitment")
+def engagement_verify_commitment(company_id: str, issue_id: str, commitment_id: str, by: str = typer.Option(...)) -> None:
+    from arp.engagement.tracking_agent import log_commitment_verified
+
+    log_commitment_verified(_engagement_store(), company_id, issue_id, commitment_id, by)
+    typer.echo("Verified.")
+
+
+@engagement_app.command("dossier-draft")
+def engagement_dossier_draft(
+    company_id: str,
+    issue_id: str,
+    universe: Path = typer.Option(..., help="Universe CSV/JSON containing this company (for name/ticker/cik/website)."),
+    out: Path = typer.Option(..., help="Where to write the ResearchDossier JSON."),
+) -> None:
+    """Research Agent: drafts a grounded briefing dossier for one issue.
+    The result is written to disk, not auto-applied, so a human can run the
+    dossier-accuracy review checkpoint before any Drafting Agent handoff."""
+    from arp.engagement.research_agent import research_company_issue
+
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    store = _engagement_store()
+    record = store.get(company_id)
+    if record is None:
+        typer.echo("Engagement record not found -- open an issue first with `arp engagement issue-open`.", err=True)
+        raise typer.Exit(1)
+    issue = next((i for i in record.issues if i.issue_id == issue_id), None)
+    if issue is None:
+        typer.echo("Issue not found", err=True)
+        raise typer.Exit(1)
+    company = next((c for c in load_company_universe(universe) if c.company_id == company_id), None)
+    if company is None:
+        typer.echo(f"{company_id} not found in {universe}", err=True)
+        raise typer.Exit(1)
+    dossier, needs_review, _usage = asyncio.run(
+        research_company_issue(
+            company, issue, record, registry=_registry(), llm=llm,
+            fuzzy_threshold=settings.grounding_fuzzy_threshold, confidence_review_threshold=settings.confidence_review_threshold,
+        )
+    )
+    out.write_text(dossier.model_dump_json(indent=2))
+    typer.echo(f"Wrote dossier to {out} (needs_review={needs_review})")
+
+
+@engagement_app.command("trigger-scan")
+def engagement_trigger_scan(
+    universe: Path = typer.Option(...),
+    signals: Path = typer.Option(None, help="JSON list of {company_id, theme, severity, detail} controversy signals."),
+) -> None:
+    """Runs the trigger & detection layer: opens a new issue for every
+    controversy signal without an already-open issue on the same theme,
+    plus an SLA sweep flagging stalled issues."""
+    companies = load_company_universe(universe)
+    store = _engagement_store()
+    signal_list = [ControversySignal(**s) for s in json.loads(signals.read_text())] if signals else []
+    source = StaticControversySource(signal_list)
+    events = asyncio.run(run_trigger_screen(companies, source, store))
+    events += scan_for_stalled_issues(store, get_settings().engagement_sla_days)
+    for e in events:
+        typer.echo(f"{e.source.value}\t{e.company_id}\t{e.theme}\t{e.severity.value}\tissue={e.raised_issue_id}")
+    typer.echo(f"{len(events)} trigger event(s).")
+
+
+@engagement_app.command("report")
+def engagement_report(period_label: str = typer.Option(...), run_id: str = typer.Option(None, help="Include a voting run's cast votes.")) -> None:
+    vote_records = []
+    if run_id:
+        run_store = RunStore(get_settings().runs_dir)
+        for ballot in get_ballots(run_store, run_id):
+            vote_records.extend(ballot.votes)
+        cast_by_id = {v.vote_record_id: v for v in get_cast_votes(run_store, run_id)}
+        vote_records = [cast_by_id.get(v.vote_record_id, v) for v in vote_records]
+    report = compile_report(_engagement_store().list_all(), vote_records, period_label)
+    typer.echo(json.dumps(report.model_dump(mode="json"), indent=2))
+
+
+@voting_app.command("run")
+def voting_run(
+    universe: Path = typer.Option(...),
+    meeting_dates: Path = typer.Option(None, help="Optional JSON object mapping company_id -> meeting_date."),
+) -> None:
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    companies = load_company_universe(universe)
+    dates = json.loads(meeting_dates.read_text()) if meeting_dates else {}
+    typer.echo(f"Running proxy voting analysis across {len(companies)} companies...")
+    run_id = asyncio.run(
+        run_voting(
+            companies, llm=llm, registry=_registry(), engagement_store=_engagement_store(),
+            settings=settings, run_store=_run_store(), meeting_dates=dates, fund_name=settings.fund_name,
+        )
+    )
+    typer.echo(f"Run complete: {run_id} (see runs/{run_id}/). Every proposal is queued for review -- use `arp voting review`.")
+
+
+@voting_app.command("ballots")
+def voting_ballots(run_id: str) -> None:
+    for ballot in get_ballots(_run_store(), run_id):
+        typer.echo(f"{ballot.company_id}\t{ballot.name}\t{len(ballot.votes)} proposal(s)")
+        for v in ballot.votes:
+            rec = v.policy_recommendation
+            flag = " [ALIGNMENT FLAG]" if rec and rec.engagement_alignment_flag else ""
+            typer.echo(f"  #{v.proposal.proposal_number} ({v.proposal.type.value}): recommend {rec.vote.value if rec else '?'}{flag}")
+
+
+@voting_app.command("review")
+def voting_review(
+    run_id: str,
+    item_key: str = typer.Argument(..., help="'{company_id}:{proposal_number}', as shown by `arp voting ballots`."),
+    decision: str = typer.Option(..., help="approve | edit | reject"),
+    by: str = typer.Option(...),
+    vote: str = typer.Option(None, help="Required if --decision edit: for | against | abstain | withhold."),
+    co_signed_by: str = typer.Option(None, help="Required before casting when the item carries an engagement alignment flag."),
+    comment: str = typer.Option(None),
+) -> None:
+    from arp.orchestration.review_queue import record_review_decision
+
+    if decision not in ("approve", "edit", "reject"):
+        typer.echo("decision must be approve, edit, or reject", err=True)
+        raise typer.Exit(1)
+    if decision == "edit" and not vote:
+        typer.echo("--vote is required with --decision edit", err=True)
+        raise typer.Exit(1)
+    edited_value = {"vote": vote, "co_signed_by": co_signed_by} if decision == "edit" else ({"co_signed_by": co_signed_by} if co_signed_by else None)
+    record_review_decision(_run_store(), run_id, item_key, decision, by, edited_value, comment)
+    typer.echo("Recorded.")
+
+
+@voting_app.command("cast")
+def voting_cast(run_id: str) -> None:
+    """Ballot Casting Agent: casts every reviewed-and-approved vote not
+    already cast. Never casts an item with no recorded human decision, and
+    refuses an engagement-alignment-flagged item with no co-sign."""
+    cast = asyncio.run(cast_approved_votes(run_id, _run_store(), _ballot_platform()))
+    typer.echo(f"Cast {len(cast)} vote(s).")
+    for v in cast:
+        typer.echo(f"  {v.proposal.company_id} #{v.proposal.proposal_number}: {v.human_decision.vote.value} ({v.cast_confirmation.confirmation_id})")
 
 
 if __name__ == "__main__":

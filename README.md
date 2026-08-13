@@ -32,14 +32,17 @@ precision at scale (designed for up to ~4,000 companies per run).
    ICIO), catching companies whose disclosures are silent about a theme but
    whose economic position says otherwise. Purely quantitative, zero LLM
    calls in the computation itself.
+5. **Engagement & Voting (stewardship module)** — company engagement
+   tracking (issue milestones, an escalation ladder, contacts, commitments)
+   and proxy voting (proposal extraction from proxy statements, policy-rule
+   + LLM-judgment vote recommendations, and ballot casting), sharing one
+   file-based engagement record store and gated by human checkpoints at
+   every send/decide/vote point. Backend + CLI + API only, no frontend UI
+   yet. See [`docs/ENGAGEMENT_VOTING_ARCHITECTURE.md`](docs/ENGAGEMENT_VOTING_ARCHITECTURE.md)
+   for the full design and an implementation file index.
 
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches.
-
-**Roadmap:** [`docs/ENGAGEMENT_VOTING_ARCHITECTURE.md`](docs/ENGAGEMENT_VOTING_ARCHITECTURE.md)
-specs out a stewardship module (company engagement tracking + proxy
-proposal analysis and voting) that extends this pipeline's ingestion,
-extraction, and orchestration layers. Design only — not yet implemented.
 
 ## Architecture
 
@@ -52,6 +55,10 @@ frontend/  React + TypeScript (Vite) — theme/schema authoring, taxonomy
 data/documents/   local document store (manual uploads + discovery downloads)
 runs/             file-based run state: manifest, results, errors,
                    review queue — no database
+engagements/      per-company engagement record store: current state
+                   (record.json) + an append-only audit log (events.jsonl)
+ballots/           voting-instruction files written by the (stub) manual
+                   ballot-casting platform, one per cast vote
 ```
 
 Every run type (`theme`, `extraction`, `discovery`) is checkpointed and
@@ -140,6 +147,20 @@ arp discover schedule --universe companies.csv --interval-hours 24 --enable
 # Inspect runs
 arp runs list
 arp runs show <run_id>
+
+# Engagement (stewardship): open an issue, run triggers, draft a dossier, escalate
+arp engagement issue-open AAPL "Apple Inc." --theme executive_compensation --severity high
+arp engagement trigger-scan --universe companies.csv --signals controversy_signals.json
+arp engagement dossier-draft AAPL <issue_id> --universe companies.csv --out dossier.json
+arp engagement issue-escalate AAPL <issue_id> --stage joint_engagement --by "jane.pm"
+arp engagement record-show AAPL
+arp engagement report --period-label "2026-Q3"
+
+# Proxy voting: analyze a universe's ballots, review every item, then cast
+arp voting run --universe companies.csv
+arp voting ballots <run_id>
+arp voting review <run_id> "AAPL:3" --decision approve --by "jane.pm"
+arp voting cast <run_id>
 ```
 
 `companies.csv` columns: `company_id, name, ticker, website, cik, country,
