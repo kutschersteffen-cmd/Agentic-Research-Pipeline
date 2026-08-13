@@ -36,6 +36,11 @@ precision at scale (designed for up to ~4,000 companies per run).
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches.
 
+**Roadmap:** [`docs/ENGAGEMENT_VOTING_ARCHITECTURE.md`](docs/ENGAGEMENT_VOTING_ARCHITECTURE.md)
+specs out a stewardship module (company engagement tracking + proxy
+proposal analysis and voting) that extends this pipeline's ingestion,
+extraction, and orchestration layers. Design only — not yet implemented.
+
 ## Architecture
 
 ```
