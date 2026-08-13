@@ -7,6 +7,23 @@ and analytics layer, plus a dedicated **climate analytics** section, that
 sits on top of the company-level research those two pillars already
 produce.
 
+**Scope decisions (2026-08-13)**, superseding the open questions this
+document originally posed — see §10 for the remaining ones:
+
+1. Holdings are pulled via a **custodian/PMS API integration**, not just
+   file upload — in scope from v1.
+2. FX conversion is **supplied per position** by the feed, not looked up
+   separately from a reference table.
+3. **No look-through** for fund/ETF positions — a fund is one opaque
+   position for now.
+4. Climate/ESG data comes from an **internal structured API** as the
+   primary source, **cross-validated against LLM analysis of company
+   reports** (the existing Extraction Engine), plus a **news data feed**
+   for company-specific news (controversy/risk-event monitoring).
+5. **EUR is the only reporting currency.** In addition, portfolios,
+   holdings, and their ESG data must be **tracked over time** (historical
+   snapshots + metric trends), not just as a current-state snapshot.
+
 ## 1. Why this is a new pillar, not a new page
 
 Everything built so far answers *company-level* questions: "is BMW exposed
@@ -44,23 +61,57 @@ class SecurityRef(BaseModel):
     company_id: str | None = None  # resolved issuer -> joins to CompanyRef
 
 class Holding(BaseModel):
-    """One position: one security, in one portfolio, as of one date."""
+    """One position: one security, in one portfolio, as of one date. A
+    Holding is never mutated in place -- see the snapshot model below."""
     portfolio_id: str
     security_id: str
-    as_of_date: str              # ISO date
+    as_of_date: str              # ISO date -- the snapshot this row belongs to
     quantity: float
     price: float
     market_value: float          # in the security's native currency
-    market_value_base_ccy: float # normalized to the portfolio's reporting currency
+    fx_rate_to_eur: float        # as supplied by the custodian feed for this as_of_date
+    market_value_eur: float      # = market_value * fx_rate_to_eur; the only cross-portfolio unit
     weight_pct: float | None = None  # of portfolio NAV, if supplied/derivable
 
 class Portfolio(BaseModel):
     portfolio_id: str
     name: str
-    base_currency: str
-    nav: float | None = None
     tags: list[str] = Field(default_factory=list)  # e.g. "mandate:equity", "client:X"
 ```
+
+Reporting is EUR-only end to end (decision 5), so `market_value_eur` — not
+a per-portfolio base currency — is the one figure every aggregation in §3
+sums or weights by; `Portfolio.base_currency`/`nav` from the earlier draft
+are dropped as unnecessary since nothing downstream needs a currency other
+than EUR.
+
+**Time series, not a snapshot.** Decision 5 also requires tracking
+portfolios/holdings/ESG data *over time*, so storage is append-only by
+design rather than overwrite-in-place — the same principle
+`RunManifest`/`results.jsonl` already use for run history:
+
+```
+portfolios/
+  <portfolio_id>/
+    snapshots/<as_of_date>.jsonl   # one immutable Holding[] snapshot per custodian pull
+  registry.json                     # Portfolio metadata, one row per portfolio_id
+```
+
+Every data point resolved for a company (§4) is likewise stamped with an
+`observed_at`/`as_of` and appended to a per-`(company_id, field_id)` series
+rather than overwritten, so "how has BMW's disclosed carbon intensity
+moved over the last 4 quarters" and "how has our WACI moved over the last
+12 months" (§6) are both just a time-range query against existing rows —
+see §3's `as_of`/`date_range` aggregation parameter below.
+
+Ingestion is connector-based, mirroring the existing
+`DocumentSource`/`DocumentSourceRegistry` pattern
+(`backend/arp/ingestion/base.py`, `registry.py`) rather than a single file
+format: a `PortfolioSource` ABC with one `fetch(as_of_date) -> list[Holding]`
+method, implemented first by a custodian/PMS API connector (decision 1) and
+a CSV/XLSX fallback for manual overrides/backfills, both landing in the
+same append-only snapshot store above so the rest of the system can't tell
+which produced a given snapshot.
 
 `SecurityRef.company_id` is the join key into everything the pipeline
 already computes — `CompanyRef`, `ExtractionRecord`, `RevenueExposureResult`,
@@ -70,12 +121,6 @@ LLM-assisted fuzzy-matched with mandatory human confirmation for anything
 below a confidence threshold — same review-queue pattern as everything
 else in this codebase, never a silent auto-match) because a wrong issuer
 match silently corrupts every euro figure downstream of it.
-
-Ingestion (`backend/arp/portfolio/ingestion.py`) accepts CSV/XLSX holdings
-exports (the common custodian/PMS export shape: portfolio, ISIN/ticker,
-quantity, price, market value, currency, as-of date) the same way
-`universe.py` accepts a company CSV today — one loader function, used
-identically by API, CLI, and any scheduled refresh.
 
 ## 3. Aggregation engine (new, deterministic — no LLM in the numbers)
 
@@ -96,27 +141,35 @@ holding+security+company row:
 - `company_id` / issuer name ("BMW exposure across all portfolios")
 - GICS sector/industry (via `standards_mapping`)
 - country/domicile
-- currency
+- security native currency (informational only — everything sums in EUR)
 - any ratified `Taxonomy` (thematic exposure, reusing
   `RevenueExposureResult`/match verdicts already computed for that issuer)
 - any custom tag the user attaches to a portfolio or security
+
+Every query also takes an `as_of` (single snapshot date, default latest) or
+`date_range` (a **trend** mode, returning one grouped result per snapshot
+date instead of one) — the mechanism decision 5's time-tracking
+requirement needs, and otherwise the same code path.
 
 Two aggregation modes, matching how these numbers are actually used:
 1. **Sum of market value** grouped by dimension (a plain exposure figure —
    "EUR 4.2m in BMW equity, across 3 portfolios").
 2. **Value-weighted average of a data point** grouped by dimension (e.g.
    weighted-average carbon intensity, weighted-average thematic exposure %)
-   — `Σ(holding.market_value_base_ccy × datapoint.value) / Σ(holding.market_value_base_ccy)`,
+   — `Σ(holding.market_value_eur × datapoint.value) / Σ(holding.market_value_eur)`,
    with holdings missing the data point either excluded and the coverage
    % reported (never silently treated as zero) — same "don't fabricate an
    absence into a number" principle as `grounding.py`'s citation checks.
+   When run in trend mode, this also picks the data-point observation
+   whose `as_of` most closely precedes each snapshot date, so a WACI trend
+   line reflects "the best information known as of that date," not a
+   look-ahead from a later restatement.
 
 This engine is what answers "how many million euro is the exposure to
 stocks from BMW": filter holdings to `asset_class == equity` and
-`company_id == <BMW>`, sum `market_value_base_ccy` across all portfolios,
-convert to EUR via the FX rates supplied with the ingestion batch. No LLM
-call is needed for that question at all — which matters for the next
-section.
+`company_id == <BMW>`, sum `market_value_eur` across all portfolios at the
+latest snapshot date. No LLM call is needed for that question at all —
+which matters for the next section.
 
 ## 4. Data-point mapping ("select from a defined list, map to holdings")
 
@@ -171,7 +224,8 @@ class AnalyticSpec(BaseModel):
     group_by: str                                                # dimension name
     metric: Literal["market_value_sum", "weighted_avg_datapoint", "count"]
     data_point_field_id: str | None = None
-    currency: str = "EUR"
+    as_of: str | None = None          # single snapshot date; None = latest
+    date_range: tuple[str, str] | None = None  # trend mode over §3's date_range
 ```
 
 **5b. Natural-language Q&A agent** (`backend/arp/portfolio/qa_agent.py`).
@@ -181,9 +235,9 @@ stocks from BMW?"*: the LLM's only job is to parse the question into an
 `llm/base.py`'s `complete_structured`), the deterministic engine executes
 it and returns the real number, and the LLM's final answer is templated
 from that real, computed result plus the spec that produced it (so the
-answer is always inspectable: "this is `Σ market_value_base_ccy` for
-`company_id=BMW, asset_class=equity` across 3 portfolios, converted at the
-FX rate as of 2026-08-13"). This mirrors the grounding discipline already
+answer is always inspectable: "this is `Σ market_value_eur` for
+`company_id=BMW, asset_class=equity` across 3 portfolios, as of the
+2026-08-13 snapshot"). This mirrors the grounding discipline already
 used everywhere else in the codebase (citations checked programmatically,
 never trusted from the LLM's own claim) — here the "citation" is the
 underlying holdings query, and it's always shown, not just claimed.
@@ -204,21 +258,78 @@ same way any `DataPointSchema` is):
   machinery needed)
 - EU Taxonomy alignment %, if disclosed
 - Physical/transition risk flags, if disclosed
+- Controversy/climate-risk-event flag (derived from the news feed, §6b)
 
-Portfolio-level climate metrics, computed by `backend/arp/portfolio/climate/metrics.py`
-on top of the §3 aggregation engine (financed-emissions math per the
+### 6a. Sourcing and validation (decision 4)
+
+The **internal structured ESG/emissions API** is the primary source for
+every climate data point above — a new `PortfolioDataSource` in
+`backend/arp/portfolio/climate/esg_api_source.py`, same `source="internal_api"`
+tier as `CatalogueDataPoint` in the §4 mapping cascade, so it slots in
+ahead of extraction with zero new plumbing in the cascade itself.
+
+What *is* new is **validation**: since the requirement is to check the
+internal API's figures against company disclosures, not just trust them,
+every internal-API value for a company also gets an independent
+Extractor→Verifier pass against that company's actual reports (reusing the
+Extraction Engine exactly as it runs today, just with a field built from
+the climate schema — same precedent `revenue_exposure/resolver.py`'s
+`resolve_from_extraction` already sets for building an ad hoc field on the
+fly). The two values are compared with a configurable tolerance:
+
+- **Match** → high-confidence, both values recorded, internal-API value
+  used for computation.
+- **Mismatch** → internal-API value is still used for computation (it's
+  the operational source of truth), but the record is stamped
+  `conflicting_sources=True` (the field already exists on `ExtractedField`
+  in `schemas/datapoints.py`) and routed to the review queue, with both
+  values and the extracted citation shown side by side — never silently
+  reconciled.
+- **API has no value, report does** → extracted value used, tagged as
+  such (source="extracted", not "internal_api"), so coverage reporting
+  distinguishes "no data anywhere" from "only found in disclosures."
+
+This validation pass runs as a background batch job (checkpointed/resumable,
+same `RunManifest` pattern as every other run type), not synchronously per
+query, since it's an LLM-cost operation and the aggregation engine (§3)
+must stay zero-LLM and fast.
+
+### 6b. News-derived risk signals (decision 4)
+
+A new connector type, `NewsSource` (`backend/arp/portfolio/news/source.py`),
+mirrors `DocumentSource`/`DocumentSourceRegistry` exactly (`fetch(company,
+since) -> list[NewsItem]`) rather than inventing a new ingestion shape.
+Company-specific articles are resolved to `company_id` the same way
+securities are (§2), then an LLM classification pass (Advocate/Adjudicator
+is overkill here; a single schema-constrained classification call per
+article, same shape as `taxonomy_sources/empirical.py`'s field-on-the-fly
+pattern) tags each article for climate/controversy relevance and severity.
+Every resulting risk flag carries a **grounded citation to the source
+article** (headline + verbatim excerpt, checked by the same programmatic
+grounding checker as every other citation in this codebase —
+`grounding.py`) so a flag is always traceable to real text, never an
+LLM paraphrase presented as fact. Flags feed the controversy data point in
+§6, and (§3's trend mode) a time series of flag counts/severity per issuer
+or portfolio.
+
+### 6c. Portfolio-level climate metrics
+
+Computed by `backend/arp/portfolio/climate/metrics.py` on top of the §3
+aggregation engine (financed-emissions math per the
 [PCAF](https://carbonaccountingfinancials.com/) standard, since that's the
 accepted methodology and shouldn't be reinvented):
 
 - **WACI** (weighted-average carbon intensity): the weighted-average
-  aggregation mode from §3, applied to the carbon-intensity data point.
-- **Financed emissions**: `Σ (holding.market_value / company.EVIC) × company.scope_1_2_emissions`,
+  aggregation mode from §3, applied to the carbon-intensity data point —
+  and, via `date_range`, a WACI trend line over time.
+- **Financed emissions**: `Σ (holding.market_value_eur / company.EVIC) × company.scope_1_2_emissions`,
   attribution factor per PCAF; `EVIC` (enterprise value incl. cash) is
-  itself an extractable/user-suppliable data point.
+  itself a data point sourced via the same §6a cascade.
 - **Data coverage %**: always reported alongside every climate number —
-  what fraction of portfolio market value has a disclosed emissions figure
-  vs. estimated vs. missing — because a climate number with silent 40%
-  coverage is actively misleading.
+  what fraction of portfolio market value has a value from the internal
+  API, from extraction only, from the structural proxy, or is missing
+  entirely — because a climate number with silent 40% coverage is actively
+  misleading.
 - **Estimated (proxy) emissions for non-disclosing issuers**: an *opt-in*,
   clearly-flagged tier reusing the existing indirect-exposure I-O
   machinery (`indirect_exposure/leontief.py` already carries sector-level
@@ -228,39 +339,53 @@ accepted methodology and shouldn't be reinvented):
   number without a visible "estimated" tag.
 
 This becomes its own frontend tab ("Climate Analytics") with a portfolio
-picker, WACI/financed-emissions summary tiles, coverage breakdown, and
-drill-down to the same Analytics Builder from §5 pre-filtered to climate
-data points — it's a skinned, pre-configured application of the general
-engine, not a parallel implementation.
+picker, WACI/financed-emissions summary tiles with trend charts, a
+coverage breakdown (internal API / extracted / estimated / missing), a
+controversy/news feed panel per issuer, and drill-down to the same
+Analytics Builder from §5 pre-filtered to climate data points — it's a
+skinned, pre-configured application of the general engine, not a parallel
+implementation.
 
 ## 7. Backend layout (new)
 
 ```
 backend/arp/portfolio/
   __init__.py
-  ingestion.py          # holdings CSV/XLSX loader (parallels universe.py)
+  sources/
+    base.py               # PortfolioSource ABC: fetch(as_of_date) -> list[Holding]
+    custodian_api.py       # primary connector (decision 1)
+    file_import.py          # CSV/XLSX fallback for manual overrides/backfills
+    registry.py               # fan-out + snapshot de-dup, mirrors ingestion/registry.py
   entity_resolution.py  # ISIN/ticker -> company_id crosswalk + review queue
-  aggregation.py         # dimensions, grouping, weighted-avg engine (no LLM)
-  datapoint_mapping.py   # per-issuer data point resolution cascade
+  aggregation.py         # dimensions, grouping, weighted-avg, as_of/date_range engine (no LLM)
+  datapoint_mapping.py   # per-issuer data point resolution cascade + history series
   analytics.py            # AnalyticSpec store/executor
   qa_agent.py              # NL question -> AnalyticSpec -> executed answer
+  news/
+    source.py                # NewsSource ABC + connector, mirrors ingestion/base.py
+    classifier.py             # per-article climate/controversy relevance + grounding
   climate/
     __init__.py
     schemas.py            # built-in climate DataPointSchemas
-    metrics.py             # WACI, financed emissions, coverage
+    esg_api_source.py       # internal structured ESG/emissions API connector
+    validation.py             # internal-API vs extracted-from-reports cross-check
+    metrics.py             # WACI, financed emissions, coverage (incl. trend mode)
 backend/arp/schemas/portfolio.py   # Portfolio, Holding, SecurityRef, AnalyticSpec
-backend/arp/api/routers/portfolio.py   # holdings upload, aggregation, analytics, Q&A
-backend/arp/api/routers/climate.py     # climate-specific endpoints
+backend/arp/api/routers/portfolio.py   # holdings sync, aggregation, analytics, Q&A
+backend/arp/api/routers/climate.py     # climate-specific endpoints, news feed
 backend/tests/test_portfolio_*.py
-portfolios/               # file-based storage: holdings snapshots, saved analytics
-                           # (same pattern as taxonomies/, runs/ — no DB)
+portfolios/
+  <portfolio_id>/snapshots/<as_of_date>.jsonl   # append-only holdings snapshots
+  registry.json                                   # Portfolio metadata
+  # (same file-based, no-DB pattern as taxonomies/, runs/)
 ```
 
 CLI additions (`arp portfolio ...`, `arp climate ...`), mirroring the
 existing `arp theme ...` / `arp taxonomy ...` command families, since the
-CLI is the documented path for unattended/batch operation (e.g. a nightly
-holdings refresh feeding the discovery scheduler's pattern in
-`discovery/scheduler.py`).
+CLI is the documented path for unattended/batch operation — in particular
+a scheduled custodian-API pull that appends a new dated snapshot, the same
+recurring-job shape `discovery/scheduler.py` already implements for
+document discovery.
 
 Frontend additions: two new tabs in `frontend/src/App.tsx` ("Portfolio
 Risk", "Climate Analytics"), new pages `PortfolioHoldings.tsx`,
@@ -278,10 +403,13 @@ coverage/confidence display).
 | Green revenue/capex | `revenue_exposure/` as-is (green = a taxonomy) | — |
 | Structural/estimated exposure for non-disclosers | `indirect_exposure/leontief.py` as-is | climate-specific sector intensity dataset |
 | LLM client, caching, retries, structured output | `llm/` as-is | — |
-| Review queue for low-confidence matches | `orchestration/review_queue.py` as-is | entity-resolution matches routed into it |
-| File-based, resumable, checkpointed runs | `storage/run_store.py` pattern | `portfolios/` store, same shape |
-| Holdings, positions, portfolios, FX | — | new schemas + ingestion (§2) |
-| Deterministic aggregation/weighting engine | — | new, zero-LLM (§3) |
+| Review queue for low-confidence matches | `orchestration/review_queue.py` as-is | entity-resolution + API/report mismatches routed into it |
+| Connector fan-out (multi-source, per-item, one failure doesn't block others) | `ingestion/base.py` + `registry.py` pattern | `PortfolioSource`/`NewsSource` connectors (§2, §6b) |
+| Extractor → Verifier → grounding check for a field | `extraction/` pipeline as-is | applied to climate fields + news articles (§6a, §6b) |
+| `conflicting_sources` flag on a resolved field | `schemas/datapoints.py::ExtractedField` as-is | populated by internal-API-vs-extraction cross-check (§6a) |
+| File-based, resumable, checkpointed runs | `storage/run_store.py` pattern | `portfolios/` snapshot store, append-only (§2) |
+| Holdings, positions, portfolios, custodian/news connectors | — | new schemas + connectors (§2, §6a, §6b) |
+| Deterministic aggregation/weighting engine incl. time-range trend mode | — | new, zero-LLM (§3) |
 | NL question → query → grounded answer | pattern precedent only | new `qa_agent.py` (§5b) |
 | PCAF financed-emissions math | — | new `climate/metrics.py` |
 
@@ -299,42 +427,61 @@ coverage/confidence display).
 - Estimated/proxy climate figures (from the indirect-exposure sector
   proxy) are visibly tagged as estimated and never combined into the same
   number as disclosed figures without the split being shown.
+- Internal-API climate figures that disagree with what the Extraction
+  Engine independently reads out of the company's own reports are flagged
+  (`conflicting_sources=True`) and routed to review, not silently
+  reconciled in either direction (§6a).
+- News-derived risk/controversy flags always carry a grounded, checkable
+  citation to the source article — an LLM summary is never presented as a
+  fact without the excerpt it came from (§6b).
+- Historical snapshots and data-point observations are append-only; a
+  later correction adds a new observation rather than rewriting history,
+  so a trend chart reflects what was actually known at each point in time.
 - Saved `AnalyticSpec`s are versioned and inspectable, same as the
   taxonomy library, so a recurring report's definition can't silently
   drift.
 
-## 10. Open questions (need your decision before implementation)
+## 10. Remaining open questions
 
-1. **Holdings source**: manual CSV/XLSX upload only for v1, or does a
-   custodian/PMS API integration need to be in scope from the start?
-2. **FX rates**: supplied in the holdings file per position, or a separate
-   FX-rate reference input keyed by date/currency pair?
-3. **Look-through for funds/ETFs held as positions**: v1 treats a fund
-   holding as one opaque position (asset_class="fund"), or do you need
-   look-through into the fund's own constituents (reusing the
-   `taxonomy_sources/etf_holdings.py` parser that already exists for a
-   related purpose)?
-4. **Climate emissions data**: rely entirely on disclosure-based extraction
-   (10-K/sustainability report via the existing Extraction Engine) plus the
-   opt-in structural proxy, or is a licensed third-party emissions dataset
-   (e.g. CDP, MSCI, Trucost) going to be plugged in as another catalogue
-   source (same shape as `CatalogueDataPoint`)?
-5. **Multi-currency base reporting**: single reporting currency (EUR) for
-   v1, or per-portfolio base currency with a consolidated EUR roll-up?
+The five original questions are resolved (see the decisions block at the
+top). What's still needed before implementation can start on the
+API-dependent pieces:
+
+1. **Custodian/PMS API**: which system, what's the auth mechanism
+   (API key, OAuth, mTLS), what's the response schema, and what's the
+   intended pull frequency (daily/real-time)?
+2. **Internal ESG/emissions API**: endpoint, auth, response schema, and
+   which of the climate fields in §6 it actually covers today vs. what
+   still has to fall back to extraction.
+3. **News feed**: which vendor/API, how articles are already tagged to a
+   company (ticker/ISIN/name — determines how much entity-resolution work
+   `news/source.py` needs to do), and expected volume (affects the
+   classification pass's batching/cost).
+4. **Snapshot retention/backfill**: how far back does historical tracking
+   need to go at launch — start the time series from day one only, or
+   backfill from an existing data source?
+5. **Validation tolerance**: what threshold between the internal API's
+   figure and the extracted figure should count as a "mismatch" worth
+   flagging (§6a), and does that threshold vary by metric (e.g. tighter
+   for Scope 1/2 than Scope 3, which is inherently estimated upstream)?
 
 ## 11. Phased roadmap
 
-- **Phase 0 — Foundations**: `schemas/portfolio.py`, holdings
-  ingestion, entity resolution + review queue, `portfolios/` file store.
+- **Phase 0 — Foundations**: `schemas/portfolio.py`, `PortfolioSource`
+  connector interface + custodian API implementation, entity resolution +
+  review queue, append-only `portfolios/` snapshot store.
 - **Phase 1 — Aggregation & direct answers**: deterministic aggregation
-  engine (§3), built-in dimensions, API + CLI for grouped market-value
-  queries. This alone answers "how many EUR million exposure to BMW."
+  engine (§3) incl. `as_of`/`date_range`, built-in dimensions, API + CLI
+  for grouped market-value queries. This alone answers "how many EUR
+  million exposure to BMW," at the latest snapshot or any past one.
 - **Phase 2 — Data-point mapping & Analytics Builder**: datapoint mapping
   cascade (§4), `AnalyticSpec` + saved analytics, Analytics Builder UI.
 - **Phase 3 — NL Q&A agent**: `qa_agent.py`, question → spec → grounded
   answer, chat-style UI panel.
-- **Phase 4 — Climate Analytics**: built-in climate schemas, WACI/financed
-  emissions engine, coverage reporting, dedicated dashboard tab.
+- **Phase 4 — Climate Analytics**: built-in climate schemas, internal ESG
+  API connector + report-validation cross-check (§6a), news feed connector
+  + classifier (§6b), WACI/financed-emissions engine with trend charts,
+  coverage reporting, dedicated dashboard tab.
 - **Phase 5 — Estimated/proxy tier & scenario analysis**: opt-in
   structural climate proxy, what-if reweighting ("if we exit BMW, how does
   portfolio WACI change" — a pure re-run of §3's engine on a hypothetical
