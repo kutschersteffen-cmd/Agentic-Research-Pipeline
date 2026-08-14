@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from arp.config import Settings
-from arp.llm.anthropic_client import AnthropicLLMClient
 from arp.llm.base import LLMClient
+from arp.llm.langchain_client import LangChainAnthropicClient
 
 
 def build_llm_client(settings: Settings) -> LLMClient:
@@ -11,7 +11,7 @@ def build_llm_client(settings: Settings) -> LLMClient:
             "ARP_ANTHROPIC_API_KEY is not set. Provide an Anthropic API key via environment variable "
             "or a .env file before running any agent pipeline."
         )
-    return AnthropicLLMClient(
+    return LangChainAnthropicClient(
         api_key=settings.anthropic_api_key,
         model=settings.llm_model,
         cache_dir=settings.cache_dir,

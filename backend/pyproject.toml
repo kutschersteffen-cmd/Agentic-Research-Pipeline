@@ -5,6 +5,11 @@ description = "Agentic Research Pipeline: thematic investment universe screening
 requires-python = ">=3.11"
 dependencies = [
     "anthropic>=0.40.0",
+    "langchain-core>=0.3",
+    "langchain-anthropic>=0.3",
+    "langgraph>=0.2",
+    "llama-index-core>=0.12",
+    "llama-index-retrievers-bm25>=0.5",
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
     "fastapi>=0.111",

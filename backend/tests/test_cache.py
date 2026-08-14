@@ -16,6 +16,13 @@ def test_cache_key_changes_with_any_input(tmp_path):
     assert k1 != k2
 
 
+def test_cache_key_changes_with_temperature(tmp_path):
+    cache = DiskLLMCache(tmp_path)
+    k1 = cache.make_key(model="m", system="s", prompt="p", schema_name="S", schema_json={"a": 1}, temperature=0.0)
+    k2 = cache.make_key(model="m", system="s", prompt="p", schema_name="S", schema_json={"a": 1}, temperature=0.5)
+    assert k1 != k2
+
+
 def test_disabled_cache_never_persists(tmp_path):
     cache = DiskLLMCache(tmp_path, enabled=False)
     key = cache.make_key(model="m", system="s", prompt="p", schema_name="S", schema_json={})

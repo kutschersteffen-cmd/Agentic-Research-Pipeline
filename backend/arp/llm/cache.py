@@ -22,9 +22,18 @@ class DiskLLMCache:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
-    def make_key(*, model: str, system: str, prompt: str, schema_name: str, schema_json: dict) -> str:
+    def make_key(
+        *, model: str, system: str, prompt: str, schema_name: str, schema_json: dict, temperature: float = 0.0
+    ) -> str:
         payload = json.dumps(
-            {"model": model, "system": system, "prompt": prompt, "schema": schema_name, "schema_json": schema_json},
+            {
+                "model": model,
+                "system": system,
+                "prompt": prompt,
+                "schema": schema_name,
+                "schema_json": schema_json,
+                "temperature": temperature,
+            },
             sort_keys=True,
         )
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
