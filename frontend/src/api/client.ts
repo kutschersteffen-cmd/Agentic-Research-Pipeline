@@ -1,6 +1,36 @@
 import type { CompanyBallot, ResearchDossier, StewardshipReport, TriggerEvent, VoteRecord, VoteReviewDecision } from "../types";
+import type {
+  AggregationResult,
+  AnalyticRequest,
+  CoverageBySource,
+  DataPointSchema,
+  DemoSeedSummary,
+  FinancedEmissionsResult,
+  NewsItem,
+  NewsRiskFlag,
+  PivotRequest,
+  PivotResult,
+  PortfolioSummary,
+  QAAnswer,
+  SecurityResolution,
+  TrendPoint,
+} from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
+
+function buildQuery(params: Record<string, string | string[] | undefined | null>): string {
+  const usp = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === "") continue;
+    if (Array.isArray(value)) {
+      for (const v of value) usp.append(key, v);
+    } else {
+      usp.append(key, value);
+    }
+  }
+  const qs = usp.toString();
+  return qs ? `?${qs}` : "";
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
@@ -240,4 +270,29 @@ export const api = {
   ) => request(`/api/voting/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
   castVotes: (runId: string) => request<{ cast_count: number; votes: VoteRecord[] }>(`/api/voting/runs/${runId}/cast`, { method: "POST" }),
   getCastVotes: (runId: string) => request<{ votes: VoteRecord[] }>(`/api/voting/runs/${runId}/cast`),
+  // Portfolio risk & exposure monitoring
+  seedPortfolioDemo: () => request<DemoSeedSummary>("/api/portfolio/demo/seed", { method: "POST" }),
+  listPortfolios: () => request<PortfolioSummary[]>("/api/portfolio/portfolios"),
+  listSecuritiesNeedingReview: () => request<SecurityResolution[]>("/api/portfolio/securities-needing-review"),
+  runPortfolioAggregate: (body: AnalyticRequest) =>
+    request<AggregationResult | TrendPoint[]>("/api/portfolio/aggregate", { method: "POST", body: JSON.stringify(body) }),
+  runPortfolioPivot: (body: PivotRequest) => request<PivotResult>("/api/portfolio/pivot", { method: "POST", body: JSON.stringify(body) }),
+  askPortfolio: (question: string) => request<QAAnswer>("/api/portfolio/ask", { method: "POST", body: JSON.stringify({ question }) }),
+  listPortfolioNews: (companyId?: string) => request<NewsItem[]>(`/api/portfolio/news${buildQuery({ company_id: companyId })}`),
+  classifyPortfolioNews: () =>
+    request<{ classified: number; flags_created: number }>("/api/portfolio/news/classify", { method: "POST" }),
+  listNewsFlags: (companyId?: string) => request<NewsRiskFlag[]>(`/api/portfolio/news/flags${buildQuery({ company_id: companyId })}`),
+
+  // Climate analytics
+  getClimateSchema: () => request<DataPointSchema>("/api/climate/schema"),
+  getWaci: (params: { as_of?: string; group_by?: string; portfolio_id?: string[] }) =>
+    request<AggregationResult>(`/api/climate/waci${buildQuery(params)}`),
+  getWaciTrend: (params: { group_by?: string; portfolio_id?: string[] }) =>
+    request<TrendPoint[]>(`/api/climate/waci/trend${buildQuery(params)}`),
+  getFinancedEmissions: (params: { as_of?: string; portfolio_id?: string[] }) =>
+    request<FinancedEmissionsResult>(`/api/climate/financed-emissions${buildQuery(params)}`),
+  getClimateCoverage: (fieldId: string, asOf?: string) =>
+    request<CoverageBySource>(`/api/climate/coverage/${fieldId}${buildQuery({ as_of: asOf })}`),
+  getClimatePivot: (fieldId: string, params: { row_dim?: string; col_dim?: string; as_of?: string; portfolio_id?: string[] }) =>
+    request<PivotResult>(`/api/climate/pivot/${fieldId}${buildQuery(params)}`),
 };

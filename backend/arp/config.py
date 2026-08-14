@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     # Paths (all file-based storage lives under these)
     runs_dir: Path = Field(default=REPO_ROOT / "runs")
     taxonomies_dir: Path = Field(default=REPO_ROOT / "taxonomies")
+    portfolios_dir: Path = Field(default=REPO_ROOT / "portfolios")
     documents_dir: Path = Field(default=REPO_ROOT / "data" / "documents")
     cache_dir: Path = Field(default=REPO_ROOT / "backend" / ".cache")
     discovery_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".discovery_state")
@@ -91,10 +92,19 @@ class Settings(BaseSettings):
     discovery_schedule_interval_hours: float = Field(default=24.0)
     discovery_schedule_universe_path: Path | None = Field(default=None)
 
+    # Portfolio risk & exposure monitoring
+    portfolio_confidence_review_threshold: float = Field(
+        default=0.6, description="Security-to-issuer entity resolution matches below this confidence are routed to review."
+    )
+    climate_validation_tolerance_pct: float = Field(
+        default=0.15, description="Disagreement between the internal ESG API and extracted-from-disclosures values beyond this share is flagged conflicting_sources."
+    )
+
     def ensure_dirs(self) -> None:
         for d in (
             self.runs_dir,
             self.taxonomies_dir,
+            self.portfolios_dir,
             self.documents_dir,
             self.cache_dir,
             self.discovery_state_dir,

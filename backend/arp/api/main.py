@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from arp.api.deps import get_scheduler, settings_dep
-from arp.api.routers import discovery, documents, engagement, extraction, financials, overlap, revenue_catalogue, runs, taxonomies, themes, universe, voting
+from arp.api.routers import climate, discovery, documents, engagement, extraction, financials, overlap, portfolio, revenue_catalogue, runs, taxonomies, themes, universe, voting
 
 logging.basicConfig(level=logging.INFO)
 
@@ -46,6 +46,8 @@ app.include_router(revenue_catalogue.router)
 app.include_router(engagement.router)
 app.include_router(voting.router)
 app.include_router(financials.router)
+app.include_router(portfolio.router)
+app.include_router(climate.router)
 
 
 @app.exception_handler(RuntimeError)
