@@ -17,20 +17,26 @@ _XLSX_SUFFIXES = {".xlsx", ".xlsm"}
 
 
 def _extract_pdf_text(path: Path) -> tuple[str, list[int]]:
-    from pypdf import PdfReader
+    """Renders each page as markdown (via pymupdf4llm/MuPDF) rather than
+    plain reading-order text -- disclosure PDFs are table-heavy (segment
+    breakdowns, GHG inventories, revenue tables), and MuPDF's table
+    detection turns those into real markdown tables instead of pypdf's
+    row/column-scrambled flat text. Still zero-LLM, deterministic, and
+    fast enough for 4000-company batch runs.
 
-    reader = PdfReader(str(path))
-    if reader.is_encrypted:
-        # Many disclosure PDFs are encrypted only to restrict printing/
-        # copying in the viewer, not to gate reading -- opening with an
-        # empty user password succeeds for those. A real password-protected
-        # file still fails decrypt() and surfaces as a normal parse error.
-        reader.decrypt("")
+    MuPDF auto-tries an empty user password, so an owner-password-only
+    "no printing/copying" disclosure PDF (the common case) reads
+    transparently; a genuinely user-password-locked PDF raises, same as
+    before, and is caught by the caller as a normal per-file parse error.
+    """
+    import pymupdf4llm
+
+    pages = pymupdf4llm.to_markdown(str(path), page_chunks=True)
     parts: list[str] = []
     page_breaks: list[int] = []
     cursor = 0
-    for page in reader.pages:
-        text = page.extract_text() or ""
+    for page in pages:
+        text = page.get("text") or ""
         page_breaks.append(cursor)
         parts.append(text)
         cursor += len(text) + 2  # matches the "\n\n" join below
