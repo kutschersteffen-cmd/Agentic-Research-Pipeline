@@ -92,6 +92,29 @@ portfolios/       portfolio holdings snapshots, security/company registries,
                    and climate data-point observations
 ```
 
+### Agent stack
+
+- **LangChain** (`langchain-anthropic`) is the LLM client (`arp/llm/langchain_client.py`),
+  behind a single narrow interface (`arp/llm/base.py::LLMClient.complete_structured`) every
+  agent in the codebase calls through — schema-forced structured output via tool calling,
+  a bounded self-correction retry loop on validation failure, and a disk-backed response
+  cache (`arp/llm/cache.py`), all provider-agnostic from the pipelines' point of view.
+- **LangGraph** models each pipeline's per-company (or per-company-per-field/activity)
+  multi-step agent flow as an explicit state graph — the Advocate/Opposing/Adjudicator
+  debate (`arp/research/match_graph.py`), the extractor/verifier pair
+  (`arp/extraction/field_graph.py`, `financials_graph.py`), and proposal extraction +
+  policy application (`arp/voting/ballot_graph.py`) — with short-circuit branches (no
+  evidence, a resolved hard exposure number, etc.) as conditional edges. The company-level
+  batch fan-out, checkpointing, and resumability stay outside the graphs, in the existing
+  file-based `run_batch`/`RunStore` layer described above — no database was introduced.
+- **LlamaIndex** backs document chunking (`SentenceSplitter`, wrapped in
+  `arp/ingestion/parsing.py::chunk_document`) and evidence selection
+  (`arp/retrieval/select_evidence.py`, a BM25-ranked retriever) — deterministic and
+  embedding-free, consistent with the zero-LLM-cost-in-retrieval design below.
+- The programmatic citation-grounding check (`arp/grounding.py`) is independent of all
+  three and untouched by them: it re-verifies every citation against the original fetched
+  document text, never against a chunk or an LLM's self-report.
+
 Every run type (`theme`, `extraction`, `discovery`) is checkpointed and
 resumable: results are appended to `runs/<run_id>/results.jsonl` as soon as
 each company finishes, so a batch interrupted partway through picks back up
