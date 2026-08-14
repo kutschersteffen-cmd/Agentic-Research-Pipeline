@@ -21,12 +21,18 @@ export function ReviewControls({
   current,
   reviewer,
   onDone,
+  submitFn = api.submitExtractionReview,
+  historyFn = api.getExtractionReviewHistory,
 }: {
   runId: string;
   itemKey: string;
   current?: ReviewDecision;
   reviewer: string;
   onDone: () => void;
+  /** Defaults to the scalar Data-Point Extraction Engine's endpoints; pass
+   * the segments/spend equivalents when reusing this component elsewhere. */
+  submitFn?: (runId: string, body: unknown) => Promise<unknown>;
+  historyFn?: (runId: string, itemKey: string) => Promise<unknown>;
 }) {
   const [busy, setBusy] = useState(false);
   const [comment, setComment] = useState("");
@@ -39,7 +45,7 @@ export function ReviewControls({
     setBusy(true);
     setError(null);
     try {
-      await api.submitExtractionReview(runId, {
+      await submitFn(runId, {
         item_key: itemKey,
         decision,
         reviewer: reviewer || null,
@@ -63,7 +69,7 @@ export function ReviewControls({
       setHistory(null); // toggle closed
       return;
     }
-    const res = (await api.getExtractionReviewHistory(runId, itemKey)) as { history: ReviewDecision[] };
+    const res = (await historyFn(runId, itemKey)) as { history: ReviewDecision[] };
     setHistory(res.history);
   }
 

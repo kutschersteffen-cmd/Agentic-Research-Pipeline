@@ -27,6 +27,7 @@ export function RunHistory() {
           <option value="">All</option>
           <option value="theme">Thematic universe</option>
           <option value="extraction">Extraction</option>
+          <option value="financials">Company financials</option>
           <option value="discovery">Discovery</option>
         </select>
         <button onClick={load}>Refresh</button>

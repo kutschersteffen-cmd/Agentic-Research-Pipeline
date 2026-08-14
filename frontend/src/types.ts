@@ -203,6 +203,76 @@ export interface ExtractionRecord {
   generated_at: string;
 }
 
+// --- Company Financials: business segments + CapEx + R&D, extracted
+// together in a single combined pass per company (they're almost always
+// wanted together, so this avoids re-fetching/re-extracting per topic) ---
+
+export interface SegmentMetric {
+  value?: number | null;
+  raw_value_text?: string | null;
+  citations: Citation[];
+  grounded: boolean;
+}
+
+export interface BusinessSegment {
+  name: string;
+  description?: string | null;
+  description_citations: Citation[];
+  revenue: SegmentMetric;
+  income: SegmentMetric;
+  assets: SegmentMetric;
+  currency?: string | null;
+  fiscal_period?: string | null;
+  confidence: number;
+  grounded: boolean;
+  verifier_notes?: string | null;
+  conflicting_sources: boolean;
+}
+
+export interface AmountMetric {
+  value?: number | null;
+  raw_value_text?: string | null;
+  citations: Citation[];
+  grounded: boolean;
+}
+
+export interface SpendCategory {
+  name: string;
+  description?: string | null;
+  description_citations: Citation[];
+  amount: AmountMetric;
+  confidence: number;
+  grounded: boolean;
+  conflicting_sources: boolean;
+}
+
+export interface SpendSummary {
+  total: AmountMetric;
+  description?: string | null;
+  description_citations: Citation[];
+  categories: SpendCategory[];
+  confidence: number;
+  grounded: boolean;
+  verifier_notes?: string | null;
+  conflicting_sources: boolean;
+}
+
+export interface CompanyFinancialsRecord {
+  company_id: string;
+  ticker?: string | null;
+  name: string;
+  run_id: string;
+  currency?: string | null;
+  fiscal_period?: string | null;
+  segments: BusinessSegment[];
+  segments_verifier_notes?: string | null;
+  capex: SpendSummary;
+  rnd: SpendSummary;
+  overall_confidence: number;
+  needs_review: boolean;
+  generated_at: string;
+}
+
 // --- Review decisions (per-item audit trail; item_key granularity is
 // caller-defined, e.g. "{company_id}:{activity_id}" or "{company_id}:{field_id}") ---
 

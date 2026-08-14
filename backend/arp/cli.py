@@ -15,6 +15,7 @@ from arp.engagement.reporting_agent import compile_report
 from arp.engagement.triggers import ControversySignal, StaticControversySource, run_trigger_screen, scan_for_stalled_issues
 from arp.extraction.pipeline import run_extraction
 from arp.extraction.schema_builder import draft_schema
+from arp.extraction.financials_pipeline import run_financials_extraction
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -526,6 +527,28 @@ def extract_run(
     typer.echo(f"Extracting schema '{schema.name}' ({len(schema.fields)} fields) across {len(companies)} companies...")
     run_id = asyncio.run(
         run_extraction(schema, companies, llm=llm, registry=_registry(), settings=settings, run_store=_run_store())
+    )
+    typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
+
+
+@extract_app.command("financials-run")
+def extract_financials_run(
+    universe: Path = typer.Option(...),
+) -> None:
+    """Extracts each company's disclosed business segments (name,
+    description, revenue, income, assets), total CapEx, and total R&D
+    expense -- each with a grounded description/breakdown where disclosed
+    -- in a single combined evidence-gathering + extractor/verifier pass per
+    company (these are almost always wanted together, so this fetches each
+    company's documents once and makes one LLM call pair instead of three),
+    with the same independent-verifier + programmatic-grounding precision
+    controls as `extract run`."""
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    companies = load_company_universe(universe)
+    typer.echo(f"Extracting segments/CapEx/R&D across {len(companies)} companies...")
+    run_id = asyncio.run(
+        run_financials_extraction(companies, llm=llm, registry=_registry(), settings=settings, run_store=_run_store())
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 

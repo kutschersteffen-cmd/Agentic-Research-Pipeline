@@ -59,6 +59,18 @@ export const api = {
   getExtractionReviewHistory: (runId: string, itemKey: string) =>
     request(`/api/extraction/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
 
+  // Company Financials (business segments + CapEx + R&D, one combined pass)
+  startFinancialsRun: (body: unknown) =>
+    request<{ run_id: string; company_count: number }>("/api/financials/runs", { method: "POST", body: JSON.stringify(body) }),
+  getFinancialsResults: (runId: string, offset = 0, limit = 500) =>
+    request(`/api/financials/runs/${runId}/results?offset=${offset}&limit=${limit}`),
+  getFinancialsReviewQueue: (runId: string) => request(`/api/financials/runs/${runId}/review-queue`),
+  submitFinancialsReview: (runId: string, body: unknown) =>
+    request(`/api/financials/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
+  getFinancialsReviewDecisions: (runId: string) => request(`/api/financials/runs/${runId}/review-decisions`),
+  getFinancialsReviewHistory: (runId: string, itemKey: string) =>
+    request(`/api/financials/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
+
   // Documents
   uploadDocument: (companyId: string, docType: string, file: File) => {
     const form = new FormData();
