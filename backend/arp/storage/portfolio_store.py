@@ -13,6 +13,7 @@ from arp.schemas.portfolio import (
     SecurityRef,
     SecurityResolution,
 )
+from arp.storage.safe_path import safe_id
 
 
 class PortfolioStore:
@@ -137,7 +138,7 @@ class PortfolioStore:
     # --- holdings snapshots ---
 
     def snapshot_path(self, portfolio_id: str, as_of_date: str) -> Path:
-        return self.portfolios_dir / portfolio_id / "snapshots" / f"{as_of_date}.jsonl"
+        return self.portfolios_dir / safe_id(portfolio_id, label="portfolio_id") / "snapshots" / f"{safe_id(as_of_date, label='as_of_date')}.jsonl"
 
     def save_snapshot(self, portfolio_id: str, as_of_date: str, holdings: list[Holding]) -> None:
         path = self.snapshot_path(portfolio_id, as_of_date)
@@ -150,7 +151,7 @@ class PortfolioStore:
         return [Holding.model_validate(row) for row in self._read_jsonl(self.snapshot_path(portfolio_id, as_of_date))]
 
     def list_snapshot_dates(self, portfolio_id: str) -> list[str]:
-        d = self.portfolios_dir / portfolio_id / "snapshots"
+        d = self.portfolios_dir / safe_id(portfolio_id, label="portfolio_id") / "snapshots"
         if not d.exists():
             return []
         return sorted(p.stem for p in d.glob("*.jsonl"))
@@ -183,7 +184,7 @@ class PortfolioStore:
     # --- data-point observation history ---
 
     def observations_path(self, company_id: str, field_id: str) -> Path:
-        return self.portfolios_dir / "datapoints" / company_id / f"{field_id}.jsonl"
+        return self.portfolios_dir / "datapoints" / safe_id(company_id, label="company_id") / f"{safe_id(field_id, label='field_id')}.jsonl"
 
     def append_observation(self, obs: DataPointObservation) -> None:
         self._append_jsonl(self.observations_path(obs.company_id, obs.field_id), json.loads(obs.model_dump_json()))

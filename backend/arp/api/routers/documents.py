@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from arp.api.deps import settings_dep
 from arp.config import Settings
 from arp.schemas.common import DocType
+from arp.storage.safe_path import UnsafeIdentifierError, safe_filename, safe_id
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -39,9 +40,14 @@ async def upload_document(
     `documents_dir/<company_id>/<doc_type>/` convention the discovery
     crawler writes to, so manual uploads and auto-discovered documents are
     indistinguishable to the extraction pipeline."""
-    dest_dir = settings.documents_dir / company_id / doc_type.value
+    try:
+        safe_company_id = safe_id(company_id, label="company_id")
+        safe_name = safe_filename(file.filename)
+    except UnsafeIdentifierError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    dest_dir = settings.documents_dir / safe_company_id / doc_type.value
     dest_dir.mkdir(parents=True, exist_ok=True)
-    dest_path = dest_dir / file.filename
+    dest_path = dest_dir / safe_name
     dest_path.write_bytes(await file.read())
     return {"path": str(dest_path)}
 

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from arp.ingestion.base import DocumentSource
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
+from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,15 @@ class LocalFileDocumentSource(DocumentSource):
         self.documents_dir = documents_dir
 
     async def fetch(self, company: CompanyRef, doc_types: list[DocType] | None = None) -> list[SourceDocument]:
-        company_dir = self.documents_dir / company.company_id
+        try:
+            company_dir = self.documents_dir / safe_id(company.company_id, label="company_id")
+        except UnsafeIdentifierError:
+            # A malformed company_id (e.g. containing "..") has no local
+            # documents by definition -- fail this one company closed
+            # rather than resolving outside documents_dir, and don't
+            # abort the whole batch over one bad universe row.
+            logger.warning("Rejected unsafe company_id in local document fetch: %r", company.company_id)
+            return []
         if not company_dir.exists():
             return []
         wanted = set(doc_types) if doc_types else None

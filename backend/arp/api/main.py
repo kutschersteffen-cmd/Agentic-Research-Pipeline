@@ -57,6 +57,15 @@ async def runtime_error_handler(request: Request, exc: RuntimeError) -> JSONResp
     return JSONResponse(status_code=503, content={"detail": str(exc)})
 
 
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
+    # Covers both request-shape validation raised deep in a pipeline (e.g.
+    # aggregation.py's unknown group_by/metric) and safe_path.py's
+    # identifier validation -- either way this is a client error, not a
+    # server fault, so it's a 400 rather than an opaque 500.
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok"}

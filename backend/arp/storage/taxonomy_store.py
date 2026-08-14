@@ -6,6 +6,7 @@ from pathlib import Path
 from arp.schemas.common import now_iso
 from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyStatus
 from arp.schemas.thematic import ThemeDefinition
+from arp.storage.safe_path import safe_id
 
 
 class TaxonomyStore:
@@ -22,7 +23,7 @@ class TaxonomyStore:
         self.taxonomies_dir = taxonomies_dir
 
     def _dir(self, taxonomy_id: str) -> Path:
-        d = self.taxonomies_dir / taxonomy_id
+        d = self.taxonomies_dir / safe_id(taxonomy_id, label="taxonomy_id")
         d.mkdir(parents=True, exist_ok=True)
         return d
 
@@ -81,7 +82,7 @@ class TaxonomyStore:
         return Taxonomy.model_validate_json(path.read_text())
 
     def list_versions(self, taxonomy_id: str) -> list[Taxonomy]:
-        d = self.taxonomies_dir / taxonomy_id
+        d = self.taxonomies_dir / safe_id(taxonomy_id, label="taxonomy_id")
         if not d.exists():
             return []
         versions = []

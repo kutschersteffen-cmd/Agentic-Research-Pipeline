@@ -8,6 +8,7 @@ import httpx
 
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import DiscoveredDocument, DocumentEvent, DocumentEventType
+from arp.storage.safe_path import safe_id
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ class ChangeDetector:
         self.state_dir.mkdir(parents=True, exist_ok=True)
 
     def _manifest_path(self, company_id: str) -> Path:
-        return self.state_dir / f"{company_id}.json"
+        return self.state_dir / f"{safe_id(company_id, label='company_id')}.json"
 
     def _load_manifest(self, company_id: str) -> dict[str, dict]:
         path = self._manifest_path(company_id)

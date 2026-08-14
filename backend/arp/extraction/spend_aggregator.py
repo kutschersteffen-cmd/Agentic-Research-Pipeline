@@ -24,7 +24,11 @@ def _build_category(
     category_confidence: float,
 ) -> SpendCategory:
     description_citations = ground_citations(draft_category.description_citations, documents_by_id, fuzzy_threshold)
-    description_grounded = all(c.grounded for c in description_citations) if description_citations else True
+    # A real description with zero citations is not grounded -- only the
+    # absence of a description at all is trivially "nothing to ground".
+    description_grounded = (
+        all(c.grounded for c in description_citations) if description_citations else (draft_category.description is None)
+    )
     amount = _build_metric(draft_category.amount, documents_by_id, fuzzy_threshold)
     return SpendCategory(
         name=draft_category.name,
@@ -54,8 +58,20 @@ def build_spend_record(
     category. Returns (record, needs_review).
     """
     total_draft = draft.total if verifier.agrees or verifier.corrected_total is None else verifier.corrected_total
-    description = draft.description if verifier.agrees or verifier.corrected_description is None else verifier.corrected_description
-    description_citations_draft = draft.description_citations if verifier.agrees else []
+    if verifier.agrees or verifier.corrected_description is None:
+        # Either the verifier agreed outright, or it disagreed about
+        # something else (e.g. the total) and left the description
+        # untouched -- either way draft.description_citations still
+        # support the description text being shown.
+        description = draft.description
+        description_citations_draft = draft.description_citations
+    else:
+        # A verifier-supplied description can carry its own citations (the
+        # combined financials pipeline re-wraps a full SpendSectionDraft
+        # that has them); draft.description_citations supported different
+        # (rejected) text, so they're never reused here regardless.
+        description = verifier.corrected_description
+        description_citations_draft = verifier.corrected_description_citations or []
     categories_draft = draft.categories if verifier.agrees else (verifier.corrected_categories or draft.categories)
     conflicting_sources = draft.conflicting_sources or any(c.conflicting_sources for c in categories_draft)
 
@@ -63,7 +79,9 @@ def build_spend_record(
 
     total = _build_metric(total_draft, documents_by_id, fuzzy_threshold)
     description_citations = ground_citations(description_citations_draft, documents_by_id, fuzzy_threshold)
-    description_grounded = all(c.grounded for c in description_citations) if description_citations else True
+    # A real description with zero citations is not grounded -- only the
+    # absence of a description at all is trivially "nothing to ground".
+    description_grounded = all(c.grounded for c in description_citations) if description_citations else (description is None)
     categories = [
         _build_category(c, documents_by_id, fuzzy_threshold, final_confidence) for c in categories_draft
     ]

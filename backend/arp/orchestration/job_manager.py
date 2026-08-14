@@ -38,41 +38,49 @@ class JobManager:
         output_tokens_delta: int = 0,
         cost_delta_usd: float = 0.0,
     ) -> RunManifest:
-        manifest = self.store.load_manifest(run_id)
-        if manifest is None:
-            raise ValueError(f"Unknown run_id: {run_id}")
-        manifest.completed_count += completed_delta
-        manifest.failed_count += failed_delta
-        manifest.review_count += review_delta
-        manifest.input_tokens += input_tokens_delta
-        manifest.output_tokens += output_tokens_delta
-        manifest.estimated_cost_usd += cost_delta_usd
-        self.store.save_manifest(manifest)
-        return manifest
+        # Locked because a batch's own progress writes (from the event-loop
+        # thread) and a sync API route like /cancel (dispatched to a real
+        # worker thread by FastAPI) both read-modify-write the same
+        # manifest.json -- without this, whichever write lands second wins
+        # outright and silently discards the other side's update.
+        with self.store.lock(run_id):
+            manifest = self.store.load_manifest(run_id)
+            if manifest is None:
+                raise ValueError(f"Unknown run_id: {run_id}")
+            manifest.completed_count += completed_delta
+            manifest.failed_count += failed_delta
+            manifest.review_count += review_delta
+            manifest.input_tokens += input_tokens_delta
+            manifest.output_tokens += output_tokens_delta
+            manifest.estimated_cost_usd += cost_delta_usd
+            self.store.save_manifest(manifest)
+            return manifest
 
     def finish_run(self, run_id: str, error: str | None = None) -> RunManifest:
-        manifest = self.store.load_manifest(run_id)
-        if manifest is None:
-            raise ValueError(f"Unknown run_id: {run_id}")
-        if error:
-            manifest.status = JobStatus.FAILED
-            manifest.error = error
-        elif manifest.cancel_requested and manifest.completed_count + manifest.failed_count < manifest.company_count:
-            # Cancelled before every item was processed -- distinct from a
-            # legitimate partial failure, so the UI/CLI can tell "the user
-            # stopped this" apart from "some items errored out".
-            manifest.status = JobStatus.CANCELLED
-        elif manifest.failed_count > 0:
-            manifest.status = JobStatus.PARTIALLY_COMPLETED
-        else:
-            manifest.status = JobStatus.COMPLETED
-        self.store.save_manifest(manifest)
-        return manifest
+        with self.store.lock(run_id):
+            manifest = self.store.load_manifest(run_id)
+            if manifest is None:
+                raise ValueError(f"Unknown run_id: {run_id}")
+            if error:
+                manifest.status = JobStatus.FAILED
+                manifest.error = error
+            elif manifest.cancel_requested and manifest.completed_count + manifest.failed_count < manifest.company_count:
+                # Cancelled before every item was processed -- distinct from a
+                # legitimate partial failure, so the UI/CLI can tell "the user
+                # stopped this" apart from "some items errored out".
+                manifest.status = JobStatus.CANCELLED
+            elif manifest.failed_count > 0:
+                manifest.status = JobStatus.PARTIALLY_COMPLETED
+            else:
+                manifest.status = JobStatus.COMPLETED
+            self.store.save_manifest(manifest)
+            return manifest
 
     def request_cancel(self, run_id: str) -> RunManifest:
-        manifest = self.store.load_manifest(run_id)
-        if manifest is None:
-            raise ValueError(f"Unknown run_id: {run_id}")
-        manifest.cancel_requested = True
-        self.store.save_manifest(manifest)
-        return manifest
+        with self.store.lock(run_id):
+            manifest = self.store.load_manifest(run_id)
+            if manifest is None:
+                raise ValueError(f"Unknown run_id: {run_id}")
+            manifest.cancel_requested = True
+            self.store.save_manifest(manifest)
+            return manifest

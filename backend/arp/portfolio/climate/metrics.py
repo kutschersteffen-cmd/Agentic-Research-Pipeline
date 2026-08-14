@@ -103,7 +103,10 @@ def compute_financed_emissions(
             uncovered_mv += h.market_value_eur
             uncovered_count += 1
             continue
-        attribution_factor = h.market_value_eur / evic_value
+        # evic_value is EUR millions (FIELD_EVIC's unit); market_value_eur is
+        # plain EUR, so convert before dividing -- otherwise the attribution
+        # factor is inflated ~1,000,000x.
+        attribution_factor = (h.market_value_eur / 1_000_000) / evic_value
         financed_tco2e += attribution_factor * (s1 + s2)
         covered_mv += h.market_value_eur
 

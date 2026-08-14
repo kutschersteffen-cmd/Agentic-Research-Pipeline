@@ -35,15 +35,17 @@ def test_compute_waci(tmp_path):
 
 def test_compute_financed_emissions(tmp_path):
     store = PortfolioStore(tmp_path)
+    # EVIC is in EUR millions (FIELD_EVIC's unit); market_value_eur is plain
+    # EUR, so a EUR 100M holding against a EUR 1000M (EUR 1B) EVIC.
     _seed_field(store, "a", FIELD_EVIC, 1000.0)
     _seed_field(store, "a", FIELD_SCOPE1, 100.0)
     _seed_field(store, "a", FIELD_SCOPE2, 50.0)
     securities = {"a_eq": SecurityRef(security_id="a_eq", name="A", asset_class="equity", currency="EUR", company_id="a")}
-    holdings = [_holding("a_eq", 100.0)]
+    holdings = [_holding("a_eq", 100_000_000.0)]
 
     result = climate_metrics.compute_financed_emissions(store, holdings, securities, as_of="2026-01-01")
 
-    # attribution factor = 100/1000 = 0.1; financed = 0.1 * (100+50) = 15.0
+    # attribution factor = (100M EUR / 1e6) / 1000 EUR-M = 0.1; financed = 0.1 * (100+50) = 15.0
     assert result["financed_emissions_tco2e"] == 15.0
     assert result["uncovered_holding_count"] == 0
     assert result["coverage_pct"] == 1.0

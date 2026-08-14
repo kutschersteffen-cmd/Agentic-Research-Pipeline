@@ -49,6 +49,7 @@ def _spend_summary(
         agrees=section_agree,
         corrected_total=corrected_section.total if corrected_section else None,
         corrected_description=corrected_section.description if corrected_section else None,
+        corrected_description_citations=corrected_section.description_citations if corrected_section else None,
         corrected_categories=corrected_section.categories if corrected_section else None,
         confidence=verifier_confidence,
         notes=section_notes,
