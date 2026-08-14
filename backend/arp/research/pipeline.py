@@ -5,8 +5,6 @@ import logging
 from pathlib import Path
 
 from arp.config import Settings
-from arp.grounding import ground_citations
-from arp.ingestion.parsing import chunk_document
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_batch
@@ -14,37 +12,24 @@ from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
 from arp.research.indirect_exposure.company_mapper import resolve_company_isic
-from arp.research.indirect_exposure.exposure import compute_indirect_exposure
 from arp.research.indirect_exposure.factory import build_leontief_model
 from arp.research.indirect_exposure.leontief import LeontiefModel
-from arp.research.matcher_agents import run_adjudicator, run_advocate, run_opposing
+from arp.research.match_graph import match_company_activity
 from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company, load_catalogue
-from arp.research.revenue_exposure.resolver import RevenueResolverContext, band_exposure, resolve_company_activity_exposure
-from arp.retrieval.select_evidence import select_relevant_chunks
+from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.common import CompanyRef, JobStatus
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
-from arp.schemas.thematic import AgentOpinion, CompanyMatch, ExposureEstimate, MatchVerdict, ThemeDefinition
+from arp.schemas.thematic import CompanyMatch, ThemeDefinition
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
 logger = logging.getLogger(__name__)
-
-_MAX_EVIDENCE_CHUNKS_PER_CALL = 12
 
 
 class CompanyMatchesResult:
     def __init__(self, matches: list[CompanyMatch], usage: LLMUsage) -> None:
         self.matches = matches
         self.usage = usage
-
-
-def _no_evidence_opinion() -> AgentOpinion:
-    return AgentOpinion(
-        stance="No evidence found",
-        rationale="No document chunks matched this activity's seed keywords in the available disclosures.",
-        citations=[],
-        exposure_estimate=ExposureEstimate.NONE,
-    )
 
 
 async def _match_company(
@@ -74,126 +59,19 @@ async def _match_company(
         usages.append(u_isic)
 
     for activity in theme.activities:
-        indirect = None
-        if indirect_model is not None and company_isic and activity.core_isic_codes:
-            indirect = compute_indirect_exposure(
-                company.company_id, company_isic, indirect_model, set(activity.core_isic_codes), indirect_model.edition_label
-            )
-
-        if revenue_resolver is not None:
-            revenue_exposure, u_rev = await resolve_company_activity_exposure(
-                company, activity, company_isic, documents=documents, ctx=revenue_resolver, llm=llm
-            )
-            usages.append(u_rev)
-
-            if revenue_exposure.revenue.value_pct is not None:
-                # Path 1 (catalogue) or path 2 (extraction) resolved a hard
-                # number -- the qualitative debate (path 3) is skipped
-                # entirely for this pair, both for cost and because a real
-                # disclosed/extracted figure shouldn't be second-guessed by
-                # a categorical LLM judgment over the same question.
-                revenue = revenue_exposure.revenue
-                banded = band_exposure(revenue.value_pct, settings)
-                verdict = MatchVerdict.EXCLUDE if banded == ExposureEstimate.NONE else MatchVerdict.INCLUDE
-                source_desc = "structured revenue catalogue" if revenue.source == "catalogue" else "an extracted, grounded disclosure figure"
-                rationale = f"Resolved via {source_desc}: {revenue.value_pct:.1%} of revenue attributed to this activity. {revenue.notes}".strip()
-                citations = [revenue.citation] if revenue.citation else []
-                ungrounded = revenue.citation is not None and not revenue.citation.grounded
-                flagged = revenue.source == "extracted" and (revenue.confidence < settings.confidence_review_threshold or ungrounded)
-
-                matches.append(
-                    CompanyMatch(
-                        company_id=company.company_id,
-                        ticker=company.ticker,
-                        name=company.name,
-                        activity_id=activity.activity_id,
-                        activity_name=activity.name,
-                        verdict=verdict,
-                        exposure_estimate=banded,
-                        confidence=revenue.confidence,
-                        adjudicator_rationale=rationale,
-                        citations=citations,
-                        indirect_exposure=indirect,
-                        revenue_exposure=revenue_exposure,
-                        flagged_for_review=flagged,
-                    )
-                )
-                continue
-        else:
-            revenue_exposure = None
-
-        all_chunks = []
-        for doc in documents:
-            all_chunks.extend(chunk_document(doc, keywords=activity.seed_keywords))
-        evidence = select_relevant_chunks(all_chunks, activity.seed_keywords, max_chunks=_MAX_EVIDENCE_CHUNKS_PER_CALL)
-
-        if not evidence:
-            structural_flag = bool(
-                indirect
-                and max(indirect.upstream_exposure, indirect.downstream_exposure)
-                >= settings.indirect_exposure_review_threshold
-            )
-            rationale = "No evidence of this activity was found in the available documents."
-            if structural_flag:
-                rationale += (
-                    " However, input-output propagation shows structural exposure to this activity's core "
-                    "sectors above the review threshold -- routed for a second look rather than excluded outright."
-                )
-            matches.append(
-                CompanyMatch(
-                    company_id=company.company_id,
-                    ticker=company.ticker,
-                    name=company.name,
-                    activity_id=activity.activity_id,
-                    activity_name=activity.name,
-                    verdict=MatchVerdict.EXCLUDE,
-                    exposure_estimate=ExposureEstimate.NONE,
-                    confidence=0.5 if structural_flag else 1.0,
-                    advocate=_no_evidence_opinion(),
-                    opposing=_no_evidence_opinion(),
-                    adjudicator_rationale=rationale,
-                    citations=[],
-                    indirect_exposure=indirect,
-                    revenue_exposure=revenue_exposure,
-                    flagged_for_review=structural_flag,
-                )
-            )
-            continue
-
-        advocate, u1 = await run_advocate(company.name, activity, evidence, llm)
-        opposing, u2 = await run_opposing(company.name, activity, evidence, advocate, llm)
-        adjudication, u3 = await run_adjudicator(company.name, activity, advocate, opposing, llm)
-        usages.extend([u1, u2, u3])
-
-        grounded_citations = ground_citations(
-            adjudication.citations, documents_by_id, settings.grounding_fuzzy_threshold
+        match, activity_usages = await match_company_activity(
+            company,
+            activity,
+            documents=documents,
+            documents_by_id=documents_by_id,
+            llm=llm,
+            settings=settings,
+            indirect_model=indirect_model,
+            revenue_resolver=revenue_resolver,
+            company_isic=company_isic,
         )
-        all_grounded = all(c.grounded for c in grounded_citations) if grounded_citations else False
-        flagged = (
-            adjudication.verdict == MatchVerdict.UNCERTAIN
-            or adjudication.confidence < settings.confidence_review_threshold
-            or (adjudication.verdict == MatchVerdict.INCLUDE and not all_grounded)
-        )
-
-        matches.append(
-            CompanyMatch(
-                company_id=company.company_id,
-                ticker=company.ticker,
-                name=company.name,
-                activity_id=activity.activity_id,
-                activity_name=activity.name,
-                verdict=adjudication.verdict,
-                exposure_estimate=adjudication.exposure_estimate,
-                confidence=adjudication.confidence,
-                advocate=advocate,
-                opposing=opposing,
-                adjudicator_rationale=adjudication.adjudicator_rationale,
-                citations=grounded_citations,
-                indirect_exposure=indirect,
-                revenue_exposure=revenue_exposure,
-                flagged_for_review=flagged,
-            )
-        )
+        matches.append(match)
+        usages.extend(activity_usages)
 
     return CompanyMatchesResult(matches, combine_usage(*usages) if usages else LLMUsage())
 

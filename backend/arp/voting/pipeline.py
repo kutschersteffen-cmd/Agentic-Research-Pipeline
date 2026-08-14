@@ -3,21 +3,19 @@ from __future__ import annotations
 import logging
 
 from arp.config import Settings
-from arp.grounding import ground_citations
-from arp.ingestion.parsing import chunk_document
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import read_done_keys, run_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import latest_decisions, queue_for_review
-from arp.schemas.common import CompanyRef, DocType, new_id
-from arp.schemas.voting import CompanyBallot, HumanVoteDecision, Proposal, VoteRecord, VotePosition
+from arp.schemas.common import CompanyRef, DocType
+from arp.schemas.voting import CompanyBallot, HumanVoteDecision, VotePosition, VoteRecord
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.run_store import RunStore
 from arp.voting.ballot_casting import BallotPlatform, CastVoteError, cast_vote
-from arp.voting.policy_agent import DEFAULT_POLICY_RULES, PolicyRule, apply_policy
-from arp.voting.proposal_agent import extract_proposals
+from arp.voting.ballot_graph import process_company_ballot
+from arp.voting.policy_agent import DEFAULT_POLICY_RULES, PolicyRule
 
 logger = logging.getLogger(__name__)
 
@@ -45,41 +43,17 @@ async def _process_company(
     max_evidence_chunks: int = 20,
 ) -> CompanyBallotResult:
     documents = await registry.fetch_all(company, doc_types=[DocType.PROXY_DEF14A])
-    documents_by_id = {d.doc_id: d for d in documents}
-    chunks = []
-    for doc in documents:
-        chunks.extend(chunk_document(doc))
-    chunks = chunks[:max_evidence_chunks]
-
-    meeting_id = new_id("mtg")
-    usages: list[LLMUsage] = []
-    votes: list[VoteRecord] = []
-
-    if chunks:
-        draft, usage = await extract_proposals(company.name, meeting_date, chunks, llm)
-        usages.append(usage)
-        record = engagement_store.get(company.company_id) if engagement_store else None
-        for p_draft in draft.proposals:
-            grounded_citations = ground_citations(p_draft.citations, documents_by_id, settings.grounding_fuzzy_threshold)
-            proposal = Proposal(
-                company_id=company.company_id,
-                meeting_id=meeting_id,
-                meeting_date=meeting_date,
-                proposal_number=p_draft.proposal_number,
-                type=p_draft.type,
-                sponsor=p_draft.sponsor,
-                resolution_text=p_draft.resolution_text,
-                management_recommendation=p_draft.management_recommendation,
-                supporting_data=p_draft.supporting_data,
-                citations=grounded_citations,
-                confidence=p_draft.confidence,
-                source_doc_id=documents[0].doc_id if documents else None,
-            )
-            recommendation, policy_usage = await apply_policy(proposal, record, llm, rules=rules, fund_name=fund_name)
-            usages.append(policy_usage)
-            votes.append(VoteRecord(proposal=proposal, policy_recommendation=recommendation))
-
-    ballot = CompanyBallot(company_id=company.company_id, name=company.name, meeting_id=meeting_id, meeting_date=meeting_date, votes=votes)
+    ballot, usages = await process_company_ballot(
+        company,
+        meeting_date,
+        documents=documents,
+        llm=llm,
+        engagement_store=engagement_store,
+        fuzzy_threshold=settings.grounding_fuzzy_threshold,
+        rules=rules,
+        fund_name=fund_name,
+        max_evidence_chunks=max_evidence_chunks,
+    )
     return CompanyBallotResult(ballot, combine_usage(*usages) if usages else LLMUsage())
 
 

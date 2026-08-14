@@ -1,0 +1,158 @@
+from __future__ import annotations
+
+from typing import TypedDict
+
+from langgraph.graph import END, StateGraph
+
+from arp.extraction.financials_aggregator import build_financials_record
+from arp.extraction.financials_extractor_agent import FinancialsExtractionDraft, extract_financials
+from arp.extraction.financials_verifier_agent import FinancialsVerifierOutput, verify_financials
+from arp.extraction.segment_extractor_agent import SEGMENT_DOC_TYPES, SEGMENT_KEYWORDS
+from arp.extraction.spend_extractor_agent import SPEND_DOC_TYPES, SPEND_KEYWORDS
+from arp.ingestion.parsing import chunk_document
+from arp.llm.base import LLMClient, LLMUsage
+from arp.retrieval.select_evidence import select_relevant_chunks
+from arp.schemas.common import CompanyRef, DocumentChunk, SourceDocument
+from arp.schemas.financials import CompanyFinancialsRecord
+from arp.schemas.spend import SpendTopic
+
+# Union of every section's doc types/keywords -- fetched and chunked once
+# per company rather than once per topic, since segments/capex/R&D are
+# almost always wanted together.
+FINANCIALS_DOC_TYPES = sorted(set(SEGMENT_DOC_TYPES) | set(SPEND_DOC_TYPES), key=lambda d: d.value)
+_ALL_KEYWORDS = sorted(set(SEGMENT_KEYWORDS) | set(SPEND_KEYWORDS[SpendTopic.CAPEX]) | set(SPEND_KEYWORDS[SpendTopic.RND]))
+
+_TOPIC_KEYWORDS: dict[str, list[str]] = {
+    "segments": SEGMENT_KEYWORDS,
+    "capex": SPEND_KEYWORDS[SpendTopic.CAPEX],
+    "rnd": SPEND_KEYWORDS[SpendTopic.RND],
+}
+_MAX_CHUNKS_PER_TOPIC = 10
+
+
+def _select_evidence(chunks: list[DocumentChunk]) -> list[DocumentChunk]:
+    """Per-topic BM25-ranked selection, capped per topic, then
+    unioned/deduped -- so a topic with sparser evidence (e.g. a single
+    CapEx sentence in a filing dominated by segment discussion) still gets
+    its own guaranteed slice of the evidence sent to the single combined
+    extractor call, instead of being crowded out by a single global
+    ranking.
+    """
+    selected: dict[str, DocumentChunk] = {}
+    for keywords in _TOPIC_KEYWORDS.values():
+        for c in select_relevant_chunks(chunks, keywords, max_chunks=_MAX_CHUNKS_PER_TOPIC):
+            selected[c.chunk_id] = c
+    return list(selected.values())
+
+
+class FinancialsState(TypedDict):
+    company: CompanyRef
+    documents: list[SourceDocument]
+    documents_by_id: dict[str, SourceDocument]
+    llm: LLMClient
+    fuzzy_threshold: float
+    confidence_review_threshold: float
+    evidence: list[DocumentChunk]
+    draft: FinancialsExtractionDraft | None
+    verifier: FinancialsVerifierOutput | None
+    usages: list[LLMUsage]
+    record: CompanyFinancialsRecord | None
+
+
+async def _gather_evidence(state: FinancialsState) -> dict:
+    all_chunks: list[DocumentChunk] = []
+    for doc in state["documents"]:
+        if doc.doc_type not in FINANCIALS_DOC_TYPES:
+            continue
+        all_chunks.extend(chunk_document(doc, keywords=_ALL_KEYWORDS))
+    return {"evidence": _select_evidence(all_chunks)}
+
+
+def _route_after_evidence(state: FinancialsState) -> str:
+    return "extract" if state["evidence"] else "finalize_no_evidence"
+
+
+async def _finalize_no_evidence(state: FinancialsState) -> dict:
+    # No matching evidence at all is the common case at scale (docs not
+    # fetched, or the company simply doesn't discuss any of this) -- report
+    # plainly rather than flooding the review queue.
+    company = state["company"]
+    record = CompanyFinancialsRecord(company_id=company.company_id, ticker=company.ticker, name=company.name, run_id="")
+    return {"record": record}
+
+
+async def _extract(state: FinancialsState) -> dict:
+    draft, usage = await extract_financials(state["company"].name, state["evidence"], state["llm"])
+    return {"draft": draft, "usages": state["usages"] + [usage]}
+
+
+async def _verify(state: FinancialsState) -> dict:
+    verifier, usage = await verify_financials(state["company"].name, state["evidence"], state["draft"], state["llm"])
+    return {"verifier": verifier, "usages": state["usages"] + [usage]}
+
+
+async def _aggregate(state: FinancialsState) -> dict:
+    company = state["company"]
+    record, _needs_review = build_financials_record(
+        company.company_id,
+        company.ticker,
+        company.name,
+        state["draft"],
+        state["verifier"],
+        state["documents_by_id"],
+        state["fuzzy_threshold"],
+        state["confidence_review_threshold"],
+    )
+    return {"record": record}
+
+
+def _build_graph():
+    graph = StateGraph(FinancialsState)
+    graph.add_node("gather_evidence", _gather_evidence)
+    graph.add_node("finalize_no_evidence", _finalize_no_evidence)
+    graph.add_node("extract", _extract)
+    graph.add_node("verify", _verify)
+    graph.add_node("aggregate", _aggregate)
+
+    graph.set_entry_point("gather_evidence")
+    graph.add_conditional_edges(
+        "gather_evidence", _route_after_evidence, {"extract": "extract", "finalize_no_evidence": "finalize_no_evidence"}
+    )
+    graph.add_edge("finalize_no_evidence", END)
+    graph.add_edge("extract", "verify")
+    graph.add_edge("verify", "aggregate")
+    graph.add_edge("aggregate", END)
+    return graph.compile()
+
+
+_COMPILED_GRAPH = _build_graph()
+
+
+async def extract_company_financials(
+    company: CompanyRef,
+    *,
+    documents: list[SourceDocument],
+    llm: LLMClient,
+    fuzzy_threshold: float,
+    confidence_review_threshold: float,
+) -> tuple[CompanyFinancialsRecord, list[LLMUsage]]:
+    """Runs the combined segments/CapEx/R&D flow (one evidence gather, one
+    combined extractor call, one combined independent-verifier call,
+    then programmatic grounding + aggregation) as a LangGraph graph.
+    """
+    documents_by_id = {d.doc_id: d for d in documents}
+    initial: FinancialsState = {
+        "company": company,
+        "documents": documents,
+        "documents_by_id": documents_by_id,
+        "llm": llm,
+        "fuzzy_threshold": fuzzy_threshold,
+        "confidence_review_threshold": confidence_review_threshold,
+        "evidence": [],
+        "draft": None,
+        "verifier": None,
+        "usages": [],
+        "record": None,
+    }
+    final_state = await _COMPILED_GRAPH.ainvoke(initial)
+    return final_state["record"], final_state["usages"]

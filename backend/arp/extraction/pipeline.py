@@ -3,17 +3,13 @@ from __future__ import annotations
 import logging
 
 from arp.config import Settings
-from arp.extraction.aggregator import build_extracted_field, no_evidence_field
-from arp.extraction.extractor_agent import extract_field
-from arp.extraction.verifier_agent import verify_extraction
-from arp.ingestion.parsing import chunk_document
+from arp.extraction.field_graph import extract_one_field
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
-from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import CompanyRef, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, ExtractionRecord
 from arp.storage.run_store import RunStore
@@ -48,27 +44,16 @@ async def _extract_company(
     any_needs_review = False
 
     for field in schema.fields:
-        all_chunks = []
-        for doc in documents:
-            if field.source_doc_types and doc.doc_type not in field.source_doc_types:
-                continue
-            all_chunks.extend(chunk_document(doc, keywords=field.seed_keywords))
-        evidence = select_relevant_chunks(all_chunks, field.seed_keywords, doc_type_filter=field.source_doc_types or None)
-
-        if not evidence:
-            extracted, needs_review = no_evidence_field(field)
-        else:
-            draft, u1 = await extract_field(company.name, field, evidence, llm)
-            verifier, u2 = await verify_extraction(company.name, field, evidence, draft, llm)
-            usages.extend([u1, u2])
-            extracted, needs_review = build_extracted_field(
-                field,
-                draft,
-                verifier,
-                documents_by_id,
-                settings.grounding_fuzzy_threshold,
-                settings.confidence_review_threshold,
-            )
+        extracted, needs_review, field_usages = await extract_one_field(
+            company.name,
+            field,
+            documents=documents,
+            documents_by_id=documents_by_id,
+            llm=llm,
+            fuzzy_threshold=settings.grounding_fuzzy_threshold,
+            confidence_review_threshold=settings.confidence_review_threshold,
+        )
+        usages.extend(field_usages)
 
         any_needs_review = any_needs_review or needs_review
         fields.append((extracted, needs_review))

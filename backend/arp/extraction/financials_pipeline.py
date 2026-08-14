@@ -3,53 +3,18 @@ from __future__ import annotations
 import logging
 
 from arp.config import Settings
-from arp.extraction.financials_aggregator import build_financials_record
-from arp.extraction.financials_extractor_agent import extract_financials
-from arp.extraction.financials_verifier_agent import verify_financials
-from arp.extraction.segment_extractor_agent import SEGMENT_DOC_TYPES, SEGMENT_KEYWORDS
-from arp.extraction.spend_extractor_agent import SPEND_DOC_TYPES, SPEND_KEYWORDS
-from arp.ingestion.parsing import chunk_document
+from arp.extraction.financials_graph import extract_company_financials
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
-from arp.retrieval.select_evidence import select_relevant_chunks
-from arp.schemas.common import CompanyRef, DocumentChunk
+from arp.schemas.common import CompanyRef
 from arp.schemas.financials import CompanyFinancialsRecord
-from arp.schemas.spend import SpendTopic
 from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
-
-# Union of every section's doc types/keywords -- fetched and chunked once
-# per company rather than once per topic, since segments/capex/R&D are
-# almost always wanted together.
-FINANCIALS_DOC_TYPES = sorted(set(SEGMENT_DOC_TYPES) | set(SPEND_DOC_TYPES), key=lambda d: d.value)
-_ALL_KEYWORDS = sorted(set(SEGMENT_KEYWORDS) | set(SPEND_KEYWORDS[SpendTopic.CAPEX]) | set(SPEND_KEYWORDS[SpendTopic.RND]))
-
-_TOPIC_KEYWORDS: dict[str, list[str]] = {
-    "segments": SEGMENT_KEYWORDS,
-    "capex": SPEND_KEYWORDS[SpendTopic.CAPEX],
-    "rnd": SPEND_KEYWORDS[SpendTopic.RND],
-}
-_MAX_CHUNKS_PER_TOPIC = 10
-
-
-def _select_evidence(chunks: list[DocumentChunk]) -> list[DocumentChunk]:
-    """Per-topic BM25-ranked selection, capped per topic, then
-    unioned/deduped -- so a topic with sparser evidence (e.g. a single
-    CapEx sentence in a filing dominated by segment discussion) still gets
-    its own guaranteed slice of the evidence sent to the single combined
-    extractor call, instead of being crowded out by a single global
-    ranking.
-    """
-    selected: dict[str, DocumentChunk] = {}
-    for keywords in _TOPIC_KEYWORDS.values():
-        for c in select_relevant_chunks(chunks, keywords, max_chunks=_MAX_CHUNKS_PER_TOPIC):
-            selected[c.chunk_id] = c
-    return list(selected.values())
 
 
 class FinancialsExtractionResult:
@@ -66,35 +31,14 @@ async def _extract_company_financials(
     settings: Settings,
 ) -> FinancialsExtractionResult:
     documents = await registry.fetch_all(company)
-    documents_by_id = {d.doc_id: d for d in documents}
-
-    all_chunks: list[DocumentChunk] = []
-    for doc in documents:
-        if doc.doc_type not in FINANCIALS_DOC_TYPES:
-            continue
-        all_chunks.extend(chunk_document(doc, keywords=_ALL_KEYWORDS))
-    evidence = _select_evidence(all_chunks)
-
-    if not evidence:
-        # No matching evidence at all is the common case at scale (docs not
-        # fetched, or the company simply doesn't discuss any of this) --
-        # report plainly rather than flooding the review queue.
-        record = CompanyFinancialsRecord(company_id=company.company_id, ticker=company.ticker, name=company.name, run_id="")
-        return FinancialsExtractionResult(record, LLMUsage())
-
-    draft, u1 = await extract_financials(company.name, evidence, llm)
-    verifier, u2 = await verify_financials(company.name, evidence, draft, llm)
-    record, _needs_review = build_financials_record(
-        company.company_id,
-        company.ticker,
-        company.name,
-        draft,
-        verifier,
-        documents_by_id,
-        settings.grounding_fuzzy_threshold,
-        settings.confidence_review_threshold,
+    record, usages = await extract_company_financials(
+        company,
+        documents=documents,
+        llm=llm,
+        fuzzy_threshold=settings.grounding_fuzzy_threshold,
+        confidence_review_threshold=settings.confidence_review_threshold,
     )
-    return FinancialsExtractionResult(record, combine_usage(u1, u2))
+    return FinancialsExtractionResult(record, combine_usage(*usages) if usages else LLMUsage())
 
 
 def create_financials_extraction_run(companies: list[CompanyRef], settings: Settings, run_store: RunStore) -> str:
