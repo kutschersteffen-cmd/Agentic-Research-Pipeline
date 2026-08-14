@@ -6,6 +6,7 @@ from arp.grounding import ground_citations
 from arp.ingestion.parsing import chunk_document
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
+from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import Citation, CompanyRef, DocumentChunk
 from arp.schemas.engagement import EngagementIssue, EngagementRecord, ResearchDossier
 
@@ -119,8 +120,7 @@ async def research_company_issue(
     all_chunks: list[DocumentChunk] = []
     for doc in documents:
         all_chunks.extend(chunk_document(doc, keywords=keywords))
-    evidence = [c for c in all_chunks if c.keyword_hits] or all_chunks
-    evidence = evidence[:max_chunks]
+    evidence = select_relevant_chunks(all_chunks, keywords, max_chunks=max_chunks, fallback_to_all=True)
 
     draft, usage = await draft_dossier(company.name, issue, record, evidence, llm)
     dossier, needs_review = build_dossier(

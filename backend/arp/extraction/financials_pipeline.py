@@ -15,6 +15,7 @@ from arp.orchestration.batch_runner import run_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
+from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import CompanyRef, DocumentChunk
 from arp.schemas.financials import CompanyFinancialsRecord
 from arp.schemas.spend import SpendTopic
@@ -28,28 +29,25 @@ logger = logging.getLogger(__name__)
 FINANCIALS_DOC_TYPES = sorted(set(SEGMENT_DOC_TYPES) | set(SPEND_DOC_TYPES), key=lambda d: d.value)
 _ALL_KEYWORDS = sorted(set(SEGMENT_KEYWORDS) | set(SPEND_KEYWORDS[SpendTopic.CAPEX]) | set(SPEND_KEYWORDS[SpendTopic.RND]))
 
-_TOPIC_KEYWORD_SETS: dict[str, set[str]] = {
-    "segments": {k.lower() for k in SEGMENT_KEYWORDS},
-    "capex": {k.lower() for k in SPEND_KEYWORDS[SpendTopic.CAPEX]},
-    "rnd": {k.lower() for k in SPEND_KEYWORDS[SpendTopic.RND]},
+_TOPIC_KEYWORDS: dict[str, list[str]] = {
+    "segments": SEGMENT_KEYWORDS,
+    "capex": SPEND_KEYWORDS[SpendTopic.CAPEX],
+    "rnd": SPEND_KEYWORDS[SpendTopic.RND],
 }
 _MAX_CHUNKS_PER_TOPIC = 10
 
 
 def _select_evidence(chunks: list[DocumentChunk]) -> list[DocumentChunk]:
-    """Per-topic keyword-in-context prefilter, ranked by hit count and
-    capped per topic, then unioned/deduped -- so a topic with sparser
-    evidence (e.g. a single CapEx sentence in a filing dominated by segment
-    discussion) still gets its own guaranteed slice of the evidence sent to
-    the single combined extractor call, instead of being crowded out by a
-    single global ranking.
+    """Per-topic BM25-ranked selection, capped per topic, then
+    unioned/deduped -- so a topic with sparser evidence (e.g. a single
+    CapEx sentence in a filing dominated by segment discussion) still gets
+    its own guaranteed slice of the evidence sent to the single combined
+    extractor call, instead of being crowded out by a single global
+    ranking.
     """
     selected: dict[str, DocumentChunk] = {}
-    for keyword_set in _TOPIC_KEYWORD_SETS.values():
-        scored = [(len([h for h in c.keyword_hits if h.lower() in keyword_set]), c) for c in chunks]
-        scored = [(score, c) for score, c in scored if score > 0]
-        scored.sort(key=lambda sc: sc[0], reverse=True)
-        for _, c in scored[:_MAX_CHUNKS_PER_TOPIC]:
+    for keywords in _TOPIC_KEYWORDS.values():
+        for c in select_relevant_chunks(chunks, keywords, max_chunks=_MAX_CHUNKS_PER_TOPIC):
             selected[c.chunk_id] = c
     return list(selected.values())
 

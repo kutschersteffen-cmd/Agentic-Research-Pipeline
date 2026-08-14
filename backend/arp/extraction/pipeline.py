@@ -4,7 +4,6 @@ import logging
 
 from arp.config import Settings
 from arp.extraction.aggregator import build_extracted_field, no_evidence_field
-from arp.extraction.chunk_selector import select_chunks_for_field
 from arp.extraction.extractor_agent import extract_field
 from arp.extraction.verifier_agent import verify_extraction
 from arp.ingestion.parsing import chunk_document
@@ -14,6 +13,7 @@ from arp.orchestration.batch_runner import run_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
+from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import CompanyRef, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, ExtractionRecord
 from arp.storage.run_store import RunStore
@@ -53,7 +53,7 @@ async def _extract_company(
             if field.source_doc_types and doc.doc_type not in field.source_doc_types:
                 continue
             all_chunks.extend(chunk_document(doc, keywords=field.seed_keywords))
-        evidence = select_chunks_for_field(all_chunks, field)
+        evidence = select_relevant_chunks(all_chunks, field.seed_keywords, doc_type_filter=field.source_doc_types or None)
 
         if not evidence:
             extracted, needs_review = no_evidence_field(field)

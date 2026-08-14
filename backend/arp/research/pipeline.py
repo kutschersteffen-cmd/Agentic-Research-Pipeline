@@ -13,7 +13,6 @@ from arp.orchestration.batch_runner import run_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
-from arp.research.candidate_sourcer import prefilter_chunks_for_activity
 from arp.research.indirect_exposure.company_mapper import resolve_company_isic
 from arp.research.indirect_exposure.exposure import compute_indirect_exposure
 from arp.research.indirect_exposure.factory import build_leontief_model
@@ -21,6 +20,7 @@ from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.matcher_agents import run_adjudicator, run_advocate, run_opposing
 from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company, load_catalogue
 from arp.research.revenue_exposure.resolver import RevenueResolverContext, band_exposure, resolve_company_activity_exposure
+from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import CompanyRef, JobStatus
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.schemas.thematic import AgentOpinion, CompanyMatch, ExposureEstimate, MatchVerdict, ThemeDefinition
@@ -125,7 +125,7 @@ async def _match_company(
         all_chunks = []
         for doc in documents:
             all_chunks.extend(chunk_document(doc, keywords=activity.seed_keywords))
-        evidence = prefilter_chunks_for_activity(all_chunks, activity)
+        evidence = select_relevant_chunks(all_chunks, activity.seed_keywords, max_chunks=_MAX_EVIDENCE_CHUNKS_PER_CALL)
 
         if not evidence:
             structural_flag = bool(
@@ -159,8 +159,6 @@ async def _match_company(
                 )
             )
             continue
-
-        evidence = evidence[:_MAX_EVIDENCE_CHUNKS_PER_CALL]
 
         advocate, u1 = await run_advocate(company.name, activity, evidence, llm)
         opposing, u2 = await run_opposing(company.name, activity, evidence, advocate, llm)
