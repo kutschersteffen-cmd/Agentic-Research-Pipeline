@@ -3,6 +3,7 @@ import sqlite3
 import threading
 import time
 
+import numpy as np
 import pytest
 
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
@@ -294,6 +295,41 @@ def test_prune_accepts_a_list_and_keeps_every_version_in_it(tmp_path):
 
     assert deleted == 1
     assert store.stats()["distinct_parser_versions"] == 2
+
+
+def test_embeddings_round_trip(tmp_path):
+    store = DocumentContentStore(tmp_path / "store")
+    vec = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+
+    assert store.lookup_embeddings(["chk_a"], "model-x") == {}
+
+    store.store_embeddings({"chk_a": vec}, "model-x")
+    found = store.lookup_embeddings(["chk_a", "chk_b"], "model-x")
+
+    assert set(found) == {"chk_a"}
+    assert np.allclose(found["chk_a"], vec)
+
+
+def test_embeddings_are_scoped_by_embed_model(tmp_path):
+    store = DocumentContentStore(tmp_path / "store")
+    store.store_embeddings({"chk_a": np.array([1.0, 2.0], dtype=np.float32)}, "model-x")
+
+    assert store.lookup_embeddings(["chk_a"], "model-y") == {}
+
+
+def test_embeddings_batch_lookup_returns_only_the_hit_subset(tmp_path):
+    store = DocumentContentStore(tmp_path / "store")
+    store.store_embeddings(
+        {"chk_a": np.array([1.0], dtype=np.float32), "chk_b": np.array([2.0], dtype=np.float32)}, "model-x"
+    )
+    found = store.lookup_embeddings(["chk_a", "chk_b", "chk_c"], "model-x")
+    assert set(found) == {"chk_a", "chk_b"}
+
+
+def test_disabled_store_never_persists_embeddings(tmp_path):
+    store = DocumentContentStore(tmp_path / "store", enabled=False)
+    store.store_embeddings({"chk_a": np.array([1.0], dtype=np.float32)}, "model-x")
+    assert store.lookup_embeddings(["chk_a"], "model-x") == {}
 
 
 def test_lookup_and_store_agree_with_get_or_compute(tmp_path):

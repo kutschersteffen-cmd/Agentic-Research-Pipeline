@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     )
 
     document_cache_enabled: bool = Field(default=True)
+    hybrid_retrieval_enabled: bool = Field(
+        default=False,
+        description="Adds a local-embedding vector ranking, fused with BM25 via reciprocal rank fusion, to "
+        "select_relevant_chunks. Off by default -- this is the one retrieval change that deliberately alters which "
+        "evidence reaches the LLM, so it ships dark pending side-by-side validation.",
+    )
 
     # Precision controls
     grounding_fuzzy_threshold: float = Field(

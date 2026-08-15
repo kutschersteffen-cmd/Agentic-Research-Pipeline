@@ -123,10 +123,30 @@ async def _finalize_from_revenue(state: MatchState) -> dict:
 
 async def _gather_evidence(state: MatchState) -> dict:
     activity = state["activity"]
+    settings = state["settings"]
     all_chunks: list[DocumentChunk] = []
     for doc in state["documents"]:
         all_chunks.extend(chunk_document(doc, keywords=activity.seed_keywords))
-    evidence = select_relevant_chunks(all_chunks, activity.seed_keywords, max_chunks=_MAX_EVIDENCE_CHUNKS_PER_CALL)
+
+    content_store = None
+    if settings.hybrid_retrieval_enabled:
+        # Opt-in and off by default, so this store is only ever
+        # constructed on the path that's actually going to use it -- a
+        # cheap connect + idempotent CREATE IF NOT EXISTS, not a
+        # long-lived singleton (the same reasoning as
+        # LocalFileDocumentSource's content_store, just constructed
+        # closer to where it's used since this graph node has no DI).
+        from arp.storage.document_store import DocumentContentStore
+
+        content_store = DocumentContentStore(settings.document_store_dir, enabled=settings.document_cache_enabled)
+
+    evidence = select_relevant_chunks(
+        all_chunks,
+        activity.seed_keywords,
+        max_chunks=_MAX_EVIDENCE_CHUNKS_PER_CALL,
+        hybrid_retrieval_enabled=settings.hybrid_retrieval_enabled,
+        content_store=content_store,
+    )
     return {"evidence": evidence}
 
 

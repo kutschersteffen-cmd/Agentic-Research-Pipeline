@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable
 
+import numpy as np
+
 from arp.schemas.common import new_id, now_iso
 from arp.storage.safe_path import safe_id
 
@@ -59,6 +61,22 @@ CREATE TABLE IF NOT EXISTS documents (
 );
 CREATE INDEX IF NOT EXISTS ix_documents_company ON documents (company_id, doc_type);
 CREATE INDEX IF NOT EXISTS ix_documents_content ON documents (content_key);
+
+-- Phase 5 (hybrid semantic retrieval, opt-in): one row per (chunk_id,
+-- embed_model), not one packed matrix per document -- chunk_id is
+-- already the content-addressed identity Phase 1 gives every chunk, so
+-- reusing it here means a partial cache hit (some of a document's chunks
+-- already embedded, some not, e.g. after a chunk_chars change) needs no
+-- special-casing the way a monolithic per-document blob keyed on
+-- chunk params would.
+CREATE TABLE IF NOT EXISTS chunk_embeddings (
+    chunk_id     TEXT    NOT NULL,
+    embed_model  TEXT    NOT NULL,
+    dim          INTEGER NOT NULL,
+    vector       BLOB    NOT NULL,
+    created_at   TEXT    NOT NULL,
+    PRIMARY KEY (chunk_id, embed_model)
+);
 """
 
 # Mirrors arp/research/taxonomy_sources/fetch.py::_MAX_ORIGINAL_BYTES --
@@ -421,6 +439,46 @@ class DocumentContentStore:
         finally:
             conn.close()
 
+    # --- chunk embeddings (hybrid retrieval, phase 5, opt-in) ---------------
+
+    def lookup_embeddings(self, chunk_ids: list[str], embed_model: str) -> dict[str, np.ndarray]:
+        """Batch lookup: returns whatever subset of chunk_ids already has a
+        cached embedding under embed_model (each a 1-D float32 array), so
+        a caller only pays the embedding-model cost for the miss set."""
+        if not self.enabled or not chunk_ids:
+            return {}
+        conn = self._connect()
+        try:
+            placeholders = ",".join("?" for _ in chunk_ids)
+            rows = conn.execute(
+                f"SELECT chunk_id, vector, dim FROM chunk_embeddings WHERE embed_model=? AND chunk_id IN ({placeholders})",
+                (embed_model, *chunk_ids),
+            ).fetchall()
+            return {chunk_id: np.frombuffer(blob, dtype=np.float32).reshape(dim) for chunk_id, blob, dim in rows}
+        finally:
+            conn.close()
+
+    def store_embeddings(self, vectors_by_chunk_id: dict[str, np.ndarray], embed_model: str) -> None:
+        """Idempotent batch insert -- like every other write in this
+        store, a lost race under concurrent writers just means the loser
+        recomputed a vector for nothing, not a lost update."""
+        if not self.enabled or not vectors_by_chunk_id:
+            return
+        conn = self._connect()
+        try:
+            now = now_iso()
+            conn.executemany(
+                "INSERT INTO chunk_embeddings (chunk_id, embed_model, dim, vector, created_at) VALUES (?, ?, ?, ?, ?) "
+                "ON CONFLICT(chunk_id, embed_model) DO NOTHING",
+                [
+                    (chunk_id, embed_model, vec.shape[0], np.asarray(vec, dtype=np.float32).tobytes(), now)
+                    for chunk_id, vec in vectors_by_chunk_id.items()
+                ],
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
     # --- operator surface (arp documents ... CLI, phase 4) ------------------
 
     def stats(self) -> dict:
@@ -432,12 +490,14 @@ class DocumentContentStore:
                 "SELECT COUNT(*), COALESCE(SUM(char_len), 0), COUNT(DISTINCT parser_version) FROM parsed_content"
             ).fetchone()
             doc_count = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
+            embedding_count = conn.execute("SELECT COUNT(*) FROM chunk_embeddings").fetchone()[0]
             return {
                 "enabled": True,
                 "cached_documents": row_count,
                 "total_chars": total_chars,
                 "distinct_parser_versions": distinct_versions,
                 "registered_documents": doc_count,
+                "cached_embeddings": embedding_count,
                 "db_path": str(self._db_path),
             }
         finally:

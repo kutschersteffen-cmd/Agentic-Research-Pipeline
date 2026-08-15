@@ -28,6 +28,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "numpy>=1.26",
     "openpyxl>=3.1",
+    "fastembed>=0.3",
 ]
 
 [project.optional-dependencies]
