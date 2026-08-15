@@ -6,7 +6,7 @@ import logging
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Iterable
 
 from arp.schemas.common import new_id, now_iso
 from arp.storage.safe_path import safe_id
@@ -238,7 +238,24 @@ class DocumentContentStore:
             return None
         return ParsedContent(content_key=content_key, full_text=full_text, page_breaks=page_breaks, text_sha256=text_sha256)
 
-    def get_or_compute(
+    def lookup(self, content_key: str, parser_version: str) -> ParsedContent | None:
+        """Read-only half of get_or_compute: checks the cache and returns
+        immediately, without a compute callable. For a caller that must
+        decide whether to do expensive I/O (e.g. an async network fetch,
+        which a synchronous `compute` callable can't express) *before*
+        paying for it -- unlike get_or_compute, which only avoids the
+        compute() call itself, not whatever setup a caller did to prepare
+        for it. See EdgarDocumentSource for the motivating use.
+        """
+        if not self.enabled:
+            return None
+        conn = self._connect()
+        try:
+            return self._lookup_parsed(conn, content_key, parser_version)
+        finally:
+            conn.close()
+
+    def store(
         self,
         content_key: str,
         *,
@@ -246,26 +263,12 @@ class DocumentContentStore:
         parser_version: str,
         source_suffix: str,
         byte_size: int,
-        compute: Callable[[], tuple[str, list[int]]],
+        text: str,
+        page_breaks: list[int],
     ) -> ParsedContent:
-        """Generic content-addressed parse cache: given an already-known
-        content_key (a local file's byte hash via content_key_for_file, or
-        e.g. an EDGAR accession-derived key), returns cached parsed text on
-        a hit or calls `compute()` and caches the result on a miss.
-        `compute` is injected rather than imported, so this store never
-        depends on pymupdf4llm/trafilatura and is testable with a
-        call-counting fake.
-        """
-        if self.enabled:
-            conn = self._connect()
-            try:
-                cached = self._lookup_parsed(conn, content_key, parser_version)
-                if cached is not None:
-                    return cached
-            finally:
-                conn.close()
-
-        text, page_breaks = compute()
+        """Write-only half of get_or_compute, for a caller (see lookup())
+        that already has text + page_breaks in hand from its own
+        computation."""
         text_sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()
         result = ParsedContent(content_key=content_key, full_text=text, page_breaks=page_breaks, text_sha256=text_sha256)
 
@@ -295,6 +298,38 @@ class DocumentContentStore:
             finally:
                 conn.close()
         return result
+
+    def get_or_compute(
+        self,
+        content_key: str,
+        *,
+        key_kind: str,
+        parser_version: str,
+        source_suffix: str,
+        byte_size: int,
+        compute: Callable[[], tuple[str, list[int]]],
+    ) -> ParsedContent:
+        """Generic content-addressed parse cache: given an already-known
+        content_key (a local file's byte hash via content_key_for_file, or
+        e.g. an EDGAR accession-derived key), returns cached parsed text on
+        a hit or calls `compute()` and caches the result on a miss.
+        `compute` is injected rather than imported, so this store never
+        depends on pymupdf4llm/trafilatura and is testable with a
+        call-counting fake.
+        """
+        cached = self.lookup(content_key, parser_version)
+        if cached is not None:
+            return cached
+        text, page_breaks = compute()
+        return self.store(
+            content_key,
+            key_kind=key_kind,
+            parser_version=parser_version,
+            source_suffix=source_suffix,
+            byte_size=byte_size,
+            text=text,
+            page_breaks=page_breaks,
+        )
 
     def get_or_parse(
         self, path: Path, *, parser_version: str, parse: Callable[[Path], tuple[str, list[int]]]
@@ -408,19 +443,32 @@ class DocumentContentStore:
         finally:
             conn.close()
 
-    def prune(self, *, keep_parser_version: str) -> int:
+    def prune(self, *, keep_parser_version: str | Iterable[str]) -> int:
         """Deletes parsed_content rows orphaned by a parser upgrade
-        (anything not matching the current parser_version) and reclaims
-        the space. Orphaned rows are harmless -- nothing reads them, since
+        (anything not matching a current parser_version) and reclaims the
+        space. Orphaned rows are harmless -- nothing reads them, since
         every lookup is keyed on the current parser_version -- so this is
         purely a housekeeping operation, not something a run ever needs to
         call. VACUUM needs exclusive access to the file; don't run this
-        against a live API process."""
+        against a live API process.
+
+        Accepts either a single version string or an iterable of them:
+        this table holds rows from more than one producer (local file
+        parsing and EDGAR filing extraction each stamp their own
+        parser_version), so pruning after just one of them upgrades must
+        pass *all* currently-active versions, not just the one that
+        changed -- otherwise this would delete the other producer's still-
+        current cache along with the truly stale rows.
+        """
         if not self.enabled:
             return 0
+        versions = [keep_parser_version] if isinstance(keep_parser_version, str) else list(keep_parser_version)
+        if not versions:
+            raise ValueError("keep_parser_version must not be empty")
         conn = self._connect()
         try:
-            cur = conn.execute("DELETE FROM parsed_content WHERE parser_version != ?", (keep_parser_version,))
+            placeholders = ",".join("?" for _ in versions)
+            cur = conn.execute(f"DELETE FROM parsed_content WHERE parser_version NOT IN ({placeholders})", versions)
             deleted = cur.rowcount
             conn.commit()
             conn.execute("VACUUM")

@@ -73,6 +73,7 @@ engagement_app = typer.Typer(help="Stewardship engagement: record store, trigger
 voting_app = typer.Typer(help="Proxy voting: proposal analysis, policy application, review, and ballot casting.")
 portfolio_app = typer.Typer(help="Portfolio holdings aggregation, analytics, and NL Q&A.")
 climate_app = typer.Typer(help="Portfolio climate analytics: WACI, financed emissions, coverage.")
+documents_app = typer.Typer(help="Operator surface for the document content cache (arp/storage/document_store.py).")
 app.add_typer(theme_app, name="theme")
 app.add_typer(taxonomy_app, name="taxonomy")
 app.add_typer(extract_app, name="extract")
@@ -84,6 +85,7 @@ app.add_typer(engagement_app, name="engagement")
 app.add_typer(voting_app, name="voting")
 app.add_typer(portfolio_app, name="portfolio")
 app.add_typer(climate_app, name="climate")
+app.add_typer(documents_app, name="documents")
 
 
 def _engagement_store() -> EngagementStore:
@@ -108,7 +110,12 @@ def _registry() -> DocumentSourceRegistry:
                 content_store=_document_content_store(),
                 max_concurrent_parses=settings.max_concurrent_parses,
             ),
-            EdgarDocumentSource(settings.edgar_user_agent, settings.cache_dir),
+            EdgarDocumentSource(
+                settings.edgar_user_agent,
+                settings.cache_dir,
+                content_store=_document_content_store(),
+                submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
+            ),
         ]
     )
 
@@ -622,6 +629,77 @@ def discover_schedule(
     config = DiscoveryScheduleConfig(enabled=enable, interval_hours=interval_hours, universe_path=str(universe))
     scheduler.save_config(config)
     typer.echo(f"Schedule saved: enabled={enable}, every {interval_hours}h, universe={universe}")
+
+
+@documents_app.command("warm")
+def documents_warm(
+    universe: Path = typer.Option(..., help="Company universe JSON to warm the document cache for."),
+    doc_types: str = typer.Option("", help="Comma-separated DocType values; empty = all supported types."),
+    concurrency: int = typer.Option(4, help="Max companies fetched/parsed concurrently."),
+) -> None:
+    """Pays the fetch/parse cost for every company in a universe up
+    front -- off-peak, before a batch run -- and surfaces any file that
+    fails to parse now instead of mid-run. Safe to re-run: everything it
+    touches is content-addressed, so an already-warm document is a fast
+    cache hit rather than repeated work."""
+    settings = get_settings()
+    companies = load_company_universe(universe)
+    types = [DocType(t.strip()) for t in doc_types.split(",") if t.strip()] or None
+    registry = _registry()
+    sem = asyncio.Semaphore(concurrency)
+    failures: list[str] = []
+
+    async def _warm_one(company: CompanyRef) -> int:
+        async with sem:
+            try:
+                docs = await registry.fetch_all(company, types)
+            except Exception as exc:  # noqa: BLE001 - isolate one company's failure from the rest
+                failures.append(f"{company.company_id}: {exc}")
+                return 0
+        return len(docs)
+
+    async def _run() -> list[int]:
+        return await asyncio.gather(*(_warm_one(c) for c in companies))
+
+    typer.echo(f"Warming document cache for {len(companies)} companies...")
+    counts = asyncio.run(_run())
+    typer.echo(f"Warmed {sum(counts)} documents across {len(companies)} companies.")
+    if failures:
+        typer.echo(f"{len(failures)} companies had errors:", err=True)
+        for f in failures:
+            typer.echo(f"  {f}", err=True)
+
+
+@documents_app.command("cache-stats")
+def documents_cache_stats() -> None:
+    from arp.ingestion.edgar import _edgar_parser_version
+    from arp.ingestion.local_files import parser_version
+
+    stats = _document_content_store().stats()
+    stats["current_local_parser_version"] = parser_version()
+    stats["current_edgar_parser_version"] = _edgar_parser_version()
+    typer.echo(json.dumps(stats, indent=2))
+
+
+@documents_app.command("cache-prune")
+def documents_cache_prune(yes: bool = typer.Option(False, "--yes", help="Skip the confirmation prompt.")) -> None:
+    """Deletes parsed_content rows stamped with a parser_version other
+    than whatever's currently active (local file parsing and EDGAR
+    extraction each have their own) and reclaims the freed space. Do not
+    run this against a live API process -- VACUUM needs exclusive access
+    to the database file."""
+    from arp.ingestion.edgar import _edgar_parser_version
+    from arp.ingestion.local_files import parser_version
+
+    if not yes:
+        typer.confirm(
+            "This runs VACUUM and requires exclusive access to the document store -- "
+            "make sure the API server is stopped. Continue?",
+            abort=True,
+        )
+    current = [parser_version(), _edgar_parser_version()]
+    deleted = _document_content_store().prune(keep_parser_version=current)
+    typer.echo(f"Pruned {deleted} stale parsed_content row(s). Kept: {current}")
 
 
 @runs_app.command("list")

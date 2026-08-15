@@ -59,6 +59,9 @@ class Settings(BaseSettings):
 
     # SEC EDGAR requires a descriptive User-Agent identifying the requester.
     edgar_user_agent: str = Field(default="Agentic Research Pipeline research@example.com")
+    edgar_submissions_ttl_hours: float = Field(
+        default=24.0, description="Filings list changes over time, so this cache (unlike the accession-keyed filing-document cache) expires."
+    )
 
     # Indirect (input-output) exposure tier. Off by default -- requires an
     # ICIO-format industry x industry matrix; see docs/METHODOLOGY.md.

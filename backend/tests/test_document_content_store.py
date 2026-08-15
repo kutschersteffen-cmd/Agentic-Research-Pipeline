@@ -275,3 +275,37 @@ def test_prune_removes_only_stale_parser_versions(tmp_path):
     # documents directory rows are untouched by prune -- citations must
     # keep resolving even after a parser upgrade prunes the old text.
     assert stats["registered_documents"] == 1
+
+
+def test_prune_accepts_a_list_and_keeps_every_version_in_it(tmp_path):
+    """The table holds rows from more than one producer once EDGAR shares
+    it (key_kind='edgar_accession') -- pruning after only the local
+    parser upgrades must not delete EDGAR's still-current rows just
+    because their version string differs."""
+    store = DocumentContentStore(tmp_path / "store")
+    doc_a = _write(tmp_path, "a.pdf", b"aaa")
+    doc_b = _write(tmp_path, "b.pdf", b"bbb")
+    doc_c = _write(tmp_path, "c.pdf", b"ccc")
+    store.get_or_parse(doc_a, parser_version="local-v1", parse=lambda p: ("old", []))
+    store.get_or_parse(doc_b, parser_version="local-v2", parse=lambda p: ("new", []))
+    store.get_or_parse(doc_c, parser_version="edgar-v1", parse=lambda p: ("edgar text", []))
+
+    deleted = store.prune(keep_parser_version=["local-v2", "edgar-v1"])
+
+    assert deleted == 1
+    assert store.stats()["distinct_parser_versions"] == 2
+
+
+def test_lookup_and_store_agree_with_get_or_compute(tmp_path):
+    store = DocumentContentStore(tmp_path / "store")
+    assert store.lookup("key1", "v1") is None
+
+    stored = store.store(
+        "key1", key_kind="file_bytes", parser_version="v1", source_suffix=".pdf", byte_size=10,
+        text="hello", page_breaks=[0],
+    )
+    found = store.lookup("key1", "v1")
+
+    assert found is not None
+    assert found.full_text == stored.full_text == "hello"
+    assert found.page_breaks == [0]

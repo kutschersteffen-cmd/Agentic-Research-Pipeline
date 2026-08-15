@@ -52,7 +52,12 @@ def get_registry() -> DocumentSourceRegistry:
                 content_store=get_document_content_store(),
                 max_concurrent_parses=settings.max_concurrent_parses,
             ),
-            EdgarDocumentSource(settings.edgar_user_agent, settings.cache_dir),
+            EdgarDocumentSource(
+                settings.edgar_user_agent,
+                settings.cache_dir,
+                content_store=get_document_content_store(),
+                submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
+            ),
         ]
     )
 
