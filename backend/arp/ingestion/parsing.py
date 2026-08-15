@@ -5,6 +5,7 @@ import re
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.schema import Document as LlamaDocument
 
+from arp.ingestion.chunk_spans import ChunkSpan, get_span_cache
 from arp.schemas.common import DocType, DocumentChunk, SourceDocument
 
 _SPEAKER_LINE = re.compile(r"^\s*([A-Z][A-Za-z.'\-]+(?:\s[A-Z][A-Za-z.'\-]+){0,3})\s*[:\-]\s*$")
@@ -85,6 +86,16 @@ def find_keyword_hits(text: str, keywords: list[str]) -> list[str]:
     return [kw for kw in keywords if kw.lower() in lowered]
 
 
+def _compute_spans(doc: SourceDocument, chunk_chars: int, overlap_chars: int) -> tuple[ChunkSpan, ...]:
+    is_transcript = doc.doc_type == DocType.EARNINGS_TRANSCRIPT
+    spans = []
+    for start, end in _sentence_aware_split(doc.full_text, chunk_chars, overlap_chars):
+        section = None if is_transcript else detect_section(doc.full_text, start)
+        speaker = detect_speaker(doc.full_text, start) if is_transcript else None
+        spans.append(ChunkSpan(char_start=start, char_end=end, section=section, speaker=speaker))
+    return tuple(spans)
+
+
 def chunk_document(
     doc: SourceDocument,
     *,
@@ -95,24 +106,35 @@ def chunk_document(
     """Sentence/paragraph-boundary-aware, section/speaker-aware chunking,
     via LlamaIndex's SentenceSplitter. chunk_chars is sized conservatively
     under typical model context limits.
+
+    The split/section/speaker work (everything except keyword_hits) is
+    identical for the same document regardless of which keywords are
+    passed -- callers like the extraction pipeline call this once per
+    field and the theme pipeline once per activity, so that work is cached
+    per-document (see arp.ingestion.chunk_spans) rather than redone on
+    every call. chunk_id is deterministic (derived from doc_id + span),
+    not random, so citations and BM25 indexes can reference a chunk
+    stably across calls.
     """
     keywords = keywords or []
-    is_transcript = doc.doc_type == DocType.EARNINGS_TRANSCRIPT
+    cache = get_span_cache()
+    key = cache.make_key(doc.full_text, doc.doc_type, chunk_chars, overlap_chars)
+    spans = cache.get_or_compute(key, lambda: _compute_spans(doc, chunk_chars, overlap_chars))
+
     chunks: list[DocumentChunk] = []
-    for start, end in _sentence_aware_split(doc.full_text, chunk_chars, overlap_chars):
-        span_text = doc.full_text[start:end]
-        section = None if is_transcript else detect_section(doc.full_text, start)
-        speaker = detect_speaker(doc.full_text, start) if is_transcript else None
+    for s in spans:
+        span_text = doc.full_text[s.char_start : s.char_end]
         chunks.append(
             DocumentChunk(
+                chunk_id=f"chk_{doc.doc_id}_{s.char_start}_{s.char_end}",
                 doc_id=doc.doc_id,
                 company_id=doc.company_id,
                 doc_type=doc.doc_type,
-                section=section,
-                speaker=speaker,
+                section=s.section,
+                speaker=s.speaker,
                 text=span_text,
-                char_start=start,
-                char_end=end,
+                char_start=s.char_start,
+                char_end=s.char_end,
                 keyword_hits=find_keyword_hits(span_text, keywords),
             )
         )

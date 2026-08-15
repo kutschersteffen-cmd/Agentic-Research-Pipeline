@@ -51,3 +51,24 @@ def test_many_near_identical_paragraphs_still_cover_the_whole_document():
         for i in range(c.char_start, c.char_end):
             covered[i] = True
     assert all(covered), f"gap at {[i for i, c in enumerate(covered) if not c][:5]}"
+
+
+def test_chunk_ids_are_deterministic_across_calls():
+    text = "Paragraph one about green capex.\n\nParagraph two about revenue growth."
+    doc = SourceDocument(doc_id="doc_stable", company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="t", full_text=text)
+
+    a = chunk_document(doc, chunk_chars=500, overlap_chars=50)
+    b = chunk_document(doc, chunk_chars=500, overlap_chars=50)
+
+    assert [c.chunk_id for c in a] == [c.chunk_id for c in b]
+    assert all(c.chunk_id.startswith("chk_doc_stable_") for c in a)
+
+
+def test_chunk_ids_are_unique_including_on_the_pathological_fixture():
+    text = ("Paragraph one about green capex.\n\n" * 50) + "Final paragraph."
+    doc = SourceDocument(doc_id="doc_x", company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="t", full_text=text)
+
+    chunks = chunk_document(doc, chunk_chars=500, overlap_chars=50)
+
+    ids = [c.chunk_id for c in chunks]
+    assert len(set(ids)) == len(ids)
