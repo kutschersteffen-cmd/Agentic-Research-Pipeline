@@ -110,6 +110,16 @@ class Settings(BaseSettings):
     discovery_schedule_interval_hours: float = Field(default=24.0)
     discovery_schedule_universe_path: Path | None = Field(default=None)
 
+    # Agentic company identity resolution (arp/discovery/identity_*.py) --
+    # a separate enrichment run, not part of the discovery crawl above.
+    identity_resolution_confidence_threshold: float = Field(
+        default=0.7,
+        description="Stricter than the general confidence_review_threshold: a wrong identity match is coherently "
+        "wrong (well-cited documents about the wrong company) with no downstream mechanical check, unlike a "
+        "citation grounding.py can catch.",
+    )
+    identity_resolution_max_search_results: int = Field(default=5)
+
     # Portfolio risk & exposure monitoring
     portfolio_confidence_review_threshold: float = Field(
         default=0.6, description="Security-to-issuer entity resolution matches below this confidence are routed to review."

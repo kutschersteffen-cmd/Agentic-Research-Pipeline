@@ -316,6 +316,40 @@ export interface DocumentEvent {
   created_at: string;
 }
 
+// --- Identity resolution ---
+
+export type IdentityVerdict = "resolved" | "uncertain" | "unresolved";
+
+export interface EdgarNameMatch {
+  ticker: string;
+  cik: string;
+  title: string;
+}
+
+export interface WebSearchHit {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+export interface IdentitySignals {
+  edgar_matches: EdgarNameMatch[];
+  search_results: WebSearchHit[];
+}
+
+export interface IdentityResolutionResult {
+  company_id: string;
+  input_name: string;
+  verdict: IdentityVerdict;
+  confidence: number;
+  resolved_website?: string | null;
+  resolved_cik?: string | null;
+  signals: IdentitySignals;
+  rationale: string;
+  flagged_for_review: boolean;
+  generated_at: string;
+}
+
 export interface DiscoveryScheduleConfig {
   enabled: boolean;
   interval_hours: number;

@@ -4,9 +4,13 @@ import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import type { DiscoveryCompanyResult, DiscoveryScheduleConfig, DocumentEvent } from "../types";
 
-export function DocumentDiscovery() {
-  const [universePath, setUniversePath] = useState<string | null>(null);
-  const [companyCount, setCompanyCount] = useState(0);
+interface Props {
+  pendingUniverse?: { path: string; count: number } | null;
+}
+
+export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
+  const [universePath, setUniversePath] = useState<string | null>(pendingUniverse?.path ?? null);
+  const [companyCount, setCompanyCount] = useState(pendingUniverse?.count ?? 0);
   const [runId, setRunId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +77,12 @@ export function DocumentDiscovery() {
 
       <section className="card">
         <h3>Run now (manual)</h3>
+        {pendingUniverse && universePath === pendingUniverse.path && (
+          <p className="status-text">
+            Using {pendingUniverse.count} companies sent from Identity Resolution. Upload a different universe below
+            to replace it.
+          </p>
+        )}
         <UniversePicker
           onResolved={(path, count) => {
             setUniversePath(path);

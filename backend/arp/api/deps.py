@@ -4,6 +4,7 @@ from functools import lru_cache
 
 from arp.config import Settings, get_settings
 from arp.discovery.scheduler import DiscoveryScheduler
+from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -60,6 +61,26 @@ def get_registry() -> DocumentSourceRegistry:
             ),
         ]
     )
+
+
+@lru_cache
+def get_edgar_source() -> EdgarDocumentSource:
+    """Shared with get_registry()'s EdgarDocumentSource in every respect
+    except this one isn't tied to DocumentSourceRegistry -- used directly
+    by identity resolution (arp/discovery/identity_pipeline.py) for
+    EdgarDocumentSource.search_by_name, not for fetching filings."""
+    settings = get_settings()
+    return EdgarDocumentSource(
+        settings.edgar_user_agent,
+        settings.cache_dir,
+        content_store=get_document_content_store(),
+        submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
+    )
+
+
+@lru_cache
+def get_web_search_client() -> WebSearchClient:
+    return DuckDuckGoSearchClient(get_settings().discovery_user_agent)
 
 
 def get_llm_client() -> LLMClient:

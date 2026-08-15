@@ -123,6 +123,18 @@ export const api = {
   updateDiscoverySchedule: (config: unknown) =>
     request("/api/discovery/schedule", { method: "PUT", body: JSON.stringify(config) }),
 
+  // Identity resolution (agentic name -> website/CIK, ahead of discovery)
+  startIdentityRun: (body: unknown) =>
+    request<{ run_id: string; company_count: number }>("/api/identity/runs", { method: "POST", body: JSON.stringify(body) }),
+  getIdentityRun: (runId: string) => request(`/api/identity/runs/${runId}`),
+  getIdentityResults: (runId: string, offset = 0, limit = 500) =>
+    request(`/api/identity/runs/${runId}/results?offset=${offset}&limit=${limit}`),
+  getIdentityReviewQueue: (runId: string) => request(`/api/identity/runs/${runId}/review-queue`),
+  submitIdentityReview: (runId: string, body: unknown) =>
+    request(`/api/identity/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
+  getEnrichedUniverse: (runId: string) =>
+    request<{ companies: Record<string, unknown>[] }>(`/api/identity/runs/${runId}/enriched-universe`),
+
   // Runs (generic)
   listRuns: (runType?: string) => request(`/api/runs${runType ? `?run_type=${runType}` : ""}`),
   getRun: (runId: string) => request(`/api/runs/${runId}`),

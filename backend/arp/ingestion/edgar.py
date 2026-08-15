@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import difflib
 import functools
 import hashlib
 import json
@@ -14,6 +15,7 @@ import httpx
 
 from arp.ingestion.base import DocumentSource
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
+from arp.schemas.discovery import EdgarNameMatch
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
@@ -67,6 +69,7 @@ class EdgarDocumentSource(DocumentSource):
         self._cache_dir.mkdir(parents=True, exist_ok=True)
         self._delay = request_delay_seconds
         self._ticker_map: dict[str, str] | None = None
+        self._name_index: list[EdgarNameMatch] | None = None
         self._lock = asyncio.Lock()
         self._content_store = content_store
         self._submissions_ttl_hours = submissions_ttl_hours
@@ -212,6 +215,57 @@ class EdgarDocumentSource(DocumentSource):
             raw = resp.json()
         cache_path.write_text(json.dumps(raw))
         return {row["ticker"].upper(): str(row["cik_str"]) for row in raw.values()}
+
+    async def _load_name_index(self) -> list[EdgarNameMatch]:
+        """Company-name-indexed view of the same ticker/CIK/title map
+        _load_ticker_map uses (same on-disk cache file,
+        sec_company_tickers.json) -- built lazily, only when
+        search_by_name is actually called, so ordinary document fetching
+        never pays for it."""
+        cache_path = self._cache_dir / "sec_company_tickers.json"
+        if cache_path.exists():
+            try:
+                raw = json.loads(cache_path.read_text())
+                return [
+                    EdgarNameMatch(ticker=row["ticker"], cik=str(row["cik_str"]), title=row["title"])
+                    for row in raw.values()
+                ]
+            except (json.JSONDecodeError, KeyError, OSError):
+                pass
+        async with httpx.AsyncClient(headers=self._headers, timeout=30.0) as client:
+            resp = await client.get(_TICKER_MAP_URL)
+            resp.raise_for_status()
+            raw = resp.json()
+        cache_path.write_text(json.dumps(raw))
+        return [EdgarNameMatch(ticker=row["ticker"], cik=str(row["cik_str"]), title=row["title"]) for row in raw.values()]
+
+    async def search_by_name(self, name: str, limit: int = 5) -> list[EdgarNameMatch]:
+        """Fuzzy/substring match against SEC's own company-title map --
+        unlike _resolve_cik (which requires an exact ticker), this lets a
+        bare company name with no known ticker/cik find candidate EDGAR
+        filers. Deterministic, no LLM: this is one of the real signals the
+        identity-resolution challenge/adjudicate agents (see
+        arp/discovery/identity_agents.py) reason over, never a final
+        answer accepted on its own -- multiple equally plausible matches
+        (a real risk: common names, multiple listings) are returned as-is
+        rather than picked for the caller, precisely so the challenge step
+        can flag that ambiguity instead of it being silently resolved here.
+        """
+        async with self._lock:
+            if self._name_index is None:
+                self._name_index = await self._load_name_index()
+        lowered = name.strip().lower()
+        if not lowered:
+            return []
+        exact = [m for m in self._name_index if m.title.lower() == lowered]
+        if exact:
+            return exact[:limit]
+        substring = [m for m in self._name_index if lowered in m.title.lower()]
+        if substring:
+            return substring[:limit]
+        by_title = {m.title: m for m in self._name_index}
+        close_titles = difflib.get_close_matches(name, list(by_title.keys()), n=limit, cutoff=0.75)
+        return [by_title[t] for t in close_titles]
 
     async def _get_json(self, client: httpx.AsyncClient, url: str) -> dict | None:
         await asyncio.sleep(self._delay)
