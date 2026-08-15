@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from llama_index.core.schema import TextNode
-from llama_index.retrievers.bm25 import BM25Retriever
-
+from arp.retrieval.index_cache import get_index_cache
 from arp.schemas.common import DocType, DocumentChunk
 
 
@@ -49,9 +47,9 @@ def select_relevant_chunks(
     if not query_terms:
         return candidates[:max_chunks]
 
-    nodes = [TextNode(id_=c.chunk_id, text=c.text) for c in candidates]
-    by_id = {c.chunk_id: c for c in candidates}
-    retriever = BM25Retriever.from_defaults(nodes=nodes, similarity_top_k=len(nodes))
+    cache = get_index_cache()
+    key = cache.make_key(candidates)
+    retriever, by_id = cache.get_or_build(key, candidates)
     results = retriever.retrieve(" ".join(query_terms))
 
     if require_hit:
