@@ -52,6 +52,7 @@ from arp.schemas.engagement import CorrespondenceEntry, EscalationStage, IssueSe
 from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotSpec, SecurityRef
 from arp.schemas.taxonomy import DerivationMethod, TaxonomyRef
 from arp.schemas.thematic import ThemeDefinition
+from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.run_store import RunStore
@@ -93,10 +94,22 @@ def _ballot_platform() -> ManualInstructionBallotPlatform:
     return ManualInstructionBallotPlatform(get_settings().ballots_dir)
 
 
+def _document_content_store() -> DocumentContentStore:
+    settings = get_settings()
+    return DocumentContentStore(settings.document_store_dir, enabled=settings.document_cache_enabled)
+
+
 def _registry() -> DocumentSourceRegistry:
     settings = get_settings()
     return DocumentSourceRegistry(
-        [LocalFileDocumentSource(settings.documents_dir), EdgarDocumentSource(settings.edgar_user_agent, settings.cache_dir)]
+        [
+            LocalFileDocumentSource(
+                settings.documents_dir,
+                content_store=_document_content_store(),
+                max_concurrent_parses=settings.max_concurrent_parses,
+            ),
+            EdgarDocumentSource(settings.edgar_user_agent, settings.cache_dir),
+        ]
     )
 
 

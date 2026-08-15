@@ -9,6 +9,7 @@ from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient
 from arp.llm.factory import build_llm_client
+from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.run_store import RunStore
@@ -36,11 +37,21 @@ def get_portfolio_store() -> PortfolioStore:
 
 
 @lru_cache
+def get_document_content_store() -> DocumentContentStore:
+    settings = get_settings()
+    return DocumentContentStore(settings.document_store_dir, enabled=settings.document_cache_enabled)
+
+
+@lru_cache
 def get_registry() -> DocumentSourceRegistry:
     settings = get_settings()
     return DocumentSourceRegistry(
         [
-            LocalFileDocumentSource(settings.documents_dir),
+            LocalFileDocumentSource(
+                settings.documents_dir,
+                content_store=get_document_content_store(),
+                max_concurrent_parses=settings.max_concurrent_parses,
+            ),
             EdgarDocumentSource(settings.edgar_user_agent, settings.cache_dir),
         ]
     )

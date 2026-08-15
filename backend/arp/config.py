@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     portfolios_dir: Path = Field(default=REPO_ROOT / "portfolios")
     documents_dir: Path = Field(default=REPO_ROOT / "data" / "documents")
     cache_dir: Path = Field(default=REPO_ROOT / "backend" / ".cache")
+    document_store_dir: Path = Field(
+        default=REPO_ROOT / "backend" / ".document_store",
+        description="SQLite content-addressed cache of parsed document text; see arp.storage.document_store.",
+    )
     discovery_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".discovery_state")
     engagements_dir: Path = Field(default=REPO_ROOT / "engagements")
     ballots_dir: Path = Field(default=REPO_ROOT / "ballots", description="Where the manual-instruction ballot platform writes vote instruction files, absent a real custodian/proxy-platform integration.")
@@ -31,6 +35,11 @@ class Settings(BaseSettings):
     # Batch / concurrency
     max_concurrent_llm_calls: int = Field(default=8)
     max_concurrent_downloads: int = Field(default=4)
+    max_concurrent_parses: int = Field(
+        default=4, description="Bounds concurrent off-loop document parses; the default executor allows 32."
+    )
+
+    document_cache_enabled: bool = Field(default=True)
 
     # Precision controls
     grounding_fuzzy_threshold: float = Field(
@@ -107,6 +116,7 @@ class Settings(BaseSettings):
             self.portfolios_dir,
             self.documents_dir,
             self.cache_dir,
+            self.document_store_dir,
             self.discovery_state_dir,
             self.engagements_dir,
             self.ballots_dir,
