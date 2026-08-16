@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
+from arp.storage.parsed_content_cache import ParsedContentCache
 from arp.storage.safe_path import UnsafeIdentifierError
 
 
@@ -145,13 +146,13 @@ def test_stat_fast_path_avoids_rehashing(tmp_path, monkeypatch):
     store.content_key_for_file(doc_path)  # first call: hashes and caches the stat triple
 
     hash_calls = []
-    original = DocumentContentStore._hash_file_bytes
+    original = ParsedContentCache._hash_file_bytes
 
     def counting_hash(path):
         hash_calls.append(1)
         return original(path)
 
-    monkeypatch.setattr(DocumentContentStore, "_hash_file_bytes", staticmethod(counting_hash))
+    monkeypatch.setattr(ParsedContentCache, "_hash_file_bytes", staticmethod(counting_hash))
     store.content_key_for_file(doc_path)  # second call: same stat triple, should skip hashing
 
     assert hash_calls == []

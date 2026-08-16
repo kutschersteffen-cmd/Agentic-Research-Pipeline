@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import asyncio
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from arp.api.deps import get_edgar_source, get_llm_client, get_run_store, get_web_search_client, settings_dep
+from arp.api.deps import get_edgar_source, get_run_store, get_web_search_client, settings_dep
+from arp.api.review_endpoints import ReviewDecisionRequest, get_review_queue, submit_review
+from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
 from arp.discovery.identity_pipeline import create_identity_run, enriched_universe, execute_identity_run
 from arp.discovery.site_finder import WebSearchClient
 from arp.ingestion.edgar import EdgarDocumentSource
-from arp.orchestration.review_queue import latest_decisions, record_review_decision
 from arp.schemas.common import CompanyRef
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
@@ -42,15 +41,15 @@ async def start_identity_run(
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 
-    llm = get_llm_client()  # raises a clear error before a run manifest is even created
-    run_id = create_identity_run(companies, run_store)
+    def _create() -> str:
+        return create_identity_run(companies, run_store)
 
-    async def _background() -> None:
+    async def _run(run_id: str, llm) -> None:
         await execute_identity_run(
             run_id, companies, llm=llm, settings=settings, run_store=run_store, edgar=edgar, search_client=search_client
         )
 
-    asyncio.create_task(_background())
+    run_id = schedule_llm_run(create_fn=_create, run=_run)
     return {"run_id": run_id, "company_count": len(companies)}
 
 
@@ -72,17 +71,7 @@ def get_identity_results(
 
 @router.get("/runs/{run_id}/review-queue")
 def get_identity_review_queue(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    rows = run_store.read_jsonl(run_store.review_queue_path(run_id))
-    decisions = latest_decisions(run_store, run_id)
-    pending = [r for r in rows if r["item_key"] not in decisions]
-    return {"pending": pending, "decided": [{"item": r, "decision": decisions[r["item_key"]]} for r in rows if r["item_key"] in decisions]}
-
-
-class ReviewDecisionRequest(BaseModel):
-    item_key: str
-    decision: str  # approve | edit | reject
-    reviewer: str | None = None
-    edited_value: dict | None = None
+    return get_review_queue(run_store, run_id)
 
 
 @router.post("/runs/{run_id}/review")
@@ -92,8 +81,10 @@ def submit_identity_review(
     """decision='edit' with edited_value={"resolved_website": ..., "resolved_cik": ...}
     is how a reviewer corrects an uncertain/unresolved match -- picked up
     by GET .../enriched-universe below."""
-    record_review_decision(run_store, run_id, req.item_key, req.decision, req.reviewer, req.edited_value)
-    return {"status": "recorded"}
+    return submit_review(
+        run_store, run_id, item_key=req.item_key, decision=req.decision, reviewer=req.reviewer,
+        edited_value=req.edited_value, comment=req.comment,
+    )
 
 
 @router.get("/runs/{run_id}/enriched-universe")

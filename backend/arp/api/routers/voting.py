@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import asyncio
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from arp.api.deps import get_ballot_platform, get_engagement_store, get_llm_client, get_registry, get_run_store, settings_dep
+from arp.api.deps import get_ballot_platform, get_engagement_store, get_registry, get_run_store, settings_dep
+from arp.api.review_endpoints import get_review_history, get_review_queue, submit_review
+from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
 from arp.ingestion.registry import DocumentSourceRegistry
-from arp.orchestration.review_queue import decision_history, latest_decisions, record_review_decision
 from arp.schemas.common import CompanyRef
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.run_store import RunStore
@@ -37,16 +36,16 @@ async def start_voting_run(
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 
-    llm = get_llm_client()  # raises a clear error before a run manifest is even created
-    run_id = create_voting_run(companies, settings, run_store)
+    def _create() -> str:
+        return create_voting_run(companies, settings, run_store)
 
-    async def _background() -> None:
+    async def _run(run_id: str, llm) -> None:
         await execute_voting_run(
             run_id, companies, llm=llm, registry=registry, engagement_store=engagement_store,
             settings=settings, run_store=run_store, meeting_dates=req.meeting_dates, fund_name=settings.fund_name,
         )
 
-    asyncio.create_task(_background())
+    run_id = schedule_llm_run(create_fn=_create, run=_run)
     return {"run_id": run_id, "company_count": len(companies)}
 
 
@@ -65,18 +64,21 @@ def get_voting_ballots(run_id: str, run_store: RunStore = Depends(get_run_store)
 
 @router.get("/runs/{run_id}/review-queue")
 def get_voting_review_queue(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    rows = run_store.read_jsonl(run_store.review_queue_path(run_id))
-    decisions = latest_decisions(run_store, run_id)
-    pending = [r for r in rows if r["item_key"] not in decisions]
-    return {"pending": pending, "decided": [{"item": r, "decision": decisions[r["item_key"]]} for r in rows if r["item_key"] in decisions]}
+    return get_review_queue(run_store, run_id)
 
 
 @router.get("/runs/{run_id}/review-history")
 def get_voting_review_history(run_id: str, item_key: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    return {"item_key": item_key, "history": decision_history(run_store, run_id, item_key)}
+    return get_review_history(run_store, run_id, item_key)
 
 
 class VoteReviewDecisionRequest(BaseModel):
+    """Voting's review decision carries extra fields (vote, co_signed_by)
+    and its own validation beyond the generic shape shared by the other
+    routers -- see arp/api/review_endpoints.py's module docstring for why
+    that isn't generalized -- but still calls the same submit_review()
+    persistence helper everyone else uses."""
+
     item_key: str
     decision: str  # 'approve' | 'edit' | 'reject'
     reviewer: str
@@ -97,8 +99,10 @@ def submit_voting_review(run_id: str, req: VoteReviewDecisionRequest, run_store:
     edited_value = {"vote": req.vote, "co_signed_by": req.co_signed_by} if req.decision == "edit" else (
         {"co_signed_by": req.co_signed_by} if req.co_signed_by else None
     )
-    record_review_decision(run_store, run_id, req.item_key, req.decision, req.reviewer, edited_value, req.comment)
-    return {"status": "recorded"}
+    return submit_review(
+        run_store, run_id, item_key=req.item_key, decision=req.decision, reviewer=req.reviewer,
+        edited_value=edited_value, comment=req.comment,
+    )
 
 
 @router.post("/runs/{run_id}/cast")

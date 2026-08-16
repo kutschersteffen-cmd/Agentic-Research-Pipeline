@@ -68,26 +68,18 @@ class DiscoveryScheduleConfig(BaseModel):
 # --- Agentic company identity resolution -----------------------------------
 #
 # Given only a company name (no website/cik), resolves which real company it
-# is via a propose -> resolve -> challenge -> adjudicate pipeline (see
-# arp/discovery/identity_agents.py and identity_graph.py), mirroring the
-# Advocate/Opposing/Adjudicator triad in arp/research/matcher_agents.py.
-# Kept in its own run type (arp/discovery/identity_pipeline.py), separate
-# from the discovery crawl pipeline -- see that module's docstring.
+# is (see arp/discovery/identity_agents.py and identity_graph.py). A direct
+# SEC EDGAR name lookup (deterministic, no LLM) resolves the common case on
+# its own; the single adjudicate LLM call only runs when that lookup is
+# genuinely ambiguous (0 or 2+ matches). Kept in its own run type
+# (arp/discovery/identity_pipeline.py), separate from the discovery crawl
+# pipeline -- see that module's docstring.
 
 
 class IdentityVerdict(StrEnum):
     RESOLVED = "resolved"
     UNCERTAIN = "uncertain"
     UNRESOLVED = "unresolved"
-
-
-class IdentityCandidate(BaseModel):
-    """Structured output of the propose step -- the only place the LLM
-    invents anything; it never touches the network itself."""
-
-    legal_name_guesses: list[str] = Field(default_factory=list)
-    ticker_guess: str | None = None
-    search_queries: list[str] = Field(default_factory=list, description="2-3 web search queries to try.")
 
 
 class EdgarNameMatch(BaseModel):
@@ -102,8 +94,8 @@ class EdgarNameMatch(BaseModel):
 
 class WebSearchHit(BaseModel):
     """A raw web search result, kept as-is (title/url/snippet) rather than
-    LLM-summarized, so the challenge/adjudicate steps reason over the real
-    signal instead of a paraphrase of it."""
+    LLM-summarized, so the adjudicate step reasons over the real signal
+    instead of a paraphrase of it."""
 
     title: str
     url: str
@@ -112,23 +104,15 @@ class WebSearchHit(BaseModel):
 
 class IdentitySignals(BaseModel):
     """Deterministic (non-LLM) resolution signals gathered from real
-    lookups for the challenge/adjudicate steps to reason over."""
+    lookups for the adjudicate step (or the zero-LLM clean-match
+    short-circuit) to reason over."""
 
     edgar_matches: list[EdgarNameMatch] = Field(default_factory=list)
     search_results: list[WebSearchHit] = Field(default_factory=list)
 
 
-class IdentityChallenge(BaseModel):
-    """Structured output of the adversarial challenge step."""
-
-    concerns: list[str] = Field(
-        default_factory=list, description="Specific, concrete reasons to doubt the candidate identity, if any."
-    )
-    lean: IdentityVerdict = Field(description="The challenger's own read of the verdict, before adjudication.")
-
-
 class IdentityAdjudication(BaseModel):
-    """Structured output of the final adjudicate step. resolved_website/
+    """Structured output of the adjudicate step. resolved_website/
     resolved_cik are checked against IdentitySignals by code (never
     trusted from the LLM's self-report alone) before being accepted --
     see arp/discovery/identity_graph.py."""

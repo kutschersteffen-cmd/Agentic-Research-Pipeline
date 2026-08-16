@@ -4,20 +4,14 @@ from typing import TypedDict
 
 from langgraph.graph import END, StateGraph
 
-from arp.discovery.identity_agents import (
-    adjudicate_identity,
-    challenge_identity,
-    propose_identity,
-    resolve_signals,
-)
+from arp.discovery.identity_agents import adjudicate_identity, gather_signals
 from arp.discovery.site_finder import WebSearchClient
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.llm.base import LLMClient, LLMUsage
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import (
+    EdgarNameMatch,
     IdentityAdjudication,
-    IdentityCandidate,
-    IdentityChallenge,
     IdentityResolutionResult,
     IdentitySignals,
     IdentityVerdict,
@@ -31,9 +25,7 @@ class IdentityState(TypedDict):
     search_client: WebSearchClient
     max_search_results: int
     confidence_threshold: float
-    candidate: IdentityCandidate | None
     signals: IdentitySignals | None
-    challenge: IdentityChallenge | None
     adjudication: IdentityAdjudication | None
     usages: list[LLMUsage]
     result: IdentityResolutionResult | None
@@ -41,7 +33,19 @@ class IdentityState(TypedDict):
 
 def _route_after_check(state: IdentityState) -> str:
     company = state["company"]
-    return "finalize_known" if (company.website or company.cik) else "propose"
+    return "finalize_known" if (company.website or company.cik) else "gather_signals"
+
+
+def _clean_edgar_match(company_name: str, signals: IdentitySignals) -> EdgarNameMatch | None:
+    """A real, unambiguous EDGAR hit -- exactly one match, and its title is
+    the same company name (case/whitespace aside), not merely a substring
+    or fuzzy-tier result. Only this tier is trusted with zero LLM
+    involvement; anything weaker (0 matches, 2+ matches, or a single
+    fuzzy/substring match) goes to the adjudicate step."""
+    if len(signals.edgar_matches) != 1:
+        return None
+    match = signals.edgar_matches[0]
+    return match if match.title.strip().lower() == company_name.strip().lower() else None
 
 
 async def _check_known(state: IdentityState) -> dict:
@@ -68,19 +72,10 @@ async def _finalize_known(state: IdentityState) -> dict:
     return {"result": result}
 
 
-async def _propose(state: IdentityState) -> dict:
+async def _gather_signals(state: IdentityState) -> dict:
     company = state["company"]
-    candidate, usage = await propose_identity(
-        company.name, state["llm"], country_hint=company.country, sector_hint=company.sector
-    )
-    return {"candidate": candidate, "usages": state["usages"] + [usage]}
-
-
-async def _resolve(state: IdentityState) -> dict:
-    company = state["company"]
-    signals = await resolve_signals(
+    signals = await gather_signals(
         company.name,
-        state["candidate"],
         edgar=state["edgar"],
         search_client=state["search_client"],
         max_search_results=state["max_search_results"],
@@ -88,17 +83,35 @@ async def _resolve(state: IdentityState) -> dict:
     return {"signals": signals}
 
 
-async def _challenge(state: IdentityState) -> dict:
+def _route_after_signals(state: IdentityState) -> str:
+    match = _clean_edgar_match(state["company"].name, state["signals"])
+    return "finalize_clean_match" if match else "adjudicate"
+
+
+async def _finalize_clean_match(state: IdentityState) -> dict:
+    """A single, exact SEC EDGAR match -- resolved deterministically, zero
+    LLM calls. This is the case the whole gather_signals -> route split
+    exists for: the common case shouldn't pay for a judgment call that
+    isn't actually being made."""
     company = state["company"]
-    challenge, usage = await challenge_identity(company.name, state["candidate"], state["signals"], state["llm"])
-    return {"challenge": challenge, "usages": state["usages"] + [usage]}
+    match = _clean_edgar_match(company.name, state["signals"])
+    result = IdentityResolutionResult(
+        company_id=company.company_id,
+        input_name=company.name,
+        verdict=IdentityVerdict.RESOLVED,
+        confidence=1.0,
+        resolved_website=None,
+        resolved_cik=match.cik,
+        signals=state["signals"],
+        rationale=f"Exact, unambiguous SEC EDGAR match on company title (CIK {match.cik}); no LLM call needed.",
+        flagged_for_review=False,
+    )
+    return {"result": result}
 
 
 async def _adjudicate(state: IdentityState) -> dict:
     company = state["company"]
-    adjudication, usage = await adjudicate_identity(
-        company.name, state["candidate"], state["signals"], state["challenge"], state["llm"]
-    )
+    adjudication, usage = await adjudicate_identity(company.name, state["signals"], state["llm"])
 
     # The mechanical, grounding.py-equivalent safety net: never trust the
     # LLM's self-reported resolved_website/resolved_cik -- verify each
@@ -149,20 +162,20 @@ def _build_graph():
     graph = StateGraph(IdentityState)
     graph.add_node("check_known", _check_known)
     graph.add_node("finalize_known", _finalize_known)
-    graph.add_node("propose", _propose)
-    graph.add_node("resolve", _resolve)
-    graph.add_node("challenge", _challenge)
+    graph.add_node("gather_signals", _gather_signals)
+    graph.add_node("finalize_clean_match", _finalize_clean_match)
     graph.add_node("adjudicate", _adjudicate)
     graph.add_node("finalize", _finalize)
 
     graph.set_entry_point("check_known")
     graph.add_conditional_edges(
-        "check_known", _route_after_check, {"finalize_known": "finalize_known", "propose": "propose"}
+        "check_known", _route_after_check, {"finalize_known": "finalize_known", "gather_signals": "gather_signals"}
     )
     graph.add_edge("finalize_known", END)
-    graph.add_edge("propose", "resolve")
-    graph.add_edge("resolve", "challenge")
-    graph.add_edge("challenge", "adjudicate")
+    graph.add_conditional_edges(
+        "gather_signals", _route_after_signals, {"finalize_clean_match": "finalize_clean_match", "adjudicate": "adjudicate"}
+    )
+    graph.add_edge("finalize_clean_match", END)
     graph.add_edge("adjudicate", "finalize")
     graph.add_edge("finalize", END)
     return graph.compile()
@@ -181,9 +194,10 @@ async def resolve_company_identity(
     max_search_results: int = 5,
     confidence_threshold: float = 0.7,
 ) -> tuple[IdentityResolutionResult, list[LLMUsage]]:
-    """Runs the propose -> resolve -> challenge -> adjudicate identity
-    resolution graph for one company, or short-circuits to a trivial
-    RESOLVED result (zero LLM calls) when website/cik is already known.
+    """Runs identity resolution for one company: zero LLM calls when
+    website/cik is already known, zero LLM calls when a direct SEC EDGAR
+    name lookup already finds exactly one unambiguous match, and exactly
+    one LLM call (adjudicate) otherwise.
     """
     initial: IdentityState = {
         "company": company,
@@ -192,9 +206,7 @@ async def resolve_company_identity(
         "search_client": search_client,
         "max_search_results": max_search_results,
         "confidence_threshold": confidence_threshold,
-        "candidate": None,
         "signals": None,
-        "challenge": None,
         "adjudication": None,
         "usages": [],
         "result": None,

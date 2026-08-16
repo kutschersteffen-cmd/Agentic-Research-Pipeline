@@ -7,7 +7,7 @@ from arp.discovery.identity_pipeline import (
 )
 from arp.orchestration.review_queue import record_review_decision
 from arp.schemas.common import CompanyRef
-from arp.schemas.discovery import EdgarNameMatch, IdentityAdjudication, IdentityCandidate, IdentityChallenge, IdentityVerdict
+from arp.schemas.discovery import EdgarNameMatch, IdentityAdjudication, IdentityVerdict
 from arp.storage.run_store import RunStore
 
 
@@ -37,8 +37,6 @@ class _NullSearch:
 def _uncertain_llm_script(fake_llm):
     return fake_llm(
         {
-            IdentityCandidate.__name__: [IdentityCandidate(search_queries=[])],
-            IdentityChallenge.__name__: [IdentityChallenge(concerns=["ambiguous"], lean=IdentityVerdict.UNCERTAIN)],
             IdentityAdjudication.__name__: [
                 IdentityAdjudication(
                     verdict=IdentityVerdict.UNCERTAIN, confidence=0.3, resolved_website=None, resolved_cik=None,
@@ -176,8 +174,6 @@ async def test_enriched_universe_approve_without_edit_uses_agents_own_resolved_f
     run_store = RunStore(settings.runs_dir)
     llm = fake_llm(
         {
-            IdentityCandidate.__name__: [IdentityCandidate(search_queries=[])],
-            IdentityChallenge.__name__: [IdentityChallenge(concerns=[], lean=IdentityVerdict.RESOLVED)],
             IdentityAdjudication.__name__: [
                 IdentityAdjudication(
                     verdict=IdentityVerdict.RESOLVED, confidence=0.5, resolved_website=None, resolved_cik=None,

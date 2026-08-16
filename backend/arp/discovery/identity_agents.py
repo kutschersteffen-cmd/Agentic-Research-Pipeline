@@ -3,64 +3,44 @@ from __future__ import annotations
 from arp.discovery.site_finder import WebSearchClient
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.llm.base import LLMClient, LLMUsage
-from arp.schemas.discovery import (
-    IdentityAdjudication,
-    IdentityCandidate,
-    IdentityChallenge,
-    IdentitySignals,
-    WebSearchHit,
-)
+from arp.schemas.discovery import IdentityAdjudication, IdentitySignals, WebSearchHit
 
-# Implements the same propose/challenge/adjudicate "control and challenge
-# agents" pattern as arp/research/matcher_agents.py's Advocate/Opposing/
-# Adjudicator, applied to a harder problem: identity resolution has no
-# downstream mechanical check the way grounding.py catches a bad citation,
-# so the challenge/adjudicate steps are the only defense against a
-# confidently wrong company match -- and the adjudicator's own claims are
-# further checked against real signals in code (see identity_graph.py)
-# rather than trusted outright.
-
-_PROPOSE_SYSTEM = """\
-You are a research analyst identifying a public company from its name alone. \
-Given only a company name (and, if available, its country/sector), propose: \
-a few likely legal-name variants (e.g. with/without "Inc.", "Corp", "Ltd", \
-regional suffixes, common abbreviations); a likely stock ticker if you are \
-confident of one (otherwise leave it null -- do not guess); and 2-3 short \
-web search queries that would help find this company's official corporate \
-or investor-relations homepage. Do not invent a website, ticker, or CIK \
-you are not confident about -- that will be checked separately against \
-real sources, not taken on your word."""
-
-_CHALLENGE_SYSTEM = """\
-You are a skeptical analyst stress-testing a proposed company identity \
-match before it is used to source financial disclosures. You are given the \
-original company name, the candidate identity, and the real signals found \
-for it (SEC EDGAR ticker/CIK/title matches and web search results). \
-Actively look for: no real EDGAR or web match at all; more than one \
-similarly plausible EDGAR match (e.g. a common name, multiple listings, a \
-holding company vs. an operating subsidiary); search results that look \
-like a look-alike domain, a news aggregator, or an unrelated company \
-rather than the company's own corporate/investor-relations site; any \
-search result that doesn't actually appear to be about the named company. \
-List concrete concerns (empty if you genuinely find none) and your own \
-lean on the verdict. Do not soften real ambiguity to seem more useful -- \
-an "uncertain" lean here is exactly what routes to human review, which is \
-the correct outcome when the evidence doesn't clearly support one match."""
+# A single LLM call, used only when a direct SEC EDGAR name lookup doesn't
+# already give an unambiguous answer (see identity_graph.py's
+# _clean_edgar_match short-circuit). Earlier versions of this module split
+# identity resolution into three sequential calls (propose a candidate,
+# challenge it, adjudicate) mirroring arp/research/matcher_agents.py's
+# Advocate/Opposing/Adjudicator triad -- but unlike thematic classification,
+# "which company is this" rarely has two genuinely defensible sides to
+# debate, and EDGAR's own fuzzy/substring name search (arp/ingestion/
+# edgar.py::search_by_name) already resolves the common case without any
+# LLM involvement at all. The one call that remains still has no downstream
+# mechanical check the way grounding.py catches a bad citation, so its
+# resolved_website/resolved_cik claims are still verified against the real
+# signals gathered here, in code, before being trusted (see
+# identity_graph.py).
 
 _ADJUDICATE_SYSTEM = """\
-You are the adjudicator making the final call on a candidate company \
-identity match, given the original name, the candidate, the real signals \
-found (EDGAR matches, web search results), and a skeptical analyst's \
-challenge. Decide the final verdict: 'resolved' only if a specific EDGAR \
-match or web search result clearly and unambiguously identifies the named \
-company, with no credible competing match; 'uncertain' if there is a \
-plausible match but real ambiguity or an unresolved concern from the \
-challenge; 'unresolved' if there is no credible match at all. confidence \
-must reflect your actual certainty -- low confidence for anything short of \
-a clean, unambiguous match. resolved_website and resolved_cik MUST be \
-copied verbatim from a URL or CIK that actually appears in the provided \
-signals -- never invent one, even a plausible-looking one; leave either \
-null if no signal supports it. Set them only when verdict is 'resolved'."""
+You are verifying which real company a name refers to, using SEC EDGAR \
+matches and web search results actually found for it -- never inventing a \
+candidate name, ticker, or URL yourself. Actively look for: no real EDGAR \
+or web match at all; more than one similarly plausible EDGAR match (e.g. a \
+common name, multiple listings, a holding company vs. an operating \
+subsidiary); search results that look like a look-alike domain, a news \
+aggregator, or an unrelated company rather than the company's own \
+corporate/investor-relations site.
+
+Decide the final verdict: 'resolved' only if a specific EDGAR match or web \
+search result clearly and unambiguously identifies the named company, with \
+no credible competing match; 'uncertain' if there is a plausible match but \
+real ambiguity; 'unresolved' if there is no credible match at all. \
+confidence must reflect your actual certainty -- low confidence for \
+anything short of a clean, unambiguous match; do not soften real ambiguity \
+to seem more useful, since 'uncertain' is exactly what routes to human \
+review. resolved_website and resolved_cik MUST be copied verbatim from a \
+URL or CIK that actually appears in the provided signals -- never invent \
+one, even a plausible-looking one; leave either null if no signal supports \
+it. Set them only when verdict is 'resolved'."""
 
 
 def _format_signals(signals: IdentitySignals) -> str:
@@ -78,48 +58,26 @@ def _format_signals(signals: IdentitySignals) -> str:
     return "\n".join(lines)
 
 
-async def propose_identity(
+async def gather_signals(
     company_name: str,
-    llm: LLMClient,
-    *,
-    country_hint: str | None = None,
-    sector_hint: str | None = None,
-) -> tuple[IdentityCandidate, LLMUsage]:
-    prompt = f"Company name: {company_name}\n"
-    if country_hint:
-        prompt += f"Country: {country_hint}\n"
-    if sector_hint:
-        prompt += f"Sector: {sector_hint}\n"
-    return await llm.complete_structured(system=_PROPOSE_SYSTEM, prompt=prompt, output_model=IdentityCandidate)
-
-
-async def resolve_signals(
-    company_name: str,
-    candidate: IdentityCandidate,
     *,
     edgar: EdgarDocumentSource,
     search_client: WebSearchClient,
     max_search_results: int = 5,
 ) -> IdentitySignals:
-    """Deterministic, non-LLM step: looks up real signals for the
-    candidate identity via SEC EDGAR's own company map (arp/ingestion/
-    edgar.py::search_by_name) and web search. Never itself summarized or
-    filtered by an LLM before the challenge/adjudicate steps see it --
-    ambiguity here (e.g. multiple EDGAR matches) is preserved as-is so the
-    challenge step can flag it, not resolved silently.
+    """Deterministic, non-LLM step: looks up real signals for the company
+    name via SEC EDGAR's own company map (arp/ingestion/edgar.py::
+    search_by_name, which already does exact/substring/fuzzy matching on
+    its own) and web search. Never itself summarized or filtered before
+    the adjudicate step sees it -- ambiguity here (e.g. multiple EDGAR
+    matches) is preserved as-is so the LLM (or identity_graph.py's clean-
+    match short-circuit) can act on it, not resolved silently.
     """
-    edgar_matches = list(await edgar.search_by_name(company_name))
-    name_guesses = list(candidate.legal_name_guesses)
-    if candidate.ticker_guess:
-        name_guesses.append(candidate.ticker_guess)
-    for guess in name_guesses:
-        for m in await edgar.search_by_name(guess):
-            if m not in edgar_matches:
-                edgar_matches.append(m)
+    edgar_matches = await edgar.search_by_name(company_name)
 
     search_results: list[WebSearchHit] = []
     seen_urls: set[str] = set()
-    queries = candidate.search_queries or [f"{company_name} investor relations", f"{company_name} official website"]
+    queries = [f"{company_name} investor relations", f"{company_name} official website"]
     for query in queries:
         for r in await search_client.search(query, max_results=max_search_results):
             if r.url in seen_urls:
@@ -130,33 +88,8 @@ async def resolve_signals(
     return IdentitySignals(edgar_matches=edgar_matches, search_results=search_results)
 
 
-async def challenge_identity(
-    company_name: str, candidate: IdentityCandidate, signals: IdentitySignals, llm: LLMClient
-) -> tuple[IdentityChallenge, LLMUsage]:
-    prompt = (
-        f"Original company name: {company_name}\n\n"
-        f"Candidate identity:\n"
-        f"  legal name guesses: {candidate.legal_name_guesses}\n"
-        f"  ticker guess: {candidate.ticker_guess}\n\n"
-        f"{_format_signals(signals)}"
-    )
-    return await llm.complete_structured(system=_CHALLENGE_SYSTEM, prompt=prompt, output_model=IdentityChallenge)
-
-
 async def adjudicate_identity(
-    company_name: str,
-    candidate: IdentityCandidate,
-    signals: IdentitySignals,
-    challenge: IdentityChallenge,
-    llm: LLMClient,
+    company_name: str, signals: IdentitySignals, llm: LLMClient
 ) -> tuple[IdentityAdjudication, LLMUsage]:
-    prompt = (
-        f"Original company name: {company_name}\n\n"
-        f"Candidate identity:\n"
-        f"  legal name guesses: {candidate.legal_name_guesses}\n"
-        f"  ticker guess: {candidate.ticker_guess}\n\n"
-        f"{_format_signals(signals)}\n\n"
-        f"Challenge analyst's concerns: {challenge.concerns}\n"
-        f"Challenge analyst's lean: {challenge.lean.value}"
-    )
+    prompt = f"Company name: {company_name}\n\n{_format_signals(signals)}"
     return await llm.complete_structured(system=_ADJUDICATE_SYSTEM, prompt=prompt, output_model=IdentityAdjudication)
