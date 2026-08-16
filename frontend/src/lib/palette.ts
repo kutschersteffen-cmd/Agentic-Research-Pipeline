@@ -1,19 +1,21 @@
-// Validated against this app's dark chart surface (--panel: #171a21) via the
-// dataviz skill's validator (scripts/validate_palette.js): all four hard
-// gates pass (lightness band, chroma floor, CVD adjacent-pair separation,
-// normal-vision floor, contrast >= 3:1). Fixed order -- never cycle or
-// re-sort per filter, so a series keeps its color as other series are
-// added/removed ("color follows the entity, never its rank").
-export const CATEGORICAL_DARK = [
-  "#3987e5", // slot 1: blue
-  "#d95926", // slot 2: orange
-  "#199e70", // slot 3: aqua
-  "#c98500", // slot 4: yellow
+// Validated against this app's light chart surface (--panel: #fcfcfb) via
+// the dataviz skill's validator (scripts/validate_palette.js): all four
+// hard gates pass (lightness band, chroma floor, CVD adjacent-pair
+// separation, normal-vision floor). Fixed order -- never cycle or re-sort
+// per filter, so a series keeps its color as other series are added/
+// removed ("color follows the entity, never its rank").
+export const CATEGORICAL = [
+  "#2a78d6", // slot 1: blue
+  "#eb6834", // slot 2: orange
+  "#1baf7a", // slot 3: aqua
+  "#eda100", // slot 4: yellow
 ] as const;
 
 // Single-hue sequential ramp (blue, light -> dark) for magnitude encodings
 // (bar charts, pivot-table heatmap cells) -- one hue only, never a rainbow.
-export const SEQUENTIAL_BLUE_DARK = [
+// This ramp is mode-invariant (same steps validated for both chart
+// surfaces), so it's unchanged from the app's previous dark theme.
+export const SEQUENTIAL_BLUE = [
   "#cde2fb", // 100
   "#9ec5f4", // 200
   "#6da7ec", // 300
@@ -25,10 +27,10 @@ export const SEQUENTIAL_BLUE_DARK = [
 
 /** Maps a value into the sequential ramp given the range it sits in. */
 export function sequentialFill(value: number, min: number, max: number): string {
-  if (max <= min) return SEQUENTIAL_BLUE_DARK[3];
+  if (max <= min) return SEQUENTIAL_BLUE[3];
   const t = Math.min(Math.max((value - min) / (max - min), 0), 1);
-  const idx = Math.round(t * (SEQUENTIAL_BLUE_DARK.length - 1));
-  return SEQUENTIAL_BLUE_DARK[idx];
+  const idx = Math.round(t * (SEQUENTIAL_BLUE.length - 1));
+  return SEQUENTIAL_BLUE[idx];
 }
 
 /** Picks legible ink (white or near-black) for text placed inside a filled
@@ -47,5 +49,5 @@ export function textColorForFill(hex: string): string {
  * should cap series count before reaching here (see marks-and-anatomy.md's
  * series-count ladder). */
 export function categoricalColor(index: number): string {
-  return CATEGORICAL_DARK[index % CATEGORICAL_DARK.length];
+  return CATEGORICAL[index % CATEGORICAL.length];
 }

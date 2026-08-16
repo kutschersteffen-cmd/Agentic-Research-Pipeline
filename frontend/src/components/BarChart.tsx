@@ -1,4 +1,4 @@
-import { SEQUENTIAL_BLUE_DARK } from "../lib/palette";
+import { SEQUENTIAL_BLUE } from "../lib/palette";
 
 export interface BarDatum {
   label: string;
@@ -40,7 +40,7 @@ export function BarChart({
   const barHeight = 18;
   const height = data.length * rowHeight + 8;
   const maxValue = Math.max(...data.map((d) => Math.abs(d.value)), 1);
-  const fill = SEQUENTIAL_BLUE_DARK[3];
+  const fill = SEQUENTIAL_BLUE[3];
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" role="img" aria-label="Bar chart">

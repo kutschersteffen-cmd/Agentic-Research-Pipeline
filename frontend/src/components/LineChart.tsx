@@ -153,7 +153,7 @@ export function LineChart({
               <polyline points={points} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
               {s.values.map(
                 (v, idx) =>
-                  v != null && <circle key={idx} cx={xAt(idx)} cy={yAt(v)} r={4} fill={color} stroke="#171a21" strokeWidth={2} />
+                  v != null && <circle key={idx} cx={xAt(idx)} cy={yAt(v)} r={4} fill={color} stroke="#fcfcfb" strokeWidth={2} />
               )}
             </g>
           );
