@@ -52,8 +52,8 @@ async def start_extraction_run(
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 
     schema = req.datapoint_schema
+    llm = get_llm_client()  # raises a clear error before a run manifest is even created
     run_id = create_extraction_run(schema, companies, settings, run_store)
-    llm = get_llm_client()
 
     async def _background() -> None:
         await execute_extraction_run(

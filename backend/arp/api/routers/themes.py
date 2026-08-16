@@ -85,6 +85,7 @@ async def start_theme_run(
     if bool(req.revenue_catalogue_path) != bool(req.catalogue_mapping):
         raise HTTPException(400, "Provide both revenue_catalogue_path and catalogue_mapping together, or neither.")
 
+    llm = get_llm_client()  # raises a clear 4xx-worthy error before a run manifest is even created
     run_id = create_theme_run(
         theme, companies, settings, run_store,
         universe_path=req.universe_path,
@@ -92,7 +93,6 @@ async def start_theme_run(
         revenue_catalogue_path=req.revenue_catalogue_path,
         catalogue_mapping=req.catalogue_mapping,
     )
-    llm = get_llm_client()  # raises a clear 4xx-worthy error before we schedule anything if unconfigured
     indirect_model = build_leontief_model(settings, use_sample=req.use_sample_icio)
 
     revenue_resolver = None

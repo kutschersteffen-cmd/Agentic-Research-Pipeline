@@ -33,8 +33,8 @@ async def start_financials_extraction_run(
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 
+    llm = get_llm_client()  # raises a clear error before a run manifest is even created
     run_id = create_financials_extraction_run(companies, settings, run_store)
-    llm = get_llm_client()
 
     async def _background() -> None:
         await execute_financials_extraction_run(

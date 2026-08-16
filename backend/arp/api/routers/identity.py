@@ -42,8 +42,8 @@ async def start_identity_run(
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 
+    llm = get_llm_client()  # raises a clear error before a run manifest is even created
     run_id = create_identity_run(companies, run_store)
-    llm = get_llm_client()  # raises a clear error before we schedule anything if unconfigured
 
     async def _background() -> None:
         await execute_identity_run(
