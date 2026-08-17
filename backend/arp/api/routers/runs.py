@@ -92,6 +92,19 @@ def export_run_csv(run_id: str, run_store: RunStore = Depends(get_run_store)) ->
                      record["rnd"]["total"]["value"], record["rnd"].get("description"), record["rnd"]["grounded"],
                      record["overall_confidence"], record["needs_review"]]
                 )
+    elif manifest.run_type == "transition_plan":
+        writer = csv.writer(buf)
+        writer.writerow(
+            ["company_id", "ticker", "name", "indicator_number", "identifier", "category", "walk_or_talk",
+             "question", "verdict", "answer", "grounded", "needs_review", "disclosed_count", "overall_confidence"]
+        )
+        for record in rows:
+            for ind in record.get("indicators", []):
+                writer.writerow(
+                    [record["company_id"], record.get("ticker"), record["name"], ind["number"], ind["identifier"],
+                     ind["category"], ind["walk_or_talk"], ind["question"], ind["verdict"], ind["answer"],
+                     ind["grounded"], ind["needs_review"], record["disclosed_count"], record["overall_confidence"]]
+                )
     else:  # discovery
         writer = csv.writer(buf)
         writer.writerow(["company_id", "name", "homepage_used", "doc_type", "url", "local_path"])

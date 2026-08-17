@@ -273,6 +273,62 @@ export interface CompanyFinancialsRecord {
   generated_at: string;
 }
 
+// --- Transition Plan Assessment (Colesanti Senni et al. 2024: "Using AI to
+// assess corporate climate transition disclosures") ---
+
+export type IndicatorCategory = "target" | "governance" | "strategy" | "tracking";
+export type WalkOrTalk = "walk" | "talk";
+export type Verdict = "YES" | "NO" | "NA";
+
+export interface TransitionPlanIndicatorDef {
+  number: number;
+  identifier: string;
+  category: IndicatorCategory;
+  walk_or_talk: WalkOrTalk;
+  question: string;
+  guideline: string;
+}
+
+export interface IndicatorAssessment {
+  number: number;
+  identifier: string;
+  category: IndicatorCategory;
+  walk_or_talk: WalkOrTalk;
+  question: string;
+  verdict: Verdict;
+  answer: string;
+  citations: Citation[];
+  grounded: boolean;
+  confidence: number;
+  needs_review: boolean;
+}
+
+export interface CategoryBreakdown {
+  category: IndicatorCategory;
+  disclosed_count: number;
+  total_count: number;
+}
+
+export interface TransitionPlanAssessmentRecord {
+  company_id: string;
+  ticker?: string | null;
+  name: string;
+  run_id: string;
+  company_sector?: string | null;
+  company_location?: string | null;
+  report_year?: string | null;
+  indicators: IndicatorAssessment[];
+  disclosed_count: number;
+  walk_disclosed_count: number;
+  walk_total_count: number;
+  talk_disclosed_count: number;
+  talk_total_count: number;
+  by_category: CategoryBreakdown[];
+  overall_confidence: number;
+  needs_review: boolean;
+  generated_at: string;
+}
+
 // --- Review decisions (per-item audit trail; item_key granularity is
 // caller-defined, e.g. "{company_id}:{activity_id}" or "{company_id}:{field_id}") ---
 

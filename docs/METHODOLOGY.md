@@ -70,6 +70,66 @@ separate `indirect_exposure` field on `CompanyMatch`, deliberately not
 blended into the qualitative `exposure_estimate` the debate produces — see
 "The indirect (input-output) exposure tier" below.
 
+## Transition Plan Assessment
+
+**Colesanti Senni, Schimanski, Bingler, Ni & Leippold, ["Using AI to assess
+corporate climate transition
+disclosures"](https://iopscience.iop.org/article/10.1088/2515-7620/ad9e88)**
+(Environmental Research Communications, 2024; working paper:
+[SSRN 4826207](https://ssrn.com/abstract=4826207)). This is a direct
+replication of the paper's tool, as `backend/arp/transition_plan/`
+(`arp transition-plan run` / `POST /api/transition-plan/runs`).
+
+The paper defines 64 fixed yes/no indicators across four categories
+(Target, Governance, Strategy, Tracking), each classified as **"talk"**
+(future targets / general management approach) or **"walk"** (concrete,
+already-verifiable activity), and answers every indicator for a company
+with a single RAG call: retrieve the top-K report chunks for the question,
+ask an LLM playing a "senior sustainability analyst" persona -- instructed
+to be skeptical of greenwashing and "cheap talk" -- for a YES/NO/NA verdict,
+an explanation, and source references. The paper's headline finding, using
+this tool on 143 Climate Action 100+ companies, is that disclosure skews
+heavily toward "talk" (target-setting) and away from "walk" (concrete
+implementation) -- i.e., companies talk more than they walk.
+
+The 64 indicators (identifier, exact question text, expert-centric
+guideline, walk/talk classification) are bundled verbatim in
+`backend/arp/transition_plan/data/indicators.json`, sourced from the
+paper's own reference implementation
+([github.com/tobischimanski/transition_NLP](https://github.com/tobischimanski/transition_NLP))
+rather than retyped from the PDF, so wording exactly matches what the
+paper's tool asked. The persona, greenwashing-skepticism, and precision
+guidelines in `backend/arp/transition_plan/indicator_agent.py`'s system
+prompt are likewise verbatim from the paper's Figure S.2 prompt template.
+
+Two deliberate deviations from the paper, both existing precision controls
+this codebase already applies everywhere else:
+
+- **Programmatic citation grounding, not an LLM-self-reported source
+  list.** The paper's tool asks the model to report which numbered source
+  chunk it used; this system asks for verbatim `quote` + `doc_id`
+  citations and independently re-verifies each one against the original
+  document text (`arp/grounding.py`) before it's trusted -- consistent
+  with every other extraction pipeline in this codebase (see "The
+  precision controls, concretely" below). A YES/NO verdict with no
+  independently-grounded citation is routed to the review queue instead
+  of accepted at face value.
+- **BM25 evidence selection, not OpenAI embeddings.** The paper's RAG
+  pipeline (LlamaIndex + `text-embedding-ada-002`, top-8) is replicated
+  behaviorally -- always retrieve the top-8 chunks regardless of keyword
+  overlap, so a genuinely silent report answers "NA" rather than being
+  skipped -- using this codebase's deterministic, embedding-free BM25
+  retriever (`arp/retrieval/select_evidence.py`) instead, matching every
+  other pipeline here and adding no extra API cost.
+
+Everything else matches the paper's design: one indicator, one evidence
+retrieval, one LLM call (no independent-verifier second pass, unlike the
+extraction/financials pipelines -- the paper's tool is a single-pass RAG
+system and this replication keeps that shape); a 200-word answer-length
+cap; and per-company output of a walk/talk-annotated verdict grid plus the
+disclosed-count-out-of-64 metric the paper uses as its core
+disclosure-completeness score.
+
 ## The precision controls, concretely
 
 1. **Programmatic grounding, not LLM self-report** (`backend/arp/grounding.py`).

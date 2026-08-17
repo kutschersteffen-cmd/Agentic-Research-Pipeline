@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ThemeBuilder } from "./pages/ThemeBuilder";
 import { ExtractionBuilder } from "./pages/ExtractionBuilder";
 import { CompanyFinancials } from "./pages/CompanyFinancials";
+import { TransitionPlanAssessment } from "./pages/TransitionPlanAssessment";
 import { DocumentDiscovery } from "./pages/DocumentDiscovery";
 import { IdentityResolution } from "./pages/IdentityResolution";
 import { ReviewQueue } from "./pages/ReviewQueue";
@@ -19,6 +20,7 @@ const TABS = [
   { id: "taxonomy", label: "Taxonomy Library" },
   { id: "extraction", label: "Data Extraction" },
   { id: "financials", label: "Company Financials" },
+  { id: "transitionPlan", label: "Transition Plan Assessment" },
   { id: "identity", label: "Identity Resolution" },
   { id: "discovery", label: "Document Discovery" },
   { id: "portfolio", label: "Portfolio Risk" },
@@ -63,6 +65,7 @@ function App() {
         {active === "taxonomy" && <TaxonomyLibrary />}
         {active === "extraction" && <ExtractionBuilder pendingUniverse={pendingUniverse} />}
         {active === "financials" && <CompanyFinancials pendingUniverse={pendingUniverse} />}
+        {active === "transitionPlan" && <TransitionPlanAssessment pendingUniverse={pendingUniverse} />}
         {active === "identity" && <IdentityResolution onSendToDiscovery={sendToDiscovery} />}
         {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingDiscoveryUniverse} />}
         {active === "portfolio" && <PortfolioRisk />}

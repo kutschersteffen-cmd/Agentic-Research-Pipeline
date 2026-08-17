@@ -1,0 +1,514 @@
+[
+  {
+    "number": 1,
+    "identifier": "A_headline_1",
+    "category": "target",
+    "walk_or_talk": "talk",
+    "question": "Does the company report an absolute GHG emission reduction target for the company?",
+    "guideline": "Focus only on absolute emission reduction targets. Be aware that a net zero target or a carbon neutrality target can be counted as an absolute emission reduction target. If only a net zero target or a carbon neutrality target is reported, state that it is counted as an absolute emission reduction target in the given analysis, but that the effective absolute reduction in emissions needs to be carefully assessed. Also be aware that statements \"reducing emissions to return to 2020 levels\" are also also absolute emission reduction targets, although they are indirectly formulated. Answer with \"YES\" if the company reports an absolute emission target, and with \"NO\" otherwise. Be aware that intensity targets are not absolute emission reduction targets. Intensity targets are for example efficiency targets, and targets that aim to reduce the amount of emissions relative to another economic or physical metric (for example dollars, or kilometers driven). If only intensity targets are mentioned in the report, add them to your answer, but state that these are not absolute emission reduction targets. Do not include past targets that have been achieved in your response. Do not provide a summarizing sentence at the end of your response, and do not speculate whether a certain target is an indicator for climate action or supportive of any other climate goals."
+  },
+  {
+    "number": 2,
+    "identifier": "A_headline_2",
+    "category": "target",
+    "walk_or_talk": "talk",
+    "question": "If the company communicates GHG emission intensity targets, does the company show that the company's intensity targets are in line with its absolute emission targets?",
+    "guideline": "Focus on GHG emission intensity targets. If no intensity targets are communicated, state that you did not find GHG emission intensity targets in the document. If no intensity targets are communicated, state \"N/A\". If intensity targets are communicated, state \"YES\" if they are shown to be in line with the absolute emission intensity targes. If no absolute emission targets are reported, or if the intensity targets are not shown to be in line with the absolute emission targets, state \"NO\". If there are other intensity targets reported, for example energy intensity targets or sectoral materials-related intensity targets, summarize them in your response, but do not consider them for the overall Yes/No assessment."
+  },
+  {
+    "number": 3,
+    "identifier": "A_ambition_3",
+    "category": "target",
+    "walk_or_talk": "talk",
+    "question": "Does the company report a company-wide net zero GHG emissions target?",
+    "guideline": "Focus on the simple presence of a net zero target for the reporting company. Do not include other targets, strategies or activities that the company undertakes. If the company is part of a net zero alliance, you mention it, but clearly state that you did not identify an own net zero target for the company, and that a clear company-wide comittment to net zero is missing in the report. Do not judge the activities or the target in terms of greenwashing, climate goal alignment, or seriousness. Just summarize the information you find on net zero targets and net zero comittments. Be aware that carbon neutrality goals are also net zero targets. If the company has net zero targets for parts of its operations or supports net zero targets in its value chain, but does not have an own net zero target, summarize the targets, but state that it is not a target from the company. State \"YES\" if a company-wide net zero or carbon neutrality target is reported. State \"NO\" if no net zero or carbon neutrality target is reported."
+  },
+  {
+    "number": 4,
+    "identifier": "A_ambition_4",
+    "category": "target",
+    "walk_or_talk": "talk",
+    "question": "Does the company state explicitly that it plans to achieve its net zero target until 2040 or 2050 at the latest?",
+    "guideline": "Answer with \"YES\" if this is the case, and \"NO\" otherwise. Summarize until which timeframe the net zero target is to be achieved, if this information is stated. Otherwise, if the company in general does not have a net zero target, state that the company has no net zero target, and therefore, it has also no goal to achieve net zero by 2040 or 2050 at the latest. If the company has a net zero target, but no timeframe for the achievement is reported, report the target and state that there is no year reported until when the company aims to achieve its net zero target. Focus on summarizing the relevant information, and do not judge the ambition, feasibility, or credibility of the target. Do not reference the sources and the chunks in the summary answer."
+  },
+  {
+    "number": 5,
+    "identifier": "A_ambition_5",
+    "category": "target",
+    "walk_or_talk": "talk",
+    "question": "Does the company state explicitly that it plans to cut its absolute GHG emissions by 50% (by half) until 2030 at the latest?",
+    "guideline": "No additional guidelines"
+  },
+  {
+    "number": 6,
+    "identifier": "A_coverage_6",
+    "category": "target",
+    "walk_or_talk": "talk",
+    "question": "Does the company report its absolute emission target for the company's scope 1 GHG emissions?",
+    "guideline": "Bear in mind that scope 1 emissions are any direct GHG emissions from a company, for example emitted in its production processes, or via direct heat and energy production on site by the company. State \"YES\" if there are absolute emission reduction targets reported for scope 2 emissions of the company. State \"NO\" otherwise. If there is just a combined scope 1 and scope 2 target reported, state this in your summary, but clarify that it is a combined target, and therefore, no explicit scope 1 absolute emission reduction target could be identified."
+  },
+  {
+    "number": 7,
+    "identifier": "A_coverage_7",
+    "category": "target",
+    "walk_or_talk": "talk",
+    "question": "Does the company report its absolute emission target for the company's scope 2 GHG emissions?",
+    "guideline": "Bear in mind that scope 2 emissions are any indirect GHG emissions from a company's purchased energy for electricity, heating, or cooling. These emissions are usually operation-related emissions. State \"YES\" if there are absolute emission reduction targets reported for scope 2 emissions of the company. State \"NO\" otherwise. If there is just a combined scope 1 and scope 2 target reported, state this in your summary, but clarify that it is a combined target, and therefore, no explicit scope 2 absolute emission reduction target could be identified."
+  },
+  {
+    "number": 8,
+    "identifier": "A_coverage_8",
+    "category": "target",
+    "walk_or_talk": "talk",
+    "question": "Does the company report its absolute emission target for the company's scope 3 GHG emissions?",
+    "guideline": "Bear in mind that scope 3 emissions are any GHG emissions in a company's value chain, beyond its direct operational control. This includes upstream and downstream activities and processes. It mainly includes the use of company's products, the emissions of financed projects and businesses beyond its own operations, the emissions embodied in its purchased goods and services, the emissions from business travels, and others. State \"YES\" if there are absolute emission reduction targets reported for scope 3 emissions of the company. State \"NO\" otherwise. If there is just a combined scope 1, scope 2 and scope 3 target reported, state this in your summary, but clarify that it is a combined target, and therefore, no explicit scope 3 absolute emission reduction target could be identified. Do not judge the presence or absence of the scope 3 emissions target. Do not provide information on the sources and chunks in the written summary."
+  },
+  {
+    "number": 9,
+    "identifier": "A_pathway_11",
+    "category": "target",
+    "walk_or_talk": "talk",
+    "question": "Does the company report its GHG emission reduction interim targets for achieving the overall goal?",
+    "guideline": "Bear in mind that GHG emission reduction interim targets are targets that the company aims to achieve to ensure it achieves its overall emission target. Interim targets provide a way to measure and evaluate the effectiveness of mitigation efforts and can enhance the credibility of long-term goals. If interim goals are reported, state \"YES\". State \"NO\" otherwise. Do not judge the ambition or credibility of the interim goals."
+  },
+  {
+    "number": 10,
+    "identifier": "A_pathway_12",
+    "category": "target",
+    "walk_or_talk": "talk",
+    "question": "Does the company state explicitly that the interim targets are in line with specific 1.5 degrees orderly sector transition pathways, which are based on frontloaded activities and no or limited emission overshoot?",
+    "guideline": "No additional guidelines"
+  },
+  {
+    "number": 11,
+    "identifier": "A_offsetting_13",
+    "category": "target",
+    "walk_or_talk": "talk",
+    "question": "If carbon credits and offsets are reported to be used by the company, does the company explicitly state that it will use them exclusively for residual unabatable emissions or beyond value chain mitigation support?",
+    "guideline": "Answer with \"YES\" if this is the case. Answer with \"NO\" if the company report mentions the use of carbon offsets or carbon credits, but does not include an explicit statement that the company will use them exclusively for residual unabatable emissions or beyond value chain mitigation support. Answer with \"N/A\" if the company does not plan to use carbon offsets, or if the information about the use of carbon credits and carbon offsets is not available. Justify in the summary why you came to the conclusion that YES, NO or N/A are the correct answers to the question."
+  },
+  {
+    "number": 12,
+    "identifier": "A_offsetting_14",
+    "category": "target",
+    "walk_or_talk": "talk",
+    "question": "If carbon credits and offsets are reported to be used by the company, does the company state explicitly that carbon credits and offsets will be only used when the company can ensure that the emission reduction or emission avoidance is sustained permanently?",
+    "guideline": "Answer with \"YES\" if this is the case. Answer with \"NO\" if the company report mentions the use of carbon offsets or carbon credits, but does not include an explicit statement that the company will use them only when the company can ensure that the emission reduction or emission avoidance is sustained permanently. Answer with \"N/A\" if the company does not plan to use carbon offsets, or if the information about the use of carbon credits and carbon offsets is not available. Justify in the summary why you came to the conclusion that YES, NO or N/A are the correct answers to the question."
+  },
+  {
+    "number": 13,
+    "identifier": "A_structure_15",
+    "category": "governance",
+    "walk_or_talk": "talk",
+    "question": "Does the company explain its governance structure for managing the climate transition?",
+    "guideline": "Answer with \"YES\" if information is available on for example board-level committees with climate responsibilities, a climate representative at/or reporting to the executive/board level, a clear team responsible for climate projects, reporting and disclosures. Answer with \"NO\" if there is no information about the company's governance structure for the climate transition."
+  },
+  {
+    "number": 14,
+    "identifier": "A_skills_17",
+    "category": "governance",
+    "walk_or_talk": "talk",
+    "question": "Does the company explain how it ensures that the board members have the required skills to sign off and oversee the climate transition plan implementation?",
+    "guideline": "No additional guidelines"
+  },
+  {
+    "number": 15,
+    "identifier": "A_skills_18",
+    "category": "governance",
+    "walk_or_talk": "talk",
+    "question": "Does the company report its available inhouse skills and additional capacity needs to implement the climate transition plan?",
+    "guideline": "No additional guidelines"
+  },
+  {
+    "number": 16,
+    "identifier": "A_skills_19",
+    "category": "governance",
+    "walk_or_talk": "talk",
+    "question": "Does the company report a strategy on how it aims to fill the additional skill and capacity needs required to implement its climate transition plan?",
+    "guideline": "No additional guidelines"
+  },
+  {
+    "number": 17,
+    "identifier": "A_accountability_21",
+    "category": "governance",
+    "walk_or_talk": "talk",
+    "question": "Does the company report how its board oversees the climate transition plan implementation?",
+    "guideline": "No additional guidelines"
+  },
+  {
+    "number": 18,
+    "identifier": "A_accountability_22",
+    "category": "governance",
+    "walk_or_talk": "walk",
+    "question": "Does the company report that it ensures that the company's board is informed at least quaterly about the progress against achieving the climate transition plan targets?",
+    "guideline": "No additional guidelines"
+  },
+  {
+    "number": 19,
+    "identifier": "A_incentives_26",
+    "category": "governance",
+    "walk_or_talk": "walk",
+    "question": "Does the company provide a higher share of remuneration and bonuses that are linked to the successful implementation of the climate transition plan interim targets compared to the general part of variable compensation for executives and managers?",
+    "guideline": "Provide specific examples of executive management remuneration linked to progress towards achievement of transition plan interim targets. Specify how the percentage linked to the progress towards and achievement of transition plan interim targets compares to the variable compensation in general.Answer with \"YES\" if the share of climate-related variable compensation compared to non climate-related variable compensation is higher.  If there is only information available about variable remuneration for climate targets in general, or if the share of climate-related variable compensation is not higher than the overall variable compensation, state this information, and answer with \"NO\"."
+  },
+  {
+    "number": 20,
+    "identifier": "A_transparency_29",
+    "category": "governance",
+    "walk_or_talk": "talk",
+    "question": "Does the company report that the climate transition plan targets and information contained in the report have been subject to external assurance and validation?",
+    "guideline": "Provide specific examples of defined assurance and verification level of the transition plan and statements by third parties. Focus on climate assurance and verification only. Consider Second Party Opinions (SPOs) as verification by a third party. Target validation by the Science-based targets initiative should be counted as an external validation of the transition plan targets. If a third party validation is reported, or the organisation that provides the third party valiation is stated, answer with \"YES\". If the report only states information about reporting initiatives like CDP, TCFD and GRI, state \"NO\". Do not include reporting and disclosure frameworks and voluntary initiatives in the answer."
+  },
+  {
+    "number": 21,
+    "identifier": "A_transparency_30",
+    "category": "governance",
+    "walk_or_talk": "talk",
+    "question": "Does the company state explicitly that it uses the same organizational boundaries for setting and achieving its climate targets as it does for financial accounting?",
+    "guideline": "No additional guidelines"
+  },
+  {
+    "number": 22,
+    "identifier": "A_management_32",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company provide comprehensive evidence that it fully and completely integrates its climate strategy into its business strategy, product development, operations, financial and human resources, asset management and asset decommissioning?",
+    "guideline": "Provide specific examples of how the company's climate strategy is integrated into its business strategy, product development, operations, financial and human resources, asset management and asset decommissioning. Focus on aspects related to the climate transition, and not on other sustainability or nature-related topics. Do not rephrase the company's climate or sustainability targets. Instead, look for information that shows how the company implements these targets into the core of the company's strategy, activities and management. If you find this information, summarize it and answer with \"YES\". Do not judge whether the activities are sufficient. If you find only partial information, summarize the information, answer with \"NO\" and highlight that additional information would be required to assess whether the company fully integrates its climate strategy across its activities."
+  },
+  {
+    "number": 23,
+    "identifier": "A_management_33",
+    "category": "strategy",
+    "walk_or_talk": "talk",
+    "question": "Does the company report quantitative or quantifiable subtargets in line with their climate targets and their climate key performance indicators?",
+    "guideline": "Provide information about the specific quantifiable subtargets that the company has identified to achieve their climate targets and climate key performance indicators, the time scale (if provided), and scope. State explicitly if the time scale or the application scope of the subtarget is missing. Answer \"YES\" if you find quantitative or quantifyable subtargets, and state the targets explicitly. Answer \"NO\" otherwise."
+  },
+  {
+    "number": 24,
+    "identifier": "A_management_34",
+    "category": "strategy",
+    "walk_or_talk": "talk",
+    "question": "Does the company report the use of scenario envelopes to set targets and perform sensitivity analysis?",
+    "guideline": "Provide specific examples of the scenarios, model ensembles and scenario envelopes used by the company to set targets and perform targets and pathways sensitivity analysis. Also include the time scale and scope of the scenario analyses. State whether the company makes reference to model constraints and whether it is aware of the limitations of modelling, and the need for resilience planning. If you find information about the use of multiple scenarios, model families or scenario envelopes directly linked to the targets and the plans to implement the targets, answer \"YES\". If you only find such information in terms of how the company assesses its climate risk exposure, answer \"NO\" and state that the company uses multiple scenarios, but it does not seem to use scenario enveloped to set its climate targets and identify a resilient strategy to achieve the targets."
+  },
+  {
+    "number": 25,
+    "identifier": "A_management_35",
+    "category": "strategy",
+    "walk_or_talk": "talk",
+    "question": "Has the company reported its key assumptions that form the basis of its transition plan?",
+    "guideline": "Provide specific examples of the strategic assumptions that the company reports as basis of its transition plans. These could include for instance assumptions about the development of consumer preferences, input prices, sector policies, economic development, and others. Answer \"YES\" if you find information about the assumptions underlying the transition plan. Answer \"NO\" if you do not find this information."
+  },
+  {
+    "number": 26,
+    "identifier": "A_production_39",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company report a renewable energy strategy and activities, covering renewable energy build out, procurement and consumption?",
+    "guideline": "Provide specific examples of how the company plans to increase renewable energy build out, procurement and consumption. If you find such examples and ideally a strategy, answer \"YES\". If the company does not report activities to expand renewable energies, answer \"NO\". Focus only on specific renewable energy activities, and do not include general net zero emission targets or further activities of the company for climate action in this answer."
+  },
+  {
+    "number": 27,
+    "identifier": "A_production_40",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company report a strategy and activities for the expansion of and investments in climate solutions and climate solution technologies?",
+    "guideline": "Focus on strategies that focus on forward-looking and future investment in specific climate solutions. This includes, but is not limited to, research and development (R&D), investing in early stage climate solutions, or acquisitions and substantial capital provision to scale up the climate solutions branch of the company's business. Do not repeat what the company has been doing in the past. Do not include general statements about the climate targets of the company. If you find specific information about how the company supports the expansion of climate solution technologies, answer \"YES\" and summarize the specific activities it undertakes, the specific technologies it focuses on, the interim targets it identifies, and the associated timeframe. If you do not find information about the specific climate solutions support by the company, answer \"NO\" and explain that there is no information future investmens or R&D to support the build-out of climate solutions available."
+  },
+  {
+    "number": 28,
+    "identifier": "A_planning_41",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company report its opex planning to ensure it meets its climate interim targets?",
+    "guideline": "Focus on quantified targets and achievements, including how the company plans to shift opex to be aligned with the climate targets, the climate strategy and the specific interim targets. If you find information about how the company aligns its opex with the climate targets, reply \"YES\".  If available, provide the quantitative information about the amount and timeframe towards full alignment of opex with the climate targets. If you do not find opex information, or if opex information is available but it is not shown to be aligned with the strategies to achieve the climate targets, answer \"NO\"."
+  },
+  {
+    "number": 29,
+    "identifier": "A_planning_42",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company report its capex planning to ensure it meets its climate interim targets?",
+    "guideline": "Focus on quantified targets and achievements, including how the company plans to shift capex to be aligned with the climate targets, the climate strategy and the specific interim targets. If you find information about how the company aligns its capex with the climate targets, reply \"YES\". If available, provide the quantitative information about the amount and timeframe towards full alignment of capex with the climate targets. If you do not find capex information, or if capex information is available but it is not shown to be aligned with the strategies to achieve the climate targets, answer \"NO\"."
+  },
+  {
+    "number": 30,
+    "identifier": "A_planning_43",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company report its strategy and activities towards net zero aligned (or green) revenues?",
+    "guideline": "Focus on quantified targets and achievements for the company's own revenues, including its products and services, and how they plan to shift away from net zero emissions misaligned sources of revenues. If you only find a collection of business activities, but not a fully developed strategy on how to align all revenues of the company with the company's climate targets, answer \"NO\". If the company reports a plan to align all its revenues with its climate targets, state \"YES\". Do not include targets to align clients' revenues with the climate goals. Focus on the company's own revenue strategy. Do not include the cost-side of the profits, for example renewable energy purchases or energy efficiency. Focus on the climate alignment of the revenues that the company generates from its products and services."
+  },
+  {
+    "number": 31,
+    "identifier": "A_planning_44",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company report its strategy and activities to align all its Research and Development (R&D) activties with net zero targets?",
+    "guideline": "Focus on strategies specific to Research and Development, do not summarize general net zero targets or general activties. If the company does not report on R&D expenditures, if it is not active in R&D, or if the R&D expenditures are not fully or only partially aligned with net zero targets, state \"NO\". If the company provides information how it aligns all its R&D activties with net zero targets, state \"YES\"."
+  },
+  {
+    "number": 32,
+    "identifier": "A_engagement_45",
+    "category": "strategy",
+    "walk_or_talk": "talk",
+    "question": "Does the company report a strategy with specific activities and metrics of success for net zero engagement with its upstream value chain, i.e. with its suppliers?",
+    "guideline": "Provide specific information about the company's supplier engagement strategy, including actual engagement activities with its suppliers and metrics for success. Do not reference general net zero targets or general scope 1 scope 2 or scope 3 targets. Do not include customer engagements, focus on the company's suppliers. State \"YES\" if a specific strategy with specific activities and metrics for success is reported. State \"NO\" if the company does not report its upstream value chain strategy, or if the value chain engagement is not associated with specific activities."
+  },
+  {
+    "number": 33,
+    "identifier": "A_engagement_46",
+    "category": "strategy",
+    "walk_or_talk": "talk",
+    "question": "Does the company report a strategy with specific activities and metrics of success for net zero engagement with its downstream value chain, i.e. with its customers or investees?",
+    "guideline": "Provide specific information about the company's customer or investee engagement strategy, including actual engagement activities with its customers or investees and metrics for success. Do not reference general net zero targets or general scope 1 scope 2 or scope 3 targets. Do not include supplier engagements, focus on the company's customers or investees. State \"YES\" if a specific strategy with specific activities and metrics for success is reported. State \"NO\" if the company does not report its upstream value chain strategy, or if the value chain engagement is not associated with specific activities."
+  },
+  {
+    "number": 34,
+    "identifier": "A_engagement_47",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company report an engagement strategy and activities with specific climate policies that it directly advocates for with policy makers?",
+    "guideline": "Provide specific activities of policy maker engagement and the policies advocated for. Do not include general activties and engagements with clients or suppliers. Focus on active engagement with policy makers and political stakeholders. Include public speaking and public positioning for the climate policies needed. Do not include event attendance and indirect support via business organisations or business initiatives. If there is information about specific climate policies that the company advocates for with policy makers, state \"YES\". If there is no information about policy maker engagements, or if the information lacks information about specific climate policies, state \"NO\"."
+  },
+  {
+    "number": 35,
+    "identifier": "A_engagement_48",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company report a strategy and activities with specific activities and engagement goals for net zero policies with industry associations?",
+    "guideline": "Identify specific activities with industry associations and industry groups where the company is a member, to align the industry associations' policy positions with the net zero transition. Provide specific information on where the company leads within an industry group, for example by chairing a committee or sitting on the steering committee. Provide information about the company's activities and specific policy goals that it advocates for. Do not include the company's own climate targets. Answer \"YES\" if a strategy with specific engagement goals and activities is defined. Answer \"NO\" if there is no information about engagements within the industry associations, or if the informatiom does not include specific activities and policy goals."
+  },
+  {
+    "number": 36,
+    "identifier": "A_engagement_49",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company report serious consequences and escalation strategies if net zero engagement is ineffective at upstream, downstream, policy maker and industry association level?",
+    "guideline": "Do not include general climate targets or the company's overall climate goals and activities. Do not reference the company's general climate engagement. Instead, focus on whether the company defines specific and serious escalation activities for the case of ineffective engagements. Provide specific examples for each level (upstream, downstream, policy makers and industry associations). Answer \"YES\" if you find specific information about consequences and escalation plans or activities of the company if its engagement with suppliers, customers, policy makers or industry associations is not successful. Include information about the measurement of unsuccessful, and the timeline for engagement until when the company uses its escalation activities. Examples of consequences and escalations for unsuccessful engagements are quitting contracts, no renewal of business relations, divesting, leaving an industry organisation, and others."
+  },
+  {
+    "number": 37,
+    "identifier": "A_fossil fuels_50",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company state explicitly that it stopped or will immediately stop any support or activities in new additional fossil fuel exploration and extention of fossil fuel supply?",
+    "guideline": "Include and summarize statements for coal, oil and gas into the answer. If you only find a committment for coal, state this, but answer with \"NO\", and explain that it would need to include also a statement on oil and gas. If the company states explicitly that it already stopped or will stop supporting additional fossil fuel exploration or the extention of fossil fuel supply, answer \"YES\"."
+  },
+  {
+    "number": 38,
+    "identifier": "A_fossil fuels_51",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company report a strategy and activities for the decommissioning and canceling of planned or existing fossil fuel exploration and supply infrastructure?",
+    "guideline": "Provide specific information where available. Do not inclue landscape restoration activities for decommissioned sites, and the general decommission process. Reply \"YES\" if the company commits to decommission or cancel all existing or planned fossil fuel projects. Reply \"NO\" if the company only states that it has decommissioned some specific sites but there is no evidence of a structural committment that applies to all planned or existing fossil fuel infrastructure of the company."
+  },
+  {
+    "number": 39,
+    "identifier": "A_fossil fuels_52",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company report a strategy and activities to phase out its use and support of fossil fuel consuming products and technologies?",
+    "guideline": "Specify whether the company has a defined strategy and time-bound goal for their product changes. Phase out means reducing these products to zero over time, highlight how the company sets interim targets towards this goal. Focus on end consumer products like combustion engine cars, and on business to business products like manufacturing equipment and technology. If you find comprehensive information about how the company aims to phase out its own use and the support of fossil fuel consuming products and technologies, ideally including a timeframe, state \"YES\". If you only find information about general policies of the company to reduce or partially halt the use and support of fossil fuel consuming products and technologies, state \"NO\"."
+  },
+  {
+    "number": 40,
+    "identifier": "A_just transition_53",
+    "category": "strategy",
+    "walk_or_talk": "talk",
+    "question": "Does the company report a strategy  for a just transition, including monitoring and activities to mitigate adverse impacts of the net zero transition on its own workforce and indirectly affected workers and local communities?",
+    "guideline": "Do not include general climate targets of the company, and general activties. Focus on specific just transition strategies that the company defines, and how it monitors the effects of the transition on possibly affected own workers and indirectly affected workers and local communities. Reply \"NO\" if there is only general information about the importance of the transition for local communities available. Reply \"YES\" if the information is specific and showcases a well developed strategy to manage the transition in a fair and equitable manner."
+  },
+  {
+    "number": 41,
+    "identifier": "A_just transition_54",
+    "category": "strategy",
+    "walk_or_talk": "talk",
+    "question": "Does the company report that it develops specific just transition plans with its own climate transition affected workforce, local communities and relevant stakeholders?",
+    "guideline": "Do not include general climate targets of the company, and general activties. Focus on specific existing plans or plans under development that the company developed explicitly together with its affected own workers and indirectly affected workers and local communities. Reply \"NO\" if there is only general information about the importance of the transition for local communities available. Reply \"YES\" if the information is specific and showcases plans that have been developed with the affected parties to manage the transition in a fair and equitable manner."
+  },
+  {
+    "number": 42,
+    "identifier": "A_biosphere_55",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company report a strategy and activities to mitigate adverse impacts on the natural environment and the provision of ecosystem services?",
+    "guideline": "Ensure that you only reply \"YES\" if there is a specific strategy with associated activities reported on how the company deals with adverse impacts on the natural environment and the provision of ecosystem services. If there is only information available about various nature initiatives or a loose collection of some project examples, summarize these activties, but reply \"NO\" and explain that a comprehensive strategy is not defined. Do not include general climate or ESG strategies and actvities of the company."
+  },
+  {
+    "number": 43,
+    "identifier": "A_biosphere_56",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company report a strategy and activities to halt and reverse deforestation by 2025?",
+    "guideline": "Look for time-bound, specific goals, associated activities, and metrics to measure success. If there is a strategy available, reply \"YES\". If the company reports only some activities without a broader strategy that covers all its businesses, reply \"NO\"."
+  },
+  {
+    "number": 44,
+    "identifier": "A_biosphere_57",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company report a strategy and activities to halt and reverse biodiversity loss by 2030?",
+    "guideline": "Look for time-bound, specific goals, associated activities, and metrics to measure success. If there is a strategy available, reply \"YES\". If the company reports only some activities without a broader strategy that covers all its businesses, reply \"NO\"."
+  },
+  {
+    "number": 45,
+    "identifier": "A_biosphere_58",
+    "category": "strategy",
+    "walk_or_talk": "walk",
+    "question": "Does the company report a strategy and activities to significantly reduce water consumption and pollution?",
+    "guideline": "Look for time-bound, specific goals, associated activities, and metrics to measure success. If there is a strategy available, reply \"YES\". If the company reports only some activities without a broader strategy that covers all its businesses, reply \"NO\"."
+  },
+  {
+    "number": 46,
+    "identifier": "A_emissions_59",
+    "category": "tracking",
+    "walk_or_talk": "walk",
+    "question": "Does the company report its scope 1 GHG emissions for the past year?",
+    "guideline": "Do not include general emission targets or climate goals of the company. Focus on the actual scope 1 GHG emissions that the company has emitted. Include the precise figures of the emitted scope 1 GHG emissions that the company reports. Reply \"YES\" if the precise quantitative information for the scope 1 GHG emissions is available. Reply \"NO\" otherwise. If available, include the information on the calculation approach or approaches that have been applied by the company."
+  },
+  {
+    "number": 47,
+    "identifier": "A_emissions_60",
+    "category": "tracking",
+    "walk_or_talk": "walk",
+    "question": "Does the company report its scope 2 GHG emissions for the past year?",
+    "guideline": "Do not include general emission targets or climate and renewable energy goals of the company. Focus on the actual scope 2 GHG emissions that the company has emitted. Include the precise figures of the emitted scope 2 GHG emissions that the company reports. Reply \"YES\" if the precise quantitative information for the scope 2 GHG emissions is available. Reply \"NO\" otherwise. If available, include the information on the calculation approach or approaches that have been applied by the company."
+  },
+  {
+    "number": 48,
+    "identifier": "A_emissions_61",
+    "category": "tracking",
+    "walk_or_talk": "walk",
+    "question": "Does the company report its scope 3 GHG emissions for the past year?",
+    "guideline": "Do not include general emission targets or general climate goals of the company. Focus on the actual scope 3 GHG emissions that the company has emitted. Include the precise figures of the emitted scope 3 GHG emissions that the company reports. Reply \"YES\" if the precise quantitative information for the scope 3 GHG emissions is available. Reply \"NO\" otherwise. If available, include the information on the calculation approach or approaches that have been applied by the company."
+  },
+  {
+    "number": 49,
+    "identifier": "A_emissions_62",
+    "category": "tracking",
+    "walk_or_talk": "talk",
+    "question": "Does the company report the coverage of scope 3 categories included, and reasons for the exclusion of categories?",
+    "guideline": "Focus on the coverage of the scope 3 emission categories as outlined by the GHG protocol, namely purchased goods and services, capital goods, fuel- and energy-related activities, transportation and distribution, waste generated in operations, business travel, employee commuting, leased assets, processing of sold products, use of sold products, end of life treatment of sold products, franchises, and investments. State \"YES\" if the company explicitly explains which categories it included and which categories it did not include, as well as why. State \"NO\" if you only find information about some categories included, but no additional information on the reasons why the other categories have been excluded. Include information on the challenges and possible solutions that companies apply to improve the categories coverage in the future."
+  },
+  {
+    "number": 50,
+    "identifier": "A_progress_66",
+    "category": "tracking",
+    "walk_or_talk": "walk",
+    "question": "Does the company report its annual progress of reducing GHG emissions to achieve its emission reduction or net zero targets?",
+    "guideline": "Do not summarize the general climate and emission targets of the company. Focus on the precise information about the progress of its quantified GHG emission reductions, and whether this progress is in line with its general climate, emission or net zero target. If you only find information about the general climate targets of the company, answer \"NO\". If you find the precise information about the emission reductions so far, and whether this is in line with how the company expects to achieve its climate, emission or net zero targets, answer \"YES\"."
+  },
+  {
+    "number": 51,
+    "identifier": "A_progress_67",
+    "category": "tracking",
+    "walk_or_talk": "walk",
+    "question": "Does the company report its absolute scope 1 GHG emissions for the past 5 years?",
+    "guideline": "Acknowledge the fact that this information could also be conveyed in graphs and tables which you are not able to fully analyse. Answer \"YES\" if you find the precise quantitative information about the company's scope 1 GHG emissions for the past 5 years. Answer \"NO\" if you do not find quantitative information or if the information does not cover the full 5 year period."
+  },
+  {
+    "number": 52,
+    "identifier": "A_progress_68",
+    "category": "tracking",
+    "walk_or_talk": "walk",
+    "question": "Does the company report its absolute scope 2 GHG emissions for the past 5 years?",
+    "guideline": "Acknowledge the fact that this information could also be conveyed in graphs and tables which you are not able to fully analyse. Answer \"YES\" if you find the precise quantitative information about the company's scope 2 GHG emissions for the past 5 years. Answer \"NO\" if you do not find quantitative information or if the information does not cover the full 5 year period."
+  },
+  {
+    "number": 53,
+    "identifier": "A_progress_69",
+    "category": "tracking",
+    "walk_or_talk": "walk",
+    "question": "Does the company report its absolute scope 3 GHG emissions for the past 5 years?",
+    "guideline": "Acknowledge the fact that this information could also be conveyed in graphs and tables which you are not able to fully analyse. Answer \"YES\" if you find the precise quantitative information about the company's scope 3 GHG emissions for the past 5 years. Answer \"NO\" if you do not find quantitative information or if the information does not cover the full 5 year period."
+  },
+  {
+    "number": 54,
+    "identifier": "A_progress_70",
+    "category": "tracking",
+    "walk_or_talk": "walk",
+    "question": "Does the company report a decline in its scope 1 GHG emission intensity for the past 5 years?",
+    "guideline": "Acknowledge the fact that this information could also be conveyed in graphs and tables which you are not able to fully analyse. Answer \"YES\" if you find the precise quantitative information about the company's scope 1 GHG emission intensity declining for the past 5 years. Answer \"NO\" if you do not find quantitative information, if the information does not deal with emission intensity, or if the information does not cover the full 5 year period."
+  },
+  {
+    "number": 55,
+    "identifier": "A_progress_71",
+    "category": "tracking",
+    "walk_or_talk": "walk",
+    "question": "Does the company report a decline in its scope 2 GHG intensity for the past 5 years?",
+    "guideline": "Acknowledge the fact that this information could also be conveyed in graphs and tables which you are not able to fully analyse. Answer \"YES\" if you find the precise quantitative information about the company's scope 2 GHG emission intensity declining for the past 5 years. Answer \"NO\" if you do not find quantitative information, if the information does not deal with emission intensity, or if the information does not cover the full 5 year period."
+  },
+  {
+    "number": 56,
+    "identifier": "A_progress_72",
+    "category": "tracking",
+    "walk_or_talk": "walk",
+    "question": "Does the company report a decline in its scope 3 GHG intensity for the past 5 years?",
+    "guideline": "Acknowledge the fact that this information could also be conveyed in graphs and tables which you are not able to fully analyse. Answer \"YES\" if you find the precise quantitative information about the company's scope 3 GHG emission intensity declining for the past 5 years. Answer \"NO\" if you do not find quantitative information, if the information does not deal with emission intensity, or if the information does not cover the full 5 year period."
+  },
+  {
+    "number": 57,
+    "identifier": "A_progress_73",
+    "category": "tracking",
+    "walk_or_talk": "talk",
+    "question": "Does the company report the specific drivers and reasons for the company's observed actual GHG emission changes?",
+    "guideline": "Do not include information about general climate or emission targets and activities of the company. Focus on the specific reasons spelled out by the company to explain why there has been an increase or decrease in emissions or emission intensity in the past until recently. State \"NO\" if you only find information about general emission reductions without linking them precisely with specific information about the relative importance to specific drivers of the change. State \"YES\" if such drivers and reasons for the emission change are explained, and if the information contains the quantified relative share of the drivers that is responsible for the decline or increase in the emissions."
+  },
+  {
+    "number": 58,
+    "identifier": "A_progress_74",
+    "category": "tracking",
+    "walk_or_talk": "walk",
+    "question": "Does the company report annual progress against its deforestation targets?",
+    "guideline": "No additional guidelines"
+  },
+  {
+    "number": 59,
+    "identifier": "A_capex_75",
+    "category": "tracking",
+    "walk_or_talk": "walk",
+    "question": "Does the company report the amount of climate aligned capex that supports its net zero transition?",
+    "guideline": "No additional guidelines"
+  },
+  {
+    "number": 60,
+    "identifier": "A_capex_77",
+    "category": "tracking",
+    "walk_or_talk": "walk",
+    "question": "Does the company report the amount of climate transition misaligned capex?",
+    "guideline": "No additional guidelines"
+  },
+  {
+    "number": 61,
+    "identifier": "A_revenues_81",
+    "category": "tracking",
+    "walk_or_talk": "walk",
+    "question": "Does the company report the amount of climate transition aligned revenues that support the global net zero transition?",
+    "guideline": "If you find information about the revenues from specific climate-related business branches of the company, summarize this information, but state \"NO\" if you do not find information about the full scale of the revenues that are climate transition aligned. State \"YES\" if you find specific information about the share of climate transition aligned revenues of the company in the recent past."
+  },
+  {
+    "number": 62,
+    "identifier": "A_revenues_83",
+    "category": "tracking",
+    "walk_or_talk": "walk",
+    "question": "Does the company report the amount of climate transition misaligned revenues?",
+    "guideline": "No additional guidelines"
+  },
+  {
+    "number": 63,
+    "identifier": "A_engagement_86",
+    "category": "tracking",
+    "walk_or_talk": "talk",
+    "question": "Does the company assess and report the alignment of its transition plan with its policy positions and its trade association's policy positions and lobbying?",
+    "guideline": "No additional guidelines"
+  },
+  {
+    "number": 64,
+    "identifier": "A_engagement_87",
+    "category": "tracking",
+    "walk_or_talk": "talk",
+    "question": "Does the company report its engagement activities with the companies it invests in its own financial portfolio (including voting and proxy voting) undertaken in the relevant reporting period?",
+    "guideline": "No additional guidelines"
+  }
+]

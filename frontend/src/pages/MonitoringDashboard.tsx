@@ -8,6 +8,7 @@ const RUN_TYPE_LABEL: Record<string, string> = {
   extraction: "Data extraction",
   discovery: "Document discovery",
   proxy_voting: "Proxy voting",
+  transition_plan: "Transition plan assessment",
 };
 
 function runTypeLabel(runType: string): string {
