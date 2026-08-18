@@ -1,11 +1,35 @@
 import asyncio
 
-import pymupdf4llm
-
 from arp.grounding import ground_citations
+from arp.ingestion import local_files
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.schemas.common import Citation, CompanyRef, DocType
 from arp.storage.document_store import DocumentContentStore
+
+
+class _FakeDoclingDocument:
+    """See test_local_files_pdf_pages.py's copy for why this fakes Docling
+    instead of driving its real (network-dependent) ML pipeline."""
+
+    def __init__(self, page_texts: list[str]):
+        self._page_texts = page_texts
+        self.pages = {i + 1: object() for i in range(len(page_texts))}
+
+    def export_to_markdown(self, page_no: int) -> str:
+        return self._page_texts[page_no - 1]
+
+
+class _FakeConversionResult:
+    def __init__(self, document: _FakeDoclingDocument):
+        self.document = document
+
+
+class _FakeDoclingConverter:
+    def __init__(self, page_texts: list[str]):
+        self._page_texts = page_texts
+
+    def convert(self, path):
+        return _FakeConversionResult(_FakeDoclingDocument(self._page_texts))
 
 
 def _write_doc(tmp_path, company_id, doc_type, name, text):
@@ -78,8 +102,8 @@ def test_second_fetch_hits_the_content_cache_and_does_not_reparse(tmp_path, monk
 
 
 def test_grounding_resolves_the_page_from_cached_page_breaks(tmp_path, monkeypatch):
-    fake_pages = [{"text": "Page one intro."}, {"text": "Revenue grew due to green capex investment."}]
-    monkeypatch.setattr(pymupdf4llm, "to_markdown", lambda *args, **kwargs: fake_pages)
+    fake_pages = ["Page one intro.", "Revenue grew due to green capex investment."]
+    monkeypatch.setattr(local_files, "_docling_converter", lambda: _FakeDoclingConverter(fake_pages))
 
     doc_dir = tmp_path / "docs" / "acme" / DocType.ANNUAL_REPORT_10K.value
     doc_dir.mkdir(parents=True)

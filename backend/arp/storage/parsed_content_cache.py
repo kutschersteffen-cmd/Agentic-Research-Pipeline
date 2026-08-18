@@ -217,7 +217,7 @@ class ParsedContentCache:
         e.g. an EDGAR accession-derived key), returns cached parsed text on
         a hit or calls `compute()` and caches the result on a miss.
         `compute` is injected rather than imported, so this cache never
-        depends on pymupdf4llm/trafilatura and is testable with a
+        depends on docling/trafilatura and is testable with a
         call-counting fake.
         """
         cached = self.lookup(content_key, parser_version)
