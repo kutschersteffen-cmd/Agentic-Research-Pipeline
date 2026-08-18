@@ -13,6 +13,8 @@ import type {
   PortfolioSummary,
   QAAnswer,
   SecurityResolution,
+  TransitionPlanAssessmentRecord,
+  TransitionPlanIndicatorDef,
   TrendPoint,
 } from "../types";
 
@@ -100,6 +102,21 @@ export const api = {
   getFinancialsReviewDecisions: (runId: string) => request(`/api/financials/runs/${runId}/review-decisions`),
   getFinancialsReviewHistory: (runId: string, itemKey: string) =>
     request(`/api/financials/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
+
+  // Transition Plan Assessment (64-indicator walk/talk RAG disclosure assessment)
+  getTransitionPlanIndicators: () => request<TransitionPlanIndicatorDef[]>("/api/transition-plan/indicators"),
+  startTransitionPlanRun: (body: unknown) =>
+    request<{ run_id: string; company_count: number }>("/api/transition-plan/runs", { method: "POST", body: JSON.stringify(body) }),
+  getTransitionPlanResults: (runId: string, offset = 0, limit = 500) =>
+    request<{ total: number; results: TransitionPlanAssessmentRecord[] }>(
+      `/api/transition-plan/runs/${runId}/results?offset=${offset}&limit=${limit}`,
+    ),
+  getTransitionPlanReviewQueue: (runId: string) => request(`/api/transition-plan/runs/${runId}/review-queue`),
+  submitTransitionPlanReview: (runId: string, body: unknown) =>
+    request(`/api/transition-plan/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
+  getTransitionPlanReviewDecisions: (runId: string) => request(`/api/transition-plan/runs/${runId}/review-decisions`),
+  getTransitionPlanReviewHistory: (runId: string, itemKey: string) =>
+    request(`/api/transition-plan/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
 
   // Documents
   uploadDocument: (companyId: string, docType: string, file: File) => {

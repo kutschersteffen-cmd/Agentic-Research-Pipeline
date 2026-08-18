@@ -12,3 +12,8 @@ export function VerdictBadge({ verdict }: { verdict: string }) {
 export function GroundedBadge({ grounded }: { grounded: boolean }) {
   return <span className={grounded ? "badge badge-high" : "badge badge-low"}>{grounded ? "grounded" : "ungrounded"}</span>;
 }
+
+export function YesNoBadge({ verdict }: { verdict: "YES" | "NO" | "NA" }) {
+  const cls = verdict === "YES" ? "badge badge-high" : verdict === "NO" ? "badge badge-low" : "badge badge-neutral";
+  return <span className={cls}>{verdict}</span>;
+}

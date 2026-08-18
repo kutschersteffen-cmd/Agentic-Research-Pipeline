@@ -69,6 +69,21 @@ precision at scale (designed for up to ~4,000 companies per run).
    [`docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md`](docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md)
    for the full design and `arp portfolio --help` / `arp climate --help`
    below to try it against the built-in mock dataset.
+8. **Transition Plan Assessment** — a direct replication of Colesanti
+   Senni, Schimanski, Bingler, Ni & Leippold (2024), *"Using AI to assess
+   corporate climate transition disclosures"*: scores a company's
+   sustainability disclosures against the paper's 64 fixed indicators
+   (Target/Governance/Strategy/Tracking), each classified as "talk"
+   (future targets) or "walk" (concrete, verifiable activity), with one
+   grounded RAG verdict (YES/NO/NA) per indicator — critical of
+   greenwashing and "cheap talk" per the paper's own prompt guidelines,
+   and, unlike the paper's tool, with every citation independently
+   re-verified against the source document by the same programmatic
+   grounding check used everywhere else in this codebase rather than
+   trusted from the model's self-report. Surfaces the paper's headline
+   "walk vs. talk" disclosure-completeness metric per company. See
+   [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md#transition-plan-assessment)
+   for the full mapping from paper to implementation.
 
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches.
@@ -196,6 +211,10 @@ arp extract run --schema schema.json --universe companies.csv
 
 # Company financials: business segments + CapEx + R&D, one combined pass per company
 arp extract financials-run --universe companies.csv
+
+# Transition Plan Assessment: 64-indicator walk/talk climate disclosure scoring (Colesanti Senni et al. 2024)
+arp transition-plan indicators                          # inspect the 64 fixed indicators
+arp transition-plan run --universe companies.csv
 
 # Document discovery
 arp discover run --universe companies.csv
