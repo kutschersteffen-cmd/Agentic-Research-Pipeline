@@ -7,9 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from arp.api.deps import get_llm_client, get_registry, get_run_store, get_taxonomy_store, settings_dep
+from arp.api.review_endpoints import ReviewDecisionRequest, get_review_queue, submit_review
+from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
 from arp.ingestion.registry import DocumentSourceRegistry
-from arp.orchestration.review_queue import latest_decisions, record_review_decision
 from arp.research.activity_generator import build_theme
 from arp.research.indirect_exposure.factory import build_leontief_model
 from arp.research.pipeline import create_theme_run, execute_theme_run, resume_theme_run
@@ -85,14 +86,6 @@ async def start_theme_run(
     if bool(req.revenue_catalogue_path) != bool(req.catalogue_mapping):
         raise HTTPException(400, "Provide both revenue_catalogue_path and catalogue_mapping together, or neither.")
 
-    run_id = create_theme_run(
-        theme, companies, settings, run_store,
-        universe_path=req.universe_path,
-        use_sample_icio=req.use_sample_icio,
-        revenue_catalogue_path=req.revenue_catalogue_path,
-        catalogue_mapping=req.catalogue_mapping,
-    )
-    llm = get_llm_client()  # raises a clear 4xx-worthy error before we schedule anything if unconfigured
     indirect_model = build_leontief_model(settings, use_sample=req.use_sample_icio)
 
     revenue_resolver = None
@@ -106,7 +99,16 @@ async def start_theme_run(
             isic_model=indirect_model,
         )
 
-    async def _background() -> None:
+    def _create() -> str:
+        return create_theme_run(
+            theme, companies, settings, run_store,
+            universe_path=req.universe_path,
+            use_sample_icio=req.use_sample_icio,
+            revenue_catalogue_path=req.revenue_catalogue_path,
+            catalogue_mapping=req.catalogue_mapping,
+        )
+
+    async def _run(run_id: str, llm) -> None:
         await execute_theme_run(
             run_id,
             theme,
@@ -119,7 +121,7 @@ async def start_theme_run(
             revenue_resolver=revenue_resolver,
         )
 
-    asyncio.create_task(_background())
+    run_id = schedule_llm_run(create_fn=_create, run=_run)
     return {
         "run_id": run_id,
         "company_count": len(companies),
@@ -179,22 +181,14 @@ def get_theme_results(
 
 @router.get("/runs/{run_id}/review-queue")
 def get_theme_review_queue(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    rows = run_store.read_jsonl(run_store.review_queue_path(run_id))
-    decisions = latest_decisions(run_store, run_id)
-    pending = [r for r in rows if r["item_key"] not in decisions]
-    return {"pending": pending, "decided": [{"item": r, "decision": decisions[r["item_key"]]} for r in rows if r["item_key"] in decisions]}
-
-
-class ReviewDecisionRequest(BaseModel):
-    item_key: str
-    decision: str  # approve | edit | reject
-    reviewer: str | None = None
-    edited_value: dict | None = None
+    return get_review_queue(run_store, run_id)
 
 
 @router.post("/runs/{run_id}/review")
 def submit_theme_review(
     run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store)
 ) -> dict:
-    record_review_decision(run_store, run_id, req.item_key, req.decision, req.reviewer, req.edited_value)
-    return {"status": "recorded"}
+    return submit_review(
+        run_store, run_id, item_key=req.item_key, decision=req.decision, reviewer=req.reviewer,
+        edited_value=req.edited_value, comment=req.comment,
+    )

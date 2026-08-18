@@ -5,6 +5,7 @@ from arp.ingestion.parsing import chunk_document
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
 from arp.research.taxonomy_sources.corpus_synthesis import synthesize_activities_from_corpus
+from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.taxonomy_sources import CorpusSnippet, CorpusSourceType
 from arp.schemas.thematic import ThemeDefinition
@@ -51,7 +52,7 @@ async def gather_corpus_from_transcripts(
         docs = await registry.fetch_all(company, doc_types=[DocType.EARNINGS_TRANSCRIPT])
         for doc in docs:
             chunks = chunk_document(doc, keywords=keywords)
-            hits = [c for c in chunks if c.keyword_hits][:max_chunks_per_company]
+            hits = select_relevant_chunks(chunks, keywords, max_chunks=max_chunks_per_company)
             for chunk in hits:
                 corpus.append(
                     CorpusSnippet(text=chunk.text, source_type=CorpusSourceType.TRANSCRIPT, source_ref=f"{company.company_id}:{doc.doc_id}")

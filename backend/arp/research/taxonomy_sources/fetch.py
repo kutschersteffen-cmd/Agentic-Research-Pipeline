@@ -8,6 +8,8 @@ from pathlib import Path
 
 import httpx
 
+from arp.net_safety import UnsafeURLError, assert_safe_fetch_target, ssrf_guard_request_hook
+
 logger = logging.getLogger(__name__)
 
 _MAX_CHARS = 60_000  # keep a single source's contribution to the prompt bounded
@@ -21,11 +23,18 @@ async def fetch_source_text(url: str, user_agent: str, timeout: float = 20.0) ->
     source URL. Returns None on any failure rather than raising, so one
     unreachable source doesn't abort a multi-source derivation.
     """
+    try:
+        assert_safe_fetch_target(url)
+    except UnsafeURLError as exc:
+        logger.info("Refusing to fetch authority source %s: %s", url, exc)
+        return None
     headers = {"User-Agent": user_agent}
     try:
-        async with httpx.AsyncClient(headers=headers, timeout=timeout, follow_redirects=True) as client:
+        async with httpx.AsyncClient(
+            headers=headers, timeout=timeout, follow_redirects=True, event_hooks={"request": [ssrf_guard_request_hook]}
+        ) as client:
             resp = await client.get(url)
-    except httpx.HTTPError as exc:
+    except (httpx.HTTPError, UnsafeURLError) as exc:
         logger.info("Failed to fetch authority source %s: %s", url, exc)
         return None
     if resp.status_code != 200:
@@ -63,11 +72,20 @@ async def fetch_source_original(url: str, user_agent: str, cache_dir: Path, time
         except (json.JSONDecodeError, KeyError, OSError):
             pass  # fall through and refetch a corrupted cache entry
 
+    # Raises UnsafeURLError (a ValueError) on a disallowed scheme/target --
+    # this endpoint fetches whatever URL the caller supplies and streams
+    # the response back verbatim, so without this check it's a full
+    # read-SSRF (e.g. a cloud metadata endpoint). Propagates uncaught to
+    # the API's global ValueError handler as a 400.
+    assert_safe_fetch_target(url)
+
     headers = {"User-Agent": user_agent}
     try:
-        async with httpx.AsyncClient(headers=headers, timeout=timeout, follow_redirects=True) as client:
+        async with httpx.AsyncClient(
+            headers=headers, timeout=timeout, follow_redirects=True, event_hooks={"request": [ssrf_guard_request_hook]}
+        ) as client:
             resp = await client.get(url)
-    except httpx.HTTPError as exc:
+    except (httpx.HTTPError, UnsafeURLError) as exc:
         logger.info("Failed to fetch original document %s: %s", url, exc)
         return None
     if resp.status_code != 200 or len(resp.content) > _MAX_ORIGINAL_BYTES:

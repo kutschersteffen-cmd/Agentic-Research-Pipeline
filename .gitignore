@@ -25,10 +25,13 @@ runs/*
 !runs/.gitkeep
 taxonomies/*
 !taxonomies/.gitkeep
+portfolios/*
+!portfolios/.gitkeep
 data/documents/*
 !data/documents/.gitkeep
 backend/.cache/
 backend/.discovery_state/
+backend/.document_store/
 
 # OS
 .DS_Store

@@ -10,6 +10,7 @@ import httpx
 from bs4 import BeautifulSoup
 from pydantic import BaseModel
 
+from arp.net_safety import UnsafeURLError, ssrf_guard_request_hook
 from arp.schemas.common import DocType
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,7 @@ class _RobotsCache:
                     rp.parse(resp.text.splitlines())
                 else:
                     rp.parse([])  # no robots.txt => allow
-            except httpx.HTTPError:
+            except (httpx.HTTPError, UnsafeURLError):
                 rp.parse([])
             self.parsers[origin] = rp
         return self.parsers[origin].can_fetch(user_agent, url)
@@ -109,8 +110,21 @@ async def crawl_for_documents(root_url: str, config: CrawlConfig) -> list[Candid
     queue: list[tuple[str, int]] = [(root_url, 0)]
     robots = _RobotsCache()
 
+    # root_url comes from a company's website field (client-supplied CSV) or
+    # a best-effort web search fallback, and every link found while crawling
+    # is on the same site by construction -- so every outgoing request (the
+    # root fetch, robots.txt, every followed link, every redirect hop) needs
+    # the same SSRF check as any other caller-influenced fetch target. Wired
+    # as a request hook (rather than a one-off pre-check) so it also catches
+    # a same-site host that DNS-rebinds to a private address mid-crawl, and
+    # so a fake client swapped in for tests never triggers a real DNS call.
     headers = {"User-Agent": config.user_agent}
-    async with httpx.AsyncClient(headers=headers, timeout=config.timeout_seconds, follow_redirects=True) as client:
+    async with httpx.AsyncClient(
+        headers=headers,
+        timeout=config.timeout_seconds,
+        follow_redirects=True,
+        event_hooks={"request": [ssrf_guard_request_hook]},
+    ) as client:
         while queue and len(visited) < config.max_pages:
             url, depth = queue.pop(0)
             if url in visited or depth > config.max_depth:
@@ -125,7 +139,7 @@ async def crawl_for_documents(root_url: str, config: CrawlConfig) -> list[Candid
             is_root = url == root_url
             try:
                 resp = await client.get(url)
-            except httpx.HTTPError as exc:
+            except (httpx.HTTPError, UnsafeURLError) as exc:
                 if is_root:
                     raise HomepageUnreachableError(f"Could not fetch {url}: {exc}") from exc
                 logger.info("Failed to fetch %s: %s", url, exc)

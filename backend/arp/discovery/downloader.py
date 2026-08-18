@@ -9,8 +9,10 @@ from urllib.parse import urlparse
 import httpx
 
 from arp.discovery.crawler import CandidateDocumentLink
+from arp.net_safety import UnsafeURLError, ssrf_guard_request_hook
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import DiscoveredDocument
+from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
 logger = logging.getLogger(__name__)
 
@@ -39,13 +41,23 @@ async def download_documents(
     against previously known state.
     """
     discovered: list[DiscoveredDocument] = []
+    try:
+        safe_company_id = safe_id(company.company_id, label="company_id")
+    except UnsafeIdentifierError:
+        logger.warning("Rejected unsafe company_id in document download: %r", company.company_id)
+        return discovered
     headers = {"User-Agent": user_agent}
-    async with httpx.AsyncClient(headers=headers, timeout=timeout_seconds, follow_redirects=True) as client:
+    async with httpx.AsyncClient(
+        headers=headers,
+        timeout=timeout_seconds,
+        follow_redirects=True,
+        event_hooks={"request": [ssrf_guard_request_hook]},
+    ) as client:
         for candidate in candidates:
             try:
                 resp = await client.get(candidate.url)
                 resp.raise_for_status()
-            except httpx.HTTPError as exc:
+            except (httpx.HTTPError, UnsafeURLError) as exc:
                 logger.info("Failed to download %s: %s", candidate.url, exc)
                 continue
 
@@ -55,7 +67,7 @@ async def download_documents(
                 url_ext = Path(urlparse(candidate.url).path).suffix.lower()
                 ext = url_ext if url_ext in (".pdf", ".html", ".htm", ".txt") else ".html"
 
-            dest_dir = documents_dir / company.company_id / candidate.doc_type.value
+            dest_dir = documents_dir / safe_company_id / candidate.doc_type.value
             dest_dir.mkdir(parents=True, exist_ok=True)
             filename = _slugify(candidate.link_text or Path(urlparse(candidate.url).path).stem) + ext
             dest_path = dest_dir / filename

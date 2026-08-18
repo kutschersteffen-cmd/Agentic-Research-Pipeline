@@ -7,11 +7,16 @@ from pathlib import Path
 import typer
 
 from arp.config import get_settings
+from arp.discovery.identity_pipeline import enriched_universe, run_identity_resolution
 from arp.discovery.pipeline import run_discovery
 from arp.discovery.scheduler import DiscoveryScheduler
 from arp.discovery.site_finder import DuckDuckGoSearchClient
+from arp.engagement.orchestrator import decide_next_action
+from arp.engagement.reporting_agent import compile_report
+from arp.engagement.triggers import ControversySignal, StaticControversySource, run_trigger_screen, scan_for_stalled_issues
 from arp.extraction.pipeline import run_extraction
 from arp.extraction.schema_builder import draft_schema
+from arp.extraction.financials_pipeline import run_financials_extraction
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -37,14 +42,25 @@ from arp.research.revenue_exposure.mapping import suggest_catalogue_mapping
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.orchestration.job_manager import JobManager
-from arp.schemas.common import DocType, JobStatus
+from arp.portfolio import analytics, qa_agent
+from arp.portfolio.climate import metrics as climate_metrics
+from arp.portfolio.mock_data import generate_demo_dataset
+from arp.portfolio.news.classifier import classify_article
+from arp.schemas.common import CompanyRef, DocType, JobStatus
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.discovery import DiscoveryScheduleConfig
+from arp.schemas.engagement import CorrespondenceEntry, EscalationStage, IssueSeverity, TriggerSource
+from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotSpec, SecurityRef
 from arp.schemas.taxonomy import DerivationMethod, TaxonomyRef
 from arp.schemas.thematic import ThemeDefinition
+from arp.storage.document_store import DocumentContentStore
+from arp.storage.engagement_store import EngagementStore
+from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.universe import load_company_universe
+from arp.voting.ballot_casting import ManualInstructionBallotPlatform
+from arp.voting.pipeline import cast_approved_votes, get_ballots, get_cast_votes, run_voting
 
 app = typer.Typer(help="Agentic Research Pipeline CLI -- the headless path for 1000s-of-companies batch runs.")
 theme_app = typer.Typer(help="Thematic investment universe screening.")
@@ -54,6 +70,12 @@ discover_app = typer.Typer(help="Document discovery: find and download company d
 runs_app = typer.Typer(help="Inspect and export runs.")
 universe_app = typer.Typer(help="Build reusable company universes.")
 revenue_catalogue_app = typer.Typer(help="Structured revenue/capex data catalogue mapping.")
+engagement_app = typer.Typer(help="Stewardship engagement: record store, triggers, and the escalation-lever checkpoint.")
+voting_app = typer.Typer(help="Proxy voting: proposal analysis, policy application, review, and ballot casting.")
+portfolio_app = typer.Typer(help="Portfolio holdings aggregation, analytics, and NL Q&A.")
+climate_app = typer.Typer(help="Portfolio climate analytics: WACI, financed emissions, coverage.")
+documents_app = typer.Typer(help="Operator surface for the document content cache (arp/storage/document_store.py).")
+identity_app = typer.Typer(help="Agentic company identity resolution: resolve bare company names to website/CIK before discovery.")
 app.add_typer(theme_app, name="theme")
 app.add_typer(taxonomy_app, name="taxonomy")
 app.add_typer(extract_app, name="extract")
@@ -61,12 +83,43 @@ app.add_typer(discover_app, name="discover")
 app.add_typer(runs_app, name="runs")
 app.add_typer(universe_app, name="universe")
 app.add_typer(revenue_catalogue_app, name="revenue-catalogue")
+app.add_typer(engagement_app, name="engagement")
+app.add_typer(voting_app, name="voting")
+app.add_typer(portfolio_app, name="portfolio")
+app.add_typer(climate_app, name="climate")
+app.add_typer(documents_app, name="documents")
+app.add_typer(identity_app, name="identity")
+
+
+def _engagement_store() -> EngagementStore:
+    return EngagementStore(get_settings().engagements_dir)
+
+
+def _ballot_platform() -> ManualInstructionBallotPlatform:
+    return ManualInstructionBallotPlatform(get_settings().ballots_dir)
+
+
+def _document_content_store() -> DocumentContentStore:
+    settings = get_settings()
+    return DocumentContentStore(settings.document_store_dir, enabled=settings.document_cache_enabled)
 
 
 def _registry() -> DocumentSourceRegistry:
     settings = get_settings()
     return DocumentSourceRegistry(
-        [LocalFileDocumentSource(settings.documents_dir), EdgarDocumentSource(settings.edgar_user_agent, settings.cache_dir)]
+        [
+            LocalFileDocumentSource(
+                settings.documents_dir,
+                content_store=_document_content_store(),
+                max_concurrent_parses=settings.max_concurrent_parses,
+            ),
+            EdgarDocumentSource(
+                settings.edgar_user_agent,
+                settings.cache_dir,
+                content_store=_document_content_store(),
+                submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
+            ),
+        ]
     )
 
 
@@ -76,6 +129,16 @@ def _run_store() -> RunStore:
 
 def _taxonomy_store() -> TaxonomyStore:
     return TaxonomyStore(get_settings().taxonomies_dir)
+
+
+def _portfolio_store() -> PortfolioStore:
+    return PortfolioStore(get_settings().portfolios_dir)
+
+
+def _portfolio_directories(store: PortfolioStore) -> tuple[dict[str, SecurityRef], dict[str, CompanyRef]]:
+    securities = {s.security_id: s for s in store.list_securities()}
+    companies = {c.company_id: c for c in store.list_companies()}
+    return securities, companies
 
 
 @theme_app.command("decompose")
@@ -511,6 +574,28 @@ def extract_run(
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 
 
+@extract_app.command("financials-run")
+def extract_financials_run(
+    universe: Path = typer.Option(...),
+) -> None:
+    """Extracts each company's disclosed business segments (name,
+    description, revenue, income, assets), total CapEx, and total R&D
+    expense -- each with a grounded description/breakdown where disclosed
+    -- in a single combined evidence-gathering + extractor/verifier pass per
+    company (these are almost always wanted together, so this fetches each
+    company's documents once and makes one LLM call pair instead of three),
+    with the same independent-verifier + programmatic-grounding precision
+    controls as `extract run`."""
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    companies = load_company_universe(universe)
+    typer.echo(f"Extracting segments/CapEx/R&D across {len(companies)} companies...")
+    run_id = asyncio.run(
+        run_financials_extraction(companies, llm=llm, registry=_registry(), settings=settings, run_store=_run_store())
+    )
+    typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
+
+
 @discover_app.command("run")
 def discover_run(
     universe: Path = typer.Option(...),
@@ -547,6 +632,153 @@ def discover_schedule(
     config = DiscoveryScheduleConfig(enabled=enable, interval_hours=interval_hours, universe_path=str(universe))
     scheduler.save_config(config)
     typer.echo(f"Schedule saved: enabled={enable}, every {interval_hours}h, universe={universe}")
+
+
+@documents_app.command("warm")
+def documents_warm(
+    universe: Path = typer.Option(..., help="Company universe JSON to warm the document cache for."),
+    doc_types: str = typer.Option("", help="Comma-separated DocType values; empty = all supported types."),
+    concurrency: int = typer.Option(4, help="Max companies fetched/parsed concurrently."),
+) -> None:
+    """Pays the fetch/parse cost for every company in a universe up
+    front -- off-peak, before a batch run -- and surfaces any file that
+    fails to parse now instead of mid-run. Safe to re-run: everything it
+    touches is content-addressed, so an already-warm document is a fast
+    cache hit rather than repeated work."""
+    settings = get_settings()
+    companies = load_company_universe(universe)
+    types = [DocType(t.strip()) for t in doc_types.split(",") if t.strip()] or None
+    registry = _registry()
+    sem = asyncio.Semaphore(concurrency)
+    failures: list[str] = []
+
+    async def _warm_one(company: CompanyRef) -> int:
+        async with sem:
+            try:
+                docs = await registry.fetch_all(company, types)
+            except Exception as exc:  # noqa: BLE001 - isolate one company's failure from the rest
+                failures.append(f"{company.company_id}: {exc}")
+                return 0
+        return len(docs)
+
+    async def _run() -> list[int]:
+        return await asyncio.gather(*(_warm_one(c) for c in companies))
+
+    typer.echo(f"Warming document cache for {len(companies)} companies...")
+    counts = asyncio.run(_run())
+    typer.echo(f"Warmed {sum(counts)} documents across {len(companies)} companies.")
+    if failures:
+        typer.echo(f"{len(failures)} companies had errors:", err=True)
+        for f in failures:
+            typer.echo(f"  {f}", err=True)
+
+
+@documents_app.command("cache-stats")
+def documents_cache_stats() -> None:
+    from arp.ingestion.edgar import _edgar_parser_version
+    from arp.ingestion.local_files import parser_version
+
+    stats = _document_content_store().stats()
+    stats["current_local_parser_version"] = parser_version()
+    stats["current_edgar_parser_version"] = _edgar_parser_version()
+    typer.echo(json.dumps(stats, indent=2))
+
+
+@documents_app.command("cache-prune")
+def documents_cache_prune(yes: bool = typer.Option(False, "--yes", help="Skip the confirmation prompt.")) -> None:
+    """Deletes parsed_content rows stamped with a parser_version other
+    than whatever's currently active (local file parsing and EDGAR
+    extraction each have their own) and reclaims the freed space. Do not
+    run this against a live API process -- VACUUM needs exclusive access
+    to the database file."""
+    from arp.ingestion.edgar import _edgar_parser_version
+    from arp.ingestion.local_files import parser_version
+
+    if not yes:
+        typer.confirm(
+            "This runs VACUUM and requires exclusive access to the document store -- "
+            "make sure the API server is stopped. Continue?",
+            abort=True,
+        )
+    current = [parser_version(), _edgar_parser_version()]
+    deleted = _document_content_store().prune(keep_parser_version=current)
+    typer.echo(f"Pruned {deleted} stale parsed_content row(s). Kept: {current}")
+
+
+@identity_app.command("resolve")
+def identity_resolve(
+    names_file: Path = typer.Option(
+        ..., "--names-file", help="CSV/JSON of company names (same shape arp.universe.load_company_universe reads; website/cik not required)."
+    ),
+) -> None:
+    """Resolves each company's real-world identity (website/CIK) via the
+    propose -> resolve -> challenge -> adjudicate graph -- a separate,
+    one-time-per-company enrichment run, not part of document discovery
+    itself. Anything ambiguous is queued for review (`arp identity
+    review-queue` / `arp identity review`) instead of guessed. Once
+    resolved, export a usable universe with `arp identity
+    enriched-universe` and feed it into `arp discover run --universe`.
+    """
+    settings = get_settings()
+    companies = load_company_universe(names_file)
+    llm = build_llm_client(settings)
+    run_store = _run_store()
+    typer.echo(f"Resolving identity for {len(companies)} companies...")
+    run_id = asyncio.run(run_identity_resolution(companies, llm=llm, settings=settings, run_store=run_store))
+    manifest = run_store.load_manifest(run_id)
+    typer.echo(f"Run complete: {run_id} ({manifest.review_count}/{len(companies)} flagged for review)")
+
+
+@identity_app.command("review-queue")
+def identity_review_queue(run_id: str) -> None:
+    run_store = _run_store()
+    from arp.orchestration.review_queue import latest_decisions
+
+    rows = run_store.read_jsonl(run_store.review_queue_path(run_id))
+    decisions = latest_decisions(run_store, run_id)
+    pending = [r for r in rows if r["item_key"] not in decisions]
+    if not pending:
+        typer.echo("Nothing pending review.")
+        return
+    for r in pending:
+        typer.echo(f"{r['item_key']}: {r['input_name']!r} -> verdict={r['verdict']} confidence={r['confidence']:.2f}")
+        typer.echo(f"  rationale: {r['rationale']}")
+
+
+@identity_app.command("review")
+def identity_review(
+    run_id: str,
+    item_key: str = typer.Argument(..., help="The company_id, as shown by `arp identity review-queue`."),
+    decision: str = typer.Option(..., help="approve | edit | reject"),
+    by: str = typer.Option(...),
+    website: str = typer.Option(None, help="Corrected website. With --decision edit, at least one of --website/--cik is required."),
+    cik: str = typer.Option(None, help="Corrected CIK."),
+    comment: str = typer.Option(None),
+) -> None:
+    from arp.orchestration.review_queue import record_review_decision
+
+    if decision not in ("approve", "edit", "reject"):
+        typer.echo("decision must be approve, edit, or reject", err=True)
+        raise typer.Exit(1)
+    if decision == "edit" and not (website or cik):
+        typer.echo("--website and/or --cik is required with --decision edit", err=True)
+        raise typer.Exit(1)
+    edited_value = {"resolved_website": website, "resolved_cik": cik} if decision == "edit" else None
+    record_review_decision(_run_store(), run_id, item_key, decision, by, edited_value, comment)
+    typer.echo("Recorded.")
+
+
+@identity_app.command("enriched-universe")
+def identity_enriched_universe(
+    run_id: str, out: Path = typer.Option(..., help="Where to write the enriched universe JSON.")
+) -> None:
+    """Writes a normal company universe (website/cik filled in for every
+    resolved-and-clean or reviewer-approved company), directly usable as
+    `arp discover run --universe <out>`."""
+    run_store = _run_store()
+    companies = enriched_universe(run_store, run_id)
+    out.write_text(json.dumps([c.model_dump(mode="json") for c in companies], indent=2))
+    typer.echo(f"Wrote {len(companies)} resolved companies to {out}")
 
 
 @runs_app.command("list")
@@ -616,6 +848,400 @@ def universe_overlap(
     fund_holdings = {name: load_holdings_with_weights(path) for name, path in zip(fund_names, holdings)}
     result = compute_holdings_overlap(fund_holdings)
     typer.echo(json.dumps(result.model_dump(mode="json"), indent=2))
+
+
+@engagement_app.command("record-list")
+def engagement_record_list() -> None:
+    for r in _engagement_store().list_all():
+        open_issues = sum(1 for i in r.issues if i.status.value == "open")
+        typer.echo(f"{r.company_id}\t{r.name}\t{len(r.issues)} issue(s), {open_issues} open")
+
+
+@engagement_app.command("record-show")
+def engagement_record_show(company_id: str) -> None:
+    record = _engagement_store().get(company_id)
+    if record is None:
+        typer.echo("Not found", err=True)
+        raise typer.Exit(1)
+    typer.echo(json.dumps(record.model_dump(mode="json"), indent=2))
+
+
+@engagement_app.command("issue-open")
+def engagement_issue_open(
+    company_id: str,
+    name: str,
+    theme: str = typer.Option(...),
+    severity: IssueSeverity = typer.Option(IssueSeverity.MEDIUM),
+) -> None:
+    _record, issue = _engagement_store().open_issue(company_id, name, theme=theme, severity=severity, source=TriggerSource.ANALYST_RAISED)
+    typer.echo(f"Opened issue {issue.issue_id} ({theme}) for {company_id}")
+
+
+@engagement_app.command("issue-next-action")
+def engagement_issue_next_action(company_id: str, issue_id: str) -> None:
+    settings = get_settings()
+    store = _engagement_store()
+    record = store.get(company_id)
+    if record is None:
+        typer.echo("Record not found", err=True)
+        raise typer.Exit(1)
+    issue = next((i for i in record.issues if i.issue_id == issue_id), None)
+    if issue is None:
+        typer.echo("Issue not found", err=True)
+        raise typer.Exit(1)
+    decision = decide_next_action(issue, settings.engagement_sla_days)
+    typer.echo(f"{decision.action.value}: {decision.reason}")
+
+
+@engagement_app.command("issue-escalate")
+def engagement_issue_escalate(
+    company_id: str,
+    issue_id: str,
+    stage: EscalationStage = typer.Option(..., help="The next escalation-ladder step."),
+    by: str = typer.Option(..., help="Who made this escalation-lever decision -- the non-negotiable human checkpoint."),
+    reason: str = typer.Option(""),
+) -> None:
+    _engagement_store().set_escalation_stage(company_id, issue_id, stage, by, reason)
+    typer.echo(f"Escalated {company_id}/{issue_id} to {stage.value} (by {by})")
+
+
+@engagement_app.command("log-correspondence")
+def engagement_log_correspondence(
+    company_id: str,
+    issue_id: str,
+    type: str = typer.Option(..., help="letter | call | meeting | email | other"),
+    summary: str = typer.Option(...),
+    logged_by: str = typer.Option(None),
+) -> None:
+    _engagement_store().add_correspondence(company_id, issue_id, CorrespondenceEntry(type=type, summary=summary, logged_by=logged_by))
+    typer.echo("Logged.")
+
+
+@engagement_app.command("verify-commitment")
+def engagement_verify_commitment(company_id: str, issue_id: str, commitment_id: str, by: str = typer.Option(...)) -> None:
+    from arp.engagement.tracking_agent import log_commitment_verified
+
+    log_commitment_verified(_engagement_store(), company_id, issue_id, commitment_id, by)
+    typer.echo("Verified.")
+
+
+@engagement_app.command("dossier-draft")
+def engagement_dossier_draft(
+    company_id: str,
+    issue_id: str,
+    universe: Path = typer.Option(..., help="Universe CSV/JSON containing this company (for name/ticker/cik/website)."),
+    out: Path = typer.Option(..., help="Where to write the ResearchDossier JSON."),
+) -> None:
+    """Research Agent: drafts a grounded briefing dossier for one issue.
+    The result is written to disk, not auto-applied, so a human can run the
+    dossier-accuracy review checkpoint before any Drafting Agent handoff."""
+    from arp.engagement.research_agent import research_company_issue
+
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    store = _engagement_store()
+    record = store.get(company_id)
+    if record is None:
+        typer.echo("Engagement record not found -- open an issue first with `arp engagement issue-open`.", err=True)
+        raise typer.Exit(1)
+    issue = next((i for i in record.issues if i.issue_id == issue_id), None)
+    if issue is None:
+        typer.echo("Issue not found", err=True)
+        raise typer.Exit(1)
+    company = next((c for c in load_company_universe(universe) if c.company_id == company_id), None)
+    if company is None:
+        typer.echo(f"{company_id} not found in {universe}", err=True)
+        raise typer.Exit(1)
+    dossier, needs_review, _usage = asyncio.run(
+        research_company_issue(
+            company, issue, record, registry=_registry(), llm=llm,
+            fuzzy_threshold=settings.grounding_fuzzy_threshold, confidence_review_threshold=settings.confidence_review_threshold,
+        )
+    )
+    out.write_text(dossier.model_dump_json(indent=2))
+    typer.echo(f"Wrote dossier to {out} (needs_review={needs_review})")
+
+
+@engagement_app.command("trigger-scan")
+def engagement_trigger_scan(
+    universe: Path = typer.Option(...),
+    signals: Path = typer.Option(None, help="JSON list of {company_id, theme, severity, detail} controversy signals."),
+) -> None:
+    """Runs the trigger & detection layer: opens a new issue for every
+    controversy signal without an already-open issue on the same theme,
+    plus an SLA sweep flagging stalled issues."""
+    companies = load_company_universe(universe)
+    store = _engagement_store()
+    signal_list = [ControversySignal(**s) for s in json.loads(signals.read_text())] if signals else []
+    source = StaticControversySource(signal_list)
+    events = asyncio.run(run_trigger_screen(companies, source, store))
+    events += scan_for_stalled_issues(store, get_settings().engagement_sla_days)
+    for e in events:
+        typer.echo(f"{e.source.value}\t{e.company_id}\t{e.theme}\t{e.severity.value}\tissue={e.raised_issue_id}")
+    typer.echo(f"{len(events)} trigger event(s).")
+
+
+@engagement_app.command("report")
+def engagement_report(period_label: str = typer.Option(...), run_id: str = typer.Option(None, help="Include a voting run's cast votes.")) -> None:
+    vote_records = []
+    if run_id:
+        run_store = RunStore(get_settings().runs_dir)
+        for ballot in get_ballots(run_store, run_id):
+            vote_records.extend(ballot.votes)
+        cast_by_id = {v.vote_record_id: v for v in get_cast_votes(run_store, run_id)}
+        vote_records = [cast_by_id.get(v.vote_record_id, v) for v in vote_records]
+    report = compile_report(_engagement_store().list_all(), vote_records, period_label)
+    typer.echo(json.dumps(report.model_dump(mode="json"), indent=2))
+
+
+@voting_app.command("run")
+def voting_run(
+    universe: Path = typer.Option(...),
+    meeting_dates: Path = typer.Option(None, help="Optional JSON object mapping company_id -> meeting_date."),
+) -> None:
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    companies = load_company_universe(universe)
+    dates = json.loads(meeting_dates.read_text()) if meeting_dates else {}
+    typer.echo(f"Running proxy voting analysis across {len(companies)} companies...")
+    run_id = asyncio.run(
+        run_voting(
+            companies, llm=llm, registry=_registry(), engagement_store=_engagement_store(),
+            settings=settings, run_store=_run_store(), meeting_dates=dates, fund_name=settings.fund_name,
+        )
+    )
+    typer.echo(f"Run complete: {run_id} (see runs/{run_id}/). Every proposal is queued for review -- use `arp voting review`.")
+
+
+@voting_app.command("ballots")
+def voting_ballots(run_id: str) -> None:
+    for ballot in get_ballots(_run_store(), run_id):
+        typer.echo(f"{ballot.company_id}\t{ballot.name}\t{len(ballot.votes)} proposal(s)")
+        for v in ballot.votes:
+            rec = v.policy_recommendation
+            flag = " [ALIGNMENT FLAG]" if rec and rec.engagement_alignment_flag else ""
+            typer.echo(f"  #{v.proposal.proposal_number} ({v.proposal.type.value}): recommend {rec.vote.value if rec else '?'}{flag}")
+
+
+@voting_app.command("review")
+def voting_review(
+    run_id: str,
+    item_key: str = typer.Argument(..., help="'{company_id}:{proposal_number}', as shown by `arp voting ballots`."),
+    decision: str = typer.Option(..., help="approve | edit | reject"),
+    by: str = typer.Option(...),
+    vote: str = typer.Option(None, help="Required if --decision edit: for | against | abstain | withhold."),
+    co_signed_by: str = typer.Option(None, help="Required before casting when the item carries an engagement alignment flag."),
+    comment: str = typer.Option(None),
+) -> None:
+    from arp.orchestration.review_queue import record_review_decision
+
+    if decision not in ("approve", "edit", "reject"):
+        typer.echo("decision must be approve, edit, or reject", err=True)
+        raise typer.Exit(1)
+    if decision == "edit" and not vote:
+        typer.echo("--vote is required with --decision edit", err=True)
+        raise typer.Exit(1)
+    edited_value = {"vote": vote, "co_signed_by": co_signed_by} if decision == "edit" else ({"co_signed_by": co_signed_by} if co_signed_by else None)
+    record_review_decision(_run_store(), run_id, item_key, decision, by, edited_value, comment)
+    typer.echo("Recorded.")
+
+
+@voting_app.command("cast")
+def voting_cast(run_id: str) -> None:
+    """Ballot Casting Agent: casts every reviewed-and-approved vote not
+    already cast. Never casts an item with no recorded human decision, and
+    refuses an engagement-alignment-flagged item with no co-sign."""
+    cast = asyncio.run(cast_approved_votes(run_id, _run_store(), _ballot_platform()))
+    typer.echo(f"Cast {len(cast)} vote(s).")
+    for v in cast:
+        typer.echo(f"  {v.proposal.company_id} #{v.proposal.proposal_number}: {v.human_decision.vote.value} ({v.cast_confirmation.confirmation_id})")
+@portfolio_app.command("seed-demo")
+def portfolio_seed_demo() -> None:
+    """Seeds the built-in illustrative multi-portfolio demo dataset (see
+    arp/portfolio/mock_data.py): companies, securities (incl. one
+    deliberately unresolved instrument), 4 quarterly holdings snapshots
+    across 4 portfolios, climate data-point observations with a validated
+    internal-API/extraction cross-check, and ingested news items.
+    Deterministic and safe to re-run.
+    """
+    settings = get_settings()
+    summary = asyncio.run(
+        generate_demo_dataset(_portfolio_store(), settings.portfolio_confidence_review_threshold, settings.climate_validation_tolerance_pct)
+    )
+    typer.echo(json.dumps(summary.__dict__, indent=2))
+
+
+@portfolio_app.command("list")
+def portfolio_list() -> None:
+    for p in _portfolio_store().list_portfolios():
+        typer.echo(f"{p.portfolio_id}\t{p.name}\t{','.join(p.tags)}")
+
+
+@portfolio_app.command("review-queue")
+def portfolio_review_queue() -> None:
+    """Securities whose issuer entity resolution fell below the confidence
+    threshold -- never auto-matched, always surfaced here instead."""
+    rows = _portfolio_store().list_resolutions_needing_review()
+    if not rows:
+        typer.echo("Nothing pending review.")
+        return
+    for r in rows:
+        typer.echo(f"{r.security_id}\tbest_guess_company_id={r.company_id}\tconfidence={r.confidence:.2f}\tmethod={r.method}")
+
+
+@portfolio_app.command("aggregate")
+def portfolio_aggregate(
+    group_by: str = typer.Option(..., help="portfolio_id | asset_class | company_id | company_name | sector | country | currency"),
+    metric: str = typer.Option("market_value_sum", help="market_value_sum | weighted_avg_datapoint | count"),
+    portfolio: list[str] = typer.Option(None, "--portfolio", help="Restrict to these portfolio_ids; repeatable."),
+    company_id: str = typer.Option(None, help="Filter to one issuer, e.g. bmw."),
+    asset_class: str = typer.Option(None),
+    data_point_field_id: str = typer.Option(None, help="Required for metric=weighted_avg_datapoint, e.g. climate_carbon_intensity."),
+    as_of: str = typer.Option(None, help="Snapshot date; defaults to the latest available."),
+    name: str = typer.Option("cli query"),
+) -> None:
+    """Runs a query against the deterministic aggregation engine -- the
+    same "how many EUR million exposure to BMW" primitive the API and the
+    NL Q&A agent both use underneath."""
+    store = _portfolio_store()
+    security_filter: dict[str, str] = {}
+    if company_id:
+        security_filter["company_id"] = company_id
+    if asset_class:
+        security_filter["asset_class"] = asset_class
+    spec = AnalyticSpec(
+        name=name, portfolio_filter=portfolio or [], security_filter=security_filter, group_by=group_by,
+        metric=metric, data_point_field_id=data_point_field_id, as_of=as_of,
+    )
+    securities, companies = _portfolio_directories(store)
+    try:
+        result = analytics.execute(spec, store, securities, companies)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    if isinstance(result, AggregationResult):
+        typer.echo(json.dumps(result.model_dump(mode="json"), indent=2))
+    else:
+        typer.echo(json.dumps([point.model_dump(mode="json") for point in result], indent=2))
+
+
+@portfolio_app.command("pivot")
+def portfolio_pivot(
+    row_dim: str = typer.Option(..., help="portfolio_id | asset_class | company_id | company_name | sector | country | currency"),
+    col_dim: str = typer.Option(..., help="Same choices as --row-dim."),
+    metric: str = typer.Option("market_value_sum", help="market_value_sum | weighted_avg_datapoint | count"),
+    portfolio: list[str] = typer.Option(None, "--portfolio", help="Restrict to these portfolio_ids; repeatable."),
+    company_id: str = typer.Option(None, help="Filter to one issuer, e.g. bmw."),
+    asset_class: str = typer.Option(None),
+    data_point_field_id: str = typer.Option(None, help="Required for metric=weighted_avg_datapoint, e.g. climate_carbon_intensity."),
+    as_of: str = typer.Option(None, help="Snapshot date; defaults to the latest available."),
+    name: str = typer.Option("cli pivot"),
+) -> None:
+    """A two-dimension permutation of `arp portfolio aggregate` -- e.g.
+    --row-dim sector --col-dim asset_class to see the whole exposure
+    breakdown as a single cross-tab instead of one dimension at a time."""
+    store = _portfolio_store()
+    security_filter: dict[str, str] = {}
+    if company_id:
+        security_filter["company_id"] = company_id
+    if asset_class:
+        security_filter["asset_class"] = asset_class
+    spec = PivotSpec(
+        name=name, portfolio_filter=portfolio or [], security_filter=security_filter, row_dim=row_dim, col_dim=col_dim,
+        metric=metric, data_point_field_id=data_point_field_id, as_of=as_of,
+    )
+    securities, companies = _portfolio_directories(store)
+    try:
+        result = analytics.execute_pivot(spec, store, securities, companies)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(json.dumps(result.model_dump(mode="json"), indent=2))
+
+
+@portfolio_app.command("ask")
+def portfolio_ask(question: str) -> None:
+    """Answers a plain-language portfolio question end to end: the LLM
+    only drafts a query, the deterministic engine computes it, and the
+    printed answer shows the real numbers behind it. Requires
+    ARP_ANTHROPIC_API_KEY."""
+    llm = build_llm_client(get_settings())
+    store = _portfolio_store()
+    securities, companies = _portfolio_directories(store)
+    answer, _usage = asyncio.run(qa_agent.answer_question(question, llm, store, securities, companies))
+    if not answer.resolvable:
+        typer.echo(f"Could not resolve the question: {answer.clarification_needed}")
+        raise typer.Exit(1)
+    typer.echo(answer.answer_text)
+
+
+@portfolio_app.command("classify-news")
+def portfolio_classify_news() -> None:
+    """Runs the LLM risk classifier over ingested, not-yet-classified news
+    items and persists any resulting grounded risk flags. Requires
+    ARP_ANTHROPIC_API_KEY."""
+    llm = build_llm_client(get_settings())
+    store = _portfolio_store()
+    already_classified = {f.news_id for f in store.list_flags()}
+    pending = [item for item in store.list_news() if item.news_id not in already_classified]
+
+    async def _run() -> int:
+        created = 0
+        for item in pending:
+            flag, _usage = await classify_article(item, llm)
+            if flag is not None:
+                store.append_flag(flag)
+                created += 1
+        return created
+
+    created = asyncio.run(_run())
+    typer.echo(f"Classified {len(pending)} article(s), created {created} risk flag(s).")
+
+
+@climate_app.command("waci")
+def climate_waci(
+    group_by: str = typer.Option("portfolio_id"),
+    portfolio: list[str] = typer.Option(None, "--portfolio"),
+    as_of: str = typer.Option(None),
+) -> None:
+    store = _portfolio_store()
+    securities, companies = _portfolio_directories(store)
+    dates = store.all_snapshot_dates()
+    resolved_as_of = as_of or (dates[-1] if dates else None)
+    if resolved_as_of is None:
+        typer.echo("No holdings snapshots available -- run `arp portfolio seed-demo` first.", err=True)
+        raise typer.Exit(1)
+    holdings = store.load_holdings_as_of(resolved_as_of, portfolio or None)
+    result = climate_metrics.compute_waci(
+        store, holdings, securities, companies, as_of=resolved_as_of, group_by=group_by, portfolio_filter=portfolio or None
+    )
+    typer.echo(json.dumps(result.model_dump(mode="json"), indent=2))
+
+
+@climate_app.command("financed-emissions")
+def climate_financed_emissions(
+    portfolio: list[str] = typer.Option(None, "--portfolio"), as_of: str = typer.Option(None)
+) -> None:
+    store = _portfolio_store()
+    securities, _companies = _portfolio_directories(store)
+    dates = store.all_snapshot_dates()
+    resolved_as_of = as_of or (dates[-1] if dates else None)
+    if resolved_as_of is None:
+        typer.echo("No holdings snapshots available -- run `arp portfolio seed-demo` first.", err=True)
+        raise typer.Exit(1)
+    holdings = store.load_holdings_as_of(resolved_as_of, portfolio or None)
+    result = climate_metrics.compute_financed_emissions(
+        store, holdings, securities, as_of=resolved_as_of, portfolio_filter=portfolio or None
+    )
+    typer.echo(json.dumps(result, indent=2))
+
+
+@climate_app.command("coverage")
+def climate_coverage(field_id: str, as_of: str = typer.Option(None)) -> None:
+    store = _portfolio_store()
+    securities, _companies = _portfolio_directories(store)
+    result = climate_metrics.coverage_report(store, securities, field_id, as_of)
+    typer.echo(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":

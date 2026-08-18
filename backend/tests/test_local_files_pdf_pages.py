@@ -1,30 +1,18 @@
+import pymupdf4llm
+
 from arp.ingestion.local_files import parse_file_to_text_with_pages
 
 
-class _FakePage:
-    def __init__(self, text: str):
-        self._text = text
-
-    def extract_text(self):
-        return self._text
-
-
-class _FakeReader:
-    is_encrypted = False
-
-    def __init__(self, _path):
-        self.pages = [
-            _FakePage("Page one text."),
-            _FakePage("Page two text, a bit longer than the first."),
-            _FakePage("Page three."),
-        ]
-
-
 def test_pdf_page_breaks_mark_the_start_of_each_page(monkeypatch, tmp_path):
-    monkeypatch.setattr("pypdf.PdfReader", _FakeReader)
+    fake_pages = [
+        {"text": "Page one text."},
+        {"text": "Page two text, a bit longer than the first."},
+        {"text": "Page three."},
+    ]
+    monkeypatch.setattr(pymupdf4llm, "to_markdown", lambda *args, **kwargs: fake_pages)
 
     path = tmp_path / "report.pdf"
-    path.write_bytes(b"%PDF-1.4 fake bytes, never actually parsed since PdfReader is mocked")
+    path.write_bytes(b"%PDF-1.4 fake bytes, never actually parsed since to_markdown is mocked")
 
     text, page_breaks = parse_file_to_text_with_pages(path)
 
@@ -45,3 +33,38 @@ def test_non_pdf_formats_return_empty_page_breaks(tmp_path):
 
     assert text == "Just some plain text, no pagination concept."
     assert page_breaks == []
+
+
+def _build_pdf_with_a_table(path):
+    """A real PDF (no mocking) with a grid-lined table -- the shape a
+    disclosure PDF's segment/GHG/revenue table typically has -- so this
+    test exercises MuPDF's actual table detector, not just the page-join
+    bookkeeping around it."""
+    import pymupdf
+
+    doc = pymupdf.open()
+    page = doc.new_page()
+    rows = [("Segment", "Revenue", "OpInc"), ("Auto", "500", "50"), ("Software", "300", "90")]
+    y = 70
+    for row in rows:
+        x = 50
+        for cell in row:
+            page.insert_text((x, y), cell)
+            x += 100
+        y += 20
+    for i in range(4):
+        page.draw_line((50, 60 + i * 20), (350, 60 + i * 20))
+    for i in range(4):
+        page.draw_line((50 + i * 100, 60), (50 + i * 100, 120))
+    doc.save(str(path))
+
+
+def test_table_in_pdf_is_rendered_as_a_markdown_table(tmp_path):
+    path = tmp_path / "segments.pdf"
+    _build_pdf_with_a_table(path)
+
+    text, _page_breaks = parse_file_to_text_with_pages(path)
+
+    assert "|Segment|Revenue|OpInc|" in text
+    assert "|Auto|500|50|" in text
+    assert "|Software|300|90|" in text

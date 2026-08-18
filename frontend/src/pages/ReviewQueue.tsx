@@ -1,7 +1,21 @@
 import { useState } from "react";
 import { api } from "../api/client";
 
-type RunKind = "theme" | "extraction";
+type RunKind = "theme" | "extraction" | "financials" | "identity";
+
+const QUEUE_FNS: Record<RunKind, (runId: string) => Promise<unknown>> = {
+  theme: api.getThemeReviewQueue,
+  extraction: api.getExtractionReviewQueue,
+  financials: api.getFinancialsReviewQueue,
+  identity: api.getIdentityReviewQueue,
+};
+
+const SUBMIT_FNS: Record<RunKind, (runId: string, body: unknown) => Promise<unknown>> = {
+  theme: api.submitThemeReview,
+  extraction: api.submitExtractionReview,
+  financials: api.submitFinancialsReview,
+  identity: api.submitIdentityReview,
+};
 
 export function ReviewQueue() {
   const [kind, setKind] = useState<RunKind>("theme");
@@ -15,8 +29,7 @@ export function ReviewQueue() {
     setBusy(true);
     setError(null);
     try {
-      const res =
-        kind === "theme" ? await api.getThemeReviewQueue(runId) : await api.getExtractionReviewQueue(runId);
+      const res = await QUEUE_FNS[kind](runId);
       setPending((res as { pending: Record<string, unknown>[] }).pending);
     } catch (err) {
       setError((err as Error).message);
@@ -26,8 +39,7 @@ export function ReviewQueue() {
   }
 
   async function decide(itemKey: string, decision: "approve" | "reject") {
-    const submit = kind === "theme" ? api.submitThemeReview : api.submitExtractionReview;
-    await submit(runId, { item_key: itemKey, decision, reviewer: "ui-user" });
+    await SUBMIT_FNS[kind](runId, { item_key: itemKey, decision, reviewer: "ui-user" });
     setPending((prev) => prev.filter((p) => p.item_key !== itemKey));
   }
 
@@ -44,6 +56,8 @@ export function ReviewQueue() {
         <select value={kind} onChange={(e) => setKind(e.target.value as RunKind)}>
           <option value="theme">Thematic universe</option>
           <option value="extraction">Data-point extraction</option>
+          <option value="financials">Company financials</option>
+          <option value="identity">Identity resolution</option>
         </select>
         <label className="field-label">Run ID</label>
         <input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="theme_xxxxxxxxxxxx" />

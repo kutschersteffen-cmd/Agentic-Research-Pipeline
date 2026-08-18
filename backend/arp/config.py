@@ -21,13 +21,31 @@ class Settings(BaseSettings):
     # Paths (all file-based storage lives under these)
     runs_dir: Path = Field(default=REPO_ROOT / "runs")
     taxonomies_dir: Path = Field(default=REPO_ROOT / "taxonomies")
+    portfolios_dir: Path = Field(default=REPO_ROOT / "portfolios")
     documents_dir: Path = Field(default=REPO_ROOT / "data" / "documents")
     cache_dir: Path = Field(default=REPO_ROOT / "backend" / ".cache")
+    document_store_dir: Path = Field(
+        default=REPO_ROOT / "backend" / ".document_store",
+        description="SQLite content-addressed cache of parsed document text; see arp.storage.document_store.",
+    )
     discovery_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".discovery_state")
+    engagements_dir: Path = Field(default=REPO_ROOT / "engagements")
+    ballots_dir: Path = Field(default=REPO_ROOT / "ballots", description="Where the manual-instruction ballot platform writes vote instruction files, absent a real custodian/proxy-platform integration.")
 
     # Batch / concurrency
     max_concurrent_llm_calls: int = Field(default=8)
     max_concurrent_downloads: int = Field(default=4)
+    max_concurrent_parses: int = Field(
+        default=4, description="Bounds concurrent off-loop document parses; the default executor allows 32."
+    )
+
+    document_cache_enabled: bool = Field(default=True)
+    hybrid_retrieval_enabled: bool = Field(
+        default=False,
+        description="Adds a local-embedding vector ranking, fused with BM25 via reciprocal rank fusion, to "
+        "select_relevant_chunks. Off by default -- this is the one retrieval change that deliberately alters which "
+        "evidence reaches the LLM, so it ships dark pending side-by-side validation.",
+    )
 
     # Precision controls
     grounding_fuzzy_threshold: float = Field(
@@ -37,8 +55,19 @@ class Settings(BaseSettings):
         default=0.6, description="Extractions/matches below this confidence are routed to the review queue."
     )
 
+    # Engagement & voting stewardship module
+    engagement_sla_days: int = Field(
+        default=45, description="An open engagement issue with no recorded activity for this many days is flagged stalled."
+    )
+    fund_name: str | None = Field(
+        default=None, description="Used by the Policy Application Agent to detect the fund's own co-filed shareholder resolutions."
+    )
+
     # SEC EDGAR requires a descriptive User-Agent identifying the requester.
     edgar_user_agent: str = Field(default="Agentic Research Pipeline research@example.com")
+    edgar_submissions_ttl_hours: float = Field(
+        default=24.0, description="Filings list changes over time, so this cache (unlike the accession-keyed filing-document cache) expires."
+    )
 
     # Indirect (input-output) exposure tier. Off by default -- requires an
     # ICIO-format industry x industry matrix; see docs/METHODOLOGY.md.
@@ -81,8 +110,36 @@ class Settings(BaseSettings):
     discovery_schedule_interval_hours: float = Field(default=24.0)
     discovery_schedule_universe_path: Path | None = Field(default=None)
 
+    # Agentic company identity resolution (arp/discovery/identity_*.py) --
+    # a separate enrichment run, not part of the discovery crawl above.
+    identity_resolution_confidence_threshold: float = Field(
+        default=0.7,
+        description="Stricter than the general confidence_review_threshold: a wrong identity match is coherently "
+        "wrong (well-cited documents about the wrong company) with no downstream mechanical check, unlike a "
+        "citation grounding.py can catch.",
+    )
+    identity_resolution_max_search_results: int = Field(default=5)
+
+    # Portfolio risk & exposure monitoring
+    portfolio_confidence_review_threshold: float = Field(
+        default=0.6, description="Security-to-issuer entity resolution matches below this confidence are routed to review."
+    )
+    climate_validation_tolerance_pct: float = Field(
+        default=0.15, description="Disagreement between the internal ESG API and extracted-from-disclosures values beyond this share is flagged conflicting_sources."
+    )
+
     def ensure_dirs(self) -> None:
-        for d in (self.runs_dir, self.taxonomies_dir, self.documents_dir, self.cache_dir, self.discovery_state_dir):
+        for d in (
+            self.runs_dir,
+            self.taxonomies_dir,
+            self.portfolios_dir,
+            self.documents_dir,
+            self.cache_dir,
+            self.document_store_dir,
+            self.discovery_state_dir,
+            self.engagements_dir,
+            self.ballots_dir,
+        ):
             d.mkdir(parents=True, exist_ok=True)
 
 

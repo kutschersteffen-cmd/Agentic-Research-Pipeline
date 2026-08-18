@@ -63,3 +63,79 @@ class DiscoveryScheduleConfig(BaseModel):
     doc_types: list[DocType] = Field(default_factory=list)
     last_run_id: str | None = None
     next_run_at: str | None = None
+
+
+# --- Agentic company identity resolution -----------------------------------
+#
+# Given only a company name (no website/cik), resolves which real company it
+# is (see arp/discovery/identity_agents.py and identity_graph.py). A direct
+# SEC EDGAR name lookup (deterministic, no LLM) resolves the common case on
+# its own; the single adjudicate LLM call only runs when that lookup is
+# genuinely ambiguous (0 or 2+ matches). Kept in its own run type
+# (arp/discovery/identity_pipeline.py), separate from the discovery crawl
+# pipeline -- see that module's docstring.
+
+
+class IdentityVerdict(StrEnum):
+    RESOLVED = "resolved"
+    UNCERTAIN = "uncertain"
+    UNRESOLVED = "unresolved"
+
+
+class EdgarNameMatch(BaseModel):
+    """One row from EdgarDocumentSource.search_by_name -- a real,
+    deterministic lookup against SEC's own ticker/CIK/company-title map,
+    not an LLM guess."""
+
+    ticker: str
+    cik: str
+    title: str
+
+
+class WebSearchHit(BaseModel):
+    """A raw web search result, kept as-is (title/url/snippet) rather than
+    LLM-summarized, so the adjudicate step reasons over the real signal
+    instead of a paraphrase of it."""
+
+    title: str
+    url: str
+    snippet: str = ""
+
+
+class IdentitySignals(BaseModel):
+    """Deterministic (non-LLM) resolution signals gathered from real
+    lookups for the adjudicate step (or the zero-LLM clean-match
+    short-circuit) to reason over."""
+
+    edgar_matches: list[EdgarNameMatch] = Field(default_factory=list)
+    search_results: list[WebSearchHit] = Field(default_factory=list)
+
+
+class IdentityAdjudication(BaseModel):
+    """Structured output of the adjudicate step. resolved_website/
+    resolved_cik are checked against IdentitySignals by code (never
+    trusted from the LLM's self-report alone) before being accepted --
+    see arp/discovery/identity_graph.py."""
+
+    verdict: IdentityVerdict
+    confidence: float = Field(ge=0.0, le=1.0)
+    resolved_website: str | None = None
+    resolved_cik: str | None = None
+    rationale: str
+
+
+class IdentityResolutionResult(BaseModel):
+    """Persisted result of resolving one company: written to the identity
+    run's results.jsonl, and -- when flagged_for_review -- also queued via
+    arp.orchestration.review_queue.queue_for_review."""
+
+    company_id: str
+    input_name: str
+    verdict: IdentityVerdict
+    confidence: float = Field(ge=0.0, le=1.0)
+    resolved_website: str | None = None
+    resolved_cik: str | None = None
+    signals: IdentitySignals
+    rationale: str
+    flagged_for_review: bool = False
+    generated_at: str = Field(default_factory=now_iso)

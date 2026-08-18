@@ -23,15 +23,52 @@ precision at scale (designed for up to ~4,000 companies per run).
    value, or rejected, each with an optional comment; every decision is
    appended to a permanent, per-field audit trail (nothing is ever
    overwritten) and shown in a History panel.
-3. **Document Discovery** — finds each company's investor-relations site,
+3. **Company Financials Extraction** — pulls a company's disclosed business
+   segments (name, description, revenue, operating income, assets), total
+   CapEx, and total R&D -- each spend figure with a grounded plain-language
+   description of what it's going toward and any category/program
+   breakdown the company discloses (e.g. maintenance vs. growth capex,
+   green capex, R&D focus areas) -- broader than a single "green capex"
+   field. These three are almost always wanted together, so they're
+   extracted in a single combined pass per company: one document fetch, one
+   evidence-gathering step, and one extractor + one independent-verifier
+   LLM call pair instead of three separate round trips, with the same
+   programmatic grounding check on every citation and per-section review
+   flagging (a problem in one section doesn't block review of the others).
+   A segment/figure not explicitly disclosed is left null rather than
+   estimated or backed into from a total. Pulls from annual reports,
+   sustainability reports, investor decks, and earnings-call transcripts.
+   Designed so a structured vendor data feed can be plugged in ahead of the
+   LLM pass later, mirroring the revenue/CapEx catalogue cascade.
+4. **Document Discovery** — finds each company's investor-relations site,
    crawls it for disclosure documents, downloads new/changed ones, and
    raises an event the moment something new appears. Runs manually or on
    an automatic schedule.
-4. **Indirect Exposure Tier** *(opt-in)* — scores a company's *structural*
+5. **Indirect Exposure Tier** *(opt-in)* — scores a company's *structural*
    supply-chain exposure to a theme via input-output propagation (OECD
    ICIO), catching companies whose disclosures are silent about a theme but
    whose economic position says otherwise. Purely quantitative, zero LLM
    calls in the computation itself.
+6. **Engagement & Voting (stewardship module)** — company engagement
+   tracking (issue milestones, an escalation ladder, contacts, commitments)
+   and proxy voting (proposal extraction from proxy statements, policy-rule
+   + LLM-judgment vote recommendations, and ballot casting), sharing one
+   file-based engagement record store and gated by human checkpoints at
+   every send/decide/vote point. Backend + CLI + API only, no frontend UI
+   yet. See [`docs/ENGAGEMENT_VOTING_ARCHITECTURE.md`](docs/ENGAGEMENT_VOTING_ARCHITECTURE.md)
+   for the full design and an implementation file index.
+7. **Portfolio Risk & Exposure Monitoring** — aggregates holdings across
+   every portfolio, with a deterministic (zero-LLM) engine for grouping by
+   portfolio, asset class, issuer, sector, or country, an Analytics
+   Builder + natural-language Q&A agent ("how many EUR million of
+   exposure to BMW") where the LLM only drafts the query and the engine
+   computes the real number, and a dedicated **Climate Analytics** section
+   (WACI, PCAF-style financed emissions, coverage reporting) sourced from
+   an internal ESG API and cross-validated against the Extraction Engine's
+   independent read of company disclosures. See
+   [`docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md`](docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md)
+   for the full design and `arp portfolio --help` / `arp climate --help`
+   below to try it against the built-in mock dataset.
 
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches.
@@ -47,7 +84,36 @@ frontend/  React + TypeScript (Vite) — theme/schema authoring, taxonomy
 data/documents/   local document store (manual uploads + discovery downloads)
 runs/             file-based run state: manifest, results, errors,
                    review queue — no database
+engagements/      per-company engagement record store: current state
+                   (record.json) + an append-only audit log (events.jsonl)
+ballots/           voting-instruction files written by the (stub) manual
+                   ballot-casting platform, one per cast vote
+portfolios/       portfolio holdings snapshots, security/company registries,
+                   and climate data-point observations
 ```
+
+### Agent stack
+
+- **LangChain** (`langchain-anthropic`) is the LLM client (`arp/llm/langchain_client.py`),
+  behind a single narrow interface (`arp/llm/base.py::LLMClient.complete_structured`) every
+  agent in the codebase calls through — schema-forced structured output via tool calling,
+  a bounded self-correction retry loop on validation failure, and a disk-backed response
+  cache (`arp/llm/cache.py`), all provider-agnostic from the pipelines' point of view.
+- **LangGraph** models each pipeline's per-company (or per-company-per-field/activity)
+  multi-step agent flow as an explicit state graph — the Advocate/Opposing/Adjudicator
+  debate (`arp/research/match_graph.py`), the extractor/verifier pair
+  (`arp/extraction/field_graph.py`, `financials_graph.py`), and proposal extraction +
+  policy application (`arp/voting/ballot_graph.py`) — with short-circuit branches (no
+  evidence, a resolved hard exposure number, etc.) as conditional edges. The company-level
+  batch fan-out, checkpointing, and resumability stay outside the graphs, in the existing
+  file-based `run_batch`/`RunStore` layer described above — no database was introduced.
+- **LlamaIndex** backs document chunking (`SentenceSplitter`, wrapped in
+  `arp/ingestion/parsing.py::chunk_document`) and evidence selection
+  (`arp/retrieval/select_evidence.py`, a BM25-ranked retriever) — deterministic and
+  embedding-free, consistent with the zero-LLM-cost-in-retrieval design below.
+- The programmatic citation-grounding check (`arp/grounding.py`) is independent of all
+  three and untouched by them: it re-verifies every citation against the original fetched
+  document text, never against a chunk or an LLM's self-report.
 
 Every run type (`theme`, `extraction`, `discovery`) is checkpointed and
 resumable: results are appended to `runs/<run_id>/results.jsonl` as soon as
@@ -128,6 +194,9 @@ arp theme resume <run_id>      # picks back up; already-completed companies are 
 arp extract draft-schema "green capex" --out schema.json
 arp extract run --schema schema.json --universe companies.csv
 
+# Company financials: business segments + CapEx + R&D, one combined pass per company
+arp extract financials-run --universe companies.csv
+
 # Document discovery
 arp discover run --universe companies.csv
 arp discover schedule --universe companies.csv --interval-hours 24 --enable
@@ -135,6 +204,34 @@ arp discover schedule --universe companies.csv --interval-hours 24 --enable
 # Inspect runs
 arp runs list
 arp runs show <run_id>
+
+# Engagement (stewardship): open an issue, run triggers, draft a dossier, escalate
+arp engagement issue-open AAPL "Apple Inc." --theme executive_compensation --severity high
+arp engagement trigger-scan --universe companies.csv --signals controversy_signals.json
+arp engagement dossier-draft AAPL <issue_id> --universe companies.csv --out dossier.json
+arp engagement issue-escalate AAPL <issue_id> --stage joint_engagement --by "jane.pm"
+arp engagement record-show AAPL
+arp engagement report --period-label "2026-Q3"
+
+# Proxy voting: analyze a universe's ballots, review every item, then cast
+arp voting run --universe companies.csv
+arp voting ballots <run_id>
+arp voting review <run_id> "AAPL:3" --decision approve --by "jane.pm"
+arp voting cast <run_id>
+
+# Portfolio risk & exposure monitoring (see docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md)
+arp portfolio seed-demo                             # seeds the built-in illustrative multi-portfolio dataset
+arp portfolio list                                    # 4 mock portfolios
+arp portfolio review-queue                              # the one deliberately unresolved demo instrument
+arp portfolio aggregate --group-by portfolio_id --metric market_value_sum --company-id bmw
+arp portfolio aggregate --group-by sector --metric market_value_sum
+arp portfolio ask "How many EUR million is our exposure to BMW?"   # requires ARP_ANTHROPIC_API_KEY
+arp portfolio classify-news                              # requires ARP_ANTHROPIC_API_KEY
+
+# Climate analytics
+arp climate waci --group-by portfolio_id
+arp climate financed-emissions
+arp climate coverage climate_carbon_intensity
 ```
 
 `companies.csv` columns: `company_id, name, ticker, website, cik, country,

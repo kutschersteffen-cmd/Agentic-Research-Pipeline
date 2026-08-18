@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 from arp.schemas.common import RunManifest, now_iso
+from arp.storage.locks import KeyedLock
+from arp.storage.safe_path import safe_id
 
 
 class RunStore:
@@ -15,9 +21,18 @@ class RunStore:
 
     def __init__(self, runs_dir: Path) -> None:
         self.runs_dir = runs_dir
+        self._locks = KeyedLock()
+
+    @contextmanager
+    def lock(self, run_id: str) -> Iterator[None]:
+        """Serializes a read-modify-write cycle against one run's manifest
+        -- see JobManager, whose record_progress/finish_run/request_cancel
+        each wrap their whole read-then-save in this."""
+        with self._locks.acquire(run_id):
+            yield
 
     def run_dir(self, run_id: str) -> Path:
-        d = self.runs_dir / run_id
+        d = self.runs_dir / safe_id(run_id, label="run_id")
         d.mkdir(parents=True, exist_ok=True)
         return d
 
@@ -41,7 +56,18 @@ class RunStore:
 
     def save_manifest(self, manifest: RunManifest) -> None:
         manifest.updated_at = now_iso()
-        self.manifest_path(manifest.run_id).write_text(manifest.model_dump_json(indent=2))
+        path = self.manifest_path(manifest.run_id)
+        # Write-then-rename is atomic on POSIX: a concurrent reader either
+        # sees the old manifest or the new one in full, never a
+        # half-written file from a write that's still in progress.
+        fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=".manifest_", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(manifest.model_dump_json(indent=2))
+            os.replace(tmp_path, path)
+        except BaseException:
+            Path(tmp_path).unlink(missing_ok=True)
+            raise
 
     def load_manifest(self, run_id: str) -> RunManifest | None:
         path = self.manifest_path(run_id)
