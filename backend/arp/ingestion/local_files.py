@@ -24,7 +24,7 @@ _XLSX_SUFFIXES = {".xlsx", ".xlsm"}
 # `cursor += len(text) + 2` page-join arithmetic in _extract_pdf_text --
 # since that silently changes what a cached page_breaks means without
 # changing any package version.
-_PARSER_LOGIC_VERSION = 1
+_PARSER_LOGIC_VERSION = 2  # bumped: pymupdf4llm -> docling, markdown output differs byte-for-byte
 
 
 @functools.lru_cache(maxsize=1)
@@ -34,7 +34,7 @@ def parser_version() -> str:
     entries instead of silently mixing parse outputs from two different
     parser behaviors under one key."""
     parts = [f"logic={_PARSER_LOGIC_VERSION}"]
-    for pkg in ("pymupdf4llm", "pymupdf", "trafilatura", "openpyxl"):
+    for pkg in ("docling", "docling-core", "trafilatura", "openpyxl"):
         try:
             parts.append(f"{pkg}={_pkg_version(pkg)}")
         except PackageNotFoundError:
@@ -42,27 +42,46 @@ def parser_version() -> str:
     return "|".join(parts)
 
 
-def _extract_pdf_text(path: Path) -> tuple[str, list[int]]:
-    """Renders each page as markdown (via pymupdf4llm/MuPDF) rather than
-    plain reading-order text -- disclosure PDFs are table-heavy (segment
-    breakdowns, GHG inventories, revenue tables), and MuPDF's table
-    detection turns those into real markdown tables instead of pypdf's
-    row/column-scrambled flat text. Still zero-LLM, deterministic, and
-    fast enough for 4000-company batch runs.
-
-    MuPDF auto-tries an empty user password, so an owner-password-only
-    "no printing/copying" disclosure PDF (the common case) reads
-    transparently; a genuinely user-password-locked PDF raises, same as
-    before, and is caught by the caller as a normal per-file parse error.
+@functools.lru_cache(maxsize=1)
+def _docling_converter():
+    """One converter, reused for every PDF in the process. Docling's
+    standard PDF pipeline loads a layout-detection (and, when tables are
+    present, TableFormer) model, downloaded from Hugging Face Hub on first
+    use anywhere on the machine -- paying that init cost per file instead
+    of once per process would be prohibitive. Docling's pipeline is
+    documented as thread-safe, so sharing this one instance across the
+    to_thread workers in fetch() below is intentional, not just
+    convenient.
     """
-    import pymupdf4llm
+    from docling.document_converter import DocumentConverter
 
-    pages = pymupdf4llm.to_markdown(str(path), page_chunks=True)
+    return DocumentConverter()
+
+
+def _extract_pdf_text(path: Path) -> tuple[str, list[int]]:
+    """Renders each page as markdown via Docling's layout-aware PDF
+    pipeline rather than plain reading-order text -- disclosure PDFs are
+    table-heavy (segment breakdowns, GHG inventories, revenue tables), and
+    Docling's TableFormer model turns those into real markdown tables
+    instead of row/column-scrambled flat text. Still zero-LLM and
+    deterministic, but a genuine ML pipeline runs over every page, so this
+    is far slower and heavier per document than the old MuPDF-only path --
+    accepted at the ~400-company scale this pipeline targets, on the
+    strength of DocumentContentStore already making this a one-time cost
+    per unique file rather than a per-run one.
+
+    Docling's default backend auto-tries an empty user password, so an
+    owner-password-only "no printing/copying" disclosure PDF (the common
+    case) reads transparently; a genuinely user-password-locked PDF is
+    reported invalid and raises, same as before, and is caught by the
+    caller as a normal per-file parse error.
+    """
+    doc = _docling_converter().convert(str(path)).document
     parts: list[str] = []
     page_breaks: list[int] = []
     cursor = 0
-    for page in pages:
-        text = page.get("text") or ""
+    for page_no in sorted(doc.pages.keys()):
+        text = doc.export_to_markdown(page_no=page_no)
         page_breaks.append(cursor)
         parts.append(text)
         cursor += len(text) + 2  # matches the "\n\n" join below
