@@ -98,7 +98,9 @@ for a layer-by-layer comparison of this system against a proposed
 seven-layer target architecture (Postgres/pgvector, Temporal, per-role
 model tiering) — what already exceeds it, and which of its gaps
 (decorrelated critic model, XBRL ingestion, a golden set) are genuinely
-worth adopting.
+worth adopting, and [`docs/TECHNICAL_REFERENCE.md`](docs/TECHNICAL_REFERENCE.md)
+for a full inventory of every functional module, the agent/AI stack, and
+every backend and frontend package.
 
 ## Architecture
 
