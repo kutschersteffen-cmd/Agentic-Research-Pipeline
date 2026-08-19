@@ -71,7 +71,10 @@ precision at scale (designed for up to ~4,000 companies per run).
    below to try it against the built-in mock dataset.
 
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
-built on and exactly what each precision control catches.
+built on and exactly what each precision control catches, and
+[`docs/TECHNICAL_REFERENCE.md`](docs/TECHNICAL_REFERENCE.md) for a full
+inventory of every functional module, the agent/AI stack, and every
+backend and frontend package.
 
 ## Architecture
 
