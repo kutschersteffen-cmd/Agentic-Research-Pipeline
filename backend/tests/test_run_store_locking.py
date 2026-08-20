@@ -3,8 +3,6 @@ import time
 from unittest.mock import patch
 
 from arp.orchestration.job_manager import JobManager
-from arp.schemas.engagement import Contact
-from arp.storage.engagement_store import EngagementStore
 from arp.storage.locks import KeyedLock
 from arp.storage.run_store import RunStore
 
@@ -80,29 +78,3 @@ def test_record_progress_has_no_lost_updates_under_concurrency(tmp_path):
 
     final = store.load_manifest(manifest.run_id)
     assert final.completed_count == n_threads
-
-
-def test_engagement_store_add_contact_has_no_lost_updates_under_concurrency(tmp_path):
-    store = EngagementStore(tmp_path / "engagements")
-    store.get_or_create("acme", "Acme Inc.")
-
-    original_get = EngagementStore.get
-
-    def slow_get(self, company_id):
-        result = original_get(self, company_id)
-        time.sleep(0.005)
-        return result
-
-    n_threads = 15
-    with patch.object(EngagementStore, "get", slow_get):
-        threads = [
-            threading.Thread(target=lambda i=i: store.add_contact("acme", Contact(name=f"Contact {i}", role="IR")))
-            for i in range(n_threads)
-        ]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-    final = store.get("acme")
-    assert len(final.contacts) == n_threads

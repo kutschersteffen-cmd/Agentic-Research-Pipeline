@@ -37,8 +37,8 @@ class DocumentContentStore:
     A deliberate departure from every other store in this app: it uses
     stdlib sqlite3, the first database anywhere in this codebase, where
     every other store advertises "no database" and means it. That rule
-    protects *user-authored* state (a run's manifest, an engagement's
-    audit trail) that cannot be regenerated if lost or corrupted. This
+    protects *user-authored* state (a run's manifest, a review decision)
+    that cannot be regenerated if lost or corrupted. This
     store holds only *derived* state -- deleting content.db costs nothing
     but re-parsing time.
 

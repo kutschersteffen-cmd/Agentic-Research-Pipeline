@@ -49,15 +49,7 @@ precision at scale (designed for up to ~4,000 companies per run).
    ICIO), catching companies whose disclosures are silent about a theme but
    whose economic position says otherwise. Purely quantitative, zero LLM
    calls in the computation itself.
-6. **Engagement & Voting (stewardship module)** — company engagement
-   tracking (issue milestones, an escalation ladder, contacts, commitments)
-   and proxy voting (proposal extraction from proxy statements, policy-rule
-   + LLM-judgment vote recommendations, and ballot casting), sharing one
-   file-based engagement record store and gated by human checkpoints at
-   every send/decide/vote point. Backend + CLI + API only, no frontend UI
-   yet. See [`docs/ENGAGEMENT_VOTING_ARCHITECTURE.md`](docs/ENGAGEMENT_VOTING_ARCHITECTURE.md)
-   for the full design and an implementation file index.
-7. **Portfolio Risk & Exposure Monitoring** — aggregates holdings across
+6. **Portfolio Risk & Exposure Monitoring** — aggregates holdings across
    every portfolio, with a deterministic (zero-LLM) engine for grouping by
    portfolio, asset class, issuer, sector, or country, an Analytics
    Builder + natural-language Q&A agent ("how many EUR million of
@@ -87,10 +79,6 @@ frontend/  React + TypeScript (Vite) — theme/schema authoring, taxonomy
 data/documents/   local document store (manual uploads + discovery downloads)
 runs/             file-based run state: manifest, results, errors,
                    review queue — no database
-engagements/      per-company engagement record store: current state
-                   (record.json) + an append-only audit log (events.jsonl)
-ballots/           voting-instruction files written by the (stub) manual
-                   ballot-casting platform, one per cast vote
 portfolios/       portfolio holdings snapshots, security/company registries,
                    and climate data-point observations
 ```
@@ -104,9 +92,8 @@ portfolios/       portfolio holdings snapshots, security/company registries,
   cache (`arp/llm/cache.py`), all provider-agnostic from the pipelines' point of view.
 - **LangGraph** models each pipeline's per-company (or per-company-per-field/activity)
   multi-step agent flow as an explicit state graph — the Advocate/Opposing/Adjudicator
-  debate (`arp/research/match_graph.py`), the extractor/verifier pair
-  (`arp/extraction/field_graph.py`, `financials_graph.py`), and proposal extraction +
-  policy application (`arp/voting/ballot_graph.py`) — with short-circuit branches (no
+  debate (`arp/research/match_graph.py`) and the extractor/verifier pair
+  (`arp/extraction/field_graph.py`, `financials_graph.py`) — with short-circuit branches (no
   evidence, a resolved hard exposure number, etc.) as conditional edges. The company-level
   batch fan-out, checkpointing, and resumability stay outside the graphs, in the existing
   file-based `run_batch`/`RunStore` layer described above — no database was introduced.
@@ -207,20 +194,6 @@ arp discover schedule --universe companies.csv --interval-hours 24 --enable
 # Inspect runs
 arp runs list
 arp runs show <run_id>
-
-# Engagement (stewardship): open an issue, run triggers, draft a dossier, escalate
-arp engagement issue-open AAPL "Apple Inc." --theme executive_compensation --severity high
-arp engagement trigger-scan --universe companies.csv --signals controversy_signals.json
-arp engagement dossier-draft AAPL <issue_id> --universe companies.csv --out dossier.json
-arp engagement issue-escalate AAPL <issue_id> --stage joint_engagement --by "jane.pm"
-arp engagement record-show AAPL
-arp engagement report --period-label "2026-Q3"
-
-# Proxy voting: analyze a universe's ballots, review every item, then cast
-arp voting run --universe companies.csv
-arp voting ballots <run_id>
-arp voting review <run_id> "AAPL:3" --decision approve --by "jane.pm"
-arp voting cast <run_id>
 
 # Portfolio risk & exposure monitoring (see docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md)
 arp portfolio seed-demo                             # seeds the built-in illustrative multi-portfolio dataset

@@ -8,8 +8,6 @@ import { ReviewQueue } from "./pages/ReviewQueue";
 import { RunHistory } from "./pages/RunHistory";
 import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
-import { EngagementDashboard } from "./pages/EngagementDashboard";
-import { VotingRuns } from "./pages/VotingRuns";
 import { PortfolioRisk } from "./pages/PortfolioRisk";
 import { ClimateAnalytics } from "./pages/ClimateAnalytics";
 
@@ -25,8 +23,6 @@ const TABS = [
   { id: "climate", label: "Climate Analytics" },
   { id: "review", label: "Review Queue" },
   { id: "history", label: "Run History" },
-  { id: "engagement", label: "Engagement" },
-  { id: "voting", label: "Voting" },
 ] as const;
 
 function App() {
@@ -48,7 +44,7 @@ function App() {
     <div className="app-shell">
       <header className="app-header">
         <h1>Agentic Research Pipeline</h1>
-        <p className="tagline">Thematic investment universes, schema-driven document research, stewardship engagement &amp; voting, and portfolio risk &amp; climate analytics, at scale.</p>
+        <p className="tagline">Thematic investment universes, schema-driven document research, and portfolio risk &amp; climate analytics, at scale.</p>
       </header>
       <nav className="app-nav">
         {TABS.map((t) => (
@@ -58,7 +54,7 @@ function App() {
         ))}
       </nav>
       <main className="app-main">
-        {active === "dashboard" && <MonitoringDashboard onNavigate={setActive} />}
+        {active === "dashboard" && <MonitoringDashboard />}
         {active === "theme" && <ThemeBuilder onSendToExtraction={sendToExtraction} />}
         {active === "taxonomy" && <TaxonomyLibrary />}
         {active === "extraction" && <ExtractionBuilder pendingUniverse={pendingUniverse} />}
@@ -69,8 +65,6 @@ function App() {
         {active === "climate" && <ClimateAnalytics />}
         {active === "review" && <ReviewQueue />}
         {active === "history" && <RunHistory />}
-        {active === "engagement" && <EngagementDashboard />}
-        {active === "voting" && <VotingRuns />}
       </main>
     </div>
   );

@@ -9,9 +9,9 @@ Two coupled tools for investment research at scale (designed for up to ~4,000 co
 1. A **Thematic Universe Builder** that turns a macro theme into a defensible, cited list of matched companies.
 2. A **Data-Point Extraction Engine** that pulls schema-defined figures out of company disclosures with independent verification and programmatic citation grounding.
 
-Around that core sit five more modules — Company Financials extraction, agentic Identity Resolution, Document Discovery, Engagement & Voting (stewardship), and Portfolio Risk & Climate Analytics — sharing one file-based storage convention and one LLM client interface.
+Around that core sit four more modules — Company Financials extraction, agentic Identity Resolution, Document Discovery, and Portfolio Risk & Climate Analytics — sharing one file-based storage convention and one LLM client interface.
 
-**Storage philosophy:** everything is files — JSON/JSONL under `runs/`, `portfolios/`, `engagements/`, `ballots/`, `taxonomies/`, `data/documents/`. No database. The one deliberate exception is `DocumentContentStore`, a SQLite cache for parsed document text, added specifically to avoid re-parsing the same PDF on every run.
+**Storage philosophy:** everything is files — JSON/JSONL under `runs/`, `portfolios/`, `taxonomies/`, `data/documents/`. No database. The one deliberate exception is `DocumentContentStore`, a SQLite cache for parsed document text, added specifically to avoid re-parsing the same PDF on every run.
 
 **Precision-first design:** every LLM call that produces a citation is checked programmatically against the source document text (never trusted on the model's say-so), every extraction has an independent verifier pass, and anything below a confidence threshold is queued for mandatory human review rather than silently included.
 
@@ -24,8 +24,6 @@ backend/   Python — FastAPI (HTTP API) + Typer (CLI) — every agent pipeline 
 frontend/  React + TypeScript (Vite) — authoring, monitoring, and review UI
 data/documents/   local document store: manual uploads + discovery-crawler downloads
 runs/             file-based run state — manifest, results, errors, review queue
-engagements/      per-company engagement record store (state + append-only audit log)
-ballots/          voting-instruction files, one per cast vote
 portfolios/       holdings snapshots, security/company registries, climate observations
 taxonomies/       versioned, ratifiable theme definitions
 ```
@@ -36,14 +34,13 @@ The backend and frontend are fully decoupled: the CLI and the API call the exact
 
 | Package | Responsibility |
 |---|---|
-| `api/` | FastAPI app (`main.py`), one router per domain under `routers/`, plus two shared cross-router helpers: `run_scheduling.py` (`schedule_llm_run` — resolves the LLM client *before* creating a run manifest, closing off the "orphaned running manifest" bug class structurally) and `review_endpoints.py` (shared review-queue CRUD used by five different run types). |
+| `api/` | FastAPI app (`main.py`), one router per domain under `routers/`, plus two shared cross-router helpers: `run_scheduling.py` (`schedule_llm_run` — resolves the LLM client *before* creating a run manifest, closing off the "orphaned running manifest" bug class structurally) and `review_endpoints.py` (shared review-queue CRUD used by four different run types). |
 | `cli.py` | Typer entry point (`arp ...`) — the intended path for large unattended batch runs; drives the identical pipeline functions the API does. |
 | `config.py` | `pydantic-settings`-based `Settings`, all overridable via `ARP_`-prefixed env vars / `.env`. |
 | `grounding.py` | Programmatic citation-grounding check — re-verifies every LLM-claimed quote against the actual fetched document text and resolves its real page/location; independent of, and never trusts, any of the three agent-orchestration libraries below. |
 | `net_safety.py` | SSRF-hardening helpers shared by the discovery crawler and source inspector (blocks internal/link-local targets before any outbound fetch). |
 | `universe.py` | Company-universe CSV/JSON loading shared across every pipeline entry point. |
 | `discovery/` | Document discovery crawler (site finder, robots.txt-respecting same-domain crawl, change detection, scheduler) **and** the agentic company-identity-resolution pipeline (`identity_agents.py`, `identity_graph.py`, `identity_pipeline.py`). |
-| `engagement/` | Stewardship: issue tracking, controversy-trigger scanning, dossier drafting, reporting agents. |
 | `extraction/` | Three parallel extraction pipelines (general data-point, company financials, and their respective segment/spend sub-extractors), each as an extractor-agent + independent-verifier-agent pair wired through a LangGraph state graph, plus per-field aggregation. |
 | `ingestion/` | `DocumentSource` implementations — SEC EDGAR (`edgar.py`) and local files (`local_files.py`) — plus chunking (`parsing.py`, `chunk_spans.py`) and a source registry. |
 | `llm/` | The single `LLMClient` interface (`base.py`) every agent calls through; `langchain_client.py` is the concrete LangChain/Anthropic implementation with a disk-backed response cache (`cache.py`) and a client factory (`factory.py`). |
@@ -52,15 +49,14 @@ The backend and frontend are fully decoupled: the CLI and the API call the exact
 | `research/` | The Advocate/Opposing/Adjudicator thematic-matching debate (`match_graph.py`, `matcher_agents.py`), the taxonomy library's five creation methods, standards crosswalks (NACE/NAICS/SIC/GICS), the opt-in indirect (input-output/Leontief) exposure tier, and the opt-in revenue/CapEx exposure cascade. |
 | `retrieval/` | BM25 evidence selection (default) plus an opt-in hybrid semantic layer (`embeddings.py`, fastembed-backed) and its on-disk index cache. |
 | `schemas/` | Every Pydantic model in the system — one module per domain, all LLM structured-output shapes included. |
-| `storage/` | File-backed stores for runs, portfolios, engagements, taxonomies, plus `DocumentContentStore` (the one SQLite exception, itself split into three focused collaborators — parsed-content cache, document registry, chunk-embeddings cache — behind a thin facade) and `KeyedLock` (per-key reentrant locking against read-modify-write races between concurrent request handlers and background batch threads). |
-| `voting/` | Proxy-ballot pipeline: proposal extraction from proxy statements, policy-rule + LLM-judgment vote recommendations, human review, ballot casting. |
+| `storage/` | File-backed stores for runs, portfolios, taxonomies, plus `DocumentContentStore` (the one SQLite exception, itself split into three focused collaborators — parsed-content cache, document registry, chunk-embeddings cache — behind a thin facade) and `KeyedLock` (per-key reentrant locking against read-modify-write races between concurrent request handlers and background batch threads). |
 
 ### Frontend structure (`frontend/src/`)
 
 | Path | Contents |
 |---|---|
-| `pages/` | One page per top-level function: `ThemeBuilder`, `TaxonomyLibrary`, `ExtractionBuilder`, `CompanyFinancials`, `IdentityResolution`, `DocumentDiscovery`, `PortfolioRisk`, `ClimateAnalytics`, `ReviewQueue`, `RunHistory`, `EngagementDashboard`, `VotingRuns`, `MonitoringDashboard`. |
-| `components/` | Shared building blocks: `BarChart`/`LineChart` (hand-rolled SVG, no charting library), `PivotTable`, `TrendTable`, `AggregationResultTable`, `RunProgress`, `ReviewControls`, `ConfidenceBadge`, `UniversePicker`, `PortfolioFilterPicker`, `InspectorModal`, `SourceDiscoveryPanel`, `EngagementIssuePanel`, `BallotReview`, `ResultView`, `ActivityEditorTable`. |
+| `pages/` | One page per top-level function: `ThemeBuilder`, `TaxonomyLibrary`, `ExtractionBuilder`, `CompanyFinancials`, `IdentityResolution`, `DocumentDiscovery`, `PortfolioRisk`, `ClimateAnalytics`, `ReviewQueue`, `RunHistory`, `MonitoringDashboard`. |
+| `components/` | Shared building blocks: `BarChart`/`LineChart` (hand-rolled SVG, no charting library), `PivotTable`, `TrendTable`, `AggregationResultTable`, `RunProgress`, `ReviewControls`, `ConfidenceBadge`, `UniversePicker`, `PortfolioFilterPicker`, `InspectorModal`, `SourceDiscoveryPanel`, `ResultView`, `ActivityEditorTable`. |
 | `api/client.ts` | The single HTTP client every page calls through. |
 | `lib/palette.ts` | The chart color system — fixed-order categorical slots and a sequential blue ramp, validated against the app's light chart surface. |
 | `index.css` | The entire app's theming: one CSS custom-property token set (light theme, single fixed mode — no dark/light toggle). |
@@ -93,20 +89,14 @@ Scores a company's *structural* supply-chain exposure to a theme via input–out
 ### 3.8 Revenue/CapEx Exposure Cascade *(opt-in)*
 A structured revenue/CapEx data catalogue resolves exposure with zero LLM judgment where possible, falls back to grounded extraction from disclosures, and only then falls back to the qualitative Advocate/Opposing/Adjudicator debate — a hard disclosed number is never second-guessed by a categorical LLM judgment over the same question.
 
-### 3.9 Engagement & Voting (stewardship module)
-- **Engagement**: per-company issue tracking with milestone progression, an escalation ladder, correspondence, and commitments, plus controversy-trigger scanning and LLM-drafted engagement dossiers (`engagement/`). Every send/decide checkpoint is a human action.
-- **Voting**: proposal extraction from proxy statements, policy-rule + LLM-judgment vote recommendations (`voting/policy_agent.py`, `proposal_agent.py`, `ballot_graph.py`), mandatory human review of every ballot item, then casting.
-
-Both share one file-based engagement record store (current state + append-only event log) and are backend/CLI/API-complete; voting has a frontend page, engagement's UI is the dashboard page plus a shared issue panel component.
-
-### 3.10 Portfolio Risk & Exposure Monitoring
+### 3.9 Portfolio Risk & Exposure Monitoring
 Aggregates holdings across every portfolio via a deterministic (zero-LLM) engine, groupable by portfolio, asset class, issuer, sector, or country. Includes an Analytics Builder and a natural-language Q&A agent ("how many EUR million of exposure to BMW") where the LLM only drafts the structured query — the engine computes the actual number. An Entity Resolution layer maps free-text security/issuer references to the internal company registry, surfacing anything below a confidence threshold in a dedicated review queue.
 
-### 3.11 Climate Analytics
+### 3.10 Climate Analytics
 A sub-module of Portfolio Risk: weighted-average carbon intensity (WACI), PCAF-style financed emissions, and data-coverage reporting, sourced from a mock internal ESG API and cross-validated against the Extraction Engine's independent read of the same companies' disclosures — a mismatch between the two sources is surfaced, not silently resolved.
 
-### 3.12 Cross-cutting: orchestration, review, monitoring
-Every run type (`theme`, `extraction`, `financials`, `voting`, `identity`, `discovery`) shares one checkpointed/resumable batch-runner: results append to `runs/<run_id>/results.jsonl` per company as they complete, so an interrupted batch resumes without redoing finished work. Any running/pending run can be cooperatively cancelled and (for theme runs) resumed. The **Review Queue** is the single human checkpoint for anything flagged, ungrounded, or low-confidence across all five review-producing run types. The **Monitoring Dashboard** gives a live cross-pipeline view (currently executing, recently finished, open engagement issues, SLA breaches, ballot items awaiting decision), polling every 3 seconds while open.
+### 3.11 Cross-cutting: orchestration, review, monitoring
+Every run type (`theme`, `extraction`, `financials`, `identity`, `discovery`) shares one checkpointed/resumable batch-runner: results append to `runs/<run_id>/results.jsonl` per company as they complete, so an interrupted batch resumes without redoing finished work. Any running/pending run can be cooperatively cancelled and (for theme runs) resumed. The **Review Queue** is the single human checkpoint for anything flagged, ungrounded, or low-confidence across all review-producing run types. The **Monitoring Dashboard** gives a live cross-pipeline view (currently executing, recently finished runs), polling every 3 seconds while open.
 
 ---
 
@@ -115,7 +105,7 @@ Every run type (`theme`, `extraction`, `financials`, `voting`, `identity`, `disc
 | Layer | Library | Role |
 |---|---|---|
 | LLM client | **LangChain** (`langchain-anthropic`) | Every agent call in the codebase goes through one interface, `LLMClient.complete_structured()` (`llm/base.py`) — schema-forced structured output via tool calling, a bounded self-correction retry loop on validation failure, and a disk-backed response cache. Fully provider-agnostic from every pipeline's point of view. |
-| Multi-step agent control flow | **LangGraph** | Models each pipeline's per-company (or per-field/per-activity) multi-step flow as an explicit state graph with conditional/short-circuit edges: the Advocate/Opposing/Adjudicator debate, the extractor/verifier pairs (general + financials), the identity-resolution graph, and proposal extraction + policy application for voting. Company-level batch fan-out and resumability stay outside the graphs, in the file-based `run_batch`/`RunStore` layer. |
+| Multi-step agent control flow | **LangGraph** | Models each pipeline's per-company (or per-field/per-activity) multi-step flow as an explicit state graph with conditional/short-circuit edges: the Advocate/Opposing/Adjudicator debate, the extractor/verifier pairs (general + financials), and the identity-resolution graph. Company-level batch fan-out and resumability stay outside the graphs, in the file-based `run_batch`/`RunStore` layer. |
 | Document chunking & retrieval | **LlamaIndex** | `SentenceSplitter` backs chunking (`ingestion/parsing.py`); a BM25 retriever backs evidence selection (`retrieval/select_evidence.py`) — deterministic and embedding-free by default, consistent with a zero-LLM-cost-in-retrieval design. |
 | Hybrid semantic retrieval | **fastembed** *(opt-in)* | A 384-dim ONNX embedding model (`BAAI/bge-small-en-v1.5`, ~50MB) layered on top of BM25 when enabled — chosen specifically over the torch-based `llama-index-embeddings-huggingface` (~2GB) to keep the default retrieval path free, offline, and deterministic. |
 | PDF parsing | **Docling** *(replaced pymupdf4llm this session)* | Layout-model + TableFormer-based PDF-to-markdown conversion, giving materially better table/reading-order extraction than a plain text-layer read — at the cost of a genuine ML pipeline running per page (needs a one-time model download from Hugging Face Hub on first use). Amortized across runs by the content-addressed `DocumentContentStore` cache, so it's a one-time cost per unique file, not per run. |
@@ -183,16 +173,13 @@ runs/<run_id>/errors.jsonl                   per-company failures, isolated from
 runs/<run_id>/review_queue.jsonl             flagged/ungrounded/low-confidence items
 portfolios/<portfolio_id>/...                holdings snapshots, security/company registries
 portfolios/climate/...                       climate data-point observations
-engagements/<company_id>/record.json         current engagement state (milestones, escalation stage)
-engagements/<company_id>/events.jsonl        append-only audit log, never overwritten
-ballots/<run_id>/<item>.json                 one voting-instruction file per cast vote
 taxonomies/<taxonomy_id>.json                versioned, ratifiable theme definitions
 backend/.arp_cache/ (configurable)           SQLite DocumentContentStore — parsed-content
                                               cache, document registry, chunk-embeddings cache;
                                               the one non-file-based store in the system
 ```
 
-Every write to a shared file-backed record that could race a concurrent batch thread (run manifests, engagement records) goes through `storage/locks.py`'s `KeyedLock` — a per-key reentrant lock, so unrelated runs/companies never block each other but the same key's read-modify-write cycle can't interleave.
+Every write to a shared file-backed record that could race a concurrent batch thread (run manifests) goes through `storage/locks.py`'s `KeyedLock` — a per-key reentrant lock, so unrelated runs/companies never block each other but the same key's read-modify-write cycle can't interleave.
 
 ---
 
@@ -208,8 +195,6 @@ arp revenue-catalogue suggest-mapping
 arp extract draft-schema | run | financials-run
 arp identity resolve
 arp discover run | schedule
-arp engagement issue-open | trigger-scan | dossier-draft | issue-escalate | record-show | report
-arp voting run | ballots | review | cast
 arp portfolio seed-demo | list | review-queue | aggregate | ask | classify-news
 arp climate waci | financed-emissions | coverage
 arp runs list | show | cancel

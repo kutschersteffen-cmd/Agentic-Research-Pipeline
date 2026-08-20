@@ -1,6 +1,5 @@
 import pytest
 
-from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_filename, safe_id
@@ -29,13 +28,6 @@ def test_safe_filename_accepts_plain_names(value):
 def test_safe_filename_rejects_traversal(value):
     with pytest.raises(UnsafeIdentifierError):
         safe_filename(value)
-
-
-def test_engagement_store_rejects_traversal_company_id(tmp_path):
-    store = EngagementStore(tmp_path / "engagements")
-    with pytest.raises(UnsafeIdentifierError):
-        store._dir("../../../../tmp/pwned")
-    assert not (tmp_path / "tmp" / "pwned").exists()
 
 
 def test_run_store_rejects_traversal_run_id(tmp_path):

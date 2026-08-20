@@ -29,8 +29,6 @@ class Settings(BaseSettings):
         description="SQLite content-addressed cache of parsed document text; see arp.storage.document_store.",
     )
     discovery_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".discovery_state")
-    engagements_dir: Path = Field(default=REPO_ROOT / "engagements")
-    ballots_dir: Path = Field(default=REPO_ROOT / "ballots", description="Where the manual-instruction ballot platform writes vote instruction files, absent a real custodian/proxy-platform integration.")
 
     # Batch / concurrency
     max_concurrent_llm_calls: int = Field(default=8)
@@ -53,14 +51,6 @@ class Settings(BaseSettings):
     )
     confidence_review_threshold: float = Field(
         default=0.6, description="Extractions/matches below this confidence are routed to the review queue."
-    )
-
-    # Engagement & voting stewardship module
-    engagement_sla_days: int = Field(
-        default=45, description="An open engagement issue with no recorded activity for this many days is flagged stalled."
-    )
-    fund_name: str | None = Field(
-        default=None, description="Used by the Policy Application Agent to detect the fund's own co-filed shareholder resolutions."
     )
 
     # SEC EDGAR requires a descriptive User-Agent identifying the requester.
@@ -137,8 +127,6 @@ class Settings(BaseSettings):
             self.cache_dir,
             self.document_store_dir,
             self.discovery_state_dir,
-            self.engagements_dir,
-            self.ballots_dir,
         ):
             d.mkdir(parents=True, exist_ok=True)
 

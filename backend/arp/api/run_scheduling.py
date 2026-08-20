@@ -9,16 +9,16 @@ from arp.llm.base import LLMClient
 
 def schedule_llm_run(*, create_fn: Callable[[], str], run: Callable[[str, LLMClient], Awaitable[None]]) -> str:
     """The shared shape of every `POST /runs` endpoint that needs an LLM
-    (themes, extraction, financials, voting, identity): resolve the LLM
-    client FIRST, so a missing/invalid key fails before any run manifest
-    exists, then create the run and schedule its background execution.
+    (themes, extraction, financials, identity): resolve the LLM client
+    FIRST, so a missing/invalid key fails before any run manifest exists,
+    then create the run and schedule its background execution.
 
     This ordering is not incidental -- it's the exact fix for a bug where
-    every one of these five endpoints independently created the manifest
+    every one of these endpoints independently created the manifest
     *before* calling get_llm_client(), leaving an orphaned "running"
     manifest forever when the key check failed (the background task that
     would have called finish_run() never got scheduled). Centralizing the
-    order here means a sixth run-creation endpoint gets the fix for free
+    order here means the next run-creation endpoint gets the fix for free
     instead of needing the same two-line reordering applied by hand.
 
     `create_fn` takes no arguments (none of the create_X_run functions

@@ -6,12 +6,9 @@ from arp.orchestration.review_queue import decision_history, latest_decisions, r
 from arp.storage.run_store import RunStore
 
 # Shared logic behind the near-identical review-queue endpoints in
-# themes.py, extraction.py, financials.py, voting.py, identity.py --
-# functions operating on primitives, not a route-registering factory,
-# since each router's path prefix/tags stay explicit and independently
-# discoverable. voting.py's review request carries extra fields (vote,
-# co_signed_by) and its own validation, so it keeps its own request model
-# and only calls submit_review() with the primitives everyone shares.
+# themes.py, extraction.py, financials.py, identity.py -- functions
+# operating on primitives, not a route-registering factory, since each
+# router's path prefix/tags stay explicit and independently discoverable.
 
 
 class ReviewDecisionRequest(BaseModel):
