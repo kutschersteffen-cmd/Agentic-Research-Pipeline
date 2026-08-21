@@ -3,11 +3,7 @@ from __future__ import annotations
 from arp.extraction.financials_extractor_agent import FinancialsExtractionDraft, SpendSectionDraft
 from arp.extraction.financials_verifier_agent import FinancialsVerifierOutput
 from arp.extraction.segment_aggregator import build_segments
-from arp.extraction.segment_extractor_agent import SegmentExtractionDraft
-from arp.extraction.segment_verifier_agent import SegmentVerifierOutput
 from arp.extraction.spend_aggregator import build_spend_record
-from arp.extraction.spend_extractor_agent import SpendExtractionDraft
-from arp.extraction.spend_verifier_agent import SpendVerifierOutput
 from arp.schemas.common import SourceDocument
 from arp.schemas.financials import CompanyFinancialsRecord, SpendSummary
 from arp.schemas.spend import SpendTopic
@@ -18,7 +14,7 @@ def _spend_summary(
     company_id: str,
     ticker: str | None,
     name: str,
-    section_draft: SpendSectionDraft,
+    section: SpendSectionDraft,
     draft_confidence: float,
     currency: str | None,
     fiscal_period: str | None,
@@ -30,32 +26,27 @@ def _spend_summary(
     fuzzy_threshold: float,
     confidence_review_threshold: float,
 ) -> tuple[SpendSummary, bool]:
-    """Wraps one section (capex or rnd) of the combined draft/verifier in
-    the shapes build_spend_record() already knows how to aggregate, so the
-    grounding/review-flagging logic isn't duplicated for the combined
-    pipeline.
+    """Runs one section (capex or rnd) of the combined draft/verifier
+    through build_spend_record() -- the same grounding/review-flagging
+    logic a standalone spend-only pipeline would use -- and reshapes the
+    result into the combined record's SpendSummary.
     """
-    draft = SpendExtractionDraft(
-        total=section_draft.total,
-        description=section_draft.description,
-        description_citations=section_draft.description_citations,
-        currency=currency,
-        fiscal_period=fiscal_period,
-        categories=section_draft.categories,
-        conflicting_sources=section_draft.conflicting_sources,
-        confidence=draft_confidence,
-    )
-    verifier = SpendVerifierOutput(
-        agrees=section_agree,
-        corrected_total=corrected_section.total if corrected_section else None,
-        corrected_description=corrected_section.description if corrected_section else None,
-        corrected_description_citations=corrected_section.description_citations if corrected_section else None,
-        corrected_categories=corrected_section.categories if corrected_section else None,
-        confidence=verifier_confidence,
-        notes=section_notes,
-    )
     record, needs_review = build_spend_record(
-        topic, company_id, ticker, name, draft, verifier, documents_by_id, fuzzy_threshold, confidence_review_threshold
+        topic,
+        company_id,
+        ticker,
+        name,
+        section,
+        draft_confidence,
+        currency,
+        fiscal_period,
+        verifier_agrees=section_agree,
+        corrected_section=corrected_section,
+        verifier_confidence=verifier_confidence,
+        verifier_notes=section_notes,
+        documents_by_id=documents_by_id,
+        fuzzy_threshold=fuzzy_threshold,
+        confidence_review_threshold=confidence_review_threshold,
     )
     summary = SpendSummary(
         total=record.total,
@@ -85,15 +76,16 @@ def build_financials_record(
     programmatic grounding check to every citation across all three
     sections. Returns (record, needs_review).
     """
-    segment_draft = SegmentExtractionDraft(segments=draft.segments, confidence=draft.confidence)
-    segment_verifier = SegmentVerifierOutput(
-        agrees=verifier.segments_agree,
-        corrected_segments=verifier.corrected_segments,
-        confidence=verifier.confidence,
-        notes=verifier.segments_notes,
-    )
     segments, segments_needs_review = build_segments(
-        segment_draft, segment_verifier, documents_by_id, fuzzy_threshold, confidence_review_threshold
+        draft.segments,
+        draft.confidence,
+        verifier_agrees=verifier.segments_agree,
+        corrected_segments=verifier.corrected_segments,
+        verifier_confidence=verifier.confidence,
+        verifier_notes=verifier.segments_notes,
+        documents_by_id=documents_by_id,
+        fuzzy_threshold=fuzzy_threshold,
+        confidence_review_threshold=confidence_review_threshold,
     )
     segments_verifier_notes = None
     if not verifier.segments_agree:

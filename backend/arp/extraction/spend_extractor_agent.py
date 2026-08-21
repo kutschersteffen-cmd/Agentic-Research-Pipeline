@@ -82,19 +82,3 @@ class SpendCategoryDraft(BaseModel):
     description_citations: list[Citation] = Field(default_factory=list)
     amount: AmountMetricDraft = Field(default_factory=AmountMetricDraft)
     conflicting_sources: bool = False
-
-
-class SpendExtractionDraft(BaseModel):
-    """CapEx- or R&D-only slice of a combined extractor draft -- kept as its
-    own model so the spend aggregation logic (grounding, review-flagging)
-    can be reused unchanged by wrapping a section of the combined draft in
-    this shape. See arp/extraction/financials_aggregator.py."""
-
-    total: AmountMetricDraft = Field(default_factory=AmountMetricDraft)
-    description: str | None = None
-    description_citations: list[Citation] = Field(default_factory=list)
-    currency: str | None = None
-    fiscal_period: str | None = None
-    categories: list[SpendCategoryDraft] = Field(default_factory=list)
-    conflicting_sources: bool = False
-    confidence: float = Field(ge=0.0, le=1.0)
