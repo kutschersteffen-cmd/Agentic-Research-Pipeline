@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from langgraph.graph import END, StateGraph
-
 from arp.config import Settings
 from arp.extraction.aggregator import build_extracted_field, no_evidence_field
 from arp.extraction.extractor_agent import ExtractionDraft, extract_field
+from arp.extraction.graph_shape import build_extract_verify_graph
 from arp.extraction.verifier_agent import VerifierOutput, verify_extraction
 from arp.ingestion.parsing import chunk_document
 from arp.llm.base import LLMClient, LLMUsage
@@ -102,28 +101,17 @@ async def _aggregate(state: FieldState) -> dict:
     return {"extracted": extracted, "needs_review": needs_review}
 
 
-def _build_graph():
-    graph = StateGraph(FieldState)
-    graph.add_node("gather_evidence", _gather_evidence)
-    graph.add_node("finalize_no_evidence", _finalize_no_evidence)
-    graph.add_node("extract", _extract)
-    graph.add_node("verify", _verify)
-    graph.add_node("aggregate", _aggregate)
-
-    graph.set_entry_point("gather_evidence")
-    graph.add_conditional_edges(
-        "gather_evidence", _route_after_evidence, {"extract": "extract", "finalize_no_evidence": "finalize_no_evidence"}
-    )
-    graph.add_edge("finalize_no_evidence", END)
-    graph.add_edge("extract", "verify")
-    graph.add_edge("verify", "aggregate")
-    graph.add_edge("aggregate", END)
-    return graph.compile()
-
-
 # Compiled once and reused across every field invocation -- this graph runs
 # at companies x fields scale per extraction run.
-_COMPILED_GRAPH = _build_graph()
+_COMPILED_GRAPH = build_extract_verify_graph(
+    FieldState,
+    gather_evidence=_gather_evidence,
+    route_after_evidence=_route_after_evidence,
+    finalize_no_evidence=_finalize_no_evidence,
+    extract=_extract,
+    verify=_verify,
+    aggregate=_aggregate,
+)
 
 
 async def extract_one_field(

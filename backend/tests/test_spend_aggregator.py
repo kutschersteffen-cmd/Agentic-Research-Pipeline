@@ -1,6 +1,6 @@
+from arp.extraction.financials_extractor_agent import SpendSectionDraft
 from arp.extraction.spend_aggregator import build_spend_record
-from arp.extraction.spend_extractor_agent import AmountMetricDraft, SpendExtractionDraft
-from arp.extraction.spend_verifier_agent import SpendVerifierOutput
+from arp.extraction.spend_extractor_agent import AmountMetricDraft
 from arp.schemas.common import Citation, DocType, SourceDocument
 from arp.schemas.spend import SpendTopic
 
@@ -9,15 +9,14 @@ _DOC = SourceDocument(company_id="acme", doc_type=DocType.SUSTAINABILITY_REPORT,
 _DOCS = {_DOC.doc_id: _DOC}
 
 
-def _draft(**overrides):
+def _section(**overrides):
     defaults = dict(
         total=AmountMetricDraft(value=500.0, citations=[Citation(doc_id=_DOC.doc_id, doc_type=_DOC.doc_type, quote=_QUOTE)]),
         description="Green capex spend.",
         description_citations=[Citation(doc_id=_DOC.doc_id, doc_type=_DOC.doc_type, quote=_QUOTE)],
-        confidence=0.85,
     )
     defaults.update(overrides)
-    return SpendExtractionDraft(**defaults)
+    return SpendSectionDraft(**defaults)
 
 
 def test_description_citations_preserved_when_verifier_disagrees_about_total_only():
@@ -25,15 +24,16 @@ def test_description_citations_preserved_when_verifier_disagrees_about_total_onl
     # the description's original, fully-cited text must keep its citations
     # and stay grounded, not get its citations wiped just because *some*
     # part of the record was disputed.
-    draft = _draft()
-    verifier = SpendVerifierOutput(
-        agrees=False,
-        corrected_total=AmountMetricDraft(value=550.0, citations=[Citation(doc_id=_DOC.doc_id, doc_type=_DOC.doc_type, quote=_QUOTE)]),
-        confidence=0.8,
-        notes="Total was understated.",
+    section = _section()
+    corrected = SpendSectionDraft(
+        total=AmountMetricDraft(value=550.0, citations=[Citation(doc_id=_DOC.doc_id, doc_type=_DOC.doc_type, quote=_QUOTE)])
     )
 
-    record, needs_review = build_spend_record(SpendTopic.CAPEX, "acme", None, "Acme", draft, verifier, _DOCS, 0.9, 0.6)
+    record, needs_review = build_spend_record(
+        SpendTopic.CAPEX, "acme", None, "Acme", section, 0.85, None, None,
+        verifier_agrees=False, corrected_section=corrected, verifier_confidence=0.8, verifier_notes="Total was understated.",
+        documents_by_id=_DOCS, fuzzy_threshold=0.9, confidence_review_threshold=0.6,
+    )
 
     assert record.description == "Green capex spend."
     assert len(record.description_citations) == 1
@@ -42,10 +42,14 @@ def test_description_citations_preserved_when_verifier_disagrees_about_total_onl
 
 
 def test_verifier_corrected_description_with_no_citations_is_not_grounded():
-    draft = _draft()
-    verifier = SpendVerifierOutput(agrees=False, corrected_description="Actually mostly maintenance capex.", confidence=0.7, notes="Description was wrong.")
+    section = _section()
+    corrected = SpendSectionDraft(description="Actually mostly maintenance capex.")
 
-    record, _ = build_spend_record(SpendTopic.CAPEX, "acme", None, "Acme", draft, verifier, _DOCS, 0.9, 0.6)
+    record, _ = build_spend_record(
+        SpendTopic.CAPEX, "acme", None, "Acme", section, 0.85, None, None,
+        verifier_agrees=False, corrected_section=corrected, verifier_confidence=0.7, verifier_notes="Description was wrong.",
+        documents_by_id=_DOCS, fuzzy_threshold=0.9, confidence_review_threshold=0.6,
+    )
 
     assert record.description == "Actually mostly maintenance capex."
     assert record.description_citations == []
@@ -53,19 +57,20 @@ def test_verifier_corrected_description_with_no_citations_is_not_grounded():
 
 
 def test_verifier_corrected_description_with_citations_is_grounded():
-    # The combined financials pipeline re-wraps a full SpendSectionDraft
-    # (financials_aggregator.py), which does carry citations for a
-    # corrected description -- those must be used, not discarded.
-    draft = _draft()
-    verifier = SpendVerifierOutput(
-        agrees=False,
-        corrected_description="Green capex spend, revised.",
-        corrected_description_citations=[Citation(doc_id=_DOC.doc_id, doc_type=_DOC.doc_type, quote=_QUOTE)],
-        confidence=0.8,
-        notes="Wording was imprecise.",
+    # The combined financials pipeline passes a full SpendSectionDraft as
+    # the correction, which does carry citations for a corrected
+    # description -- those must be used, not discarded.
+    section = _section()
+    corrected = SpendSectionDraft(
+        description="Green capex spend, revised.",
+        description_citations=[Citation(doc_id=_DOC.doc_id, doc_type=_DOC.doc_type, quote=_QUOTE)],
     )
 
-    record, _ = build_spend_record(SpendTopic.CAPEX, "acme", None, "Acme", draft, verifier, _DOCS, 0.9, 0.6)
+    record, _ = build_spend_record(
+        SpendTopic.CAPEX, "acme", None, "Acme", section, 0.85, None, None,
+        verifier_agrees=False, corrected_section=corrected, verifier_confidence=0.8, verifier_notes="Wording was imprecise.",
+        documents_by_id=_DOCS, fuzzy_threshold=0.9, confidence_review_threshold=0.6,
+    )
 
     assert record.description == "Green capex spend, revised."
     assert len(record.description_citations) == 1
