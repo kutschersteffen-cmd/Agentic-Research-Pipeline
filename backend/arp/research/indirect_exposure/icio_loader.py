@@ -34,7 +34,10 @@ class ICIOData:
             return None
 
 
-def _read_industries(path: Path) -> tuple[list[str], dict[str, str], dict[str, float]]:
+def read_industries(path: Path) -> tuple[list[str], dict[str, str], dict[str, float]]:
+    """Parses an industries.csv (isic_code,label,total_output). Public --
+    shared with exiobase_loader.py's long-format loader, which reuses this
+    exact companion-file format rather than duplicating a parser."""
     codes: list[str] = []
     labels: dict[str, str] = {}
     total_output: dict[str, float] = {}
@@ -71,7 +74,7 @@ def load_icio(matrix_path: Path, industries_path: Path) -> ICIOData:
     mismatch here would silently corrupt every downstream exposure number,
     so it's checked eagerly rather than assumed.
     """
-    codes, labels, total_output = _read_industries(industries_path)
+    codes, labels, total_output = read_industries(industries_path)
     matrix = _read_matrix(matrix_path, codes)
     return ICIOData(codes=codes, labels=labels, total_output=total_output, matrix=matrix)
 

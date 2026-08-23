@@ -25,7 +25,8 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.factory import build_llm_client
 from arp.research.activity_generator import build_theme, build_theme_industry_anchored
 from arp.research.indirect_exposure.core_sectors import classify_theme_core_sectors
-from arp.research.indirect_exposure.factory import build_leontief_model
+from arp.research.indirect_exposure.criticality import apply_criticality_overlay
+from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.pipeline import resume_theme_run, run_thematic_universe
 from arp.research.taxonomy_sources.authority import build_theme_from_authority_sources
 from arp.research.taxonomy_sources.compare import compare_taxonomies, merge_taxonomies
@@ -159,28 +160,45 @@ def theme_classify_sectors(
     theme_file: Path = typer.Option(..., "--theme"),
     out: Path = typer.Option(..., help="Where to write the ThemeDefinition JSON with core_isic_codes populated."),
     use_sample_icio: bool = typer.Option(
-        False, help="Use the bundled illustrative sample dataset instead of the configured ICIO paths."
+        False, help="Use the bundled illustrative ICIO-shaped sample dataset instead of the configured ICIO paths."
+    ),
+    use_sample_exiobase: bool = typer.Option(
+        False, help="Use the bundled illustrative EXIOBASE-shaped sample dataset instead of the configured EXIOBASE paths."
     ),
 ) -> None:
     """Populates each activity's core_isic_codes -- one classification call
     per activity against the input-output model's fixed industry list, run
     once per theme (not per company) before enabling the indirect-exposure
-    tier in `theme run --use-sample-icio` / a configured ARP_ICIO_* path.
+    tier in `theme run --use-sample-icio`/`--use-sample-exiobase` or a
+    configured ARP_ICIO_*/ARP_EXIOBASE_* path. Also applies the bundled
+    criticality overlay (arp.research.indirect_exposure.criticality),
+    flagging any activity whose freshly-classified core_isic_codes touch a
+    USGS/IEA-listed critical mineral's industry.
     """
     settings = get_settings()
     llm = build_llm_client(settings)
     theme = ThemeDefinition.model_validate_json(theme_file.read_text())
-    model = build_leontief_model(settings, use_sample=use_sample_icio)
+    try:
+        model = resolve_indirect_exposure_model(settings, use_sample_icio=use_sample_icio, use_sample_exiobase=use_sample_exiobase)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     if model is None:
         typer.echo(
-            "No ICIO data available: set ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH or pass --use-sample-icio.",
+            "No input-output data available: set ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH or "
+            "ARP_EXIOBASE_FLOWS_PATH/ARP_EXIOBASE_INDUSTRIES_PATH, or pass --use-sample-icio/--use-sample-exiobase.",
             err=True,
         )
         raise typer.Exit(1)
     updated_theme, _usage = asyncio.run(classify_theme_core_sectors(theme, model, llm))
+    updated_theme = apply_criticality_overlay(updated_theme)
     out.write_text(updated_theme.model_dump_json(indent=2))
     classified = sum(1 for a in updated_theme.activities if a.core_isic_codes)
-    typer.echo(f"Classified core sectors for {classified}/{len(updated_theme.activities)} activities. Wrote {out}")
+    critical = sum(1 for a in updated_theme.activities if a.criticality_flag)
+    typer.echo(
+        f"Classified core sectors for {classified}/{len(updated_theme.activities)} activities "
+        f"({critical} flagged critical-input). Wrote {out}"
+    )
 
 
 @theme_app.command("run")
@@ -194,7 +212,12 @@ def theme_run(
     use_sample_icio: bool = typer.Option(
         False,
         "--use-sample-icio",
-        help="Enable the indirect-exposure tier using the bundled illustrative sample dataset (demo only).",
+        help="Enable the indirect-exposure tier using the bundled illustrative ICIO-shaped sample dataset (demo only).",
+    ),
+    use_sample_exiobase: bool = typer.Option(
+        False,
+        "--use-sample-exiobase",
+        help="Enable the indirect-exposure tier using the bundled illustrative EXIOBASE-shaped sample dataset (demo only).",
     ),
     revenue_catalogue: Path = typer.Option(
         None, "--revenue-catalogue", help="A structured revenue/capex catalogue CSV (see `revenue-catalogue suggest-mapping`)."
@@ -218,7 +241,11 @@ def theme_run(
         typer.echo("Provide either --theme or --taxonomy.", err=True)
         raise typer.Exit(1)
     companies = load_company_universe(universe)
-    indirect_model = build_leontief_model(settings, use_sample=use_sample_icio)
+    try:
+        indirect_model = resolve_indirect_exposure_model(settings, use_sample_icio=use_sample_icio, use_sample_exiobase=use_sample_exiobase)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     if indirect_model is not None:
         typer.echo(f"Indirect exposure tier enabled ({indirect_model.edition_label}).")
 
@@ -248,6 +275,7 @@ def theme_run(
             revenue_resolver=revenue_resolver,
             universe_path=str(universe),
             use_sample_icio=use_sample_icio,
+            use_sample_exiobase=use_sample_exiobase,
             revenue_catalogue_path=str(revenue_catalogue) if revenue_catalogue else None,
             catalogue_mapping=mappings,
         )
@@ -316,7 +344,10 @@ def taxonomy_create(
     description: str = "",
     method: DerivationMethod = typer.Option(DerivationMethod.LLM_DRAFT, "--method", help="How to derive this taxonomy."),
     use_sample_icio: bool = typer.Option(
-        False, help="[industry_anchored] Anchor against the bundled illustrative ISIC reference list."
+        False, help="[industry_anchored] Anchor against the bundled illustrative ICIO-shaped ISIC reference list."
+    ),
+    use_sample_exiobase: bool = typer.Option(
+        False, help="[industry_anchored] Anchor against the bundled illustrative EXIOBASE-shaped ISIC reference list."
     ),
     authority_url: list[str] = typer.Option(
         [], "--authority-url", help="[authority_source] One or more source URLs (repeatable). See `taxonomy discover-sources`."
@@ -341,9 +372,17 @@ def taxonomy_create(
         notes = "Freeform LLM draft, no industry anchor."
 
     elif method == DerivationMethod.INDUSTRY_ANCHORED:
-        model = build_leontief_model(settings, use_sample=use_sample_icio)
+        try:
+            model = resolve_indirect_exposure_model(settings, use_sample_icio=use_sample_icio, use_sample_exiobase=use_sample_exiobase)
+        except ValueError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(1) from exc
         if model is None:
-            typer.echo("No ICIO data available: set ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH or pass --use-sample-icio.", err=True)
+            typer.echo(
+                "No input-output data available: set ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH or "
+                "ARP_EXIOBASE_FLOWS_PATH/ARP_EXIOBASE_INDUSTRIES_PATH, or pass --use-sample-icio/--use-sample-exiobase.",
+                err=True,
+            )
             raise typer.Exit(1)
         theme, _usage = asyncio.run(build_theme_industry_anchored(name, description, model.industry_reference_list(), llm))
         notes = f"Anchored against {model.edition_label} ({len(model.codes)} industries)."
@@ -498,6 +537,9 @@ def taxonomy_map_standards(
     use_sample_icio: bool = typer.Option(
         False, help="Classify any activity missing core_isic_codes using the bundled sample ICIO dataset first."
     ),
+    use_sample_exiobase: bool = typer.Option(
+        False, help="Classify any activity missing core_isic_codes using the bundled sample EXIOBASE dataset first."
+    ),
     use_sample_standards: bool = typer.Option(
         False, help="Use the bundled illustrative NACE/NAICS/SIC/GICS reference data instead of configured ARP_*_PATH files."
     ),
@@ -510,9 +552,18 @@ def taxonomy_map_standards(
     settings = get_settings()
     llm = build_llm_client(settings)
     taxonomy = _resolve_taxonomy_ref_or_exit(ref)
-    updated_theme, _usage = asyncio.run(
-        map_theme_to_standards(taxonomy.theme, settings, llm, use_sample_icio=use_sample_icio, use_sample_standards=use_sample_standards)
-    )
+    try:
+        updated_theme, _usage = asyncio.run(
+            map_theme_to_standards(
+                taxonomy.theme, settings, llm,
+                use_sample_icio=use_sample_icio,
+                use_sample_exiobase=use_sample_exiobase,
+                use_sample_standards=use_sample_standards,
+            )
+        )
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     mapped = sum(1 for a in updated_theme.activities if a.standards_mapping)
     typer.echo(f"Mapped standards for {mapped}/{len(updated_theme.activities)} activities.")
     if no_save:

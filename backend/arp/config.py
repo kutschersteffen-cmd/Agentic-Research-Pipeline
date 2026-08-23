@@ -88,6 +88,25 @@ class Settings(BaseSettings):
         default=0.3, description="Structural exposure share above which a no-direct-evidence company is flagged."
     )
 
+    # EXIOBASE input-output source (sibling to the ICIO tier above -- a run
+    # is backed by at most one, see
+    # arp.research.indirect_exposure.factory.resolve_indirect_exposure_model).
+    # Off by default, same opt-in contract as the ICIO tier.
+    exiobase_flows_path: Path | None = Field(
+        default=None,
+        description="Path to a long-format EXIOBASE-derived intermediate-flows CSV (required columns: "
+        "supplier_isic_code, user_isic_code, value -- any other columns, e.g. region, are permitted and "
+        "summed/collapsed over). Requires the caller to have already mapped EXIOBASE's native product/sector "
+        "classification to ISIC Rev.4 division codes; that crosswalk is not attempted by this loader. None "
+        "disables this source; see arp.research.indirect_exposure.exiobase_loader.",
+    )
+    exiobase_industries_path: Path | None = Field(
+        default=None,
+        description="Companion industries.csv for the EXIOBASE source -- same isic_code,label,total_output "
+        "format as icio_industries_path; total_output must already be aggregated across regions by the caller.",
+    )
+    exiobase_edition_label: str = Field(default="exiobase-sample")
+
     # Standards mapping (NACE/NAICS/SIC/GICS). Each resolves independently
     # to a real, configured file; falls back to the bundled illustrative
     # sample only when --use-sample-standards is passed explicitly. NACE/

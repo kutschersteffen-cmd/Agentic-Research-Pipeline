@@ -12,7 +12,7 @@ from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.research.activity_generator import build_theme
-from arp.research.indirect_exposure.factory import build_leontief_model
+from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.pipeline import create_theme_run, execute_theme_run, resume_theme_run
 from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company, load_catalogue
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
@@ -49,8 +49,17 @@ class RunRequest(BaseModel):
     use_sample_icio: bool = Field(
         default=False,
         description=(
-            "Enable the indirect (input-output) exposure tier using the bundled illustrative sample dataset. "
-            "For a real run, configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH instead and leave this false."
+            "Enable the indirect (input-output) exposure tier using the bundled illustrative ICIO-shaped sample "
+            "dataset. For a real run, configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH instead and leave "
+            "this false. Mutually exclusive with use_sample_exiobase."
+        ),
+    )
+    use_sample_exiobase: bool = Field(
+        default=False,
+        description=(
+            "Enable the indirect (input-output) exposure tier using the bundled illustrative EXIOBASE-shaped "
+            "sample dataset. For a real run, configure ARP_EXIOBASE_FLOWS_PATH/ARP_EXIOBASE_INDUSTRIES_PATH "
+            "instead and leave this false. Mutually exclusive with use_sample_icio."
         ),
     )
     revenue_catalogue_path: str | None = Field(
@@ -90,7 +99,12 @@ async def start_theme_run(
     if bool(req.revenue_catalogue_path) != bool(req.catalogue_mapping):
         raise HTTPException(400, "Provide both revenue_catalogue_path and catalogue_mapping together, or neither.")
 
-    indirect_model = build_leontief_model(settings, use_sample=req.use_sample_icio)
+    try:
+        indirect_model = resolve_indirect_exposure_model(
+            settings, use_sample_icio=req.use_sample_icio, use_sample_exiobase=req.use_sample_exiobase
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
     revenue_resolver = None
     if req.revenue_catalogue_path:
@@ -108,6 +122,7 @@ async def start_theme_run(
             theme, companies, settings, run_store,
             universe_path=req.universe_path,
             use_sample_icio=req.use_sample_icio,
+            use_sample_exiobase=req.use_sample_exiobase,
             revenue_catalogue_path=req.revenue_catalogue_path,
             catalogue_mapping=req.catalogue_mapping,
         )

@@ -12,7 +12,7 @@ from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
 from arp.research.indirect_exposure.company_mapper import resolve_company_isic
-from arp.research.indirect_exposure.factory import build_leontief_model
+from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.match_graph import match_company_activity
 from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company, load_catalogue
@@ -84,6 +84,7 @@ def create_theme_run(
     *,
     universe_path: str | None = None,
     use_sample_icio: bool = False,
+    use_sample_exiobase: bool = False,
     revenue_catalogue_path: str | None = None,
     catalogue_mapping: list[ActivityCatalogueMapping] | None = None,
 ) -> str:
@@ -92,10 +93,11 @@ def create_theme_run(
     (potentially long-running) work and can be scheduled in the background.
 
     The resume-relevant inputs (`universe_path`, `use_sample_icio`,
-    `revenue_catalogue_path`, `catalogue_mapping`) are persisted alongside
-    the manifest -- not needed to *start* a run, but what `resume_theme_run`
-    reads back to reconstruct and re-invoke `execute_theme_run` for a run
-    that was interrupted, failed, or explicitly cancelled.
+    `use_sample_exiobase`, `revenue_catalogue_path`, `catalogue_mapping`)
+    are persisted alongside the manifest -- not needed to *start* a run,
+    but what `resume_theme_run` reads back to reconstruct and re-invoke
+    `execute_theme_run` for a run that was interrupted, failed, or
+    explicitly cancelled.
     """
     job_manager = JobManager(run_store)
     manifest = job_manager.create_run(
@@ -105,6 +107,7 @@ def create_theme_run(
             "theme_name": theme.name,
             "universe_path": universe_path,
             "use_sample_icio": use_sample_icio,
+            "use_sample_exiobase": use_sample_exiobase,
             "revenue_catalogue_path": revenue_catalogue_path,
         },
         len(companies),
@@ -138,7 +141,11 @@ async def resume_theme_run(run_id: str, *, llm: LLMClient, registry: DocumentSou
     theme = ThemeDefinition.model_validate_json((run_dir / "theme.json").read_text())
     companies = load_company_universe(universe_path)
 
-    indirect_model = build_leontief_model(settings, use_sample=bool(manifest.params.get("use_sample_icio")))
+    indirect_model = resolve_indirect_exposure_model(
+        settings,
+        use_sample_icio=bool(manifest.params.get("use_sample_icio")),
+        use_sample_exiobase=bool(manifest.params.get("use_sample_exiobase")),
+    )
     revenue_resolver = None
     revenue_catalogue_path = manifest.params.get("revenue_catalogue_path")
     if revenue_catalogue_path:
@@ -245,22 +252,23 @@ async def run_thematic_universe(
     revenue_resolver: RevenueResolverContext | None = None,
     universe_path: str | None = None,
     use_sample_icio: bool = False,
+    use_sample_exiobase: bool = False,
     revenue_catalogue_path: str | None = None,
     catalogue_mapping: list[ActivityCatalogueMapping] | None = None,
 ) -> str:
     """Convenience wrapper (create + execute in one call) for synchronous
     callers such as the CLI, where blocking until completion is expected.
 
-    The `universe_path`/`use_sample_icio`/`revenue_catalogue_path`/
-    `catalogue_mapping` params are passed straight through to
-    create_theme_run purely so the resulting run is resumable via
-    `resume_theme_run` later -- they don't affect this call's own
+    The `universe_path`/`use_sample_icio`/`use_sample_exiobase`/
+    `revenue_catalogue_path`/`catalogue_mapping` params are passed straight
+    through to create_theme_run purely so the resulting run is resumable
+    via `resume_theme_run` later -- they don't affect this call's own
     behavior (the already-built `indirect_model`/`revenue_resolver` are
     what's actually used to execute it).
     """
     run_id = create_theme_run(
         theme, companies, settings, run_store,
-        universe_path=universe_path, use_sample_icio=use_sample_icio,
+        universe_path=universe_path, use_sample_icio=use_sample_icio, use_sample_exiobase=use_sample_exiobase,
         revenue_catalogue_path=revenue_catalogue_path, catalogue_mapping=catalogue_mapping,
     )
     return await execute_theme_run(

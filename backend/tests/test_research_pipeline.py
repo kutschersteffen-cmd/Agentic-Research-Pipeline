@@ -321,6 +321,33 @@ async def test_resume_theme_run_skips_already_completed_companies(tmp_path, fake
     assert keys == {"c1", "c2"}  # c1's pre-existing row preserved, c2 newly processed
 
 
+def test_create_theme_run_persists_use_sample_exiobase(tmp_path):
+    """create_theme_run persists use_sample_exiobase in manifest.params --
+    what resume_theme_run reads back to resolve an EXIOBASE-sourced model
+    instead of the default ICIO-sourced one (see
+    arp.research.indirect_exposure.factory.resolve_indirect_exposure_model,
+    exercised directly against this exact param round-trip in
+    test_factory.py).
+    """
+    settings = _settings(tmp_path)
+    store = RunStore(settings.runs_dir)
+    theme, _activity = _theme()
+    universe_path = tmp_path / "universe.csv"
+    universe_path.write_text("company_id,name\nc1,Acme\n")
+
+    run_id = create_theme_run(
+        theme,
+        [CompanyRef(company_id="c1", name="Acme")],
+        settings,
+        store,
+        universe_path=str(universe_path),
+        use_sample_exiobase=True,
+    )
+    manifest = store.load_manifest(run_id)
+    assert manifest.params["use_sample_exiobase"] is True
+    assert manifest.params["use_sample_icio"] is False
+
+
 async def test_resume_theme_run_unknown_universe_path_raises(tmp_path, fake_llm):
     settings = _settings(tmp_path)
     store = RunStore(settings.runs_dir)

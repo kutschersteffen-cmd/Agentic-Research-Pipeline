@@ -59,3 +59,26 @@ def test_unknown_company_industry_returns_none():
 def test_unresolvable_core_codes_returns_none():
     model = _sample_model()
     assert compute_indirect_exposure("acme", "07", model, {"not-a-core-code"}, "test-sample") is None
+
+
+def test_critical_input_true_for_bundled_critical_code():
+    model = _sample_model()
+    result = compute_indirect_exposure("acme", "07", model, {"27"}, "test-sample")  # 07 is mining -- on the bundled registry
+    assert result.critical_input is True
+
+
+def test_critical_input_false_for_noncritical_code():
+    model = _sample_model()
+    result = compute_indirect_exposure("acme", "62", model, {"27"}, "test-sample")  # IT services -- not on the registry
+    assert result.critical_input is False
+
+
+def test_critical_codes_param_overrides_bundled_default():
+    """An explicit critical_codes set -- not the real bundled registry --
+    should determine critical_input, so tests aren't coupled to the
+    registry's actual contents."""
+    model = _sample_model()
+    result = compute_indirect_exposure("acme", "62", model, {"27"}, "test-sample", critical_codes={"62"})
+    assert result.critical_input is True
+    result2 = compute_indirect_exposure("acme", "07", model, {"27"}, "test-sample", critical_codes=set())
+    assert result2.critical_input is False

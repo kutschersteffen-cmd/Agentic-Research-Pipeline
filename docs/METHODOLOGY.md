@@ -239,6 +239,40 @@ code the model doesn't actually contain rather than silently coercing it,
 since a wrong industry code would corrupt every exposure number computed
 from it.
 
+**EXIOBASE, as an alternative source.** `exiobase_loader.py` is a sibling
+loader for [EXIOBASE](https://www.exiobase.eu/) data, sourcing the same
+`ICIOData` shape the Leontief math above needs zero changes to consume.
+Unlike OECD ICIO's release, EXIOBASE realistically arrives as a long-format
+table — one row per (supplier industry, user industry, region) flow — so
+`exiobase_loader.py` groups rows by industry-code pair and sums `value`,
+collapsing region detail the same way the ICIO loader already collapses
+countries. Required columns: `supplier_isic_code,user_isic_code,value` (any
+others, e.g. region, are permitted and summed over). **This loader does not
+attempt an EXIOBASE-category-to-ISIC crosswalk** — EXIOBASE's native
+categories are NACE/CPA-based, not ISIC-based, so a real deployment must
+supply already-ISIC-mapped data via `ARP_EXIOBASE_FLOWS_PATH`/
+`ARP_EXIOBASE_INDUSTRIES_PATH`. A run is backed by at most one input-output
+source at a time — `factory.py::resolve_indirect_exposure_model` is the
+single entry point that picks ICIO first, then EXIOBASE, unless a caller
+explicitly requests one via `use_sample_icio`/`use_sample_exiobase` (opt-in
+flags are mutually exclusive; requesting both raises). A bundled
+illustrative EXIOBASE-shaped sample ships alongside the ICIO one — see
+`sample_data/README.md` for exactly how it relates to (and is a correctness
+proof against) the ICIO sample, not a claim about real EXIOBASE data.
+
+**Criticality overlay.** `criticality.py` bundles a small, hand-curated
+subset of commodities from the current USGS 2025 List of Critical Minerals
+(Federal Register 2025-19813) with IEA's clean-energy-transitions framing
+corroborating relevance, and flags any activity or exposure result whose
+ISIC code touches one of them: `ActivityDefinition.criticality_flag` (via
+`apply_criticality_overlay`, run as an explicit step immediately after
+`classify_theme_core_sectors`) and `IndirectExposureResult.critical_input`
+(computed directly inside `compute_indirect_exposure`). The ISIC-code
+association for each commodity is this codebase's own categorization, not
+a crosswalk USGS or IEA themselves publish — treat the flag as a coarse,
+industry-division-level "plausibly touches a critical-mineral supply
+chain" signal, not a precise per-commodity certification.
+
 ## Revenue/CapEx-based exposure resolution
 
 Off by default; enabling it requires a structured revenue/capex data
