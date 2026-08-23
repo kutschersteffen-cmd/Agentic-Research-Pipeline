@@ -42,6 +42,7 @@ from arp.research.taxonomy_sources.news_mining import build_theme_from_news_and_
 from arp.research.standards_mapping.mapper import format_standards_csv, map_theme_to_standards
 from arp.research.revenue_exposure.catalogue import distinct_labels, load_catalogue, by_company as catalogue_by_company
 from arp.research.revenue_exposure.mapping import suggest_catalogue_mapping
+from arp.research.rd_exposure.resolver import RDResolverContext
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.orchestration.job_manager import JobManager
@@ -225,6 +226,11 @@ def theme_run(
     catalogue_mapping: Path = typer.Option(
         None, "--catalogue-mapping", help="The reviewed activity->catalogue-label mapping JSON (required alongside --revenue-catalogue)."
     ),
+    enable_rd_exposure: bool = typer.Option(
+        False,
+        "--enable-rd-exposure",
+        help="Enable Method C (R&D-spend-intensity + news-mention scoring) for ideation/innovation-stage activities.",
+    ),
 ) -> None:
     settings = get_settings()
     llm = build_llm_client(settings)
@@ -262,6 +268,14 @@ def theme_run(
         )
         typer.echo(f"Revenue-exposure resolution enabled ({len(mappings)} confirmed activity mapping(s)).")
 
+    rd_resolver = None
+    if enable_rd_exposure:
+        rd_resolver = RDResolverContext(
+            registry=_registry(), settings=settings, isic_model=indirect_model,
+            search_client=DuckDuckGoSearchClient(settings.discovery_user_agent),
+        )
+        typer.echo("R&D/news exposure resolution enabled (ideation/innovation-stage activities only).")
+
     typer.echo(f"Running theme '{theme.name}' against {len(companies)} companies...")
     run_id = asyncio.run(
         run_thematic_universe(
@@ -273,11 +287,13 @@ def theme_run(
             run_store=_run_store(),
             indirect_model=indirect_model,
             revenue_resolver=revenue_resolver,
+            rd_resolver=rd_resolver,
             universe_path=str(universe),
             use_sample_icio=use_sample_icio,
             use_sample_exiobase=use_sample_exiobase,
             revenue_catalogue_path=str(revenue_catalogue) if revenue_catalogue else None,
             catalogue_mapping=mappings,
+            enable_rd_exposure=enable_rd_exposure,
         )
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")

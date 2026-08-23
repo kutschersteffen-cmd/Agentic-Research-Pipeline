@@ -11,10 +11,12 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.research.indirect_exposure.exposure import compute_indirect_exposure
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.matcher_agents import run_adjudicator, run_advocate, run_opposing
+from arp.research.rd_exposure.resolver import RDResolverContext, resolve_company_activity_rd_exposure
 from arp.research.revenue_exposure.resolver import RevenueResolverContext, band_exposure, resolve_company_activity_exposure
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import CompanyRef, DocumentChunk, SourceDocument
 from arp.schemas.exposure import IndirectExposureResult
+from arp.schemas.rd_exposure import RDExposureResult
 from arp.schemas.revenue_exposure import RevenueExposureResult
 from arp.schemas.thematic import ActivityDefinition, AgentOpinion, CompanyMatch, ExposureEstimate, MatchVerdict
 
@@ -43,9 +45,11 @@ class MatchState(TypedDict):
     settings: Settings
     indirect_model: LeontiefModel | None
     revenue_resolver: RevenueResolverContext | None
+    rd_resolver: RDResolverContext | None
     company_isic: str | None
     indirect: IndirectExposureResult | None
     revenue_exposure: RevenueExposureResult | None
+    rd_exposure: RDExposureResult | None
     evidence: list[DocumentChunk]
     advocate: AgentOpinion | None
     opposing: AgentOpinion | None
@@ -78,6 +82,21 @@ async def _resolve_revenue(state: MatchState) -> dict:
         llm=state["llm"],
     )
     return {"revenue_exposure": revenue_exposure, "usages": state["usages"] + [usage]}
+
+
+async def _resolve_rd(state: MatchState) -> dict:
+    rd_resolver = state["rd_resolver"]
+    if rd_resolver is None:
+        return {"rd_exposure": None}
+    rd_exposure, usage = await resolve_company_activity_rd_exposure(
+        state["company"],
+        state["activity"],
+        state["company_isic"],
+        documents=state["documents"],
+        ctx=rd_resolver,
+        llm=state["llm"],
+    )
+    return {"rd_exposure": rd_exposure, "usages": state["usages"] + [usage]}
 
 
 def _route_after_revenue(state: MatchState) -> str:
@@ -116,6 +135,7 @@ async def _finalize_from_revenue(state: MatchState) -> dict:
         citations=citations,
         indirect_exposure=indirect,
         revenue_exposure=revenue_exposure,
+        rd_exposure=state["rd_exposure"],
         flagged_for_review=flagged,
     )
     return {"match": match}
@@ -182,6 +202,7 @@ async def _finalize_no_evidence(state: MatchState) -> dict:
         citations=[],
         indirect_exposure=indirect,
         revenue_exposure=revenue_exposure,
+        rd_exposure=state["rd_exposure"],
         flagged_for_review=structural_flag,
     )
     return {"match": match}
@@ -227,6 +248,7 @@ async def _run_adjudicator_node(state: MatchState) -> dict:
         citations=grounded_citations,
         indirect_exposure=state["indirect"],
         revenue_exposure=state["revenue_exposure"],
+        rd_exposure=state["rd_exposure"],
         flagged_for_review=flagged,
     )
     return {"match": match, "usages": state["usages"] + [usage]}
@@ -236,6 +258,7 @@ def _build_graph():
     graph = StateGraph(MatchState)
     graph.add_node("compute_indirect", _compute_indirect)
     graph.add_node("resolve_revenue", _resolve_revenue)
+    graph.add_node("resolve_rd", _resolve_rd)
     graph.add_node("finalize_from_revenue", _finalize_from_revenue)
     graph.add_node("gather_evidence", _gather_evidence)
     graph.add_node("finalize_no_evidence", _finalize_no_evidence)
@@ -245,8 +268,9 @@ def _build_graph():
 
     graph.set_entry_point("compute_indirect")
     graph.add_edge("compute_indirect", "resolve_revenue")
+    graph.add_edge("resolve_revenue", "resolve_rd")
     graph.add_conditional_edges(
-        "resolve_revenue", _route_after_revenue, {"finalize_from_revenue": "finalize_from_revenue", "gather_evidence": "gather_evidence"}
+        "resolve_rd", _route_after_revenue, {"finalize_from_revenue": "finalize_from_revenue", "gather_evidence": "gather_evidence"}
     )
     graph.add_edge("finalize_from_revenue", END)
     graph.add_conditional_edges(
@@ -275,15 +299,21 @@ async def match_company_activity(
     settings: Settings,
     indirect_model: LeontiefModel | None = None,
     revenue_resolver: RevenueResolverContext | None = None,
+    rd_resolver: RDResolverContext | None = None,
     company_isic: str | None = None,
 ) -> tuple[CompanyMatch, list[LLMUsage]]:
     """Runs the full per-(company, activity) matching decision as a
     LangGraph graph: the zero-LLM indirect-exposure computation, the
-    revenue-exposure resolver's catalogue/extraction cascade (with its own
-    internal LLM calls), and -- only if neither short-circuits with a hard
-    number or an empty evidence set -- the Advocate/Opposing/Adjudicator
-    debate, followed by the programmatic grounding check. Returns the
-    final CompanyMatch plus every LLMUsage collected along the way.
+    revenue-exposure resolver's catalogue/extraction cascade, the R&D/news
+    resolver (Method C -- only actually does anything for a pre-revenue/
+    emerging activity when rd_resolver is supplied), and -- only if
+    revenue resolution didn't short-circuit with a hard number or the
+    evidence set is empty -- the Advocate/Opposing/Adjudicator debate,
+    followed by the programmatic grounding check. rd_exposure never
+    short-circuits the debate the way a resolved revenue number does --
+    it's a supplementary signal, always attached to the final match
+    regardless of which branch produced it. Returns the final CompanyMatch
+    plus every LLMUsage collected along the way.
     """
     initial: MatchState = {
         "company": company,
@@ -294,9 +324,11 @@ async def match_company_activity(
         "settings": settings,
         "indirect_model": indirect_model,
         "revenue_resolver": revenue_resolver,
+        "rd_resolver": rd_resolver,
         "company_isic": company_isic,
         "indirect": None,
         "revenue_exposure": None,
+        "rd_exposure": None,
         "evidence": [],
         "advocate": None,
         "opposing": None,

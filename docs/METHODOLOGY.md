@@ -350,6 +350,57 @@ CLI: `arp revenue-catalogue suggest-mapping <taxonomy_ref> <catalogue.csv>
 suggest-mapping`, then `revenue_catalogue_path`/`catalogue_mapping` on
 `POST /api/themes/runs`.
 
+## R&D-spend + news-mention exposure (Method C) for pre-revenue activities
+
+Off by default (`--enable-rd-exposure` / `enable_rd_exposure`); a
+supplementary signal for activities whose `lifecycle_stage` is `ideation`
+or `innovation` (`arp/schemas/thematic.py`) -- the revenue-percentage
+scoring above doesn't apply to an activity with no meaningful revenue yet.
+`arp/research/rd_exposure/resolver.py::resolve_company_activity_rd_exposure`
+returns `None` entirely, zero LLM cost, for any activity not at one of
+those two stages -- it does not attempt R&D-spend or news scoring for a
+`commercialization`/`mature` activity, which the revenue-percentage tier
+already handles.
+
+Two independent sub-signals, both `MetricExposure` (the same 0-1
+value/source/confidence shape `RevenueExposureResult` uses):
+
+- **`rd_intensity`** -- an R&D-spend-intensity extraction over the same
+  disclosures already gathered for evidence-gathering, using the same
+  Extractor -> Verifier -> grounding engine `resolve_from_extraction` uses
+  for revenue/capex. Companies rarely disclose R&D spend broken out per
+  thematic activity, so the extraction instructions accept a company-wide
+  R&D-as-%-of-revenue figure *only* when it's accompanied by explicit
+  commentary tying R&D effort to this specific activity (a named program,
+  product line, or research focus area) -- noted as company-wide, not
+  activity-specific, in the result's `notes`. Gated by the same
+  `is_sector_relevant` cost-control check the revenue resolver uses.
+- **`news_mentions`** -- a web-search-based recent-momentum signal:
+  `resolve_news_mentions` searches `"{company} {activity}"` via the same
+  no-API-key `WebSearchClient`/`DuckDuckGoSearchClient` used elsewhere for
+  authority-source and thematic-fund discovery, then
+  `rd_exposure/news_scoring.py::score_news_mentions` classifies each
+  result's genuine relevance (conservatively -- keyword co-occurrence
+  alone isn't enough) and reports the fraction judged relevant. `None`
+  search client, an empty result set, or a failed search all degrade to
+  `source="unresolved"` rather than failing the company x activity match.
+
+**`rd_exposure` never short-circuits the qualitative debate** the way a
+resolved revenue number does (see the indirect/revenue-exposure tiers
+above) -- it's explicitly a supplementary signal, computed alongside
+whichever branch (hard-number finalize, no-evidence finalize, or the full
+Advocate/Opposing/Adjudicator debate) ultimately produces the match, and
+attached to `CompanyMatch.rd_exposure` regardless. Consistent with this
+codebase's "track signals separately, don't blend into one score" design:
+`RDExposureResult` is not banded into an `ExposureEstimate` at all.
+
+Explicitly excluded from Method C, per project direction: patent/CPC-IPC-
+based scoring. Only R&D-spend intensity and news-mention frequency.
+
+CLI: `arp theme run --taxonomy <ref> --universe <csv>
+--enable-rd-exposure`. API: `enable_rd_exposure` on `POST
+/api/themes/runs`.
+
 ## The taxonomy library: defining and deriving activities
 
 A `ThemeDefinition` produced by `arp theme decompose` is, by itself, a

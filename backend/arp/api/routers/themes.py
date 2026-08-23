@@ -10,10 +10,12 @@ from arp.api.deps import get_llm_client, get_registry, get_run_store, get_taxono
 from arp.api.review_endpoints import ReviewDecisionRequest, get_review_queue, submit_review
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
+from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.research.activity_generator import build_theme
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.pipeline import create_theme_run, execute_theme_run, resume_theme_run
+from arp.research.rd_exposure.resolver import RDResolverContext
 from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company, load_catalogue
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.common import CompanyRef
@@ -68,6 +70,15 @@ class RunRequest(BaseModel):
     catalogue_mapping: list[ActivityCatalogueMapping] | None = Field(
         default=None, description="The reviewed activity->catalogue-label mapping. Required alongside revenue_catalogue_path."
     )
+    enable_rd_exposure: bool = Field(
+        default=False,
+        description=(
+            "Enable Method C (R&D-spend-intensity + news-mention scoring, arp/research/rd_exposure/) for "
+            "activities whose lifecycle_stage is ideation or innovation -- a supplementary signal for "
+            "pre-revenue themes where revenue-percentage scoring doesn't apply. Never short-circuits the "
+            "qualitative debate. Off by default."
+        ),
+    )
 
 
 @router.post("/runs")
@@ -117,6 +128,15 @@ async def start_theme_run(
             isic_model=indirect_model,
         )
 
+    rd_resolver = None
+    if req.enable_rd_exposure:
+        rd_resolver = RDResolverContext(
+            registry=registry,
+            settings=settings,
+            isic_model=indirect_model,
+            search_client=DuckDuckGoSearchClient(settings.discovery_user_agent),
+        )
+
     def _create() -> str:
         return create_theme_run(
             theme, companies, settings, run_store,
@@ -125,6 +145,7 @@ async def start_theme_run(
             use_sample_exiobase=req.use_sample_exiobase,
             revenue_catalogue_path=req.revenue_catalogue_path,
             catalogue_mapping=req.catalogue_mapping,
+            enable_rd_exposure=req.enable_rd_exposure,
         )
 
     async def _run(run_id: str, llm) -> None:
@@ -138,6 +159,7 @@ async def start_theme_run(
             run_store=run_store,
             indirect_model=indirect_model,
             revenue_resolver=revenue_resolver,
+            rd_resolver=rd_resolver,
         )
 
     run_id = schedule_llm_run(create_fn=_create, run=_run)
@@ -146,6 +168,7 @@ async def start_theme_run(
         "company_count": len(companies),
         "indirect_exposure_enabled": indirect_model is not None,
         "revenue_exposure_enabled": revenue_resolver is not None,
+        "rd_exposure_enabled": rd_resolver is not None,
     }
 
 

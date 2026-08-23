@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from arp.schemas.common import Citation, now_iso, new_id
 from arp.schemas.exposure import IndirectExposureResult
+from arp.schemas.rd_exposure import RDExposureResult
 from arp.schemas.revenue_exposure import RevenueExposureResult
 from arp.schemas.standards import ActivityStandardsMapping
 
@@ -178,6 +179,15 @@ class CompanyMatch(BaseModel):
         description=(
             "Revenue/capex-based exposure resolved via the catalogue -> extraction -> qualitative-debate cascade "
             "(arp/research/revenue_exposure/). None when no revenue catalogue/mapping was supplied for this run."
+        ),
+    )
+    rd_exposure: RDExposureResult | None = Field(
+        default=None,
+        description=(
+            "R&D-spend-intensity + news-mention exposure (Method C, arp/research/rd_exposure/), computed only "
+            "for pre-revenue/emerging activities (lifecycle_stage ideation/innovation) when the tier is enabled "
+            "for this run. None otherwise -- kept separate from revenue_exposure/indirect_exposure, never "
+            "blended into exposure_estimate."
         ),
     )
     flagged_for_review: bool = False
