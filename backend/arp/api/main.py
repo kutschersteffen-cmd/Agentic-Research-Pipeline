@@ -7,8 +7,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from arp.api.deps import get_scheduler, settings_dep
-from arp.api.routers import climate, discovery, documents, engagement, extraction, financials, identity, overlap, portfolio, revenue_catalogue, runs, taxonomies, themes, transition_plan, universe, voting
+from arp.api.deps import get_calibration_scheduler, get_scheduler, get_taxonomy_researcher_scheduler, settings_dep
+from arp.api.routers import calibration, climate, discovery, documents, engagement, extraction, financials, identity, overlap, portfolio, revenue_catalogue, runs, taxonomies, taxonomy_researcher, themes, transition_plan, universe, voting
 
 logging.basicConfig(level=logging.INFO)
 
@@ -17,11 +17,17 @@ logging.basicConfig(level=logging.INFO)
 async def lifespan(app: FastAPI):
     settings_dep().ensure_dirs()
     scheduler = get_scheduler()
+    taxonomy_researcher_scheduler = get_taxonomy_researcher_scheduler()
+    calibration_scheduler = get_calibration_scheduler()
     scheduler.start()
+    taxonomy_researcher_scheduler.start()
+    calibration_scheduler.start()
     try:
         yield
     finally:
         scheduler.shutdown()
+        taxonomy_researcher_scheduler.shutdown()
+        calibration_scheduler.shutdown()
 
 
 app = FastAPI(title="Agentic Research Pipeline", version="0.1.0", lifespan=lifespan)
@@ -50,6 +56,8 @@ app.include_router(financials.router)
 app.include_router(transition_plan.router)
 app.include_router(portfolio.router)
 app.include_router(climate.router)
+app.include_router(taxonomy_researcher.router)
+app.include_router(calibration.router)
 
 
 @app.exception_handler(RuntimeError)

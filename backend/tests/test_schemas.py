@@ -2,9 +2,11 @@ import pytest
 from pydantic import ValidationError
 
 from arp.schemas.arbitration import ArbitrationContribution, ArbitrationResult
+from arp.schemas.calibration import DriftFlag
 from arp.schemas.common import Citation, DocType, JobStatus, RunManifest
 from arp.schemas.datapoints import DataPointSchema, ExtractedField, FieldDataType, FieldDefinition
 from arp.schemas.results_diff import MatchDiffEntry, ResultsDiff
+from arp.schemas.taxonomy_researcher import TaxonomyResearchFinding
 from arp.schemas.thematic import ActivityDefinition, ActivityTier, CompanyMatch, CompanyRole, ExposureEstimate, LifecycleStage, MatchVerdict
 
 
@@ -165,3 +167,23 @@ def test_results_diff_roundtrips_json():
     )
     restored = ResultsDiff.model_validate_json(diff.model_dump_json())
     assert restored == diff
+
+
+def test_taxonomy_research_finding_roundtrips_json():
+    finding = TaxonomyResearchFinding(
+        taxonomy_id="tax1", taxonomy_name="Electrification", proposed=True, new_version=2,
+        added_activity_names=["Grid modernization"], reason="Kept both as distinct activities.",
+    )
+    restored = TaxonomyResearchFinding.model_validate_json(finding.model_dump_json())
+    assert restored == finding
+
+
+def test_drift_flag_roundtrips_json():
+    flag = DriftFlag(
+        source_run_id="theme-run-1", company_id="c1", activity_id="a1",
+        old_verdict=MatchVerdict.INCLUDE, old_confidence=0.8,
+        old_generated_at="2026-01-01T00:00:00+00:00", newest_document_at="2026-02-01T00:00:00+00:00",
+        reason="A disclosure was fetched after this verdict was generated.",
+    )
+    restored = DriftFlag.model_validate_json(flag.model_dump_json())
+    assert restored == flag

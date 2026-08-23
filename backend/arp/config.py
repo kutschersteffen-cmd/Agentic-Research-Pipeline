@@ -153,6 +153,26 @@ class Settings(BaseSettings):
     discovery_schedule_interval_hours: float = Field(default=24.0)
     discovery_schedule_universe_path: Path | None = Field(default=None)
 
+    # Standing background agents (arp/agents/) -- both clone
+    # discovery/scheduler.py's AsyncIOScheduler + JSON-persisted-config
+    # pattern exactly. Never auto-apply anything: Taxonomy Researcher only
+    # ever writes a new DRAFT taxonomy version (ratification stays a
+    # separate, human-only step); Calibration Agent only ever logs flags
+    # for a human to act on.
+    taxonomy_researcher_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".taxonomy_researcher_state")
+    taxonomy_researcher_schedule_enabled: bool = Field(default=False)
+    taxonomy_researcher_schedule_interval_hours: float = Field(default=168.0, description="Weekly by default -- taxonomies don't need daily rescanning.")
+    taxonomy_researcher_min_authority_score: float = Field(
+        default=0.6, description="Minimum LLM-assessed authority_score for a discovered source to feed a proposal."
+    )
+    taxonomy_researcher_max_sources: int = Field(
+        default=3, description="Top-N ranked authority-source candidates used per taxonomy scanned."
+    )
+
+    calibration_agent_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".calibration_state")
+    calibration_agent_schedule_enabled: bool = Field(default=False)
+    calibration_agent_schedule_interval_hours: float = Field(default=24.0)
+
     # Agentic company identity resolution (arp/discovery/identity_*.py) --
     # a separate enrichment run, not part of the discovery crawl above.
     identity_resolution_confidence_threshold: float = Field(
@@ -182,6 +202,8 @@ class Settings(BaseSettings):
             self.discovery_state_dir,
             self.engagements_dir,
             self.ballots_dir,
+            self.taxonomy_researcher_state_dir,
+            self.calibration_agent_state_dir,
         ):
             d.mkdir(parents=True, exist_ok=True)
 

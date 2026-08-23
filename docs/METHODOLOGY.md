@@ -499,6 +499,83 @@ JSON cell, plus a separate "Citations" sheet (one row per citation, keyed back t
 match by company_id/activity_id) -- Excel affords a clean multi-sheet citations table
 the flat CSV format doesn't.
 
+## Standing background agents: Taxonomy Researcher and Calibration Agent
+
+Every pipeline described above runs on demand -- a user (or the CLI/scheduler) triggers a
+theme run, a taxonomy derivation, a discovery scan. Two agents instead run continuously in
+the background, cloned from `arp/discovery/scheduler.py::DiscoveryScheduler`'s shape (an
+unstarted `AsyncIOScheduler` constructed in `__init__`, config persisted as JSON, `_apply`
+idempotently removing-then-re-adding a fixed-id interval job only when `enabled`, the
+scheduled callback wrapped in `try/except Exception` + `logger.exception` so one failed run
+never kills the job loop) rather than a new shared base class -- there was exactly one
+proven ~90-line pattern to clone twice, not yet a third caller to justify abstracting it.
+`main.py`'s lifespan always starts both scheduler singletons; the `*_schedule_enabled`
+setting only gates whether a job actually gets registered on the already-running scheduler
+-- the same two-gate model `DiscoveryScheduler` already used.
+
+Both agents follow the same three-function split every other pipeline in this codebase
+uses (`create_X_run` writes the run manifest synchronously so an API caller gets a real
+`run_id` back immediately; `execute_X_run` does the actual, potentially slow, work against
+that already-created run; `run_X` is a blocking create+execute convenience wrapper for the
+CLI and the scheduler) -- required so `POST /api/{agent}/runs` can return a `run_id`
+synchronously while the real work runs via `asyncio.create_task`, exactly like
+`discovery/pipeline.py`'s manual-trigger endpoint. Both get the same REST surface:
+`POST /api/{agent}/runs`, `GET /api/{agent}/runs/{run_id}`, `GET
+/api/{agent}/runs/{run_id}/results`, `GET`/`PUT /api/{agent}/schedule`; and the same CLI
+shape: `arp {agent} run`, `arp {agent} schedule --interval-hours ... --enable/--no-enable`.
+
+**Taxonomy Researcher** (`arp/agents/taxonomy_researcher.py`) periodically re-scans every
+*ratified* taxonomy's activity space for authority sources published or discovered since it
+was last derived. `research_taxonomy` reuses the existing authority-source pipeline
+wholesale -- `taxonomy_sources/discovery.py::discover_authority_sources`/
+`rank_authority_sources`, `taxonomy_sources/authority.py::
+build_theme_from_authority_sources`, `taxonomy_sources/compare.py::merge_taxonomies` -- all
+already-tested, Phase-0-era code; the only new logic is orchestrating them on a schedule and
+a coarse name-based diff (`name.strip().lower()` set difference) to report which
+merged-output activities are worth surfacing as "new" in a `TaxonomyResearchFinding`. That
+diff is deliberately coarse and documented as such: `merge_taxonomies`'s own LLM step does
+the real semantic dedup/MECE work, this just labels its output for the finding. A taxonomy
+below `taxonomy_researcher_min_authority_score` on every candidate source, or with nothing
+new after merging, is reported as `proposed=False` with a plain-English reason and no store
+write at all.
+
+Critically, `TaxonomyStore.new_version()` always writes `DRAFT` status unconditionally --
+this was true before the agent existed and needed no new gating to preserve. So the "never
+auto-apply" contract the taxonomy library already enforces for every other write path
+(`POST /api/taxonomies/{id}/ratify` is the only way a version becomes `RATIFIED`) covers the
+agent automatically: it can call `new_version()` freely, and a human still has to review and
+ratify separately before any run can use the new activities under a `require_ratified_
+taxonomy` gate. Default schedule is weekly (`taxonomy_researcher_schedule_interval_hours`
+default 168) -- taxonomies don't drift as fast as company disclosures do.
+
+**Calibration Agent** (`arp/agents/calibration_agent.py`) flags theme-run verdicts that may
+be stale, not verdicts that are wrong. `check_company_staleness` is a pure timestamp
+comparison, no LLM call: for each `CompanyMatch` in a completed theme run, it fetches the
+company's current documents via the same `DocumentSourceRegistry` the theme pipeline itself
+uses, and flags the match if any document's `fetched_at` postdates the match's own
+`generated_at`. That is the one signal actually available -- `SourceDocument` has no
+separate `published_at`/filing-date field, only ingestion time -- so this flags "we fetched
+something new since this verdict was generated," not "something new was published since
+then." Worth restating plainly: if ingestion lags real filing dates significantly, this
+under-flags; there was no cheaper way to close that gap without inventing new
+ingestion-metadata plumbing, and doing so was out of scope for a v1 staleness check. A
+richer alternative -- LLM-based contradiction detection between an old verdict's rationale
+and new disclosure content -- was considered and deliberately not built: it would need a
+labeled set of true contradictions to validate precision/recall against, which this
+environment has no access to, the same class of problem Phase D's arbitration weights ran
+into (see above) but here avoided entirely by scoping down to a signal that needs no tuning
+rather than shipping an unvalidated classifier.
+
+Findings are the human-facing review surface themselves -- `GET
+/api/calibration/runs/{run_id}/results` returns every `DriftFlag` (old verdict, old
+confidence, when it was generated, when the newer document arrived) directly. There is no
+additional `review_queue.py` integration: that queue is scoped per-run and would just
+duplicate what a calibration run's own results already provide. Scanning is scoped to
+completed **theme** runs only for v1 (the same scope `load_theme_run_matches` already uses
+for ranking/export/diff) -- a `DriftFlag` never re-runs classification or edits a prior
+verdict itself; re-running is always a separate, human-triggered theme run. Default
+schedule is daily (`calibration_agent_schedule_interval_hours` default 24).
+
 ## The taxonomy library: defining and deriving activities
 
 A `ThemeDefinition` produced by `arp theme decompose` is, by itself, a
