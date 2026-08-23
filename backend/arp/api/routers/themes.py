@@ -20,7 +20,7 @@ from arp.schemas.common import CompanyRef
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.run_store import RunStore
-from arp.storage.taxonomy_store import TaxonomyStore
+from arp.storage.taxonomy_store import TaxonomyStore, ensure_taxonomy_usable_for_run
 from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/themes", tags=["themes"])
@@ -79,6 +79,10 @@ async def start_theme_run(
         taxonomy = taxonomy_store.get(req.taxonomy_id, req.taxonomy_version)
         if taxonomy is None:
             raise HTTPException(404, f"Taxonomy not found: {req.taxonomy_id}")
+        try:
+            ensure_taxonomy_usable_for_run(taxonomy, settings.require_ratified_taxonomy)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
         theme = taxonomy.theme
     else:
         raise HTTPException(400, "Provide either `theme` or `taxonomy_id`.")

@@ -14,6 +14,7 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.research.activity_generator import build_theme, build_theme_industry_anchored
 from arp.research.indirect_exposure.factory import build_leontief_model
 from arp.research.taxonomy_sources.authority import build_theme_from_authority_sources
+from arp.research.taxonomy_sources.bundled_sources import list_bundled_authority_sources
 from arp.research.taxonomy_sources.compare import compare_taxonomies, merge_taxonomies
 from arp.research.taxonomy_sources.discovery import discover_authority_sources, discover_thematic_funds, rank_authority_sources
 from arp.research.taxonomy_sources.empirical import build_theme_empirical
@@ -65,6 +66,20 @@ async def discover_sources(req: DiscoverSourcesRequest, settings: Settings = Dep
         logger.info("Skipping authority-source ranking: no LLM configured.")
 
     return DiscoverSourcesResponse(authority_sources=authority, thematic_funds=funds)
+
+
+@router.get("/bundled-sources", response_model=list[SourceCandidate])
+def bundled_sources(category: str | None = None) -> list[SourceCandidate]:
+    """A small, hand-curated set of stable, canonical authority-source URLs
+    (EU Taxonomy, NACE, IEA, IPCC) offered as one-click alternatives to
+    live-searching via POST /discover-sources -- useful when the theme maps
+    cleanly onto one of these well-known bodies and a live web search would
+    just rediscover the same document less reliably. Selecting one (or
+    several) still goes through the normal derivation_method=authority_source
+    flow below: nothing here is pre-parsed or trusted without the usual
+    fetch + grounded extraction.
+    """
+    return list_bundled_authority_sources(category)
 
 
 @router.get("/sources/inspect")

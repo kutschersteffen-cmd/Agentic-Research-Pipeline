@@ -54,6 +54,12 @@ class Settings(BaseSettings):
     confidence_review_threshold: float = Field(
         default=0.6, description="Extractions/matches below this confidence are routed to the review queue."
     )
+    require_ratified_taxonomy: bool = Field(
+        default=False,
+        description="Human curation gate for theme runs (spec Step 0d): when true, POST /api/themes/runs refuses "
+        "a taxonomy_id whose latest/selected version is still DRAFT. Off by default to preserve today's "
+        "iterate-on-a-draft workflow; see arp.storage.taxonomy_store.ensure_taxonomy_usable_for_run.",
+    )
 
     # Engagement & voting stewardship module
     engagement_sla_days: int = Field(

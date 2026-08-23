@@ -3,7 +3,7 @@ from pydantic import ValidationError
 
 from arp.schemas.common import Citation, DocType, JobStatus, RunManifest
 from arp.schemas.datapoints import DataPointSchema, ExtractedField, FieldDataType, FieldDefinition
-from arp.schemas.thematic import ActivityDefinition, ExposureEstimate, MatchVerdict
+from arp.schemas.thematic import ActivityDefinition, ActivityTier, ExposureEstimate, LifecycleStage, MatchVerdict
 
 
 def test_citation_defaults_ungrounded_until_checked():
@@ -64,3 +64,54 @@ def test_activity_definition_roundtrips_json():
 
 def test_exposure_estimate_values():
     assert set(e.value for e in ExposureEstimate) == {"pure_play", "significant", "minor", "none"}
+
+
+def test_activity_definition_defaults_core_tier_and_unapproved():
+    activity = ActivityDefinition(
+        name="EV manufacturing",
+        in_scope_description="Designs/manufactures battery electric vehicles.",
+        out_of_scope_description="Traditional ICE-only vehicle manufacturing.",
+    )
+    assert activity.tier == ActivityTier.CORE
+    assert activity.lifecycle_stage is None
+    assert activity.criticality_flag is False
+    assert activity.human_approved is False
+
+
+def test_human_approved_requires_source_citation():
+    with pytest.raises(ValidationError):
+        ActivityDefinition(
+            name="EV manufacturing",
+            in_scope_description="Designs and manufactures battery electric vehicles for consumer and fleet markets.",
+            out_of_scope_description="Traditional ICE-only vehicle manufacturing.",
+            human_approved=True,
+        )
+
+
+def test_human_approved_requires_substantive_rationale():
+    citation = Citation(doc_id="d1", doc_type=DocType.OTHER, quote="Manufactures battery electric vehicles.")
+    with pytest.raises(ValidationError):
+        ActivityDefinition(
+            name="EV manufacturing",
+            in_scope_description="Makes BEVs.",  # under 15 words
+            out_of_scope_description="Traditional ICE-only vehicle manufacturing.",
+            source_citation=citation,
+            human_approved=True,
+        )
+
+
+def test_human_approved_succeeds_with_citation_and_real_rationale():
+    citation = Citation(doc_id="d1", doc_type=DocType.OTHER, quote="Manufactures battery electric vehicles.")
+    activity = ActivityDefinition(
+        name="EV manufacturing",
+        in_scope_description="Designs and manufactures battery electric vehicles for consumer and fleet markets, "
+        "including the powertrains and battery packs used in them.",
+        out_of_scope_description="Traditional ICE-only vehicle manufacturing.",
+        source_citation=citation,
+        human_approved=True,
+        tier=ActivityTier.CORE,
+        lifecycle_stage=LifecycleStage.COMMERCIALIZATION,
+    )
+    assert activity.human_approved is True
+    restored = ActivityDefinition.model_validate_json(activity.model_dump_json())
+    assert restored == activity
