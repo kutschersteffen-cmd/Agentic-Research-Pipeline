@@ -27,7 +27,9 @@ from arp.research.activity_generator import build_theme, build_theme_industry_an
 from arp.research.indirect_exposure.core_sectors import classify_theme_core_sectors
 from arp.research.indirect_exposure.criticality import apply_criticality_overlay
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
-from arp.research.pipeline import resume_theme_run, run_thematic_universe
+from arp.research.lifecycle_classifier import classify_theme_lifecycle_stages
+from arp.research.pipeline import load_theme_run_matches, rank_theme_matches, resume_theme_run, run_thematic_universe
+from arp.research.results_diff import diff_theme_results
 from arp.research.taxonomy_sources.authority import build_theme_from_authority_sources
 from arp.research.taxonomy_sources.compare import compare_taxonomies, merge_taxonomies
 from arp.research.taxonomy_sources.discovery import discover_authority_sources, discover_thematic_funds
@@ -200,6 +202,28 @@ def theme_classify_sectors(
         f"Classified core sectors for {classified}/{len(updated_theme.activities)} activities "
         f"({critical} flagged critical-input). Wrote {out}"
     )
+
+
+@theme_app.command("classify-lifecycle")
+def theme_classify_lifecycle(
+    theme_file: Path = typer.Option(..., "--theme"),
+    out: Path = typer.Option(..., help="Where to write the ThemeDefinition JSON with lifecycle_stage populated."),
+) -> None:
+    """Populates each activity's lifecycle_stage (ideation/innovation/
+    commercialization/mature) -- one classification call per activity, run
+    once per theme, before a run that enables Method C
+    (`theme run --enable-rd-exposure`), which only does anything for
+    ideation/innovation-stage activities. Independent of --classify-sectors
+    (a different concern -- ISIC industry vs. technology maturity); run
+    both if you want both tiers populated.
+    """
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    theme = ThemeDefinition.model_validate_json(theme_file.read_text())
+    updated_theme, _usage = asyncio.run(classify_theme_lifecycle_stages(theme, llm))
+    out.write_text(updated_theme.model_dump_json(indent=2))
+    classified = sum(1 for a in updated_theme.activities if a.lifecycle_stage is not None)
+    typer.echo(f"Classified lifecycle stage for {classified}/{len(updated_theme.activities)} activities. Wrote {out}")
 
 
 @theme_app.command("run")
@@ -913,6 +937,36 @@ def runs_show(run_id: str) -> None:
         typer.echo("Run not found", err=True)
         raise typer.Exit(1)
     typer.echo(json.dumps(manifest.model_dump(mode="json"), indent=2))
+
+
+@runs_app.command("results")
+def runs_results(run_id: str) -> None:
+    """Every CompanyMatch for a theme run, ranked by
+    arbitration.composite_score descending (Step 5's ranked-list output)."""
+    matches = load_theme_run_matches(_run_store(), run_id)
+    if matches is None:
+        typer.echo("Run not found or not a theme run", err=True)
+        raise typer.Exit(1)
+    ranked = rank_theme_matches(matches)
+    typer.echo(json.dumps([m.model_dump(mode="json") for m in ranked], indent=2))
+
+
+@runs_app.command("diff")
+def runs_diff(run_id_a: str, run_id_b: str) -> None:
+    """Deterministic diff between two theme runs' results (added/dropped/
+    verdict-changed/confidence-changed company x activity pairs) -- no LLM
+    call, the join key ('{company_id}:{activity_id}') is exact."""
+    store = _run_store()
+    matches_a = load_theme_run_matches(store, run_id_a)
+    if matches_a is None:
+        typer.echo(f"Run not found or not a theme run: {run_id_a}", err=True)
+        raise typer.Exit(1)
+    matches_b = load_theme_run_matches(store, run_id_b)
+    if matches_b is None:
+        typer.echo(f"Run not found or not a theme run: {run_id_b}", err=True)
+        raise typer.Exit(1)
+    diff = diff_theme_results(run_id_a, run_id_b, matches_a, matches_b)
+    typer.echo(json.dumps(diff.model_dump(mode="json"), indent=2))
 
 
 @universe_app.command("from-holdings")

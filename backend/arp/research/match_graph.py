@@ -9,6 +9,7 @@ from arp.grounding import ground_citations
 from arp.ingestion.parsing import chunk_document
 from arp.llm.base import LLMClient, LLMUsage
 from arp.research.arbitration import compute_arbitration
+from arp.research.company_role import derive_company_role
 from arp.research.indirect_exposure.exposure import compute_indirect_exposure
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.matcher_agents import run_adjudicator, run_advocate, run_opposing
@@ -131,6 +132,9 @@ async def _finalize_from_revenue(state: MatchState) -> dict:
         rd_exposure=state["rd_exposure"],
         settings=settings,
     )
+    company_role = derive_company_role(
+        verdict=verdict, exposure_estimate=banded, revenue_exposure=revenue_exposure, rd_exposure=state["rd_exposure"], settings=settings
+    )
     match = CompanyMatch(
         company_id=company.company_id,
         ticker=company.ticker,
@@ -146,6 +150,7 @@ async def _finalize_from_revenue(state: MatchState) -> dict:
         revenue_exposure=revenue_exposure,
         rd_exposure=state["rd_exposure"],
         arbitration=arbitration,
+        company_role=company_role,
         flagged_for_review=flagged or arbitration.methods_disagree or arbitration.mid_band,
     )
     return {"match": match}
@@ -258,6 +263,10 @@ async def _run_adjudicator_node(state: MatchState) -> dict:
         rd_exposure=state["rd_exposure"],
         settings=settings,
     )
+    company_role = derive_company_role(
+        verdict=adjudication.verdict, exposure_estimate=adjudication.exposure_estimate,
+        revenue_exposure=state["revenue_exposure"], rd_exposure=state["rd_exposure"], settings=settings,
+    )
     match = CompanyMatch(
         company_id=company.company_id,
         ticker=company.ticker,
@@ -275,6 +284,7 @@ async def _run_adjudicator_node(state: MatchState) -> dict:
         revenue_exposure=state["revenue_exposure"],
         rd_exposure=state["rd_exposure"],
         arbitration=arbitration,
+        company_role=company_role,
         flagged_for_review=flagged or arbitration.methods_disagree or arbitration.mid_band,
     )
     return {"match": match, "usages": state["usages"] + [usage]}

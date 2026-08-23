@@ -144,6 +144,17 @@ class MatchVerdict(StrEnum):
     UNCERTAIN = "uncertain"
 
 
+class CompanyRole(StrEnum):
+    """A company's structural role within a theme, derived deterministically
+    (arp/research/company_role.py, no LLM call) from fields already computed
+    elsewhere on CompanyMatch -- not a new judgment, a rules layer over
+    existing ones."""
+
+    PURE_PLAYER = "pure_player"    # the theme IS (or dominates) this company's business
+    DIVERSIFIED = "diversified"    # meaningful, verdict=INCLUDE exposure, but not concentrated
+    INNOVATOR = "innovator"        # R&D/momentum signal (Method C) present with little/no revenue exposure yet
+
+
 class AgentOpinion(BaseModel):
     """Structured output of one side of the advocate/opposing debate."""
 
@@ -198,6 +209,14 @@ class CompanyMatch(BaseModel):
             "of exposure_estimate/revenue_exposure/indirect_exposure/rd_exposure were actually computed. An "
             "ADDITIONAL ranking signal -- never blended into or overwriting those fields. Always populated by "
             "match_graph.py (no opt-in flag; it's free, no LLM call)."
+        ),
+    )
+    company_role: CompanyRole | None = Field(
+        default=None,
+        description=(
+            "Pure-player/diversified/innovator tag (arp/research/company_role.py, deterministic, no LLM call). "
+            "None for an excluded (verdict=EXCLUDE) match -- the tag only applies to companies actually in "
+            "scope for this activity."
         ),
     )
     flagged_for_review: bool = False

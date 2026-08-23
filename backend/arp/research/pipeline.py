@@ -308,3 +308,30 @@ async def run_thematic_universe(
         revenue_resolver=revenue_resolver,
         rd_resolver=rd_resolver,
     )
+
+
+def load_theme_run_matches(run_store: RunStore, run_id: str) -> list[CompanyMatch] | None:
+    """Loads and flattens every CompanyMatch persisted for a theme run --
+    each results.jsonl row is one company's `{"company_matches": [...]}`
+    (see execute_theme_run's result_to_json above), not a flat per-match
+    row, so this is the one place that flattening happens rather than
+    every consumer (CSV/XLSX export, the results-diff feature, the ranked-
+    results endpoint) reimplementing it. Returns None if the run doesn't
+    exist or isn't a theme run.
+    """
+    manifest = run_store.load_manifest(run_id)
+    if manifest is None or manifest.run_type != "theme":
+        return None
+    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    return [CompanyMatch.model_validate(m) for row in rows for m in row.get("company_matches", [])]
+
+
+def rank_theme_matches(matches: list[CompanyMatch]) -> list[CompanyMatch]:
+    """Sorts matches by arbitration.composite_score descending -- the
+    ranked-list output the spec calls for (Step 5), layered on top of
+    arbitration's own "additional signal, never blended" design: this only
+    orders the existing matches, it doesn't alter any of their fields.
+    Matches with no arbitration result (shouldn't happen in practice, since
+    match_graph.py always computes one) sort last, not first.
+    """
+    return sorted(matches, key=lambda m: m.arbitration.composite_score if m.arbitration else -1.0, reverse=True)

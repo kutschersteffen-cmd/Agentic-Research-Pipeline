@@ -452,6 +452,53 @@ real company disclosure data this project doesn't have access to yet. Tuning
 work, same caveat as the criticality-overlay ISIC mapping and the EXIOBASE
 sample's correctness-only convergence above.
 
+## Output layer: ranked results, tags, diffing, export
+
+**Ranked list.** `GET /api/runs/{run_id}/results` (`arp runs results <run_id>` on the CLI)
+returns every `CompanyMatch` for a theme run sorted by `arbitration.composite_score`
+descending (`arp/research/pipeline.py::rank_theme_matches`) -- the same ranking is
+applied to both export formats below. `arp/research/pipeline.py::load_theme_run_matches`
+is the one place `results.jsonl`'s per-company `{"company_matches": [...]}` rows get
+flattened into a plain `list[CompanyMatch]`; every consumer (the results endpoint, both
+exports, results-diff) shares it rather than re-parsing the JSONL independently.
+
+**Lifecycle-stage classification.** `arp/research/lifecycle_classifier.py::
+classify_theme_lifecycle_stages` populates `ActivityDefinition.lifecycle_stage`
+(ideation/innovation/commercialization/mature) via one LLM call per activity missing a
+stage, mirroring `core_sectors.py::classify_theme_core_sectors`'s "skip if hand-supplied,
+classify once per theme not per company" pattern exactly. Independent of
+`classify-sectors` (ISIC industry vs. technology maturity are different questions) --
+run both if a theme needs both the indirect-exposure tier and Method C. CLI: `arp theme
+classify-lifecycle --theme <file> --out <file>`.
+
+**Company-role tagging.** `arp/research/company_role.py::derive_company_role` is a
+deterministic rules layer (no LLM call) populating `CompanyMatch.company_role`
+(`pure_player`/`diversified`/`innovator`), called at match_graph.py's three finalize
+sites the same way `compute_arbitration` is. `None` unless `verdict == INCLUDE` -- the
+tag describes a company's role *within* the theme, meaningless for an excluded or
+uncertain match. `pure_player` when `exposure_estimate == PURE_PLAY` or the revenue
+percentage clears `revenue_exposure_pure_play_threshold`; `innovator` when Method C
+resolved an R&D-intensity or news-mentions signal while revenue exposure stays at or
+below `revenue_exposure_minor_threshold` (a real momentum signal, but not yet a
+revenue-scale business); `diversified` otherwise.
+
+**Results diff.** `GET /api/runs/{run_id_a}/diff/{run_id_b}` (`arp runs diff <a> <b>`)
+deterministically diffs two theme runs' results, keyed by
+`"{company_id}:{activity_id}"` -- an exact key, so unlike `taxonomy_sources/
+compare.py`'s fuzzy LLM-matched activity-id pairs, `arp/research/results_diff.py::
+diff_theme_results` needs no LLM call at all: added/dropped keys are plain set
+differences, and shared keys are compared directly for a verdict change or a confidence
+move past `confidence_delta_threshold` (default 0.1).
+
+**Export completeness.** `GET /api/runs/{run_id}/export.csv`'s `theme` branch now
+carries every exposure signal (revenue/indirect/rd/arbitration/company_role), ranked,
+with citations JSON-encoded into one cell (`json.dumps`, chosen over a joined/truncated
+string to avoid CSV-escaping problems with embedded quotes). `GET /api/runs/{run_id}/
+export.xlsx` (theme runs only) is new: a "Matches" sheet with the same fields minus the
+JSON cell, plus a separate "Citations" sheet (one row per citation, keyed back to its
+match by company_id/activity_id) -- Excel affords a clean multi-sheet citations table
+the flat CSV format doesn't.
+
 ## The taxonomy library: defining and deriving activities
 
 A `ThemeDefinition` produced by `arp theme decompose` is, by itself, a

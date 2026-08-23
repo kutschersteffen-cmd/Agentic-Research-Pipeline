@@ -4,7 +4,8 @@ from pydantic import ValidationError
 from arp.schemas.arbitration import ArbitrationContribution, ArbitrationResult
 from arp.schemas.common import Citation, DocType, JobStatus, RunManifest
 from arp.schemas.datapoints import DataPointSchema, ExtractedField, FieldDataType, FieldDefinition
-from arp.schemas.thematic import ActivityDefinition, ActivityTier, CompanyMatch, ExposureEstimate, LifecycleStage, MatchVerdict
+from arp.schemas.results_diff import MatchDiffEntry, ResultsDiff
+from arp.schemas.thematic import ActivityDefinition, ActivityTier, CompanyMatch, CompanyRole, ExposureEstimate, LifecycleStage, MatchVerdict
 
 
 def test_citation_defaults_ungrounded_until_checked():
@@ -138,3 +139,29 @@ def test_arbitration_result_roundtrips_json():
     )
     restored = ArbitrationResult.model_validate_json(result.model_dump_json())
     assert restored == result
+
+
+def test_company_match_company_role_defaults_to_none():
+    match = CompanyMatch(
+        company_id="c1", name="Acme Motors", activity_id="act1", activity_name="EV manufacturing",
+        verdict=MatchVerdict.INCLUDE, exposure_estimate=ExposureEstimate.SIGNIFICANT, confidence=0.8,
+        adjudicator_rationale="x", company_role=CompanyRole.PURE_PLAYER,
+    )
+    assert match.company_role == CompanyRole.PURE_PLAYER
+    restored = CompanyMatch.model_validate_json(match.model_dump_json())
+    assert restored == match
+
+
+def test_results_diff_roundtrips_json():
+    diff = ResultsDiff(
+        run_id_a="run_a", run_id_b="run_b", added=["c3:act1"], dropped=["c1:act1"],
+        verdict_changed=[
+            MatchDiffEntry(
+                key="c2:act1", company_id="c2", activity_id="act1", change="verdict_changed",
+                old_verdict=MatchVerdict.EXCLUDE, new_verdict=MatchVerdict.INCLUDE, old_confidence=0.5, new_confidence=0.9,
+            )
+        ],
+        confidence_changed=[], unchanged_count=3,
+    )
+    restored = ResultsDiff.model_validate_json(diff.model_dump_json())
+    assert restored == diff
