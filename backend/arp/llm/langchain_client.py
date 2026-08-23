@@ -3,13 +3,14 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from anthropic import APIStatusError, APITimeoutError
+from anthropic import APIStatusError, APITimeoutError, BadRequestError
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from pydantic import ValidationError
 from tenacity import (
     retry,
     retry_if_exception_type,
+    retry_if_not_exception_type,
     stop_after_attempt,
     wait_exponential,
 )
@@ -21,7 +22,15 @@ logger = logging.getLogger(__name__)
 
 _TOOL_NAME = "emit_result"
 
+# BadRequestError (400) is excluded even though it's an APIStatusError: a
+# malformed-request rejection (e.g. an unsupported parameter) will never
+# succeed on retry, so blindly backing off and re-sending the identical
+# request five times just burns quota before failing anyway. The one
+# recoverable case -- a model/account combination that rejects an
+# explicit `temperature` -- is handled explicitly below, once per client
+# instance, rather than through this generic transient-error retry.
 _RETRYABLE = (APIStatusError, APITimeoutError, ConnectionError)
+_NOT_RETRYABLE = (BadRequestError,)
 
 
 class LangChainAnthropicClient(LLMClient):
@@ -56,6 +65,12 @@ class LangChainAnthropicClient(LLMClient):
         self.model = model
         self.cache = DiskLLMCache(cache_dir, enabled=cache_enabled)
         self._max_network_retries = max_network_retries
+        # Set the first time this model/account combination rejects an
+        # explicit `temperature` with a 400 ("temperature is deprecated
+        # for this model") -- some model configurations fix temperature
+        # internally and reject the field outright. Sticky per instance so
+        # only the first call in a run pays for the failed attempt.
+        self._temperature_unsupported = False
 
     async def complete_structured(
         self,
@@ -89,9 +104,14 @@ class LangChainAnthropicClient(LLMClient):
             "description": f"Emit the result as a {output_model.__name__} object matching the given schema exactly.",
             "input_schema": schema,
         }
-        bound = self._chat.bind_tools([tool], tool_choice={"type": "tool", "name": _TOOL_NAME}).bind(
-            max_tokens=max_tokens, temperature=temperature
-        )
+
+        def _bind(with_temperature: bool):
+            extra = {"max_tokens": max_tokens}
+            if with_temperature:
+                extra["temperature"] = temperature
+            return self._chat.bind_tools([tool], tool_choice={"type": "tool", "name": _TOOL_NAME}).bind(**extra)
+
+        bound = _bind(with_temperature=not self._temperature_unsupported)
 
         messages: list[BaseMessage] = [SystemMessage(content=system), HumanMessage(content=prompt)]
         total_input_tokens = 0
@@ -99,7 +119,16 @@ class LangChainAnthropicClient(LLMClient):
         last_error: ValidationError | None = None
 
         for attempt in range(1, max_validation_retries + 2):
-            ai_message = await self._call_with_backoff(bound, messages)
+            try:
+                ai_message = await self._call_with_backoff(bound, messages)
+            except BadRequestError as exc:
+                if self._temperature_unsupported or "temperature" not in str(exc).lower():
+                    raise
+                # First-ever hit of this: remember it for every later call
+                # on this client instance and retry once without it.
+                self._temperature_unsupported = True
+                bound = _bind(with_temperature=False)
+                ai_message = await self._call_with_backoff(bound, messages)
             usage_meta = ai_message.usage_metadata or {}
             total_input_tokens += usage_meta.get("input_tokens", 0)
             total_output_tokens += usage_meta.get("output_tokens", 0)
@@ -143,7 +172,7 @@ class LangChainAnthropicClient(LLMClient):
             reraise=True,
             stop=stop_after_attempt(self._max_network_retries),
             wait=wait_exponential(multiplier=1, min=1, max=30),
-            retry=retry_if_exception_type(_RETRYABLE),
+            retry=retry_if_exception_type(_RETRYABLE) & retry_if_not_exception_type(_NOT_RETRYABLE),
         )
         async def _do_call() -> AIMessage:
             return await bound.ainvoke(messages)

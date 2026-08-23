@@ -1,3 +1,5 @@
+import httpx
+from anthropic import BadRequestError
 from anthropic.types import Message, ToolUseBlock, Usage
 from pydantic import BaseModel
 
@@ -108,3 +110,73 @@ async def test_temperature_is_actually_sent_to_the_model(tmp_path):
     client, fake = _client_with_responses(tmp_path, [_message("tu_1", {"value": 1})])
     await client.complete_structured(system="sys", prompt="prompt", output_model=_Target, temperature=0.3)
     assert fake.messages.calls[0]["temperature"] == 0.3
+
+
+def _bad_request(message: str) -> BadRequestError:
+    response = httpx.Response(status_code=400, request=httpx.Request("POST", "https://api.anthropic.com/v1/messages"))
+    return BadRequestError(message, response=response, body=None)
+
+
+async def test_temperature_unsupported_model_falls_back_and_sticks(tmp_path):
+    """Some model/account combinations reject an explicit `temperature`
+    outright ("temperature is deprecated for this model") -- a real error
+    hit against the live API. The client must recover by retrying once
+    without temperature, then skip sending it on every later call on this
+    same instance rather than repeating the failed attempt each time."""
+
+    class _FlakyMessages(_FakeMessages):
+        def __init__(self, responses: list[Message]) -> None:
+            super().__init__(responses)
+            self._served = 0
+
+        async def create(self, **kwargs):
+            self.calls.append(kwargs)
+            if "temperature" in kwargs:
+                raise _bad_request("`temperature` is deprecated for this model.")
+            response = self._responses[self._served]
+            self._served += 1
+            return response
+
+    client = LangChainAnthropicClient(api_key="test", model="test-model", cache_dir=tmp_path, cache_enabled=False)
+    fake = _FakeAsyncClient([_message("tu_1", {"value": 1})])
+    fake.messages = _FlakyMessages([_message("tu_1", {"value": 1})])
+    client._chat._async_client = fake
+
+    instance, _usage = await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)
+    assert instance.value == 1
+    assert client._temperature_unsupported is True
+    # One failed attempt (with temperature) + one successful retry (without).
+    assert len(fake.messages.calls) == 2
+    assert "temperature" in fake.messages.calls[0]
+    assert "temperature" not in fake.messages.calls[1]
+
+    # A second call on the same client instance must not repeat the failed attempt.
+    fake.messages._responses.append(_message("tu_2", {"value": 2}))
+    instance2, _usage2 = await client.complete_structured(system="sys", prompt="prompt2", output_model=_Target)
+    assert instance2.value == 2
+    assert len(fake.messages.calls) == 3
+    assert "temperature" not in fake.messages.calls[2]
+
+
+async def test_unrelated_bad_request_is_not_swallowed(tmp_path):
+    """A 400 unrelated to temperature (e.g. a genuinely malformed request)
+    must still propagate, not be silently retried as if it were the
+    temperature-unsupported case."""
+
+    class _AlwaysBadRequest(_FakeMessages):
+        async def create(self, **kwargs):
+            self.calls.append(kwargs)
+            raise _bad_request("Some other malformed-request error.")
+
+    client = LangChainAnthropicClient(api_key="test", model="test-model", cache_dir=tmp_path, cache_enabled=False)
+    fake = _FakeAsyncClient([])
+    fake.messages = _AlwaysBadRequest([])
+    client._chat._async_client = fake
+
+    try:
+        await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)
+        assert False, "expected BadRequestError to propagate"
+    except BadRequestError:
+        pass
+    # No blind backoff retries against a non-transient, non-temperature 400.
+    assert len(fake.messages.calls) == 1
