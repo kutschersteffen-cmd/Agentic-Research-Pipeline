@@ -1,9 +1,10 @@
 import pytest
 from pydantic import ValidationError
 
+from arp.schemas.arbitration import ArbitrationContribution, ArbitrationResult
 from arp.schemas.common import Citation, DocType, JobStatus, RunManifest
 from arp.schemas.datapoints import DataPointSchema, ExtractedField, FieldDataType, FieldDefinition
-from arp.schemas.thematic import ActivityDefinition, ActivityTier, ExposureEstimate, LifecycleStage, MatchVerdict
+from arp.schemas.thematic import ActivityDefinition, ActivityTier, CompanyMatch, ExposureEstimate, LifecycleStage, MatchVerdict
 
 
 def test_citation_defaults_ungrounded_until_checked():
@@ -115,3 +116,25 @@ def test_human_approved_succeeds_with_citation_and_real_rationale():
     assert activity.human_approved is True
     restored = ActivityDefinition.model_validate_json(activity.model_dump_json())
     assert restored == activity
+
+
+def test_company_match_arbitration_defaults_to_none():
+    match = CompanyMatch(
+        company_id="c1", name="Acme Motors", activity_id="act1", activity_name="EV manufacturing",
+        verdict=MatchVerdict.INCLUDE, exposure_estimate=ExposureEstimate.SIGNIFICANT, confidence=0.8,
+        adjudicator_rationale="x",
+    )
+    assert match.arbitration is None
+
+
+def test_arbitration_result_roundtrips_json():
+    result = ArbitrationResult(
+        composite_score=0.62,
+        methods_disagree=False,
+        disagreement_spread=0.21,
+        mid_band=True,
+        contributions=[ArbitrationContribution(method="qualitative_debate", signal=0.6, weight=0.6, detail="significant")],
+        rationale="Combined 1 signal(s): qualitative_debate (0.60, weight 0.60). Composite 0.62.",
+    )
+    restored = ArbitrationResult.model_validate_json(result.model_dump_json())
+    assert restored == result

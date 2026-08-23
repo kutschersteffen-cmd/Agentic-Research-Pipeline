@@ -8,6 +8,7 @@ from arp.config import Settings
 from arp.grounding import ground_citations
 from arp.ingestion.parsing import chunk_document
 from arp.llm.base import LLMClient, LLMUsage
+from arp.research.arbitration import compute_arbitration
 from arp.research.indirect_exposure.exposure import compute_indirect_exposure
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.matcher_agents import run_adjudicator, run_advocate, run_opposing
@@ -122,6 +123,14 @@ async def _finalize_from_revenue(state: MatchState) -> dict:
     citations = [revenue.citation] if revenue.citation else []
     ungrounded = revenue.citation is not None and not revenue.citation.grounded
     flagged = revenue.source == "extracted" and (revenue.confidence < settings.confidence_review_threshold or ungrounded)
+    arbitration = compute_arbitration(
+        # exposure_estimate here IS band_exposure(revenue.value_pct) -- don't double-count the same fact.
+        qualitative_estimate=None,
+        revenue_exposure=revenue_exposure,
+        indirect_exposure=indirect,
+        rd_exposure=state["rd_exposure"],
+        settings=settings,
+    )
     match = CompanyMatch(
         company_id=company.company_id,
         ticker=company.ticker,
@@ -136,7 +145,8 @@ async def _finalize_from_revenue(state: MatchState) -> dict:
         indirect_exposure=indirect,
         revenue_exposure=revenue_exposure,
         rd_exposure=state["rd_exposure"],
-        flagged_for_review=flagged,
+        arbitration=arbitration,
+        flagged_for_review=flagged or arbitration.methods_disagree or arbitration.mid_band,
     )
     return {"match": match}
 
@@ -187,6 +197,13 @@ async def _finalize_no_evidence(state: MatchState) -> dict:
             " However, input-output propagation shows structural exposure to this activity's core "
             "sectors above the review threshold -- routed for a second look rather than excluded outright."
         )
+    arbitration = compute_arbitration(
+        qualitative_estimate=ExposureEstimate.NONE,
+        revenue_exposure=revenue_exposure,
+        indirect_exposure=indirect,
+        rd_exposure=state["rd_exposure"],
+        settings=settings,
+    )
     match = CompanyMatch(
         company_id=company.company_id,
         ticker=company.ticker,
@@ -203,7 +220,8 @@ async def _finalize_no_evidence(state: MatchState) -> dict:
         indirect_exposure=indirect,
         revenue_exposure=revenue_exposure,
         rd_exposure=state["rd_exposure"],
-        flagged_for_review=structural_flag,
+        arbitration=arbitration,
+        flagged_for_review=structural_flag or arbitration.methods_disagree or arbitration.mid_band,
     )
     return {"match": match}
 
@@ -233,6 +251,13 @@ async def _run_adjudicator_node(state: MatchState) -> dict:
         or (adjudication.verdict == MatchVerdict.INCLUDE and not all_grounded)
     )
     company, activity = state["company"], state["activity"]
+    arbitration = compute_arbitration(
+        qualitative_estimate=adjudication.exposure_estimate,
+        revenue_exposure=state["revenue_exposure"],
+        indirect_exposure=state["indirect"],
+        rd_exposure=state["rd_exposure"],
+        settings=settings,
+    )
     match = CompanyMatch(
         company_id=company.company_id,
         ticker=company.ticker,
@@ -249,7 +274,8 @@ async def _run_adjudicator_node(state: MatchState) -> dict:
         indirect_exposure=state["indirect"],
         revenue_exposure=state["revenue_exposure"],
         rd_exposure=state["rd_exposure"],
-        flagged_for_review=flagged,
+        arbitration=arbitration,
+        flagged_for_review=flagged or arbitration.methods_disagree or arbitration.mid_band,
     )
     return {"match": match, "usages": state["usages"] + [usage]}
 

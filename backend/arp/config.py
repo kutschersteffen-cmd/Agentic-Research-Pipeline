@@ -125,6 +125,24 @@ class Settings(BaseSettings):
     revenue_exposure_significant_threshold: float = Field(default=0.2)
     revenue_exposure_minor_threshold: float = Field(default=0.05)
 
+    # Cross-method arbitration (Step 4): a weighted composite ranking score
+    # layered on top of exposure_estimate/revenue_exposure/indirect_exposure/
+    # rd_exposure, never blending into or overwriting them -- see
+    # arp.research.arbitration and docs/METHODOLOGY.md. Defaults are
+    # documented, reasonable starting points, not empirically tuned against
+    # a labeled eval set.
+    arbitration_disagreement_threshold: float = Field(
+        default=0.4, description="Included signals spanning more than this (0-1) are flagged as disagreeing rather than silently averaged."
+    )
+    arbitration_mid_band_low: float = Field(default=0.3, description="Composite scores in [low, high] are routed for review.")
+    arbitration_mid_band_high: float = Field(default=0.7)
+    arbitration_weight_qualitative_debate: float = Field(default=0.6, description="Weight for the Advocate/Opposing/Adjudicator debate's exposure_estimate.")
+    arbitration_weight_revenue_catalogue: float = Field(default=1.0, description="Weight for a deterministic, user-supplied revenue-catalogue hit.")
+    arbitration_weight_revenue_extracted: float = Field(default=0.8, description="Weight for an LLM-extracted, grounded revenue percentage.")
+    arbitration_weight_indirect: float = Field(default=0.3, description="Weight for the sector-level input-output structural exposure signal.")
+    arbitration_weight_rd_intensity: float = Field(default=0.5, description="Weight for Method C's extracted R&D-intensity signal.")
+    arbitration_weight_news_mentions: float = Field(default=0.2, description="Weight for Method C's web-search news-mention signal (the weakest/noisiest).")
+
     # Web discovery
     discovery_user_agent: str = Field(default="ARP-DiscoveryBot/0.1 (+research use; respects robots.txt)")
     discovery_webhook_url: str | None = Field(default=None)

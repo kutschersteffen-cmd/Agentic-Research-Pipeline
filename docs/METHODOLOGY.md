@@ -401,6 +401,57 @@ CLI: `arp theme run --taxonomy <ref> --universe <csv>
 --enable-rd-exposure`. API: `enable_rd_exposure` on `POST
 /api/themes/runs`.
 
+## Cross-method arbitration
+
+Always on, no opt-in flag -- unlike the tiers above, `arp/research/arbitration.py::
+compute_arbitration` is a pure function over signals that are already computed
+(no LLM call, no extra cost), so every `CompanyMatch` carries an `arbitration`
+result. It is explicitly an **additional, clearly-labeled ranking score layered
+on top of** `exposure_estimate`/`revenue_exposure`/`indirect_exposure`/
+`rd_exposure` -- consistent with this codebase's "two directions tracked
+separately... because they answer different portfolio questions" design (see
+the indirect-exposure tier above): arbitration never overwrites or blends
+into those fields, it only adds a new one alongside them.
+
+Whichever of the following signals were actually computed for a given match
+are converted to a 0-1 scalar and combined into a weighted average
+(`composite_score`), weighted by evidence quality:
+
+| Signal | Weight (default) |
+|---|---|
+| Revenue -- catalogue (deterministic) | 1.0 |
+| Revenue -- extracted (grounded LLM) | 0.8 |
+| Qualitative debate (`exposure_estimate`) | 0.6 |
+| R&D intensity (Method C, extracted) | 0.5 |
+| Indirect (sector-level I-O) | 0.3 |
+| News mentions (Method C) | 0.2 |
+
+One subtlety: when `_finalize_from_revenue` short-circuits the debate (a hard
+revenue number resolved it), `exposure_estimate` is itself `band_exposure
+(revenue.value_pct)` -- literally derived from the revenue signal already
+being counted. Including it a second time as an independent "qualitative"
+contribution would be exactly the "silently averaging away disagreement"
+anti-pattern this project rejects, so that branch passes
+`qualitative_estimate=None` to `compute_arbitration`; only the two branches
+where the debate produced (or explicitly declined to produce, for lack of
+evidence) its own independent judgment include it.
+
+**Disagreement** (`methods_disagree`) is flagged, not averaged away, when
+included signals span more than `arbitration_disagreement_threshold` (default
+0.4). **Mid-band routing** (`mid_band`) flags a composite score landing in
+`[arbitration_mid_band_low, arbitration_mid_band_high]` (default 0.3-0.7) --
+the original spec's "confidence banding" ask. Either sets
+`flagged_for_review=True`, which the existing `execute_theme_run` review-queue
+callback already routes on -- no separate wiring needed.
+
+The weight and threshold defaults above are **documented starting points,
+not empirically tuned against a labeled eval set** -- building one requires
+real company disclosure data this project doesn't have access to yet. Tuning
+`arbitration_weight_*`/`arbitration_disagreement_threshold`/
+`arbitration_mid_band_*` against real run outcomes is expected follow-up
+work, same caveat as the criticality-overlay ISIC mapping and the EXIOBASE
+sample's correctness-only convergence above.
+
 ## The taxonomy library: defining and deriving activities
 
 A `ThemeDefinition` produced by `arp theme decompose` is, by itself, a

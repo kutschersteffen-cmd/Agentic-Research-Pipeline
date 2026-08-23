@@ -353,6 +353,71 @@ async def test_match_company_rd_exposure_none_for_mature_activity(tmp_path, fake
     assert llm.calls == []
 
 
+async def test_match_company_arbitration_populated_on_no_evidence_branch(tmp_path, fake_llm):
+    doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
+    theme, _activity = _theme()
+    company = CompanyRef(company_id="c1", name="Shoe Co")
+    registry = DocumentSourceRegistry([_FixedDocSource([doc])])
+    llm = fake_llm({})
+
+    result = await _match_company(company, theme, registry=registry, llm=llm, settings=_settings(tmp_path))
+    match = result.matches[0]
+    assert match.arbitration is not None
+    assert len(match.arbitration.contributions) == 1
+    assert match.arbitration.contributions[0].method == "qualitative_debate"
+    assert match.arbitration.composite_score == 0.0  # ExposureEstimate.NONE
+
+
+async def test_match_company_arbitration_excludes_qualitative_on_revenue_short_circuit(tmp_path, fake_llm):
+    """When revenue resolution short-circuits the debate, exposure_estimate
+    IS the revenue-band signal -- arbitration must not count it a second
+    time as an independent 'qualitative_debate' contribution."""
+    theme, activity = _theme()
+    company = CompanyRef(company_id="c1", name="Acme Motors", ticker="ACME")
+    doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
+    registry = DocumentSourceRegistry([_FixedDocSource([doc])])
+
+    catalogue_rows = [CatalogueDataPoint(data_point_id="d1", company_id="c1", metric="revenue", label="EV Sales", as_pct_of_total=0.4)]
+    mappings = [ActivityCatalogueMapping(activity_id=activity.activity_id, metric="revenue", matched_labels=["EV Sales"], rationale="x")]
+    revenue_resolver = RevenueResolverContext(catalogue_by_company={"c1": catalogue_rows}, mappings=mappings, registry=registry, settings=_settings(tmp_path))
+    llm = fake_llm({})
+
+    result = await _match_company(company, theme, registry=registry, llm=llm, settings=_settings(tmp_path), revenue_resolver=revenue_resolver)
+    match = result.matches[0]
+    assert match.arbitration is not None
+    methods = {c.method for c in match.arbitration.contributions}
+    assert methods == {"revenue_catalogue"}
+    assert match.arbitration.composite_score == 0.4
+
+
+async def test_match_company_arbitration_disagreement_flags_review_when_base_flag_is_false(tmp_path, fake_llm):
+    """A catalogue-resolved revenue hit alone never sets flagged_for_review
+    (deterministic, full confidence) -- but if a configured indirect model
+    shows strongly diverging structural exposure for the same company,
+    arbitration's disagreement flag should still route it to review."""
+    theme, activity = _theme()
+    activity.core_isic_codes = ["27"]
+    company = CompanyRef(company_id="c1", name="Acme Electricals", ticker="ACME", isic_code="27")
+    doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
+    registry = DocumentSourceRegistry([_FixedDocSource([doc])])
+
+    catalogue_rows = [CatalogueDataPoint(data_point_id="d1", company_id="c1", metric="revenue", label="EV Sales", as_pct_of_total=0.02)]
+    mappings = [ActivityCatalogueMapping(activity_id=activity.activity_id, metric="revenue", matched_labels=["EV Sales"], rationale="x")]
+    revenue_resolver = RevenueResolverContext(catalogue_by_company={"c1": catalogue_rows}, mappings=mappings, registry=registry, settings=_settings(tmp_path))
+    indirect_model = build_model(load_sample_icio(), "test-sample")  # company IS its own core sector -> high self-exposure
+    llm = fake_llm({})
+
+    result = await _match_company(
+        company, theme, registry=registry, llm=llm, settings=_settings(tmp_path),
+        revenue_resolver=revenue_resolver, indirect_model=indirect_model,
+    )
+    match = result.matches[0]
+    assert match.revenue_exposure.revenue.source == "catalogue"
+    assert match.indirect_exposure.core_sector is True
+    assert match.arbitration.methods_disagree is True
+    assert match.flagged_for_review is True  # arbitration alone triggers this -- catalogue-only flagged would be False
+
+
 async def test_resume_theme_run_skips_already_completed_companies(tmp_path, fake_llm):
     """Reconstructs a run from what create_theme_run persisted and confirms
     resume_theme_run only processes the company missing from results.jsonl

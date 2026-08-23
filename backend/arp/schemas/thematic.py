@@ -4,6 +4,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field, model_validator
 
+from arp.schemas.arbitration import ArbitrationResult
 from arp.schemas.common import Citation, now_iso, new_id
 from arp.schemas.exposure import IndirectExposureResult
 from arp.schemas.rd_exposure import RDExposureResult
@@ -188,6 +189,15 @@ class CompanyMatch(BaseModel):
             "for pre-revenue/emerging activities (lifecycle_stage ideation/innovation) when the tier is enabled "
             "for this run. None otherwise -- kept separate from revenue_exposure/indirect_exposure, never "
             "blended into exposure_estimate."
+        ),
+    )
+    arbitration: ArbitrationResult | None = Field(
+        default=None,
+        description=(
+            "Weighted cross-method composite score (Step 4, arp/research/arbitration.py), combining whichever "
+            "of exposure_estimate/revenue_exposure/indirect_exposure/rd_exposure were actually computed. An "
+            "ADDITIONAL ranking signal -- never blended into or overwriting those fields. Always populated by "
+            "match_graph.py (no opt-in flag; it's free, no LLM call)."
         ),
     )
     flagged_for_review: bool = False
