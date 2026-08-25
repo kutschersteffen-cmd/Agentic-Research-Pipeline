@@ -47,6 +47,64 @@ _RETRYABLE = (APIStatusError, APITimeoutError, ConnectionError)
 _NOT_RETRYABLE = (BadRequestError,)
 
 
+def _droppable_list_indices(errors: list[dict]) -> dict[str, set[int]] | None:
+    """Returns {field_name: {bad_indices}} if every validation error points
+    into an item of a top-level list field -- safe to drop and re-validate
+    without asking the model again. Returns None if any error touches
+    something else (a missing/invalid required scalar field, a field that
+    isn't a list, ...), which must never be silently patched.
+    """
+    droppable: dict[str, set[int]] = {}
+    for err in errors:
+        loc = err["loc"]
+        if len(loc) < 2 or not isinstance(loc[0], str) or not isinstance(loc[1], int):
+            return None
+        droppable.setdefault(loc[0], set()).add(loc[1])
+    return droppable
+
+
+def _drop_invalid_list_items(output_model: type[T], raw_args: dict, exc: ValidationError) -> tuple[T | None, int]:
+    """Best-effort recovery for a validation failure confined entirely to
+    item(s) inside list fields -- the observed real-world failure mode
+    (a malformed citation) -- so a single bad list entry doesn't force
+    rejecting the whole structured response and a full model retry.
+    Required/scalar fields (e.g. verdict, answer) are never patched this
+    way: if any error touches one, this returns (None, 0) and the caller
+    falls through to a normal retry with the model.
+    """
+    droppable = _droppable_list_indices(exc.errors())
+    if not droppable:
+        return None, 0
+    corrected = dict(raw_args)
+    dropped_count = 0
+    for field, bad_indices in droppable.items():
+        items = raw_args.get(field)
+        if not isinstance(items, list):
+            return None, 0
+        corrected[field] = [item for i, item in enumerate(items) if i not in bad_indices]
+        dropped_count += len(bad_indices)
+    try:
+        return output_model.model_validate(corrected), dropped_count
+    except ValidationError:
+        return None, 0
+
+
+def _format_validation_errors(exc: ValidationError) -> str:
+    """A per-field bullet list naming exactly what's wrong, instead of
+    Pydantic's default str(exc) -- which for a large output model can dump
+    the model's *entire* input back at itself (huge for a big list field)
+    just to report one bad item, wasting tokens and burying the actual
+    fields that need fixing."""
+    lines = []
+    for err in exc.errors():
+        path = ".".join(str(p) for p in err["loc"]) or "(root)"
+        got = repr(err.get("input"))
+        if len(got) > 120:
+            got = got[:117] + "..."
+        lines.append(f"- `{path}`: {err['msg']} (got: {got})")
+    return "\n".join(lines)
+
+
 class LangChainAnthropicClient(LLMClient):
     """LLMClient backed by langchain-anthropic's ChatAnthropic.
 
@@ -180,31 +238,44 @@ class LangChainAnthropicClient(LLMClient):
 
             try:
                 instance = output_model.model_validate(tool_call["args"])
-                usage = LLMUsage(
-                    input_tokens=total_input_tokens,
-                    output_tokens=total_output_tokens,
-                    cache_read_tokens=total_cache_read_tokens,
-                    cache_creation_tokens=total_cache_creation_tokens,
-                    attempts=attempt,
-                )
-                self.cache.set(
-                    cache_key,
-                    {"result": instance.model_dump(mode="json"), "usage": usage.model_dump(exclude={"cached"})},
-                )
-                return instance, usage
             except ValidationError as exc:
-                last_error = exc
-                messages.append(ai_message)
-                messages.append(
-                    ToolMessage(
-                        content=(
-                            f"Your `{_TOOL_NAME}` call failed schema validation with these errors:\n"
-                            f"{exc}\n\nCall `{_TOOL_NAME}` again with a corrected input that fixes every error."
-                        ),
-                        tool_call_id=tool_call["id"],
-                        status="error",
+                instance, dropped = _drop_invalid_list_items(output_model, tool_call["args"], exc)
+                if instance is None:
+                    last_error = exc
+                    messages.append(ai_message)
+                    messages.append(
+                        ToolMessage(
+                            content=(
+                                f"Your `{_TOOL_NAME}` call failed schema validation on these fields:\n"
+                                f"{_format_validation_errors(exc)}\n\n"
+                                f"Call `{_TOOL_NAME}` again with a corrected input that fixes every field listed "
+                                f"above. Leave every other field exactly as it was."
+                            ),
+                            tool_call_id=tool_call["id"],
+                            status="error",
+                        )
                     )
-                )
+                    continue
+                if dropped:
+                    logger.info(
+                        "%s: dropped %d invalid list item(s) rather than requesting a full retry (%s)",
+                        output_model.__name__,
+                        dropped,
+                        exc,
+                    )
+
+            usage = LLMUsage(
+                input_tokens=total_input_tokens,
+                output_tokens=total_output_tokens,
+                cache_read_tokens=total_cache_read_tokens,
+                cache_creation_tokens=total_cache_creation_tokens,
+                attempts=attempt,
+            )
+            self.cache.set(
+                cache_key,
+                {"result": instance.model_dump(mode="json"), "usage": usage.model_dump(exclude={"cached"})},
+            )
+            return instance, usage
 
         assert last_error is not None
         raise last_error

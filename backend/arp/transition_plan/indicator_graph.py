@@ -3,13 +3,14 @@ from __future__ import annotations
 from typing import TypedDict
 
 from langgraph.graph import END, StateGraph
+from pydantic import ValidationError
 
 from arp.ingestion.parsing import chunk_document
 from arp.llm.base import LLMClient, LLMUsage
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import DocumentChunk, SourceDocument
 from arp.schemas.transition_plan import IndicatorAssessment, TransitionPlanIndicator
-from arp.transition_plan.aggregator import build_indicator_assessment, no_evidence_indicator
+from arp.transition_plan.aggregator import answer_failed_indicator, build_indicator_assessment, no_evidence_indicator
 from arp.transition_plan.indicator_agent import IndicatorAnswerDraft, answer_indicator
 
 _MAX_CHUNKS = 8  # matches the paper's Table S.6 "Top K Retrieval" parameter
@@ -27,6 +28,7 @@ class IndicatorState(TypedDict):
     draft: IndicatorAnswerDraft | None
     usages: list[LLMUsage]
     assessment: IndicatorAssessment | None
+    error: str | None
 
 
 async def _gather_evidence(state: IndicatorState) -> dict:
@@ -55,10 +57,29 @@ async def _finalize_no_evidence(state: IndicatorState) -> dict:
 
 
 async def _answer(state: IndicatorState) -> dict:
-    draft, usage = await answer_indicator(
-        state["company_name"], state["basic_info_text"], state["indicator"], state["evidence"], state["llm"]
-    )
+    try:
+        draft, usage = await answer_indicator(
+            state["company_name"], state["basic_info_text"], state["indicator"], state["evidence"], state["llm"]
+        )
+    except ValidationError as exc:
+        # The LLM client's own self-correction retries (see
+        # LangChainAnthropicClient.complete_structured) are exhausted: the
+        # model never produced a schema-valid answer for this indicator.
+        # Isolated right here rather than left to propagate -- an
+        # unrecoverable failure on 1 of 64 indicators must not cost the
+        # other 63 (previously it did: uncaught, this bubbled all the way
+        # up to run_batch's per-*company* try/except, failing the whole
+        # company with nothing recorded for any indicator).
+        return {"error": str(exc)}
     return {"draft": draft, "usages": state["usages"] + [usage]}
+
+
+def _route_after_answer(state: IndicatorState) -> str:
+    return "finalize_answer_error" if state.get("error") else "aggregate"
+
+
+async def _finalize_answer_error(state: IndicatorState) -> dict:
+    return {"assessment": answer_failed_indicator(state["indicator"], state["error"])}
 
 
 async def _aggregate(state: IndicatorState) -> dict:
@@ -73,6 +94,7 @@ def _build_graph():
     graph.add_node("gather_evidence", _gather_evidence)
     graph.add_node("finalize_no_evidence", _finalize_no_evidence)
     graph.add_node("answer", _answer)
+    graph.add_node("finalize_answer_error", _finalize_answer_error)
     graph.add_node("aggregate", _aggregate)
 
     graph.set_entry_point("gather_evidence")
@@ -80,7 +102,10 @@ def _build_graph():
         "gather_evidence", _route_after_evidence, {"answer": "answer", "finalize_no_evidence": "finalize_no_evidence"}
     )
     graph.add_edge("finalize_no_evidence", END)
-    graph.add_edge("answer", "aggregate")
+    graph.add_conditional_edges(
+        "answer", _route_after_answer, {"aggregate": "aggregate", "finalize_answer_error": "finalize_answer_error"}
+    )
+    graph.add_edge("finalize_answer_error", END)
     graph.add_edge("aggregate", END)
     return graph.compile()
 
@@ -116,6 +141,7 @@ async def assess_one_indicator(
         "draft": None,
         "usages": [],
         "assessment": None,
+        "error": None,
     }
     final_state = await _COMPILED_GRAPH.ainvoke(initial)
     return final_state["assessment"], final_state["usages"]

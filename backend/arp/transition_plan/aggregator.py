@@ -69,3 +69,26 @@ def no_evidence_indicator(indicator: TransitionPlanIndicator) -> IndicatorAssess
         confidence=0.0,
         needs_review=False,
     )
+
+
+def answer_failed_indicator(indicator: TransitionPlanIndicator, error: str) -> IndicatorAssessment:
+    """The model never produced a schema-valid answer for this indicator
+    after every self-correction retry (arp/transition_plan/indicator_graph.py
+    catches the resulting ValidationError here) -- reported as its own
+    distinct, clearly-flagged state rather than silently defaulting to a
+    real NA, so it can't be confused with the paper's own "not applicable"
+    and isn't quietly absorbed into the disclosure-rate denominator as if
+    it were a real determination.
+    """
+    return IndicatorAssessment(
+        number=indicator.number,
+        identifier=indicator.identifier,
+        category=indicator.category,
+        walk_or_talk=indicator.walk_or_talk,
+        question=indicator.question,
+        verdict=Verdict.NA,
+        answer=f"Assessment failed: the model could not produce a schema-valid answer for this indicator. {error}",
+        confidence=0.0,
+        needs_review=True,
+        assessment_error=True,
+    )

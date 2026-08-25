@@ -301,6 +301,7 @@ export interface IndicatorAssessment {
   grounded: boolean;
   confidence: number;
   needs_review: boolean;
+  assessment_error: boolean;
 }
 
 export interface CategoryBreakdown {

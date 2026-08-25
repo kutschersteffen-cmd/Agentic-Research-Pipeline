@@ -1,3 +1,5 @@
+from pydantic import ValidationError
+
 from arp.ingestion.parsing import chunk_document
 from arp.schemas.common import Citation, DocType, SourceDocument
 from arp.schemas.transition_plan import IndicatorCategory, TransitionPlanIndicator, Verdict, WalkOrTalk
@@ -80,3 +82,35 @@ async def test_no_evidence_skips_llm_and_reports_na(fake_llm):
     assert assessment.needs_review is False
     assert usages == []
     assert llm.calls == []
+
+
+class _AlwaysInvalidLLM:
+    """Simulates LangChainAnthropicClient.complete_structured after it has
+    exhausted its own self-correction retries -- raises the ValidationError
+    it would otherwise raise, so this test can exercise the graph's own
+    isolation of that failure to a single indicator."""
+
+    async def complete_structured(self, *, system, prompt, output_model, max_validation_retries=2, temperature=0.0):
+        raise ValidationError.from_exception_data(
+            output_model.__name__, [{"type": "missing", "loc": ("verdict",), "input": None}]
+        )
+
+
+async def test_unrecoverable_schema_failure_is_isolated_to_this_indicator(fake_llm):
+    """A validation failure that never recovers must not propagate out of
+    assess_one_indicator -- it becomes a distinctly-flagged assessment for
+    just this indicator, not an exception that would take down the whole
+    64-indicator company run one level up."""
+    doc = _doc()
+    llm = _AlwaysInvalidLLM()
+
+    assessment, usages = await assess_one_indicator(
+        "Acme Corp", " - Company name: Acme Corp", _indicator(),
+        all_chunks=chunk_document(doc), documents_by_id={doc.doc_id: doc}, llm=llm, fuzzy_threshold=0.92,
+    )
+
+    assert assessment.assessment_error is True
+    assert assessment.verdict == Verdict.NA
+    assert assessment.needs_review is True
+    assert "Assessment failed" in assessment.answer
+    assert usages == []
