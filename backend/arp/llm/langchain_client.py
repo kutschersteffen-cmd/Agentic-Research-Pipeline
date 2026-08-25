@@ -22,6 +22,20 @@ logger = logging.getLogger(__name__)
 
 _TOOL_NAME = "emit_result"
 
+# Every agent in this codebase keeps `system` a fixed module-level constant
+# per call site and puts all per-call variation (company, question,
+# evidence) in `prompt` instead -- so the (system, tools) prefix is
+# byte-identical across every call a given agent makes, the ideal shape for
+# a cache breakpoint. Render order is tools -> system -> messages, and a
+# breakpoint on the last system block caches both tools and system
+# together, so one marker here is sufficient -- no separate tool tagging.
+# 1h TTL: a single company's assessment run is 60+ sequential calls reusing
+# the same prefix over several minutes, and a whole batch run reuses it
+# across companies too -- well past the >=3-request break-even point for
+# the 1h write premium (2x) vs. the 5m default (1.25x, 2-request break-even
+# but a real risk of expiring mid-run on a slow pipeline).
+_CACHE_CONTROL = {"type": "ephemeral", "ttl": "1h"}
+
 # BadRequestError (400) is excluded even though it's an APIStatusError: a
 # malformed-request rejection (e.g. an unsupported parameter) will never
 # succeed on retry, so blindly backing off and re-sending the identical
@@ -60,11 +74,13 @@ class LangChainAnthropicClient(LLMClient):
         cache_dir: Path,
         cache_enabled: bool = True,
         max_network_retries: int = 5,
+        prompt_cache_enabled: bool = True,
     ) -> None:
         self._chat = ChatAnthropic(model=model, api_key=api_key, max_retries=0)
         self.model = model
         self.cache = DiskLLMCache(cache_dir, enabled=cache_enabled)
         self._max_network_retries = max_network_retries
+        self._prompt_cache_enabled = prompt_cache_enabled
         # Set the first time this model/account combination rejects an
         # explicit `temperature` with a 400 ("temperature is deprecated
         # for this model") -- some model configurations fix temperature
@@ -113,9 +129,17 @@ class LangChainAnthropicClient(LLMClient):
 
         bound = _bind(with_temperature=not self._temperature_unsupported)
 
-        messages: list[BaseMessage] = [SystemMessage(content=system), HumanMessage(content=prompt)]
+        system_content: str | list[dict] = system
+        if self._prompt_cache_enabled and system:
+            # Below the model's cacheable-prefix minimum this is a documented
+            # no-op (no cache entry, no write premium) -- see _CACHE_CONTROL.
+            system_content = [{"type": "text", "text": system, "cache_control": _CACHE_CONTROL}]
+
+        messages: list[BaseMessage] = [SystemMessage(content=system_content), HumanMessage(content=prompt)]
         total_input_tokens = 0
         total_output_tokens = 0
+        total_cache_read_tokens = 0
+        total_cache_creation_tokens = 0
         last_error: ValidationError | None = None
 
         for attempt in range(1, max_validation_retries + 2):
@@ -132,6 +156,18 @@ class LangChainAnthropicClient(LLMClient):
             usage_meta = ai_message.usage_metadata or {}
             total_input_tokens += usage_meta.get("input_tokens", 0)
             total_output_tokens += usage_meta.get("output_tokens", 0)
+            input_token_details = usage_meta.get("input_token_details") or {}
+            total_cache_read_tokens += input_token_details.get("cache_read") or 0
+            # langchain-anthropic reports the TTL-specific write count under
+            # ephemeral_{5m,1h}_input_tokens and zeroes the generic
+            # "cache_creation" key whenever it does -- sum all three rather
+            # than reading "cache_creation" alone, which undercounts (reads
+            # 0) for our 1h-TTL cache_control.
+            total_cache_creation_tokens += (
+                (input_token_details.get("cache_creation") or 0)
+                + (input_token_details.get("ephemeral_5m_input_tokens") or 0)
+                + (input_token_details.get("ephemeral_1h_input_tokens") or 0)
+            )
 
             tool_call = next((tc for tc in ai_message.tool_calls if tc["name"] == _TOOL_NAME), None)
             if tool_call is None:
@@ -144,7 +180,13 @@ class LangChainAnthropicClient(LLMClient):
 
             try:
                 instance = output_model.model_validate(tool_call["args"])
-                usage = LLMUsage(input_tokens=total_input_tokens, output_tokens=total_output_tokens, attempts=attempt)
+                usage = LLMUsage(
+                    input_tokens=total_input_tokens,
+                    output_tokens=total_output_tokens,
+                    cache_read_tokens=total_cache_read_tokens,
+                    cache_creation_tokens=total_cache_creation_tokens,
+                    attempts=attempt,
+                )
                 self.cache.set(
                     cache_key,
                     {"result": instance.model_dump(mode="json"), "usage": usage.model_dump(exclude={"cached"})},

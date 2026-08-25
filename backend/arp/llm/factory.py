@@ -16,4 +16,5 @@ def build_llm_client(settings: Settings) -> LLMClient:
         model=settings.llm_model,
         cache_dir=settings.cache_dir,
         cache_enabled=settings.llm_cache_enabled,
+        prompt_cache_enabled=settings.llm_prompt_cache_enabled,
     )

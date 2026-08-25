@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     llm_model: str = Field(default="claude-sonnet-5")
     llm_max_retries: int = Field(default=5)
     llm_cache_enabled: bool = Field(default=True)
+    llm_prompt_cache_enabled: bool = Field(
+        default=True,
+        description="Anthropic server-side prompt caching (distinct from llm_cache_enabled's disk cache). "
+        "Tags the system prompt + tool schema as a 1h-TTL cache breakpoint on every call -- safe to enable "
+        "broadly since every agent's system prompt is a fixed constant per call site; below the model's "
+        "cacheable-prefix minimum it's a documented no-op, not a wasted write.",
+    )
 
     # Paths (all file-based storage lives under these)
     runs_dir: Path = Field(default=REPO_ROOT / "runs")
