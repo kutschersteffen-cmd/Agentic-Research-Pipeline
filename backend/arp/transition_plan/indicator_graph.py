@@ -12,6 +12,7 @@ from arp.schemas.common import DocumentChunk, SourceDocument
 from arp.schemas.transition_plan import IndicatorAssessment, TransitionPlanIndicator
 from arp.transition_plan.aggregator import answer_failed_indicator, build_indicator_assessment, no_evidence_indicator
 from arp.transition_plan.indicator_agent import IndicatorAnswerDraft, answer_indicator
+from arp.transition_plan.verifier_agent import IndicatorVerifierOutput, verify_indicator
 
 _MAX_CHUNKS = 8  # matches the paper's Table S.6 "Top K Retrieval" parameter
 
@@ -26,6 +27,7 @@ class IndicatorState(TypedDict):
     fuzzy_threshold: float
     evidence: list[DocumentChunk]
     draft: IndicatorAnswerDraft | None
+    verifier: IndicatorVerifierOutput | None
     usages: list[LLMUsage]
     assessment: IndicatorAssessment | None
     error: str | None
@@ -75,6 +77,24 @@ async def _answer(state: IndicatorState) -> dict:
 
 
 def _route_after_answer(state: IndicatorState) -> str:
+    return "finalize_answer_error" if state.get("error") else "verify"
+
+
+async def _verify(state: IndicatorState) -> dict:
+    try:
+        verifier, usage = await verify_indicator(
+            state["company_name"], state["indicator"], state["evidence"], state["draft"], state["llm"]
+        )
+    except ValidationError as exc:
+        # Same isolation as _answer: the verifier's own self-correction
+        # retries are exhausted, so this indicator gets the same
+        # distinctly-flagged failure state rather than taking the other 63
+        # indicators down with it.
+        return {"error": str(exc)}
+    return {"verifier": verifier, "usages": state["usages"] + [usage]}
+
+
+def _route_after_verify(state: IndicatorState) -> str:
     return "finalize_answer_error" if state.get("error") else "aggregate"
 
 
@@ -84,7 +104,7 @@ async def _finalize_answer_error(state: IndicatorState) -> dict:
 
 async def _aggregate(state: IndicatorState) -> dict:
     assessment = build_indicator_assessment(
-        state["indicator"], state["draft"], state["documents_by_id"], state["fuzzy_threshold"]
+        state["indicator"], state["draft"], state["verifier"], state["documents_by_id"], state["fuzzy_threshold"]
     )
     return {"assessment": assessment}
 
@@ -94,6 +114,7 @@ def _build_graph():
     graph.add_node("gather_evidence", _gather_evidence)
     graph.add_node("finalize_no_evidence", _finalize_no_evidence)
     graph.add_node("answer", _answer)
+    graph.add_node("verify", _verify)
     graph.add_node("finalize_answer_error", _finalize_answer_error)
     graph.add_node("aggregate", _aggregate)
 
@@ -103,7 +124,10 @@ def _build_graph():
     )
     graph.add_edge("finalize_no_evidence", END)
     graph.add_conditional_edges(
-        "answer", _route_after_answer, {"aggregate": "aggregate", "finalize_answer_error": "finalize_answer_error"}
+        "answer", _route_after_answer, {"verify": "verify", "finalize_answer_error": "finalize_answer_error"}
+    )
+    graph.add_conditional_edges(
+        "verify", _route_after_verify, {"aggregate": "aggregate", "finalize_answer_error": "finalize_answer_error"}
     )
     graph.add_edge("finalize_answer_error", END)
     graph.add_edge("aggregate", END)
@@ -125,9 +149,10 @@ async def assess_one_indicator(
     llm: LLMClient,
     fuzzy_threshold: float,
 ) -> tuple[IndicatorAssessment, list[LLMUsage]]:
-    """Runs one indicator's evidence-select -> answer -> programmatic-
-    grounding-check -> aggregate flow as a LangGraph graph, mirroring
-    arp/extraction/field_graph.py's shape for a single data-point field.
+    """Runs one indicator's evidence-select -> answer -> independent-verify ->
+    programmatic-grounding-check -> aggregate flow as a LangGraph graph,
+    mirroring arp/extraction/field_graph.py's shape for a single data-point
+    field.
     """
     initial: IndicatorState = {
         "company_name": company_name,
@@ -139,6 +164,7 @@ async def assess_one_indicator(
         "fuzzy_threshold": fuzzy_threshold,
         "evidence": [],
         "draft": None,
+        "verifier": None,
         "usages": [],
         "assessment": None,
         "error": None,
