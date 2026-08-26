@@ -1,10 +1,21 @@
 import { Fragment, useEffect, useState } from "react";
 import { api } from "../api/client";
-import { ExtractionResultsTable, FinancialsResultsTable } from "../components/ExtractionResults";
-import type { CachedDocumentDetail, CachedDocumentRow, CompanyFinancialsRecord, ExtractionRecord, ReviewDecision, RunManifest } from "../types";
+import { ConfidenceBadge } from "../components/ConfidenceBadge";
+import { ExtractionResultsTable, FieldDetail, FinancialsResultsTable, SegmentDetail, SpendDetail } from "../components/ExtractionResults";
+import type {
+  CachedDocumentDetail,
+  CachedDocumentRow,
+  CompanyDirectoryEntry,
+  CompanyDocumentRow,
+  CompanyFinancialsRecord,
+  ExtractionRecord,
+  ReviewDecision,
+  RunManifest,
+} from "../types";
 
 const SUB_TABS = [
   { id: "results", label: "Run results" },
+  { id: "by_company", label: "By company" },
   { id: "parsed", label: "Parsed documents" },
 ] as const;
 
@@ -26,6 +37,7 @@ export function DataLibrary() {
         ))}
       </nav>
       {sub === "results" && <RunResultsView />}
+      {sub === "by_company" && <CompanyResultsView />}
       {sub === "parsed" && <ParsedDocumentsView />}
     </div>
   );
@@ -145,6 +157,145 @@ function RunResultsView() {
           onReviewDone={() => loadResults()}
         />
       )}
+    </div>
+  );
+}
+
+// --- By company: every result this one company has ever had, across
+// every run of a type (not just the latest) -- read-only (review actions
+// stay on Run results / Review Queue, which are already scoped to one run
+// each; a single company's rows here can span several runs at once) ------
+
+function CompanyResultsView() {
+  const [kind, setKind] = useState<RunKind>("extraction");
+  const [companies, setCompanies] = useState<CompanyDirectoryEntry[]>([]);
+  const [companyId, setCompanyId] = useState("");
+  const [extractionRecords, setExtractionRecords] = useState<ExtractionRecord[]>([]);
+  const [financialsRecords, setFinancialsRecords] = useState<CompanyFinancialsRecord[]>([]);
+  const [documents, setDocuments] = useState<CompanyDocumentRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const res = (await api.listKnownCompanies(kind)) as { companies: CompanyDirectoryEntry[] };
+      setCompanies(res.companies);
+      setCompanyId("");
+      setExtractionRecords([]);
+      setFinancialsRecords([]);
+      setDocuments([]);
+    })();
+  }, [kind]);
+
+  async function load(id: string) {
+    if (!id) return;
+    setError(null);
+    try {
+      if (kind === "extraction") {
+        const res = (await api.getExtractionResultsForCompany(id)) as { results: ExtractionRecord[] };
+        setExtractionRecords(res.results);
+      } else {
+        const res = (await api.getFinancialsResultsForCompany(id)) as { results: CompanyFinancialsRecord[] };
+        setFinancialsRecords(res.results);
+      }
+      const docsRes = (await api.listDocuments(id)) as { documents: CompanyDocumentRow[] };
+      setDocuments(docsRes.documents);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <div>
+      <section className="card">
+        <label className="field-label">Run type</label>
+        <select value={kind} onChange={(e) => setKind(e.target.value as RunKind)}>
+          <option value="extraction">Data-point extraction</option>
+          <option value="financials">Company financials</option>
+        </select>
+        <label className="field-label">Company</label>
+        <select
+          value={companyId}
+          onChange={(e) => {
+            setCompanyId(e.target.value);
+            load(e.target.value);
+          }}
+        >
+          <option value="">Select a company...</option>
+          {companies.map((c) => (
+            <option key={c.company_id} value={c.company_id}>
+              {c.name ?? c.company_id}{c.ticker ? ` (${c.ticker})` : ""} -- {c.company_id}
+            </option>
+          ))}
+        </select>
+        {companies.length === 0 && <p className="muted">No {kind} results recorded for any company yet.</p>}
+        {error && <p className="error-text">{error}</p>}
+      </section>
+
+      {companyId && documents.length > 0 && (
+        <section className="card">
+          <h3>Source documents on file</h3>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Doc type</th>
+                <th>File</th>
+                <th>Size</th>
+              </tr>
+            </thead>
+            <tbody>
+              {documents.map((d, i) => (
+                <tr key={i}>
+                  <td>{d.doc_type}</td>
+                  <td>
+                    <a href={api.documentRawUrl(companyId, d.doc_type, d.filename)} target="_blank" rel="noreferrer">
+                      {d.filename}
+                    </a>
+                  </td>
+                  <td>{Math.round(d.size_bytes / 1024)} KB</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {companyId && kind === "extraction" && extractionRecords.length === 0 && (
+        <p className="muted">No extraction results recorded for this company yet.</p>
+      )}
+      {kind === "extraction" &&
+        extractionRecords.map((r) => (
+          <section className="card" key={r.run_id}>
+            <h3>Run {r.run_id} -- {new Date(r.generated_at).toLocaleString()}</h3>
+            <p>
+              <ConfidenceBadge value={r.overall_confidence} /> {r.needs_review && <span className="badge badge-low">needs review</span>}
+            </p>
+            {r.fields.map((f) => (
+              <FieldDetail key={f.field_id} field={f} />
+            ))}
+          </section>
+        ))}
+
+      {companyId && kind === "financials" && financialsRecords.length === 0 && (
+        <p className="muted">No financials results recorded for this company yet.</p>
+      )}
+      {kind === "financials" &&
+        financialsRecords.map((r) => (
+          <section className="card" key={r.run_id}>
+            <h3>Run {r.run_id} -- {new Date(r.generated_at).toLocaleString()}</h3>
+            <p>
+              <ConfidenceBadge value={r.overall_confidence} /> {r.needs_review && <span className="badge badge-low">needs review</span>}
+            </p>
+            <h4>Business Segments</h4>
+            {r.segments.length === 0 && <p className="muted">No segment reporting evidence found.</p>}
+            {r.segments.map((s, si) => (
+              <SegmentDetail key={si} segment={s} />
+            ))}
+            <h4>CapEx</h4>
+            <SpendDetail label="CapEx" spend={r.capex} />
+            <h4>R&amp;D</h4>
+            <SpendDetail label="R&D" spend={r.rnd} />
+          </section>
+        ))}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { Fragment } from "react";
 import { api } from "../api/client";
 import { ConfidenceBadge, GroundedBadge } from "./ConfidenceBadge";
 import { ReviewControls } from "./ReviewControls";
-import type { BusinessSegment, Citation, CompanyFinancialsRecord, ExtractionRecord, ReviewDecision, SpendSummary } from "../types";
+import type { BusinessSegment, Citation, CompanyFinancialsRecord, ExtractedField, ExtractionRecord, ReviewDecision, SpendSummary } from "../types";
 
 // Shared between Extraction.tsx (a run just started in this browser session)
 // and DataLibrary.tsx (any past run, picked by run_id) -- both render the
@@ -73,6 +73,17 @@ export function SegmentDetail({ segment }: { segment: BusinessSegment }) {
         ) : null
       )}
       {segment.conflicting_sources && <p className="error-text">Conflicting figures across sources.</p>}
+    </div>
+  );
+}
+
+export function FieldDetail({ field }: { field: ExtractedField }) {
+  return (
+    <div className="field-detail">
+      <strong>{field.field_name}:</strong> {String(field.value ?? "not disclosed")}{" "}
+      <ConfidenceBadge value={field.confidence} /> <GroundedBadge grounded={field.grounded} />
+      {field.verifier_notes && <p className="muted">{field.verifier_notes}</p>}
+      <CitationList citations={field.citations} />
     </div>
   );
 }
@@ -166,11 +177,8 @@ export function ExtractionResultsTable({
                   {r.fields.map((f) => {
                     const itemKey = `${r.company_id}:${f.field_id}`;
                     return (
-                      <div key={f.field_id} className="field-detail">
-                        <strong>{f.field_name}:</strong> {String(f.value ?? "not disclosed")}{" "}
-                        <ConfidenceBadge value={f.confidence} /> <GroundedBadge grounded={f.grounded} />
-                        {f.verifier_notes && <p className="muted">{f.verifier_notes}</p>}
-                        <CitationList citations={f.citations} />
+                      <div key={f.field_id}>
+                        <FieldDetail field={f} />
                         <ReviewControls
                           runId={runId}
                           itemKey={itemKey}

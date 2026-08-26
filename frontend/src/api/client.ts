@@ -87,6 +87,8 @@ export const api = {
   getExtractionReviewDecisions: (runId: string) => request(`/api/extraction/runs/${runId}/review-decisions`),
   getExtractionReviewHistory: (runId: string, itemKey: string) =>
     request(`/api/extraction/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
+  getExtractionResultsForCompany: (companyId: string) =>
+    request(`/api/extraction/companies/${encodeURIComponent(companyId)}/results`),
 
   // Company Financials (business segments + CapEx + R&D, one combined pass)
   startFinancialsRun: (body: unknown) =>
@@ -99,6 +101,8 @@ export const api = {
   getFinancialsReviewDecisions: (runId: string) => request(`/api/financials/runs/${runId}/review-decisions`),
   getFinancialsReviewHistory: (runId: string, itemKey: string) =>
     request(`/api/financials/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
+  getFinancialsResultsForCompany: (companyId: string) =>
+    request(`/api/financials/companies/${encodeURIComponent(companyId)}/results`),
 
   // Documents
   uploadDocument: (companyId: string, docType: string, file: File) => {
@@ -143,6 +147,7 @@ export const api = {
   exportRunCsvUrl: (runId: string) => `${API_BASE}/api/runs/${runId}/export.csv`,
   cancelRun: (runId: string) => request(`/api/runs/${runId}/cancel`, { method: "POST" }),
   resumeThemeRun: (runId: string) => request(`/api/themes/runs/${runId}/resume`, { method: "POST" }),
+  listKnownCompanies: (runType: string) => request(`/api/runs/known-companies?run_type=${runType}`),
 
   // Universe from an in-hand company list (e.g. filtered thematic-run matches)
   universeFromCompanies: (companies: unknown[], name: string) =>
