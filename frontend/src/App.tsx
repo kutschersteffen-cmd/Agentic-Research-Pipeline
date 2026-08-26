@@ -5,6 +5,7 @@ import { DocumentDiscovery } from "./pages/DocumentDiscovery";
 import { IdentityResolution } from "./pages/IdentityResolution";
 import { ReviewQueue } from "./pages/ReviewQueue";
 import { RunHistory } from "./pages/RunHistory";
+import { DataLibrary } from "./pages/DataLibrary";
 import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
 import { PortfolioRisk } from "./pages/PortfolioRisk";
@@ -22,6 +23,7 @@ const TABS = [
   { id: "climate", label: "Climate Analytics" },
   { id: "review", label: "Review Queue" },
   { id: "history", label: "Run History" },
+  { id: "library", label: "Data Library" },
 ] as const;
 
 function App() {
@@ -75,6 +77,7 @@ function App() {
         {active === "climate" && <ClimateAnalytics />}
         {active === "review" && <ReviewQueue pendingReview={pendingReview} />}
         {active === "history" && <RunHistory onOpenReview={openReview} />}
+        {active === "library" && <DataLibrary />}
       </main>
     </div>
   );

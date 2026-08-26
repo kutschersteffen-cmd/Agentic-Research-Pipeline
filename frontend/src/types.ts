@@ -576,6 +576,38 @@ export interface PivotCell {
   holding_count: number;
 }
 
+// --- Data library: browsing cached parsed document text across all runs ---
+
+export interface CachedDocumentRow {
+  id: number;
+  content_key: string;
+  key_kind: string;
+  parser_version: string;
+  source_suffix: string;
+  char_len: number;
+  byte_size: number;
+  text_sha256: string;
+  created_at: string;
+  company_id?: string | null;
+  doc_type?: string | null;
+  title?: string | null;
+  filename?: string | null;
+}
+
+// Deliberately not `extends CachedDocumentRow` -- the detail endpoint
+// doesn't re-send the list-row metadata (id/parser_version/char_len/etc.),
+// only the text plus the same company/doc_type/title/filename enrichment.
+export interface CachedDocumentDetail {
+  content_key: string;
+  text_sha256: string;
+  full_text: string;
+  page_breaks: number[];
+  company_id?: string | null;
+  doc_type?: string | null;
+  title?: string | null;
+  filename?: string | null;
+}
+
 export interface PivotResult {
   spec_name: string;
   as_of: string;
