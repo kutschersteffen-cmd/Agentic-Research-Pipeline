@@ -1,8 +1,18 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import type { RunManifest } from "../types";
+import type { ReviewableRunKind, RunManifest } from "../types";
 
-export function RunHistory() {
+const REVIEWABLE_KINDS = new Set<ReviewableRunKind>(["theme", "extraction", "financials", "identity"]);
+
+function isReviewable(runType: string): runType is ReviewableRunKind {
+  return REVIEWABLE_KINDS.has(runType as ReviewableRunKind);
+}
+
+interface Props {
+  onOpenReview?: (kind: ReviewableRunKind, runId: string) => void;
+}
+
+export function RunHistory({ onOpenReview }: Props = {}) {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [filter, setFilter] = useState<string>("");
 
@@ -51,22 +61,33 @@ export function RunHistory() {
             </tr>
           </thead>
           <tbody>
-            {runs.map((r) => (
-              <tr key={r.run_id}>
-                <td>{r.run_id}</td>
-                <td>{r.run_type}</td>
-                <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
-                <td>{r.review_count}</td>
-                <td>${r.estimated_cost_usd.toFixed(2)}</td>
-                <td>{new Date(r.created_at).toLocaleString()}</td>
-                <td>
-                  <a href={api.exportRunCsvUrl(r.run_id)} target="_blank" rel="noreferrer">
-                    CSV
-                  </a>
-                </td>
-              </tr>
-            ))}
+            {runs.map((r) => {
+              const runType = r.run_type;
+              return (
+                <tr key={r.run_id}>
+                  <td>{r.run_id}</td>
+                  <td>{runType}</td>
+                  <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
+                  <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
+                  <td>{r.review_count}</td>
+                  <td>${r.estimated_cost_usd.toFixed(2)}</td>
+                  <td>{new Date(r.created_at).toLocaleString()}</td>
+                  <td>
+                    <a href={api.exportRunCsvUrl(r.run_id)} target="_blank" rel="noreferrer">
+                      CSV
+                    </a>
+                    {r.review_count > 0 && isReviewable(runType) && onOpenReview && (
+                      <>
+                        {" "}
+                        <button className="link-button" onClick={() => onOpenReview(runType, r.run_id)}>
+                          Review
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </section>

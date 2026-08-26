@@ -1,35 +1,38 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import type { ReviewableRunKind } from "../types";
 
-type RunKind = "theme" | "extraction" | "financials" | "identity";
-
-const QUEUE_FNS: Record<RunKind, (runId: string) => Promise<unknown>> = {
+const QUEUE_FNS: Record<ReviewableRunKind, (runId: string) => Promise<unknown>> = {
   theme: api.getThemeReviewQueue,
   extraction: api.getExtractionReviewQueue,
   financials: api.getFinancialsReviewQueue,
   identity: api.getIdentityReviewQueue,
 };
 
-const SUBMIT_FNS: Record<RunKind, (runId: string, body: unknown) => Promise<unknown>> = {
+const SUBMIT_FNS: Record<ReviewableRunKind, (runId: string, body: unknown) => Promise<unknown>> = {
   theme: api.submitThemeReview,
   extraction: api.submitExtractionReview,
   financials: api.submitFinancialsReview,
   identity: api.submitIdentityReview,
 };
 
-export function ReviewQueue() {
-  const [kind, setKind] = useState<RunKind>("theme");
-  const [runId, setRunId] = useState("");
+interface Props {
+  pendingReview?: { kind: ReviewableRunKind; runId: string } | null;
+}
+
+export function ReviewQueue({ pendingReview }: Props = {}) {
+  const [kind, setKind] = useState<ReviewableRunKind>(pendingReview?.kind ?? "theme");
+  const [runId, setRunId] = useState(pendingReview?.runId ?? "");
   const [pending, setPending] = useState<Record<string, unknown>[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function load() {
-    if (!runId) return;
+  async function load(loadKind: ReviewableRunKind = kind, loadRunId: string = runId) {
+    if (!loadRunId) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await QUEUE_FNS[kind](runId);
+      const res = await QUEUE_FNS[loadKind](loadRunId);
       setPending((res as { pending: Record<string, unknown>[] }).pending);
     } catch (err) {
       setError((err as Error).message);
@@ -37,6 +40,17 @@ export function ReviewQueue() {
       setBusy(false);
     }
   }
+
+  // A run clicked from Run History's "Review" link arrives here -- load its
+  // queue immediately instead of making the user re-pick the type and
+  // re-type/paste the run ID they just came from.
+  useEffect(() => {
+    if (!pendingReview) return;
+    setKind(pendingReview.kind);
+    setRunId(pendingReview.runId);
+    load(pendingReview.kind, pendingReview.runId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingReview]);
 
   async function decide(itemKey: string, decision: "approve" | "reject") {
     await SUBMIT_FNS[kind](runId, { item_key: itemKey, decision, reviewer: "ui-user" });
@@ -53,7 +67,7 @@ export function ReviewQueue() {
 
       <section className="card">
         <label className="field-label">Run type</label>
-        <select value={kind} onChange={(e) => setKind(e.target.value as RunKind)}>
+        <select value={kind} onChange={(e) => setKind(e.target.value as ReviewableRunKind)}>
           <option value="theme">Thematic universe</option>
           <option value="extraction">Data-point extraction</option>
           <option value="financials">Company financials</option>
@@ -61,7 +75,7 @@ export function ReviewQueue() {
         </select>
         <label className="field-label">Run ID</label>
         <input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="theme_xxxxxxxxxxxx" />
-        <button onClick={load} disabled={busy || !runId}>
+        <button onClick={() => load()} disabled={busy || !runId}>
           Load pending items
         </button>
         {error && <p className="error-text">{error}</p>}

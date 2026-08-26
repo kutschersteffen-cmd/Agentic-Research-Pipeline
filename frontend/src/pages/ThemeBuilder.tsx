@@ -9,9 +9,10 @@ const EXPOSURE_RANK: Record<string, number> = { pure_play: 3, significant: 2, mi
 
 interface Props {
   onSendToExtraction?: (path: string, count: number) => void;
+  pendingTaxonomyId?: string | null;
 }
 
-export function ThemeBuilder({ onSendToExtraction }: Props = {}) {
+export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = {}) {
   const [name, setName] = useState("Electrification");
   const [description, setDescription] = useState(
     "The shift of energy generation, transport, industry, and buildings from fossil fuels to electricity."
@@ -44,6 +45,16 @@ export function ThemeBuilder({ onSendToExtraction }: Props = {}) {
     api.listTaxonomies().then((res) => setTaxonomies((res as { taxonomies: Taxonomy[] }).taxonomies)).catch(() => {});
   }, []);
 
+  // A taxonomy sent over from the Taxonomy Library's "Use in Thematic
+  // Universe" button arrives here as an id -- load it as soon as the
+  // taxonomy list itself has loaded, same as picking it from the dropdown
+  // by hand.
+  useEffect(() => {
+    if (!pendingTaxonomyId || taxonomies.length === 0) return;
+    loadTaxonomyById(pendingTaxonomyId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingTaxonomyId, taxonomies]);
+
   async function decompose() {
     setBusy(true);
     setError(null);
@@ -58,13 +69,18 @@ export function ThemeBuilder({ onSendToExtraction }: Props = {}) {
     }
   }
 
-  function loadFromTaxonomy() {
-    const t = taxonomies.find((tax) => tax.taxonomy_id === selectedTaxonomyId);
+  function loadTaxonomyById(taxonomyId: string) {
+    const t = taxonomies.find((tax) => tax.taxonomy_id === taxonomyId);
     if (!t) return;
+    setSelectedTaxonomyId(taxonomyId);
     setName(t.theme.name);
     setDescription(t.theme.description);
     setTheme(t.theme);
     setLoadedTaxonomy(t);
+  }
+
+  function loadFromTaxonomy() {
+    loadTaxonomyById(selectedTaxonomyId);
   }
 
   function updateActivity(idx: number, patch: Partial<ActivityDefinition>) {

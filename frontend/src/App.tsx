@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ThemeBuilder } from "./pages/ThemeBuilder";
-import { ExtractionBuilder } from "./pages/ExtractionBuilder";
-import { CompanyFinancials } from "./pages/CompanyFinancials";
+import { Extraction } from "./pages/Extraction";
 import { TransitionPlanAssessment } from "./pages/TransitionPlanAssessment";
 import { DocumentDiscovery } from "./pages/DocumentDiscovery";
 import { IdentityResolution } from "./pages/IdentityResolution";
@@ -14,14 +13,14 @@ import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
 import { PortfolioRisk } from "./pages/PortfolioRisk";
 import { ClimateAnalytics } from "./pages/ClimateAnalytics";
+import type { ReviewableRunKind } from "./types";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard" },
   { id: "theme", label: "Thematic Universe" },
   { id: "taxonomy", label: "Taxonomy Library" },
   { id: "backgroundAgents", label: "Background Agents" },
-  { id: "extraction", label: "Data Extraction" },
-  { id: "financials", label: "Company Financials" },
+  { id: "extraction", label: "Extraction" },
   { id: "transitionPlan", label: "Transition Plan Assessment" },
   { id: "identity", label: "Identity Resolution" },
   { id: "discovery", label: "Document Discovery" },
@@ -37,6 +36,8 @@ function App() {
   const [active, setActive] = useState<(typeof TABS)[number]["id"]>("dashboard");
   const [pendingUniverse, setPendingUniverse] = useState<{ path: string; count: number } | null>(null);
   const [pendingDiscoveryUniverse, setPendingDiscoveryUniverse] = useState<{ path: string; count: number } | null>(null);
+  const [pendingTaxonomyId, setPendingTaxonomyId] = useState<string | null>(null);
+  const [pendingReview, setPendingReview] = useState<{ kind: ReviewableRunKind; runId: string } | null>(null);
 
   function sendToExtraction(path: string, count: number) {
     setPendingUniverse({ path, count });
@@ -46,6 +47,16 @@ function App() {
   function sendToDiscovery(path: string, count: number) {
     setPendingDiscoveryUniverse({ path, count });
     setActive("discovery");
+  }
+
+  function sendToTheme(taxonomyId: string) {
+    setPendingTaxonomyId(taxonomyId);
+    setActive("theme");
+  }
+
+  function openReview(kind: ReviewableRunKind, runId: string) {
+    setPendingReview({ kind, runId });
+    setActive("review");
   }
 
   return (
@@ -63,18 +74,17 @@ function App() {
       </nav>
       <main className="app-main">
         {active === "dashboard" && <MonitoringDashboard onNavigate={setActive} />}
-        {active === "theme" && <ThemeBuilder onSendToExtraction={sendToExtraction} />}
-        {active === "taxonomy" && <TaxonomyLibrary />}
+        {active === "theme" && <ThemeBuilder onSendToExtraction={sendToExtraction} pendingTaxonomyId={pendingTaxonomyId} />}
+        {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
         {active === "backgroundAgents" && <BackgroundAgents />}
-        {active === "extraction" && <ExtractionBuilder pendingUniverse={pendingUniverse} />}
-        {active === "financials" && <CompanyFinancials pendingUniverse={pendingUniverse} />}
+        {active === "extraction" && <Extraction pendingUniverse={pendingUniverse} />}
         {active === "transitionPlan" && <TransitionPlanAssessment pendingUniverse={pendingUniverse} />}
         {active === "identity" && <IdentityResolution onSendToDiscovery={sendToDiscovery} />}
         {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingDiscoveryUniverse} />}
         {active === "portfolio" && <PortfolioRisk />}
         {active === "climate" && <ClimateAnalytics />}
-        {active === "review" && <ReviewQueue />}
-        {active === "history" && <RunHistory />}
+        {active === "review" && <ReviewQueue pendingReview={pendingReview} />}
+        {active === "history" && <RunHistory onOpenReview={openReview} />}
         {active === "engagement" && <EngagementDashboard />}
         {active === "voting" && <VotingRuns />}
       </main>

@@ -43,7 +43,11 @@ const SUB_TABS = [
   { id: "overlap", label: "ETF holdings overlap" },
 ] as const;
 
-export function TaxonomyLibrary() {
+interface Props {
+  onUseInTheme?: (taxonomyId: string) => void;
+}
+
+export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
   const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("library");
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
 
@@ -71,7 +75,7 @@ export function TaxonomyLibrary() {
           </button>
         ))}
       </nav>
-      {sub === "library" && <LibraryView taxonomies={taxonomies} onChange={refreshLibrary} />}
+      {sub === "library" && <LibraryView taxonomies={taxonomies} onChange={refreshLibrary} onUseInTheme={onUseInTheme} />}
       {sub === "new" && <NewTaxonomyWizard onCreated={refreshLibrary} />}
       {sub === "compare" && <CompareMergeView taxonomies={taxonomies} onSaved={refreshLibrary} />}
       {sub === "universe" && <UniverseBuilderView />}
@@ -82,7 +86,15 @@ export function TaxonomyLibrary() {
 
 // --- Library: list + detail edit/ratify -----------------------------------
 
-function LibraryView({ taxonomies, onChange }: { taxonomies: Taxonomy[]; onChange: () => void }) {
+function LibraryView({
+  taxonomies,
+  onChange,
+  onUseInTheme,
+}: {
+  taxonomies: Taxonomy[];
+  onChange: () => void;
+  onUseInTheme?: (taxonomyId: string) => void;
+}) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [activities, setActivities] = useState<ActivityDefinition[]>([]);
   const [notes, setNotes] = useState("Manual edit.");
@@ -212,6 +224,11 @@ function LibraryView({ taxonomies, onChange }: { taxonomies: Taxonomy[]; onChang
                         Export standards CSV
                       </a>
                     </div>
+                    {onUseInTheme && (
+                      <div className="toolbar">
+                        <button onClick={() => onUseInTheme(t.taxonomy_id)}>Use in Thematic Universe &rarr;</button>
+                      </div>
+                    )}
                     <p className="help-text">
                       Uses configured ARP_NACE_CROSSWALK_PATH / ARP_NAICS_CROSSWALK_PATH / ARP_SIC_CROSSWALK_PATH /
                       ARP_GICS_REFERENCE_PATH by default; check the sample boxes to use the bundled illustrative data
