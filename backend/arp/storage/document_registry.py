@@ -144,6 +144,30 @@ class DocumentRegistry:
         finally:
             conn.close()
 
+    def list_by_content_keys(self, content_keys: list[str]) -> dict[str, StoredDocumentRef]:
+        """Batch lookup for enriching a page of parsed_content rows with
+        company_id/doc_type/title/local_path in one query instead of N --
+        used by the "view stored extractions" browser, which only has each
+        row's content_key (parsed_content has no company/doc_type identity
+        of its own). Content-addressed, so in the rare case more than one
+        document shares a content_key (identical bytes registered under
+        different company/doc_type), the last row read wins -- acceptable
+        for a display-only enrichment, unlike register_document's identity
+        guarantees."""
+        if not self.enabled or not content_keys:
+            return {}
+        conn = self._connect()
+        try:
+            placeholders = ",".join("?" for _ in content_keys)
+            rows = conn.execute(
+                f"SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url "
+                f"FROM documents WHERE content_key IN ({placeholders})",
+                content_keys,
+            ).fetchall()
+            return {row[3]: StoredDocumentRef(*row) for row in rows}
+        finally:
+            conn.close()
+
     def stats(self, conn: sqlite3.Connection) -> dict:
         """Takes an already-open connection -- called by
         DocumentContentStore.stats() as part of one cross-cutting operator

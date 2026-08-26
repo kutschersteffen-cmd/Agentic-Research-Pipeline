@@ -129,6 +129,8 @@ export const api = {
   listDocuments: (companyId: string) => request(`/api/documents/${companyId}`),
   documentRawUrl: (companyId: string, docType: string, filename: string) =>
     `${API_BASE}/api/documents/${encodeURIComponent(companyId)}/${encodeURIComponent(docType)}/${encodeURIComponent(filename)}/raw`,
+  listCachedDocuments: (offset = 0, limit = 25) => request(`/api/documents/cache?offset=${offset}&limit=${limit}`),
+  getCachedDocumentText: (rowId: number) => request(`/api/documents/cache/${rowId}`),
 
   // Discovery
   startDiscoveryRun: (body: unknown) =>

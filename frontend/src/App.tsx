@@ -6,6 +6,7 @@ import { DocumentDiscovery } from "./pages/DocumentDiscovery";
 import { IdentityResolution } from "./pages/IdentityResolution";
 import { ReviewQueue } from "./pages/ReviewQueue";
 import { RunHistory } from "./pages/RunHistory";
+import { DataLibrary } from "./pages/DataLibrary";
 import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
 import { BackgroundAgents } from "./pages/BackgroundAgents";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
@@ -30,6 +31,7 @@ const TABS = [
   { id: "history", label: "Run History" },
   { id: "engagement", label: "Engagement" },
   { id: "voting", label: "Voting" },
+  { id: "library", label: "Data Library" },
 ] as const;
 
 function App() {
@@ -87,6 +89,7 @@ function App() {
         {active === "history" && <RunHistory onOpenReview={openReview} />}
         {active === "engagement" && <EngagementDashboard />}
         {active === "voting" && <VotingRuns />}
+        {active === "library" && <DataLibrary />}
       </main>
     </div>
   );

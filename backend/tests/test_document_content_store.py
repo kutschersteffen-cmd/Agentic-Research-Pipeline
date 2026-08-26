@@ -333,6 +333,75 @@ def test_disabled_store_never_persists_embeddings(tmp_path):
     assert store.lookup_embeddings(["chk_a"], "model-x") == {}
 
 
+def test_list_cached_content_paginates_newest_first(tmp_path):
+    store = DocumentContentStore(tmp_path / "store")
+    for i in range(3):
+        store.store(f"key{i}", key_kind="file_bytes", parser_version="v1", source_suffix=".pdf", byte_size=10, text=f"text{i}", page_breaks=[])
+        time.sleep(0.01)  # created_at has second resolution in some environments; keep insert order distinguishable
+
+    page1, total = store.list_cached_content(0, 2)
+    page2, total2 = store.list_cached_content(2, 2)
+
+    assert total == total2 == 3
+    assert len(page1) == 2
+    assert len(page2) == 1
+    # newest-first: key2 (inserted last) should appear before key0 (inserted first)
+    all_keys = [row["content_key"] for row in page1 + page2]
+    assert all_keys.index("key2") < all_keys.index("key0")
+
+
+def test_list_cached_content_excludes_full_text(tmp_path):
+    store = DocumentContentStore(tmp_path / "store")
+    store.store("key1", key_kind="file_bytes", parser_version="v1", source_suffix=".pdf", byte_size=10, text="the full text", page_breaks=[])
+
+    rows, _ = store.list_cached_content(0, 10)
+
+    assert "full_text" not in rows[0]
+    assert rows[0]["char_len"] == len("the full text")
+
+
+def test_get_cached_text_round_trips_by_row_id(tmp_path):
+    store = DocumentContentStore(tmp_path / "store")
+    store.store("key1", key_kind="file_bytes", parser_version="v1", source_suffix=".pdf", byte_size=10, text="hello", page_breaks=[0])
+    rows, _ = store.list_cached_content(0, 10)
+    row_id = rows[0]["id"]
+
+    content = store.get_cached_text(row_id)
+
+    assert content is not None
+    assert content.full_text == "hello"
+    assert content.page_breaks == [0]
+    assert content.content_key == "key1"
+
+
+def test_get_cached_text_missing_row_returns_none(tmp_path):
+    store = DocumentContentStore(tmp_path / "store")
+    assert store.get_cached_text(999) is None
+
+
+def test_list_documents_by_content_keys_batch_lookup(tmp_path):
+    store = DocumentContentStore(tmp_path / "store")
+    store.register_document(
+        doc_id=derive_doc_id("acme", "10-K", "key_a"), company_id="acme", doc_type="10-K",
+        content_key="key_a", title="Acme 10-K", local_path="/docs/acme/10-K/acme.pdf", source_url=None,
+    )
+    store.register_document(
+        doc_id=derive_doc_id("beta", "10-K", "key_b"), company_id="beta", doc_type="10-K",
+        content_key="key_b", title="Beta 10-K", local_path=None, source_url=None,
+    )
+
+    refs = store.list_documents_by_content_keys(["key_a", "key_b", "key_missing"])
+
+    assert set(refs) == {"key_a", "key_b"}
+    assert refs["key_a"].company_id == "acme"
+    assert refs["key_b"].local_path is None
+
+
+def test_list_documents_by_content_keys_empty_input(tmp_path):
+    store = DocumentContentStore(tmp_path / "store")
+    assert store.list_documents_by_content_keys([]) == {}
+
+
 def test_lookup_and_store_agree_with_get_or_compute(tmp_path):
     store = DocumentContentStore(tmp_path / "store")
     assert store.lookup("key1", "v1") is None
