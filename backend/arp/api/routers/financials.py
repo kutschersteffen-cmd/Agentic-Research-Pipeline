@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from arp.api.company_results import list_company_results
 from arp.api.deps import get_registry, get_run_store, get_xbrl_source, settings_dep
 from arp.api.review_endpoints import ReviewDecisionRequest, get_review_decisions, get_review_history, get_review_queue, submit_review
 from arp.api.run_scheduling import schedule_llm_run
@@ -66,6 +67,14 @@ def get_financials_extraction_results(
 ) -> dict:
     rows = run_store.read_jsonl(run_store.results_path(run_id))
     return {"total": len(rows), "results": rows[offset : offset + limit]}
+
+
+@router.get("/companies/{company_id}/results")
+def get_financials_results_for_company(company_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+    """The company-centric complement to /runs/{run_id}/results -- every
+    result this company has ever had across every financials run, not just
+    one run's, for the Data Library's "By company" view."""
+    return {"results": list_company_results(run_store, "financials", company_id)}
 
 
 @router.get("/runs/{run_id}/review-queue")

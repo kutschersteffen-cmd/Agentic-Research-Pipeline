@@ -7,6 +7,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
+from arp.api.company_results import list_known_companies
 from arp.api.deps import get_run_store
 from arp.orchestration.job_manager import JobManager
 from arp.research.pipeline import load_theme_run_matches, rank_theme_matches
@@ -59,6 +60,16 @@ def _load_ranked_theme_matches(run_id: str, run_store: RunStore) -> list[Company
 @router.get("")
 def list_runs(run_type: str | None = None, run_store: RunStore = Depends(get_run_store)) -> dict:
     return {"runs": [m.model_dump(mode="json") for m in run_store.list_runs(run_type)]}
+
+
+@router.get("/known-companies")
+def get_known_companies(run_type: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+    """Powers the Data Library's "By company" picker -- only meaningful for
+    run types whose result rows are keyed by company_id (extraction,
+    financials); registered here (not on those routers) so it's not
+    duplicated per run type, and here because /api/runs is already the
+    cross-run-type home (list_runs, export, etc)."""
+    return {"companies": list_known_companies(run_store, run_type)}
 
 
 @router.get("/{run_id}")

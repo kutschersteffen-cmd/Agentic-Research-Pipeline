@@ -937,7 +937,24 @@ export interface PivotCell {
   holding_count: number;
 }
 
-// --- Data library: browsing cached parsed document text across all runs ---
+// --- Data library ---
+
+// From /api/runs/known-companies -- every company_id seen across a run
+// type's history, with its most recently seen name/ticker. Not a full
+// CompanyRef: only what the result rows themselves carried.
+export interface CompanyDirectoryEntry {
+  company_id: string;
+  name?: string | null;
+  ticker?: string | null;
+}
+
+export interface CompanyDocumentRow {
+  doc_type: string;
+  filename: string;
+  size_bytes: number;
+}
+
+// Browsing cached parsed document text across all runs ---
 
 export interface CachedDocumentRow {
   id: number;
