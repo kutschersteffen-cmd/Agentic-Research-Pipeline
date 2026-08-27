@@ -4,7 +4,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from arp.schemas.common import Citation, DocType, now_iso, new_id
+from arp.schemas.common import Citation, DocType, ProvenanceInfo, now_iso, new_id
 
 
 class FieldDataType(StrEnum):
@@ -54,6 +54,9 @@ class ExtractedField(BaseModel):
     grounded: bool = Field(default=False)
     verifier_notes: str | None = None
     conflicting_sources: bool = False
+    provenance: ProvenanceInfo | None = Field(
+        default=None, description="Which extractor/verifier model+prompt version produced this field."
+    )
 
 
 class ExtractionRecord(BaseModel):

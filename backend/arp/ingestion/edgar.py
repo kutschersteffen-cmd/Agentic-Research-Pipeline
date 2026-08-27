@@ -65,6 +65,7 @@ class EdgarDocumentSource(DocumentSource):
         submissions_ttl_hours: float = 24.0,
     ) -> None:
         self._headers = {"User-Agent": user_agent}
+        self.headers = self._headers  # public alias for callers composing on top (e.g. XbrlFactSource)
         self._cache_dir = cache_dir
         self._cache_dir.mkdir(parents=True, exist_ok=True)
         self._delay = request_delay_seconds
@@ -192,6 +193,12 @@ class EdgarDocumentSource(DocumentSource):
                 page_breaks=[],
             )
         return text, content_key
+
+    async def resolve_cik(self, ticker: str | None) -> str | None:
+        """Public wrapper over the same CIK resolution `fetch` uses
+        internally -- for callers (e.g. XbrlFactSource) that need a CIK
+        without fetching filing text through this source."""
+        return await self._resolve_cik(ticker)
 
     async def _resolve_cik(self, ticker: str | None) -> str | None:
         if not ticker:

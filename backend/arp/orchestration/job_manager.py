@@ -15,7 +15,14 @@ class JobManager:
     def __init__(self, store: RunStore) -> None:
         self.store = store
 
-    def create_run(self, run_type: str, params: dict, company_count: int, model: str | None = None) -> RunManifest:
+    def create_run(
+        self,
+        run_type: str,
+        params: dict,
+        company_count: int,
+        model: str | None = None,
+        verifier_model: str | None = None,
+    ) -> RunManifest:
         manifest = RunManifest(
             run_id=new_id(run_type),
             run_type=run_type,
@@ -23,6 +30,7 @@ class JobManager:
             params=params,
             company_count=company_count,
             model=model,
+            verifier_model=verifier_model,
         )
         self.store.save_manifest(manifest)
         return manifest

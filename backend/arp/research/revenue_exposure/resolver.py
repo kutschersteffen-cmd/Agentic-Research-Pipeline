@@ -84,6 +84,7 @@ async def resolve_from_extraction(
     documents: list[SourceDocument],
     registry: DocumentSourceRegistry,
     llm: LLMClient,
+    verifier_llm: LLMClient | None = None,
     settings: Settings,
 ) -> tuple[MetricExposure, LLMUsage]:
     """Path 2: the same Extractor -> independent Verifier -> programmatic
@@ -109,7 +110,9 @@ async def resolve_from_extraction(
         seed_keywords=[*activity.seed_keywords, metric],
     )
     schema = DataPointSchema(name=f"{activity.name} {metric} share", fields=[field])
-    result = await _extract_company(company, schema, registry=registry, llm=llm, settings=settings, documents=documents)
+    result = await _extract_company(
+        company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings, documents=documents
+    )
     extracted = result.record.fields[0] if result.record.fields else None
 
     if extracted is None or extracted.value is None:
@@ -159,6 +162,7 @@ async def resolve_company_activity_exposure(
     documents: list[SourceDocument],
     ctx: RevenueResolverContext,
     llm: LLMClient,
+    verifier_llm: LLMClient | None = None,
 ) -> tuple[RevenueExposureResult, LLMUsage]:
     """Orchestrates the full cascade for one company x activity pair:
     catalogue first for both metrics, then extraction (gated by sector
@@ -176,7 +180,14 @@ async def resolve_company_activity_exposure(
         exposure = resolve_from_catalogue(activity.activity_id, metric, company_rows, ctx.mappings)
         if exposure.source == "unresolved" and relevant:
             exposure, usage = await resolve_from_extraction(
-                company, activity, metric, documents=documents, registry=ctx.registry, llm=llm, settings=ctx.settings
+                company,
+                activity,
+                metric,
+                documents=documents,
+                registry=ctx.registry,
+                llm=llm,
+                verifier_llm=verifier_llm,
+                settings=ctx.settings,
             )
             total_usage = LLMUsage(input_tokens=total_usage.input_tokens + usage.input_tokens, output_tokens=total_usage.output_tokens + usage.output_tokens)
         metrics[metric] = exposure

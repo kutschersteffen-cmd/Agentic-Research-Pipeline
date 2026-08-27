@@ -4,6 +4,8 @@ import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import { ConfidenceBadge, GroundedBadge } from "../components/ConfidenceBadge";
 import { ReviewControls } from "../components/ReviewControls";
+import { CitationList } from "../components/CitationList";
+import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import type { DataPointSchema, ExtractionRecord, FieldDefinition, ReviewDecision } from "../types";
 
 const DEFAULT_CRITERIA =
@@ -32,6 +34,7 @@ export function ExtractionBuilder({ pendingUniverse }: Props = {}) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [reviewDecisions, setReviewDecisions] = useState<Record<string, ReviewDecision>>({});
   const [reviewer, setReviewer] = useState("");
+  const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
 
   async function draft() {
     setBusy(true);
@@ -169,72 +172,57 @@ export function ExtractionBuilder({ pendingUniverse }: Props = {}) {
             />
           </div>
           {results.length > 0 && (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Company</th>
-                  <th>Fields</th>
-                  <th>Overall confidence</th>
-                  <th>Needs review</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((r) => (
-                  <Fragment key={r.company_id}>
-                    <tr className="clickable-row" onClick={() => setExpanded(expanded === r.company_id ? null : r.company_id)}>
-                      <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
-                      <td>{r.fields.map((f) => `${f.field_name}=${f.value ?? "—"}`).join(", ")}</td>
-                      <td><ConfidenceBadge value={r.overall_confidence} /></td>
-                      <td>{r.needs_review ? "⚑" : ""}</td>
+            <div className="split-review">
+              <div className="split-review-main">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Company</th>
+                      <th>Fields</th>
+                      <th>Overall confidence</th>
+                      <th>Needs review</th>
                     </tr>
-                    {expanded === r.company_id && (
-                      <tr>
-                        <td colSpan={4} className="detail-cell">
-                          {r.fields.map((f) => {
-                            const itemKey = `${r.company_id}:${f.field_id}`;
-                            return (
-                              <div key={f.field_id} className="field-detail">
-                                <strong>{f.field_name}:</strong> {String(f.value ?? "not disclosed")}{" "}
-                                <ConfidenceBadge value={f.confidence} /> <GroundedBadge grounded={f.grounded} />
-                                {f.verifier_notes && <p className="muted">{f.verifier_notes}</p>}
-                                <ul>
-                                  {f.citations.map((c, ci) => (
-                                    <li key={ci}>
-                                      [{c.doc_type}] "{c.quote}"
-                                      {c.grounded && c.company_id && c.source_filename && (
-                                        <>
-                                          {" "}
-                                          <a
-                                            href={`${api.documentRawUrl(c.company_id, c.doc_type, c.source_filename)}${
-                                              c.page ? `#page=${c.page}` : ""
-                                            }`}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                          >
-                                            view source{c.page ? ` (p. ${c.page})` : c.sheet ? ` (${c.sheet})` : ""}
-                                          </a>
-                                        </>
-                                      )}
-                                    </li>
-                                  ))}
-                                </ul>
-                                <ReviewControls
-                                  runId={runId}
-                                  itemKey={itemKey}
-                                  current={reviewDecisions[itemKey]}
-                                  reviewer={reviewer}
-                                  onDone={refreshResults}
-                                />
-                              </div>
-                            );
-                          })}
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {results.map((r) => (
+                      <Fragment key={r.company_id}>
+                        <tr className="clickable-row" onClick={() => setExpanded(expanded === r.company_id ? null : r.company_id)}>
+                          <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
+                          <td>{r.fields.map((f) => `${f.field_name}=${f.value ?? "—"}`).join(", ")}</td>
+                          <td><ConfidenceBadge value={r.overall_confidence} /></td>
+                          <td>{r.needs_review ? "⚑" : ""}</td>
+                        </tr>
+                        {expanded === r.company_id && (
+                          <tr>
+                            <td colSpan={4} className="detail-cell">
+                              {r.fields.map((f) => {
+                                const itemKey = `${r.company_id}:${f.field_id}`;
+                                return (
+                                  <div key={f.field_id} className="field-detail">
+                                    <strong>{f.field_name}:</strong> {String(f.value ?? "not disclosed")}{" "}
+                                    <ConfidenceBadge value={f.confidence} /> <GroundedBadge grounded={f.grounded} />
+                                    {f.verifier_notes && <p className="muted">{f.verifier_notes}</p>}
+                                    <CitationList citations={f.citations} onOpenSource={setActiveSource} />
+                                    <ReviewControls
+                                      runId={runId}
+                                      itemKey={itemKey}
+                                      current={reviewDecisions[itemKey]}
+                                      reviewer={reviewer}
+                                      onDone={refreshResults}
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
+            </div>
           )}
         </section>
       )}

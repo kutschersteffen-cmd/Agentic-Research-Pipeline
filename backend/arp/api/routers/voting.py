@@ -39,7 +39,7 @@ async def start_voting_run(
     def _create() -> str:
         return create_voting_run(companies, settings, run_store)
 
-    async def _run(run_id: str, llm) -> None:
+    async def _run(run_id: str, llm, verifier_llm) -> None:
         await execute_voting_run(
             run_id, companies, llm=llm, registry=registry, engagement_store=engagement_store,
             settings=settings, run_store=run_store, meeting_dates=req.meeting_dates, fund_name=settings.fund_name,

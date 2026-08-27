@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from arp.api.deps import get_registry, get_run_store, settings_dep
+from arp.api.deps import get_registry, get_run_store, get_xbrl_source, settings_dep
 from arp.api.review_endpoints import ReviewDecisionRequest, get_review_decisions, get_review_history, get_review_queue, submit_review
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
@@ -27,6 +27,7 @@ async def start_financials_extraction_run(
     settings: Settings = Depends(settings_dep),
     run_store: RunStore = Depends(get_run_store),
     registry: DocumentSourceRegistry = Depends(get_registry),
+    xbrl_source=Depends(get_xbrl_source),
 ) -> dict:
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
     if not companies:
@@ -35,9 +36,16 @@ async def start_financials_extraction_run(
     def _create() -> str:
         return create_financials_extraction_run(companies, settings, run_store)
 
-    async def _run(run_id: str, llm) -> None:
+    async def _run(run_id: str, llm, verifier_llm) -> None:
         await execute_financials_extraction_run(
-            run_id, companies, llm=llm, registry=registry, settings=settings, run_store=run_store
+            run_id,
+            companies,
+            llm=llm,
+            verifier_llm=verifier_llm,
+            registry=registry,
+            settings=settings,
+            run_store=run_store,
+            xbrl_source=xbrl_source,
         )
 
     run_id = schedule_llm_run(create_fn=_create, run=_run)

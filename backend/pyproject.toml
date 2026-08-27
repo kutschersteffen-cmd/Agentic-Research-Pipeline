@@ -36,6 +36,14 @@ dev = [
     "pytest>=8.2",
     "pytest-asyncio>=0.23",
 ]
+# Opt-in relational/vector store (arp/storage/postgres*.py): portfolio
+# holdings + an alternate pgvector embeddings-cache backend. Not required
+# for the file-based default path -- see Settings.postgres_dsn.
+postgres = [
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.1",
+    "pgvector>=0.3",
+]
 
 [project.scripts]
 arp = "arp.cli:app"
@@ -49,6 +57,7 @@ include = ["arp*"]
 
 [tool.setuptools.package-data]
 "arp.research.indirect_exposure" = ["sample_data/*.csv", "sample_data/*.md"]
+"arp.golden_set" = ["data/*.json"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

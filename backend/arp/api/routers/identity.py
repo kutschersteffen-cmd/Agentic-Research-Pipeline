@@ -44,7 +44,7 @@ async def start_identity_run(
     def _create() -> str:
         return create_identity_run(companies, run_store)
 
-    async def _run(run_id: str, llm) -> None:
+    async def _run(run_id: str, llm, verifier_llm) -> None:
         await execute_identity_run(
             run_id, companies, llm=llm, settings=settings, run_store=run_store, edgar=edgar, search_client=search_client
         )

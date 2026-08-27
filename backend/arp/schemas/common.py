@@ -101,6 +101,23 @@ class Citation(BaseModel):
     source_filename: str | None = Field(default=None, description="On-disk filename, resolved by grounding.")
 
 
+class ProvenanceInfo(BaseModel):
+    """Which model and which system-prompt version produced a persisted
+    extraction/verification, so a later prompt or model change is
+    detectable against previously persisted output instead of silently
+    mixing results from different pipeline versions. `*_prompt_version` is
+    a short hash of the agent's system prompt text (see
+    `LangChainAnthropicClient.complete_structured`), not a manually
+    maintained version number -- it changes automatically the moment the
+    prompt does, so it can't go stale the way a hand-bumped constant would.
+    """
+
+    extractor_model: str | None = None
+    extractor_prompt_version: str | None = None
+    verifier_model: str | None = None
+    verifier_prompt_version: str | None = None
+
+
 class RunManifest(BaseModel):
     run_id: str
     run_type: str  # "theme" | "extraction" | "discovery"
@@ -116,6 +133,9 @@ class RunManifest(BaseModel):
     output_tokens: int = 0
     estimated_cost_usd: float = 0.0
     model: str | None = None
+    verifier_model: str | None = Field(
+        default=None, description="Model used for the independent Verifier/Kritiker pass, when this run type has one."
+    )
     error: str | None = None
     cancel_requested: bool = Field(
         default=False, description="Set by POST /api/runs/{id}/cancel; checked cooperatively before each new item starts. In-flight items still finish."

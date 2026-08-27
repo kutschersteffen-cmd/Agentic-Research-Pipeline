@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from arp.api.deps import get_llm_client, get_registry, get_run_store, get_taxonomy_store, settings_dep
+from arp.api.deps import get_llm_client, get_registry, get_run_store, get_taxonomy_store, get_verifier_llm_client, settings_dep
 from arp.api.review_endpoints import ReviewDecisionRequest, get_review_queue, submit_review
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
@@ -108,12 +108,13 @@ async def start_theme_run(
             catalogue_mapping=req.catalogue_mapping,
         )
 
-    async def _run(run_id: str, llm) -> None:
+    async def _run(run_id: str, llm, verifier_llm) -> None:
         await execute_theme_run(
             run_id,
             theme,
             companies,
             llm=llm,
+            verifier_llm=verifier_llm,
             registry=registry,
             settings=settings,
             run_store=run_store,
@@ -162,9 +163,12 @@ async def resume_theme_run_endpoint(
         raise HTTPException(400, "This run has no stored universe_path (it predates resume support, or was started with inline `companies`) and can't be reconstructed.")
 
     llm = get_llm_client()  # surfaces a clean 503 before we schedule anything if unconfigured
+    verifier_llm = get_verifier_llm_client()
 
     async def _background() -> None:
-        await resume_theme_run(run_id, llm=llm, registry=registry, settings=settings, run_store=run_store)
+        await resume_theme_run(
+            run_id, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store
+        )
 
     asyncio.create_task(_background())
     return {"run_id": run_id, "status": "resumed"}

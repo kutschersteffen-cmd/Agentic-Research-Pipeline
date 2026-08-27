@@ -4,7 +4,9 @@ import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import { ConfidenceBadge, GroundedBadge } from "../components/ConfidenceBadge";
 import { ReviewControls } from "../components/ReviewControls";
-import type { BusinessSegment, Citation, CompanyFinancialsRecord, ReviewDecision, SpendSummary } from "../types";
+import { CitationList } from "../components/CitationList";
+import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
+import type { BusinessSegment, CompanyFinancialsRecord, ReviewDecision, SpendSummary } from "../types";
 
 interface Props {
   pendingUniverse?: { path: string; count: number } | null;
@@ -14,37 +16,12 @@ function fmtAmount(value?: number | null): string {
   return value == null ? "—" : value.toLocaleString();
 }
 
-function CitationList({ citations }: { citations: Citation[] }) {
-  if (citations.length === 0) return null;
-  return (
-    <ul>
-      {citations.map((c, ci) => (
-        <li key={ci}>
-          [{c.doc_type}] "{c.quote}"
-          {c.grounded && c.company_id && c.source_filename && (
-            <>
-              {" "}
-              <a
-                href={`${api.documentRawUrl(c.company_id, c.doc_type, c.source_filename)}${c.page ? `#page=${c.page}` : ""}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                view source{c.page ? ` (p. ${c.page})` : c.sheet ? ` (${c.sheet})` : ""}
-              </a>
-            </>
-          )}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function SegmentDetail({ segment }: { segment: BusinessSegment }) {
+function SegmentDetail({ segment, onOpenSource }: { segment: BusinessSegment; onOpenSource: (s: ActiveSource) => void }) {
   return (
     <div className="field-detail">
       <strong>{segment.name}</strong> <GroundedBadge grounded={segment.grounded} /> <ConfidenceBadge value={segment.confidence} />
       {segment.description && <p>{segment.description}</p>}
-      <CitationList citations={segment.description_citations} />
+      <CitationList citations={segment.description_citations} onOpenSource={onOpenSource} />
       <table className="data-table">
         <thead>
           <tr>
@@ -70,7 +47,7 @@ function SegmentDetail({ segment }: { segment: BusinessSegment }) {
         segment[metric].citations.length > 0 ? (
           <div key={metric}>
             <span className="muted" style={{ textTransform: "capitalize" }}>{metric} citations:</span>
-            <CitationList citations={segment[metric].citations} />
+            <CitationList citations={segment[metric].citations} onOpenSource={onOpenSource} />
           </div>
         ) : null
       )}
@@ -79,17 +56,17 @@ function SegmentDetail({ segment }: { segment: BusinessSegment }) {
   );
 }
 
-function SpendDetail({ label, spend }: { label: string; spend: SpendSummary }) {
+function SpendDetail({ label, spend, onOpenSource }: { label: string; spend: SpendSummary; onOpenSource: (s: ActiveSource) => void }) {
   return (
     <div className="field-detail">
       <strong>{label} total:</strong> {fmtAmount(spend.total.value)}
       {spend.total.raw_value_text && <span className="muted"> ({spend.total.raw_value_text})</span>}{" "}
       <GroundedBadge grounded={spend.grounded} /> <ConfidenceBadge value={spend.confidence} />
-      <CitationList citations={spend.total.citations} />
+      <CitationList citations={spend.total.citations} onOpenSource={onOpenSource} />
       {spend.description && (
         <>
           <p>{spend.description}</p>
-          <CitationList citations={spend.description_citations} />
+          <CitationList citations={spend.description_citations} onOpenSource={onOpenSource} />
         </>
       )}
       {spend.categories.length > 0 && (
@@ -133,6 +110,7 @@ export function CompanyFinancials({ pendingUniverse }: Props = {}) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [reviewDecisions, setReviewDecisions] = useState<Record<string, ReviewDecision>>({});
   const [reviewer, setReviewer] = useState("");
+  const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
 
   async function startRun() {
     if (!universePath) return;
@@ -204,60 +182,65 @@ export function CompanyFinancials({ pendingUniverse }: Props = {}) {
             <input placeholder="your name" value={reviewer} onChange={(e) => setReviewer(e.target.value)} style={{ maxWidth: 160 }} />
           </div>
           {results.length > 0 && (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Company</th>
-                  <th>Segments</th>
-                  <th>CapEx</th>
-                  <th>R&amp;D</th>
-                  <th>Confidence</th>
-                  <th>Needs review</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((r) => (
-                  <Fragment key={r.company_id}>
-                    <tr className="clickable-row" onClick={() => setExpanded(expanded === r.company_id ? null : r.company_id)}>
-                      <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
-                      <td>{r.segments.length === 0 ? "none found" : `${r.segments.length} segment(s)`}</td>
-                      <td>{fmtAmount(r.capex.total.value)} {r.currency ?? ""}</td>
-                      <td>{fmtAmount(r.rnd.total.value)} {r.currency ?? ""}</td>
-                      <td><ConfidenceBadge value={r.overall_confidence} /></td>
-                      <td>{r.needs_review ? "⚑" : ""}</td>
+            <div className="split-review">
+              <div className="split-review-main">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Company</th>
+                      <th>Segments</th>
+                      <th>CapEx</th>
+                      <th>R&amp;D</th>
+                      <th>Confidence</th>
+                      <th>Needs review</th>
                     </tr>
-                    {expanded === r.company_id && (
-                      <tr>
-                        <td colSpan={6} className="detail-cell">
-                          <h4>Business Segments</h4>
-                          {r.segments.length === 0 && <p className="muted">No segment reporting evidence found.</p>}
-                          {r.segments.map((s, si) => (
-                            <SegmentDetail key={si} segment={s} />
-                          ))}
-                          {r.segments_verifier_notes && <p className="muted">{r.segments_verifier_notes}</p>}
+                  </thead>
+                  <tbody>
+                    {results.map((r) => (
+                      <Fragment key={r.company_id}>
+                        <tr className="clickable-row" onClick={() => setExpanded(expanded === r.company_id ? null : r.company_id)}>
+                          <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
+                          <td>{r.segments.length === 0 ? "none found" : `${r.segments.length} segment(s)`}</td>
+                          <td>{fmtAmount(r.capex.total.value)} {r.currency ?? ""}</td>
+                          <td>{fmtAmount(r.rnd.total.value)} {r.currency ?? ""}</td>
+                          <td><ConfidenceBadge value={r.overall_confidence} /></td>
+                          <td>{r.needs_review ? "⚑" : ""}</td>
+                        </tr>
+                        {expanded === r.company_id && (
+                          <tr>
+                            <td colSpan={6} className="detail-cell">
+                              <h4>Business Segments</h4>
+                              {r.segments.length === 0 && <p className="muted">No segment reporting evidence found.</p>}
+                              {r.segments.map((s, si) => (
+                                <SegmentDetail key={si} segment={s} onOpenSource={setActiveSource} />
+                              ))}
+                              {r.segments_verifier_notes && <p className="muted">{r.segments_verifier_notes}</p>}
 
-                          <h4>CapEx</h4>
-                          <SpendDetail label="CapEx" spend={r.capex} />
+                              <h4>CapEx</h4>
+                              <SpendDetail label="CapEx" spend={r.capex} onOpenSource={setActiveSource} />
 
-                          <h4>R&amp;D</h4>
-                          <SpendDetail label="R&D" spend={r.rnd} />
+                              <h4>R&amp;D</h4>
+                              <SpendDetail label="R&D" spend={r.rnd} onOpenSource={setActiveSource} />
 
-                          <ReviewControls
-                            runId={runId}
-                            itemKey={r.company_id}
-                            current={reviewDecisions[r.company_id]}
-                            reviewer={reviewer}
-                            onDone={refreshResults}
-                            submitFn={api.submitFinancialsReview}
-                            historyFn={api.getFinancialsReviewHistory}
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
+                              <ReviewControls
+                                runId={runId}
+                                itemKey={r.company_id}
+                                current={reviewDecisions[r.company_id]}
+                                reviewer={reviewer}
+                                onDone={refreshResults}
+                                submitFn={api.submitFinancialsReview}
+                                historyFn={api.getFinancialsReviewHistory}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
+            </div>
           )}
         </section>
       )}
