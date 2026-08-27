@@ -4,6 +4,7 @@ from typing import TypedDict
 
 from langgraph.graph import END, StateGraph
 
+from arp.config import Settings
 from arp.extraction.financials_aggregator import build_financials_record
 from arp.extraction.financials_extractor_agent import FinancialsExtractionDraft, extract_financials
 from arp.extraction.financials_verifier_agent import FinancialsVerifierOutput, verify_financials
@@ -12,7 +13,7 @@ from arp.extraction.spend_extractor_agent import SPEND_DOC_TYPES, SPEND_KEYWORDS
 from arp.ingestion.parsing import chunk_document
 from arp.llm.base import LLMClient, LLMUsage
 from arp.retrieval.select_evidence import select_relevant_chunks
-from arp.schemas.common import CompanyRef, DocumentChunk, SourceDocument
+from arp.schemas.common import CompanyRef, DocumentChunk, ProvenanceInfo, SourceDocument
 from arp.schemas.financials import CompanyFinancialsRecord
 from arp.schemas.spend import SpendTopic
 
@@ -30,7 +31,9 @@ _TOPIC_KEYWORDS: dict[str, list[str]] = {
 _MAX_CHUNKS_PER_TOPIC = 10
 
 
-def _select_evidence(chunks: list[DocumentChunk]) -> list[DocumentChunk]:
+def _select_evidence(
+    chunks: list[DocumentChunk], *, hybrid_retrieval_enabled: bool = False, content_store=None
+) -> list[DocumentChunk]:
     """Per-topic BM25-ranked selection, capped per topic, then
     unioned/deduped -- so a topic with sparser evidence (e.g. a single
     CapEx sentence in a filing dominated by segment discussion) still gets
@@ -40,7 +43,13 @@ def _select_evidence(chunks: list[DocumentChunk]) -> list[DocumentChunk]:
     """
     selected: dict[str, DocumentChunk] = {}
     for keywords in _TOPIC_KEYWORDS.values():
-        for c in select_relevant_chunks(chunks, keywords, max_chunks=_MAX_CHUNKS_PER_TOPIC):
+        for c in select_relevant_chunks(
+            chunks,
+            keywords,
+            max_chunks=_MAX_CHUNKS_PER_TOPIC,
+            hybrid_retrieval_enabled=hybrid_retrieval_enabled,
+            content_store=content_store,
+        ):
             selected[c.chunk_id] = c
     return list(selected.values())
 
@@ -50,22 +59,35 @@ class FinancialsState(TypedDict):
     documents: list[SourceDocument]
     documents_by_id: dict[str, SourceDocument]
     llm: LLMClient
+    verifier_llm: LLMClient
+    settings: Settings | None
     fuzzy_threshold: float
     confidence_review_threshold: float
     evidence: list[DocumentChunk]
     draft: FinancialsExtractionDraft | None
     verifier: FinancialsVerifierOutput | None
     usages: list[LLMUsage]
+    extractor_usage: LLMUsage | None
+    verifier_usage: LLMUsage | None
     record: CompanyFinancialsRecord | None
 
 
 async def _gather_evidence(state: FinancialsState) -> dict:
+    settings = state["settings"]
     all_chunks: list[DocumentChunk] = []
     for doc in state["documents"]:
         if doc.doc_type not in FINANCIALS_DOC_TYPES:
             continue
         all_chunks.extend(chunk_document(doc, keywords=_ALL_KEYWORDS))
-    return {"evidence": _select_evidence(all_chunks)}
+
+    content_store = None
+    hybrid_enabled = settings is not None and settings.hybrid_retrieval_enabled
+    if hybrid_enabled:
+        from arp.retrieval.content_store_factory import build_hybrid_content_store
+
+        content_store = build_hybrid_content_store(settings)
+
+    return {"evidence": _select_evidence(all_chunks, hybrid_retrieval_enabled=hybrid_enabled, content_store=content_store)}
 
 
 def _route_after_evidence(state: FinancialsState) -> str:
@@ -83,12 +105,14 @@ async def _finalize_no_evidence(state: FinancialsState) -> dict:
 
 async def _extract(state: FinancialsState) -> dict:
     draft, usage = await extract_financials(state["company"].name, state["evidence"], state["llm"])
-    return {"draft": draft, "usages": state["usages"] + [usage]}
+    return {"draft": draft, "usages": state["usages"] + [usage], "extractor_usage": usage}
 
 
 async def _verify(state: FinancialsState) -> dict:
-    verifier, usage = await verify_financials(state["company"].name, state["evidence"], state["draft"], state["llm"])
-    return {"verifier": verifier, "usages": state["usages"] + [usage]}
+    verifier, usage = await verify_financials(
+        state["company"].name, state["evidence"], state["draft"], state["verifier_llm"]
+    )
+    return {"verifier": verifier, "usages": state["usages"] + [usage], "verifier_usage": usage}
 
 
 async def _aggregate(state: FinancialsState) -> dict:
@@ -103,6 +127,15 @@ async def _aggregate(state: FinancialsState) -> dict:
         state["fuzzy_threshold"],
         state["confidence_review_threshold"],
     )
+    extractor_usage = state["extractor_usage"]
+    verifier_usage = state["verifier_usage"]
+    provenance = ProvenanceInfo(
+        extractor_model=extractor_usage.model if extractor_usage else None,
+        extractor_prompt_version=extractor_usage.prompt_version if extractor_usage else None,
+        verifier_model=verifier_usage.model if verifier_usage else None,
+        verifier_prompt_version=verifier_usage.prompt_version if verifier_usage else None,
+    )
+    record = record.model_copy(update={"provenance": provenance})
     return {"record": record}
 
 
@@ -133,12 +166,18 @@ async def extract_company_financials(
     *,
     documents: list[SourceDocument],
     llm: LLMClient,
+    verifier_llm: LLMClient | None = None,
+    settings: Settings | None = None,
     fuzzy_threshold: float,
     confidence_review_threshold: float,
 ) -> tuple[CompanyFinancialsRecord, list[LLMUsage]]:
     """Runs the combined segments/CapEx/R&D flow (one evidence gather, one
     combined extractor call, one combined independent-verifier call,
     then programmatic grounding + aggregation) as a LangGraph graph.
+
+    `verifier_llm` defaults to `llm` only for callers that don't supply a
+    separate model -- see `extract_one_field` for the same convention.
+    `settings`, when supplied, gates hybrid retrieval the same way too.
     """
     documents_by_id = {d.doc_id: d for d in documents}
     initial: FinancialsState = {
@@ -146,12 +185,16 @@ async def extract_company_financials(
         "documents": documents,
         "documents_by_id": documents_by_id,
         "llm": llm,
+        "verifier_llm": verifier_llm or llm,
+        "settings": settings,
         "fuzzy_threshold": fuzzy_threshold,
         "confidence_review_threshold": confidence_review_threshold,
         "evidence": [],
         "draft": None,
         "verifier": None,
         "usages": [],
+        "extractor_usage": None,
+        "verifier_usage": None,
         "record": None,
     }
     final_state = await _COMPILED_GRAPH.ainvoke(initial)

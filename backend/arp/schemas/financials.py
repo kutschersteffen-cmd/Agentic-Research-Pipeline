@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from arp.schemas.common import Citation, now_iso
+from arp.schemas.common import Citation, ProvenanceInfo, now_iso
 from arp.schemas.segments import BusinessSegment
 from arp.schemas.spend import AmountMetric, SpendCategory
 
@@ -44,3 +44,6 @@ class CompanyFinancialsRecord(BaseModel):
     overall_confidence: float = Field(ge=0.0, le=1.0, default=0.0)
     needs_review: bool = False
     generated_at: str = Field(default_factory=now_iso)
+    provenance: ProvenanceInfo | None = Field(
+        default=None, description="Which extractor/verifier model+prompt version produced this record."
+    )

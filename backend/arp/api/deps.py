@@ -8,11 +8,12 @@ from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
-from arp.llm.factory import build_llm_client
+from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
-from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.portfolio_store_factory import build_portfolio_store
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.voting.ballot_casting import BallotPlatform, ManualInstructionBallotPlatform
@@ -33,8 +34,8 @@ def get_taxonomy_store() -> TaxonomyStore:
 
 
 @lru_cache
-def get_portfolio_store() -> PortfolioStore:
-    return PortfolioStore(get_settings().portfolios_dir)
+def get_portfolio_store():
+    return build_portfolio_store(get_settings())
 
 
 @lru_cache
@@ -79,6 +80,17 @@ def get_edgar_source() -> EdgarDocumentSource:
 
 
 @lru_cache
+def get_xbrl_source() -> XbrlFactSource:
+    """CapEx/R&D totals resolved directly from SEC's structured XBRL
+    companyfacts API, ahead of the LLM extraction pipeline for EDGAR
+    filers -- see arp/ingestion/xbrl.py. Composes on the same
+    EdgarDocumentSource instance get_edgar_source() already uses for CIK
+    resolution, so no separate ticker-map fetch/cache is needed."""
+    settings = get_settings()
+    return XbrlFactSource(get_edgar_source(), settings.cache_dir, ttl_hours=settings.xbrl_facts_ttl_hours)
+
+
+@lru_cache
 def get_web_search_client() -> WebSearchClient:
     return DuckDuckGoSearchClient(get_settings().discovery_user_agent)
 
@@ -89,6 +101,13 @@ def get_llm_client() -> LLMClient:
     baked into a cached singleton at import time.
     """
     return build_llm_client(get_settings())
+
+
+def get_verifier_llm_client() -> LLMClient:
+    """The Verifier/Kritiker client, deliberately on a different model
+    (settings.llm_verifier_model) than get_llm_client()'s extractor model
+    -- see arp/llm/factory.py::build_verifier_llm_client."""
+    return build_verifier_llm_client(get_settings())
 
 
 @lru_cache

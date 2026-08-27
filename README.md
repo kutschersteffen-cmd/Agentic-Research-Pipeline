@@ -14,15 +14,21 @@ precision at scale (designed for up to ~4,000 companies per run).
 2. **Data-Point Extraction Engine** — pull specific, schema-defined data
    points (e.g. "green capex", forward-looking business outlook) out of
    sustainability reports, annual reports, and earnings-call transcripts,
-   with an independent verifier pass and a hard programmatic grounding
-   check on every citation. A grounded citation carries its exact source --
-   PDF page number or xlsx sheet name, resolved programmatically from the
-   verified match position, never LLM-reported -- with a "view source"
-   link that opens the original document straight to that location. Every
+   with an independent verifier pass -- on a deliberately different model
+   than the extractor, to decorrelate errors -- and a hard programmatic
+   grounding check on every citation. A grounded citation carries its exact
+   source -- PDF page number or xlsx sheet name, resolved programmatically
+   from the verified match position, never LLM-reported -- with a "view
+   source" link that opens the original document in a docked split-screen
+   panel next to the extracted value, not a new tab, so checking a citation
+   never navigates the reviewer away from what they're reviewing. Every
    extracted field can be marked reviewed, overridden with a corrected
    value, or rejected, each with an optional comment; every decision is
    appended to a permanent, per-field audit trail (nothing is ever
-   overwritten) and shown in a History panel.
+   overwritten) and shown in a History panel. Every field/record also
+   carries `provenance` (extractor/verifier model + prompt-content hash),
+   and a golden set of manually verified extractions (`arp golden-set run`)
+   regression-tests the real pipeline before a prompt/model change ships.
 3. **Company Financials Extraction** — pulls a company's disclosed business
    segments (name, description, revenue, operating income, assets), total
    CapEx, and total R&D -- each spend figure with a grounded plain-language
@@ -218,6 +224,9 @@ arp extract run --schema schema.json --universe companies.csv
 # Company financials: business segments + CapEx + R&D, one combined pass per company
 arp extract financials-run --universe companies.csv
 
+# Golden-set regression test -- run before a prompt/model change ships
+arp golden-set run
+
 # Transition Plan Assessment: 64-indicator walk/talk climate disclosure scoring (Colesanti Senni et al. 2024)
 arp transition-plan indicators                          # inspect the 64 fixed indicators
 arp transition-plan run --universe companies.csv
@@ -288,6 +297,14 @@ known for the most precise document discovery and EDGAR lookup).
   table shows the same per-company status.
 - Earnings-call transcripts have no free public API; supply them via the
   local file store or extend `DocumentSource` with a paid connector.
+- **SEC XBRL companyfacts** (`backend/arp/ingestion/xbrl.py`): free, no API
+  key. A "Path 0" ahead of the LLM extractor for `Company Financials`'s
+  CapEx/R&D totals specifically -- if SEC's own structured, machine-tagged
+  figure is available for an EDGAR filer, it's used directly instead of
+  extracted from prose (`ARP_XBRL_FACTS_ENABLED`, on by default).
+  Segment-level figures and the plain-language description of what
+  CapEx/R&D is going toward still always go through the LLM pipeline --
+  XBRL tagging isn't standardized enough across filers for those.
 
 ## The indirect exposure tier
 
@@ -336,5 +353,52 @@ around the input-output math.
   grounded extraction from disclosures and only then to the qualitative
   debate -- a hard disclosed number is never second-guessed by a
   categorical LLM judgment over the same question
+- The independent Verifier runs on a different model than the Extractor
+  (`ARP_LLM_VERIFIER_MODEL`, distinct from `ARP_LLM_MODEL`) -- decorrelates
+  errors an identical extractor/verifier model pair would otherwise be
+  prone to repeat
+- Every extracted field/financials record carries `provenance`: the exact
+  extractor/verifier model and a content hash of their system prompts, so
+  a later prompt or model change is detectable against previously
+  persisted output instead of silently mixing pipeline versions
+- A golden set of manually verified extractions (`arp golden-set run`) runs
+  the real extractor/verifier/grounding pipeline against known-correct
+  answers -- run it before a prompt or model change reaches a real batch
+- XBRL structured-facts resolution ahead of the LLM for EDGAR filers'
+  CapEx/R&D totals (see "Data sources" above) -- never estimated by an
+  LLM what SEC's own filing data already answers
+- Hybrid (BM25 + local multilingual embedding) evidence retrieval is on by
+  default, closing vocabulary gaps between seed keywords and how a company
+  actually phrases a disclosure -- including DE-language disclosures
 
 Full detail in [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md).
+
+## Optional Postgres/pgvector store
+
+Every store in this system is file-based by default -- no database
+required. An opt-in Postgres/pgvector backend (`backend/arp/storage/postgres*.py`)
+is available for the two places a relational/vector engine genuinely earns
+its cost: **Portfolio Risk & Exposure Monitoring**'s holdings (real joins
+across portfolios × securities × companies × time) and the hybrid-retrieval
+chunk-embeddings cache. The run/review-queue/audit-trail stores everywhere
+else stay file-based JSONL regardless -- an append-only file is simpler to
+keep fully auditable than a table with `UPDATE`s, and none of those stores
+have the multi-way join access pattern that justifies a relational engine;
+see [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the full reasoning.
+
+```bash
+pip install -e ".[postgres]"   # sqlalchemy, psycopg, pgvector
+
+# .env
+ARP_POSTGRES_DSN=postgresql+psycopg://user:pass@localhost:5432/arp
+ARP_PORTFOLIO_BACKEND=postgres   # optional -- default stays "file"
+ARP_EMBEDDINGS_BACKEND=postgres  # optional -- default stays "sqlite"
+
+arp db init-postgres   # creates the pgvector extension + every table, idempotent
+```
+
+A local Postgres+pgvector for development:
+
+```bash
+docker run -d --name arp-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 pgvector/pgvector:pg16
+```

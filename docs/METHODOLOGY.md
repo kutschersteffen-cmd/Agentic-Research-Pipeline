@@ -152,7 +152,13 @@ disclosure-completeness score.
    - Data-point extraction: an independent Verifier agent re-reads the same
      evidence and is instructed to disagree with the Extractor whenever it
      finds a problem — wrong fiscal year, wrong unit/scale, a
-     "not-disclosed" case mis-reported as a number, etc.
+     "not-disclosed" case mis-reported as a number, etc. The Verifier runs
+     on a deliberately different model than the Extractor
+     (`Settings.llm_verifier_model`, `backend/arp/llm/factory.py::
+     build_verifier_llm_client` — defaults to `claude-opus-5` against the
+     Extractor's `claude-sonnet-5`) — a Verifier on identical weights can
+     share the Extractor's blind spots and repeat its mistake instead of
+     catching it, which an adversarial *prompt* alone doesn't fix.
 
 3. **Schema-first structured output.** Every agent call is a forced
    tool-use call against a Pydantic model's JSON schema
@@ -185,6 +191,37 @@ disclosure-completeness score.
    (`theme.json`, the universe path, and any revenue-catalogue mapping) --
    no need to redo already-completed companies or re-supply the original
    inputs by hand.
+
+6. **Provenance + a golden-set regression test, not "trust the latest
+   prompt."** Every `ExtractedField`/`CompanyFinancialsRecord` carries a
+   `provenance` block (`backend/arp/schemas/common.py::ProvenanceInfo`):
+   which model extracted it, which model verified it, and a content hash
+   of each one's system prompt (`backend/arp/llm/langchain_client.py`,
+   computed automatically from the prompt text, so it changes the moment
+   the prompt does — never a hand-maintained version number that can go
+   stale). This makes a later prompt or model change detectable against
+   already-persisted output instead of silently blending pipeline
+   versions. `backend/arp/golden_set/` bundles a small set of manually
+   verified (evidence, correct answer) cases and runs them through the
+   real extractor → verifier → grounding pipeline (`arp golden-set run`)
+   — intended to run before a prompt or model change reaches a real
+   batch, since a regression caught there is far cheaper than one first
+   noticed in the review queue at 4,000-company scale.
+
+7. **Structured facts before LLM extraction, everywhere it's available —
+   not just for the revenue/CapEx catalogue.** SEC's XBRL companyfacts API
+   (`backend/arp/ingestion/xbrl.py`) is queried for CapEx/R&D totals ahead
+   of the LLM pipeline for EDGAR filers (`Settings.xbrl_facts_enabled`,
+   on by default, no configuration needed — a free, no-key SEC endpoint).
+   When SEC's own machine-tagged figure is present, it replaces the LLM's
+   read of prose outright (`financials_pipeline.py::_overlay_xbrl_facts`)
+   — the same "a hard disclosed number is never second-guessed by a
+   categorical LLM judgment" precedence the revenue/CapEx cascade below
+   already applies, extended to the structured data SEC filers themselves
+   already publish. Segment-level figures and the plain-language
+   description of what CapEx/R&D is going toward still always go through
+   the LLM pipeline, since XBRL tagging isn't standardized enough across
+   filers for those.
 
 ## The indirect (input-output) exposure tier
 
@@ -547,6 +584,40 @@ flattens the result into one CSV row per activity
 (`activity_id, activity_name, isic_codes, nace_codes, naics_codes,
 sic_codes, gics_codes, gics_labels, gics_rationale, unmapped_isic_codes`)
 for use outside the tool.
+
+## Hybrid retrieval and the optional Postgres/pgvector store
+
+`select_relevant_chunks` (`backend/arp/retrieval/select_evidence.py`)
+defaults to fusing BM25 with a local, multilingual embedding model
+(`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` --
+`backend/arp/retrieval/embeddings.py`) via reciprocal rank fusion, on by
+default (`Settings.hybrid_retrieval_enabled`). Pure keyword/BM25 matching
+misses the case a company describes a theme or field in vocabulary its
+seed keywords don't cover (e.g. "e-mobility transition" vs. seed keyword
+"electrification"), and a fixed English-only embedding model couldn't rank
+DE-language disclosures meaningfully at all. Set the flag `false` to fall
+back to the old pure-BM25 behavior (e.g. to reproduce a prior run exactly).
+Transition Plan Assessment stays BM25-only regardless of this flag --
+`backend/arp/transition_plan/indicator_graph.py` -- to keep its
+replication of the source paper's retrieval behavior exact (see above).
+
+Every store in this system is file-based by default. An **opt-in**
+Postgres/pgvector backend (`backend/arp/storage/postgres*.py`,
+`Settings.postgres_dsn`) is available for exactly two places a relational/
+vector engine earns its cost at this system's scale: Portfolio Risk &
+Exposure Monitoring's holdings (`PostgresPortfolioStore` --
+`aggregate_market_value_eur` does a real three-way join across holdings x
+securities x companies, grouped by sector/issuer/portfolio, in one SQL
+query instead of loading every JSONL snapshot into Python) and the
+hybrid-retrieval chunk-embeddings cache (`PgVectorEmbeddingsStore`, the
+same two-method interface as the default SQLite cache, so it's a drop-in
+swap with no changes anywhere hybrid retrieval is wired up). Every other
+store -- run manifests, review queues, engagement/voting audit trails --
+stays file-based JSONL regardless of whether Postgres is configured: an
+append-only file is simpler to keep fully auditable than a table with
+`UPDATE`s, and none of those stores have the multi-way join access pattern
+that would justify a relational engine's added operational cost. `arp db
+init-postgres` creates the `vector` extension and every table, idempotently.
 
 ## What's deliberately out of scope
 

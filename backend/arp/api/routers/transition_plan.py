@@ -45,7 +45,7 @@ async def start_transition_plan_run(
     def _create() -> str:
         return create_transition_plan_run(companies, settings, run_store)
 
-    async def _run(run_id: str, llm) -> None:
+    async def _run(run_id: str, llm, verifier_llm) -> None:
         await execute_transition_plan_run(
             run_id, companies, llm=llm, registry=registry, settings=settings, run_store=run_store
         )

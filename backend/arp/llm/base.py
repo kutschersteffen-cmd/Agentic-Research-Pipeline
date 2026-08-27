@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -13,6 +13,12 @@ class LLMUsage(BaseModel):
     output_tokens: int = 0
     cached: bool = False
     attempts: int = 1
+    model: str = Field(default="", description="Model id that produced this call, for cost accounting and provenance.")
+    prompt_version: str = Field(
+        default="",
+        description="Short hash of the system prompt used, so a later prompt edit is detectable against "
+        "previously persisted output instead of silently blending old and new prompt versions.",
+    )
 
 
 class LLMClient(ABC):

@@ -40,6 +40,7 @@ class MatchState(TypedDict):
     documents: list[SourceDocument]
     documents_by_id: dict[str, SourceDocument]
     llm: LLMClient
+    verifier_llm: LLMClient | None
     settings: Settings
     indirect_model: LeontiefModel | None
     revenue_resolver: RevenueResolverContext | None
@@ -76,6 +77,7 @@ async def _resolve_revenue(state: MatchState) -> dict:
         documents=state["documents"],
         ctx=revenue_resolver,
         llm=state["llm"],
+        verifier_llm=state["verifier_llm"],
     )
     return {"revenue_exposure": revenue_exposure, "usages": state["usages"] + [usage]}
 
@@ -130,15 +132,13 @@ async def _gather_evidence(state: MatchState) -> dict:
 
     content_store = None
     if settings.hybrid_retrieval_enabled:
-        # Opt-in and off by default, so this store is only ever
-        # constructed on the path that's actually going to use it -- a
-        # cheap connect + idempotent CREATE IF NOT EXISTS, not a
-        # long-lived singleton (the same reasoning as
-        # LocalFileDocumentSource's content_store, just constructed
-        # closer to where it's used since this graph node has no DI).
-        from arp.storage.document_store import DocumentContentStore
+        # Opt-in, so this store is only ever constructed on the path
+        # that's actually going to use it -- see
+        # arp/retrieval/content_store_factory.py for the SQLite-vs-
+        # pgvector backend choice (Settings.embeddings_backend).
+        from arp.retrieval.content_store_factory import build_hybrid_content_store
 
-        content_store = DocumentContentStore(settings.document_store_dir, enabled=settings.document_cache_enabled)
+        content_store = build_hybrid_content_store(settings)
 
     evidence = select_relevant_chunks(
         all_chunks,
@@ -272,6 +272,7 @@ async def match_company_activity(
     documents: list[SourceDocument],
     documents_by_id: dict[str, SourceDocument],
     llm: LLMClient,
+    verifier_llm: LLMClient | None = None,
     settings: Settings,
     indirect_model: LeontiefModel | None = None,
     revenue_resolver: RevenueResolverContext | None = None,
@@ -291,6 +292,7 @@ async def match_company_activity(
         "documents": documents,
         "documents_by_id": documents_by_id,
         "llm": llm,
+        "verifier_llm": verifier_llm or llm,
         "settings": settings,
         "indirect_model": indirect_model,
         "revenue_resolver": revenue_resolver,

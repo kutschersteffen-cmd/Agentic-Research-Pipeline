@@ -11,6 +11,48 @@ Abgleich: welche Entscheidungen des Vorschlags decken sich mit dem
 Ist-Zustand, wo geht die bestehende Implementierung über den Vorschlag
 hinaus, und wo benennt der Vorschlag echte, noch offene Lücken.
 
+> **Update:** Die sechs in Abschnitt 5 priorisierten Empfehlungen sind
+> inzwischen umgesetzt:
+>
+> 1. **Verifier-Modell entkoppelt** — `Settings.llm_verifier_model`
+>    (`backend/arp/config.py`), `build_verifier_llm_client`
+>    (`backend/arp/llm/factory.py`), durchgereicht durch Extraction/
+>    Financials-Pipeline und die Revenue-Exposure-Kaskade innerhalb des
+>    Theme-Runs. Default: Verifier läuft auf `claude-opus-5`, Extraktor auf
+>    `claude-sonnet-5`.
+> 2. **Prompt-/Modellversionierung** — `LLMUsage.model`/`.prompt_version`
+>    (Hash des System-Prompts, `backend/arp/llm/langchain_client.py`),
+>    `ProvenanceInfo` auf `ExtractedField`/`CompanyFinancialsRecord`
+>    (`backend/arp/schemas/common.py`), `RunManifest.verifier_model`.
+> 3. **Golden-Set-Harness** — `backend/arp/golden_set/` (Schema, Runner,
+>    fünf kuratierte Fälle), CLI `arp golden-set run`.
+> 4. **XBRL-Fact-Loader** — `backend/arp/ingestion/xbrl.py` (SEC
+>    companyfacts API), als Path 0 vor der LLM-Extraktion in
+>    `financials_pipeline.py::_overlay_xbrl_facts` für CapEx/R&D-Totale.
+> 5. **Hybrid-Retrieval default an + multilinguales Modell** —
+>    `hybrid_retrieval_enabled` Default `true`
+>    (`backend/arp/config.py`), Embedding-Modell auf
+>    `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
+>    umgestellt (`backend/arp/retrieval/embeddings.py`), verdrahtet in
+>    `field_graph.py`/`financials_graph.py`/`match_graph.py`.
+> 6. **Split-Screen-Review statt Modal** — `SourcePanel`/`CitationList`
+>    (`frontend/src/components/`), docked statt `target="_blank"`, in
+>    `ExtractionBuilder.tsx`/`CompanyFinancials.tsx`/
+>    `TransitionPlanAssessment.tsx`.
+>
+> Zusätzlich, über die ursprüngliche Priorisierung hinaus: ein additiver,
+> opt-in **Postgres/pgvector-Store** (`backend/arp/storage/postgres*.py`)
+> für Portfolio-Holdings (echte Joins) und die Hybrid-Retrieval-
+> Embeddings-Cache — der Datei-basierte Run-/Review-Audit-Trail bleibt wie
+> in Abschnitt 4 begründet unverändert bestehen. Details:
+> `arp db init-postgres`, `ARP_POSTGRES_DSN`/`ARP_PORTFOLIO_BACKEND`/
+> `ARP_EMBEDDINGS_BACKEND` im README.
+>
+> Bewusst nicht umgesetzt (weiterhin in Abschnitt 3.4 begründet): Self-
+> Consistency (3 parallele Läufe) als Ersatz für das bestehende Extractor/
+> Verifier-Paar, und Temporal/Prefect als Ersatz für den `asyncio`-
+> Batch-Runner.
+
 ## 1. Layer-Mapping: Vorschlag → Ist-Zustand
 
 | Vorschlag | Ist-Zustand | Bewertung |

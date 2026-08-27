@@ -55,9 +55,16 @@ async def start_extraction_run(
     def _create() -> str:
         return create_extraction_run(schema, companies, settings, run_store)
 
-    async def _run(run_id: str, llm) -> None:
+    async def _run(run_id: str, llm, verifier_llm) -> None:
         await execute_extraction_run(
-            run_id, schema, companies, llm=llm, registry=registry, settings=settings, run_store=run_store
+            run_id,
+            schema,
+            companies,
+            llm=llm,
+            verifier_llm=verifier_llm,
+            registry=registry,
+            settings=settings,
+            run_store=run_store,
         )
 
     run_id = schedule_llm_run(create_fn=_create, run=_run)

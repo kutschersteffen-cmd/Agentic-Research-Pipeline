@@ -17,12 +17,14 @@ from arp.engagement.triggers import ControversySignal, StaticControversySource, 
 from arp.extraction.pipeline import run_extraction
 from arp.extraction.schema_builder import draft_schema
 from arp.extraction.financials_pipeline import run_financials_extraction
+from arp.golden_set.runner import load_cases as load_golden_set_cases, run_golden_set
 from arp.transition_plan.indicators import load_indicators
 from arp.transition_plan.pipeline import run_transition_plan_assessment
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
-from arp.llm.factory import build_llm_client
+from arp.ingestion.xbrl import XbrlFactSource
+from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.research.activity_generator import build_theme, build_theme_industry_anchored
 from arp.research.indirect_exposure.core_sectors import classify_theme_core_sectors
 from arp.research.indirect_exposure.factory import build_leontief_model
@@ -58,6 +60,7 @@ from arp.schemas.thematic import ThemeDefinition
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.portfolio_store_factory import build_portfolio_store
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.universe import load_company_universe
@@ -79,6 +82,8 @@ portfolio_app = typer.Typer(help="Portfolio holdings aggregation, analytics, and
 climate_app = typer.Typer(help="Portfolio climate analytics: WACI, financed emissions, coverage.")
 documents_app = typer.Typer(help="Operator surface for the document content cache (arp/storage/document_store.py).")
 identity_app = typer.Typer(help="Agentic company identity resolution: resolve bare company names to website/CIK before discovery.")
+golden_set_app = typer.Typer(help="Golden-set regression testing for the extraction pipeline -- run before every prompt/model change reaches a real batch.")
+db_app = typer.Typer(help="Opt-in Postgres/pgvector store setup (arp/storage/postgres*.py). Requires ARP_POSTGRES_DSN and the `postgres` extra.")
 app.add_typer(theme_app, name="theme")
 app.add_typer(taxonomy_app, name="taxonomy")
 app.add_typer(extract_app, name="extract")
@@ -93,6 +98,8 @@ app.add_typer(portfolio_app, name="portfolio")
 app.add_typer(climate_app, name="climate")
 app.add_typer(documents_app, name="documents")
 app.add_typer(identity_app, name="identity")
+app.add_typer(golden_set_app, name="golden-set")
+app.add_typer(db_app, name="db")
 
 
 def _engagement_store() -> EngagementStore:
@@ -127,6 +134,15 @@ def _registry() -> DocumentSourceRegistry:
     )
 
 
+def _xbrl_source() -> XbrlFactSource:
+    settings = get_settings()
+    edgar = EdgarDocumentSource(
+        settings.edgar_user_agent, settings.cache_dir, content_store=_document_content_store(),
+        submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
+    )
+    return XbrlFactSource(edgar, settings.cache_dir, ttl_hours=settings.xbrl_facts_ttl_hours)
+
+
 def _run_store() -> RunStore:
     return RunStore(get_settings().runs_dir)
 
@@ -135,8 +151,8 @@ def _taxonomy_store() -> TaxonomyStore:
     return TaxonomyStore(get_settings().taxonomies_dir)
 
 
-def _portfolio_store() -> PortfolioStore:
-    return PortfolioStore(get_settings().portfolios_dir)
+def _portfolio_store():
+    return build_portfolio_store(get_settings())
 
 
 def _portfolio_directories(store: PortfolioStore) -> tuple[dict[str, SecurityRef], dict[str, CompanyRef]]:
@@ -205,6 +221,7 @@ def theme_run(
 ) -> None:
     settings = get_settings()
     llm = build_llm_client(settings)
+    verifier_llm = build_verifier_llm_client(settings)
     if theme_file is not None:
         theme = ThemeDefinition.model_validate_json(theme_file.read_text())
     elif taxonomy_id is not None:
@@ -241,6 +258,7 @@ def theme_run(
             theme,
             companies,
             llm=llm,
+            verifier_llm=verifier_llm,
             registry=_registry(),
             settings=settings,
             run_store=_run_store(),
@@ -263,8 +281,13 @@ def theme_resume(run_id: str) -> None:
     automatically."""
     settings = get_settings()
     llm = build_llm_client(settings)
+    verifier_llm = build_verifier_llm_client(settings)
     try:
-        run_id = asyncio.run(resume_theme_run(run_id, llm=llm, registry=_registry(), settings=settings, run_store=_run_store()))
+        run_id = asyncio.run(
+            resume_theme_run(
+                run_id, llm=llm, verifier_llm=verifier_llm, registry=_registry(), settings=settings, run_store=_run_store()
+            )
+        )
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
@@ -569,11 +592,14 @@ def extract_run(
 ) -> None:
     settings = get_settings()
     llm = build_llm_client(settings)
+    verifier_llm = build_verifier_llm_client(settings)
     schema = DataPointSchema.model_validate_json(schema_file.read_text())
     companies = load_company_universe(universe)
     typer.echo(f"Extracting schema '{schema.name}' ({len(schema.fields)} fields) across {len(companies)} companies...")
     run_id = asyncio.run(
-        run_extraction(schema, companies, llm=llm, registry=_registry(), settings=settings, run_store=_run_store())
+        run_extraction(
+            schema, companies, llm=llm, verifier_llm=verifier_llm, registry=_registry(), settings=settings, run_store=_run_store()
+        )
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 
@@ -592,12 +618,77 @@ def extract_financials_run(
     controls as `extract run`."""
     settings = get_settings()
     llm = build_llm_client(settings)
+    verifier_llm = build_verifier_llm_client(settings)
     companies = load_company_universe(universe)
     typer.echo(f"Extracting segments/CapEx/R&D across {len(companies)} companies...")
     run_id = asyncio.run(
-        run_financials_extraction(companies, llm=llm, registry=_registry(), settings=settings, run_store=_run_store())
+        run_financials_extraction(
+            companies,
+            llm=llm,
+            verifier_llm=verifier_llm,
+            registry=_registry(),
+            settings=settings,
+            run_store=_run_store(),
+            xbrl_source=_xbrl_source() if settings.xbrl_facts_enabled else None,
+        )
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
+
+
+@golden_set_app.command("run")
+def golden_set_run(
+    cases_file: Path = typer.Option(
+        None, "--cases", help="Custom golden-set JSON file (same shape as the bundled set). Defaults to the bundled set."
+    ),
+    fail_on_regression: bool = typer.Option(
+        True, help="Exit with a non-zero status if any case fails -- for wiring into CI before a prompt/model change ships."
+    ),
+) -> None:
+    """Runs the golden set (manually verified extractions) through the real
+    extractor -> independent-verifier -> programmatic-grounding pipeline
+    and reports pass/fail per case. Run this before any change to an
+    extraction prompt or to llm_model/llm_verifier_model reaches a real
+    batch -- a regression caught here is far cheaper than one discovered
+    downstream in a 4000-company review queue."""
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    verifier_llm = build_verifier_llm_client(settings)
+    cases = load_golden_set_cases(cases_file)
+    typer.echo(f"Running {len(cases)} golden-set case(s) against {settings.llm_model} / verifier {settings.llm_verifier_model}...")
+    report = asyncio.run(
+        run_golden_set(
+            cases,
+            llm=llm,
+            verifier_llm=verifier_llm,
+            fuzzy_threshold=settings.grounding_fuzzy_threshold,
+            confidence_review_threshold=settings.confidence_review_threshold,
+        )
+    )
+    for result in report.results:
+        status = "PASS" if result.passed else "FAIL"
+        typer.echo(f"[{status}] {result.case_id}: {result.description}")
+        if not result.passed:
+            typer.echo(f"       {result.detail}")
+    typer.echo(f"\n{report.passed}/{report.total} passed (extractor={report.extractor_model}, verifier={report.verifier_model}).")
+    if fail_on_regression and not report.all_passed:
+        raise typer.Exit(1)
+
+
+@db_app.command("init-postgres")
+def db_init_postgres() -> None:
+    """Creates the pgvector extension and every table the opt-in Postgres
+    store defines (portfolios/securities/companies/holdings/security
+    resolutions/chunk_embeddings), idempotently. Run once against a fresh
+    database before setting ARP_PORTFOLIO_BACKEND=postgres and/or
+    ARP_EMBEDDINGS_BACKEND=postgres."""
+    settings = get_settings()
+    if not settings.postgres_dsn:
+        typer.echo("ARP_POSTGRES_DSN is not set -- nothing to initialize.", err=True)
+        raise typer.Exit(1)
+    from arp.storage.postgres import ensure_schema
+
+    ensure_schema(settings.postgres_dsn)
+    typer.echo(f"Postgres schema ready at {settings.postgres_dsn}.")
 
 
 @transition_plan_app.command("indicators")

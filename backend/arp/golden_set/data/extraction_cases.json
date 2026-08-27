@@ -1,0 +1,87 @@
+[
+  {
+    "case_id": "green_capex_clean_number",
+    "description": "A single, unambiguous disclosed figure -- the baseline case every extractor must get right.",
+    "company_name": "Acme Renewables Inc.",
+    "field": {
+      "name": "green_capex_fy2025",
+      "description": "Capital expenditure the company classifies as 'green' or sustainability-linked for fiscal year 2025, in USD millions.",
+      "data_type": "currency_amount",
+      "unit": "USD millions",
+      "extraction_instructions": "Extract the exact figure the company itself labels green/sustainable capex for FY2025. Do not sum unrelated capex line items.",
+      "seed_keywords": ["green capex", "sustainable capital expenditure"]
+    },
+    "document_text": "Item 7. Management's Discussion and Analysis.\n\nDuring fiscal year 2025, the Company invested $128.4 million in green capital expenditures, primarily directed toward solar generation capacity and battery storage retrofits. Total capital expenditures for the period were $340.0 million.",
+    "doc_type": "10-K",
+    "expected_value": 128.4,
+    "value_tolerance": 0.05
+  },
+  {
+    "case_id": "revenue_share_percentage",
+    "description": "A stated percentage, not a figure requiring computation -- checks the extractor reports what's stated rather than deriving a share from unrelated totals.",
+    "company_name": "Meridian Components AG",
+    "field": {
+      "name": "ev_component_revenue_share",
+      "description": "The percentage of total revenue the company attributes to electric-vehicle components, as explicitly disclosed.",
+      "data_type": "percentage",
+      "unit": "%",
+      "extraction_instructions": "Extract only an explicitly stated percentage. If only a dollar figure and no percentage is given, leave the value null -- never compute a percentage from unrelated totals.",
+      "seed_keywords": ["electric vehicle", "EV components", "revenue share"]
+    },
+    "document_text": "Segment overview: our Mobility Electronics segment, which produces power inverters and battery management systems for electric vehicles, accounted for approximately 34% of group revenue in the period, up from 29% a year earlier.",
+    "doc_type": "sustainability_report",
+    "expected_value": 34,
+    "value_tolerance": 0.5
+  },
+  {
+    "case_id": "not_disclosed_is_null_not_estimated",
+    "description": "The field is genuinely absent from the evidence -- the extractor must report null/not-disclosed, never infer or back into a number from adjacent figures.",
+    "company_name": "Sable Industrial Holdings",
+    "field": {
+      "name": "green_capex_fy2025",
+      "description": "Capital expenditure the company classifies as 'green' or sustainability-linked for fiscal year 2025, in USD millions.",
+      "data_type": "currency_amount",
+      "unit": "USD millions",
+      "extraction_instructions": "Extract the exact figure the company itself labels green/sustainable capex for FY2025. If the company does not break out a green/sustainable capex figure at all, report not disclosed -- never estimate one from total capex or segment spending.",
+      "seed_keywords": ["green capex", "sustainable capital expenditure"]
+    },
+    "document_text": "Item 7. Management's Discussion and Analysis.\n\nTotal capital expenditures for fiscal year 2025 were $212.7 million, consisting primarily of facility expansion and equipment upgrades across our industrial fastener and machined-components divisions. The Company does not currently disaggregate capital expenditure by environmental or sustainability criteria.",
+    "doc_type": "10-K",
+    "expected_value": null,
+    "expect_not_disclosed": true
+  },
+  {
+    "case_id": "unit_scale_trap_thousands_vs_millions",
+    "description": "The filing states the figure in thousands while the field expects millions -- checks the extractor doesn't silently misplace a decimal by copying the raw digits without the stated scale.",
+    "company_name": "Northfield Sensors Corp.",
+    "field": {
+      "name": "rnd_focus_capex_fy2025",
+      "description": "Research & development capital expenditure for fiscal year 2025, in USD millions.",
+      "data_type": "currency_amount",
+      "unit": "USD millions",
+      "extraction_instructions": "Extract the R&D capex figure for FY2025, normalized to USD millions. Pay close attention to the unit/scale actually stated (thousands vs millions) -- report raw_value_text with the original scale so the figure can be checked.",
+      "seed_keywords": ["research and development capital expenditure", "R&D capex"]
+    },
+    "document_text": "Note 6 -- Property, Plant and Equipment (amounts in thousands of U.S. dollars, unless otherwise stated)\n\nDuring fiscal 2025 the Company incurred research and development capital expenditure of $18,650 thousand, primarily for laboratory instrumentation and pilot-line tooling.",
+    "doc_type": "10-K",
+    "expected_value": 18.65,
+    "value_tolerance": 0.05
+  },
+  {
+    "case_id": "conflicting_sources_prefers_most_recent",
+    "description": "Two different figures for the same metric appear in the evidence (an interim estimate later revised) -- checks the extractor follows the tie-break rule instead of averaging or picking arbitrarily.",
+    "company_name": "Halden Materials Group",
+    "field": {
+      "name": "green_capex_fy2025",
+      "description": "Capital expenditure the company classifies as 'green' or sustainability-linked for fiscal year 2025, in USD millions.",
+      "data_type": "currency_amount",
+      "unit": "USD millions",
+      "extraction_instructions": "Extract the exact figure the company itself labels green/sustainable capex for FY2025. If multiple figures are present for the same period, prefer the most recent/final disclosure and flag the conflict.",
+      "seed_keywords": ["green capex", "sustainable capital expenditure"]
+    },
+    "document_text": "Q3 2025 earnings call transcript: 'We currently estimate full-year green capital expenditure of approximately $60 million.'\n\n10-K, filed later, fiscal year 2025 (final, audited): green capital expenditures for the year totaled $64.2 million, reflecting additional investment in the fourth quarter.",
+    "doc_type": "10-K",
+    "expected_value": 64.2,
+    "value_tolerance": 0.1
+  }
+]

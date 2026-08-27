@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 from pathlib import Path
 
@@ -83,6 +84,7 @@ class LangChainAnthropicClient(LLMClient):
         max_tokens: int = 8192,
     ) -> tuple[T, LLMUsage]:
         schema = output_model.model_json_schema()
+        prompt_version = hashlib.sha256(system.encode()).hexdigest()[:12]
         cache_key = self.cache.make_key(
             model=self.model,
             system=system,
@@ -95,7 +97,10 @@ class LangChainAnthropicClient(LLMClient):
         if cached is not None:
             try:
                 instance = output_model.model_validate(cached["result"])
-                return instance, LLMUsage(**{**cached["usage"], "cached": True})
+                usage_fields = {**cached["usage"], "cached": True}
+                usage_fields.setdefault("model", self.model)
+                usage_fields.setdefault("prompt_version", prompt_version)
+                return instance, LLMUsage(**usage_fields)
             except ValidationError:
                 pass  # cache entry stale/corrupt; fall through to a live call
 
@@ -144,7 +149,13 @@ class LangChainAnthropicClient(LLMClient):
 
             try:
                 instance = output_model.model_validate(tool_call["args"])
-                usage = LLMUsage(input_tokens=total_input_tokens, output_tokens=total_output_tokens, attempts=attempt)
+                usage = LLMUsage(
+                    input_tokens=total_input_tokens,
+                    output_tokens=total_output_tokens,
+                    attempts=attempt,
+                    model=self.model,
+                    prompt_version=prompt_version,
+                )
                 self.cache.set(
                     cache_key,
                     {"result": instance.model_dump(mode="json"), "usage": usage.model_dump(exclude={"cached"})},

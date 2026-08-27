@@ -18,9 +18,10 @@ logger = logging.getLogger(__name__)
 
 
 class ExtractionRecordResult:
-    def __init__(self, record: ExtractionRecord, usage: LLMUsage) -> None:
+    def __init__(self, record: ExtractionRecord, usage: LLMUsage, cost_usd: float) -> None:
         self.record = record
         self.usage = usage
+        self.cost_usd = cost_usd
 
 
 async def _extract_company(
@@ -29,13 +30,17 @@ async def _extract_company(
     *,
     registry: DocumentSourceRegistry,
     llm: LLMClient,
+    verifier_llm: LLMClient | None = None,
     settings: Settings,
     documents: list[SourceDocument] | None = None,
 ) -> ExtractionRecordResult:
     """`documents`, when supplied, skips the registry fetch -- for callers
     (like the revenue-exposure resolver) that already fetched a company's
     documents once and are running several ad hoc single-field schemas
-    against the same company, so a fresh fetch per field isn't repeated."""
+    against the same company, so a fresh fetch per field isn't repeated.
+
+    `verifier_llm` defaults to `llm` only for callers that don't supply a
+    separate model (see `extract_one_field`)."""
     if documents is None:
         documents = await registry.fetch_all(company)
     documents_by_id = {d.doc_id: d for d in documents}
@@ -50,6 +55,8 @@ async def _extract_company(
             documents=documents,
             documents_by_id=documents_by_id,
             llm=llm,
+            verifier_llm=verifier_llm,
+            settings=settings,
             fuzzy_threshold=settings.grounding_fuzzy_threshold,
             confidence_review_threshold=settings.confidence_review_threshold,
         )
@@ -71,7 +78,12 @@ async def _extract_company(
         overall_confidence=overall_confidence,
         needs_review=any_needs_review,
     )
-    return ExtractionRecordResult(record, combine_usage(*usages) if usages else LLMUsage())
+    # Cost is estimated per-call against the model that actually produced
+    # each usage (extractor and verifier can now differ), then summed --
+    # not against a single settings.llm_model, which would misprice every
+    # verifier call once llm_verifier_model diverges from llm_model.
+    cost = sum(estimate_cost_usd(u.model or settings.llm_model, u) for u in usages)
+    return ExtractionRecordResult(record, combine_usage(*usages) if usages else LLMUsage(), cost)
 
 
 def create_extraction_run(
@@ -83,6 +95,7 @@ def create_extraction_run(
         {"schema_id": schema.schema_id, "schema_name": schema.name},
         len(companies),
         model=settings.llm_model,
+        verifier_model=settings.llm_verifier_model,
     )
     (run_store.run_dir(manifest.run_id) / "schema.json").write_text(schema.model_dump_json(indent=2))
     return manifest.run_id
@@ -94,6 +107,7 @@ async def execute_extraction_run(
     companies: list[CompanyRef],
     *,
     llm: LLMClient,
+    verifier_llm: LLMClient | None = None,
     registry: DocumentSourceRegistry,
     settings: Settings,
     run_store: RunStore,
@@ -109,14 +123,13 @@ async def execute_extraction_run(
         result.record.run_id = run_id
         if result.record.needs_review:
             queue_for_review(run_store, run_id, company.company_id, result.record.model_dump(mode="json"))
-        cost = estimate_cost_usd(settings.llm_model, result.usage)
         job_manager.record_progress(
             run_id,
             completed_delta=1,
             review_delta=1 if result.record.needs_review else 0,
             input_tokens_delta=result.usage.input_tokens,
             output_tokens_delta=result.usage.output_tokens,
-            cost_delta_usd=cost,
+            cost_delta_usd=result.cost_usd,
         )
 
     def _on_error(company: CompanyRef, exc: Exception) -> None:
@@ -127,7 +140,9 @@ async def execute_extraction_run(
         return current is not None and current.cancel_requested
 
     async def _worker(company: CompanyRef) -> ExtractionRecordResult:
-        result = await _extract_company(company, schema, registry=registry, llm=llm, settings=settings)
+        result = await _extract_company(
+            company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings
+        )
         result.record.run_id = run_id
         return result
 
@@ -153,6 +168,7 @@ async def run_extraction(
     companies: list[CompanyRef],
     *,
     llm: LLMClient,
+    verifier_llm: LLMClient | None = None,
     registry: DocumentSourceRegistry,
     settings: Settings,
     run_store: RunStore,
@@ -161,5 +177,5 @@ async def run_extraction(
     callers such as the CLI, where blocking until completion is expected."""
     run_id = create_extraction_run(schema, companies, settings, run_store)
     return await execute_extraction_run(
-        run_id, schema, companies, llm=llm, registry=registry, settings=settings, run_store=run_store
+        run_id, schema, companies, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store
     )

@@ -27,9 +27,10 @@ logger = logging.getLogger(__name__)
 
 
 class CompanyMatchesResult:
-    def __init__(self, matches: list[CompanyMatch], usage: LLMUsage) -> None:
+    def __init__(self, matches: list[CompanyMatch], usage: LLMUsage, cost_usd: float) -> None:
         self.matches = matches
         self.usage = usage
+        self.cost_usd = cost_usd
 
 
 async def _match_company(
@@ -38,6 +39,7 @@ async def _match_company(
     *,
     registry: DocumentSourceRegistry,
     llm: LLMClient,
+    verifier_llm: LLMClient | None = None,
     settings: Settings,
     indirect_model: LeontiefModel | None = None,
     revenue_resolver: RevenueResolverContext | None = None,
@@ -65,6 +67,7 @@ async def _match_company(
             documents=documents,
             documents_by_id=documents_by_id,
             llm=llm,
+            verifier_llm=verifier_llm,
             settings=settings,
             indirect_model=indirect_model,
             revenue_resolver=revenue_resolver,
@@ -73,7 +76,12 @@ async def _match_company(
         matches.append(match)
         usages.extend(activity_usages)
 
-    return CompanyMatchesResult(matches, combine_usage(*usages) if usages else LLMUsage())
+    # Per-usage-model cost (see extraction/pipeline.py for the same fix):
+    # usages can now mix llm_model (Advocate/Opposing/Adjudicator, ISIC
+    # resolution) and llm_verifier_model (the revenue-exposure resolver's
+    # path-2 extraction fallback) calls within one company.
+    cost = sum(estimate_cost_usd(u.model or settings.llm_model, u) for u in usages)
+    return CompanyMatchesResult(matches, combine_usage(*usages) if usages else LLMUsage(), cost)
 
 
 def create_theme_run(
@@ -109,6 +117,7 @@ def create_theme_run(
         },
         len(companies),
         model=settings.llm_model,
+        verifier_model=settings.llm_verifier_model,
     )
     run_dir = run_store.run_dir(manifest.run_id)
     (run_dir / "theme.json").write_text(theme.model_dump_json(indent=2))
@@ -117,7 +126,15 @@ def create_theme_run(
     return manifest.run_id
 
 
-async def resume_theme_run(run_id: str, *, llm: LLMClient, registry: DocumentSourceRegistry, settings: Settings, run_store: RunStore) -> str:
+async def resume_theme_run(
+    run_id: str,
+    *,
+    llm: LLMClient,
+    verifier_llm: LLMClient | None = None,
+    registry: DocumentSourceRegistry,
+    settings: Settings,
+    run_store: RunStore,
+) -> str:
     """Reconstructs and re-invokes execute_theme_run for an existing run_id
     -- for a run interrupted mid-batch (process restart), one that ended
     PARTIALLY_COMPLETED/FAILED, or one the user cancelled and wants to
@@ -154,7 +171,7 @@ async def resume_theme_run(run_id: str, *, llm: LLMClient, registry: DocumentSou
     run_store.save_manifest(manifest)
 
     return await execute_theme_run(
-        run_id, theme, companies, llm=llm, registry=registry, settings=settings, run_store=run_store,
+        run_id, theme, companies, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store,
         indirect_model=indirect_model, revenue_resolver=revenue_resolver,
     )
 
@@ -165,6 +182,7 @@ async def execute_theme_run(
     companies: list[CompanyRef],
     *,
     llm: LLMClient,
+    verifier_llm: LLMClient | None = None,
     registry: DocumentSourceRegistry,
     settings: Settings,
     run_store: RunStore,
@@ -197,14 +215,13 @@ async def execute_theme_run(
                     f"{company.company_id}:{match.activity_id}",
                     match.model_dump(mode="json"),
                 )
-        cost = estimate_cost_usd(settings.llm_model, result.usage)
         job_manager.record_progress(
             run_id,
             completed_delta=1,
             review_delta=sum(1 for m in result.matches if m.flagged_for_review),
             input_tokens_delta=result.usage.input_tokens,
             output_tokens_delta=result.usage.output_tokens,
-            cost_delta_usd=cost,
+            cost_delta_usd=result.cost_usd,
         )
 
     def _on_error(company: CompanyRef, exc: Exception) -> None:
@@ -218,7 +235,14 @@ async def execute_theme_run(
         companies,
         item_key=lambda c: c.company_id,
         worker=lambda c: _match_company(
-            c, theme, registry=registry, llm=llm, settings=settings, indirect_model=indirect_model, revenue_resolver=revenue_resolver
+            c,
+            theme,
+            registry=registry,
+            llm=llm,
+            verifier_llm=verifier_llm,
+            settings=settings,
+            indirect_model=indirect_model,
+            revenue_resolver=revenue_resolver,
         ),
         results_path=run_store.results_path(run_id),
         errors_path=run_store.errors_path(run_id),
@@ -238,6 +262,7 @@ async def run_thematic_universe(
     companies: list[CompanyRef],
     *,
     llm: LLMClient,
+    verifier_llm: LLMClient | None = None,
     registry: DocumentSourceRegistry,
     settings: Settings,
     run_store: RunStore,
@@ -268,6 +293,7 @@ async def run_thematic_universe(
         theme,
         companies,
         llm=llm,
+        verifier_llm=verifier_llm,
         registry=registry,
         settings=settings,
         run_store=run_store,
