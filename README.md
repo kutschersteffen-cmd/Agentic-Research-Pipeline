@@ -86,7 +86,13 @@ precision at scale (designed for up to ~4,000 companies per run).
    for the full mapping from paper to implementation.
 
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
-built on and exactly what each precision control catches.
+built on and exactly what each precision control catches, and
+[`docs/THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md`](docs/THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md)
+for a layer-by-layer comparison of this system against a proposed
+seven-layer target architecture (Postgres/pgvector, Temporal, per-role
+model tiering) — what already exceeds it, and which of its gaps
+(decorrelated critic model, XBRL ingestion, a golden set) are genuinely
+worth adopting.
 
 ## Architecture
 
