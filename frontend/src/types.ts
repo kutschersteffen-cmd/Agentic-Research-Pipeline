@@ -301,6 +301,8 @@ export interface IndicatorAssessment {
   grounded: boolean;
   confidence: number;
   needs_review: boolean;
+  verifier_notes?: string | null;
+  assessment_error: boolean;
 }
 
 export interface CategoryBreakdown {

@@ -56,6 +56,14 @@ class IndicatorAssessment(BaseModel):
     grounded: bool = Field(default=False)
     confidence: float = Field(ge=0.0, le=1.0, default=0.0)
     needs_review: bool = False
+    verifier_notes: str | None = None
+    assessment_error: bool = Field(
+        default=False,
+        description="True when the model never produced a schema-valid answer for this indicator after every "
+        "self-correction retry (see LangChainAnthropicClient.complete_structured), so `verdict` here is NA by "
+        "default rather than a real determination -- distinct from a genuine paper-defined NA. Always paired "
+        "with needs_review=True.",
+    )
 
 
 class CategoryBreakdown(BaseModel):
