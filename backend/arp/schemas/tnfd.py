@@ -162,11 +162,10 @@ class SectorMetricDefinition(NamedTuple):
     source: str
 
 
-# Registries populated only for sectors whose guidance PDF has been read in full
-# (oil & gas, metals & mining as of this schema version -- see tnfd_sources_config.yaml
-# sector_guidance.sectors for the full list of 16 sectors still needing registries).
-# An empty list for a sector means "not yet populated", not "no metrics exist" --
-# tnfd_aggregator.py only validates metric_no against sectors present here.
+# Registries populated per sector, at varying confidence -- see
+# SECTOR_REGISTRY_PROVENANCE below for which. An empty list/absent key for a
+# sector means "not yet populated", not "no metrics exist" -- tnfd_aggregator.py
+# only validates metric_no against sectors present here.
 SECTOR_METRIC_REGISTRY: dict[Sector, list[SectorMetricDefinition]] = {
     Sector.oil_and_gas: [
         SectorMetricDefinition("OG.C1.0", "Site location in Indigenous territories", True,
@@ -227,6 +226,49 @@ SECTOR_METRIC_REGISTRY: dict[Sector, list[SectorMetricDefinition]] = {
                                 "Response", "Strategy: policies, commitments & targets",
                                 "ICMM Water Reporting Guide (2nd ed.); ICMM (2017) Water Stewardship Position Statement"),
     ],
+    # PROVISIONAL -- see SECTOR_REGISTRY_PROVENANCE. Reconstructed from
+    # general knowledge of TNFD's "Additional guidance for Food and
+    # Agriculture" and the sector-standard sources it draws on (GRI 13,
+    # SASB Agricultural Products/Meat/Dairy, CDP Forests/Water, the
+    # Accountability Framework Initiative), NOT read from the primary PDF.
+    # metric_no values, exact indicator wording, and core/additional
+    # classification are best-effort and must be checked against TNFD's
+    # published guidance before being relied on for compliance decisions.
+    Sector.food_and_agriculture: [
+        SectorMetricDefinition("FA.C1.0", "Land area under management in or near sensitive/protected/high biodiversity-value locations", True,
+                                "Impact driver", "Land/freshwater/ocean-use change", "Adapted from GRI 13.3; SASB FB-AG-160a.2"),
+        SectorMetricDefinition("FA.C2.0", "Volume of water withdrawn and consumed in water-stressed areas", True,
+                                "Impact driver", "Freshwater-use change", "Adapted from SASB FB-AG-140a.1"),
+        SectorMetricDefinition("FA.C3.0", "Quantity of priority/hazardous pesticides used or sold", True,
+                                "Impact driver", "Pollution/pollution removal", "Adapted from SASB FB-AG-430a.2; GRI 13.6"),
+        SectorMetricDefinition("FA.A1.0", "Volume/percentage of production sourced from deforestation- and conversion-free areas", False,
+                                "Impact driver", "Land-use change",
+                                "Adapted from the Accountability Framework Initiative; CDP Forests"),
+        SectorMetricDefinition("FA.A2.0", "Fertilizer/nutrient application intensity (nitrogen/phosphorus)", False,
+                                "Impact driver", "Pollution/pollution removal", "Adapted from GRI 13.6"),
+        SectorMetricDefinition("FA.A3.0", "Soil health and erosion management practices", False,
+                                "Impact driver", "Resource use and replenishment", "Adapted from GRI 13"),
+        SectorMetricDefinition("FA.A4.0", "Adoption of biodiversity-supportive/regenerative farming practices", False,
+                                "Response", "Dependency/impact/risk/opportunity management: mitigation hierarchy",
+                                "Adapted from GRI 13; TNFD"),
+        SectorMetricDefinition("FA.A5.0", "Supplier screening/engagement on deforestation and land-conversion risk", False,
+                                "Response", "Dependency/impact/risk/opportunity management: mitigation hierarchy",
+                                "Adapted from the Accountability Framework Initiative; CDP Forests"),
+        SectorMetricDefinition("FA.A6.0", "Area under active habitat/ecosystem restoration or regeneration", False,
+                                "Response", "Dependency/impact/risk/opportunity management: mitigation hierarchy",
+                                "Adapted from GRI 101 Biodiversity (2024)"),
+    ],
+}
+
+# How each sector's SECTOR_METRIC_REGISTRY entry was sourced, so a reviewer
+# knows which registries are safe to trust as-is (read from the primary TNFD
+# guidance PDF in full) vs. which are a provisional reconstruction that still
+# needs verification against the primary source before compliance use.
+SECTOR_REGISTRY_PROVENANCE: dict[Sector, str] = {
+    Sector.oil_and_gas: "verified: read from the primary TNFD sector guidance PDF in full",
+    Sector.metals_and_mining: "verified: read from the primary TNFD sector guidance PDF in full",
+    Sector.food_and_agriculture: "PROVISIONAL: reconstructed from general domain knowledge, not read from "
+                                  "the primary TNFD sector guidance PDF -- verify before compliance use",
 }
 
 SECTOR_METRIC_NOS: dict[Sector, set[str]] = {

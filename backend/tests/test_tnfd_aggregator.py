@@ -116,6 +116,39 @@ def test_sector_metric_unregistered_sector_not_validated_against_registry():
     assert record.sector_metrics[0].review_flags == []
 
 
+def test_food_and_agriculture_sector_metric_known_registry_matches_cleanly():
+    # FA.C1.0 is core per the (provisional) food_and_agriculture registry,
+    # and the extractor agrees -- no registry-mismatch flags expected.
+    draft = _draft(
+        sector_metrics=[
+            SectorMetricDraft(
+                sector_name="food_and_agriculture", sector_guidance_status="final", sector_guidance_version="2023-10",
+                metric_no="FA.C1.0", is_core_sector_metric=True,
+                metric_name="Land area under management in or near sensitive locations",
+                citations=[_CITATION],
+            )
+        ]
+    )
+    record, _ = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
+
+    assert record.sector_metrics[0].review_flags == []
+
+
+def test_food_and_agriculture_sector_metric_no_not_in_registry_is_flagged():
+    draft = _draft(
+        sector_metrics=[
+            SectorMetricDraft(
+                sector_name="food_and_agriculture", sector_guidance_status="final", sector_guidance_version="2023-10",
+                metric_no="FA.NOTREAL.0", is_core_sector_metric=False, metric_name="Made-up metric",
+                citations=[_CITATION],
+            )
+        ]
+    )
+    record, _ = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
+
+    assert ReviewFlag.metric_no_not_in_registry in record.sector_metrics[0].review_flags
+
+
 def test_unmapped_sector_name_is_soft_flagged():
     draft = _draft(
         sector_metrics=[

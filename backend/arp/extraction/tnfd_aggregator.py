@@ -92,8 +92,9 @@ def _sector_review_flags(draft: SectorMetricDraft) -> list[ReviewFlag]:
         return flags
     registry = SECTOR_METRIC_REGISTRY.get(sector)
     if not registry:
-        # Registry not yet populated for this sector (only oil & gas and
-        # metals & mining are populated as of this schema version) -- can't
+        # Registry not yet populated for this sector (see
+        # schemas.tnfd.SECTOR_METRIC_REGISTRY / SECTOR_REGISTRY_PROVENANCE
+        # for which sectors are populated, and how reliably) -- can't
         # validate, so don't flag either way.
         return flags
     matches = [m for m in registry if m.metric_no == draft.metric_no]
