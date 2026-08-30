@@ -133,6 +133,27 @@ class Settings(BaseSettings):
     discovery_schedule_interval_hours: float = Field(default=24.0)
     discovery_schedule_universe_path: Path | None = Field(default=None)
 
+    # Emerging Themes Scanner ("Tool 0" -- arp/emerging_themes/). Ingests
+    # public news/filings/regulatory flow across a universe, clusters it
+    # with lineage tracking, and proposes bottom-up candidate themes into
+    # the taxonomy DRAFT/ratify workflow. Requires the `emerging_themes`
+    # extra (pip install -e ".[emerging_themes]").
+    emerging_themes_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".emerging_themes_state")
+    emerging_themes_schedule_enabled: bool = Field(default=False)
+    emerging_themes_schedule_interval_hours: float = Field(
+        default=168.0, description="Weekly by default -- matches the lineage-tracking window the Detect layer links periods across."
+    )
+    emerging_themes_schedule_universe_path: Path | None = Field(default=None)
+    emerging_themes_lookback_days: int = Field(default=14, description="How far back each Ingest pass looks for new mentions.")
+    emerging_themes_min_independent_sources: int = Field(
+        default=2, description="A cluster needs at least this many distinct source URLs before it can become a candidate."
+    )
+    emerging_themes_cluster_stability_reruns: int = Field(
+        default=3, description="Reseeded UMAP/HDBSCAN reruns for the pre-LLM cluster-stability gate; a cluster must survive most of them."
+    )
+    emerging_themes_min_cluster_size: int = Field(default=3, description="HDBSCAN min_cluster_size.")
+    emerging_themes_gdelt_max_records: int = Field(default=75, description="Per-query cap on GDELT DOC 2.0 API results.")
+
     # Agentic company identity resolution (arp/discovery/identity_*.py) --
     # a separate enrichment run, not part of the discovery crawl above.
     identity_resolution_confidence_threshold: float = Field(
@@ -189,6 +210,7 @@ class Settings(BaseSettings):
             self.discovery_state_dir,
             self.engagements_dir,
             self.ballots_dir,
+            self.emerging_themes_state_dir,
         ):
             d.mkdir(parents=True, exist_ok=True)
 

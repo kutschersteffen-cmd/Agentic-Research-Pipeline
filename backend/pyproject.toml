@@ -44,6 +44,23 @@ postgres = [
     "psycopg[binary]>=3.1",
     "pgvector>=0.3",
 ]
+# Emerging Themes Scanner (arp/emerging_themes/): embedding-based
+# clustering with lineage tracking across an entire investment universe's
+# public-source mention flow. Kept opt-in, same reasoning as `postgres`
+# above -- these are heavier ML deps (umap-learn/hdbscan pull in numba/
+# pynndescent/scikit-learn transitively) that the rest of this codebase
+# deliberately avoids for its default, always-on retrieval path.
+# scikit-learn also backs c-TF-IDF cluster labeling now and Isolation
+# Forest anomaly scoring in the Phase 2 hardening pass; networkx backs
+# Phase 2's Louvain co-mention community detection -- declared here now
+# so Phase 2 doesn't need a second dependency change.
+emerging_themes = [
+    "umap-learn>=0.5",
+    "hdbscan>=0.8",
+    "scikit-learn>=1.4",
+    "networkx>=3.2",
+    "feedparser>=6.0",
+]
 
 [project.scripts]
 arp = "arp.cli:app"

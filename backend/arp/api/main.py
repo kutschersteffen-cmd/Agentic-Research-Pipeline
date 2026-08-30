@@ -7,8 +7,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from arp.api.deps import get_scheduler, settings_dep
-from arp.api.routers import climate, discovery, documents, engagement, extraction, financials, identity, overlap, portfolio, revenue_catalogue, runs, taxonomies, themes, transition_plan, universe, voting
+from arp.api.deps import get_emerging_themes_scheduler, get_scheduler, settings_dep
+from arp.api.routers import climate, discovery, documents, emerging_themes, engagement, extraction, financials, identity, overlap, portfolio, revenue_catalogue, runs, taxonomies, themes, transition_plan, universe, voting
 
 logging.basicConfig(level=logging.INFO)
 
@@ -18,10 +18,13 @@ async def lifespan(app: FastAPI):
     settings_dep().ensure_dirs()
     scheduler = get_scheduler()
     scheduler.start()
+    emerging_themes_scheduler = get_emerging_themes_scheduler()
+    emerging_themes_scheduler.start()
     try:
         yield
     finally:
         scheduler.shutdown()
+        emerging_themes_scheduler.shutdown()
 
 
 app = FastAPI(title="Agentic Research Pipeline", version="0.1.0", lifespan=lifespan)
@@ -50,6 +53,7 @@ app.include_router(financials.router)
 app.include_router(transition_plan.router)
 app.include_router(portfolio.router)
 app.include_router(climate.router)
+app.include_router(emerging_themes.router)
 
 
 @app.exception_handler(RuntimeError)

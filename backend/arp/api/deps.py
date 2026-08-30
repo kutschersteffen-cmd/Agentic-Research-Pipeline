@@ -5,6 +5,7 @@ from functools import lru_cache
 from arp.config import Settings, get_settings
 from arp.discovery.scheduler import DiscoveryScheduler
 from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient
+from arp.emerging_themes.scheduler import EmergingThemesScheduler
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -16,6 +17,7 @@ from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store_factory import build_portfolio_store
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
+from arp.storage.topic_store import TopicStateStore
 from arp.voting.ballot_casting import BallotPlatform, ManualInstructionBallotPlatform
 
 
@@ -113,6 +115,16 @@ def get_verifier_llm_client() -> LLMClient:
 @lru_cache
 def get_scheduler() -> DiscoveryScheduler:
     return DiscoveryScheduler(get_settings(), get_run_store())
+
+
+@lru_cache
+def get_topic_store() -> TopicStateStore:
+    return TopicStateStore(get_settings().emerging_themes_state_dir / "topics")
+
+
+@lru_cache
+def get_emerging_themes_scheduler() -> EmergingThemesScheduler:
+    return EmergingThemesScheduler(get_settings(), get_run_store(), get_topic_store(), llm_factory=get_llm_client)
 
 
 @lru_cache
