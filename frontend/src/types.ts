@@ -415,6 +415,39 @@ export interface DiscoveryScheduleConfig {
   next_run_at?: string | null;
 }
 
+export interface TaxonomyResearcherScheduleConfig {
+  enabled: boolean;
+  interval_hours: number;
+  taxonomy_ids?: string[] | null;
+  last_run_id?: string | null;
+}
+
+export interface CalibrationScheduleConfig {
+  enabled: boolean;
+  interval_hours: number;
+  last_run_id?: string | null;
+}
+
+export interface TaxonomyResearchFinding {
+  taxonomy_id: string;
+  taxonomy_name: string;
+  proposed: boolean;
+  new_version?: number | null;
+  added_activity_names: string[];
+  reason: string;
+}
+
+export interface DriftFlag {
+  source_run_id: string;
+  company_id: string;
+  activity_id: string;
+  old_verdict: string;
+  old_confidence: number;
+  old_generated_at: string;
+  newest_document_at: string;
+  reason: string;
+}
+
 export interface ReviewQueueResponse {
   pending: Record<string, unknown>[];
   decided: { item: Record<string, unknown>; decision: Record<string, unknown> }[];

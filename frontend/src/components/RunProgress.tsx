@@ -11,7 +11,16 @@ export function RunProgress({
 }: {
   runId: string;
   pollMs?: number;
-  runType?: "theme" | "extraction" | "discovery" | "proxy_voting" | "financials" | "identity" | "transition_plan";
+  runType?:
+    | "theme"
+    | "extraction"
+    | "discovery"
+    | "proxy_voting"
+    | "financials"
+    | "identity"
+    | "transition_plan"
+    | "taxonomy_research"
+    | "calibration";
 }) {
   const [manifest, setManifest] = useState<RunManifest | null>(null);
   const [actionBusy, setActionBusy] = useState(false);

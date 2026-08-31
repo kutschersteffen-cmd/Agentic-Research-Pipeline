@@ -8,6 +8,7 @@ import { IdentityResolution } from "./pages/IdentityResolution";
 import { ReviewQueue } from "./pages/ReviewQueue";
 import { RunHistory } from "./pages/RunHistory";
 import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
+import { BackgroundAgents } from "./pages/BackgroundAgents";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
@@ -18,6 +19,7 @@ const TABS = [
   { id: "dashboard", label: "Dashboard" },
   { id: "theme", label: "Thematic Universe" },
   { id: "taxonomy", label: "Taxonomy Library" },
+  { id: "backgroundAgents", label: "Background Agents" },
   { id: "extraction", label: "Data Extraction" },
   { id: "financials", label: "Company Financials" },
   { id: "transitionPlan", label: "Transition Plan Assessment" },
@@ -63,6 +65,7 @@ function App() {
         {active === "dashboard" && <MonitoringDashboard onNavigate={setActive} />}
         {active === "theme" && <ThemeBuilder onSendToExtraction={sendToExtraction} />}
         {active === "taxonomy" && <TaxonomyLibrary />}
+        {active === "backgroundAgents" && <BackgroundAgents />}
         {active === "extraction" && <ExtractionBuilder pendingUniverse={pendingUniverse} />}
         {active === "financials" && <CompanyFinancials pendingUniverse={pendingUniverse} />}
         {active === "transitionPlan" && <TransitionPlanAssessment pendingUniverse={pendingUniverse} />}

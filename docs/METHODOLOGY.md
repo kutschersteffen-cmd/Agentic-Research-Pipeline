@@ -523,6 +523,13 @@ synchronously while the real work runs via `asyncio.create_task`, exactly like
 `POST /api/{agent}/runs`, `GET /api/{agent}/runs/{run_id}`, `GET
 /api/{agent}/runs/{run_id}/results`, `GET`/`PUT /api/{agent}/schedule`; and the same CLI
 shape: `arp {agent} run`, `arp {agent} schedule --interval-hours ... --enable/--no-enable`.
+Both also get a frontend panel under a single **Background Agents** tab
+(`frontend/src/pages/BackgroundAgents.tsx`, two page-local sub-tabs mirroring
+`TaxonomyLibrary.tsx`'s own sub-tab pattern) -- a schedule editor cloned from
+`DocumentDiscovery.tsx`'s existing schedule-editor UI, a "run now" trigger wired to
+`RunProgress`, and a results table per agent. Findings/flags are rendered read-only, not
+routed through `ReviewQueue.tsx` -- neither a `TaxonomyResearchFinding` nor a `DriftFlag` is
+an approve/reject decision, so they don't fit that page's dispatch-table pattern.
 
 **Taxonomy Researcher** (`arp/agents/taxonomy_researcher.py`) periodically re-scans every
 *ratified* taxonomy's activity space for authority sources published or discovered since it
