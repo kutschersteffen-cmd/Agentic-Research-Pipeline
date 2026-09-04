@@ -19,6 +19,13 @@ class LLMUsage(BaseModel):
         description="Short hash of the system prompt used, so a later prompt edit is detectable against "
         "previously persisted output instead of silently blending old and new prompt versions.",
     )
+    # Breakdown of input_tokens (which already includes both of these in its
+    # total -- see langchain_anthropic's own usage_metadata docstring) for
+    # accurate cost estimation: Anthropic prices a cache read far below and
+    # a cache write somewhat above the normal input rate. Always 0 for a
+    # provider/call that doesn't use prompt caching.
+    cache_read_tokens: int = 0
+    cache_creation_tokens: int = 0
 
 
 class LLMClient(ABC):

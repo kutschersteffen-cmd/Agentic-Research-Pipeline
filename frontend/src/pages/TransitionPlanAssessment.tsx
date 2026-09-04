@@ -38,6 +38,7 @@ function IndicatorDetail({
   return (
     <div className="field-detail">
       <p>{indicator.answer}</p>
+      {indicator.verifier_notes && <p className="muted">{indicator.verifier_notes}</p>}
       <CitationList citations={indicator.citations} onOpenSource={onOpenSource} />
       <ReviewControls
         runId={runId}
