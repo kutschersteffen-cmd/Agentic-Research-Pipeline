@@ -19,6 +19,7 @@ from arp.engagement.triggers import ControversySignal, StaticControversySource, 
 from arp.extraction.pipeline import run_extraction
 from arp.extraction.schema_builder import draft_schema
 from arp.extraction.financials_pipeline import run_financials_extraction
+from arp.extraction.tnfd_pipeline import run_tnfd_extraction
 from arp.golden_set.runner import load_cases as load_golden_set_cases, run_golden_set
 from arp.transition_plan.indicators import load_indicators
 from arp.transition_plan.pipeline import run_transition_plan_assessment
@@ -640,6 +641,32 @@ def extract_financials_run(
             settings=settings,
             run_store=_run_store(),
             xbrl_source=_xbrl_source() if settings.xbrl_facts_enabled else None,
+        )
+    )
+    typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
+
+
+@extract_app.command("tnfd-run")
+def extract_tnfd_run(
+    universe: Path = typer.Option(...),
+    as_of: str = typer.Option(..., help="Reporting period this run covers, e.g. 'FY2025' -- applied to every "
+                                         "company in the run. No 'latest' default."),
+) -> None:
+    """Extracts each company's TNFD (nature-related financial disclosure)
+    reporting -- all 4 pillars/14 recommendations, core global metrics,
+    sector metrics/LEAP considerations where the company's sector is
+    covered, and general requirements -- in a single combined evidence-
+    gathering + extractor/verifier pass per company, with the same
+    independent-verifier + programmatic-grounding precision controls as
+    `extract run`."""
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    verifier_llm = build_verifier_llm_client(settings)
+    companies = load_company_universe(universe)
+    typer.echo(f"Extracting TNFD disclosures ({as_of}) across {len(companies)} companies...")
+    run_id = asyncio.run(
+        run_tnfd_extraction(
+            companies, as_of, llm=llm, verifier_llm=verifier_llm, registry=_registry(), settings=settings, run_store=_run_store()
         )
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
