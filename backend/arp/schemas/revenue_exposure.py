@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from arp.schemas.common import Citation
 
 RevenueCapexMetric = Literal["revenue", "capex"]
-ExposureDataSource = Literal["catalogue", "extracted", "qualitative", "unresolved"]
+ExposureDataSource = Literal["catalogue", "extracted", "qualitative", "unresolved", "news"]
 
 
 class CatalogueDataPoint(BaseModel):
@@ -44,8 +44,13 @@ class ActivityCatalogueMapping(BaseModel):
 
 
 class MetricExposure(BaseModel):
-    """The resolved (or unresolved) revenue/capex share for one company x
-    activity x metric, and which of the three paths produced it."""
+    """The resolved (or unresolved) 0-1 exposure signal for one company x
+    activity x metric, and which source produced it. Originally
+    revenue/capex-share-specific; also reused as-is by
+    arp.schemas.rd_exposure.RDExposureResult for R&D-intensity and
+    news-mention signals, since the shape (a fractional value, its
+    provenance, a confidence, an optional grounded citation) is generic
+    to any "resolved quantitative signal, maybe unresolved" result."""
 
     value_pct: float | None = None
     source: ExposureDataSource = "unresolved"

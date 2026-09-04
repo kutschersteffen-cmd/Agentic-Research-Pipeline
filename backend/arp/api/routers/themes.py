@@ -10,17 +10,19 @@ from arp.api.deps import get_llm_client, get_registry, get_run_store, get_taxono
 from arp.api.review_endpoints import ReviewDecisionRequest, get_review_queue, submit_review
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
+from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.research.activity_generator import build_theme
-from arp.research.indirect_exposure.factory import build_leontief_model
+from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.pipeline import create_theme_run, execute_theme_run, resume_theme_run
+from arp.research.rd_exposure.resolver import RDResolverContext
 from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company, load_catalogue
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.common import CompanyRef
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.run_store import RunStore
-from arp.storage.taxonomy_store import TaxonomyStore
+from arp.storage.taxonomy_store import TaxonomyStore, ensure_taxonomy_usable_for_run
 from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/themes", tags=["themes"])
@@ -49,8 +51,17 @@ class RunRequest(BaseModel):
     use_sample_icio: bool = Field(
         default=False,
         description=(
-            "Enable the indirect (input-output) exposure tier using the bundled illustrative sample dataset. "
-            "For a real run, configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH instead and leave this false."
+            "Enable the indirect (input-output) exposure tier using the bundled illustrative ICIO-shaped sample "
+            "dataset. For a real run, configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH instead and leave "
+            "this false. Mutually exclusive with use_sample_exiobase."
+        ),
+    )
+    use_sample_exiobase: bool = Field(
+        default=False,
+        description=(
+            "Enable the indirect (input-output) exposure tier using the bundled illustrative EXIOBASE-shaped "
+            "sample dataset. For a real run, configure ARP_EXIOBASE_FLOWS_PATH/ARP_EXIOBASE_INDUSTRIES_PATH "
+            "instead and leave this false. Mutually exclusive with use_sample_icio."
         ),
     )
     revenue_catalogue_path: str | None = Field(
@@ -58,6 +69,15 @@ class RunRequest(BaseModel):
     )
     catalogue_mapping: list[ActivityCatalogueMapping] | None = Field(
         default=None, description="The reviewed activity->catalogue-label mapping. Required alongside revenue_catalogue_path."
+    )
+    enable_rd_exposure: bool = Field(
+        default=False,
+        description=(
+            "Enable Method C (R&D-spend-intensity + news-mention scoring, arp/research/rd_exposure/) for "
+            "activities whose lifecycle_stage is ideation or innovation -- a supplementary signal for "
+            "pre-revenue themes where revenue-percentage scoring doesn't apply. Never short-circuits the "
+            "qualitative debate. Off by default."
+        ),
     )
 
 
@@ -79,6 +99,10 @@ async def start_theme_run(
         taxonomy = taxonomy_store.get(req.taxonomy_id, req.taxonomy_version)
         if taxonomy is None:
             raise HTTPException(404, f"Taxonomy not found: {req.taxonomy_id}")
+        try:
+            ensure_taxonomy_usable_for_run(taxonomy, settings.require_ratified_taxonomy)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
         theme = taxonomy.theme
     else:
         raise HTTPException(400, "Provide either `theme` or `taxonomy_id`.")
@@ -86,7 +110,12 @@ async def start_theme_run(
     if bool(req.revenue_catalogue_path) != bool(req.catalogue_mapping):
         raise HTTPException(400, "Provide both revenue_catalogue_path and catalogue_mapping together, or neither.")
 
-    indirect_model = build_leontief_model(settings, use_sample=req.use_sample_icio)
+    try:
+        indirect_model = resolve_indirect_exposure_model(
+            settings, use_sample_icio=req.use_sample_icio, use_sample_exiobase=req.use_sample_exiobase
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
     revenue_resolver = None
     if req.revenue_catalogue_path:
@@ -99,13 +128,24 @@ async def start_theme_run(
             isic_model=indirect_model,
         )
 
+    rd_resolver = None
+    if req.enable_rd_exposure:
+        rd_resolver = RDResolverContext(
+            registry=registry,
+            settings=settings,
+            isic_model=indirect_model,
+            search_client=DuckDuckGoSearchClient(settings.discovery_user_agent),
+        )
+
     def _create() -> str:
         return create_theme_run(
             theme, companies, settings, run_store,
             universe_path=req.universe_path,
             use_sample_icio=req.use_sample_icio,
+            use_sample_exiobase=req.use_sample_exiobase,
             revenue_catalogue_path=req.revenue_catalogue_path,
             catalogue_mapping=req.catalogue_mapping,
+            enable_rd_exposure=req.enable_rd_exposure,
         )
 
     async def _run(run_id: str, llm, verifier_llm) -> None:
@@ -120,6 +160,7 @@ async def start_theme_run(
             run_store=run_store,
             indirect_model=indirect_model,
             revenue_resolver=revenue_resolver,
+            rd_resolver=rd_resolver,
         )
 
     run_id = schedule_llm_run(create_fn=_create, run=_run)
@@ -128,6 +169,7 @@ async def start_theme_run(
         "company_count": len(companies),
         "indirect_exposure_enabled": indirect_model is not None,
         "revenue_exposure_enabled": revenue_resolver is not None,
+        "rd_exposure_enabled": rd_resolver is not None,
     }
 
 

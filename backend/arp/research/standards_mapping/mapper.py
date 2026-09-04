@@ -7,7 +7,7 @@ from pathlib import Path
 from arp.config import Settings
 from arp.llm.base import LLMClient, LLMUsage
 from arp.research.indirect_exposure.core_sectors import classify_theme_core_sectors
-from arp.research.indirect_exposure.factory import build_leontief_model
+from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.standards_mapping.crosswalk import CrosswalkTable, load_crosswalk
 from arp.research.standards_mapping.gics import GicsReferenceEntry, classify_gics, load_gics_reference
 from arp.schemas.standards import ActivityStandardsMapping
@@ -63,6 +63,7 @@ async def map_theme_to_standards(
     llm: LLMClient,
     *,
     use_sample_icio: bool = False,
+    use_sample_exiobase: bool = False,
     use_sample_standards: bool = False,
 ) -> tuple[ThemeDefinition, LLMUsage]:
     """Populates standards_mapping (NACE/NAICS/SIC/GICS) on every activity
@@ -71,12 +72,13 @@ async def map_theme_to_standards(
     Activities without core_isic_codes are classified against ISIC first
     (reusing the indirect-exposure tier's classifier) since ISIC is the
     join key the NACE/NAICS/SIC crosswalks key off of; this step is
-    skipped, not fatal, if no ICIO model is configured/sampled -- GICS
-    still classifies directly from the activity's own description either
-    way, and NACE/NAICS/SIC simply come back empty for those activities.
+    skipped, not fatal, if no input-output model is configured/sampled --
+    GICS still classifies directly from the activity's own description
+    either way, and NACE/NAICS/SIC simply come back empty for those
+    activities.
     """
     total_usage = LLMUsage()
-    model = build_leontief_model(settings, use_sample=use_sample_icio)
+    model = resolve_indirect_exposure_model(settings, use_sample_icio=use_sample_icio, use_sample_exiobase=use_sample_exiobase)
     if model is not None:
         theme, isic_usage = await classify_theme_core_sectors(theme, model, llm)
         total_usage = LLMUsage(input_tokens=isic_usage.input_tokens, output_tokens=isic_usage.output_tokens)

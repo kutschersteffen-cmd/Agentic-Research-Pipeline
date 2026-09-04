@@ -9,6 +9,8 @@ import typer
 from arp.config import get_settings
 from arp.discovery.identity_pipeline import enriched_universe, run_identity_resolution
 from arp.discovery.pipeline import run_discovery
+from arp.agents.calibration_agent import CalibrationAgentScheduler, run_calibration_pass
+from arp.agents.taxonomy_researcher import TaxonomyResearcherScheduler, run_taxonomy_research
 from arp.discovery.scheduler import DiscoveryScheduler
 from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.emerging_themes.pipeline import load_candidates_with_status, promote_candidate, reject_candidate, run_emerging_themes
@@ -30,8 +32,11 @@ from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.research.activity_generator import build_theme, build_theme_industry_anchored
 from arp.research.indirect_exposure.core_sectors import classify_theme_core_sectors
-from arp.research.indirect_exposure.factory import build_leontief_model
-from arp.research.pipeline import resume_theme_run, run_thematic_universe
+from arp.research.indirect_exposure.criticality import apply_criticality_overlay
+from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
+from arp.research.lifecycle_classifier import classify_theme_lifecycle_stages
+from arp.research.pipeline import load_theme_run_matches, rank_theme_matches, resume_theme_run, run_thematic_universe
+from arp.research.results_diff import diff_theme_results
 from arp.research.taxonomy_sources.authority import build_theme_from_authority_sources
 from arp.research.taxonomy_sources.compare import compare_taxonomies, merge_taxonomies
 from arp.research.taxonomy_sources.discovery import discover_authority_sources, discover_thematic_funds
@@ -46,6 +51,7 @@ from arp.research.taxonomy_sources.news_mining import build_theme_from_news_and_
 from arp.research.standards_mapping.mapper import format_standards_csv, map_theme_to_standards
 from arp.research.revenue_exposure.catalogue import distinct_labels, load_catalogue, by_company as catalogue_by_company
 from arp.research.revenue_exposure.mapping import suggest_catalogue_mapping
+from arp.research.rd_exposure.resolver import RDResolverContext
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.orchestration.job_manager import JobManager
@@ -55,8 +61,10 @@ from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.news.classifier import classify_article
 from arp.schemas.common import CompanyRef, DocType, JobStatus
 from arp.schemas.datapoints import DataPointSchema
+from arp.schemas.calibration import CalibrationScheduleConfig
 from arp.schemas.discovery import DiscoveryScheduleConfig
 from arp.schemas.emerging_themes import EmergingThemesScheduleConfig
+from arp.schemas.taxonomy_researcher import TaxonomyResearcherScheduleConfig
 from arp.schemas.engagement import CorrespondenceEntry, EscalationStage, IssueSeverity, TriggerSource
 from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotSpec, SecurityRef
 from arp.schemas.taxonomy import DerivationMethod, TaxonomyRef
@@ -90,6 +98,8 @@ identity_app = typer.Typer(help="Agentic company identity resolution: resolve ba
 golden_set_app = typer.Typer(help="Golden-set regression testing for the extraction pipeline -- run before every prompt/model change reaches a real batch.")
 emerging_themes_app = typer.Typer(help="Emerging Themes Scanner ('Tool 0'): bottom-up candidate-theme discovery from public news/filings/regulatory flow, feeding the taxonomy library.")
 db_app = typer.Typer(help="Opt-in Postgres/pgvector store setup (arp/storage/postgres*.py). Requires ARP_POSTGRES_DSN and the `postgres` extra.")
+taxonomy_researcher_app = typer.Typer(help="Standing agent: periodically re-scans ratified taxonomies' authority sources, proposing new DRAFT versions -- never auto-ratifies.")
+calibration_app = typer.Typer(help="Standing agent: flags theme-run verdicts for which newer company disclosures have since arrived -- never auto-re-runs classification.")
 app.add_typer(theme_app, name="theme")
 app.add_typer(taxonomy_app, name="taxonomy")
 app.add_typer(extract_app, name="extract")
@@ -107,6 +117,8 @@ app.add_typer(identity_app, name="identity")
 app.add_typer(golden_set_app, name="golden-set")
 app.add_typer(emerging_themes_app, name="emerging-themes")
 app.add_typer(db_app, name="db")
+app.add_typer(taxonomy_researcher_app, name="taxonomy-researcher")
+app.add_typer(calibration_app, name="calibration")
 
 
 def _engagement_store() -> EngagementStore:
@@ -186,28 +198,67 @@ def theme_classify_sectors(
     theme_file: Path = typer.Option(..., "--theme"),
     out: Path = typer.Option(..., help="Where to write the ThemeDefinition JSON with core_isic_codes populated."),
     use_sample_icio: bool = typer.Option(
-        False, help="Use the bundled illustrative sample dataset instead of the configured ICIO paths."
+        False, help="Use the bundled illustrative ICIO-shaped sample dataset instead of the configured ICIO paths."
+    ),
+    use_sample_exiobase: bool = typer.Option(
+        False, help="Use the bundled illustrative EXIOBASE-shaped sample dataset instead of the configured EXIOBASE paths."
     ),
 ) -> None:
     """Populates each activity's core_isic_codes -- one classification call
     per activity against the input-output model's fixed industry list, run
     once per theme (not per company) before enabling the indirect-exposure
-    tier in `theme run --use-sample-icio` / a configured ARP_ICIO_* path.
+    tier in `theme run --use-sample-icio`/`--use-sample-exiobase` or a
+    configured ARP_ICIO_*/ARP_EXIOBASE_* path. Also applies the bundled
+    criticality overlay (arp.research.indirect_exposure.criticality),
+    flagging any activity whose freshly-classified core_isic_codes touch a
+    USGS/IEA-listed critical mineral's industry.
     """
     settings = get_settings()
     llm = build_llm_client(settings)
     theme = ThemeDefinition.model_validate_json(theme_file.read_text())
-    model = build_leontief_model(settings, use_sample=use_sample_icio)
+    try:
+        model = resolve_indirect_exposure_model(settings, use_sample_icio=use_sample_icio, use_sample_exiobase=use_sample_exiobase)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     if model is None:
         typer.echo(
-            "No ICIO data available: set ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH or pass --use-sample-icio.",
+            "No input-output data available: set ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH or "
+            "ARP_EXIOBASE_FLOWS_PATH/ARP_EXIOBASE_INDUSTRIES_PATH, or pass --use-sample-icio/--use-sample-exiobase.",
             err=True,
         )
         raise typer.Exit(1)
     updated_theme, _usage = asyncio.run(classify_theme_core_sectors(theme, model, llm))
+    updated_theme = apply_criticality_overlay(updated_theme)
     out.write_text(updated_theme.model_dump_json(indent=2))
     classified = sum(1 for a in updated_theme.activities if a.core_isic_codes)
-    typer.echo(f"Classified core sectors for {classified}/{len(updated_theme.activities)} activities. Wrote {out}")
+    critical = sum(1 for a in updated_theme.activities if a.criticality_flag)
+    typer.echo(
+        f"Classified core sectors for {classified}/{len(updated_theme.activities)} activities "
+        f"({critical} flagged critical-input). Wrote {out}"
+    )
+
+
+@theme_app.command("classify-lifecycle")
+def theme_classify_lifecycle(
+    theme_file: Path = typer.Option(..., "--theme"),
+    out: Path = typer.Option(..., help="Where to write the ThemeDefinition JSON with lifecycle_stage populated."),
+) -> None:
+    """Populates each activity's lifecycle_stage (ideation/innovation/
+    commercialization/mature) -- one classification call per activity, run
+    once per theme, before a run that enables Method C
+    (`theme run --enable-rd-exposure`), which only does anything for
+    ideation/innovation-stage activities. Independent of --classify-sectors
+    (a different concern -- ISIC industry vs. technology maturity); run
+    both if you want both tiers populated.
+    """
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    theme = ThemeDefinition.model_validate_json(theme_file.read_text())
+    updated_theme, _usage = asyncio.run(classify_theme_lifecycle_stages(theme, llm))
+    out.write_text(updated_theme.model_dump_json(indent=2))
+    classified = sum(1 for a in updated_theme.activities if a.lifecycle_stage is not None)
+    typer.echo(f"Classified lifecycle stage for {classified}/{len(updated_theme.activities)} activities. Wrote {out}")
 
 
 @theme_app.command("run")
@@ -221,13 +272,23 @@ def theme_run(
     use_sample_icio: bool = typer.Option(
         False,
         "--use-sample-icio",
-        help="Enable the indirect-exposure tier using the bundled illustrative sample dataset (demo only).",
+        help="Enable the indirect-exposure tier using the bundled illustrative ICIO-shaped sample dataset (demo only).",
+    ),
+    use_sample_exiobase: bool = typer.Option(
+        False,
+        "--use-sample-exiobase",
+        help="Enable the indirect-exposure tier using the bundled illustrative EXIOBASE-shaped sample dataset (demo only).",
     ),
     revenue_catalogue: Path = typer.Option(
         None, "--revenue-catalogue", help="A structured revenue/capex catalogue CSV (see `revenue-catalogue suggest-mapping`)."
     ),
     catalogue_mapping: Path = typer.Option(
         None, "--catalogue-mapping", help="The reviewed activity->catalogue-label mapping JSON (required alongside --revenue-catalogue)."
+    ),
+    enable_rd_exposure: bool = typer.Option(
+        False,
+        "--enable-rd-exposure",
+        help="Enable Method C (R&D-spend-intensity + news-mention scoring) for ideation/innovation-stage activities.",
     ),
 ) -> None:
     settings = get_settings()
@@ -246,7 +307,11 @@ def theme_run(
         typer.echo("Provide either --theme or --taxonomy.", err=True)
         raise typer.Exit(1)
     companies = load_company_universe(universe)
-    indirect_model = build_leontief_model(settings, use_sample=use_sample_icio)
+    try:
+        indirect_model = resolve_indirect_exposure_model(settings, use_sample_icio=use_sample_icio, use_sample_exiobase=use_sample_exiobase)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     if indirect_model is not None:
         typer.echo(f"Indirect exposure tier enabled ({indirect_model.edition_label}).")
 
@@ -263,6 +328,14 @@ def theme_run(
         )
         typer.echo(f"Revenue-exposure resolution enabled ({len(mappings)} confirmed activity mapping(s)).")
 
+    rd_resolver = None
+    if enable_rd_exposure:
+        rd_resolver = RDResolverContext(
+            registry=_registry(), settings=settings, isic_model=indirect_model,
+            search_client=DuckDuckGoSearchClient(settings.discovery_user_agent),
+        )
+        typer.echo("R&D/news exposure resolution enabled (ideation/innovation-stage activities only).")
+
     typer.echo(f"Running theme '{theme.name}' against {len(companies)} companies...")
     run_id = asyncio.run(
         run_thematic_universe(
@@ -275,10 +348,13 @@ def theme_run(
             run_store=_run_store(),
             indirect_model=indirect_model,
             revenue_resolver=revenue_resolver,
+            rd_resolver=rd_resolver,
             universe_path=str(universe),
             use_sample_icio=use_sample_icio,
+            use_sample_exiobase=use_sample_exiobase,
             revenue_catalogue_path=str(revenue_catalogue) if revenue_catalogue else None,
             catalogue_mapping=mappings,
+            enable_rd_exposure=enable_rd_exposure,
         )
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
@@ -350,7 +426,10 @@ def taxonomy_create(
     description: str = "",
     method: DerivationMethod = typer.Option(DerivationMethod.LLM_DRAFT, "--method", help="How to derive this taxonomy."),
     use_sample_icio: bool = typer.Option(
-        False, help="[industry_anchored] Anchor against the bundled illustrative ISIC reference list."
+        False, help="[industry_anchored] Anchor against the bundled illustrative ICIO-shaped ISIC reference list."
+    ),
+    use_sample_exiobase: bool = typer.Option(
+        False, help="[industry_anchored] Anchor against the bundled illustrative EXIOBASE-shaped ISIC reference list."
     ),
     authority_url: list[str] = typer.Option(
         [], "--authority-url", help="[authority_source] One or more source URLs (repeatable). See `taxonomy discover-sources`."
@@ -375,9 +454,17 @@ def taxonomy_create(
         notes = "Freeform LLM draft, no industry anchor."
 
     elif method == DerivationMethod.INDUSTRY_ANCHORED:
-        model = build_leontief_model(settings, use_sample=use_sample_icio)
+        try:
+            model = resolve_indirect_exposure_model(settings, use_sample_icio=use_sample_icio, use_sample_exiobase=use_sample_exiobase)
+        except ValueError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(1) from exc
         if model is None:
-            typer.echo("No ICIO data available: set ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH or pass --use-sample-icio.", err=True)
+            typer.echo(
+                "No input-output data available: set ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH or "
+                "ARP_EXIOBASE_FLOWS_PATH/ARP_EXIOBASE_INDUSTRIES_PATH, or pass --use-sample-icio/--use-sample-exiobase.",
+                err=True,
+            )
             raise typer.Exit(1)
         theme, _usage = asyncio.run(build_theme_industry_anchored(name, description, model.industry_reference_list(), llm))
         notes = f"Anchored against {model.edition_label} ({len(model.codes)} industries)."
@@ -532,6 +619,9 @@ def taxonomy_map_standards(
     use_sample_icio: bool = typer.Option(
         False, help="Classify any activity missing core_isic_codes using the bundled sample ICIO dataset first."
     ),
+    use_sample_exiobase: bool = typer.Option(
+        False, help="Classify any activity missing core_isic_codes using the bundled sample EXIOBASE dataset first."
+    ),
     use_sample_standards: bool = typer.Option(
         False, help="Use the bundled illustrative NACE/NAICS/SIC/GICS reference data instead of configured ARP_*_PATH files."
     ),
@@ -544,9 +634,18 @@ def taxonomy_map_standards(
     settings = get_settings()
     llm = build_llm_client(settings)
     taxonomy = _resolve_taxonomy_ref_or_exit(ref)
-    updated_theme, _usage = asyncio.run(
-        map_theme_to_standards(taxonomy.theme, settings, llm, use_sample_icio=use_sample_icio, use_sample_standards=use_sample_standards)
-    )
+    try:
+        updated_theme, _usage = asyncio.run(
+            map_theme_to_standards(
+                taxonomy.theme, settings, llm,
+                use_sample_icio=use_sample_icio,
+                use_sample_exiobase=use_sample_exiobase,
+                use_sample_standards=use_sample_standards,
+            )
+        )
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     mapped = sum(1 for a in updated_theme.activities if a.standards_mapping)
     typer.echo(f"Mapped standards for {mapped}/{len(updated_theme.activities)} activities.")
     if no_save:
@@ -879,6 +978,72 @@ def emerging_themes_schedule(
     typer.echo(f"Schedule saved: enabled={enable}, every {interval_hours}h, universe={universe}")
 
 
+@taxonomy_researcher_app.command("run")
+def taxonomy_researcher_run(
+    taxonomy_ids: str = typer.Option("", help="Comma-separated taxonomy_ids to scope to; empty = every ratified taxonomy."),
+) -> None:
+    """Scans ratified taxonomies for authority-source updates and proposes
+    new DRAFT versions -- never auto-ratifies. Uses the exact same
+    pipeline the automatic schedule uses."""
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    ids = [t.strip() for t in taxonomy_ids.split(",") if t.strip()] or None
+    run_store = _run_store()
+    run_id = asyncio.run(
+        run_taxonomy_research(
+            llm=llm, search_client=DuckDuckGoSearchClient(settings.discovery_user_agent), settings=settings,
+            taxonomy_store=_taxonomy_store(), run_store=run_store, taxonomy_ids=ids, triggered_by="manual",
+        )
+    )
+    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    proposed = [r for r in rows if r.get("proposed")]
+    typer.echo(f"Run complete: {run_id} -- scanned {len(rows)} taxonomy/ies, proposed {len(proposed)} new version(s).")
+
+
+@taxonomy_researcher_app.command("schedule")
+def taxonomy_researcher_schedule(
+    interval_hours: float = typer.Option(168.0, help="Weekly by default."),
+    taxonomy_ids: str = typer.Option("", help="Comma-separated taxonomy_ids to scope to; empty = every ratified taxonomy."),
+    enable: bool = typer.Option(True, help="Pass --no-enable to disable."),
+) -> None:
+    """Configures the automatic recurring taxonomy research scan. Takes
+    effect the next time the API server process starts (it owns the
+    scheduler); this command just persists the config file it reads."""
+    settings = get_settings()
+    ids = [t.strip() for t in taxonomy_ids.split(",") if t.strip()] or None
+    scheduler = TaxonomyResearcherScheduler(settings, _run_store(), _taxonomy_store(), lambda: build_llm_client(settings), DuckDuckGoSearchClient(settings.discovery_user_agent))
+    config = TaxonomyResearcherScheduleConfig(enabled=enable, interval_hours=interval_hours, taxonomy_ids=ids)
+    scheduler.save_config(config)
+    typer.echo(f"Schedule saved: enabled={enable}, every {interval_hours}h, taxonomy_ids={ids or 'all ratified'}")
+
+
+@calibration_app.command("run")
+def calibration_run() -> None:
+    """Flags theme-run verdicts for which newer company disclosures have
+    since arrived -- never re-runs classification or changes a prior
+    verdict itself. Uses the exact same pipeline the automatic schedule
+    uses."""
+    run_store = _run_store()
+    run_id = asyncio.run(run_calibration_pass(registry=_registry(), run_store=run_store, triggered_by="manual"))
+    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    typer.echo(f"Run complete: {run_id} -- {len(rows)} drift flag(s) logged.")
+
+
+@calibration_app.command("schedule")
+def calibration_schedule(
+    interval_hours: float = typer.Option(24.0),
+    enable: bool = typer.Option(True, help="Pass --no-enable to disable."),
+) -> None:
+    """Configures the automatic recurring calibration pass. Takes effect
+    the next time the API server process starts (it owns the scheduler);
+    this command just persists the config file it reads."""
+    settings = get_settings()
+    scheduler = CalibrationAgentScheduler(settings, _run_store(), _registry())
+    config = CalibrationScheduleConfig(enabled=enable, interval_hours=interval_hours)
+    scheduler.save_config(config)
+    typer.echo(f"Schedule saved: enabled={enable}, every {interval_hours}h")
+
+
 @documents_app.command("warm")
 def documents_warm(
     universe: Path = typer.Option(..., help="Company universe JSON to warm the document cache for."),
@@ -1057,6 +1222,36 @@ def runs_show(run_id: str) -> None:
         typer.echo("Run not found", err=True)
         raise typer.Exit(1)
     typer.echo(json.dumps(manifest.model_dump(mode="json"), indent=2))
+
+
+@runs_app.command("results")
+def runs_results(run_id: str) -> None:
+    """Every CompanyMatch for a theme run, ranked by
+    arbitration.composite_score descending (Step 5's ranked-list output)."""
+    matches = load_theme_run_matches(_run_store(), run_id)
+    if matches is None:
+        typer.echo("Run not found or not a theme run", err=True)
+        raise typer.Exit(1)
+    ranked = rank_theme_matches(matches)
+    typer.echo(json.dumps([m.model_dump(mode="json") for m in ranked], indent=2))
+
+
+@runs_app.command("diff")
+def runs_diff(run_id_a: str, run_id_b: str) -> None:
+    """Deterministic diff between two theme runs' results (added/dropped/
+    verdict-changed/confidence-changed company x activity pairs) -- no LLM
+    call, the join key ('{company_id}:{activity_id}') is exact."""
+    store = _run_store()
+    matches_a = load_theme_run_matches(store, run_id_a)
+    if matches_a is None:
+        typer.echo(f"Run not found or not a theme run: {run_id_a}", err=True)
+        raise typer.Exit(1)
+    matches_b = load_theme_run_matches(store, run_id_b)
+    if matches_b is None:
+        typer.echo(f"Run not found or not a theme run: {run_id_b}", err=True)
+        raise typer.Exit(1)
+    diff = diff_theme_results(run_id_a, run_id_b, matches_a, matches_b)
+    typer.echo(json.dumps(diff.model_dump(mode="json"), indent=2))
 
 
 @universe_app.command("from-holdings")

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from arp.agents.calibration_agent import CalibrationAgentScheduler
+from arp.agents.taxonomy_researcher import TaxonomyResearcherScheduler
 from arp.config import Settings, get_settings
 from arp.discovery.scheduler import DiscoveryScheduler
 from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient
@@ -125,6 +127,18 @@ def get_topic_store() -> TopicStateStore:
 @lru_cache
 def get_emerging_themes_scheduler() -> EmergingThemesScheduler:
     return EmergingThemesScheduler(get_settings(), get_run_store(), get_topic_store(), llm_factory=get_llm_client)
+
+
+@lru_cache
+def get_taxonomy_researcher_scheduler() -> TaxonomyResearcherScheduler:
+    return TaxonomyResearcherScheduler(
+        get_settings(), get_run_store(), get_taxonomy_store(), get_llm_client, get_web_search_client()
+    )
+
+
+@lru_cache
+def get_calibration_scheduler() -> CalibrationAgentScheduler:
+    return CalibrationAgentScheduler(get_settings(), get_run_store(), get_registry())
 
 
 @lru_cache

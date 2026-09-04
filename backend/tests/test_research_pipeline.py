@@ -10,10 +10,11 @@ from arp.research.indirect_exposure.icio_loader import load_sample_icio
 from arp.research.indirect_exposure.leontief import build_model
 from arp.research.matcher_agents import AdjudicatorOutput
 from arp.research.pipeline import _match_company, create_theme_run, resume_theme_run
+from arp.research.rd_exposure.resolver import RDResolverContext
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.common import Citation, CompanyRef, DocType, JobStatus, SourceDocument
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping, CatalogueDataPoint
-from arp.schemas.thematic import ActivityDefinition, AgentOpinion, ExposureEstimate, MatchVerdict, ThemeDefinition
+from arp.schemas.thematic import ActivityDefinition, AgentOpinion, ExposureEstimate, LifecycleStage, MatchVerdict, ThemeDefinition
 from arp.storage.run_store import RunStore
 
 
@@ -281,6 +282,142 @@ async def test_match_company_revenue_unresolved_falls_through_to_qualitative_deb
     assert match.verdict == MatchVerdict.INCLUDE
 
 
+async def test_match_company_rd_exposure_never_short_circuits_debate(tmp_path, fake_llm):
+    """rd_exposure is a supplementary signal (Method C) -- unlike a
+    resolved revenue number, it must never skip the qualitative debate,
+    and it should be attached to the final match regardless of which
+    branch produced it."""
+    doc = SourceDocument(
+        company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K",
+        full_text="We are a leading manufacturer of battery electric vehicles for the mass market.",
+    )
+    activity = ActivityDefinition(
+        name="EV manufacturing",
+        in_scope_description="Designs/manufactures battery electric vehicles.",
+        out_of_scope_description="Traditional ICE-only vehicle manufacturing.",
+        seed_keywords=["electric vehicle", "battery electric"],
+        lifecycle_stage=LifecycleStage.IDEATION,
+    )
+    theme = ThemeDefinition(name="Electrification", description="", activities=[activity])
+    company = CompanyRef(company_id="c1", name="Acme Motors", ticker="ACME")
+
+    good_quote = "leading manufacturer of battery electric vehicles"
+    advocate = AgentOpinion(
+        stance="include", rationale="Core business is BEV manufacturing.",
+        citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=good_quote)],
+        exposure_estimate=ExposureEstimate.PURE_PLAY,
+    )
+    opposing = AgentOpinion(
+        stance="no strong counter-argument", rationale="Evidence is credible and specific.",
+        citations=[], exposure_estimate=ExposureEstimate.PURE_PLAY,
+    )
+    adjudication = AdjudicatorOutput(
+        verdict=MatchVerdict.INCLUDE, exposure_estimate=ExposureEstimate.PURE_PLAY, confidence=0.95,
+        adjudicator_rationale="Clear, specific, grounded evidence of BEV manufacturing as the core business.",
+        citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=good_quote)],
+    )
+    no_rd_draft = ExtractionDraft(value=None, confidence=0.0, citations=[])
+    no_rd_verifier = VerifierOutput(agrees=True, confidence=0.0, notes="")
+
+    llm = fake_llm({
+        "AgentOpinion": [advocate, opposing],
+        "AdjudicatorOutput": [adjudication],
+        "ExtractionDraft": [no_rd_draft],
+        "VerifierOutput": [no_rd_verifier],
+    })
+    registry = DocumentSourceRegistry([_FixedDocSource([doc])])
+    rd_resolver = RDResolverContext(registry=registry, settings=_settings(tmp_path))  # no search client -> news_mentions unresolved
+
+    result = await _match_company(company, theme, registry=registry, llm=llm, settings=_settings(tmp_path), rd_resolver=rd_resolver)
+    match = result.matches[0]
+    assert match.verdict == MatchVerdict.INCLUDE  # the debate ran and decided, unaffected by rd_exposure
+    assert match.advocate is not None  # confirms the debate branch (not a short-circuit) produced this match
+    assert match.rd_exposure is not None
+    assert match.rd_exposure.rd_intensity.source == "unresolved"
+    assert match.rd_exposure.news_mentions.source == "unresolved"
+
+
+async def test_match_company_rd_exposure_none_for_mature_activity(tmp_path, fake_llm):
+    """rd_resolver configured but the activity's lifecycle_stage doesn't
+    call for Method C -- rd_exposure stays None, zero extra LLM cost."""
+    doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
+    theme, _activity = _theme()  # default lifecycle_stage=None
+    company = CompanyRef(company_id="c1", name="Shoe Co")
+    registry = DocumentSourceRegistry([_FixedDocSource([doc])])
+    llm = fake_llm({})  # no evidence matches seed keywords -> finalize_no_evidence, zero LLM calls
+    rd_resolver = RDResolverContext(registry=registry, settings=_settings(tmp_path))
+
+    result = await _match_company(company, theme, registry=registry, llm=llm, settings=_settings(tmp_path), rd_resolver=rd_resolver)
+    match = result.matches[0]
+    assert match.rd_exposure is None
+    assert llm.calls == []
+
+
+async def test_match_company_arbitration_populated_on_no_evidence_branch(tmp_path, fake_llm):
+    doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
+    theme, _activity = _theme()
+    company = CompanyRef(company_id="c1", name="Shoe Co")
+    registry = DocumentSourceRegistry([_FixedDocSource([doc])])
+    llm = fake_llm({})
+
+    result = await _match_company(company, theme, registry=registry, llm=llm, settings=_settings(tmp_path))
+    match = result.matches[0]
+    assert match.arbitration is not None
+    assert len(match.arbitration.contributions) == 1
+    assert match.arbitration.contributions[0].method == "qualitative_debate"
+    assert match.arbitration.composite_score == 0.0  # ExposureEstimate.NONE
+
+
+async def test_match_company_arbitration_excludes_qualitative_on_revenue_short_circuit(tmp_path, fake_llm):
+    """When revenue resolution short-circuits the debate, exposure_estimate
+    IS the revenue-band signal -- arbitration must not count it a second
+    time as an independent 'qualitative_debate' contribution."""
+    theme, activity = _theme()
+    company = CompanyRef(company_id="c1", name="Acme Motors", ticker="ACME")
+    doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
+    registry = DocumentSourceRegistry([_FixedDocSource([doc])])
+
+    catalogue_rows = [CatalogueDataPoint(data_point_id="d1", company_id="c1", metric="revenue", label="EV Sales", as_pct_of_total=0.4)]
+    mappings = [ActivityCatalogueMapping(activity_id=activity.activity_id, metric="revenue", matched_labels=["EV Sales"], rationale="x")]
+    revenue_resolver = RevenueResolverContext(catalogue_by_company={"c1": catalogue_rows}, mappings=mappings, registry=registry, settings=_settings(tmp_path))
+    llm = fake_llm({})
+
+    result = await _match_company(company, theme, registry=registry, llm=llm, settings=_settings(tmp_path), revenue_resolver=revenue_resolver)
+    match = result.matches[0]
+    assert match.arbitration is not None
+    methods = {c.method for c in match.arbitration.contributions}
+    assert methods == {"revenue_catalogue"}
+    assert match.arbitration.composite_score == 0.4
+
+
+async def test_match_company_arbitration_disagreement_flags_review_when_base_flag_is_false(tmp_path, fake_llm):
+    """A catalogue-resolved revenue hit alone never sets flagged_for_review
+    (deterministic, full confidence) -- but if a configured indirect model
+    shows strongly diverging structural exposure for the same company,
+    arbitration's disagreement flag should still route it to review."""
+    theme, activity = _theme()
+    activity.core_isic_codes = ["27"]
+    company = CompanyRef(company_id="c1", name="Acme Electricals", ticker="ACME", isic_code="27")
+    doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
+    registry = DocumentSourceRegistry([_FixedDocSource([doc])])
+
+    catalogue_rows = [CatalogueDataPoint(data_point_id="d1", company_id="c1", metric="revenue", label="EV Sales", as_pct_of_total=0.02)]
+    mappings = [ActivityCatalogueMapping(activity_id=activity.activity_id, metric="revenue", matched_labels=["EV Sales"], rationale="x")]
+    revenue_resolver = RevenueResolverContext(catalogue_by_company={"c1": catalogue_rows}, mappings=mappings, registry=registry, settings=_settings(tmp_path))
+    indirect_model = build_model(load_sample_icio(), "test-sample")  # company IS its own core sector -> high self-exposure
+    llm = fake_llm({})
+
+    result = await _match_company(
+        company, theme, registry=registry, llm=llm, settings=_settings(tmp_path),
+        revenue_resolver=revenue_resolver, indirect_model=indirect_model,
+    )
+    match = result.matches[0]
+    assert match.revenue_exposure.revenue.source == "catalogue"
+    assert match.indirect_exposure.core_sector is True
+    assert match.arbitration.methods_disagree is True
+    assert match.flagged_for_review is True  # arbitration alone triggers this -- catalogue-only flagged would be False
+
+
 async def test_resume_theme_run_skips_already_completed_companies(tmp_path, fake_llm):
     """Reconstructs a run from what create_theme_run persisted and confirms
     resume_theme_run only processes the company missing from results.jsonl
@@ -319,6 +456,33 @@ async def test_resume_theme_run_skips_already_completed_companies(tmp_path, fake
     rows = store.read_jsonl(store.results_path(run_id))
     keys = {r["_key"] for r in rows}
     assert keys == {"c1", "c2"}  # c1's pre-existing row preserved, c2 newly processed
+
+
+def test_create_theme_run_persists_use_sample_exiobase(tmp_path):
+    """create_theme_run persists use_sample_exiobase in manifest.params --
+    what resume_theme_run reads back to resolve an EXIOBASE-sourced model
+    instead of the default ICIO-sourced one (see
+    arp.research.indirect_exposure.factory.resolve_indirect_exposure_model,
+    exercised directly against this exact param round-trip in
+    test_factory.py).
+    """
+    settings = _settings(tmp_path)
+    store = RunStore(settings.runs_dir)
+    theme, _activity = _theme()
+    universe_path = tmp_path / "universe.csv"
+    universe_path.write_text("company_id,name\nc1,Acme\n")
+
+    run_id = create_theme_run(
+        theme,
+        [CompanyRef(company_id="c1", name="Acme")],
+        settings,
+        store,
+        universe_path=str(universe_path),
+        use_sample_exiobase=True,
+    )
+    manifest = store.load_manifest(run_id)
+    assert manifest.params["use_sample_exiobase"] is True
+    assert manifest.params["use_sample_icio"] is False
 
 
 async def test_resume_theme_run_unknown_universe_path_raises(tmp_path, fake_llm):

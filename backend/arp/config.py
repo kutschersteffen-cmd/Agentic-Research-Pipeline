@@ -68,6 +68,12 @@ class Settings(BaseSettings):
     confidence_review_threshold: float = Field(
         default=0.6, description="Extractions/matches below this confidence are routed to the review queue."
     )
+    require_ratified_taxonomy: bool = Field(
+        default=False,
+        description="Human curation gate for theme runs (spec Step 0d): when true, POST /api/themes/runs refuses "
+        "a taxonomy_id whose latest/selected version is still DRAFT. Off by default to preserve today's "
+        "iterate-on-a-draft workflow; see arp.storage.taxonomy_store.ensure_taxonomy_usable_for_run.",
+    )
 
     # Engagement & voting stewardship module
     engagement_sla_days: int = Field(
@@ -105,6 +111,25 @@ class Settings(BaseSettings):
         default=0.3, description="Structural exposure share above which a no-direct-evidence company is flagged."
     )
 
+    # EXIOBASE input-output source (sibling to the ICIO tier above -- a run
+    # is backed by at most one, see
+    # arp.research.indirect_exposure.factory.resolve_indirect_exposure_model).
+    # Off by default, same opt-in contract as the ICIO tier.
+    exiobase_flows_path: Path | None = Field(
+        default=None,
+        description="Path to a long-format EXIOBASE-derived intermediate-flows CSV (required columns: "
+        "supplier_isic_code, user_isic_code, value -- any other columns, e.g. region, are permitted and "
+        "summed/collapsed over). Requires the caller to have already mapped EXIOBASE's native product/sector "
+        "classification to ISIC Rev.4 division codes; that crosswalk is not attempted by this loader. None "
+        "disables this source; see arp.research.indirect_exposure.exiobase_loader.",
+    )
+    exiobase_industries_path: Path | None = Field(
+        default=None,
+        description="Companion industries.csv for the EXIOBASE source -- same isic_code,label,total_output "
+        "format as icio_industries_path; total_output must already be aggregated across regions by the caller.",
+    )
+    exiobase_edition_label: str = Field(default="exiobase-sample")
+
     # Standards mapping (NACE/NAICS/SIC/GICS). Each resolves independently
     # to a real, configured file; falls back to the bundled illustrative
     # sample only when --use-sample-standards is passed explicitly. NACE/
@@ -122,6 +147,24 @@ class Settings(BaseSettings):
     revenue_exposure_pure_play_threshold: float = Field(default=0.5)
     revenue_exposure_significant_threshold: float = Field(default=0.2)
     revenue_exposure_minor_threshold: float = Field(default=0.05)
+
+    # Cross-method arbitration (Step 4): a weighted composite ranking score
+    # layered on top of exposure_estimate/revenue_exposure/indirect_exposure/
+    # rd_exposure, never blending into or overwriting them -- see
+    # arp.research.arbitration and docs/METHODOLOGY.md. Defaults are
+    # documented, reasonable starting points, not empirically tuned against
+    # a labeled eval set.
+    arbitration_disagreement_threshold: float = Field(
+        default=0.4, description="Included signals spanning more than this (0-1) are flagged as disagreeing rather than silently averaged."
+    )
+    arbitration_mid_band_low: float = Field(default=0.3, description="Composite scores in [low, high] are routed for review.")
+    arbitration_mid_band_high: float = Field(default=0.7)
+    arbitration_weight_qualitative_debate: float = Field(default=0.6, description="Weight for the Advocate/Opposing/Adjudicator debate's exposure_estimate.")
+    arbitration_weight_revenue_catalogue: float = Field(default=1.0, description="Weight for a deterministic, user-supplied revenue-catalogue hit.")
+    arbitration_weight_revenue_extracted: float = Field(default=0.8, description="Weight for an LLM-extracted, grounded revenue percentage.")
+    arbitration_weight_indirect: float = Field(default=0.3, description="Weight for the sector-level input-output structural exposure signal.")
+    arbitration_weight_rd_intensity: float = Field(default=0.5, description="Weight for Method C's extracted R&D-intensity signal.")
+    arbitration_weight_news_mentions: float = Field(default=0.2, description="Weight for Method C's web-search news-mention signal (the weakest/noisiest).")
 
     # Web discovery
     discovery_user_agent: str = Field(default="ARP-DiscoveryBot/0.1 (+research use; respects robots.txt)")
@@ -153,6 +196,26 @@ class Settings(BaseSettings):
     )
     emerging_themes_min_cluster_size: int = Field(default=3, description="HDBSCAN min_cluster_size.")
     emerging_themes_gdelt_max_records: int = Field(default=75, description="Per-query cap on GDELT DOC 2.0 API results.")
+
+    # Standing background agents (arp/agents/) -- both clone
+    # discovery/scheduler.py's AsyncIOScheduler + JSON-persisted-config
+    # pattern exactly. Never auto-apply anything: Taxonomy Researcher only
+    # ever writes a new DRAFT taxonomy version (ratification stays a
+    # separate, human-only step); Calibration Agent only ever logs flags
+    # for a human to act on.
+    taxonomy_researcher_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".taxonomy_researcher_state")
+    taxonomy_researcher_schedule_enabled: bool = Field(default=False)
+    taxonomy_researcher_schedule_interval_hours: float = Field(default=168.0, description="Weekly by default -- taxonomies don't need daily rescanning.")
+    taxonomy_researcher_min_authority_score: float = Field(
+        default=0.6, description="Minimum LLM-assessed authority_score for a discovered source to feed a proposal."
+    )
+    taxonomy_researcher_max_sources: int = Field(
+        default=3, description="Top-N ranked authority-source candidates used per taxonomy scanned."
+    )
+
+    calibration_agent_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".calibration_state")
+    calibration_agent_schedule_enabled: bool = Field(default=False)
+    calibration_agent_schedule_interval_hours: float = Field(default=24.0)
 
     # Agentic company identity resolution (arp/discovery/identity_*.py) --
     # a separate enrichment run, not part of the discovery crawl above.
@@ -211,6 +274,8 @@ class Settings(BaseSettings):
             self.engagements_dir,
             self.ballots_dir,
             self.emerging_themes_state_dir,
+            self.taxonomy_researcher_state_dir,
+            self.calibration_agent_state_dir,
         ):
             d.mkdir(parents=True, exist_ok=True)
 

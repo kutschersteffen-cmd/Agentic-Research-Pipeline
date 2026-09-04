@@ -140,6 +140,25 @@ export const api = {
   updateDiscoverySchedule: (config: unknown) =>
     request("/api/discovery/schedule", { method: "PUT", body: JSON.stringify(config) }),
 
+  // Taxonomy Researcher (standing agent)
+  startTaxonomyResearcherRun: (body: unknown) =>
+    request<{ run_id: string }>("/api/taxonomy-researcher/runs", { method: "POST", body: JSON.stringify(body) }),
+  getTaxonomyResearcherRun: (runId: string) => request(`/api/taxonomy-researcher/runs/${runId}`),
+  getTaxonomyResearcherResults: (runId: string, offset = 0, limit = 200) =>
+    request(`/api/taxonomy-researcher/runs/${runId}/results?offset=${offset}&limit=${limit}`),
+  getTaxonomyResearcherSchedule: () => request("/api/taxonomy-researcher/schedule"),
+  updateTaxonomyResearcherSchedule: (config: unknown) =>
+    request("/api/taxonomy-researcher/schedule", { method: "PUT", body: JSON.stringify(config) }),
+
+  // Calibration Agent (standing agent)
+  startCalibrationRun: () => request<{ run_id: string }>("/api/calibration/runs", { method: "POST" }),
+  getCalibrationRun: (runId: string) => request(`/api/calibration/runs/${runId}`),
+  getCalibrationResults: (runId: string, offset = 0, limit = 200) =>
+    request(`/api/calibration/runs/${runId}/results?offset=${offset}&limit=${limit}`),
+  getCalibrationSchedule: () => request("/api/calibration/schedule"),
+  updateCalibrationSchedule: (config: unknown) =>
+    request("/api/calibration/schedule", { method: "PUT", body: JSON.stringify(config) }),
+
   // Identity resolution (agentic name -> website/CIK, ahead of discovery)
   startIdentityRun: (body: unknown) =>
     request<{ run_id: string; company_count: number }>("/api/identity/runs", { method: "POST", body: JSON.stringify(body) }),

@@ -7,8 +7,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from arp.api.deps import get_emerging_themes_scheduler, get_scheduler, settings_dep
-from arp.api.routers import climate, discovery, documents, emerging_themes, engagement, extraction, financials, identity, overlap, portfolio, revenue_catalogue, runs, taxonomies, themes, tnfd, transition_plan, universe, voting
+from arp.api.deps import get_calibration_scheduler, get_emerging_themes_scheduler, get_scheduler, get_taxonomy_researcher_scheduler, settings_dep
+from arp.api.routers import calibration, climate, discovery, documents, emerging_themes, engagement, extraction, financials, identity, overlap, portfolio, revenue_catalogue, runs, taxonomies, taxonomy_researcher, themes, tnfd, transition_plan, universe, voting
 
 logging.basicConfig(level=logging.INFO)
 
@@ -17,13 +17,19 @@ logging.basicConfig(level=logging.INFO)
 async def lifespan(app: FastAPI):
     settings_dep().ensure_dirs()
     scheduler = get_scheduler()
-    scheduler.start()
+    taxonomy_researcher_scheduler = get_taxonomy_researcher_scheduler()
+    calibration_scheduler = get_calibration_scheduler()
     emerging_themes_scheduler = get_emerging_themes_scheduler()
+    scheduler.start()
+    taxonomy_researcher_scheduler.start()
+    calibration_scheduler.start()
     emerging_themes_scheduler.start()
     try:
         yield
     finally:
         scheduler.shutdown()
+        taxonomy_researcher_scheduler.shutdown()
+        calibration_scheduler.shutdown()
         emerging_themes_scheduler.shutdown()
 
 
@@ -55,6 +61,8 @@ app.include_router(transition_plan.router)
 app.include_router(portfolio.router)
 app.include_router(climate.router)
 app.include_router(emerging_themes.router)
+app.include_router(taxonomy_researcher.router)
+app.include_router(calibration.router)
 
 
 @app.exception_handler(RuntimeError)
