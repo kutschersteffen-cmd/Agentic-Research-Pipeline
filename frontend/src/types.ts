@@ -519,6 +519,9 @@ export interface EmergingThemeCandidate {
   description: string;
   first_detected_date: string;
   signal_velocity: number;
+  breadth: number;
+  persistence: number;
+  novelty: number;
   corroborating_sources: MentionCitation[];
   candidate_sectors_companies: string[];
   rationale: string;

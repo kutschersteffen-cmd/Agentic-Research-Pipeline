@@ -9,6 +9,7 @@ from arp.emerging_themes.entity_resolution import resolve_mention_companies
 from arp.emerging_themes.extraction import tag_mention
 from arp.emerging_themes.ingestion.base import MentionSource
 from arp.emerging_themes.lineage import classify_lineage
+from arp.emerging_themes.scoring import score_clusters
 from arp.emerging_themes.synthesis import build_candidate
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_batch
@@ -150,10 +151,16 @@ async def execute_emerging_themes_run(
         job_manager.finish_run(run_id, error=f"Clustering dependencies missing ({exc}). Install the `emerging_themes` extra: pip install -e '.[emerging_themes]'.")
         return run_id
 
-    topic_store.save_period(period, clusters)
     prior_period = topic_store.latest_period_before(period)
     prior_clusters = topic_store.load_period(prior_period) if prior_period else None
     lineage_events = classify_lineage(clusters, prior_clusters, period)
+
+    # Discovery-scoring depth (roadmap P2): attach velocity/breadth/
+    # persistence/novelty to every cluster before persisting this period's
+    # history, so later runs' baselines see the scored version too. Must
+    # run after classify_lineage (needs its events) and before save_period.
+    clusters = score_clusters(clusters, lineage_events, prior_clusters, period, topic_store, universe_size=len(companies))
+    topic_store.save_period(period, clusters)
     topic_store.save_lineage_events(period, lineage_events)
 
     # Only a BIRTH -- no lineage edge back to the prior period -- is

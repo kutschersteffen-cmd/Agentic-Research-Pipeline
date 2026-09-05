@@ -77,7 +77,36 @@ class TopicCluster(BaseModel):
     mention_count: int = 0
     source_types: list[MentionSourceType] = Field(default_factory=list)
     centroid: list[float] = Field(default_factory=list, description="Mean embedding vector of member tags, for lineage/centroid-similarity linking.")
-    stability_score: float = Field(default=0.0, ge=0.0, le=1.0, description="Fraction of reseeded clustering reruns in which this cluster's membership held together.")
+    stability_score: float = Field(default=0.0, ge=0.0, le=1.0, description="Fraction of reseeded clustering reruns in which this cluster's membership held together -- the pre-LLM stability gate (clustering.py), distinct from novelty below.")
+
+    # Discovery-scoring depth (roadmap P2) -- named, inspectable metrics per
+    # the Emerging Theme Discovery Blueprint's Section 4.1, computed by
+    # arp/emerging_themes/scoring.py once lineage classification has run.
+    # Defaults are the "no history available yet" values a first-ever scan
+    # produces, not placeholders.
+    velocity: float = Field(
+        default=1.0,
+        description="A real growth ratio (this period's mention_count / the linked prior cluster's) for "
+        "GROWTH/SPLIT/MERGE clusters; for a BIRTH (no prior self to compare against) this period's mention_count "
+        "relative to the average cluster size across recent baseline periods instead -- a 'how much of an outlier "
+        "in scale' measure, not a same-entity rate. See scoring.py::compute_velocity.",
+    )
+    breadth: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Distinct companies in this cluster as a share of the universe scanned this run.",
+    )
+    persistence: int = Field(
+        default=0,
+        description="Length of the unbroken GROWTH chain ending at this cluster, walked back through saved "
+        "lineage history. Always 0 for a BIRTH (or a SPLIT/MERGE, which breaks the chain by convention) -- a "
+        "candidate has not yet persisted by definition of being new; this grows in later periods if the same "
+        "cluster continues.",
+    )
+    novelty: float = Field(
+        default=1.0, ge=0.0, le=1.0,
+        description="1 minus the highest centroid similarity to any prior-period cluster (the Blueprint's own "
+        "definition), maximal (1.0) when there is no prior period to compare against at all.",
+    )
 
 
 class LineageEvent(BaseModel):
@@ -121,7 +150,10 @@ class EmergingThemeCandidate(BaseModel):
     theme_name: str
     description: str = ""
     first_detected_date: str = Field(description="Date this cluster's underlying signal was first classified as a BIRTH (no lineage back).")
-    signal_velocity: float = Field(description="This period's mention count for the cluster; velocity vs. baseline is implicit in it being a BIRTH.")
+    signal_velocity: float = Field(description="Copied from TopicCluster.velocity -- see scoring.py::compute_velocity for what this ratio means.")
+    breadth: float = Field(default=0.0, ge=0.0, le=1.0, description="Copied from TopicCluster.breadth.")
+    persistence: int = Field(default=0, description="Copied from TopicCluster.persistence -- always 0 at first promotion; see TopicCluster's docstring.")
+    novelty: float = Field(default=1.0, ge=0.0, le=1.0, description="Copied from TopicCluster.novelty.")
     corroborating_sources: list[MentionCitation] = Field(default_factory=list)
     candidate_sectors_companies: list[str] = Field(default_factory=list, description="Resolved company_ids, for analyst orientation -- not a substitute for Tool 1's universe construction.")
     rationale: str = Field(default="", description="Grounded narrative explanation, source-linked.")
@@ -130,8 +162,9 @@ class EmergingThemeCandidate(BaseModel):
     )
     confidence_score: float = Field(
         default=0.0, ge=0.0, le=1.0,
-        description="Phase 1 interim proxy: the cluster's HDBSCAN stability_score. Superseded by a real Bayesian "
-        "(Isolation-Forest-prior, Beta-Bernoulli-updated) posterior in Phase 2 -- see docs.",
+        description="Equal to novelty (see above) -- kept as a separate field for backward compatibility with "
+        "UI/CLI surfaces expecting a generic confidence score. Superseded by a real Bayesian "
+        "(Isolation-Forest-prior, Beta-Bernoulli-updated) posterior in a later phase -- see the roadmap.",
     )
     status: CandidateStatus = CandidateStatus.CANDIDATE
     promoted_to_taxonomy_id: str | None = None

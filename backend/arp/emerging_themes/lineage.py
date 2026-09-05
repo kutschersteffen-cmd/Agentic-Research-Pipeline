@@ -14,7 +14,9 @@ def _company_jaccard(a: TopicCluster, b: TopicCluster) -> float:
     return len(sa & sb) / len(sa | sb)
 
 
-def _centroid_cosine(a: TopicCluster, b: TopicCluster) -> float:
+def centroid_cosine(a: TopicCluster, b: TopicCluster) -> float:
+    """Public (not `_`-prefixed) because scoring.py::compute_novelty reuses
+    it directly rather than recomputing centroid similarity a second way."""
     if not a.centroid or not b.centroid:
         return 0.0
     va, vb = np.array(a.centroid), np.array(b.centroid)
@@ -30,7 +32,7 @@ def _link_score(current: TopicCluster, prior: TopicCluster) -> float:
     (centroid cosine similarity). Either signal alone can be misleading
     (two clusters can share companies without sharing a topic, or vice
     versa), so the stronger of the two decides the link."""
-    return max(_company_jaccard(current, prior), _centroid_cosine(current, prior))
+    return max(_company_jaccard(current, prior), centroid_cosine(current, prior))
 
 
 def classify_lineage(

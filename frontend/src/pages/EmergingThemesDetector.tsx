@@ -178,7 +178,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                   <th>Confidence</th>
                   <th>Status</th>
                   <th>Companies</th>
-                  <th>Signal velocity</th>
+                  <th>Velocity</th>
                   <th>First detected</th>
                 </tr>
               </thead>
@@ -196,13 +196,18 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                           ))}
                         </div>
                       </td>
-                      <td>{c.signal_velocity}</td>
+                      <td title="This period's mention count vs. baseline -- see the expanded row for what this cluster's baseline was.">{c.signal_velocity.toFixed(2)}&times;</td>
                       <td>{c.first_detected_date}</td>
                     </tr>
                     {expanded === c.theme_id && (
                       <tr>
                         <td colSpan={6} className="detail-cell">
                           <p>{c.description}</p>
+                          <p>
+                            <strong>Discovery signal:</strong> novelty {Math.round(c.novelty * 100)}%, breadth{" "}
+                            {Math.round(c.breadth * 100)}% of the scanned universe, velocity {c.signal_velocity.toFixed(2)}&times; baseline,{" "}
+                            {c.persistence > 0 ? `persisted ${c.persistence} period(s)` : "first period seen"}.
+                          </p>
                           <p><strong>Rationale:</strong> {c.rationale}</p>
                           <p><strong>Why this would move markets:</strong> {c.economic_rationale}</p>
                           <p><strong>Corroborating sources:</strong></p>
