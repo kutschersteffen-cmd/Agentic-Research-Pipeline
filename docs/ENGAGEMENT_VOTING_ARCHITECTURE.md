@@ -525,7 +525,8 @@ backend/arp/api/routers/engagement.py   /api/engagement/... (records, issues, es
                                          meeting-summary, tracking log endpoints, report)
 backend/arp/api/routers/voting.py       /api/voting/... (runs, ballots, review-queue, review,
                                          cast)
-backend/arp/cli.py                       `arp engagement ...` / `arp voting ...` (see --help)
+backend/arp/cli/engagement.py            `arp engagement ...` (see --help)
+backend/arp/cli/voting.py                `arp voting ...` (see --help)
 
 backend/tests/test_engagement_store.py
 backend/tests/test_engagement_orchestrator.py

@@ -37,7 +37,7 @@ The backend and frontend are fully decoupled: the CLI and the API call the exact
 | Package | Responsibility |
 |---|---|
 | `api/` | FastAPI app (`main.py`), one router per domain under `routers/`, plus two shared cross-router helpers: `run_scheduling.py` (`schedule_llm_run` — resolves the LLM client *before* creating a run manifest, closing off the "orphaned running manifest" bug class structurally) and `review_endpoints.py` (shared review-queue CRUD used by five different run types). |
-| `cli.py` | Typer entry point (`arp ...`) — the intended path for large unattended batch runs; drives the identical pipeline functions the API does. |
+| `cli/` | Typer entry point (`arp ...`) — the intended path for large unattended batch runs; drives the identical pipeline functions the API does. One module per domain (mirroring `api/routers/`), each defining its own Typer sub-app; `__init__.py` wires them onto the top-level `app` (the `arp` console-script target). `_shared.py` holds the handful of store/registry constructor helpers used across more than one domain. |
 | `config.py` | `pydantic-settings`-based `Settings`, all overridable via `ARP_`-prefixed env vars / `.env`. |
 | `grounding.py` | Programmatic citation-grounding check — re-verifies every LLM-claimed quote against the actual fetched document text and resolves its real page/location; independent of, and never trusts, any of the three agent-orchestration libraries below. |
 | `net_safety.py` | SSRF-hardening helpers shared by the discovery crawler and source inspector (blocks internal/link-local targets before any outbound fetch). |
