@@ -4,6 +4,7 @@ import { ExtractionBuilder } from "./pages/ExtractionBuilder";
 import { CompanyFinancials } from "./pages/CompanyFinancials";
 import { TransitionPlanAssessment } from "./pages/TransitionPlanAssessment";
 import { DocumentDiscovery } from "./pages/DocumentDiscovery";
+import { EmergingThemesDetector } from "./pages/EmergingThemesDetector";
 import { IdentityResolution } from "./pages/IdentityResolution";
 import { ReviewQueue } from "./pages/ReviewQueue";
 import { RunHistory } from "./pages/RunHistory";
@@ -23,6 +24,7 @@ const TABS = [
   { id: "transitionPlan", label: "Transition Plan Assessment" },
   { id: "identity", label: "Identity Resolution" },
   { id: "discovery", label: "Document Discovery" },
+  { id: "emergingThemes", label: "Emerging Themes" },
   { id: "portfolio", label: "Portfolio Risk" },
   { id: "climate", label: "Climate Analytics" },
   { id: "review", label: "Review Queue" },
@@ -68,6 +70,7 @@ function App() {
         {active === "transitionPlan" && <TransitionPlanAssessment pendingUniverse={pendingUniverse} />}
         {active === "identity" && <IdentityResolution onSendToDiscovery={sendToDiscovery} />}
         {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingDiscoveryUniverse} />}
+        {active === "emergingThemes" && <EmergingThemesDetector onNavigate={setActive} />}
         {active === "portfolio" && <PortfolioRisk />}
         {active === "climate" && <ClimateAnalytics />}
         {active === "review" && <ReviewQueue />}

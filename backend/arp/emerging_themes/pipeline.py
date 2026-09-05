@@ -81,6 +81,17 @@ async def execute_emerging_themes_run(
         job_manager.finish_run(run_id)
         return run_id
 
+    # The manifest's company_count starts as the universe size (set at
+    # create_emerging_themes_run, before ingestion has run), but the unit
+    # of work the Extract stage below reports progress against is one
+    # mention, not one company -- retargeting it here keeps the run's
+    # progress fraction meaningful instead of running past 100% or
+    # stalling well short of it once extraction starts.
+    with run_store.lock(run_id):
+        manifest = run_store.load_manifest(run_id)
+        manifest.company_count = len(mentions)
+        run_store.save_manifest(manifest)
+
     # --- Extract ---
     extracted_path = run_store.run_dir(run_id) / "extracted_tags.jsonl"
 

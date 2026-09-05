@@ -29,6 +29,7 @@ export function RunHistory() {
           <option value="extraction">Extraction</option>
           <option value="financials">Company financials</option>
           <option value="discovery">Discovery</option>
+          <option value="emerging_themes">Emerging themes</option>
         </select>
         <button onClick={load}>Refresh</button>
         <p className="muted">Total estimated spend across {runs.length} runs: ${totalCost.toFixed(2)}</p>

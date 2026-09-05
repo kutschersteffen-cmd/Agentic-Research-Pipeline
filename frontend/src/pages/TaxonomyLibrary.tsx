@@ -22,6 +22,7 @@ const METHOD_LABELS: Record<DerivationMethod, string> = {
   etf_index_holdings: "ETF / index holdings (bottom-up)",
   news_transcript_mining: "News & earnings-call transcript mining",
   empirical: "Empirical (Extraction Engine readings)",
+  emerging_signal_discovery: "Emerging Themes Scanner (Tool 0)",
   merged: "Merged from existing taxonomies",
   manual: "Manual / hand-authored",
 };

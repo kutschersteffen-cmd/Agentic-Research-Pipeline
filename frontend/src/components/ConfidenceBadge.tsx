@@ -17,3 +17,9 @@ export function YesNoBadge({ verdict }: { verdict: "YES" | "NO" | "NA" }) {
   const cls = verdict === "YES" ? "badge badge-high" : verdict === "NO" ? "badge badge-low" : "badge badge-neutral";
   return <span className={cls}>{verdict}</span>;
 }
+
+export function CandidateStatusBadge({ status }: { status: "candidate" | "under_review" | "promoted" | "rejected" }) {
+  const cls =
+    status === "promoted" ? "badge badge-high" : status === "rejected" ? "badge badge-low" : status === "under_review" ? "badge badge-mid" : "badge badge-neutral";
+  return <span className={cls}>{status.replace("_", " ")}</span>;
+}

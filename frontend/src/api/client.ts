@@ -5,6 +5,8 @@ import type {
   CoverageBySource,
   DataPointSchema,
   DemoSeedSummary,
+  EmergingThemeCandidate,
+  EmergingThemesScheduleConfig,
   FinancedEmissionsResult,
   NewsItem,
   NewsRiskFlag,
@@ -139,6 +141,31 @@ export const api = {
   getDiscoverySchedule: () => request("/api/discovery/schedule"),
   updateDiscoverySchedule: (config: unknown) =>
     request("/api/discovery/schedule", { method: "PUT", body: JSON.stringify(config) }),
+
+  // Emerging Themes Scanner ("Tool 0")
+  startEmergingThemesRun: (body: { companies?: unknown[]; universe_path?: string }) =>
+    request<{ run_id: string; company_count: number }>("/api/emerging-themes/runs", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  getEmergingThemesCandidates: (runId: string) =>
+    request<{ total: number; candidates: EmergingThemeCandidate[] }>(`/api/emerging-themes/runs/${runId}/candidates`),
+  promoteEmergingThemeCandidate: (runId: string, themeId: string, taxonomyId?: string | null) =>
+    request<EmergingThemeCandidate>(
+      `/api/emerging-themes/runs/${runId}/candidates/${encodeURIComponent(themeId)}/promote`,
+      { method: "POST", body: JSON.stringify({ taxonomy_id: taxonomyId ?? null }) },
+    ),
+  rejectEmergingThemeCandidate: (runId: string, themeId: string) =>
+    request<{ theme_id: string; status: string }>(
+      `/api/emerging-themes/runs/${runId}/candidates/${encodeURIComponent(themeId)}/reject`,
+      { method: "POST" },
+    ),
+  getEmergingThemesSchedule: () => request<EmergingThemesScheduleConfig>("/api/emerging-themes/schedule"),
+  updateEmergingThemesSchedule: (config: EmergingThemesScheduleConfig) =>
+    request<EmergingThemesScheduleConfig>("/api/emerging-themes/schedule", {
+      method: "PUT",
+      body: JSON.stringify(config),
+    }),
 
   // Identity resolution (agentic name -> website/CIK, ahead of discovery)
   startIdentityRun: (body: unknown) =>
