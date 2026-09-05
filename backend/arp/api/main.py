@@ -7,8 +7,35 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from arp.api.deps import get_calibration_scheduler, get_emerging_themes_scheduler, get_scheduler, get_taxonomy_researcher_scheduler, settings_dep
-from arp.api.routers import calibration, climate, discovery, documents, emerging_themes, engagement, extraction, financials, identity, overlap, portfolio, revenue_catalogue, runs, taxonomies, taxonomy_researcher, themes, tnfd, transition_plan, universe, voting
+from arp.api.deps import (
+    get_calibration_scheduler,
+    get_emerging_themes_scheduler,
+    get_scheduler,
+    get_taxonomy_researcher_scheduler,
+    settings_dep,
+)
+from arp.api.routers import (
+    calibration,
+    climate,
+    discovery,
+    documents,
+    emerging_themes,
+    engagement,
+    extraction,
+    financials,
+    identity,
+    overlap,
+    portfolio,
+    revenue_catalogue,
+    runs,
+    taxonomies,
+    taxonomy_researcher,
+    themes,
+    tnfd,
+    transition_plan,
+    universe,
+    voting,
+)
 
 logging.basicConfig(level=logging.INFO)
 

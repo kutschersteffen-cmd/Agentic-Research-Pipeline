@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from arp.engagement.triggers import ControversySignal, StaticControversySource, run_trigger_screen, scan_for_stalled_issues
 from arp.schemas.common import CompanyRef
@@ -58,7 +58,7 @@ async def test_run_trigger_screen_ignores_signals_for_unlisted_companies(tmp_pat
 
 def test_scan_for_stalled_issues_flags_and_marks_status(tmp_path):
     store = EngagementStore(tmp_path)
-    old = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+    old = (datetime.now(UTC) - timedelta(days=90)).isoformat()
     store.open_issue("C1", "Acme Corp", theme="climate", source=TriggerSource.MANUAL)
     # Backdate opened_at by rewriting the record directly (simplest way to simulate age in a test).
     record = store.get("C1")

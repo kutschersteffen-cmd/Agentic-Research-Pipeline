@@ -26,7 +26,7 @@ class CrosswalkTable:
         return len(self._entries)
 
     @classmethod
-    def empty(cls) -> "CrosswalkTable":
+    def empty(cls) -> CrosswalkTable:
         return cls({})
 
     def lookup(self, isic_code: str) -> list[StandardCodeMatch]:

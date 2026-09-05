@@ -16,7 +16,8 @@ from arp.research.activity_generator import build_theme
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.pipeline import create_theme_run, execute_theme_run, resume_theme_run
 from arp.research.rd_exposure.resolver import RDResolverContext
-from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company, load_catalogue
+from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company
+from arp.research.revenue_exposure.catalogue import load_catalogue
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.common import CompanyRef
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping

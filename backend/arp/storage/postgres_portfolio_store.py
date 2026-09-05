@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Postgres-backed alternative to arp/storage/portfolio_store.py::PortfolioStore
 for Portfolios/Securities/Companies/Holdings specifically -- see the module
 docstring in postgres_models.py for why the scope stops there (everything
@@ -10,8 +8,18 @@ Settings.postgres_dsn); the file-based PortfolioStore remains the default
 and is entirely unaffected when this isn't opted into.
 """
 
+from __future__ import annotations
+
 from arp.schemas.common import CompanyRef
-from arp.schemas.portfolio import DataPointObservation, Holding, NewsItem, NewsRiskFlag, Portfolio, SecurityRef, SecurityResolution
+from arp.schemas.portfolio import (
+    DataPointObservation,
+    Holding,
+    NewsItem,
+    NewsRiskFlag,
+    Portfolio,
+    SecurityRef,
+    SecurityResolution,
+)
 from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.postgres import get_engine
 

@@ -11,7 +11,7 @@ from arp.research.rd_exposure.resolver import (
     resolve_news_mentions,
     resolve_rd_intensity,
 )
-from arp.schemas.common import CompanyRef, Citation, DocType, SourceDocument
+from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
 from arp.schemas.thematic import ActivityDefinition, LifecycleStage
 
 

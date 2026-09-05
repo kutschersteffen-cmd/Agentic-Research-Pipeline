@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
 
 from arp.schemas.common import RunManifest, now_iso
 from arp.storage.locks import KeyedLock

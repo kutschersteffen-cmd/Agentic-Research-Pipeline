@@ -54,7 +54,7 @@ async def test_cached_submissions_and_filing_make_no_http_call(tmp_path, monkeyp
     source = EdgarDocumentSource(user_agent="test-agent test@example.com", cache_dir=cache_dir, content_store=store)
 
     _write_submissions_cache(cache_dir, "0000320193", _SUBMISSIONS)
-    content_key = hashlib.sha256(f"edgar:{_ACCESSION}/{_PRIMARY_DOC}".encode("utf-8")).hexdigest()
+    content_key = hashlib.sha256(f"edgar:{_ACCESSION}/{_PRIMARY_DOC}".encode()).hexdigest()
     store.store(
         content_key,
         key_kind="edgar_accession",
@@ -102,7 +102,7 @@ async def test_edgar_doc_id_is_stable_across_fetches(tmp_path, monkeypatch):
     source = EdgarDocumentSource(user_agent="test-agent test@example.com", cache_dir=cache_dir, content_store=store)
 
     _write_submissions_cache(cache_dir, "0000320193", _SUBMISSIONS)
-    content_key = hashlib.sha256(f"edgar:{_ACCESSION}/{_PRIMARY_DOC}".encode("utf-8")).hexdigest()
+    content_key = hashlib.sha256(f"edgar:{_ACCESSION}/{_PRIMARY_DOC}".encode()).hexdigest()
     store.store(
         content_key,
         key_kind="edgar_accession",

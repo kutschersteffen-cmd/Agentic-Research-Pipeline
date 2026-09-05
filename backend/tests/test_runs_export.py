@@ -1,9 +1,9 @@
 from arp.api.routers.runs import _THEME_CSV_HEADER, _theme_csv_row
 from arp.schemas.arbitration import ArbitrationContribution, ArbitrationResult
+from arp.schemas.common import Citation, DocType
 from arp.schemas.exposure import IndirectExposureResult
 from arp.schemas.rd_exposure import RDExposureResult
 from arp.schemas.revenue_exposure import MetricExposure, RevenueExposureResult
-from arp.schemas.common import Citation, DocType
 from arp.schemas.thematic import CompanyMatch, CompanyRole, ExposureEstimate, MatchVerdict
 
 
@@ -40,7 +40,7 @@ def test_theme_csv_row_length_matches_header():
 
 def test_theme_csv_row_field_values():
     row = _theme_csv_row(_full_match())
-    as_dict = dict(zip(_THEME_CSV_HEADER, row))
+    as_dict = dict(zip(_THEME_CSV_HEADER, row, strict=True))
     assert as_dict["company_id"] == "c1"
     assert as_dict["company_role"] == "diversified"
     assert as_dict["revenue_pct"] == 0.3
@@ -62,7 +62,7 @@ def test_theme_csv_row_handles_missing_optional_fields():
         adjudicator_rationale="No evidence.",
     )
     row = _theme_csv_row(match)
-    as_dict = dict(zip(_THEME_CSV_HEADER, row))
+    as_dict = dict(zip(_THEME_CSV_HEADER, row, strict=True))
     assert as_dict["company_role"] is None
     assert as_dict["revenue_pct"] is None
     assert as_dict["arbitration_composite_score"] is None

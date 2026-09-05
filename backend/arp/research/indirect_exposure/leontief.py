@@ -84,7 +84,7 @@ def load_model_cache(cache_dir: Path, edition_label: str) -> LeontiefModel | Non
         return None
     data = np.load(path, allow_pickle=False)
     codes = [str(c) for c in data["codes"]]
-    labels = {c: str(l) for c, l in zip(codes, data["labels"])}
+    labels = {c: str(label) for c, label in zip(codes, data["labels"], strict=True)}
     return LeontiefModel(codes=codes, labels=labels, leontief_inverse=data["leontief_inverse"], edition_label=edition_label)
 
 

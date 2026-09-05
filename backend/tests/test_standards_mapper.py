@@ -3,8 +3,8 @@ import io
 from pathlib import Path
 
 from arp.config import Settings
-from arp.research.standards_mapping.crosswalk import CrosswalkTable, load_crosswalk
-from arp.research.standards_mapping.gics import GicsReferenceEntry, _GicsSelection, _GicsSelectionList, load_gics_reference
+from arp.research.standards_mapping.crosswalk import load_crosswalk
+from arp.research.standards_mapping.gics import _GicsSelection, _GicsSelectionList, load_gics_reference
 from arp.research.standards_mapping.mapper import format_standards_csv, map_activity_standards, map_theme_to_standards
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 

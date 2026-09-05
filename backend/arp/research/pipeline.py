@@ -17,7 +17,8 @@ from arp.research.indirect_exposure.factory import resolve_indirect_exposure_mod
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.match_graph import match_company_activity
 from arp.research.rd_exposure.resolver import RDResolverContext
-from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company, load_catalogue
+from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company
+from arp.research.revenue_exposure.catalogue import load_catalogue
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.common import CompanyRef, JobStatus
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping

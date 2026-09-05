@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from arp.schemas.voting import CastConfirmation, CastStatus, VoteRecord
+from arp.schemas.voting import CastConfirmation, VoteRecord
 
 
 class BallotPlatform(ABC):
@@ -69,11 +69,14 @@ async def cast_vote(platform: BallotPlatform, vote_record: VoteRecord) -> VoteRe
     """
     if vote_record.human_decision is None:
         raise CastVoteError(f"Refusing to cast {vote_record.vote_record_id}: no recorded human_decision.")
-    if vote_record.policy_recommendation is not None and vote_record.policy_recommendation.engagement_alignment_flag:
-        if not vote_record.human_decision.co_signed_by:
-            raise CastVoteError(
-                f"Refusing to cast {vote_record.vote_record_id}: engagement_alignment_flag is set and requires a co-sign."
-            )
+    if (
+        vote_record.policy_recommendation is not None
+        and vote_record.policy_recommendation.engagement_alignment_flag
+        and not vote_record.human_decision.co_signed_by
+    ):
+        raise CastVoteError(
+            f"Refusing to cast {vote_record.vote_record_id}: engagement_alignment_flag is set and requires a co-sign."
+        )
     if vote_record.cast_confirmation is not None:
         return vote_record
 

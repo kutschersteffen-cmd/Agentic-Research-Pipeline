@@ -3,8 +3,8 @@ from __future__ import annotations
 import hashlib
 import logging
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from arp.schemas.common import new_id, now_iso
 from arp.storage.safe_path import safe_id

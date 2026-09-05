@@ -5,9 +5,22 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from arp.api.deps import get_emerging_themes_scheduler, get_llm_client, get_run_store, get_taxonomy_store, get_topic_store, settings_dep
+from arp.api.deps import (
+    get_emerging_themes_scheduler,
+    get_llm_client,
+    get_run_store,
+    get_taxonomy_store,
+    get_topic_store,
+    settings_dep,
+)
 from arp.config import Settings
-from arp.emerging_themes.pipeline import create_emerging_themes_run, execute_emerging_themes_run, load_candidates_with_status, promote_candidate, reject_candidate
+from arp.emerging_themes.pipeline import (
+    create_emerging_themes_run,
+    execute_emerging_themes_run,
+    load_candidates_with_status,
+    promote_candidate,
+    reject_candidate,
+)
 from arp.emerging_themes.scheduler import EmergingThemesScheduler, default_sources
 from arp.llm.base import LLMClient
 from arp.schemas.common import CompanyRef

@@ -295,7 +295,7 @@ async def test_unrelated_bad_request_is_not_swallowed(tmp_path):
 
     try:
         await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)
-        assert False, "expected BadRequestError to propagate"
+        raise AssertionError("expected BadRequestError to propagate")
     except BadRequestError:
         pass
     # No blind backoff retries against a non-transient, non-temperature 400.

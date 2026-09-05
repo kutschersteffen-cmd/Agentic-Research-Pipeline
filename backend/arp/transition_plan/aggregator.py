@@ -25,7 +25,7 @@ def build_indicator_assessment(
     """
     final_verdict = draft.verdict if verifier.agrees else (verifier.corrected_verdict or draft.verdict)
 
-    if verifier.agrees:
+    if verifier.agrees:  # noqa: SIM108 -- kept as if/else so each branch keeps its own rationale comment
         # draft.citations were written to support draft.verdict, which is
         # final_verdict here, so they're the right citations to check and show.
         grounded_citations = ground_citations(draft.citations, documents_by_id, fuzzy_threshold)
@@ -36,9 +36,7 @@ def build_indicator_assessment(
         grounded_citations = []
     any_grounded = any(c.grounded for c in grounded_citations)
 
-    if final_verdict == Verdict.NA:
-        base_confidence = 1.0
-    elif any_grounded:
+    if final_verdict == Verdict.NA or any_grounded:
         base_confidence = 1.0
     elif grounded_citations:
         # Citations were offered but none independently verified -- the

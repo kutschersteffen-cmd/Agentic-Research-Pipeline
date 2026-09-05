@@ -11,7 +11,7 @@ def test_parse_xlsx_renders_sheets_as_pipe_delimited_tables(tmp_path):
     ws1.append(["Capex", 6912, 6500])
     ws1.append([None, None, None])  # blank row should be dropped
 
-    ws2 = wb.create_sheet("Empty Sheet")  # only a header, no data rows
+    wb.create_sheet("Empty Sheet")  # only a header, no data rows
 
     path = tmp_path / "statbook.xlsx"
     wb.save(path)

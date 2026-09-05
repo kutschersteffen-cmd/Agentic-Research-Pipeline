@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import os
 import tempfile
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
 
 from arp.schemas.common import now_iso
-from arp.storage.locks import KeyedLock
-from arp.storage.safe_path import safe_id
 from arp.schemas.engagement import (
     Commitment,
     CommitmentStatus,
@@ -22,6 +20,8 @@ from arp.schemas.engagement import (
     MilestoneStage,
     TriggerSource,
 )
+from arp.storage.locks import KeyedLock
+from arp.storage.safe_path import safe_id
 
 
 class EngagementStore:

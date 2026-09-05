@@ -6,11 +6,11 @@ from pathlib import Path
 
 import typer
 
+from arp.agents.calibration_agent import CalibrationAgentScheduler, run_calibration_pass
+from arp.agents.taxonomy_researcher import TaxonomyResearcherScheduler, run_taxonomy_research
 from arp.config import get_settings
 from arp.discovery.identity_pipeline import enriched_universe, run_identity_resolution
 from arp.discovery.pipeline import run_discovery
-from arp.agents.calibration_agent import CalibrationAgentScheduler, run_calibration_pass
-from arp.agents.taxonomy_researcher import TaxonomyResearcherScheduler, run_taxonomy_research
 from arp.discovery.scheduler import DiscoveryScheduler
 from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.emerging_themes.pipeline import load_candidates_with_status, promote_candidate, reject_candidate, run_emerging_themes
@@ -18,25 +18,35 @@ from arp.emerging_themes.scheduler import EmergingThemesScheduler, default_sourc
 from arp.engagement.orchestrator import decide_next_action
 from arp.engagement.reporting_agent import compile_report
 from arp.engagement.triggers import ControversySignal, StaticControversySource, run_trigger_screen, scan_for_stalled_issues
+from arp.extraction.financials_pipeline import run_financials_extraction
 from arp.extraction.pipeline import run_extraction
 from arp.extraction.schema_builder import draft_schema
-from arp.extraction.financials_pipeline import run_financials_extraction
 from arp.extraction.tnfd_pipeline import run_tnfd_extraction
-from arp.golden_set.runner import load_cases as load_golden_set_cases, run_golden_set
-from arp.transition_plan.indicators import load_indicators
-from arp.transition_plan.pipeline import run_transition_plan_assessment
+from arp.golden_set.runner import load_cases as load_golden_set_cases
+from arp.golden_set.runner import run_golden_set
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
+from arp.orchestration.job_manager import JobManager
+from arp.portfolio import analytics, qa_agent
+from arp.portfolio.climate import metrics as climate_metrics
+from arp.portfolio.mock_data import generate_demo_dataset
+from arp.portfolio.news.classifier import classify_article
 from arp.research.activity_generator import build_theme, build_theme_industry_anchored
 from arp.research.indirect_exposure.core_sectors import classify_theme_core_sectors
 from arp.research.indirect_exposure.criticality import apply_criticality_overlay
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.lifecycle_classifier import classify_theme_lifecycle_stages
 from arp.research.pipeline import load_theme_run_matches, rank_theme_matches, resume_theme_run, run_thematic_universe
+from arp.research.rd_exposure.resolver import RDResolverContext
 from arp.research.results_diff import diff_theme_results
+from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company
+from arp.research.revenue_exposure.catalogue import distinct_labels, load_catalogue
+from arp.research.revenue_exposure.mapping import suggest_catalogue_mapping
+from arp.research.revenue_exposure.resolver import RevenueResolverContext
+from arp.research.standards_mapping.mapper import format_standards_csv, map_theme_to_standards
 from arp.research.taxonomy_sources.authority import build_theme_from_authority_sources
 from arp.research.taxonomy_sources.compare import compare_taxonomies, merge_taxonomies
 from arp.research.taxonomy_sources.discovery import discover_authority_sources, discover_thematic_funds
@@ -46,28 +56,18 @@ from arp.research.taxonomy_sources.etf_holdings import (
     load_holdings_with_weights,
     load_universe_from_holdings,
 )
-from arp.research.taxonomy_sources.overlap import compute_holdings_overlap
 from arp.research.taxonomy_sources.news_mining import build_theme_from_news_and_transcripts
-from arp.research.standards_mapping.mapper import format_standards_csv, map_theme_to_standards
-from arp.research.revenue_exposure.catalogue import distinct_labels, load_catalogue, by_company as catalogue_by_company
-from arp.research.revenue_exposure.mapping import suggest_catalogue_mapping
-from arp.research.rd_exposure.resolver import RDResolverContext
-from arp.research.revenue_exposure.resolver import RevenueResolverContext
-from arp.schemas.revenue_exposure import ActivityCatalogueMapping
-from arp.orchestration.job_manager import JobManager
-from arp.portfolio import analytics, qa_agent
-from arp.portfolio.climate import metrics as climate_metrics
-from arp.portfolio.mock_data import generate_demo_dataset
-from arp.portfolio.news.classifier import classify_article
+from arp.research.taxonomy_sources.overlap import compute_holdings_overlap
+from arp.schemas.calibration import CalibrationScheduleConfig
 from arp.schemas.common import CompanyRef, DocType, JobStatus
 from arp.schemas.datapoints import DataPointSchema
-from arp.schemas.calibration import CalibrationScheduleConfig
 from arp.schemas.discovery import DiscoveryScheduleConfig
 from arp.schemas.emerging_themes import EmergingThemesScheduleConfig
-from arp.schemas.taxonomy_researcher import TaxonomyResearcherScheduleConfig
 from arp.schemas.engagement import CorrespondenceEntry, EscalationStage, IssueSeverity, TriggerSource
 from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotSpec, SecurityRef
+from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.schemas.taxonomy import DerivationMethod, TaxonomyRef
+from arp.schemas.taxonomy_researcher import TaxonomyResearcherScheduleConfig
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
@@ -76,6 +76,8 @@ from arp.storage.portfolio_store_factory import build_portfolio_store
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
+from arp.transition_plan.indicators import load_indicators
+from arp.transition_plan.pipeline import run_transition_plan_assessment
 from arp.universe import load_company_universe
 from arp.voting.ballot_casting import ManualInstructionBallotPlatform
 from arp.voting.pipeline import cast_approved_votes, get_ballots, get_cast_votes, run_voting
@@ -1055,7 +1057,6 @@ def documents_warm(
     fails to parse now instead of mid-run. Safe to re-run: everything it
     touches is content-addressed, so an already-warm document is a fast
     cache hit rather than repeated work."""
-    settings = get_settings()
     companies = load_company_universe(universe)
     types = [DocType(t.strip()) for t in doc_types.split(",") if t.strip()] or None
     registry = _registry()
@@ -1285,7 +1286,7 @@ def universe_overlap(
     if len(fund_names) != len(holdings):
         typer.echo("--name count must match the number of holdings files.", err=True)
         raise typer.Exit(1)
-    fund_holdings = {name: load_holdings_with_weights(path) for name, path in zip(fund_names, holdings)}
+    fund_holdings = {name: load_holdings_with_weights(path) for name, path in zip(fund_names, holdings, strict=True)}
     result = compute_holdings_overlap(fund_holdings)
     typer.echo(json.dumps(result.model_dump(mode="json"), indent=2))
 

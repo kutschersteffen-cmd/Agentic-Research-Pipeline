@@ -495,6 +495,6 @@ async def test_resume_theme_run_unknown_universe_path_raises(tmp_path, fake_llm)
     registry = DocumentSourceRegistry([_FixedDocSource([])])
     try:
         await resume_theme_run(run_id, llm=llm, registry=registry, settings=settings, run_store=store)
-        assert False, "expected ValueError"
+        raise AssertionError("expected ValueError")
     except ValueError as exc:
         assert "universe_path" in str(exc)

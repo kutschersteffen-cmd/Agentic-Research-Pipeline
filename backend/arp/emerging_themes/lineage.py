@@ -98,7 +98,7 @@ def classify_lineage(
             )
         )
 
-    for prior_id, prior in by_prior_id.items():
+    for prior_id in by_prior_id:
         if prior_id not in matched_prior_ids:
             events.append(LineageEvent(cluster_id=prior_id, period=current_period, transition=LineageTransition.DEATH))
 

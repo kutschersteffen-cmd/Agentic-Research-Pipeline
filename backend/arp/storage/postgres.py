@@ -25,7 +25,7 @@ class PostgresExtraNotInstalled(RuntimeError):
 
 
 @lru_cache
-def get_engine(dsn: str) -> "Engine":
+def get_engine(dsn: str) -> Engine:
     """One pooled Engine per DSN for the process lifetime -- SQLAlchemy's
     own recommended pattern (an Engine already owns a connection pool;
     building a new one per call would defeat that). Imports SQLAlchemy

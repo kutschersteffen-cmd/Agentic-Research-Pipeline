@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -72,6 +72,6 @@ class RegulatoryRssSource(MentionSource):
         if not parsed_time:
             return None
         try:
-            return datetime(*parsed_time[:6], tzinfo=timezone.utc)
+            return datetime(*parsed_time[:6], tzinfo=UTC)
         except (TypeError, ValueError):
             return None

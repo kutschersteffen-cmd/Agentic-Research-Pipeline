@@ -4,9 +4,9 @@ import hashlib
 import json
 import logging
 import sqlite3
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable
 
 from arp.schemas.common import now_iso
 
@@ -269,7 +269,7 @@ class ParsedContentCache:
                 "id", "content_key", "key_kind", "parser_version", "source_suffix", "char_len", "byte_size",
                 "text_sha256", "created_at",
             ]
-            return [dict(zip(columns, row)) for row in rows], total
+            return [dict(zip(columns, row, strict=True)) for row in rows], total
         finally:
             conn.close()
 

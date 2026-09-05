@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """SQLAlchemy ORM models for the opt-in Postgres/pgvector store (see
 arp/storage/postgres.py, arp/storage/postgres_portfolio_store.py,
 arp/storage/postgres_embeddings.py). Imported lazily by those modules only
@@ -16,10 +14,12 @@ those stores have the multi-way join access pattern that justifies a
 relational engine's cost. See docs/METHODOLOGY.md for the full reasoning.
 """
 
+from __future__ import annotations
+
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import Float, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from pgvector.sqlalchemy import Vector
 
 from arp.retrieval.embeddings import EMBED_DIM
 

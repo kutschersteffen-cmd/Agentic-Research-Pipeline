@@ -13,6 +13,7 @@ from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.research.activity_generator import build_theme, build_theme_industry_anchored
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
+from arp.research.standards_mapping.mapper import format_standards_csv, map_theme_to_standards
 from arp.research.taxonomy_sources.authority import build_theme_from_authority_sources
 from arp.research.taxonomy_sources.bundled_sources import list_bundled_authority_sources
 from arp.research.taxonomy_sources.compare import compare_taxonomies, merge_taxonomies
@@ -21,7 +22,6 @@ from arp.research.taxonomy_sources.empirical import build_theme_empirical
 from arp.research.taxonomy_sources.etf_holdings import build_theme_from_holdings
 from arp.research.taxonomy_sources.fetch import fetch_source_original
 from arp.research.taxonomy_sources.news_mining import build_theme_from_news_and_transcripts
-from arp.research.standards_mapping.mapper import format_standards_csv, map_theme_to_standards
 from arp.schemas.common import CompanyRef
 from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyComparison, TaxonomyRef
 from arp.schemas.taxonomy_sources import SourceCandidate

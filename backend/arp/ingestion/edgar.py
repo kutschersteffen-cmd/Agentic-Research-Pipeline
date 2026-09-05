@@ -176,7 +176,7 @@ class EdgarDocumentSource(DocumentSource):
         if self._content_store is None:
             return await self._get_and_extract_text(client, url), None
 
-        content_key = hashlib.sha256(f"edgar:{accession}/{primary_doc}".encode("utf-8")).hexdigest()
+        content_key = hashlib.sha256(f"edgar:{accession}/{primary_doc}".encode()).hexdigest()
         cached = self._content_store.lookup(content_key, _edgar_parser_version())
         if cached is not None:
             return cached.full_text, content_key

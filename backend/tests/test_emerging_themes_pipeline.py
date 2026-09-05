@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from arp.config import Settings
 from arp.emerging_themes import pipeline as pipeline_module
@@ -126,7 +126,7 @@ async def test_promote_candidate_creates_draft_taxonomy_and_folds_status(tmp_pat
     candidate = EmergingThemeCandidate(
         theme_name="Solid-state EV battery commercialization",
         description="desc",
-        first_detected_date=datetime.now(timezone.utc).date().isoformat(),
+        first_detected_date=datetime.now(UTC).date().isoformat(),
         signal_velocity=5.0,
         corroborating_sources=[MentionCitation(mention_id="m0", source_type=MentionSourceType.GDELT, url="https://news.example.com/0", quote="q", grounded=True)],
         candidate_sectors_companies=["acme"],

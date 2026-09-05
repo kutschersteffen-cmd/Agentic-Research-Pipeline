@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from arp.config import Settings
 from arp.emerging_themes.clustering import cluster_tags
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 def current_period() -> str:
     """ISO week key (e.g. '2026-W35') -- the cadence lineage tracking
     links periods across; matches the schedule's weekly default."""
-    iso = datetime.now(timezone.utc).isocalendar()
+    iso = datetime.now(UTC).isocalendar()
     return f"{iso.year}-W{iso.week:02d}"
 
 
@@ -64,7 +64,7 @@ async def execute_emerging_themes_run(
     """
     job_manager = JobManager(run_store)
     period = current_period()
-    since = datetime.now(timezone.utc) - timedelta(days=settings.emerging_themes_lookback_days)
+    since = datetime.now(UTC) - timedelta(days=settings.emerging_themes_lookback_days)
 
     # --- Ingest ---
     mentions: list[RawMention] = []

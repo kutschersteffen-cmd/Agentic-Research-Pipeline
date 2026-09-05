@@ -5,7 +5,7 @@ from enum import StrEnum
 from pydantic import BaseModel, Field, model_validator
 
 from arp.schemas.arbitration import ArbitrationResult
-from arp.schemas.common import Citation, now_iso, new_id
+from arp.schemas.common import Citation, new_id, now_iso
 from arp.schemas.exposure import IndirectExposureResult
 from arp.schemas.rd_exposure import RDExposureResult
 from arp.schemas.revenue_exposure import RevenueExposureResult
@@ -101,7 +101,7 @@ class ActivityDefinition(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _approved_activities_must_be_sourced(self) -> "ActivityDefinition":
+    def _approved_activities_must_be_sourced(self) -> ActivityDefinition:
         """An activity marked human_approved is asserting 'a person checked
         this and it's traceable to a specific disclosed fact' -- so it must
         actually carry a source and a real rationale, not just a label.

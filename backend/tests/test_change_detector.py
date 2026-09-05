@@ -1,4 +1,3 @@
-import pytest
 
 from arp.discovery.change_detector import ChangeDetector
 from arp.schemas.common import CompanyRef, DocType

@@ -1,9 +1,9 @@
-from __future__ import annotations
-
 """Single choke point for choosing PortfolioStore (file, default) vs.
 PostgresPortfolioStore (opt-in, Settings.portfolio_backend == "postgres")
 -- both the CLI and the API call this rather than duplicating the branch.
 """
+
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from arp.storage.postgres_portfolio_store import PostgresPortfolioStore
 
 
-def build_portfolio_store(settings: Settings) -> "PortfolioStore | PostgresPortfolioStore":
+def build_portfolio_store(settings: Settings) -> PortfolioStore | PostgresPortfolioStore:
     file_store = PortfolioStore(settings.portfolios_dir)
     if settings.portfolio_backend != "postgres":
         return file_store

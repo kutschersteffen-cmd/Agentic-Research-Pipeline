@@ -10,7 +10,13 @@ from arp.agents.taxonomy_researcher import (
     create_taxonomy_research_run,
     execute_taxonomy_research_run,
 )
-from arp.api.deps import get_llm_client, get_taxonomy_researcher_scheduler, get_taxonomy_store, get_web_search_client, settings_dep
+from arp.api.deps import (
+    get_llm_client,
+    get_taxonomy_researcher_scheduler,
+    get_taxonomy_store,
+    get_web_search_client,
+    settings_dep,
+)
 from arp.config import Settings
 from arp.schemas.taxonomy_researcher import TaxonomyResearcherScheduleConfig
 from arp.storage.run_store import RunStore

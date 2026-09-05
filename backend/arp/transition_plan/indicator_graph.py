@@ -5,7 +5,6 @@ from typing import TypedDict
 from langgraph.graph import END, StateGraph
 from pydantic import ValidationError
 
-from arp.ingestion.parsing import chunk_document
 from arp.llm.base import LLMClient, LLMUsage
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import DocumentChunk, SourceDocument

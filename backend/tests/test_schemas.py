@@ -7,7 +7,15 @@ from arp.schemas.common import Citation, DocType, JobStatus, RunManifest
 from arp.schemas.datapoints import DataPointSchema, ExtractedField, FieldDataType, FieldDefinition
 from arp.schemas.results_diff import MatchDiffEntry, ResultsDiff
 from arp.schemas.taxonomy_researcher import TaxonomyResearchFinding
-from arp.schemas.thematic import ActivityDefinition, ActivityTier, CompanyMatch, CompanyRole, ExposureEstimate, LifecycleStage, MatchVerdict
+from arp.schemas.thematic import (
+    ActivityDefinition,
+    ActivityTier,
+    CompanyMatch,
+    CompanyRole,
+    ExposureEstimate,
+    LifecycleStage,
+    MatchVerdict,
+)
 
 
 def test_citation_defaults_ungrounded_until_checked():

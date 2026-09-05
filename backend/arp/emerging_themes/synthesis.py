@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel
 
@@ -111,7 +111,7 @@ async def build_candidate(
     candidate = EmergingThemeCandidate(
         theme_name=draft.theme_name,
         description=draft.description,
-        first_detected_date=datetime.now(timezone.utc).date().isoformat(),
+        first_detected_date=datetime.now(UTC).date().isoformat(),
         signal_velocity=float(cluster.mention_count),
         corroborating_sources=citations,
         candidate_sectors_companies=cluster.company_ids,

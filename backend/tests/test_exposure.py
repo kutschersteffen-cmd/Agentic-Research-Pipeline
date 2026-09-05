@@ -1,9 +1,8 @@
 import numpy as np
 
 from arp.research.indirect_exposure.exposure import compute_indirect_exposure
-from arp.research.indirect_exposure.icio_loader import ICIOData
+from arp.research.indirect_exposure.icio_loader import ICIOData, load_sample_icio
 from arp.research.indirect_exposure.leontief import build_model
-from arp.research.indirect_exposure.icio_loader import load_sample_icio
 
 
 def _sample_model():

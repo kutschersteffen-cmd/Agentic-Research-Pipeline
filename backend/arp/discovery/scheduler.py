@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -71,7 +71,7 @@ class DiscoveryScheduler:
             "interval",
             hours=config.interval_hours,
             id=_JOB_ID,
-            next_run_time=datetime.now(timezone.utc) + timedelta(seconds=5),
+            next_run_time=datetime.now(UTC) + timedelta(seconds=5),
         )
 
     async def _run_scheduled(self) -> None:

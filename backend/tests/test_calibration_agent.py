@@ -1,4 +1,9 @@
-from arp.agents.calibration_agent import check_company_staleness, create_calibration_run, execute_calibration_run, run_calibration_pass
+from arp.agents.calibration_agent import (
+    check_company_staleness,
+    create_calibration_run,
+    execute_calibration_run,
+    run_calibration_pass,
+)
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.schemas.common import CompanyRef, DocType, JobStatus, RunManifest, SourceDocument
 from arp.schemas.thematic import CompanyMatch, ExposureEstimate, MatchVerdict

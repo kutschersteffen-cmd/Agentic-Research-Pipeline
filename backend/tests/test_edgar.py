@@ -1,7 +1,5 @@
 import json
 
-import pytest
-
 from arp.ingestion.edgar import EdgarDocumentSource
 
 

@@ -10,7 +10,7 @@ from arp.extraction.tnfd_extractor_agent import (
 )
 from arp.extraction.tnfd_verifier_agent import TNFDVerifierOutput
 from arp.grounding import ground_citations
-from arp.schemas.common import Citation, SourceDocument
+from arp.schemas.common import SourceDocument
 from arp.schemas.tnfd import (
     KNOWN_SECTOR_NAMES,
     SECTOR_GUIDANCE_STATUS,

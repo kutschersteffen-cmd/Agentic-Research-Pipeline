@@ -1,7 +1,20 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from arp.engagement.orchestrator import OrchestratorAction, decide_next_action, is_stalled, next_escalation_stage, next_milestone_stage
-from arp.schemas.engagement import EngagementIssue, EscalationStage, IssueStatus, MilestoneStage, MilestoneTransition, TriggerSource
+from arp.engagement.orchestrator import (
+    OrchestratorAction,
+    decide_next_action,
+    is_stalled,
+    next_escalation_stage,
+    next_milestone_stage,
+)
+from arp.schemas.engagement import (
+    EngagementIssue,
+    EscalationStage,
+    IssueStatus,
+    MilestoneStage,
+    MilestoneTransition,
+    TriggerSource,
+)
 
 
 def _issue(**overrides) -> EngagementIssue:
@@ -44,31 +57,31 @@ def test_decide_next_action_terminal_status_is_no_action():
 
 
 def test_is_stalled_false_for_recent_activity():
-    issue = _issue(opened_at=datetime.now(timezone.utc).isoformat())
+    issue = _issue(opened_at=datetime.now(UTC).isoformat())
     assert is_stalled(issue, sla_days=45) is False
 
 
 def test_is_stalled_true_past_sla_with_no_activity():
-    old = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+    old = (datetime.now(UTC) - timedelta(days=90)).isoformat()
     issue = _issue(opened_at=old)
     assert is_stalled(issue, sla_days=45) is True
 
 
 def test_is_stalled_uses_latest_milestone_transition_not_opened_at():
-    old = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
-    recent = datetime.now(timezone.utc).isoformat()
+    old = (datetime.now(UTC) - timedelta(days=90)).isoformat()
+    recent = datetime.now(UTC).isoformat()
     issue = _issue(opened_at=old, milestone_history=[MilestoneTransition(stage=MilestoneStage.CONTACTED, changed_at=recent)])
     assert is_stalled(issue, sla_days=45) is False
 
 
 def test_decide_next_action_stalled_overrides_milestone_action():
-    old = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+    old = (datetime.now(UTC) - timedelta(days=90)).isoformat()
     issue = _issue(opened_at=old, milestone_stage=MilestoneStage.CONTACTED)
     decision = decide_next_action(issue, sla_days=45)
     assert decision.action == OrchestratorAction.FLAG_FOR_ESCALATION_DECISION
 
 
 def test_is_stalled_never_true_for_resolved_issue():
-    old = (datetime.now(timezone.utc) - timedelta(days=900)).isoformat()
+    old = (datetime.now(UTC) - timedelta(days=900)).isoformat()
     issue = _issue(opened_at=old, status=IssueStatus.RESOLVED)
     assert is_stalled(issue, sla_days=45) is False
