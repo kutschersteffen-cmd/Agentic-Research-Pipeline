@@ -184,6 +184,15 @@ def test_monitoring_rules_and_alerts_delegate_to_file_store(store):
     assert store.list_all_alert_scope_ids() == ["bmw"]
 
 
+def test_governance_events_delegate_to_file_store(store):
+    """Governance events are another non-relational surface, delegated the
+    same way monitoring rules/alerts are above -- this is exactly where
+    forgetting to add a delegation method would surface as an
+    AttributeError under ARP_PORTFOLIO_BACKEND=postgres."""
+    store.append_governance_event("decision_recorded", {"decision": {"item_key": "s1"}})
+    assert store.list_governance_events()[0]["decision"]["item_key"] == "s1"
+
+
 def test_pgvector_embeddings_store_roundtrip():
     from arp.storage.postgres import ensure_schema
     from arp.storage.postgres_embeddings import PgVectorEmbeddingsStore

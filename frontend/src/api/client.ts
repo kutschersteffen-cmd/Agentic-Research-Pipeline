@@ -11,12 +11,18 @@ import type {
   DataPointSchema,
   DemoSeedSummary,
   FinancedEmissionsResult,
+  GovernanceDecision,
+  GovernanceDecisionType,
+  GovernanceItemType,
   NewsItem,
   NewsRiskFlag,
   PivotRequest,
   PivotResult,
+  PolicyChange,
+  PolicySettingName,
   PortfolioSummary,
   QAAnswer,
+  RiskCategoryOwner,
   SecurityResolution,
   TransitionPlanAssessmentRecord,
   TransitionPlanIndicatorDef,
@@ -355,6 +361,25 @@ export const api = {
     }),
   evaluateMonitoringNow: () =>
     request<{ threshold_alerts_raised: number; news_alerts_raised: number }>("/api/portfolio/monitoring/evaluate-now", { method: "POST" }),
+  listPendingGovernanceReviews: () =>
+    request<{ entity_resolution: SecurityResolution[]; climate_conflict: DataPointObservation[] }>("/api/portfolio/governance/pending-reviews"),
+  recordGovernanceDecision: (body: {
+    item_type: GovernanceItemType;
+    item_key: string;
+    decision: GovernanceDecisionType;
+    decided_by: string;
+    reason?: string;
+    override_value?: number | string | boolean | null;
+  }) => request<GovernanceDecision>("/api/portfolio/governance/decisions", { method: "POST", body: JSON.stringify(body) }),
+  listGovernanceDecisions: (itemType?: GovernanceItemType) =>
+    request<GovernanceDecision[]>(`/api/portfolio/governance/decisions${buildQuery({ item_type: itemType })}`),
+  getGovernancePolicy: () =>
+    request<{ values: Record<PolicySettingName, number>; history: PolicyChange[] }>("/api/portfolio/governance/policy"),
+  updateGovernancePolicy: (body: { setting_name: PolicySettingName; new_value: number; changed_by: string; reason?: string }) =>
+    request<PolicyChange>("/api/portfolio/governance/policy", { method: "PUT", body: JSON.stringify(body) }),
+  listGovernanceOwners: () => request<RiskCategoryOwner[]>("/api/portfolio/governance/owners"),
+  assignGovernanceOwner: (category: string, body: { owner: string; assigned_by: string }) =>
+    request<RiskCategoryOwner>(`/api/portfolio/governance/owners/${encodeURIComponent(category)}`, { method: "PUT", body: JSON.stringify(body) }),
 
   // Climate analytics
   getClimateSchema: () => request<DataPointSchema>("/api/climate/schema"),

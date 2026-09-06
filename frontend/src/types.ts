@@ -947,6 +947,36 @@ export interface Alert {
   owner?: string | null;
 }
 
+export type GovernanceItemType = "entity_resolution" | "climate_conflict";
+export type GovernanceDecisionType = "accept" | "override" | "reject";
+export type PolicySettingName = "portfolio_confidence_review_threshold" | "climate_validation_tolerance_pct";
+
+export interface GovernanceDecision {
+  item_type: GovernanceItemType;
+  item_key: string;
+  decision: GovernanceDecisionType;
+  decided_by: string;
+  reason: string;
+  override_value?: number | string | boolean | null;
+  decided_at: string;
+}
+
+export interface RiskCategoryOwner {
+  category: string;
+  owner: string;
+  assigned_by: string;
+  assigned_at: string;
+}
+
+export interface PolicyChange {
+  setting_name: PolicySettingName;
+  old_value: number;
+  new_value: number;
+  changed_by: string;
+  reason: string;
+  changed_at: string;
+}
+
 export interface DemoSeedSummary {
   company_count: number;
   security_count: number;

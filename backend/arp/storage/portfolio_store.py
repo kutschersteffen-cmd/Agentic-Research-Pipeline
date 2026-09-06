@@ -293,3 +293,20 @@ class PortfolioStore:
         if not d.exists():
             return []
         return sorted(p.name for p in d.iterdir() if p.is_dir())
+
+    # --- governance & workflow (arp/portfolio/governance.py) ---
+
+    def governance_events_path(self) -> Path:
+        """One unified append-only log for every governance event type
+        (decision_recorded / policy_changed / owner_assigned) -- not
+        sharded per-item like alert_events_path, since a climate-conflict
+        item_key ("{company_id}:{field_id}") contains a ":" that safe_id()
+        rejects as a path segment, and this data is low-volume enough that
+        a single small fold per page-load is fine."""
+        return self.portfolios_dir / "governance" / "events.jsonl"
+
+    def append_governance_event(self, event_type: str, payload: dict) -> None:
+        self._append_jsonl(self.governance_events_path(), {"event_type": event_type, "at": now_iso(), **payload})
+
+    def list_governance_events(self) -> list[dict]:
+        return self._read_jsonl(self.governance_events_path())
