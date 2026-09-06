@@ -32,6 +32,29 @@ def _message(tool_id: str, tool_input: dict, input_tokens: int = 10, output_toke
     )
 
 
+class _FakeRawResponse:
+    """Stands in for anthropic>=1's `AsyncAPIResponse`, whose `.parse()` is a
+    coroutine (see langchain_anthropic._sdk_compat._aparse, which awaits it)."""
+
+    def __init__(self, message: Message) -> None:
+        self._message = message
+
+    async def parse(self):
+        return self._message
+
+
+class _FakeRawMessagesResource:
+    """Stands in for `messages.with_raw_response`, which `ChatAnthropic._acreate`
+    calls instead of `messages.create` directly on anthropic>=1."""
+
+    def __init__(self, messages: "_FakeMessages") -> None:
+        self._messages = messages
+
+    async def create(self, **kwargs):
+        message = await self._messages.create(**kwargs)
+        return _FakeRawResponse(message)
+
+
 class _FakeMessages:
     def __init__(self, responses: list[Message]) -> None:
         self._responses = responses
@@ -40,6 +63,13 @@ class _FakeMessages:
     async def create(self, **kwargs):
         self.calls.append(kwargs)
         return self._responses[len(self.calls) - 1]
+
+    @property
+    def with_raw_response(self) -> _FakeRawMessagesResource:
+        # A property (not a fixed attribute set in __init__) so it dispatches
+        # to self.create() dynamically -- subclasses below (_FlakyMessages,
+        # _AlwaysBadRequest) override create() and rely on that.
+        return _FakeRawMessagesResource(self)
 
 
 class _FakeAsyncClient:
@@ -112,13 +142,23 @@ async def test_max_tokens_defaults_generously_and_is_overridable(tmp_path):
     assert fake2.messages.calls[0]["max_tokens"] == 16000
 
 
+def _temperature_kwarg(call: dict) -> float | None:
+    """Read `temperature` out of a captured `.create(**kwargs)` call,
+    wherever the installed anthropic SDK actually put it: a top-level kwarg
+    on anthropic<1, relocated into `extra_body` on anthropic>=1 (see
+    langchain_anthropic._sdk_compat._route_unsupported_sampling_params)."""
+    if "temperature" in call:
+        return call["temperature"]
+    return (call.get("extra_body") or {}).get("temperature")
+
+
 async def test_temperature_is_actually_sent_to_the_model(tmp_path):
     """The previous raw-SDK implementation declared `temperature` on its
     signature but never forwarded it to the API call at all -- confirm the
     new client actually wires it through."""
     client, fake = _client_with_responses(tmp_path, [_message("tu_1", {"value": 1})])
     await client.complete_structured(system="sys", prompt="prompt", output_model=_Target, temperature=0.3)
-    assert fake.messages.calls[0]["temperature"] == 0.3
+    assert _temperature_kwarg(fake.messages.calls[0]) == 0.3
 
 
 def _bad_request(message: str) -> BadRequestError:
@@ -140,7 +180,7 @@ async def test_temperature_unsupported_model_falls_back_and_sticks(tmp_path):
 
         async def create(self, **kwargs):
             self.calls.append(kwargs)
-            if "temperature" in kwargs:
+            if _temperature_kwarg(kwargs) is not None:
                 raise _bad_request("`temperature` is deprecated for this model.")
             response = self._responses[self._served]
             self._served += 1
@@ -156,15 +196,15 @@ async def test_temperature_unsupported_model_falls_back_and_sticks(tmp_path):
     assert client._temperature_unsupported is True
     # One failed attempt (with temperature) + one successful retry (without).
     assert len(fake.messages.calls) == 2
-    assert "temperature" in fake.messages.calls[0]
-    assert "temperature" not in fake.messages.calls[1]
+    assert _temperature_kwarg(fake.messages.calls[0]) is not None
+    assert _temperature_kwarg(fake.messages.calls[1]) is None
 
     # A second call on the same client instance must not repeat the failed attempt.
     fake.messages._responses.append(_message("tu_2", {"value": 2}))
     instance2, _usage2 = await client.complete_structured(system="sys", prompt="prompt2", output_model=_Target)
     assert instance2.value == 2
     assert len(fake.messages.calls) == 3
-    assert "temperature" not in fake.messages.calls[2]
+    assert _temperature_kwarg(fake.messages.calls[2]) is None
 
 
 async def test_system_prompt_gets_cache_control_by_default(tmp_path):

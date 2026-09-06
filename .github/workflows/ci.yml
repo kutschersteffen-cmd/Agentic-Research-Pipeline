@@ -24,7 +24,7 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
 
       - name: Install backend package (dev extras)
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,postgres,emerging_themes]"
 
       - name: Ruff lint
         run: ruff check .
