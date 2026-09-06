@@ -829,6 +829,21 @@ export interface SecurityResolution {
   resolved_at: string;
 }
 
+export interface DataPointObservation {
+  company_id: string;
+  field_id: string;
+  field_name: string;
+  value: number | string | boolean | null;
+  unit?: string | null;
+  period: string;
+  observed_at: string;
+  source: "internal_api" | "extracted" | "catalogue" | "estimated_proxy";
+  conflicting_sources: boolean;
+  conflicting_value?: number | string | boolean | null;
+  conflicting_source_label?: string | null;
+  notes: string;
+}
+
 export interface AggregationRow {
   group_value: string;
   market_value_eur?: number | null;

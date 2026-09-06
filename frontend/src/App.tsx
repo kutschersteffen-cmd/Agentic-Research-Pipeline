@@ -12,8 +12,7 @@ import { BackgroundAgents } from "./pages/BackgroundAgents";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
-import { PortfolioRisk } from "./pages/PortfolioRisk";
-import { ClimateAnalytics } from "./pages/ClimateAnalytics";
+import { PortfolioRiskMonitoringTool } from "./pages/PortfolioRiskMonitoringTool";
 import type { ReviewableRunKind } from "./types";
 
 const TABS = [
@@ -25,8 +24,7 @@ const TABS = [
   { id: "transitionPlan", label: "Transition Plan Assessment" },
   { id: "identity", label: "Identity Resolution" },
   { id: "discovery", label: "Document Discovery" },
-  { id: "portfolio", label: "Portfolio Risk" },
-  { id: "climate", label: "Climate Analytics" },
+  { id: "portfolio-monitoring", label: "Portfolio Risk Monitoring Tool" },
   { id: "review", label: "Review Queue" },
   { id: "history", label: "Run History" },
   { id: "engagement", label: "Engagement" },
@@ -83,8 +81,7 @@ function App() {
         {active === "transitionPlan" && <TransitionPlanAssessment pendingUniverse={pendingUniverse} />}
         {active === "identity" && <IdentityResolution onSendToDiscovery={sendToDiscovery} />}
         {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingDiscoveryUniverse} />}
-        {active === "portfolio" && <PortfolioRisk />}
-        {active === "climate" && <ClimateAnalytics />}
+        {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool />}
         {active === "review" && <ReviewQueue pendingReview={pendingReview} />}
         {active === "history" && <RunHistory onOpenReview={openReview} />}
         {active === "engagement" && <EngagementDashboard />}

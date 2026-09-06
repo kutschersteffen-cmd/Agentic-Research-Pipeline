@@ -465,3 +465,10 @@ button.link-button { background: transparent; color: var(--accent); padding: 4px
 .pivot-table th { color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--panel-border); }
 .pivot-table th:first-child, .pivot-table td:first-child { text-align: left; color: var(--muted); border-right: 1px solid var(--panel-border); }
 .pivot-cell-empty { color: var(--muted); }
+
+.selection-pane { margin-bottom: 20px; }
+.pane-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+@media (max-width: 760px) { .pane-grid { grid-template-columns: 1fr; } }
+.selection-summary { color: var(--muted); font-size: 0.85rem; margin: 0 0 14px; }
+.stub-panel { border: 1px dashed var(--panel-border); border-radius: 8px; padding: 24px; text-align: center; color: var(--muted); }
+.stub-panel h3 { color: var(--text); margin-top: 0; }

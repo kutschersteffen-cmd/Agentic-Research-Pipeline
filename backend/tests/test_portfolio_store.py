@@ -1,5 +1,5 @@
 from arp.schemas.common import CompanyRef
-from arp.schemas.portfolio import Holding, Portfolio, SecurityRef, SecurityResolution
+from arp.schemas.portfolio import DataPointObservation, Holding, Portfolio, SecurityRef, SecurityResolution
 from arp.storage.portfolio_store import PortfolioStore
 
 
@@ -45,3 +45,15 @@ def test_resolutions_needing_review(tmp_path):
     store.save_resolution(SecurityResolution(security_id="s2", company_id=None, confidence=0.2, method="name_fuzzy", needs_review=True))
     pending = store.list_resolutions_needing_review()
     assert [r.security_id for r in pending] == ["s2"]
+
+
+def test_list_observation_keys(tmp_path):
+    store = PortfolioStore(tmp_path)
+    store.append_observation(DataPointObservation(company_id="bmw", field_id="f1", field_name="F1", value=1.0, source="internal_api", observed_at="2026-01-01"))
+    store.append_observation(DataPointObservation(company_id="sap", field_id="f2", field_name="F2", value=2.0, source="internal_api", observed_at="2026-01-01"))
+    assert store.list_observation_keys() == [("bmw", "f1"), ("sap", "f2")]
+
+
+def test_list_observation_keys_empty_when_nothing_recorded(tmp_path):
+    store = PortfolioStore(tmp_path)
+    assert store.list_observation_keys() == []

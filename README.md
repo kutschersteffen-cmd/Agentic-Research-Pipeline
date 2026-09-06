@@ -74,7 +74,10 @@ precision at scale (designed for up to ~4,000 companies per run).
    independent read of company disclosures. See
    [`docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md`](docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md)
    for the full design and `arp portfolio --help` / `arp climate --help`
-   below to try it against the built-in mock dataset.
+   below to try it against the built-in mock dataset. See
+   [`docs/SPEC_GAP_ANALYSIS.md`](docs/SPEC_GAP_ANALYSIS.md) for how this
+   compares, section by section, against an external functional
+   requirements spec for the same problem space.
 8. **Transition Plan Assessment** — a direct replication of Colesanti
    Senni, Schimanski, Bingler, Ni & Leippold (2024), *"Using AI to assess
    corporate climate transition disclosures"*: scores a company's

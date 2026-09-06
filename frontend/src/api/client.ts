@@ -2,7 +2,9 @@ import type { CompanyBallot, ResearchDossier, StewardshipReport, TriggerEvent, V
 import type {
   AggregationResult,
   AnalyticRequest,
+  CompanyRef,
   CoverageBySource,
+  DataPointObservation,
   DataPointSchema,
   DemoSeedSummary,
   FinancedEmissionsResult,
@@ -329,6 +331,8 @@ export const api = {
   seedPortfolioDemo: () => request<DemoSeedSummary>("/api/portfolio/demo/seed", { method: "POST" }),
   listPortfolios: () => request<PortfolioSummary[]>("/api/portfolio/portfolios"),
   listSecuritiesNeedingReview: () => request<SecurityResolution[]>("/api/portfolio/securities-needing-review"),
+  listPortfolioCompanies: () => request<CompanyRef[]>("/api/portfolio/companies"),
+  listConflictingObservations: () => request<DataPointObservation[]>("/api/portfolio/climate-conflicts"),
   runPortfolioAggregate: (body: AnalyticRequest) =>
     request<AggregationResult | TrendPoint[]>("/api/portfolio/aggregate", { method: "POST", body: JSON.stringify(body) }),
   runPortfolioPivot: (body: PivotRequest) => request<PivotResult>("/api/portfolio/pivot", { method: "POST", body: JSON.stringify(body) }),
