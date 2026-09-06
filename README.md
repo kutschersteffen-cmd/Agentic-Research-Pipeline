@@ -40,7 +40,10 @@ built on and exactly what each precision control catches.
    independent read of company disclosures. See
    [`docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md`](docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md)
    for the full design and `arp portfolio --help` / `arp climate --help`
-   below to try it against the built-in mock dataset.
+   below to try it against the built-in mock dataset. See
+   [`docs/SPEC_GAP_ANALYSIS.md`](docs/SPEC_GAP_ANALYSIS.md) for how this
+   compares, section by section, against an external functional
+   requirements spec for the same problem space.
 
 ## Architecture
 

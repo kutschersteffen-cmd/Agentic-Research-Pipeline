@@ -5,16 +5,14 @@ import { DocumentDiscovery } from "./pages/DocumentDiscovery";
 import { ReviewQueue } from "./pages/ReviewQueue";
 import { RunHistory } from "./pages/RunHistory";
 import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
-import { PortfolioRisk } from "./pages/PortfolioRisk";
-import { ClimateAnalytics } from "./pages/ClimateAnalytics";
+import { PortfolioRiskMonitoringTool } from "./pages/PortfolioRiskMonitoringTool";
 
 const TABS = [
   { id: "theme", label: "Thematic Universe" },
   { id: "taxonomy", label: "Taxonomy Library" },
   { id: "extraction", label: "Data Extraction" },
   { id: "discovery", label: "Document Discovery" },
-  { id: "portfolio", label: "Portfolio Risk" },
-  { id: "climate", label: "Climate Analytics" },
+  { id: "portfolio-monitoring", label: "Portfolio Risk Monitoring Tool" },
   { id: "review", label: "Review Queue" },
   { id: "history", label: "Run History" },
 ] as const;
@@ -46,8 +44,7 @@ function App() {
         {active === "taxonomy" && <TaxonomyLibrary />}
         {active === "extraction" && <ExtractionBuilder pendingUniverse={pendingUniverse} />}
         {active === "discovery" && <DocumentDiscovery />}
-        {active === "portfolio" && <PortfolioRisk />}
-        {active === "climate" && <ClimateAnalytics />}
+        {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool />}
         {active === "review" && <ReviewQueue />}
         {active === "history" && <RunHistory />}
       </main>

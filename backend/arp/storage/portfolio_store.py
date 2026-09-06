@@ -200,6 +200,16 @@ class PortfolioStore:
             obs = [o for o in obs if o.observed_at[:10] <= as_of]
         return obs[-1] if obs else None
 
+    def list_observation_keys(self) -> list[tuple[str, str]]:
+        """Every (company_id, field_id) pair with at least one recorded
+        observation -- a pure directory listing, no resolution logic (see
+        `datapoint_mapping.list_conflicting_observations` for the cascade-
+        aware conflict scan built on top of this)."""
+        datapoints_dir = self.portfolios_dir / "datapoints"
+        if not datapoints_dir.exists():
+            return []
+        return sorted((path.parent.name, path.stem) for path in datapoints_dir.glob("*/*.jsonl"))
+
     # --- news + risk flags ---
 
     def news_path(self) -> Path:

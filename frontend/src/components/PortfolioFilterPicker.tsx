@@ -14,7 +14,7 @@ export function PortfolioFilterPicker({
   }
 
   if (portfolios.length === 0) {
-    return <p className="muted">No portfolios yet -- seed the demo dataset on the Overview tab.</p>;
+    return <p className="muted">No portfolios yet.</p>;
   }
 
   return (
