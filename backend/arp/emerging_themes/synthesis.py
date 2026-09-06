@@ -8,6 +8,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.schemas.emerging_themes import (
     ActionType,
     CandidateStatus,
+    ContradictionType,
     EmergingThemeCandidate,
     ExtractedTag,
     MentionCitation,
@@ -99,6 +100,18 @@ def _select_citations(member_tags: list[ExtractedTag], mentions_by_id: dict[str,
     return citations
 
 
+def select_contradiction_evidence(member_tags: list[ExtractedTag], mentions_by_id: dict[str, RawMention], max_citations: int = 8) -> list[MentionCitation]:
+    """The grounded quotes backing a candidate's contradiction score --
+    same selection logic as `_select_citations` (grounded, deduped by
+    source URL), filtered to tags describing a delay, cancellation,
+    impairment, or target withdrawal. Per the Blueprint's governance rule
+    that negative evidence is retained, this is populated unconditionally
+    and shown regardless of the candidate's status, never gated behind
+    promotion."""
+    contradicting_tags = [t for t in member_tags if t.contradiction_type != ContradictionType.NONE]
+    return _select_citations(contradicting_tags, mentions_by_id, max_citations)
+
+
 async def build_candidate(
     cluster: TopicCluster,
     member_tags: list[ExtractedTag],
@@ -128,6 +141,7 @@ async def build_candidate(
 
     draft, usage = await _draft_narrative(cluster, member_tags, llm)
     citations = _select_citations(member_tags, mentions_by_id)
+    contradiction_evidence = select_contradiction_evidence(member_tags, mentions_by_id)
 
     candidate = EmergingThemeCandidate(
         theme_name=draft.theme_name,
@@ -138,6 +152,9 @@ async def build_candidate(
         persistence=cluster.persistence,
         novelty=cluster.novelty,
         action_score=action_score,
+        materiality=cluster.materiality,
+        contradiction=cluster.contradiction,
+        contradiction_evidence=contradiction_evidence,
         corroborating_sources=citations,
         candidate_sectors_companies=cluster.company_ids,
         rationale=draft.rationale,

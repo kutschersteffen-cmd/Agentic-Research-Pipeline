@@ -1,13 +1,26 @@
-from arp.emerging_themes.scoring import compute_breadth, compute_novelty, compute_persistence, compute_velocity, score_clusters
-from arp.schemas.emerging_themes import LineageEvent, LineageTransition, TopicCluster
+from arp.emerging_themes.scoring import (
+    compute_breadth,
+    compute_contradiction,
+    compute_materiality,
+    compute_novelty,
+    compute_persistence,
+    compute_velocity,
+    score_clusters,
+)
+from arp.schemas.emerging_themes import ContradictionType, ExtractedTag, LineageEvent, LineageTransition, MaterialityCategory, TopicCluster
 from arp.storage.topic_store import TopicStateStore
 
 
-def _cluster(cluster_id: str, period: str, mention_count: int = 5, company_ids=None, centroid=None) -> TopicCluster:
+def _cluster(cluster_id: str, period: str, mention_count: int = 5, company_ids=None, centroid=None, member_tag_ids=None) -> TopicCluster:
     return TopicCluster(
         cluster_id=cluster_id, period=period, representative_label=cluster_id,
         mention_count=mention_count, company_ids=company_ids or [], centroid=centroid or [],
+        member_tag_ids=member_tag_ids or [],
     )
+
+
+def _tag(tag_id: str, materiality: MaterialityCategory = MaterialityCategory.NONE, contradiction: ContradictionType = ContradictionType.NONE) -> ExtractedTag:
+    return ExtractedTag(tag_id=tag_id, mention_id="m1", label="l", claim="c", quote="q", materiality_category=materiality, contradiction_type=contradiction)
 
 
 # --- compute_novelty ---
@@ -118,14 +131,40 @@ def test_velocity_defaults_to_one_with_no_baseline_and_no_prior():
     assert compute_velocity(cluster, event, None, []) == 1.0
 
 
+# --- compute_materiality ---
+
+def test_materiality_is_zero_for_empty_input():
+    assert compute_materiality([]) == 0.0
+
+
+def test_materiality_is_share_of_non_none_categories():
+    tags = [_tag("t1", materiality=MaterialityCategory.REVENUE), _tag("t2", materiality=MaterialityCategory.NONE)]
+    assert compute_materiality(tags) == 0.5
+
+
+# --- compute_contradiction ---
+
+def test_contradiction_is_zero_for_empty_input():
+    assert compute_contradiction([]) == 0.0
+
+
+def test_contradiction_is_share_of_non_none_types():
+    tags = [_tag("t1", contradiction=ContradictionType.DELAY), _tag("t2"), _tag("t3")]
+    assert compute_contradiction(tags) == 1 / 3
+
+
 # --- score_clusters (integration) ---
 
-def test_score_clusters_populates_all_four_fields_on_a_first_ever_scan(tmp_path):
+def test_score_clusters_populates_all_six_fields_on_a_first_ever_scan(tmp_path):
     store = TopicStateStore(tmp_path / "topics")
-    clusters = [_cluster("c1", "2026-W01", mention_count=5, company_ids=["acme"], centroid=[1.0, 0.0])]
+    tags_by_id = {
+        "tag1": _tag("tag1", materiality=MaterialityCategory.REVENUE),
+        "tag2": _tag("tag2", contradiction=ContradictionType.CANCELLATION),
+    }
+    clusters = [_cluster("c1", "2026-W01", mention_count=5, company_ids=["acme"], centroid=[1.0, 0.0], member_tag_ids=["tag1", "tag2"])]
     lineage_events = [LineageEvent(cluster_id="c1", period="2026-W01", transition=LineageTransition.BIRTH)]
 
-    scored = score_clusters(clusters, lineage_events, None, "2026-W01", store, universe_size=2)
+    scored = score_clusters(clusters, lineage_events, None, "2026-W01", store, universe_size=2, tags_by_id=tags_by_id)
 
     assert len(scored) == 1
     result = scored[0]
@@ -133,3 +172,5 @@ def test_score_clusters_populates_all_four_fields_on_a_first_ever_scan(tmp_path)
     assert result.breadth == 0.5  # 1 of 2 companies
     assert result.persistence == 0  # a birth
     assert result.velocity == 1.0  # no baseline, no prior self
+    assert result.materiality == 0.5  # 1 of 2 member tags
+    assert result.contradiction == 0.5  # 1 of 2 member tags

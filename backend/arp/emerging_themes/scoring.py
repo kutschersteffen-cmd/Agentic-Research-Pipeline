@@ -1,7 +1,14 @@
 from __future__ import annotations
 
 from arp.emerging_themes.lineage import centroid_cosine
-from arp.schemas.emerging_themes import LineageEvent, LineageTransition, TopicCluster
+from arp.schemas.emerging_themes import (
+    ContradictionType,
+    ExtractedTag,
+    LineageEvent,
+    LineageTransition,
+    MaterialityCategory,
+    TopicCluster,
+)
 from arp.storage.topic_store import TopicStateStore
 
 _DEFAULT_BASELINE_PERIODS = 4
@@ -91,6 +98,31 @@ def compute_velocity(
     return cluster.mention_count / avg_size if avg_size > 0 else 1.0
 
 
+def compute_materiality(cluster_tags: list[ExtractedTag]) -> float:
+    """Share of this cluster's member tags whose materiality_category is
+    not NONE -- the Blueprint's materiality signal (Section 4.1: 'evidence
+    linked to revenue, margin, cash flow, assets or risk'), same shape as
+    synthesis.py::compute_action_score. Empty input scores 0.0."""
+    if not cluster_tags:
+        return 0.0
+    material_count = sum(1 for tag in cluster_tags if tag.materiality_category != MaterialityCategory.NONE)
+    return material_count / len(cluster_tags)
+
+
+def compute_contradiction(cluster_tags: list[ExtractedTag]) -> float:
+    """Share of this cluster's member tags whose contradiction_type is not
+    NONE -- the Blueprint's contradiction signal (Section 4.1: 'delays,
+    cancellations, impairments or target withdrawals'). Scored the same
+    way as every other metric here, but per the Blueprint's governance
+    rules this evidence is never used to silently drop a candidate -- see
+    synthesis.py::select_contradiction_evidence and
+    CandidateStatus.DISCONFIRMED. Empty input scores 0.0."""
+    if not cluster_tags:
+        return 0.0
+    contradiction_count = sum(1 for tag in cluster_tags if tag.contradiction_type != ContradictionType.NONE)
+    return contradiction_count / len(cluster_tags)
+
+
 def score_clusters(
     clusters: list[TopicCluster],
     lineage_events: list[LineageEvent],
@@ -98,14 +130,16 @@ def score_clusters(
     period: str,
     topic_store: TopicStateStore,
     universe_size: int,
+    tags_by_id: dict[str, ExtractedTag],
     *,
     baseline_periods: int = _DEFAULT_BASELINE_PERIODS,
 ) -> list[TopicCluster]:
-    """The Detect layer's scoring depth pass (roadmap P2): attaches
-    velocity/breadth/persistence/novelty to every cluster this period,
-    not just the ones that will become candidates -- an analyst should be
-    able to see why a cluster was or wasn't flagged, not just read a
-    single opaque confidence percentage. Must run after
+    """The Detect layer's scoring depth pass (roadmap P2, extended by the
+    materiality/contradiction pass below): attaches velocity/breadth/
+    persistence/novelty/materiality/contradiction to every cluster this
+    period, not just the ones that will become candidates -- an analyst
+    should be able to see why a cluster was or wasn't flagged, not just
+    read a single opaque confidence percentage. Must run after
     `lineage.classify_lineage` (needs its events) and before
     `TopicStateStore.save_period` (the scores belong in what gets
     persisted as this period's history for the next run's baseline).
@@ -116,6 +150,7 @@ def score_clusters(
     scored: list[TopicCluster] = []
     for cluster in clusters:
         event = events_by_cluster_id.get(cluster.cluster_id)
+        member_tags = [tags_by_id[tid] for tid in cluster.member_tag_ids if tid in tags_by_id]
         scored.append(
             cluster.model_copy(
                 update={
@@ -123,6 +158,8 @@ def score_clusters(
                     "breadth": compute_breadth(cluster, universe_size),
                     "persistence": compute_persistence(cluster.cluster_id, period, lineage_events, topic_store),
                     "velocity": compute_velocity(cluster, event, prior_clusters, baseline),
+                    "materiality": compute_materiality(member_tags),
+                    "contradiction": compute_contradiction(member_tags),
                 }
             )
         )

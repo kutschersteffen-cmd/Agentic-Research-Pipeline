@@ -11,7 +11,7 @@ from arp.discovery.identity_pipeline import enriched_universe, run_identity_reso
 from arp.discovery.pipeline import run_discovery
 from arp.discovery.scheduler import DiscoveryScheduler
 from arp.discovery.site_finder import DuckDuckGoSearchClient
-from arp.emerging_themes.pipeline import load_candidates_with_status, promote_candidate, reject_candidate, run_emerging_themes
+from arp.emerging_themes.pipeline import disconfirm_candidate, load_candidates_with_status, promote_candidate, reject_candidate, run_emerging_themes
 from arp.emerging_themes.scheduler import EmergingThemesScheduler, default_sources
 from arp.engagement.orchestrator import decide_next_action
 from arp.engagement.reporting_agent import compile_report
@@ -840,6 +840,19 @@ def emerging_themes_reject(run_id: str, theme_id: str, reason: str = typer.Optio
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"Rejected {theme_id}.")
+
+
+@emerging_themes_app.command("disconfirm")
+def emerging_themes_disconfirm(run_id: str, theme_id: str, reason: str = typer.Option(..., help="Required: what contradiction evidence invalidates this candidate.")) -> None:
+    """Distinct from `reject`: use this when specific contradiction
+    evidence (see `arp emerging-themes show`) invalidates the candidate's
+    transmission mechanism, not just an analyst judgment call."""
+    try:
+        disconfirm_candidate(_run_store(), run_id, theme_id, reason)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"Disconfirmed {theme_id}.")
 
 
 @emerging_themes_app.command("schedule")

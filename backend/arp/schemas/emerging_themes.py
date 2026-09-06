@@ -59,6 +59,41 @@ class ActionType(StrEnum):
     OTHER = "other"
 
 
+class MaterialityCategory(StrEnum):
+    """The Discovery Blueprint's materiality signal (Section 4.1):
+    'evidence linked to revenue, margin, cash flow, assets or risk' --
+    narrower than ActionType, which only asks whether a company did
+    something concrete. NONE means the claim doesn't state or imply a
+    link to any specific financial-statement line item or risk category.
+    Rolled up into a per-cluster materiality score by
+    scoring.py::compute_materiality."""
+
+    REVENUE = "revenue"
+    MARGIN = "margin"
+    CASH_FLOW = "cash_flow"
+    ASSETS = "assets"
+    RISK = "risk"
+    NONE = "none"
+
+
+class ContradictionType(StrEnum):
+    """The Discovery Blueprint's contradiction signal (Section 4.1):
+    'delays, cancellations, impairments or target withdrawals' -- explicit
+    counter-evidence that a thesis's transmission mechanism may not be
+    holding. Per the Blueprint's governance rules, contradiction evidence
+    is never discarded once found (see EmergingThemeCandidate.
+    contradiction_evidence) and a strong/persistent signal can move a
+    candidate to CandidateStatus.DISCONFIRMED. NONE means the claim
+    doesn't describe any of these. Rolled up into a per-cluster
+    contradiction score by scoring.py::compute_contradiction."""
+
+    DELAY = "delay"
+    CANCELLATION = "cancellation"
+    IMPAIRMENT = "impairment"
+    TARGET_WITHDRAWAL = "target_withdrawal"
+    NONE = "none"
+
+
 class ExtractedTag(BaseModel):
     """One Extract-layer output: a short topic label plus a claim, both
     traceable to a verbatim, grounding-checked quote from the mention that
@@ -75,6 +110,16 @@ class ExtractedTag(BaseModel):
         default=ActionType.OTHER,
         description="What kind of corporate action this claim evidences, if any -- OTHER means the claim is "
         "about a topic without describing a concrete action (an opinion, a forecast, a routine mention).",
+    )
+    materiality_category: MaterialityCategory = Field(
+        default=MaterialityCategory.NONE,
+        description="What financial-statement line item or risk category this claim links to, if any -- NONE "
+        "means no such link is stated or implied.",
+    )
+    contradiction_type: ContradictionType = Field(
+        default=ContradictionType.NONE,
+        description="What kind of negative/counter-evidence this claim describes, if any -- NONE means it "
+        "doesn't describe a delay, cancellation, impairment, or target withdrawal.",
     )
     quote: str = Field(description="Verbatim excerpt from the mention's own text backing label+claim.")
     grounded: bool = Field(default=False, description="Set by grounding.is_grounded, never the LLM's self-report.")
@@ -133,6 +178,17 @@ class TopicCluster(BaseModel):
         description="1 minus the highest centroid similarity to any prior-period cluster (the Blueprint's own "
         "definition), maximal (1.0) when there is no prior period to compare against at all.",
     )
+    materiality: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Share of this cluster's member tags whose materiality_category is not NONE -- see "
+        "scoring.py::compute_materiality. Scored and displayed like the metrics above, not a promotion gate.",
+    )
+    contradiction: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Share of this cluster's member tags whose contradiction_type is not NONE -- see "
+        "scoring.py::compute_contradiction. Never used to silently drop a candidate; see "
+        "EmergingThemeCandidate.contradiction_evidence for the governance rule this exists to serve.",
+    )
 
 
 class LineageEvent(BaseModel):
@@ -164,6 +220,7 @@ class CandidateStatus(StrEnum):
     UNDER_REVIEW = "under_review"
     PROMOTED = "promoted"
     REJECTED = "rejected"
+    DISCONFIRMED = "disconfirmed"  # material contradiction evidence invalidates the transmission mechanism -- distinct from REJECTED (analyst judged it uninteresting/not real); see pipeline.py::disconfirm_candidate
 
 
 class CompanyActionEvidence(BaseModel):
@@ -218,6 +275,15 @@ class EmergingThemeCandidate(BaseModel):
         default_factory=list,
         description="SEC XBRL-disclosed CapEx/R&D movement for this candidate's companies, where resolvable -- "
         "supporting evidence shown to the analyst, not a hard gate (see CompanyActionEvidence's docstring for why).",
+    )
+    materiality: float = Field(default=0.0, ge=0.0, le=1.0, description="Copied from TopicCluster.materiality.")
+    contradiction: float = Field(default=0.0, ge=0.0, le=1.0, description="Copied from TopicCluster.contradiction.")
+    contradiction_evidence: list[MentionCitation] = Field(
+        default_factory=list,
+        description="Grounded quotes backing this candidate's contradiction score (delays, cancellations, "
+        "impairments, target withdrawals). Always populated and always shown regardless of status -- per the "
+        "Blueprint's governance rule that negative/contradictory evidence is retained, never hidden once a "
+        "candidate is promoted.",
     )
     status: CandidateStatus = CandidateStatus.CANDIDATE
     promoted_to_taxonomy_id: str | None = None

@@ -164,11 +164,15 @@ async def execute_emerging_themes_run(
     prior_clusters = topic_store.load_period(prior_period) if prior_period else None
     lineage_events = classify_lineage(clusters, prior_clusters, period)
 
-    # Discovery-scoring depth (roadmap P2): attach velocity/breadth/
-    # persistence/novelty to every cluster before persisting this period's
-    # history, so later runs' baselines see the scored version too. Must
-    # run after classify_lineage (needs its events) and before save_period.
-    clusters = score_clusters(clusters, lineage_events, prior_clusters, period, topic_store, universe_size=len(companies))
+    tags_by_id = {t.tag_id: t for t in all_tags}
+
+    # Discovery-scoring depth (roadmap P2, extended with materiality/
+    # contradiction): attach velocity/breadth/persistence/novelty/
+    # materiality/contradiction to every cluster before persisting this
+    # period's history, so later runs' baselines see the scored version
+    # too. Must run after classify_lineage (needs its events) and before
+    # save_period.
+    clusters = score_clusters(clusters, lineage_events, prior_clusters, period, topic_store, universe_size=len(companies), tags_by_id=tags_by_id)
     topic_store.save_period(period, clusters)
     topic_store.save_lineage_events(period, lineage_events)
 
@@ -176,7 +180,6 @@ async def execute_emerging_themes_run(
     # eligible to become a candidate; see lineage.py's module docstring.
     birth_cluster_ids = {e.cluster_id for e in lineage_events if e.transition == LineageTransition.BIRTH}
     clusters_by_id = {c.cluster_id: c for c in clusters}
-    tags_by_id = {t.tag_id: t for t in all_tags}
 
     # --- Synthesize + Validate + Output ---
     for cluster_id in birth_cluster_ids:
@@ -264,6 +267,8 @@ def load_candidates_with_status(run_store: RunStore, run_id: str) -> list[Emergi
             }))
         elif decision["action"] == "reject":
             resolved.append(candidate.model_copy(update={"status": CandidateStatus.REJECTED, "decision_reason": decision.get("reason")}))
+        elif decision["action"] == "disconfirm":
+            resolved.append(candidate.model_copy(update={"status": CandidateStatus.DISCONFIRMED, "decision_reason": decision.get("reason")}))
         else:
             resolved.append(candidate)
     return resolved
@@ -349,4 +354,20 @@ def reject_candidate(run_store: RunStore, run_id: str, theme_id: str, reason: st
     run_store.append_jsonl(
         run_store.review_decisions_path(run_id),
         {"theme_id": theme_id, "action": "reject", "reason": reason, "decided_at": now_iso()},
+    )
+
+
+def disconfirm_candidate(run_store: RunStore, run_id: str, theme_id: str, reason: str) -> None:
+    """Distinct from `reject_candidate`: reject means an analyst judged the
+    candidate uninteresting or not real, while disconfirm means specific
+    contradiction evidence (a delay, cancellation, impairment, or target
+    withdrawal -- see `candidate.contradiction_evidence`) actively
+    invalidates the transmission mechanism, per the Discovery Blueprint's
+    candidate lifecycle. `reason` is required for the same audit-trail
+    reason as promote/reject."""
+    if not reason.strip():
+        raise ValueError("A reason is required to disconfirm a candidate.")
+    run_store.append_jsonl(
+        run_store.review_decisions_path(run_id),
+        {"theme_id": theme_id, "action": "disconfirm", "reason": reason, "decided_at": now_iso()},
     )

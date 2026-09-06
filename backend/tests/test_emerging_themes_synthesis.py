@@ -1,13 +1,22 @@
-from arp.emerging_themes.synthesis import _CandidateDraft, build_candidate, compute_action_score, independent_source_count
-from arp.schemas.emerging_themes import ActionType, CandidateStatus, ExtractedTag, MentionSourceType, RawMention, TopicCluster
+from arp.emerging_themes.synthesis import _CandidateDraft, build_candidate, compute_action_score, independent_source_count, select_contradiction_evidence
+from arp.schemas.emerging_themes import ActionType, CandidateStatus, ContradictionType, ExtractedTag, MentionSourceType, RawMention, TopicCluster
 
 
 def _mention(mention_id: str, url: str) -> RawMention:
     return RawMention(mention_id=mention_id, source_type=MentionSourceType.GDELT, title="t", text="x", url=url)
 
 
-def _tag(tag_id: str, mention_id: str, grounded: bool = True, action_type: ActionType = ActionType.OTHER) -> ExtractedTag:
-    return ExtractedTag(tag_id=tag_id, mention_id=mention_id, label="solid-state battery", claim="claim", quote="quote", grounded=grounded, action_type=action_type)
+def _tag(
+    tag_id: str,
+    mention_id: str,
+    grounded: bool = True,
+    action_type: ActionType = ActionType.OTHER,
+    contradiction_type: ContradictionType = ContradictionType.NONE,
+) -> ExtractedTag:
+    return ExtractedTag(
+        tag_id=tag_id, mention_id=mention_id, label="solid-state battery", claim="claim", quote="quote",
+        grounded=grounded, action_type=action_type, contradiction_type=contradiction_type,
+    )
 
 
 def _cluster() -> TopicCluster:
@@ -72,3 +81,45 @@ def test_compute_action_score_ignores_other_and_handles_empty():
 
     assert compute_action_score(tags) == 0.5
     assert compute_action_score([]) == 0.0
+
+
+def test_select_contradiction_evidence_filters_to_non_none_and_dedupes_by_url():
+    mentions_by_id = {
+        "m1": _mention("m1", "https://a.example.com"),
+        "m2": _mention("m2", "https://a.example.com"),  # shares a URL with m1
+        "m3": _mention("m3", "https://b.example.com"),
+    }
+    tags = [
+        _tag("t1", "m1", contradiction_type=ContradictionType.DELAY),
+        _tag("t2", "m2", contradiction_type=ContradictionType.CANCELLATION),  # same URL as t1 -- deduped
+        _tag("t3", "m3", contradiction_type=ContradictionType.NONE),  # not contradiction evidence
+    ]
+
+    evidence = select_contradiction_evidence(tags, mentions_by_id)
+
+    assert len(evidence) == 1
+    assert evidence[0].mention_id == "m1"
+
+
+async def test_candidate_carries_materiality_contradiction_and_evidence(fake_llm):
+    mentions_by_id = {"m1": _mention("m1", "https://a.example.com"), "m2": _mention("m2", "https://b.example.com")}
+    tags = [
+        _tag("t1", "m1", action_type=ActionType.CAPEX, contradiction_type=ContradictionType.IMPAIRMENT),
+        _tag("t2", "m2", action_type=ActionType.CAPACITY),
+    ]
+    cluster = _cluster().model_copy(update={"materiality": 0.75, "contradiction": 0.5})
+    draft = _CandidateDraft(
+        theme_name="Solid-state battery commercialization",
+        description="d",
+        economic_rationale="A step-change in energy density would reshape EV cost structures.",
+        rationale="r",
+    )
+    llm = fake_llm({"_CandidateDraft": [draft]})
+
+    candidate, _usage = await build_candidate(cluster, tags, mentions_by_id, llm, "run1", min_independent_sources=2)
+
+    assert candidate is not None
+    assert candidate.materiality == 0.75
+    assert candidate.contradiction == 0.5
+    assert len(candidate.contradiction_evidence) == 1
+    assert candidate.contradiction_evidence[0].mention_id == "m1"

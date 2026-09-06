@@ -1,5 +1,5 @@
 from arp.emerging_themes.extraction import _TagDraft, _TagDraftList, tag_mention
-from arp.schemas.emerging_themes import MentionSourceType, RawMention
+from arp.schemas.emerging_themes import ContradictionType, MaterialityCategory, MentionSourceType, RawMention
 
 
 def _mention() -> RawMention:
@@ -46,6 +46,47 @@ async def test_ungrounded_quote_is_dropped_not_just_unmarked(fake_llm):
     tags, _usage = await tag_mention(_mention(), llm)
 
     assert tags == []
+
+
+async def test_materiality_and_contradiction_classifications_pass_through(fake_llm):
+    draft = _TagDraftList(
+        tags=[
+            _TagDraft(
+                label="solid-state battery breakthrough",
+                claim="Acme Battery Co unveiled a new solid-state cell chemistry.",
+                entity_names=["Acme Battery Co"],
+                materiality_category=MaterialityCategory.REVENUE,
+                contradiction_type=ContradictionType.DELAY,
+                quote="Acme Battery Co unveils solid-state battery breakthrough",
+            )
+        ]
+    )
+    llm = fake_llm({"_TagDraftList": [draft]})
+
+    tags, _usage = await tag_mention(_mention(), llm)
+
+    assert len(tags) == 1
+    assert tags[0].materiality_category == MaterialityCategory.REVENUE
+    assert tags[0].contradiction_type == ContradictionType.DELAY
+
+
+async def test_materiality_and_contradiction_default_to_none(fake_llm):
+    draft = _TagDraftList(
+        tags=[
+            _TagDraft(
+                label="solid-state battery breakthrough",
+                claim="Acme Battery Co unveiled a new solid-state cell chemistry.",
+                entity_names=["Acme Battery Co"],
+                quote="Acme Battery Co unveils solid-state battery breakthrough",
+            )
+        ]
+    )
+    llm = fake_llm({"_TagDraftList": [draft]})
+
+    tags, _usage = await tag_mention(_mention(), llm)
+
+    assert tags[0].materiality_category == MaterialityCategory.NONE
+    assert tags[0].contradiction_type == ContradictionType.NONE
 
 
 async def test_empty_mention_text_skips_llm_call(fake_llm):

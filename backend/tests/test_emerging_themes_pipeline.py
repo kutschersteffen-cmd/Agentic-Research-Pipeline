@@ -5,6 +5,7 @@ from arp.emerging_themes import pipeline as pipeline_module
 from arp.emerging_themes.ingestion.base import MentionSource
 from arp.emerging_themes.pipeline import (
     create_emerging_themes_run,
+    disconfirm_candidate,
     execute_emerging_themes_run,
     load_candidates_with_status,
     promote_candidate,
@@ -178,6 +179,39 @@ async def test_reject_candidate_folds_into_rejected_status(tmp_path):
     reloaded = load_candidates_with_status(run_store, run_id)
     assert reloaded[0].status == CandidateStatus.REJECTED
     assert reloaded[0].decision_reason == "Not a real signal."
+
+
+async def test_disconfirm_candidate_folds_into_disconfirmed_status(tmp_path):
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    run_id = create_emerging_themes_run(run_store, [], "manual")
+
+    from arp.schemas.emerging_themes import EmergingThemeCandidate
+
+    candidate = EmergingThemeCandidate(
+        theme_name="Contradicted signal", description="", first_detected_date="2026-01-01", signal_velocity=1.0,
+        economic_rationale="", cluster_id="cl1", run_id=run_id,
+    )
+    run_store.append_jsonl(run_store.results_path(run_id), candidate.model_dump(mode="json"))
+
+    disconfirm_candidate(run_store, run_id, candidate.theme_id, "The facility investment was cancelled.")
+
+    reloaded = load_candidates_with_status(run_store, run_id)
+    assert reloaded[0].status == CandidateStatus.DISCONFIRMED
+    assert reloaded[0].decision_reason == "The facility investment was cancelled."
+
+
+def test_disconfirm_candidate_requires_a_reason(tmp_path):
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    run_id = create_emerging_themes_run(run_store, [], "manual")
+
+    try:
+        disconfirm_candidate(run_store, run_id, "theme1", "  ")
+        raised = False
+    except ValueError:
+        raised = True
+    assert raised
 
 
 def test_reject_candidate_requires_a_reason(tmp_path):

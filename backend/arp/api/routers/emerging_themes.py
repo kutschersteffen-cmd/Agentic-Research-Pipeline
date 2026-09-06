@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from arp.api.deps import get_emerging_themes_scheduler, get_llm_client, get_run_store, get_taxonomy_store, get_topic_store, get_xbrl_source, settings_dep
 from arp.config import Settings
-from arp.emerging_themes.pipeline import create_emerging_themes_run, execute_emerging_themes_run, load_candidates_with_status, promote_candidate, reject_candidate
+from arp.emerging_themes.pipeline import create_emerging_themes_run, disconfirm_candidate, execute_emerging_themes_run, load_candidates_with_status, promote_candidate, reject_candidate
 from arp.emerging_themes.scheduler import EmergingThemesScheduler, default_sources
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
@@ -104,6 +104,22 @@ def reject(run_id: str, theme_id: str, req: RejectRequest, run_store: RunStore =
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     return {"theme_id": theme_id, "status": "rejected"}
+
+
+class DisconfirmRequest(BaseModel):
+    reason: str
+
+
+@router.post("/runs/{run_id}/candidates/{theme_id}/disconfirm")
+def disconfirm(run_id: str, theme_id: str, req: DisconfirmRequest, run_store: RunStore = Depends(get_run_store)) -> dict:
+    """Distinct from reject -- see disconfirm_candidate's docstring: this
+    is for when specific contradiction evidence invalidates the
+    transmission mechanism, not just an analyst judgment call."""
+    try:
+        disconfirm_candidate(run_store, run_id, theme_id, req.reason)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"theme_id": theme_id, "status": "disconfirmed"}
 
 
 @router.get("/schedule", response_model=EmergingThemesScheduleConfig)

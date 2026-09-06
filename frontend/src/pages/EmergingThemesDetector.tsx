@@ -97,6 +97,22 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
     }
   }
 
+  async function disconfirm(candidate: EmergingThemeCandidate) {
+    if (!selectedRunId) return;
+    const reason = (reasonInputs[candidate.theme_id] ?? "").trim();
+    if (!reason) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.disconfirmEmergingThemeCandidate(selectedRunId, candidate.theme_id, reason);
+      await refreshCandidates(selectedRunId);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveSchedule() {
     if (!schedule) return;
     setBusy(true);
@@ -212,7 +228,9 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                             <strong>Discovery signal:</strong> novelty {Math.round(c.novelty * 100)}%, breadth{" "}
                             {Math.round(c.breadth * 100)}% of the scanned universe, velocity {c.signal_velocity.toFixed(2)}&times; baseline,{" "}
                             {c.persistence > 0 ? `persisted ${c.persistence} period(s)` : "first period seen"}, action evidence{" "}
-                            {Math.round(c.action_score * 100)}% (share of evidence describing a concrete action, not just a mention).
+                            {Math.round(c.action_score * 100)}% (share of evidence describing a concrete action, not just a mention),{" "}
+                            materiality {Math.round(c.materiality * 100)}% (share linked to revenue/margin/cash flow/assets/risk),{" "}
+                            contradiction {Math.round(c.contradiction * 100)}% (share describing a delay, cancellation, impairment, or target withdrawal).
                           </p>
                           <p><strong>Rationale:</strong> {c.rationale}</p>
                           <p><strong>Why this would move markets:</strong> {c.economic_rationale}</p>
@@ -235,6 +253,13 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                             </>
                           )}
 
+                          {c.contradiction_evidence.length > 0 && (
+                            <>
+                              <p><strong>Contradicting evidence</strong> <span className="muted">(retained regardless of status -- delays, cancellations, impairments, or target withdrawals):</span></p>
+                              <MentionCitationList citations={c.contradiction_evidence} />
+                            </>
+                          )}
+
                           {(c.status === "candidate" || c.status === "under_review") && (
                             <div className="toolbar">
                               <input
@@ -253,6 +278,9 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                               <button onClick={() => reject(c)} disabled={busy || !(reasonInputs[c.theme_id] ?? "").trim()} className="danger">
                                 Reject
                               </button>
+                              <button onClick={() => disconfirm(c)} disabled={busy || !(reasonInputs[c.theme_id] ?? "").trim()} className="danger">
+                                Disconfirm
+                              </button>
                             </div>
                           )}
                           {c.status === "promoted" && (
@@ -268,6 +296,9 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                           )}
                           {c.status === "rejected" && c.decision_reason && (
                             <p className="muted">Rejected -- "{c.decision_reason}"</p>
+                          )}
+                          {c.status === "disconfirmed" && c.decision_reason && (
+                            <p className="muted">Disconfirmed -- "{c.decision_reason}"</p>
                           )}
                         </td>
                       </tr>

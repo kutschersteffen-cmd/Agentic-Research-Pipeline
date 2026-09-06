@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 from arp.grounding import is_grounded
 from arp.llm.base import LLMClient, LLMUsage
-from arp.schemas.emerging_themes import ActionType, ExtractedTag, RawMention
+from arp.schemas.emerging_themes import ActionType, ContradictionType, ExtractedTag, MaterialityCategory, RawMention
 
 _SYSTEM_PROMPT = """\
 You read one short news, filing, or regulatory item and identify up to 3 \
@@ -31,6 +31,18 @@ topic, exactly as they appear in the text.
   an opinion, a forecast, a routine mention, a regulatory announcement
   with no company action yet). Judge only from what the claim itself
   states; do not infer an action that isn't described.
+- materiality_category: what financial-statement line item or risk
+  category the claim links to, if any -- revenue (new sales, contracts,
+  or demand), margin (cost structure or profitability), cash_flow
+  (cash generation or spend), assets (balance-sheet items, facilities,
+  or capacity), risk (a stated or implied risk exposure), or none (no
+  such link is stated or implied). Judge only from what is stated.
+- contradiction_type: what kind of negative or counter-evidence the claim
+  describes, if any -- delay (a project, launch, or timeline pushed
+  back), cancellation (a project, order, or commitment called off),
+  impairment (a write-down or asset impairment), target_withdrawal (a
+  company withdrawing or missing a previously stated target/guidance),
+  or none (the claim doesn't describe any of these).
 - quote: a verbatim excerpt copied exactly from the supplied title/text \
 that backs the claim -- never a paraphrase or summary.
 
@@ -44,6 +56,8 @@ class _TagDraft(BaseModel):
     claim: str
     entity_names: list[str] = Field(default_factory=list)
     action_type: ActionType = ActionType.OTHER
+    materiality_category: MaterialityCategory = MaterialityCategory.NONE
+    contradiction_type: ContradictionType = ContradictionType.NONE
     quote: str
 
 
@@ -77,6 +91,8 @@ async def tag_mention(mention: RawMention, llm: LLMClient, fuzzy_threshold: floa
                 claim=candidate.claim,
                 entity_names=candidate.entity_names,
                 action_type=candidate.action_type,
+                materiality_category=candidate.materiality_category,
+                contradiction_type=candidate.contradiction_type,
                 quote=candidate.quote,
                 grounded=True,
             )

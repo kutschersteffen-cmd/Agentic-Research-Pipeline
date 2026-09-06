@@ -511,7 +511,7 @@ export interface MentionCitation {
   grounded: boolean;
 }
 
-export type CandidateStatus = "candidate" | "under_review" | "promoted" | "rejected";
+export type CandidateStatus = "candidate" | "under_review" | "promoted" | "rejected" | "disconfirmed";
 
 export interface CompanyActionEvidence {
   company_id: string;
@@ -537,6 +537,9 @@ export interface EmergingThemeCandidate {
   confidence_score: number;
   action_score: number;
   xbrl_corroboration: CompanyActionEvidence[];
+  materiality: number;
+  contradiction: number;
+  contradiction_evidence: MentionCitation[];
   status: CandidateStatus;
   promoted_to_taxonomy_id?: string | null;
   promoted_to_taxonomy_version?: number | null;

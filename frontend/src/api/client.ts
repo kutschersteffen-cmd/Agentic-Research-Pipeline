@@ -160,6 +160,11 @@ export const api = {
       `/api/emerging-themes/runs/${runId}/candidates/${encodeURIComponent(themeId)}/reject`,
       { method: "POST", body: JSON.stringify({ reason }) },
     ),
+  disconfirmEmergingThemeCandidate: (runId: string, themeId: string, reason: string) =>
+    request<{ theme_id: string; status: string }>(
+      `/api/emerging-themes/runs/${runId}/candidates/${encodeURIComponent(themeId)}/disconfirm`,
+      { method: "POST", body: JSON.stringify({ reason }) },
+    ),
   getEmergingThemesSchedule: () => request<EmergingThemesScheduleConfig>("/api/emerging-themes/schedule"),
   updateEmergingThemesSchedule: (config: EmergingThemesScheduleConfig) =>
     request<EmergingThemesScheduleConfig>("/api/emerging-themes/schedule", {
