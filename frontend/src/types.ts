@@ -521,6 +521,25 @@ export interface CompanyActionEvidence {
   as_of: string;
 }
 
+export type CompanyRole =
+  | "beneficiary"
+  | "enabler"
+  | "adopter"
+  | "transition_candidate"
+  | "bottleneck_owner"
+  | "negatively_exposed"
+  | "ambiguous";
+
+export interface CompanyExposure {
+  company_id: string;
+  role: CompanyRole;
+  role_rationale: string;
+  risk: number;
+  momentum: number;
+  evidence_quality: number;
+  as_of: string;
+}
+
 export interface EmergingThemeCandidate {
   theme_id: string;
   theme_name: string;
@@ -540,6 +559,7 @@ export interface EmergingThemeCandidate {
   materiality: number;
   contradiction: number;
   contradiction_evidence: MentionCitation[];
+  company_exposure: CompanyExposure[];
   status: CandidateStatus;
   promoted_to_taxonomy_id?: string | null;
   promoted_to_taxonomy_version?: number | null;

@@ -7,7 +7,7 @@ import { MentionCitationList } from "../components/MentionCitationList";
 import type { EmergingThemeCandidate, EmergingThemesScheduleConfig, RunManifest } from "../types";
 
 interface Props {
-  onNavigate?: (tab: "taxonomy") => void;
+  onNavigate?: (tab: "taxonomy" | "theme") => void;
 }
 
 export function EmergingThemesDetector({ onNavigate }: Props = {}) {
@@ -106,6 +106,20 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
     try {
       await api.disconfirmEmergingThemeCandidate(selectedRunId, candidate.theme_id, reason);
       await refreshCandidates(selectedRunId);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runCompanyExposure(candidate: EmergingThemeCandidate) {
+    if (!candidate.promoted_to_taxonomy_id) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.startThemeRun({ taxonomy_id: candidate.promoted_to_taxonomy_id, universe_path: universePath });
+      onNavigate?.("theme");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -260,6 +274,25 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                             </>
                           )}
 
+                          {c.company_exposure.length > 0 && (
+                            <>
+                              <p>
+                                <strong>Company exposure</strong>{" "}
+                                <span className="muted">(role + Risk/Momentum/Evidence-quality -- Revenue/Capex/Demand/Enablement are resolved separately once promoted, via "Run company exposure" below):</span>
+                              </p>
+                              <ul>
+                                {c.company_exposure.map((x) => (
+                                  <li key={x.company_id}>
+                                    <strong>{x.company_id}</strong> -- {x.role.replace(/_/g, " ")}: {x.role_rationale}{" "}
+                                    <span className="muted">
+                                      (risk {Math.round(x.risk * 100)}%, momentum {x.momentum.toFixed(2)}&times;, evidence quality {Math.round(x.evidence_quality * 100)}%)
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </>
+                          )}
+
                           {(c.status === "candidate" || c.status === "under_review") && (
                             <div className="toolbar">
                               <input
@@ -291,7 +324,10 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                                 <button className="link-button" onClick={() => onNavigate("taxonomy")}>
                                   View in Taxonomy Library
                                 </button>
-                              )}
+                              )}{" "}
+                              <button onClick={() => runCompanyExposure(c)} disabled={busy} title="Runs the full Revenue/Capex/Demand/Enablement exposure pipeline (Tool 1) against this taxonomy.">
+                                Run company exposure
+                              </button>
                             </p>
                           )}
                           {c.status === "rejected" && c.decision_reason && (

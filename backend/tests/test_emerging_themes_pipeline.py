@@ -11,10 +11,11 @@ from arp.emerging_themes.pipeline import (
     promote_candidate,
     reject_candidate,
 )
+from arp.emerging_themes.company_role import CompanyRoleAssessment
 from arp.emerging_themes.synthesis import _CandidateDraft
 from arp.research.taxonomy_sources.corpus_synthesis import _SynthesizedActivityDraft, _SynthesizedActivityDraftList
 from arp.schemas.common import CompanyRef
-from arp.schemas.emerging_themes import ActionType, CandidateStatus, MentionSourceType, RawMention, TopicCluster
+from arp.schemas.emerging_themes import ActionType, CandidateStatus, CompanyRole, MentionSourceType, RawMention, TopicCluster
 from arp.schemas.taxonomy import TaxonomyStatus
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
@@ -94,9 +95,11 @@ async def test_execute_run_produces_one_candidate_from_five_corroborating_mentio
         economic_rationale="A step-change in energy density would reshape EV cost structures and charging infrastructure demand.",
         rationale="Five independent reports of Acme Battery Co's solid-state breakthrough.",
     )
+    role_assessment = CompanyRoleAssessment(role=CompanyRole.BENEFICIARY, rationale="Directly commercializing the theme's underlying technology.")
     llm = fake_llm({
         "_TagDraftList": [tag_draft] * 5,  # one per mention
         "_CandidateDraft": [candidate_draft],
+        "CompanyRoleAssessment": [role_assessment],  # one call, for the candidate's one resolved company ("acme")
     })
 
     run_id = create_emerging_themes_run(run_store, companies, "manual")
@@ -115,6 +118,13 @@ async def test_execute_run_produces_one_candidate_from_five_corroborating_mentio
     assert candidate.status == CandidateStatus.CANDIDATE
     assert candidate.candidate_sectors_companies == ["acme"]
     assert len(candidate.corroborating_sources) == 5
+
+    assert len(candidate.company_exposure) == 1
+    exposure = candidate.company_exposure[0]
+    assert exposure.company_id == "acme"
+    assert exposure.role == CompanyRole.BENEFICIARY
+    assert exposure.role_rationale == "Directly commercializing the theme's underlying technology."
+    assert exposure.momentum == 1.0  # this fixture's cluster is a BIRTH with no baseline periods -- see compute_velocity
 
 
 async def test_promote_candidate_creates_draft_taxonomy_and_folds_status(tmp_path, fake_llm):

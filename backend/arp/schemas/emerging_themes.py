@@ -239,6 +239,50 @@ class CompanyActionEvidence(BaseModel):
     as_of: str = Field(default_factory=now_iso)
 
 
+class CompanyRole(StrEnum):
+    """Roadmap G4's company-role taxonomy (Discovery Blueprint Section 5.3):
+    how a company relates to a candidate theme, distinct from whether it
+    is merely mentioned alongside it. Classified per company by
+    company_role.py::classify_company_role."""
+
+    BENEFICIARY = "beneficiary"
+    ENABLER = "enabler"
+    ADOPTER = "adopter"
+    TRANSITION_CANDIDATE = "transition_candidate"
+    BOTTLENECK_OWNER = "bottleneck_owner"
+    NEGATIVELY_EXPOSED = "negatively_exposed"
+    AMBIGUOUS = "ambiguous"
+
+
+class CompanyExposure(BaseModel):
+    """Roadmap G4's pre-promotion, Tool-0-native exposure signals for one
+    company in a candidate -- cheap and computed on every candidate to
+    help an analyst decide whether it's worth promoting at all.
+    Deliberately does not carry Revenue/Capex/Purity/Demand/Enablement
+    fields: those five of the Blueprint's nine exposure dimensions are
+    already covered by Tool 1's existing, tested engines
+    (`research/revenue_exposure/`, `research/indirect_exposure/`), reached
+    by re-running the theme-run pipeline (`POST /api/theme/runs`) against
+    the taxonomy a candidate is promoted into -- see the roadmap plan for
+    why duplicating that engine here isn't worth it. Innovation (the
+    ninth dimension) has no field here at all: it requires patent/
+    citation ingestion this codebase doesn't have yet.
+    """
+
+    company_id: str
+    role: CompanyRole
+    role_rationale: str = Field(description="Grounded one-sentence explanation referencing this company's own evidence.")
+    risk: float = Field(default=0.0, ge=0.0, le=1.0, description="Share of this company's own tags whose materiality_category is RISK. See company_exposure.py::compute_company_risk.")
+    momentum: float = Field(default=1.0, description="This candidate's cluster velocity, attributed to every member company alike -- see scoring.py::compute_velocity.")
+    evidence_quality: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="This company's own independent-source count normalized against emerging_themes_min_independent_sources -- "
+        "not 'share grounded', since every surviving ExtractedTag is already grounded by construction. See "
+        "company_exposure.py::compute_company_evidence_quality.",
+    )
+    as_of: str = Field(default_factory=now_iso)
+
+
 class EmergingThemeCandidate(BaseModel):
     """The Output-layer schema -- the fixed handoff contract into Tool 1
     (the Thematic Universe Builder), field-for-field per the source
@@ -284,6 +328,11 @@ class EmergingThemeCandidate(BaseModel):
         "impairments, target withdrawals). Always populated and always shown regardless of status -- per the "
         "Blueprint's governance rule that negative/contradictory evidence is retained, never hidden once a "
         "candidate is promoted.",
+    )
+    company_exposure: list[CompanyExposure] = Field(
+        default_factory=list,
+        description="Roadmap G4: per-company role + Risk/Momentum/Evidence-quality signals, computed pre-promotion. "
+        "See CompanyExposure's docstring for why Revenue/Capex/Purity/Demand/Enablement/Innovation aren't here.",
     )
     status: CandidateStatus = CandidateStatus.CANDIDATE
     promoted_to_taxonomy_id: str | None = None

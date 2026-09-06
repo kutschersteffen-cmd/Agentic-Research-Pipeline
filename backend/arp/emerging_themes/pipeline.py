@@ -6,6 +6,8 @@ from datetime import datetime, timedelta, timezone
 from arp.config import Settings
 from arp.emerging_themes.action_evidence import check_company_action_evidence
 from arp.emerging_themes.clustering import cluster_tags
+from arp.emerging_themes.company_exposure import compute_company_evidence_quality, compute_company_risk, tags_by_company
+from arp.emerging_themes.company_role import classify_company_role
 from arp.emerging_themes.entity_resolution import resolve_mention_companies
 from arp.emerging_themes.extraction import tag_mention
 from arp.emerging_themes.ingestion.base import MentionSource
@@ -20,6 +22,7 @@ from arp.research.taxonomy_sources.corpus_synthesis import synthesize_activities
 from arp.schemas.common import CompanyRef, now_iso
 from arp.schemas.emerging_themes import (
     CandidateStatus,
+    CompanyExposure,
     EmergingThemeCandidate,
     ExtractedTag,
     LineageTransition,
@@ -180,6 +183,7 @@ async def execute_emerging_themes_run(
     # eligible to become a candidate; see lineage.py's module docstring.
     birth_cluster_ids = {e.cluster_id for e in lineage_events if e.transition == LineageTransition.BIRTH}
     clusters_by_id = {c.cluster_id: c for c in clusters}
+    companies_by_id = {c.company_id: c for c in companies}
 
     # --- Synthesize + Validate + Output ---
     for cluster_id in birth_cluster_ids:
@@ -201,7 +205,6 @@ async def execute_emerging_themes_run(
             continue  # failed the independent-source-minimum or action-score check
 
         if xbrl_source is not None:
-            companies_by_id = {c.company_id: c for c in companies}
             evidence: list = []
             for company_id in candidate.candidate_sectors_companies:
                 company = companies_by_id.get(company_id)
@@ -216,6 +219,34 @@ async def execute_emerging_themes_run(
                     evidence.append(result)
             if evidence:
                 candidate = candidate.model_copy(update={"xbrl_corroboration": evidence})
+
+        if settings.emerging_themes_company_exposure_enabled:
+            company_tags_by_id = tags_by_company(member_tags, company_ids_by_mention)
+            exposures: list[CompanyExposure] = []
+            for company_id in candidate.candidate_sectors_companies:
+                company = companies_by_id.get(company_id)
+                if company is None:
+                    continue
+                company_tags = company_tags_by_id.get(company_id, [])
+                try:
+                    role_result = await classify_company_role(company, company_tags, candidate.theme_name, candidate.description, llm)
+                except Exception:  # noqa: BLE001 - role classification is a supporting signal, never fatal to a candidate
+                    logger.exception("Company role classification failed for %s", company_id)
+                    continue
+                if role_result is None:
+                    continue
+                role_assessment, role_usage = role_result
+                job_manager.record_progress(run_id, input_tokens_delta=role_usage.input_tokens, output_tokens_delta=role_usage.output_tokens)
+                exposures.append(CompanyExposure(
+                    company_id=company_id,
+                    role=role_assessment.role,
+                    role_rationale=role_assessment.rationale,
+                    risk=compute_company_risk(company_tags),
+                    momentum=cluster.velocity,
+                    evidence_quality=compute_company_evidence_quality(company_tags, mentions_by_id, settings.emerging_themes_min_independent_sources),
+                ))
+            if exposures:
+                candidate = candidate.model_copy(update={"company_exposure": exposures})
 
         run_store.append_jsonl(run_store.results_path(run_id), candidate.model_dump(mode="json"))
         topic_store.append_candidate(candidate)

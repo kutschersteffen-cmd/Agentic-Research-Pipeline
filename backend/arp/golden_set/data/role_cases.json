@@ -1,0 +1,92 @@
+[
+  {
+    "case_id": "beneficiary_revenue_growth",
+    "description": "A company whose sales directly grow with the theme should classify as beneficiary, not enabler.",
+    "company_name": "Acme Battery Co",
+    "theme_name": "Solid-state EV battery commercialization",
+    "theme_description": "Automakers and battery makers are commercializing solid-state cell chemistry for electric vehicles.",
+    "evidence_quotes": [
+      "Acme Battery Co says orders for its new solid-state cells have tripled as automakers switch from lithium-ion.",
+      "Acme Battery Co expects solid-state cell revenue to become its largest product line within two years."
+    ],
+    "expected_role": "beneficiary",
+    "notes": "Direct revenue upside from the theme's growth, not a supplier of inputs to it."
+  },
+  {
+    "case_id": "enabler_critical_input",
+    "description": "A supplier of a critical input the theme's core companies depend on should classify as enabler.",
+    "company_name": "Solid Separator Materials Inc",
+    "theme_name": "Solid-state EV battery commercialization",
+    "theme_description": "Automakers and battery makers are commercializing solid-state cell chemistry for electric vehicles.",
+    "evidence_quotes": [
+      "Solid Separator Materials Inc is the sole qualified supplier of the ceramic electrolyte separator every major solid-state cell maker uses.",
+      "Battery makers say they cannot scale solid-state production without Solid Separator Materials Inc's separator film."
+    ],
+    "expected_role": "enabler",
+    "notes": "Supplies a critical input the theme's core activity depends on, distinct from directly selling the end product."
+  },
+  {
+    "case_id": "adopter_internal_deployment",
+    "description": "A company deploying the theme's technology in its own operations, without being a primary beneficiary of the theme's overall growth, should classify as adopter.",
+    "company_name": "Continental Freight Lines",
+    "theme_name": "Solid-state EV battery commercialization",
+    "theme_description": "Automakers and battery makers are commercializing solid-state cell chemistry for electric vehicles.",
+    "evidence_quotes": [
+      "Continental Freight Lines says it is converting a quarter of its delivery fleet to EVs using solid-state battery packs to cut charging downtime.",
+      "Continental Freight Lines is not a battery maker or automaker -- it operates a trucking and logistics business."
+    ],
+    "expected_role": "adopter",
+    "notes": "Uses the technology operationally; the theme's growth doesn't directly grow this company's own core revenue line."
+  },
+  {
+    "case_id": "transition_candidate_shifting_business",
+    "description": "A company visibly shifting its business away from a legacy position toward the theme should classify as transition_candidate.",
+    "company_name": "Legacy Lithium Corp",
+    "theme_name": "Solid-state EV battery commercialization",
+    "theme_description": "Automakers and battery makers are commercializing solid-state cell chemistry for electric vehicles.",
+    "evidence_quotes": [
+      "Legacy Lithium Corp, historically a lithium-ion cell maker, announced it will convert two of its four production lines to solid-state cells by next year.",
+      "Legacy Lithium Corp's CEO said the shift is necessary because lithium-ion demand is plateauing as solid-state cells mature."
+    ],
+    "expected_role": "transition_candidate",
+    "notes": "Explicit shift away from a legacy position toward the theme, not simply an existing player expanding capacity."
+  },
+  {
+    "case_id": "bottleneck_owner_scarce_resource",
+    "description": "A company controlling a scarce resource or chokepoint the theme depends on should classify as bottleneck_owner.",
+    "company_name": "Rare Earth Holdings Ltd",
+    "theme_name": "Solid-state EV battery commercialization",
+    "theme_description": "Automakers and battery makers are commercializing solid-state cell chemistry for electric vehicles.",
+    "evidence_quotes": [
+      "Rare Earth Holdings Ltd controls the only two mines currently producing the lithium-lanthanum-zirconate compound solid-state cells require.",
+      "Solid-state cell makers have warned that Rare Earth Holdings Ltd's mine capacity is the binding constraint on how fast they can scale production."
+    ],
+    "expected_role": "bottleneck_owner",
+    "notes": "Controls a scarce input the whole theme's growth is gated on, not just one of many suppliers."
+  },
+  {
+    "case_id": "negatively_exposed_displaced_incumbent",
+    "description": "A legacy incumbent the theme displaces should classify as negatively_exposed.",
+    "company_name": "OldChem Electrolyte Fluids",
+    "theme_name": "Solid-state EV battery commercialization",
+    "theme_description": "Automakers and battery makers are commercializing solid-state cell chemistry for electric vehicles.",
+    "evidence_quotes": [
+      "OldChem Electrolyte Fluids makes the liquid electrolyte used in conventional lithium-ion cells, which solid-state cells eliminate entirely.",
+      "Analysts say OldChem Electrolyte Fluids' core product line has no role in solid-state cell manufacturing and faces declining demand as adoption grows."
+    ],
+    "expected_role": "negatively_exposed",
+    "notes": "The theme's growth directly displaces this company's core product, the opposite of a beneficiary."
+  },
+  {
+    "case_id": "ambiguous_thin_evidence",
+    "description": "Thin, non-committal evidence should classify as ambiguous rather than forcing a confident guess -- guards against overreach on weak evidence.",
+    "company_name": "Generic Industrial Holdings",
+    "theme_name": "Solid-state EV battery commercialization",
+    "theme_description": "Automakers and battery makers are commercializing solid-state cell chemistry for electric vehicles.",
+    "evidence_quotes": [
+      "Generic Industrial Holdings was mentioned in passing in an industry roundup article about the EV battery sector."
+    ],
+    "expected_role": "ambiguous",
+    "notes": "No concrete claim about what this company actually does relative to the theme -- a mere mention, not evidence of a role."
+  }
+]

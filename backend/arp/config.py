@@ -159,6 +159,14 @@ class Settings(BaseSettings):
     )
     emerging_themes_min_cluster_size: int = Field(default=3, description="HDBSCAN min_cluster_size.")
     emerging_themes_gdelt_max_records: int = Field(default=75, description="Per-query cap on GDELT DOC 2.0 API results.")
+    emerging_themes_company_exposure_enabled: bool = Field(
+        default=True,
+        description="Roadmap G4: classify each candidate's companies by role (beneficiary/enabler/adopter/"
+        "transition_candidate/bottleneck_owner/negatively_exposed/ambiguous) and score Risk/Momentum/"
+        "Evidence-quality -- one extra LLM call per company per candidate. On by default like every other "
+        "optional Tool 0 signal; the heavier Revenue/Capex/Demand/Enablement dimensions are resolved separately, "
+        "post-promotion, by re-running Tool 1's existing theme-run pipeline against the new taxonomy.",
+    )
 
     # Agentic company identity resolution (arp/discovery/identity_*.py) --
     # a separate enrichment run, not part of the discovery crawl above.
