@@ -14,6 +14,7 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
+from arp.portfolio.monitoring.scheduler import PortfolioMonitoringScheduler
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store_factory import build_portfolio_store
@@ -139,6 +140,11 @@ def get_taxonomy_researcher_scheduler() -> TaxonomyResearcherScheduler:
 @lru_cache
 def get_calibration_scheduler() -> CalibrationAgentScheduler:
     return CalibrationAgentScheduler(get_settings(), get_run_store(), get_registry())
+
+
+@lru_cache
+def get_portfolio_monitoring_scheduler() -> PortfolioMonitoringScheduler:
+    return PortfolioMonitoringScheduler(get_settings(), get_portfolio_store())
 
 
 @lru_cache

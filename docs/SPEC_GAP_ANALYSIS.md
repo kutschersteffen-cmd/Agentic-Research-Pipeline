@@ -27,13 +27,21 @@ in the organization —
   burst-detection/clustering methodology §6 says should filter a company
   profile's news.
 
-**Neither exists anywhere in this repository** (confirmed by a full-tree
-search for "engagement," "voting," "stewardship," "Engagement Record Store,"
-"Trigger & Detection," and "Emerging Themes" — zero matches). Wherever a
-section below cites "reuse X," that reuse is only possible once X is a real,
-integrable system; until then, the affected capability (particularly the
-engagement/voting half of §6's company profile) isn't a gap this codebase
-can close on its own — it's a dependency to confirm with the spec's authors.
+**Both now exist in this repository** (`backend/arp/engagement/` +
+`backend/arp/voting/`, and `backend/arp/emerging_themes/` respectively) —
+built independently on other branches and merged into `main` after this
+document was first written, so the reuse the spec assumes is genuinely
+possible where it says so. One nuance found while building §3's Monitoring
+& Alerting against it: the **Engagement Record Store is real** (`EngagementStore`,
+matches the spec's description closely — `EscalationStage`, an append-only
+per-company audit log), but the **"Trigger & Detection layer" only has
+file-based controversy-signal ingestion and an elapsed-time SLA-stall sweep
+(`engagement/triggers.py`) — no calendar/cron logic anywhere**, so §3's
+calendar-driven triggers could not actually be reused from it and were
+built fresh instead (see §3 below). The Emerging Themes Scanner's own
+burst-detection/clustering hasn't yet been wired into §6's company profile
+news feed — still a real, closeable gap, just no longer a missing sibling
+system.
 
 ## §1 Risk Identification & Classification — Partial (climate risk only)
 
@@ -109,17 +117,33 @@ reuse it later. Sector taxonomy consistency is likewise informal:
 step, so a sector tag arriving in a different taxonomy than the ESG feed's
 own sector breakdowns would not be caught today.
 
-## §3 Continuous Monitoring & Alerting — Not built
+## §3 Continuous Monitoring & Alerting — Built (climate + concentration thresholds)
 
-Zero implementation. No alert-rule or threshold schema, no breach-detection
-logic, no event-driven trigger, no calendar-driven trigger, no drift
-detection distinguishing a trade-caused breach from a data-caused one, and
-no escalation/audit record. The only two things in the codebase that could
-be mistaken for "monitoring" are static configuration values —
-`config.py::portfolio_confidence_review_threshold` and
-`climate_validation_tolerance_pct` — which gate a one-time classification
-at ingestion/validation time, not a continuously-watched limit with
-escalation.
+`arp/portfolio/monitoring/evaluator.py` implements threshold/breach
+monitoring for three rule types built entirely on the existing aggregation
+engine: a company climate field vs. an absolute limit
+(`field_threshold`), a company's weight of portfolio NAV vs. a limit
+(`concentration_threshold`, the spec's own literal example), and a
+WACI-style portfolio-weighted metric vs. a limit
+(`portfolio_aggregate_threshold`). Event-driven triggers are new
+`NewsRiskFlag`s at/above a configured severity floor. Calendar-driven
+triggers are fixed-interval re-evaluation
+(`PortfolioMonitoringScheduler`, cloned from the other four APScheduler
+wrappers already in this codebase) — not true calendar windows (proxy
+season, PAI deadlines); APScheduler supports a `"cron"` trigger natively,
+so this is a moderate upgrade, not a structural block. Drift detection
+(`breach_type`: `holdings_caused` / `data_caused` / `mixed` / `unknown`)
+is real for the one rule type where it's actually ambiguous
+(`portfolio_aggregate_threshold`) — the other two are single-caused by
+construction. Escalation is a 4-stage ladder
+(`open → acknowledged → escalated → resolved | false_positive`); every
+status transition requires `decided_by` (non-optional), mirroring the
+engagement module's escalation checkpoint.
+
+**Gaps**: no factor/PAI/benchmark-relative thresholds (§1/§2's own data-
+model gaps), no rating-downgrade/index-reconstitution triggers (no such
+data exists anywhere in this codebase), and no true calendar-specific
+triggers yet (see above).
 
 ## §4 Analytical Views & Exploration — Built (strongest section)
 
@@ -137,7 +161,7 @@ persisted (`analytics.py::save_analytic`/`list_analytics`,
 `GET /api/portfolio/analytics`).
 
 **Gaps:** the save/list plumbing above has no UI — nothing in
-`PortfolioRisk.tsx` ever sets `save: true` or lists a saved analytic, so
+`PivotExplorer.tsx` ever sets `save: true` or lists a saved analytic, so
 "saved, role-based views" don't exist as a reachable feature, only as unused
 backend capacity. There's no benchmark-relative/absolute toggle anywhere
 (no `Benchmark` concept exists at all — consistent with §2's benchmark
@@ -165,29 +189,31 @@ reject with a reviewer and a timestamp, used by the thematic-research
 pipelines) but it is not wired into the portfolio module at all, so there's
 no accept/reject record, no named owner per risk category, and no logged
 methodology-version history (e.g. "the validation tolerance changed from
-15% to 10% on this date, by this person, because...").
+15% to 10% on this date, by this person, because..."). §3's new
+`AlertTransition` ladder (`open → acknowledged → escalated → resolved |
+false_positive`, `decided_by` required) is a real, working precedent for
+exactly this shape of decision record — just not yet extended to these
+two older flag types.
 
-## §6 Company-Level Risk & Intelligence Profiles — Not built as a page (cheap to add)
+## §6 Company-Level Risk & Intelligence Profiles — Built (as an assembly of existing endpoints)
 
-**Not built:** no page, component, or endpoint assembles a single per-issuer
-view. This is the section most affected by the sibling-system gap noted
-above — engagement history and voting-record integration are impossible
-without an Engagement Record Store this repo doesn't have, and news
-filtered by the "Tool 0" burst-detection/clustering methodology isn't
-possible without that tool; this codebase's own news pipeline
-(`news/mock_source.py` → `news/classifier.py`) does per-article LLM
-classification only, with no clustering or burst detection.
+`CompanyProfiles.tsx` combines `GET /api/portfolio/companies`,
+`GET /api/portfolio/news` (`?company_id=`), `GET /api/portfolio/news/flags`
+(`?company_id=`), and per-company climate figures (the existing
+aggregation engine filtered to one `company_id`) into a single issuer
+view — an assembly exercise against endpoints that already existed and
+already accepted a company scope server-side, not new backend work.
 
-**What's unusually cheap to add**, though: the data-and-API side of an
-issuer profile mostly already exists. `GET /api/portfolio/companies`,
-`GET /api/portfolio/news` (`?company_id=`), and
-`GET /api/portfolio/news/flags` (`?company_id=`) all already accept or
-return company-scoped data server-side — the frontend API client simply
-never calls the company-filtered variants. A profile combining company
-identity + climate figures (via the existing aggregation engine filtered to
-one `company_id`) + news + risk flags is an assembly exercise against
-existing endpoints, not new backend work. See Part 2 of this repo's build
-plan for exactly that.
+**Still not built**: `CompanyProfiles.tsx` doesn't yet read from the
+Engagement Record Store or the voting module, even though both now exist
+in this repository (see "Sibling-system dependencies" above) — wiring in
+engagement history/voting-record sections is a real, closeable gap now,
+not a missing-system blocker. Filtering the profile's news by the "Tool 0"
+Emerging Themes Scanner's burst-detection/clustering methodology is the
+same story: the tool exists, just isn't wired into this page yet. This
+codebase's own portfolio news pipeline (`news/mock_source.py` →
+`news/classifier.py`) still does per-article LLM classification only, with
+no clustering or burst detection of its own.
 
 ## §7 Custom Analysis via Jupyter Notebook Integration — Not built
 
@@ -254,10 +280,10 @@ engine itself, not because the sequencing advice was disregarded.
 |---|---|
 | §1 Risk Identification & Classification | Partial — climate only |
 | §2 Data Model | Built |
-| §3 Continuous Monitoring & Alerting | Not built |
+| §3 Continuous Monitoring & Alerting | Built — climate/concentration thresholds; no true calendar triggers yet |
 | §4 Analytical Views & Exploration | Built |
 | §5 Governance & Workflow | Partial — flagging only, no decision workflow |
-| §6 Company-Level Risk & Intelligence Profiles | Not built (cheap to add; engagement/voting half needs a sibling system this repo lacks) |
+| §6 Company-Level Risk & Intelligence Profiles | Built (as an assembly of existing endpoints); engagement/voting + Tool 0 exist in this repo now but aren't wired into the profile yet |
 | §7 Jupyter Notebook Integration | Not built |
 | §8 AI/LLM Q&A Layer | Built |
 | §9 Front-End Architecture | Was a structural mismatch; addressed in this change |

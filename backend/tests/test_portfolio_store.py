@@ -1,5 +1,6 @@
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import DataPointObservation, Holding, Portfolio, SecurityRef, SecurityResolution
+from arp.schemas.portfolio_monitoring import AlertRule
 from arp.storage.portfolio_store import PortfolioStore
 
 
@@ -57,3 +58,38 @@ def test_list_observation_keys(tmp_path):
 def test_list_observation_keys_empty_when_nothing_recorded(tmp_path):
     store = PortfolioStore(tmp_path)
     assert store.list_observation_keys() == []
+
+
+def test_alert_rule_round_trip(tmp_path):
+    store = PortfolioStore(tmp_path)
+    rule = AlertRule(name="High carbon intensity", rule_type="field_threshold", field_id="climate_carbon_intensity", comparator="gt", threshold_value=400.0)
+    store.save_rule(rule)
+    assert store.get_rule(rule.rule_id) == rule
+    assert store.list_rules() == [rule]
+    assert store.list_rules(enabled_only=True) == [rule]
+
+
+def test_alert_rule_list_excludes_disabled_when_enabled_only(tmp_path):
+    store = PortfolioStore(tmp_path)
+    store.save_rule(AlertRule(name="Disabled rule", rule_type="field_threshold", field_id="f1", comparator="gt", threshold_value=1.0, enabled=False))
+    assert store.list_rules() == store.list_rules()  # sanity: doesn't raise
+    assert store.list_rules(enabled_only=True) == []
+
+
+def test_alert_events_append_and_list_per_scope(tmp_path):
+    store = PortfolioStore(tmp_path)
+    store.append_alert_event("bmw", "alert_raised", {"alert": {"alert_id": "a1"}})
+    store.append_alert_event("bmw", "status_changed", {"alert_id": "a1", "transition": {"status": "resolved"}})
+    store.append_alert_event("sap", "alert_raised", {"alert": {"alert_id": "a2"}})
+
+    bmw_events = store.list_alert_events("bmw")
+    assert [e["event_type"] for e in bmw_events] == ["alert_raised", "status_changed"]
+    assert store.list_alert_events("sap")[0]["alert"]["alert_id"] == "a2"
+    assert store.list_all_alert_scope_ids() == ["bmw", "sap"]
+
+
+def test_list_all_alert_scope_ids_excludes_rules_json(tmp_path):
+    store = PortfolioStore(tmp_path)
+    store.save_rule(AlertRule(name="R", rule_type="field_threshold", field_id="f1", comparator="gt", threshold_value=1.0))
+    store.append_alert_event("bmw", "alert_raised", {"alert": {}})
+    assert store.list_all_alert_scope_ids() == ["bmw"]

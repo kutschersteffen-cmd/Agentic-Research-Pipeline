@@ -242,6 +242,18 @@ class Settings(BaseSettings):
         default=0.15, description="Disagreement between the internal ESG API and extracted-from-disclosures values beyond this share is flagged conflicting_sources."
     )
 
+    # Continuous monitoring & alerting (arp/portfolio/monitoring/). Clones
+    # discovery/scheduler.py's AsyncIOScheduler + JSON-persisted-config
+    # pattern -- see CalibrationAgentScheduler for the closer analog: this
+    # agent also only ever raises alerts for a human to act on, never
+    # auto-resolves anything.
+    portfolio_monitoring_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".portfolio_monitoring_state")
+    portfolio_monitoring_schedule_enabled: bool = Field(default=False)
+    portfolio_monitoring_schedule_interval_hours: float = Field(default=6.0)
+    portfolio_monitoring_news_min_severity: str = Field(
+        default="medium", description="Minimum NewsRiskFlag.severity that opens a news_controversy alert."
+    )
+
     # Optional Postgres/pgvector store (arp/storage/postgres*.py, requires
     # the `postgres` extra: pip install -e ".[postgres]"). Additive, not a
     # replacement for the file-based run/review audit trail: at this
@@ -283,6 +295,7 @@ class Settings(BaseSettings):
             self.emerging_themes_state_dir,
             self.taxonomy_researcher_state_dir,
             self.calibration_agent_state_dir,
+            self.portfolio_monitoring_state_dir,
         ):
             d.mkdir(parents=True, exist_ok=True)
 

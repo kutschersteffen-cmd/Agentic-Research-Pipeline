@@ -8,9 +8,11 @@ from arp.config import Settings
 from arp.llm.base import LLMClient
 from arp.portfolio import analytics, datapoint_mapping, qa_agent
 from arp.portfolio.mock_data import generate_demo_dataset
+from arp.portfolio.monitoring import evaluator as monitoring_evaluator
 from arp.portfolio.news.classifier import classify_article
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotResult, PivotSpec, Portfolio, SecurityRef, TrendPoint
+from arp.schemas.portfolio_monitoring import Alert, AlertRule, AlertStatus, AlertTransition
 from arp.storage.portfolio_store import PortfolioStore
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
@@ -202,3 +204,51 @@ async def classify_news(
 @router.get("/news/flags")
 def list_flags(company_id: str | None = None, store: PortfolioStore = Depends(get_portfolio_store)) -> list[dict]:
     return [f.model_dump() for f in store.list_flags(company_id)]
+
+
+@router.get("/monitoring/rules", response_model=list[AlertRule])
+def list_monitoring_rules(store: PortfolioStore = Depends(get_portfolio_store)) -> list[AlertRule]:
+    return store.list_rules()
+
+
+@router.post("/monitoring/rules", response_model=AlertRule)
+def create_monitoring_rule(rule: AlertRule, store: PortfolioStore = Depends(get_portfolio_store)) -> AlertRule:
+    store.save_rule(rule)
+    return rule
+
+
+@router.get("/monitoring/alerts", response_model=list[Alert])
+def list_monitoring_alerts(status: AlertStatus | None = None, store: PortfolioStore = Depends(get_portfolio_store)) -> list[Alert]:
+    return monitoring_evaluator.list_alerts(store, status=status)
+
+
+class AlertTransitionRequest(BaseModel):
+    status: AlertStatus
+    decided_by: str
+    reason: str = ""
+    owner: str | None = None
+
+
+@router.post("/monitoring/alerts/{scope_id}/{alert_id}/transition", response_model=Alert)
+def transition_monitoring_alert(
+    scope_id: str, alert_id: str, req: AlertTransitionRequest, store: PortfolioStore = Depends(get_portfolio_store)
+) -> Alert:
+    """A human-decided status change -- `decided_by` required, mirrors the
+    engagement router's escalate-issue route exactly (see
+    engagement_store.py::set_escalation_stage)."""
+    try:
+        return monitoring_evaluator.transition_alert(
+            store, scope_id, alert_id, AlertTransition(status=req.status, decided_by=req.decided_by, reason=req.reason, owner=req.owner)
+        )
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.post("/monitoring/evaluate-now")
+def evaluate_monitoring_now(store: PortfolioStore = Depends(get_portfolio_store), settings: Settings = Depends(settings_dep)) -> dict:
+    """Manual trigger for demo/testing -- runs the exact same entrypoints
+    the scheduler uses (see monitoring/scheduler.py), same discipline as
+    discovery's manual-vs-scheduled split."""
+    threshold_alerts = monitoring_evaluator.evaluate_threshold_rules(store)
+    news_alerts = monitoring_evaluator.evaluate_news_triggers(store, min_severity=settings.portfolio_monitoring_news_min_severity)
+    return {"threshold_alerts_raised": len(threshold_alerts), "news_alerts_raised": len(news_alerts)}

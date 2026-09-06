@@ -10,8 +10,10 @@ from arp.config import get_settings
 from arp.llm.factory import build_llm_client
 from arp.portfolio import analytics, qa_agent
 from arp.portfolio.mock_data import generate_demo_dataset
+from arp.portfolio.monitoring import evaluator as monitoring_evaluator
 from arp.portfolio.news.classifier import classify_article
 from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotSpec
+from arp.schemas.portfolio_monitoring import AlertRule, AlertStatus, AlertTransition
 
 portfolio_app = typer.Typer(help="Portfolio holdings aggregation, analytics, and NL Q&A.")
 
@@ -163,3 +165,72 @@ def portfolio_classify_news() -> None:
 
     created = asyncio.run(_run())
     typer.echo(f"Classified {len(pending)} article(s), created {created} risk flag(s).")
+
+
+
+@portfolio_app.command("monitoring-rules-list")
+def portfolio_monitoring_rules_list() -> None:
+    for r in _portfolio_store().list_rules():
+        typer.echo(f"{r.rule_id}\t{r.name}\t{r.rule_type}\t{r.comparator} {r.threshold_value}\tenabled={r.enabled}")
+
+
+
+@portfolio_app.command("monitoring-rules-add")
+def portfolio_monitoring_rules_add(
+    name: str = typer.Option(...),
+    rule_type: str = typer.Option(..., help="field_threshold | concentration_threshold | portfolio_aggregate_threshold"),
+    comparator: str = typer.Option(..., help="gt | gte | lt | lte"),
+    threshold_value: float = typer.Option(...),
+    field_id: str = typer.Option(None, help="Required for field_threshold/portfolio_aggregate_threshold, e.g. climate_carbon_intensity."),
+    company_id: list[str] = typer.Option(None, "--company-id", help="Restrict to these company_ids; repeatable. Only used by field_threshold."),
+    portfolio: list[str] = typer.Option(None, "--portfolio", help="Restrict to these portfolio_ids; repeatable."),
+    severity: str = typer.Option("medium", help="low | medium | high"),
+) -> None:
+    """Adds a new threshold/breach rule for the continuous monitoring
+    evaluator (see arp/portfolio/monitoring/evaluator.py)."""
+    rule = AlertRule(
+        name=name, rule_type=rule_type, field_id=field_id, comparator=comparator, threshold_value=threshold_value,
+        company_ids=company_id or [], portfolio_ids=portfolio or [], severity=severity,
+    )
+    _portfolio_store().save_rule(rule)
+    typer.echo(f"Created rule {rule.rule_id}")
+
+
+
+@portfolio_app.command("monitoring-evaluate-now")
+def portfolio_monitoring_evaluate_now() -> None:
+    """Runs the same evaluation entrypoints the scheduler uses -- a manual
+    pass useful for demos/testing without waiting for the interval."""
+    store = _portfolio_store()
+    settings = get_settings()
+    threshold_alerts = monitoring_evaluator.evaluate_threshold_rules(store)
+    news_alerts = monitoring_evaluator.evaluate_news_triggers(store, min_severity=settings.portfolio_monitoring_news_min_severity)
+    typer.echo(f"Raised {len(threshold_alerts)} threshold alert(s), {len(news_alerts)} news alert(s).")
+
+
+
+@portfolio_app.command("monitoring-alerts-list")
+def portfolio_monitoring_alerts_list(status: str = typer.Option(None, help="Filter: open | acknowledged | escalated | resolved | false_positive")) -> None:
+    alerts = monitoring_evaluator.list_alerts(_portfolio_store(), status=AlertStatus(status) if status else None)
+    if not alerts:
+        typer.echo("No alerts.")
+        return
+    for a in alerts:
+        typer.echo(f"{a.scope_id}\t{a.alert_id}\t{a.category}\t{a.status}\t{a.breach_type}\t{a.rationale}")
+
+
+
+@portfolio_app.command("monitoring-alerts-transition")
+def portfolio_monitoring_alerts_transition(
+    scope_id: str, alert_id: str, status: str = typer.Option(...), decided_by: str = typer.Option(...), reason: str = typer.Option("")
+) -> None:
+    """Records a human-decided status change for one alert -- decided_by
+    is required, mirroring the escalation ladder's human checkpoint."""
+    try:
+        updated = monitoring_evaluator.transition_alert(
+            _portfolio_store(), scope_id, alert_id, AlertTransition(status=AlertStatus(status), decided_by=decided_by, reason=reason)
+        )
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"{updated.alert_id} -> {updated.status}")

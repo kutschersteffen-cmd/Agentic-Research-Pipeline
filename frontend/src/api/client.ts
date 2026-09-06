@@ -1,6 +1,9 @@
 import type { CompanyBallot, ResearchDossier, StewardshipReport, TriggerEvent, VoteRecord, VoteReviewDecision } from "../types";
 import type {
   AggregationResult,
+  Alert,
+  AlertRule,
+  AlertStatus,
   AnalyticRequest,
   CompanyRef,
   CoverageBySource,
@@ -341,6 +344,17 @@ export const api = {
   classifyPortfolioNews: () =>
     request<{ classified: number; flags_created: number }>("/api/portfolio/news/classify", { method: "POST" }),
   listNewsFlags: (companyId?: string) => request<NewsRiskFlag[]>(`/api/portfolio/news/flags${buildQuery({ company_id: companyId })}`),
+  listMonitoringRules: () => request<AlertRule[]>("/api/portfolio/monitoring/rules"),
+  createMonitoringRule: (rule: Omit<AlertRule, "rule_id" | "created_at">) =>
+    request<AlertRule>("/api/portfolio/monitoring/rules", { method: "POST", body: JSON.stringify(rule) }),
+  listAlerts: (status?: AlertStatus) => request<Alert[]>(`/api/portfolio/monitoring/alerts${buildQuery({ status })}`),
+  transitionAlert: (scopeId: string, alertId: string, body: { status: AlertStatus; decided_by: string; reason?: string; owner?: string }) =>
+    request<Alert>(`/api/portfolio/monitoring/alerts/${encodeURIComponent(scopeId)}/${encodeURIComponent(alertId)}/transition`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  evaluateMonitoringNow: () =>
+    request<{ threshold_alerts_raised: number; news_alerts_raised: number }>("/api/portfolio/monitoring/evaluate-now", { method: "POST" }),
 
   // Climate analytics
   getClimateSchema: () => request<DataPointSchema>("/api/climate/schema"),

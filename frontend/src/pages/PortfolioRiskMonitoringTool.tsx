@@ -3,7 +3,7 @@ import { PortfolioPaneProvider } from "../context/PortfolioPaneContext";
 import { PersistentSelectionPane } from "../components/PersistentSelectionPane";
 import { StandardAnalytics } from "./portfolio-monitoring/StandardAnalytics";
 import { PivotExplorer } from "./portfolio-monitoring/PivotExplorer";
-import { MonitoringAlertsStub } from "./portfolio-monitoring/MonitoringAlertsStub";
+import { MonitoringAlerts } from "./portfolio-monitoring/MonitoringAlerts";
 import { CompanyProfiles } from "./portfolio-monitoring/CompanyProfiles";
 import { CustomAnalysisStub } from "./portfolio-monitoring/CustomAnalysisStub";
 import { AskThePortfolio } from "./portfolio-monitoring/AskThePortfolio";
@@ -56,7 +56,7 @@ function Inner() {
 
       {sub === "standard" && <StandardAnalytics />}
       {sub === "pivot" && <PivotExplorer />}
-      {sub === "monitoring" && <MonitoringAlertsStub />}
+      {sub === "monitoring" && <MonitoringAlerts />}
       {sub === "profiles" && <CompanyProfiles />}
       {sub === "notebook" && <CustomAnalysisStub />}
       {sub === "ask" && <AskThePortfolio />}

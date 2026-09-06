@@ -166,6 +166,24 @@ def test_observations_and_news_delegate_to_file_store(store):
     assert loaded[0].value == 42.0
 
 
+def test_monitoring_rules_and_alerts_delegate_to_file_store(store):
+    """Monitoring rules/alerts are another non-relational surface,
+    delegated the same way observations/news/flags/analytics are (see
+    test_observations_and_news_delegate_to_file_store above) -- this is
+    exactly where forgetting to add a delegation method would surface as
+    an AttributeError under ARP_PORTFOLIO_BACKEND=postgres."""
+    from arp.schemas.portfolio_monitoring import AlertRule
+
+    rule = AlertRule(name="High carbon intensity", rule_type="field_threshold", field_id="climate_carbon_intensity", comparator="gt", threshold_value=400.0)
+    store.save_rule(rule)
+    assert store.get_rule(rule.rule_id) == rule
+    assert store.list_rules() == [rule]
+
+    store.append_alert_event("bmw", "alert_raised", {"alert": {"alert_id": "a1"}})
+    assert store.list_alert_events("bmw")[0]["alert"]["alert_id"] == "a1"
+    assert store.list_all_alert_scope_ids() == ["bmw"]
+
+
 def test_pgvector_embeddings_store_roundtrip():
     from arp.storage.postgres import ensure_schema
     from arp.storage.postgres_embeddings import PgVectorEmbeddingsStore

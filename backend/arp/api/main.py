@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from arp.api.deps import (
     get_calibration_scheduler,
     get_emerging_themes_scheduler,
+    get_portfolio_monitoring_scheduler,
     get_scheduler,
     get_taxonomy_researcher_scheduler,
     settings_dep,
@@ -47,10 +48,12 @@ async def lifespan(app: FastAPI):
     taxonomy_researcher_scheduler = get_taxonomy_researcher_scheduler()
     calibration_scheduler = get_calibration_scheduler()
     emerging_themes_scheduler = get_emerging_themes_scheduler()
+    portfolio_monitoring_scheduler = get_portfolio_monitoring_scheduler()
     scheduler.start()
     taxonomy_researcher_scheduler.start()
     calibration_scheduler.start()
     emerging_themes_scheduler.start()
+    portfolio_monitoring_scheduler.start()
     try:
         yield
     finally:
@@ -58,6 +61,7 @@ async def lifespan(app: FastAPI):
         taxonomy_researcher_scheduler.shutdown()
         calibration_scheduler.shutdown()
         emerging_themes_scheduler.shutdown()
+        portfolio_monitoring_scheduler.shutdown()
 
 
 app = FastAPI(title="Agentic Research Pipeline", version="0.1.0", lifespan=lifespan)

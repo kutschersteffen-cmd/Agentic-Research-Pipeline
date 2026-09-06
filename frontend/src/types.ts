@@ -909,6 +909,44 @@ export interface NewsRiskFlag {
   generated_at: string;
 }
 
+export type AlertRuleType = "field_threshold" | "concentration_threshold" | "portfolio_aggregate_threshold";
+export type AlertComparator = "gt" | "gte" | "lt" | "lte";
+export type AlertStatus = "open" | "acknowledged" | "escalated" | "resolved" | "false_positive";
+export type BreachType = "holdings_caused" | "data_caused" | "mixed" | "unknown";
+
+export interface AlertRule {
+  rule_id: string;
+  name: string;
+  rule_type: AlertRuleType;
+  field_id?: string | null;
+  company_ids: string[];
+  portfolio_ids: string[];
+  comparator: AlertComparator;
+  threshold_value: number;
+  severity: "low" | "medium" | "high";
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface Alert {
+  alert_id: string;
+  rule_id?: string | null;
+  category: "threshold_breach" | "news_controversy";
+  scope_id: string;
+  company_id?: string | null;
+  portfolio_id?: string | null;
+  triggered_at: string;
+  observed_value?: number | null;
+  threshold_value?: number | null;
+  breach_type: BreachType;
+  snapshot_date?: string | null;
+  data_point_values?: Record<string, number> | null;
+  source_flag_id?: string | null;
+  rationale: string;
+  status: AlertStatus;
+  owner?: string | null;
+}
+
 export interface DemoSeedSummary {
   company_count: number;
   security_count: number;

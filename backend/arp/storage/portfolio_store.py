@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from arp.schemas.common import CompanyRef
+from arp.schemas.common import CompanyRef, now_iso
 from arp.schemas.portfolio import (
     DataPointObservation,
     Holding,
@@ -13,6 +13,7 @@ from arp.schemas.portfolio import (
     SecurityRef,
     SecurityResolution,
 )
+from arp.schemas.portfolio_monitoring import AlertRule
 from arp.storage.safe_path import safe_id
 
 
@@ -248,3 +249,47 @@ class PortfolioStore:
 
     def get_analytic(self, analytic_id: str) -> dict | None:
         return self._read_json(self.analytics_path()).get(analytic_id)
+
+    # --- continuous monitoring & alerting (arp/portfolio/monitoring/) ---
+
+    def rules_path(self) -> Path:
+        return self.portfolios_dir / "monitoring" / "rules.json"
+
+    def save_rule(self, rule: AlertRule) -> None:
+        data = self._read_json(self.rules_path())
+        data[rule.rule_id] = json.loads(rule.model_dump_json())
+        self._write_json(self.rules_path(), data)
+
+    def get_rule(self, rule_id: str) -> AlertRule | None:
+        row = self._read_json(self.rules_path()).get(rule_id)
+        return AlertRule.model_validate(row) if row else None
+
+    def list_rules(self, enabled_only: bool = False) -> list[AlertRule]:
+        rules = [AlertRule.model_validate(v) for v in self._read_json(self.rules_path()).values()]
+        return [r for r in rules if r.enabled] if enabled_only else rules
+
+    def alert_events_path(self, scope_id: str) -> Path:
+        """One append-only event log per scope -- generalizes
+        EngagementStore's per-company `events.jsonl` sharding to this
+        module's two scope kinds (a bare company_id, or
+        "portfolio__<portfolio_id>" for portfolio-scoped rules; the double
+        underscore keeps the id within safe_id's allowed character set,
+        which rejects the ":" a "portfolio:<id>" convention would need).
+        Two event types land here: "alert_raised" (the full Alert payload,
+        no decided_by -- system-generated, same as engagement's
+        open_issue never logging an EscalationTransition) and
+        "status_changed" (an AlertTransition, decided_by required).
+        """
+        return self.portfolios_dir / "monitoring" / safe_id(scope_id, label="scope_id") / "events.jsonl"
+
+    def append_alert_event(self, scope_id: str, event_type: str, payload: dict) -> None:
+        self._append_jsonl(self.alert_events_path(scope_id), {"event_type": event_type, "at": now_iso(), **payload})
+
+    def list_alert_events(self, scope_id: str) -> list[dict]:
+        return self._read_jsonl(self.alert_events_path(scope_id))
+
+    def list_all_alert_scope_ids(self) -> list[str]:
+        d = self.portfolios_dir / "monitoring"
+        if not d.exists():
+            return []
+        return sorted(p.name for p in d.iterdir() if p.is_dir())
