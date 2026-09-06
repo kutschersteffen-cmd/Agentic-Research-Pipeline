@@ -150,15 +150,15 @@ export const api = {
     }),
   getEmergingThemesCandidates: (runId: string) =>
     request<{ total: number; candidates: EmergingThemeCandidate[] }>(`/api/emerging-themes/runs/${runId}/candidates`),
-  promoteEmergingThemeCandidate: (runId: string, themeId: string, taxonomyId?: string | null) =>
+  promoteEmergingThemeCandidate: (runId: string, themeId: string, reason: string, taxonomyId?: string | null) =>
     request<EmergingThemeCandidate>(
       `/api/emerging-themes/runs/${runId}/candidates/${encodeURIComponent(themeId)}/promote`,
-      { method: "POST", body: JSON.stringify({ taxonomy_id: taxonomyId ?? null }) },
+      { method: "POST", body: JSON.stringify({ reason, taxonomy_id: taxonomyId ?? null }) },
     ),
-  rejectEmergingThemeCandidate: (runId: string, themeId: string) =>
+  rejectEmergingThemeCandidate: (runId: string, themeId: string, reason: string) =>
     request<{ theme_id: string; status: string }>(
       `/api/emerging-themes/runs/${runId}/candidates/${encodeURIComponent(themeId)}/reject`,
-      { method: "POST" },
+      { method: "POST", body: JSON.stringify({ reason }) },
     ),
   getEmergingThemesSchedule: () => request<EmergingThemesScheduleConfig>("/api/emerging-themes/schedule"),
   updateEmergingThemesSchedule: (config: EmergingThemesScheduleConfig) =>

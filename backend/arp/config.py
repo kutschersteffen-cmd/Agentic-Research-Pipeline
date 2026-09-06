@@ -148,6 +148,12 @@ class Settings(BaseSettings):
     emerging_themes_min_independent_sources: int = Field(
         default=2, description="A cluster needs at least this many distinct source URLs before it can become a candidate."
     )
+    emerging_themes_min_action_score: float = Field(
+        default=0.34,
+        description="Roadmap P3: a cluster needs at least this share of member evidence describing a concrete "
+        "corporate action (capex/hiring/orders/capacity/partnership), not just a mention, before it can become a "
+        "candidate -- the 'talk vs. walk' gate.",
+    )
     emerging_themes_cluster_stability_reruns: int = Field(
         default=3, description="Reseeded UMAP/HDBSCAN reruns for the pre-LLM cluster-stability gate; a cluster must survive most of them."
     )

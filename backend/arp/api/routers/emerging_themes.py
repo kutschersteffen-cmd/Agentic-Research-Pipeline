@@ -5,10 +5,11 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from arp.api.deps import get_emerging_themes_scheduler, get_llm_client, get_run_store, get_taxonomy_store, get_topic_store, settings_dep
+from arp.api.deps import get_emerging_themes_scheduler, get_llm_client, get_run_store, get_taxonomy_store, get_topic_store, get_xbrl_source, settings_dep
 from arp.config import Settings
 from arp.emerging_themes.pipeline import create_emerging_themes_run, execute_emerging_themes_run, load_candidates_with_status, promote_candidate, reject_candidate
 from arp.emerging_themes.scheduler import EmergingThemesScheduler, default_sources
+from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
 from arp.schemas.common import CompanyRef
 from arp.schemas.emerging_themes import EmergingThemesScheduleConfig
@@ -32,6 +33,7 @@ async def start_emerging_themes_run(
     run_store: RunStore = Depends(get_run_store),
     topic_store: TopicStateStore = Depends(get_topic_store),
     llm: LLMClient = Depends(get_llm_client),
+    xbrl_source: XbrlFactSource = Depends(get_xbrl_source),
 ) -> dict:
     """Manual trigger: scan public news/filings/regulatory flow across the
     given (or referenced) universe for emerging themes. Uses the exact
@@ -46,6 +48,7 @@ async def start_emerging_themes_run(
         await execute_emerging_themes_run(
             run_id, companies, llm=llm, sources=default_sources(settings), settings=settings,
             run_store=run_store, topic_store=topic_store,
+            xbrl_source=xbrl_source if settings.xbrl_facts_enabled else None,
         )
 
     asyncio.create_task(_background())
@@ -67,6 +70,7 @@ def list_candidates(run_id: str, run_store: RunStore = Depends(get_run_store)) -
 
 
 class PromoteRequest(BaseModel):
+    reason: str
     taxonomy_id: str | None = None
 
 
@@ -80,17 +84,25 @@ async def promote(
     llm: LLMClient = Depends(get_llm_client),
 ) -> dict:
     """The human review gate's action -- no candidate reaches the taxonomy
-    library without this explicit call."""
+    library without this explicit call. `reason` is required (roadmap
+    P0)."""
     try:
-        candidate = await promote_candidate(run_store, taxonomy_store, llm, run_id, theme_id, taxonomy_id=req.taxonomy_id)
+        candidate = await promote_candidate(run_store, taxonomy_store, llm, run_id, theme_id, req.reason, taxonomy_id=req.taxonomy_id)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     return candidate.model_dump(mode="json")
 
 
+class RejectRequest(BaseModel):
+    reason: str
+
+
 @router.post("/runs/{run_id}/candidates/{theme_id}/reject")
-def reject(run_id: str, theme_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    reject_candidate(run_store, run_id, theme_id)
+def reject(run_id: str, theme_id: str, req: RejectRequest, run_store: RunStore = Depends(get_run_store)) -> dict:
+    try:
+        reject_candidate(run_store, run_id, theme_id, req.reason)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     return {"theme_id": theme_id, "status": "rejected"}
 
 

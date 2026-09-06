@@ -22,6 +22,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
   const [candidates, setCandidates] = useState<EmergingThemeCandidate[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [taxonomyIdInputs, setTaxonomyIdInputs] = useState<Record<string, string>>({});
+  const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
 
   const [schedule, setSchedule] = useState<EmergingThemesScheduleConfig | null>(null);
 
@@ -66,10 +67,12 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
   async function promote(candidate: EmergingThemeCandidate) {
     if (!selectedRunId) return;
+    const reason = (reasonInputs[candidate.theme_id] ?? "").trim();
+    if (!reason) return;
     setBusy(true);
     setError(null);
     try {
-      await api.promoteEmergingThemeCandidate(selectedRunId, candidate.theme_id, taxonomyIdInputs[candidate.theme_id] || null);
+      await api.promoteEmergingThemeCandidate(selectedRunId, candidate.theme_id, reason, taxonomyIdInputs[candidate.theme_id] || null);
       await refreshCandidates(selectedRunId);
     } catch (err) {
       setError((err as Error).message);
@@ -80,10 +83,12 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
   async function reject(candidate: EmergingThemeCandidate) {
     if (!selectedRunId) return;
+    const reason = (reasonInputs[candidate.theme_id] ?? "").trim();
+    if (!reason) return;
     setBusy(true);
     setError(null);
     try {
-      await api.rejectEmergingThemeCandidate(selectedRunId, candidate.theme_id);
+      await api.rejectEmergingThemeCandidate(selectedRunId, candidate.theme_id, reason);
       await refreshCandidates(selectedRunId);
     } catch (err) {
       setError((err as Error).message);
@@ -206,37 +211,63 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                           <p>
                             <strong>Discovery signal:</strong> novelty {Math.round(c.novelty * 100)}%, breadth{" "}
                             {Math.round(c.breadth * 100)}% of the scanned universe, velocity {c.signal_velocity.toFixed(2)}&times; baseline,{" "}
-                            {c.persistence > 0 ? `persisted ${c.persistence} period(s)` : "first period seen"}.
+                            {c.persistence > 0 ? `persisted ${c.persistence} period(s)` : "first period seen"}, action evidence{" "}
+                            {Math.round(c.action_score * 100)}% (share of evidence describing a concrete action, not just a mention).
                           </p>
                           <p><strong>Rationale:</strong> {c.rationale}</p>
                           <p><strong>Why this would move markets:</strong> {c.economic_rationale}</p>
                           <p><strong>Corroborating sources:</strong></p>
                           <MentionCitationList citations={c.corroborating_sources} />
 
+                          {c.xbrl_corroboration.length > 0 && (
+                            <>
+                              <p><strong>SEC XBRL corroboration:</strong></p>
+                              <ul>
+                                {c.xbrl_corroboration.map((x) => (
+                                  <li key={x.company_id}>
+                                    {x.company_id}: CapEx{" "}
+                                    {x.capex_pct_change != null ? `${x.capex_pct_change >= 0 ? "+" : ""}${Math.round(x.capex_pct_change * 100)}%` : "n/a"},{" "}
+                                    R&amp;D {x.rnd_pct_change != null ? `${x.rnd_pct_change >= 0 ? "+" : ""}${Math.round(x.rnd_pct_change * 100)}%` : "n/a"}{" "}
+                                    <span className="muted">(YoY, most recent annual filing)</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </>
+                          )}
+
                           {(c.status === "candidate" || c.status === "under_review") && (
                             <div className="toolbar">
+                              <input
+                                placeholder="Reason (required)"
+                                value={reasonInputs[c.theme_id] ?? ""}
+                                onChange={(e) => setReasonInputs({ ...reasonInputs, [c.theme_id]: e.target.value })}
+                              />
                               <input
                                 placeholder="Existing ratified taxonomy_id (optional)"
                                 value={taxonomyIdInputs[c.theme_id] ?? ""}
                                 onChange={(e) => setTaxonomyIdInputs({ ...taxonomyIdInputs, [c.theme_id]: e.target.value })}
                               />
-                              <button onClick={() => promote(c)} disabled={busy}>
+                              <button onClick={() => promote(c)} disabled={busy || !(reasonInputs[c.theme_id] ?? "").trim()}>
                                 Promote
                               </button>
-                              <button onClick={() => reject(c)} disabled={busy} className="danger">
+                              <button onClick={() => reject(c)} disabled={busy || !(reasonInputs[c.theme_id] ?? "").trim()} className="danger">
                                 Reject
                               </button>
                             </div>
                           )}
                           {c.status === "promoted" && (
                             <p className="status-text">
-                              Promoted &rarr; taxonomy {c.promoted_to_taxonomy_id} v{c.promoted_to_taxonomy_version}.{" "}
+                              Promoted &rarr; taxonomy {c.promoted_to_taxonomy_id} v{c.promoted_to_taxonomy_version}
+                              {c.decision_reason && <> -- "{c.decision_reason}"</>}.{" "}
                               {onNavigate && (
                                 <button className="link-button" onClick={() => onNavigate("taxonomy")}>
                                   View in Taxonomy Library
                                 </button>
                               )}
                             </p>
+                          )}
+                          {c.status === "rejected" && c.decision_reason && (
+                            <p className="muted">Rejected -- "{c.decision_reason}"</p>
                           )}
                         </td>
                       </tr>

@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.schemas.emerging_themes import (
+    ActionType,
     CandidateStatus,
     EmergingThemeCandidate,
     ExtractedTag,
@@ -56,6 +57,18 @@ async def _draft_narrative(cluster: TopicCluster, member_tags: list[ExtractedTag
     return await llm.complete_structured(system=_SYSTEM_PROMPT, prompt=prompt, output_model=_CandidateDraft)
 
 
+def compute_action_score(member_tags: list[ExtractedTag]) -> float:
+    """Roadmap P3's action-evidence signal: the share of this cluster's
+    member tags describing a concrete corporate action (capex, hiring,
+    orders, capacity, partnership) rather than just being mentioned in
+    connection with the topic -- talk vs. walk. Empty input scores 0.0,
+    not a division error or a free pass."""
+    if not member_tags:
+        return 0.0
+    action_count = sum(1 for tag in member_tags if tag.action_type != ActionType.OTHER)
+    return action_count / len(member_tags)
+
+
 def independent_source_count(member_tags: list[ExtractedTag], mentions_by_id: dict[str, RawMention]) -> int:
     """How many distinct primary sources back this cluster -- the source
     plan's 'independent-source minimum' safeguard. Computed over every
@@ -94,15 +107,23 @@ async def build_candidate(
     run_id: str,
     *,
     min_independent_sources: int = 2,
+    min_action_score: float = 0.34,
 ) -> tuple[EmergingThemeCandidate | None, LLMUsage]:
     """The Synthesize layer: turns one surviving (BIRTH-classified,
     stability-gated) cluster into an `EmergingThemeCandidate`, or returns
-    None if it fails the independent-source-minimum check before ever
-    reaching the LLM -- a simple, cheap filter that doesn't need the
-    Phase 2 verification-agent machinery to be worth enforcing now.
+    None if it fails the independent-source-minimum or action-score
+    (roadmap P3) checks before ever reaching the LLM -- both are simple,
+    cheap filters that don't need the Phase 2 verification-agent
+    machinery to be worth enforcing now. The action-score gate is what
+    stops rising mention counts alone ("talk") from reaching a candidate
+    without measurable corporate action ("walk") alongside them.
     """
     source_count = independent_source_count(member_tags, mentions_by_id)
     if source_count < min_independent_sources:
+        return None, LLMUsage()
+
+    action_score = compute_action_score(member_tags)
+    if action_score < min_action_score:
         return None, LLMUsage()
 
     draft, usage = await _draft_narrative(cluster, member_tags, llm)
@@ -116,6 +137,7 @@ async def build_candidate(
         breadth=cluster.breadth,
         persistence=cluster.persistence,
         novelty=cluster.novelty,
+        action_score=action_score,
         corroborating_sources=citations,
         candidate_sectors_companies=cluster.company_ids,
         rationale=draft.rationale,

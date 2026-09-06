@@ -14,8 +14,11 @@ from arp.emerging_themes.ingestion.edgar_fts import EdgarFullTextSearchSource
 from arp.emerging_themes.ingestion.gdelt import GdeltSource
 from arp.emerging_themes.ingestion.regulatory_rss import RegulatoryRssSource
 from arp.emerging_themes.pipeline import run_emerging_themes
+from arp.ingestion.edgar import EdgarDocumentSource
+from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
 from arp.schemas.emerging_themes import EmergingThemesScheduleConfig
+from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
 from arp.storage.topic_store import TopicStateStore
 from arp.universe import load_company_universe
@@ -80,6 +83,21 @@ class EmergingThemesScheduler:
         if self._scheduler.running:
             self._scheduler.shutdown(wait=False)
 
+    def _xbrl_source(self) -> XbrlFactSource:
+        """Roadmap P3.2's structured-financials cross-check, gated by
+        settings.xbrl_facts_enabled in `_run_scheduled` below. Built the
+        same way `api/deps.py::get_xbrl_source`/`cli.py::_xbrl_source` do
+        -- this scheduler has no access to either, so it constructs its
+        own EdgarDocumentSource/XbrlFactSource instance rather than
+        sharing one."""
+        edgar = EdgarDocumentSource(
+            self.settings.edgar_user_agent,
+            self.settings.cache_dir,
+            content_store=DocumentContentStore(self.settings.document_store_dir, enabled=self.settings.document_cache_enabled),
+            submissions_ttl_hours=self.settings.edgar_submissions_ttl_hours,
+        )
+        return XbrlFactSource(edgar, self.settings.cache_dir, ttl_hours=self.settings.xbrl_facts_ttl_hours)
+
     def _apply(self, config: EmergingThemesScheduleConfig) -> None:
         if self._scheduler.get_job(_JOB_ID):
             self._scheduler.remove_job(_JOB_ID)
@@ -107,6 +125,7 @@ class EmergingThemesScheduler:
                 run_store=self.run_store,
                 topic_store=self.topic_store,
                 triggered_by="schedule",
+                xbrl_source=self._xbrl_source() if self.settings.xbrl_facts_enabled else None,
             )
             config.last_run_id = run_id
             self._config_path.write_text(config.model_dump_json(indent=2))

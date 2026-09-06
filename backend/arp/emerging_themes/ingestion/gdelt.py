@@ -84,6 +84,7 @@ class GdeltSource(MentionSource):
                     text=title,
                     url=url,
                     published_at=None,  # seendate is crawl time, not true publish time -- see class docstring
+                    published_at_is_estimated=True,
                 )
             )
         return mentions

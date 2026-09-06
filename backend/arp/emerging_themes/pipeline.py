@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from arp.config import Settings
+from arp.emerging_themes.action_evidence import check_company_action_evidence
 from arp.emerging_themes.clustering import cluster_tags
 from arp.emerging_themes.entity_resolution import resolve_mention_companies
 from arp.emerging_themes.extraction import tag_mention
@@ -11,6 +12,7 @@ from arp.emerging_themes.ingestion.base import MentionSource
 from arp.emerging_themes.lineage import classify_lineage
 from arp.emerging_themes.scoring import score_clusters
 from arp.emerging_themes.synthesis import build_candidate
+from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_batch
 from arp.orchestration.job_manager import JobManager
@@ -57,11 +59,18 @@ async def execute_emerging_themes_run(
     settings: Settings,
     run_store: RunStore,
     topic_store: TopicStateStore,
+    xbrl_source: XbrlFactSource | None = None,
 ) -> str:
     """Runs the full Ingest -> Extract -> Detect -> Synthesize -> Validate
     -> Output pipeline against an already-created run (see
     create_emerging_themes_run). Shared by the manual API/CLI trigger and
     the periodic scheduler, same split as discovery/pipeline.py.
+
+    `xbrl_source` is optional (roadmap P3.2): when supplied, each
+    surviving candidate's companies are checked for SEC XBRL CapEx/R&D
+    corroboration and attached as supporting evidence. Omitting it (e.g.
+    `settings.xbrl_facts_enabled` is False) simply skips that step --
+    candidates are still produced, just without `xbrl_corroboration`.
     """
     job_manager = JobManager(run_store)
     period = current_period()
@@ -177,6 +186,7 @@ async def execute_emerging_themes_run(
             candidate, usage = await build_candidate(
                 cluster, member_tags, mentions_by_id, llm, run_id,
                 min_independent_sources=settings.emerging_themes_min_independent_sources,
+                min_action_score=settings.emerging_themes_min_action_score,
             )
         except Exception:  # noqa: BLE001 - one cluster's synthesis failing must not abort the run
             logger.exception("Synthesis failed for cluster %s", cluster_id)
@@ -185,7 +195,25 @@ async def execute_emerging_themes_run(
 
         job_manager.record_progress(run_id, input_tokens_delta=usage.input_tokens, output_tokens_delta=usage.output_tokens)
         if candidate is None:
-            continue  # failed the independent-source-minimum check
+            continue  # failed the independent-source-minimum or action-score check
+
+        if xbrl_source is not None:
+            companies_by_id = {c.company_id: c for c in companies}
+            evidence: list = []
+            for company_id in candidate.candidate_sectors_companies:
+                company = companies_by_id.get(company_id)
+                if company is None:
+                    continue
+                try:
+                    result = await check_company_action_evidence(company, xbrl_source)
+                except Exception:  # noqa: BLE001 - XBRL corroboration is supporting evidence, never fatal to a candidate
+                    logger.exception("XBRL action-evidence lookup failed for company %s", company_id)
+                    continue
+                if result is not None:
+                    evidence.append(result)
+            if evidence:
+                candidate = candidate.model_copy(update={"xbrl_corroboration": evidence})
+
         run_store.append_jsonl(run_store.results_path(run_id), candidate.model_dump(mode="json"))
         topic_store.append_candidate(candidate)
         job_manager.record_progress(run_id, review_delta=1)
@@ -203,12 +231,14 @@ async def run_emerging_themes(
     run_store: RunStore,
     topic_store: TopicStateStore,
     triggered_by: str = "manual",
+    xbrl_source: XbrlFactSource | None = None,
 ) -> str:
     """Convenience wrapper (create + execute in one call) for the CLI and
     the scheduler, where blocking until completion is expected."""
     run_id = create_emerging_themes_run(run_store, companies, triggered_by)
     return await execute_emerging_themes_run(
         run_id, companies, llm=llm, sources=sources, settings=settings, run_store=run_store, topic_store=topic_store,
+        xbrl_source=xbrl_source,
     )
 
 
@@ -230,9 +260,10 @@ def load_candidates_with_status(run_store: RunStore, run_id: str) -> list[Emergi
                 "status": CandidateStatus.PROMOTED,
                 "promoted_to_taxonomy_id": decision.get("promoted_to_taxonomy_id"),
                 "promoted_to_taxonomy_version": decision.get("promoted_to_taxonomy_version"),
+                "decision_reason": decision.get("reason"),
             }))
         elif decision["action"] == "reject":
-            resolved.append(candidate.model_copy(update={"status": CandidateStatus.REJECTED}))
+            resolved.append(candidate.model_copy(update={"status": CandidateStatus.REJECTED, "decision_reason": decision.get("reason")}))
         else:
             resolved.append(candidate)
     return resolved
@@ -244,12 +275,18 @@ async def promote_candidate(
     llm: LLMClient,
     run_id: str,
     theme_id: str,
+    reason: str,
     *,
     taxonomy_id: str | None = None,
 ) -> EmergingThemeCandidate:
     """The human review gate's action: promotes one surviving candidate
     into the taxonomy DRAFT/ratify workflow. Never automatic -- no
     candidate reaches Tool 1 without this explicit call.
+
+    `reason` is required (roadmap P0's governance-tightening item -- "no
+    override without a reason code, visible in the audit trail"),
+    enforced here rather than only at the API/CLI boundary so it's
+    guaranteed regardless of caller.
 
     Re-synthesizes the ActivityDefinition list from the candidate's own
     corroborating-source quotes via `synthesize_activities_from_corpus`
@@ -262,6 +299,9 @@ async def promote_candidate(
     brand-new taxonomy (`TaxonomyStore.create`). Always writes a DRAFT --
     never auto-ratified.
     """
+    if not reason.strip():
+        raise ValueError("A reason is required to promote a candidate.")
+
     candidates = load_candidates_with_status(run_store, run_id)
     candidate = next((c for c in candidates if c.theme_id == theme_id), None)
     if candidate is None:
@@ -289,6 +329,7 @@ async def promote_candidate(
             "action": "promote",
             "promoted_to_taxonomy_id": taxonomy.taxonomy_id,
             "promoted_to_taxonomy_version": taxonomy.version,
+            "reason": reason,
             "decided_at": now_iso(),
         },
     )
@@ -296,11 +337,16 @@ async def promote_candidate(
         "status": CandidateStatus.PROMOTED,
         "promoted_to_taxonomy_id": taxonomy.taxonomy_id,
         "promoted_to_taxonomy_version": taxonomy.version,
+        "decision_reason": reason,
     })
 
 
-def reject_candidate(run_store: RunStore, run_id: str, theme_id: str) -> None:
+def reject_candidate(run_store: RunStore, run_id: str, theme_id: str, reason: str) -> None:
+    """`reason` is required -- see promote_candidate's docstring for why
+    this is enforced here rather than only at the API/CLI boundary."""
+    if not reason.strip():
+        raise ValueError("A reason is required to reject a candidate.")
     run_store.append_jsonl(
         run_store.review_decisions_path(run_id),
-        {"theme_id": theme_id, "action": "reject", "decided_at": now_iso()},
+        {"theme_id": theme_id, "action": "reject", "reason": reason, "decided_at": now_iso()},
     )

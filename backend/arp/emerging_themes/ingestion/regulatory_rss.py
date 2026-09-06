@@ -62,6 +62,7 @@ class RegulatoryRssSource(MentionSource):
                             text=entry.get("summary", entry.get("title", "")).strip(),
                             url=entry.get("link", feed_url),
                             published_at=published_at.isoformat() if published_at else None,
+                            published_at_is_estimated=published_at is None,
                         )
                     )
         return mentions

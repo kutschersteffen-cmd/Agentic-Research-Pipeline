@@ -122,6 +122,38 @@ async def test_stale_cache_is_refetched(tmp_path, monkeypatch):
     assert raised  # stale cache must not be trusted -- proves TTL is actually checked
 
 
+async def test_fetch_capex_rnd_trend_computes_year_over_year_change(tmp_path, monkeypatch):
+    source = _source(tmp_path)
+    _write_cache(tmp_path / "cache", "0000320193", _COMPANY_FACTS)
+    monkeypatch.setattr("arp.ingestion.xbrl.httpx.AsyncClient", _FailingClient)
+
+    trend = await source.fetch_capex_rnd_trend("apple", "320193")
+
+    assert trend is not None
+    assert trend.capex is not None
+    assert trend.capex.latest.value == 340000000
+    assert trend.capex.latest.fiscal_year == 2025
+    assert trend.capex.prior.value == 300000000
+    assert trend.capex.prior.fiscal_year == 2024
+    assert trend.capex.pct_change is not None
+    assert abs(trend.capex.pct_change - (40000000 / 300000000)) < 1e-9
+    # Only one annual R&D data point exists in the fixture -- a trend needs
+    # two, so this must be None rather than a fabricated 0% change.
+    assert trend.rnd is None
+
+
+async def test_fetch_capex_rnd_trend_returns_none_for_non_filer(tmp_path, monkeypatch):
+    source = _source(tmp_path)
+    _write_cache(tmp_path / "cache", "0000320193", {"facts": {"us-gaap": {}}})
+    monkeypatch.setattr("arp.ingestion.xbrl.httpx.AsyncClient", _FailingClient)
+
+    trend = await source.fetch_capex_rnd_trend("apple", "320193")
+
+    assert trend is not None
+    assert trend.capex is None
+    assert trend.rnd is None
+
+
 async def test_xbrl_fact_citation_is_grounded_without_a_source_document():
     from arp.ingestion.xbrl import XbrlFact
 

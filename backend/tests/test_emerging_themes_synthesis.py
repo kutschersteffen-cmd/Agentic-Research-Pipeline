@@ -1,13 +1,13 @@
-from arp.emerging_themes.synthesis import _CandidateDraft, build_candidate, independent_source_count
-from arp.schemas.emerging_themes import CandidateStatus, ExtractedTag, MentionSourceType, RawMention, TopicCluster
+from arp.emerging_themes.synthesis import _CandidateDraft, build_candidate, compute_action_score, independent_source_count
+from arp.schemas.emerging_themes import ActionType, CandidateStatus, ExtractedTag, MentionSourceType, RawMention, TopicCluster
 
 
 def _mention(mention_id: str, url: str) -> RawMention:
     return RawMention(mention_id=mention_id, source_type=MentionSourceType.GDELT, title="t", text="x", url=url)
 
 
-def _tag(tag_id: str, mention_id: str, grounded: bool = True) -> ExtractedTag:
-    return ExtractedTag(tag_id=tag_id, mention_id=mention_id, label="solid-state battery", claim="claim", quote="quote", grounded=grounded)
+def _tag(tag_id: str, mention_id: str, grounded: bool = True, action_type: ActionType = ActionType.OTHER) -> ExtractedTag:
+    return ExtractedTag(tag_id=tag_id, mention_id=mention_id, label="solid-state battery", claim="claim", quote="quote", grounded=grounded, action_type=action_type)
 
 
 def _cluster() -> TopicCluster:
@@ -36,7 +36,7 @@ async def test_below_minimum_independent_sources_returns_none_without_llm_call(f
 
 async def test_sufficient_sources_produces_candidate(fake_llm):
     mentions_by_id = {"m1": _mention("m1", "https://a.example.com"), "m2": _mention("m2", "https://b.example.com")}
-    tags = [_tag("t1", "m1"), _tag("t2", "m2")]
+    tags = [_tag("t1", "m1", action_type=ActionType.CAPEX), _tag("t2", "m2", action_type=ActionType.CAPACITY)]
     draft = _CandidateDraft(
         theme_name="Solid-state battery commercialization",
         description="Companies are commercializing solid-state battery cells.",
@@ -53,3 +53,22 @@ async def test_sufficient_sources_produces_candidate(fake_llm):
     assert candidate.candidate_sectors_companies == ["acme"]
     assert len(candidate.corroborating_sources) == 2
     assert candidate.economic_rationale.startswith("A step-change")
+    assert candidate.action_score == 1.0
+
+
+async def test_below_minimum_action_score_returns_none_without_llm_call(fake_llm):
+    mentions_by_id = {"m1": _mention("m1", "https://a.example.com"), "m2": _mention("m2", "https://b.example.com")}
+    tags = [_tag("t1", "m1"), _tag("t2", "m2")]  # both default to ActionType.OTHER -- action_score 0.0
+    llm = fake_llm({})
+
+    candidate, _usage = await build_candidate(_cluster(), tags, mentions_by_id, llm, "run1", min_independent_sources=2, min_action_score=0.34)
+
+    assert candidate is None
+    assert llm.calls == []
+
+
+def test_compute_action_score_ignores_other_and_handles_empty():
+    tags = [_tag("t1", "m1", action_type=ActionType.HIRING), _tag("t2", "m2", action_type=ActionType.OTHER)]
+
+    assert compute_action_score(tags) == 0.5
+    assert compute_action_score([]) == 0.0

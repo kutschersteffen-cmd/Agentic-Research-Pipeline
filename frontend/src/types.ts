@@ -513,6 +513,14 @@ export interface MentionCitation {
 
 export type CandidateStatus = "candidate" | "under_review" | "promoted" | "rejected";
 
+export interface CompanyActionEvidence {
+  company_id: string;
+  cik: string;
+  capex_pct_change?: number | null;
+  rnd_pct_change?: number | null;
+  as_of: string;
+}
+
 export interface EmergingThemeCandidate {
   theme_id: string;
   theme_name: string;
@@ -527,9 +535,12 @@ export interface EmergingThemeCandidate {
   rationale: string;
   economic_rationale: string;
   confidence_score: number;
+  action_score: number;
+  xbrl_corroboration: CompanyActionEvidence[];
   status: CandidateStatus;
   promoted_to_taxonomy_id?: string | null;
   promoted_to_taxonomy_version?: number | null;
+  decision_reason?: string | null;
   cluster_id: string;
   run_id: string;
   created_at: string;

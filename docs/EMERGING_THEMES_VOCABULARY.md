@@ -1,0 +1,21 @@
+# Emerging Themes Scanner: vocabulary
+
+The Emerging Theme Discovery Blueprint (an external research document
+this scanner's roadmap was reconciled against) uses precise, distinct
+terms for research objects that are easy to blur together. This maps its
+vocabulary onto the actual field names in `arp/emerging_themes/`, so
+later roadmap phases share one vocabulary with the design document they
+trace back to.
+
+| Blueprint term | Definition | This codebase |
+|---|---|---|
+| Emerging topic | A cluster of language whose prevalence or composition is changing. | A `TopicCluster` classified `BIRTH` by `lineage.py::classify_lineage` -- no lineage edge back to a prior period. |
+| Economic theme | A structural development with a coherent value chain and observable company action. | A `TopicCluster` whose `action_score` (roadmap P3) clears `Settings.emerging_themes_min_action_score` -- evidence of things companies *did* (capex, hiring, orders, capacity, partnership), not just were mentioned alongside. |
+| Investable theme | An economic theme with measurable company exposure and a credible financial transmission mechanism. | Not yet modeled as a distinct maturity level -- see roadmap P4 (company exposure engine) and P5 (factor research workbench), neither built yet. |
+| Evidence | A source-grounded factual statement. | An `ExtractedTag` -- always carries a verbatim, `grounding.is_grounded`-checked `quote` from its source `RawMention`. |
+| Evidence quality | How direct, recent, and corroborated a piece of evidence is. | Approximated today by `independent_source_count` (distinct source URLs) and, for a subset of companies, `CompanyActionEvidence`'s SEC XBRL corroboration (roadmap P3) -- not yet a named, scored dimension of its own (that's part of the Blueprint's company-exposure panel, roadmap P4). |
+| Prevalence / velocity / novelty / breadth / persistence | Named discovery-scoring metrics (Section 4.1 of the Blueprint). | `TopicCluster.velocity` / `.novelty` / `.breadth` / `.persistence` (roadmap P2) -- see `scoring.py`'s module docstrings for each metric's exact definition and how it differs from the Blueprint's where the data shape required an adaptation (e.g. `velocity` is a real growth ratio only when lineage provides a same-entity comparison). |
+| Action evidence | Evidence linked to capex, hiring, orders, facilities, or deployment -- confirming corporations are acting, not just talking. | `ExtractedTag.action_type` (roadmap P3) rolled up into `EmergingThemeCandidate.action_score`, optionally corroborated by real SEC XBRL data via `EmergingThemeCandidate.xbrl_corroboration`. |
+| Candidate theme register | A ranked register of theme candidates with lifecycle, evidence, and uncertainty. | `EmergingThemeCandidate` rows in a run's `results.jsonl`, listed via `arp emerging-themes candidates <run_id>` or `GET /api/emerging-themes/runs/{run_id}/candidates`. |
+| Analyst action | A recorded human decision (approve, reject, override) with a reason. | An entry in `review_decisions.jsonl`, written by `pipeline.py::promote_candidate`/`reject_candidate` -- both require a `reason` (roadmap P0), surfaced back on the candidate as `decision_reason`. |
+| Theme (ratified) | An approved, reusable taxonomy object. | `Taxonomy`/`ThemeDefinition` (`arp/schemas/taxonomy.py`, `arp/schemas/thematic.py`) -- the promotion target for every candidate, via `TaxonomyStore`. |

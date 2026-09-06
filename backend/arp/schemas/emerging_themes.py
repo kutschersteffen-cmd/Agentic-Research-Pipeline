@@ -35,7 +35,28 @@ class RawMention(BaseModel):
         "it doesn't (GDELT's seendate is closer to crawl time). Callers needing a bucket to sort into should use "
         "fetched_at and the run's own period cadence rather than assume this is always populated.",
     )
+    published_at_is_estimated: bool = Field(
+        default=False,
+        description="True when `published_at` is either None or a source-reported timestamp that isn't a genuine "
+        "publish time (e.g. GDELT's seendate). Roadmap P0's availability-timestamp discipline: an honest, "
+        "queryable flag instead of a silent None a caller could mistake for 'not yet known' rather than 'this "
+        "source structurally can't tell us'.",
+    )
     fetched_at: str = Field(default_factory=now_iso)
+
+
+class ActionType(StrEnum):
+    """Roadmap P3's action-evidence taxonomy: classifies whether a claim
+    describes something a company actually *did* (talk vs. walk) rather
+    than just a topic it was mentioned in connection with. Rolled up into
+    a per-cluster action_score by synthesis.py::compute_action_score."""
+
+    CAPEX = "capex"
+    HIRING = "hiring"
+    ORDERS = "orders"
+    CAPACITY = "capacity"
+    PARTNERSHIP = "partnership"
+    OTHER = "other"
 
 
 class ExtractedTag(BaseModel):
@@ -50,6 +71,11 @@ class ExtractedTag(BaseModel):
     label: str = Field(description="Short 2-5 word topic label, e.g. 'solid-state battery commercialization'.")
     claim: str = Field(description="The specific factual claim this mention makes, in one sentence.")
     entity_names: list[str] = Field(default_factory=list, description="Company/issuer names the LLM identified in the claim.")
+    action_type: ActionType = Field(
+        default=ActionType.OTHER,
+        description="What kind of corporate action this claim evidences, if any -- OTHER means the claim is "
+        "about a topic without describing a concrete action (an opinion, a forecast, a routine mention).",
+    )
     quote: str = Field(description="Verbatim excerpt from the mention's own text backing label+claim.")
     grounded: bool = Field(default=False, description="Set by grounding.is_grounded, never the LLM's self-report.")
 
@@ -140,6 +166,22 @@ class CandidateStatus(StrEnum):
     REJECTED = "rejected"
 
 
+class CompanyActionEvidence(BaseModel):
+    """Roadmap P3's structured-financials cross-check: one company's SEC
+    XBRL-disclosed CapEx/R&D year-over-year movement, attached to a
+    candidate as supporting evidence -- not a promotion gate, since most
+    companies in a universe (non-US filers, thin disclosers) will
+    legitimately have no XBRL data at all. See
+    emerging_themes/action_evidence.py::check_company_action_evidence.
+    """
+
+    company_id: str
+    cik: str
+    capex_pct_change: float | None = Field(default=None, description="None if CapEx wasn't disclosed in both of the two most recent annual filings.")
+    rnd_pct_change: float | None = Field(default=None, description="None if R&D wasn't disclosed in both of the two most recent annual filings.")
+    as_of: str = Field(default_factory=now_iso)
+
+
 class EmergingThemeCandidate(BaseModel):
     """The Output-layer schema -- the fixed handoff contract into Tool 1
     (the Thematic Universe Builder), field-for-field per the source
@@ -166,9 +208,21 @@ class EmergingThemeCandidate(BaseModel):
         "UI/CLI surfaces expecting a generic confidence score. Superseded by a real Bayesian "
         "(Isolation-Forest-prior, Beta-Bernoulli-updated) posterior in a later phase -- see the roadmap.",
     )
+    action_score: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Share of this cluster's member tags classified with a real ActionType (not OTHER) -- the "
+        "roadmap P3 hard gate distinguishing measurable corporate action ('walk') from mere mention volume "
+        "('talk'). See synthesis.py::compute_action_score.",
+    )
+    xbrl_corroboration: list[CompanyActionEvidence] = Field(
+        default_factory=list,
+        description="SEC XBRL-disclosed CapEx/R&D movement for this candidate's companies, where resolvable -- "
+        "supporting evidence shown to the analyst, not a hard gate (see CompanyActionEvidence's docstring for why).",
+    )
     status: CandidateStatus = CandidateStatus.CANDIDATE
     promoted_to_taxonomy_id: str | None = None
     promoted_to_taxonomy_version: int | None = None
+    decision_reason: str | None = Field(default=None, description="The analyst's reason for the promote/reject decision -- required at decision time, see pipeline.py.")
     cluster_id: str
     run_id: str
     created_at: str = Field(default_factory=now_iso)
