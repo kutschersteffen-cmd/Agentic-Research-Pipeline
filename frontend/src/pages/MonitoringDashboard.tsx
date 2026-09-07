@@ -17,7 +17,7 @@ function runTypeLabel(runType: string): string {
   return RUN_TYPE_LABEL[runType] ?? runType;
 }
 
-export function MonitoringDashboard({ onNavigate }: { onNavigate: (tab: "engagement" | "voting") => void }) {
+export function MonitoringDashboard() {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [records, setRecords] = useState<EngagementRecord[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -182,9 +182,6 @@ export function MonitoringDashboard({ onNavigate }: { onNavigate: (tab: "engagem
       <section className="card">
         <div className="section-heading">
           <h3>Open engagement issues</h3>
-          <button className="link-button" onClick={() => onNavigate("engagement")}>
-            Open Engagement &rarr;
-          </button>
         </div>
         {openIssues.length === 0 && <p className="muted">No open issues.</p>}
         {openIssues.length > 0 && (
@@ -219,9 +216,6 @@ export function MonitoringDashboard({ onNavigate }: { onNavigate: (tab: "engagem
         <section className="card">
           <div className="section-heading">
             <h3>Proxy voting runs</h3>
-            <button className="link-button" onClick={() => onNavigate("voting")}>
-              Open Voting &rarr;
-            </button>
           </div>
           <table className="data-table">
             <thead>
