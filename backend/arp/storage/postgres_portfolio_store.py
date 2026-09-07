@@ -115,6 +115,15 @@ class PostgresPortfolioStore:
     def list_all_alert_scope_ids(self) -> list[str]:
         return self._files.list_all_alert_scope_ids()
 
+    def governance_events_path(self):
+        return self._files.governance_events_path()
+
+    def append_governance_event(self, event_type: str, payload: dict) -> None:
+        self._files.append_governance_event(event_type, payload)
+
+    def list_governance_events(self) -> list[dict]:
+        return self._files.list_governance_events()
+
     # --- portfolios -----------------------------------------------------
 
     def save_portfolio(self, portfolio: Portfolio) -> None:

@@ -173,27 +173,40 @@ same codebase already have this pattern (e.g. `GET /api/runs/{id}/export.csv`
 for the Thematic Universe/Extraction pipelines) that simply hasn't been
 extended to portfolio aggregation/pivot results.
 
-## §5 Governance & Workflow — Partial (flagging, not workflow)
+## §5 Governance & Workflow — Built
 
-**Built:** two independent flagging mechanisms surface exceptions rather
-than silently resolving them — entity-resolution matches below confidence
-(§2, above) and climate values where the internal API and an independent
-extraction disagree beyond tolerance
-(`portfolio/climate/validation.py::cross_check_and_store`, stamping
-`conflicting_sources=True` on the `DataPointObservation`).
+`arp/portfolio/governance.py` extends §3's `AlertTransition`-style human-
+checkpoint pattern to the two older flags: entity-resolution matches below
+confidence and climate values where the internal API disagrees with an
+independent extraction. `accept`/`reject` are pure audit annotations —
+the underlying flag (`needs_review` / `conflicting_sources`) is never
+mutated, only a `decision_recorded` event is appended (folded, latest per
+item wins, same "later JSONL rows win" approach as
+`orchestration/review_queue.py::latest_decisions`, which stays unused
+here since it's hard-coupled to `RunStore`/`run_id` and these items don't
+live inside a run). `override` has real computational effect, not just an
+audit note: an entity-resolution override writes a fresh
+`SecurityResolution(method="manual")` **and** updates the `SecurityRef`'s
+`company_id` directly (a real gap found while building this — nothing
+previously read a resolution's `company_id` back into the `SecurityRef`
+the aggregation engine actually groups by, so a plain review record would
+have been a no-op); a climate-conflict override appends a new, non-
+conflicting `internal_api` observation, which `resolve_field_value`'s
+existing source-priority cascade picks up going forward.
 
-**Not built:** neither flag has a decision-recording path. The codebase
-already has a generic pattern for exactly this
-(`orchestration/review_queue.py::record_review_decision` — approve/edit/
-reject with a reviewer and a timestamp, used by the thematic-research
-pipelines) but it is not wired into the portfolio module at all, so there's
-no accept/reject record, no named owner per risk category, and no logged
-methodology-version history (e.g. "the validation tolerance changed from
-15% to 10% on this date, by this person, because..."). §3's new
-`AlertTransition` ladder (`open → acknowledged → escalated → resolved |
-false_positive`, `decided_by` required) is a real, working precedent for
-exactly this shape of decision record — just not yet extended to these
-two older flag types.
+Named ownership per risk category and logged methodology-version history
+are both built the same way: `RiskCategoryOwner`/`PolicyChange` events in
+the same unified append-only log, current state folded (latest per
+category / per setting wins) rather than a separate mutable snapshot. The
+two governance settings (`portfolio_confidence_review_threshold`,
+`climate_validation_tolerance_pct`) are now live-configurable through this
+mechanism instead of env-only.
+
+**Gap, stated explicitly**: entity resolution and climate cross-checking
+each only run once, at demo-seed time — changing a policy value affects
+future seeds, not already-resolved securities/observations. This matches
+existing behavior (nothing ever re-ran these passes before either), not a
+regression introduced here.
 
 ## §6 Company-Level Risk & Intelligence Profiles — Built (as an assembly of existing endpoints)
 
@@ -282,7 +295,7 @@ engine itself, not because the sequencing advice was disregarded.
 | §2 Data Model | Built |
 | §3 Continuous Monitoring & Alerting | Built — climate/concentration thresholds; no true calendar triggers yet |
 | §4 Analytical Views & Exploration | Built |
-| §5 Governance & Workflow | Partial — flagging only, no decision workflow |
+| §5 Governance & Workflow | Built — decisions, ownership, and policy history; doesn't retroactively re-flag past items |
 | §6 Company-Level Risk & Intelligence Profiles | Built (as an assembly of existing endpoints); engagement/voting + Tool 0 exist in this repo now but aren't wired into the profile yet |
 | §7 Jupyter Notebook Integration | Not built |
 | §8 AI/LLM Q&A Layer | Built |

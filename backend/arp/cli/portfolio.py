@@ -8,7 +8,7 @@ import typer
 from arp.cli._shared import _portfolio_directories, _portfolio_store
 from arp.config import get_settings
 from arp.llm.factory import build_llm_client
-from arp.portfolio import analytics, qa_agent
+from arp.portfolio import analytics, governance, qa_agent
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
 from arp.portfolio.news.classifier import classify_article
@@ -28,8 +28,10 @@ def portfolio_seed_demo() -> None:
     Deterministic and safe to re-run.
     """
     settings = get_settings()
+    store = _portfolio_store()
+    policy = governance.get_current_policy(store, settings)
     summary = asyncio.run(
-        generate_demo_dataset(_portfolio_store(), settings.portfolio_confidence_review_threshold, settings.climate_validation_tolerance_pct)
+        generate_demo_dataset(store, policy["portfolio_confidence_review_threshold"], policy["climate_validation_tolerance_pct"])
     )
     typer.echo(json.dumps(summary.__dict__, indent=2))
 
