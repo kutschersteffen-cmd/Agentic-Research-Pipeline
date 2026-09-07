@@ -1,50 +1,31 @@
 import { useState } from "react";
 import { ThemeMachine } from "./pages/ThemeMachine";
-import { Extraction } from "./pages/Extraction";
-import { TransitionPlanAssessment } from "./pages/TransitionPlanAssessment";
-import { DocumentDiscovery } from "./pages/DocumentDiscovery";
-import { IdentityResolution } from "./pages/IdentityResolution";
-import { ReviewQueue } from "./pages/ReviewQueue";
-import { RunHistory } from "./pages/RunHistory";
-import { DataLibrary } from "./pages/DataLibrary";
+import { StewardIQ } from "./pages/StewardIQ";
+import { IdentityDiscovery } from "./pages/IdentityDiscovery";
 import { BackgroundAgents } from "./pages/BackgroundAgents";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
 import { PortfolioRiskMonitoringTool } from "./pages/PortfolioRiskMonitoringTool";
-import type { ReviewableRunKind } from "./types";
+import { Runs } from "./pages/Runs";
+import { DataLibrary } from "./pages/DataLibrary";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard" },
   { id: "themeMachine", label: "Theme Machine" },
   { id: "backgroundAgents", label: "Background Agents" },
-  { id: "extraction", label: "Extraction" },
-  { id: "transitionPlan", label: "Transition Plan Assessment" },
-  { id: "identity", label: "Identity Resolution" },
-  { id: "discovery", label: "Document Discovery" },
+  { id: "stewardIQ", label: "StewardIQ" },
+  { id: "identityDiscovery", label: "Identity & Discovery" },
   { id: "portfolio-monitoring", label: "Portfolio Risk Monitoring Tool" },
-  { id: "review", label: "Review Queue" },
-  { id: "history", label: "Run History" },
+  { id: "runs", label: "Runs" },
   { id: "library", label: "Data Library" },
 ] as const;
 
 function App() {
   const [active, setActive] = useState<(typeof TABS)[number]["id"]>("dashboard");
   const [pendingUniverse, setPendingUniverse] = useState<{ path: string; count: number } | null>(null);
-  const [pendingDiscoveryUniverse, setPendingDiscoveryUniverse] = useState<{ path: string; count: number } | null>(null);
-  const [pendingReview, setPendingReview] = useState<{ kind: ReviewableRunKind; runId: string } | null>(null);
 
   function sendToExtraction(path: string, count: number) {
     setPendingUniverse({ path, count });
-    setActive("extraction");
-  }
-
-  function sendToDiscovery(path: string, count: number) {
-    setPendingDiscoveryUniverse({ path, count });
-    setActive("discovery");
-  }
-
-  function openReview(kind: ReviewableRunKind, runId: string) {
-    setPendingReview({ kind, runId });
-    setActive("review");
+    setActive("stewardIQ");
   }
 
   return (
@@ -64,13 +45,10 @@ function App() {
         {active === "dashboard" && <MonitoringDashboard />}
         {active === "themeMachine" && <ThemeMachine onSendToExtraction={sendToExtraction} />}
         {active === "backgroundAgents" && <BackgroundAgents />}
-        {active === "extraction" && <Extraction pendingUniverse={pendingUniverse} />}
-        {active === "transitionPlan" && <TransitionPlanAssessment pendingUniverse={pendingUniverse} />}
-        {active === "identity" && <IdentityResolution onSendToDiscovery={sendToDiscovery} />}
-        {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingDiscoveryUniverse} />}
+        {active === "stewardIQ" && <StewardIQ pendingUniverse={pendingUniverse} />}
+        {active === "identityDiscovery" && <IdentityDiscovery />}
         {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool />}
-        {active === "review" && <ReviewQueue pendingReview={pendingReview} />}
-        {active === "history" && <RunHistory onOpenReview={openReview} />}
+        {active === "runs" && <Runs />}
         {active === "library" && <DataLibrary />}
       </main>
     </div>
