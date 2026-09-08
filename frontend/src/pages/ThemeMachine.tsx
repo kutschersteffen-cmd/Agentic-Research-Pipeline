@@ -11,13 +11,16 @@ const SUB_TABS = [
 
 interface Props {
   onSendToExtraction?: (path: string, count: number) => void;
+  initialSub?: string | null;
 }
 
 /** The theme-discovery-to-investable-universe pipeline in one place: scan
  * public signal for candidate themes, promote the ones worth formalizing
  * into a versioned taxonomy, then screen a company universe against it. */
-export function ThemeMachine({ onSendToExtraction }: Props = {}) {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("emerging");
+export function ThemeMachine({ onSendToExtraction, initialSub }: Props = {}) {
+  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>(
+    (SUB_TABS.some((t) => t.id === initialSub) ? initialSub : "emerging") as (typeof SUB_TABS)[number]["id"],
+  );
   const [pendingTaxonomyId, setPendingTaxonomyId] = useState<string | null>(null);
 
   function sendToTaxonomyLibrary(taxonomyId: string) {

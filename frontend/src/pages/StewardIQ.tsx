@@ -9,13 +9,16 @@ const SUB_TABS = [
 
 interface Props {
   pendingUniverse?: { path: string; count: number } | null;
+  initialSub?: string | null;
 }
 
 /** Schema-driven document research: run either the free-form/company-financials
  * extraction engine or the 64-indicator transition-plan assessment against
  * the same kind of company universe. */
-export function StewardIQ({ pendingUniverse }: Props = {}) {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("extraction");
+export function StewardIQ({ pendingUniverse, initialSub }: Props = {}) {
+  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>(
+    (SUB_TABS.some((t) => t.id === initialSub) ? initialSub : "extraction") as (typeof SUB_TABS)[number]["id"],
+  );
 
   return (
     <div>

@@ -16,8 +16,14 @@ const SUB_TABS = [
   { id: "calibration", label: "Calibration Agent" },
 ] as const;
 
-export function BackgroundAgents() {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("taxonomyResearcher");
+interface Props {
+  initialSub?: string | null;
+}
+
+export function BackgroundAgents({ initialSub }: Props = {}) {
+  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>(
+    (SUB_TABS.some((t) => t.id === initialSub) ? initialSub : "taxonomyResearcher") as (typeof SUB_TABS)[number]["id"],
+  );
 
   return (
     <div className="page">

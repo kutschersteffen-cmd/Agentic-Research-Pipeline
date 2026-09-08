@@ -17,7 +17,27 @@ function runTypeLabel(runType: string): string {
   return RUN_TYPE_LABEL[runType] ?? runType;
 }
 
-export function MonitoringDashboard() {
+interface Props {
+  linkableRunTypes?: Partial<Record<string, unknown>>;
+  onNavigateToRunType?: (runType: string) => void;
+}
+
+/** The type cell for a run row -- a jump-link into the tool that owns this
+ * run_type when one exists (per `linkableRunTypes`), otherwise plain text
+ * (e.g. proxy_voting, which has no dedicated tab of its own anymore). */
+function RunTypeCell({ runType, linkableRunTypes, onNavigateToRunType }: Props & { runType: string }) {
+  const label = runTypeLabel(runType);
+  if (linkableRunTypes?.[runType] && onNavigateToRunType) {
+    return (
+      <button className="link-button" onClick={() => onNavigateToRunType(runType)}>
+        {label}
+      </button>
+    );
+  }
+  return <>{label}</>;
+}
+
+export function MonitoringDashboard({ linkableRunTypes, onNavigateToRunType }: Props = {}) {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const timerRef = useRef<number | undefined>(undefined);
@@ -104,7 +124,7 @@ export function MonitoringDashboard() {
                   <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
                 </div>
                 <div className="activity-meta">
-                  <span>{runTypeLabel(r.run_type)}</span>
+                  <span><RunTypeCell runType={r.run_type} linkableRunTypes={linkableRunTypes} onNavigateToRunType={onNavigateToRunType} /></span>
                   <span>{r.completed_count}/{r.company_count} companies</span>
                   <span>{r.failed_count} failed</span>
                   <span>{r.review_count} flagged</span>
@@ -138,7 +158,7 @@ export function MonitoringDashboard() {
               {finished.map((r) => (
                 <tr key={r.run_id}>
                   <td>{r.run_id}</td>
-                  <td>{runTypeLabel(r.run_type)}</td>
+                  <td><RunTypeCell runType={r.run_type} linkableRunTypes={linkableRunTypes} onNavigateToRunType={onNavigateToRunType} /></td>
                   <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
                   <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
                   <td>{r.review_count}</td>

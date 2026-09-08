@@ -7,10 +7,16 @@ const SUB_TABS = [
   { id: "discovery", label: "Document Discovery" },
 ] as const;
 
+interface Props {
+  initialSub?: string | null;
+}
+
 /** Company onboarding, in pipeline order: resolve a raw company list to
  * websites/CIKs, then crawl each resolved homepage for documents. */
-export function IdentityDiscovery() {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("identity");
+export function IdentityDiscovery({ initialSub }: Props = {}) {
+  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>(
+    (SUB_TABS.some((t) => t.id === initialSub) ? initialSub : "identity") as (typeof SUB_TABS)[number]["id"],
+  );
   const [pendingDiscoveryUniverse, setPendingDiscoveryUniverse] = useState<{ path: string; count: number } | null>(null);
 
   function sendToDiscovery(path: string, count: number) {
