@@ -32,7 +32,7 @@ function App() {
     <div className="app-shell">
       <header className="app-header">
         <h1>Agentic Research Pipeline</h1>
-        <p className="tagline">Thematic investment universes, schema-driven document research, stewardship engagement &amp; voting, and portfolio risk &amp; climate analytics, at scale.</p>
+        <p className="tagline">Thematic investment universes, schema-driven document research, and portfolio risk &amp; climate analytics, at scale.</p>
       </header>
       <nav className="app-nav">
         {TABS.map((t) => (
