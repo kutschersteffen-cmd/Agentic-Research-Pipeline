@@ -93,6 +93,27 @@ precision at scale (designed for up to ~4,000 companies per run).
    "walk vs. talk" disclosure-completeness metric per company. See
    [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md#transition-plan-assessment)
    for the full mapping from paper to implementation.
+9. **Presentation & Reporting Tool** — turns qualitative findings and
+   quantitative datasets (CSV/XLSX upload) into a pptx/docx/pdf, matched to
+   a stated audience and layout instructions. A `.pptx` template can be
+   ingested first so the generated deck reuses its slide layouts, theme
+   colors, and fonts (`arp/reporting/style_profile.py`, extracted
+   deterministically via python-pptx — never LLM-guessed). One LLM call (the
+   Content Planner) drafts a structured `ReportPlan` — section headings,
+   narrative bullets, and a chart/table spec per section, choosing from bar/
+   column/line/area/pie/doughnut/scatter/radar/waterfall/heatmap; every
+   chart type PowerPoint supports natively is rendered as a real, still-
+   editable Office chart object bound to its own embedded data (not a
+   picture), with a matplotlib-rendered image as the fallback for chart
+   types with no native pptx equivalent (waterfall, heatmap) and for the
+   docx/pdf paths, which have no native chart object at all. Nothing after
+   that first call touches the model: the plan is deterministically
+   rendered by `deck_builder.py`/`report_builder.py`/`pdf_builder.py`, and
+   can be reviewed or hand-edited (reorder sections, swap a chart type,
+   rewrite narrative) via `GET`/`PUT /api/reports/{id}/plan` before the
+   final render — the same "LLM plans, code executes" split as every other
+   pipeline in this codebase, and the main lever for large flexibility over
+   the output without re-prompting the model.
 
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches, and
@@ -126,6 +147,11 @@ ballots/           voting-instruction files written by the (stub) manual
                    ballot-casting platform, one per cast vote
 portfolios/       portfolio holdings snapshots, security/company registries,
                    and climate data-point observations
+reports/          Presentation & Reporting Tool: one directory per generated
+                   report (manifest, request, LLM-drafted plan, rendered
+                   pptx/docx/pdf)
+report_templates/ ingested .pptx template style profiles + the original
+                   template file each is cloned from
 ```
 
 ### Agent stack
@@ -321,6 +347,14 @@ arp portfolio classify-news                              # requires ARP_ANTHROPI
 arp climate waci --group-by portfolio_id
 arp climate financed-emissions
 arp climate coverage climate_carbon_intensity
+
+# Presentation & Reporting Tool
+arp report ingest-template house_style.pptx              # extract a template's layouts/theme colors/fonts
+arp report add-dataset revenue.csv --out revenue.json     # parse a CSV/XLSX into a QuantitativeDataset
+arp report run --title "Electrification Review" --notes notes.txt \
+  --data revenue.json --template-id tpl_xxxxxxxxxxxx --format pptx --out review.pptx
+arp report list
+arp report show <report_id>
 ```
 
 `companies.csv` columns: `company_id, name, ticker, website, cik, country,

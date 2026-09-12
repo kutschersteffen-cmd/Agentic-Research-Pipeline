@@ -23,6 +23,7 @@ from arp.storage.opensearch_client import OpenSearchNotConfigured
 from arp.storage.opensearch_client import get_client as get_opensearch_client
 from arp.storage.portfolio_store_factory import build_portfolio_store
 from arp.storage.postgres_projection_config import ProjectionConfig
+from arp.storage.reporting_store import ReportingStore
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
@@ -182,3 +183,9 @@ def get_engagement_store() -> EngagementStore:
 @lru_cache
 def get_ballot_platform() -> BallotPlatform:
     return ManualInstructionBallotPlatform(get_settings().ballots_dir)
+
+
+@lru_cache
+def get_reporting_store() -> ReportingStore:
+    settings = get_settings()
+    return ReportingStore(settings.reports_dir, settings.report_templates_dir)

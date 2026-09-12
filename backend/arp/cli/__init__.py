@@ -13,6 +13,7 @@ from arp.cli.extraction import extract_app
 from arp.cli.golden_set import golden_set_app
 from arp.cli.identity import identity_app
 from arp.cli.portfolio import portfolio_app
+from arp.cli.reporting import reporting_app
 from arp.cli.revenue_catalogue import revenue_catalogue_app
 from arp.cli.runs import runs_app
 from arp.cli.taxonomy import taxonomy_app
@@ -42,3 +43,4 @@ app.add_typer(emerging_themes_app, name="emerging-themes")
 app.add_typer(db_app, name="db")
 app.add_typer(taxonomy_researcher_app, name="taxonomy-researcher")
 app.add_typer(calibration_app, name="calibration")
+app.add_typer(reporting_app, name="report")

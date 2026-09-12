@@ -13,6 +13,7 @@ import { MonitoringDashboard } from "./pages/MonitoringDashboard";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
 import { PortfolioRiskMonitoringTool } from "./pages/PortfolioRiskMonitoringTool";
+import { ReportBuilder } from "./pages/ReportBuilder";
 import { Search } from "./pages/Search";
 import type { ReviewableRunKind } from "./types";
 
@@ -31,6 +32,7 @@ const TABS = [
   { id: "history", label: "Run History" },
   { id: "engagement", label: "Engagement" },
   { id: "voting", label: "Voting" },
+  { id: "reporting", label: "Presentations & Reports" },
   { id: "library", label: "Data Library" },
 ] as const;
 
@@ -89,6 +91,7 @@ function App() {
         {active === "history" && <RunHistory onOpenReview={openReview} />}
         {active === "engagement" && <EngagementDashboard />}
         {active === "voting" && <VotingRuns />}
+        {active === "reporting" && <ReportBuilder />}
         {active === "library" && <DataLibrary />}
       </main>
     </div>

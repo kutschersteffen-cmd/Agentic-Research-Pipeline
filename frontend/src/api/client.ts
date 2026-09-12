@@ -29,6 +29,7 @@ import type {
   TransitionPlanIndicatorDef,
   TrendPoint,
 } from "../types";
+import type { QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, TemplateStyleProfile } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
@@ -398,4 +399,26 @@ export const api = {
     request<CoverageBySource>(`/api/climate/coverage/${fieldId}${buildQuery({ as_of: asOf })}`),
   getClimatePivot: (fieldId: string, params: { row_dim?: string; col_dim?: string; as_of?: string; portfolio_id?: string[] }) =>
     request<PivotResult>(`/api/climate/pivot/${fieldId}${buildQuery(params)}`),
+
+  // Presentation & Reporting Tool
+  uploadReportTemplate: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<TemplateStyleProfile>("/api/reports/templates", { method: "POST", headers: {}, body: form });
+  },
+  listReportTemplates: () => request<{ templates: TemplateStyleProfile[] }>("/api/reports/templates"),
+  uploadReportDataset: (file: File, name?: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<QuantitativeDataset>(`/api/reports/datasets/upload${buildQuery({ name })}`, { method: "POST", headers: {}, body: form });
+  },
+  createReport: (body: ReportRequest, render = false) =>
+    request<ReportManifest>(`/api/reports${buildQuery({ render: String(render) })}`, { method: "POST", body: JSON.stringify(body) }),
+  listReports: () => request<{ reports: ReportManifest[] }>("/api/reports"),
+  getReport: (reportId: string) => request<ReportManifest>(`/api/reports/${encodeURIComponent(reportId)}`),
+  getReportPlan: (reportId: string) => request<ReportPlan>(`/api/reports/${encodeURIComponent(reportId)}/plan`),
+  updateReportPlan: (reportId: string, plan: ReportPlan) =>
+    request<ReportPlan>(`/api/reports/${encodeURIComponent(reportId)}/plan`, { method: "PUT", body: JSON.stringify(plan) }),
+  renderReport: (reportId: string) => request<ReportManifest>(`/api/reports/${encodeURIComponent(reportId)}/render`, { method: "POST" }),
+  reportDownloadUrl: (reportId: string) => `${API_BASE}/api/reports/${encodeURIComponent(reportId)}/download`,
 };

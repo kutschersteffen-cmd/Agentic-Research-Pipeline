@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     discovery_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".discovery_state")
     engagements_dir: Path = Field(default=REPO_ROOT / "engagements")
     ballots_dir: Path = Field(default=REPO_ROOT / "ballots", description="Where the manual-instruction ballot platform writes vote instruction files, absent a real custodian/proxy-platform integration.")
+    reports_dir: Path = Field(default=REPO_ROOT / "reports", description="Presentation/Reporting Tool: one directory per generated report (manifest, request, plan, rendered output file).")
+    report_templates_dir: Path = Field(default=REPO_ROOT / "report_templates", description="Presentation/Reporting Tool: ingested .pptx template style profiles + the original template file each is cloned from.")
 
     # Batch / concurrency
     max_concurrent_llm_calls: int = Field(default=8)
@@ -374,6 +376,8 @@ class Settings(BaseSettings):
             self.discovery_state_dir,
             self.engagements_dir,
             self.ballots_dir,
+            self.reports_dir,
+            self.report_templates_dir,
             self.emerging_themes_state_dir,
             self.taxonomy_researcher_state_dir,
             self.calibration_agent_state_dir,
