@@ -91,36 +91,48 @@ Phases 0–2 are local-dev-only and should happen regardless of whether/when
 GCP is greenlit — they're the difference between "my laptop" and "a tool a
 team can use." Phases 3+ target GCP specifically.
 
-### Phase 0 — Local dev hygiene (do now, no infra needed)
+### Phase 0 — Local dev hygiene (do now, no infra needed) — ✅ implemented
 
-- [ ] Add `pip-audit` (Python) and `npm audit`/`osv-scanner` (frontend) as
-      CI jobs, non-blocking at first, then required.
-- [ ] Add a secret-scanning pre-commit hook (`gitleaks` or `detect-secrets`)
-      — cheap insurance given `.env.example` already sits next to the real
-      `.env` pattern.
-- [ ] Generate an SBOM on each CI run (`cyclonedx-py` / `cyclonedx-npm`) and
-      publish it as a build artifact — needed later for vendor security
-      questionnaires regardless of hosting.
-- [ ] Document a data-handling note in the README: what leaves the machine
-      (Anthropic API calls with document text; EDGAR/GDELT/web requests)
-      and what stays local — this is the base input to the Phase 6 vendor
-      review and should exist before more people run this locally.
+- [x] Add `pip-audit` (Python) and `npm audit` (frontend) as CI jobs,
+      non-blocking at first (`.github/workflows/ci.yml`,
+      `backend-supply-chain`/`frontend-supply-chain` jobs) — flip
+      `continue-on-error` to `false` once the current dependency set has
+      been triaged.
+- [x] Add a secret-scanning pre-commit hook (`.pre-commit-config.yaml`,
+      gitleaks) plus the same check in CI (`secret-scan` job) for
+      contributors who haven't run `pre-commit install` locally.
+- [x] Generate an SBOM on each CI run (`cyclonedx-py` / `npm sbom
+      --sbom-format cyclonedx`) and publish it as a build artifact
+      (`sbom-backend`/`sbom-frontend`).
+- [x] Document a data-handling note in the README (`README.md` "Data
+      handling").
 
-### Phase 1 — Containerize
+### Phase 1 — Containerize — ✅ implemented
 
-- [ ] `backend/Dockerfile`: multi-stage build (install deps → slim runtime
-      image), non-root user, `uvicorn` entrypoint, `HEALTHCHECK` hitting
-      `/api/health` (already exists, `arp/api/main.py:115`).
-- [ ] `frontend/Dockerfile`: build stage (`npm run build`) → static file
-      serve (nginx or a minimal Node static server); inject `VITE_API_BASE`
-      at build or runtime rather than hardcoding.
-- [ ] `docker-compose.yml` for local dev: backend + frontend + optional
-      Postgres/pgvector (the README already documents the standalone
-      `docker run pgvector/pgvector` command — fold it into compose) so a
-      new teammate is `docker compose up` away from a working stack instead
-      of following the multi-step README setup.
-- [ ] Add container image scanning to CI (Trivy or Grype) once images
-      exist.
+- [x] `backend/Dockerfile`: multi-stage build (install deps → slim runtime
+      image), non-root user (`arp`, uid 1000), `uvicorn` entrypoint,
+      `HEALTHCHECK` hitting `/api/health`.
+- [x] `frontend/Dockerfile`: build stage (`npm run build`) → nginx static
+      serve (`frontend/nginx.conf`, SPA fallback); `VITE_API_BASE` is a
+      build arg (Vite bakes `VITE_*` vars in at build time; the built JS
+      runs in the viewer's browser, not the container, so a runtime
+      env-injection trick would need a real reason to justify the added
+      complexity — not attempted here).
+- [x] `docker-compose.yml` for local dev: backend + frontend + an opt-in
+      `postgres` profile (`docker compose --profile postgres up`) folding
+      in the standalone `docker run pgvector/pgvector` command from the
+      README's Postgres section; named volumes persist `runs/`,
+      `taxonomies/`, `portfolios/`, `data/documents/`, `engagements/`,
+      `ballots/`, and the backend's caches across restarts.
+- [x] Add container image scanning to CI (`container-scan` job, Trivy),
+      non-blocking for the same reason as the dependency scans above.
+
+Not yet verified: an actual `docker build`/`docker compose up` run against
+these images — this environment had no Docker daemon available to test
+against. Review the Dockerfiles and run a real build before relying on
+them; the heavier optional extras (`docling`, `fastembed`,
+`emerging_themes`'s `hdbscan`/`umap-learn`) are the most likely source of a
+missing system library on a build.
 
 ### Phase 2 — AuthN/AuthZ (the biggest functional gap)
 

@@ -1,0 +1,68 @@
+# Corporate Readiness Plan, Phase 1 (see docs/CORPORATE_READINESS_PLAN.md).
+# An additive local-dev path: `docker compose up` gets a new machine to a
+# working stack without the multi-step README setup. The venv/npm-based
+# workflow in README "Setup" is unaffected and keeps working the same way.
+#
+#   docker compose up --build              # backend :8000, frontend :5173
+#   docker compose --profile postgres up    # ...plus local Postgres/pgvector
+#
+# Backend secrets/config still come from backend/.env (see
+# backend/.env.example) -- copy and fill it in before starting, same as the
+# non-Docker setup.
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - backend/.env
+    volumes:
+      - arp_runs:/app/runs
+      - arp_taxonomies:/app/taxonomies
+      - arp_portfolios:/app/portfolios
+      - arp_documents:/app/data/documents
+      - arp_engagements:/app/engagements
+      - arp_ballots:/app/ballots
+      - arp_cache:/app/backend/.cache
+      - arp_discovery_state:/app/backend/.discovery_state
+      - arp_document_store:/app/backend/.document_store
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: http://localhost:8000
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+  # Opt-in, mirrors README "Optional Postgres/pgvector store". Only starts
+  # with `--profile postgres`; the file-based default stores need nothing
+  # here.
+  postgres:
+    image: pgvector/pgvector:pg16
+    profiles:
+      - postgres
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - arp_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  arp_runs:
+  arp_taxonomies:
+  arp_portfolios:
+  arp_documents:
+  arp_engagements:
+  arp_ballots:
+  arp_cache:
+  arp_discovery_state:
+  arp_document_store:
+  arp_postgres_data:

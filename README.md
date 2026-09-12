@@ -182,6 +182,47 @@ cp .env.example .env   # VITE_API_BASE, defaults to http://localhost:8000
 npm run dev             # serves the UI on :5173
 ```
 
+### Docker (optional)
+
+An alternative to the venv/npm setup above -- same app, containerized:
+
+```bash
+cp backend/.env.example backend/.env   # fill in ARP_ANTHROPIC_API_KEY
+docker compose up --build              # backend on :8000, frontend on :5173
+docker compose --profile postgres up   # ...plus local Postgres/pgvector
+```
+
+Run state (`runs/`, `taxonomies/`, `portfolios/`, `data/documents/`, etc.)
+persists in named Docker volumes across restarts. See
+[`docs/CORPORATE_READINESS_PLAN.md`](docs/CORPORATE_READINESS_PLAN.md) for
+why this exists and what it doesn't yet cover (there's no authentication in
+front of either the venv or the Docker path today).
+
+### Contributing: secret-scanning pre-commit hook
+
+```bash
+pip install -e "backend[dev]"   # includes pre-commit
+pre-commit install
+```
+
+Scans every commit for accidentally-included secrets (API keys, tokens)
+before it's made; the same check also runs in CI.
+
+### Data handling
+
+What leaves your machine when you run this: document text and company
+data sent to Anthropic's API for extraction/classification (see the Agent
+stack section above); requests to SEC EDGAR, GDELT, regulatory RSS feeds,
+and whatever investor-relations sites the document discovery crawler
+reaches (`ARP_DISCOVERY_USER_AGENT`, robots.txt-respecting). Everything
+else -- run state, engagement/voting records, portfolio holdings, the
+document/LLM-response caches -- stays on local disk under the paths listed
+in `arp/config.py` unless you've configured the optional Postgres backend.
+Review this against your organization's data-handling/vendor-risk policy
+before pointing it at real, non-public holdings or engagement data --
+see [`docs/CORPORATE_READINESS_PLAN.md`](docs/CORPORATE_READINESS_PLAN.md)
+§6 for the open questions that need a Compliance/Legal answer.
+
 ### CLI (headless path for real 4,000-company batch runs)
 
 The CLI drives the exact same pipelines as the API/UI and is the intended
