@@ -4,6 +4,7 @@ import typer
 
 from arp.config import get_settings
 from arp.ingestion.edgar import EdgarDocumentSource
+from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.ingestion.xbrl import XbrlFactSource
@@ -38,18 +39,21 @@ def _document_content_store() -> DocumentContentStore:
 
 def _registry() -> DocumentSourceRegistry:
     settings = get_settings()
+    indexing_config = IndexingConfig.from_settings(settings)
     return DocumentSourceRegistry(
         [
             LocalFileDocumentSource(
                 settings.documents_dir,
                 content_store=_document_content_store(),
                 max_concurrent_parses=settings.max_concurrent_parses,
+                indexing_config=indexing_config,
             ),
             EdgarDocumentSource(
                 settings.edgar_user_agent,
                 settings.cache_dir,
                 content_store=_document_content_store(),
                 submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
+                indexing_config=indexing_config,
             ),
         ]
     )

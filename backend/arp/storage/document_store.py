@@ -84,6 +84,7 @@ class DocumentContentStore:
             try:
                 conn.executescript(_SCHEMA)
                 conn.commit()
+                document_registry.ensure_storage_uri_column(conn)
             finally:
                 conn.close()
 
@@ -131,6 +132,12 @@ class DocumentContentStore:
 
     def list_documents_by_content_keys(self, content_keys: list[str]) -> dict[str, StoredDocumentRef]:
         return self._registry.list_by_content_keys(content_keys)
+
+    def set_storage_uri(self, doc_id: str, storage_uri: str) -> None:
+        return self._registry.set_storage_uri(doc_id, storage_uri)
+
+    def list_all_documents(self) -> list[StoredDocumentRef]:
+        return self._registry.list_all()
 
     # --- chunk embeddings (delegates to ChunkEmbeddingsCache) ---------------
 

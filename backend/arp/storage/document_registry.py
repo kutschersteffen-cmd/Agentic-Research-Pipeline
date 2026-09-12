@@ -20,12 +20,24 @@ CREATE TABLE IF NOT EXISTS documents (
     title          TEXT NOT NULL,
     local_path     TEXT,
     source_url     TEXT,
+    storage_uri    TEXT,
     first_seen_at  TEXT NOT NULL,
     last_seen_at   TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_documents_company ON documents (company_id, doc_type);
 CREATE INDEX IF NOT EXISTS ix_documents_content ON documents (content_key);
 """
+
+
+def ensure_storage_uri_column(conn: sqlite3.Connection) -> None:
+    """Additive migration for databases created before storage_uri existed
+    -- `CREATE TABLE IF NOT EXISTS` in SCHEMA above only covers a fresh
+    database, so an existing `documents` table needs this explicit
+    ALTER TABLE instead. Idempotent: a no-op once the column exists."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(documents)").fetchall()}
+    if "storage_uri" not in cols:
+        conn.execute("ALTER TABLE documents ADD COLUMN storage_uri TEXT")
+        conn.commit()
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +49,7 @@ class StoredDocumentRef:
     title: str
     local_path: str | None
     source_url: str | None
+    storage_uri: str | None = None
 
 
 def derive_doc_id(company_id: str, doc_type: str, content_key: str) -> str:
@@ -134,13 +147,27 @@ class DocumentRegistry:
         conn = self._connect()
         try:
             row = conn.execute(
-                "SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url "
+                "SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri "
                 "FROM documents WHERE doc_id=?",
                 (doc_id,),
             ).fetchone()
             if row is None:
                 return None
             return StoredDocumentRef(*row)
+        finally:
+            conn.close()
+
+    def set_storage_uri(self, doc_id: str, storage_uri: str) -> None:
+        """Records where a document's immutable original bytes ended up in
+        object storage (see arp/storage/document_blob_store.py), after the
+        fact -- registration itself never blocks on an object-store upload,
+        so this is a separate, best-effort follow-up call."""
+        if not self.enabled:
+            return
+        conn = self._connect()
+        try:
+            conn.execute("UPDATE documents SET storage_uri=? WHERE doc_id=?", (storage_uri, doc_id))
+            conn.commit()
         finally:
             conn.close()
 
@@ -160,11 +187,27 @@ class DocumentRegistry:
         try:
             placeholders = ",".join("?" for _ in content_keys)
             rows = conn.execute(
-                f"SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url "
+                f"SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri "
                 f"FROM documents WHERE content_key IN ({placeholders})",
                 content_keys,
             ).fetchall()
             return {row[3]: StoredDocumentRef(*row) for row in rows}
+        finally:
+            conn.close()
+
+    def list_all(self) -> list[StoredDocumentRef]:
+        """Every registered document, for backfill/reindex use (`arp db
+        reindex documents`/`opensearch`/`object-store`) -- not used on any
+        hot path, so no pagination is offered."""
+        if not self.enabled:
+            return []
+        conn = self._connect()
+        try:
+            rows = conn.execute(
+                "SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri "
+                "FROM documents ORDER BY doc_id"
+            ).fetchall()
+            return [StoredDocumentRef(*row) for row in rows]
         finally:
             conn.close()
 

@@ -6,6 +6,7 @@ import httpx
 
 from arp.ingestion import edgar as edgar_module
 from arp.ingestion.edgar import EdgarDocumentSource
+from arp.ingestion.indexing_config import IndexingConfig
 from arp.schemas.common import CompanyRef
 from arp.storage.document_store import DocumentContentStore
 
@@ -122,6 +123,71 @@ async def test_edgar_doc_id_is_stable_across_fetches(tmp_path, monkeypatch):
     assert first[0].doc_id.startswith("doc_")
 
 
+async def test_indexing_config_hooks_on_cache_hit_only_indexes_not_uploads(tmp_path, monkeypatch):
+    """A parsed-content cache hit means the filing was already registered
+    (and, if configured, already archived) on some earlier fetch -- so
+    only the (idempotent, cheap-to-repeat) OpenSearch indexing hook fires
+    again; there's no new raw_bytes to archive a second time."""
+    index_calls = []
+    upload_calls = []
+    monkeypatch.setattr(
+        "arp.retrieval.search_indexer.index_document_if_enabled", lambda config, **kwargs: index_calls.append(kwargs)
+    )
+    monkeypatch.setattr(
+        "arp.storage.document_blob_store.upload_document_if_enabled", lambda *a, **k: upload_calls.append((a, k))
+    )
+    cache_dir = tmp_path / "cache"
+    store = DocumentContentStore(tmp_path / "store")
+    config = IndexingConfig(opensearch_url="http://localhost:9200", search_live_indexing_enabled=True)
+    source = EdgarDocumentSource(user_agent="test-agent test@example.com", cache_dir=cache_dir, content_store=store, indexing_config=config)
+
+    _write_submissions_cache(cache_dir, "0000320193", _SUBMISSIONS)
+    content_key = hashlib.sha256(f"edgar:{_ACCESSION}/{_PRIMARY_DOC}".encode()).hexdigest()
+    store.store(
+        content_key, key_kind="edgar_accession", parser_version=edgar_module._edgar_parser_version(),
+        source_suffix=".htm", byte_size=100, text="Cached filing text.", page_breaks=[],
+    )
+    monkeypatch.setattr(edgar_module.httpx, "AsyncClient", _FailingClient)
+
+    company = CompanyRef(company_id="apple", name="Apple Inc.", cik="320193")
+    await source.fetch(company)
+
+    assert len(index_calls) == 1
+    assert index_calls[0]["full_text"] == "Cached filing text."
+    assert upload_calls == []
+
+
+async def test_indexing_config_hooks_on_fresh_fetch_archives_raw_bytes(tmp_path, monkeypatch):
+    index_calls = []
+    upload_calls = []
+    monkeypatch.setattr(
+        "arp.retrieval.search_indexer.index_document_if_enabled", lambda config, **kwargs: index_calls.append(kwargs)
+    )
+    monkeypatch.setattr(
+        "arp.storage.document_blob_store.upload_document_if_enabled",
+        lambda config, content_key, data: upload_calls.append((content_key, data)) or "s3://arp-documents/fake",
+    )
+    cache_dir = tmp_path / "cache"
+    store = DocumentContentStore(tmp_path / "store")
+    config = IndexingConfig(opensearch_url="http://localhost:9200", search_live_indexing_enabled=True)
+    source = EdgarDocumentSource(user_agent="test-agent test@example.com", cache_dir=cache_dir, content_store=store, indexing_config=config)
+    _write_submissions_cache(cache_dir, "0000320193", _SUBMISSIONS)
+
+    async def fake_get_and_extract_text(self, client, url):
+        return "Freshly fetched filing text.", b"raw html bytes"
+
+    monkeypatch.setattr(EdgarDocumentSource, "_get_and_extract_text", fake_get_and_extract_text)
+
+    company = CompanyRef(company_id="apple", name="Apple Inc.", cik="320193")
+    docs = await source.fetch(company)
+
+    assert len(index_calls) == 1
+    assert index_calls[0]["full_text"] == "Freshly fetched filing text."
+    assert len(upload_calls) == 1
+    assert upload_calls[0][1] == b"raw html bytes"
+    assert store.resolve_document(docs[0].doc_id).storage_uri == "s3://arp-documents/fake"
+
+
 async def test_unsafe_company_id_is_rejected_without_a_network_call(tmp_path, monkeypatch):
     store = DocumentContentStore(tmp_path / "store")
     source = EdgarDocumentSource(user_agent="test-agent test@example.com", cache_dir=tmp_path / "cache", content_store=store)
@@ -139,7 +205,7 @@ async def test_no_content_store_behaves_exactly_as_before(tmp_path, monkeypatch)
     _write_submissions_cache(cache_dir, "0000320193", _SUBMISSIONS)
 
     async def fake_get_and_extract_text(self, client, url):
-        return "Fresh text every time, no cache."
+        return "Fresh text every time, no cache.", b"raw bytes"
 
     monkeypatch.setattr(EdgarDocumentSource, "_get_and_extract_text", fake_get_and_extract_text)
 
