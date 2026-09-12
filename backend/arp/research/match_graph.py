@@ -175,12 +175,20 @@ async def _gather_evidence(state: MatchState) -> dict:
 
         content_store = build_hybrid_content_store(settings)
 
+    opensearch_client = None
+    if settings.retrieval_backend == "opensearch" and settings.opensearch_url:
+        from arp.storage.opensearch_client import get_client
+
+        opensearch_client = get_client(settings.opensearch_url)
+
     evidence = select_relevant_chunks(
         all_chunks,
         activity.seed_keywords,
         max_chunks=_MAX_EVIDENCE_CHUNKS_PER_CALL,
         hybrid_retrieval_enabled=settings.hybrid_retrieval_enabled,
         content_store=content_store,
+        retrieval_backend=settings.retrieval_backend,
+        opensearch_client=opensearch_client,
     )
     return {"evidence": evidence}
 

@@ -53,12 +53,20 @@ async def _gather_evidence(state: TNFDState) -> dict:
 
         content_store = build_hybrid_content_store(settings)
 
+    opensearch_client = None
+    if settings is not None and settings.retrieval_backend == "opensearch" and settings.opensearch_url:
+        from arp.storage.opensearch_client import get_client
+
+        opensearch_client = get_client(settings.opensearch_url)
+
     evidence = select_relevant_chunks(
         all_chunks,
         TNFD_KEYWORDS,
         max_chunks=_MAX_CHUNKS,
         hybrid_retrieval_enabled=hybrid_enabled,
         content_store=content_store,
+        retrieval_backend=settings.retrieval_backend if settings is not None else "bm25",
+        opensearch_client=opensearch_client,
     )
     return {"evidence": evidence}
 

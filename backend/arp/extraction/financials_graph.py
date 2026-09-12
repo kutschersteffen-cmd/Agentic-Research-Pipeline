@@ -31,7 +31,12 @@ _MAX_CHUNKS_PER_TOPIC = 10
 
 
 def _select_evidence(
-    chunks: list[DocumentChunk], *, hybrid_retrieval_enabled: bool = False, content_store=None
+    chunks: list[DocumentChunk],
+    *,
+    hybrid_retrieval_enabled: bool = False,
+    content_store=None,
+    retrieval_backend: str = "bm25",
+    opensearch_client=None,
 ) -> list[DocumentChunk]:
     """Per-topic BM25-ranked selection, capped per topic, then
     unioned/deduped -- so a topic with sparser evidence (e.g. a single
@@ -48,6 +53,8 @@ def _select_evidence(
             max_chunks=_MAX_CHUNKS_PER_TOPIC,
             hybrid_retrieval_enabled=hybrid_retrieval_enabled,
             content_store=content_store,
+            retrieval_backend=retrieval_backend,
+            opensearch_client=opensearch_client,
         ):
             selected[c.chunk_id] = c
     return list(selected.values())
@@ -86,7 +93,21 @@ async def _gather_evidence(state: FinancialsState) -> dict:
 
         content_store = build_hybrid_content_store(settings)
 
-    return {"evidence": _select_evidence(all_chunks, hybrid_retrieval_enabled=hybrid_enabled, content_store=content_store)}
+    opensearch_client = None
+    if settings is not None and settings.retrieval_backend == "opensearch" and settings.opensearch_url:
+        from arp.storage.opensearch_client import get_client
+
+        opensearch_client = get_client(settings.opensearch_url)
+
+    return {
+        "evidence": _select_evidence(
+            all_chunks,
+            hybrid_retrieval_enabled=hybrid_enabled,
+            content_store=content_store,
+            retrieval_backend=settings.retrieval_backend if settings is not None else "bm25",
+            opensearch_client=opensearch_client,
+        )
+    }
 
 
 def _route_after_evidence(state: FinancialsState) -> str:

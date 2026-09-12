@@ -49,6 +49,15 @@ def index_document(
     doc = SourceDocument(doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=full_text)
     chunks = chunk_document(doc)
 
+    # Populate the arp-chunks knn_vector field so retrieval_backend="opensearch"
+    # (arp/retrieval/select_evidence.py) can eventually be combined with real
+    # k-NN in OpenSearch, not just BM25 -- see arp.retrieval.embeddings for
+    # the same multilingual model hybrid_retrieval_enabled's local ranking
+    # already uses, so a chunk's vector is identical either way.
+    from arp.retrieval.embeddings import embed_texts
+
+    embeddings = embed_texts([chunk.text for chunk in chunks]) if chunks else []
+
     actions = [
         {
             "_index": "arp-documents",
@@ -68,8 +77,9 @@ def index_document(
                 "text": chunk.text,
                 "char_start": chunk.char_start,
                 "char_end": chunk.char_end,
+                "embedding": embeddings[i].tolist(),
             },
         }
-        for chunk in chunks
+        for i, chunk in enumerate(chunks)
     )
     bulk(client, actions)
