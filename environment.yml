@@ -1,0 +1,19 @@
+# Conda environment for the Agentic Research Pipeline backend.
+#
+# Usage:
+#   conda env create -f environment.yml
+#   conda activate arp
+#   cd backend && pip install -e ".[dev]"
+#
+# Only Python itself and pip come from conda; every project dependency is
+# installed via pip from backend/pyproject.toml (the single source of
+# truth for versions -- see scripts/windows/setup.ps1, which runs both
+# steps for you). Keeping conda's job to "provide Python 3.11" avoids
+# maintaining the same dependency list twice.
+name: arp
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - nodejs=22

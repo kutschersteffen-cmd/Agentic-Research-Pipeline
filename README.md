@@ -107,7 +107,10 @@ every backend and frontend package, and
 [`docs/CORPORATE_READINESS_PLAN.md`](docs/CORPORATE_READINESS_PLAN.md) for
 the phased plan to take this from a locally-run tool to a corporate
 deployment (auth, secrets, containerization, GCP target architecture, and
-the compliance/vendor decisions that gate parts of it).
+the compliance/vendor decisions that gate parts of it), and
+[`docs/INSTALLATION.md`](docs/INSTALLATION.md) for a from-scratch
+Windows/VS Code/conda install behind a corporate proxy, with scripts that
+automate it end to end.
 
 ## Architecture
 
@@ -161,6 +164,13 @@ cancelled cooperatively (`arp runs cancel <run_id>` /
 theme runs only for now) without redoing already-completed companies.
 
 ## Setup
+
+On Windows, behind a corporate proxy/TLS-inspection setup, using VS Code
+and conda: see [`docs/INSTALLATION.md`](docs/INSTALLATION.md) instead of
+this section -- it covers corporate certificate/proxy configuration and
+ships scripts (`scripts/windows/setup.ps1`, `check-setup.ps1`,
+`configure-network.ps1`) that automate everything below plus a
+pre-wired `.vscode/` (correct interpreter, pytest, debug configs, tasks).
 
 ### Backend
 
