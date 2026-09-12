@@ -351,8 +351,19 @@ arp climate coverage climate_carbon_intensity
 # Presentation & Reporting Tool
 arp report ingest-template house_style.pptx              # extract a template's layouts/theme colors/fonts
 arp report add-dataset revenue.csv --out revenue.json     # parse a CSV/XLSX into a QuantitativeDataset
+
+# One-shot: draft + render immediately, no review step
 arp report run --title "Electrification Review" --notes notes.txt \
   --data revenue.json --template-id tpl_xxxxxxxxxxxx --format pptx --out review.pptx
+
+# Review-before-render: draft, hand-edit the plan JSON, then render
+arp report plan --title "Electrification Review" --notes notes.txt \
+  --data revenue.json --template-id tpl_xxxxxxxxxxxx --format pptx --out plan.json
+# ...edit plan.json (reorder sections, swap a chart_type, rewrite narrative)...
+arp report update-plan <report_id> plan.json
+arp report render <report_id> --out review.pptx
+arp report show-plan <report_id>                          # re-inspect the stored plan at any point
+
 arp report list
 arp report show <report_id>
 ```
