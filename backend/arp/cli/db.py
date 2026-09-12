@@ -61,10 +61,10 @@ def db_init_object_store() -> None:
 
 
 reindex_app = typer.Typer(
-    help="Backfill/resync the opt-in OpenSearch and object-store projections for documents registered before "
-    "those stores were enabled (or whose live indexing/upload hook previously failed). Runs regardless of "
-    "ARP_SEARCH_LIVE_INDEXING_ENABLED/ARP_OBJECT_STORE_LIVE_UPLOAD_ENABLED -- those flags only gate the "
-    "per-ingestion live hook, not this one-off backfill."
+    help="Backfill/resync the opt-in OpenSearch, object-store, and Postgres read-model projections for "
+    "documents/runs that predate those stores being enabled (or whose live sync hook previously failed). Runs "
+    "regardless of the corresponding *_enabled flag -- those only gate the per-ingestion/per-run live hook, not "
+    "this one-off backfill."
 )
 db_app.add_typer(reindex_app, name="reindex")
 
@@ -169,3 +169,57 @@ def reindex_object_store() -> None:
             failed += 1
             typer.echo(f"Failed to archive {doc_ref.doc_id}: {exc}", err=True)
     typer.echo(f"Object-store backfill complete: uploaded={uploaded} skipped={skipped} failed={failed}.")
+
+
+@reindex_app.command("documents")
+def reindex_documents() -> None:
+    """Mirrors every already-registered document from DocumentRegistry
+    (SQLite, always authoritative) into DocumentRegistryModel (Postgres).
+    Safe to re-run -- each document is an idempotent upsert by doc_id."""
+    settings = get_settings()
+    if not settings.postgres_dsn:
+        typer.echo("ARP_POSTGRES_DSN is not set -- nothing to sync.", err=True)
+        raise typer.Exit(1)
+    from arp.storage.document_store import DocumentContentStore
+    from arp.storage.postgres_document_projection import sync_all
+
+    content_store = DocumentContentStore(settings.document_store_dir, enabled=settings.document_cache_enabled)
+    count = sync_all(settings.postgres_dsn, content_store)
+    typer.echo(f"Document-registry backfill complete: synced={count}.")
+
+
+@reindex_app.command("company-records")
+def reindex_company_records() -> None:
+    """Mirrors every run's results.jsonl rows (across every run type --
+    extraction, financials, theme matches, voting ballots) into
+    CompanyRecordModel (Postgres). Safe to re-run -- an already-synced
+    run's rows are skipped via their unique constraint."""
+    settings = get_settings()
+    if not settings.postgres_dsn:
+        typer.echo("ARP_POSTGRES_DSN is not set -- nothing to sync.", err=True)
+        raise typer.Exit(1)
+    from arp.storage.postgres_company_records_projection import sync_all
+    from arp.storage.run_store import RunStore
+
+    run_store = RunStore(settings.runs_dir)
+    count = sync_all(settings.postgres_dsn, run_store)
+    typer.echo(f"Company-records backfill complete: rows_inserted={count}.")
+
+
+@reindex_app.command("company-facts")
+def reindex_company_facts() -> None:
+    """Materializes every run's results plus review_queue.py decisions
+    into CompanyFactModel (Postgres) -- the current, verified/approved
+    value per company+field. Safe to re-run: an unchanged fact is a
+    no-op, a changed one is versioned (the prior row is closed, a new
+    current one inserted), never overwritten in place."""
+    settings = get_settings()
+    if not settings.postgres_dsn:
+        typer.echo("ARP_POSTGRES_DSN is not set -- nothing to sync.", err=True)
+        raise typer.Exit(1)
+    from arp.storage.postgres_company_facts_projection import materialize_all
+    from arp.storage.run_store import RunStore
+
+    run_store = RunStore(settings.runs_dir)
+    count = materialize_all(settings.postgres_dsn, run_store)
+    typer.echo(f"Company-facts backfill complete: facts_changed={count}.")

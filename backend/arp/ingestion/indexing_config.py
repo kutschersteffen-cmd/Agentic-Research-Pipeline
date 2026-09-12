@@ -25,6 +25,8 @@ class IndexingConfig:
     object_store_secret_key: str | None = None
     object_store_bucket: str = "arp-documents"
     object_store_live_upload_enabled: bool = False
+    postgres_dsn: str | None = None
+    document_registry_projection_enabled: bool = False
 
     @classmethod
     def from_settings(cls, settings: Settings) -> IndexingConfig:
@@ -36,6 +38,8 @@ class IndexingConfig:
             object_store_secret_key=settings.object_store_secret_key,
             object_store_bucket=settings.object_store_bucket,
             object_store_live_upload_enabled=settings.object_store_live_upload_enabled,
+            postgres_dsn=settings.postgres_dsn,
+            document_registry_projection_enabled=settings.document_registry_projection_enabled,
         )
 
     @property
@@ -45,3 +49,7 @@ class IndexingConfig:
     @property
     def object_store_enabled(self) -> bool:
         return bool(self.object_store_endpoint_url and self.object_store_live_upload_enabled)
+
+    @property
+    def document_registry_enabled(self) -> bool:
+        return bool(self.postgres_dsn and self.document_registry_projection_enabled)

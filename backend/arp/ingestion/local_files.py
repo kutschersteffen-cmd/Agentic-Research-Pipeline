@@ -224,6 +224,17 @@ class LocalFileDocumentSource(DocumentSource):
         if storage_uri is not None and self._content_store is not None:
             self._content_store.set_storage_uri(doc_id, storage_uri)
 
+        from arp.storage.document_registry import StoredDocumentRef
+        from arp.storage.postgres_document_projection import sync_document_if_enabled
+
+        sync_document_if_enabled(
+            self._indexing_config,
+            StoredDocumentRef(
+                doc_id=doc_id, company_id=company_id, doc_type=doc_type.value, content_key=content_key,
+                title=file_path.name, local_path=str(file_path), source_url=None, storage_uri=storage_uri,
+            ),
+        )
+
     async def fetch(self, company: CompanyRef, doc_types: list[DocType] | None = None) -> list[SourceDocument]:
         try:
             company_dir = self.documents_dir / safe_id(company.company_id, label="company_id")

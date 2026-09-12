@@ -15,6 +15,7 @@ from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.portfolio_store_factory import build_portfolio_store
+from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
@@ -71,7 +72,8 @@ def _xbrl_source() -> XbrlFactSource:
 
 
 def _run_store() -> RunStore:
-    return RunStore(get_settings().runs_dir)
+    settings = get_settings()
+    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
 
 
 

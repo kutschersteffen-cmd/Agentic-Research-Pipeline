@@ -138,32 +138,52 @@ class EdgarDocumentSource(DocumentSource):
                         source_url=url,
                     )
                     if self._indexing_config is not None:
-                        self._index_and_archive(kwargs["doc_id"], company.company_id, doc_type, title, content_key, text, raw_bytes)
+                        self._index_and_archive(kwargs["doc_id"], company.company_id, doc_type, title, content_key, text, raw_bytes, url)
                 docs.append(SourceDocument(**kwargs))
             return docs
 
     def _index_and_archive(
-        self, doc_id: str, company_id: str, doc_type: DocType, title: str, content_key: str, full_text: str, raw_bytes: bytes | None
+        self,
+        doc_id: str,
+        company_id: str,
+        doc_type: DocType,
+        title: str,
+        content_key: str,
+        full_text: str,
+        raw_bytes: bytes | None,
+        source_url: str,
     ) -> None:
         """Best-effort OpenSearch indexing + object-store archival, mirrors
         LocalFileDocumentSource._index_and_archive. raw_bytes is None on a
-        parsed-content cache hit (see _get_filing_text) -- indexing still
-        runs (idempotent, cheap to repeat), but there's nothing new to
-        archive since the original bytes were already archived (or
-        attempted) the first time this filing was registered."""
+        parsed-content cache hit (see _get_filing_text) -- indexing and
+        the document-registry sync still run (idempotent, cheap to
+        repeat), but there's nothing new to archive since the original
+        bytes were already archived (or attempted) the first time this
+        filing was registered."""
         from arp.retrieval.search_indexer import index_document_if_enabled
 
         index_document_if_enabled(
             self._indexing_config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=full_text
         )
 
-        if raw_bytes is None:
-            return
-        from arp.storage.document_blob_store import upload_document_if_enabled
+        storage_uri = None
+        if raw_bytes is not None:
+            from arp.storage.document_blob_store import upload_document_if_enabled
 
-        storage_uri = upload_document_if_enabled(self._indexing_config, content_key, raw_bytes)
-        if storage_uri is not None and self._content_store is not None:
-            self._content_store.set_storage_uri(doc_id, storage_uri)
+            storage_uri = upload_document_if_enabled(self._indexing_config, content_key, raw_bytes)
+            if storage_uri is not None and self._content_store is not None:
+                self._content_store.set_storage_uri(doc_id, storage_uri)
+
+        from arp.storage.document_registry import StoredDocumentRef
+        from arp.storage.postgres_document_projection import sync_document_if_enabled
+
+        sync_document_if_enabled(
+            self._indexing_config,
+            StoredDocumentRef(
+                doc_id=doc_id, company_id=company_id, doc_type=doc_type.value, content_key=content_key,
+                title=title, local_path=None, source_url=source_url, storage_uri=storage_uri,
+            ),
+        )
 
     async def _get_submissions(self, client: httpx.AsyncClient, cik10: str) -> dict | None:
         """Filings change over time, so this is TTL-bounded (unlike the

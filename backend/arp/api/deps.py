@@ -22,6 +22,7 @@ from arp.storage.engagement_store import EngagementStore
 from arp.storage.opensearch_client import OpenSearchNotConfigured
 from arp.storage.opensearch_client import get_client as get_opensearch_client
 from arp.storage.portfolio_store_factory import build_portfolio_store
+from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
@@ -37,7 +38,8 @@ def settings_dep() -> Settings:
 
 @lru_cache
 def get_run_store() -> RunStore:
-    return RunStore(get_settings().runs_dir)
+    settings = get_settings()
+    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
 
 
 @lru_cache

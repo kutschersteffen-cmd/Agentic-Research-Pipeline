@@ -19,6 +19,7 @@ from arp.api.deps import (
 )
 from arp.config import Settings
 from arp.schemas.taxonomy_researcher import TaxonomyResearcherScheduleConfig
+from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/api/taxonomy-researcher", tags=["taxonomy-researcher
 
 
 def _run_store(settings: Settings = Depends(settings_dep)) -> RunStore:
-    return RunStore(settings.runs_dir)
+    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
 
 
 class TaxonomyResearchRunRequest(BaseModel):
