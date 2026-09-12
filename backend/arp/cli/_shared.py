@@ -23,7 +23,8 @@ from arp.voting.ballot_casting import ManualInstructionBallotPlatform
 
 
 def _engagement_store() -> EngagementStore:
-    return EngagementStore(get_settings().engagements_dir)
+    settings = get_settings()
+    return EngagementStore(settings.engagements_dir, projection_config=ProjectionConfig.from_settings(settings))
 
 
 

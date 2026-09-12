@@ -175,7 +175,8 @@ def get_portfolio_monitoring_scheduler() -> PortfolioMonitoringScheduler:
 
 @lru_cache
 def get_engagement_store() -> EngagementStore:
-    return EngagementStore(get_settings().engagements_dir)
+    settings = get_settings()
+    return EngagementStore(settings.engagements_dir, projection_config=ProjectionConfig.from_settings(settings))
 
 
 @lru_cache

@@ -223,3 +223,21 @@ def reindex_company_facts() -> None:
     run_store = RunStore(settings.runs_dir)
     count = materialize_all(settings.postgres_dsn, run_store)
     typer.echo(f"Company-facts backfill complete: facts_changed={count}.")
+
+
+@reindex_app.command("engagement")
+def reindex_engagement() -> None:
+    """Mirrors every company's engagement record (record.json --
+    issues + commitments) into EngagementIssueModel/
+    EngagementCommitmentModel (Postgres). Safe to re-run -- each
+    company's rows are fully replaced from its current record.json."""
+    settings = get_settings()
+    if not settings.postgres_dsn:
+        typer.echo("ARP_POSTGRES_DSN is not set -- nothing to sync.", err=True)
+        raise typer.Exit(1)
+    from arp.storage.engagement_store import EngagementStore
+    from arp.storage.postgres_engagement_projection import sync_all
+
+    engagement_store = EngagementStore(settings.engagements_dir)
+    count = sync_all(settings.postgres_dsn, engagement_store)
+    typer.echo(f"Engagement backfill complete: companies_synced={count}.")
