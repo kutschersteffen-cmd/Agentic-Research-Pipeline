@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: arp
+      POSTGRES_PASSWORD: arp
+      POSTGRES_DB: arp
+    volumes:
+      - arp_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - ./backend/.env
+    environment:
+      # Real Postgres/pgvector instead of the file-based default store --
+      # see the "postgres" extra in backend/pyproject.toml.
+      ARP_POSTGRES_DSN: postgresql+psycopg://arp:arp@postgres:5432/arp
+      ARP_PORTFOLIO_BACKEND: postgres
+      ARP_EMBEDDINGS_BACKEND: postgres
+      # File-based stores that don't yet have a Postgres backend still need
+      # a writable path; point them at the shared named volume below rather
+      # than the container's own filesystem so data survives a rebuild.
+      ARP_RUNS_DIR: /data/runs
+      ARP_TAXONOMIES_DIR: /data/taxonomies
+      ARP_PORTFOLIOS_DIR: /data/portfolios
+      ARP_DOCUMENTS_DIR: /data/documents
+      ARP_CACHE_DIR: /data/cache
+      ARP_DOCUMENT_STORE_DIR: /data/document_store
+      ARP_DISCOVERY_STATE_DIR: /data/discovery_state
+      ARP_ENGAGEMENTS_DIR: /data/engagements
+      ARP_BALLOTS_DIR: /data/ballots
+    volumes:
+      - arp_data:/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Must be reachable from the host browser, not the docker network --
+        # matches the backend port mapping above.
+        VITE_API_BASE: http://localhost:8000
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  arp_postgres_data:
+  arp_data:
