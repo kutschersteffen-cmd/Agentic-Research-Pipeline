@@ -103,7 +103,11 @@ model tiering) — what already exceeds it, and which of its gaps
 (decorrelated critic model, XBRL ingestion, a golden set) are genuinely
 worth adopting, and [`docs/TECHNICAL_REFERENCE.md`](docs/TECHNICAL_REFERENCE.md)
 for a full inventory of every functional module, the agent/AI stack, and
-every backend and frontend package.
+every backend and frontend package, and
+[`docs/CORPORATE_READINESS_PLAN.md`](docs/CORPORATE_READINESS_PLAN.md) for
+the phased plan to take this from a locally-run tool to a corporate
+deployment (auth, secrets, containerization, GCP target architecture, and
+the compliance/vendor decisions that gate parts of it).
 
 ## Architecture
 
