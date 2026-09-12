@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from arp.config import Settings
 from arp.retrieval.content_store_factory import build_hybrid_content_store
+from arp.storage.document_search_factory import build_document_registry_reader
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.portfolio_store_factory import build_portfolio_store
@@ -60,3 +61,20 @@ def test_hybrid_content_store_postgres_with_dsn_selects_pgvector(tmp_path):
         _settings(tmp_path, embeddings_backend="postgres", postgres_dsn="postgresql+psycopg://u:p@localhost/db")
     )
     assert type(store).__name__ == "PgVectorEmbeddingsStore"
+
+
+def test_document_registry_reader_defaults_to_sqlite(tmp_path):
+    reader = build_document_registry_reader(_settings(tmp_path))
+    assert isinstance(reader, DocumentContentStore)
+
+
+def test_document_registry_reader_projection_without_dsn_falls_back_to_sqlite(tmp_path):
+    reader = build_document_registry_reader(_settings(tmp_path, document_registry_projection_enabled=True))
+    assert isinstance(reader, DocumentContentStore)
+
+
+def test_document_registry_reader_with_dsn_selects_postgres(tmp_path):
+    reader = build_document_registry_reader(
+        _settings(tmp_path, document_registry_projection_enabled=True, postgres_dsn="postgresql+psycopg://u:p@localhost/db")
+    )
+    assert type(reader).__name__ == "PostgresDocumentRegistryReader"

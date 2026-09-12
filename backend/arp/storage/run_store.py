@@ -7,9 +7,17 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from arp.schemas.common import RunManifest, now_iso
+from arp.schemas.common import JobStatus, RunManifest, now_iso
 from arp.storage.locks import KeyedLock
+from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.safe_path import safe_id
+
+# Statuses a run can end in with results worth syncing into the opt-in
+# Postgres company-records/company-facts projections (see
+# postgres_company_records_projection.py, postgres_company_facts_projection.py).
+# CANCELLED is included too: a mid-batch cancel can still leave real rows
+# in results.jsonl, and syncing an empty file is simply a no-op.
+_TERMINAL_STATUSES = {JobStatus.COMPLETED, JobStatus.PARTIALLY_COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}
 
 
 class RunStore:
@@ -19,9 +27,10 @@ class RunStore:
     to back up or ship elsewhere.
     """
 
-    def __init__(self, runs_dir: Path) -> None:
+    def __init__(self, runs_dir: Path, projection_config: ProjectionConfig | None = None) -> None:
         self.runs_dir = runs_dir
         self._locks = KeyedLock()
+        self._projection_config = projection_config
 
     @contextmanager
     def lock(self, run_id: str) -> Iterator[None]:
@@ -68,6 +77,25 @@ class RunStore:
         except BaseException:
             Path(tmp_path).unlink(missing_ok=True)
             raise
+
+        if self._projection_config is not None and manifest.status in _TERMINAL_STATUSES:
+            self._sync_projections(manifest.run_id)
+
+    def _sync_projections(self, run_id: str) -> None:
+        """Best-effort opt-in Postgres sync, fired once a run's manifest
+        lands on a terminal status -- see postgres_company_records_
+        projection.py/postgres_company_facts_projection.py for the
+        unconditional work and their own exception-swallowing contract.
+        A no-op whenever neither projection is enabled."""
+        config = self._projection_config
+        if config.company_records_enabled:
+            from arp.storage.postgres_company_records_projection import sync_run_if_enabled
+
+            sync_run_if_enabled(config, self, run_id)
+        if config.company_facts_enabled:
+            from arp.storage.postgres_company_facts_projection import materialize_run_if_enabled
+
+            materialize_run_if_enabled(config, self, run_id)
 
     def load_manifest(self, run_id: str) -> RunManifest | None:
         path = self.manifest_path(run_id)

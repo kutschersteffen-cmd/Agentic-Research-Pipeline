@@ -13,6 +13,38 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # Postgres+pgvector and OpenSearch service containers so the opt-in,
+    # real-instance integration suites (test_postgres_portfolio_store.py,
+    # gated on ARP_TEST_POSTGRES_DSN; test_search_router.py's
+    # test_search_against_a_real_opensearch_instance, gated on
+    # ARP_TEST_OPENSEARCH_URL) actually run in CI instead of skipping --
+    # every other test in the suite is DB/cluster-free by default and
+    # unaffected by these containers being present.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: arp
+          POSTGRES_PASSWORD: arp
+          POSTGRES_DB: arp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      opensearch:
+        image: opensearchproject/opensearch:2.15.0
+        env:
+          discovery.type: single-node
+          DISABLE_SECURITY_PLUGIN: "true"
+          OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+        ports:
+          - 9200:9200
+    env:
+      ARP_TEST_POSTGRES_DSN: postgresql+psycopg://arp:arp@localhost:5432/arp_test
+      ARP_TEST_OPENSEARCH_URL: http://localhost:9200
     steps:
       - uses: actions/checkout@v4
 
@@ -24,7 +56,16 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
 
       - name: Install backend package (dev extras)
-        run: pip install -e ".[dev,postgres,emerging_themes]"
+        run: pip install -e ".[dev,postgres,opensearch,emerging_themes]"
+
+      - name: Wait for OpenSearch
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9200/_cluster/health && exit 0
+            sleep 2
+          done
+          echo "OpenSearch did not become ready in time" >&2
+          exit 1
 
       - name: Ruff lint
         run: ruff check .
@@ -87,7 +128,7 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
 
       - name: Install backend package
-        run: pip install -e ".[postgres,emerging_themes]"
+        run: pip install -e ".[postgres,opensearch,object_storage,emerging_themes]"
 
       # Non-blocking for now: flips to a required check once the existing
       # dependency set has been triaged (see CORPORATE_READINESS_PLAN.md

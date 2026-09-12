@@ -208,6 +208,57 @@ def test_resolve_document_round_trip(tmp_path):
     assert store.resolve_document("doc_nonexistent") is None
 
 
+def test_set_storage_uri_round_trips(tmp_path):
+    store = DocumentContentStore(tmp_path / "store")
+    doc_id = derive_doc_id("acme", "10-K", "abc")
+    store.register_document(
+        doc_id=doc_id, company_id="acme", doc_type="10-K", content_key="abc",
+        title="Annual Report", local_path="/x/y.pdf", source_url=None,
+    )
+    assert store.resolve_document(doc_id).storage_uri is None
+
+    store.set_storage_uri(doc_id, "s3://arp-documents/abc")
+
+    assert store.resolve_document(doc_id).storage_uri == "s3://arp-documents/abc"
+
+
+def test_list_all_documents_returns_every_registered_document(tmp_path):
+    store = DocumentContentStore(tmp_path / "store")
+    doc_id_a = derive_doc_id("acme", "10-K", "abc")
+    doc_id_b = derive_doc_id("acme", "DEF14A", "def")
+    store.register_document(doc_id=doc_id_a, company_id="acme", doc_type="10-K", content_key="abc", title="A", local_path=None, source_url=None)
+    store.register_document(doc_id=doc_id_b, company_id="acme", doc_type="DEF14A", content_key="def", title="B", local_path=None, source_url=None)
+
+    refs = store.list_all_documents()
+
+    assert {r.doc_id for r in refs} == {doc_id_a, doc_id_b}
+
+
+def test_storage_uri_column_migrates_onto_a_pre_existing_database(tmp_path):
+    """Simulates a documents table created before storage_uri existed --
+    the CREATE TABLE IF NOT EXISTS in SCHEMA wouldn't add it on its own,
+    so the explicit ensure_storage_uri_column migration is what makes an
+    upgrade safe."""
+    store_dir = tmp_path / "store"
+    store_dir.mkdir()
+    conn = sqlite3.connect(store_dir / "content.db")
+    conn.execute(
+        "CREATE TABLE documents (doc_id TEXT PRIMARY KEY, company_id TEXT NOT NULL, doc_type TEXT NOT NULL, "
+        "content_key TEXT NOT NULL, title TEXT NOT NULL, local_path TEXT, source_url TEXT, "
+        "first_seen_at TEXT NOT NULL, last_seen_at TEXT NOT NULL)"
+    )
+    conn.commit()
+    conn.close()
+
+    store = DocumentContentStore(store_dir)
+    doc_id = derive_doc_id("acme", "10-K", "abc")
+    store.register_document(doc_id=doc_id, company_id="acme", doc_type="10-K", content_key="abc", title="A", local_path=None, source_url=None)
+
+    assert store.resolve_document(doc_id).storage_uri is None
+    store.set_storage_uri(doc_id, "s3://arp-documents/abc")
+    assert store.resolve_document(doc_id).storage_uri == "s3://arp-documents/abc"
+
+
 def test_disabled_store_never_persists(tmp_path):
     store_dir = tmp_path / "store"
     store = DocumentContentStore(store_dir, enabled=False)

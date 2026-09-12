@@ -118,12 +118,14 @@ team can use." Phases 3+ target GCP specifically.
       runs in the viewer's browser, not the container, so a runtime
       env-injection trick would need a real reason to justify the added
       complexity — not attempted here).
-- [x] `docker-compose.yml` for local dev: backend + frontend + an opt-in
-      `postgres` profile (`docker compose --profile postgres up`) folding
-      in the standalone `docker run pgvector/pgvector` command from the
-      README's Postgres section; named volumes persist `runs/`,
-      `taxonomies/`, `portfolios/`, `data/documents/`, `engagements/`,
-      `ballots/`, and the backend's caches across restarts.
+- [x] `backend`/`frontend` services added to `docker-compose.yml` alongside
+      the Postgres/OpenSearch/MinIO dev-infrastructure services already
+      merged in from the OpenSearch/object-storage work on `main`; named
+      volumes persist `runs/`, `taxonomies/`, `portfolios/`,
+      `data/documents/`, `engagements/`, `ballots/`, and the backend's
+      caches across restarts. `docker compose up backend frontend --build`
+      runs just the app; `docker compose up` with no service names runs
+      everything.
 - [x] Add container image scanning to CI (`container-scan` job, Trivy),
       non-blocking for the same reason as the dependency scans above.
 

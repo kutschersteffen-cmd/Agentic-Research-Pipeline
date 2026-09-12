@@ -14,6 +14,7 @@ from pathlib import Path
 import httpx
 
 from arp.ingestion.base import DocumentSource
+from arp.ingestion.indexing_config import IndexingConfig
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.schemas.discovery import EdgarNameMatch
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
@@ -63,6 +64,7 @@ class EdgarDocumentSource(DocumentSource):
         request_delay_seconds: float = 0.15,
         content_store: DocumentContentStore | None = None,
         submissions_ttl_hours: float = 24.0,
+        indexing_config: IndexingConfig | None = None,
     ) -> None:
         self._headers = {"User-Agent": user_agent}
         self.headers = self._headers  # public alias for callers composing on top (e.g. XbrlFactSource)
@@ -74,6 +76,7 @@ class EdgarDocumentSource(DocumentSource):
         self._lock = asyncio.Lock()
         self._content_store = content_store
         self._submissions_ttl_hours = submissions_ttl_hours
+        self._indexing_config = indexing_config
 
     async def fetch(self, company: CompanyRef, doc_types: list[DocType] | None = None) -> list[SourceDocument]:
         wanted_forms = [f for f, dt in _FORM_TO_DOCTYPE.items() if not doc_types or dt in doc_types]
@@ -108,7 +111,7 @@ class EdgarDocumentSource(DocumentSource):
                 primary_doc = recent["primaryDocument"][idx]
                 filing_date = recent.get("filingDate", [None] * len(forms))[idx]
                 url = _ARCHIVES_BASE.format(cik_int=int(cik), accession_nodash=accession, primary_doc=primary_doc)
-                text, content_key = await self._get_filing_text(client, url, accession, primary_doc)
+                text, content_key, raw_bytes = await self._get_filing_text(client, url, accession, primary_doc)
                 if not text or not text.strip():
                     continue
 
@@ -134,8 +137,53 @@ class EdgarDocumentSource(DocumentSource):
                         local_path=None,
                         source_url=url,
                     )
+                    if self._indexing_config is not None:
+                        self._index_and_archive(kwargs["doc_id"], company.company_id, doc_type, title, content_key, text, raw_bytes, url)
                 docs.append(SourceDocument(**kwargs))
             return docs
+
+    def _index_and_archive(
+        self,
+        doc_id: str,
+        company_id: str,
+        doc_type: DocType,
+        title: str,
+        content_key: str,
+        full_text: str,
+        raw_bytes: bytes | None,
+        source_url: str,
+    ) -> None:
+        """Best-effort OpenSearch indexing + object-store archival, mirrors
+        LocalFileDocumentSource._index_and_archive. raw_bytes is None on a
+        parsed-content cache hit (see _get_filing_text) -- indexing and
+        the document-registry sync still run (idempotent, cheap to
+        repeat), but there's nothing new to archive since the original
+        bytes were already archived (or attempted) the first time this
+        filing was registered."""
+        from arp.retrieval.search_indexer import index_document_if_enabled
+
+        index_document_if_enabled(
+            self._indexing_config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=full_text
+        )
+
+        storage_uri = None
+        if raw_bytes is not None:
+            from arp.storage.document_blob_store import upload_document_if_enabled
+
+            storage_uri = upload_document_if_enabled(self._indexing_config, content_key, raw_bytes)
+            if storage_uri is not None and self._content_store is not None:
+                self._content_store.set_storage_uri(doc_id, storage_uri)
+
+        from arp.storage.document_registry import StoredDocumentRef
+        from arp.storage.postgres_document_projection import sync_document_if_enabled
+
+        sync_document_if_enabled(
+            self._indexing_config,
+            StoredDocumentRef(
+                doc_id=doc_id, company_id=company_id, doc_type=doc_type.value, content_key=content_key,
+                title=title, local_path=None, source_url=source_url, storage_uri=storage_uri,
+            ),
+        )
 
     async def _get_submissions(self, client: httpx.AsyncClient, cik10: str) -> dict | None:
         """Filings change over time, so this is TTL-bounded (unlike the
@@ -162,26 +210,31 @@ class EdgarDocumentSource(DocumentSource):
 
     async def _get_filing_text(
         self, client: httpx.AsyncClient, url: str, accession: str, primary_doc: str
-    ) -> tuple[str | None, str | None]:
+    ) -> tuple[str | None, str | None, bytes | None]:
         """Filing documents are immutable once filed (an accession number
         is never reused), so this cache -- unlike submissions -- has no
         TTL and is the strongest cache key in the system. Reuses
         DocumentContentStore's parsed_content table (key_kind=
         "edgar_accession") rather than a separate cache, so `arp
         documents cache-stats`/`cache-prune` cover EDGAR content too.
-        Returns (text, content_key); content_key is None when no
+        Returns (text, content_key, raw_bytes); content_key is None when no
         content_store is configured, matching LocalFileDocumentSource's
-        doc_id=None-on-no-store convention.
+        doc_id=None-on-no-store convention. raw_bytes is only populated on
+        a fresh fetch (None on a parsed-content cache hit) -- the live
+        object-store archival hook only ever needs it once, at first
+        registration; a re-run against a cache hit is a content-cache read,
+        not a re-registration.
         """
         if self._content_store is None:
-            return await self._get_and_extract_text(client, url), None
+            text, raw_bytes = await self._get_and_extract_text(client, url)
+            return text, None, raw_bytes
 
         content_key = hashlib.sha256(f"edgar:{accession}/{primary_doc}".encode()).hexdigest()
         cached = self._content_store.lookup(content_key, _edgar_parser_version())
         if cached is not None:
-            return cached.full_text, content_key
+            return cached.full_text, content_key, None
 
-        text = await self._get_and_extract_text(client, url)
+        text, raw_bytes = await self._get_and_extract_text(client, url)
         if text and text.strip():
             self._content_store.store(
                 content_key,
@@ -192,7 +245,7 @@ class EdgarDocumentSource(DocumentSource):
                 text=text,
                 page_breaks=[],
             )
-        return text, content_key
+        return text, content_key, raw_bytes
 
     async def resolve_cik(self, ticker: str | None) -> str | None:
         """Public wrapper over the same CIK resolution `fetch` uses
@@ -282,14 +335,19 @@ class EdgarDocumentSource(DocumentSource):
         resp.raise_for_status()
         return resp.json()
 
-    async def _get_and_extract_text(self, client: httpx.AsyncClient, url: str) -> str | None:
+    async def _get_and_extract_text(self, client: httpx.AsyncClient, url: str) -> tuple[str | None, bytes | None]:
+        """Returns (extracted_text, raw_bytes) -- raw_bytes is the exact
+        response body as fetched, kept alongside the extracted text so a
+        caller can archive the true original (see IndexingConfig/
+        upload_document_if_enabled) without a second HTTP round-trip."""
         await asyncio.sleep(self._delay)
         resp = await client.get(url)
         if resp.status_code != 200:
-            return None
+            return None, None
+        raw_bytes = resp.content
         if url.lower().endswith((".htm", ".html")):
-            return _extract_html_text_from_string(resp.text)
-        return resp.text
+            return _extract_html_text_from_string(resp.text), raw_bytes
+        return resp.text, raw_bytes
 
 
 def _extract_html_text_from_string(raw_html: str) -> str:

@@ -13,10 +13,12 @@ import { MonitoringDashboard } from "./pages/MonitoringDashboard";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
 import { PortfolioRiskMonitoringTool } from "./pages/PortfolioRiskMonitoringTool";
+import { Search } from "./pages/Search";
 import type { ReviewableRunKind } from "./types";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard" },
+  { id: "search", label: "Search" },
   { id: "theme", label: "Thematic Universe" },
   { id: "taxonomy", label: "Taxonomy Library" },
   { id: "backgroundAgents", label: "Background Agents" },
@@ -74,6 +76,7 @@ function App() {
       </nav>
       <main className="app-main">
         {active === "dashboard" && <MonitoringDashboard onNavigate={setActive} />}
+        {active === "search" && <Search />}
         {active === "theme" && <ThemeBuilder onSendToExtraction={sendToExtraction} pendingTaxonomyId={pendingTaxonomyId} />}
         {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
         {active === "backgroundAgents" && <BackgroundAgents />}

@@ -4,6 +4,7 @@ import typer
 
 from arp.config import get_settings
 from arp.ingestion.edgar import EdgarDocumentSource
+from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.ingestion.xbrl import XbrlFactSource
@@ -14,6 +15,7 @@ from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.portfolio_store_factory import build_portfolio_store
+from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
@@ -21,7 +23,8 @@ from arp.voting.ballot_casting import ManualInstructionBallotPlatform
 
 
 def _engagement_store() -> EngagementStore:
-    return EngagementStore(get_settings().engagements_dir)
+    settings = get_settings()
+    return EngagementStore(settings.engagements_dir, projection_config=ProjectionConfig.from_settings(settings))
 
 
 
@@ -38,18 +41,21 @@ def _document_content_store() -> DocumentContentStore:
 
 def _registry() -> DocumentSourceRegistry:
     settings = get_settings()
+    indexing_config = IndexingConfig.from_settings(settings)
     return DocumentSourceRegistry(
         [
             LocalFileDocumentSource(
                 settings.documents_dir,
                 content_store=_document_content_store(),
                 max_concurrent_parses=settings.max_concurrent_parses,
+                indexing_config=indexing_config,
             ),
             EdgarDocumentSource(
                 settings.edgar_user_agent,
                 settings.cache_dir,
                 content_store=_document_content_store(),
                 submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
+                indexing_config=indexing_config,
             ),
         ]
     )
@@ -67,7 +73,8 @@ def _xbrl_source() -> XbrlFactSource:
 
 
 def _run_store() -> RunStore:
-    return RunStore(get_settings().runs_dir)
+    settings = get_settings()
+    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
 
 
 

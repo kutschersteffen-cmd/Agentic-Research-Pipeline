@@ -24,6 +24,7 @@ import type {
   QAAnswer,
   RiskCategoryOwner,
   SecurityResolution,
+  SearchResponse,
   TransitionPlanAssessmentRecord,
   TransitionPlanIndicatorDef,
   TrendPoint,
@@ -66,6 +67,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   base: API_BASE,
+
+  // Search
+  searchAll: (q: string, types?: string[], limit?: number) =>
+    request<SearchResponse>(`/api/search${buildQuery({ q, types, limit: limit ? String(limit) : undefined })}`),
 
   // Universe
   uploadUniverse: (file: File) => {

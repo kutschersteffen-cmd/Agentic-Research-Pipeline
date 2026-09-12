@@ -1,14 +1,29 @@
-# Corporate Readiness Plan, Phase 1 (see docs/CORPORATE_READINESS_PLAN.md).
-# An additive local-dev path: `docker compose up` gets a new machine to a
-# working stack without the multi-step README setup. The venv/npm-based
-# workflow in README "Setup" is unaffected and keeps working the same way.
+# Two things live in this file:
 #
-#   docker compose up --build              # backend :8000, frontend :5173
-#   docker compose --profile postgres up    # ...plus local Postgres/pgvector
+# 1. The app itself (`backend`, `frontend`) -- Corporate Readiness Plan,
+#    Phase 1 (see docs/CORPORATE_READINESS_PLAN.md). An additive local-dev
+#    path: `docker compose up backend frontend --build` gets a new machine
+#    to a working stack without the multi-step README setup. The venv/npm
+#    workflow in README "Setup" is unaffected and keeps working the same
+#    way. Backend secrets/config still come from backend/.env (see
+#    backend/.env.example) -- copy and fill it in before starting, same as
+#    the non-Docker setup.
 #
-# Backend secrets/config still come from backend/.env (see
-# backend/.env.example) -- copy and fill it in before starting, same as the
-# non-Docker setup.
+# 2. Local development infrastructure for the opt-in Postgres/pgvector,
+#    OpenSearch, and object-storage backends (backend/arp/storage/postgres*.py,
+#    opensearch_client.py, object_store_client.py). None of these are
+#    required to run this project -- every store is file-based by default
+#    (see backend/arp/config.py). Point the `backend` service's .env at
+#    them (ARP_POSTGRES_DSN=postgresql+psycopg://arp:arp@postgres:5432/arp,
+#    ARP_OPENSEARCH_URL=http://opensearch:9200, etc.) to actually use them
+#    from the containerized app, or at localhost equivalents to use them
+#    from a venv-based `uvicorn --reload` run instead.
+#
+# Usage:
+#   docker compose up --build                        # everything
+#   docker compose up backend frontend --build        # just the app
+#   docker compose up -d postgres opensearch minio     # just the dev infra
+#   Then:  arp db init-postgres && arp db init-opensearch && arp db init-object-store
 
 services:
   backend:
@@ -41,19 +56,68 @@ services:
     depends_on:
       - backend
 
-  # Opt-in, mirrors README "Optional Postgres/pgvector store". Only starts
-  # with `--profile postgres`; the file-based default stores need nothing
-  # here.
   postgres:
     image: pgvector/pgvector:pg16
-    profiles:
-      - postgres
     environment:
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: arp
+      POSTGRES_PASSWORD: arp
+      POSTGRES_DB: arp
     ports:
       - "5432:5432"
     volumes:
       - arp_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arp"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  opensearch:
+    image: opensearchproject/opensearch:2.15.0
+    environment:
+      - discovery.type=single-node
+      # Dev-only: disables auth/TLS so a local instance needs no
+      # certs/admin password. Never set this on a real deployment.
+      - DISABLE_SECURITY_PLUGIN=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - arp_opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Optional: browse/query OpenSearch indices in a UI. Comment out if not needed.
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.15.0
+    environment:
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+      - 'OPENSEARCH_HOSTS=["http://opensearch:9200"]'
+    ports:
+      - "5601:5601"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: arp
+      MINIO_ROOT_PASSWORD: arp12345
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console
+    volumes:
+      - arp_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
 volumes:
   arp_runs:
@@ -66,3 +130,5 @@ volumes:
   arp_discovery_state:
   arp_document_store:
   arp_postgres_data:
+  arp_opensearch_data:
+  arp_minio_data:

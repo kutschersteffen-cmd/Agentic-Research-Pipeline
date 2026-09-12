@@ -49,12 +49,20 @@ async def _gather_evidence(state: FieldState) -> dict:
 
         content_store = build_hybrid_content_store(settings)
 
+    opensearch_client = None
+    if settings is not None and settings.retrieval_backend == "opensearch" and settings.opensearch_url:
+        from arp.storage.opensearch_client import get_client
+
+        opensearch_client = get_client(settings.opensearch_url)
+
     evidence = select_relevant_chunks(
         all_chunks,
         field.seed_keywords,
         doc_type_filter=field.source_doc_types or None,
         hybrid_retrieval_enabled=settings is not None and settings.hybrid_retrieval_enabled,
         content_store=content_store,
+        retrieval_backend=settings.retrieval_backend if settings is not None else "bm25",
+        opensearch_client=opensearch_client,
     )
     return {"evidence": evidence}
 

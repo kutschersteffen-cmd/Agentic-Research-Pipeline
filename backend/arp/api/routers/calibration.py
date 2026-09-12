@@ -9,13 +9,14 @@ from arp.api.deps import get_calibration_scheduler, get_registry, settings_dep
 from arp.config import Settings
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.schemas.calibration import CalibrationScheduleConfig
+from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.run_store import RunStore
 
 router = APIRouter(prefix="/api/calibration", tags=["calibration"])
 
 
 def _run_store(settings: Settings = Depends(settings_dep)) -> RunStore:
-    return RunStore(settings.runs_dir)
+    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
 
 
 @router.post("/runs")
