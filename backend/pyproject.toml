@@ -50,6 +50,20 @@ postgres = [
     "psycopg[binary]>=3.1,<4.0",
     "pgvector>=0.3,<1.0",
 ]
+# Opt-in OpenSearch client (arp/storage/opensearch_client.py): user-facing
+# search plus an alternate BM25 retrieval backend for select_evidence.py.
+# Not required for the file/BM25-in-memory default path -- see
+# Settings.opensearch_url.
+opensearch = [
+    "opensearch-py>=2.6,<3.0",
+]
+# Opt-in S3-compatible object-storage client (arp/storage/object_store_client.py,
+# document_blob_store.py): immutable copies of source documents (MinIO
+# locally, any S3-compatible endpoint in production). Not required for the
+# default local-directory document store -- see Settings.object_store_endpoint_url.
+object_storage = [
+    "boto3>=1.34,<2.0",
+]
 # Emerging Themes Scanner (arp/emerging_themes/): embedding-based
 # clustering with lineage tracking across an entire investment universe's
 # public-source mention flow. Kept opt-in, same reasoning as `postgres`

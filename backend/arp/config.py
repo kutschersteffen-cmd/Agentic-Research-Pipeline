@@ -281,6 +281,88 @@ class Settings(BaseSettings):
         "so hybrid_retrieval_enabled's behavior is unaffected -- only where the vectors are persisted changes.",
     )
 
+    # Optional OpenSearch store (arp/storage/opensearch_client.py, requires
+    # the `opensearch` extra: pip install -e ".[opensearch]"). Additive:
+    # powers a new user-facing search feature (arp/api/routers/search.py)
+    # and, opt-in, an alternate BM25 backend for select_relevant_chunks.
+    # Never authoritative for anything -- OpenSearch holds retrieval-only
+    # evidence/embeddings, never approved facts (see company_facts_* below).
+    opensearch_url: str | None = Field(
+        default=None,
+        description="OpenSearch endpoint, e.g. http://localhost:9200. None (default) disables the user-facing "
+        "search feature and the 'opensearch' retrieval_backend option; BM25/hybrid retrieval and every other "
+        "feature are unaffected.",
+    )
+    search_live_indexing_enabled: bool = Field(
+        default=False,
+        description="When true (and opensearch_url is set), index each newly registered document into OpenSearch "
+        "at ingestion time (arp/ingestion/local_files.py, edgar.py), best-effort -- an indexing failure is logged, "
+        "never fails ingestion. Off by default so opting into OpenSearch never changes ingestion behavior; run "
+        "'arp db reindex opensearch' for a one-time backfill regardless of this flag.",
+    )
+    retrieval_backend: str = Field(
+        default="bm25",
+        description="'bm25' (default, in-memory LlamaIndex BM25Retriever, see arp/retrieval/index_cache.py) or "
+        "'opensearch' (requires opensearch_url) for select_relevant_chunks' keyword-ranking component. Either way "
+        "the hybrid_retrieval_enabled local-embedding fusion is unaffected -- this only changes who computes the "
+        "BM25 half.",
+    )
+
+    # Optional S3-compatible object store (arp/storage/object_store_client.py,
+    # requires the `object_storage` extra: pip install -e ".[object_storage]").
+    # Additive: holds an immutable copy of each source document's original
+    # bytes (MinIO locally, any S3-compatible endpoint in production),
+    # keyed by the same content hash DocumentContentStore already computes.
+    # Never a replacement for the parsed-text cache or for any queryable/
+    # searchable store -- it exists purely so an original source file is
+    # always retrievable even if the local working copy is gone.
+    object_store_endpoint_url: str | None = Field(
+        default=None,
+        description="S3-compatible endpoint, e.g. http://localhost:9000 (MinIO). None (default) disables object "
+        "storage entirely -- documents stay only in the local documents_dir, exactly as today.",
+    )
+    object_store_access_key: str | None = Field(default=None, description="Access key for object_store_endpoint_url.")
+    object_store_secret_key: str | None = Field(default=None, description="Secret key for object_store_endpoint_url.")
+    object_store_bucket: str = Field(default="arp-documents", description="Bucket for immutable source-document copies.")
+    object_store_live_upload_enabled: bool = Field(
+        default=False,
+        description="When true (and object_store_endpoint_url is set), upload each newly registered document's raw "
+        "original bytes to object storage at ingestion time, best-effort -- an upload failure is logged, never "
+        "fails ingestion. Off by default; run 'arp db reindex object-store' for a one-time backfill regardless.",
+    )
+
+    # Postgres read-model projections beyond Portfolio/Holdings (see
+    # postgres_models.py's module docstring for the original narrower
+    # scope). Each mirrors an existing file/SQLite store -- which stays
+    # authoritative and unmodified either way -- into a queryable Postgres
+    # table. All require postgres_dsn; all default off.
+    document_registry_projection_enabled: bool = Field(
+        default=False,
+        description="Mirrors DocumentRegistry (SQLite, always authoritative) into Postgres as a queryable "
+        "read-model (requires postgres_dsn) for relational joins against OpenSearch's doc_id hits. Additive only "
+        "-- SQLite stays the source of truth either way; see arp/storage/postgres_document_projection.py.",
+    )
+    company_records_projection_enabled: bool = Field(
+        default=False,
+        description="Mirrors each completed run's results (extraction, financials, theme matches, voting ballots "
+        "-- anything produced via RunStore/results.jsonl) into a queryable Postgres history table (requires "
+        "postgres_dsn), on run completion. Additive only -- results.jsonl is never written to by this; see "
+        "arp/storage/postgres_company_records_projection.py.",
+    )
+    company_facts_projection_enabled: bool = Field(
+        default=False,
+        description="Materializes each run's results plus the review_queue's decisions into a queryable, "
+        "insert-only/versioned 'current approved value per company+field' table (requires postgres_dsn) -- the "
+        "generalization of PortfolioStore.latest_observation to every pipeline. Additive only -- "
+        "review_decisions.jsonl is never written to by this; see arp/storage/postgres_company_facts_projection.py.",
+    )
+    engagement_projection_enabled: bool = Field(
+        default=False,
+        description="Mirrors EngagementStore's current per-company issue/commitment state (record.json, always "
+        "authoritative) into queryable Postgres tables (requires postgres_dsn), on every save. Additive only -- "
+        "record.json/events.jsonl are never written to by this; see arp/storage/postgres_engagement_projection.py.",
+    )
+
     def ensure_dirs(self) -> None:
         for d in (
             self.runs_dir,

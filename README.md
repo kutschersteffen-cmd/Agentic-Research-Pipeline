@@ -378,32 +378,46 @@ around the input-output math.
 
 Full detail in [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md).
 
-## Optional Postgres/pgvector store
+## Optional Postgres/pgvector + OpenSearch + object storage
 
 Every store in this system is file-based by default -- no database
-required. An opt-in Postgres/pgvector backend (`backend/arp/storage/postgres*.py`)
-is available for the two places a relational/vector engine genuinely earns
-its cost: **Portfolio Risk & Exposure Monitoring**'s holdings (real joins
-across portfolios × securities × companies × time) and the hybrid-retrieval
-chunk-embeddings cache. The run/review-queue/audit-trail stores everywhere
-else stay file-based JSONL regardless -- an append-only file is simpler to
-keep fully auditable than a table with `UPDATE`s, and none of those stores
-have the multi-way join access pattern that justifies a relational engine;
-see [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the full reasoning.
+required. Three opt-in backends are available, each additive: the
+file/SQLite stores stay the only writable source of truth either way,
+and every new store is populated by an indexer as a **queryable
+projection**, never a replacement write path (an append-only file is
+simpler to keep fully auditable than a table with `UPDATE`s, and this
+CQRS split is what lets these stores expand over time without giving
+that up -- see [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the full
+reasoning).
+
+- **Postgres/pgvector** (`backend/arp/storage/postgres*.py`): today,
+  **Portfolio Risk & Exposure Monitoring**'s holdings (real joins across
+  portfolios × securities × companies × time) and the hybrid-retrieval
+  chunk-embeddings cache.
+- **OpenSearch** (`backend/arp/storage/opensearch_client.py`): full-text/
+  vector search over documents and chunks, powering both a user-facing
+  search feature and an alternate BM25 retrieval backend.
+- **Object storage** (`backend/arp/storage/object_store_client.py`,
+  S3-compatible -- MinIO locally): an immutable copy of each source
+  document's original bytes, keyed by the same content hash the parsed-
+  text cache already uses.
 
 ```bash
-pip install -e ".[postgres]"   # sqlalchemy, psycopg, pgvector
+pip install -e ".[postgres,opensearch,object_storage]"
+
+# Local dev services (Postgres+pgvector, OpenSearch, MinIO)
+docker compose up -d postgres opensearch minio
 
 # .env
-ARP_POSTGRES_DSN=postgresql+psycopg://user:pass@localhost:5432/arp
+ARP_POSTGRES_DSN=postgresql+psycopg://arp:arp@localhost:5432/arp
 ARP_PORTFOLIO_BACKEND=postgres   # optional -- default stays "file"
 ARP_EMBEDDINGS_BACKEND=postgres  # optional -- default stays "sqlite"
+ARP_OPENSEARCH_URL=http://localhost:9200
+ARP_OBJECT_STORE_ENDPOINT_URL=http://localhost:9000
+ARP_OBJECT_STORE_ACCESS_KEY=arp
+ARP_OBJECT_STORE_SECRET_KEY=arp12345
 
-arp db init-postgres   # creates the pgvector extension + every table, idempotent
-```
-
-A local Postgres+pgvector for development:
-
-```bash
-docker run -d --name arp-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 pgvector/pgvector:pg16
+arp db init-postgres        # creates the pgvector extension + every table, idempotent
+arp db init-opensearch      # creates every index (behind its alias), idempotent
+arp db init-object-store    # creates the bucket, idempotent
 ```
