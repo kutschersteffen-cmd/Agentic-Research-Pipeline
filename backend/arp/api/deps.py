@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import TYPE_CHECKING
 
 from arp.agents.calibration_agent import CalibrationAgentScheduler
 from arp.agents.taxonomy_researcher import TaxonomyResearcherScheduler
@@ -18,11 +19,16 @@ from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.portfolio.monitoring.scheduler import PortfolioMonitoringScheduler
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
+from arp.storage.opensearch_client import OpenSearchNotConfigured
+from arp.storage.opensearch_client import get_client as get_opensearch_client
 from arp.storage.portfolio_store_factory import build_portfolio_store
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
 from arp.voting.ballot_casting import BallotPlatform, ManualInstructionBallotPlatform
+
+if TYPE_CHECKING:
+    from opensearchpy import OpenSearch
 
 
 def settings_dep() -> Settings:
@@ -110,6 +116,20 @@ def get_llm_client() -> LLMClient:
     baked into a cached singleton at import time.
     """
     return build_llm_client(get_settings())
+
+
+def get_opensearch_client_or_503() -> OpenSearch:
+    """Not cached, same rationale as get_llm_client: raises
+    OpenSearchNotConfigured (a RuntimeError, so arp.api.main's global
+    RuntimeError handler turns it into a clean 503) when opensearch_url
+    isn't set, so the "you haven't opted into this feature" error surfaces
+    per-request rather than being baked into a cached dependency. The
+    underlying client itself is still cached, per-URL, by
+    opensearch_client.get_client's own lru_cache."""
+    settings = get_settings()
+    if not settings.opensearch_url:
+        raise OpenSearchNotConfigured()
+    return get_opensearch_client(settings.opensearch_url)
 
 
 def get_verifier_llm_client() -> LLMClient:

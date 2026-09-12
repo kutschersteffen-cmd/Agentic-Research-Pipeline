@@ -1081,3 +1081,21 @@ export interface PivotResult {
   total_market_value_eur: number;
   unresolved_market_value_eur: number;
 }
+
+export type SearchResultType = "company" | "document" | "taxonomy";
+
+export interface SearchHit {
+  type: SearchResultType;
+  id: string;
+  title: string;
+  snippet: string;
+  score: number;
+  company_id?: string | null;
+  link?: string | null;
+}
+
+export interface SearchResponse {
+  query: string;
+  total: number;
+  hits: SearchHit[];
+}
