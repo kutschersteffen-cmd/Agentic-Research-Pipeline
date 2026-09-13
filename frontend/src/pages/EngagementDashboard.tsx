@@ -3,9 +3,21 @@ import { EngagementIssuePanel } from "../components/EngagementIssuePanel";
 import { api } from "../api/client";
 import type { EngagementIssue, EngagementRecord, IssueSeverity, TriggerEvent } from "../types";
 
-const DEFAULT_SIGNALS = `[
-  { "company_id": "AAPL", "theme": "executive_compensation", "severity": "high", "detail": "Say-on-pay support fell below 70% at peers." }
-]`;
+interface ScanCompanyRow {
+  company_id: string;
+  name: string;
+}
+interface ScanSignalRow {
+  company_id: string;
+  theme: string;
+  severity: IssueSeverity;
+  detail: string;
+}
+
+const DEFAULT_SCAN_COMPANIES: ScanCompanyRow[] = [{ company_id: "AAPL", name: "Apple Inc." }];
+const DEFAULT_SCAN_SIGNALS: ScanSignalRow[] = [
+  { company_id: "AAPL", theme: "executive_compensation", severity: "high", detail: "Say-on-pay support fell below 70% at peers." },
+];
 
 export function EngagementDashboard() {
   const [records, setRecords] = useState<EngagementRecord[]>([]);
@@ -20,9 +32,16 @@ export function EngagementDashboard() {
   const [newIssueTheme, setNewIssueTheme] = useState("");
   const [newIssueSeverity, setNewIssueSeverity] = useState<IssueSeverity>("medium");
 
-  const [signalsJson, setSignalsJson] = useState(DEFAULT_SIGNALS);
-  const [companiesJson, setCompaniesJson] = useState(`[ { "company_id": "AAPL", "name": "Apple Inc." } ]`);
+  const [companyRows, setCompanyRows] = useState<ScanCompanyRow[]>(DEFAULT_SCAN_COMPANIES);
+  const [signalRows, setSignalRows] = useState<ScanSignalRow[]>(DEFAULT_SCAN_SIGNALS);
   const [triggerResult, setTriggerResult] = useState<TriggerEvent[] | null>(null);
+
+  function updateCompanyRow(idx: number, patch: Partial<ScanCompanyRow>) {
+    setCompanyRows((prev) => prev.map((row, i) => (i === idx ? { ...row, ...patch } : row)));
+  }
+  function updateSignalRow(idx: number, patch: Partial<ScanSignalRow>) {
+    setSignalRows((prev) => prev.map((row, i) => (i === idx ? { ...row, ...patch } : row)));
+  }
 
   async function load() {
     setBusy(true);
@@ -70,12 +89,16 @@ export function EngagementDashboard() {
   }
 
   async function runTriggerScan() {
+    const companies = companyRows.filter((c) => c.company_id.trim() && c.name.trim());
+    const signals = signalRows.filter((s) => s.company_id.trim() && s.theme.trim());
+    if (companies.length === 0 || signals.length === 0) {
+      setError("Add at least one company and one signal with a company ID/name and theme filled in.");
+      return;
+    }
     setBusy(true);
     setError(null);
     setTriggerResult(null);
     try {
-      const companies = JSON.parse(companiesJson);
-      const signals = JSON.parse(signalsJson);
       const res = await api.triggerScan({ companies, signals });
       setTriggerResult(res.events);
       await load();
@@ -126,10 +149,91 @@ export function EngagementDashboard() {
           wired up -- see the architecture doc) and opens a new issue for every signal without an already-open issue
           on the same theme, plus an SLA sweep flagging stalled issues.
         </p>
-        <label className="field-label">Companies (JSON array)</label>
-        <textarea rows={2} value={companiesJson} onChange={(e) => setCompaniesJson(e.target.value)} />
-        <label className="field-label">Controversy signals (JSON array)</label>
-        <textarea rows={4} value={signalsJson} onChange={(e) => setSignalsJson(e.target.value)} />
+        <label className="field-label">Companies to screen</label>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Company ID</th>
+                <th>Name</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {companyRows.map((row, idx) => (
+                <tr key={idx}>
+                  <td>
+                    <input placeholder="e.g. AAPL" value={row.company_id} onChange={(e) => updateCompanyRow(idx, { company_id: e.target.value })} />
+                  </td>
+                  <td>
+                    <input placeholder="e.g. Apple Inc." value={row.name} onChange={(e) => updateCompanyRow(idx, { name: e.target.value })} />
+                  </td>
+                  <td>
+                    <button className="link-button" onClick={() => setCompanyRows((prev) => prev.filter((_, i) => i !== idx))}>
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <button className="link-button" onClick={() => setCompanyRows((prev) => [...prev, { company_id: "", name: "" }])}>
+          + Add company
+        </button>
+
+        <label className="field-label" style={{ marginTop: 16 }}>
+          Controversy signals
+        </label>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Company ID</th>
+                <th>Theme</th>
+                <th>Severity</th>
+                <th>Detail</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {signalRows.map((row, idx) => (
+                <tr key={idx}>
+                  <td>
+                    <input placeholder="e.g. AAPL" value={row.company_id} onChange={(e) => updateSignalRow(idx, { company_id: e.target.value })} />
+                  </td>
+                  <td>
+                    <input
+                      placeholder="e.g. executive_compensation"
+                      value={row.theme}
+                      onChange={(e) => updateSignalRow(idx, { theme: e.target.value })}
+                    />
+                  </td>
+                  <td>
+                    <select value={row.severity} onChange={(e) => updateSignalRow(idx, { severity: e.target.value as IssueSeverity })}>
+                      <option value="low">low</option>
+                      <option value="medium">medium</option>
+                      <option value="high">high</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input placeholder="What happened" value={row.detail} onChange={(e) => updateSignalRow(idx, { detail: e.target.value })} />
+                  </td>
+                  <td>
+                    <button className="link-button" onClick={() => setSignalRows((prev) => prev.filter((_, i) => i !== idx))}>
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="toolbar">
+          <button className="link-button" onClick={() => setSignalRows((prev) => [...prev, { company_id: "", theme: "", severity: "medium", detail: "" }])}>
+            + Add signal
+          </button>
+        </div>
         <button onClick={runTriggerScan} disabled={busy}>
           Run scan
         </button>
