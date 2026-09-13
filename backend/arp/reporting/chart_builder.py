@@ -131,6 +131,7 @@ def style_native_chart(chart, spec: ChartSpec, theme: DesignTheme) -> None:
         plot.has_data_labels = True
         plot.data_labels.show_percentage = True
         plot.data_labels.show_category_name = True
+        plot.data_labels.show_value = False  # python-pptx defaults this True; category name + percentage alone is the point, the raw value is redundant clutter
         plot.data_labels.font.size = Pt(11)
         plot.data_labels.font.color.rgb = RGBColor.from_string(theme.ink_primary)
     else:
