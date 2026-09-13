@@ -1,5 +1,6 @@
 import csv
 
+from arp.replication.characteristics_data import CsvCharacteristicSource
 from arp.replication.pipeline import run_replication
 from arp.replication.price_data import CsvPriceSource
 from arp.schemas.common import JobStatus
@@ -124,3 +125,88 @@ def test_run_replication_marks_manifest_failed_on_error(tmp_path):
     manifest = run_store.load_manifest(run_id)
     assert manifest.status == JobStatus.FAILED
     assert manifest.error
+
+
+def _write_characteristics_csv(path, dates):
+    # High characteristic value for the return-losers, low for the return-winners --
+    # anti-correlated with returns, same trick as test_replication_backtest_engine.py's
+    # test_value_strategy_ranks_on_characteristic_not_on_returns, so a positive long-short
+    # spread here could only come from a bug that fell back to price-based ranking.
+    with path.open("w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["date", "WIN1", "WIN2", "LOSE1", "LOSE2"])
+        for date in dates:
+            writer.writerow([date, 0.5, 0.4, 2.0, 1.9])
+
+
+def _value_spec() -> StrategySpec:
+    return StrategySpec(
+        paper_citation="Test (2020)",
+        paper_title="Test value paper",
+        strategy_name="test value",
+        signal_type=SignalType.VALUE,
+        universe_description="synthetic",
+        holding_period_months=3,
+        rebalance_frequency=RebalanceFrequency.MONTHLY,
+        num_portfolios=2,
+        long_leg_portfolio=1,
+        short_leg_portfolio=2,
+        weighting=WeightingScheme.EQUAL,
+        characteristic_name="book_to_market",
+        characteristic_lag_months=2,
+        sample_period_start="1999-01-01",
+        sample_period_end="2000-12-01",
+    )
+
+
+def test_run_replication_value_strategy_end_to_end(tmp_path):
+    prices_csv = tmp_path / "prices.csv"
+    _write_prices_csv(prices_csv)
+    price_source = CsvPriceSource(prices_csv)
+
+    # The characteristics CSV must cover the same padded fetch window as the price panel --
+    # write it over the full 48-month range _write_prices_csv used.
+    dates = []
+    year, month = 1998, 1
+    for _ in range(48):
+        dates.append(f"{year}-{month:02d}-01")
+        month += 1
+        if month > 12:
+            month = 1
+            year += 1
+    characteristics_csv = tmp_path / "book_to_market.csv"
+    _write_characteristics_csv(characteristics_csv, dates)
+    characteristics_source = CsvCharacteristicSource(characteristics_csv)
+
+    run_store = RunStore(tmp_path / "runs")
+    run_id, report = run_replication(
+        _value_spec(),
+        ["WIN1", "WIN2", "LOSE1", "LOSE2"],
+        price_source,
+        run_store=run_store,
+        characteristics_source=characteristics_source,
+    )
+
+    manifest = run_store.load_manifest(run_id)
+    assert manifest.status == JobStatus.COMPLETED
+    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    in_sample_row = next(r for r in rows if r["type"] == "in_sample")
+    # Long leg picked LOSE1/LOSE2 (high characteristic) -- a negative spread here proves the
+    # value signal, not price momentum, drove the selection.
+    assert in_sample_row["long_short"]["annualized_return_pct"] < 0
+    assert report.spec_id == rows[0]["spec_id"]
+
+
+def test_run_replication_value_strategy_without_characteristics_source_raises(tmp_path):
+    prices_csv = tmp_path / "prices.csv"
+    _write_prices_csv(prices_csv)
+    price_source = CsvPriceSource(prices_csv)
+    run_store = RunStore(tmp_path / "runs")
+
+    try:
+        run_replication(_value_spec(), ["WIN1", "WIN2", "LOSE1", "LOSE2"], price_source, run_store=run_store)
+        raised = False
+    except ValueError:
+        raised = True
+    assert raised
+    assert run_store.list_runs("strategy_replication") == []  # fails before a run_id/manifest is even created

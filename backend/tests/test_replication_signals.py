@@ -1,7 +1,9 @@
 import pytest
 
+from arp.replication.characteristics_data import CharacteristicPanel
 from arp.replication.price_data import PricePanel
-from arp.replication.signals import assign_portfolios, momentum_scores
+from arp.replication.signals import assign_portfolios, compute_signal_scores, momentum_scores, value_scores
+from arp.schemas.strategy_replication import RebalanceFrequency, SignalType, StrategySpec, WeightingScheme
 
 
 def _panel() -> PricePanel:
@@ -60,3 +62,74 @@ def test_assign_portfolios_splits_unevenly_sized_universe():
     buckets = assign_portfolios(scores, num_portfolios=2)
     assert set(buckets.values()) == {1, 2}
     assert list(buckets.values()).count(1) + list(buckets.values()).count(2) == 5
+
+
+def _characteristics() -> CharacteristicPanel:
+    period_ends = [f"2000-{m:02d}-01" for m in range(1, 9)]
+    return CharacteristicPanel(
+        period_ends=period_ends,
+        values={
+            "AAA": [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7],
+            "BBB": [0.5, 0.5, None, 0.5, 0.5, 0.5, 0.5, 0.5],  # a gap at index 2
+        },
+        source="test",
+    )
+
+
+def test_value_scores_reads_the_lagged_characteristic_level():
+    chars = _characteristics()
+    # formation_idx=5, lag=2 -> reads index 3 directly (no compounding, unlike momentum).
+    scores = value_scores(chars, formation_idx=5, characteristic_lag_months=2)
+    assert scores["AAA"] == pytest.approx(1.3)
+    assert scores["BBB"] == pytest.approx(0.5)
+
+
+def test_value_scores_excludes_ticker_missing_at_the_lagged_index():
+    chars = _characteristics()
+    # formation_idx=4, lag=2 -> reads index 2, which is None for BBB.
+    scores = value_scores(chars, formation_idx=4, characteristic_lag_months=2)
+    assert "AAA" in scores
+    assert "BBB" not in scores
+
+
+def test_value_scores_out_of_range_lag_returns_empty():
+    chars = _characteristics()
+    assert value_scores(chars, formation_idx=1, characteristic_lag_months=5) == {}
+    assert value_scores(chars, formation_idx=10, characteristic_lag_months=0) == {}
+
+
+def _value_spec(**overrides) -> StrategySpec:
+    defaults = dict(
+        paper_citation="Test (2020)",
+        paper_title="Test value paper",
+        strategy_name="test value",
+        signal_type=SignalType.VALUE,
+        universe_description="synthetic",
+        holding_period_months=3,
+        rebalance_frequency=RebalanceFrequency.MONTHLY,
+        num_portfolios=2,
+        long_leg_portfolio=1,
+        short_leg_portfolio=2,
+        weighting=WeightingScheme.EQUAL,
+        characteristic_name="book_to_market",
+        characteristic_lag_months=1,
+        sample_period_start="2000-01-01",
+        sample_period_end="2000-08-01",
+    )
+    defaults.update(overrides)
+    return StrategySpec(**defaults)
+
+
+def test_compute_signal_scores_dispatches_to_value():
+    spec = _value_spec()
+    chars = _characteristics()
+    panel = PricePanel(period_ends=chars.period_ends, returns={"AAA": [None] * 8, "BBB": [None] * 8}, source="test")
+    scores = compute_signal_scores(spec, panel, formation_idx=5, characteristics=chars)
+    assert scores == value_scores(chars, formation_idx=5, characteristic_lag_months=1)
+
+
+def test_compute_signal_scores_value_without_characteristics_raises():
+    spec = _value_spec()
+    panel = PricePanel(period_ends=[], returns={}, source="test")
+    with pytest.raises(ValueError, match="CharacteristicPanel"):
+        compute_signal_scores(spec, panel, formation_idx=0, characteristics=None)

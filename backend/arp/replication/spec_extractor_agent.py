@@ -13,14 +13,25 @@ strategy paper to a precise, executable specification. You will be given \
 excerpts from the paper's methodology and results sections.
 
 Extract, strictly from what the excerpts actually say:
-- The signal/ranking variable and how it is computed (formation window, \
-  any skip period).
-- How long a formed portfolio is held before being re-ranked.
+- The signal/ranking variable and how it is computed:
+  - For a MOMENTUM (or any price-history-based) signal: the formation \
+    window (formation_period_months) and any skip period (skip_month). \
+    Leave characteristic_name null and characteristic_lag_months 0.
+  - For a VALUE (or any other fundamental-characteristic-based) signal: \
+    the characteristic itself (characteristic_name, e.g. 'book_to_market', \
+    'earnings_to_price') and, if the paper specifies one, how many months \
+    the characteristic lags the ranking date to ensure it was actually \
+    public by then (characteristic_lag_months; 0 if the paper doesn't \
+    address this). Leave formation_period_months 0 and skip_month false.
+- How long a formed portfolio is held before being re-ranked \
+  (holding_period_months) -- required regardless of signal type.
 - How many cross-sectional buckets (e.g. deciles=10, quintiles=5) the \
   universe is split into, and which bucket is bought (long_leg_portfolio) \
   vs. sold short (short_leg_portfolio) -- bucket 1 is always the HIGHEST \
   signal value, bucket num_portfolios the LOWEST, regardless of how the \
-  paper itself numbers them; renumber if needed and note it in raw text.
+  paper itself numbers them; renumber if needed and note it in raw text. \
+  For a value strategy this means bucket 1 = highest characteristic (e.g. \
+  highest book-to-market = cheapest/most 'value').
 - The universe the paper draws from (e.g. 'NYSE ordinary common shares').
 - The paper's own in-sample date range.
 - Its reported long/short/long-short performance (annualized return, \
@@ -43,7 +54,7 @@ class StrategySpecDraft(BaseModel):
     strategy_name: str
     signal_type: SignalType
     universe_description: str
-    formation_period_months: int
+    formation_period_months: int = Field(default=0, description="MOMENTUM only -- see signal_type discussion above.")
     skip_month: bool = False
     holding_period_months: int
     rebalance_frequency: RebalanceFrequency = RebalanceFrequency.MONTHLY
@@ -51,6 +62,8 @@ class StrategySpecDraft(BaseModel):
     long_leg_portfolio: int = 1
     short_leg_portfolio: int
     weighting: WeightingScheme = WeightingScheme.EQUAL
+    characteristic_name: str | None = Field(default=None, description="VALUE only -- see signal_type discussion above.")
+    characteristic_lag_months: int = Field(default=0, description="VALUE only -- see signal_type discussion above.")
     sample_period_start: str = Field(description="ISO date YYYY-MM-DD")
     sample_period_end: str = Field(description="ISO date YYYY-MM-DD")
     reported_performance: ReportedPerformance = Field(default_factory=ReportedPerformance)

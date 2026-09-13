@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from arp.replication.characteristics_data import CharacteristicPanel
 from arp.replication.price_data import PricePanel
 from arp.schemas.strategy_replication import SignalType, StrategySpec
 
@@ -31,12 +32,41 @@ def momentum_scores(panel: PricePanel, formation_idx: int, formation_period_mont
     return scores
 
 
-def compute_signal_scores(spec: StrategySpec, panel: PricePanel, formation_idx: int) -> dict[str, float]:
+def value_scores(characteristics: CharacteristicPanel, formation_idx: int, characteristic_lag_months: int) -> dict[str, float]:
+    """Book-to-market (or any other single fundamental ratio) value score:
+    the characteristic's own level, lagged `characteristic_lag_months`
+    behind the ranking month so the score reflects a value that was
+    actually public at that time -- never the ranking month's own
+    (potentially not-yet-public) figure. Higher characteristic = higher
+    score, consistent with assign_portfolios' "bucket 1 = highest score"
+    convention: for book-to-market this makes bucket 1 the cheap/value
+    names, so long_leg_portfolio=1/short_leg_portfolio=N reproduces the
+    standard long-value/short-growth construction.
+
+    A ticker with no value at the lagged index is excluded entirely.
+    """
+    idx = formation_idx - characteristic_lag_months
+    if idx < 0 or idx >= len(characteristics.period_ends):
+        return {}
+    return {t: v for t, values in characteristics.values.items() if (v := values[idx]) is not None}
+
+
+def compute_signal_scores(
+    spec: StrategySpec,
+    panel: PricePanel,
+    formation_idx: int,
+    *,
+    characteristics: CharacteristicPanel | None = None,
+) -> dict[str, float]:
     """Dispatches to the scoring function for spec.signal_type. Add a new
     branch (and a new function above) for each new strategy family this
     module supports -- see SignalType."""
     if spec.signal_type == SignalType.MOMENTUM:
         return momentum_scores(panel, formation_idx, spec.formation_period_months, spec.skip_month)
+    if spec.signal_type == SignalType.VALUE:
+        if characteristics is None:
+            raise ValueError("SignalType.VALUE requires a CharacteristicPanel -- see run_backtest's `characteristics` argument.")
+        return value_scores(characteristics, formation_idx, spec.characteristic_lag_months)
     raise NotImplementedError(f"No signal implementation for {spec.signal_type!r}")
 
 

@@ -34,6 +34,12 @@ _METHODOLOGY_KEYWORDS = [
     "alpha",
     "universe",
     "NYSE",
+    "book-to-market",
+    "book value",
+    "market value",
+    "earnings-to-price",
+    "value premium",
+    "characteristic",
 ]
 
 

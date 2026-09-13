@@ -9,11 +9,12 @@ import typer
 from arp.cli._shared import _run_store
 from arp.config import get_settings
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
+from arp.replication.characteristics_data import CsvCharacteristicSource
 from arp.replication.examples import list_examples, load_example_spec
 from arp.replication.pipeline import run_replication
 from arp.replication.price_data import CsvPriceSource, PriceDataSource
 from arp.replication.spec_graph import extract_strategy_spec
-from arp.schemas.strategy_replication import StrategySpec
+from arp.schemas.strategy_replication import SignalType, StrategySpec
 from arp.storage.run_store import RunStore
 
 replicate_app = typer.Typer(
@@ -91,6 +92,11 @@ def replicate_backtest(
     prices: Path = typer.Option(..., help="Wide CSV: a date column + one column per ticker."),
     price_kind: str = typer.Option("price", help="'price' (returns are derived) or 'return' (CSV already holds periodic returns)."),
     tickers: str = typer.Option(..., help="Comma-separated tickers, or a path to a file with one ticker per line."),
+    characteristics: Path = typer.Option(
+        None,
+        help="Wide CSV of the fundamental characteristic (e.g. book-to-market), same date grid as --prices. "
+        "Required when the spec's signal_type is 'value'.",
+    ),
     benchmark: str = typer.Option(None, help="Optional benchmark ticker (must be a column in the prices CSV) for alpha/beta."),
     out_of_sample_start: str = typer.Option(None, help="ISO date. Omit to run in-sample only."),
     out_of_sample_end: str = typer.Option(None, help="ISO date. Required if out_of_sample_start is set."),
@@ -102,14 +108,20 @@ def replicate_backtest(
         raise typer.Exit(1)
 
     strategy_spec = _load_spec(spec)
+    if strategy_spec.signal_type == SignalType.VALUE and characteristics is None:
+        typer.echo("This spec's signal_type is 'value' -- pass --characteristics.", err=True)
+        raise typer.Exit(1)
+
     universe = _load_tickers(tickers)
     source = _price_source(prices, price_kind)
+    characteristics_source = CsvCharacteristicSource(characteristics) if characteristics is not None else None
 
     run_id, report = run_replication(
         strategy_spec,
         universe,
         source,
         run_store=_run_store(),
+        characteristics_source=characteristics_source,
         benchmark_ticker=benchmark,
         out_of_sample_start=out_of_sample_start,
         out_of_sample_end=out_of_sample_end,

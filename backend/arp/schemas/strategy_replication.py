@@ -13,6 +13,13 @@ class SignalType(StrEnum):
     families are added; each needs a matching function in signals.py."""
 
     MOMENTUM = "momentum"
+    VALUE = "value"
+    """A cross-sectional sort on a fundamental characteristic (e.g.
+    book-to-market), read from a CharacteristicDataSource rather than
+    computed from price history -- see StrategySpec.characteristic_name/
+    characteristic_lag_months. Unrelated to WeightingScheme.VALUE
+    ("value-weighted" = market-cap-weighted, the standard finance sense of
+    that term) -- the two fields (signal_type vs. weighting) disambiguate."""
 
 
 class WeightingScheme(StrEnum):
@@ -73,10 +80,24 @@ class StrategySpec(BaseModel):
     signal_type: SignalType
     universe_description: str = Field(description="e.g. 'NYSE/AMEX ordinary common shares' -- as defined by the paper, not necessarily what a given backtest run actually uses.")
 
-    formation_period_months: int = Field(description="Lookback window (J) the signal is computed over.")
-    skip_month: bool = Field(default=False, description="Skip the most recent month between formation and holding, as some momentum papers do to avoid short-term reversal/microstructure effects.")
-    holding_period_months: int = Field(description="How long a formed portfolio is held (K) before being rebalanced.")
+    formation_period_months: int = Field(default=0, description="MOMENTUM only: lookback window (J) the signal is computed over. Ignored (leave 0) for a characteristic-based signal_type such as VALUE, where compute_signal_scores instead reads characteristic_name/characteristic_lag_months.")
+    skip_month: bool = Field(default=False, description="MOMENTUM only: skip the most recent month between formation and holding, as some momentum papers do to avoid short-term reversal/microstructure effects. Ignored for a characteristic-based signal_type.")
+    holding_period_months: int = Field(description="How long a formed portfolio is held (K) before being re-ranked. Used by every signal_type.")
     rebalance_frequency: RebalanceFrequency = Field(default=RebalanceFrequency.MONTHLY)
+    characteristic_name: str | None = Field(
+        default=None,
+        description="VALUE (or any future characteristic-based signal_type) only: name of the fundamental field "
+        "the signal ranks on, e.g. 'book_to_market' -- must match a column a CharacteristicDataSource can serve "
+        "(arp/replication/characteristics_data.py). Purely a label here; the actual data comes from whichever "
+        "CharacteristicDataSource the caller supplies to run_replication.",
+    )
+    characteristic_lag_months: int = Field(
+        default=0,
+        description="VALUE (or any future characteristic-based signal_type) only: how many months to lag the "
+        "characteristic behind the ranking month, so the score reflects a value that was actually public at that "
+        "time rather than a look-ahead figure (e.g. a fiscal-year-end book value isn't public until months later). "
+        "Ignored for MOMENTUM, which uses formation_period_months/skip_month instead.",
+    )
     num_portfolios: int = Field(default=10, description="Number of cross-sectional buckets the signal splits the universe into, e.g. 10 for deciles.")
     long_leg_portfolio: int = Field(default=1, description="1-indexed portfolio bucket that is bought, ranked best-signal-first (bucket 1 = highest signal).")
     short_leg_portfolio: int = Field(description="1-indexed portfolio bucket that is sold short.")

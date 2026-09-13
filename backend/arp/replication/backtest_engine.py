@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from arp.replication.characteristics_data import CharacteristicPanel
 from arp.replication.metrics import compute_leg_performance
 from arp.replication.price_data import PricePanel
 from arp.replication.signals import assign_portfolios, compute_signal_scores
-from arp.schemas.strategy_replication import BacktestResult, PortfolioPeriodReturn, RebalanceFrequency, StrategySpec
+from arp.schemas.strategy_replication import BacktestResult, PortfolioPeriodReturn, RebalanceFrequency, SignalType, StrategySpec
 
 
 def _mean(values: list[float]) -> float:
@@ -18,9 +19,11 @@ def run_backtest(
     period_start: str,
     period_end: str,
     benchmark_returns: list[float | None] | None = None,
+    characteristics: CharacteristicPanel | None = None,
 ) -> BacktestResult:
     """Deterministic (zero-LLM) replication of `spec`'s signal + portfolio
-    construction against `panel`.
+    construction against `panel` (and, for a characteristic-based
+    signal_type such as VALUE, `characteristics`).
 
     Implements the overlapping-portfolio construction from Jegadeesh &
     Titman (1993): a new decile sort is formed every month, and each
@@ -30,7 +33,12 @@ def run_backtest(
     the stocks in each. This is what lets a monthly return series exist
     even though each individual portfolio is only rebalanced every K
     months. Only monthly rebalancing is implemented -- spec.rebalance_
-    frequency values other than MONTHLY raise NotImplementedError.
+    frequency values other than MONTHLY raise NotImplementedError. Applied
+    the same way regardless of signal_type: a VALUE spec re-ranks on the
+    characteristic every month just like a MOMENTUM spec re-ranks on
+    trailing return, which is a documented simplification versus the
+    classic value-factor literature's typical annual rebalancing -- see
+    docs/STRATEGY_REPLICATION_METHODOLOGY.md.
     """
     if spec.rebalance_frequency != RebalanceFrequency.MONTHLY:
         raise NotImplementedError(
@@ -38,6 +46,14 @@ def run_backtest(
         )
     if spec.weighting.value != "equal":
         raise NotImplementedError("run_backtest only implements equal weighting today, got " + repr(spec.weighting))
+    if spec.signal_type == SignalType.VALUE and characteristics is None:
+        raise ValueError("spec.signal_type is VALUE but no `characteristics` panel was supplied.")
+    if characteristics is not None and characteristics.period_ends != panel.period_ends:
+        raise ValueError(
+            "`characteristics.period_ends` must exactly match `panel.period_ends` -- prepare the characteristics "
+            "CSV on the same monthly grid as the price panel (forward-filling a less-frequently-reported "
+            "fundamental onto it) rather than relying on this engine to align two different date grids."
+        )
 
     period_ends = panel.period_ends
     k = spec.holding_period_months
@@ -64,7 +80,7 @@ def run_backtest(
         num_short = 0
         for f in range(max(0, m - k), m):
             if f not in formation_cache:
-                scores = compute_signal_scores(spec, panel, f)
+                scores = compute_signal_scores(spec, panel, f, characteristics=characteristics)
                 if len(scores) < n:
                     formation_cache[f] = {}
                     if scores:

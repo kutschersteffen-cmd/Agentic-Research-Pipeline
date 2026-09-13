@@ -1,0 +1,35 @@
+{
+  "paper_citation": "Rosenberg, B., Reid, K., & Lanstein, R. (1985). Persuasive Evidence of Market Inefficiency. Journal of Portfolio Management, 11(3), 9-16; Fama, E. F., & French, K. R. (1992). The Cross-Section of Expected Stock Returns. Journal of Finance, 47(2), 427-465.",
+  "paper_title": "Persuasive Evidence of Market Inefficiency / The Cross-Section of Expected Stock Returns (book-to-market value premium)",
+  "strategy_name": "Book-to-market value strategy (decile sort, monthly-rebalanced simplification)",
+  "signal_type": "value",
+  "universe_description": "NYSE/AMEX/NASDAQ ordinary common shares with available book equity data (as in Fama & French 1992).",
+  "formation_period_months": 0,
+  "skip_month": false,
+  "holding_period_months": 12,
+  "rebalance_frequency": "monthly",
+  "num_portfolios": 10,
+  "long_leg_portfolio": 1,
+  "short_leg_portfolio": 10,
+  "weighting": "equal",
+  "characteristic_name": "book_to_market",
+  "characteristic_lag_months": 6,
+  "sample_period_start": "1963-07-01",
+  "sample_period_end": "1990-12-31",
+  "reported_performance": {
+    "long_leg": {},
+    "short_leg": {},
+    "long_short": {
+      "monthly_mean_return_pct": 0.5,
+      "t_stat": 2.5
+    },
+    "benchmark_name": null,
+    "notes": "APPROXIMATE / ILLUSTRATIVE, not transcribed from either paper's own tables: a high-minus-low book-to-market decile spread on the order of 0.5% per month, positive and statistically significant, is a commonly cited magnitude in secondary literature summarizing this line of research. Verify exact figures against the original papers' own tables before using this spec as a rigorous replication benchmark -- annualized_return_pct/sharpe_ratio/alpha/volatility/max_drawdown are deliberately left null here rather than guessed."
+  },
+  "citations": [],
+  "grounded": false,
+  "confidence": 0.4,
+  "needs_review": true,
+  "verifier_notes": null,
+  "extraction_notes": "Hand-authored worked example, not produced by arp/replication/spec_graph.py's extractor/verifier pipeline against real paper text -- there is no single canonical 'the value paper' the way Jegadeesh & Titman (1993) is for momentum, so this spec is a stylized composite of the classic book-to-market value-premium literature (Rosenberg, Reid & Lanstein 1985; Fama & French 1992), not a literal reproduction of either paper's exact methodology. Two specific simplifications versus the literature: (1) this engine only implements monthly rebalancing (arp/replication/backtest_engine.py), so holding_period_months=12 is approximated as 12 overlapping monthly-formed cohorts averaged together, not the literature's typical once-a-year (often June-aligned) non-overlapping rebalance; (2) characteristic_lag_months=6 is a reasonable point-in-time-disclosure lag, not a value transcribed from a specific paper. Requires a user-supplied book-to-market CSV via 'arp replicate backtest --characteristics ...' -- this project does not ship fundamentals data. Confidence and needs_review are set low/true accordingly; use this to exercise the VALUE signal path end to end, not as ground truth for either paper's reported numbers or exact construction."
+}

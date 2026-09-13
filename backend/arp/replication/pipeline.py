@@ -4,10 +4,11 @@ import logging
 from dataclasses import replace
 
 from arp.replication.backtest_engine import run_backtest
+from arp.replication.characteristics_data import CharacteristicDataSource
 from arp.replication.compare import build_comparison_report
 from arp.replication.price_data import PriceDataSource
 from arp.schemas.common import JobStatus, RunManifest, new_id, now_iso
-from arp.schemas.strategy_replication import ReplicationComparisonReport, StrategySpec
+from arp.schemas.strategy_replication import ReplicationComparisonReport, SignalType, StrategySpec
 from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
@@ -19,17 +20,20 @@ def run_replication(
     price_source: PriceDataSource,
     *,
     run_store: RunStore,
+    characteristics_source: CharacteristicDataSource | None = None,
     benchmark_ticker: str | None = None,
     out_of_sample_start: str | None = None,
     out_of_sample_end: str | None = None,
 ) -> tuple[str, ReplicationComparisonReport]:
-    """Runs one strategy replication end to end: fetches a price panel wide
-    enough to cover the spec's own formation-period lookback, backtests the
-    in-sample window (spec.sample_period_start/end) against the paper's own
-    rules, optionally backtests a separate out-of-sample window with the
-    identical rules, compares both against the paper's reported
-    performance, and persists everything under runs/<run_id>/ the same way
-    every other run type in this codebase does. Returns (run_id, report).
+    """Runs one strategy replication end to end: fetches a price panel (and,
+    for a characteristic-based signal_type such as VALUE, a characteristics
+    panel from `characteristics_source`) wide enough to cover the spec's
+    own lookback, backtests the in-sample window (spec.sample_period_
+    start/end) against the paper's own rules, optionally backtests a
+    separate out-of-sample window with the identical rules, compares both
+    against the paper's reported performance, and persists everything
+    under runs/<run_id>/ the same way every other run type in this
+    codebase does. Returns (run_id, report).
 
     `tickers` is the concrete universe actually backtested -- distinct from
     spec.universe_description, which is only the paper's prose description
@@ -37,7 +41,12 @@ def run_replication(
     universe (e.g. "NYSE ordinary common shares" at each historical date)
     is out of scope for this pluggable-adapter version. See
     docs/STRATEGY_REPLICATION_METHODOLOGY.md.
+
+    `characteristics_source` is required when spec.signal_type is VALUE (or
+    any other characteristic-based signal_type) and ignored otherwise.
     """
+    if spec.signal_type == SignalType.VALUE and characteristics_source is None:
+        raise ValueError("spec.signal_type is VALUE but no characteristics_source was supplied.")
     run_id = new_id("run")
     manifest = RunManifest(
         run_id=run_id,
@@ -60,10 +69,13 @@ def run_replication(
         # and formation cache covers both backtest calls below.
         fetch_start = min(spec.sample_period_start, out_of_sample_start) if out_of_sample_start else spec.sample_period_start
         fetch_end = max(spec.sample_period_end, out_of_sample_end) if out_of_sample_end else spec.sample_period_end
-        # Widen the fetch window backwards by the formation lookback so the
-        # earliest formation month in either window has real history behind
-        # it, rather than silently starting the strategy late.
-        lookback_years = (spec.formation_period_months // 12) + 1
+        # Widen the fetch window backwards by the largest lookback either
+        # signal family needs (MOMENTUM: formation_period_months; VALUE:
+        # characteristic_lag_months) so the earliest ranking month in
+        # either window has real history/a real characteristic value
+        # behind it, rather than silently starting the strategy late.
+        lookback_months = max(spec.formation_period_months, spec.characteristic_lag_months)
+        lookback_years = (lookback_months // 12) + 1
         fetch_start_padded = f"{int(fetch_start[:4]) - lookback_years}{fetch_start[4:]}"
 
         all_tickers = list(dict.fromkeys(tickers + ([benchmark_ticker] if benchmark_ticker else [])))
@@ -74,12 +86,23 @@ def run_replication(
         if benchmark_ticker:
             universe_panel = replace(panel, returns={t: r for t, r in panel.returns.items() if t != benchmark_ticker})
 
-        # `universe_panel` (and `benchmark_returns`, aligned to the same
-        # period_ends) always covers the full fetched range -- run_backtest
-        # itself restricts its *output* periods to [period_start, period_end]
-        # while still using earlier months in the panel for formation-window
-        # lookback, so both calls below share one fetch and one formation
-        # cache instead of needing two separately windowed panels.
+        characteristics = None
+        if characteristics_source is not None:
+            characteristics = characteristics_source.get_values(tickers, fetch_start_padded, fetch_end)
+            if characteristics.period_ends != universe_panel.period_ends:
+                raise ValueError(
+                    "characteristics_source returned a different set of period-ends than price_source -- both "
+                    "must be prepared on the same monthly grid over the same fetch window. Got "
+                    f"{len(characteristics.period_ends)} characteristic period(s) vs. "
+                    f"{len(universe_panel.period_ends)} price period(s)."
+                )
+
+        # `universe_panel`/`characteristics` (and `benchmark_returns`,
+        # aligned to the same period_ends) always cover the full fetched
+        # range -- run_backtest itself restricts its *output* periods to
+        # [period_start, period_end] while still using earlier months in
+        # the panel for lookback, so both calls below share one fetch and
+        # one formation cache instead of needing separately windowed panels.
         in_sample = run_backtest(
             spec,
             universe_panel,
@@ -87,6 +110,7 @@ def run_replication(
             period_start=spec.sample_period_start,
             period_end=spec.sample_period_end,
             benchmark_returns=benchmark_returns,
+            characteristics=characteristics,
         )
         run_store.append_jsonl(run_store.results_path(run_id), {"type": "in_sample", **in_sample.model_dump(mode="json")})
 
@@ -99,6 +123,7 @@ def run_replication(
                 period_start=out_of_sample_start,
                 period_end=out_of_sample_end,
                 benchmark_returns=benchmark_returns,
+                characteristics=characteristics,
             )
             run_store.append_jsonl(run_store.results_path(run_id), {"type": "out_of_sample", **out_of_sample.model_dump(mode="json")})
 

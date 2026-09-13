@@ -63,6 +63,8 @@ def build_strategy_spec(
         long_leg_portfolio=final.long_leg_portfolio,
         short_leg_portfolio=final.short_leg_portfolio,
         weighting=final.weighting,
+        characteristic_name=final.characteristic_name,
+        characteristic_lag_months=final.characteristic_lag_months,
         sample_period_start=final.sample_period_start,
         sample_period_end=final.sample_period_end,
         reported_performance=final.reported_performance,

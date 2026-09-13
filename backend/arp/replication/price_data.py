@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import csv
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
+
+from arp.replication._wide_csv import read_wide_csv
 
 
 @dataclass
@@ -46,13 +47,6 @@ class PriceDataSource(ABC):
         raise NotImplementedError
 
 
-def _month_end_key(date_str: str) -> str:
-    """Normalizes any ISO date to its calendar month, 'YYYY-MM' -- the
-    panel's own period_ends stay full ISO dates (the last date actually
-    seen in that month), this is only a grouping key."""
-    return date_str[:7]
-
-
 class CsvPriceSource(PriceDataSource):
     """Reads a wide CSV: a `date` column (ISO, one row per period-end) plus
     one column per ticker. Values are prices by default (returns are
@@ -71,24 +65,8 @@ class CsvPriceSource(PriceDataSource):
         self.path = path
         self.kind = kind
 
-    def _load_rows(self) -> tuple[list[str], dict[str, list[float | None]]]:
-        with self.path.open(newline="") as f:
-            reader = csv.DictReader(f)
-            if reader.fieldnames is None:
-                raise ValueError(f"{self.path}: empty CSV")
-            date_col = reader.fieldnames[0]
-            tickers = [c for c in reader.fieldnames[1:] if c]
-            dates: list[str] = []
-            columns: dict[str, list[float | None]] = {t: [] for t in tickers}
-            for row in reader:
-                dates.append(row[date_col])
-                for t in tickers:
-                    raw = (row.get(t) or "").strip()
-                    columns[t].append(float(raw) if raw else None)
-        return dates, columns
-
     def get_monthly_returns(self, tickers: list[str], start: str, end: str) -> PricePanel:
-        dates, columns = self._load_rows()
+        dates, columns = read_wide_csv(self.path)
         wanted = set(tickers)
         missing = wanted - set(columns)
         if missing:

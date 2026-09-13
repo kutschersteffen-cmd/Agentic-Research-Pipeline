@@ -95,20 +95,21 @@ precision at scale (designed for up to ~4,000 companies per run).
    for the full mapping from paper to implementation.
 
 9. **Investment Strategy Replication** — reduces an academic "outperformance"
-   strategy paper (momentum, value, quality, ...) to an executable spec via
-   the same extractor/independent-verifier/grounding pipeline used
-   everywhere else in this codebase, then backtests it deterministically
-   (zero LLM calls in the computation itself) against a pluggable price
-   data source: in-sample against the paper's own reported performance, and
-   out-of-sample over any later window with identical rules, to check
-   whether the effect persists or decays. Ships with a worked hand-authored
-   example (Jegadeesh & Titman (1993) 6-month/6-month momentum) to exercise
-   the backtest engine end to end. See
+   strategy paper (momentum, book-to-market value, quality, ...) to an
+   executable spec via the same extractor/independent-verifier/grounding
+   pipeline used everywhere else in this codebase, then backtests it
+   deterministically (zero LLM calls in the computation itself) against a
+   pluggable price data source (and, for a fundamental-characteristic-based
+   signal like value, a pluggable characteristics data source too):
+   in-sample against the paper's own reported performance, and out-of-sample
+   over any later window with identical rules, to check whether the effect
+   persists or decays. Ships with two worked hand-authored examples
+   (Jegadeesh & Titman (1993) 6-month/6-month momentum; a book-to-market
+   value decile sort) to exercise the backtest engine end to end. See
    [`docs/STRATEGY_REPLICATION_METHODOLOGY.md`](docs/STRATEGY_REPLICATION_METHODOLOGY.md)
    for the full design, what "in-sample vs. out-of-sample" means here, and
    its current limitations (no point-in-time universe reconstruction, no
-   transaction-cost modeling, only momentum-style signals and monthly
-   rebalancing so far).
+   transaction-cost modeling, only monthly rebalancing so far).
 
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches, and
@@ -308,6 +309,10 @@ arp replicate example jegadeesh_titman_1993 --out spec.json               # a ha
 arp replicate extract-spec --paper-citation "..." --paper-text paper.txt --out spec.json  # from real paper text
 arp replicate backtest --spec spec.json --prices prices.csv --tickers universe.csv \
   --benchmark SPY --out-of-sample-start 2010-01-01 --out-of-sample-end 2024-12-31
+# ...a characteristic-based (e.g. book-to-market value) spec additionally needs --characteristics:
+arp replicate example book_to_market_value_premium --out value_spec.json
+arp replicate backtest --spec value_spec.json --prices prices.csv --characteristics book_to_market.csv \
+  --tickers universe.csv
 arp replicate report <run_id>
 
 # Document discovery

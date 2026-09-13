@@ -85,3 +85,48 @@ async def test_ungrounded_citation_is_flagged_for_review(fake_llm):
 
     assert spec.grounded is False
     assert needs_review is True
+
+
+_VALUE_PAPER_TEXT = (
+    "We sort stocks into decile portfolios by book-to-market ratio, using book value lagged 6 months "
+    "to ensure it was public. Portfolios are held for 12 months. NYSE/AMEX/NASDAQ universe, sample "
+    "period 1963 to 1990. The high-minus-low book-to-market spread earns approximately 0.5% per month."
+)
+
+_VALUE_QUOTE = "book value lagged 6 months to ensure it was public"
+
+
+async def test_value_signal_type_extracts_characteristic_fields(fake_llm):
+    draft = StrategySpecDraft(
+        paper_title="Test value paper",
+        strategy_name="book-to-market decile sort",
+        signal_type=SignalType.VALUE,
+        universe_description="NYSE/AMEX/NASDAQ",
+        formation_period_months=0,
+        holding_period_months=12,
+        rebalance_frequency=RebalanceFrequency.MONTHLY,
+        num_portfolios=10,
+        long_leg_portfolio=1,
+        short_leg_portfolio=10,
+        weighting=WeightingScheme.EQUAL,
+        characteristic_name="book_to_market",
+        characteristic_lag_months=6,
+        sample_period_start="1963-07-01",
+        sample_period_end="1990-12-31",
+        reported_performance=ReportedPerformance(),
+        citations=[Citation(doc_id="paper_doc", doc_type=DocType.RESEARCH_PAPER, quote=_VALUE_QUOTE)],
+        confidence=0.9,
+    )
+    llm = fake_llm(
+        {
+            "StrategySpecDraft": [draft],
+            "SpecVerifierOutput": [SpecVerifierOutput(agrees=True, confidence=0.85, notes="")],
+        }
+    )
+    spec, needs_review, _ = await extract_strategy_spec("Test (2020)", _VALUE_PAPER_TEXT, llm=llm)
+
+    assert spec.signal_type == SignalType.VALUE
+    assert spec.characteristic_name == "book_to_market"
+    assert spec.characteristic_lag_months == 6
+    assert spec.grounded is True
+    assert needs_review is False
