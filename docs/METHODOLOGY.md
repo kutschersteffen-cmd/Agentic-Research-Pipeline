@@ -144,6 +144,17 @@ disclosure-completeness score.
    so a "view source" link only ever appears for a location that was
    actually checked, and always points at the right page.
 
+   The numeric counterpart applies to generated BI commentary
+   (`backend/arp/portfolio/genbi/narrator.py::check_grounding`): a
+   dashboard's prose may only state figures and dates the deterministic
+   aggregation engine actually computed, and that is checked token by
+   token against the computed facts rather than asked of the model. A
+   figure that is arithmetically derivable from two computed ones but was
+   itself never computed counts as ungrounded — the whole draft is
+   dropped in favour of the computed facts, with the offending tokens
+   named. Honest rescaling of a real figure ("EUR 1.23 million" for
+   1,234,567, within 1%) is the only latitude allowed.
+
 2. **Adversarial verification, not single-pass judgment.**
    - Thematic matching: Advocate argues for inclusion, Opposing
      specifically hunts for aspirational/marketing language, out-of-scope

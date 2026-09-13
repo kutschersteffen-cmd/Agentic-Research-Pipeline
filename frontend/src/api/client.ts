@@ -3,8 +3,10 @@ import type {
   AggregationResult,
   AnalyticRequest,
   CoverageBySource,
+  DashboardSpec,
   DataPointSchema,
   DemoSeedSummary,
+  GeneratedDashboard,
   FinancedEmissionsResult,
   NewsItem,
   NewsRiskFlag,
@@ -311,6 +313,23 @@ export const api = {
   classifyPortfolioNews: () =>
     request<{ classified: number; flags_created: number }>("/api/portfolio/news/classify", { method: "POST" }),
   listNewsFlags: (companyId?: string) => request<NewsRiskFlag[]>(`/api/portfolio/news/flags${buildQuery({ company_id: companyId })}`),
+
+  // Generative BI: brief -> planned panels -> deterministic numbers -> checked narrative
+  generateDashboard: (brief: string, opts?: { narrate?: boolean; save?: boolean }) =>
+    request<GeneratedDashboard>("/api/portfolio/bi/generate", {
+      method: "POST",
+      body: JSON.stringify({ brief, narrate: opts?.narrate ?? true, save: opts?.save ?? false }),
+    }),
+  executeDashboardSpec: (spec: DashboardSpec, asOf?: string) =>
+    request<GeneratedDashboard>(`/api/portfolio/bi/execute${buildQuery({ as_of: asOf })}`, {
+      method: "POST",
+      body: JSON.stringify(spec),
+    }),
+  listDashboards: () => request<DashboardSpec[]>("/api/portfolio/bi/dashboards"),
+  saveDashboard: (spec: DashboardSpec) =>
+    request<DashboardSpec>("/api/portfolio/bi/dashboards", { method: "POST", body: JSON.stringify(spec) }),
+  runDashboard: (dashboardId: string, asOf?: string) =>
+    request<GeneratedDashboard>(`/api/portfolio/bi/dashboards/${dashboardId}/run${buildQuery({ as_of: asOf })}`),
 
   // Climate analytics
   getClimateSchema: () => request<DataPointSchema>("/api/climate/schema"),

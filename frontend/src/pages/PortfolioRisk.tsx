@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { AggregationView, TrendView } from "../components/ResultView";
 import { PivotTable } from "../components/PivotTable";
 import { PortfolioFilterPicker } from "../components/PortfolioFilterPicker";
+import { GenerativeBI } from "./GenerativeBI";
 import { ConfidenceBadge } from "../components/ConfidenceBadge";
 import {
   AGGREGATION_DIMENSIONS,
@@ -22,6 +23,7 @@ const SUB_TABS = [
   { id: "explore", label: "Explore" },
   { id: "pivot", label: "Pivot" },
   { id: "ask", label: "Ask" },
+  { id: "genbi", label: "Generative BI" },
 ] as const;
 
 const ASSET_CLASSES = ["", "equity", "corporate_bond", "government_bond", "fund", "etf", "derivative", "cash", "other"];
@@ -64,6 +66,7 @@ export function PortfolioRisk() {
       {sub === "explore" && <ExploreTab portfolios={portfolios} climateSchema={climateSchema} />}
       {sub === "pivot" && <PivotTab portfolios={portfolios} climateSchema={climateSchema} />}
       {sub === "ask" && <AskTab />}
+      {sub === "genbi" && <GenerativeBI />}
     </div>
   );
 }

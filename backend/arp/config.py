@@ -168,7 +168,7 @@ class Settings(BaseSettings):
     portfolio_backend: str = Field(
         default="file",
         description="'file' (default, PortfolioStore) or 'postgres' (PostgresPortfolioStore, requires postgres_dsn) "
-        "for portfolios/securities/companies/holdings-snapshots specifically. Observations/news/flags/analytics "
+        "for portfolios/securities/companies/holdings-snapshots specifically. Observations/news/flags/analytics/dashboards "
         "stay file-based either way -- see the module docstring in arp/storage/postgres_portfolio_store.py.",
     )
     embeddings_backend: str = Field(
