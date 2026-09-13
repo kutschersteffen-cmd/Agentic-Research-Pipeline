@@ -209,30 +209,32 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
         </div>
         {openIssues.length === 0 && <p className="muted">No open issues.</p>}
         {openIssues.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Company</th>
-                <th>Theme</th>
-                <th>Status</th>
-                <th>Milestone</th>
-                <th>Escalation</th>
-                <th>Severity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {openIssues.slice(0, 30).map(({ record, issue }) => (
-                <tr key={issue.issue_id}>
-                  <td>{record.name} <span className="muted">({record.company_id})</span></td>
-                  <td>{issue.theme}</td>
-                  <td><span className={`status-pill status-${issue.status === "stalled" ? "failed" : "running"}`}>{issue.status}</span></td>
-                  <td>{issue.milestone_stage.replace(/_/g, " ")}</td>
-                  <td>{issue.escalation_stage.replace(/_/g, " ")}</td>
-                  <td>{issue.severity}</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Theme</th>
+                  <th>Status</th>
+                  <th>Milestone</th>
+                  <th>Escalation</th>
+                  <th>Severity</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {openIssues.slice(0, 30).map(({ record, issue }) => (
+                  <tr key={issue.issue_id}>
+                    <td>{record.name} <span className="muted">({record.company_id})</span></td>
+                    <td>{issue.theme}</td>
+                    <td><span className={`status-pill status-${issue.status === "stalled" ? "failed" : "running"}`}>{issue.status}</span></td>
+                    <td>{issue.milestone_stage.replace(/_/g, " ")}</td>
+                    <td>{issue.escalation_stage.replace(/_/g, " ")}</td>
+                    <td>{issue.severity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
@@ -244,26 +246,28 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
               Open Voting &rarr;
             </button>
           </div>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Run ID</th>
-                <th>Status</th>
-                <th>Companies</th>
-                <th>Awaiting decision</th>
-              </tr>
-            </thead>
-            <tbody>
-              {votingRuns.map((r) => (
-                <tr key={r.run_id}>
-                  <td>{r.run_id}</td>
-                  <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                  <td>{r.completed_count}/{r.company_count}</td>
-                  <td>{r.review_count}</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Run ID</th>
+                  <th>Status</th>
+                  <th>Companies</th>
+                  <th>Awaiting decision</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {votingRuns.map((r) => (
+                  <tr key={r.run_id}>
+                    <td>{r.run_id}</td>
+                    <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
+                    <td>{r.completed_count}/{r.company_count}</td>
+                    <td>{r.review_count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
     </div>

@@ -322,28 +322,30 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
             </button>
           )}
           {catalogueMappings.length > 0 && (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Activity</th>
-                  <th>Metric</th>
-                  <th>Matched labels</th>
-                  <th>Rationale</th>
-                </tr>
-              </thead>
-              <tbody>
-                {catalogueMappings.map((m, idx) => (
-                  <tr key={`${m.activity_id}-${m.metric}`}>
-                    <td>{activityName(m.activity_id)}</td>
-                    <td>{m.metric}</td>
-                    <td>
-                      <input value={m.matched_labels.join(", ")} onChange={(e) => updateMappingLabels(idx, e.target.value)} />
-                    </td>
-                    <td className="muted">{m.rationale}</td>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Activity</th>
+                    <th>Metric</th>
+                    <th>Matched labels</th>
+                    <th>Rationale</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {catalogueMappings.map((m, idx) => (
+                    <tr key={`${m.activity_id}-${m.metric}`}>
+                      <td>{activityName(m.activity_id)}</td>
+                      <td>{m.metric}</td>
+                      <td>
+                        <input value={m.matched_labels.join(", ")} onChange={(e) => updateMappingLabels(idx, e.target.value)} />
+                      </td>
+                      <td className="muted">{m.rationale}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           <button onClick={startRun} disabled={busy || !universePath}>
@@ -412,7 +414,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
             <div className="split-review">
               <div className="split-review-main">
                 <div className="table-wrap">
-                  <table className="data-table">
+                    <table className="data-table">
                     <thead>
                       <tr>
                         <th>Company</th>

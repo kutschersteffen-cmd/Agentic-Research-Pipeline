@@ -79,32 +79,34 @@ export function Search() {
         {loading && <p className="muted">Searching...</p>}
         {!loading && !notConfigured && !error && q.trim() && hits.length === 0 && <p className="muted">No results.</p>}
         {hits.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Title</th>
-                <th>Snippet</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {hits.map((h) => (
-                <tr key={`${h.type}-${h.id}`}>
-                  <td>{h.type}</td>
-                  <td>{h.title}</td>
-                  <td>{h.snippet}</td>
-                  <td>
-                    {h.link && (
-                      <a href={`${api.base}${h.link}`} target="_blank" rel="noreferrer">
-                        Open
-                      </a>
-                    )}
-                  </td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Title</th>
+                  <th>Snippet</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {hits.map((h) => (
+                  <tr key={`${h.type}-${h.id}`}>
+                    <td>{h.type}</td>
+                    <td>{h.title}</td>
+                    <td>{h.snippet}</td>
+                    <td>
+                      {h.link && (
+                        <a href={`${api.base}${h.link}`} target="_blank" rel="noreferrer">
+                          Open
+                        </a>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>

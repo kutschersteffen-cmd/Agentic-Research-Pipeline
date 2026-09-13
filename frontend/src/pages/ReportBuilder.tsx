@@ -415,46 +415,48 @@ export function ReportBuilder() {
         <h3>Previous reports</h3>
         {reports.length === 0 && <p className="muted">No reports generated yet.</p>}
         {reports.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Format</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {reports.map((r) => (
-                <tr key={r.report_id} className="clickable-row" onClick={() => openReport(r.report_id)}>
-                  <td>{r.title}</td>
-                  <td>{r.output_format}</td>
-                  <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                  <td>{new Date(r.created_at).toLocaleString()}</td>
-                  <td>
-                    {r.status === "completed" && (
-                      <>
-                        <button
-                          className="link-button"
-                          style={{ marginRight: 10 }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openPreview(r.report_id, r.title);
-                          }}
-                        >
-                          Preview
-                        </button>
-                        <a href={api.reportDownloadUrl(r.report_id)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                          Download
-                        </a>
-                      </>
-                    )}
-                  </td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Format</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {reports.map((r) => (
+                  <tr key={r.report_id} className="clickable-row" onClick={() => openReport(r.report_id)}>
+                    <td>{r.title}</td>
+                    <td>{r.output_format}</td>
+                    <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
+                    <td>{new Date(r.created_at).toLocaleString()}</td>
+                    <td>
+                      {r.status === "completed" && (
+                        <>
+                          <button
+                            className="link-button"
+                            style={{ marginRight: 10 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openPreview(r.report_id, r.title);
+                            }}
+                          >
+                            Preview
+                          </button>
+                          <a href={api.reportDownloadUrl(r.report_id)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                            Download
+                          </a>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>
