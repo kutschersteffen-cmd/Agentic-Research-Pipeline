@@ -28,96 +28,23 @@ body {
   color: var(--text);
 }
 
-/* --- App shell: left-hand nav pane + content column --- */
+.app-shell {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+}
 
-.app-layout {
+.app-header h1 { margin: 0 0 4px; font-size: 1.6rem; }
+.tagline { color: var(--muted); margin: 0 0 20px; }
+
+.app-nav {
   display: flex;
-  align-items: stretch;
-  min-height: 100vh;
+  gap: 6px;
+  border-bottom: 1px solid var(--panel-border);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
 }
 
-.app-sidebar {
-  width: 232px;
-  flex-shrink: 0;
-  background: var(--panel);
-  border-right: 1px solid var(--panel-border);
-  padding: 22px 14px 40px;
-  box-sizing: border-box;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
-}
-
-.sidebar-brand { font-weight: 700; font-size: 1.05rem; padding: 0 8px; }
-.sidebar-tagline { color: var(--muted); font-size: 0.78rem; line-height: 1.45; margin: 6px 0 20px; padding: 0 8px; }
-
-.sidebar-group { margin-bottom: 16px; }
-.sidebar-group-label {
-  color: var(--muted);
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 0 8px 6px;
-}
-
-.sidebar-link {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  color: var(--muted);
-  padding: 8px 8px;
-  font-size: 0.88rem;
-  cursor: pointer;
-  margin-top: 1px;
-}
-.sidebar-link:hover { background: var(--well); color: var(--text); }
-.sidebar-link.active { background: var(--well); color: var(--accent); font-weight: 600; }
-
-.app-content { flex: 1; min-width: 0; }
-.app-content-inner { max-width: 1180px; margin: 0 auto; padding: 24px 24px 80px; }
-
-.sidebar-toggle {
-  display: none;
-  margin: 14px 0 0 16px;
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  color: var(--text);
-  padding: 7px 12px;
-  border-radius: 6px;
-}
-
-.sidebar-backdrop { display: none; }
-
-@media (max-width: 900px) {
-  .app-sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 200;
-    transform: translateX(-100%);
-    transition: transform 0.2s ease;
-    box-shadow: 4px 0 18px rgba(0, 0, 0, 0.18);
-  }
-  .app-sidebar.open { transform: translateX(0); }
-  .sidebar-toggle { display: inline-block; }
-  .sidebar-backdrop.open {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 150;
-  }
-  .app-content-inner { padding: 16px 16px 60px; }
-}
-
-/* .nav-tab is also reused by every page's internal .sub-nav (e.g. Portfolio
-   Risk's Overview/Explore/Pivot/Ask, Climate Analytics' WACI/Coverage/...)
-   -- kept independent of the sidebar link styles above. */
 .nav-tab {
   background: transparent;
   border: none;
