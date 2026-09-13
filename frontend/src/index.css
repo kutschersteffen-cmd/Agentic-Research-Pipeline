@@ -1,11 +1,17 @@
 :root {
-  --bg: #f9f9f7;
-  --panel: #fcfcfb;
-  --panel-border: #e1e0d9;
-  --well: #f2f1ee;
-  --text: #0b0b0b;
-  --muted: #52514e;
-  --accent: #2a78d6;
+  /* Modern Data-Forward: a light sidebar shell, indigo accent, and a
+     display/body/mono type system -- see the "Agentic Research Pipeline
+     Default Design" canvas for the direction this was chosen from. */
+  --bg: oklch(99% 0.002 260);
+  --panel: oklch(97% 0.004 260);
+  --panel-border: oklch(91% 0.004 260);
+  --well: oklch(95% 0.004 260);
+  --text: oklch(13% 0 0);
+  --muted: oklch(48% 0.005 260);
+  --accent: oklch(52% 0.19 290);
+  --accent-ink: oklch(45% 0.19 290);
+  --accent-tint: oklch(52% 0.19 290 / 0.12);
+  --sidebar-bg: oklch(97% 0.004 260);
   /* high/mid/low/neutral are status semantics (run status, escalation
      stage, badges) rendered as small text/borders on --panel, not chart
      marks -- deepened past the dataviz skill's validated chart-status
@@ -16,7 +22,9 @@
   --mid: #b8791f;
   --low: #c0392b;
   --neutral: #6b7280;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Space Grotesk", -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+  font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color-scheme: light;
 }
 
@@ -29,35 +37,84 @@ body {
 }
 
 .app-shell {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 24px 20px 80px;
+  display: flex;
+  min-height: 100vh;
+  align-items: stretch;
 }
 
-.app-header h1 { margin: 0 0 4px; font-size: 1.6rem; }
-.tagline { color: var(--muted); margin: 0 0 20px; }
+.app-sidebar {
+  width: 232px;
+  flex-shrink: 0;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  padding: 22px 14px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.app-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 8px 22px;
+}
+.app-sidebar-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: white;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.app-sidebar-wordmark { font-family: var(--font-display); font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
 
 .app-nav {
   display: flex;
-  gap: 6px;
-  border-bottom: 1px solid var(--panel-border);
-  margin-bottom: 24px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .nav-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   background: transparent;
   border: none;
-  color: var(--muted);
-  padding: 10px 14px;
+  border-radius: 8px;
+  color: oklch(35% 0.005 260);
+  padding: 8px 10px;
   cursor: pointer;
-  font-size: 0.95rem;
-  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  text-align: left;
+  margin-top: 0;
 }
-.nav-tab.active { color: var(--text); border-bottom-color: var(--accent); }
-.nav-tab:hover { color: var(--text); }
+.nav-tab-icon { display: flex; flex-shrink: 0; }
+.nav-tab-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-tab:hover { background: var(--panel-border); }
+.nav-tab.active { background: var(--accent); color: white; font-weight: 600; }
+.nav-tab.active:hover { background: var(--accent); }
 
-.page h2 { margin-top: 0; }
+.app-main {
+  flex: 1;
+  min-width: 0;
+  padding: 32px 36px 80px;
+  overflow-x: hidden;
+}
+
+.page { max-width: 1200px; }
+.page h2 { margin-top: 0; font-family: var(--font-display); font-size: 1.5rem; letter-spacing: -0.01em; }
 
 .card {
   background: var(--panel);
@@ -66,7 +123,7 @@ body {
   padding: 18px 20px;
   margin-bottom: 18px;
 }
-.card h3 { margin-top: 0; }
+.card h3 { margin-top: 0; font-family: var(--font-display); font-weight: 600; }
 
 .field-label {
   display: block;
@@ -77,13 +134,17 @@ body {
 
 input[type="text"], input:not([type]), input[type="number"], textarea, select {
   width: 100%;
-  background: var(--well);
+  background: white;
   border: 1px solid var(--panel-border);
   color: var(--text);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 8px 10px;
   font-size: 0.9rem;
   font-family: inherit;
+}
+input[type="text"]:focus, input:not([type]):focus, input[type="number"]:focus, textarea:focus, select:focus {
+  outline: 2px solid var(--accent-tint);
+  border-color: var(--accent);
 }
 input[type="file"] { color: var(--muted); }
 input[type="checkbox"] { width: auto; }
@@ -92,15 +153,19 @@ button {
   background: var(--accent);
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 9px 16px;
   font-size: 0.9rem;
+  font-weight: 500;
+  font-family: inherit;
   cursor: pointer;
   margin-top: 12px;
 }
+button:hover:not(:disabled) { background: var(--accent-ink); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 button.danger { background: var(--low); }
 button.link-button { background: transparent; color: var(--accent); padding: 4px 0; }
+button.link-button:hover:not(:disabled) { background: transparent; color: var(--accent-ink); text-decoration: underline; }
 
 .toolbar { display: flex; gap: 10px; align-items: center; margin: 10px 0; }
 .toolbar a { color: var(--accent); }
@@ -321,13 +386,13 @@ button.link-button { background: transparent; color: var(--accent); padding: 4px
   margin: 12px 0;
 }
 .stat-tile {
-  background: var(--well);
+  background: var(--panel);
   border: 1px solid var(--panel-border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 12px 14px;
 }
-.stat-tile .stat-value { font-size: 1.5rem; font-weight: 600; display: block; }
-.stat-tile .stat-label { color: var(--muted); font-size: 0.8rem; }
+.stat-tile .stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.4rem; font-weight: 500; display: block; }
+.stat-tile .stat-label { color: var(--muted); font-size: 0.78rem; }
 
 .activity-row {
   display: flex;

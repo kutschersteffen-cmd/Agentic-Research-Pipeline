@@ -27,6 +27,7 @@ from arp.api.routers import (
     identity,
     overlap,
     portfolio,
+    reporting,
     revenue_catalogue,
     runs,
     search,
@@ -96,6 +97,7 @@ app.include_router(search.router)
 app.include_router(emerging_themes.router)
 app.include_router(taxonomy_researcher.router)
 app.include_router(calibration.router)
+app.include_router(reporting.router)
 
 
 @app.exception_handler(RuntimeError)

@@ -1099,3 +1099,136 @@ export interface SearchResponse {
   total: number;
   hits: SearchHit[];
 }
+
+// ---- Presentation & Reporting Tool -----------------------------------------
+
+export type AudienceLevel = "executive" | "technical" | "general";
+export type Tone = "formal" | "conversational" | "persuasive" | "neutral_analytical";
+
+export interface AudienceProfile {
+  level: AudienceLevel;
+  tone: Tone;
+  description: string;
+  focus_areas: string[];
+}
+
+export type OutputFormat = "pptx" | "docx" | "pdf";
+
+export interface LayoutInstructions {
+  output_format: OutputFormat;
+  target_length?: number | null;
+  max_bullets_per_slide: number;
+  include_title_slide: boolean;
+  include_agenda_slide: boolean;
+  include_appendix: boolean;
+  section_order_hint: string[];
+  free_instructions: string;
+}
+
+export type ColumnKind = "category" | "number" | "date" | "percent";
+
+export interface DatasetColumn {
+  name: string;
+  kind: ColumnKind;
+}
+
+export interface QuantitativeDataset {
+  dataset_id: string;
+  name: string;
+  description: string;
+  columns: DatasetColumn[];
+  rows: Record<string, unknown>[];
+}
+
+export interface TemplateLayoutInfo {
+  index: number;
+  name: string;
+  placeholder_types: string[];
+}
+
+export interface TemplateStyleProfile {
+  template_id: string;
+  source_filename: string;
+  slide_width_emu: number;
+  slide_height_emu: number;
+  layouts: TemplateLayoutInfo[];
+  theme_colors: Record<string, string>;
+  major_font?: string | null;
+  minor_font?: string | null;
+  stored_path: string;
+}
+
+export type ChartType =
+  | "bar" | "column" | "stacked_column" | "line" | "area" | "pie" | "doughnut"
+  | "scatter" | "radar" | "waterfall" | "heatmap" | "table";
+
+export const CHART_TYPES: ChartType[] = [
+  "bar", "column", "stacked_column", "line", "area", "pie", "doughnut", "scatter", "radar", "waterfall", "heatmap", "table",
+];
+
+export interface ChartSpec {
+  dataset_id: string;
+  chart_type: ChartType;
+  title: string;
+  category_column?: string | null;
+  value_columns: string[];
+  x_column?: string | null;
+  y_column?: string | null;
+  value_column?: string | null;
+  notes: string;
+}
+
+export interface TableSpec {
+  dataset_id: string;
+  columns: string[];
+  max_rows: number;
+}
+
+export interface ContentItem {
+  text: string;
+  bullet: boolean;
+}
+
+export type SectionLayoutHint = "standard" | "chart_focus" | "text_only" | "section_header";
+
+export interface ReportSection {
+  heading: string;
+  layout_hint: SectionLayoutHint;
+  narrative: ContentItem[];
+  chart?: ChartSpec | null;
+  table?: TableSpec | null;
+  speaker_notes: string;
+  appendix: boolean;
+}
+
+export interface ReportPlan {
+  title: string;
+  subtitle: string;
+  sections: ReportSection[];
+}
+
+export interface ReportRequest {
+  title: string;
+  qualitative_notes: string;
+  datasets: QuantitativeDataset[];
+  audience: AudienceProfile;
+  layout: LayoutInstructions;
+  template_id?: string | null;
+}
+
+export type ReportStatus = "pending" | "planning" | "plan_ready" | "rendering" | "completed" | "failed";
+
+export interface ReportManifest {
+  report_id: string;
+  created_at: string;
+  updated_at: string;
+  status: ReportStatus;
+  title: string;
+  output_format: OutputFormat;
+  template_id?: string | null;
+  output_filename?: string | null;
+  error?: string | null;
+  input_tokens: number;
+  output_tokens: number;
+  model?: string | null;
+}

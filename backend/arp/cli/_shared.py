@@ -16,6 +16,7 @@ from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.portfolio_store_factory import build_portfolio_store
 from arp.storage.postgres_projection_config import ProjectionConfig
+from arp.storage.reporting_store import ReportingStore
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
@@ -25,6 +26,12 @@ from arp.voting.ballot_casting import ManualInstructionBallotPlatform
 def _engagement_store() -> EngagementStore:
     settings = get_settings()
     return EngagementStore(settings.engagements_dir, projection_config=ProjectionConfig.from_settings(settings))
+
+
+
+def _reporting_store() -> ReportingStore:
+    settings = get_settings()
+    return ReportingStore(settings.reports_dir, settings.report_templates_dir)
 
 
 
