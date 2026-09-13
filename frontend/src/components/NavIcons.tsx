@@ -42,6 +42,12 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <path d="M20 5a2 2 0 0 0-2-2h-6v18h6a2 2 0 0 0 2-2Z" />
     </svg>
   ),
+  emergingThemes: (
+    <svg {...ICON_PROPS}>
+      <path d="M3 17 L9 10 L13 14 L21 5" />
+      <path d="M15 5 H21 V11" />
+    </svg>
+  ),
   backgroundAgents: (
     <svg {...ICON_PROPS}>
       <path d="M3 12h4l2-7 4 14 2-7h6" />

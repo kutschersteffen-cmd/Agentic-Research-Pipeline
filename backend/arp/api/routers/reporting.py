@@ -8,9 +8,10 @@ from fastapi.responses import FileResponse
 
 from arp.api.deps import get_llm_client, get_reporting_store
 from arp.reporting.datasets import parse_tabular_upload
+from arp.reporting.preview import ensure_preview_images
 from arp.reporting.service import ReportingService
 from arp.reporting.style_profile import ingest_template
-from arp.schemas.reporting import ReportPlan, ReportRequest
+from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest
 from arp.storage.reporting_store import ReportingStore
 
 router = APIRouter(prefix="/api/reports", tags=["reporting"])
@@ -154,3 +155,44 @@ def download_report(report_id: str, store: ReportingStore = Depends(get_reportin
         filename=f"{manifest.title or report_id}.{ext}",
         media_type=_CONTENT_TYPES.get(ext, "application/octet-stream"),
     )
+
+
+# ---- Preview (page/slide thumbnails, rendered in-browser) -------------------
+
+
+def _rendered_output_or_404(store: ReportingStore, report_id: str) -> tuple[Path, ReportManifest]:
+    manifest = _get_manifest_or_404(store, report_id)
+    if manifest.output_filename is None:
+        raise HTTPException(409, "Report has not been rendered yet")
+    path = store.output_path(report_id, manifest.output_filename)
+    if not path.exists():
+        raise HTTPException(404, "Output file missing on disk")
+    return path, manifest
+
+
+@router.get("/{report_id}/preview")
+def get_report_preview(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> dict:
+    """Renders the completed pptx/docx/pdf to one PNG per page/slide (via
+    LibreOffice + poppler) so the frontend can show a thumbnail strip
+    in-browser without the viewer downloading anything. Idempotent/cached --
+    safe to call on every "Preview" click."""
+    source_path, manifest = _rendered_output_or_404(store, report_id)
+    try:
+        pages = ensure_preview_images(source_path, store.preview_dir(report_id), manifest.output_format)
+    except RuntimeError as exc:
+        raise HTTPException(500, f"Preview rendering failed: {exc}") from exc
+    return {"page_count": len(pages)}
+
+
+@router.get("/{report_id}/preview/{page}")
+def get_report_preview_page(report_id: str, page: int, store: ReportingStore = Depends(get_reporting_store)) -> FileResponse:
+    source_path, manifest = _rendered_output_or_404(store, report_id)
+    try:
+        pages = ensure_preview_images(source_path, store.preview_dir(report_id), manifest.output_format)
+    except RuntimeError as exc:
+        raise HTTPException(500, f"Preview rendering failed: {exc}") from exc
+    if page < 1 or page > len(pages):
+        raise HTTPException(404, "Page out of range")
+    # No `filename=` -- Starlette then omits Content-Disposition, so the
+    # browser renders the PNG inline instead of downloading it.
+    return FileResponse(pages[page - 1], media_type="image/png")

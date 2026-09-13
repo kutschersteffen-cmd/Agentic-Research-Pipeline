@@ -54,6 +54,15 @@ export function ReportBuilder() {
   const [plan, setPlan] = useState<ReportPlan | null>(null);
   const [reports, setReports] = useState<ReportManifest[]>([]);
 
+  // Preview state -- a docked thumbnail strip + click-to-enlarge modal for
+  // whichever completed report was last opened for preview.
+  const [previewReportId, setPreviewReportId] = useState<string | null>(null);
+  const [previewTitle, setPreviewTitle] = useState<string>("");
+  const [previewPageCount, setPreviewPageCount] = useState(0);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [enlargedPage, setEnlargedPage] = useState<number | null>(null);
+
   useEffect(() => {
     refreshReports();
     api.listReportTemplates().then((r) => setTemplates(r.templates)).catch(() => undefined);
@@ -193,8 +202,32 @@ export function ReportBuilder() {
     setPlan({ ...plan, sections: plan.sections.filter((_, i) => i !== index) });
   }
 
+  async function openPreview(reportId: string, title: string) {
+    setPreviewReportId(reportId);
+    setPreviewTitle(title);
+    setEnlargedPage(null);
+    setPreviewError(null);
+    setPreviewLoading(true);
+    setPreviewPageCount(0);
+    try {
+      const res = await api.getReportPreview(reportId);
+      setPreviewPageCount(res.page_count);
+    } catch (err) {
+      setPreviewError((err as Error).message);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  function closePreview() {
+    setPreviewReportId(null);
+    setPreviewPageCount(0);
+    setEnlargedPage(null);
+  }
+
   return (
-    <div className="page">
+    <div className={previewReportId ? "page split-review" : "page"} style={previewReportId ? { maxWidth: 1560 } : undefined}>
+    <div className={previewReportId ? "split-review-main" : undefined}>
       <h2>Presentation &amp; Reporting Tool</h2>
       <p className="help-text">
         Drafts a structured content plan from your qualitative notes and quantitative data -- matched to the
@@ -364,9 +397,14 @@ export function ReportBuilder() {
             <button onClick={savePlan} disabled={busy}>Save plan changes</button>
             <button onClick={render} disabled={busy}>Render {manifest.output_format}</button>
             {manifest.status === "completed" && (
-              <a href={api.reportDownloadUrl(manifest.report_id)} target="_blank" rel="noreferrer">
-                Download {manifest.output_format}
-              </a>
+              <>
+                <button className="link-button" onClick={() => openPreview(manifest.report_id, plan.title || manifest.title)}>
+                  Preview
+                </button>
+                <a href={api.reportDownloadUrl(manifest.report_id)} target="_blank" rel="noreferrer">
+                  Download {manifest.output_format}
+                </a>
+              </>
             )}
           </div>
           {manifest.error && <p className="error-text">{manifest.error}</p>}
@@ -396,9 +434,21 @@ export function ReportBuilder() {
                   <td>{new Date(r.created_at).toLocaleString()}</td>
                   <td>
                     {r.status === "completed" && (
-                      <a href={api.reportDownloadUrl(r.report_id)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                        Download
-                      </a>
+                      <>
+                        <button
+                          className="link-button"
+                          style={{ marginRight: 10 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openPreview(r.report_id, r.title);
+                          }}
+                        >
+                          Preview
+                        </button>
+                        <a href={api.reportDownloadUrl(r.report_id)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                          Download
+                        </a>
+                      </>
                     )}
                   </td>
                 </tr>
@@ -407,6 +457,49 @@ export function ReportBuilder() {
           </table>
         )}
       </section>
+    </div>
+
+    {previewReportId && (
+      <aside className="source-panel">
+        <div className="source-panel-header">
+          <h4>Preview -- {previewTitle}</h4>
+          <button className="link-button" onClick={closePreview}>Close</button>
+        </div>
+        {previewLoading && <p className="muted">Rendering preview...</p>}
+        {previewError && <p className="error-text">{previewError}</p>}
+        {!previewLoading && !previewError && previewPageCount === 0 && <p className="muted">No pages to show.</p>}
+        {!previewLoading && !previewError && previewPageCount > 0 && (
+          <div className="preview-thumb-grid">
+            {Array.from({ length: previewPageCount }, (_, i) => i + 1).map((p) => (
+              <button key={p} className="preview-thumb" onClick={() => setEnlargedPage(p)}>
+                <img src={api.reportPreviewPageUrl(previewReportId, p)} alt={`Page ${p}`} loading="lazy" />
+                <span>{p}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </aside>
+    )}
+
+    {enlargedPage && previewReportId && (
+      <div className="modal-overlay" onClick={() => setEnlargedPage(null)}>
+        <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h4>{previewTitle} -- page {enlargedPage} / {previewPageCount}</h4>
+            <button className="link-button" onClick={() => setEnlargedPage(null)}>Close</button>
+          </div>
+          <img className="modal-image" src={api.reportPreviewPageUrl(previewReportId, enlargedPage)} alt={`Page ${enlargedPage}`} />
+          <div className="toolbar">
+            <button onClick={() => setEnlargedPage((p) => Math.max(1, (p ?? 1) - 1))} disabled={enlargedPage <= 1}>
+              &larr; Prev
+            </button>
+            <button onClick={() => setEnlargedPage((p) => Math.min(previewPageCount, (p ?? 1) + 1))} disabled={enlargedPage >= previewPageCount}>
+              Next &rarr;
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 }

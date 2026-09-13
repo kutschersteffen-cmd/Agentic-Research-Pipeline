@@ -8,6 +8,7 @@ import { ReviewQueue } from "./pages/ReviewQueue";
 import { RunHistory } from "./pages/RunHistory";
 import { DataLibrary } from "./pages/DataLibrary";
 import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
+import { EmergingThemes } from "./pages/EmergingThemes";
 import { BackgroundAgents } from "./pages/BackgroundAgents";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
@@ -23,6 +24,7 @@ const TABS = [
   { id: "search", label: "Search" },
   { id: "theme", label: "Thematic Universe" },
   { id: "taxonomy", label: "Taxonomy Library" },
+  { id: "emergingThemes", label: "Emerging Themes" },
   { id: "backgroundAgents", label: "Background Agents" },
   { id: "extraction", label: "Extraction" },
   { id: "transitionPlan", label: "Transition Plan Assessment" },
@@ -36,6 +38,17 @@ const TABS = [
   { id: "reporting", label: "Presentations & Reports" },
   { id: "library", label: "Data Library" },
 ] as const;
+
+// Purely a sidebar presentation grouping -- ids must match TABS above.
+const NAV_GROUPS: { label: string | null; ids: readonly (typeof TABS)[number]["id"][] }[] = [
+  { label: null, ids: ["dashboard", "search"] },
+  { label: "Theme Machine", ids: ["theme", "taxonomy", "emergingThemes"] },
+  { label: "Company Research", ids: ["backgroundAgents", "extraction", "identity", "discovery"] },
+  { label: "Portfolio Analysis", ids: ["transitionPlan", "portfolio-monitoring"] },
+  { label: "StewardIQ", ids: ["engagement", "voting"] },
+  { label: "Operations", ids: ["review", "history"] },
+  { label: "Output", ids: ["reporting", "library"] },
+];
 
 function App() {
   const [active, setActive] = useState<(typeof TABS)[number]["id"]>("dashboard");
@@ -72,11 +85,19 @@ function App() {
           <span className="app-sidebar-wordmark">ARP</span>
         </div>
         <nav className="app-nav">
-          {TABS.map((t) => (
-            <button key={t.id} className={t.id === active ? "nav-tab active" : "nav-tab"} onClick={() => setActive(t.id)}>
-              <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
-              <span className="nav-tab-label">{t.label}</span>
-            </button>
+          {NAV_GROUPS.map((group, i) => (
+            <div className="nav-group" key={group.label ?? `group-${i}`}>
+              {group.label && <div className="nav-group-label">{group.label}</div>}
+              {group.ids.map((id) => {
+                const t = TABS.find((tab) => tab.id === id)!;
+                return (
+                  <button key={t.id} className={t.id === active ? "nav-tab active" : "nav-tab"} onClick={() => setActive(t.id)}>
+                    <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
+                    <span className="nav-tab-label">{t.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           ))}
         </nav>
       </aside>
@@ -85,6 +106,7 @@ function App() {
         {active === "search" && <Search />}
         {active === "theme" && <ThemeBuilder onSendToExtraction={sendToExtraction} pendingTaxonomyId={pendingTaxonomyId} />}
         {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
+        {active === "emergingThemes" && <EmergingThemes />}
         {active === "backgroundAgents" && <BackgroundAgents />}
         {active === "extraction" && <Extraction pendingUniverse={pendingUniverse} />}
         {active === "transitionPlan" && <TransitionPlanAssessment pendingUniverse={pendingUniverse} />}

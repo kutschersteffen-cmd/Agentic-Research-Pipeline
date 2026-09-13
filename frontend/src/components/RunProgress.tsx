@@ -20,7 +20,8 @@ export function RunProgress({
     | "identity"
     | "transition_plan"
     | "taxonomy_research"
-    | "calibration";
+    | "calibration"
+    | "emerging_themes";
 }) {
   const [manifest, setManifest] = useState<RunManifest | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
