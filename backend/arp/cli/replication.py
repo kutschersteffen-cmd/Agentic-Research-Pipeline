@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import csv
 import json
 from pathlib import Path
 
@@ -8,13 +9,19 @@ import typer
 
 from arp.cli._shared import _run_store
 from arp.config import get_settings
+from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.replication.characteristics_data import CsvCharacteristicSource
 from arp.replication.examples import list_examples, load_example_spec
+from arp.replication.golden_set import load_bundled_cases, run_golden_set
+from arp.replication.paper_discovery import discover_candidate_papers, rank_candidate_papers
 from arp.replication.pipeline import run_replication
 from arp.replication.price_data import CsvPriceSource, PriceDataSource
+from arp.replication.sanity_check import sanity_check_report
+from arp.replication.sentiment_scoring import build_sentiment_panel
 from arp.replication.spec_graph import extract_strategy_spec
-from arp.schemas.strategy_replication import SignalType, StrategySpec
+from arp.schemas.common import DocType, SourceDocument
+from arp.schemas.strategy_replication import ReplicationComparisonReport, StrategySpec
 from arp.storage.run_store import RunStore
 
 replicate_app = typer.Typer(
@@ -37,6 +44,35 @@ def _load_spec(path: Path) -> StrategySpec:
 
 def _price_source(prices: Path, price_kind: str) -> PriceDataSource:
     return CsvPriceSource(prices, kind=price_kind)
+
+
+@replicate_app.command("discover-papers")
+def replicate_discover_papers(
+    topic: str = typer.Argument(..., help="e.g. 'momentum', 'quality investing', 'low volatility anomaly'."),
+    out: Path = typer.Option(..., help="Write ranked candidates (JSON list of PaperCandidate) here."),
+    max_candidates: int = typer.Option(10, help="Cap on the number of candidates returned."),
+) -> None:
+    """Searches for candidate 'outperformance' papers on `topic` and ranks them by replication-worthiness (a
+    testable claim, plausibly replicable with price/one-fundamental-ratio/text data, a real academic/practitioner
+    source) -- proposes candidates for you to review and pick from, never fetches or extracts a spec
+    automatically. Requires ARP_ANTHROPIC_API_KEY for the ranking step."""
+    settings = get_settings()
+    search_client = DuckDuckGoSearchClient(settings.discovery_user_agent)
+    llm = build_llm_client(settings)
+
+    async def _run() -> list:
+        candidates = await discover_candidate_papers(topic, search_client, max_candidates=max_candidates)
+        if not candidates:
+            return []
+        ranked, _usage = await rank_candidate_papers(topic, candidates, llm)
+        return ranked
+
+    ranked = asyncio.run(_run())
+    out.write_text(json.dumps([c.model_dump(mode="json") for c in ranked], indent=2))
+    typer.echo(f"Wrote {len(ranked)} candidate(s) to {out}")
+    for c in ranked[:5]:
+        score = f"{c.replication_worthiness_score:.2f}" if c.replication_worthiness_score is not None else "?"
+        typer.echo(f"  [{score}] {c.title} -- {c.url}")
 
 
 @replicate_app.command("examples")
@@ -86,16 +122,27 @@ def replicate_extract_spec(
     typer.echo(f"Wrote {out} (needs_review={needs_review}, confidence={spec.confidence:.2f})")
 
 
+def _parse_characteristics_sources(entries: list[str]) -> dict[str, CsvCharacteristicSource]:
+    sources: dict[str, CsvCharacteristicSource] = {}
+    for entry in entries:
+        if "=" not in entry:
+            raise typer.BadParameter(f"--characteristics must be 'name=path.csv', got {entry!r}")
+        name, path_str = entry.split("=", 1)
+        sources[name.strip()] = CsvCharacteristicSource(Path(path_str.strip()))
+    return sources
+
+
 @replicate_app.command("backtest")
 def replicate_backtest(
     spec: Path = typer.Option(..., help="StrategySpec JSON (see 'arp replicate example' / 'extract-spec')."),
     prices: Path = typer.Option(..., help="Wide CSV: a date column + one column per ticker."),
     price_kind: str = typer.Option("price", help="'price' (returns are derived) or 'return' (CSV already holds periodic returns)."),
     tickers: str = typer.Option(..., help="Comma-separated tickers, or a path to a file with one ticker per line."),
-    characteristics: Path = typer.Option(
-        None,
-        help="Wide CSV of the fundamental characteristic (e.g. book-to-market), same date grid as --prices. "
-        "Required when the spec's signal_type is 'value'.",
+    characteristics: list[str] = typer.Option(
+        [],
+        help="'characteristic_name=path.csv', repeatable. Same date grid as --prices. Required for every "
+        "characteristic_name the spec's signal_type (value/text_sentiment) or COMPOSITE components need -- see "
+        "'arp replicate backtest' error output for exactly which name(s) are missing.",
     ),
     benchmark: str = typer.Option(None, help="Optional benchmark ticker (must be a column in the prices CSV) for alpha/beta."),
     out_of_sample_start: str = typer.Option(None, help="ISO date. Omit to run in-sample only."),
@@ -108,27 +155,92 @@ def replicate_backtest(
         raise typer.Exit(1)
 
     strategy_spec = _load_spec(spec)
-    if strategy_spec.signal_type == SignalType.VALUE and characteristics is None:
-        typer.echo("This spec's signal_type is 'value' -- pass --characteristics.", err=True)
-        raise typer.Exit(1)
-
     universe = _load_tickers(tickers)
     source = _price_source(prices, price_kind)
-    characteristics_source = CsvCharacteristicSource(characteristics) if characteristics is not None else None
+    characteristics_sources = _parse_characteristics_sources(characteristics)
 
-    run_id, report = run_replication(
-        strategy_spec,
-        universe,
-        source,
-        run_store=_run_store(),
-        characteristics_source=characteristics_source,
-        benchmark_ticker=benchmark,
-        out_of_sample_start=out_of_sample_start,
-        out_of_sample_end=out_of_sample_end,
-    )
+    try:
+        run_id, report = run_replication(
+            strategy_spec,
+            universe,
+            source,
+            run_store=_run_store(),
+            characteristics_sources=characteristics_sources,
+            benchmark_ticker=benchmark,
+            out_of_sample_start=out_of_sample_start,
+            out_of_sample_end=out_of_sample_end,
+        )
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
     typer.echo(f"Verdict: {report.verdict.value}")
     typer.echo(report.verdict_notes)
+
+
+@replicate_app.command("score-sentiment")
+def replicate_score_sentiment(
+    manifest: Path = typer.Option(
+        ...,
+        help="JSON list of {ticker, period_end, text, doc_id?} objects -- one dated news/transcript excerpt per "
+        "cell. period_end values across the whole manifest define the panel's monthly grid.",
+    ),
+    out: Path = typer.Option(..., help="Write the resulting characteristics CSV here (feed it to 'backtest --characteristics <name>=<out>')."),
+    records_out: Path = typer.Option(None, help="Optionally also write the full per-cell audit trail (grounded quote, confidence) here as JSON."),
+) -> None:
+    """Scores each manifest entry's sentiment via a grounded LLM pass (see arp/replication/sentiment_scoring.py --
+    the model is explicitly told never to use hindsight about what happened after a document's own date) and
+    writes the result as a characteristics CSV for SignalType.TEXT_SENTIMENT. Requires ARP_ANTHROPIC_API_KEY."""
+    entries = json.loads(manifest.read_text())
+    period_ends = sorted({e["period_end"] for e in entries})
+    documents_by_ticker_period: dict[str, dict[str, SourceDocument]] = {}
+    for e in entries:
+        doc = SourceDocument(
+            doc_id=e.get("doc_id") or f"{e['ticker']}_{e['period_end']}",
+            company_id=e["ticker"],
+            doc_type=DocType(e["doc_type"]) if e.get("doc_type") else DocType.OTHER,
+            title=f"{e['ticker']} {e['period_end']}",
+            full_text=e["text"],
+            fiscal_period=e["period_end"],
+        )
+        documents_by_ticker_period.setdefault(e["ticker"], {})[e["period_end"]] = doc
+
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    panel, records, usages = asyncio.run(
+        build_sentiment_panel(documents_by_ticker_period, period_ends, llm, fuzzy_threshold=settings.grounding_fuzzy_threshold)
+    )
+
+    tickers = sorted(panel.values.keys())
+    with out.open("w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["date", *tickers])
+        for i, period_end in enumerate(period_ends):
+            writer.writerow([period_end, *(panel.values[t][i] if panel.values[t][i] is not None else "" for t in tickers)])
+    typer.echo(f"Wrote {out} ({len(tickers)} ticker(s) x {len(period_ends)} period(s), {len(usages)} document(s) scored)")
+
+    ungrounded = [r for r in records if not r.grounded]
+    if ungrounded:
+        typer.echo(f"NOTE: {len(ungrounded)} of {len(records)} scored document(s) failed grounding and were excluded from the panel.")
+    if records_out:
+        records_out.write_text(json.dumps([r.model_dump(mode="json") for r in records], indent=2))
+        typer.echo(f"Wrote per-cell audit trail to {records_out}")
+
+
+@replicate_app.command("golden-set")
+def replicate_golden_set() -> None:
+    """Runs the bundled backtest-engine golden set (deterministic, no LLM/API key needed) -- run this before a
+    signals.py/backtest_engine.py/rebalance.py/metrics.py change ships, the same discipline 'arp golden-set run'
+    applies to the extraction pipeline."""
+    report = run_golden_set(load_bundled_cases())
+    for r in report.results:
+        status = "PASS" if r.passed else "FAIL"
+        typer.echo(f"[{status}] {r.case_id}: {r.description}")
+        if not r.passed:
+            typer.echo(f"         {r.detail}")
+    typer.echo(f"\n{report.passed}/{report.total} passed.")
+    if not report.all_passed:
+        raise typer.Exit(1)
 
 
 @replicate_app.command("report")
@@ -141,3 +253,31 @@ def replicate_report(run_id: str) -> None:
         typer.echo(f"No comparison report found for run {run_id}.", err=True)
         raise typer.Exit(1)
     typer.echo(json.dumps(comparison, indent=2))
+
+
+@replicate_app.command("sanity-check")
+def replicate_sanity_check(run_id: str) -> None:
+    """Runs a qualitative LLM 'sanity check' pass over a completed run's comparison report -- flags implausible
+    Sharpe/return figures, a too-thin universe, or an overfitting signature, as a second opinion layered on top
+    of (never replacing) the deterministic numbers. Requires ARP_ANTHROPIC_API_KEY. Appends the assessment to
+    the run's results.jsonl."""
+    store = RunStore(get_settings().runs_dir)
+    rows = store.read_jsonl(store.results_path(run_id))
+    spec_row = next((r for r in rows if r.get("type") == "spec"), None)
+    comparison_row = next((r for r in rows if r.get("type") == "comparison"), None)
+    if spec_row is None or comparison_row is None:
+        typer.echo(f"No spec/comparison report found for run {run_id}.", err=True)
+        raise typer.Exit(1)
+
+    spec = StrategySpec.model_validate({k: v for k, v in spec_row.items() if k != "type"})
+    report = ReplicationComparisonReport.model_validate({k: v for k, v in comparison_row.items() if k != "type"})
+
+    settings = get_settings()
+    llm = build_llm_client(settings)
+    assessment, _usage = asyncio.run(sanity_check_report(spec, report, llm))
+
+    typer.echo(f"Plausible: {assessment.plausible}")
+    typer.echo(assessment.summary)
+    for f in assessment.findings:
+        typer.echo(f"  - [{f.concern}] {f.explanation}")
+    store.append_jsonl(store.results_path(run_id), {"type": "sanity_check", **assessment.model_dump(mode="json")})

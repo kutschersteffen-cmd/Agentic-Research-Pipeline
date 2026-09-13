@@ -4,7 +4,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from arp.schemas.common import Citation, new_id, now_iso
+from arp.schemas.common import Citation, ProvenanceInfo, new_id, now_iso
 
 
 class SignalType(StrEnum):
@@ -20,6 +20,21 @@ class SignalType(StrEnum):
     characteristic_lag_months. Unrelated to WeightingScheme.VALUE
     ("value-weighted" = market-cap-weighted, the standard finance sense of
     that term) -- the two fields (signal_type vs. weighting) disambiguate."""
+    TEXT_SENTIMENT = "text_sentiment"
+    """A cross-sectional sort on an LLM-scored sentiment characteristic
+    derived from news/earnings-call/transcript text (arp/replication/
+    sentiment_scoring.py) -- mechanically identical to VALUE (same
+    characteristic_name/characteristic_lag_months fields, same
+    CharacteristicDataSource plumbing), kept as its own SignalType only so
+    a spec/report is self-describing about where the ranking signal came
+    from, and so ReportedPerformance comparisons and docs can call out the
+    hindsight-risk considerations specific to LLM-scored historical text
+    (see docs/STRATEGY_REPLICATION_METHODOLOGY.md)."""
+    COMPOSITE = "composite"
+    """A weighted rank-average of two or more other signals (e.g. momentum
+    + value) -- see StrategySpec.composite_components and
+    arp/replication/signals.py::composite_scores. A component's signal_type
+    must not itself be COMPOSITE (no nesting)."""
 
 
 class WeightingScheme(StrEnum):
@@ -67,6 +82,21 @@ class ReportedPerformance(BaseModel):
     notes: str = ""
 
 
+class CompositeSignalComponent(BaseModel):
+    """One sub-signal inside a COMPOSITE StrategySpec -- the same
+    per-signal parameters a standalone MOMENTUM/VALUE/TEXT_SENTIMENT spec
+    would carry, minus everything about portfolio construction (buckets,
+    legs, holding period, rebalancing), which is decided once at the
+    composite level, not per component."""
+
+    signal_type: SignalType = Field(description="MOMENTUM, VALUE, or TEXT_SENTIMENT -- never COMPOSITE (no nesting).")
+    weight: float = Field(gt=0.0, description="Relative weight in the rank-average; weights need not sum to 1 (they're normalized per-ticker by the weight actually applied -- see composite_scores).")
+    formation_period_months: int = Field(default=0, description="MOMENTUM only.")
+    skip_month: bool = Field(default=False, description="MOMENTUM only.")
+    characteristic_name: str | None = Field(default=None, description="VALUE/TEXT_SENTIMENT only.")
+    characteristic_lag_months: int = Field(default=0, description="VALUE/TEXT_SENTIMENT only.")
+
+
 class StrategySpec(BaseModel):
     """The methodology of one academic 'outperformance' strategy paper,
     reduced to parameters the deterministic backtest engine
@@ -112,17 +142,23 @@ class StrategySpec(BaseModel):
     )
     characteristic_name: str | None = Field(
         default=None,
-        description="VALUE (or any future characteristic-based signal_type) only: name of the fundamental field "
-        "the signal ranks on, e.g. 'book_to_market' -- must match a column a CharacteristicDataSource can serve "
-        "(arp/replication/characteristics_data.py). Purely a label here; the actual data comes from whichever "
-        "CharacteristicDataSource the caller supplies to run_replication.",
+        description="VALUE/TEXT_SENTIMENT (or any future characteristic-based signal_type) only: name of the "
+        "fundamental/derived field the signal ranks on, e.g. 'book_to_market' or 'news_sentiment' -- must match a "
+        "column a CharacteristicDataSource can serve (arp/replication/characteristics_data.py). Purely a label "
+        "here; the actual data comes from whichever CharacteristicDataSource the caller supplies to run_replication.",
     )
     characteristic_lag_months: int = Field(
         default=0,
-        description="VALUE (or any future characteristic-based signal_type) only: how many months to lag the "
-        "characteristic behind the ranking month, so the score reflects a value that was actually public at that "
-        "time rather than a look-ahead figure (e.g. a fiscal-year-end book value isn't public until months later). "
-        "Ignored for MOMENTUM, which uses formation_period_months/skip_month instead.",
+        description="VALUE/TEXT_SENTIMENT (or any future characteristic-based signal_type) only: how many months "
+        "to lag the characteristic behind the ranking month, so the score reflects a value that was actually "
+        "public at that time rather than a look-ahead figure (e.g. a fiscal-year-end book value isn't public "
+        "until months later; a news article's sentiment is public immediately, so 0 is typical there). Ignored "
+        "for MOMENTUM, which uses formation_period_months/skip_month instead.",
+    )
+    composite_components: list[CompositeSignalComponent] = Field(
+        default_factory=list,
+        description="Required (2+) when signal_type=COMPOSITE: the sub-signals combined via weighted rank-"
+        "averaging -- see arp/replication/signals.py::composite_scores. Ignored for every other signal_type.",
     )
     num_portfolios: int = Field(default=10, description="Number of cross-sectional buckets the signal splits the universe into, e.g. 10 for deciles.")
     long_leg_portfolio: int = Field(default=1, description="1-indexed portfolio bucket that is bought, ranked best-signal-first (bucket 1 = highest signal).")
@@ -139,6 +175,13 @@ class StrategySpec(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0, default=0.0)
     needs_review: bool = False
     verifier_notes: str | None = None
+    provenance: ProvenanceInfo = Field(
+        default_factory=ProvenanceInfo,
+        description="Which extractor/verifier model + prompt-version produced this spec, mirroring ExtractedField's "
+        "provenance in arp/extraction -- a later prompt/model change is detectable against a previously persisted "
+        "spec instead of silently mixing pipeline versions. Left at its all-None default for a hand-authored spec "
+        "(see arp/replication/data/*.json), never fabricated.",
+    )
 
     extraction_notes: str = Field(default="", description="Caveats about this spec: simplifications versus the paper's exact methodology, data limitations, etc. Always populate this for a hand-authored worked-example spec.")
     created_at: str = Field(default_factory=now_iso)

@@ -12,6 +12,29 @@ def _mean(values: list[float]) -> float:
     return sum(values) / len(values)
 
 
+def required_characteristic_names(spec: StrategySpec) -> set[str]:
+    """Which characteristic_name(s) `spec` needs a CharacteristicPanel
+    for -- a single name for VALUE/TEXT_SENTIMENT, one per relevant
+    component for COMPOSITE, empty for MOMENTUM. Raises (rather than
+    silently omitting) if a VALUE/TEXT_SENTIMENT spec or component has no
+    characteristic_name set at all -- that's a misconfigured spec, not "no
+    characteristics needed".
+    """
+    if spec.signal_type in (SignalType.VALUE, SignalType.TEXT_SENTIMENT):
+        if not spec.characteristic_name:
+            raise ValueError(f"spec.signal_type is {spec.signal_type!r} but characteristic_name is not set.")
+        return {spec.characteristic_name}
+    if spec.signal_type == SignalType.COMPOSITE:
+        names: set[str] = set()
+        for c in spec.composite_components:
+            if c.signal_type in (SignalType.VALUE, SignalType.TEXT_SENTIMENT):
+                if not c.characteristic_name:
+                    raise ValueError(f"A COMPOSITE component has signal_type={c.signal_type!r} but no characteristic_name set.")
+                names.add(c.characteristic_name)
+        return names
+    return set()
+
+
 def run_backtest(
     spec: StrategySpec,
     panel: PricePanel,
@@ -20,11 +43,13 @@ def run_backtest(
     period_start: str,
     period_end: str,
     benchmark_returns: list[float | None] | None = None,
-    characteristics: CharacteristicPanel | None = None,
+    characteristics: dict[str, CharacteristicPanel] | None = None,
 ) -> BacktestResult:
     """Deterministic (zero-LLM) replication of `spec`'s signal + portfolio
     construction against `panel` (and, for a characteristic-based
-    signal_type such as VALUE, `characteristics`).
+    signal_type such as VALUE/TEXT_SENTIMENT/COMPOSITE, `characteristics`
+    -- a dict of CharacteristicPanel keyed by characteristic_name, since a
+    COMPOSITE spec's components may each need a different one).
 
     Implements the overlapping-portfolio construction from Jegadeesh &
     Titman (1993), generalized to an arbitrary rebalance interval (see
@@ -45,14 +70,22 @@ def run_backtest(
     """
     if spec.weighting.value != "equal":
         raise NotImplementedError("run_backtest only implements equal weighting today, got " + repr(spec.weighting))
-    if spec.signal_type == SignalType.VALUE and characteristics is None:
-        raise ValueError("spec.signal_type is VALUE but no `characteristics` panel was supplied.")
-    if characteristics is not None and characteristics.period_ends != panel.period_ends:
-        raise ValueError(
-            "`characteristics.period_ends` must exactly match `panel.period_ends` -- prepare the characteristics "
-            "CSV on the same monthly grid as the price panel (forward-filling a less-frequently-reported "
-            "fundamental onto it) rather than relying on this engine to align two different date grids."
-        )
+    required_characteristics = required_characteristic_names(spec)
+    if required_characteristics:
+        missing = required_characteristics - set((characteristics or {}).keys())
+        if missing:
+            raise ValueError(
+                f"spec requires characteristic panel(s) {sorted(missing)} but `characteristics` didn't supply "
+                f"them (got {sorted((characteristics or {}).keys())})."
+            )
+    for name, char_panel in (characteristics or {}).items():
+        if char_panel.period_ends != panel.period_ends:
+            raise ValueError(
+                f"characteristics[{name!r}].period_ends must exactly match panel.period_ends -- prepare each "
+                "characteristics CSV on the same monthly grid as the price panel (forward-filling a "
+                "less-frequently-reported fundamental onto it) rather than relying on this engine to align "
+                "different date grids."
+            )
 
     period_ends = panel.period_ends
     k = spec.holding_period_months

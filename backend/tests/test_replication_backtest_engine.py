@@ -5,7 +5,13 @@ import pytest
 from arp.replication.backtest_engine import run_backtest
 from arp.replication.characteristics_data import CharacteristicPanel
 from arp.replication.price_data import PricePanel
-from arp.schemas.strategy_replication import RebalanceFrequency, SignalType, StrategySpec, WeightingScheme
+from arp.schemas.strategy_replication import (
+    CompositeSignalComponent,
+    RebalanceFrequency,
+    SignalType,
+    StrategySpec,
+    WeightingScheme,
+)
 
 
 def _spec(**overrides) -> StrategySpec:
@@ -111,7 +117,7 @@ def test_value_strategy_ranks_on_characteristic_not_on_returns():
     panel = _persistent_panel()
     chars = _characteristics_reversed(panel.period_ends)
     result = run_backtest(
-        spec, panel, period_label="in_sample", period_start="2000-01-01", period_end="2001-12-01", characteristics=chars
+        spec, panel, period_label="in_sample", period_start="2000-01-01", period_end="2001-12-01", characteristics={spec.characteristic_name: chars}
     )
     assert len(result.periods) > 0
     for p in result.periods:
@@ -122,15 +128,22 @@ def test_value_strategy_ranks_on_characteristic_not_on_returns():
         assert p.long_short_return_pct == pytest.approx(-3.5, abs=1e-9)
 
 
-def test_value_strategy_requires_characteristics_panel():
-    spec = _spec(signal_type=SignalType.VALUE, formation_period_months=0)
+def test_value_strategy_without_characteristic_name_raises():
+    spec = _spec(signal_type=SignalType.VALUE, formation_period_months=0)  # characteristic_name left unset
     panel = _persistent_panel()
-    with pytest.raises(ValueError, match="characteristics"):
+    with pytest.raises(ValueError, match="characteristic_name"):
+        run_backtest(spec, panel, period_label="in_sample", period_start="2000-01-01", period_end="2001-12-01")
+
+
+def test_value_strategy_requires_characteristics_panel():
+    spec = _spec(signal_type=SignalType.VALUE, formation_period_months=0, characteristic_name="book_to_market")
+    panel = _persistent_panel()
+    with pytest.raises(ValueError, match="characteristic"):
         run_backtest(spec, panel, period_label="in_sample", period_start="2000-01-01", period_end="2001-12-01")
 
 
 def test_value_strategy_rejects_misaligned_characteristics_panel():
-    spec = _spec(signal_type=SignalType.VALUE, formation_period_months=0)
+    spec = _spec(signal_type=SignalType.VALUE, formation_period_months=0, characteristic_name="book_to_market")
     panel = _persistent_panel()
     chars = _characteristics_reversed(panel.period_ends)
     misaligned = replace(chars, period_ends=chars.period_ends[:-1])
@@ -141,7 +154,7 @@ def test_value_strategy_rejects_misaligned_characteristics_panel():
             period_label="in_sample",
             period_start="2000-01-01",
             period_end="2001-12-01",
-            characteristics=misaligned,
+            characteristics={spec.characteristic_name: misaligned},
         )
 
 
@@ -213,7 +226,7 @@ def test_monthly_rebalance_flips_selection_every_period():
     panel, chars = _alternating_fixture(13)
     spec = _value_spec(holding_period_months=1, rebalance_frequency=RebalanceFrequency.MONTHLY)
     result = run_backtest(
-        spec, panel, period_label="in_sample", period_start=panel.period_ends[0], period_end=panel.period_ends[-1], characteristics=chars
+        spec, panel, period_label="in_sample", period_start=panel.period_ends[0], period_end=panel.period_ends[-1], characteristics={spec.characteristic_name: chars}
     )
     long_returns = [p.long_return_pct for p in result.periods]
     assert long_returns == pytest.approx([5.0, -3.0] * 6)  # 12 output periods (m=1..12), strictly alternating
@@ -223,7 +236,7 @@ def test_quarterly_rebalance_holds_the_same_selection_for_a_full_quarter():
     panel, chars = _alternating_fixture(13)
     spec = _value_spec(holding_period_months=3, rebalance_frequency=RebalanceFrequency.QUARTERLY)
     result = run_backtest(
-        spec, panel, period_label="in_sample", period_start=panel.period_ends[0], period_end=panel.period_ends[-1], characteristics=chars
+        spec, panel, period_label="in_sample", period_start=panel.period_ends[0], period_end=panel.period_ends[-1], characteristics={spec.characteristic_name: chars}
     )
     long_returns = [p.long_return_pct for p in result.periods]
     # Same alternating characteristic as the monthly test above, but a 3-month rebalance interval matched to a
@@ -240,7 +253,7 @@ def test_custom_rebalance_interval_is_honored():
         holding_period_months=2, rebalance_frequency=RebalanceFrequency.CUSTOM, rebalance_interval_months=2
     )
     result = run_backtest(
-        spec, panel, period_label="in_sample", period_start=panel.period_ends[0], period_end=panel.period_ends[-1], characteristics=chars
+        spec, panel, period_label="in_sample", period_start=panel.period_ends[0], period_end=panel.period_ends[-1], characteristics={spec.characteristic_name: chars}
     )
     long_returns = [p.long_return_pct for p in result.periods]
     assert long_returns == pytest.approx([5.0, 5.0, -3.0, -3.0, 5.0, 5.0, -3.0, -3.0, 5.0, 5.0, -3.0, -3.0])
@@ -251,7 +264,7 @@ def test_custom_rebalance_without_interval_months_raises():
     spec = _value_spec(rebalance_frequency=RebalanceFrequency.CUSTOM)  # rebalance_interval_months left unset
     with pytest.raises(ValueError, match="CUSTOM"):
         run_backtest(
-            spec, panel, period_label="in_sample", period_start=panel.period_ends[0], period_end=panel.period_ends[-1], characteristics=chars
+            spec, panel, period_label="in_sample", period_start=panel.period_ends[0], period_end=panel.period_ends[-1], characteristics={spec.characteristic_name: chars}
         )
 
 
@@ -268,7 +281,7 @@ def test_annual_rebalance_with_anchor_month_forms_a_cohort_only_in_june():
         sample_period_end=panel_dates[-1],
     )
     result = run_backtest(
-        spec, panel, period_label="in_sample", period_start=panel_dates[0], period_end=panel_dates[-1], characteristics=chars
+        spec, panel, period_label="in_sample", period_start=panel_dates[0], period_end=panel_dates[-1], characteristics={spec.characteristic_name: chars}
     )
     assert len(result.periods) > 0
     assert all(p.long_return_pct == pytest.approx(5.0) for p in result.periods)
@@ -290,7 +303,61 @@ def test_rebalance_anchor_month_never_occurring_warns_and_produces_no_periods():
         sample_period_end=panel_dates[-1],
     )
     result = run_backtest(
-        spec, panel, period_label="in_sample", period_start=panel_dates[0], period_end=panel_dates[-1], characteristics=chars
+        spec, panel, period_label="in_sample", period_start=panel_dates[0], period_end=panel_dates[-1], characteristics={spec.characteristic_name: chars}
     )
     assert result.periods == []
     assert any("never occurs" in w for w in result.warnings)
+
+
+def test_composite_signal_combines_momentum_and_value_through_run_backtest():
+    spec = _spec(
+        signal_type=SignalType.COMPOSITE,
+        formation_period_months=0,
+        composite_components=[
+            CompositeSignalComponent(signal_type=SignalType.MOMENTUM, weight=1.0, formation_period_months=3),
+            CompositeSignalComponent(
+                signal_type=SignalType.VALUE, weight=1.0, characteristic_name="book_to_market", characteristic_lag_months=0
+            ),
+        ],
+    )
+    panel = _persistent_panel()
+    # A characteristic that agrees exactly with the momentum ordering (WIN2 > WIN1 > LOSE1 > LOSE2) --
+    # the combined rank order should match the pure-momentum test above, giving the identical long/short split.
+    chars = CharacteristicPanel(
+        period_ends=panel.period_ends,
+        values={
+            "WIN1": [2.0] * len(panel.period_ends),
+            "WIN2": [2.5] * len(panel.period_ends),
+            "LOSE1": [-1.0] * len(panel.period_ends),
+            "LOSE2": [-1.5] * len(panel.period_ends),
+        },
+        source="test",
+    )
+    result = run_backtest(
+        spec,
+        panel,
+        period_label="in_sample",
+        period_start="2000-01-01",
+        period_end="2001-12-01",
+        characteristics={"book_to_market": chars},
+    )
+    assert len(result.periods) > 0
+    for p in result.periods:
+        assert p.long_return_pct == pytest.approx(2.25, abs=1e-9)
+        assert p.short_return_pct == pytest.approx(-1.25, abs=1e-9)
+
+
+def test_composite_signal_requires_characteristics_for_value_component():
+    spec = _spec(
+        signal_type=SignalType.COMPOSITE,
+        formation_period_months=0,
+        composite_components=[
+            CompositeSignalComponent(signal_type=SignalType.MOMENTUM, weight=1.0, formation_period_months=3),
+            CompositeSignalComponent(
+                signal_type=SignalType.VALUE, weight=1.0, characteristic_name="book_to_market", characteristic_lag_months=0
+            ),
+        ],
+    )
+    panel = _persistent_panel()
+    with pytest.raises(ValueError, match="book_to_market"):
+        run_backtest(spec, panel, period_label="in_sample", period_start="2000-01-01", period_end="2001-12-01")

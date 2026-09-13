@@ -176,7 +176,7 @@ def test_run_replication_value_strategy_end_to_end(tmp_path):
             year += 1
     characteristics_csv = tmp_path / "book_to_market.csv"
     _write_characteristics_csv(characteristics_csv, dates)
-    characteristics_source = CsvCharacteristicSource(characteristics_csv)
+    characteristics_sources = {"book_to_market": CsvCharacteristicSource(characteristics_csv)}
 
     run_store = RunStore(tmp_path / "runs")
     run_id, report = run_replication(
@@ -184,7 +184,7 @@ def test_run_replication_value_strategy_end_to_end(tmp_path):
         ["WIN1", "WIN2", "LOSE1", "LOSE2"],
         price_source,
         run_store=run_store,
-        characteristics_source=characteristics_source,
+        characteristics_sources=characteristics_sources,
     )
 
     manifest = run_store.load_manifest(run_id)

@@ -55,6 +55,8 @@ class SpecExtractionState(TypedDict):
     draft: StrategySpecDraft | None
     verifier: SpecVerifierOutput | None
     usages: list[LLMUsage]
+    extractor_usage: LLMUsage | None
+    verifier_usage: LLMUsage | None
     spec: StrategySpec | None
     needs_review: bool
 
@@ -84,14 +86,14 @@ async def _finalize_no_evidence(state: SpecExtractionState) -> dict:
 
 async def _extract(state: SpecExtractionState) -> dict:
     draft, usage = await extract_strategy_spec_draft(state["paper_citation"], state["evidence"], state["llm"])
-    return {"draft": draft, "usages": state["usages"] + [usage]}
+    return {"draft": draft, "usages": state["usages"] + [usage], "extractor_usage": usage}
 
 
 async def _verify(state: SpecExtractionState) -> dict:
     verifier, usage = await verify_strategy_spec(
         state["paper_citation"], state["evidence"], state["draft"], state["verifier_llm"]
     )
-    return {"verifier": verifier, "usages": state["usages"] + [usage]}
+    return {"verifier": verifier, "usages": state["usages"] + [usage], "verifier_usage": usage}
 
 
 async def _aggregate(state: SpecExtractionState) -> dict:
@@ -103,6 +105,8 @@ async def _aggregate(state: SpecExtractionState) -> dict:
         documents_by_id,
         state["fuzzy_threshold"],
         state["confidence_review_threshold"],
+        extractor_usage=state["extractor_usage"],
+        verifier_usage=state["verifier_usage"],
     )
     return {"spec": spec, "needs_review": needs_review}
 
@@ -156,6 +160,8 @@ async def extract_strategy_spec(
         "draft": None,
         "verifier": None,
         "usages": [],
+        "extractor_usage": None,
+        "verifier_usage": None,
         "spec": None,
         "needs_review": False,
     }

@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 
-from arp.replication.backtest_engine import run_backtest
-from arp.replication.characteristics_data import CharacteristicDataSource
+from arp.replication.backtest_engine import required_characteristic_names, run_backtest
+from arp.replication.characteristics_data import CharacteristicDataSource, CharacteristicPanel
 from arp.replication.compare import build_comparison_report
 from arp.replication.price_data import PriceDataSource
 from arp.schemas.common import JobStatus, RunManifest, new_id, now_iso
@@ -14,24 +14,38 @@ from arp.storage.run_store import RunStore
 logger = logging.getLogger(__name__)
 
 
+def _lookback_months(spec: StrategySpec) -> int:
+    """The widest history/characteristic-lag window any part of `spec`
+    needs before its own sample_period_start -- COMPOSITE takes the max
+    across its components too, since each may need a different lookback
+    (e.g. a 6-month momentum component alongside a 6-month-lagged value
+    component)."""
+    lookbacks = [spec.formation_period_months, spec.characteristic_lag_months]
+    if spec.signal_type == SignalType.COMPOSITE:
+        lookbacks += [c.formation_period_months for c in spec.composite_components]
+        lookbacks += [c.characteristic_lag_months for c in spec.composite_components]
+    return max(lookbacks)
+
+
 def run_replication(
     spec: StrategySpec,
     tickers: list[str],
     price_source: PriceDataSource,
     *,
     run_store: RunStore,
-    characteristics_source: CharacteristicDataSource | None = None,
+    characteristics_sources: dict[str, CharacteristicDataSource] | None = None,
     benchmark_ticker: str | None = None,
     out_of_sample_start: str | None = None,
     out_of_sample_end: str | None = None,
 ) -> tuple[str, ReplicationComparisonReport]:
     """Runs one strategy replication end to end: fetches a price panel (and,
-    for a characteristic-based signal_type such as VALUE, a characteristics
-    panel from `characteristics_source`) wide enough to cover the spec's
-    own lookback, backtests the in-sample window (spec.sample_period_
-    start/end) against the paper's own rules, optionally backtests a
-    separate out-of-sample window with the identical rules, compares both
-    against the paper's reported performance, and persists everything
+    for a characteristic-based signal_type such as VALUE/TEXT_SENTIMENT/
+    COMPOSITE, one characteristics panel per entry in `characteristics_
+    sources`, keyed by characteristic_name) wide enough to cover the
+    spec's own lookback, backtests the in-sample window (spec.sample_
+    period_start/end) against the paper's own rules, optionally backtests
+    a separate out-of-sample window with the identical rules, compares
+    both against the paper's reported performance, and persists everything
     under runs/<run_id>/ the same way every other run type in this
     codebase does. Returns (run_id, report).
 
@@ -42,11 +56,15 @@ def run_replication(
     is out of scope for this pluggable-adapter version. See
     docs/STRATEGY_REPLICATION_METHODOLOGY.md.
 
-    `characteristics_source` is required when spec.signal_type is VALUE (or
-    any other characteristic-based signal_type) and ignored otherwise.
+    `characteristics_sources` must supply an entry for every characteristic_
+    name spec's signal_type actually needs (see run_backtest's own
+    validation) -- a COMPOSITE spec combining value + sentiment components
+    needs two entries, keyed by each component's characteristic_name.
     """
-    if spec.signal_type == SignalType.VALUE and characteristics_source is None:
-        raise ValueError("spec.signal_type is VALUE but no characteristics_source was supplied.")
+    required = required_characteristic_names(spec)
+    missing = required - set((characteristics_sources or {}).keys())
+    if missing:
+        raise ValueError(f"spec requires characteristics_sources for {sorted(missing)}, none were supplied for those names.")
     run_id = new_id("run")
     manifest = RunManifest(
         run_id=run_id,
@@ -69,13 +87,13 @@ def run_replication(
         # and formation cache covers both backtest calls below.
         fetch_start = min(spec.sample_period_start, out_of_sample_start) if out_of_sample_start else spec.sample_period_start
         fetch_end = max(spec.sample_period_end, out_of_sample_end) if out_of_sample_end else spec.sample_period_end
-        # Widen the fetch window backwards by the largest lookback either
-        # signal family needs (MOMENTUM: formation_period_months; VALUE:
-        # characteristic_lag_months) so the earliest ranking month in
+        # Widen the fetch window backwards by the largest lookback any part
+        # of the spec needs (MOMENTUM: formation_period_months; VALUE/
+        # TEXT_SENTIMENT: characteristic_lag_months; COMPOSITE: the max
+        # across its components too) so the earliest ranking month in
         # either window has real history/a real characteristic value
         # behind it, rather than silently starting the strategy late.
-        lookback_months = max(spec.formation_period_months, spec.characteristic_lag_months)
-        lookback_years = (lookback_months // 12) + 1
+        lookback_years = (_lookback_months(spec) // 12) + 1
         fetch_start_padded = f"{int(fetch_start[:4]) - lookback_years}{fetch_start[4:]}"
 
         all_tickers = list(dict.fromkeys(tickers + ([benchmark_ticker] if benchmark_ticker else [])))
@@ -86,16 +104,17 @@ def run_replication(
         if benchmark_ticker:
             universe_panel = replace(panel, returns={t: r for t, r in panel.returns.items() if t != benchmark_ticker})
 
-        characteristics = None
-        if characteristics_source is not None:
-            characteristics = characteristics_source.get_values(tickers, fetch_start_padded, fetch_end)
-            if characteristics.period_ends != universe_panel.period_ends:
+        characteristics: dict[str, CharacteristicPanel] = {}
+        for name, source in (characteristics_sources or {}).items():
+            char_panel = source.get_values(tickers, fetch_start_padded, fetch_end)
+            if char_panel.period_ends != universe_panel.period_ends:
                 raise ValueError(
-                    "characteristics_source returned a different set of period-ends than price_source -- both "
-                    "must be prepared on the same monthly grid over the same fetch window. Got "
-                    f"{len(characteristics.period_ends)} characteristic period(s) vs. "
+                    f"characteristics_sources[{name!r}] returned a different set of period-ends than "
+                    "price_source -- both must be prepared on the same monthly grid over the same fetch window. "
+                    f"Got {len(char_panel.period_ends)} characteristic period(s) vs. "
                     f"{len(universe_panel.period_ends)} price period(s)."
                 )
+            characteristics[name] = char_panel
 
         # `universe_panel`/`characteristics` (and `benchmark_returns`,
         # aligned to the same period_ends) always cover the full fetched

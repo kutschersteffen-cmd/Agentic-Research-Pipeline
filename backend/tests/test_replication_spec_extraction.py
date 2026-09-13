@@ -50,6 +50,10 @@ async def test_extractor_and_verifier_agree_produces_grounded_spec(fake_llm):
     assert spec.confidence == 0.85  # min(draft.confidence=0.9, verifier.confidence=0.85)
     assert needs_review is False
     assert len(usages) == 2
+    # Provenance is populated from the extractor/verifier LLMUsage objects, not left at its all-None default --
+    # mirrors ExtractedField's provenance elsewhere in this codebase (see arp/schemas/common.py::ProvenanceInfo).
+    assert spec.provenance.extractor_model is not None
+    assert spec.provenance.verifier_model is not None
 
 
 async def test_verifier_correction_overrides_the_draft(fake_llm):

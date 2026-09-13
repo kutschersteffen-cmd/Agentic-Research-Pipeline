@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from arp.grounding import ground_citations
+from arp.llm.base import LLMUsage
 from arp.replication.spec_extractor_agent import StrategySpecDraft
 from arp.replication.spec_verifier_agent import SpecVerifierOutput
-from arp.schemas.common import SourceDocument
+from arp.schemas.common import ProvenanceInfo, SourceDocument
 from arp.schemas.strategy_replication import StrategySpec
 
 
@@ -14,6 +15,9 @@ def build_strategy_spec(
     documents_by_id: dict[str, SourceDocument],
     fuzzy_threshold: float,
     confidence_review_threshold: float,
+    *,
+    extractor_usage: LLMUsage | None = None,
+    verifier_usage: LLMUsage | None = None,
 ) -> tuple[StrategySpec, bool]:
     """Merges the extractor draft and the independent verifier pass into a
     final StrategySpec, applying the same programmatic citation-grounding
@@ -49,6 +53,13 @@ def build_strategy_spec(
         or final_confidence < confidence_review_threshold
     )
 
+    provenance = ProvenanceInfo(
+        extractor_model=extractor_usage.model if extractor_usage else None,
+        extractor_prompt_version=extractor_usage.prompt_version if extractor_usage else None,
+        verifier_model=verifier_usage.model if verifier_usage else None,
+        verifier_prompt_version=verifier_usage.prompt_version if verifier_usage else None,
+    )
+
     spec = StrategySpec(
         paper_citation=paper_citation,
         paper_title=final.paper_title,
@@ -75,6 +86,7 @@ def build_strategy_spec(
         confidence=final_confidence,
         needs_review=needs_review,
         verifier_notes=" ".join(notes_parts).strip() or None,
+        provenance=provenance,
     )
     return spec, needs_review
 

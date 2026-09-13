@@ -2,8 +2,22 @@ import pytest
 
 from arp.replication.characteristics_data import CharacteristicPanel
 from arp.replication.price_data import PricePanel
-from arp.replication.signals import assign_portfolios, compute_signal_scores, momentum_scores, value_scores
-from arp.schemas.strategy_replication import RebalanceFrequency, SignalType, StrategySpec, WeightingScheme
+from arp.replication.signals import (
+    _percentile_ranks,
+    assign_portfolios,
+    component_scores,
+    composite_scores,
+    compute_signal_scores,
+    momentum_scores,
+    value_scores,
+)
+from arp.schemas.strategy_replication import (
+    CompositeSignalComponent,
+    RebalanceFrequency,
+    SignalType,
+    StrategySpec,
+    WeightingScheme,
+)
 
 
 def _panel() -> PricePanel:
@@ -124,7 +138,7 @@ def test_compute_signal_scores_dispatches_to_value():
     spec = _value_spec()
     chars = _characteristics()
     panel = PricePanel(period_ends=chars.period_ends, returns={"AAA": [None] * 8, "BBB": [None] * 8}, source="test")
-    scores = compute_signal_scores(spec, panel, formation_idx=5, characteristics=chars)
+    scores = compute_signal_scores(spec, panel, formation_idx=5, characteristics={"book_to_market": chars})
     assert scores == value_scores(chars, formation_idx=5, characteristic_lag_months=1)
 
 
@@ -133,3 +147,100 @@ def test_compute_signal_scores_value_without_characteristics_raises():
     panel = PricePanel(period_ends=[], returns={}, source="test")
     with pytest.raises(ValueError, match="CharacteristicPanel"):
         compute_signal_scores(spec, panel, formation_idx=0, characteristics=None)
+
+
+def test_percentile_ranks_orders_lowest_to_highest():
+    ranks = _percentile_ranks({"A": 3.0, "B": 1.0, "C": 2.0})
+    assert ranks == {"A": 1.0, "B": 0.0, "C": 0.5}
+
+
+def test_percentile_ranks_single_value_is_neutral():
+    assert _percentile_ranks({"A": 5.0}) == {"A": 0.5}
+
+
+def test_component_scores_rejects_nested_composite():
+    nested = CompositeSignalComponent(signal_type=SignalType.COMPOSITE, weight=1.0)
+    panel = PricePanel(period_ends=[], returns={}, source="test")
+    with pytest.raises(NotImplementedError):
+        component_scores(nested, panel, formation_idx=0, characteristics=None)
+
+
+def _composite_spec(**overrides) -> StrategySpec:
+    defaults = dict(
+        paper_citation="Test (2020)",
+        paper_title="Test composite paper",
+        strategy_name="test composite",
+        signal_type=SignalType.COMPOSITE,
+        universe_description="synthetic",
+        holding_period_months=1,
+        rebalance_frequency=RebalanceFrequency.MONTHLY,
+        num_portfolios=3,
+        long_leg_portfolio=1,
+        short_leg_portfolio=3,
+        weighting=WeightingScheme.EQUAL,
+        composite_components=[
+            CompositeSignalComponent(signal_type=SignalType.MOMENTUM, weight=1.0, formation_period_months=2),
+            CompositeSignalComponent(
+                signal_type=SignalType.VALUE, weight=1.0, characteristic_name="book_to_market", characteristic_lag_months=0
+            ),
+        ],
+        sample_period_start="2000-01-01",
+        sample_period_end="2000-08-01",
+    )
+    defaults.update(overrides)
+    return StrategySpec(**defaults)
+
+
+def test_composite_scores_combines_agreeing_components_via_rank_average():
+    period_ends = [f"2000-{m:02d}-01" for m in range(1, 5)]
+    panel = PricePanel(
+        period_ends=period_ends,
+        returns={"A": [None, None, 0.05, 0.05], "B": [None, None, 0.0, 0.0], "C": [None, None, -0.05, -0.05]},
+        source="test",
+    )
+    chars = CharacteristicPanel(
+        period_ends=period_ends,
+        values={"A": [None, None, None, 3.0], "B": [None, None, None, 2.0], "C": [None, None, None, 1.0]},
+        source="test",
+    )
+    spec = _composite_spec()
+    scores = composite_scores(spec, panel, formation_idx=3, characteristics={"book_to_market": chars})
+    # Momentum and value agree exactly on ordering (A best, C worst) -- with equal weights the combined
+    # rank equals each component's own rank.
+    assert scores["A"] == pytest.approx(1.0)
+    assert scores["B"] == pytest.approx(0.5)
+    assert scores["C"] == pytest.approx(0.0)
+
+
+def test_composite_scores_ticker_missing_one_component_uses_only_available_weight():
+    period_ends = [f"2000-{m:02d}-01" for m in range(1, 5)]
+    panel = PricePanel(
+        period_ends=period_ends,
+        returns={
+            "A": [None, None, 0.05, 0.05],
+            "B": [None, None, 0.0, 0.0],
+            "D": [None, None, 0.10, 0.10],  # highest momentum, but absent from the value characteristic below
+        },
+        source="test",
+    )
+    chars = CharacteristicPanel(
+        period_ends=period_ends,
+        values={"A": [None, None, None, 3.0], "B": [None, None, None, 2.0]},  # no entry at all for D
+        source="test",
+    )
+    spec = _composite_spec()
+    scores = composite_scores(spec, panel, formation_idx=3, characteristics={"book_to_market": chars})
+    # D has no value-component rank at all -- its combined score is its momentum rank alone (highest of the
+    # 3 momentum scores -> 1.0), not diluted by an assumed-zero value contribution it never had.
+    assert scores["D"] == pytest.approx(1.0)
+
+
+def test_composite_scores_component_with_fewer_than_two_names_is_skipped():
+    period_ends = [f"2000-{m:02d}-01" for m in range(1, 5)]
+    panel = PricePanel(period_ends=period_ends, returns={"A": [None, None, 0.05, 0.05]}, source="test")
+    chars = CharacteristicPanel(period_ends=period_ends, values={"A": [None, None, None, 3.0]}, source="test")
+    spec = _composite_spec()
+    # Only one name available to either component -- can't rank a single name meaningfully, so both
+    # components contribute nothing and the combined score dict is empty.
+    scores = composite_scores(spec, panel, formation_idx=3, characteristics={"book_to_market": chars})
+    assert scores == {}

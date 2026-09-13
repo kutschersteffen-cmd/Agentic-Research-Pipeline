@@ -108,11 +108,29 @@ precision at scale (designed for up to ~4,000 companies per run).
    every 18 months), and an optional calendar-month anchor (e.g. the
    classic June-aligned annual value-factor rebalance) -- covering both
    Jegadeesh & Titman's overlapping-portfolio construction and a standard
-   non-overlapping rebalance with the same code path. Ships with two
-   worked hand-authored examples (Jegadeesh & Titman (1993) 6-month/
-   6-month momentum; a book-to-market value decile sort with a genuine
-   annual, June-aligned rebalance) to exercise the backtest engine end to
-   end. See
+   non-overlapping rebalance with the same code path. A `text_sentiment`
+   signal scores news/transcript text for sentiment via a grounded LLM
+   pass (explicitly instructed never to use hindsight about what happened
+   after a document's own date, to avoid the temporal-contamination risk
+   LLM-scored historical text is prone to) and feeds it through the same
+   pluggable-characteristics-data plumbing as value; a `composite` signal
+   combines two or more signals (e.g. momentum + value) via weighted
+   rank-averaging. Every StrategySpec carries `provenance` (extractor/
+   verifier model + prompt hash, mirroring `ExtractedField` elsewhere in
+   this codebase) and a bundled, deterministic golden set
+   (`arp replicate golden-set`) regression-tests the backtest engine
+   itself before a change ships. An optional qualitative LLM "sanity
+   check" pass (`arp replicate sanity-check`) reviews a finished
+   comparison report for implausible results (an impossible Sharpe ratio,
+   a too-thin universe, an overfitting signature) as a second opinion
+   layered on top of -- never replacing -- the deterministic numbers, and
+   a literature-discovery agent (`arp replicate discover-papers`, mirrors
+   the Taxonomy Researcher's propose-never-auto-apply pattern) searches
+   for and ranks candidate outperformance papers on a topic for a human to
+   review before feeding one into extraction. Ships with two worked
+   hand-authored examples (Jegadeesh & Titman (1993) 6-month/6-month
+   momentum; a book-to-market value decile sort with a genuine annual,
+   June-aligned rebalance) to exercise the backtest engine end to end. See
    [`docs/STRATEGY_REPLICATION_METHODOLOGY.md`](docs/STRATEGY_REPLICATION_METHODOLOGY.md)
    for the full design, what "in-sample vs. out-of-sample" means here, and
    its current limitations (no point-in-time universe reconstruction, no
@@ -318,9 +336,25 @@ arp replicate backtest --spec spec.json --prices prices.csv --tickers universe.c
   --benchmark SPY --out-of-sample-start 2010-01-01 --out-of-sample-end 2024-12-31
 # ...a characteristic-based (e.g. book-to-market value) spec additionally needs --characteristics:
 arp replicate example book_to_market_value_premium --out value_spec.json
-arp replicate backtest --spec value_spec.json --prices prices.csv --characteristics book_to_market.csv \
+arp replicate backtest --spec value_spec.json --prices prices.csv --characteristics book_to_market=book_to_market.csv \
   --tickers universe.csv
 arp replicate report <run_id>
+arp replicate sanity-check <run_id>                                       # qualitative LLM second opinion on the report
+
+# ...a text_sentiment spec: score a manifest of dated news/transcript excerpts, then backtest against the result
+arp replicate score-sentiment --manifest news_manifest.json --out news_sentiment.csv
+arp replicate backtest --spec sentiment_spec.json --prices prices.csv --characteristics news_sentiment=news_sentiment.csv \
+  --tickers universe.csv
+
+# ...a composite spec (e.g. momentum + value combined via rank-averaging) needs every component's characteristics:
+arp replicate backtest --spec composite_spec.json --prices prices.csv \
+  --characteristics book_to_market=book_to_market.csv --tickers universe.csv
+
+# Regression-test the backtest engine itself before a signals.py/backtest_engine.py change ships
+arp replicate golden-set
+
+# Discover and rank candidate outperformance papers on a topic (never fetches/extracts automatically)
+arp replicate discover-papers "momentum anomaly" --out candidates.json
 
 # Document discovery
 arp discover run --universe companies.csv
@@ -461,6 +495,13 @@ around the input-output math.
 - Hybrid (BM25 + local multilingual embedding) evidence retrieval is on by
   default, closing vocabulary gaps between seed keywords and how a company
   actually phrases a disclosure -- including DE-language disclosures
+- Investment Strategy Replication's own instances of the same disciplines:
+  `StrategySpec.provenance` (extractor/verifier model + prompt hash), a
+  deterministic golden set for the backtest engine itself
+  (`arp replicate golden-set`), and an LLM sentiment-scoring pass
+  explicitly instructed never to use hindsight about what happened after
+  a document's own date -- the temporal-contamination risk LLM-scored
+  historical text is otherwise prone to in a backtest
 
 Full detail in [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md).
 
