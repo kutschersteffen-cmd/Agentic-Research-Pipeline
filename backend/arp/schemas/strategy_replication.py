@@ -184,6 +184,18 @@ class StrategySpec(BaseModel):
     )
 
     extraction_notes: str = Field(default="", description="Caveats about this spec: simplifications versus the paper's exact methodology, data limitations, etc. Always populate this for a hand-authored worked-example spec.")
+    num_trials_attempted: int = Field(
+        default=1,
+        ge=1,
+        description="How many distinct strategy variants (alternative signals, universes, parameter values, ...) "
+        "were effectively tried before arriving at this exact spec -- a hand-picked count, not something inferred "
+        "from the backtest itself. Feeds the multiple-testing-aware significance hurdle and the Deflated Sharpe "
+        "Ratio in compare.py/deflated_sharpe.py (Harvey, Liu & Zhu 2016; Bailey & Lopez de Prado's Deflated Sharpe "
+        "Ratio): the default of 1 means 'no multiple-testing adjustment' (this exact spec was the only one "
+        "considered), which is honest only when that's actually true -- a paper that tried many factors/parameter "
+        "combinations and reported the best one should set this to that count, or the significance read here will "
+        "overstate how surprising the result is.",
+    )
     created_at: str = Field(default_factory=now_iso)
 
 
@@ -226,6 +238,38 @@ class BacktestResult(BaseModel):
     generated_at: str = Field(default_factory=now_iso)
 
 
+class DeflatedSharpeAssessment(BaseModel):
+    """Output of arp/replication/deflated_sharpe.py's Probabilistic/
+    Deflated Sharpe Ratio computation (Bailey & Lopez de Prado) for one
+    leg's monthly return series -- a multiple-testing-aware complement to
+    the plain t-stat check in compare.py, not a replacement for it: a
+    result can pass the plain t-stat hurdle and still fail here once the
+    number of variants actually tried (StrategySpec.num_trials_attempted)
+    is accounted for.
+
+    All Sharpe-ratio fields are in PER-PERIOD (monthly) units, not
+    annualized -- the PSR/DSR formulas are derived in per-period units,
+    and annualizing first would silently misapply them.
+    """
+
+    n_obs: int
+    n_trials: int
+    sharpe_ratio_period: float | None = None
+    skewness: float | None = None
+    kurtosis: float | None = None
+    expected_max_sharpe_under_null_period: float | None = Field(
+        default=None, description="E[max Sharpe] expected from n_trials variants under zero true skill -- the DSR benchmark."
+    )
+    probabilistic_sharpe_ratio: float | None = Field(
+        default=None, description="PSR(0): probability the TRUE per-period Sharpe ratio exceeds zero, given n_obs/skew/kurtosis. Ignores n_trials."
+    )
+    deflated_sharpe_ratio: float | None = Field(
+        default=None,
+        description="PSR(expected_max_sharpe_under_null): probability the true Sharpe ratio exceeds what pure luck across n_trials variants would produce. The trial-count-aware figure; prefer this over probabilistic_sharpe_ratio whenever n_trials > 1.",
+    )
+    notes: str = ""
+
+
 class ReplicationVerdict(StrEnum):
     REPLICATED = "replicated"
     """In-sample long-short performance is directionally consistent with,
@@ -254,6 +298,12 @@ class ReplicationComparisonReport(BaseModel):
     reported_performance: ReportedPerformance
     in_sample_return_gap_pp: float | None = Field(default=None, description="In-sample long-short annualized return minus the paper's reported figure, in percentage points. Negative means the replication underperforms the paper.")
     out_of_sample_return_gap_pp: float | None = Field(default=None, description="Out-of-sample long-short annualized return minus the in-sample replication's own annualized return, in percentage points -- decay/persistence, not a comparison to the paper.")
+    deflated_sharpe: DeflatedSharpeAssessment | None = Field(
+        default=None,
+        description="Multiple-testing-aware Sharpe-ratio assessment of the in-sample long-short leg (see "
+        "arp/replication/deflated_sharpe.py), computed whenever there are enough in-sample periods to estimate "
+        "one. None does not mean 'passed' -- it means there wasn't enough data to compute it at all.",
+    )
     verdict: ReplicationVerdict
     verdict_notes: str = ""
     generated_at: str = Field(default_factory=now_iso)

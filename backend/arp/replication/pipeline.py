@@ -146,7 +146,9 @@ def run_replication(
             )
             run_store.append_jsonl(run_store.results_path(run_id), {"type": "out_of_sample", **out_of_sample.model_dump(mode="json")})
 
-        report = build_comparison_report(in_sample, spec.reported_performance, out_of_sample=out_of_sample)
+        report = build_comparison_report(
+            in_sample, spec.reported_performance, out_of_sample=out_of_sample, num_trials_attempted=spec.num_trials_attempted
+        )
         run_store.append_jsonl(run_store.results_path(run_id), {"type": "comparison", **report.model_dump(mode="json")})
 
         manifest.status = JobStatus.COMPLETED

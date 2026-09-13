@@ -69,5 +69,5 @@ async def test_sanity_check_prompt_includes_key_figures(fake_llm):
     await sanity_check_report(_spec(), report, llm)
     prompt = llm.prompts[0]
     assert "annualized_return=12.0" in prompt
-    assert "Universe size: 200" in prompt
+    assert "size=200" in prompt
     assert "replicated" in prompt  # verdict.value

@@ -89,6 +89,33 @@ def test_non_equal_weighting_not_implemented():
         run_backtest(spec, panel, period_label="in_sample", period_start="2000-01-01", period_end="2001-12-01")
 
 
+def test_allowed_period_ends_restricts_output_to_exactly_that_set():
+    spec = _spec()
+    panel = _persistent_panel()
+    subset = {panel.period_ends[10], panel.period_ends[15], panel.period_ends[20]}
+    result = run_backtest(
+        spec, panel, period_label="cpcv_test", period_start="2000-01-01", period_end="2001-12-01", allowed_period_ends=subset
+    )
+    assert {p.period_end for p in result.periods} <= subset
+    assert len(result.periods) > 0
+
+
+def test_allowed_period_ends_still_uses_full_panel_for_formation_lookback():
+    # A period just outside `subset` should still contribute to formation
+    # for a period inside `subset` when it falls within the holding window
+    # -- allowed_period_ends only gates OUTPUT rows, never lookback.
+    spec = _spec()
+    panel = _persistent_panel()
+    subset = {panel.period_ends[i] for i in range(12, 24)}
+    restricted = run_backtest(
+        spec, panel, period_label="cpcv_test", period_start="2000-01-01", period_end="2001-12-01", allowed_period_ends=subset
+    )
+    full = run_backtest(spec, panel, period_label="in_sample", period_start="2000-01-01", period_end="2001-12-01")
+    full_by_date = {p.period_end: p for p in full.periods}
+    for p in restricted.periods:
+        assert p.long_short_return_pct == pytest.approx(full_by_date[p.period_end].long_short_return_pct)
+
+
 def test_thin_universe_warns_and_skips_formation():
     spec = _spec(num_portfolios=10)  # only 4 tickers available, need 10
     panel = _persistent_panel()

@@ -457,6 +457,105 @@ allows those two hosts before relying on this in production — see
 `docs/CORPORATE_READINESS_PLAN.md` for how this project already handles
 per-host egress as a deployment-time decision.
 
+## Statistical rigor: multiple testing, backtest overfitting, and regime dependence
+
+A plain in-sample/out-of-sample verdict (see above) answers "does this
+look like an effect?" but not "how surprised should I be that it looks
+like an effect, given how many things could have been tried?" — the
+question a run of academic-finance methodology papers (Harvey, Liu & Zhu
+2016; Bailey & Lopez de Prado's Deflated Sharpe Ratio; Bailey, Borwein,
+Lopez de Prado & Zhu's Probability of Backtest Overfitting; Deutsche Bank
+Quant Strategy's "Seven Sins of Quantitative Investing"; and the newer
+LLM/agentic-factor-generation literature, e.g. arXiv 2512.12924's finding
+of strongly regime-dependent performance) all push on from different
+angles. This module addresses that with three additions, layered on top
+of (never replacing) the deterministic verdict above:
+
+**Multiple-testing-aware significance (`compare.py`).**
+`StrategySpec.num_trials_attempted` declares how many variants (formation
+windows, universes, parameter values, ...) were effectively tried before
+landing on this exact spec — default 1, meaning "no adjustment, this was
+the only thing tried," which is honest only when that's actually true.
+`compare.py::significance_threshold` raises the in-sample/out-of-sample
+t-stat hurdle from the flat 2.0 smoothly toward a Harvey-Liu-Zhu-inspired
+ceiling of 3.0 (log-scaled, reaching 3.0 around 100 trials) — a simple,
+disclosed heuristic in the spirit of their argument that a flat t>=2 bar
+passes far too much noise once hundreds of factors have already been
+data-mined in the literature, not a re-derivation of their full
+multiple-testing/FDR model.
+
+**Deflated Sharpe Ratio (`deflated_sharpe.py`).** A numpy-only
+(no scipy dependency — a hand-rolled standard-normal CDF via `math.erf`
+and a Peter Acklam PPF approximation cover the one spot an inverse-CDF is
+needed) implementation of Bailey & Lopez de Prado's Probabilistic and
+Deflated Sharpe Ratio: `probabilistic_sharpe_ratio` is the probability the
+*true* per-period Sharpe ratio exceeds a benchmark, given the sample size
+and the return series' own skew/kurtosis (a fat-tailed or negatively
+skewed series needs more data to trust the same observed Sharpe ratio);
+`expected_max_sharpe_under_trials` is how much the best-of-N-trials Sharpe
+ratio is expected to be inflated by pure luck under zero true skill; and
+`deflated_sharpe_ratio` combines them into one PSR-against-that-inflated-
+benchmark figure. `compare.py::build_comparison_report` computes this
+automatically (as `ReplicationComparisonReport.deflated_sharpe`) from the
+in-sample long-short monthly returns whenever there are 2+ periods,
+passing `num_trials_attempted` through — and `sanity_check.py`'s LLM
+prompt is told the DSR/PSR figures explicitly, alongside `num_trials_
+attempted` itself, so a spec that declares many trials but doesn't show a
+correspondingly deflated Sharpe is something the LLM pass can flag.
+
+**Probability of Backtest Overfitting via CPCV (`cpcv.py`).** Given 2+
+candidate `StrategySpec` variants for the same paper (different formation
+windows, characteristics, universes, ...), `run_pbo_analysis` implements
+Combinatorially Symmetric Cross-Validation (Bailey, Borwein, Lopez de
+Prado & Zhu): the sample is split into `num_blocks` contiguous blocks, and
+for every way of choosing half of them as a test set (`num_blocks` choose
+`num_blocks/2` splits), each candidate is backtested on the purged +
+embargoed training blocks and on the held-out test blocks. The candidate
+that looked best on training is noted, and how well *that* candidate
+ranked out-of-sample (relative to all candidates, on that split) becomes
+one logit; PBO is the fraction of splits where the in-sample-best
+candidate performed at or below the out-of-sample median. This reuses
+`backtest_engine.py::run_backtest`'s new `allowed_period_ends` parameter
+(a set of exact period-end strings to emit, rather than a single
+contiguous `[period_start, period_end]` window) to evaluate every split
+against the same already-fetched panel — no re-fetching or re-slicing
+data per split. Purging drops training periods within `purge_months`
+(default: the largest `holding_period_months` across candidates)
+immediately *before* a test block, since a spec's return realization can
+lag its formation date by up to that many months; embargo additionally
+drops `embargo_months` periods immediately *after* a test block, guarding
+against serial-correlation leakage into subsequent training. This is a
+practical, period-count approximation of purging/embargo (the convention
+popularized in Lopez de Prado's "Advances in Financial Machine
+Learning"), not an exact per-signal overlap computation. A high PBO
+(materially above 0.5) is a warning about the *selection process* — that
+picking the best-looking variant in-sample was little better than a coin
+flip — not proof that any single candidate's own backtest is broken.
+Exposed via `arp replicate pbo` (deterministic, zero LLM calls, same as
+the rest of the backtest engine).
+
+**Regime-stratified performance (`regime_analysis.py`).** Pooling every
+period into one full-sample Sharpe ratio can hide a strategy that only
+works in calm markets (or only in turbulent ones) — the kind of
+regime-dependence arXiv 2512.12924 ("Interpretable Hypothesis-Driven
+Trading") found to be common and strong. `regime_stratified_report`
+splits a completed `BacktestResult`'s periods into low/mid/high terciles
+of the *benchmark's* own trailing realized volatility (never the
+strategy's own return volatility — that would be circular, since the
+strategy's returns would then partly define the buckets it's evaluated
+within) and reports the long-short leg's performance separately per
+regime. Requires `run_backtest` to have been called with
+`benchmark_returns` set; exposed via `arp replicate regime-report
+<run_id>`.
+
+None of these three additions override the plain verdict in
+`ReplicationComparisonReport.verdict` — they're additional, more
+conservative reads attached alongside it (`deflated_sharpe` on the same
+report; PBO and regime stratification as their own separate reports),
+in keeping with this module's existing "complement, never silently
+override the deterministic numbers" discipline (see "Sanity-check pass"
+above).
+
 ## Known limitations / next steps
 
 - MOMENTUM, VALUE, TEXT_SENTIMENT, and COMPOSITE are implemented; quality/
@@ -491,3 +590,20 @@ per-host egress as a deployment-time decision.
   a composite spec is assembled by hand today (or by combining two
   already-extracted specs' components), not extracted from one paper in
   one pass.
+- `num_trials_attempted` is a hand-declared, honesty-dependent input, not
+  something inferred from the extraction pipeline or a paper's own text --
+  the extractor prompt doesn't yet ask a paper how many variants it
+  reports having tried, so this defaults to 1 (no adjustment) unless a
+  caller sets it deliberately.
+- `significance_threshold`'s log-scaled 2.0->3.0 hurdle and `cpcv.py`'s
+  fixed-period-count purge/embargo are both simple, disclosed
+  approximations of the Harvey-Liu-Zhu and Lopez de Prado methodologies
+  they're inspired by, not exact reproductions of either paper's full
+  statistical model -- see "Statistical rigor" above for what each does
+  and doesn't claim to do.
+- The Deutsche Bank "Seven Sins" checklist folded into `sanity_check.py`'s
+  prompt is still qualitative/LLM-judged, the same as the rest of that
+  pass -- there's no programmatic check for survivorship bias or
+  look-ahead bias (that would require point-in-time universe/fundamentals
+  data this project doesn't have yet; see the limitations above), only a
+  more specific set of things for the LLM to reason about.

@@ -133,7 +133,20 @@ precision at scale (designed for up to ~4,000 companies per run).
    or all three merged. Ships with two worked
    hand-authored examples (Jegadeesh & Titman (1993) 6-month/6-month
    momentum; a book-to-market value decile sort with a genuine annual,
-   June-aligned rebalance) to exercise the backtest engine end to end. See
+   June-aligned rebalance) to exercise the backtest engine end to end.
+   Statistical-rigor tooling addresses the "how surprised should I be,
+   given how many things could have been tried" question a plain
+   in-sample/out-of-sample verdict doesn't: a multiple-testing-aware
+   significance hurdle (`StrategySpec.num_trials_attempted`, scaling the
+   t-stat bar from 2.0 toward a Harvey-Liu-Zhu-inspired 3.0), a
+   scipy-free Deflated/Probabilistic Sharpe Ratio computed automatically
+   on every comparison report (Bailey & Lopez de Prado), a Probability of
+   Backtest Overfitting analysis across candidate spec variants via
+   purged, embargoed Combinatorially Symmetric Cross-Validation
+   (`arp replicate pbo`, Bailey/Borwein/Lopez de Prado/Zhu), and a
+   regime-stratified performance breakdown (`arp replicate regime-report`)
+   surfacing the kind of volatility-regime-dependent decay a single
+   full-sample Sharpe ratio can hide. See
    [`docs/STRATEGY_REPLICATION_METHODOLOGY.md`](docs/STRATEGY_REPLICATION_METHODOLOGY.md)
    for the full design, what "in-sample vs. out-of-sample" means here, and
    its current limitations (no point-in-time universe reconstruction, no
@@ -343,6 +356,7 @@ arp replicate backtest --spec value_spec.json --prices prices.csv --characterist
   --tickers universe.csv
 arp replicate report <run_id>
 arp replicate sanity-check <run_id>                                       # qualitative LLM second opinion on the report
+arp replicate regime-report <run_id>                                      # low/mid/high volatility-regime performance breakdown (needs --benchmark on the backtest)
 
 # ...a text_sentiment spec: score a manifest of dated news/transcript excerpts, then backtest against the result
 arp replicate score-sentiment --manifest news_manifest.json --out news_sentiment.csv
@@ -359,6 +373,10 @@ arp replicate golden-set
 # Discover and rank candidate outperformance papers on a topic (never fetches/extracts automatically)
 # --source defaults to "all" (arXiv + Semantic Scholar + generic web, merged/deduped); narrow it if you want just one
 arp replicate discover-papers "momentum anomaly" --out candidates.json
+
+# Probability of Backtest Overfitting across 2+ candidate spec variants, via purged/embargoed CSCV
+arp replicate pbo --candidate-spec mom3_spec.json --candidate-spec mom6_spec.json --candidate-spec mom12_spec.json \
+  --prices prices.csv --tickers universe.csv --period-start 2000-01-01 --period-end 2020-12-31 --num-blocks 8
 arp replicate discover-papers "quality investing" --out candidates.json --source arxiv
 
 # Document discovery

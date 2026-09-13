@@ -44,6 +44,7 @@ def run_backtest(
     period_end: str,
     benchmark_returns: list[float | None] | None = None,
     characteristics: dict[str, CharacteristicPanel] | None = None,
+    allowed_period_ends: set[str] | None = None,
 ) -> BacktestResult:
     """Deterministic (zero-LLM) replication of `spec`'s signal + portfolio
     construction against `panel` (and, for a characteristic-based
@@ -67,6 +68,17 @@ def run_backtest(
     rebalance with rebalance_frequency=ANNUAL, holding_period_months=12).
     Only equal weighting is implemented -- a `weighting` other than equal
     raises NotImplementedError.
+
+    `allowed_period_ends`, when given, restricts which months' returns are
+    actually emitted as output periods to exactly that set (rather than
+    every month within [period_start, period_end]) -- formation/lookback
+    still reads from anywhere in `panel` regardless of this set, exactly
+    as for a normal contiguous window (a live strategy always uses
+    whatever trailing history it has; this only gates which realized
+    months get counted in the result). This is the hook
+    arp/replication/cpcv.py uses to evaluate a purged, embargoed,
+    non-contiguous combinatorial train/test split against one shared panel
+    without refetching or re-slicing data per split.
     """
     if spec.weighting.value != "equal":
         raise NotImplementedError("run_backtest only implements equal weighting today, got " + repr(spec.weighting))
@@ -107,7 +119,10 @@ def run_backtest(
         )
 
     for m in range(len(period_ends)):
-        if not (period_start <= period_ends[m] <= period_end):
+        if allowed_period_ends is not None:
+            if period_ends[m] not in allowed_period_ends:
+                continue
+        elif not (period_start <= period_ends[m] <= period_end):
             # Outside this call's labeled window (e.g. an out-of-sample
             # call against a panel that also covers the in-sample years for
             # formation-lookback continuity) -- never emitted as an output

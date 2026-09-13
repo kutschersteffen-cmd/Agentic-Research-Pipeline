@@ -13,16 +13,18 @@ from arp.discovery.academic_search import ArxivSearchClient, CompositeSearchClie
 from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.replication.characteristics_data import CsvCharacteristicSource
+from arp.replication.cpcv import run_pbo_analysis
 from arp.replication.examples import list_examples, load_example_spec
 from arp.replication.golden_set import load_bundled_cases, run_golden_set
 from arp.replication.paper_discovery import discover_candidate_papers, rank_candidate_papers
 from arp.replication.pipeline import run_replication
 from arp.replication.price_data import CsvPriceSource, PriceDataSource
+from arp.replication.regime_analysis import regime_stratified_report
 from arp.replication.sanity_check import sanity_check_report
 from arp.replication.sentiment_scoring import build_sentiment_panel
 from arp.replication.spec_graph import extract_strategy_spec
 from arp.schemas.common import DocType, SourceDocument
-from arp.schemas.strategy_replication import ReplicationComparisonReport, StrategySpec
+from arp.schemas.strategy_replication import BacktestResult, ReplicationComparisonReport, StrategySpec
 from arp.storage.run_store import RunStore
 
 replicate_app = typer.Typer(
@@ -303,3 +305,84 @@ def replicate_sanity_check(run_id: str) -> None:
     for f in assessment.findings:
         typer.echo(f"  - [{f.concern}] {f.explanation}")
     store.append_jsonl(store.results_path(run_id), {"type": "sanity_check", **assessment.model_dump(mode="json")})
+
+
+@replicate_app.command("regime-report")
+def replicate_regime_report(
+    run_id: str,
+    trailing_window_months: int = typer.Option(12, help="Trailing window (in months) used to classify each period's volatility regime from the benchmark series."),
+) -> None:
+    """Breaks a completed run's in-sample long-short performance out by low/mid/high trailing-volatility regime
+    (arp/replication/regime_analysis.py) -- surfaces regime-dependent decay a single full-sample Sharpe ratio can
+    hide (see arXiv 2512.12924). Requires the run to have been backtested with --benchmark set (regime
+    classification uses the benchmark's own volatility, never the strategy's, to avoid circularity). Appends the
+    report to the run's results.jsonl."""
+    store = RunStore(get_settings().runs_dir)
+    rows = store.read_jsonl(store.results_path(run_id))
+    in_sample_row = next((r for r in rows if r.get("type") == "in_sample"), None)
+    if in_sample_row is None:
+        typer.echo(f"No in-sample result found for run {run_id}.", err=True)
+        raise typer.Exit(1)
+
+    in_sample = BacktestResult.model_validate({k: v for k, v in in_sample_row.items() if k != "type"})
+    report = regime_stratified_report(in_sample, trailing_window_months=trailing_window_months)
+    if not report.buckets:
+        typer.echo(report.notes)
+        raise typer.Exit(1)
+    for bucket in report.buckets:
+        typer.echo(
+            f"{bucket.regime:>14}: {bucket.num_periods:3d} period(s), annualized_return="
+            f"{bucket.long_short.annualized_return_pct}, sharpe={bucket.long_short.sharpe_ratio}"
+        )
+    typer.echo(report.notes)
+    store.append_jsonl(store.results_path(run_id), {"type": "regime_report", **report.model_dump(mode="json")})
+
+
+@replicate_app.command("pbo")
+def replicate_pbo(
+    candidate_specs: list[Path] = typer.Option(..., "--candidate-spec", help="StrategySpec JSON for one candidate variant -- repeat for each variant considered (2+ required)."),
+    prices: Path = typer.Option(..., help="Wide CSV: a date column + one column per ticker, shared by every candidate."),
+    price_kind: str = typer.Option("price", help="'price' (returns are derived) or 'return'."),
+    tickers: str = typer.Option(..., help="Comma-separated tickers, or a path to a file with one ticker per line."),
+    characteristics: list[str] = typer.Option([], help="'characteristic_name=path.csv', repeatable -- required if any candidate needs one."),
+    period_start: str = typer.Option(..., help="ISO date: start of the window split into blocks for cross-validation."),
+    period_end: str = typer.Option(..., help="ISO date: end of that window."),
+    num_blocks: int = typer.Option(8, help="Number of contiguous blocks the window is split into (must be even; C(num_blocks, num_blocks/2) splits are evaluated)."),
+    purge_months: int = typer.Option(None, help="Periods immediately before each test block dropped from training. Defaults to the largest holding_period_months across candidates."),
+    embargo_months: int = typer.Option(1, help="Periods immediately after each test block dropped from training."),
+    out: Path = typer.Option(None, help="Optionally write the full PBOReport JSON here."),
+) -> None:
+    """Estimates the Probability of Backtest Overfitting (Bailey, Borwein, Lopez de Prado & Zhu) across 2+
+    candidate StrategySpec variants via purged, embargoed Combinatorially Symmetric Cross-Validation
+    (arp/replication/cpcv.py) -- a high PBO is a warning about the SELECTION process (picking the best-looking
+    variant), not proof any one candidate is broken. Zero LLM calls, deterministic."""
+    if len(candidate_specs) < 2:
+        typer.echo("--candidate-spec must be given at least twice (2+ variants to compare).", err=True)
+        raise typer.Exit(1)
+
+    specs = [_load_spec(p) for p in candidate_specs]
+    universe = _load_tickers(tickers)
+    source = _price_source(prices, price_kind)
+    panel = source.get_monthly_returns(universe, period_start, period_end)
+    characteristics_sources = _parse_characteristics_sources(characteristics)
+    characteristic_panels = {
+        name: src.get_values(universe, period_start, period_end) for name, src in characteristics_sources.items()
+    } or None
+
+    try:
+        report = run_pbo_analysis(
+            specs, panel, period_start=period_start, period_end=period_end,
+            num_blocks=num_blocks, purge_months=purge_months, embargo_months=embargo_months,
+            characteristics=characteristic_panels,
+        )
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+
+    typer.echo(f"PBO = {report.probability_of_backtest_overfitting:.2f} across {report.num_splits} split(s)")
+    for spec_id, count in report.per_candidate_selection_count.items():
+        typer.echo(f"  {spec_id}: selected as in-sample-best on {count}/{report.num_splits} split(s)")
+    typer.echo(report.notes)
+    if out:
+        out.write_text(report.model_dump_json(indent=2))
+        typer.echo(f"Wrote {out}")
