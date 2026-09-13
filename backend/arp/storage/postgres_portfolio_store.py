@@ -34,6 +34,19 @@ class PostgresPortfolioStore:
     that justifies a relational engine) delegates to a wrapped file-based PortfolioStore,
     so every caller of get_portfolio_store() keeps working unmodified
     regardless of which backend is configured.
+
+    "Drop-in" is enforced by tests/test_portfolio_store_parity.py, which
+    runs one set of assertions against both stores and compares their
+    public surfaces. The one deliberate difference it encodes: the
+    `*_path()` accessors for data this backend relationalizes
+    (`registry_path`, `securities_path`, `companies_path`,
+    `resolutions_path`, `snapshot_path`) are absent here, because there is
+    no file behind them -- returning the wrapped file store's path would
+    hand a caller an empty or nonexistent file and call it the data. The
+    `*_path()` accessors for concerns that stay file-backed
+    (`observations_path`, `news_path`, `flags_path`, `analytics_path`,
+    `rules_path`, `alert_events_path`, `governance_events_path`) are
+    delegated, because there the file really is where the data lives.
     """
 
     def __init__(self, dsn: str, file_store: PortfolioStore) -> None:
@@ -60,6 +73,15 @@ class PostgresPortfolioStore:
 
     def latest_observation(self, company_id: str, field_id: str, as_of: str | None = None) -> DataPointObservation | None:
         return self._files.latest_observation(company_id, field_id, as_of)
+
+    def list_observation_keys(self) -> list[tuple[str, str]]:
+        """Every (company_id, field_id) with a recorded observation. Was
+        missing here, which broke GET /api/portfolio/climate-conflicts and
+        the governance queue (both reach it via
+        datapoint_mapping.list_conflicting_observations) with an
+        AttributeError whenever this backend was configured -- even though
+        the observations themselves were always delegated below."""
+        return self._files.list_observation_keys()
 
     def news_path(self):
         return self._files.news_path()
@@ -275,7 +297,22 @@ class PostgresPortfolioStore:
             session.commit()
 
     def load_snapshot(self, portfolio_id: str, as_of_date: str) -> list[Holding]:
-        return self.load_holdings_as_of(as_of_date, portfolio_ids=[portfolio_id])
+        """One portfolio's holdings for *exactly* this date -- the
+        relational equivalent of reading that one snapshot file, so it
+        returns nothing for a date never pulled. Deliberately not routed
+        through load_holdings_as_of, whose contract is the different
+        "latest on or before" question."""
+        from sqlalchemy import select
+
+        from arp.storage.postgres_models import HoldingModel
+
+        with self._session() as session:
+            rows = session.scalars(
+                select(HoldingModel).where(
+                    HoldingModel.portfolio_id == portfolio_id, HoldingModel.as_of_date == as_of_date
+                )
+            ).all()
+            return [_holding_from_row(r) for r in rows]
 
     def list_snapshot_dates(self, portfolio_id: str) -> list[str]:
         from sqlalchemy import select
@@ -304,26 +341,143 @@ class PostgresPortfolioStore:
             rows = session.scalars(select(HoldingModel.as_of_date).distinct().order_by(HoldingModel.as_of_date)).all()
             return list(rows)
 
+    def _latest_snapshot_per_portfolio(self, as_of_date: str, portfolio_ids: list[str] | None):
+        """Subquery of (portfolio_id, as_of_date) giving each portfolio's
+        most recent snapshot date on or before `as_of_date` -- the SQL
+        form of PortfolioStore.load_holdings_as_of's per-portfolio
+        `max(d for d in dates if d <= as_of)`.
+
+        This exists because portfolios are pulled on independent
+        schedules, so the requested date is usually *not* a date every
+        portfolio has. Matching `as_of_date` exactly (what this store did
+        before) silently dropped every portfolio not pulled on that exact
+        day and returned nothing at all for a date between snapshots --
+        producing a smaller number, not an error, for the same holdings
+        the file store totals correctly.
+
+        `as_of_date` is an ISO-8601 string column, so `<=` compares
+        lexicographically, which for that format is chronological order --
+        the same comparison the file store does on filenames.
+        """
+        from sqlalchemy import func, select
+
+        from arp.storage.postgres_models import HoldingModel
+
+        stmt = (
+            select(
+                HoldingModel.portfolio_id.label("portfolio_id"),
+                func.max(HoldingModel.as_of_date).label("as_of_date"),
+            )
+            .where(HoldingModel.as_of_date <= as_of_date)
+            .group_by(HoldingModel.portfolio_id)
+        )
+        if portfolio_ids:
+            stmt = stmt.where(HoldingModel.portfolio_id.in_(portfolio_ids))
+        return stmt.subquery()
+
+    def _holdings_as_of_join(self, as_of_date: str, portfolio_ids: list[str] | None):
+        """The join condition every as-of query shares: a holding row is
+        in scope when its (portfolio_id, as_of_date) is that portfolio's
+        latest snapshot on or before the requested date."""
+        from arp.storage.postgres_models import HoldingModel
+
+        latest = self._latest_snapshot_per_portfolio(as_of_date, portfolio_ids)
+        return latest, (HoldingModel.portfolio_id == latest.c.portfolio_id) & (
+            HoldingModel.as_of_date == latest.c.as_of_date
+        )
+
     def load_holdings_as_of(self, as_of_date: str, portfolio_ids: list[str] | None = None) -> list[Holding]:
+        """Holdings across (optionally filtered) portfolios, using each
+        portfolio's most recent snapshot on or before `as_of_date` --
+        identical semantics to PortfolioStore.load_holdings_as_of, which
+        tests/test_portfolio_store_parity.py holds both stores to."""
         from sqlalchemy import select
 
         from arp.storage.postgres_models import HoldingModel
 
+        latest, on_clause = self._holdings_as_of_join(as_of_date, portfolio_ids)
         with self._session() as session:
-            stmt = select(HoldingModel).where(HoldingModel.as_of_date == as_of_date)
-            if portfolio_ids:
-                stmt = stmt.where(HoldingModel.portfolio_id.in_(portfolio_ids))
-            rows = session.scalars(stmt).all()
-            return [
-                Holding(
-                    portfolio_id=r.portfolio_id, security_id=r.security_id, as_of_date=r.as_of_date,
-                    quantity=r.quantity, price=r.price, market_value=r.market_value,
-                    fx_rate_to_eur=r.fx_rate_to_eur, market_value_eur=r.market_value_eur, weight_pct=r.weight_pct,
-                )
-                for r in rows
-            ]
+            rows = session.scalars(select(HoldingModel).join(latest, on_clause)).all()
+            return [_holding_from_row(r) for r in rows]
 
     # --- the payoff: a real relational join, not available cheaply over the file store ---
+
+    def _dimension_column(self, dimension: str):
+        """SQL expression for one of aggregation.DIMENSIONS, matching
+        aggregation._dimension_value exactly -- including `company_name`'s
+        fall back to the security's own name when the issuer hasn't been
+        resolved yet, which is what keeps an unresolved security visible in
+        a result instead of silently dropping out of it.
+        """
+        from sqlalchemy import func
+
+        from arp.storage.postgres_models import CompanyModel, HoldingModel, SecurityModel
+
+        columns = {
+            "portfolio_id": HoldingModel.portfolio_id,
+            "asset_class": SecurityModel.asset_class,
+            "currency": SecurityModel.currency,
+            "company_id": SecurityModel.company_id,
+            "company_name": func.coalesce(CompanyModel.name, SecurityModel.name),
+            "sector": CompanyModel.sector,
+            "country": CompanyModel.country,
+        }
+        if dimension not in columns:
+            raise ValueError(f"Unknown aggregation dimension: {dimension!r}. Valid: {tuple(columns)}")
+        return columns[dimension]
+
+    def aggregate_holdings_by(
+        self,
+        as_of_date: str,
+        group_by: str,
+        *,
+        portfolio_ids: list[str] | None = None,
+        security_filter: dict[str, str] | None = None,
+    ) -> tuple[list[tuple[str | None, float, int]], float]:
+        """Grouped market-value sums plus holding counts, and the grand
+        total -- everything `aggregation.aggregate` needs for the
+        `market_value_sum` metric, computed in one SQL statement over the
+        holdings x securities x companies join instead of loading every
+        JSONL snapshot into Python.
+
+        This is what makes the relational backend worth configuring, and
+        until now nothing called it: `aggregate_market_value_eur` (kept
+        below, it returns the bare pairs) had no call sites outside its own
+        tests, so opting into Postgres bought no faster aggregation.
+        `arp/portfolio/analytics.py::execute` now routes through here when
+        the configured store offers it.
+
+        Returns rows ordered by group value, with NULL group values left as
+        None for the caller to label -- `aggregation.aggregate` renders
+        those as "(unresolved)" and this store does not duplicate that
+        decision. The date is resolved per portfolio exactly as
+        load_holdings_as_of resolves it.
+        """
+        from sqlalchemy import func, select
+
+        from arp.storage.postgres_models import CompanyModel, HoldingModel, SecurityModel
+
+        group_col = self._dimension_column(group_by)
+        latest, on_clause = self._holdings_as_of_join(as_of_date, portfolio_ids)
+        market_value = func.sum(HoldingModel.market_value_eur)
+        stmt = (
+            select(group_col, market_value, func.count())
+            .join(latest, on_clause)
+            # Outer joins, so a holding whose security or issuer is missing
+            # still contributes to the total -- the file store groups it
+            # under "(unresolved)" rather than dropping it.
+            .outerjoin(SecurityModel, SecurityModel.security_id == HoldingModel.security_id)
+            .outerjoin(CompanyModel, CompanyModel.company_id == SecurityModel.company_id)
+        )
+        for key, value in (security_filter or {}).items():
+            stmt = stmt.where(self._dimension_column(key) == value)
+        stmt = stmt.group_by(group_col).order_by(group_col)
+
+        with self._session() as session:
+            rows = [
+                (key, round(float(total), 2), int(count)) for key, total, count in session.execute(stmt).all()
+            ]
+        return rows, round(sum(total for _key, total, _count in rows), 2)
 
     def aggregate_market_value_eur(
         self, as_of_date: str, group_by: str, portfolio_ids: list[str] | None = None
@@ -341,6 +495,12 @@ class PostgresPortfolioStore:
         currency, company_id, sector, country -- the first four resolve
         straight off `holdings`/`securities`, the last three require the
         join into `companies`.
+
+        `as_of_date` is resolved per portfolio exactly as
+        load_holdings_as_of resolves it (latest snapshot on or before),
+        so this aggregation and a Python-side sum over
+        load_holdings_as_of's rows always agree -- which is what
+        tests/test_portfolio_store_parity.py asserts.
         """
         from sqlalchemy import func, select
 
@@ -352,31 +512,39 @@ class PostgresPortfolioStore:
         if group_by not in holding_cols | security_cols | company_cols:
             raise ValueError(f"Unsupported group_by: {group_by!r}")
 
+        latest, on_clause = self._holdings_as_of_join(as_of_date, portfolio_ids)
+
         if group_by in holding_cols:
             group_col = getattr(HoldingModel, group_by)
-            stmt = select(group_col, func.sum(HoldingModel.market_value_eur)).where(HoldingModel.as_of_date == as_of_date)
+            stmt = select(group_col, func.sum(HoldingModel.market_value_eur)).join(latest, on_clause)
         elif group_by in security_cols:
             group_col = getattr(SecurityModel, group_by)
             stmt = (
                 select(group_col, func.sum(HoldingModel.market_value_eur))
+                .join(latest, on_clause)
                 .join(SecurityModel, SecurityModel.security_id == HoldingModel.security_id)
-                .where(HoldingModel.as_of_date == as_of_date)
             )
         else:
             group_col = SecurityModel.company_id if group_by == "company_id" else getattr(CompanyModel, group_by)
             stmt = (
                 select(group_col, func.sum(HoldingModel.market_value_eur))
+                .join(latest, on_clause)
                 .join(SecurityModel, SecurityModel.security_id == HoldingModel.security_id)
                 .outerjoin(CompanyModel, CompanyModel.company_id == SecurityModel.company_id)
-                .where(HoldingModel.as_of_date == as_of_date)
             )
 
-        if portfolio_ids:
-            stmt = stmt.where(HoldingModel.portfolio_id.in_(portfolio_ids))
         stmt = stmt.group_by(group_col).order_by(func.sum(HoldingModel.market_value_eur).desc())
 
         with self._session() as session:
             return [(key, float(total)) for key, total in session.execute(stmt).all()]
+
+
+def _holding_from_row(row) -> Holding:
+    return Holding(
+        portfolio_id=row.portfolio_id, security_id=row.security_id, as_of_date=row.as_of_date,
+        quantity=row.quantity, price=row.price, market_value=row.market_value,
+        fx_rate_to_eur=row.fx_rate_to_eur, market_value_eur=row.market_value_eur, weight_pct=row.weight_pct,
+    )
 
 
 def _security_from_row(row) -> SecurityRef:

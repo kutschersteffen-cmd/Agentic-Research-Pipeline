@@ -20,16 +20,27 @@ logger = logging.getLogger(__name__)
 
 
 def sync_document(dsn: str, doc_ref: StoredDocumentRef) -> None:
-    """Idempotent upsert of one document's registry row."""
+    """Idempotent upsert of one document's registry row.
+
+    `first_seen_at`/`last_seen_at` are copied from the authoritative SQLite
+    row, not stamped with the sync time. They used to be stamped, which
+    made them mean "first/last projected" in the mirror while meaning
+    "first/last registered" in the source -- two columns with the same
+    names and different meanings, in a table whose whole job is to be a
+    faithful mirror. The sync time is used only when the ref genuinely
+    carries no timestamps (a caller constructing one by hand).
+    """
     from sqlalchemy.orm import Session
 
     from arp.schemas.common import now_iso
     from arp.storage.postgres_models import DocumentRegistryModel
 
     engine = get_engine(dsn)
+    now = now_iso()
+    first_seen_at = doc_ref.first_seen_at or now
+    last_seen_at = doc_ref.last_seen_at or now
     with Session(engine) as session:
         existing = session.get(DocumentRegistryModel, doc_ref.doc_id)
-        now = now_iso()
         if existing is None:
             session.add(
                 DocumentRegistryModel(
@@ -41,8 +52,8 @@ def sync_document(dsn: str, doc_ref: StoredDocumentRef) -> None:
                     local_path=doc_ref.local_path,
                     source_url=doc_ref.source_url,
                     storage_uri=doc_ref.storage_uri,
-                    first_seen_at=now,
-                    last_seen_at=now,
+                    first_seen_at=first_seen_at,
+                    last_seen_at=last_seen_at,
                 )
             )
         else:
@@ -55,7 +66,7 @@ def sync_document(dsn: str, doc_ref: StoredDocumentRef) -> None:
             # it isn't reporting the document was un-archived.
             if doc_ref.storage_uri is not None:
                 existing.storage_uri = doc_ref.storage_uri
-            existing.last_seen_at = now
+            existing.last_seen_at = last_seen_at
         session.commit()
 
 
@@ -126,4 +137,6 @@ def _ref_from_row(row) -> StoredDocumentRef:
         local_path=row.local_path,
         source_url=row.source_url,
         storage_uri=row.storage_uri,
+        first_seen_at=row.first_seen_at,
+        last_seen_at=row.last_seen_at,
     )

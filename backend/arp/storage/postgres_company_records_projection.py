@@ -50,7 +50,13 @@ def sync_run(dsn: str, run_store: RunStore, run_id: str) -> int:
     uq_company_records_run_company_key means a re-sync of an
     already-synced run is a no-op, not a duplicate insert. Returns the
     number of rows actually inserted (0 on a repeat sync or an empty/
-    missing run)."""
+    missing run).
+
+    The count comes from RETURNING, not `result.rowcount`: for a
+    multi-values INSERT routed through SQLAlchemy's insertmanyvalues path,
+    psycopg reports -1, so `arp db reindex company-records` used to print
+    `rows_inserted=-1` whether it had backfilled two thousand rows or
+    none."""
     manifest = run_store.load_manifest(run_id)
     if manifest is None:
         return 0
@@ -71,15 +77,19 @@ def sync_run(dsn: str, run_store: RunStore, run_id: str) -> int:
     engine = get_engine(dsn)
     with Session(engine) as session:
         stmt = insert(CompanyRecordModel).values(kwargs_list)
-        stmt = stmt.on_conflict_do_nothing(constraint="uq_company_records_run_company_key")
-        result = session.execute(stmt)
+        stmt = stmt.on_conflict_do_nothing(constraint="uq_company_records_run_company_key").returning(
+            CompanyRecordModel.id
+        )
+        inserted = len(session.execute(stmt).all())
         session.commit()
-        return result.rowcount
+        return inserted
 
 
 def sync_all(dsn: str, run_store: RunStore, *, since: str | None = None) -> int:
     """Backfills every run (optionally only those updated after `since`,
-    an ISO timestamp) -- used by `arp db reindex company-records`."""
+    an ISO timestamp) -- used by `arp db reindex company-records`, which
+    passes the checkpoint recorded by the previous backfill unless
+    --full is given (see arp/storage/postgres_checkpoints.py)."""
     total = 0
     for manifest in run_store.list_runs():
         if since is not None and manifest.updated_at <= since:

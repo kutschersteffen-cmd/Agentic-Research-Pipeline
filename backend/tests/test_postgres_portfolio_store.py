@@ -20,6 +20,7 @@ import pytest
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import Holding, Portfolio, SecurityRef, SecurityResolution
 from arp.storage.portfolio_store import PortfolioStore
+from tests.postgres_helpers import reset_postgres_tables
 
 DSN = os.environ.get("ARP_TEST_POSTGRES_DSN")
 pytestmark = pytest.mark.skipif(not DSN, reason="ARP_TEST_POSTGRES_DSN not set -- opt-in Postgres integration test")
@@ -31,6 +32,7 @@ def store(tmp_path):
     from arp.storage.postgres_portfolio_store import PostgresPortfolioStore
 
     ensure_schema(DSN)
+    reset_postgres_tables(DSN)  # own the scratch database for this test
     pg = PostgresPortfolioStore(DSN, PortfolioStore(tmp_path / "files"))
     yield pg
     # Clean up so re-runs against the same scratch DB are repeatable.

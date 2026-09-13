@@ -1,12 +1,29 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from arp.schemas.common import now_iso
 from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyStatus
 from arp.schemas.thematic import ThemeDefinition
+from arp.storage.atomic_io import atomic_write_text, write_text_exclusive
+from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import safe_id
+
+# How many times new_version re-reads and re-bumps when the version it
+# picked was claimed by another *process* between the read and the write
+# (within this process the KeyedLock already serializes them). Bounded so
+# a pathological writer can't spin here forever.
+_VERSION_BUMP_ATTEMPTS = 5
+
+
+class TaxonomyVersionConflict(RuntimeError):
+    """A version file this store meant to create already existed -- see
+    TaxonomyStore.new_version. Surfaces as a 503 via api/main.py's
+    RuntimeError handler: the caller's edit was not saved and retrying is
+    the right response."""
 
 
 class TaxonomyStore:
@@ -17,10 +34,25 @@ class TaxonomyStore:
     RunStore's review-decision log: editing a taxonomy creates a new
     version rather than overwriting history, so a ratified version stays
     exactly what was ratified even after later edits.
+
+    That immutability is enforced, not just intended: a version file is
+    created with O_EXCL (`write_text_exclusive`), so a second writer
+    landing on the same version number fails loudly instead of silently
+    overwriting the first one's edit. `new_version`'s read-then-write
+    cycle is additionally serialized per taxonomy_id by a KeyedLock, same
+    as RunStore's manifest cycle and for the same reason (sync route
+    handlers run on worker threads and genuinely race each other).
     """
 
     def __init__(self, taxonomies_dir: Path) -> None:
         self.taxonomies_dir = taxonomies_dir
+        self._locks = KeyedLock(lock_path=lambda taxonomy_id: self._dir(taxonomy_id) / ".lock")
+
+    @contextmanager
+    def lock(self, taxonomy_id: str) -> Iterator[None]:
+        """Serializes a read-modify-write cycle against one taxonomy."""
+        with self._locks.acquire(taxonomy_id):
+            yield
 
     def _dir(self, taxonomy_id: str) -> Path:
         d = self.taxonomies_dir / safe_id(taxonomy_id, label="taxonomy_id")
@@ -33,9 +65,17 @@ class TaxonomyStore:
     def _latest_pointer_path(self, taxonomy_id: str) -> Path:
         return self._dir(taxonomy_id) / "latest.json"
 
-    def _write(self, taxonomy: Taxonomy) -> None:
-        self._version_path(taxonomy.taxonomy_id, taxonomy.version).write_text(taxonomy.model_dump_json(indent=2))
-        self._latest_pointer_path(taxonomy.taxonomy_id).write_text(json.dumps({"latest_version": taxonomy.version}))
+    def _write_new_version(self, taxonomy: Taxonomy) -> None:
+        """Writes a version file that must not exist yet, then advances
+        the pointer. This order matters: a crash between the two leaves a
+        complete version file that `get(taxonomy_id, version)` can still
+        read and a pointer that merely lags, whereas the reverse order
+        would point at a file that isn't there."""
+        write_text_exclusive(self._version_path(taxonomy.taxonomy_id, taxonomy.version), taxonomy.model_dump_json(indent=2))
+        self._write_latest_pointer(taxonomy.taxonomy_id, taxonomy.version)
+
+    def _write_latest_pointer(self, taxonomy_id: str, version: int) -> None:
+        atomic_write_text(self._latest_pointer_path(taxonomy_id), json.dumps({"latest_version": version}))
 
     def create(
         self,
@@ -45,7 +85,8 @@ class TaxonomyStore:
         source_notes: str = "",
     ) -> Taxonomy:
         taxonomy = Taxonomy(name=name, version=1, theme=theme, derivation_method=derivation_method, source_notes=source_notes)
-        self._write(taxonomy)
+        with self.lock(taxonomy.taxonomy_id):
+            self._write_new_version(taxonomy)
         return taxonomy
 
     def new_version(
@@ -55,20 +96,38 @@ class TaxonomyStore:
         derivation_method: DerivationMethod,
         source_notes: str = "",
     ) -> Taxonomy:
-        current = self.get(taxonomy_id)
-        if current is None:
-            raise ValueError(f"Unknown taxonomy_id: {taxonomy_id}")
-        updated = Taxonomy(
-            taxonomy_id=taxonomy_id,
-            name=current.name,
-            version=current.version + 1,
-            theme=theme,
-            derivation_method=derivation_method,
-            source_notes=source_notes,
-            based_on_version=current.version,
+        """Appends a new version based on whatever is currently latest.
+
+        The whole read-current-then-write-next cycle is locked, so two
+        concurrent edits produce v2 and v3 rather than both writing v2 and
+        one edit vanishing. The retry loop covers the cross-process case
+        the in-process lock can't (an `arp taxonomy` CLI run editing the
+        same taxonomy as a live API request): the O_EXCL create fails, and
+        we re-read and bump again instead of clobbering the other writer.
+        """
+        with self.lock(taxonomy_id):
+            for _ in range(_VERSION_BUMP_ATTEMPTS):
+                current = self.get(taxonomy_id)
+                if current is None:
+                    raise ValueError(f"Unknown taxonomy_id: {taxonomy_id}")
+                updated = Taxonomy(
+                    taxonomy_id=taxonomy_id,
+                    name=current.name,
+                    version=current.version + 1,
+                    theme=theme,
+                    derivation_method=derivation_method,
+                    source_notes=source_notes,
+                    based_on_version=current.version,
+                )
+                try:
+                    self._write_new_version(updated)
+                except FileExistsError:
+                    continue
+                return updated
+        raise TaxonomyVersionConflict(
+            f"Could not claim a new version for taxonomy {taxonomy_id} after {_VERSION_BUMP_ATTEMPTS} attempts -- "
+            "another writer is creating versions concurrently. The edit was not saved; retry it."
         )
-        self._write(updated)
-        return updated
 
     def get(self, taxonomy_id: str, version: int | None = None) -> Taxonomy | None:
         if version is None:
@@ -111,13 +170,18 @@ class TaxonomyStore:
         change on an already-existing, already-immutable version record,
         not a new edit, so it doesn't create a new version.
         """
-        taxonomy = self.get(taxonomy_id, version)
-        if taxonomy is None:
-            raise ValueError(f"Unknown taxonomy_id/version: {taxonomy_id} v{version}")
-        ratified = taxonomy.model_copy(
-            update={"status": TaxonomyStatus.RATIFIED, "ratified_by": ratified_by, "ratified_at": now_iso()}
-        )
-        self._version_path(taxonomy_id, version).write_text(ratified.model_dump_json(indent=2))
+        with self.lock(taxonomy_id):
+            taxonomy = self.get(taxonomy_id, version)
+            if taxonomy is None:
+                raise ValueError(f"Unknown taxonomy_id/version: {taxonomy_id} v{version}")
+            ratified = taxonomy.model_copy(
+                update={"status": TaxonomyStatus.RATIFIED, "ratified_by": ratified_by, "ratified_at": now_iso()}
+            )
+            # The one write in this store that legitimately replaces an
+            # existing version file, so it can't use O_EXCL -- atomically
+            # instead, or a crash mid-write would leave the ratified
+            # version unparseable (and silently skipped by list_versions).
+            atomic_write_text(self._version_path(taxonomy_id, version), ratified.model_dump_json(indent=2))
         return ratified
 
 

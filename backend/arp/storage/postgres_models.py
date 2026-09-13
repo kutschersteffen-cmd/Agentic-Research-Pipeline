@@ -20,6 +20,22 @@ Two shapes of model live here, matching two different roles:
   file/SQLite store they mirror stays authoritative and fully functional
   whether or not this projection is enabled.
 
+One rule follows from that split and is worth stating once here, because
+getting it wrong made three projections silently insert nothing at all:
+**a projection's `company_id` carries no foreign key to `companies`.**
+`companies` is only populated by the dual-write path
+(PostgresPortfolioStore.save_company, i.e. only under
+`ARP_PORTFOLIO_BACKEND=postgres`), whereas a run's companies come from
+the user-supplied universe file (arp/universe.py) and a projection
+mirrors a file/SQLite store that enforces no referential integrity
+itself. An FK there rejects every legitimate row while the best-effort
+sync hooks swallow the violation -- the operator gets an empty table and
+a log line. This is the same argument SecurityResolutionModel's docstring
+already makes for its own missing FK. FKs are kept only where both sides
+are written by the same code path: securities/holdings within the
+dual-write store, commitments to their issue, a fact to the fact it
+supersedes.
+
 Every run/review-queue/audit-trail store's *write path* stays file-based
 JSONL regardless of which models above exist -- an append-only file is
 simpler to keep fully auditable than a table with UPDATEs. See
@@ -186,6 +202,10 @@ class CompanyRecordModel(Base):
     queryable without a migration every time a new run type or
     extraction schema is added -- only the columns actually filtered/
     sorted/aggregated across runs get their own typed column.
+
+    `company_id` is a plain String, not an FK to `companies` -- see this
+    module's docstring for why (a run's companies come from the universe
+    file, which never populates that table).
     """
 
     __tablename__ = "company_records"
@@ -197,7 +217,7 @@ class CompanyRecordModel(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     run_id: Mapped[str] = mapped_column(String)
     run_type: Mapped[str] = mapped_column(String)
-    company_id: Mapped[str] = mapped_column(ForeignKey("companies.company_id"))
+    company_id: Mapped[str] = mapped_column(String)
     record_key: Mapped[str] = mapped_column(String, default="")
     overall_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     needs_review: Mapped[bool | None] = mapped_column(nullable=True)
@@ -229,6 +249,9 @@ class CompanyFactModel(Base):
     review, but should treat its value as provisional), or
     "auto_approved" (never queued for review at all, i.e. implicitly
     trusted, matching this system's existing behavior).
+
+    `company_id` is a plain String, not an FK to `companies` -- see this
+    module's docstring.
     """
 
     __tablename__ = "company_facts"
@@ -238,14 +261,14 @@ class CompanyFactModel(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    company_id: Mapped[str] = mapped_column(ForeignKey("companies.company_id"))
+    company_id: Mapped[str] = mapped_column(String)
     fact_key: Mapped[str] = mapped_column(String)
     as_of: Mapped[str] = mapped_column(String, default="")
     fact_type: Mapped[str] = mapped_column(String)
     value: Mapped[dict] = mapped_column(JSONB)
     status: Mapped[str] = mapped_column(String)
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
-    citations: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    citations: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     source_run_id: Mapped[str] = mapped_column(String)
     reviewer: Mapped[str | None] = mapped_column(String, nullable=True)
     valid_from: Mapped[str] = mapped_column(String)
@@ -270,13 +293,18 @@ class EngagementIssueModel(Base):
     a whole for one issue, not filtered independently across companies,
     so a dedicated table would add join cost with no query it actually
     serves.
+
+    `company_id` is a plain String, not an FK to `companies` -- see this
+    module's docstring. (`EngagementCommitmentModel.issue_id` below does
+    keep its FK: sync_record writes both rows in one transaction, so that
+    one can always be satisfied.)
     """
 
     __tablename__ = "engagement_issues"
     __table_args__ = (Index("ix_engagement_issues_company_status", "company_id", "status"),)
 
     issue_id: Mapped[str] = mapped_column(String, primary_key=True)
-    company_id: Mapped[str] = mapped_column(ForeignKey("companies.company_id"))
+    company_id: Mapped[str] = mapped_column(String)
     theme: Mapped[str] = mapped_column(String)
     severity: Mapped[str] = mapped_column(String)
     status: Mapped[str] = mapped_column(String)

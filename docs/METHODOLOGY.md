@@ -883,8 +883,38 @@ store -- run manifests, review queues, engagement/voting audit trails --
 stays file-based JSONL regardless of whether Postgres is configured: an
 append-only file is simpler to keep fully auditable than a table with
 `UPDATE`s, and none of those stores have the multi-way join access pattern
-that would justify a relational engine's added operational cost. `arp db
-init-postgres` creates the `vector` extension and every table, idempotently.
+that would justify a relational engine's added operational cost.
+
+Three properties make that opt-in safe to exercise, each enforced by tests
+rather than asserted in prose (see
+[`docs/DATABASE_STORAGE_REVIEW.md`](DATABASE_STORAGE_REVIEW.md) for the
+review that established them):
+
+- **The two portfolio backends answer identically.** Holdings resolution is
+  "each portfolio's most recent snapshot on or before the requested date"
+  in both -- portfolios are pulled on independent schedules, so the
+  requested date usually is not a date every portfolio has.
+  `backend/tests/test_portfolio_store_parity.py` runs one set of
+  assertions against both stores, including their public surfaces, so a
+  divergence fails a test instead of silently changing a number.
+- **The SQL aggregation is the one that actually runs.**
+  `arp/portfolio/analytics.py::execute` routes a `market_value_sum` query
+  through `PostgresPortfolioStore.aggregate_holdings_by` when the
+  configured store offers it, and
+  `backend/tests/test_analytics_sql_parity.py` holds it to the same
+  numbers, groups and counts as the in-Python path.
+- **A projection's `company_id` carries no foreign key to `companies`.**
+  That table is populated only by the dual-write portfolio store, whereas a
+  run's companies come from the user-supplied universe file -- so an FK
+  there rejects every legitimate row while the best-effort sync hooks
+  swallow the violation. See `postgres_models.py`'s module docstring.
+
+`arp db init-postgres` creates the `vector` extension and every table, adds
+any column an earlier version's database is missing, and applies any
+recorded schema step, idempotently -- so it is run after a codebase
+upgrade, not only once per fresh database. `arp db check-postgres` reports
+whether a database is current without modifying it
+(`backend/arp/storage/postgres_schema.py`).
 
 ## What's deliberately out of scope
 

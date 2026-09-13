@@ -612,7 +612,24 @@ ARP_OBJECT_STORE_ENDPOINT_URL=http://localhost:9000
 ARP_OBJECT_STORE_ACCESS_KEY=arp
 ARP_OBJECT_STORE_SECRET_KEY=arp12345
 
-arp db init-postgres        # creates the pgvector extension + every table, idempotent
+arp db init-postgres        # extension + tables + any missing column + pending schema steps, idempotent
+arp db check-postgres       # read-only: is this database current? (non-zero exit if not)
 arp db init-opensearch      # creates every index (behind its alias), idempotent
 arp db init-object-store    # creates the bucket, idempotent
+```
+
+Re-run `arp db init-postgres` after upgrading this codebase, not just once
+per fresh database: it also adds columns and applies recorded schema steps
+to a database an earlier version created (see
+`backend/arp/storage/postgres_schema.py`). `arp db check-postgres` answers
+"is this database current?" without touching it, so it can gate a deploy.
+
+Backfilling the read-model projections is incremental by default -- only
+runs whose manifest changed since the last backfill are rescanned:
+
+```bash
+arp db reindex company-records       # since the last backfill
+arp db reindex company-facts --full  # rescan everything
+arp db reindex engagement
+arp db reindex documents
 ```

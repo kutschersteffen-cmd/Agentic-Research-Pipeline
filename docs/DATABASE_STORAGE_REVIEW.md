@@ -21,6 +21,34 @@ not by reading alone — see [How this was verified](#how-this-was-verified)
 for the setup, and [the summary table](#3-findings-summary) for all
 fifteen at a glance.
 
+> **Update — all fifteen findings are fixed.** Each finding below now ends
+> with a **Fixed** note naming what changed and the test that pins it; the
+> summary table carries the same. Two things came out of the
+> implementation that the review itself had not found:
+>
+> - **F16 (high), new:** the engagement projection could never store a
+>   commitment. `EngagementCommitmentModel` has a plain `ForeignKey` column
+>   but no ORM `relationship()`, and SQLAlchemy derives flush ordering from
+>   relationships — with none declared it flushed `engagement_commitments`
+>   before `engagement_issues`, so every save of an issue carrying a
+>   commitment raised `ForeignKeyViolation` into the best-effort hook that
+>   swallows it. Found by the integration test written for F2, which is
+>   the coverage gap §5 named. Fixed by inserting issues and flushing
+>   before adding commitments.
+> - **F11 was fixed differently than proposed.** Making
+>   `build_hybrid_content_store` raise would have been worse than the
+>   silence: it is called per field per company inside the retrieval
+>   graph, so it would fail runs mid-flight over a configuration typo, and
+>   the original fallback's rationale (hybrid retrieval is a cache; the
+>   answer is the same either way) is sound. The misconfiguration is now
+>   rejected when `Settings` is constructed — at startup, in the API and
+>   the CLI alike — and the factory keeps its fallback with a warning.
+>
+> The default file-based path gained 10 concurrency tests, and the Postgres
+> path gained 34 integration tests across parity, projections and schema
+> evolution; the suite is 1013 passing with a scratch database configured,
+> 954 without one.
+
 ---
 
 ## 1. The approach, as designed
@@ -124,6 +152,13 @@ coverage percentages are all wrong, with no error and no warning.
 lateral `max(as_of_date) <= :as_of` per `portfolio_id` — and add a parity
 test that runs the same assertions against both stores (see F8).
 
+**Fixed.** `_latest_snapshot_per_portfolio` (a grouped subquery joined back
+to `holdings`) now resolves the date per portfolio, shared by
+`load_holdings_as_of` and `aggregate_market_value_eur`/
+`aggregate_holdings_by`. `load_snapshot` was untangled from it and stays
+exact-date. Pinned by `tests/test_portfolio_store_parity.py`, which fails
+against the old query.
+
 ### F2 (high) — three of the four Postgres projections cannot insert a single row
 
 `CompanyRecordModel.company_id`, `CompanyFactModel.company_id` and
@@ -156,6 +191,13 @@ read models of a store that itself enforces no referential integrity —
 the same argument `SecurityResolutionModel`'s docstring already makes for
 *not* having an FK), or upsert the company row as part of the projection
 sync. Dropping the FK is the smaller and more consistent change.
+
+**Fixed.** The three FKs are gone, and the rule is stated once in
+`postgres_models.py`'s module docstring (FKs stay only where both sides are
+written by the same code path). Existing databases are migrated by schema
+step `0001_drop_projection_company_fks` (F6).
+`tests/test_postgres_projections_integration.py` inserts for a company that
+exists only in a universe file — 13 tests where there were none.
 
 ### F3 (high) — `PortfolioStore`'s registry files lose writes and can be read mid-truncation
 
@@ -190,6 +232,13 @@ same `mkstemp`/`os.replace` helper `ReportingStore._atomic_write` already
 generalizes. That is a ~30-line change, no new dependency, no schema
 change.
 
+**Fixed.** Every registry write goes through `_put_json_entry` (per-file
+`KeyedLock` + atomic write), snapshots are written atomically too, and the
+write-then-rename duplicated across `RunStore`/`EngagementStore`/
+`ReportingStore` now lives in one place (`arp/storage/atomic_io.py`).
+`tests/test_file_store_concurrency.py` asserts all 50 concurrent writes
+survive and that concurrent readers never observe a truncated file.
+
 ### F4 (medium) — `PostgresPortfolioStore` is not the drop-in it claims to be
 
 Its docstring promises *"a genuine drop-in … every caller of
@@ -220,6 +269,15 @@ file-backed concerns anyway), and add a test asserting the two stores
 expose the same public surface — that single test would have caught this
 and would catch the next one.
 
+**Fixed, with one correction to the recommendation.** Only
+`list_observation_keys` is delegated: the five `*_path()` accessors name a
+file that does not exist under this backend, so returning the wrapped
+store's path would hand a caller an empty file and call it the data. They
+are declared in `FILE_ONLY_METHODS` in the parity suite, which asserts every
+*other* public method exists on both — so adding a method to
+`PortfolioStore` now fails a test unless it is implemented or deliberately
+classified.
+
 ### F5 (medium) — `TaxonomyStore` can overwrite "immutable" versions
 
 `new_version` reads the current version, then writes `version + 1`
@@ -243,6 +301,13 @@ version (`list_versions` then silently skips it).
 files with `"x"` (exclusive create) so a version collision fails loudly
 instead of silently overwriting.
 
+**Fixed.** All three, plus a bounded re-read-and-bump loop so the
+cross-process case (a CLI edit racing an API request) produces v3 rather
+than an error, and `TaxonomyVersionConflict` if it cannot claim a version at
+all. `ratify` is the one write that legitimately replaces a version file,
+and is atomic. Eight concurrent edits now produce v2–v9 with every note
+intact.
+
 ### F6 (medium) — no migration path for Postgres
 
 `ensure_schema` is `CREATE EXTENSION` + `Base.metadata.create_all`
@@ -265,6 +330,20 @@ state the constraint in the docs and in `init-postgres --help`:
 neither is true and an operator finds out by getting a
 `UndefinedColumn` error.
 
+**Fixed, without Alembic.** `arp/storage/postgres_schema.py` does three
+things idempotently: `create_all` for new tables, model-driven
+`ALTER TABLE ADD COLUMN` for columns an older database lacks (generalizing
+the hand-written `ensure_storage_uri_column`), and run-once `SCHEMA_STEPS`
+for what reconciliation cannot infer — recorded in a `schema_migrations`
+table, so "what has this database had applied?" is answerable. Destructive
+divergence (a column the models dropped, a nullability mismatch) is
+*reported*, never acted on. New `arp db check-postgres` prints that report
+and exits non-zero when a database is behind, so it can gate a deploy.
+Alembic was rejected as disproportionate here: a dependency plus a
+hand-written baseline revision duplicating the models, for a schema with one
+pending change. Six tests in `tests/test_postgres_schema.py` cover the
+behind-database cases.
+
 ### F7 (medium) — the join the relational backend exists for has no callers
 
 `aggregate_market_value_eur` is described in `METHODOLOGY.md` and in its
@@ -285,6 +364,18 @@ check, once F1 is fixed), or mark the method explicitly as a
 not-yet-wired capability so the docs stop claiming a payoff that isn't
 collected.
 
+**Fixed — wired.** New `aggregate_holdings_by` returns everything
+`aggregation.aggregate` needs for `market_value_sum` (grouped sums, holding
+counts, grand total) across all seven of `aggregation.DIMENSIONS`, with
+security filters, and `analytics._try_aggregate_in_sql` routes through it
+behind a `hasattr` capability check — so nothing changes with the default
+file backend or without the extra installed. 15 tests in
+`tests/test_analytics_sql_parity.py` hold the two paths to identical rows,
+counts, totals, ordering and `(unresolved)` bucketing, which is how the one
+real divergence found during this work (NULL groups sort last in Postgres,
+first in Python) surfaced. `weighted_avg_datapoint` and `count` stay in
+Python deliberately: the former needs the file-based observation cascade.
+
 ### F8 (medium) — schema↔ORM mapping is hand-written field by field, with no parity test
 
 Every conversion between a Pydantic schema and its ORM model is written
@@ -304,6 +395,14 @@ against both backends.
 existing round-trip tests under it. That single change pins F1, F4 and
 F8 at once, which is why it heads the recommended order below.
 
+**Fixed.** `tests/test_portfolio_store_parity.py`: 19 assertions over a
+`store` fixture parametrized across both backends (the Postgres half skips
+without `ARP_TEST_POSTGRES_DSN`, so the file half still runs in the default
+configuration), covering as-of resolution, every round-trip including
+`Holding`'s optional fields, upsert semantics, and the public-surface
+comparison. A field added to a schema and forgotten in the ORM mapping now
+fails a test.
+
 ### F9 (low) — `sync_run` reports a row count it cannot know
 
 `sync_run`'s docstring promises *"Returns the number of rows actually
@@ -321,6 +420,10 @@ So the CLI prints `rows_inserted=-1` in both cases, and an operator can't
 distinguish "backfilled" from "no-op". *Fix:* add `.returning(...)` and
 count the returned rows, or drop the claim.
 
+**Fixed.** `.returning(CompanyRecordModel.id)`, counted. The CLI prints
+real numbers now, and both the insert count and the no-op re-sync count are
+asserted.
+
 ### F10 (low) — dead schema and unimplemented incremental reindex
 
 - `IndexCheckpointModel` ("per-projector high-water mark so `arp db
@@ -334,6 +437,14 @@ count the returned rows, or drop the claim.
 These are all "documented in a docstring, absent in code" — the most
 expensive kind of dead code, because the docstrings read as description.
 
+**Fixed — implemented, all three.** `arp/storage/postgres_checkpoints.py`
+reads and writes `IndexCheckpointModel`; `arp db reindex company-records` /
+`company-facts` are incremental by default with a new `--full` flag; and
+`CompanyFactModel.confidence`/`.citations` are populated by
+`fact_confidence`/`fact_citations`, which handle each verified row shape (a
+match's own `confidence`, a record's `overall_confidence`, an extraction's
+per-field citations concatenated in field order).
+
 ### F11 (low) — misconfiguration is silent in one factory and loud in the other
 
 `build_portfolio_store` raises a clear `RuntimeError` when
@@ -344,6 +455,17 @@ in the same situation silently falls back to SQLite
 so `ARP_PORTFOLIO_BACKEND=postgress` is a silent no-op too. *Fix:*
 `Literal` types on both settings, and make the embeddings factory raise
 like its sibling.
+
+**Fixed, differently.** The `Literal` types are in — a typo now fails at
+startup naming the allowed values. Making the factory raise would have been
+worse than the silence, though: it runs per field per company inside the
+retrieval graph, so it would fail runs mid-flight, and the original
+fallback's reasoning (hybrid retrieval is a cache; the answer is the same
+either way) is sound. Instead a `Settings` model validator refuses to
+construct any backend selection missing its connection —
+`portfolio_backend`, `embeddings_backend` and `retrieval_backend` alike, at
+startup, in the API and the CLI both — and the factory keeps its fallback
+with a warning for a `Settings` built around validation.
 
 ### F12 (low) — projection hooks are synchronous on the caller's thread
 
@@ -361,6 +483,11 @@ stale connections, not with a hung server. *Fix:* at minimum set a
 `connect_timeout` in the DSN/`connect_args`; better, batch the fact
 lookup into one query keyed by `(company_id, fact_key)`.
 
+**Fixed, both.** `get_engine` sets a 10s `connect_timeout` (unless the DSN
+names one, in which case the caller was explicit), and `materialize_run`
+issues one `SELECT ... WHERE fact_key IN (...)` for the whole run instead of
+one per candidate.
+
 ### F13 (low) — inconsistent tolerance for a corrupt JSONL line
 
 `RunStore.read_jsonl` skips undecodable lines; `PortfolioStore._read_jsonl`
@@ -368,6 +495,12 @@ does not (`portfolio_store.py:49-58`), so one truncated line in
 `news/items.jsonl` or an observations file breaks the whole read. Given
 appends are unlocked (F3), a partially-written line is possible. Use the
 tolerant reader in both places, or neither.
+
+**Fixed.** Both go through `arp/storage/jsonl_io.py`, which skips an
+undecodable line and documents why that is right for an append-only log: a
+torn tail is not a record, and discarding the intact records in front of it
+is the worse failure. (Those appends are no longer unlocked either — see
+F3/F14.)
 
 ### F14 (informational) — the single-writer assumption should be written down
 
@@ -382,6 +515,15 @@ about the process boundary. Either note the constraint next to
 sidecar lockfile) — which would also cover the CLI-vs-API case that
 exists now.
 
+**Fixed — the lock, not just the note.** `KeyedLock` takes an optional
+`lock_path`, and each acquisition then also takes an advisory `fcntl.flock`
+on a sidecar file, reentrantly (an inner `with` no longer releases what an
+outer one still holds). All four stores pass one, so the CLI, the schedulers
+and any number of uvicorn workers serialize against each other on the same
+record. Degrades to thread-only where `fcntl` is absent. A subprocess test
+asserts two processes' hold windows never overlap — and that the lock files
+stay out of every listing glob.
+
 ### F15 (informational) — the document projection invents its own timestamps
 
 `DocumentRegistryModel.first_seen_at` / `last_seen_at` are set to
@@ -392,55 +534,84 @@ can't. A "mirror" whose timestamps mean something different from the
 source's is a trap for whoever queries it first. Add the two fields to
 `StoredDocumentRef` and carry them through.
 
+**Fixed.** `StoredDocumentRef` carries both (optional, so a hand-built ref
+still works), every registry `SELECT` reads them, and the projection copies
+them instead of stamping its own time — falling back to the sync time only
+when they are genuinely unknown.
+
 ---
 
 ## 3. Findings summary
 
-| # | Sev | Finding | Where |
-| --- | --- | --- | --- |
-| F1 | high | Postgres holdings use exact-date match, not "latest on or before" → wrong aggregates | `postgres_portfolio_store.py:313,357` |
-| F2 | high | `company_records` / `company_facts` / `engagement_issues` FK to an unpopulated `companies` → projections silently insert nothing | `postgres_models.py:200,241,279` |
-| F3 | high | `PortfolioStore` registry writes: no lock, non-atomic → lost updates + truncated reads | `portfolio_store.py:44-47` |
-| F4 | medium | `PostgresPortfolioStore` missing 6 methods; `/climate-conflicts` 500s | `postgres_portfolio_store.py` |
-| F5 | medium | `TaxonomyStore.new_version` races overwrite "immutable" versions | `taxonomy_store.py:36-38,51-72` |
-| F6 | medium | No Postgres migrations — `create_all` only, no Alembic | `postgres.py:52-60` |
-| F7 | medium | `aggregate_market_value_eur` (the stated payoff) has no callers | `postgres_portfolio_store.py:328` |
-| F8 | medium | Hand-written schema↔ORM mapping, no cross-backend parity test | `postgres_portfolio_store.py`, `tests/` |
-| F9 | low | `sync_run` returns `-1`; CLI prints `rows_inserted=-1` | `postgres_company_records_projection.py:77` |
-| F10 | low | `IndexCheckpointModel`, `since=`, `confidence`/`citations` all dead | `postgres_models.py:311`, `cli/db.py` |
-| F11 | low | Silent fallback + non-`Literal` backend settings | `content_store_factory.py:30-32`, `config.py` |
-| F12 | low | Inline projection hooks; N+1 in the facts projection | `run_store.py:82-95`, `..._facts_projection.py:138` |
-| F13 | low | Inconsistent corrupt-line tolerance in JSONL readers | `portfolio_store.py:49-58` |
-| F14 | info | In-process locks only; CLI/API and multi-worker unprotected | `locks.py` |
-| F15 | info | Document projection timestamps ≠ source timestamps | `postgres_document_projection.py:44` |
+All fifteen are fixed; "Fixed by" names the change, and each finding above
+carries the detail.
 
-## 4. Recommended order of work
+| # | Sev | Finding | Fixed by |
+| --- | --- | --- | --- |
+| F1 | high | Postgres holdings use exact-date match, not "latest on or before" → wrong aggregates | `_latest_snapshot_per_portfolio` + parity suite |
+| F2 | high | `company_records` / `company_facts` / `engagement_issues` FK to an unpopulated `companies` → projections silently insert nothing | FKs dropped + schema step `0001` |
+| F3 | high | `PortfolioStore` registry writes: no lock, non-atomic → lost updates + truncated reads | `_put_json_entry` + `atomic_io.py` |
+| F4 | medium | `PostgresPortfolioStore` missing 6 methods; `/climate-conflicts` 500s | `list_observation_keys` + surface test |
+| F5 | medium | `TaxonomyStore.new_version` races overwrite "immutable" versions | lock + O_EXCL + bounded re-bump |
+| F6 | medium | No Postgres migrations — `create_all` only, no Alembic | `postgres_schema.py` + `arp db check-postgres` |
+| F7 | medium | `aggregate_market_value_eur` (the stated payoff) has no callers | `aggregate_holdings_by` wired into `analytics.execute` |
+| F8 | medium | Hand-written schema↔ORM mapping, no cross-backend parity test | `tests/test_portfolio_store_parity.py` |
+| F9 | low | `sync_run` returns `-1`; CLI prints `rows_inserted=-1` | `.returning(...)`, counted |
+| F10 | low | `IndexCheckpointModel`, `since=`, `confidence`/`citations` all dead | `postgres_checkpoints.py`, `--full`, `fact_confidence` |
+| F11 | low | Silent fallback + non-`Literal` backend settings | `Literal` types + `Settings` validator (not the factory) |
+| F12 | low | Inline projection hooks; N+1 in the facts projection | `connect_timeout` + one batched `SELECT` |
+| F13 | low | Inconsistent corrupt-line tolerance in JSONL readers | shared `jsonl_io.py` |
+| F14 | info | In-process locks only; CLI/API and multi-worker unprotected | `fcntl.flock` sidecar in `KeyedLock` |
+| F15 | info | Document projection timestamps ≠ source timestamps | timestamps carried on `StoredDocumentRef` |
+| F16 | high | Engagement projection flushed commitments before their issue → no commitment could ever be stored | explicit `flush()` between the two inserts |
+
+## 4. Order of work (as carried out)
 
 1. **F3 + F5** — file-store concurrency. Smallest diff, affects the
    default path everyone runs, and the tools (`KeyedLock`,
-   `_atomic_write`) already exist in the repo.
-2. **F8's parity fixture, then F1 and F4** — write the cross-backend test
-   first and let it fail; it pins all three and every future divergence.
-3. **F2** — drop the FKs on the projection tables (consistent with
-   `SecurityResolutionModel`'s own documented reasoning), so the
-   projections actually do something when enabled.
-4. **F6** — decide the migration story before anyone runs this Postgres
-   path on data they care about.
-5. **F7, F9–F13, F15** — cleanup; each is small and independent.
+   `_atomic_write`) already existed in the repo.
+2. **F8's parity fixture, then F1 and F4** — the cross-backend test was
+   written first and confirmed failing against the old query; it pins all
+   three and every future divergence.
+3. **F2** — the FKs dropped on the projection tables (consistent with
+   `SecurityResolutionModel`'s own documented reasoning), plus the
+   integration tests that proved the projections now store rows — and
+   that surfaced **F16**.
+4. **F6** — the migration story, before anyone runs this Postgres path on
+   data they care about.
+5. **F7, F9–F13, F15** — cleanup, each small and independent.
 
-## 5. Test-coverage gaps worth naming
+Two items were resolved differently from the recommendation above, both
+noted in full at their finding: **F4** (five of the six methods are
+deliberately *not* delegated) and **F11** (validated at startup rather than
+raised from a hot inner path).
+
+## 5. Test-coverage gaps (all three closed)
 
 - **Every Postgres write path except the portfolio store and the
-  embeddings cache is untested.** The record/fact/engagement/document
-  projections have unit tests for their *pure mapping functions* only
-  (`test_postgres_company_records_projection.py` says so explicitly);
-  no test ever inserts a row. That is exactly why F2 shipped.
-- **No cross-backend parity test** — the file and Postgres stores are
-  asserted against separately, so a semantic divergence like F1 is
+  embeddings cache was untested.** The record/fact/engagement/document
+  projections had unit tests for their *pure mapping functions* only
+  (`test_postgres_company_records_projection.py` said so explicitly); no
+  test ever inserted a row. That is exactly why F2 shipped — and why F16
+  shipped alongside it.
+  → `tests/test_postgres_projections_integration.py` (13 tests) asserts on
+  rows actually in Postgres, including the disabled-projection case.
+- **No cross-backend parity test** — the file and Postgres stores were
+  asserted against separately, so a semantic divergence like F1 was
   invisible to the suite.
+  → `tests/test_portfolio_store_parity.py` (19) and
+  `tests/test_analytics_sql_parity.py` (15).
 - **No concurrency test for `PortfolioStore` or `TaxonomyStore`**, though
-  `tests/test_run_store_locking.py` shows the pattern for exactly this
-  and passes for `RunStore`.
+  `tests/test_run_store_locking.py` showed the pattern for exactly this
+  and passed for `RunStore`.
+  → `tests/test_file_store_concurrency.py` (10), including a subprocess
+  test for the cross-process lock.
+
+Also new: `tests/test_postgres_schema.py` (6) for schema evolution against
+a database that is behind. The suite runs 954 passing in the default
+network- and database-free configuration, 1013 with a scratch Postgres
+configured. (Two tests fail in either mode in this container for missing
+optional extras — `hdbscan` and `docling` — unrelated to storage.)
 
 ## How this was verified
 

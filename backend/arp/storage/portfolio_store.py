@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from arp.schemas.common import CompanyRef, now_iso
@@ -14,7 +16,19 @@ from arp.schemas.portfolio import (
     SecurityResolution,
 )
 from arp.schemas.portfolio_monitoring import AlertRule
+from arp.storage.atomic_io import atomic_write_text
+from arp.storage.jsonl_io import append_jsonl, read_jsonl
+from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import safe_id
+
+
+def _sidecar_lock_path(key: str) -> Path:
+    """`.<filename>.lock` beside the file a PortfolioStore write targets --
+    this store's lock keys are paths, unlike the other stores' opaque ids.
+    A dotted sibling rather than a suffix change so it never matches the
+    `*.jsonl` / `*.json` globs the listing methods use."""
+    path = Path(key)
+    return path.parent / f".{path.name}.lock"
 
 
 class PortfolioStore:
@@ -30,10 +44,39 @@ class PortfolioStore:
         portfolios/securities.json                          SecurityRef reference data
         portfolios/security_resolutions.json                  ISIN -> company_id resolutions
         portfolios/<portfolio_id>/snapshots/<as_of_date>.jsonl  Holding[] per snapshot
+
+    The registry-style files above (`registry.json`, `securities.json`,
+    `companies.json`, `security_resolutions.json`, `analytics.json`,
+    `monitoring/rules.json`) each hold *many* records in one JSON object,
+    so saving one record is a read-modify-write of the whole file. Those
+    go through `_put_json_entry`, which takes a per-file KeyedLock and
+    writes atomically -- exactly what RunStore/EngagementStore already do
+    for their own read-modify-write cycles, and for the same reason: this
+    store is an lru_cached singleton (api/deps.py::get_portfolio_store)
+    shared by every sync route handler's worker thread, so two concurrent
+    saves against one file otherwise lose one side's record outright and
+    a concurrent reader can observe the file mid-truncation.
     """
 
     def __init__(self, portfolios_dir: Path) -> None:
         self.portfolios_dir = portfolios_dir
+        # Keyed by the file being written, and locked across processes as
+        # well as threads: an `arp portfolio ...` CLI command writes the
+        # same registry files as a live API process. See KeyedLock.
+        self._locks = KeyedLock(lock_path=_sidecar_lock_path)
+
+    @contextmanager
+    def _lock(self, path: Path) -> Iterator[None]:
+        """Serializes access to one file within this process, keyed by
+        path. Deliberately not public, unlike RunStore.lock/
+        EngagementStore.lock: those exist because JobManager and the
+        engagement orchestrator wrap several of their calls in one
+        cycle, whereas every read-modify-write here is a single save. A
+        caller wanting two of these saves to land together would need
+        more than a shared lock anyway -- they touch different files,
+        which no lock makes atomic as a pair."""
+        with self._locks.acquire(str(path)):
+            yield
 
     @staticmethod
     def _read_json(path: Path) -> dict:
@@ -43,26 +86,23 @@ class PortfolioStore:
 
     def _write_json(self, path: Path, data: dict) -> None:
         self.portfolios_dir.mkdir(parents=True, exist_ok=True)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, indent=2))
+        atomic_write_text(path, json.dumps(data, indent=2))
+
+    def _put_json_entry(self, path: Path, key: str, value: dict) -> None:
+        """Sets one record in a registry file, serialized against other
+        writers of the same file and atomic for readers."""
+        with self._lock(path):
+            data = self._read_json(path)
+            data[key] = value
+            self._write_json(path, data)
 
     @staticmethod
     def _read_jsonl(path: Path) -> list[dict]:
-        if not path.exists():
-            return []
-        rows = []
-        with path.open() as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    rows.append(json.loads(line))
-        return rows
+        return read_jsonl(path)
 
-    @staticmethod
-    def _append_jsonl(path: Path, row: dict) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a") as f:
-            f.write(json.dumps(row) + "\n")
+    def _append_jsonl(self, path: Path, row: dict) -> None:
+        with self._lock(path):
+            append_jsonl(path, row)
 
     # --- portfolios ---
 
@@ -70,9 +110,7 @@ class PortfolioStore:
         return self.portfolios_dir / "registry.json"
 
     def save_portfolio(self, portfolio: Portfolio) -> None:
-        registry = self._read_json(self.registry_path())
-        registry[portfolio.portfolio_id] = json.loads(portfolio.model_dump_json())
-        self._write_json(self.registry_path(), registry)
+        self._put_json_entry(self.registry_path(), portfolio.portfolio_id, json.loads(portfolio.model_dump_json()))
 
     def get_portfolio(self, portfolio_id: str) -> Portfolio | None:
         row = self._read_json(self.registry_path()).get(portfolio_id)
@@ -87,9 +125,7 @@ class PortfolioStore:
         return self.portfolios_dir / "securities.json"
 
     def save_security(self, security: SecurityRef) -> None:
-        data = self._read_json(self.securities_path())
-        data[security.security_id] = json.loads(security.model_dump_json())
-        self._write_json(self.securities_path(), data)
+        self._put_json_entry(self.securities_path(), security.security_id, json.loads(security.model_dump_json()))
 
     def get_security(self, security_id: str) -> SecurityRef | None:
         row = self._read_json(self.securities_path()).get(security_id)
@@ -104,9 +140,7 @@ class PortfolioStore:
         return self.portfolios_dir / "companies.json"
 
     def save_company(self, company: CompanyRef) -> None:
-        data = self._read_json(self.companies_path())
-        data[company.company_id] = json.loads(company.model_dump_json())
-        self._write_json(self.companies_path(), data)
+        self._put_json_entry(self.companies_path(), company.company_id, json.loads(company.model_dump_json()))
 
     def get_company(self, company_id: str) -> CompanyRef | None:
         row = self._read_json(self.companies_path()).get(company_id)
@@ -121,9 +155,7 @@ class PortfolioStore:
         return self.portfolios_dir / "security_resolutions.json"
 
     def save_resolution(self, resolution: SecurityResolution) -> None:
-        data = self._read_json(self.resolutions_path())
-        data[resolution.security_id] = json.loads(resolution.model_dump_json())
-        self._write_json(self.resolutions_path(), data)
+        self._put_json_entry(self.resolutions_path(), resolution.security_id, json.loads(resolution.model_dump_json()))
 
     def get_resolution(self, security_id: str) -> SecurityResolution | None:
         row = self._read_json(self.resolutions_path()).get(security_id)
@@ -142,11 +174,13 @@ class PortfolioStore:
         return self.portfolios_dir / safe_id(portfolio_id, label="portfolio_id") / "snapshots" / f"{safe_id(as_of_date, label='as_of_date')}.jsonl"
 
     def save_snapshot(self, portfolio_id: str, as_of_date: str, holdings: list[Holding]) -> None:
+        """Writes one snapshot file whole. Atomic (and locked) because a
+        re-pull for a date already on disk is a deliberate overwrite: a
+        reader must see the previous pull or the new one, never a file
+        truncated to the first N holdings of the new one."""
         path = self.snapshot_path(portfolio_id, as_of_date)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w") as f:
-            for h in holdings:
-                f.write(h.model_dump_json() + "\n")
+        with self._lock(path):
+            atomic_write_text(path, "".join(h.model_dump_json() + "\n" for h in holdings))
 
     def load_snapshot(self, portfolio_id: str, as_of_date: str) -> list[Holding]:
         return [Holding.model_validate(row) for row in self._read_jsonl(self.snapshot_path(portfolio_id, as_of_date))]
@@ -240,9 +274,7 @@ class PortfolioStore:
         return self.portfolios_dir / "analytics.json"
 
     def save_analytic(self, spec_json: dict) -> None:
-        data = self._read_json(self.analytics_path())
-        data[spec_json["analytic_id"]] = spec_json
-        self._write_json(self.analytics_path(), data)
+        self._put_json_entry(self.analytics_path(), spec_json["analytic_id"], spec_json)
 
     def list_analytics(self) -> list[dict]:
         return list(self._read_json(self.analytics_path()).values())
@@ -256,9 +288,7 @@ class PortfolioStore:
         return self.portfolios_dir / "monitoring" / "rules.json"
 
     def save_rule(self, rule: AlertRule) -> None:
-        data = self._read_json(self.rules_path())
-        data[rule.rule_id] = json.loads(rule.model_dump_json())
-        self._write_json(self.rules_path(), data)
+        self._put_json_entry(self.rules_path(), rule.rule_id, json.loads(rule.model_dump_json()))
 
     def get_rule(self, rule_id: str) -> AlertRule | None:
         row = self._read_json(self.rules_path()).get(rule_id)

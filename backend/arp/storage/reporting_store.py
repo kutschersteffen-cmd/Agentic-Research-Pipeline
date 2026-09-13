@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import json
-import os
-import tempfile
 from pathlib import Path
 
 from arp.schemas.common import now_iso
 from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest, TemplateStyleProfile
+from arp.storage.atomic_io import atomic_write_text
 from arp.storage.safe_path import safe_id
 
 
@@ -43,21 +42,9 @@ class ReportingStore:
     def preview_dir(self, report_id: str) -> Path:
         return self.report_dir(report_id) / "preview"
 
-    @staticmethod
-    def _atomic_write(path: Path, text: str) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=".tmp_", suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w") as f:
-                f.write(text)
-            os.replace(tmp_path, path)
-        except BaseException:
-            Path(tmp_path).unlink(missing_ok=True)
-            raise
-
     def save_manifest(self, manifest: ReportManifest) -> None:
         manifest.updated_at = now_iso()
-        self._atomic_write(self.manifest_path(manifest.report_id), manifest.model_dump_json(indent=2))
+        atomic_write_text(self.manifest_path(manifest.report_id), manifest.model_dump_json(indent=2))
 
     def load_manifest(self, report_id: str) -> ReportManifest | None:
         path = self.manifest_path(report_id)
@@ -66,7 +53,7 @@ class ReportingStore:
         return ReportManifest.model_validate_json(path.read_text())
 
     def save_request(self, report_id: str, request: ReportRequest) -> None:
-        self._atomic_write(self.request_path(report_id), request.model_dump_json(indent=2))
+        atomic_write_text(self.request_path(report_id), request.model_dump_json(indent=2))
 
     def load_request(self, report_id: str) -> ReportRequest | None:
         path = self.request_path(report_id)
@@ -75,7 +62,7 @@ class ReportingStore:
         return ReportRequest.model_validate_json(path.read_text())
 
     def save_plan(self, report_id: str, plan: ReportPlan) -> None:
-        self._atomic_write(self.plan_path(report_id), plan.model_dump_json(indent=2))
+        atomic_write_text(self.plan_path(report_id), plan.model_dump_json(indent=2))
 
     def load_plan(self, report_id: str) -> ReportPlan | None:
         path = self.plan_path(report_id)
@@ -111,7 +98,7 @@ class ReportingStore:
         return self.template_dir(template_id) / filename
 
     def save_template_style(self, style: TemplateStyleProfile) -> None:
-        self._atomic_write(self.template_style_path(style.template_id), style.model_dump_json(indent=2))
+        atomic_write_text(self.template_style_path(style.template_id), style.model_dump_json(indent=2))
 
     def load_template_style(self, template_id: str) -> TemplateStyleProfile | None:
         path = self.template_style_path(template_id)

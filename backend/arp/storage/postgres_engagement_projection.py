@@ -24,9 +24,20 @@ logger = logging.getLogger(__name__)
 
 def sync_record(dsn: str, record: EngagementRecord) -> None:
     """Replaces every EngagementIssueModel/EngagementCommitmentModel row
-    for `record.company_id` with the current state of `record` --
-    commitments deleted before issues (and inserted after), respecting
-    the commitment -> issue foreign key."""
+    for `record.company_id` with the current state of `record`.
+
+    Ordering matters in both directions of the commitment -> issue foreign
+    key, and both halves are explicit here: commitments are deleted before
+    issues, and issues are inserted *and flushed* before any commitment is
+    added. That flush is not decoration. EngagementCommitmentModel has a
+    plain ForeignKey column but no ORM `relationship()`, and SQLAlchemy
+    derives flush ordering from mapper relationships -- with none declared
+    it happened to flush `engagement_commitments` first, so every save of
+    an issue that had a commitment raised ForeignKeyViolation. The
+    best-effort hook swallowed it (see sync_record_if_enabled), which is
+    why a projection that could never store a commitment still looked
+    healthy.
+    """
     from sqlalchemy import delete
     from sqlalchemy.orm import Session
 
@@ -36,34 +47,36 @@ def sync_record(dsn: str, record: EngagementRecord) -> None:
     with Session(engine) as session:
         session.execute(delete(EngagementCommitmentModel).where(EngagementCommitmentModel.company_id == record.company_id))
         session.execute(delete(EngagementIssueModel).where(EngagementIssueModel.company_id == record.company_id))
-        for issue in record.issues:
-            session.add(
-                EngagementIssueModel(
-                    issue_id=issue.issue_id,
-                    company_id=record.company_id,
-                    theme=issue.theme,
-                    severity=issue.severity.value,
-                    status=issue.status.value,
-                    source=issue.source.value,
-                    milestone_stage=issue.milestone_stage.value,
-                    escalation_stage=issue.escalation_stage.value,
-                    opened_at=issue.opened_at,
-                    payload=issue.model_dump(mode="json"),
-                )
+        session.add_all(
+            EngagementIssueModel(
+                issue_id=issue.issue_id,
+                company_id=record.company_id,
+                theme=issue.theme,
+                severity=issue.severity.value,
+                status=issue.status.value,
+                source=issue.source.value,
+                milestone_stage=issue.milestone_stage.value,
+                escalation_stage=issue.escalation_stage.value,
+                opened_at=issue.opened_at,
+                payload=issue.model_dump(mode="json"),
             )
-            for commitment in issue.commitments:
-                session.add(
-                    EngagementCommitmentModel(
-                        commitment_id=commitment.commitment_id,
-                        issue_id=issue.issue_id,
-                        company_id=record.company_id,
-                        text=commitment.text,
-                        status=commitment.status.value,
-                        target_date=commitment.target_date,
-                        validated_by=commitment.validated_by,
-                        validated_at=commitment.validated_at,
-                    )
-                )
+            for issue in record.issues
+        )
+        session.flush()  # every issue row exists before a commitment points at one
+        session.add_all(
+            EngagementCommitmentModel(
+                commitment_id=commitment.commitment_id,
+                issue_id=issue.issue_id,
+                company_id=record.company_id,
+                text=commitment.text,
+                status=commitment.status.value,
+                target_date=commitment.target_date,
+                validated_by=commitment.validated_by,
+                validated_at=commitment.validated_at,
+            )
+            for issue in record.issues
+            for commitment in issue.commitments
+        )
         session.commit()
 
 
