@@ -167,7 +167,16 @@ precision at scale (designed for up to ~4,000 companies per run).
    (`arp replicate pbo`, Bailey/Borwein/Lopez de Prado/Zhu), and a
    regime-stratified performance breakdown (`arp replicate regime-report`)
    surfacing the kind of volatility-regime-dependent decay a single
-   full-sample Sharpe ratio can hide. See
+   full-sample Sharpe ratio can hide. A full frontend page ("Strategy
+   Replication" nav tab) covers the whole workflow with explicit human
+   gates: propose a strategy (topic search over candidate papers, or
+   describe your own methodology in plain English), review the drafted
+   spec sheet -- edit any field directly or give natural-language
+   revision instructions, both recorded in a permanent audit trail via the
+   same review-decision machinery four other features already share --
+   and approve it (re-checked server-side) before a backtest can run at
+   all, then analyze the results (equity curve, drawdown, regime
+   breakdown, on-demand sanity check) once it has. See
    [`docs/STRATEGY_REPLICATION_METHODOLOGY.md`](docs/STRATEGY_REPLICATION_METHODOLOGY.md)
    for the full design, what "in-sample vs. out-of-sample" means here, and
    its current limitations (no point-in-time universe reconstruction, no

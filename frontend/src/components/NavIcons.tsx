@@ -126,4 +126,9 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <path d="M3 7.5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
     </svg>
   ),
+  strategyReplication: (
+    <svg {...ICON_PROPS}>
+      <path d="M4 20 V10 M10 20 V4 M16 20 V13 M22 20 V7" />
+    </svg>
+  ),
 };

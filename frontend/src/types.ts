@@ -1273,3 +1273,194 @@ export interface ReportManifest {
   output_tokens: number;
   model?: string | null;
 }
+
+// ---- Investment Strategy Replication ---------------------------------------
+
+export interface PaperCandidate {
+  candidate_id: string;
+  title: string;
+  url: string;
+  snippet: string;
+  replication_worthiness_score?: number | null;
+  worthiness_reasoning?: string | null;
+  suggested_signal_type?: SignalType | null;
+}
+
+export type SignalType = "momentum" | "value" | "text_sentiment" | "composite";
+export type WeightingScheme = "equal" | "value";
+export type RebalanceFrequency = "monthly" | "quarterly" | "annual" | "custom";
+
+export interface CompositeSignalComponent {
+  signal_type: SignalType;
+  weight: number;
+  formation_period_months: number;
+  skip_month: boolean;
+  characteristic_name?: string | null;
+  characteristic_lag_months: number;
+}
+
+export interface LegPerformance {
+  annualized_return_pct?: number | null;
+  monthly_mean_return_pct?: number | null;
+  annualized_volatility_pct?: number | null;
+  sharpe_ratio?: number | null;
+  t_stat?: number | null;
+  max_drawdown_pct?: number | null;
+  alpha_annualized_pct?: number | null;
+  beta?: number | null;
+}
+
+export interface ReportedPerformance {
+  long_leg: LegPerformance;
+  short_leg: LegPerformance;
+  long_short: LegPerformance;
+  benchmark_name?: string | null;
+  notes: string;
+}
+
+export interface ProvenanceInfo {
+  extractor_model?: string | null;
+  extractor_prompt_version?: string | null;
+  verifier_model?: string | null;
+  verifier_prompt_version?: string | null;
+}
+
+export interface StrategySpec {
+  spec_id: string;
+  paper_citation: string;
+  paper_title: string;
+  strategy_name: string;
+  signal_type: SignalType;
+  universe_description: string;
+  formation_period_months: number;
+  skip_month: boolean;
+  holding_period_months: number;
+  rebalance_frequency: RebalanceFrequency;
+  rebalance_interval_months?: number | null;
+  rebalance_anchor_month?: number | null;
+  characteristic_name?: string | null;
+  characteristic_lag_months: number;
+  composite_components: CompositeSignalComponent[];
+  num_portfolios: number;
+  long_leg_portfolio: number;
+  short_leg_portfolio: number;
+  weighting: WeightingScheme;
+  sample_period_start: string;
+  sample_period_end: string;
+  reported_performance: ReportedPerformance;
+  citations: Citation[];
+  grounded: boolean;
+  confidence: number;
+  needs_review: boolean;
+  verifier_notes?: string | null;
+  provenance: ProvenanceInfo;
+  num_trials_attempted: number;
+  extraction_notes: string;
+  created_at: string;
+}
+
+export interface SpecReviewDecision {
+  item_key: string;
+  decision: "approve" | "edit" | "reject";
+  reviewer?: string | null;
+  edited_value?: Record<string, unknown> | null;
+  comment?: string | null;
+  decided_at: string;
+}
+
+export interface SpecReviewState {
+  spec_run_id: string;
+  spec: StrategySpec;
+  approved: boolean;
+  history: SpecReviewDecision[];
+}
+
+export interface PortfolioPeriodReturn {
+  period_end: string;
+  long_return_pct: number;
+  short_return_pct: number;
+  long_short_return_pct: number;
+  num_long: number;
+  num_short: number;
+  benchmark_return_pct?: number | null;
+}
+
+export interface BacktestResult {
+  result_id: string;
+  spec_id: string;
+  period_label: string;
+  period_start: string;
+  period_end: string;
+  data_source: string;
+  universe_size: number;
+  periods: PortfolioPeriodReturn[];
+  long_leg: LegPerformance;
+  short_leg: LegPerformance;
+  long_short: LegPerformance;
+  avg_num_long: number;
+  avg_num_short: number;
+  monthly_turnover_pct?: number | null;
+  warnings: string[];
+  generated_at: string;
+}
+
+export type ReplicationVerdict = "replicated" | "partially_replicated" | "not_replicated" | "decayed_out_of_sample" | "insufficient_data";
+
+export interface DeflatedSharpeAssessment {
+  n_obs: number;
+  n_trials: number;
+  sharpe_ratio_period?: number | null;
+  skewness?: number | null;
+  kurtosis?: number | null;
+  expected_max_sharpe_under_null_period?: number | null;
+  probabilistic_sharpe_ratio?: number | null;
+  deflated_sharpe_ratio?: number | null;
+  notes: string;
+}
+
+export interface ReplicationComparisonReport {
+  report_id: string;
+  spec_id: string;
+  in_sample: BacktestResult;
+  out_of_sample?: BacktestResult | null;
+  reported_performance: ReportedPerformance;
+  in_sample_return_gap_pp?: number | null;
+  out_of_sample_return_gap_pp?: number | null;
+  deflated_sharpe?: DeflatedSharpeAssessment | null;
+  verdict: ReplicationVerdict;
+  verdict_notes: string;
+  generated_at: string;
+}
+
+export interface SanityCheckFinding {
+  concern: string;
+  explanation: string;
+}
+
+export interface SanityCheckAssessment {
+  plausible: boolean;
+  findings: SanityCheckFinding[];
+  summary: string;
+}
+
+export interface RegimeBucketPerformance {
+  regime: "low_volatility" | "mid_volatility" | "high_volatility";
+  num_periods: number;
+  long_short: LegPerformance;
+}
+
+export interface RegimeStratifiedReport {
+  trailing_window_months: number;
+  buckets: RegimeBucketPerformance[];
+  notes: string;
+}
+
+export interface ReplicationRunDetail {
+  run_id: string;
+  spec: StrategySpec;
+  in_sample: BacktestResult;
+  out_of_sample?: BacktestResult | null;
+  comparison: ReplicationComparisonReport;
+  sanity_check?: SanityCheckAssessment | null;
+  regime_report?: RegimeStratifiedReport | null;
+}

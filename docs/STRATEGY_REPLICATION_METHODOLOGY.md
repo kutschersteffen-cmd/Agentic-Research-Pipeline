@@ -556,6 +556,81 @@ in keeping with this module's existing "complement, never silently
 override the deterministic numbers" discipline (see "Sanity-check pass"
 above).
 
+## Frontend workflow: propose, review, backtest
+
+This module has a full frontend page (`frontend/src/pages/StrategyReplication.tsx`,
+"Strategy Replication" nav tab) covering three explicit, gated stages backed
+by a new API router (`arp/api/routers/replication.py`) -- CLI commands above
+still work unchanged and read/write the exact same `RunStore` state as the
+UI.
+
+**Stage A -- Propose.** `POST /api/replication/discover` wraps
+`discover_candidate_papers`/`rank_candidate_papers` (unchanged) so the UI can
+search a topic and show ranked `PaperCandidate`s to pick from, or a user can
+skip straight to describing their own methodology in plain English -- both
+converge on `POST /api/replication/specs {paper_citation, paper_text}`, which
+runs the normal extractor/verifier/grounding pipeline. `paper_text` is reused
+verbatim for either case: a pasted paper excerpt and a user's own free-form
+methodology description hit the identical extraction/grounding code path,
+only the UI's label differs.
+
+**Stage B -- Spec review & approval.** The drafted `StrategySpec` is *not*
+usable for a backtest until explicitly approved. This reuses the review/
+audit-trail machinery already shared by five other routers
+(`arp/orchestration/review_queue.py`'s `record_review_decision`/
+`latest_decisions`/`decision_history`, plus `arp/api/review_endpoints.py`)
+rather than inventing a new approval mechanism: the whole spec is treated as
+one reviewable item (`item_key="spec"`), and **approved** means the *latest*
+recorded decision for that key is `"approve"` -- any edit afterwards becomes
+the new latest decision and automatically un-approves it, with no separate
+bookkeeping. Two ways to change the spec, both recorded as `"edit"`
+decisions with a full snapshot in `edited_value`:
+- **Direct edit** (`PUT /api/replication/specs/{id}` with a full
+  `StrategySpec`) -- the UI's JSON editor lets a reviewer change literally
+  anything.
+- **Natural-language instruction** (`POST .../revise {instruction}`, backed
+  by `arp/replication/spec_revision.py::revise_spec_via_instruction`) -- one
+  schema-forced LLM call (`StrategySpecRevisionDraft`, a narrower model
+  covering only the revisable methodology fields, deliberately excluding
+  citations/confidence) applies the instruction. **Safety rule enforced in
+  code, not trusted from the LLM:** the old and new spec are diffed
+  field-by-field; if anything actually changed, the resulting spec's
+  `grounded` is forced to `False` and `needs_review` to `True`, with a
+  timestamped note appended to `extraction_notes` -- `grounded` is a
+  whole-spec flag in this schema (citations aren't tagged per-field), so a
+  manual/instruction-driven change to *any* field means the spec as a whole
+  can no longer be asserted as fully grounded against the original source
+  text, even though existing citations are left in place rather than
+  deleted (some may still genuinely support untouched fields).
+
+**Stage C -- Backtest & analyze.** Reachable only once approved --
+`POST /api/replication/specs/{id}/backtest` **re-checks approval
+server-side** (403 otherwise, never trusted from the client alone) before
+calling the existing `run_replication()` unchanged. Price/characteristics
+CSVs are uploaded via `POST .../datasets/prices` and
+`.../datasets/characteristics/{name}` (mirroring the Reporting Tool's
+`UploadFile` pattern), stored under the spec-draft run's own directory.
+Results are served as one bundled `ReplicationRunDetail`
+(`arp/replication/run_detail.py` -- composition only, every field an
+existing model, assembled by dispatching `results.jsonl` rows by their
+`type` tag) via `GET /api/replication/runs/{run_id}`, and rendered as an
+equity curve + drawdown-depth chart (hand-rolled SVG `LineChart`, this
+codebase's only charting approach -- no npm chart library), a KPI stat-tile
+row, and a reported-vs-measured comparison table. Unlike the CLI (where
+`sanity-check`/`regime-report` are separate, deliberate commands), the UI
+also exposes `POST .../runs/{run_id}/sanity-check` and `.../regime-report`
+as on-demand triggers -- a real interactive review tool should let the user
+ask for these without a separate CLI step, so this is the one deliberate
+difference from this module's usual "expensive/LLM actions are explicit CLI
+invocations" pattern. Charts are long/short/long-short leg-level only -- no
+per-decile breakdown, since the engine doesn't retain individual portfolios'
+returns.
+
+Both `LineChart` (client-side, display-only) and the equity-curve math
+computed from `BacktestResult.periods` are presentation only: the real
+Sharpe/return/t-stat numbers always come from the backend's
+`LegPerformance`, never recomputed in the frontend.
+
 ## Known limitations / next steps
 
 - MOMENTUM, VALUE, TEXT_SENTIMENT, and COMPOSITE are implemented; quality/
@@ -607,3 +682,20 @@ above).
   look-ahead bias (that would require point-in-time universe/fundamentals
   data this project doesn't have yet; see the limitations above), only a
   more specific set of things for the LLM to reason about.
+- The frontend's backtest stage supports uploading only ONE characteristics
+  CSV, keyed to the spec's own top-level `characteristic_name` -- a
+  COMPOSITE spec whose components need more than one distinct
+  characteristic isn't fully supported from the UI yet (the CLI's
+  `--characteristics name=path.csv`, repeatable, already handles this; the
+  API's `characteristics_refs` dict already accepts multiple entries too,
+  it's only the page's upload UI that's single-characteristic for now).
+- A spec draft's progress lives entirely in the browser's component state
+  plus its `spec_run_id` -- refreshing the page loses the in-progress
+  review unless the user has noted that ID down to paste into "resume a
+  spec draft you started earlier." There's no "recent spec drafts" list in
+  the UI yet (though `GET /api/runs?run_type=strategy_replication_spec`
+  already works for building one).
+- The spec sheet's direct-edit box is a raw JSON textarea, not a
+  per-field form with inline validation -- a malformed edit only surfaces
+  as a JSON.parse error or a Pydantic validation error from the API, not a
+  live per-field check while typing.
