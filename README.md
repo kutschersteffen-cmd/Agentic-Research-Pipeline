@@ -235,6 +235,7 @@ arp extract financials-run --universe companies.csv
 
 # Golden-set regression test -- run before a prompt/model change ships
 arp golden-set run
+arp golden-set planner                                     # the same, for the generative-BI planner: brief -> expected dashboard shape
 
 # Transition Plan Assessment: 64-indicator walk/talk climate disclosure scoring (Colesanti Senni et al. 2024)
 arp transition-plan indicators                          # inspect the 64 fixed indicators

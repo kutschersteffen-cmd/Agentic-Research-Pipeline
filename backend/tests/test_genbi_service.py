@@ -3,7 +3,7 @@ import pytest
 from arp.portfolio.genbi import service
 from arp.portfolio.genbi.executor import execute_panel
 from arp.portfolio.genbi.narrator import _NarrativeDraft, _PanelNote
-from arp.portfolio.genbi.planner import _PlannedDashboard, _PlannedPanel
+from arp.portfolio.genbi.planner import _PlannedDashboard, _PlannedPanel, _RepairedPanels
 from arp.portfolio.genbi.schemas import DashboardSpec, PanelSpec
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import DataPointObservation, Holding, Portfolio, SecurityRef
@@ -112,13 +112,18 @@ async def test_generate_dashboard_end_to_end(tmp_path, fake_llm):
         headline="Total market value in scope is EUR 1,400,000 across 2 holdings.",
         panel_notes=[_PanelNote(panel_id="ignored", text="")],
     )
-    llm = fake_llm({"_PlannedDashboard": [planned], "_NarrativeDraft": [draft]})
+    # the invalid third panel gets one bounded re-plan attempt, which fixes it
+    repaired = _RepairedPanels(panels=[_PlannedPanel(title="Nonsense", group_by="country", metric="market_value_sum")])
+    llm = fake_llm({"_PlannedDashboard": [planned], "_RepairedPanels": [repaired], "_NarrativeDraft": [draft]})
 
     dashboard, usage = await service.generate_dashboard("Show me climate exposure", llm, store, save=True)
 
     assert dashboard.clarification_needed == ""
-    assert [p.panel.title for p in dashboard.panels] == ["Exposure by sector", "Carbon intensity"]
-    assert any("mood" in w for w in dashboard.warnings)
+    # the repaired panel keeps its original position in the plan
+    assert [p.panel.title for p in dashboard.panels] == ["Exposure by sector", "Carbon intensity", "Nonsense"]
+    assert dashboard.panels[2].aggregation.group_by == "country"
+    # both attempts are visible: what was rejected, and what replaced it
+    assert any("mood" in w and "Re-planned on retry" in w for w in dashboard.warnings)
     assert dashboard.as_of == "2026-04-01"
     assert dashboard.headline.grounded and dashboard.headline.source == "llm"
     assert usage.input_tokens > 0

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from arp.llm.base import LLMClient, LLMUsage
+from arp.portfolio import analytics as analytics_store
 from arp.portfolio.climate.schemas import build_climate_schema
 from arp.portfolio.genbi import narrator, observations, planner
 from arp.portfolio.genbi.executor import execute_panel
@@ -80,12 +81,15 @@ async def generate_dashboard(
     *,
     narrate: bool = True,
     save: bool = False,
+    repair: bool = True,
 ) -> tuple[GeneratedDashboard, LLMUsage]:
     """The full generative-BI pass: brief -> plan -> compute -> narrate.
 
     The three stages are deliberately separate and only the first and last
     involve a model, neither of which ever sees or produces a portfolio
-    figure directly. The planner chooses what to look at; the deterministic
+    figure directly. `repair=False` disables the planner's single bounded
+    re-plan attempt on rejected panels (used by the planner eval set, which
+    measures the first plan rather than the repaired one). The planner chooses what to look at; the deterministic
     engine computes every number; the narrator writes prose that is then
     checked, token by token, back against those computed numbers. What
     persists is the plan, not the prose -- so the dashboard can be re-run
@@ -98,8 +102,14 @@ async def generate_dashboard(
         securities_asset_classes=[s.asset_class for s in securities.values()],
         snapshot_dates=store.all_snapshot_dates(),
         schema=build_climate_schema(),
+        # Dashboards and analytics a human chose to save become worked
+        # examples for the next brief -- the deployment's own accepted plans
+        # are better few-shot material than anything written into a prompt,
+        # and they accumulate the same way the extraction golden set does.
+        saved_dashboards=list_dashboards(store),
+        saved_analytics=analytics_store.list_analytics(store),
     )
-    spec, clarification, plan_warnings, usage = await planner.plan_dashboard(brief, llm, ctx)
+    spec, clarification, plan_warnings, usage = await planner.plan_dashboard(brief, llm, ctx, repair=repair)
     if spec is None:
         return (
             GeneratedDashboard(

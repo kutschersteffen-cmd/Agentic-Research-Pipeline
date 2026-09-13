@@ -102,22 +102,40 @@ no query language between the plan and the engine.
 
 ## 5. Real gaps these projects expose, in priority order
 
-1. **Worked examples in the planner prompt** (WrenAI's
-   `historical_question_indexing`). We already persist accepted
-   `DashboardSpec`s and `AnalyticSpec`s and then ignore them at planning
-   time. Feeding a handful of previously accepted specs as few-shot examples
-   is a small change against a known-good accuracy lever.
-2. **A planner eval set.** WrenAI ships an evaluation framework; Cube ships a
-   benchmark. We have unit tests that prove the *validator* works, and
-   nothing that measures whether the planner picks sensible panels. The
-   in-house pattern already exists — `arp/golden_set/` (cases + runner + CLI)
-   for extraction — and extends naturally: brief → expected panel shape, run
-   before any planner-prompt change ships.
-3. **A bounded re-plan pass.** Today a rejected panel is simply gone from the
-   dashboard. Their reflexion loop suggests the better behaviour: feed the
-   rejection reason back once, re-plan that panel only, and show both
-   attempts. Bounded (one retry), visible, and never allowed to silently
-   change the question.
+> **Update: items 1–3 are implemented.**
+>
+> 1. **Worked examples** — `planner._build_examples` / `MAX_EXAMPLES`: up to
+>    six brief → panels pairs from dashboards and analytics a human chose to
+>    save, each re-validated against the current directories so a stale
+>    identifier is dropped rather than taught. Wired in by
+>    `service.generate_dashboard`.
+> 2. **Planner eval set** — `arp golden-set planner`
+>    (`golden_set/planner_schema.py`, `planner_runner.py`,
+>    `data/planner_cases.json`): seven briefs with known-correct dashboard
+>    *shapes*, including two that must be refused, scored against the bundled
+>    demo dataset.
+> 3. **Bounded re-plan** — `planner._repair_panels`: exactly one repair round
+>    on rejected panels, the replacement facing the same validator, the
+>    repaired panel returning to its original position, and both attempts
+>    named in the warnings.
+>
+> Items 4–7 remain open.
+
+1. ~~**Worked examples in the planner prompt**~~ (WrenAI's
+   `historical_question_indexing`) — *done.* We already persisted accepted
+   `DashboardSpec`s and `AnalyticSpec`s and ignored them at planning time;
+   they are now few-shot material, filtered through the validator first.
+2. ~~**A planner eval set.**~~ *Done.* WrenAI ships an evaluation framework;
+   Cube ships a benchmark. Our unit tests proved the *validator* worked and
+   nothing measured whether the planner picks sensible panels. Built on the
+   in-house `arp/golden_set/` pattern (cases + runner + CLI), asserting
+   shape rather than wording: which kinds, metrics, dimensions and fields
+   must appear, which portfolio a panel must be scoped to, and which briefs
+   must be refused.
+3. ~~**A bounded re-plan pass.**~~ *Done.* Their reflexion loop, adapted to
+   our constraints: the rejection reason goes back once, the replacement
+   faces the same validator, and both attempts stay visible. One retry, never
+   recursive, never allowed to silently change the question.
 4. **A business-alias layer.** "The flagship fund", "our carbon footprint",
    "the bond book" do not appear in any directory we send. A small
    alias/glossary map (portfolio tags → phrases, metric synonyms) is the
@@ -166,9 +184,9 @@ tools cannot offer: the model chooses among validated queries and writes
 checked prose, but never produces a number.
 
 Nothing in the four argues for re-platforming. The semantic-layer literature
-argues for tightening what we already have: examples, a planner eval set, a
-bounded repair loop, an alias layer, and a decision about access control
-before this is multi-user.
+argued for tightening what we already have: examples, a planner eval set and
+a bounded repair loop (now built — §5), then an alias layer and a decision
+about access control before this is multi-user.
 
 ## Sources
 

@@ -143,7 +143,7 @@ function DashboardView({
         </div>
         {dashboard.warnings.length > 0 && (
           <details>
-            <summary>{dashboard.warnings.length} planner/execution warning(s)</summary>
+            <summary>{dashboard.warnings.length} planner note(s) -- rejected, re-planned or failed panels</summary>
             <ul className="citation-list">
               {dashboard.warnings.map((w) => (
                 <li key={w}>{w}</li>
@@ -249,7 +249,8 @@ export function GenerativeBI() {
           The model plans the panels and writes the commentary; it never produces a number. Every figure comes from the same
           deterministic engine the Explore and Pivot tabs use, and every figure in the commentary is matched back to a computed
           panel result before you see it -- an invented or derived figure is rejected and replaced by the computed facts.
-          Requires <code>ARP_ANTHROPIC_API_KEY</code> on the server.
+          A panel that fails validation gets exactly one re-plan attempt, and both attempts are listed under the planner
+          notes. Requires <code>ARP_ANTHROPIC_API_KEY</code> on the server.
         </p>
         <textarea
           rows={3}

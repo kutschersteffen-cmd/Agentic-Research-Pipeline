@@ -284,6 +284,20 @@ brief -> planner.py    (LLM)            -> which queries to run
   one they did. A brief that can't be mapped onto the available data comes
   back as `clarification_needed` with no panels invented (same discipline as
   5b's unresolvable questions).
+- **Worked examples.** The prompt carries up to `MAX_EXAMPLES` brief →
+  panels pairs drawn from dashboards and analytics *a human chose to save*
+  (`_build_examples`), never from generated plans nobody kept — the planner
+  must not reinforce its own unreviewed habits. Each example is put through
+  the same validator a fresh panel faces, so a saved plan naming a since-
+  renamed portfolio or a retired field is dropped rather than taught.
+- **Bounded re-plan.** A rejected panel gets **exactly one** repair attempt
+  (`_repair_panels`): the rejection reason goes back to the planner, the
+  replacement faces the same validator, and a repaired panel returns to its
+  original position in the plan. Never recursive, and never silent — the
+  warning names the original rejection *and* what replaced it, because a
+  repaired panel is still a panel the analyst didn't ask for by name. Turn
+  it off with `repair=False` (the planner eval set does, to measure the
+  first plan rather than the repaired one).
 - **Executor.** Runs each panel through `analytics.execute` /
   `execute_pivot` — the same engine the Explore and Pivot tabs use, no
   generative-BI-specific computation anywhere. A panel that fails carries
@@ -309,6 +323,18 @@ brief -> planner.py    (LLM)            -> which queries to run
   the self-report" control, applied to prose about numbers instead of quotes
   from documents.
 
+**Regression harness.** `arp golden-set planner`
+(`arp/golden_set/planner_schema.py`, `planner_runner.py`,
+`data/planner_cases.json`) is the extraction golden set's counterpart for
+planning: briefs with known-correct dashboard *shapes* — which kinds,
+metrics, dimensions and fields must appear, which portfolio a panel must be
+scoped to, and which briefs must be refused rather than guessed at. Never
+asserts titles or panel order (a differently phrased title is not a
+regression). Scored against the bundled demo dataset so a run is
+reproducible anywhere, and with worked examples deliberately absent so it
+measures the base prompt. Run it before a change to the planning prompt,
+the dimension/metric vocabulary, or the planner's model reaches real briefs.
+
 **What persists is the plan, not the prose.** A `DashboardSpec` is saved
 (`portfolios/dashboards.json`, same file-based pattern as saved analytics)
 and re-run with `service.run_dashboard` — **zero LLM calls**, commentary
@@ -332,8 +358,8 @@ expressiveness.
 Surfaces: `POST /api/portfolio/bi/generate` (brief -> dashboard),
 `POST /api/portfolio/bi/execute` (run an edited spec, no LLM),
 `GET|POST /api/portfolio/bi/dashboards`,
-`GET /api/portfolio/bi/dashboards/{id}/run`, and
-`arp portfolio bi generate|list|run`.
+`GET /api/portfolio/bi/dashboards/{id}/run`,
+`arp portfolio bi generate|list|run`, and `arp golden-set planner`.
 
 ## 6. Climate analytics (separate section)
 

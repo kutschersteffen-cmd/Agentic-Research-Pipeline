@@ -1,7 +1,8 @@
 from arp.portfolio.genbi import planner
-from arp.portfolio.genbi.planner import _PlannedDashboard, _PlannedPanel
+from arp.portfolio.genbi.planner import _PlannedDashboard, _PlannedPanel, _RepairedPanels
+from arp.portfolio.genbi.schemas import DashboardSpec, PanelSpec
 from arp.schemas.common import CompanyRef
-from arp.schemas.portfolio import Portfolio
+from arp.schemas.portfolio import AnalyticSpec, Portfolio
 
 
 def _ctx():
@@ -50,7 +51,7 @@ async def test_invalid_panels_are_dropped_with_a_warning_never_coerced(fake_llm)
     )
     llm = fake_llm({"_PlannedDashboard": [planned]})
 
-    spec, _clarification, warnings, _usage = await planner.plan_dashboard("Anything", llm, _ctx())
+    spec, _clarification, warnings, _usage = await planner.plan_dashboard("Anything", llm, _ctx(), repair=False)
 
     assert [p.title for p in spec.panels] == ["Good"]
     assert len(warnings) == 5
@@ -71,7 +72,7 @@ async def test_filter_value_matching_nothing_is_rejected_not_run_as_an_empty_pan
     )
     llm = fake_llm({"_PlannedDashboard": [planned]})
 
-    spec, _clarification, warnings, _usage = await planner.plan_dashboard("BMW exposure", llm, _ctx())
+    spec, _clarification, warnings, _usage = await planner.plan_dashboard("BMW exposure", llm, _ctx(), repair=False)
 
     # an empty result reads as "no exposure", which is a wrong answer rather
     # than a failed query -- so a value that matches nothing is dropped
@@ -87,7 +88,7 @@ async def test_unknown_as_of_is_rejected_rather_than_silently_snapped_to_latest(
     )
     llm = fake_llm({"_PlannedDashboard": [planned]})
 
-    spec, clarification, warnings, _usage = await planner.plan_dashboard("As at year end 2025", llm, _ctx())
+    spec, clarification, warnings, _usage = await planner.plan_dashboard("As at year end 2025", llm, _ctx(), repair=False)
 
     assert spec is None
     assert clarification
@@ -121,3 +122,136 @@ def test_context_exposes_only_what_exists():
     rendered = planner._render_context(ctx)
     assert "bmw: BMW AG -- Automobiles, DE" in rendered
     assert "2026-04-01" in rendered
+
+
+# --- worked examples (few-shot from specs a human kept) ---------------------
+
+
+def _saved_dashboard(brief: str, **panel_kwargs) -> DashboardSpec:
+    defaults = {"title": "Exposure by sector", "group_by": "sector", "metric": "market_value_sum"}
+    return DashboardSpec(title="Saved", brief=brief, panels=[PanelSpec(**{**defaults, **panel_kwargs})])
+
+
+def test_saved_dashboards_and_analytics_become_worked_examples():
+    ctx = planner.build_context(
+        portfolios=[Portfolio(portfolio_id="p1", name="Core Equity")],
+        companies=[CompanyRef(company_id="bmw", name="BMW AG", sector="Automobiles", country="DE")],
+        securities_asset_classes=["equity"],
+        snapshot_dates=["2026-01-01", "2026-04-01"],
+        schema=None,
+        saved_dashboards=[_saved_dashboard("Where is our equity exposure concentrated?")],
+        saved_analytics=[AnalyticSpec(name="How much BMW exposure do we have?", group_by="portfolio_id", metric="market_value_sum")],
+    )
+
+    assert [e.brief for e in ctx.examples] == [
+        "Where is our equity exposure concentrated?",
+        "How much BMW exposure do we have?",
+    ]
+    rendered = planner._render_context(ctx)
+    assert "Worked examples" in rendered
+    assert "Exposure by sector | aggregation | by sector | market_value_sum" in rendered
+
+
+def test_stale_examples_are_dropped_rather_than_taught_to_the_planner():
+    # a saved dashboard whose field no longer exists in the current schema
+    stale = _saved_dashboard(
+        "Carbon intensity by sector", metric="weighted_avg_datapoint", data_point_field_id="retired_field"
+    )
+    ctx = planner.build_context(
+        portfolios=[Portfolio(portfolio_id="p1", name="Core Equity")],
+        companies=[CompanyRef(company_id="bmw", name="BMW AG", sector="Automobiles")],
+        securities_asset_classes=["equity"],
+        snapshot_dates=["2026-01-01"],
+        schema=None,
+        saved_dashboards=[stale, _saved_dashboard("Equity exposure by sector")],
+    )
+
+    assert [e.brief for e in ctx.examples] == ["Equity exposure by sector"]
+    assert "retired_field" not in planner._render_context(ctx)
+
+
+def test_examples_are_capped_and_deduplicated_by_brief():
+    saved = [_saved_dashboard(f"Brief {i}") for i in range(planner.MAX_EXAMPLES + 4)]
+    saved += [_saved_dashboard("Brief 0")]  # a repeat of an earlier brief
+    ctx = planner.build_context(
+        portfolios=[],
+        companies=[CompanyRef(company_id="bmw", name="BMW AG", sector="Automobiles")],
+        securities_asset_classes=["equity"],
+        snapshot_dates=["2026-01-01"],
+        schema=None,
+        saved_dashboards=saved,
+    )
+
+    assert len(ctx.examples) == planner.MAX_EXAMPLES
+    assert len({e.brief for e in ctx.examples}) == planner.MAX_EXAMPLES
+
+
+def test_no_examples_means_no_examples_section():
+    assert "Worked examples" not in planner._render_context(_ctx())
+
+
+# --- bounded re-plan pass ---------------------------------------------------
+
+
+async def test_rejected_panel_is_re_planned_once_and_both_attempts_are_reported(fake_llm):
+    planned = _PlannedDashboard(
+        title="Sector view",
+        panels=[
+            _PlannedPanel(title="Good", group_by="sector", metric="market_value_sum"),
+            _PlannedPanel(title="Bad dimension", group_by="industry_supersector", metric="market_value_sum"),
+        ],
+    )
+    repaired = _RepairedPanels(panels=[_PlannedPanel(title="Bad dimension", group_by="sector", metric="market_value_sum")])
+    llm = fake_llm({"_PlannedDashboard": [planned], "_RepairedPanels": [repaired]})
+
+    spec, _clarification, warnings, usage = await planner.plan_dashboard("Sector exposure", llm, _ctx())
+
+    assert [p.title for p in spec.panels] == ["Good", "Bad dimension"]
+    assert len(warnings) == 1
+    assert "industry_supersector" in warnings[0] and "Re-planned on retry" in warnings[0]
+    # the repair prompt carries the rejection reason, not just the bad panel
+    assert "industry_supersector" in llm.prompts[1]
+    # usage covers both calls
+    assert usage.input_tokens == 20
+
+
+async def test_re_plan_happens_exactly_once_never_recursively(fake_llm):
+    planned = _PlannedDashboard(
+        title="Stubborn",
+        panels=[_PlannedPanel(title="Bad", group_by="industry_supersector", metric="market_value_sum")],
+    )
+    still_bad = _RepairedPanels(panels=[_PlannedPanel(title="Bad", group_by="also_not_a_dimension", metric="market_value_sum")])
+    llm = fake_llm({"_PlannedDashboard": [planned], "_RepairedPanels": [still_bad]})
+
+    spec, clarification, warnings, _usage = await planner.plan_dashboard("Anything", llm, _ctx())
+
+    assert spec is None and clarification
+    assert llm.calls == ["_PlannedDashboard", "_RepairedPanels"]  # one retry, not a loop
+    assert "still invalid" in warnings[0]
+    assert "also_not_a_dimension" in warnings[0]
+
+
+async def test_re_plan_that_returns_nothing_leaves_the_panel_dropped(fake_llm):
+    planned = _PlannedDashboard(
+        title="Mixed",
+        panels=[
+            _PlannedPanel(title="Good", group_by="sector", metric="market_value_sum"),
+            _PlannedPanel(title="Bad", group_by="nope", metric="market_value_sum"),
+        ],
+    )
+    llm = fake_llm({"_PlannedDashboard": [planned], "_RepairedPanels": [_RepairedPanels(panels=[])]})
+
+    spec, _clarification, warnings, _usage = await planner.plan_dashboard("Anything", llm, _ctx())
+
+    assert [p.title for p in spec.panels] == ["Good"]
+    assert "no replacement" in warnings[0]
+
+
+async def test_valid_plan_never_triggers_a_repair_call(fake_llm):
+    planned = _PlannedDashboard(title="Fine", panels=[_PlannedPanel(title="Good", group_by="sector", metric="market_value_sum")])
+    llm = fake_llm({"_PlannedDashboard": [planned]})
+
+    spec, _clarification, warnings, _usage = await planner.plan_dashboard("Sector exposure", llm, _ctx())
+
+    assert len(spec.panels) == 1 and warnings == []
+    assert llm.calls == ["_PlannedDashboard"]
