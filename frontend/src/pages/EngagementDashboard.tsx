@@ -156,34 +156,36 @@ export function EngagementDashboard() {
         </div>
         {records.length === 0 && <p className="muted">No engagement records yet.</p>}
         {records.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Company</th>
-                <th>Sector</th>
-                <th>Issues</th>
-                <th>Open</th>
-                <th>Escalated</th>
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((r) => {
-                const openCount = r.issues.filter((i) => i.status === "open" || i.status === "stalled").length;
-                const escalatedCount = r.issues.filter((i) => i.escalation_stage !== "private_engagement").length;
-                return (
-                  <tr key={r.company_id}>
-                    <td>
-                      {r.name} <span className="muted">({r.company_id})</span>
-                    </td>
-                    <td>{r.sector ?? "--"}</td>
-                    <td>{r.issues.length}</td>
-                    <td>{openCount}</td>
-                    <td>{escalatedCount}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Sector</th>
+                  <th>Issues</th>
+                  <th>Open</th>
+                  <th>Escalated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {records.map((r) => {
+                  const openCount = r.issues.filter((i) => i.status === "open" || i.status === "stalled").length;
+                  const escalatedCount = r.issues.filter((i) => i.escalation_stage !== "private_engagement").length;
+                  return (
+                    <tr key={r.company_id}>
+                      <td>
+                        {r.name} <span className="muted">({r.company_id})</span>
+                      </td>
+                      <td>{r.sector ?? "--"}</td>
+                      <td>{r.issues.length}</td>
+                      <td>{openCount}</td>
+                      <td>{escalatedCount}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
@@ -194,32 +196,34 @@ export function EngagementDashboard() {
               <h3>
                 {r.name} <span className="muted">({r.company_id})</span> issues
               </h3>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Theme</th>
-                    <th>Status</th>
-                    <th>Milestone</th>
-                    <th>Escalation</th>
-                    <th>Severity</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {r.issues.map((issue) => (
-                    <tr
-                      key={issue.issue_id}
-                      className="clickable-row issue-row"
-                      onClick={() => setSelected({ companyId: r.company_id, issueId: issue.issue_id })}
-                    >
-                      <td>{issue.theme}</td>
-                      <td>{issue.status}</td>
-                      <td>{issue.milestone_stage.replace(/_/g, " ")}</td>
-                      <td>{issue.escalation_stage.replace(/_/g, " ")}</td>
-                      <td>{issue.severity}</td>
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Theme</th>
+                      <th>Status</th>
+                      <th>Milestone</th>
+                      <th>Escalation</th>
+                      <th>Severity</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {r.issues.map((issue) => (
+                      <tr
+                        key={issue.issue_id}
+                        className="clickable-row issue-row"
+                        onClick={() => setSelected({ companyId: r.company_id, issueId: issue.issue_id })}
+                      >
+                        <td>{issue.theme}</td>
+                        <td>{issue.status}</td>
+                        <td>{issue.milestone_stage.replace(/_/g, " ")}</td>
+                        <td>{issue.escalation_stage.replace(/_/g, " ")}</td>
+                        <td>{issue.severity}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </section>
           ),
       )}

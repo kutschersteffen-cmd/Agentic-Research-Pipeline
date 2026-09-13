@@ -306,28 +306,30 @@ export function ThemeBuilder({ onSendToExtraction }: Props = {}) {
             </button>
           )}
           {catalogueMappings.length > 0 && (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Activity</th>
-                  <th>Metric</th>
-                  <th>Matched labels</th>
-                  <th>Rationale</th>
-                </tr>
-              </thead>
-              <tbody>
-                {catalogueMappings.map((m, idx) => (
-                  <tr key={`${m.activity_id}-${m.metric}`}>
-                    <td>{activityName(m.activity_id)}</td>
-                    <td>{m.metric}</td>
-                    <td>
-                      <input value={m.matched_labels.join(", ")} onChange={(e) => updateMappingLabels(idx, e.target.value)} />
-                    </td>
-                    <td className="muted">{m.rationale}</td>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Activity</th>
+                    <th>Metric</th>
+                    <th>Matched labels</th>
+                    <th>Rationale</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {catalogueMappings.map((m, idx) => (
+                    <tr key={`${m.activity_id}-${m.metric}`}>
+                      <td>{activityName(m.activity_id)}</td>
+                      <td>{m.metric}</td>
+                      <td>
+                        <input value={m.matched_labels.join(", ")} onChange={(e) => updateMappingLabels(idx, e.target.value)} />
+                      </td>
+                      <td className="muted">{m.rationale}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           <button onClick={startRun} disabled={busy || !universePath}>
@@ -395,99 +397,101 @@ export function ThemeBuilder({ onSendToExtraction }: Props = {}) {
           {filteredResults.length > 0 && (
             <div className="split-review">
               <div className="split-review-main">
-                <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Company</th>
-                    <th>Activity</th>
-                    <th>Verdict</th>
-                    <th>Exposure</th>
-                    <th>Confidence</th>
-                    <th>Source</th>
-                    <th>Structural</th>
-                    <th>Review</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredResults.map((m) => {
-                    const key = `${m.company_id}:${m.activity_id}`;
-                    const io = m.indirect_exposure;
-                    const revenue = m.revenue_exposure?.revenue;
-                    return (
-                      <Fragment key={key}>
-                        <tr onClick={() => setExpanded(expanded === key ? null : key)} className="clickable-row">
-                          <td>{m.name} {m.ticker && <span className="muted">({m.ticker})</span>}</td>
-                          <td>{m.activity_name}</td>
-                          <td><VerdictBadge verdict={m.verdict} /></td>
-                          <td>{m.exposure_estimate}</td>
-                          <td><ConfidenceBadge value={m.confidence} /></td>
-                          <td>
-                            {revenue && revenue.value_pct != null ? (
-                              <span className={revenue.source === "catalogue" ? "badge badge-high" : "badge badge-mid"}>
-                                {revenue.source} ({(revenue.value_pct * 100).toFixed(1)}%)
-                              </span>
-                            ) : (
-                              <span className="muted">qualitative</span>
-                            )}
-                          </td>
-                          <td>
-                            {io ? (
-                              <span className="muted">
-                                &uarr;{Math.round(io.upstream_exposure * 100)}% &darr;{Math.round(io.downstream_exposure * 100)}%
-                              </span>
-                            ) : (
-                              ""
-                            )}
-                          </td>
-                          <td>{m.flagged_for_review ? "⚑" : ""}</td>
-                        </tr>
-                        {expanded === key && (
-                          <tr>
-                            <td colSpan={8} className="detail-cell">
-                              <p><strong>Rationale:</strong> {m.adjudicator_rationale}</p>
-                              <p><strong>Citations:</strong></p>
-                              <CitationList citations={m.citations} onOpenSource={setActiveSource} />
-                              {m.revenue_exposure && (
-                                <>
-                                  <p><strong>Revenue/CapEx exposure:</strong></p>
-                                  <ul>
-                                    <li>
-                                      Revenue: {m.revenue_exposure.revenue.value_pct != null ? `${(m.revenue_exposure.revenue.value_pct * 100).toFixed(1)}%` : "unresolved"}
-                                      {" "}({m.revenue_exposure.revenue.source})
-                                      {m.revenue_exposure.revenue.matched_catalogue_labels.length > 0 &&
-                                        ` -- ${m.revenue_exposure.revenue.matched_catalogue_labels.join(", ")}`}
-                                    </li>
-                                    <li>
-                                      CapEx: {m.revenue_exposure.capex.value_pct != null ? `${(m.revenue_exposure.capex.value_pct * 100).toFixed(1)}%` : "unresolved"}
-                                      {" "}({m.revenue_exposure.capex.source})
-                                      {m.revenue_exposure.capex.matched_catalogue_labels.length > 0 &&
-                                        ` -- ${m.revenue_exposure.capex.matched_catalogue_labels.join(", ")}`}
-                                    </li>
-                                    <li className="muted">Sector-relevant to this company: {m.revenue_exposure.sector_relevant ? "yes" : "no"}</li>
-                                  </ul>
-                                </>
-                              )}
-                              {io && (
-                                <>
-                                  <p>
-                                    <strong>Indirect (structural) exposure:</strong> {io.isic_label ?? io.isic_code}{" "}
-                                    {io.core_sector && <span className="badge badge-high">core sector</span>}
-                                  </p>
-                                  <ul>
-                                    <li>Upstream exposure: {(io.upstream_exposure * 100).toFixed(1)}% -- share of this industry's total input requirement traceable to the activity's core sectors</li>
-                                    <li>Downstream exposure: {(io.downstream_exposure * 100).toFixed(1)}% -- share of this industry's output propagation landing in the activity's core sectors</li>
-                                    <li className="muted">Computed from {io.icio_edition}</li>
-                                  </ul>
-                                </>
+                <div className="table-wrap">
+                  <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Company</th>
+                      <th>Activity</th>
+                      <th>Verdict</th>
+                      <th>Exposure</th>
+                      <th>Confidence</th>
+                      <th>Source</th>
+                      <th>Structural</th>
+                      <th>Review</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredResults.map((m) => {
+                      const key = `${m.company_id}:${m.activity_id}`;
+                      const io = m.indirect_exposure;
+                      const revenue = m.revenue_exposure?.revenue;
+                      return (
+                        <Fragment key={key}>
+                          <tr onClick={() => setExpanded(expanded === key ? null : key)} className="clickable-row">
+                            <td>{m.name} {m.ticker && <span className="muted">({m.ticker})</span>}</td>
+                            <td>{m.activity_name}</td>
+                            <td><VerdictBadge verdict={m.verdict} /></td>
+                            <td>{m.exposure_estimate}</td>
+                            <td><ConfidenceBadge value={m.confidence} /></td>
+                            <td>
+                              {revenue && revenue.value_pct != null ? (
+                                <span className={revenue.source === "catalogue" ? "badge badge-high" : "badge badge-mid"}>
+                                  {revenue.source} ({(revenue.value_pct * 100).toFixed(1)}%)
+                                </span>
+                              ) : (
+                                <span className="muted">qualitative</span>
                               )}
                             </td>
+                            <td>
+                              {io ? (
+                                <span className="muted">
+                                  &uarr;{Math.round(io.upstream_exposure * 100)}% &darr;{Math.round(io.downstream_exposure * 100)}%
+                                </span>
+                              ) : (
+                                ""
+                              )}
+                            </td>
+                            <td>{m.flagged_for_review ? "⚑" : ""}</td>
                           </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          {expanded === key && (
+                            <tr>
+                              <td colSpan={8} className="detail-cell">
+                                <p><strong>Rationale:</strong> {m.adjudicator_rationale}</p>
+                                <p><strong>Citations:</strong></p>
+                                <CitationList citations={m.citations} onOpenSource={setActiveSource} />
+                                {m.revenue_exposure && (
+                                  <>
+                                    <p><strong>Revenue/CapEx exposure:</strong></p>
+                                    <ul>
+                                      <li>
+                                        Revenue: {m.revenue_exposure.revenue.value_pct != null ? `${(m.revenue_exposure.revenue.value_pct * 100).toFixed(1)}%` : "unresolved"}
+                                        {" "}({m.revenue_exposure.revenue.source})
+                                        {m.revenue_exposure.revenue.matched_catalogue_labels.length > 0 &&
+                                          ` -- ${m.revenue_exposure.revenue.matched_catalogue_labels.join(", ")}`}
+                                      </li>
+                                      <li>
+                                        CapEx: {m.revenue_exposure.capex.value_pct != null ? `${(m.revenue_exposure.capex.value_pct * 100).toFixed(1)}%` : "unresolved"}
+                                        {" "}({m.revenue_exposure.capex.source})
+                                        {m.revenue_exposure.capex.matched_catalogue_labels.length > 0 &&
+                                          ` -- ${m.revenue_exposure.capex.matched_catalogue_labels.join(", ")}`}
+                                      </li>
+                                      <li className="muted">Sector-relevant to this company: {m.revenue_exposure.sector_relevant ? "yes" : "no"}</li>
+                                    </ul>
+                                  </>
+                                )}
+                                {io && (
+                                  <>
+                                    <p>
+                                      <strong>Indirect (structural) exposure:</strong> {io.isic_label ?? io.isic_code}{" "}
+                                      {io.core_sector && <span className="badge badge-high">core sector</span>}
+                                    </p>
+                                    <ul>
+                                      <li>Upstream exposure: {(io.upstream_exposure * 100).toFixed(1)}% -- share of this industry's total input requirement traceable to the activity's core sectors</li>
+                                      <li>Downstream exposure: {(io.downstream_exposure * 100).toFixed(1)}% -- share of this industry's output propagation landing in the activity's core sectors</li>
+                                      <li className="muted">Computed from {io.icio_edition}</li>
+                                    </ul>
+                                  </>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                </div>
               </div>
               <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
             </div>

@@ -404,31 +404,33 @@ function NewsTab() {
         </button>
         {classifyStatus && <p className="status-text">{classifyStatus}</p>}
         {error && <p className="error-text">{error}</p>}
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Company</th>
-              <th>Headline</th>
-              <th>Published</th>
-            </tr>
-          </thead>
-          <tbody>
-            {news.map((n) => (
-              <tr key={n.news_id}>
-                <td>{n.company_id}</td>
-                <td>{n.source_url ? <a href={n.source_url} target="_blank" rel="noreferrer">{n.headline}</a> : n.headline}</td>
-                <td>{n.published_at}</td>
-              </tr>
-            ))}
-            {news.length === 0 && (
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={3} className="muted">
-                  No news ingested yet -- seed the demo dataset on the Portfolio Risk tab.
-                </td>
+                <th>Company</th>
+                <th>Headline</th>
+                <th>Published</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {news.map((n) => (
+                <tr key={n.news_id}>
+                  <td>{n.company_id}</td>
+                  <td>{n.source_url ? <a href={n.source_url} target="_blank" rel="noreferrer">{n.headline}</a> : n.headline}</td>
+                  <td>{n.published_at}</td>
+                </tr>
+              ))}
+              {news.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="muted">
+                    No news ingested yet -- seed the demo dataset on the Portfolio Risk tab.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="card">

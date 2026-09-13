@@ -125,31 +125,33 @@ function OverviewTab({ portfolios, onSeeded }: { portfolios: PortfolioSummary[];
 
       <section className="card">
         <h3>Portfolios ({portfolios.length})</h3>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Tags</th>
-            </tr>
-          </thead>
-          <tbody>
-            {portfolios.map((p) => (
-              <tr key={p.portfolio_id}>
-                <td>{p.portfolio_id}</td>
-                <td>{p.name}</td>
-                <td>{p.tags.join(", ")}</td>
-              </tr>
-            ))}
-            {portfolios.length === 0 && (
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={3} className="muted">
-                  No portfolios yet -- seed the demo dataset above.
-                </td>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Tags</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {portfolios.map((p) => (
+                <tr key={p.portfolio_id}>
+                  <td>{p.portfolio_id}</td>
+                  <td>{p.name}</td>
+                  <td>{p.tags.join(", ")}</td>
+                </tr>
+              ))}
+              {portfolios.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="muted">
+                    No portfolios yet -- seed the demo dataset above.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="card">
@@ -158,35 +160,37 @@ function OverviewTab({ portfolios, onSeeded }: { portfolios: PortfolioSummary[];
           Securities whose issuer match fell below the confidence threshold -- never auto-matched, always surfaced
           here instead (see <code>entity_resolution.py</code>).
         </p>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Security</th>
-              <th>Best-guess issuer</th>
-              <th>Confidence</th>
-              <th>Method</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reviewQueue.map((r) => (
-              <tr key={r.security_id}>
-                <td>{r.security_id}</td>
-                <td>{r.company_id ?? "(none)"}</td>
-                <td>
-                  <ConfidenceBadge value={r.confidence} />
-                </td>
-                <td>{r.method}</td>
-              </tr>
-            ))}
-            {reviewQueue.length === 0 && (
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={4} className="muted">
-                  Nothing pending review.
-                </td>
+                <th>Security</th>
+                <th>Best-guess issuer</th>
+                <th>Confidence</th>
+                <th>Method</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {reviewQueue.map((r) => (
+                <tr key={r.security_id}>
+                  <td>{r.security_id}</td>
+                  <td>{r.company_id ?? "(none)"}</td>
+                  <td>
+                    <ConfidenceBadge value={r.confidence} />
+                  </td>
+                  <td>{r.method}</td>
+                </tr>
+              ))}
+              {reviewQueue.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="muted">
+                    Nothing pending review.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
     </>
   );

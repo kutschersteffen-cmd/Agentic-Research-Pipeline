@@ -22,27 +22,29 @@ function SegmentDetail({ segment, onOpenSource }: { segment: BusinessSegment; on
       <strong>{segment.name}</strong> <GroundedBadge grounded={segment.grounded} /> <ConfidenceBadge value={segment.confidence} />
       {segment.description && <p>{segment.description}</p>}
       <CitationList citations={segment.description_citations} onOpenSource={onOpenSource} />
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Metric</th>
-            <th>Value</th>
-            <th>Grounded</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(["revenue", "income", "assets"] as const).map((metric) => (
-            <tr key={metric}>
-              <td style={{ textTransform: "capitalize" }}>{metric}</td>
-              <td>
-                {fmtAmount(segment[metric].value)}
-                {segment[metric].raw_value_text && <span className="muted"> ({segment[metric].raw_value_text})</span>}
-              </td>
-              <td><GroundedBadge grounded={segment[metric].grounded} /></td>
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Value</th>
+              <th>Grounded</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {(["revenue", "income", "assets"] as const).map((metric) => (
+              <tr key={metric}>
+                <td style={{ textTransform: "capitalize" }}>{metric}</td>
+                <td>
+                  {fmtAmount(segment[metric].value)}
+                  {segment[metric].raw_value_text && <span className="muted"> ({segment[metric].raw_value_text})</span>}
+                </td>
+                <td><GroundedBadge grounded={segment[metric].grounded} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {(["revenue", "income", "assets"] as const).map((metric) =>
         segment[metric].citations.length > 0 ? (
           <div key={metric}>
@@ -72,26 +74,28 @@ function SpendDetail({ label, spend, onOpenSource }: { label: string; spend: Spe
       {spend.categories.length > 0 && (
         <>
           <p className="muted">Category breakdown:</p>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>Description</th>
-                <th>Amount</th>
-                <th>Grounded</th>
-              </tr>
-            </thead>
-            <tbody>
-              {spend.categories.map((c, ci) => (
-                <tr key={ci}>
-                  <td>{c.name}</td>
-                  <td>{c.description ?? "—"}</td>
-                  <td>{fmtAmount(c.amount.value)}</td>
-                  <td><GroundedBadge grounded={c.grounded} /></td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Description</th>
+                  <th>Amount</th>
+                  <th>Grounded</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {spend.categories.map((c, ci) => (
+                  <tr key={ci}>
+                    <td>{c.name}</td>
+                    <td>{c.description ?? "—"}</td>
+                    <td>{fmtAmount(c.amount.value)}</td>
+                    <td><GroundedBadge grounded={c.grounded} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
       {spend.verifier_notes && <p className="muted">{spend.verifier_notes}</p>}
@@ -184,60 +188,62 @@ export function CompanyFinancials({ pendingUniverse }: Props = {}) {
           {results.length > 0 && (
             <div className="split-review">
               <div className="split-review-main">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Company</th>
-                      <th>Segments</th>
-                      <th>CapEx</th>
-                      <th>R&amp;D</th>
-                      <th>Confidence</th>
-                      <th>Needs review</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((r) => (
-                      <Fragment key={r.company_id}>
-                        <tr className="clickable-row" onClick={() => setExpanded(expanded === r.company_id ? null : r.company_id)}>
-                          <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
-                          <td>{r.segments.length === 0 ? "none found" : `${r.segments.length} segment(s)`}</td>
-                          <td>{fmtAmount(r.capex.total.value)} {r.currency ?? ""}</td>
-                          <td>{fmtAmount(r.rnd.total.value)} {r.currency ?? ""}</td>
-                          <td><ConfidenceBadge value={r.overall_confidence} /></td>
-                          <td>{r.needs_review ? "⚑" : ""}</td>
-                        </tr>
-                        {expanded === r.company_id && (
-                          <tr>
-                            <td colSpan={6} className="detail-cell">
-                              <h4>Business Segments</h4>
-                              {r.segments.length === 0 && <p className="muted">No segment reporting evidence found.</p>}
-                              {r.segments.map((s, si) => (
-                                <SegmentDetail key={si} segment={s} onOpenSource={setActiveSource} />
-                              ))}
-                              {r.segments_verifier_notes && <p className="muted">{r.segments_verifier_notes}</p>}
-
-                              <h4>CapEx</h4>
-                              <SpendDetail label="CapEx" spend={r.capex} onOpenSource={setActiveSource} />
-
-                              <h4>R&amp;D</h4>
-                              <SpendDetail label="R&D" spend={r.rnd} onOpenSource={setActiveSource} />
-
-                              <ReviewControls
-                                runId={runId}
-                                itemKey={r.company_id}
-                                current={reviewDecisions[r.company_id]}
-                                reviewer={reviewer}
-                                onDone={refreshResults}
-                                submitFn={api.submitFinancialsReview}
-                                historyFn={api.getFinancialsReviewHistory}
-                              />
-                            </td>
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Company</th>
+                        <th>Segments</th>
+                        <th>CapEx</th>
+                        <th>R&amp;D</th>
+                        <th>Confidence</th>
+                        <th>Needs review</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {results.map((r) => (
+                        <Fragment key={r.company_id}>
+                          <tr className="clickable-row" onClick={() => setExpanded(expanded === r.company_id ? null : r.company_id)}>
+                            <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
+                            <td>{r.segments.length === 0 ? "none found" : `${r.segments.length} segment(s)`}</td>
+                            <td>{fmtAmount(r.capex.total.value)} {r.currency ?? ""}</td>
+                            <td>{fmtAmount(r.rnd.total.value)} {r.currency ?? ""}</td>
+                            <td><ConfidenceBadge value={r.overall_confidence} /></td>
+                            <td>{r.needs_review ? "⚑" : ""}</td>
                           </tr>
-                        )}
-                      </Fragment>
-                    ))}
-                  </tbody>
-                </table>
+                          {expanded === r.company_id && (
+                            <tr>
+                              <td colSpan={6} className="detail-cell">
+                                <h4>Business Segments</h4>
+                                {r.segments.length === 0 && <p className="muted">No segment reporting evidence found.</p>}
+                                {r.segments.map((s, si) => (
+                                  <SegmentDetail key={si} segment={s} onOpenSource={setActiveSource} />
+                                ))}
+                                {r.segments_verifier_notes && <p className="muted">{r.segments_verifier_notes}</p>}
+
+                                <h4>CapEx</h4>
+                                <SpendDetail label="CapEx" spend={r.capex} onOpenSource={setActiveSource} />
+
+                                <h4>R&amp;D</h4>
+                                <SpendDetail label="R&D" spend={r.rnd} onOpenSource={setActiveSource} />
+
+                                <ReviewControls
+                                  runId={runId}
+                                  itemKey={r.company_id}
+                                  current={reviewDecisions[r.company_id]}
+                                  reviewer={reviewer}
+                                  onDone={refreshResults}
+                                  submitFn={api.submitFinancialsReview}
+                                  historyFn={api.getFinancialsReviewHistory}
+                                />
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
               <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
             </div>
