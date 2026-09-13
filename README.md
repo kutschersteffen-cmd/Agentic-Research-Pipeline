@@ -94,6 +94,22 @@ precision at scale (designed for up to ~4,000 companies per run).
    [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md#transition-plan-assessment)
    for the full mapping from paper to implementation.
 
+9. **Investment Strategy Replication** — reduces an academic "outperformance"
+   strategy paper (momentum, value, quality, ...) to an executable spec via
+   the same extractor/independent-verifier/grounding pipeline used
+   everywhere else in this codebase, then backtests it deterministically
+   (zero LLM calls in the computation itself) against a pluggable price
+   data source: in-sample against the paper's own reported performance, and
+   out-of-sample over any later window with identical rules, to check
+   whether the effect persists or decays. Ships with a worked hand-authored
+   example (Jegadeesh & Titman (1993) 6-month/6-month momentum) to exercise
+   the backtest engine end to end. See
+   [`docs/STRATEGY_REPLICATION_METHODOLOGY.md`](docs/STRATEGY_REPLICATION_METHODOLOGY.md)
+   for the full design, what "in-sample vs. out-of-sample" means here, and
+   its current limitations (no point-in-time universe reconstruction, no
+   transaction-cost modeling, only momentum-style signals and monthly
+   rebalancing so far).
+
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches, and
 [`docs/THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md`](docs/THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md)
@@ -285,6 +301,14 @@ arp golden-set run
 # Transition Plan Assessment: 64-indicator walk/talk climate disclosure scoring (Colesanti Senni et al. 2024)
 arp transition-plan indicators                          # inspect the 64 fixed indicators
 arp transition-plan run --universe companies.csv
+
+# Investment Strategy Replication: extract a paper's methodology, then backtest it in/out-of-sample
+arp replicate examples                                                    # list bundled worked-example specs
+arp replicate example jegadeesh_titman_1993 --out spec.json               # a hand-authored worked example
+arp replicate extract-spec --paper-citation "..." --paper-text paper.txt --out spec.json  # from real paper text
+arp replicate backtest --spec spec.json --prices prices.csv --tickers universe.csv \
+  --benchmark SPY --out-of-sample-start 2010-01-01 --out-of-sample-end 2024-12-31
+arp replicate report <run_id>
 
 # Document discovery
 arp discover run --universe companies.csv

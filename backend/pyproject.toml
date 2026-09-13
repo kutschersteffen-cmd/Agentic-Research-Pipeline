@@ -82,6 +82,12 @@ emerging_themes = [
     "networkx>=3.2,<4.0",
     "feedparser>=6.0,<7.0",
 ]
+# Strategy Replication's free real-market PriceDataSource (arp/replication/
+# price_data.py::YFinancePriceSource). Not required for the default,
+# no-network CsvPriceSource -- see docs/STRATEGY_REPLICATION_METHODOLOGY.md.
+replication = [
+    "yfinance>=0.2,<1.0",
+]
 
 [project.scripts]
 arp = "arp.cli:app"

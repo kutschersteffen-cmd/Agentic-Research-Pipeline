@@ -13,6 +13,7 @@ from arp.cli.extraction import extract_app
 from arp.cli.golden_set import golden_set_app
 from arp.cli.identity import identity_app
 from arp.cli.portfolio import portfolio_app
+from arp.cli.replication import replicate_app
 from arp.cli.revenue_catalogue import revenue_catalogue_app
 from arp.cli.runs import runs_app
 from arp.cli.taxonomy import taxonomy_app
@@ -27,6 +28,7 @@ app.add_typer(theme_app, name="theme")
 app.add_typer(taxonomy_app, name="taxonomy")
 app.add_typer(extract_app, name="extract")
 app.add_typer(transition_plan_app, name="transition-plan")
+app.add_typer(replicate_app, name="replicate")
 app.add_typer(discover_app, name="discover")
 app.add_typer(runs_app, name="runs")
 app.add_typer(universe_app, name="universe")
