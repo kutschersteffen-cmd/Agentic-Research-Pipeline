@@ -89,7 +89,7 @@ export function MonitoringDashboard({ onNavigate }: { onNavigate: (tab: "engagem
       <section className="card">
         <div className="dashboard-grid">
           <div className="stat-tile">
-            <span className="stat-value">{active.length}</span>
+            <span className="stat-value" style={{ color: "var(--accent)" }}>{active.length}</span>
             <span className="stat-label">Currently executing</span>
           </div>
           <div className="stat-tile">
@@ -101,11 +101,11 @@ export function MonitoringDashboard({ onNavigate }: { onNavigate: (tab: "engagem
             <span className="stat-label">Open engagement issues</span>
           </div>
           <div className="stat-tile">
-            <span className="stat-value">{stalledIssues.length}</span>
+            <span className="stat-value" style={stalledIssues.length > 0 ? { color: "var(--mid)" } : undefined}>{stalledIssues.length}</span>
             <span className="stat-label">Stalled (SLA breach)</span>
           </div>
           <div className="stat-tile">
-            <span className="stat-value">{escalatedIssues.length}</span>
+            <span className="stat-value" style={escalatedIssues.length > 0 ? { color: "var(--low)" } : undefined}>{escalatedIssues.length}</span>
             <span className="stat-label">Escalated beyond private engagement</span>
           </div>
           <div className="stat-tile">

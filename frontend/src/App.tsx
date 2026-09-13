@@ -13,7 +13,9 @@ import { MonitoringDashboard } from "./pages/MonitoringDashboard";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
 import { PortfolioRiskMonitoringTool } from "./pages/PortfolioRiskMonitoringTool";
+import { ReportBuilder } from "./pages/ReportBuilder";
 import { Search } from "./pages/Search";
+import { NAV_ICONS } from "./components/NavIcons";
 import type { ReviewableRunKind } from "./types";
 
 const TABS = [
@@ -31,6 +33,7 @@ const TABS = [
   { id: "history", label: "Run History" },
   { id: "engagement", label: "Engagement" },
   { id: "voting", label: "Voting" },
+  { id: "reporting", label: "Presentations & Reports" },
   { id: "library", label: "Data Library" },
 ] as const;
 
@@ -63,17 +66,20 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="app-header">
-        <h1>Agentic Research Pipeline</h1>
-        <p className="tagline">Thematic investment universes, schema-driven document research, stewardship engagement &amp; voting, and portfolio risk &amp; climate analytics, at scale.</p>
-      </header>
-      <nav className="app-nav">
-        {TABS.map((t) => (
-          <button key={t.id} className={t.id === active ? "nav-tab active" : "nav-tab"} onClick={() => setActive(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </nav>
+      <aside className="app-sidebar">
+        <div className="app-sidebar-brand">
+          <span className="app-sidebar-mark">A</span>
+          <span className="app-sidebar-wordmark">ARP</span>
+        </div>
+        <nav className="app-nav">
+          {TABS.map((t) => (
+            <button key={t.id} className={t.id === active ? "nav-tab active" : "nav-tab"} onClick={() => setActive(t.id)}>
+              <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
+              <span className="nav-tab-label">{t.label}</span>
+            </button>
+          ))}
+        </nav>
+      </aside>
       <main className="app-main">
         {active === "dashboard" && <MonitoringDashboard onNavigate={setActive} />}
         {active === "search" && <Search />}
@@ -89,6 +95,7 @@ function App() {
         {active === "history" && <RunHistory onOpenReview={openReview} />}
         {active === "engagement" && <EngagementDashboard />}
         {active === "voting" && <VotingRuns />}
+        {active === "reporting" && <ReportBuilder />}
         {active === "library" && <DataLibrary />}
       </main>
     </div>
