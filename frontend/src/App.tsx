@@ -104,7 +104,7 @@ function App() {
         </nav>
       </aside>
       <main className="app-main">
-        {active === "dashboard" && <MonitoringDashboard onNavigate={setActive} />}
+        {active === "dashboard" && <MonitoringDashboard onNavigate={setActive} onOpenReview={openReview} />}
         {active === "search" && <Search />}
         {active === "theme" && <ThemeBuilder onSendToExtraction={sendToExtraction} pendingTaxonomyId={pendingTaxonomyId} />}
         {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}

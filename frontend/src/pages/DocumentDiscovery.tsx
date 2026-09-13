@@ -98,36 +98,38 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
           <>
             <button onClick={refreshResults}>Refresh results</button>
             {results.length > 0 && (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Company</th>
-                    <th>Homepage used</th>
-                    <th>Status</th>
-                    <th>Documents found</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {results.map((r) => (
-                    <tr key={r.company_id}>
-                      <td>{r.name}</td>
-                      <td>{r.homepage_used ?? "(none known)"}</td>
-                      <td>
-                        {r.homepage_unreachable ? (
-                          <span className="error-text" title={r.crawl_error ?? undefined}>
-                            ⚠️ site unreachable{r.crawl_error ? `: ${r.crawl_error}` : ""}
-                          </span>
-                        ) : !r.homepage_used ? (
-                          <span className="muted">no homepage known</span>
-                        ) : (
-                          "ok"
-                        )}
-                      </td>
-                      <td>{r.documents_found.length}</td>
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Company</th>
+                      <th>Homepage used</th>
+                      <th>Status</th>
+                      <th>Documents found</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {results.map((r) => (
+                      <tr key={r.company_id}>
+                        <td>{r.name}</td>
+                        <td>{r.homepage_used ?? "(none known)"}</td>
+                        <td>
+                          {r.homepage_unreachable ? (
+                            <span className="error-text" title={r.crawl_error ?? undefined}>
+                              ⚠️ site unreachable{r.crawl_error ? `: ${r.crawl_error}` : ""}
+                            </span>
+                          ) : !r.homepage_used ? (
+                            <span className="muted">no homepage known</span>
+                          ) : (
+                            "ok"
+                          )}
+                        </td>
+                        <td>{r.documents_found.length}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </>
         )}
@@ -167,32 +169,34 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
       <section className="card">
         <h3>New document feed</h3>
         <button onClick={refreshEvents}>Refresh</button>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Event</th>
-              <th>Company</th>
-              <th>Doc type</th>
-              <th>URL</th>
-            </tr>
-          </thead>
-          <tbody>
-            {events.map((e) => (
-              <tr key={e.event_id}>
-                <td>{new Date(e.created_at).toLocaleString()}</td>
-                <td>{e.event_type === "new_document" ? "🆕 new" : "♻️ updated"}</td>
-                <td>{e.company_name ?? e.company_id}</td>
-                <td>{e.document.doc_type}</td>
-                <td>
-                  <a href={e.document.url} target="_blank" rel="noreferrer">
-                    {e.document.url}
-                  </a>
-                </td>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Event</th>
+                <th>Company</th>
+                <th>Doc type</th>
+                <th>URL</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {events.map((e) => (
+                <tr key={e.event_id}>
+                  <td>{new Date(e.created_at).toLocaleString()}</td>
+                  <td>{e.event_type === "new_document" ? "🆕 new" : "♻️ updated"}</td>
+                  <td>{e.company_name ?? e.company_id}</td>
+                  <td>{e.document.doc_type}</td>
+                  <td>
+                    <a href={e.document.url} target="_blank" rel="noreferrer">
+                      {e.document.url}
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );

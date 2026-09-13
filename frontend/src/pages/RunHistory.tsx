@@ -47,49 +47,51 @@ export function RunHistory({ onOpenReview }: Props = {}) {
       </section>
 
       <section className="card">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Run ID</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>Progress</th>
-              <th>Flagged</th>
-              <th>Cost</th>
-              <th>Created</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {runs.map((r) => {
-              const runType = r.run_type;
-              return (
-                <tr key={r.run_id}>
-                  <td>{r.run_id}</td>
-                  <td>{runType}</td>
-                  <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                  <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
-                  <td>{r.review_count}</td>
-                  <td>${r.estimated_cost_usd.toFixed(2)}</td>
-                  <td>{new Date(r.created_at).toLocaleString()}</td>
-                  <td>
-                    <a href={api.exportRunCsvUrl(r.run_id)} target="_blank" rel="noreferrer">
-                      CSV
-                    </a>
-                    {r.review_count > 0 && isReviewable(runType) && onOpenReview && (
-                      <>
-                        {" "}
-                        <button className="link-button" onClick={() => onOpenReview(runType, r.run_id)}>
-                          Review
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Run ID</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Progress</th>
+                <th>Flagged</th>
+                <th>Cost</th>
+                <th>Created</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {runs.map((r) => {
+                const runType = r.run_type;
+                return (
+                  <tr key={r.run_id}>
+                    <td>{r.run_id}</td>
+                    <td>{runType}</td>
+                    <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
+                    <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
+                    <td>{r.review_count}</td>
+                    <td>${r.estimated_cost_usd.toFixed(2)}</td>
+                    <td>{new Date(r.created_at).toLocaleString()}</td>
+                    <td>
+                      <a href={api.exportRunCsvUrl(r.run_id)} target="_blank" rel="noreferrer">
+                        CSV
+                      </a>
+                      {r.review_count > 0 && isReviewable(runType) && onOpenReview && (
+                        <>
+                          {" "}
+                          <button className="link-button" onClick={() => onOpenReview(runType, r.run_id)}>
+                            Review
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );

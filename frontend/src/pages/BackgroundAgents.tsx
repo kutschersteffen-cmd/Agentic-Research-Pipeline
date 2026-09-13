@@ -181,28 +181,30 @@ function TaxonomyResearcherPanel() {
           </>
         )}
         {results.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Taxonomy</th>
-                <th>Proposed</th>
-                <th>New version</th>
-                <th>Added activities</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((f, i) => (
-                <tr key={`${f.taxonomy_id}-${i}`}>
-                  <td>{f.taxonomy_name}</td>
-                  <td><YesNoBadge verdict={f.proposed ? "YES" : "NO"} /></td>
-                  <td>{f.new_version ?? "--"}</td>
-                  <td>{f.added_activity_names.join(", ") || "--"}</td>
-                  <td>{f.reason}</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Taxonomy</th>
+                  <th>Proposed</th>
+                  <th>New version</th>
+                  <th>Added activities</th>
+                  <th>Reason</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {results.map((f, i) => (
+                  <tr key={`${f.taxonomy_id}-${i}`}>
+                    <td>{f.taxonomy_name}</td>
+                    <td><YesNoBadge verdict={f.proposed ? "YES" : "NO"} /></td>
+                    <td>{f.new_version ?? "--"}</td>
+                    <td>{f.added_activity_names.join(", ") || "--"}</td>
+                    <td>{f.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
@@ -210,28 +212,30 @@ function TaxonomyResearcherPanel() {
         <h3>Past runs</h3>
         {pastRuns.length === 0 && <p className="muted">No taxonomy research runs yet.</p>}
         {pastRuns.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Run ID</th>
-                <th>Status</th>
-                <th>Scanned</th>
-                <th>Proposed</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pastRuns.map((r) => (
-                <tr key={r.run_id}>
-                  <td>{r.run_id}</td>
-                  <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                  <td>{r.completed_count}/{r.company_count}</td>
-                  <td>{r.review_count}</td>
-                  <td>{new Date(r.created_at).toLocaleString()}</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Run ID</th>
+                  <th>Status</th>
+                  <th>Scanned</th>
+                  <th>Proposed</th>
+                  <th>Created</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pastRuns.map((r) => (
+                  <tr key={r.run_id}>
+                    <td>{r.run_id}</td>
+                    <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
+                    <td>{r.completed_count}/{r.company_count}</td>
+                    <td>{r.review_count}</td>
+                    <td>{new Date(r.created_at).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>
@@ -342,34 +346,36 @@ function CalibrationPanel() {
           </>
         )}
         {results.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Source run</th>
-                <th>Company</th>
-                <th>Activity</th>
-                <th>Old verdict</th>
-                <th>Old confidence</th>
-                <th>Old generated at</th>
-                <th>Newest document at</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((f, i) => (
-                <tr key={`${f.company_id}-${f.activity_id}-${i}`}>
-                  <td>{f.source_run_id}</td>
-                  <td>{f.company_id}</td>
-                  <td>{f.activity_id}</td>
-                  <td><VerdictBadge verdict={f.old_verdict} /></td>
-                  <td><ConfidenceBadge value={f.old_confidence} /></td>
-                  <td>{new Date(f.old_generated_at).toLocaleString()}</td>
-                  <td>{new Date(f.newest_document_at).toLocaleString()}</td>
-                  <td>{f.reason}</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Source run</th>
+                  <th>Company</th>
+                  <th>Activity</th>
+                  <th>Old verdict</th>
+                  <th>Old confidence</th>
+                  <th>Old generated at</th>
+                  <th>Newest document at</th>
+                  <th>Reason</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {results.map((f, i) => (
+                  <tr key={`${f.company_id}-${f.activity_id}-${i}`}>
+                    <td>{f.source_run_id}</td>
+                    <td>{f.company_id}</td>
+                    <td>{f.activity_id}</td>
+                    <td><VerdictBadge verdict={f.old_verdict} /></td>
+                    <td><ConfidenceBadge value={f.old_confidence} /></td>
+                    <td>{new Date(f.old_generated_at).toLocaleString()}</td>
+                    <td>{new Date(f.newest_document_at).toLocaleString()}</td>
+                    <td>{f.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
@@ -377,28 +383,30 @@ function CalibrationPanel() {
         <h3>Past runs</h3>
         {pastRuns.length === 0 && <p className="muted">No calibration runs yet.</p>}
         {pastRuns.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Run ID</th>
-                <th>Status</th>
-                <th>Scanned</th>
-                <th>Flags</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pastRuns.map((r) => (
-                <tr key={r.run_id}>
-                  <td>{r.run_id}</td>
-                  <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                  <td>{r.completed_count}/{r.company_count}</td>
-                  <td>{r.review_count}</td>
-                  <td>{new Date(r.created_at).toLocaleString()}</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Run ID</th>
+                  <th>Status</th>
+                  <th>Scanned</th>
+                  <th>Flags</th>
+                  <th>Created</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pastRuns.map((r) => (
+                  <tr key={r.run_id}>
+                    <td>{r.run_id}</td>
+                    <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
+                    <td>{r.completed_count}/{r.company_count}</td>
+                    <td>{r.review_count}</td>
+                    <td>{new Date(r.created_at).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>

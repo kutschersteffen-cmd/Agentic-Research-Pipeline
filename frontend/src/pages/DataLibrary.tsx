@@ -248,28 +248,30 @@ function CompanyResultsView() {
       {companyId && documents.length > 0 && (
         <section className="card">
           <h3>Source documents on file</h3>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Doc type</th>
-                <th>File</th>
-                <th>Size</th>
-              </tr>
-            </thead>
-            <tbody>
-              {documents.map((d, i) => (
-                <tr key={i}>
-                  <td>{d.doc_type}</td>
-                  <td>
-                    <a href={api.documentRawUrl(companyId, d.doc_type, d.filename)} target="_blank" rel="noreferrer">
-                      {d.filename}
-                    </a>
-                  </td>
-                  <td>{Math.round(d.size_bytes / 1024)} KB</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Doc type</th>
+                  <th>File</th>
+                  <th>Size</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {documents.map((d, i) => (
+                  <tr key={i}>
+                    <td>{d.doc_type}</td>
+                    <td>
+                      <a href={api.documentRawUrl(companyId, d.doc_type, d.filename)} target="_blank" rel="noreferrer">
+                        {d.filename}
+                      </a>
+                    </td>
+                    <td>{Math.round(d.size_bytes / 1024)} KB</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 
@@ -374,58 +376,60 @@ function ParsedDocumentsView() {
       </section>
 
       <section className="card">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Company</th>
-              <th>Doc type</th>
-              <th>Title</th>
-              <th>Size</th>
-              <th>Parser</th>
-              <th>Cached at</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <Fragment key={row.id}>
-                <tr className="clickable-row" onClick={() => toggleExpand(row)}>
-                  <td>{row.company_id ?? <span className="muted">unregistered</span>}</td>
-                  <td>{row.doc_type ?? "—"}</td>
-                  <td>{row.title ?? "—"}</td>
-                  <td>{row.char_len.toLocaleString()} chars</td>
-                  <td>{row.parser_version}</td>
-                  <td>{new Date(row.created_at).toLocaleString()}</td>
-                </tr>
-                {expandedId === row.id && (
-                  <tr>
-                    <td colSpan={6} className="detail-cell">
-                      {row.company_id && row.doc_type && row.filename ? (
-                        <p>
-                          <a
-                            href={api.documentRawUrl(row.company_id, row.doc_type, row.filename)}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            view original document
-                          </a>
-                        </p>
-                      ) : (
-                        <p className="muted">Source document not separately registered -- showing cached text only.</p>
-                      )}
-                      {detail === null ? (
-                        <p className="muted">Loading...</p>
-                      ) : (
-                        <pre className="review-json" style={{ maxHeight: 400, overflow: "auto" }}>
-                          {detail.full_text}
-                        </pre>
-                      )}
-                    </td>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Company</th>
+                <th>Doc type</th>
+                <th>Title</th>
+                <th>Size</th>
+                <th>Parser</th>
+                <th>Cached at</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <Fragment key={row.id}>
+                  <tr className="clickable-row" onClick={() => toggleExpand(row)}>
+                    <td>{row.company_id ?? <span className="muted">unregistered</span>}</td>
+                    <td>{row.doc_type ?? "—"}</td>
+                    <td>{row.title ?? "—"}</td>
+                    <td>{row.char_len.toLocaleString()} chars</td>
+                    <td>{row.parser_version}</td>
+                    <td>{new Date(row.created_at).toLocaleString()}</td>
                   </tr>
-                )}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
+                  {expandedId === row.id && (
+                    <tr>
+                      <td colSpan={6} className="detail-cell">
+                        {row.company_id && row.doc_type && row.filename ? (
+                          <p>
+                            <a
+                              href={api.documentRawUrl(row.company_id, row.doc_type, row.filename)}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              view original document
+                            </a>
+                          </p>
+                        ) : (
+                          <p className="muted">Source document not separately registered -- showing cached text only.</p>
+                        )}
+                        {detail === null ? (
+                          <p className="muted">Loading...</p>
+                        ) : (
+                          <pre className="review-json" style={{ maxHeight: 400, overflow: "auto" }}>
+                            {detail.full_text}
+                          </pre>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {rows.length === 0 && <p className="muted">No cached documents yet.</p>}
         <div className="toolbar">
           <button onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))} disabled={offset === 0}>

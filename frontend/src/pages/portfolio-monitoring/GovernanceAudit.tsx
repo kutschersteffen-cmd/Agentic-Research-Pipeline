@@ -150,22 +150,24 @@ export function GovernanceAudit() {
           demo-seeds, not already-resolved securities/observations (see <code>docs/SPEC_GAP_ANALYSIS.md</code> §5).
         </p>
         {policyValues && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Setting</th>
-                <th>Current value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {POLICY_SETTINGS.map((s) => (
-                <tr key={s.id}>
-                  <td>{s.label}</td>
-                  <td>{policyValues[s.id]}</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Setting</th>
+                  <th>Current value</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {POLICY_SETTINGS.map((s) => (
+                  <tr key={s.id}>
+                    <td>{s.label}</td>
+                    <td>{policyValues[s.id]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         <div className="toolbar">
           <select value={policySetting} onChange={(e) => setPolicySetting(e.target.value as PolicySettingName)}>
@@ -182,60 +184,64 @@ export function GovernanceAudit() {
           </button>
         </div>
         {policyHistory.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Setting</th>
-                <th>Old value</th>
-                <th>New value</th>
-                <th>Changed by</th>
-                <th>Reason</th>
-                <th>When</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...policyHistory].reverse().map((h, i) => (
-                <tr key={i}>
-                  <td>{h.setting_name}</td>
-                  <td>{h.old_value}</td>
-                  <td>{h.new_value}</td>
-                  <td>{h.changed_by}</td>
-                  <td>{h.reason}</td>
-                  <td>{h.changed_at}</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Setting</th>
+                  <th>Old value</th>
+                  <th>New value</th>
+                  <th>Changed by</th>
+                  <th>Reason</th>
+                  <th>When</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {[...policyHistory].reverse().map((h, i) => (
+                  <tr key={i}>
+                    <td>{h.setting_name}</td>
+                    <td>{h.old_value}</td>
+                    <td>{h.new_value}</td>
+                    <td>{h.changed_by}</td>
+                    <td>{h.reason}</td>
+                    <td>{h.changed_at}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
       <section className="card">
         <h3>Risk category ownership</h3>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Category</th>
-              <th>Owner</th>
-              <th>Assign</th>
-            </tr>
-          </thead>
-          <tbody>
-            {categories.map((cat) => (
-              <tr key={cat}>
-                <td>{cat}</td>
-                <td>{ownersByCategory[cat]?.owner ?? <span className="muted">unassigned</span>}</td>
-                <td className="toolbar">
-                  <input
-                    placeholder="owner name"
-                    value={ownerInputs[cat] ?? ""}
-                    onChange={(e) => setOwnerInputs((prev) => ({ ...prev, [cat]: e.target.value }))}
-                  />
-                  <button onClick={() => assignOwner(cat)}>Assign</button>
-                </td>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Owner</th>
+                <th>Assign</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {categories.map((cat) => (
+                <tr key={cat}>
+                  <td>{cat}</td>
+                  <td>{ownersByCategory[cat]?.owner ?? <span className="muted">unassigned</span>}</td>
+                  <td className="toolbar">
+                    <input
+                      placeholder="owner name"
+                      value={ownerInputs[cat] ?? ""}
+                      onChange={(e) => setOwnerInputs((prev) => ({ ...prev, [cat]: e.target.value }))}
+                    />
+                    <button onClick={() => assignOwner(cat)}>Assign</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <div className="toolbar">
@@ -257,57 +263,59 @@ export function GovernanceAudit() {
           Securities whose issuer match fell below the confidence threshold -- never auto-matched, always surfaced
           here instead (see <code>entity_resolution.py</code>).
         </p>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Security</th>
-              <th>Best-guess issuer</th>
-              <th>Confidence</th>
-              <th>Method</th>
-              <th>Last decision</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {resolutionRows.map((r) => {
-              const decision = decisionFor(r.security_id);
-              return (
-                <tr key={r.security_id}>
-                  <td>{r.security_id}</td>
-                  <td>{r.company_id ?? "(none)"}</td>
-                  <td>
-                    <ConfidenceBadge value={r.confidence} />
-                  </td>
-                  <td>{r.method}</td>
-                  <td>{decision ? `${decision.decision} by ${decision.decided_by}` : <span className="muted">none</span>}</td>
-                  <td className="toolbar">
-                    <button className="link-button" onClick={() => decide("entity_resolution", r.security_id, "accept")}>
-                      Accept
-                    </button>
-                    <input
-                      placeholder="correct company_id"
-                      value={overrideInputs[r.security_id] ?? ""}
-                      onChange={(e) => setOverrideInputs((prev) => ({ ...prev, [r.security_id]: e.target.value }))}
-                    />
-                    <button className="link-button" onClick={() => decide("entity_resolution", r.security_id, "override")}>
-                      Override
-                    </button>
-                    <button className="link-button" onClick={() => decide("entity_resolution", r.security_id, "reject")}>
-                      Reject
-                    </button>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Security</th>
+                <th>Best-guess issuer</th>
+                <th>Confidence</th>
+                <th>Method</th>
+                <th>Last decision</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {resolutionRows.map((r) => {
+                const decision = decisionFor(r.security_id);
+                return (
+                  <tr key={r.security_id}>
+                    <td>{r.security_id}</td>
+                    <td>{r.company_id ?? "(none)"}</td>
+                    <td>
+                      <ConfidenceBadge value={r.confidence} />
+                    </td>
+                    <td>{r.method}</td>
+                    <td>{decision ? `${decision.decision} by ${decision.decided_by}` : <span className="muted">none</span>}</td>
+                    <td className="toolbar">
+                      <button className="link-button" onClick={() => decide("entity_resolution", r.security_id, "accept")}>
+                        Accept
+                      </button>
+                      <input
+                        placeholder="correct company_id"
+                        value={overrideInputs[r.security_id] ?? ""}
+                        onChange={(e) => setOverrideInputs((prev) => ({ ...prev, [r.security_id]: e.target.value }))}
+                      />
+                      <button className="link-button" onClick={() => decide("entity_resolution", r.security_id, "override")}>
+                        Override
+                      </button>
+                      <button className="link-button" onClick={() => decide("entity_resolution", r.security_id, "reject")}>
+                        Reject
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {resolutionRows.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="muted">
+                    {view === "pending" ? "Nothing pending review." : "Nothing flagged."}
                   </td>
                 </tr>
-              );
-            })}
-            {resolutionRows.length === 0 && (
-              <tr>
-                <td colSpan={6} className="muted">
-                  {view === "pending" ? "Nothing pending review." : "Nothing flagged."}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="card">
@@ -317,60 +325,62 @@ export function GovernanceAudit() {
           tolerance. The internal-API value is still the one used for computation, but it's flagged rather than
           silently reconciled (see <code>climate/validation.py</code>).
         </p>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Company</th>
-              <th>Field</th>
-              <th>Value used</th>
-              <th>Conflicting value</th>
-              <th>Source</th>
-              <th>Last decision</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {conflictRows.map((c) => {
-              const itemKey = `${c.company_id}:${c.field_id}`;
-              const decision = decisionFor(itemKey);
-              return (
-                <tr key={itemKey}>
-                  <td>{c.company_id}</td>
-                  <td>{c.field_name}</td>
-                  <td>{String(c.value)}</td>
-                  <td>{String(c.conflicting_value)}</td>
-                  <td>{c.conflicting_source_label}</td>
-                  <td>{decision ? `${decision.decision} by ${decision.decided_by}` : <span className="muted">none</span>}</td>
-                  <td className="toolbar">
-                    <button className="link-button" onClick={() => decide("climate_conflict", itemKey, "accept")}>
-                      Accept
-                    </button>
-                    <input
-                      type="number"
-                      step="any"
-                      placeholder="correct value"
-                      value={overrideInputs[itemKey] ?? ""}
-                      onChange={(e) => setOverrideInputs((prev) => ({ ...prev, [itemKey]: e.target.value }))}
-                    />
-                    <button className="link-button" onClick={() => decide("climate_conflict", itemKey, "override")}>
-                      Override
-                    </button>
-                    <button className="link-button" onClick={() => decide("climate_conflict", itemKey, "reject")}>
-                      Reject
-                    </button>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Company</th>
+                <th>Field</th>
+                <th>Value used</th>
+                <th>Conflicting value</th>
+                <th>Source</th>
+                <th>Last decision</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {conflictRows.map((c) => {
+                const itemKey = `${c.company_id}:${c.field_id}`;
+                const decision = decisionFor(itemKey);
+                return (
+                  <tr key={itemKey}>
+                    <td>{c.company_id}</td>
+                    <td>{c.field_name}</td>
+                    <td>{String(c.value)}</td>
+                    <td>{String(c.conflicting_value)}</td>
+                    <td>{c.conflicting_source_label}</td>
+                    <td>{decision ? `${decision.decision} by ${decision.decided_by}` : <span className="muted">none</span>}</td>
+                    <td className="toolbar">
+                      <button className="link-button" onClick={() => decide("climate_conflict", itemKey, "accept")}>
+                        Accept
+                      </button>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="correct value"
+                        value={overrideInputs[itemKey] ?? ""}
+                        onChange={(e) => setOverrideInputs((prev) => ({ ...prev, [itemKey]: e.target.value }))}
+                      />
+                      <button className="link-button" onClick={() => decide("climate_conflict", itemKey, "override")}>
+                        Override
+                      </button>
+                      <button className="link-button" onClick={() => decide("climate_conflict", itemKey, "reject")}>
+                        Reject
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {conflictRows.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="muted">
+                    {view === "pending" ? "Nothing pending review." : "No conflicts flagged."}
                   </td>
                 </tr>
-              );
-            })}
-            {conflictRows.length === 0 && (
-              <tr>
-                <td colSpan={7} className="muted">
-                  {view === "pending" ? "Nothing pending review." : "No conflicts flagged."}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
     </>
   );

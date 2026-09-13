@@ -126,29 +126,31 @@ export function CompanyProfiles() {
 
           <div className="card">
             <h4>News ({news.length})</h4>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Headline</th>
-                  <th>Published</th>
-                </tr>
-              </thead>
-              <tbody>
-                {news.map((n) => (
-                  <tr key={n.news_id}>
-                    <td>{n.source_url ? <a href={n.source_url} target="_blank" rel="noreferrer">{n.headline}</a> : n.headline}</td>
-                    <td>{n.published_at}</td>
-                  </tr>
-                ))}
-                {news.length === 0 && (
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <td colSpan={2} className="muted">
-                      No news for this issuer.
-                    </td>
+                    <th>Headline</th>
+                    <th>Published</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {news.map((n) => (
+                    <tr key={n.news_id}>
+                      <td>{n.source_url ? <a href={n.source_url} target="_blank" rel="noreferrer">{n.headline}</a> : n.headline}</td>
+                      <td>{n.published_at}</td>
+                    </tr>
+                  ))}
+                  {news.length === 0 && (
+                    <tr>
+                      <td colSpan={2} className="muted">
+                        No news for this issuer.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className="card">

@@ -185,38 +185,40 @@ export function MonitoringAlerts() {
 
       <section className="card">
         <h3>Rules ({rules.length})</h3>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Type</th>
-              <th>Condition</th>
-              <th>Scope</th>
-              <th>Enabled</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rules.map((r) => (
-              <tr key={r.rule_id}>
-                <td>{r.name}</td>
-                <td>{r.rule_type}</td>
-                <td>
-                  {r.field_id ? `${r.field_id} ` : ""}
-                  {r.comparator} {r.threshold_value}
-                </td>
-                <td>{r.portfolio_ids.length ? r.portfolio_ids.join(", ") : r.company_ids.length ? r.company_ids.join(", ") : "all"}</td>
-                <td>{r.enabled ? "yes" : "no"}</td>
-              </tr>
-            ))}
-            {rules.length === 0 && (
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={5} className="muted">
-                  No rules configured yet.
-                </td>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Condition</th>
+                <th>Scope</th>
+                <th>Enabled</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rules.map((r) => (
+                <tr key={r.rule_id}>
+                  <td>{r.name}</td>
+                  <td>{r.rule_type}</td>
+                  <td>
+                    {r.field_id ? `${r.field_id} ` : ""}
+                    {r.comparator} {r.threshold_value}
+                  </td>
+                  <td>{r.portfolio_ids.length ? r.portfolio_ids.join(", ") : r.company_ids.length ? r.company_ids.join(", ") : "all"}</td>
+                  <td>{r.enabled ? "yes" : "no"}</td>
+                </tr>
+              ))}
+              {rules.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="muted">
+                    No rules configured yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="card">
@@ -233,66 +235,68 @@ export function MonitoringAlerts() {
           <input placeholder="Decided by (required to act on an alert)" value={decidedBy} onChange={(e) => setDecidedBy(e.target.value)} />
         </div>
         {error && <p className="error-text">{error}</p>}
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Scope</th>
-              <th>Category</th>
-              <th>Breach type</th>
-              <th>Observed</th>
-              <th>Threshold</th>
-              <th>Status</th>
-              <th>Rationale</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleAlerts.map((a) => (
-              <tr key={a.alert_id}>
-                <td>{a.scope_id}</td>
-                <td>{a.category.replace("_", " ")}</td>
-                <td>
-                  <BreachTypeBadge type={a.breach_type} />
-                </td>
-                <td>{a.observed_value ?? "--"}</td>
-                <td>{a.threshold_value ?? "--"}</td>
-                <td>
-                  <StatusBadge status={a.status} />
-                </td>
-                <td>{a.rationale}</td>
-                <td className="toolbar">
-                  {!TERMINAL_STATUSES.includes(a.status) && a.status !== "acknowledged" && (
-                    <button className="link-button" onClick={() => transition(a, "acknowledged")}>
-                      Ack
-                    </button>
-                  )}
-                  {!TERMINAL_STATUSES.includes(a.status) && a.status !== "escalated" && (
-                    <button className="link-button" onClick={() => transition(a, "escalated")}>
-                      Escalate
-                    </button>
-                  )}
-                  {a.status !== "resolved" && (
-                    <button className="link-button" onClick={() => transition(a, "resolved")}>
-                      Resolve
-                    </button>
-                  )}
-                  {a.status !== "false_positive" && (
-                    <button className="link-button" onClick={() => transition(a, "false_positive")}>
-                      False positive
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {visibleAlerts.length === 0 && (
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={8} className="muted">
-                  No alerts.
-                </td>
+                <th>Scope</th>
+                <th>Category</th>
+                <th>Breach type</th>
+                <th>Observed</th>
+                <th>Threshold</th>
+                <th>Status</th>
+                <th>Rationale</th>
+                <th>Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {visibleAlerts.map((a) => (
+                <tr key={a.alert_id}>
+                  <td>{a.scope_id}</td>
+                  <td>{a.category.replace("_", " ")}</td>
+                  <td>
+                    <BreachTypeBadge type={a.breach_type} />
+                  </td>
+                  <td>{a.observed_value ?? "--"}</td>
+                  <td>{a.threshold_value ?? "--"}</td>
+                  <td>
+                    <StatusBadge status={a.status} />
+                  </td>
+                  <td>{a.rationale}</td>
+                  <td className="toolbar">
+                    {!TERMINAL_STATUSES.includes(a.status) && a.status !== "acknowledged" && (
+                      <button className="link-button" onClick={() => transition(a, "acknowledged")}>
+                        Ack
+                      </button>
+                    )}
+                    {!TERMINAL_STATUSES.includes(a.status) && a.status !== "escalated" && (
+                      <button className="link-button" onClick={() => transition(a, "escalated")}>
+                        Escalate
+                      </button>
+                    )}
+                    {a.status !== "resolved" && (
+                      <button className="link-button" onClick={() => transition(a, "resolved")}>
+                        Resolve
+                      </button>
+                    )}
+                    {a.status !== "false_positive" && (
+                      <button className="link-button" onClick={() => transition(a, "false_positive")}>
+                        False positive
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {visibleAlerts.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="muted">
+                    No alerts.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
     </>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import type { EngagementRecord, RunManifest } from "../types";
+import type { EngagementRecord, ReviewableRunKind, RunManifest } from "../types";
 
 const ACTIVE_STATUSES = new Set(["running", "pending"]);
 const RUN_TYPE_LABEL: Record<string, string> = {
@@ -12,12 +12,18 @@ const RUN_TYPE_LABEL: Record<string, string> = {
   taxonomy_research: "Taxonomy Researcher",
   calibration: "Calibration Agent",
 };
+const REVIEWABLE_RUN_TYPES = new Set<string>(["theme", "extraction", "financials", "identity"]);
 
 function runTypeLabel(runType: string): string {
   return RUN_TYPE_LABEL[runType] ?? runType;
 }
 
-export function MonitoringDashboard({ onNavigate }: { onNavigate: (tab: "engagement" | "voting") => void }) {
+interface Props {
+  onNavigate: (tab: "engagement" | "voting") => void;
+  onOpenReview?: (kind: ReviewableRunKind, runId: string) => void;
+}
+
+export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [records, setRecords] = useState<EngagementRecord[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -138,6 +144,11 @@ export function MonitoringDashboard({ onNavigate }: { onNavigate: (tab: "engagem
                   <span>{r.failed_count} failed</span>
                   <span>{r.review_count} flagged</span>
                   <span>${r.estimated_cost_usd.toFixed(2)}</span>
+                  {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && onOpenReview && (
+                    <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
+                      Review {r.review_count} flagged &rarr;
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -152,30 +163,40 @@ export function MonitoringDashboard({ onNavigate }: { onNavigate: (tab: "engagem
         </div>
         {finished.length === 0 && <p className="muted">No finished runs yet.</p>}
         {finished.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Run ID</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Progress</th>
-                <th>Flagged</th>
-                <th>Finished</th>
-              </tr>
-            </thead>
-            <tbody>
-              {finished.map((r) => (
-                <tr key={r.run_id}>
-                  <td>{r.run_id}</td>
-                  <td>{runTypeLabel(r.run_type)}</td>
-                  <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                  <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
-                  <td>{r.review_count}</td>
-                  <td>{new Date(r.updated_at).toLocaleString()}</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Run ID</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Progress</th>
+                  <th>Flagged</th>
+                  <th>Finished</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {finished.map((r) => (
+                  <tr key={r.run_id}>
+                    <td>{r.run_id}</td>
+                    <td>{runTypeLabel(r.run_type)}</td>
+                    <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
+                    <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
+                    <td>{r.review_count}</td>
+                    <td>{new Date(r.updated_at).toLocaleString()}</td>
+                    <td>
+                      {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && onOpenReview && (
+                        <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
+                          Review
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
@@ -188,30 +209,32 @@ export function MonitoringDashboard({ onNavigate }: { onNavigate: (tab: "engagem
         </div>
         {openIssues.length === 0 && <p className="muted">No open issues.</p>}
         {openIssues.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Company</th>
-                <th>Theme</th>
-                <th>Status</th>
-                <th>Milestone</th>
-                <th>Escalation</th>
-                <th>Severity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {openIssues.slice(0, 30).map(({ record, issue }) => (
-                <tr key={issue.issue_id}>
-                  <td>{record.name} <span className="muted">({record.company_id})</span></td>
-                  <td>{issue.theme}</td>
-                  <td><span className={`status-pill status-${issue.status === "stalled" ? "failed" : "running"}`}>{issue.status}</span></td>
-                  <td>{issue.milestone_stage.replace(/_/g, " ")}</td>
-                  <td>{issue.escalation_stage.replace(/_/g, " ")}</td>
-                  <td>{issue.severity}</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Theme</th>
+                  <th>Status</th>
+                  <th>Milestone</th>
+                  <th>Escalation</th>
+                  <th>Severity</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {openIssues.slice(0, 30).map(({ record, issue }) => (
+                  <tr key={issue.issue_id}>
+                    <td>{record.name} <span className="muted">({record.company_id})</span></td>
+                    <td>{issue.theme}</td>
+                    <td><span className={`status-pill status-${issue.status === "stalled" ? "failed" : "running"}`}>{issue.status}</span></td>
+                    <td>{issue.milestone_stage.replace(/_/g, " ")}</td>
+                    <td>{issue.escalation_stage.replace(/_/g, " ")}</td>
+                    <td>{issue.severity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
@@ -223,26 +246,28 @@ export function MonitoringDashboard({ onNavigate }: { onNavigate: (tab: "engagem
               Open Voting &rarr;
             </button>
           </div>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Run ID</th>
-                <th>Status</th>
-                <th>Companies</th>
-                <th>Awaiting decision</th>
-              </tr>
-            </thead>
-            <tbody>
-              {votingRuns.map((r) => (
-                <tr key={r.run_id}>
-                  <td>{r.run_id}</td>
-                  <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                  <td>{r.completed_count}/{r.company_count}</td>
-                  <td>{r.review_count}</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Run ID</th>
+                  <th>Status</th>
+                  <th>Companies</th>
+                  <th>Awaiting decision</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {votingRuns.map((r) => (
+                  <tr key={r.run_id}>
+                    <td>{r.run_id}</td>
+                    <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
+                    <td>{r.completed_count}/{r.company_count}</td>
+                    <td>{r.review_count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
     </div>

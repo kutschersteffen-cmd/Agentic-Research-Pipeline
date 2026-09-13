@@ -150,71 +150,73 @@ export function EmergingThemes() {
         )}
 
         {candidates.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Theme</th>
-                <th>Status</th>
-                <th>Confidence</th>
-                <th>Velocity</th>
-                <th>First detected</th>
-                <th>Sources</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {candidates.map((c) => (
-                <Fragment key={c.theme_id}>
-                  <tr className="clickable-row" onClick={() => setExpanded(expanded === c.theme_id ? null : c.theme_id)}>
-                    <td>{c.theme_name}</td>
-                    <td><span className={`status-pill status-${c.status === "promoted" ? "completed" : c.status === "rejected" ? "failed" : "pending"}`}>{STATUS_LABEL[c.status]}</span></td>
-                    <td>{c.confidence_score.toFixed(2)}</td>
-                    <td>{c.signal_velocity}</td>
-                    <td>{c.first_detected_date}</td>
-                    <td>{c.corroborating_sources.length}</td>
-                    <td>
-                      {(c.status === "candidate" || c.status === "under_review") && (
-                        <div className="inline-fields" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="text"
-                            placeholder="extend taxonomy_id (optional)"
-                            value={taxonomyIdByTheme[c.theme_id] ?? ""}
-                            onChange={(e) => setTaxonomyIdByTheme((prev) => ({ ...prev, [c.theme_id]: e.target.value }))}
-                          />
-                          <button onClick={() => promote(c.theme_id)} disabled={busy}>Promote</button>
-                          <button className="danger" onClick={() => reject(c.theme_id)} disabled={busy}>Reject</button>
-                        </div>
-                      )}
-                      {c.status === "promoted" && <span className="muted">-&gt; {c.promoted_to_taxonomy_id} v{c.promoted_to_taxonomy_version}</span>}
-                    </td>
-                  </tr>
-                  {expanded === c.theme_id && (
-                    <tr>
-                      <td colSpan={7} className="detail-cell">
-                        <p>{c.description}</p>
-                        <p><strong>Rationale:</strong> {c.rationale}</p>
-                        <p><strong>Economic rationale:</strong> {c.economic_rationale}</p>
-                        {c.candidate_sectors_companies.length > 0 && (
-                          <div className="chip-row">
-                            {c.candidate_sectors_companies.map((id) => (
-                              <span className="chip" key={id}>{id}</span>
-                            ))}
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Theme</th>
+                  <th>Status</th>
+                  <th>Confidence</th>
+                  <th>Velocity</th>
+                  <th>First detected</th>
+                  <th>Sources</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {candidates.map((c) => (
+                  <Fragment key={c.theme_id}>
+                    <tr className="clickable-row" onClick={() => setExpanded(expanded === c.theme_id ? null : c.theme_id)}>
+                      <td>{c.theme_name}</td>
+                      <td><span className={`status-pill status-${c.status === "promoted" ? "completed" : c.status === "rejected" ? "failed" : "pending"}`}>{STATUS_LABEL[c.status]}</span></td>
+                      <td>{c.confidence_score.toFixed(2)}</td>
+                      <td>{c.signal_velocity}</td>
+                      <td>{c.first_detected_date}</td>
+                      <td>{c.corroborating_sources.length}</td>
+                      <td>
+                        {(c.status === "candidate" || c.status === "under_review") && (
+                          <div className="inline-fields" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="text"
+                              placeholder="extend taxonomy_id (optional)"
+                              value={taxonomyIdByTheme[c.theme_id] ?? ""}
+                              onChange={(e) => setTaxonomyIdByTheme((prev) => ({ ...prev, [c.theme_id]: e.target.value }))}
+                            />
+                            <button onClick={() => promote(c.theme_id)} disabled={busy}>Promote</button>
+                            <button className="danger" onClick={() => reject(c.theme_id)} disabled={busy}>Reject</button>
                           </div>
                         )}
-                        <ul className="citation-list">
-                          {c.corroborating_sources.map((s) => (
-                            <li key={s.mention_id}>
-                              [{s.source_type}] <a href={s.url} target="_blank" rel="noreferrer">{s.url}</a> -- "{s.quote}"{!s.grounded && <span className="muted"> (ungrounded)</span>}
-                            </li>
-                          ))}
-                        </ul>
+                        {c.status === "promoted" && <span className="muted">-&gt; {c.promoted_to_taxonomy_id} v{c.promoted_to_taxonomy_version}</span>}
                       </td>
                     </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
+                    {expanded === c.theme_id && (
+                      <tr>
+                        <td colSpan={7} className="detail-cell">
+                          <p>{c.description}</p>
+                          <p><strong>Rationale:</strong> {c.rationale}</p>
+                          <p><strong>Economic rationale:</strong> {c.economic_rationale}</p>
+                          {c.candidate_sectors_companies.length > 0 && (
+                            <div className="chip-row">
+                              {c.candidate_sectors_companies.map((id) => (
+                                <span className="chip" key={id}>{id}</span>
+                              ))}
+                            </div>
+                          )}
+                          <ul className="citation-list">
+                            {c.corroborating_sources.map((s) => (
+                              <li key={s.mention_id}>
+                                [{s.source_type}] <a href={s.url} target="_blank" rel="noreferrer">{s.url}</a> -- "{s.quote}"{!s.grounded && <span className="muted"> (ungrounded)</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
@@ -222,28 +224,30 @@ export function EmergingThemes() {
         <h3>Past runs</h3>
         {pastRuns.length === 0 && <p className="muted">No emerging-themes runs yet.</p>}
         {pastRuns.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Run ID</th>
-                <th>Status</th>
-                <th>Scanned</th>
-                <th>Candidates</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pastRuns.map((r) => (
-                <tr key={r.run_id}>
-                  <td>{r.run_id}</td>
-                  <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                  <td>{r.completed_count}/{r.company_count}</td>
-                  <td>{r.review_count}</td>
-                  <td>{new Date(r.created_at).toLocaleString()}</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Run ID</th>
+                  <th>Status</th>
+                  <th>Scanned</th>
+                  <th>Candidates</th>
+                  <th>Created</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pastRuns.map((r) => (
+                  <tr key={r.run_id}>
+                    <td>{r.run_id}</td>
+                    <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
+                    <td>{r.completed_count}/{r.company_count}</td>
+                    <td>{r.review_count}</td>
+                    <td>{new Date(r.created_at).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>
