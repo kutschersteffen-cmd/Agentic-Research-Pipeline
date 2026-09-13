@@ -1,6 +1,16 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import type { ReviewableRunKind } from "../types";
+import { ConfidenceBadge, VerdictBadge } from "../components/ConfidenceBadge";
+import { CitationList } from "../components/CitationList";
+import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
+import type { Citation, ReviewableRunKind, RunManifest } from "../types";
+
+const REVIEW_KIND_LABEL: Record<ReviewableRunKind, string> = {
+  theme: "Thematic universe",
+  extraction: "Data-point extraction",
+  financials: "Company financials",
+  identity: "Identity resolution",
+};
 
 const QUEUE_FNS: Record<ReviewableRunKind, (runId: string) => Promise<unknown>> = {
   theme: api.getThemeReviewQueue,
@@ -20,12 +30,61 @@ interface Props {
   pendingReview?: { kind: ReviewableRunKind; runId: string } | null;
 }
 
+function isCitationArray(v: unknown): v is Citation[] {
+  return Array.isArray(v) && v.every((c) => c && typeof c === "object" && "quote" in c && "doc_type" in c);
+}
+
+/** Renders whatever a pending review item happens to carry: the fields
+ * every run kind's flagged payload tends to share (item identity, a
+ * confidence/verdict, citations) get the same badges/CitationList used
+ * everywhere else in the app; anything kind-specific that doesn't map to a
+ * known field stays available, just tucked behind "Full record" instead of
+ * dominating the card the way a top-level JSON.stringify dump used to. */
+function ReviewItemFields({ item, onOpenSource }: { item: Record<string, unknown>; onOpenSource: (s: ActiveSource) => void }) {
+  const known = new Set(["item_key", "queued_at", "company_id", "name", "ticker", "confidence", "verdict", "citations", "adjudicator_rationale", "rationale"]);
+  const rest = Object.fromEntries(Object.entries(item).filter(([k]) => !known.has(k)));
+  const hasRest = Object.keys(rest).length > 0;
+
+  return (
+    <div>
+      <div className="run-progress-header">
+        <strong>
+          {(item.name as string | undefined) ?? (item.company_id as string | undefined) ?? (item.item_key as string)}
+          {item.ticker ? <span className="muted"> ({item.ticker as string})</span> : null}
+        </strong>
+        <span>
+          {typeof item.verdict === "string" && <VerdictBadge verdict={item.verdict} />}{" "}
+          {typeof item.confidence === "number" && <ConfidenceBadge value={item.confidence} />}
+        </span>
+      </div>
+      {Boolean(item.company_id && item.name) && <p className="muted">{item.item_key as string}</p>}
+      {Boolean(item.adjudicator_rationale || item.rationale) && <p>{(item.adjudicator_rationale ?? item.rationale) as string}</p>}
+      {isCitationArray(item.citations) && (
+        <>
+          <p className="muted">Citations:</p>
+          <CitationList citations={item.citations} onOpenSource={onOpenSource} />
+        </>
+      )}
+      {hasRest && (
+        <details className="inline-block">
+          <summary className="muted" style={{ cursor: "pointer" }}>
+            Full record
+          </summary>
+          <pre className="review-json">{JSON.stringify(rest, null, 2)}</pre>
+        </details>
+      )}
+    </div>
+  );
+}
+
 export function ReviewQueue({ pendingReview }: Props = {}) {
   const [kind, setKind] = useState<ReviewableRunKind>(pendingReview?.kind ?? "theme");
   const [runId, setRunId] = useState(pendingReview?.runId ?? "");
+  const [runs, setRuns] = useState<RunManifest[]>([]);
   const [pending, setPending] = useState<Record<string, unknown>[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
 
   async function load(loadKind: ReviewableRunKind = kind, loadRunId: string = runId) {
     if (!loadRunId) return;
@@ -40,6 +99,14 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    setRuns([]);
+    api
+      .listRuns(kind)
+      .then((res) => setRuns((res as { runs: RunManifest[] }).runs))
+      .catch(() => setRuns([]));
+  }, [kind]);
 
   // A run clicked from Run History's "Review" link arrives here -- load its
   // queue immediately instead of making the user re-pick the type and
@@ -57,6 +124,8 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
     setPending((prev) => prev.filter((p) => p.item_key !== itemKey));
   }
 
+  const runsWithFlags = runs.filter((r) => r.review_count > 0);
+
   return (
     <div className="page">
       <h2>Review Queue</h2>
@@ -67,14 +136,43 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
 
       <section className="card">
         <label className="field-label">Run type</label>
-        <select value={kind} onChange={(e) => setKind(e.target.value as ReviewableRunKind)}>
-          <option value="theme">Thematic universe</option>
-          <option value="extraction">Data-point extraction</option>
-          <option value="financials">Company financials</option>
-          <option value="identity">Identity resolution</option>
+        <select
+          value={kind}
+          onChange={(e) => {
+            setKind(e.target.value as ReviewableRunKind);
+            setRunId("");
+            setPending([]);
+          }}
+        >
+          {(Object.keys(REVIEW_KIND_LABEL) as ReviewableRunKind[]).map((k) => (
+            <option key={k} value={k}>
+              {REVIEW_KIND_LABEL[k]}
+            </option>
+          ))}
         </select>
-        <label className="field-label">Run ID</label>
-        <input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="theme_xxxxxxxxxxxx" />
+
+        <label className="field-label">Run</label>
+        <select value={runId} onChange={(e) => setRunId(e.target.value)}>
+          <option value="">-- select a run --</option>
+          {runsWithFlags.length > 0 && (
+            <optgroup label="Has flagged items">
+              {runsWithFlags.map((r) => (
+                <option key={r.run_id} value={r.run_id}>
+                  {r.run_id} -- {r.review_count} flagged ({r.status})
+                </option>
+              ))}
+            </optgroup>
+          )}
+          <optgroup label="All runs">
+            {runs.map((r) => (
+              <option key={r.run_id} value={r.run_id}>
+                {r.run_id} -- {r.review_count} flagged ({r.status})
+              </option>
+            ))}
+          </optgroup>
+        </select>
+        {runs.length === 0 && <p className="muted">No {REVIEW_KIND_LABEL[kind].toLowerCase()} runs found.</p>}
+
         <button onClick={() => load()} disabled={busy || !runId}>
           Load pending items
         </button>
@@ -82,20 +180,25 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
       </section>
 
       {pending.length > 0 && (
-        <section className="card">
-          <h3>{pending.length} pending</h3>
-          {pending.map((item) => (
-            <div className="review-item" key={item.item_key as string}>
-              <pre className="review-json">{JSON.stringify(item, null, 2)}</pre>
-              <div className="toolbar">
-                <button onClick={() => decide(item.item_key as string, "approve")}>Approve</button>
-                <button onClick={() => decide(item.item_key as string, "reject")} className="danger">
-                  Reject
-                </button>
-              </div>
-            </div>
-          ))}
-        </section>
+        <div className="split-review">
+          <div className="split-review-main">
+            <section className="card">
+              <h3>{pending.length} pending</h3>
+              {pending.map((item) => (
+                <div className="review-item" key={item.item_key as string}>
+                  <ReviewItemFields item={item} onOpenSource={setActiveSource} />
+                  <div className="toolbar">
+                    <button onClick={() => decide(item.item_key as string, "approve")}>Approve</button>
+                    <button onClick={() => decide(item.item_key as string, "reject")} className="danger">
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </section>
+          </div>
+          <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
+        </div>
       )}
       {pending.length === 0 && runId && !busy && <p className="muted">Nothing pending for this run.</p>}
     </div>
