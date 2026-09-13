@@ -321,6 +321,14 @@ its commentary with the grounding verdict, and the panel's underlying query
 in the same vocabulary the Explore tab uses, so every number on screen is
 reproducible by hand.
 
+How this compares to the open-source GenBI tools that solve the general
+version of this problem (WrenAI, Cube, text-to-SQL agents) — and which of
+their ideas are worth adopting here — is reviewed in
+[`GENBI_LANDSCAPE_REVIEW.md`](GENBI_LANDSCAPE_REVIEW.md). Short version:
+they make an LLM emit SQL and then work to make that SQL safe; this emits a
+closed, validated spec and has no SQL to make safe, at the cost of
+expressiveness.
+
 Surfaces: `POST /api/portfolio/bi/generate` (brief -> dashboard),
 `POST /api/portfolio/bi/execute` (run an edited spec, no LLM),
 `GET|POST /api/portfolio/bi/dashboards`,

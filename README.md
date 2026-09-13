@@ -103,7 +103,11 @@ for a layer-by-layer comparison of this system against a proposed
 seven-layer target architecture (Postgres/pgvector, Temporal, per-role
 model tiering) — what already exceeds it, and which of its gaps
 (decorrelated critic model, XBRL ingestion, a golden set) are genuinely
-worth adopting.
+worth adopting. [`docs/GENBI_LANDSCAPE_REVIEW.md`](docs/GENBI_LANDSCAPE_REVIEW.md)
+does the same for the Generative BI layer against the open-source GenBI
+field (WrenAI, Cube, text-to-SQL agents): where their semantic-layer
+benchmarks land, why this system emits a validated query spec instead of
+SQL, and which of their ideas are worth taking.
 
 ## Architecture
 
