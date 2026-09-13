@@ -102,7 +102,7 @@ function ProposeStage({
     }
   }
 
-  function useCandidate(c: PaperCandidate) {
+  function selectCandidate(c: PaperCandidate) {
     setPaperCitation(c.title);
     setPaperText(`${c.title}\n${c.url}\n\n${c.snippet}\n\n(Paste the paper's own methodology/results text here before drafting a spec.)`);
   }
@@ -158,7 +158,7 @@ function ProposeStage({
                 <a href={c.url} target="_blank" rel="noreferrer">
                   View source
                 </a>
-                <button onClick={() => useCandidate(c)}>Use this paper</button>
+                <button onClick={() => selectCandidate(c)}>Use this paper</button>
               </div>
             </div>
           ))}
