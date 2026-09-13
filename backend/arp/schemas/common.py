@@ -31,6 +31,7 @@ class DocType(StrEnum):
     EARNINGS_TRANSCRIPT = "earnings_transcript"
     INVESTOR_PRESENTATION = "investor_presentation"
     PRODUCT_PAGE = "product_page"
+    RESEARCH_PAPER = "research_paper"
     OTHER = "other"
 
 
