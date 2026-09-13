@@ -5,7 +5,7 @@ import { CompanyFinancials } from "./pages/CompanyFinancials";
 import { TransitionPlanAssessment } from "./pages/TransitionPlanAssessment";
 import { DocumentDiscovery } from "./pages/DocumentDiscovery";
 import { IdentityResolution } from "./pages/IdentityResolution";
-import { ReviewQueue } from "./pages/ReviewQueue";
+import { ReviewQueue, type RunKind } from "./pages/ReviewQueue";
 import { RunHistory } from "./pages/RunHistory";
 import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
@@ -35,6 +35,7 @@ function App() {
   const [active, setActive] = useState<(typeof TABS)[number]["id"]>("dashboard");
   const [pendingUniverse, setPendingUniverse] = useState<{ path: string; count: number } | null>(null);
   const [pendingDiscoveryUniverse, setPendingDiscoveryUniverse] = useState<{ path: string; count: number } | null>(null);
+  const [pendingReview, setPendingReview] = useState<{ kind: RunKind; runId: string } | null>(null);
 
   function sendToExtraction(path: string, count: number) {
     setPendingUniverse({ path, count });
@@ -44,6 +45,11 @@ function App() {
   function sendToDiscovery(path: string, count: number) {
     setPendingDiscoveryUniverse({ path, count });
     setActive("discovery");
+  }
+
+  function openReview(kind: RunKind, runId: string) {
+    setPendingReview({ kind, runId });
+    setActive("review");
   }
 
   return (
@@ -60,7 +66,7 @@ function App() {
         ))}
       </nav>
       <main className="app-main">
-        {active === "dashboard" && <MonitoringDashboard onNavigate={setActive} />}
+        {active === "dashboard" && <MonitoringDashboard onNavigate={setActive} onOpenReview={openReview} />}
         {active === "theme" && <ThemeBuilder onSendToExtraction={sendToExtraction} />}
         {active === "taxonomy" && <TaxonomyLibrary />}
         {active === "extraction" && <ExtractionBuilder pendingUniverse={pendingUniverse} />}
@@ -70,8 +76,8 @@ function App() {
         {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingDiscoveryUniverse} />}
         {active === "portfolio" && <PortfolioRisk />}
         {active === "climate" && <ClimateAnalytics />}
-        {active === "review" && <ReviewQueue />}
-        {active === "history" && <RunHistory />}
+        {active === "review" && <ReviewQueue pendingReview={pendingReview} />}
+        {active === "history" && <RunHistory onOpenReview={openReview} />}
         {active === "engagement" && <EngagementDashboard />}
         {active === "voting" && <VotingRuns />}
       </main>

@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import type { RunKind } from "./ReviewQueue";
 import type { RunManifest } from "../types";
 
-export function RunHistory() {
+const REVIEWABLE_RUN_TYPES = new Set<string>(["theme", "extraction", "financials", "identity"]);
+
+interface Props {
+  onOpenReview: (kind: RunKind, runId: string) => void;
+}
+
+export function RunHistory({ onOpenReview }: Props) {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [filter, setFilter] = useState<string>("");
 
@@ -62,6 +69,14 @@ export function RunHistory() {
                   <a href={api.exportRunCsvUrl(r.run_id)} target="_blank" rel="noreferrer">
                     CSV
                   </a>
+                  {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && (
+                    <>
+                      {" "}
+                      <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as RunKind, r.run_id)}>
+                        Review
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}

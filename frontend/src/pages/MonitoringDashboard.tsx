@@ -1,21 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
+import type { RunKind } from "./ReviewQueue";
 import type { EngagementRecord, RunManifest } from "../types";
 
 const ACTIVE_STATUSES = new Set(["running", "pending"]);
 const RUN_TYPE_LABEL: Record<string, string> = {
   theme: "Thematic universe",
   extraction: "Data extraction",
+  financials: "Company financials",
+  identity: "Identity resolution",
   discovery: "Document discovery",
   proxy_voting: "Proxy voting",
   transition_plan: "Transition plan assessment",
 };
+const REVIEWABLE_RUN_TYPES = new Set<string>(["theme", "extraction", "financials", "identity"]);
 
 function runTypeLabel(runType: string): string {
   return RUN_TYPE_LABEL[runType] ?? runType;
 }
 
-export function MonitoringDashboard({ onNavigate }: { onNavigate: (tab: "engagement" | "voting") => void }) {
+interface Props {
+  onNavigate: (tab: "engagement" | "voting") => void;
+  onOpenReview: (kind: RunKind, runId: string) => void;
+}
+
+export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [records, setRecords] = useState<EngagementRecord[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -136,6 +145,11 @@ export function MonitoringDashboard({ onNavigate }: { onNavigate: (tab: "engagem
                   <span>{r.failed_count} failed</span>
                   <span>{r.review_count} flagged</span>
                   <span>${r.estimated_cost_usd.toFixed(2)}</span>
+                  {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && (
+                    <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as RunKind, r.run_id)}>
+                      Review {r.review_count} flagged &rarr;
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -159,6 +173,7 @@ export function MonitoringDashboard({ onNavigate }: { onNavigate: (tab: "engagem
                 <th>Progress</th>
                 <th>Flagged</th>
                 <th>Finished</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -170,6 +185,13 @@ export function MonitoringDashboard({ onNavigate }: { onNavigate: (tab: "engagem
                   <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
                   <td>{r.review_count}</td>
                   <td>{new Date(r.updated_at).toLocaleString()}</td>
+                  <td>
+                    {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && (
+                      <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as RunKind, r.run_id)}>
+                        Review
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
