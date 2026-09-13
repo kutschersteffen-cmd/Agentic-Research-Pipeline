@@ -1,4 +1,4 @@
-from arp.replication.spec_revision import StrategySpecRevisionDraft, _current_revision_draft, revise_spec_via_instruction
+from arp.replication.spec_revision import _current_revision_draft, revise_spec_via_instruction
 from arp.schemas.strategy_replication import RebalanceFrequency, SignalType, StrategySpec
 
 

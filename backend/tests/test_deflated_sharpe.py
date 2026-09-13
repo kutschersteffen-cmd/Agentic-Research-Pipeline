@@ -1,5 +1,3 @@
-import math
-
 import pytest
 
 from arp.replication.deflated_sharpe import (
