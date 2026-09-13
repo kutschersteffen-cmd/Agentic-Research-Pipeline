@@ -968,9 +968,9 @@ export interface PanelResult {
 export interface Narrative {
   text: string;
   grounded: boolean;
-  source: "llm" | "deterministic_fallback";
+  source: "llm" | "llm_partial" | "deterministic_fallback";
   ungrounded_tokens: string[];
-  rejected_draft: string;
+  rejected_sentences: string[];
 }
 
 export interface GeneratedDashboard {

@@ -411,13 +411,20 @@ async def _repair_panels(
     )
 
     # Match by title first (the repair prompt asks for titles to be kept),
-    # falling back to the order the panels were listed in.
-    by_title = {p.title: p for p in repaired.panels}
+    # falling back to the order the panels were listed in. Each replacement
+    # is consumed once: two rejected panels sharing a title must not both
+    # resolve to the same replacement and land it in two slots.
+    by_title: dict[str, list[_PlannedPanel]] = {}
+    for panel in repaired.panels:
+        by_title.setdefault(panel.title, []).append(panel)
+    unclaimed = list(repaired.panels)
+
     warnings: list[str] = []
-    for order, (idx, candidate, reason) in enumerate(rejected):
-        replacement = by_title.get(candidate.title)
-        if replacement is None and order < len(repaired.panels):
-            replacement = repaired.panels[order]
+    for idx, candidate, reason in rejected:
+        queue = by_title.get(candidate.title) or []
+        replacement = queue.pop(0) if queue else (unclaimed[0] if unclaimed else None)
+        if replacement is not None and replacement in unclaimed:
+            unclaimed.remove(replacement)
         if replacement is None:
             warnings.append(f"{reason} Re-plan returned no replacement; panel dropped.")
             continue

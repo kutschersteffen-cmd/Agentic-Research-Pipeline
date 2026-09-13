@@ -316,12 +316,20 @@ brief -> planner.py    (LLM)            -> which queries to run
   rescaling — "EUR 1.23 million" for 1,234,567 — within a 1% tolerance, but
   nothing else). A number the facts don't support — **including one that is
   arithmetically derivable from two that they do**, because no panel
-  computed it — rejects the whole draft in favour of the deterministic fact
-  text, with the offending tokens named in a warning and the rejected draft
-  retained for inspection. This is the numeric counterpart of
+  computed it — is rejected. This is the numeric counterpart of
   `grounding.is_grounded`: the same "check it programmatically, never trust
   the self-report" control, applied to prose about numbers instead of quotes
   from documents.
+
+  Checking is **per sentence**, not per draft. Rejecting three correct
+  sentences because a fourth said "roughly 18%" of a computed 17.7% would
+  throw away good prose to punish one adjective, and what replaces it is a
+  flat list of facts — the cure worse than the disease. So the sentence
+  carrying an unsupported figure is dropped, the rest is kept
+  (`source="llm_partial"`), and the dropped sentences and offending tokens
+  are reported. Only when *no* sentence survives does the deterministic fact
+  text take over. The invariant holds either way: every figure in displayed
+  prose traces back to a computed result.
 
 **Regression harness.** `arp golden-set planner`
 (`arp/golden_set/planner_schema.py`, `planner_runner.py`,

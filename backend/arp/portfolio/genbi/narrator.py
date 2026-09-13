@@ -8,6 +8,11 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.portfolio.genbi.schemas import DashboardFact, Narrative, PanelResult
 
 _NUMBER_RE = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)?")
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[\"'(\u201c]?[A-Z0-9])")
+"""Splits on sentence punctuation only when what follows starts a new
+sentence. Deliberately conservative about decimals and thousands
+separators: "EUR 1.23 million" has no whitespace after the period, so it is
+never split mid-figure."""
 _ISO_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _SCALE_WORDS = {"million": 1e6, "millions": 1e6, "bn": 1e9, "billion": 1e9, "billions": 1e9, "m": 1e6, "k": 1e3, "thousand": 1e3}
 _RELATIVE_TOLERANCE = 0.01
@@ -141,17 +146,52 @@ def deterministic_text(facts: list[DashboardFact], limit: int = 3) -> str:
     return " ".join(seen) or "No figures were computed for this panel."
 
 
+def split_sentences(text: str) -> list[str]:
+    return [part.strip() for part in _SENTENCE_SPLIT_RE.split(text.strip()) if part.strip()]
+
+
 def _narrative_from(draft_text: str, facts: list[DashboardFact]) -> Narrative:
-    ungrounded = check_grounding(draft_text, facts)
-    if ungrounded or not draft_text.strip():
+    """Checks the draft one sentence at a time and keeps the sentences that
+    ground.
+
+    Rejecting a whole draft over a single loose rounding ("roughly 18%" for
+    a computed 17.7%) throws away correct prose to punish one adjective --
+    the cure being worse than the disease, since what replaces it is a flat
+    list of facts. Per-sentence, the cost of an ungrounded figure is the
+    sentence carrying it, and what survives is still fully checked. Only
+    when nothing survives does the deterministic fact text take over.
+    """
+    if not draft_text.strip():
+        return Narrative(text=deterministic_text(facts), grounded=True, source="deterministic_fallback")
+
+    kept: list[str] = []
+    rejected: list[str] = []
+    ungrounded: list[str] = []
+    for sentence in split_sentences(draft_text):
+        tokens = check_grounding(sentence, facts)
+        if tokens:
+            rejected.append(sentence)
+            ungrounded += [t for t in tokens if t not in ungrounded]
+        else:
+            kept.append(sentence)
+
+    if not kept:
         return Narrative(
             text=deterministic_text(facts),
-            grounded=False if ungrounded else True,
+            grounded=False,
             source="deterministic_fallback",
             ungrounded_tokens=ungrounded,
-            rejected_draft=draft_text if ungrounded else "",
+            rejected_sentences=rejected,
         )
-    return Narrative(text=draft_text.strip(), grounded=True, source="llm")
+    if not rejected:
+        return Narrative(text=" ".join(kept), grounded=True, source="llm")
+    return Narrative(
+        text=" ".join(kept),
+        grounded=False,
+        source="llm_partial",
+        ungrounded_tokens=ungrounded,
+        rejected_sentences=rejected,
+    )
 
 
 def _render_facts(panels: list[PanelResult], dashboard_facts: list[DashboardFact]) -> str:
@@ -196,16 +236,21 @@ async def narrate(
     warnings: list[str] = []
     all_facts = [fact for panel in panels for fact in panel.facts] + dashboard_facts
     headline = _narrative_from(draft.headline, all_facts)
-    if headline.ungrounded_tokens:
-        warnings.append(f"Headline narrative rejected: ungrounded figure(s) {', '.join(headline.ungrounded_tokens)}.")
+    if headline.rejected_sentences:
+        warnings.append(_rejection_warning("Headline", headline))
 
     notes = {note.panel_id: note.text for note in draft.panel_notes}
     narratives: dict[str, Narrative] = {}
     for panel in panels:
         narrative = _narrative_from(notes.get(panel.panel.panel_id, ""), panel.facts)
-        if narrative.ungrounded_tokens:
-            warnings.append(
-                f"Narrative for panel {panel.panel.title!r} rejected: ungrounded figure(s) {', '.join(narrative.ungrounded_tokens)}."
-            )
+        if narrative.rejected_sentences:
+            warnings.append(_rejection_warning(f"Narrative for panel {panel.panel.title!r}", narrative))
         narratives[panel.panel.panel_id] = narrative
     return headline, narratives, warnings, usage
+
+
+def _rejection_warning(subject: str, narrative: Narrative) -> str:
+    count = len(narrative.rejected_sentences)
+    tokens = ", ".join(narrative.ungrounded_tokens)
+    scope = "dropped, rest kept" if narrative.source == "llm_partial" else "dropped; computed facts shown instead"
+    return f"{subject}: {count} sentence(s) {scope} -- no computed figure supports {tokens}."

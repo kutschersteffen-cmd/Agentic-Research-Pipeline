@@ -25,28 +25,55 @@ function queryLine(panel: PanelResult["panel"]): string {
   return parts.join(", ");
 }
 
+function RejectedSentences({ narrative }: { narrative: Narrative }) {
+  return (
+    <details>
+      <summary>
+        {narrative.rejected_sentences.length} rejected sentence(s) -- no computed figure supports{" "}
+        {narrative.ungrounded_tokens.join(", ")}
+      </summary>
+      <ul className="citation-list">
+        {narrative.rejected_sentences.map((sentence) => (
+          <li key={sentence} className="muted">
+            {sentence}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 function NarrativeBlock({ narrative }: { narrative?: Narrative }) {
   if (!narrative || !narrative.text) return null;
+
+  // Whatever the source, every figure in `text` traces back to a computed
+  // result -- the three cases differ only in how much of the draft survived
+  // that check, which is what the badge/banner distinguishes.
   return (
     <>
       <p className="answer-text">{narrative.text}</p>
-      {narrative.source === "llm" ? (
+      {narrative.source === "llm" && (
         <p className="muted">
           <span className="badge badge-low">figures checked</span> Every figure in this text was matched back to a computed panel
           result.
         </p>
-      ) : narrative.ungrounded_tokens.length > 0 ? (
-        <div className="banner banner-warning">
-          Generated commentary was rejected: it stated {narrative.ungrounded_tokens.join(", ")}, which no panel computed. The
-          deterministically computed figures are shown instead.
-          <details>
-            <summary>Rejected draft</summary>
-            <p className="muted">{narrative.rejected_draft}</p>
-          </details>
-        </div>
-      ) : (
-        <p className="muted">Computed figures, stated as-is -- no commentary was generated for this panel.</p>
       )}
+      {narrative.source === "llm_partial" && (
+        <div className="banner banner-warning">
+          <span className="badge badge-mid">partly rejected</span> Sentences stating a figure no panel computed were dropped;
+          what remains is fully checked.
+          <RejectedSentences narrative={narrative} />
+        </div>
+      )}
+      {narrative.source === "deterministic_fallback" &&
+        (narrative.rejected_sentences.length > 0 ? (
+          <div className="banner banner-warning">
+            No sentence of the generated commentary survived the figure check, so the computed figures are shown instead.
+            <RejectedSentences narrative={narrative} />
+          </div>
+        ) : (
+          <p className="muted">Computed figures, stated as-is -- no commentary was generated for this panel.</p>
+        ))}
     </>
   );
 }

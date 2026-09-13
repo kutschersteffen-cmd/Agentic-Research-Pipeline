@@ -89,8 +89,8 @@ async def test_narrate_falls_back_to_computed_facts_when_a_figure_is_invented(fa
     assert headline.ungrounded_tokens == ["9,000,000"]
     # the dashboard still ships, with the computed facts in place of the rejected prose
     assert "EUR 1,234,567" in headline.text
-    assert headline.rejected_draft == draft.headline
-    assert any("ungrounded figure" in w for w in warnings)
+    assert headline.rejected_sentences == [draft.headline]
+    assert any("no computed figure supports" in w for w in warnings)
     # a panel note that passed is unaffected by the headline's rejection
     assert narratives["pan_1"].grounded is True
 
@@ -118,3 +118,67 @@ async def test_dashboard_level_facts_are_quotable_by_the_headline(fake_llm):
 
     assert headline.grounded and headline.source == "llm"
     assert warnings == []
+
+
+# --- per-sentence checking: one loose figure costs its sentence, not the draft
+
+
+def test_one_ungrounded_sentence_does_not_discard_the_correct_ones():
+    draft = (
+        "Total market value in scope is EUR 1,234,567 across 12 holdings. "
+        "Energy is roughly 18% of the book. "
+        "The top 3 sectors hold 72.3% of the total."
+    )
+    narrative = narrator._narrative_from(draft, FACTS)
+
+    assert narrative.source == "llm_partial"
+    assert narrative.grounded is False  # something was dropped
+    # the two correct sentences survive, in order
+    assert narrative.text == (
+        "Total market value in scope is EUR 1,234,567 across 12 holdings. The top 3 sectors hold 72.3% of the total."
+    )
+    assert narrative.rejected_sentences == ["Energy is roughly 18% of the book."]
+    assert narrative.ungrounded_tokens == ["18"]
+
+
+def test_a_decimal_figure_is_never_split_into_two_sentences():
+    # "EUR 1.23 million" must survive as one sentence, not become "EUR 1." + "23 million"
+    narrative = narrator._narrative_from("Exposure stands at EUR 1.23 million. Concentration is high.", FACTS)
+
+    assert narrative.source == "llm"
+    assert narrative.text == "Exposure stands at EUR 1.23 million. Concentration is high."
+
+
+def test_a_fully_grounded_draft_is_still_kept_whole():
+    draft = "Total exposure is EUR 1,234,567. The top 3 sectors hold 72.3% of it."
+    narrative = narrator._narrative_from(draft, FACTS)
+
+    assert narrative.source == "llm" and narrative.grounded is True
+    assert narrative.text == draft
+    assert narrative.rejected_sentences == []
+
+
+def test_when_every_sentence_fails_the_computed_facts_take_over():
+    draft = "Exposure is EUR 9,000,000. Utilities hold EUR 410,000 of it."
+    narrative = narrator._narrative_from(draft, FACTS)
+
+    assert narrative.source == "deterministic_fallback"
+    assert narrative.grounded is False
+    assert "EUR 1,234,567" in narrative.text
+    assert len(narrative.rejected_sentences) == 2
+    assert narrative.ungrounded_tokens == ["9,000,000", "410,000"]
+
+
+async def test_warning_says_what_was_dropped_and_what_survived(fake_llm):
+    draft = _NarrativeDraft(
+        headline="Total market value in scope is EUR 1,234,567. Energy is roughly 18% of the book.",
+        panel_notes=[],
+    )
+    llm = fake_llm({"_NarrativeDraft": [draft]})
+
+    headline, _narratives, warnings, _usage = await narrator.narrate(
+        title="t", brief="b", goal="g", panels=[_panel_result()], dashboard_facts=[], llm=llm
+    )
+
+    assert headline.source == "llm_partial"
+    assert any("1 sentence(s) dropped, rest kept" in w and "18" in w for w in warnings)

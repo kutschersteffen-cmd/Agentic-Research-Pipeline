@@ -102,18 +102,22 @@ class PanelResult(BaseModel):
 
 
 class Narrative(BaseModel):
-    """Generated prose plus its grounding verdict. `grounded=False` means a
-    number or date appeared in the draft that no computed fact supports; in
-    that case `text` is the deterministic fallback and the rejected draft is
-    kept in `rejected_draft` so the failure is inspectable rather than
-    invisible.
+    """Generated prose plus its grounding verdict.
+
+    The invariant, whatever `source` says: every figure in `text` traces
+    back to a computed fact. Checking is per sentence, so one loose
+    rounding costs the sentence that contains it rather than the whole
+    draft -- `source="llm_partial"` means some sentences were dropped and
+    the rest kept, and the dropped ones stay in `rejected_sentences` so the
+    failure is inspectable rather than invisible. `grounded=False` means
+    something was dropped; it never means a number in `text` is unchecked.
     """
 
     text: str = ""
-    grounded: bool = True
-    source: Literal["llm", "deterministic_fallback"] = "deterministic_fallback"
+    grounded: bool = Field(default=True, description="False if any sentence of the draft was rejected.")
+    source: Literal["llm", "llm_partial", "deterministic_fallback"] = "deterministic_fallback"
     ungrounded_tokens: list[str] = Field(default_factory=list)
-    rejected_draft: str = ""
+    rejected_sentences: list[str] = Field(default_factory=list)
 
 
 class GeneratedDashboard(BaseModel):

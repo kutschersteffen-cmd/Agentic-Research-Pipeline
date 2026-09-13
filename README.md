@@ -391,8 +391,9 @@ around the input-output math.
   deterministic engine actually computed, checked token by token
   (`portfolio/genbi/narrator.py`). A quoted figure that no panel computed
   -- including one that is arithmetically derivable from two that were --
-  gets the whole draft rejected in favour of the computed facts, with the
-  offending tokens named. What persists from a generated dashboard is the
+  gets its sentence dropped (the rest of the draft is kept, and the dropped
+  sentences are reported); if nothing survives, the computed facts are shown
+  instead. What persists from a generated dashboard is the
   query plan, not the prose, so re-running it recomputes from live
   holdings with no model in the loop at all
 

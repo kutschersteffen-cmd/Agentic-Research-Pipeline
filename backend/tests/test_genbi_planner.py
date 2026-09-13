@@ -255,3 +255,24 @@ async def test_valid_plan_never_triggers_a_repair_call(fake_llm):
 
     assert len(spec.panels) == 1 and warnings == []
     assert llm.calls == ["_PlannedDashboard"]
+
+
+async def test_two_rejected_panels_sharing_a_title_do_not_get_the_same_replacement(fake_llm):
+    planned = _PlannedDashboard(
+        title="Duplicated",
+        panels=[
+            _PlannedPanel(title="Breakdown", group_by="not_a_dimension", metric="market_value_sum"),
+            _PlannedPanel(title="Breakdown", group_by="also_not_one", metric="market_value_sum"),
+        ],
+    )
+    # the repair returns a single replacement carrying that shared title
+    repaired = _RepairedPanels(panels=[_PlannedPanel(title="Breakdown", group_by="sector", metric="market_value_sum")])
+    llm = fake_llm({"_PlannedDashboard": [planned], "_RepairedPanels": [repaired]})
+
+    spec, _clarification, warnings, _usage = await planner.plan_dashboard("Anything", llm, _ctx())
+
+    # one replacement fills one slot; the other panel stays dropped rather
+    # than the same panel being planted twice
+    assert len(spec.panels) == 1
+    assert any("Re-planned on retry" in w for w in warnings)
+    assert any("no replacement" in w for w in warnings)

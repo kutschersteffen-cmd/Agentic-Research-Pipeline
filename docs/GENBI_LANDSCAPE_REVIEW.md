@@ -67,7 +67,7 @@ no query language between the plan and the engine.
 | Their concept | Our equivalent | Difference that matters |
 |---|---|---|
 | MDL / Cube data model (semantic layer) | `aggregation.DIMENSIONS`, `AnalyticSpec`/`PivotSpec`, `datapoint_mapping.py`'s source cascade, `climate/schemas.py` | Ours is code-enforced and tiny (7 dimensions, 3 metrics) rather than a modelling language — no expressive surface to get wrong, and no separate artifact to drift from the engine |
-| Schema retrieval + column pruning (WrenAI: 60–80% schema reduction) | Not needed — `planner.build_context` sends the *whole* directory (portfolios, issuers, sectors, asset classes, dates, fields) | Our vocabulary is small enough to fit in a prompt whole; no retrieval step to mis-rank |
+| Schema retrieval + column pruning (WrenAI: 60–80% schema reduction) | `planner.build_context` sends the *whole* directory (portfolios, issuers, sectors, asset classes, dates, fields) | Our **query vocabulary** is small enough to fit whole — 7 dimensions, 3 metrics, no retrieval step to mis-rank. The **issuer directory** is not, past a few hundred names: see §5.8 |
 | Dry-run validation of generated SQL | `_validate()` re-checks every planned panel against live directories before it can run | Failure is caught before execution, and by exact match, not by the database rejecting it |
 | Reflexion / `sql_correction` loop | Invalid panel is **dropped with a named warning**; the rest of the dashboard still ships | We chose visibility over repair — see §5, this is the one place their pattern has something to offer |
 | Vega-Lite chart generation | Fixed `chart` hint → `AggregationView`/`TrendView`/`PivotTable` | Less flexible, deliberately: charts stay inside one reviewed visual system |
@@ -119,7 +119,7 @@ no query language between the plan and the engine.
 >    repaired panel returning to its original position, and both attempts
 >    named in the warnings.
 >
-> Items 4–7 remain open.
+> Items 4–8 remain open.
 
 1. ~~**Worked examples in the planner prompt**~~ (WrenAI's
    `historical_question_indexing`) — *done.* We already persisted accepted
@@ -156,6 +156,17 @@ no query language between the plan and the engine.
    over MCP would let an external agent get grounded portfolio numbers
    without ever touching holdings data directly. Speculative, cheap, and
    aligned with where both Cube and WrenAI are heading.
+
+8. **Issuer-directory pruning at universe scale** (WrenAI's column pruning,
+   measured here rather than assumed). `_render_context` sends every issuer
+   with its sector and country. Measured prompt sizes: ~425 tokens at 15
+   issuers, ~1.3k at 100, ~5.6k at 500, ~22k at 2,000, **~45k at 4,000** —
+   and a re-plan round re-sends all of it. Comfortable for a portfolio of a
+   few hundred issuers, expensive at the 4,000-company universe scale this
+   repo is otherwise built for. (`qa_agent.py` has the same pattern with a
+   lighter row, so this is a shared limit, not a GenBI-specific one.) The
+   fix when it bites is WrenAI's: send only the issuers a brief plausibly
+   touches, or sectors plus the top-N holdings, rather than the whole book.
 
 ## 6. What not to adopt
 

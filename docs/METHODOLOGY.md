@@ -150,9 +150,11 @@ disclosure-completeness score.
    aggregation engine actually computed, and that is checked token by
    token against the computed facts rather than asked of the model. A
    figure that is arithmetically derivable from two computed ones but was
-   itself never computed counts as ungrounded — the whole draft is
-   dropped in favour of the computed facts, with the offending tokens
-   named. Honest rescaling of a real figure ("EUR 1.23 million" for
+   itself never computed counts as ungrounded. Checking is per sentence:
+   the sentence carrying an unsupported figure is dropped and the rest of
+   the draft kept, with the dropped sentences and offending tokens
+   reported; only when no sentence survives do the computed facts replace
+   the prose entirely. Honest rescaling of a real figure ("EUR 1.23 million" for
    1,234,567, within 1%) is the only latitude allowed.
 
 2. **Adversarial verification, not single-pass judgment.**
