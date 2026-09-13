@@ -81,7 +81,17 @@ body {
 .app-nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 14px;
+}
+
+.nav-group { display: flex; flex-direction: column; gap: 2px; }
+.nav-group-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 10px 4px;
 }
 
 .nav-tab {

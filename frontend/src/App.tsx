@@ -39,6 +39,17 @@ const TABS = [
   { id: "library", label: "Data Library" },
 ] as const;
 
+// Purely a sidebar presentation grouping -- ids must match TABS above.
+const NAV_GROUPS: { label: string | null; ids: readonly (typeof TABS)[number]["id"][] }[] = [
+  { label: null, ids: ["dashboard", "search"] },
+  { label: "Theme Machine", ids: ["theme", "taxonomy", "emergingThemes"] },
+  { label: "Company Research", ids: ["backgroundAgents", "extraction", "identity", "discovery"] },
+  { label: "Portfolio Analysis", ids: ["transitionPlan", "portfolio-monitoring"] },
+  { label: "StewardIQ", ids: ["engagement", "voting"] },
+  { label: "Operations", ids: ["review", "history"] },
+  { label: "Output", ids: ["reporting", "library"] },
+];
+
 function App() {
   const [active, setActive] = useState<(typeof TABS)[number]["id"]>("dashboard");
   const [pendingUniverse, setPendingUniverse] = useState<{ path: string; count: number } | null>(null);
@@ -74,11 +85,19 @@ function App() {
           <span className="app-sidebar-wordmark">ARP</span>
         </div>
         <nav className="app-nav">
-          {TABS.map((t) => (
-            <button key={t.id} className={t.id === active ? "nav-tab active" : "nav-tab"} onClick={() => setActive(t.id)}>
-              <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
-              <span className="nav-tab-label">{t.label}</span>
-            </button>
+          {NAV_GROUPS.map((group, i) => (
+            <div className="nav-group" key={group.label ?? `group-${i}`}>
+              {group.label && <div className="nav-group-label">{group.label}</div>}
+              {group.ids.map((id) => {
+                const t = TABS.find((tab) => tab.id === id)!;
+                return (
+                  <button key={t.id} className={t.id === active ? "nav-tab active" : "nav-tab"} onClick={() => setActive(t.id)}>
+                    <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
+                    <span className="nav-tab-label">{t.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           ))}
         </nav>
       </aside>
