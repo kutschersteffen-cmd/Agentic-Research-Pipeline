@@ -406,21 +406,56 @@ against — `SanityCheckAssessment`'s own docstring says this explicitly.
 *finding* papers to replicate, not just replicating ones already in hand.
 It mirrors the Taxonomy Researcher's shape exactly
 (`arp/agents/taxonomy_researcher.py`): `discover_candidate_papers`
-searches a `WebSearchClient` (the same interface/DuckDuckGo fallback
-`arp/discovery/site_finder.py` already provides) with a handful of varied
-query templates and dedupes by URL; `rank_candidate_papers` sends the
-results (title/URL/snippet only — never the paper itself) to an LLM that
-scores each for replication-worthiness (a specific, testable claim;
-plausibly replicable with price/one-fundamental-ratio/text data; a real
-academic/practitioner source) and guesses a `suggested_signal_type` as a
-starting hint. Nothing is fetched, read, or turned into a `StrategySpec`
-automatically — candidates are written to a JSON file for a human to
-review and pick from, the same "propose, never auto-apply" discipline as
-every other discovery/research agent in this codebase. Feeding a chosen
-candidate's actual full text into `arp replicate extract-spec` is a
-separate, deliberate next step. A persistent background scheduler (like
+searches a `WebSearchClient` with a handful of varied query templates and
+dedupes by URL; `rank_candidate_papers` sends the results (title/URL/
+snippet only — never the paper itself) to an LLM that scores each for
+replication-worthiness (a specific, testable claim; plausibly replicable
+with price/one-fundamental-ratio/text data; a real academic/practitioner
+source) and guesses a `suggested_signal_type` as a starting hint. Nothing
+is fetched, read, or turned into a `StrategySpec` automatically —
+candidates are written to a JSON file for a human to review and pick
+from, the same "propose, never auto-apply" discipline as every other
+discovery/research agent in this codebase. Feeding a chosen candidate's
+actual full text into `arp replicate extract-spec` is a separate,
+deliberate next step. A persistent background scheduler (like
 `TaxonomyResearcherScheduler`) would be a natural extension but doesn't
 exist yet — this is on-demand only today.
+
+### Search sources (`--source`)
+
+`discover_candidate_papers` only ever talks to the generic `WebSearchClient`
+interface, so which real search backend runs is a caller choice
+(`arp replicate discover-papers "<topic>" --source ...`):
+
+- **`arxiv`** (`arp/discovery/academic_search.py::ArxivSearchClient`) —
+  arXiv's own free, documented, no-API-key API
+  (export.arxiv.org/api/query), restricted by default to its
+  quantitative-finance categories (`q-fin.PM/ST/TR/PR/RM/GN`) so results
+  stay on-topic. Skews toward more recent/technical quant work.
+- **`semanticscholar`** (`SemanticScholarSearchClient`) — the Semantic
+  Scholar Graph API, free and documented, covering a much broader venue
+  set (SSRN-hosted, NBER, and journal-published working papers) via its
+  corpus. This is the deliberate stand-in for "search SSRN directly": SSRN
+  (an Elsevier property) publishes no public search API, and scraping its
+  search results would violate its terms of service, so this codebase
+  does not do that.
+- **`duckduckgo`** — the original generic-web-search fallback
+  (`arp/discovery/site_finder.py::DuckDuckGoSearchClient`), same one used
+  elsewhere in ARP for company IR-site lookup.
+- **`all`** (default) — all three, fanned out and merged/deduped by URL
+  via `CompositeSearchClient`, which also means one source failing (rate
+  limit, outage) doesn't blank the whole search.
+
+Both `ArxivSearchClient` and `SemanticScholarSearchClient` are covered by
+unit tests against mocked HTTP responses (`tests/test_academic_search.py`)
+-- neither host was reachable for a live end-to-end check from this
+particular sandboxed session (both `export.arxiv.org` and
+`api.semanticscholar.org` were blocked by this session's own egress
+allowlist, confirmed via the agent proxy's status endpoint, not a code
+issue). Worth a live smoke test in an environment whose network policy
+allows those two hosts before relying on this in production — see
+`docs/CORPORATE_READINESS_PLAN.md` for how this project already handles
+per-host egress as a deployment-time decision.
 
 ## Known limitations / next steps
 

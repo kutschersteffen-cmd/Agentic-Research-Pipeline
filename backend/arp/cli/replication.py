@@ -8,8 +8,9 @@ from pathlib import Path
 import typer
 
 from arp.cli._shared import _run_store
-from arp.config import get_settings
-from arp.discovery.site_finder import DuckDuckGoSearchClient
+from arp.config import Settings, get_settings
+from arp.discovery.academic_search import ArxivSearchClient, CompositeSearchClient, SemanticScholarSearchClient
+from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.replication.characteristics_data import CsvCharacteristicSource
 from arp.replication.examples import list_examples, load_example_spec
@@ -46,18 +47,39 @@ def _price_source(prices: Path, price_kind: str) -> PriceDataSource:
     return CsvPriceSource(prices, kind=price_kind)
 
 
+def _build_search_client(source: str, settings: Settings) -> WebSearchClient:
+    if source == "duckduckgo":
+        return DuckDuckGoSearchClient(settings.discovery_user_agent)
+    if source == "arxiv":
+        return ArxivSearchClient()
+    if source == "semanticscholar":
+        return SemanticScholarSearchClient()
+    if source == "all":
+        return CompositeSearchClient(
+            [ArxivSearchClient(), SemanticScholarSearchClient(), DuckDuckGoSearchClient(settings.discovery_user_agent)]
+        )
+    raise typer.BadParameter(f"--source must be one of duckduckgo, arxiv, semanticscholar, all -- got {source!r}")
+
+
 @replicate_app.command("discover-papers")
 def replicate_discover_papers(
     topic: str = typer.Argument(..., help="e.g. 'momentum', 'quality investing', 'low volatility anomaly'."),
     out: Path = typer.Option(..., help="Write ranked candidates (JSON list of PaperCandidate) here."),
     max_candidates: int = typer.Option(10, help="Cap on the number of candidates returned."),
+    source: str = typer.Option(
+        "all",
+        help="'arxiv' (arXiv's own API, restricted to q-fin categories), 'semanticscholar' (broad academic search "
+        "incl. SSRN/NBER-hosted papers via the Semantic Scholar Graph API -- SSRN itself has no public search API "
+        "and scraping it would violate its terms of service, so this is the legitimate stand-in), 'duckduckgo' "
+        "(generic web search, the original fallback), or 'all' (all three, merged/deduped).",
+    ),
 ) -> None:
     """Searches for candidate 'outperformance' papers on `topic` and ranks them by replication-worthiness (a
     testable claim, plausibly replicable with price/one-fundamental-ratio/text data, a real academic/practitioner
     source) -- proposes candidates for you to review and pick from, never fetches or extracts a spec
     automatically. Requires ARP_ANTHROPIC_API_KEY for the ranking step."""
     settings = get_settings()
-    search_client = DuckDuckGoSearchClient(settings.discovery_user_agent)
+    search_client = _build_search_client(source, settings)
     llm = build_llm_client(settings)
 
     async def _run() -> list:

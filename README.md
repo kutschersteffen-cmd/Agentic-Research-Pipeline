@@ -127,7 +127,10 @@ precision at scale (designed for up to ~4,000 companies per run).
    a literature-discovery agent (`arp replicate discover-papers`, mirrors
    the Taxonomy Researcher's propose-never-auto-apply pattern) searches
    for and ranks candidate outperformance papers on a topic for a human to
-   review before feeding one into extraction. Ships with two worked
+   review before feeding one into extraction -- against arXiv's own API,
+   the Semantic Scholar Graph API (a legitimate stand-in for "search
+   SSRN", which has no public search API of its own), generic web search,
+   or all three merged. Ships with two worked
    hand-authored examples (Jegadeesh & Titman (1993) 6-month/6-month
    momentum; a book-to-market value decile sort with a genuine annual,
    June-aligned rebalance) to exercise the backtest engine end to end. See
@@ -354,7 +357,9 @@ arp replicate backtest --spec composite_spec.json --prices prices.csv \
 arp replicate golden-set
 
 # Discover and rank candidate outperformance papers on a topic (never fetches/extracts automatically)
+# --source defaults to "all" (arXiv + Semantic Scholar + generic web, merged/deduped); narrow it if you want just one
 arp replicate discover-papers "momentum anomaly" --out candidates.json
+arp replicate discover-papers "quality investing" --out candidates.json --source arxiv
 
 # Document discovery
 arp discover run --universe companies.csv
