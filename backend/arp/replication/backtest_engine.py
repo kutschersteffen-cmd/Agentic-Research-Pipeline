@@ -3,8 +3,9 @@ from __future__ import annotations
 from arp.replication.characteristics_data import CharacteristicPanel
 from arp.replication.metrics import compute_leg_performance
 from arp.replication.price_data import PricePanel
+from arp.replication.rebalance import resolve_rebalance_interval_months, resolve_rebalance_months
 from arp.replication.signals import assign_portfolios, compute_signal_scores
-from arp.schemas.strategy_replication import BacktestResult, PortfolioPeriodReturn, RebalanceFrequency, SignalType, StrategySpec
+from arp.schemas.strategy_replication import BacktestResult, PortfolioPeriodReturn, SignalType, StrategySpec
 
 
 def _mean(values: list[float]) -> float:
@@ -26,24 +27,22 @@ def run_backtest(
     signal_type such as VALUE, `characteristics`).
 
     Implements the overlapping-portfolio construction from Jegadeesh &
-    Titman (1993): a new decile sort is formed every month, and each
-    formed portfolio is held for K months; a given calendar month's
-    long/short leg return is the equal-weighted average, across the up to
-    K portfolios currently being held, of that month's realized return for
-    the stocks in each. This is what lets a monthly return series exist
-    even though each individual portfolio is only rebalanced every K
-    months. Only monthly rebalancing is implemented -- spec.rebalance_
-    frequency values other than MONTHLY raise NotImplementedError. Applied
-    the same way regardless of signal_type: a VALUE spec re-ranks on the
-    characteristic every month just like a MOMENTUM spec re-ranks on
-    trailing return, which is a documented simplification versus the
-    classic value-factor literature's typical annual rebalancing -- see
-    docs/STRATEGY_REPLICATION_METHODOLOGY.md.
+    Titman (1993), generalized to an arbitrary rebalance interval (see
+    arp/replication/rebalance.py): a new decile sort is formed at every
+    valid rebalance date (spec.rebalance_frequency/rebalance_interval_
+    months/rebalance_anchor_month), and each formed portfolio is held for
+    K (holding_period_months) months; a given calendar month's long/short
+    leg return is the equal-weighted average, across however many of
+    those portfolios are still within their holding window, of that
+    month's realized return for the stocks in each. A 1-month rebalance
+    interval with K>1 reproduces Jegadeesh & Titman's own overlapping
+    construction (up to K portfolios active at once); an interval equal to
+    K reproduces a standard non-overlapping rebalance (exactly one
+    portfolio active at a time, e.g. the classic annual value-factor
+    rebalance with rebalance_frequency=ANNUAL, holding_period_months=12).
+    Only equal weighting is implemented -- a `weighting` other than equal
+    raises NotImplementedError.
     """
-    if spec.rebalance_frequency != RebalanceFrequency.MONTHLY:
-        raise NotImplementedError(
-            f"run_backtest only implements monthly rebalancing today, got {spec.rebalance_frequency!r}"
-        )
     if spec.weighting.value != "equal":
         raise NotImplementedError("run_backtest only implements equal weighting today, got " + repr(spec.weighting))
     if spec.signal_type == SignalType.VALUE and characteristics is None:
@@ -60,11 +59,19 @@ def run_backtest(
     n = spec.num_portfolios
     long_bucket = spec.long_leg_portfolio
     short_bucket = spec.short_leg_portfolio
+    rebalance_interval = resolve_rebalance_interval_months(spec)
+    rebalance_months = resolve_rebalance_months(period_ends, rebalance_interval, spec.rebalance_anchor_month)
 
     formation_cache: dict[int, dict[str, int]] = {}
     periods: list[PortfolioPeriodReturn] = []
     warnings: list[str] = []
     thin_formation_periods = 0
+
+    if spec.rebalance_anchor_month is not None and not rebalance_months:
+        warnings.append(
+            f"rebalance_anchor_month={spec.rebalance_anchor_month} never occurs in this panel -- no rebalance "
+            "dates, so no portfolio was ever formed."
+        )
 
     for m in range(len(period_ends)):
         if not (period_start <= period_ends[m] <= period_end):
@@ -78,7 +85,8 @@ def run_backtest(
         month_short: list[float] = []
         num_long = 0
         num_short = 0
-        for f in range(max(0, m - k), m):
+        active_formations = sorted(f for f in rebalance_months if m - k <= f < m)
+        for f in active_formations:
             if f not in formation_cache:
                 scores = compute_signal_scores(spec, panel, f, characteristics=characteristics)
                 if len(scores) < n:

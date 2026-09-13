@@ -31,6 +31,11 @@ class RebalanceFrequency(StrEnum):
     MONTHLY = "monthly"
     QUARTERLY = "quarterly"
     ANNUAL = "annual"
+    CUSTOM = "custom"
+    """Any other schedule a paper specifies -- pair with
+    StrategySpec.rebalance_interval_months (required) and, optionally,
+    rebalance_anchor_month, rather than adding a new enum member per paper.
+    See arp/replication/rebalance.py::resolve_rebalance_interval_months."""
 
 
 class LegPerformance(BaseModel):
@@ -83,7 +88,28 @@ class StrategySpec(BaseModel):
     formation_period_months: int = Field(default=0, description="MOMENTUM only: lookback window (J) the signal is computed over. Ignored (leave 0) for a characteristic-based signal_type such as VALUE, where compute_signal_scores instead reads characteristic_name/characteristic_lag_months.")
     skip_month: bool = Field(default=False, description="MOMENTUM only: skip the most recent month between formation and holding, as some momentum papers do to avoid short-term reversal/microstructure effects. Ignored for a characteristic-based signal_type.")
     holding_period_months: int = Field(description="How long a formed portfolio is held (K) before being re-ranked. Used by every signal_type.")
-    rebalance_frequency: RebalanceFrequency = Field(default=RebalanceFrequency.MONTHLY)
+    rebalance_frequency: RebalanceFrequency = Field(
+        default=RebalanceFrequency.MONTHLY,
+        description="How often a new portfolio is formed. MONTHLY/QUARTERLY/ANNUAL imply an interval of 1/3/12 "
+        "months; CUSTOM reads rebalance_interval_months directly for any other schedule (e.g. every 2 months, "
+        "every 18 months) a paper specifies -- see arp/replication/rebalance.py.",
+    )
+    rebalance_interval_months: int | None = Field(
+        default=None,
+        ge=1,
+        description="Required when rebalance_frequency=CUSTOM: how often, in months, a new portfolio is formed. "
+        "Ignored for MONTHLY/QUARTERLY/ANNUAL, which imply their own fixed interval regardless of this field.",
+    )
+    rebalance_anchor_month: int | None = Field(
+        default=None,
+        ge=1,
+        le=12,
+        description="Optional calendar month (1=Jan..12=Dec) rebalances are anchored to, instead of simply every "
+        "`interval` months counted from the start of the fetched price panel -- e.g. 6 (June) with "
+        "rebalance_frequency=ANNUAL reproduces the classic Fama & French June-aligned annual rebalance, or 2 "
+        "(Feb) with QUARTERLY rebalances every Feb/May/Aug/Nov. Meaningless (ignored) when the effective interval "
+        "is 1 month, since every month is already a rebalance month.",
+    )
     characteristic_name: str | None = Field(
         default=None,
         description="VALUE (or any future characteristic-based signal_type) only: name of the fundamental field "

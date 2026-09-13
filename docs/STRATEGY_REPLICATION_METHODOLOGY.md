@@ -186,29 +186,62 @@ vendor (CRSP, Compustat, Sharadar, Bloomberg — a straightforward third
 
 ## Backtest construction
 
-Only monthly rebalancing and equal weighting are implemented today
-(`backtest_engine.py` raises `NotImplementedError` for any other
-`rebalance_frequency` or a `weighting` other than equal-weight) — this
-applies identically to MOMENTUM and VALUE. The construction is Jegadeesh &
-Titman (1993)'s own overlapping-portfolio design: a new decile sort is
-formed every month from that month's signal score (whatever
-`compute_signal_scores` returns for the spec's `signal_type`), and a
-formed portfolio is held for K months. A given calendar month's long/short
-return is the equal-weighted average, across the up to K portfolios
-currently being held, of that month's realized return for the stocks in
-each leg — what produces a monthly return series even though any one
-portfolio only re-ranks every K months.
+Only equal weighting is implemented (`backtest_engine.py` raises
+`NotImplementedError` for a `weighting` other than equal-weight) — this
+applies identically to MOMENTUM and VALUE. Rebalance frequency, though, is
+fully user-defined: a new decile sort is formed at every valid *rebalance
+date*, and each formed portfolio is held for K (`holding_period_months`)
+months; a given calendar month's long/short return is the equal-weighted
+average, across however many of those portfolios are still within their
+holding window, of that month's realized return for the stocks in each
+leg.
 
-Applying this same monthly-overlapping construction to a VALUE spec is a
-**deliberate simplification**: the classic value-factor literature
-typically re-ranks once a year (often June-aligned, to respect fiscal
-reporting lags), not every month. `holding_period_months=12` under this
-engine's monthly-rebalance convention approximates that as 12 overlapping
-monthly-formed cohorts rather than one static annual portfolio — see the
-`book_to_market_value_premium` example's `extraction_notes` for this
-spelled out against a real, if composite, strategy. A true annual
-(non-overlapping) `RebalanceFrequency.ANNUAL` path is a natural next
-extension (see "Known limitations" below).
+### Rebalance frequency: fixed presets or a fully custom schedule
+
+`StrategySpec.rebalance_frequency` (`arp/replication/rebalance.py`
+resolves it, `backtest_engine.py` consumes the result) is not limited to
+three hardcoded choices:
+
+- **MONTHLY / QUARTERLY / ANNUAL** imply a fixed interval of 1/3/12
+  months.
+- **CUSTOM** reads `rebalance_interval_months` directly — any positive
+  integer, so a paper with an oddball cadence (every 2 months, every 18
+  months) is a spec field, not a new enum member or a code change.
+- **`rebalance_anchor_month`** (optional, 1=Jan..12=Dec, any frequency)
+  anchors rebalances to a specific calendar month instead of simply every
+  `interval` months counted from the start of the fetched panel —
+  `rebalance_frequency=ANNUAL, rebalance_anchor_month=6` reproduces the
+  classic Fama & French June-aligned annual rebalance exactly;
+  `rebalance_anchor_month=2` with `QUARTERLY` rebalances every
+  February/May/August/November instead of whatever quarter boundary the
+  panel happens to start on. If the anchor month never occurs in the
+  fetched panel (e.g. a window shorter than a year), `run_backtest` warns
+  and simply produces no periods, rather than silently rebalancing on the
+  wrong months.
+
+The interval-and-rebalance-date resolution is a small, independently
+tested pure function (`resolve_rebalance_interval_months`,
+`resolve_rebalance_months` in `arp/replication/rebalance.py`) that
+`run_backtest` calls once per invocation; the main backtest loop itself
+doesn't know or care whether it's looking at a monthly, quarterly, annual,
+or custom schedule — it only asks "was `f` a valid rebalance date, and is
+it still within its holding window at month `m`?" This is what lets one
+`rebalance_interval_months`/`holding_period_months` pair reproduce either
+end of the spectrum with the exact same code path:
+
+- **interval = 1** (with K > 1): Jegadeesh & Titman (1993)'s own
+  overlapping-portfolio construction — up to K portfolios active at once,
+  averaged together, which is what lets a monthly return series exist even
+  though any one portfolio only re-ranks every K months.
+- **interval = K**: a standard **non-overlapping** rebalance — exactly one
+  portfolio active at a time. This is what the `book_to_market_value_premium`
+  worked example now uses (`rebalance_frequency=ANNUAL,
+  rebalance_anchor_month=6, holding_period_months=12`) to reproduce the
+  classic annual, June-aligned value-factor rebalance genuinely, rather
+  than the monthly-overlapping approximation of it this example used
+  before `rebalance_anchor_month`/interval-based scheduling existed.
+- **1 < interval < K**: a mix — fewer than K overlapping cohorts active at
+  once.
 
 `run_backtest` takes one `PricePanel` (and, for VALUE, one
 `CharacteristicPanel`) covering both the in-sample and out-of-sample
@@ -255,11 +288,12 @@ constants (e.g. `Settings.arbitration_*`).
   `SignalType`s and scoring functions in `signals.py`, not a redesign
   (quality/size would likely reuse `CharacteristicDataSource` exactly as
   VALUE does).
-- Only monthly rebalancing is implemented; a true annual, non-overlapping
-  `RebalanceFrequency.ANNUAL` path (needed to faithfully replicate the
-  value-factor literature's typical June-aligned rebalance, rather than
-  this engine's monthly-overlapping approximation of it) is a new
-  `backtest_engine.py` code path, not a new signal.
+- Rebalance frequency is fully flexible (see "Backtest construction"
+  above) but every rebalance date still shares one fixed `holding_period_
+  months`/`num_portfolios`/leg-selection for the whole sample — a paper
+  that changes its own methodology partway through its sample (rare, but
+  not unheard of) would need two specs and two backtests stitched
+  together, not a single run.
 - No transaction-cost or turnover modeling yet
   (`BacktestResult.monthly_turnover_pct` is reserved but unset).
 - No point-in-time universe reconstruction, survivorship-bias handling, or

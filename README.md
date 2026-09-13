@@ -103,13 +103,20 @@ precision at scale (designed for up to ~4,000 companies per run).
    signal like value, a pluggable characteristics data source too):
    in-sample against the paper's own reported performance, and out-of-sample
    over any later window with identical rules, to check whether the effect
-   persists or decays. Ships with two worked hand-authored examples
-   (Jegadeesh & Titman (1993) 6-month/6-month momentum; a book-to-market
-   value decile sort) to exercise the backtest engine end to end. See
+   persists or decays. Rebalance frequency is fully user-defined --
+   monthly/quarterly/annual presets, a custom interval in months (e.g.
+   every 18 months), and an optional calendar-month anchor (e.g. the
+   classic June-aligned annual value-factor rebalance) -- covering both
+   Jegadeesh & Titman's overlapping-portfolio construction and a standard
+   non-overlapping rebalance with the same code path. Ships with two
+   worked hand-authored examples (Jegadeesh & Titman (1993) 6-month/
+   6-month momentum; a book-to-market value decile sort with a genuine
+   annual, June-aligned rebalance) to exercise the backtest engine end to
+   end. See
    [`docs/STRATEGY_REPLICATION_METHODOLOGY.md`](docs/STRATEGY_REPLICATION_METHODOLOGY.md)
    for the full design, what "in-sample vs. out-of-sample" means here, and
    its current limitations (no point-in-time universe reconstruction, no
-   transaction-cost modeling, only monthly rebalancing so far).
+   transaction-cost modeling).
 
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches, and

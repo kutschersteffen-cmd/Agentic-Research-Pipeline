@@ -25,6 +25,13 @@ Extract, strictly from what the excerpts actually say:
     address this). Leave formation_period_months 0 and skip_month false.
 - How long a formed portfolio is held before being re-ranked \
   (holding_period_months) -- required regardless of signal type.
+- How often the portfolio is actually re-formed (rebalance_frequency): \
+  MONTHLY/QUARTERLY/ANNUAL for those exact cadences; CUSTOM plus an \
+  explicit rebalance_interval_months (in months) for anything else, e.g. \
+  every 2 months or every 18 months. If the paper anchors its rebalance to \
+  a specific calendar month (e.g. the classic 'every June' annual value- \
+  factor rebalance), set rebalance_anchor_month (1=Jan..12=Dec); leave it \
+  null if the paper doesn't specify one or rebalances monthly.
 - How many cross-sectional buckets (e.g. deciles=10, quintiles=5) the \
   universe is split into, and which bucket is bought (long_leg_portfolio) \
   vs. sold short (short_leg_portfolio) -- bucket 1 is always the HIGHEST \
@@ -58,6 +65,8 @@ class StrategySpecDraft(BaseModel):
     skip_month: bool = False
     holding_period_months: int
     rebalance_frequency: RebalanceFrequency = RebalanceFrequency.MONTHLY
+    rebalance_interval_months: int | None = Field(default=None, description="Required when rebalance_frequency=CUSTOM.")
+    rebalance_anchor_month: int | None = Field(default=None, ge=1, le=12, description="Optional calendar month (1-12) rebalances are anchored to, e.g. 6 for a June rebalance.")
     num_portfolios: int = 10
     long_leg_portfolio: int = 1
     short_leg_portfolio: int

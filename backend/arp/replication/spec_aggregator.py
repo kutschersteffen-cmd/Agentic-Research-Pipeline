@@ -59,6 +59,8 @@ def build_strategy_spec(
         skip_month=final.skip_month,
         holding_period_months=final.holding_period_months,
         rebalance_frequency=final.rebalance_frequency,
+        rebalance_interval_months=final.rebalance_interval_months,
+        rebalance_anchor_month=final.rebalance_anchor_month,
         num_portfolios=final.num_portfolios,
         long_leg_portfolio=final.long_leg_portfolio,
         short_leg_portfolio=final.short_leg_portfolio,

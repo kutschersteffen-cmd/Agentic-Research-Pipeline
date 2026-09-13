@@ -1,7 +1,7 @@
 import pytest
 
 from arp.replication.examples import list_examples, load_example_spec
-from arp.schemas.strategy_replication import SignalType
+from arp.schemas.strategy_replication import RebalanceFrequency, SignalType
 
 
 def test_list_examples_includes_momentum_and_value():
@@ -24,6 +24,8 @@ def test_value_example_loads_with_characteristic_fields_set():
     assert spec.characteristic_name == "book_to_market"
     assert spec.characteristic_lag_months > 0
     assert spec.long_leg_portfolio == 1  # highest book-to-market (cheapest) is long
+    assert spec.rebalance_frequency == RebalanceFrequency.ANNUAL
+    assert spec.rebalance_anchor_month == 6  # the classic June-aligned annual rebalance
     assert spec.needs_review is True
 
 

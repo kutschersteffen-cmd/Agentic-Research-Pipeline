@@ -130,3 +130,21 @@ async def test_value_signal_type_extracts_characteristic_fields(fake_llm):
     assert spec.characteristic_lag_months == 6
     assert spec.grounded is True
     assert needs_review is False
+
+
+async def test_custom_rebalance_with_anchor_month_extracts(fake_llm):
+    draft = _draft()
+    draft.rebalance_frequency = RebalanceFrequency.CUSTOM
+    draft.rebalance_interval_months = 18
+    draft.rebalance_anchor_month = 6
+    llm = fake_llm(
+        {
+            "StrategySpecDraft": [draft],
+            "SpecVerifierOutput": [SpecVerifierOutput(agrees=True, confidence=0.85, notes="")],
+        }
+    )
+    spec, needs_review, _ = await extract_strategy_spec("Test (2020)", _PAPER_TEXT, llm=llm)
+
+    assert spec.rebalance_frequency == RebalanceFrequency.CUSTOM
+    assert spec.rebalance_interval_months == 18
+    assert spec.rebalance_anchor_month == 6
