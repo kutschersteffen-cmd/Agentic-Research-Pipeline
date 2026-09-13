@@ -40,6 +40,9 @@ class ReportingStore:
     def output_path(self, report_id: str, filename: str) -> Path:
         return self.report_dir(report_id) / filename
 
+    def preview_dir(self, report_id: str) -> Path:
+        return self.report_dir(report_id) / "preview"
+
     @staticmethod
     def _atomic_write(path: Path, text: str) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -422,6 +422,8 @@ export const api = {
     request<ReportPlan>(`/api/reports/${encodeURIComponent(reportId)}/plan`, { method: "PUT", body: JSON.stringify(plan) }),
   renderReport: (reportId: string) => request<ReportManifest>(`/api/reports/${encodeURIComponent(reportId)}/render`, { method: "POST" }),
   reportDownloadUrl: (reportId: string) => `${API_BASE}/api/reports/${encodeURIComponent(reportId)}/download`,
+  getReportPreview: (reportId: string) => request<{ page_count: number }>(`/api/reports/${encodeURIComponent(reportId)}/preview`),
+  reportPreviewPageUrl: (reportId: string, page: number) => `${API_BASE}/api/reports/${encodeURIComponent(reportId)}/preview/${page}`,
 
   // Emerging Themes Scanner ("Tool 0")
   startEmergingThemesRun: (body: { companies?: unknown[]; universe_path?: string }) =>

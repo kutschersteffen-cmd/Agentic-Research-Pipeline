@@ -373,6 +373,33 @@ button.link-button:hover:not(:disabled) { background: transparent; color: var(--
 .source-panel-iframe { flex: 1; border: none; background: white; border-radius: 6px; margin-top: 6px; }
 .citation-list { margin: 4px 0; padding-left: 18px; }
 
+/* --- Report preview (thumbnail dock + enlarge modal) --- */
+
+.preview-thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  overflow-y: auto;
+  padding-top: 8px;
+}
+.preview-thumb {
+  background: var(--well);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 6px;
+  margin: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.preview-thumb:hover { border-color: var(--accent); }
+.preview-thumb img { width: 100%; border-radius: 4px; display: block; background: white; }
+.preview-thumb span { font-size: 0.74rem; color: var(--muted); }
+
+.modal-image { flex: 1; width: 100%; object-fit: contain; background: var(--well); border-radius: 6px; margin-top: 10px; }
+
 @media (max-width: 900px) {
   /* Below this width there isn't room for two columns -- the source
      panel drops beneath the results instead of squeezing both unreadably
