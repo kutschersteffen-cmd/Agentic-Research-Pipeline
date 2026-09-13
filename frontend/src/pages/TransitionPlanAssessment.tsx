@@ -6,6 +6,7 @@ import { ConfidenceBadge, GroundedBadge, YesNoBadge } from "../components/Confid
 import { ReviewControls } from "../components/ReviewControls";
 import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
+import { BarChart } from "../components/BarChart";
 import type { IndicatorAssessment, IndicatorCategory, ReviewDecision, TransitionPlanAssessmentRecord, TransitionPlanIndicatorDef } from "../types";
 
 interface Props {
@@ -137,6 +138,40 @@ function IndicatorTable({
   );
 }
 
+/** Batch-level view across every company in the run: the paper's own
+ * headline finding is an aggregate walk-vs-talk disclosure gap, not a
+ * single company's score, so that comparison is surfaced here rather than
+ * making a reviewer add up 64-indicator rows per company by hand. The bar
+ * chart ranks companies by overall disclosure completeness -- the same
+ * BarChart used for magnitude comparisons elsewhere in the app. */
+function BatchOverview({ results }: { results: TransitionPlanAssessmentRecord[] }) {
+  const walkDisclosed = results.reduce((sum, r) => sum + r.walk_disclosed_count, 0);
+  const walkTotal = results.reduce((sum, r) => sum + r.walk_total_count, 0);
+  const talkDisclosed = results.reduce((sum, r) => sum + r.talk_disclosed_count, 0);
+  const talkTotal = results.reduce((sum, r) => sum + r.talk_total_count, 0);
+  const chartData = [...results]
+    .sort((a, b) => b.disclosed_count - a.disclosed_count)
+    .map((r) => ({ label: r.name, value: r.disclosed_count }));
+
+  return (
+    <section className="card">
+      <h3>Batch overview ({results.length} companies)</h3>
+      <div className="stat-tile-grid">
+        <div className="stat-tile">
+          <div className="stat-value">{walkTotal > 0 ? `${Math.round((walkDisclosed / walkTotal) * 100)}%` : "—"}</div>
+          <div className="stat-label">Aggregate "walk" disclosed ({walkDisclosed}/{walkTotal} indicators)</div>
+        </div>
+        <div className="stat-tile">
+          <div className="stat-value">{talkTotal > 0 ? `${Math.round((talkDisclosed / talkTotal) * 100)}%` : "—"}</div>
+          <div className="stat-label">Aggregate "talk" disclosed ({talkDisclosed}/{talkTotal} indicators)</div>
+        </div>
+      </div>
+      <p className="help-text">Companies ranked by total indicators disclosed (out of 64):</p>
+      <BarChart data={chartData} valueFormatter={(v) => `${v}/64`} />
+    </section>
+  );
+}
+
 export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
   const [universePath, setUniversePath] = useState<string | null>(pendingUniverse?.path ?? null);
   const [companyCount, setCompanyCount] = useState(pendingUniverse?.count ?? 0);
@@ -254,6 +289,7 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
             </label>
             <input placeholder="your name" value={reviewer} onChange={(e) => setReviewer(e.target.value)} style={{ maxWidth: 160 }} />
           </div>
+          {results.length > 0 && <BatchOverview results={results} />}
           {results.length > 0 && (
             <div className="split-review">
               <div className="split-review-main">
