@@ -8,6 +8,7 @@ import { ReviewQueue } from "./pages/ReviewQueue";
 import { RunHistory } from "./pages/RunHistory";
 import { DataLibrary } from "./pages/DataLibrary";
 import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
+import { EmergingThemes } from "./pages/EmergingThemes";
 import { BackgroundAgents } from "./pages/BackgroundAgents";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
@@ -23,6 +24,7 @@ const TABS = [
   { id: "search", label: "Search" },
   { id: "theme", label: "Thematic Universe" },
   { id: "taxonomy", label: "Taxonomy Library" },
+  { id: "emergingThemes", label: "Emerging Themes" },
   { id: "backgroundAgents", label: "Background Agents" },
   { id: "extraction", label: "Extraction" },
   { id: "transitionPlan", label: "Transition Plan Assessment" },
@@ -85,6 +87,7 @@ function App() {
         {active === "search" && <Search />}
         {active === "theme" && <ThemeBuilder onSendToExtraction={sendToExtraction} pendingTaxonomyId={pendingTaxonomyId} />}
         {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
+        {active === "emergingThemes" && <EmergingThemes />}
         {active === "backgroundAgents" && <BackgroundAgents />}
         {active === "extraction" && <Extraction pendingUniverse={pendingUniverse} />}
         {active === "transitionPlan" && <TransitionPlanAssessment pendingUniverse={pendingUniverse} />}

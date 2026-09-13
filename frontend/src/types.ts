@@ -1218,6 +1218,47 @@ export interface ReportRequest {
 
 export type ReportStatus = "pending" | "planning" | "plan_ready" | "rendering" | "completed" | "failed";
 
+// ---- Emerging Themes Scanner ("Tool 0") ------------------------------------
+
+export type MentionSourceType = "edgar_fts" | "gdelt" | "regulatory_rss";
+
+export interface MentionCitation {
+  mention_id: string;
+  source_type: MentionSourceType;
+  url: string;
+  quote: string;
+  grounded: boolean;
+}
+
+export type CandidateStatus = "candidate" | "under_review" | "promoted" | "rejected";
+
+export interface EmergingThemeCandidate {
+  theme_id: string;
+  theme_name: string;
+  description: string;
+  first_detected_date: string;
+  signal_velocity: number;
+  corroborating_sources: MentionCitation[];
+  candidate_sectors_companies: string[];
+  rationale: string;
+  economic_rationale: string;
+  confidence_score: number;
+  status: CandidateStatus;
+  promoted_to_taxonomy_id?: string | null;
+  promoted_to_taxonomy_version?: number | null;
+  cluster_id: string;
+  run_id: string;
+  created_at: string;
+}
+
+export interface EmergingThemesScheduleConfig {
+  enabled: boolean;
+  interval_hours: number;
+  universe_path?: string | null;
+  last_run_id?: string | null;
+  next_run_at?: string | null;
+}
+
 export interface ReportManifest {
   report_id: string;
   created_at: string;
