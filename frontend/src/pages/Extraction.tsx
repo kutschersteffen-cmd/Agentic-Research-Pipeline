@@ -4,6 +4,7 @@ import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import { ExtractionResultsTable, FinancialsResultsTable } from "../components/ExtractionResults";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
+import { BarChart } from "../components/BarChart";
 import type { CompanyFinancialsRecord, DataPointSchema, ExtractionRecord, FieldDefinition, ReviewDecision } from "../types";
 
 const DEFAULT_CRITERIA =
@@ -17,6 +18,41 @@ const DEFAULT_CRITERIA =
   "explicitly forbid conflating a target with an actual reported number.";
 
 type Mode = "custom" | "financials";
+
+/** Batch-level CapEx/R&D comparison across every company in the run --
+ * companies with no disclosed value for the chosen metric are left out of
+ * the chart (never charted as 0, which would misreport "no disclosure" as
+ * "zero spend") and counted separately instead. Figures are charted exactly
+ * as reported per company, in whatever currency each company discloses in
+ * -- same as the table below -- rather than fabricating an FX conversion. */
+function BatchSpendChart({ results }: { results: CompanyFinancialsRecord[] }) {
+  const [metric, setMetric] = useState<"capex" | "rnd">("capex");
+  const withValue = results.filter((r) => r[metric].total.value != null);
+  const currencies = new Set(withValue.map((r) => r.currency ?? "unknown"));
+  const chartData = [...withValue]
+    .sort((a, b) => (b[metric].total.value ?? 0) - (a[metric].total.value ?? 0))
+    .map((r) => ({ label: r.name, value: r[metric].total.value ?? 0 }));
+
+  return (
+    <section className="card">
+      <h3>Batch overview ({results.length} companies)</h3>
+      <div className="view-toggle">
+        <button className={metric === "capex" ? "active" : ""} onClick={() => setMetric("capex")}>
+          CapEx
+        </button>
+        <button className={metric === "rnd" ? "active" : ""} onClick={() => setMetric("rnd")}>
+          R&amp;D
+        </button>
+      </div>
+      <p className="help-text">
+        {withValue.length} of {results.length} companies disclosed a {metric === "capex" ? "CapEx" : "R&D"} total
+        {results.length > withValue.length && ` (${results.length - withValue.length} not disclosed, excluded from the chart)`}.
+        {currencies.size > 1 && " Figures are shown exactly as each company reports them -- currencies are not converted; see the table below for each company's currency."}
+      </p>
+      <BarChart data={chartData} valueFormatter={(v) => v.toLocaleString(undefined, { maximumFractionDigits: 0 })} />
+    </section>
+  );
+}
 
 interface Props {
   pendingUniverse?: { path: string; count: number } | null;
@@ -226,6 +262,8 @@ export function Extraction({ pendingUniverse }: Props = {}) {
               style={{ maxWidth: 160 }}
             />
           </div>
+
+          {mode === "financials" && financialsResults.length > 0 && <BatchSpendChart results={financialsResults} />}
 
           {((mode === "custom" && extractionResults.length > 0) || (mode === "financials" && financialsResults.length > 0)) && (
             <div className="split-review">
