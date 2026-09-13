@@ -4,12 +4,30 @@ import tempfile
 from pathlib import Path
 
 from docx import Document
-from docx.shared import Inches, Pt
+from docx.shared import Inches, Pt, RGBColor
 
 from arp.reporting import chart_builder
+from arp.reporting.design import DesignTheme
 from arp.schemas.reporting import LayoutInstructions, QuantitativeDataset, ReportPlan, ReportSection, SectionLayoutHint
 
 _IMAGE_WIDTH_IN = 6.0
+
+
+def _rgb(hex_color: str) -> RGBColor:
+    return RGBColor.from_string(hex_color)
+
+
+def _style_headings(document: Document, theme: DesignTheme) -> None:
+    """Colors the built-in Title/Heading styles from the theme once, up
+    front -- every document.add_heading call downstream then inherits it,
+    rather than restyling each heading's runs individually."""
+    title_style = document.styles["Title"]
+    title_style.font.color.rgb = _rgb(theme.ink_primary)
+    title_style.font.name = theme.font_major
+    for level in (1, 2):
+        style = document.styles[f"Heading {level}"]
+        style.font.color.rgb = _rgb(theme.accent if level == 1 else theme.ink_primary)
+        style.font.name = theme.font_major
 
 
 def _add_narrative(document: Document, section: ReportSection) -> None:
@@ -39,10 +57,10 @@ def _add_table(document: Document, table_spec, datasets: list[QuantitativeDatase
         note.runs[0].font.size = Pt(9)
 
 
-def _add_chart(document: Document, section: ReportSection, datasets: list[QuantitativeDataset], tmp_dir: Path) -> None:
+def _add_chart(document: Document, section: ReportSection, datasets: list[QuantitativeDataset], tmp_dir: Path, theme: DesignTheme) -> None:
     spec = section.chart
     png_path = tmp_dir / f"chart_{id(spec)}.png"
-    chart_builder.render_chart_image(spec, datasets, png_path)
+    chart_builder.render_chart_image(spec, datasets, png_path, theme=theme)
     document.add_picture(str(png_path), width=Inches(_IMAGE_WIDTH_IN))
     if spec.notes:
         caption = document.add_paragraph(spec.notes)
@@ -58,7 +76,9 @@ def _ordered_sections(plan: ReportPlan, layout: LayoutInstructions) -> list[Repo
     return main + appendix
 
 
-def build_docx(plan: ReportPlan, datasets: list[QuantitativeDataset], layout: LayoutInstructions, out_path: Path) -> Path:
+def build_docx(
+    plan: ReportPlan, datasets: list[QuantitativeDataset], layout: LayoutInstructions, out_path: Path, theme: DesignTheme | None = None
+) -> Path:
     """Deterministically renders a ReportPlan into a .docx report: one
     heading + body per section, flowing continuously (no slide/page
     concept the way DeckBuilder has one). Charts have no native, editable
@@ -66,11 +86,14 @@ def build_docx(plan: ReportPlan, datasets: list[QuantitativeDataset], layout: La
     static images (see chart_builder.render_chart_image) -- unlike the
     pptx path, which keeps most chart types as live Office chart objects.
     """
+    theme = theme or DesignTheme()
     document = Document()
+    _style_headings(document, theme)
     document.add_heading(plan.title, level=0)
     if plan.subtitle:
         sub = document.add_paragraph(plan.subtitle)
         sub.runs[0].italic = True
+        sub.runs[0].font.color.rgb = _rgb(theme.ink_secondary)
 
     with tempfile.TemporaryDirectory(prefix="arp_report_chart_") as tmp:
         tmp_dir = Path(tmp)
@@ -88,7 +111,7 @@ def build_docx(plan: ReportPlan, datasets: list[QuantitativeDataset], layout: La
 
             _add_narrative(document, section)
             if section.chart is not None:
-                _add_chart(document, section, datasets, tmp_dir)
+                _add_chart(document, section, datasets, tmp_dir, theme)
             elif section.table is not None:
                 _add_table(document, section.table, datasets)
 

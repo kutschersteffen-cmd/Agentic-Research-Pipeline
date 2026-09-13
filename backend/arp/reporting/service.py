@@ -5,6 +5,7 @@ from pathlib import Path
 from arp.llm.base import LLMClient
 from arp.reporting.content_planner import draft_report_plan
 from arp.reporting.deck_builder import build_deck
+from arp.reporting.design import theme_from_template
 from arp.reporting.pdf_builder import build_pdf
 from arp.reporting.report_builder import build_docx
 from arp.schemas.reporting import OutputFormat, ReportManifest, ReportPlan, ReportRequest, ReportStatus
@@ -88,10 +89,15 @@ class ReportingService:
     def _render(output_format: OutputFormat, plan: ReportPlan, datasets, layout, template_style, out_path: Path) -> Path:
         if output_format == OutputFormat.PPTX:
             return build_deck(plan, datasets, layout, template_style, out_path)
+        # docx/pdf have no template-file concept of their own, but an
+        # ingested pptx template's colors/fonts still carry over -- so a
+        # Word/PDF report generated alongside a pptx deck reads as the
+        # same branded system rather than a generic default.
+        theme = theme_from_template(template_style)
         if output_format == OutputFormat.DOCX:
-            return build_docx(plan, datasets, layout, out_path)
+            return build_docx(plan, datasets, layout, out_path, theme=theme)
         if output_format == OutputFormat.PDF:
-            return build_pdf(plan, datasets, layout, out_path)
+            return build_pdf(plan, datasets, layout, out_path, theme=theme)
         raise ValueError(f"Unsupported output_format: {output_format}")
 
     async def run(self, request: ReportRequest, llm: LLMClient) -> ReportManifest:
