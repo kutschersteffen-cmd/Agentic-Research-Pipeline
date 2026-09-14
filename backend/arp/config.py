@@ -201,11 +201,25 @@ class Settings(BaseSettings):
     emerging_themes_min_independent_sources: int = Field(
         default=2, description="A cluster needs at least this many distinct source URLs before it can become a candidate."
     )
+    emerging_themes_min_action_score: float = Field(
+        default=0.34,
+        description="Roadmap P3: a cluster needs at least this share of member evidence describing a concrete "
+        "corporate action (capex/hiring/orders/capacity/partnership), not just a mention, before it can become a "
+        "candidate -- the 'talk vs. walk' gate.",
+    )
     emerging_themes_cluster_stability_reruns: int = Field(
         default=3, description="Reseeded UMAP/HDBSCAN reruns for the pre-LLM cluster-stability gate; a cluster must survive most of them."
     )
     emerging_themes_min_cluster_size: int = Field(default=3, description="HDBSCAN min_cluster_size.")
     emerging_themes_gdelt_max_records: int = Field(default=75, description="Per-query cap on GDELT DOC 2.0 API results.")
+    emerging_themes_company_exposure_enabled: bool = Field(
+        default=True,
+        description="Roadmap G4: classify each candidate's companies by role (beneficiary/enabler/adopter/"
+        "transition_candidate/bottleneck_owner/negatively_exposed/ambiguous) and score Risk/Momentum/"
+        "Evidence-quality -- one extra LLM call per company per candidate. On by default like every other "
+        "optional Tool 0 signal; the heavier Revenue/Capex/Demand/Enablement dimensions are resolved separately, "
+        "post-promotion, by re-running Tool 1's existing theme-run pipeline against the new taxonomy.",
+    )
 
     # Standing background agents (arp/agents/) -- both clone
     # discovery/scheduler.py's AsyncIOScheduler + JSON-persisted-config

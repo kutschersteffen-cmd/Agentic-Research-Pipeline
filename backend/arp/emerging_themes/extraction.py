@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 from arp.grounding import is_grounded
 from arp.llm.base import LLMClient, LLMUsage
-from arp.schemas.emerging_themes import ExtractedTag, RawMention
+from arp.schemas.emerging_themes import ActionType, ContradictionType, ExtractedTag, MaterialityCategory, RawMention
 
 _SYSTEM_PROMPT = """\
 You read one short news, filing, or regulatory item and identify up to 3 \
@@ -22,6 +22,27 @@ battery commercialization" -- never a broad market category like \
 - claim: one sentence stating the specific fact this item reports.
 - entity_names: company/issuer names mentioned in connection with this \
 topic, exactly as they appear in the text.
+- action_type: what kind of concrete action the claim describes, if any --
+  capex (a capital investment, facility, or project commitment),
+  hiring (workforce/technical hiring), orders (a purchase order, backlog,
+  or contract win), capacity (a production/capacity expansion or
+  utilization change), partnership (a joint venture, alliance, or supply
+  agreement), or other (the claim doesn't describe a concrete action --
+  an opinion, a forecast, a routine mention, a regulatory announcement
+  with no company action yet). Judge only from what the claim itself
+  states; do not infer an action that isn't described.
+- materiality_category: what financial-statement line item or risk
+  category the claim links to, if any -- revenue (new sales, contracts,
+  or demand), margin (cost structure or profitability), cash_flow
+  (cash generation or spend), assets (balance-sheet items, facilities,
+  or capacity), risk (a stated or implied risk exposure), or none (no
+  such link is stated or implied). Judge only from what is stated.
+- contradiction_type: what kind of negative or counter-evidence the claim
+  describes, if any -- delay (a project, launch, or timeline pushed
+  back), cancellation (a project, order, or commitment called off),
+  impairment (a write-down or asset impairment), target_withdrawal (a
+  company withdrawing or missing a previously stated target/guidance),
+  or none (the claim doesn't describe any of these).
 - quote: a verbatim excerpt copied exactly from the supplied title/text \
 that backs the claim -- never a paraphrase or summary.
 
@@ -34,6 +55,9 @@ class _TagDraft(BaseModel):
     label: str
     claim: str
     entity_names: list[str] = Field(default_factory=list)
+    action_type: ActionType = ActionType.OTHER
+    materiality_category: MaterialityCategory = MaterialityCategory.NONE
+    contradiction_type: ContradictionType = ContradictionType.NONE
     quote: str
 
 
@@ -66,6 +90,9 @@ async def tag_mention(mention: RawMention, llm: LLMClient, fuzzy_threshold: floa
                 label=candidate.label,
                 claim=candidate.claim,
                 entity_names=candidate.entity_names,
+                action_type=candidate.action_type,
+                materiality_category=candidate.materiality_category,
+                contradiction_type=candidate.contradiction_type,
                 quote=candidate.quote,
                 grounded=True,
             )

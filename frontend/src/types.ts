@@ -468,6 +468,7 @@ export type DerivationMethod =
   | "etf_index_holdings"
   | "news_transcript_mining"
   | "empirical"
+  | "emerging_signal_discovery"
   | "merged"
   | "manual";
 
@@ -535,6 +536,84 @@ export interface HoldingsOverlapResult {
   union_tickers: string[];
   ticker_presence: Record<string, string[]>;
   pairwise_overlap_pct: Record<string, number>;
+}
+
+// --- Emerging Themes Scanner ("Tool 0") ---
+
+export type MentionSourceType = "edgar_fts" | "gdelt" | "regulatory_rss";
+
+export interface MentionCitation {
+  mention_id: string;
+  source_type: MentionSourceType;
+  url: string;
+  quote: string;
+  grounded: boolean;
+}
+
+export type CandidateStatus = "candidate" | "under_review" | "promoted" | "rejected" | "disconfirmed";
+
+export interface CompanyActionEvidence {
+  company_id: string;
+  cik: string;
+  capex_pct_change?: number | null;
+  rnd_pct_change?: number | null;
+  as_of: string;
+}
+
+export type CompanyRole =
+  | "beneficiary"
+  | "enabler"
+  | "adopter"
+  | "transition_candidate"
+  | "bottleneck_owner"
+  | "negatively_exposed"
+  | "ambiguous";
+
+export interface CompanyExposure {
+  company_id: string;
+  role: CompanyRole;
+  role_rationale: string;
+  risk: number;
+  momentum: number;
+  evidence_quality: number;
+  as_of: string;
+}
+
+export interface EmergingThemeCandidate {
+  theme_id: string;
+  theme_name: string;
+  description: string;
+  first_detected_date: string;
+  signal_velocity: number;
+  breadth: number;
+  persistence: number;
+  novelty: number;
+  corroborating_sources: MentionCitation[];
+  candidate_sectors_companies: string[];
+  rationale: string;
+  economic_rationale: string;
+  confidence_score: number;
+  action_score: number;
+  xbrl_corroboration: CompanyActionEvidence[];
+  materiality: number;
+  contradiction: number;
+  contradiction_evidence: MentionCitation[];
+  company_exposure: CompanyExposure[];
+  status: CandidateStatus;
+  promoted_to_taxonomy_id?: string | null;
+  promoted_to_taxonomy_version?: number | null;
+  decision_reason?: string | null;
+  cluster_id: string;
+  run_id: string;
+  created_at: string;
+}
+
+export interface EmergingThemesScheduleConfig {
+  enabled: boolean;
+  interval_hours: number;
+  universe_path?: string | null;
+  last_run_id?: string | null;
+  next_run_at?: string | null;
 }
 
 // --- Engagement (stewardship) ---
@@ -1290,47 +1369,6 @@ export interface ReportRequest {
 }
 
 export type ReportStatus = "pending" | "planning" | "plan_ready" | "rendering" | "completed" | "failed";
-
-// ---- Emerging Themes Scanner ("Tool 0") ------------------------------------
-
-export type MentionSourceType = "edgar_fts" | "gdelt" | "regulatory_rss";
-
-export interface MentionCitation {
-  mention_id: string;
-  source_type: MentionSourceType;
-  url: string;
-  quote: string;
-  grounded: boolean;
-}
-
-export type CandidateStatus = "candidate" | "under_review" | "promoted" | "rejected";
-
-export interface EmergingThemeCandidate {
-  theme_id: string;
-  theme_name: string;
-  description: string;
-  first_detected_date: string;
-  signal_velocity: number;
-  corroborating_sources: MentionCitation[];
-  candidate_sectors_companies: string[];
-  rationale: string;
-  economic_rationale: string;
-  confidence_score: number;
-  status: CandidateStatus;
-  promoted_to_taxonomy_id?: string | null;
-  promoted_to_taxonomy_version?: number | null;
-  cluster_id: string;
-  run_id: string;
-  created_at: string;
-}
-
-export interface EmergingThemesScheduleConfig {
-  enabled: boolean;
-  interval_hours: number;
-  universe_path?: string | null;
-  last_run_id?: string | null;
-  next_run_at?: string | null;
-}
 
 export interface ReportManifest {
   report_id: string;

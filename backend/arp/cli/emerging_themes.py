@@ -6,9 +6,15 @@ from pathlib import Path
 
 import typer
 
-from arp.cli._shared import _run_store, _taxonomy_store, _topic_store
+from arp.cli._shared import _run_store, _taxonomy_store, _topic_store, _xbrl_source
 from arp.config import get_settings
-from arp.emerging_themes.pipeline import load_candidates_with_status, promote_candidate, reject_candidate, run_emerging_themes
+from arp.emerging_themes.pipeline import (
+    disconfirm_candidate,
+    load_candidates_with_status,
+    promote_candidate,
+    reject_candidate,
+    run_emerging_themes,
+)
 from arp.emerging_themes.scheduler import EmergingThemesScheduler, default_sources
 from arp.llm.factory import build_llm_client
 from arp.schemas.emerging_themes import EmergingThemesScheduleConfig
@@ -31,6 +37,7 @@ def emerging_themes_run(universe: Path = typer.Option(...)) -> None:
         run_emerging_themes(
             companies, llm=llm, sources=default_sources(settings), settings=settings,
             run_store=_run_store(), topic_store=_topic_store(), triggered_by="manual",
+            xbrl_source=_xbrl_source() if settings.xbrl_facts_enabled else None,
         )
     )
     candidates = load_candidates_with_status(_run_store(), run_id)
@@ -64,6 +71,7 @@ def emerging_themes_show(run_id: str, theme_id: str) -> None:
 def emerging_themes_promote(
     run_id: str,
     theme_id: str,
+    reason: str = typer.Option(..., help="Required: why this candidate is being promoted."),
     taxonomy_id: str = typer.Option(None, help="Extend an existing ratified taxonomy instead of creating a new one."),
 ) -> None:
     """The human review gate: promotes one surviving candidate into the
@@ -73,7 +81,7 @@ def emerging_themes_promote(
     llm = build_llm_client(settings)
     try:
         candidate = asyncio.run(
-            promote_candidate(_run_store(), _taxonomy_store(), llm, run_id, theme_id, taxonomy_id=taxonomy_id)
+            promote_candidate(_run_store(), _taxonomy_store(), llm, run_id, theme_id, reason, taxonomy_id=taxonomy_id)
         )
     except ValueError as exc:
         typer.echo(str(exc), err=True)
@@ -83,9 +91,27 @@ def emerging_themes_promote(
 
 
 @emerging_themes_app.command("reject")
-def emerging_themes_reject(run_id: str, theme_id: str) -> None:
-    reject_candidate(_run_store(), run_id, theme_id)
+def emerging_themes_reject(run_id: str, theme_id: str, reason: str = typer.Option(..., help="Required: why this candidate is being rejected.")) -> None:
+    try:
+        reject_candidate(_run_store(), run_id, theme_id, reason)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     typer.echo(f"Rejected {theme_id}.")
+
+
+
+@emerging_themes_app.command("disconfirm")
+def emerging_themes_disconfirm(run_id: str, theme_id: str, reason: str = typer.Option(..., help="Required: what contradiction evidence invalidates this candidate.")) -> None:
+    """Distinct from `reject`: use this when specific contradiction
+    evidence (see `arp emerging-themes show`) invalidates the candidate's
+    transmission mechanism, not just an analyst judgment call."""
+    try:
+        disconfirm_candidate(_run_store(), run_id, theme_id, reason)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"Disconfirmed {theme_id}.")
 
 
 
