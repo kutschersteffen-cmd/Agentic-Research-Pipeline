@@ -111,13 +111,24 @@ if (-not $SkipBackend) {
         Write-Warn "backend\.env already exists -- left untouched."
     }
 
-    Invoke-Checked -Description "Installing the pre-commit secret-scanning hook" -ScriptBlock {
-        Push-Location $repoRoot
-        try {
-            conda run --no-capture-output -n $CondaEnvName pre-commit install
-        } finally {
-            Pop-Location
+    # `pre-commit install` writes into .git/hooks, so it can only work in a
+    # real working tree. Someone who extracted a source zip instead of
+    # cloning has no .git, and a hard failure here would stop an otherwise
+    # perfectly good setup over a hook that cannot apply to them anyway.
+    if (Test-Path (Join-Path $repoRoot ".git")) {
+        Invoke-Checked -Description "Installing the pre-commit secret-scanning hook" -ScriptBlock {
+            Push-Location $repoRoot
+            try {
+                conda run --no-capture-output -n $CondaEnvName pre-commit install
+            } finally {
+                Pop-Location
+            }
         }
+    } else {
+        Write-Warn "No .git directory here -- skipping the pre-commit secret-scanning hook."
+        Write-Warn "That hook only applies to commits, so it changes nothing about running the app."
+        Write-Warn "If you intend to commit from this machine, clone the repository instead of"
+        Write-Warn "extracting a zip, then re-run this script."
     }
 
     Write-Step "Running the backend test suite (no API key/network required)"
