@@ -11,6 +11,8 @@ import type {
   DataPointObservation,
   DataPointSchema,
   DemoSeedSummary,
+  EmergingThemeCandidate,
+  EmergingThemesScheduleConfig,
   FinancedEmissionsResult,
   GeneratedDashboard,
   GovernanceDecision,
@@ -32,7 +34,6 @@ import type {
   TrendPoint,
 } from "../types";
 import type { QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, TemplateStyleProfile } from "../types";
-import type { EmergingThemeCandidate, EmergingThemesScheduleConfig } from "../types";
 import type { PaperCandidate, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
@@ -185,6 +186,39 @@ export const api = {
   getCalibrationSchedule: () => request("/api/calibration/schedule"),
   updateCalibrationSchedule: (config: unknown) =>
     request("/api/calibration/schedule", { method: "PUT", body: JSON.stringify(config) }),
+
+  // Emerging Themes Scanner ("Tool 0")
+  startEmergingThemesRun: (body: { companies?: unknown[]; universe_path?: string }) =>
+    request<{ run_id: string; company_count: number }>("/api/emerging-themes/runs", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  getEmergingThemesRun: (runId: string) => request(`/api/emerging-themes/runs/${encodeURIComponent(runId)}`),
+  getEmergingThemesCandidates: (runId: string) =>
+    request<{ total: number; candidates: EmergingThemeCandidate[] }>(
+      `/api/emerging-themes/runs/${encodeURIComponent(runId)}/candidates`,
+    ),
+  promoteEmergingThemeCandidate: (runId: string, themeId: string, reason: string, taxonomyId?: string | null) =>
+    request<EmergingThemeCandidate>(
+      `/api/emerging-themes/runs/${encodeURIComponent(runId)}/candidates/${encodeURIComponent(themeId)}/promote`,
+      { method: "POST", body: JSON.stringify({ reason, taxonomy_id: taxonomyId ?? null }) },
+    ),
+  rejectEmergingThemeCandidate: (runId: string, themeId: string, reason: string) =>
+    request<{ theme_id: string; status: string }>(
+      `/api/emerging-themes/runs/${encodeURIComponent(runId)}/candidates/${encodeURIComponent(themeId)}/reject`,
+      { method: "POST", body: JSON.stringify({ reason }) },
+    ),
+  disconfirmEmergingThemeCandidate: (runId: string, themeId: string, reason: string) =>
+    request<{ theme_id: string; status: string }>(
+      `/api/emerging-themes/runs/${encodeURIComponent(runId)}/candidates/${encodeURIComponent(themeId)}/disconfirm`,
+      { method: "POST", body: JSON.stringify({ reason }) },
+    ),
+  getEmergingThemesSchedule: () => request<EmergingThemesScheduleConfig>("/api/emerging-themes/schedule"),
+  updateEmergingThemesSchedule: (config: EmergingThemesScheduleConfig) =>
+    request<EmergingThemesScheduleConfig>("/api/emerging-themes/schedule", {
+      method: "PUT",
+      body: JSON.stringify(config),
+    }),
 
   // Identity resolution (agentic name -> website/CIK, ahead of discovery)
   startIdentityRun: (body: unknown) =>
@@ -445,22 +479,6 @@ export const api = {
   getReportPreview: (reportId: string) => request<{ page_count: number }>(`/api/reports/${encodeURIComponent(reportId)}/preview`),
   reportPreviewPageUrl: (reportId: string, page: number) => `${API_BASE}/api/reports/${encodeURIComponent(reportId)}/preview/${page}`,
 
-  // Emerging Themes Scanner ("Tool 0")
-  startEmergingThemesRun: (body: { companies?: unknown[]; universe_path?: string }) =>
-    request<{ run_id: string; company_count: number }>("/api/emerging-themes/runs", { method: "POST", body: JSON.stringify(body) }),
-  getEmergingThemesRun: (runId: string) => request(`/api/emerging-themes/runs/${encodeURIComponent(runId)}`),
-  getEmergingThemesCandidates: (runId: string) =>
-    request<{ total: number; candidates: EmergingThemeCandidate[] }>(`/api/emerging-themes/runs/${encodeURIComponent(runId)}/candidates`),
-  promoteEmergingTheme: (runId: string, themeId: string, taxonomyId?: string | null) =>
-    request<EmergingThemeCandidate>(`/api/emerging-themes/runs/${encodeURIComponent(runId)}/candidates/${encodeURIComponent(themeId)}/promote`, {
-      method: "POST",
-      body: JSON.stringify({ taxonomy_id: taxonomyId || null }),
-    }),
-  rejectEmergingTheme: (runId: string, themeId: string) =>
-    request(`/api/emerging-themes/runs/${encodeURIComponent(runId)}/candidates/${encodeURIComponent(themeId)}/reject`, { method: "POST" }),
-  getEmergingThemesSchedule: () => request<EmergingThemesScheduleConfig>("/api/emerging-themes/schedule"),
-  updateEmergingThemesSchedule: (config: EmergingThemesScheduleConfig) =>
-    request<EmergingThemesScheduleConfig>("/api/emerging-themes/schedule", { method: "PUT", body: JSON.stringify(config) }),
 
   // Investment Strategy Replication
   discoverReplicationPapers: (topic: string, maxCandidates = 10) =>

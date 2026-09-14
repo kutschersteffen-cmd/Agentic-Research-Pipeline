@@ -1,7 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -200,11 +201,25 @@ class Settings(BaseSettings):
     emerging_themes_min_independent_sources: int = Field(
         default=2, description="A cluster needs at least this many distinct source URLs before it can become a candidate."
     )
+    emerging_themes_min_action_score: float = Field(
+        default=0.34,
+        description="Roadmap P3: a cluster needs at least this share of member evidence describing a concrete "
+        "corporate action (capex/hiring/orders/capacity/partnership), not just a mention, before it can become a "
+        "candidate -- the 'talk vs. walk' gate.",
+    )
     emerging_themes_cluster_stability_reruns: int = Field(
         default=3, description="Reseeded UMAP/HDBSCAN reruns for the pre-LLM cluster-stability gate; a cluster must survive most of them."
     )
     emerging_themes_min_cluster_size: int = Field(default=3, description="HDBSCAN min_cluster_size.")
     emerging_themes_gdelt_max_records: int = Field(default=75, description="Per-query cap on GDELT DOC 2.0 API results.")
+    emerging_themes_company_exposure_enabled: bool = Field(
+        default=True,
+        description="Roadmap G4: classify each candidate's companies by role (beneficiary/enabler/adopter/"
+        "transition_candidate/bottleneck_owner/negatively_exposed/ambiguous) and score Risk/Momentum/"
+        "Evidence-quality -- one extra LLM call per company per candidate. On by default like every other "
+        "optional Tool 0 signal; the heavier Revenue/Capex/Demand/Enablement dimensions are resolved separately, "
+        "post-promotion, by re-running Tool 1's existing theme-run pipeline against the new taxonomy.",
+    )
 
     # Standing background agents (arp/agents/) -- both clone
     # discovery/scheduler.py's AsyncIOScheduler + JSON-persisted-config
@@ -270,13 +285,16 @@ class Settings(BaseSettings):
         description="SQLAlchemy DSN, e.g. postgresql+psycopg://user:pass@host:5432/arp. None (default) disables "
         "every Postgres-backed feature below and the file-based stores behave exactly as before.",
     )
-    portfolio_backend: str = Field(
+    portfolio_backend: Literal["file", "postgres"] = Field(
         default="file",
-        description="'file' (default, PortfolioStore) or 'postgres' (PostgresPortfolioStore, requires postgres_dsn) "
-        "for portfolios/securities/companies/holdings-snapshots specifically. Observations/news/flags/analytics/dashboards "
+        description="Literal-typed, so a typo ('postgress') fails at startup with a validation error naming the "
+        "allowed values rather than silently selecting the default backend. 'file' (default, PortfolioStore) or "
+        "'postgres' (PostgresPortfolioStore, requires postgres_dsn) "
+        "for portfolios/securities/companies/holdings-snapshots specifically. "
+        "Observations/news/flags/analytics/dashboards "
         "stay file-based either way -- see the module docstring in arp/storage/postgres_portfolio_store.py.",
     )
-    embeddings_backend: str = Field(
+    embeddings_backend: Literal["sqlite", "postgres"] = Field(
         default="sqlite",
         description="'sqlite' (default, DocumentContentStore's local cache) or 'postgres' (pgvector, requires "
         "postgres_dsn) for the hybrid-retrieval chunk-embeddings cache. Same lookup/store interface either way, "
@@ -302,7 +320,7 @@ class Settings(BaseSettings):
         "never fails ingestion. Off by default so opting into OpenSearch never changes ingestion behavior; run "
         "'arp db reindex opensearch' for a one-time backfill regardless of this flag.",
     )
-    retrieval_backend: str = Field(
+    retrieval_backend: Literal["bm25", "opensearch"] = Field(
         default="bm25",
         description="'bm25' (default, in-memory LlamaIndex BM25Retriever, see arp/retrieval/index_cache.py) or "
         "'opensearch' (requires opensearch_url) for select_relevant_chunks' keyword-ranking component. Either way "
@@ -364,6 +382,38 @@ class Settings(BaseSettings):
         "authoritative) into queryable Postgres tables (requires postgres_dsn), on every save. Additive only -- "
         "record.json/events.jsonl are never written to by this; see arp/storage/postgres_engagement_projection.py.",
     )
+
+    # Each entry: the setting, the value that needs a connection, the
+    # setting that must then be set, and what to do instead.
+    _BACKEND_REQUIREMENTS = (
+        ("portfolio_backend", "postgres", "postgres_dsn", "ARP_POSTGRES_DSN", "ARP_PORTFOLIO_BACKEND=file"),
+        ("embeddings_backend", "postgres", "postgres_dsn", "ARP_POSTGRES_DSN", "ARP_EMBEDDINGS_BACKEND=sqlite"),
+        ("retrieval_backend", "opensearch", "opensearch_url", "ARP_OPENSEARCH_URL", "ARP_RETRIEVAL_BACKEND=bm25"),
+    )
+
+    @model_validator(mode="after")
+    def _selected_backends_have_their_connection(self) -> "Settings":
+        """Refuses to start when a backend is selected without the
+        connection it needs.
+
+        Checked here, once, at startup -- not in the factories that build
+        those stores. `build_hybrid_content_store` is called per field per
+        company inside the retrieval graph, so raising *there* would fail
+        runs mid-flight over a configuration mistake; it keeps its
+        fall-back-to-SQLite behaviour for that reason. But silently
+        falling back was the only signal an operator got, and the sibling
+        `build_portfolio_store` raised for the same mistake, so the same
+        typo was loud for holdings and invisible for embeddings. Failing
+        at construction makes it loud for all of them, before any work
+        starts, in the API and the CLI alike.
+        """
+        for setting, needs_connection, connection_setting, env_var, alternative in self._BACKEND_REQUIREMENTS:
+            if getattr(self, setting) == needs_connection and not getattr(self, connection_setting):
+                raise ValueError(
+                    f"{setting} is '{needs_connection}' but {connection_setting} is not set. "
+                    f"Set {env_var}, or use {alternative}."
+                )
+        return self
 
     def ensure_dirs(self) -> None:
         for d in (

@@ -65,6 +65,34 @@ class TopicStateStore:
             for event in events:
                 f.write(json.dumps(event.model_dump(mode="json")) + "\n")
 
+    def load_lineage_events(self, period: str) -> list[LineageEvent]:
+        """Used by scoring.py::compute_persistence to walk a cluster's
+        GROWTH chain back through periods older than the one currently
+        being scored (the current period's own events are passed in
+        directly by the caller, since they haven't been saved yet at
+        scoring time)."""
+        path = self._lineage_path(period)
+        if not path.exists():
+            return []
+        events = []
+        with path.open() as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    events.append(LineageEvent.model_validate(json.loads(line)))
+                except (json.JSONDecodeError, ValueError):
+                    continue
+        return events
+
+    def load_recent_periods(self, before: str, n: int) -> list[list[TopicCluster]]:
+        """The n saved periods strictly before `before`, each period's
+        clusters as saved -- the trailing baseline scoring.py::compute_velocity
+        uses for a BIRTH cluster with no prior self to compare against."""
+        periods = sorted(p for p in self.list_periods() if p < before)[-n:]
+        return [self.load_period(p) or [] for p in periods]
+
     def append_candidate(self, candidate: EmergingThemeCandidate) -> None:
         path = self.candidates_path()
         path.parent.mkdir(parents=True, exist_ok=True)

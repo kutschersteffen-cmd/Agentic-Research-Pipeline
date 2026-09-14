@@ -35,7 +35,63 @@ class RawMention(BaseModel):
         "it doesn't (GDELT's seendate is closer to crawl time). Callers needing a bucket to sort into should use "
         "fetched_at and the run's own period cadence rather than assume this is always populated.",
     )
+    published_at_is_estimated: bool = Field(
+        default=False,
+        description="True when `published_at` is either None or a source-reported timestamp that isn't a genuine "
+        "publish time (e.g. GDELT's seendate). Roadmap P0's availability-timestamp discipline: an honest, "
+        "queryable flag instead of a silent None a caller could mistake for 'not yet known' rather than 'this "
+        "source structurally can't tell us'.",
+    )
     fetched_at: str = Field(default_factory=now_iso)
+
+
+class ActionType(StrEnum):
+    """Roadmap P3's action-evidence taxonomy: classifies whether a claim
+    describes something a company actually *did* (talk vs. walk) rather
+    than just a topic it was mentioned in connection with. Rolled up into
+    a per-cluster action_score by synthesis.py::compute_action_score."""
+
+    CAPEX = "capex"
+    HIRING = "hiring"
+    ORDERS = "orders"
+    CAPACITY = "capacity"
+    PARTNERSHIP = "partnership"
+    OTHER = "other"
+
+
+class MaterialityCategory(StrEnum):
+    """The Discovery Blueprint's materiality signal (Section 4.1):
+    'evidence linked to revenue, margin, cash flow, assets or risk' --
+    narrower than ActionType, which only asks whether a company did
+    something concrete. NONE means the claim doesn't state or imply a
+    link to any specific financial-statement line item or risk category.
+    Rolled up into a per-cluster materiality score by
+    scoring.py::compute_materiality."""
+
+    REVENUE = "revenue"
+    MARGIN = "margin"
+    CASH_FLOW = "cash_flow"
+    ASSETS = "assets"
+    RISK = "risk"
+    NONE = "none"
+
+
+class ContradictionType(StrEnum):
+    """The Discovery Blueprint's contradiction signal (Section 4.1):
+    'delays, cancellations, impairments or target withdrawals' -- explicit
+    counter-evidence that a thesis's transmission mechanism may not be
+    holding. Per the Blueprint's governance rules, contradiction evidence
+    is never discarded once found (see EmergingThemeCandidate.
+    contradiction_evidence) and a strong/persistent signal can move a
+    candidate to CandidateStatus.DISCONFIRMED. NONE means the claim
+    doesn't describe any of these. Rolled up into a per-cluster
+    contradiction score by scoring.py::compute_contradiction."""
+
+    DELAY = "delay"
+    CANCELLATION = "cancellation"
+    IMPAIRMENT = "impairment"
+    TARGET_WITHDRAWAL = "target_withdrawal"
+    NONE = "none"
 
 
 class ExtractedTag(BaseModel):
@@ -50,6 +106,21 @@ class ExtractedTag(BaseModel):
     label: str = Field(description="Short 2-5 word topic label, e.g. 'solid-state battery commercialization'.")
     claim: str = Field(description="The specific factual claim this mention makes, in one sentence.")
     entity_names: list[str] = Field(default_factory=list, description="Company/issuer names the LLM identified in the claim.")
+    action_type: ActionType = Field(
+        default=ActionType.OTHER,
+        description="What kind of corporate action this claim evidences, if any -- OTHER means the claim is "
+        "about a topic without describing a concrete action (an opinion, a forecast, a routine mention).",
+    )
+    materiality_category: MaterialityCategory = Field(
+        default=MaterialityCategory.NONE,
+        description="What financial-statement line item or risk category this claim links to, if any -- NONE "
+        "means no such link is stated or implied.",
+    )
+    contradiction_type: ContradictionType = Field(
+        default=ContradictionType.NONE,
+        description="What kind of negative/counter-evidence this claim describes, if any -- NONE means it "
+        "doesn't describe a delay, cancellation, impairment, or target withdrawal.",
+    )
     quote: str = Field(description="Verbatim excerpt from the mention's own text backing label+claim.")
     grounded: bool = Field(default=False, description="Set by grounding.is_grounded, never the LLM's self-report.")
 
@@ -77,7 +148,47 @@ class TopicCluster(BaseModel):
     mention_count: int = 0
     source_types: list[MentionSourceType] = Field(default_factory=list)
     centroid: list[float] = Field(default_factory=list, description="Mean embedding vector of member tags, for lineage/centroid-similarity linking.")
-    stability_score: float = Field(default=0.0, ge=0.0, le=1.0, description="Fraction of reseeded clustering reruns in which this cluster's membership held together.")
+    stability_score: float = Field(default=0.0, ge=0.0, le=1.0, description="Fraction of reseeded clustering reruns in which this cluster's membership held together -- the pre-LLM stability gate (clustering.py), distinct from novelty below.")
+
+    # Discovery-scoring depth (roadmap P2) -- named, inspectable metrics per
+    # the Emerging Theme Discovery Blueprint's Section 4.1, computed by
+    # arp/emerging_themes/scoring.py once lineage classification has run.
+    # Defaults are the "no history available yet" values a first-ever scan
+    # produces, not placeholders.
+    velocity: float = Field(
+        default=1.0,
+        description="A real growth ratio (this period's mention_count / the linked prior cluster's) for "
+        "GROWTH/SPLIT/MERGE clusters; for a BIRTH (no prior self to compare against) this period's mention_count "
+        "relative to the average cluster size across recent baseline periods instead -- a 'how much of an outlier "
+        "in scale' measure, not a same-entity rate. See scoring.py::compute_velocity.",
+    )
+    breadth: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Distinct companies in this cluster as a share of the universe scanned this run.",
+    )
+    persistence: int = Field(
+        default=0,
+        description="Length of the unbroken GROWTH chain ending at this cluster, walked back through saved "
+        "lineage history. Always 0 for a BIRTH (or a SPLIT/MERGE, which breaks the chain by convention) -- a "
+        "candidate has not yet persisted by definition of being new; this grows in later periods if the same "
+        "cluster continues.",
+    )
+    novelty: float = Field(
+        default=1.0, ge=0.0, le=1.0,
+        description="1 minus the highest centroid similarity to any prior-period cluster (the Blueprint's own "
+        "definition), maximal (1.0) when there is no prior period to compare against at all.",
+    )
+    materiality: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Share of this cluster's member tags whose materiality_category is not NONE -- see "
+        "scoring.py::compute_materiality. Scored and displayed like the metrics above, not a promotion gate.",
+    )
+    contradiction: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Share of this cluster's member tags whose contradiction_type is not NONE -- see "
+        "scoring.py::compute_contradiction. Never used to silently drop a candidate; see "
+        "EmergingThemeCandidate.contradiction_evidence for the governance rule this exists to serve.",
+    )
 
 
 class LineageEvent(BaseModel):
@@ -109,6 +220,67 @@ class CandidateStatus(StrEnum):
     UNDER_REVIEW = "under_review"
     PROMOTED = "promoted"
     REJECTED = "rejected"
+    DISCONFIRMED = "disconfirmed"  # material contradiction evidence invalidates the transmission mechanism -- distinct from REJECTED (analyst judged it uninteresting/not real); see pipeline.py::disconfirm_candidate
+
+
+class CompanyActionEvidence(BaseModel):
+    """Roadmap P3's structured-financials cross-check: one company's SEC
+    XBRL-disclosed CapEx/R&D year-over-year movement, attached to a
+    candidate as supporting evidence -- not a promotion gate, since most
+    companies in a universe (non-US filers, thin disclosers) will
+    legitimately have no XBRL data at all. See
+    emerging_themes/action_evidence.py::check_company_action_evidence.
+    """
+
+    company_id: str
+    cik: str
+    capex_pct_change: float | None = Field(default=None, description="None if CapEx wasn't disclosed in both of the two most recent annual filings.")
+    rnd_pct_change: float | None = Field(default=None, description="None if R&D wasn't disclosed in both of the two most recent annual filings.")
+    as_of: str = Field(default_factory=now_iso)
+
+
+class CompanyRole(StrEnum):
+    """Roadmap G4's company-role taxonomy (Discovery Blueprint Section 5.3):
+    how a company relates to a candidate theme, distinct from whether it
+    is merely mentioned alongside it. Classified per company by
+    company_role.py::classify_company_role."""
+
+    BENEFICIARY = "beneficiary"
+    ENABLER = "enabler"
+    ADOPTER = "adopter"
+    TRANSITION_CANDIDATE = "transition_candidate"
+    BOTTLENECK_OWNER = "bottleneck_owner"
+    NEGATIVELY_EXPOSED = "negatively_exposed"
+    AMBIGUOUS = "ambiguous"
+
+
+class CompanyExposure(BaseModel):
+    """Roadmap G4's pre-promotion, Tool-0-native exposure signals for one
+    company in a candidate -- cheap and computed on every candidate to
+    help an analyst decide whether it's worth promoting at all.
+    Deliberately does not carry Revenue/Capex/Purity/Demand/Enablement
+    fields: those five of the Blueprint's nine exposure dimensions are
+    already covered by Tool 1's existing, tested engines
+    (`research/revenue_exposure/`, `research/indirect_exposure/`), reached
+    by re-running the theme-run pipeline (`POST /api/theme/runs`) against
+    the taxonomy a candidate is promoted into -- see the roadmap plan for
+    why duplicating that engine here isn't worth it. Innovation (the
+    ninth dimension) has no field here at all: it requires patent/
+    citation ingestion this codebase doesn't have yet.
+    """
+
+    company_id: str
+    role: CompanyRole
+    role_rationale: str = Field(description="Grounded one-sentence explanation referencing this company's own evidence.")
+    risk: float = Field(default=0.0, ge=0.0, le=1.0, description="Share of this company's own tags whose materiality_category is RISK. See company_exposure.py::compute_company_risk.")
+    momentum: float = Field(default=1.0, description="This candidate's cluster velocity, attributed to every member company alike -- see scoring.py::compute_velocity.")
+    evidence_quality: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="This company's own independent-source count normalized against emerging_themes_min_independent_sources -- "
+        "not 'share grounded', since every surviving ExtractedTag is already grounded by construction. See "
+        "company_exposure.py::compute_company_evidence_quality.",
+    )
+    as_of: str = Field(default_factory=now_iso)
 
 
 class EmergingThemeCandidate(BaseModel):
@@ -121,7 +293,10 @@ class EmergingThemeCandidate(BaseModel):
     theme_name: str
     description: str = ""
     first_detected_date: str = Field(description="Date this cluster's underlying signal was first classified as a BIRTH (no lineage back).")
-    signal_velocity: float = Field(description="This period's mention count for the cluster; velocity vs. baseline is implicit in it being a BIRTH.")
+    signal_velocity: float = Field(description="Copied from TopicCluster.velocity -- see scoring.py::compute_velocity for what this ratio means.")
+    breadth: float = Field(default=0.0, ge=0.0, le=1.0, description="Copied from TopicCluster.breadth.")
+    persistence: int = Field(default=0, description="Copied from TopicCluster.persistence -- always 0 at first promotion; see TopicCluster's docstring.")
+    novelty: float = Field(default=1.0, ge=0.0, le=1.0, description="Copied from TopicCluster.novelty.")
     corroborating_sources: list[MentionCitation] = Field(default_factory=list)
     candidate_sectors_companies: list[str] = Field(default_factory=list, description="Resolved company_ids, for analyst orientation -- not a substitute for Tool 1's universe construction.")
     rationale: str = Field(default="", description="Grounded narrative explanation, source-linked.")
@@ -130,12 +305,39 @@ class EmergingThemeCandidate(BaseModel):
     )
     confidence_score: float = Field(
         default=0.0, ge=0.0, le=1.0,
-        description="Phase 1 interim proxy: the cluster's HDBSCAN stability_score. Superseded by a real Bayesian "
-        "(Isolation-Forest-prior, Beta-Bernoulli-updated) posterior in Phase 2 -- see docs.",
+        description="Equal to novelty (see above) -- kept as a separate field for backward compatibility with "
+        "UI/CLI surfaces expecting a generic confidence score. Superseded by a real Bayesian "
+        "(Isolation-Forest-prior, Beta-Bernoulli-updated) posterior in a later phase -- see the roadmap.",
+    )
+    action_score: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Share of this cluster's member tags classified with a real ActionType (not OTHER) -- the "
+        "roadmap P3 hard gate distinguishing measurable corporate action ('walk') from mere mention volume "
+        "('talk'). See synthesis.py::compute_action_score.",
+    )
+    xbrl_corroboration: list[CompanyActionEvidence] = Field(
+        default_factory=list,
+        description="SEC XBRL-disclosed CapEx/R&D movement for this candidate's companies, where resolvable -- "
+        "supporting evidence shown to the analyst, not a hard gate (see CompanyActionEvidence's docstring for why).",
+    )
+    materiality: float = Field(default=0.0, ge=0.0, le=1.0, description="Copied from TopicCluster.materiality.")
+    contradiction: float = Field(default=0.0, ge=0.0, le=1.0, description="Copied from TopicCluster.contradiction.")
+    contradiction_evidence: list[MentionCitation] = Field(
+        default_factory=list,
+        description="Grounded quotes backing this candidate's contradiction score (delays, cancellations, "
+        "impairments, target withdrawals). Always populated and always shown regardless of status -- per the "
+        "Blueprint's governance rule that negative/contradictory evidence is retained, never hidden once a "
+        "candidate is promoted.",
+    )
+    company_exposure: list[CompanyExposure] = Field(
+        default_factory=list,
+        description="Roadmap G4: per-company role + Risk/Momentum/Evidence-quality signals, computed pre-promotion. "
+        "See CompanyExposure's docstring for why Revenue/Capex/Purity/Demand/Enablement/Innovation aren't here.",
     )
     status: CandidateStatus = CandidateStatus.CANDIDATE
     promoted_to_taxonomy_id: str | None = None
     promoted_to_taxonomy_version: int | None = None
+    decision_reason: str | None = Field(default=None, description="The analyst's reason for the promote/reject decision -- required at decision time, see pipeline.py.")
     cluster_id: str
     run_id: str
     created_at: str = Field(default_factory=now_iso)

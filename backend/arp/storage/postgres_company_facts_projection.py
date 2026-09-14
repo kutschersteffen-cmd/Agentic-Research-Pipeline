@@ -68,6 +68,47 @@ def fact_candidates(run_type: str, row: dict) -> list[tuple[str, dict]]:
     return [(company_id, row)]
 
 
+def fact_confidence(value: dict) -> float | None:
+    """The confidence CompanyFactModel.confidence records, or None when the
+    run type has none. Verified against the row shapes fact_candidates
+    produces: a CompanyMatch and an ExtractedField each carry `confidence`,
+    an ExtractionRecord/CompanyFinancialsRecord carries
+    `overall_confidence`, a VoteRecord carries neither (a policy
+    recommendation is a judgment, not a scored extraction).
+
+    The column was declared and documented from the start but never
+    populated -- a caller reading this table saw NULL for every fact and
+    had to go back to `payload` (or to results.jsonl) for the one number
+    most likely to be filtered on.
+    """
+    for key in ("confidence", "overall_confidence"):
+        candidate = value.get(key)
+        if isinstance(candidate, (int, float)) and not isinstance(candidate, bool):
+            return float(candidate)
+    return None
+
+
+def fact_citations(value: dict) -> list | None:
+    """The citation set behind a fact, or None when there is none. Kept as
+    the raw citation dicts (JSONB) rather than a rendered string: a caller
+    checking "is this fact grounded, and in which document" needs the
+    doc_id/quote structure the pipelines already produce.
+
+    A CompanyMatch cites at its own level; an ExtractionRecord cites per
+    field, so its fields' citations are concatenated in field order --
+    the whole record is one fact row at this table's granularity.
+    """
+    citations = value.get("citations")
+    if isinstance(citations, list) and citations:
+        return citations
+    fields = value.get("fields")
+    if isinstance(fields, list):
+        collected = [c for field in fields if isinstance(field, dict) for c in (field.get("citations") or [])]
+        if collected:
+            return collected
+    return None
+
+
 def resolve_fact(item_key: str, raw_value: dict, decisions: dict[str, dict], queued_item_keys: set[str]) -> tuple[dict, str, str | None]:
     """Pure: determines a fact candidate's materialized (value, status,
     reviewer) from this run's latest_decisions() map and the set of
@@ -111,6 +152,9 @@ def materialize_run(dsn: str, run_store: RunStore, run_id: str) -> int:
     current one. Returns the number of facts changed (inserted new or
     superseded an existing one).
 
+    `confidence` and `citations` are populated from the fact value where
+    the run type has them (see fact_confidence/fact_citations).
+
     `as_of` is left as "" uniformly for now (a point-in-time fact) --
     none of the four verified run types expose a reliable fiscal-period
     field at this generic, run-type-agnostic layer; a per-period `as_of`
@@ -129,45 +173,64 @@ def materialize_run(dsn: str, run_store: RunStore, run_id: str) -> int:
 
     from arp.storage.postgres_models import CompanyFactModel
 
+    candidates = [
+        (item_key, raw_value)
+        for row in rows
+        for item_key, raw_value in fact_candidates(manifest.run_type, row)
+    ]
+    if not candidates:
+        return 0
+
     engine = get_engine(dsn)
     changed = 0
     with Session(engine) as session:
-        for row in rows:
-            for item_key, raw_value in fact_candidates(manifest.run_type, row):
-                company_id = item_key.split(":", 1)[0]
-                value, status, reviewer = resolve_fact(item_key, raw_value, decisions, queued_item_keys)
-                current = session.scalars(
-                    select(CompanyFactModel).where(
-                        CompanyFactModel.company_id == company_id,
-                        CompanyFactModel.fact_key == item_key,
-                        CompanyFactModel.as_of == "",
-                        CompanyFactModel.is_current.is_(True),
-                    )
-                ).first()
-                if current is not None and current.value == value and current.status == status:
-                    continue
-
-                now = now_iso()
-                new_fact = CompanyFactModel(
-                    company_id=company_id,
-                    fact_key=item_key,
-                    as_of="",
-                    fact_type=fact_type,
-                    value=value,
-                    status=status,
-                    source_run_id=run_id,
-                    reviewer=reviewer,
-                    valid_from=now,
-                    valid_to=None,
-                    is_current=True,
+        # One query for every fact this run touches, rather than one
+        # SELECT per candidate: a theme run over a few hundred companies
+        # produces thousands of candidates, and this materialization runs
+        # inline on RunStore.save_manifest (see run_store.py's projection
+        # hook), so the round-trips were on the critical path of finishing
+        # a run.
+        current_by_key = {
+            fact.fact_key: fact
+            for fact in session.scalars(
+                select(CompanyFactModel).where(
+                    CompanyFactModel.fact_key.in_([item_key for item_key, _ in candidates]),
+                    CompanyFactModel.as_of == "",
+                    CompanyFactModel.is_current.is_(True),
                 )
-                session.add(new_fact)
-                session.flush()  # assigns new_fact.id before it's referenced below
-                if current is not None:
-                    current.valid_to = now
-                    current.is_current = False
-                    current.superseded_by_id = new_fact.id
-                changed += 1
+            ).all()
+        }
+        for item_key, raw_value in candidates:
+            company_id = item_key.split(":", 1)[0]
+            value, status, reviewer = resolve_fact(item_key, raw_value, decisions, queued_item_keys)
+            current = current_by_key.get(item_key)
+            if current is not None and current.value == value and current.status == status:
+                continue
+
+            now = now_iso()
+            new_fact = CompanyFactModel(
+                company_id=company_id,
+                fact_key=item_key,
+                as_of="",
+                fact_type=fact_type,
+                value=value,
+                status=status,
+                confidence=fact_confidence(value),
+                citations=fact_citations(value),
+                source_run_id=run_id,
+                reviewer=reviewer,
+                valid_from=now,
+                valid_to=None,
+                is_current=True,
+            )
+            session.add(new_fact)
+            session.flush()  # assigns new_fact.id before it's referenced below
+            if current is not None:
+                current.valid_to = now
+                current.is_current = False
+                current.superseded_by_id = new_fact.id
+            current_by_key[item_key] = new_fact
+            changed += 1
         session.commit()
     return changed
 

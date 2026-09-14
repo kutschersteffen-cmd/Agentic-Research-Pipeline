@@ -3,12 +3,12 @@ import { ThemeBuilder } from "./pages/ThemeBuilder";
 import { Extraction } from "./pages/Extraction";
 import { TransitionPlanAssessment } from "./pages/TransitionPlanAssessment";
 import { DocumentDiscovery } from "./pages/DocumentDiscovery";
+import { EmergingThemesDetector } from "./pages/EmergingThemesDetector";
 import { IdentityResolution } from "./pages/IdentityResolution";
 import { ReviewQueue } from "./pages/ReviewQueue";
 import { RunHistory } from "./pages/RunHistory";
 import { DataLibrary } from "./pages/DataLibrary";
 import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
-import { EmergingThemes } from "./pages/EmergingThemes";
 import { BackgroundAgents } from "./pages/BackgroundAgents";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
@@ -108,7 +108,7 @@ function App() {
         {active === "search" && <Search />}
         {active === "theme" && <ThemeBuilder onSendToExtraction={sendToExtraction} pendingTaxonomyId={pendingTaxonomyId} />}
         {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
-        {active === "emergingThemes" && <EmergingThemes />}
+        {active === "emergingThemes" && <EmergingThemesDetector onNavigate={setActive} />}
         {active === "backgroundAgents" && <BackgroundAgents />}
         {active === "extraction" && <Extraction pendingUniverse={pendingUniverse} />}
         {active === "transitionPlan" && <TransitionPlanAssessment pendingUniverse={pendingUniverse} />}

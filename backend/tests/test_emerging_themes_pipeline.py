@@ -2,9 +2,11 @@ from datetime import UTC, datetime
 
 from arp.config import Settings
 from arp.emerging_themes import pipeline as pipeline_module
+from arp.emerging_themes.company_role import CompanyRoleAssessment
 from arp.emerging_themes.ingestion.base import MentionSource
 from arp.emerging_themes.pipeline import (
     create_emerging_themes_run,
+    disconfirm_candidate,
     execute_emerging_themes_run,
     load_candidates_with_status,
     promote_candidate,
@@ -13,7 +15,7 @@ from arp.emerging_themes.pipeline import (
 from arp.emerging_themes.synthesis import _CandidateDraft
 from arp.research.taxonomy_sources.corpus_synthesis import _SynthesizedActivityDraft, _SynthesizedActivityDraftList
 from arp.schemas.common import CompanyRef
-from arp.schemas.emerging_themes import CandidateStatus, MentionSourceType, RawMention, TopicCluster
+from arp.schemas.emerging_themes import ActionType, CandidateStatus, CompanyRole, MentionSourceType, RawMention, TopicCluster
 from arp.schemas.taxonomy import TaxonomyStatus
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
@@ -82,6 +84,7 @@ async def test_execute_run_produces_one_candidate_from_five_corroborating_mentio
                 label="solid-state battery breakthrough",
                 claim="Acme Battery Co unveiled a new solid-state cell chemistry.",
                 entity_names=["Acme Battery Co"],
+                action_type=ActionType.CAPEX,
                 quote="Acme Battery Co unveils solid-state battery breakthrough",
             )
         ]
@@ -92,9 +95,11 @@ async def test_execute_run_produces_one_candidate_from_five_corroborating_mentio
         economic_rationale="A step-change in energy density would reshape EV cost structures and charging infrastructure demand.",
         rationale="Five independent reports of Acme Battery Co's solid-state breakthrough.",
     )
+    role_assessment = CompanyRoleAssessment(role=CompanyRole.BENEFICIARY, rationale="Directly commercializing the theme's underlying technology.")
     llm = fake_llm({
         "_TagDraftList": [tag_draft] * 5,  # one per mention
         "_CandidateDraft": [candidate_draft],
+        "CompanyRoleAssessment": [role_assessment],  # one call, for the candidate's one resolved company ("acme")
     })
 
     run_id = create_emerging_themes_run(run_store, companies, "manual")
@@ -113,6 +118,13 @@ async def test_execute_run_produces_one_candidate_from_five_corroborating_mentio
     assert candidate.status == CandidateStatus.CANDIDATE
     assert candidate.candidate_sectors_companies == ["acme"]
     assert len(candidate.corroborating_sources) == 5
+
+    assert len(candidate.company_exposure) == 1
+    exposure = candidate.company_exposure[0]
+    assert exposure.company_id == "acme"
+    assert exposure.role == CompanyRole.BENEFICIARY
+    assert exposure.role_rationale == "Directly commercializing the theme's underlying technology."
+    assert exposure.momentum == 1.0  # this fixture's cluster is a BIRTH with no baseline periods -- see compute_velocity
 
 
 async def test_promote_candidate_creates_draft_taxonomy_and_folds_status(tmp_path, fake_llm):
@@ -142,10 +154,11 @@ async def test_promote_candidate_creates_draft_taxonomy_and_folds_status(tmp_pat
     )
     llm = fake_llm({"_SynthesizedActivityDraftList": [activity_draft]})
 
-    promoted = await promote_candidate(run_store, taxonomy_store, llm, run_id, candidate.theme_id)
+    promoted = await promote_candidate(run_store, taxonomy_store, llm, run_id, candidate.theme_id, "Strong corroborated signal.")
 
     assert promoted.status == CandidateStatus.PROMOTED
     assert promoted.promoted_to_taxonomy_id is not None
+    assert promoted.decision_reason == "Strong corroborated signal."
     taxonomy = taxonomy_store.get(promoted.promoted_to_taxonomy_id)
     assert taxonomy is not None
     assert taxonomy.status == TaxonomyStatus.DRAFT  # never auto-ratified
@@ -155,6 +168,7 @@ async def test_promote_candidate_creates_draft_taxonomy_and_folds_status(tmp_pat
     reloaded = load_candidates_with_status(run_store, run_id)
     assert reloaded[0].status == CandidateStatus.PROMOTED
     assert reloaded[0].promoted_to_taxonomy_id == taxonomy.taxonomy_id
+    assert reloaded[0].decision_reason == "Strong corroborated signal."
 
 
 async def test_reject_candidate_folds_into_rejected_status(tmp_path):
@@ -170,7 +184,70 @@ async def test_reject_candidate_folds_into_rejected_status(tmp_path):
     )
     run_store.append_jsonl(run_store.results_path(run_id), candidate.model_dump(mode="json"))
 
-    reject_candidate(run_store, run_id, candidate.theme_id)
+    reject_candidate(run_store, run_id, candidate.theme_id, "Not a real signal.")
 
     reloaded = load_candidates_with_status(run_store, run_id)
     assert reloaded[0].status == CandidateStatus.REJECTED
+    assert reloaded[0].decision_reason == "Not a real signal."
+
+
+async def test_disconfirm_candidate_folds_into_disconfirmed_status(tmp_path):
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    run_id = create_emerging_themes_run(run_store, [], "manual")
+
+    from arp.schemas.emerging_themes import EmergingThemeCandidate
+
+    candidate = EmergingThemeCandidate(
+        theme_name="Contradicted signal", description="", first_detected_date="2026-01-01", signal_velocity=1.0,
+        economic_rationale="", cluster_id="cl1", run_id=run_id,
+    )
+    run_store.append_jsonl(run_store.results_path(run_id), candidate.model_dump(mode="json"))
+
+    disconfirm_candidate(run_store, run_id, candidate.theme_id, "The facility investment was cancelled.")
+
+    reloaded = load_candidates_with_status(run_store, run_id)
+    assert reloaded[0].status == CandidateStatus.DISCONFIRMED
+    assert reloaded[0].decision_reason == "The facility investment was cancelled."
+
+
+def test_disconfirm_candidate_requires_a_reason(tmp_path):
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    run_id = create_emerging_themes_run(run_store, [], "manual")
+
+    try:
+        disconfirm_candidate(run_store, run_id, "theme1", "  ")
+        raised = False
+    except ValueError:
+        raised = True
+    assert raised
+
+
+def test_reject_candidate_requires_a_reason(tmp_path):
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    run_id = create_emerging_themes_run(run_store, [], "manual")
+
+    try:
+        reject_candidate(run_store, run_id, "theme1", "   ")
+        raised = False
+    except ValueError:
+        raised = True
+    assert raised
+
+
+async def test_promote_candidate_requires_a_reason(tmp_path, fake_llm):
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    taxonomy_store = TaxonomyStore(settings.taxonomies_dir)
+    run_id = create_emerging_themes_run(run_store, [], "manual")
+    llm = fake_llm({})
+
+    try:
+        await promote_candidate(run_store, taxonomy_store, llm, run_id, "theme1", "")
+        raised = False
+    except ValueError:
+        raised = True
+    assert raised
+    assert llm.calls == []

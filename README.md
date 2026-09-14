@@ -60,8 +60,9 @@ precision at scale (designed for up to ~4,000 companies per run).
    and proxy voting (proposal extraction from proxy statements, policy-rule
    + LLM-judgment vote recommendations, and ballot casting), sharing one
    file-based engagement record store and gated by human checkpoints at
-   every send/decide/vote point. Backend + CLI + API only, no frontend UI
-   yet. See [`docs/ENGAGEMENT_VOTING_ARCHITECTURE.md`](docs/ENGAGEMENT_VOTING_ARCHITECTURE.md)
+   every send/decide/vote point. Both have a frontend page (the Engagement
+   dashboard and Voting runs, under StewardIQ in the nav) alongside the
+   CLI and API paths. See [`docs/ENGAGEMENT_VOTING_ARCHITECTURE.md`](docs/ENGAGEMENT_VOTING_ARCHITECTURE.md)
    for the full design and an implementation file index.
 7. **Portfolio Risk & Exposure Monitoring** — aggregates holdings across
    every portfolio, with a deterministic (zero-LLM) engine for grouping by
@@ -187,6 +188,45 @@ precision at scale (designed for up to ~4,000 companies per run).
    its current limitations (no point-in-time universe reconstruction, no
    transaction-cost modeling).
 
+11. **Emerging Themes Scanner** — the bottom-up counterpart to the
+   Thematic Universe Builder, which starts from a theme you already have
+   in mind. This one starts from the public record instead: it ingests
+   SEC EDGAR full-text search, GDELT news, and regulatory RSS flow across
+   a universe, tags each mention into grounded evidence, clusters the
+   tags, and tracks each cluster's lineage across ISO weeks (birth,
+   continuation, merge, split) so "new" means *new relative to the prior
+   period*, not merely unfamiliar. Clusters are scored on velocity (this
+   period's prevalence against its own lineage-matched baseline),
+   breadth (share of the scanned universe mentioning it), persistence
+   (periods survived), novelty, materiality (evidence tied to revenue,
+   margin, cash flow, assets, or risk) and contradiction (delays,
+   cancellations, impairments, withdrawn targets — retained and shown
+   even on a promoted candidate, never silently dropped). The promotion
+   gate is an **action score**: the share of a cluster's evidence
+   describing something a company *did* (capex, hiring, orders,
+   capacity, a partnership) rather than something it was merely
+   mentioned alongside, optionally corroborated against real SEC XBRL
+   capex/R&D movement — so rising mention counts alone ("talk") cannot
+   produce a candidate without measurable corporate action ("walk").
+   A two-tier company-exposure engine then classifies each company's
+   role in a candidate theme (beneficiary, enabler, adopter, transition
+   candidate, bottleneck owner, negatively exposed, ambiguous) with a
+   risk/momentum/evidence-quality triple; the full
+   Revenue/CapEx/Demand/Enablement exposure cascade is deliberately left
+   to Tool 1, run against the taxonomy once a candidate is promoted.
+   Nothing reaches the taxonomy library without an explicit human
+   decision, and every decision — promote, reject, or **disconfirm**
+   (reserved for when specific contradiction evidence invalidates the
+   transmission mechanism, as opposed to an analyst judgment call) —
+   requires a written reason that is recorded on the candidate. A
+   bundled role golden set (`arp golden-set run-roles`) regression-tests
+   the role-classification prompt before a change reaches a real scan,
+   mirroring `arp golden-set run` for extraction. Runs manually or on an
+   automatic weekly schedule matching the lineage window. See
+   [`docs/EMERGING_THEMES_VOCABULARY.md`](docs/EMERGING_THEMES_VOCABULARY.md)
+   for how each scored dimension maps onto the research vocabulary it
+   traces back to.
+
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches, and
 [`docs/THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md`](docs/THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md)
@@ -205,7 +245,10 @@ the compliance/vendor decisions that gate parts of it).
 same layer-by-layer comparison for the Generative BI layer against the
 open-source GenBI field (WrenAI, Cube, text-to-SQL agents): where their
 semantic-layer benchmarks land, why this system emits a validated query
-spec instead of SQL, and which of their ideas are worth taking.
+spec instead of SQL, and which of their ideas are worth taking. And see
+[`docs/INSTALLATION.md`](docs/INSTALLATION.md) for a from-scratch
+Windows/VS Code/conda install behind a corporate proxy, with scripts that
+automate it end to end.
 
 ## Architecture
 
@@ -264,6 +307,13 @@ cancelled cooperatively (`arp runs cancel <run_id>` /
 theme runs only for now) without redoing already-completed companies.
 
 ## Setup
+
+On Windows, behind a corporate proxy/TLS-inspection setup, using VS Code
+and conda: see [`docs/INSTALLATION.md`](docs/INSTALLATION.md) instead of
+this section -- it covers corporate certificate/proxy configuration and
+ships scripts (`scripts/windows/setup.ps1`, `check-setup.ps1`,
+`configure-network.ps1`) that automate everything below plus a
+pre-wired `.vscode/` (correct interpreter, pytest, debug configs, tasks).
 
 ### Backend
 
@@ -424,6 +474,19 @@ arp replicate discover-papers "momentum anomaly" --out candidates.json
 arp replicate pbo --candidate-spec mom3_spec.json --candidate-spec mom6_spec.json --candidate-spec mom12_spec.json \
   --prices prices.csv --tickers universe.csv --period-start 2000-01-01 --period-end 2020-12-31 --num-blocks 8
 arp replicate discover-papers "quality investing" --out candidates.json --source arxiv
+
+# Emerging Themes Scanner: bottom-up candidate discovery from EDGAR/GDELT/regulatory flow
+arp emerging-themes run --universe universe.csv
+arp emerging-themes candidates <run_id>
+arp emerging-themes show <run_id> <theme_id>
+# Every decision needs a written reason; disconfirm is for contradiction evidence, not judgment calls
+arp emerging-themes promote <run_id> <theme_id> --reason "..." [--taxonomy-id <id>]
+arp emerging-themes reject <run_id> <theme_id> --reason "..."
+arp emerging-themes disconfirm <run_id> <theme_id> --reason "..."
+arp emerging-themes schedule --universe universe.csv --interval-hours 168
+
+# Role-classification golden set -- run before a role-prompt/model change ships
+arp golden-set run-roles
 
 # Document discovery
 arp discover run --universe companies.csv
@@ -648,7 +711,24 @@ ARP_OBJECT_STORE_ENDPOINT_URL=http://localhost:9000
 ARP_OBJECT_STORE_ACCESS_KEY=arp
 ARP_OBJECT_STORE_SECRET_KEY=arp12345
 
-arp db init-postgres        # creates the pgvector extension + every table, idempotent
+arp db init-postgres        # extension + tables + any missing column + pending schema steps, idempotent
+arp db check-postgres       # read-only: is this database current? (non-zero exit if not)
 arp db init-opensearch      # creates every index (behind its alias), idempotent
 arp db init-object-store    # creates the bucket, idempotent
+```
+
+Re-run `arp db init-postgres` after upgrading this codebase, not just once
+per fresh database: it also adds columns and applies recorded schema steps
+to a database an earlier version created (see
+`backend/arp/storage/postgres_schema.py`). `arp db check-postgres` answers
+"is this database current?" without touching it, so it can gate a deploy.
+
+Backfilling the read-model projections is incremental by default -- only
+runs whose manifest changed since the last backfill are rescanned:
+
+```bash
+arp db reindex company-records       # since the last backfill
+arp db reindex company-facts --full  # rescan everything
+arp db reindex engagement
+arp db reindex documents
 ```
