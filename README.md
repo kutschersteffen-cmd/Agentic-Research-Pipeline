@@ -205,7 +205,10 @@ the compliance/vendor decisions that gate parts of it).
 same layer-by-layer comparison for the Generative BI layer against the
 open-source GenBI field (WrenAI, Cube, text-to-SQL agents): where their
 semantic-layer benchmarks land, why this system emits a validated query
-spec instead of SQL, and which of their ideas are worth taking.
+spec instead of SQL, and which of their ideas are worth taking. And see
+[`docs/INSTALLATION.md`](docs/INSTALLATION.md) for a from-scratch
+Windows/VS Code/conda install behind a corporate proxy, with scripts that
+automate it end to end.
 
 ## Architecture
 
@@ -264,6 +267,13 @@ cancelled cooperatively (`arp runs cancel <run_id>` /
 theme runs only for now) without redoing already-completed companies.
 
 ## Setup
+
+On Windows, behind a corporate proxy/TLS-inspection setup, using VS Code
+and conda: see [`docs/INSTALLATION.md`](docs/INSTALLATION.md) instead of
+this section -- it covers corporate certificate/proxy configuration and
+ships scripts (`scripts/windows/setup.ps1`, `check-setup.ps1`,
+`configure-network.ps1`) that automate everything below plus a
+pre-wired `.vscode/` (correct interpreter, pytest, debug configs, tasks).
 
 ### Backend
 
