@@ -308,6 +308,10 @@ theme runs only for now) without redoing already-completed companies.
 
 ## Setup
 
+On Windows: [`docs/WINDOWS_QUICKSTART.md`](docs/WINDOWS_QUICKSTART.md) is
+the short path -- one command from a fresh machine to the app running
+(`scripts\windows\bootstrap.ps1`), with each step explained.
+
 On Windows, behind a corporate proxy/TLS-inspection setup, using VS Code
 and conda: see [`docs/INSTALLATION.md`](docs/INSTALLATION.md) instead of
 this section -- it covers corporate certificate/proxy configuration and

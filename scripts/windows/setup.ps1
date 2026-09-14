@@ -182,3 +182,8 @@ Write-Host "  1. Edit backend\.env and set ARP_ANTHROPIC_API_KEY (see docs\INSTA
 Write-Host "  2. Open this folder in VS Code, reload the window, and confirm the interpreter shown bottom-right is the '$CondaEnvName' conda environment."
 Write-Host "  3. Run scripts\windows\check-setup.ps1 to verify everything end-to-end."
 Write-Host "  4. Use the VS Code 'Run and Debug' panel (F5) -- 'Backend: FastAPI (debug, no reload)' and 'Frontend: Debug in browser' launch configs are pre-wired."
+
+# Explicit success code: a PowerShell script that just falls off the end
+# leaves $LASTEXITCODE at whatever the last native command set, so a
+# caller checking it (bootstrap.ps1, CI) would read a stale value.
+exit 0

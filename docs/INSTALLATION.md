@@ -8,6 +8,10 @@ not replace) the quick-start "Setup" section in the root [`README.md`](../README
 this document goes deeper on exactly the steps that tend to fail on a
 locked-down corporate laptop, and ships automation for them.
 
+If you just want the machine working with the least reading, start with
+[`WINDOWS_QUICKSTART.md`](WINDOWS_QUICKSTART.md) — the same sequence as a
+single bootstrap command, cross-referencing back here for the detail.
+
 If you're on macOS/Linux, or not behind a corporate proxy, the plain
 `README.md` "Setup" section is all you need — skip this file.
 

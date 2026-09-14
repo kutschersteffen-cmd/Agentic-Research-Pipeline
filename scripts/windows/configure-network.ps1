@@ -212,3 +212,6 @@ if ($HttpProxy -or $HttpsProxy) {
 Write-Host ""
 Write-Host "Done. Close and reopen VS Code / your terminal so the new environment variables take effect," -ForegroundColor Cyan
 Write-Host "then run scripts\windows\setup.ps1 (or scripts\windows\check-setup.ps1 to verify)." -ForegroundColor Cyan
+
+# Explicit success code -- see the note at the end of setup.ps1.
+exit 0
