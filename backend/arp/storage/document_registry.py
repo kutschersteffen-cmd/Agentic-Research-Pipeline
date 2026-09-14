@@ -42,6 +42,15 @@ def ensure_storage_uri_column(conn: sqlite3.Connection) -> None:
 
 @dataclass(frozen=True, slots=True)
 class StoredDocumentRef:
+    """One row of the `documents` table. `first_seen_at`/`last_seen_at` are
+    the registry's own -- when this document was first registered and last
+    re-registered -- and are carried here so the Postgres projection can
+    mirror them instead of substituting its own sync time (which made
+    "first seen" mean "first synced" in the mirror and something else in
+    the source). Optional so an older caller constructing a ref by hand
+    still works; the projection falls back to the sync time only when they
+    really are unknown."""
+
     doc_id: str
     company_id: str
     doc_type: str
@@ -50,6 +59,8 @@ class StoredDocumentRef:
     local_path: str | None
     source_url: str | None
     storage_uri: str | None = None
+    first_seen_at: str | None = None
+    last_seen_at: str | None = None
 
 
 def derive_doc_id(company_id: str, doc_type: str, content_key: str) -> str:
@@ -147,7 +158,8 @@ class DocumentRegistry:
         conn = self._connect()
         try:
             row = conn.execute(
-                "SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri "
+                "SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri, "
+                "first_seen_at, last_seen_at "
                 "FROM documents WHERE doc_id=?",
                 (doc_id,),
             ).fetchone()
@@ -187,7 +199,8 @@ class DocumentRegistry:
         try:
             placeholders = ",".join("?" for _ in content_keys)
             rows = conn.execute(
-                f"SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri "
+                f"SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri, "
+                "first_seen_at, last_seen_at "
                 f"FROM documents WHERE content_key IN ({placeholders})",
                 content_keys,
             ).fetchall()
@@ -204,7 +217,8 @@ class DocumentRegistry:
         conn = self._connect()
         try:
             rows = conn.execute(
-                "SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri "
+                "SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri, "
+                "first_seen_at, last_seen_at "
                 "FROM documents ORDER BY doc_id"
             ).fetchall()
             return [StoredDocumentRef(*row) for row in rows]
