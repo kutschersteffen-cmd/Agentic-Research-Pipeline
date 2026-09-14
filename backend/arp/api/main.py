@@ -24,6 +24,7 @@ from arp.api.routers import (
     engagement,
     extraction,
     financials,
+    genbi,
     identity,
     overlap,
     portfolio,
@@ -94,6 +95,7 @@ app.include_router(tnfd.router)
 app.include_router(transition_plan.router)
 app.include_router(portfolio.router)
 app.include_router(climate.router)
+app.include_router(genbi.router)
 app.include_router(search.router)
 app.include_router(emerging_themes.router)
 app.include_router(taxonomy_researcher.router)

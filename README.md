@@ -68,7 +68,12 @@ precision at scale (designed for up to ~4,000 companies per run).
    portfolio, asset class, issuer, sector, or country, an Analytics
    Builder + natural-language Q&A agent ("how many EUR million of
    exposure to BMW") where the LLM only drafts the query and the engine
-   computes the real number, and a dedicated **Climate Analytics** section
+   computes the real number, a **Generative BI** layer that turns a
+   plain-language brief into a whole multi-panel dashboard (the model
+   plans the panels and writes the commentary; every figure is computed by
+   the same deterministic engine, and every figure in the commentary is
+   mechanically checked back against a computed result before it is
+   shown), and a dedicated **Climate Analytics** section
    (WACI, PCAF-style financed emissions, coverage reporting) sourced from
    an internal ESG API and cross-validated against the Extraction Engine's
    independent read of company disclosures. See
@@ -196,6 +201,11 @@ every backend and frontend package, and
 the phased plan to take this from a locally-run tool to a corporate
 deployment (auth, secrets, containerization, GCP target architecture, and
 the compliance/vendor decisions that gate parts of it).
+[`docs/GENBI_LANDSCAPE_REVIEW.md`](docs/GENBI_LANDSCAPE_REVIEW.md) does the
+same layer-by-layer comparison for the Generative BI layer against the
+open-source GenBI field (WrenAI, Cube, text-to-SQL agents): where their
+semantic-layer benchmarks land, why this system emits a validated query
+spec instead of SQL, and which of their ideas are worth taking.
 
 ## Architecture
 
@@ -374,6 +384,7 @@ arp extract financials-run --universe companies.csv
 
 # Golden-set regression test -- run before a prompt/model change ships
 arp golden-set run
+arp golden-set planner                                     # the same, for the generative-BI planner: brief -> expected dashboard shape
 
 # Transition Plan Assessment: 64-indicator walk/talk climate disclosure scoring (Colesanti Senni et al. 2024)
 arp transition-plan indicators                          # inspect the 64 fixed indicators
@@ -444,6 +455,12 @@ arp portfolio aggregate --group-by portfolio_id --metric market_value_sum --comp
 arp portfolio aggregate --group-by sector --metric market_value_sum
 arp portfolio ask "How many EUR million is our exposure to BMW?"   # requires ARP_ANTHROPIC_API_KEY
 arp portfolio classify-news                              # requires ARP_ANTHROPIC_API_KEY
+
+# Generative BI: a plain-language brief -> a whole dashboard, not a single answer
+arp portfolio bi generate "climate risk overview of the sustainable leaders fund" --save
+arp portfolio bi list                                    # saved dashboard definitions
+arp portfolio bi run dash_<id>                              # re-runs every panel -- zero LLM calls, no API key needed
+arp portfolio bi run dash_<id> --as-of 2026-02-27              # the same definition against an earlier snapshot
 
 # Climate analytics
 arp climate waci --group-by portfolio_id
@@ -572,6 +589,16 @@ around the input-output math.
 - Hybrid (BM25 + local multilingual embedding) evidence retrieval is on by
   default, closing vocabulary gaps between seed keywords and how a company
   actually phrases a disclosure -- including DE-language disclosures
+- Generated BI commentary is numerically grounded the same way a citation
+  is: every figure and date in the narrative must match one the
+  deterministic engine actually computed, checked token by token
+  (`portfolio/genbi/narrator.py`). A quoted figure that no panel computed
+  -- including one that is arithmetically derivable from two that were --
+  gets its sentence dropped (the rest of the draft is kept, and the dropped
+  sentences are reported); if nothing survives, the computed facts are shown
+  instead. What persists from a generated dashboard is the
+  query plan, not the prose, so re-running it recomputes from live
+  holdings with no model in the loop at all
 - Investment Strategy Replication's own instances of the same disciplines:
   `StrategySpec.provenance` (extractor/verifier model + prompt hash), a
   deterministic golden set for the backtest engine itself

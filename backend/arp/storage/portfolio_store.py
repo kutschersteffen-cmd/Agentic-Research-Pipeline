@@ -250,6 +250,26 @@ class PortfolioStore:
     def get_analytic(self, analytic_id: str) -> dict | None:
         return self._read_json(self.analytics_path()).get(analytic_id)
 
+    # --- saved generative-BI dashboards ---
+
+    def dashboards_path(self) -> Path:
+        return self.portfolios_dir / "dashboards.json"
+
+    def save_dashboard(self, spec_json: dict) -> None:
+        """Persists a `DashboardSpec` -- the re-runnable plan, never the
+        generated prose or the figures it described. Re-running a stored
+        dashboard recomputes everything from live holdings, so a saved
+        dashboard can't serve a stale number under a current date."""
+        data = self._read_json(self.dashboards_path())
+        data[spec_json["dashboard_id"]] = spec_json
+        self._write_json(self.dashboards_path(), data)
+
+    def list_dashboards(self) -> list[dict]:
+        return list(self._read_json(self.dashboards_path()).values())
+
+    def get_dashboard(self, dashboard_id: str) -> dict | None:
+        return self._read_json(self.dashboards_path()).get(dashboard_id)
+
     # --- continuous monitoring & alerting (arp/portfolio/monitoring/) ---
 
     def rules_path(self) -> Path:

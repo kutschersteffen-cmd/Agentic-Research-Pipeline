@@ -1,8 +1,8 @@
 """Postgres-backed alternative to arp/storage/portfolio_store.py::PortfolioStore
 for Portfolios/Securities/Companies/Holdings specifically -- see the module
 docstring in postgres_models.py for why the scope stops there (everything
-else -- observations, news, flags, analytics specs, monitoring rules/
-alerts -- stays file-based).
+else -- observations, news, flags, analytics and dashboard specs, monitoring
+rules/alerts -- stays file-based).
 
 Selected via Settings.portfolio_backend == "postgres" (requires
 Settings.postgres_dsn); the file-based PortfolioStore remains the default
@@ -29,9 +29,9 @@ from arp.storage.postgres import get_engine
 class PostgresPortfolioStore:
     """A genuine drop-in for PortfolioStore: portfolios/securities/
     companies/holdings-snapshots/resolutions are relational (Postgres),
-    everything else (observations, news, flags, analytics specs, monitoring
-    rules/alerts -- none of which have the multi-way join access pattern
-    that justifies a relational engine) delegates to a wrapped file-based PortfolioStore,
+    everything else (observations, news, flags, analytics and dashboard
+    specs, monitoring rules/alerts -- none of which have the multi-way join
+    access pattern that justifies a relational engine) delegates to a wrapped file-based PortfolioStore,
     so every caller of get_portfolio_store() keeps working unmodified
     regardless of which backend is configured.
     """
@@ -90,6 +90,18 @@ class PostgresPortfolioStore:
 
     def get_analytic(self, analytic_id: str) -> dict | None:
         return self._files.get_analytic(analytic_id)
+
+    def dashboards_path(self):
+        return self._files.dashboards_path()
+
+    def save_dashboard(self, spec_json: dict) -> None:
+        self._files.save_dashboard(spec_json)
+
+    def list_dashboards(self) -> list[dict]:
+        return self._files.list_dashboards()
+
+    def get_dashboard(self, dashboard_id: str) -> dict | None:
+        return self._files.get_dashboard(dashboard_id)
 
     def rules_path(self):
         return self._files.rules_path()

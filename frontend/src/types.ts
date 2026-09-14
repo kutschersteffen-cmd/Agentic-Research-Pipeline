@@ -1082,6 +1082,79 @@ export interface PivotResult {
   unresolved_market_value_eur: number;
 }
 
+// --- Generative BI (portfolio risk dashboards) ---
+// Mirrors backend/arp/portfolio/genbi/schemas.py. The spec is the durable
+// artifact (re-runnable with no LLM); the narrative is layered on top and
+// carries its own grounding verdict.
+
+export type PanelKind = "aggregation" | "trend" | "pivot";
+export type ChartHint = "bar" | "line" | "table" | "grid";
+
+export interface PanelSpec {
+  panel_id: string;
+  title: string;
+  question: string;
+  kind: PanelKind;
+  portfolio_filter: string[];
+  security_filter: Record<string, string>;
+  group_by: string;
+  row_dim: string;
+  col_dim: string;
+  metric: AggregationMetric;
+  data_point_field_id?: string | null;
+  as_of?: string | null;
+  date_range?: [string, string] | null;
+  chart: ChartHint;
+}
+
+export interface DashboardSpec {
+  dashboard_id: string;
+  title: string;
+  brief: string;
+  goal: string;
+  panels: PanelSpec[];
+  created_at: string;
+}
+
+export interface DashboardFact {
+  fact_id: string;
+  panel_id: string;
+  kind: string;
+  label: string;
+  value?: number | null;
+  unit: string;
+  text: string;
+}
+
+export interface PanelResult {
+  panel: PanelSpec;
+  as_of: string;
+  aggregation?: AggregationResult | null;
+  trend?: TrendPoint[] | null;
+  pivot?: PivotResult | null;
+  facts: DashboardFact[];
+  error: string;
+}
+
+export interface Narrative {
+  text: string;
+  grounded: boolean;
+  source: "llm" | "llm_partial" | "deterministic_fallback";
+  ungrounded_tokens: string[];
+  rejected_sentences: string[];
+}
+
+export interface GeneratedDashboard {
+  spec: DashboardSpec;
+  generated_at: string;
+  as_of: string;
+  panels: PanelResult[];
+  headline: Narrative;
+  panel_narratives: Record<string, Narrative>;
+  warnings: string[];
+  clarification_needed: string;
+}
+
 export type SearchResultType = "company" | "document" | "taxonomy";
 
 export interface SearchHit {

@@ -255,6 +255,120 @@ underlying holdings query, and it's always shown, not just claimed.
 Ambiguous questions (unresolvable company name, ambiguous dimension) are
 surfaced back to the user for clarification rather than guessed.
 
+**5c. Generative BI** (`backend/arp/portfolio/genbi/`). Where 5b answers one
+question with one number, this answers a *brief* with a whole dashboard:
+"give me a climate risk overview of the sustainable leaders fund" becomes a
+titled set of panels — an exposure breakdown, a carbon-intensity comparison,
+a trend, a concentration or data-coverage view — each with its own
+deterministically computed result, plus written commentary over the lot.
+
+Four stages, only the first and last of which involve a model, and neither
+of those ever produces a figure:
+
+```
+brief -> planner.py    (LLM)            -> which queries to run
+      -> executor.py   (deterministic)  -> the numbers, via analytics.py/aggregation.py
+      -> observations.py (deterministic) -> the facts worth stating
+      -> narrator.py   (LLM + check)    -> prose, then checked back against those facts
+```
+
+- **Planner.** Emits a `DashboardSpec`: a list of `PanelSpec`s, each of
+  which is exactly an `AnalyticSpec` or `PivotSpec` in §5a's vocabulary plus
+  a title, the sub-question it answers, and a chart hint. It sees only what
+  exists (live portfolio, issuer, sector, field, and snapshot-date
+  directories) and every panel it emits is **re-validated against those
+  directories before it can run**. A panel naming an unknown dimension,
+  metric, field, portfolio, or snapshot date is *dropped with a visible
+  warning*, never silently coerced to something valid — a coerced panel
+  would answer a question nobody asked while looking like it answered the
+  one they did. A brief that can't be mapped onto the available data comes
+  back as `clarification_needed` with no panels invented (same discipline as
+  5b's unresolvable questions).
+- **Worked examples.** The prompt carries up to `MAX_EXAMPLES` brief →
+  panels pairs drawn from dashboards and analytics *a human chose to save*
+  (`_build_examples`), never from generated plans nobody kept — the planner
+  must not reinforce its own unreviewed habits. Each example is put through
+  the same validator a fresh panel faces, so a saved plan naming a since-
+  renamed portfolio or a retired field is dropped rather than taught.
+- **Bounded re-plan.** A rejected panel gets **exactly one** repair attempt
+  (`_repair_panels`): the rejection reason goes back to the planner, the
+  replacement faces the same validator, and a repaired panel returns to its
+  original position in the plan. Never recursive, and never silent — the
+  warning names the original rejection *and* what replaced it, because a
+  repaired panel is still a panel the analyst didn't ask for by name. Turn
+  it off with `repair=False` (the planner eval set does, to measure the
+  first plan rather than the repaired one).
+- **Executor.** Runs each panel through `analytics.execute` /
+  `execute_pivot` — the same engine the Explore and Pivot tabs use, no
+  generative-BI-specific computation anywhere. A panel that fails carries
+  its error and renders as a failed panel; it never takes the dashboard
+  down with it.
+- **Observations.** Derives, by plain arithmetic over the computed results,
+  the figures worth saying out loud: the total, the largest group and its
+  share, top-3 concentration, start-to-end trend movement and the largest
+  mover, the biggest pivot cell, data-point coverage and the market value
+  excluded for missing data, and the count of *grounded* news risk flags
+  (§6b). These `DashboardFact`s are the only material the narrator sees.
+- **Narrator + numeric grounding.** The LLM writes a headline and a note per
+  panel, and is told it may state only figures that appear in the facts.
+  Then `narrator.check_grounding` checks that mechanically: every number and
+  every date in the draft must match a computed fact (allowing an honest
+  rescaling — "EUR 1.23 million" for 1,234,567 — within a 1% tolerance, but
+  nothing else). A number the facts don't support — **including one that is
+  arithmetically derivable from two that they do**, because no panel
+  computed it — is rejected. This is the numeric counterpart of
+  `grounding.is_grounded`: the same "check it programmatically, never trust
+  the self-report" control, applied to prose about numbers instead of quotes
+  from documents.
+
+  Checking is **per sentence**, not per draft. Rejecting three correct
+  sentences because a fourth said "roughly 18%" of a computed 17.7% would
+  throw away good prose to punish one adjective, and what replaces it is a
+  flat list of facts — the cure worse than the disease. So the sentence
+  carrying an unsupported figure is dropped, the rest is kept
+  (`source="llm_partial"`), and the dropped sentences and offending tokens
+  are reported. Only when *no* sentence survives does the deterministic fact
+  text take over. The invariant holds either way: every figure in displayed
+  prose traces back to a computed result.
+
+**Regression harness.** `arp golden-set planner`
+(`arp/golden_set/planner_schema.py`, `planner_runner.py`,
+`data/planner_cases.json`) is the extraction golden set's counterpart for
+planning: briefs with known-correct dashboard *shapes* — which kinds,
+metrics, dimensions and fields must appear, which portfolio a panel must be
+scoped to, and which briefs must be refused rather than guessed at. Never
+asserts titles or panel order (a differently phrased title is not a
+regression). Scored against the bundled demo dataset so a run is
+reproducible anywhere, and with worked examples deliberately absent so it
+measures the base prompt. Run it before a change to the planning prompt,
+the dimension/metric vocabulary, or the planner's model reaches real briefs.
+
+**What persists is the plan, not the prose.** A `DashboardSpec` is saved
+(`portfolios/dashboards.json`, same file-based pattern as saved analytics)
+and re-run with `service.run_dashboard` — **zero LLM calls**, commentary
+falling back to the deterministic fact text. So a generated dashboard
+becomes a recurring report whose definition is inspectable and whose numbers
+can't drift between runs except through the underlying holdings, and
+`--as-of` re-points the whole thing at an earlier snapshot in one call. The
+UI (Portfolio Risk -> Generative BI) shows each panel's chart, its facts,
+its commentary with the grounding verdict, and the panel's underlying query
+in the same vocabulary the Explore tab uses, so every number on screen is
+reproducible by hand.
+
+How this compares to the open-source GenBI tools that solve the general
+version of this problem (WrenAI, Cube, text-to-SQL agents) — and which of
+their ideas are worth adopting here — is reviewed in
+[`GENBI_LANDSCAPE_REVIEW.md`](GENBI_LANDSCAPE_REVIEW.md). Short version:
+they make an LLM emit SQL and then work to make that SQL safe; this emits a
+closed, validated spec and has no SQL to make safe, at the cost of
+expressiveness.
+
+Surfaces: `POST /api/portfolio/bi/generate` (brief -> dashboard),
+`POST /api/portfolio/bi/execute` (run an edited spec, no LLM),
+`GET|POST /api/portfolio/bi/dashboards`,
+`GET /api/portfolio/bi/dashboards/{id}/run`,
+`arp portfolio bi generate|list|run`, and `arp golden-set planner`.
+
 ## 6. Climate analytics (separate section)
 
 A dedicated set of built-in `DataPointSchema`s under
@@ -372,6 +486,13 @@ backend/arp/portfolio/
   datapoint_mapping.py   # per-issuer data point resolution cascade + history series
   analytics.py            # AnalyticSpec store/executor
   qa_agent.py              # NL question -> AnalyticSpec -> executed answer
+  genbi/                    # generative BI: brief -> whole dashboard (§5c)
+    schemas.py                # PanelSpec/DashboardSpec/DashboardFact/Narrative
+    planner.py                 # LLM: brief -> validated panels (never a number)
+    executor.py                 # deterministic: panel -> analytics.execute/_pivot
+    observations.py              # deterministic: result -> the facts worth stating
+    narrator.py                   # LLM prose + programmatic numeric grounding check
+    service.py                     # plan -> compute -> narrate; run_dashboard() is LLM-free
   news/
     source.py                # NewsSource ABC + connector, mirrors ingestion/base.py
     classifier.py             # per-article climate/controversy relevance + grounding
@@ -384,10 +505,13 @@ backend/arp/portfolio/
 backend/arp/schemas/portfolio.py   # Portfolio, Holding, SecurityRef, AnalyticSpec
 backend/arp/api/routers/portfolio.py   # holdings sync, aggregation, analytics, Q&A
 backend/arp/api/routers/climate.py     # climate-specific endpoints, news feed
+backend/arp/api/routers/genbi.py       # generate/execute/save/re-run dashboards
 backend/tests/test_portfolio_*.py
 portfolios/
   <portfolio_id>/snapshots/<as_of_date>.jsonl   # append-only holdings snapshots
   registry.json                                   # Portfolio metadata
+  analytics.json                                    # saved AnalyticSpecs (§5a)
+  dashboards.json                                     # saved DashboardSpecs (§5c) -- plans, never results
   # (same file-based, no-DB pattern as taxonomies/, runs/)
 ```
 
@@ -399,9 +523,9 @@ recurring-job shape `discovery/scheduler.py` already implements for
 document discovery.
 
 Frontend additions: two new tabs in `frontend/src/App.tsx` ("Portfolio
-Risk", "Climate Analytics"), new pages `PortfolioHoldings.tsx`,
-`AnalyticsBuilder.tsx`, `ClimateDashboard.tsx`, reusing existing UI
-patterns (`RunProgress.tsx`-style status, `ConfidenceBadge.tsx` for
+Risk", "Climate Analytics"), new pages `PortfolioRisk.tsx` (with the
+Overview/Explore/Pivot/Ask/Generative BI sub-tabs), `GenerativeBI.tsx`,
+`ClimateAnalytics.tsx`, reusing existing UI patterns (`RunProgress.tsx`-style status, `ConfidenceBadge.tsx` for
 coverage/confidence display).
 
 ## 8. Reuse map (what's new vs. what already exists)
@@ -422,6 +546,8 @@ coverage/confidence display).
 | Holdings, positions, portfolios, custodian/news connectors | — | new schemas + connectors (§2, §6a, §6b) |
 | Deterministic aggregation/weighting engine incl. time-range trend mode | — | new, zero-LLM (§3) |
 | NL question → query → grounded answer | pattern precedent only | new `qa_agent.py` (§5b) |
+| Brief → multi-panel dashboard | `analytics.py`/`aggregation.py` engine + `ResultView`/`PivotTable` UI as-is | new `genbi/` planner + fact layer (§5c) |
+| "Don't trust the model's self-report" check on generated output | `grounding.py`'s discipline (not its code -- quotes vs. numbers) | new `genbi/narrator.py::check_grounding` (§5c) |
 | PCAF financed-emissions math | — | new `climate/metrics.py` |
 
 ## 9. Precision controls (extending the existing list in `docs/METHODOLOGY.md`)
@@ -451,6 +577,14 @@ coverage/confidence display).
 - Saved `AnalyticSpec`s are versioned and inspectable, same as the
   taxonomy library, so a recurring report's definition can't silently
   drift.
+- Generated BI commentary (§5c) is numerically grounded: every figure and
+  date in generated prose must match one the deterministic engine actually
+  computed, checked token by token, with a derived-but-uncomputed figure
+  treated as ungrounded. A draft that fails is replaced by the computed
+  facts, not shown with a caveat.
+- A generated dashboard persists as a query plan, never as stored results
+  or stored prose, so re-running it recomputes from live holdings rather
+  than replaying a number under a newer date.
 
 ## 10. Remaining open questions
 
@@ -504,14 +638,21 @@ API-dependent pieces:
   and the dedicated dashboard tab (both frontend) are not built; the real
   ESG-API/news-vendor connectors (replacing the `mock_*` modules) are not
   built.
-- **Phase 5 — Estimated/proxy tier & scenario analysis**: opt-in
+- **Phase 5 — Generative BI** ✅ *(built; the narration pass needs a live
+  API key, the re-run path needs none)*: `portfolio/genbi/` — planner,
+  deterministic executor, deterministic observation/fact layer, narrator
+  with programmatic numeric grounding, saved re-runnable dashboards
+  (`store.save_dashboard`), `/api/portfolio/bi/*`, `arp portfolio bi ...`,
+  and the Portfolio Risk -> Generative BI tab (§5c).
+- **Phase 6 — Estimated/proxy tier & scenario analysis**: opt-in
   structural climate proxy, what-if reweighting ("if we exit BMW, how does
   portfolio WACI change" — a pure re-run of §3's engine on a hypothetical
   holdings set, still zero-LLM). Not started.
 
 Phases 0–2 are the minimum viable version of the request; Phase 3 is what
 makes it feel "agentic" end-to-end; Phase 4 is the explicitly-requested
-separate climate section; Phase 5 is stretch. What remains everywhere
+separate climate section; Phase 5 turns the one-question Q&A into
+dashboard-level generative BI; Phase 6 is stretch. What remains everywhere
 above: the React frontend (no UI was built this pass -- everything is
 reachable via the CLI and the FastAPI routers), and swapping each `mock_*`
 connector for a real one once decision 4's actual API/vendor details

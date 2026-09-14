@@ -9,6 +9,7 @@ from arp.cli._shared import _portfolio_directories, _portfolio_store
 from arp.config import get_settings
 from arp.llm.factory import build_llm_client
 from arp.portfolio import analytics, governance, qa_agent
+from arp.portfolio.genbi import service as genbi_service
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
 from arp.portfolio.news.classifier import classify_article
@@ -16,6 +17,8 @@ from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotSpec
 from arp.schemas.portfolio_monitoring import AlertRule, AlertStatus, AlertTransition
 
 portfolio_app = typer.Typer(help="Portfolio holdings aggregation, analytics, and NL Q&A.")
+bi_app = typer.Typer(help="Generative BI: turn a plain-language brief into a re-runnable portfolio dashboard.")
+portfolio_app.add_typer(bi_app, name="bi")
 
 
 @portfolio_app.command("seed-demo")
@@ -236,3 +239,71 @@ def portfolio_monitoring_alerts_transition(
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"{updated.alert_id} -> {updated.status}")
+
+
+@bi_app.command("generate")
+def portfolio_bi_generate(
+    brief: str,
+    save: bool = typer.Option(False, "--save", help="Persist the planned dashboard so it can be re-run later."),
+    no_narrative: bool = typer.Option(False, "--no-narrative", help="Skip the narration pass (plan + compute only)."),
+) -> None:
+    """Turns a plain-language brief into a whole dashboard: the LLM plans
+    the panels and writes the commentary, the deterministic engine computes
+    every figure, and every figure in the commentary is checked back
+    against those computed facts. Requires ARP_ANTHROPIC_API_KEY."""
+    llm = build_llm_client(get_settings())
+    store = _portfolio_store()
+    dashboard, _usage = asyncio.run(genbi_service.generate_dashboard(brief, llm, store, narrate=not no_narrative, save=save))
+    if dashboard.clarification_needed:
+        typer.echo(f"Could not plan a dashboard: {dashboard.clarification_needed}")
+        for warning in dashboard.warnings:
+            typer.echo(f"  ! {warning}")
+        raise typer.Exit(1)
+    _echo_dashboard(dashboard)
+    if save:
+        typer.echo(f"\nSaved as {dashboard.spec.dashboard_id} -- re-run with `arp portfolio bi run {dashboard.spec.dashboard_id}`.")
+
+
+@bi_app.command("list")
+def portfolio_bi_list() -> None:
+    """Saved dashboard definitions -- the re-runnable plans, not stored results."""
+    for spec in genbi_service.list_dashboards(_portfolio_store()):
+        typer.echo(f"{spec.dashboard_id}\t{spec.title}\t{len(spec.panels)} panel(s)\t{spec.created_at}")
+
+
+@bi_app.command("run")
+def portfolio_bi_run(
+    dashboard_id: str,
+    as_of: str = typer.Option(None, help="Re-point every point-in-time panel at this snapshot date."),
+    as_json: bool = typer.Option(False, "--json", help="Emit the full result as JSON instead of a summary."),
+) -> None:
+    """Re-runs a saved dashboard with no LLM in the loop at all -- same
+    panels, same engine, current holdings. No API key needed."""
+    store = _portfolio_store()
+    spec = genbi_service.get_dashboard(store, dashboard_id)
+    if spec is None:
+        typer.echo(f"Unknown dashboard_id: {dashboard_id}", err=True)
+        raise typer.Exit(1)
+    dashboard = genbi_service.run_dashboard(spec, store, as_of=as_of)
+    if as_json:
+        typer.echo(json.dumps(dashboard.model_dump(mode="json"), indent=2))
+    else:
+        _echo_dashboard(dashboard)
+
+
+def _echo_dashboard(dashboard) -> None:
+    typer.echo(f"# {dashboard.spec.title}  (as of {dashboard.as_of or 'n/a'})")
+    grounded = "" if dashboard.headline.grounded else "  [narrative rejected: ungrounded figures]"
+    typer.echo(f"{dashboard.headline.text}{grounded}\n")
+    for panel in dashboard.panels:
+        typer.echo(f"## {panel.panel.title}  [{panel.panel.kind}/{panel.panel.metric}]")
+        if panel.error:
+            typer.echo(f"  ! failed: {panel.error}")
+        narrative = dashboard.panel_narratives.get(panel.panel.panel_id)
+        if narrative and narrative.text:
+            typer.echo(f"  {narrative.text}")
+        for fact in panel.facts:
+            typer.echo(f"  - {fact.text}")
+        typer.echo("")
+    for warning in dashboard.warnings:
+        typer.echo(f"! {warning}")

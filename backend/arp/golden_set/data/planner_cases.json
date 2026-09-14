@@ -1,0 +1,58 @@
+[
+  {
+    "case_id": "sector_breakdown_basic",
+    "description": "The baseline brief: a plain exposure breakdown must produce a market-value panel grouped by sector, and nothing that fails validation.",
+    "brief": "Where is our equity exposure concentrated by sector?",
+    "min_panels": 1,
+    "require_metrics": ["market_value_sum"],
+    "require_dimensions": ["sector"],
+    "notes": "Catches a planner that answers a breakdown question with a holding count or an unrelated grouping."
+  },
+  {
+    "case_id": "named_fund_is_scoped",
+    "description": "A brief naming one fund must actually restrict a panel to that portfolio -- not report firm-wide numbers under the fund's name.",
+    "brief": "Give me a climate risk overview of the Sustainable Leaders Fund",
+    "min_panels": 2,
+    "require_metrics": ["weighted_avg_datapoint"],
+    "require_field_ids": ["climate_carbon_intensity"],
+    "require_portfolio_filter": ["sustainable_leaders"],
+    "notes": "The single most consequential planning error in this domain: the right number for the wrong book."
+  },
+  {
+    "case_id": "movement_needs_a_trend",
+    "description": "A brief about change over time must produce a trend panel, not a single point-in-time snapshot.",
+    "brief": "How has our exposure moved across the snapshots we have?",
+    "require_kinds": ["trend"],
+    "notes": "Catches a planner that answers 'how has it moved' with today's figure."
+  },
+  {
+    "case_id": "cross_tab_needs_a_pivot",
+    "description": "A brief asking for two dimensions at once should cross-tab them rather than emit two separate one-dimensional panels.",
+    "brief": "Show me sector exposure broken out across every portfolio in a single grid",
+    "require_kinds": ["pivot"],
+    "require_dimensions": ["sector", "portfolio_id"],
+    "notes": "House expectation: 'in one view' means a pivot; two stacked breakdowns do not answer it."
+  },
+  {
+    "case_id": "data_quality_uses_the_datapoint_metric",
+    "description": "A data-coverage brief must aggregate the actual data-point field, since coverage and excluded market value are only computed for weighted_avg_datapoint panels.",
+    "brief": "Where is our climate data thin -- which parts of the book have no emissions figures?",
+    "require_metrics": ["weighted_avg_datapoint"],
+    "require_field_ids": ["climate_carbon_intensity"],
+    "notes": "Catches a planner that describes coverage in a title instead of planning the query that measures it."
+  },
+  {
+    "case_id": "vague_brief_asks_rather_than_guesses",
+    "description": "A brief with no resolvable subject must come back as a clarification with no panels invented.",
+    "brief": "show me the risk",
+    "expect_understood": false,
+    "notes": "The refusal case. A plausible-looking dashboard built on a guessed interpretation is worse than no dashboard."
+  },
+  {
+    "case_id": "out_of_scope_brief_is_refused",
+    "description": "A brief about data this system does not hold must be refused rather than mapped onto the nearest available dimension.",
+    "brief": "What is our exposure to companies with a female CEO?",
+    "expect_understood": false,
+    "notes": "Catches the failure mode where an unavailable attribute gets silently substituted with country or sector."
+  }
+]

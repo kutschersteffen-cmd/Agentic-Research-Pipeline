@@ -7,6 +7,7 @@ import { MonitoringAlerts } from "./portfolio-monitoring/MonitoringAlerts";
 import { CompanyProfiles } from "./portfolio-monitoring/CompanyProfiles";
 import { CustomAnalysisStub } from "./portfolio-monitoring/CustomAnalysisStub";
 import { AskThePortfolio } from "./portfolio-monitoring/AskThePortfolio";
+import { GenerativeBI } from "./portfolio-monitoring/GenerativeBI";
 import { GovernanceAudit } from "./portfolio-monitoring/GovernanceAudit";
 
 const SUB_TABS = [
@@ -16,6 +17,7 @@ const SUB_TABS = [
   { id: "profiles", label: "Company Profiles" },
   { id: "notebook", label: "Custom Analysis" },
   { id: "ask", label: "Ask the Portfolio" },
+  { id: "genbi", label: "Generative BI" },
   { id: "governance", label: "Governance & Audit" },
 ] as const;
 
@@ -60,6 +62,7 @@ function Inner() {
       {sub === "profiles" && <CompanyProfiles />}
       {sub === "notebook" && <CustomAnalysisStub />}
       {sub === "ask" && <AskThePortfolio />}
+      {sub === "genbi" && <GenerativeBI />}
       {sub === "governance" && <GovernanceAudit />}
     </div>
   );
