@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """Single choke point for choosing the hybrid-retrieval embeddings cache
 backend (DocumentContentStore/SQLite, default, vs. PgVectorEmbeddingsStore/
 Postgres, opt-in via Settings.embeddings_backend == "postgres") -- every
 _gather_evidence node (field_graph.py, financials_graph.py, match_graph.py)
 calls this rather than duplicating the branch.
 """
+
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from arp.storage.postgres_embeddings import PgVectorEmbeddingsStore
 
 
-def build_hybrid_content_store(settings: Settings) -> "DocumentContentStore | PgVectorEmbeddingsStore":
+def build_hybrid_content_store(settings: Settings) -> DocumentContentStore | PgVectorEmbeddingsStore:
     """Constructed lazily, only on the path that actually uses it (hybrid
     retrieval enabled) -- a cheap connect + idempotent
     CREATE-IF-NOT-EXISTS either way, not a long-lived singleton, matching

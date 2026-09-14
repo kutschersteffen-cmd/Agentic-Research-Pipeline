@@ -1,7 +1,6 @@
 import json
 
 import httpx
-import pytest
 
 from arp.research.taxonomy_sources import fetch as fetch_module
 from arp.research.taxonomy_sources.fetch import _cache_paths, fetch_source_original

@@ -1,7 +1,5 @@
 import json
 
-import pytest
-
 from arp.orchestration.batch_runner import run_batch
 
 

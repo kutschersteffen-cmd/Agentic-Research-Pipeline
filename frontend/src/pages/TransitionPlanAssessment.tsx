@@ -6,6 +6,7 @@ import { ConfidenceBadge, GroundedBadge, YesNoBadge } from "../components/Confid
 import { ReviewControls } from "../components/ReviewControls";
 import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
+import { BarChart } from "../components/BarChart";
 import type { IndicatorAssessment, IndicatorCategory, ReviewDecision, TransitionPlanAssessmentRecord, TransitionPlanIndicatorDef } from "../types";
 
 interface Props {
@@ -38,6 +39,7 @@ function IndicatorDetail({
   return (
     <div className="field-detail">
       <p>{indicator.answer}</p>
+      {indicator.verifier_notes && <p className="muted">{indicator.verifier_notes}</p>}
       <CitationList citations={indicator.citations} onOpenSource={onOpenSource} />
       <ReviewControls
         runId={runId}
@@ -85,53 +87,89 @@ function IndicatorTable({
         return (
           <div key={cat}>
             <h4>{CATEGORY_LABELS[cat]}</h4>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Question</th>
-                  <th>Walk/Talk</th>
-                  <th>Verdict</th>
-                  <th>Grounded</th>
-                  <th>Review</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((ind) => (
-                  <Fragment key={ind.identifier}>
-                    <tr
-                      className="clickable-row"
-                      onClick={() => setExpandedIndicator(expandedIndicator === ind.identifier ? null : ind.identifier)}
-                    >
-                      <td>{ind.number}</td>
-                      <td>{ind.question}</td>
-                      <td>{ind.walk_or_talk}</td>
-                      <td><YesNoBadge verdict={ind.verdict} /></td>
-                      <td><GroundedBadge grounded={ind.grounded} /></td>
-                      <td>{ind.needs_review ? "⚑" : ""}</td>
-                    </tr>
-                    {expandedIndicator === ind.identifier && (
-                      <tr>
-                        <td colSpan={6} className="detail-cell">
-                          <IndicatorDetail
-                            indicator={ind}
-                            runId={runId}
-                            reviewer={reviewer}
-                            reviewDecisions={reviewDecisions}
-                            onReviewed={onReviewed}
-                            onOpenSource={onOpenSource}
-                          />
-                        </td>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Question</th>
+                    <th>Walk/Talk</th>
+                    <th>Verdict</th>
+                    <th>Grounded</th>
+                    <th>Review</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((ind) => (
+                    <Fragment key={ind.identifier}>
+                      <tr
+                        className="clickable-row"
+                        onClick={() => setExpandedIndicator(expandedIndicator === ind.identifier ? null : ind.identifier)}
+                      >
+                        <td>{ind.number}</td>
+                        <td>{ind.question}</td>
+                        <td>{ind.walk_or_talk}</td>
+                        <td><YesNoBadge verdict={ind.verdict} /></td>
+                        <td><GroundedBadge grounded={ind.grounded} /></td>
+                        <td>{ind.needs_review ? "⚑" : ""}</td>
                       </tr>
-                    )}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
+                      {expandedIndicator === ind.identifier && (
+                        <tr>
+                          <td colSpan={6} className="detail-cell">
+                            <IndicatorDetail
+                              indicator={ind}
+                              runId={runId}
+                              reviewer={reviewer}
+                              reviewDecisions={reviewDecisions}
+                              onReviewed={onReviewed}
+                              onOpenSource={onOpenSource}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         );
       })}
     </>
+  );
+}
+
+/** Batch-level view across every company in the run: the paper's own
+ * headline finding is an aggregate walk-vs-talk disclosure gap, not a
+ * single company's score, so that comparison is surfaced here rather than
+ * making a reviewer add up 64-indicator rows per company by hand. The bar
+ * chart ranks companies by overall disclosure completeness -- the same
+ * BarChart used for magnitude comparisons elsewhere in the app. */
+function BatchOverview({ results }: { results: TransitionPlanAssessmentRecord[] }) {
+  const walkDisclosed = results.reduce((sum, r) => sum + r.walk_disclosed_count, 0);
+  const walkTotal = results.reduce((sum, r) => sum + r.walk_total_count, 0);
+  const talkDisclosed = results.reduce((sum, r) => sum + r.talk_disclosed_count, 0);
+  const talkTotal = results.reduce((sum, r) => sum + r.talk_total_count, 0);
+  const chartData = [...results]
+    .sort((a, b) => b.disclosed_count - a.disclosed_count)
+    .map((r) => ({ label: r.name, value: r.disclosed_count }));
+
+  return (
+    <section className="card">
+      <h3>Batch overview ({results.length} companies)</h3>
+      <div className="stat-tile-grid">
+        <div className="stat-tile">
+          <div className="stat-value">{walkTotal > 0 ? `${Math.round((walkDisclosed / walkTotal) * 100)}%` : "—"}</div>
+          <div className="stat-label">Aggregate "walk" disclosed ({walkDisclosed}/{walkTotal} indicators)</div>
+        </div>
+        <div className="stat-tile">
+          <div className="stat-value">{talkTotal > 0 ? `${Math.round((talkDisclosed / talkTotal) * 100)}%` : "—"}</div>
+          <div className="stat-label">Aggregate "talk" disclosed ({talkDisclosed}/{talkTotal} indicators)</div>
+        </div>
+      </div>
+      <p className="help-text">Companies ranked by total indicators disclosed (out of 64):</p>
+      <BarChart data={chartData} valueFormatter={(v) => `${v}/64`} />
+    </section>
   );
 }
 
@@ -193,26 +231,28 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
         {showMethodology ? "Hide" : "Show"} the 64 indicators
       </button>
       {showMethodology && (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Category</th>
-              <th>Walk/Talk</th>
-              <th>Question</th>
-            </tr>
-          </thead>
-          <tbody>
-            {indicators.map((i) => (
-              <tr key={i.identifier}>
-                <td>{i.number}</td>
-                <td>{CATEGORY_LABELS[i.category]}</td>
-                <td>{i.walk_or_talk}</td>
-                <td>{i.question}</td>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Category</th>
+                <th>Walk/Talk</th>
+                <th>Question</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {indicators.map((i) => (
+                <tr key={i.identifier}>
+                  <td>{i.number}</td>
+                  <td>{CATEGORY_LABELS[i.category]}</td>
+                  <td>{i.walk_or_talk}</td>
+                  <td>{i.question}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       <section className="card">
@@ -250,56 +290,59 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
             </label>
             <input placeholder="your name" value={reviewer} onChange={(e) => setReviewer(e.target.value)} style={{ maxWidth: 160 }} />
           </div>
+          {results.length > 0 && <BatchOverview results={results} />}
           {results.length > 0 && (
             <div className="split-review">
               <div className="split-review-main">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Company</th>
-                      <th>Disclosed</th>
-                      <th>Walk</th>
-                      <th>Talk</th>
-                      <th>Confidence</th>
-                      <th>Needs review</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((r) => (
-                      <Fragment key={r.company_id}>
-                        <tr className="clickable-row" onClick={() => setExpanded(expanded === r.company_id ? null : r.company_id)}>
-                          <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
-                          <td>{r.disclosed_count}/64</td>
-                          <td>{r.walk_disclosed_count}/{r.walk_total_count}</td>
-                          <td>{r.talk_disclosed_count}/{r.talk_total_count}</td>
-                          <td><ConfidenceBadge value={r.overall_confidence} /></td>
-                          <td>{r.needs_review ? "⚑" : ""}</td>
-                        </tr>
-                        {expanded === r.company_id && (
-                          <tr>
-                            <td colSpan={6} className="detail-cell">
-                              {(r.company_sector || r.company_location) && (
-                                <p className="muted">
-                                  {r.company_sector && `Sector: ${r.company_sector}`}
-                                  {r.company_sector && r.company_location && " · "}
-                                  {r.company_location && `Headquarters: ${r.company_location}`}
-                                </p>
-                              )}
-                              <IndicatorTable
-                                record={r}
-                                runId={runId}
-                                reviewer={reviewer}
-                                reviewDecisions={reviewDecisions}
-                                onReviewed={refreshResults}
-                                onOpenSource={setActiveSource}
-                              />
-                            </td>
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Company</th>
+                        <th>Disclosed</th>
+                        <th>Walk</th>
+                        <th>Talk</th>
+                        <th>Confidence</th>
+                        <th>Needs review</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {results.map((r) => (
+                        <Fragment key={r.company_id}>
+                          <tr className="clickable-row" onClick={() => setExpanded(expanded === r.company_id ? null : r.company_id)}>
+                            <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
+                            <td>{r.disclosed_count}/64</td>
+                            <td>{r.walk_disclosed_count}/{r.walk_total_count}</td>
+                            <td>{r.talk_disclosed_count}/{r.talk_total_count}</td>
+                            <td><ConfidenceBadge value={r.overall_confidence} /></td>
+                            <td>{r.needs_review ? "⚑" : ""}</td>
                           </tr>
-                        )}
-                      </Fragment>
-                    ))}
-                  </tbody>
-                </table>
+                          {expanded === r.company_id && (
+                            <tr>
+                              <td colSpan={6} className="detail-cell">
+                                {(r.company_sector || r.company_location) && (
+                                  <p className="muted">
+                                    {r.company_sector && `Sector: ${r.company_sector}`}
+                                    {r.company_sector && r.company_location && " · "}
+                                    {r.company_location && `Headquarters: ${r.company_location}`}
+                                  </p>
+                                )}
+                                <IndicatorTable
+                                  record={r}
+                                  runId={runId}
+                                  reviewer={reviewer}
+                                  reviewDecisions={reviewDecisions}
+                                  onReviewed={refreshResults}
+                                  onOpenSource={setActiveSource}
+                                />
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
               <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
             </div>

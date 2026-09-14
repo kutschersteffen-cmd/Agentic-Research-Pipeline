@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from arp.research.indirect_exposure.criticality import critical_isic_codes
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.schemas.exposure import IndirectExposureResult
 
@@ -10,12 +11,20 @@ def compute_indirect_exposure(
     model: LeontiefModel,
     core_codes: set[str],
     icio_edition: str,
+    *,
+    critical_codes: set[str] | None = None,
 ) -> IndirectExposureResult | None:
     """Computes structural exposure via Leontief propagation. Pure
     arithmetic on an already-built model -- no LLM call, effectively free
     per company. Returns None if the company's industry or none of the
     theme's core industries are present in this model.
+
+    `critical_codes` defaults to the bundled criticality registry's ISIC
+    set (arp.research.indirect_exposure.criticality) when not supplied --
+    the parameter exists so callers/tests can inject a synthetic set
+    without depending on the real bundled registry's contents.
     """
+    resolved_critical_codes = critical_codes if critical_codes is not None else critical_isic_codes()
     idx = model.index_of(isic_code)
     if idx is None:
         return None
@@ -44,5 +53,6 @@ def compute_indirect_exposure(
         upstream_exposure=min(max(upstream, 0.0), 1.0),
         downstream_exposure=min(max(downstream, 0.0), 1.0),
         core_sector=isic_code in core_codes,
+        critical_input=isic_code in resolved_critical_codes,
         icio_edition=icio_edition,
     )

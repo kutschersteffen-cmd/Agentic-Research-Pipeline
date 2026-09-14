@@ -11,7 +11,7 @@ from arp.research.revenue_exposure.resolver import (
     resolve_from_catalogue,
     resolve_from_extraction,
 )
-from arp.schemas.common import CompanyRef, Citation, DocType, SourceDocument
+from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping, CatalogueDataPoint
 from arp.schemas.thematic import ActivityDefinition, ExposureEstimate
 

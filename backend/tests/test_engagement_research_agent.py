@@ -2,7 +2,7 @@ from arp.engagement.research_agent import ResearchDossierDraft, research_company
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
-from arp.schemas.engagement import EngagementRecord, EngagementIssue, TriggerSource
+from arp.schemas.engagement import EngagementIssue, EngagementRecord, TriggerSource
 
 
 class _FixedDocSource(DocumentSource):

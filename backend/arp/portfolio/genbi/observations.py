@@ -180,7 +180,7 @@ def facts_for_trend(panel: PanelSpec, trend: list[TrendPoint], unit: str = "") -
         total_weight = sum(weights)
         if not values or not total_weight:
             return 0.0
-        return sum(v * w for v, w in zip(values, weights)) / total_weight
+        return sum(v * w for v, w in zip(values, weights, strict=True)) / total_weight
 
     start, end = series_total(first), series_total(last)
     delta = end - start

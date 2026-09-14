@@ -4,7 +4,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from arp.schemas.common import DocType, now_iso, new_id
+from arp.schemas.common import DocType, new_id, now_iso
 
 
 class DocumentEventType(StrEnum):

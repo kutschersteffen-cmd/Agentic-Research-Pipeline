@@ -75,38 +75,40 @@ export function VotingRuns() {
         </div>
         {runs.length === 0 && <p className="muted">No voting runs yet.</p>}
         {runs.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Run ID</th>
-                <th>Status</th>
-                <th>Progress</th>
-                <th>Awaiting decision</th>
-                <th>Created</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {runs.map((r) => (
-                <tr key={r.run_id} className="clickable-row" onClick={() => setSelectedRunId(r.run_id)}>
-                  <td>{r.run_id}</td>
-                  <td>
-                    <span className={`status-pill status-${r.status}`}>{r.status}</span>
-                  </td>
-                  <td>
-                    {r.completed_count}/{r.company_count}
-                  </td>
-                  <td>{r.review_count}</td>
-                  <td>{new Date(r.created_at).toLocaleString()}</td>
-                  <td>
-                    <button className="link-button" onClick={(e) => { e.stopPropagation(); setSelectedRunId(r.run_id); }}>
-                      Open
-                    </button>
-                  </td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Run ID</th>
+                  <th>Status</th>
+                  <th>Progress</th>
+                  <th>Awaiting decision</th>
+                  <th>Created</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {runs.map((r) => (
+                  <tr key={r.run_id} className="clickable-row" onClick={() => setSelectedRunId(r.run_id)}>
+                    <td>{r.run_id}</td>
+                    <td>
+                      <span className={`status-pill status-${r.status}`}>{r.status}</span>
+                    </td>
+                    <td>
+                      {r.completed_count}/{r.company_count}
+                    </td>
+                    <td>{r.review_count}</td>
+                    <td>{new Date(r.created_at).toLocaleString()}</td>
+                    <td>
+                      <button className="link-button" onClick={(e) => { e.stopPropagation(); setSelectedRunId(r.run_id); }}>
+                        Open
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 

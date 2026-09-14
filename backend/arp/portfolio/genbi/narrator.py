@@ -94,10 +94,7 @@ def _parse_number(token: str) -> float | None:
 
 
 def _matches(candidate: float, allowed: list[float]) -> bool:
-    for value in allowed:
-        if abs(candidate - value) <= max(abs(value) * _RELATIVE_TOLERANCE, 1e-9):
-            return True
-    return False
+    return any(abs(candidate - value) <= max(abs(value) * _RELATIVE_TOLERANCE, 1e-9) for value in allowed)
 
 
 def check_grounding(text: str, facts: list[DashboardFact]) -> list[str]:

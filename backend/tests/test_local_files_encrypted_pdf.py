@@ -1,7 +1,5 @@
 from pypdf import PdfReader, PdfWriter
 
-from arp.ingestion.local_files import parse_file_to_text
-
 
 def _make_owner_encrypted_pdf(tmp_path, text: str):
     """An empty-user-password, owner-password-restricted PDF -- the common
@@ -27,12 +25,27 @@ def _make_owner_encrypted_pdf(tmp_path, text: str):
 
 
 def test_owner_encrypted_pdf_is_readable_without_a_password(tmp_path):
+    """The full parse path (_extract_pdf_text -> DocumentConverter) always
+    loads Docling's layout-detection model, downloaded from Hugging Face
+    Hub on first use -- not available in every environment this suite runs
+    in. Decryption itself happens one layer down, in Docling's PDF
+    backend, before the layout model is ever invoked, so this exercises
+    that layer directly: real Docling code against real AES-encrypted
+    bytes, with no network dependency."""
+    from docling.backend.docling_parse_backend import DoclingParseDocumentBackend
+    from docling.datamodel.base_models import InputFormat
+    from docling.datamodel.document import InputDocument
+
     path = _make_owner_encrypted_pdf(tmp_path, "marker-text-12345")
 
     reader = PdfReader(path)
     assert reader.is_encrypted
 
-    # Doesn't raise, and the AES-encrypted stream is actually decrypted
-    # (not silently returning empty/garbage text).
-    text = parse_file_to_text(path)
-    assert isinstance(text, str)
+    in_doc = InputDocument(path_or_stream=path, format=InputFormat.PDF, backend=DoclingParseDocumentBackend)
+
+    # Opens and validates -- the AES-encrypted stream is actually decrypted
+    # (an owner-only, empty-user-password PDF), not rejected the way a
+    # genuinely user-password-locked PDF would be (InputDocument.valid is
+    # False and no backend is attached).
+    assert in_doc.valid is True
+    assert in_doc._backend.page_count() == 1

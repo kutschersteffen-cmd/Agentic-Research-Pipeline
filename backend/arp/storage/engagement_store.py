@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import os
 import tempfile
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
 
 from arp.schemas.common import now_iso
-from arp.storage.locks import KeyedLock
-from arp.storage.safe_path import safe_id
 from arp.schemas.engagement import (
     Commitment,
     CommitmentStatus,
@@ -22,6 +20,9 @@ from arp.schemas.engagement import (
     MilestoneStage,
     TriggerSource,
 )
+from arp.storage.locks import KeyedLock
+from arp.storage.postgres_projection_config import ProjectionConfig
+from arp.storage.safe_path import safe_id
 
 
 class EngagementStore:
@@ -36,9 +37,10 @@ class EngagementStore:
     current snapshot.
     """
 
-    def __init__(self, engagements_dir: Path) -> None:
+    def __init__(self, engagements_dir: Path, projection_config: ProjectionConfig | None = None) -> None:
         self.engagements_dir = engagements_dir
         self._locks = KeyedLock()
+        self._projection_config = projection_config
 
     @contextmanager
     def lock(self, company_id: str) -> Iterator[None]:
@@ -76,6 +78,11 @@ class EngagementStore:
         except BaseException:
             Path(tmp_path).unlink(missing_ok=True)
             raise
+
+        if self._projection_config is not None and self._projection_config.engagement_enabled:
+            from arp.storage.postgres_engagement_projection import sync_record_if_enabled
+
+            sync_record_if_enabled(self._projection_config, record)
         return record
 
     def _log_event(self, company_id: str, event_type: str, detail: dict) -> None:

@@ -29,5 +29,11 @@ class IndirectExposureResult(BaseModel):
         ge=0.0, le=1.0, description="Share of this industry's total downstream propagation landing in core sectors."
     )
     core_sector: bool = Field(description="True if the company's own industry is itself one of the theme's core sectors.")
+    critical_input: bool = Field(
+        default=False,
+        description="True if isic_code is one of the bundled USGS/IEA-flagged critical-mineral ISIC divisions "
+        "(see arp.research.indirect_exposure.criticality) -- a coarse division-level heuristic, independent of "
+        "the upstream/downstream Leontief exposure math.",
+    )
     icio_edition: str = Field(description="Label identifying which input-output dataset produced this result.")
     generated_at: str = Field(default_factory=now_iso)

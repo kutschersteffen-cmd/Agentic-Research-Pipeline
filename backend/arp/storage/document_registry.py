@@ -3,8 +3,8 @@ from __future__ import annotations
 import hashlib
 import logging
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from arp.schemas.common import new_id, now_iso
 from arp.storage.safe_path import safe_id
@@ -20,12 +20,24 @@ CREATE TABLE IF NOT EXISTS documents (
     title          TEXT NOT NULL,
     local_path     TEXT,
     source_url     TEXT,
+    storage_uri    TEXT,
     first_seen_at  TEXT NOT NULL,
     last_seen_at   TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_documents_company ON documents (company_id, doc_type);
 CREATE INDEX IF NOT EXISTS ix_documents_content ON documents (content_key);
 """
+
+
+def ensure_storage_uri_column(conn: sqlite3.Connection) -> None:
+    """Additive migration for databases created before storage_uri existed
+    -- `CREATE TABLE IF NOT EXISTS` in SCHEMA above only covers a fresh
+    database, so an existing `documents` table needs this explicit
+    ALTER TABLE instead. Idempotent: a no-op once the column exists."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(documents)").fetchall()}
+    if "storage_uri" not in cols:
+        conn.execute("ALTER TABLE documents ADD COLUMN storage_uri TEXT")
+        conn.commit()
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +49,7 @@ class StoredDocumentRef:
     title: str
     local_path: str | None
     source_url: str | None
+    storage_uri: str | None = None
 
 
 def derive_doc_id(company_id: str, doc_type: str, content_key: str) -> str:
@@ -134,13 +147,67 @@ class DocumentRegistry:
         conn = self._connect()
         try:
             row = conn.execute(
-                "SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url "
+                "SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri "
                 "FROM documents WHERE doc_id=?",
                 (doc_id,),
             ).fetchone()
             if row is None:
                 return None
             return StoredDocumentRef(*row)
+        finally:
+            conn.close()
+
+    def set_storage_uri(self, doc_id: str, storage_uri: str) -> None:
+        """Records where a document's immutable original bytes ended up in
+        object storage (see arp/storage/document_blob_store.py), after the
+        fact -- registration itself never blocks on an object-store upload,
+        so this is a separate, best-effort follow-up call."""
+        if not self.enabled:
+            return
+        conn = self._connect()
+        try:
+            conn.execute("UPDATE documents SET storage_uri=? WHERE doc_id=?", (storage_uri, doc_id))
+            conn.commit()
+        finally:
+            conn.close()
+
+    def list_by_content_keys(self, content_keys: list[str]) -> dict[str, StoredDocumentRef]:
+        """Batch lookup for enriching a page of parsed_content rows with
+        company_id/doc_type/title/local_path in one query instead of N --
+        used by the "view stored extractions" browser, which only has each
+        row's content_key (parsed_content has no company/doc_type identity
+        of its own). Content-addressed, so in the rare case more than one
+        document shares a content_key (identical bytes registered under
+        different company/doc_type), the last row read wins -- acceptable
+        for a display-only enrichment, unlike register_document's identity
+        guarantees."""
+        if not self.enabled or not content_keys:
+            return {}
+        conn = self._connect()
+        try:
+            placeholders = ",".join("?" for _ in content_keys)
+            rows = conn.execute(
+                f"SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri "
+                f"FROM documents WHERE content_key IN ({placeholders})",
+                content_keys,
+            ).fetchall()
+            return {row[3]: StoredDocumentRef(*row) for row in rows}
+        finally:
+            conn.close()
+
+    def list_all(self) -> list[StoredDocumentRef]:
+        """Every registered document, for backfill/reindex use (`arp db
+        reindex documents`/`opensearch`/`object-store`) -- not used on any
+        hot path, so no pagination is offered."""
+        if not self.enabled:
+            return []
+        conn = self._connect()
+        try:
+            rows = conn.execute(
+                "SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri "
+                "FROM documents ORDER BY doc_id"
+            ).fetchall()
+            return [StoredDocumentRef(*row) for row in rows]
         finally:
             conn.close()
 

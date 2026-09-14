@@ -119,3 +119,22 @@ class TaxonomyStore:
         )
         self._version_path(taxonomy_id, version).write_text(ratified.model_dump_json(indent=2))
         return ratified
+
+
+def ensure_taxonomy_usable_for_run(taxonomy: Taxonomy, require_ratified: bool) -> None:
+    """The human curation gate (Step 0d): when require_ratified is set,
+    refuses to let a run start from a taxonomy still in DRAFT status.
+
+    Off by default (require_ratified=False) so anyone iterating on a draft
+    taxonomy keeps today's workflow; a deployment that wants a hard gate
+    turns it on via ARP_REQUIRE_RATIFIED_TAXONOMY. A pure function rather
+    than inline router logic so the gate itself is unit-testable without
+    spinning up the FastAPI app.
+    """
+    if not require_ratified:
+        return
+    if taxonomy.status != TaxonomyStatus.RATIFIED:
+        raise ValueError(
+            f"Taxonomy {taxonomy.taxonomy_id} v{taxonomy.version} is still {taxonomy.status.value}; ratify it "
+            "first (POST /api/taxonomies/{taxonomy_id}/ratify) or disable ARP_REQUIRE_RATIFIED_TAXONOMY."
+        )

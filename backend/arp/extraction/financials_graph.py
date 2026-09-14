@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from langgraph.graph import END, StateGraph
-
 from arp.config import Settings
 from arp.extraction.financials_aggregator import build_financials_record
 from arp.extraction.financials_extractor_agent import FinancialsExtractionDraft, extract_financials
 from arp.extraction.financials_verifier_agent import FinancialsVerifierOutput, verify_financials
+from arp.extraction.graph_shape import build_extract_verify_graph
 from arp.extraction.segment_extractor_agent import SEGMENT_DOC_TYPES, SEGMENT_KEYWORDS
 from arp.extraction.spend_extractor_agent import SPEND_DOC_TYPES, SPEND_KEYWORDS
 from arp.ingestion.parsing import chunk_document
@@ -32,7 +31,12 @@ _MAX_CHUNKS_PER_TOPIC = 10
 
 
 def _select_evidence(
-    chunks: list[DocumentChunk], *, hybrid_retrieval_enabled: bool = False, content_store=None
+    chunks: list[DocumentChunk],
+    *,
+    hybrid_retrieval_enabled: bool = False,
+    content_store=None,
+    retrieval_backend: str = "bm25",
+    opensearch_client=None,
 ) -> list[DocumentChunk]:
     """Per-topic BM25-ranked selection, capped per topic, then
     unioned/deduped -- so a topic with sparser evidence (e.g. a single
@@ -49,6 +53,8 @@ def _select_evidence(
             max_chunks=_MAX_CHUNKS_PER_TOPIC,
             hybrid_retrieval_enabled=hybrid_retrieval_enabled,
             content_store=content_store,
+            retrieval_backend=retrieval_backend,
+            opensearch_client=opensearch_client,
         ):
             selected[c.chunk_id] = c
     return list(selected.values())
@@ -87,7 +93,21 @@ async def _gather_evidence(state: FinancialsState) -> dict:
 
         content_store = build_hybrid_content_store(settings)
 
-    return {"evidence": _select_evidence(all_chunks, hybrid_retrieval_enabled=hybrid_enabled, content_store=content_store)}
+    opensearch_client = None
+    if settings is not None and settings.retrieval_backend == "opensearch" and settings.opensearch_url:
+        from arp.storage.opensearch_client import get_client
+
+        opensearch_client = get_client(settings.opensearch_url)
+
+    return {
+        "evidence": _select_evidence(
+            all_chunks,
+            hybrid_retrieval_enabled=hybrid_enabled,
+            content_store=content_store,
+            retrieval_backend=settings.retrieval_backend if settings is not None else "bm25",
+            opensearch_client=opensearch_client,
+        )
+    }
 
 
 def _route_after_evidence(state: FinancialsState) -> str:
@@ -139,26 +159,15 @@ async def _aggregate(state: FinancialsState) -> dict:
     return {"record": record}
 
 
-def _build_graph():
-    graph = StateGraph(FinancialsState)
-    graph.add_node("gather_evidence", _gather_evidence)
-    graph.add_node("finalize_no_evidence", _finalize_no_evidence)
-    graph.add_node("extract", _extract)
-    graph.add_node("verify", _verify)
-    graph.add_node("aggregate", _aggregate)
-
-    graph.set_entry_point("gather_evidence")
-    graph.add_conditional_edges(
-        "gather_evidence", _route_after_evidence, {"extract": "extract", "finalize_no_evidence": "finalize_no_evidence"}
-    )
-    graph.add_edge("finalize_no_evidence", END)
-    graph.add_edge("extract", "verify")
-    graph.add_edge("verify", "aggregate")
-    graph.add_edge("aggregate", END)
-    return graph.compile()
-
-
-_COMPILED_GRAPH = _build_graph()
+_COMPILED_GRAPH = build_extract_verify_graph(
+    FinancialsState,
+    gather_evidence=_gather_evidence,
+    route_after_evidence=_route_after_evidence,
+    finalize_no_evidence=_finalize_no_evidence,
+    extract=_extract,
+    verify=_verify,
+    aggregate=_aggregate,
+)
 
 
 async def extract_company_financials(

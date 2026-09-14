@@ -79,7 +79,10 @@ precision at scale (designed for up to ~4,000 companies per run).
    independent read of company disclosures. See
    [`docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md`](docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md)
    for the full design and `arp portfolio --help` / `arp climate --help`
-   below to try it against the built-in mock dataset.
+   below to try it against the built-in mock dataset. See
+   [`docs/SPEC_GAP_ANALYSIS.md`](docs/SPEC_GAP_ANALYSIS.md) for how this
+   compares, section by section, against an external functional
+   requirements spec for the same problem space.
 8. **Transition Plan Assessment** — a direct replication of Colesanti
    Senni, Schimanski, Bingler, Ni & Leippold (2024), *"Using AI to assess
    corporate climate transition disclosures"*: scores a company's
@@ -95,6 +98,94 @@ precision at scale (designed for up to ~4,000 companies per run).
    "walk vs. talk" disclosure-completeness metric per company. See
    [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md#transition-plan-assessment)
    for the full mapping from paper to implementation.
+9. **Presentation & Reporting Tool** — turns qualitative findings and
+   quantitative datasets (CSV/XLSX upload) into a pptx/docx/pdf, matched to
+   a stated audience and layout instructions. A `.pptx` template can be
+   ingested first so the generated deck reuses its slide layouts, theme
+   colors, and fonts (`arp/reporting/style_profile.py`, extracted
+   deterministically via python-pptx — never LLM-guessed). One LLM call (the
+   Content Planner) drafts a structured `ReportPlan` — section headings,
+   narrative bullets, and a chart/table spec per section, choosing from bar/
+   column/line/area/pie/doughnut/scatter/radar/waterfall/heatmap; every
+   chart type PowerPoint supports natively is rendered as a real, still-
+   editable Office chart object bound to its own embedded data (not a
+   picture), with a matplotlib-rendered image as the fallback for chart
+   types with no native pptx equivalent (waterfall, heatmap) and for the
+   docx/pdf paths, which have no native chart object at all. Nothing after
+   that first call touches the model: the plan is deterministically
+   rendered by `deck_builder.py`/`report_builder.py`/`pdf_builder.py`, and
+   can be reviewed or hand-edited (reorder sections, swap a chart type,
+   rewrite narrative) via `GET`/`PUT /api/reports/{id}/plan` before the
+   final render — the same "LLM plans, code executes" split as every other
+   pipeline in this codebase, and the main lever for large flexibility over
+   the output without re-prompting the model.
+
+10. **Investment Strategy Replication** — reduces an academic "outperformance"
+   strategy paper (momentum, book-to-market value, quality, ...) to an
+   executable spec via the same extractor/independent-verifier/grounding
+   pipeline used everywhere else in this codebase, then backtests it
+   deterministically (zero LLM calls in the computation itself) against a
+   pluggable price data source (and, for a fundamental-characteristic-based
+   signal like value, a pluggable characteristics data source too):
+   in-sample against the paper's own reported performance, and out-of-sample
+   over any later window with identical rules, to check whether the effect
+   persists or decays. Rebalance frequency is fully user-defined --
+   monthly/quarterly/annual presets, a custom interval in months (e.g.
+   every 18 months), and an optional calendar-month anchor (e.g. the
+   classic June-aligned annual value-factor rebalance) -- covering both
+   Jegadeesh & Titman's overlapping-portfolio construction and a standard
+   non-overlapping rebalance with the same code path. A `text_sentiment`
+   signal scores news/transcript text for sentiment via a grounded LLM
+   pass (explicitly instructed never to use hindsight about what happened
+   after a document's own date, to avoid the temporal-contamination risk
+   LLM-scored historical text is prone to) and feeds it through the same
+   pluggable-characteristics-data plumbing as value; a `composite` signal
+   combines two or more signals (e.g. momentum + value) via weighted
+   rank-averaging. Every StrategySpec carries `provenance` (extractor/
+   verifier model + prompt hash, mirroring `ExtractedField` elsewhere in
+   this codebase) and a bundled, deterministic golden set
+   (`arp replicate golden-set`) regression-tests the backtest engine
+   itself before a change ships. An optional qualitative LLM "sanity
+   check" pass (`arp replicate sanity-check`) reviews a finished
+   comparison report for implausible results (an impossible Sharpe ratio,
+   a too-thin universe, an overfitting signature) as a second opinion
+   layered on top of -- never replacing -- the deterministic numbers, and
+   a literature-discovery agent (`arp replicate discover-papers`, mirrors
+   the Taxonomy Researcher's propose-never-auto-apply pattern) searches
+   for and ranks candidate outperformance papers on a topic for a human to
+   review before feeding one into extraction -- against arXiv's own API,
+   the Semantic Scholar Graph API (a legitimate stand-in for "search
+   SSRN", which has no public search API of its own), generic web search,
+   or all three merged. Ships with two worked
+   hand-authored examples (Jegadeesh & Titman (1993) 6-month/6-month
+   momentum; a book-to-market value decile sort with a genuine annual,
+   June-aligned rebalance) to exercise the backtest engine end to end.
+   Statistical-rigor tooling addresses the "how surprised should I be,
+   given how many things could have been tried" question a plain
+   in-sample/out-of-sample verdict doesn't: a multiple-testing-aware
+   significance hurdle (`StrategySpec.num_trials_attempted`, scaling the
+   t-stat bar from 2.0 toward a Harvey-Liu-Zhu-inspired 3.0), a
+   scipy-free Deflated/Probabilistic Sharpe Ratio computed automatically
+   on every comparison report (Bailey & Lopez de Prado), a Probability of
+   Backtest Overfitting analysis across candidate spec variants via
+   purged, embargoed Combinatorially Symmetric Cross-Validation
+   (`arp replicate pbo`, Bailey/Borwein/Lopez de Prado/Zhu), and a
+   regime-stratified performance breakdown (`arp replicate regime-report`)
+   surfacing the kind of volatility-regime-dependent decay a single
+   full-sample Sharpe ratio can hide. A full frontend page ("Strategy
+   Replication" nav tab) covers the whole workflow with explicit human
+   gates: propose a strategy (topic search over candidate papers, or
+   describe your own methodology in plain English), review the drafted
+   spec sheet -- edit any field directly or give natural-language
+   revision instructions, both recorded in a permanent audit trail via the
+   same review-decision machinery four other features already share --
+   and approve it (re-checked server-side) before a backtest can run at
+   all, then analyze the results (equity curve, drawdown, regime
+   breakdown, on-demand sanity check) once it has. See
+   [`docs/STRATEGY_REPLICATION_METHODOLOGY.md`](docs/STRATEGY_REPLICATION_METHODOLOGY.md)
+   for the full design, what "in-sample vs. out-of-sample" means here, and
+   its current limitations (no point-in-time universe reconstruction, no
+   transaction-cost modeling).
 
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches, and
@@ -103,11 +194,18 @@ for a layer-by-layer comparison of this system against a proposed
 seven-layer target architecture (Postgres/pgvector, Temporal, per-role
 model tiering) — what already exceeds it, and which of its gaps
 (decorrelated critic model, XBRL ingestion, a golden set) are genuinely
-worth adopting. [`docs/GENBI_LANDSCAPE_REVIEW.md`](docs/GENBI_LANDSCAPE_REVIEW.md)
-does the same for the Generative BI layer against the open-source GenBI
-field (WrenAI, Cube, text-to-SQL agents): where their semantic-layer
-benchmarks land, why this system emits a validated query spec instead of
-SQL, and which of their ideas are worth taking.
+worth adopting, and [`docs/TECHNICAL_REFERENCE.md`](docs/TECHNICAL_REFERENCE.md)
+for a full inventory of every functional module, the agent/AI stack, and
+every backend and frontend package, and
+[`docs/CORPORATE_READINESS_PLAN.md`](docs/CORPORATE_READINESS_PLAN.md) for
+the phased plan to take this from a locally-run tool to a corporate
+deployment (auth, secrets, containerization, GCP target architecture, and
+the compliance/vendor decisions that gate parts of it).
+[`docs/GENBI_LANDSCAPE_REVIEW.md`](docs/GENBI_LANDSCAPE_REVIEW.md) does the
+same layer-by-layer comparison for the Generative BI layer against the
+open-source GenBI field (WrenAI, Cube, text-to-SQL agents): where their
+semantic-layer benchmarks land, why this system emits a validated query
+spec instead of SQL, and which of their ideas are worth taking.
 
 ## Architecture
 
@@ -126,6 +224,11 @@ ballots/           voting-instruction files written by the (stub) manual
                    ballot-casting platform, one per cast vote
 portfolios/       portfolio holdings snapshots, security/company registries,
                    and climate data-point observations
+reports/          Presentation & Reporting Tool: one directory per generated
+                   report (manifest, request, LLM-drafted plan, rendered
+                   pptx/docx/pdf)
+report_templates/ ingested .pptx template style profiles + the original
+                   template file each is cloned from
 ```
 
 ### Agent stack
@@ -181,6 +284,52 @@ npm install
 cp .env.example .env   # VITE_API_BASE, defaults to http://localhost:8000
 npm run dev             # serves the UI on :5173
 ```
+
+### Docker (optional)
+
+An alternative to the venv/npm setup above -- same app, containerized:
+
+```bash
+cp backend/.env.example backend/.env         # fill in ARP_ANTHROPIC_API_KEY
+docker compose up backend frontend --build   # backend on :8000, frontend on :5173
+```
+
+The same `docker-compose.yml` also defines the opt-in Postgres/OpenSearch/
+MinIO dev infrastructure described below ("Optional Postgres/pgvector
+store" and the OpenSearch/object-storage sections) -- `docker compose up`
+with no service names starts all of it together, or add just what you need
+(e.g. `docker compose up -d postgres`).
+
+Run state (`runs/`, `taxonomies/`, `portfolios/`, `data/documents/`, etc.)
+persists in named Docker volumes across restarts. See
+[`docs/CORPORATE_READINESS_PLAN.md`](docs/CORPORATE_READINESS_PLAN.md) for
+why this exists and what it doesn't yet cover (there's no authentication in
+front of either the venv or the Docker path today).
+
+### Contributing: secret-scanning pre-commit hook
+
+```bash
+pip install -e "backend[dev]"   # includes pre-commit
+pre-commit install
+```
+
+Scans every commit for accidentally-included secrets (API keys, tokens)
+before it's made; the same check also runs in CI.
+
+### Data handling
+
+What leaves your machine when you run this: document text and company
+data sent to Anthropic's API for extraction/classification (see the Agent
+stack section above); requests to SEC EDGAR, GDELT, regulatory RSS feeds,
+and whatever investor-relations sites the document discovery crawler
+reaches (`ARP_DISCOVERY_USER_AGENT`, robots.txt-respecting). Everything
+else -- run state, engagement/voting records, portfolio holdings, the
+document/LLM-response caches -- stays on local disk under the paths listed
+in `arp/config.py` unless you've configured the optional Postgres backend.
+Review this against your organization's data-handling/vendor-risk policy
+before pointing it at real, non-public holdings or engagement data --
+see [`docs/CORPORATE_READINESS_PLAN.md`](docs/CORPORATE_READINESS_PLAN.md)
+§6 for the open questions that need a Compliance/Legal answer.
 
 ### CLI (headless path for real 4,000-company batch runs)
 
@@ -241,6 +390,41 @@ arp golden-set planner                                     # the same, for the g
 arp transition-plan indicators                          # inspect the 64 fixed indicators
 arp transition-plan run --universe companies.csv
 
+# Investment Strategy Replication: extract a paper's methodology, then backtest it in/out-of-sample
+arp replicate examples                                                    # list bundled worked-example specs
+arp replicate example jegadeesh_titman_1993 --out spec.json               # a hand-authored worked example
+arp replicate extract-spec --paper-citation "..." --paper-text paper.txt --out spec.json  # from real paper text
+arp replicate backtest --spec spec.json --prices prices.csv --tickers universe.csv \
+  --benchmark SPY --out-of-sample-start 2010-01-01 --out-of-sample-end 2024-12-31
+# ...a characteristic-based (e.g. book-to-market value) spec additionally needs --characteristics:
+arp replicate example book_to_market_value_premium --out value_spec.json
+arp replicate backtest --spec value_spec.json --prices prices.csv --characteristics book_to_market=book_to_market.csv \
+  --tickers universe.csv
+arp replicate report <run_id>
+arp replicate sanity-check <run_id>                                       # qualitative LLM second opinion on the report
+arp replicate regime-report <run_id>                                      # low/mid/high volatility-regime performance breakdown (needs --benchmark on the backtest)
+
+# ...a text_sentiment spec: score a manifest of dated news/transcript excerpts, then backtest against the result
+arp replicate score-sentiment --manifest news_manifest.json --out news_sentiment.csv
+arp replicate backtest --spec sentiment_spec.json --prices prices.csv --characteristics news_sentiment=news_sentiment.csv \
+  --tickers universe.csv
+
+# ...a composite spec (e.g. momentum + value combined via rank-averaging) needs every component's characteristics:
+arp replicate backtest --spec composite_spec.json --prices prices.csv \
+  --characteristics book_to_market=book_to_market.csv --tickers universe.csv
+
+# Regression-test the backtest engine itself before a signals.py/backtest_engine.py change ships
+arp replicate golden-set
+
+# Discover and rank candidate outperformance papers on a topic (never fetches/extracts automatically)
+# --source defaults to "all" (arXiv + Semantic Scholar + generic web, merged/deduped); narrow it if you want just one
+arp replicate discover-papers "momentum anomaly" --out candidates.json
+
+# Probability of Backtest Overfitting across 2+ candidate spec variants, via purged/embargoed CSCV
+arp replicate pbo --candidate-spec mom3_spec.json --candidate-spec mom6_spec.json --candidate-spec mom12_spec.json \
+  --prices prices.csv --tickers universe.csv --period-start 2000-01-01 --period-end 2020-12-31 --num-blocks 8
+arp replicate discover-papers "quality investing" --out candidates.json --source arxiv
+
 # Document discovery
 arp discover run --universe companies.csv
 arp discover schedule --universe companies.csv --interval-hours 24 --enable
@@ -282,6 +466,25 @@ arp portfolio bi run dash_<id> --as-of 2026-02-27              # the same defini
 arp climate waci --group-by portfolio_id
 arp climate financed-emissions
 arp climate coverage climate_carbon_intensity
+
+# Presentation & Reporting Tool
+arp report ingest-template house_style.pptx              # extract a template's layouts/theme colors/fonts
+arp report add-dataset revenue.csv --out revenue.json     # parse a CSV/XLSX into a QuantitativeDataset
+
+# One-shot: draft + render immediately, no review step
+arp report run --title "Electrification Review" --notes notes.txt \
+  --data revenue.json --template-id tpl_xxxxxxxxxxxx --format pptx --out review.pptx
+
+# Review-before-render: draft, hand-edit the plan JSON, then render
+arp report plan --title "Electrification Review" --notes notes.txt \
+  --data revenue.json --template-id tpl_xxxxxxxxxxxx --format pptx --out plan.json
+# ...edit plan.json (reorder sections, swap a chart_type, rewrite narrative)...
+arp report update-plan <report_id> plan.json
+arp report render <report_id> --out review.pptx
+arp report show-plan <report_id>                          # re-inspect the stored plan at any point
+
+arp report list
+arp report show <report_id>
 ```
 
 `companies.csv` columns: `company_id, name, ticker, website, cik, country,
@@ -396,35 +599,56 @@ around the input-output math.
   instead. What persists from a generated dashboard is the
   query plan, not the prose, so re-running it recomputes from live
   holdings with no model in the loop at all
+- Investment Strategy Replication's own instances of the same disciplines:
+  `StrategySpec.provenance` (extractor/verifier model + prompt hash), a
+  deterministic golden set for the backtest engine itself
+  (`arp replicate golden-set`), and an LLM sentiment-scoring pass
+  explicitly instructed never to use hindsight about what happened after
+  a document's own date -- the temporal-contamination risk LLM-scored
+  historical text is otherwise prone to in a backtest
 
 Full detail in [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md).
 
-## Optional Postgres/pgvector store
+## Optional Postgres/pgvector + OpenSearch + object storage
 
 Every store in this system is file-based by default -- no database
-required. An opt-in Postgres/pgvector backend (`backend/arp/storage/postgres*.py`)
-is available for the two places a relational/vector engine genuinely earns
-its cost: **Portfolio Risk & Exposure Monitoring**'s holdings (real joins
-across portfolios × securities × companies × time) and the hybrid-retrieval
-chunk-embeddings cache. The run/review-queue/audit-trail stores everywhere
-else stay file-based JSONL regardless -- an append-only file is simpler to
-keep fully auditable than a table with `UPDATE`s, and none of those stores
-have the multi-way join access pattern that justifies a relational engine;
-see [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the full reasoning.
+required. Three opt-in backends are available, each additive: the
+file/SQLite stores stay the only writable source of truth either way,
+and every new store is populated by an indexer as a **queryable
+projection**, never a replacement write path (an append-only file is
+simpler to keep fully auditable than a table with `UPDATE`s, and this
+CQRS split is what lets these stores expand over time without giving
+that up -- see [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the full
+reasoning).
+
+- **Postgres/pgvector** (`backend/arp/storage/postgres*.py`): today,
+  **Portfolio Risk & Exposure Monitoring**'s holdings (real joins across
+  portfolios × securities × companies × time) and the hybrid-retrieval
+  chunk-embeddings cache.
+- **OpenSearch** (`backend/arp/storage/opensearch_client.py`): full-text/
+  vector search over documents and chunks, powering both a user-facing
+  search feature and an alternate BM25 retrieval backend.
+- **Object storage** (`backend/arp/storage/object_store_client.py`,
+  S3-compatible -- MinIO locally): an immutable copy of each source
+  document's original bytes, keyed by the same content hash the parsed-
+  text cache already uses.
 
 ```bash
-pip install -e ".[postgres]"   # sqlalchemy, psycopg, pgvector
+pip install -e ".[postgres,opensearch,object_storage]"
+
+# Local dev services (Postgres+pgvector, OpenSearch, MinIO)
+docker compose up -d postgres opensearch minio
 
 # .env
-ARP_POSTGRES_DSN=postgresql+psycopg://user:pass@localhost:5432/arp
+ARP_POSTGRES_DSN=postgresql+psycopg://arp:arp@localhost:5432/arp
 ARP_PORTFOLIO_BACKEND=postgres   # optional -- default stays "file"
 ARP_EMBEDDINGS_BACKEND=postgres  # optional -- default stays "sqlite"
+ARP_OPENSEARCH_URL=http://localhost:9200
+ARP_OBJECT_STORE_ENDPOINT_URL=http://localhost:9000
+ARP_OBJECT_STORE_ACCESS_KEY=arp
+ARP_OBJECT_STORE_SECRET_KEY=arp12345
 
-arp db init-postgres   # creates the pgvector extension + every table, idempotent
-```
-
-A local Postgres+pgvector for development:
-
-```bash
-docker run -d --name arp-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 pgvector/pgvector:pg16
+arp db init-postgres        # creates the pgvector extension + every table, idempotent
+arp db init-opensearch      # creates every index (behind its alias), idempotent
+arp db init-object-store    # creates the bucket, idempotent
 ```

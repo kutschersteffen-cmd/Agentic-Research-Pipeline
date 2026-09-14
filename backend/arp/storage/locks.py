@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator
 
 
 class KeyedLock:

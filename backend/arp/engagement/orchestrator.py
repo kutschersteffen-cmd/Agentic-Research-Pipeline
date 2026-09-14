@@ -1,11 +1,18 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from pydantic import BaseModel
 
-from arp.schemas.engagement import ESCALATION_ORDER, MILESTONE_ORDER, EngagementIssue, EscalationStage, IssueStatus, MilestoneStage
+from arp.schemas.engagement import (
+    ESCALATION_ORDER,
+    MILESTONE_ORDER,
+    EngagementIssue,
+    EscalationStage,
+    IssueStatus,
+    MilestoneStage,
+)
 
 
 class OrchestratorAction(StrEnum):
@@ -67,7 +74,7 @@ def is_stalled(issue: EngagementIssue, sla_days: int, now: datetime | None = Non
     `sla_days`. Resolved/closed issues are never stalled."""
     if issue.status in _TERMINAL_STATUSES:
         return False
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     last = datetime.fromisoformat(_last_activity_at(issue))
     return (now - last).days >= sla_days
 
