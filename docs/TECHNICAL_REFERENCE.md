@@ -42,17 +42,23 @@ The backend and frontend are fully decoupled: the CLI and the API call the exact
 | `grounding.py` | Programmatic citation-grounding check — re-verifies every LLM-claimed quote against the actual fetched document text and resolves its real page/location; independent of, and never trusts, any of the three agent-orchestration libraries below. |
 | `net_safety.py` | SSRF-hardening helpers shared by the discovery crawler and source inspector (blocks internal/link-local targets before any outbound fetch). |
 | `universe.py` | Company-universe CSV/JSON loading shared across every pipeline entry point. |
+| `agents/` | Standing (schedule-driven) agents that propose rather than apply: the Taxonomy Researcher (`taxonomy_researcher.py`, surfaces candidate activity/source updates for a human to accept) and the Calibration Agent (`calibration_agent.py`, re-checks confidence calibration against reviewed outcomes). |
 | `discovery/` | Document discovery crawler (site finder, robots.txt-respecting same-domain crawl, change detection, scheduler) **and** the agentic company-identity-resolution pipeline (`identity_agents.py`, `identity_graph.py`, `identity_pipeline.py`). |
+| `emerging_themes/` | The Emerging Themes Scanner: mention ingestion (`ingestion/` — EDGAR full-text search, GDELT, regulatory RSS), evidence tagging (`extraction.py`), clustering (`clustering.py`), cross-period lineage (`lineage.py`), discovery/materiality/contradiction scoring (`scoring.py`), XBRL action corroboration (`action_evidence.py`), the company role + exposure engine (`company_role.py`, `company_exposure.py`), candidate synthesis (`synthesis.py`) and the weekly scheduler. |
 | `engagement/` | Stewardship: issue tracking, controversy-trigger scanning, dossier drafting, reporting agents. |
 | `extraction/` | Three parallel extraction pipelines (general data-point, company financials, and their respective segment/spend sub-extractors), each as an extractor-agent + independent-verifier-agent pair wired through a LangGraph state graph, plus per-field aggregation. |
+| `golden_set/` | Bundled regression sets run against the real pipelines before a prompt/model change ships: extraction (`runner.py`), the generative-BI planner (`planner_runner.py`), and emerging-themes company-role classification (`role_runner.py`). |
 | `ingestion/` | `DocumentSource` implementations — SEC EDGAR (`edgar.py`) and local files (`local_files.py`) — plus chunking (`parsing.py`, `chunk_spans.py`) and a source registry. |
 | `llm/` | The single `LLMClient` interface (`base.py`) every agent calls through; `langchain_client.py` is the concrete LangChain/Anthropic implementation with a disk-backed response cache (`cache.py`) and a client factory (`factory.py`). |
 | `orchestration/` | Cross-pipeline batch execution: `batch_runner.py` (per-company fan-out, checkpointing, resumability), `job_manager.py` (run manifests/lifecycle), `review_queue.py` (queue/decide/history for any flagged item), `cost_tracker.py`. |
 | `portfolio/` | Deterministic (zero-LLM) holdings aggregation and analytics engine, the NL Q&A agent (LLM drafts the query, the engine computes the number), climate metrics (WACI, financed emissions, coverage), news classification, and mock connector implementations standing in for a real custodian/ESG-vendor feed. |
+| `replication/` | Investment Strategy Replication: paper discovery, spec extraction, the deterministic (zero-LLM) backtest engine and rebalance calendar, pluggable price/characteristics data sources, composite and text-sentiment signals, and the statistical-rigor layer (deflated Sharpe, purged/embargoed CSCV for PBO, regime stratification). |
+| `reporting/` | Presentation & Reporting Tool: the one LLM call that drafts a `ReportPlan` (`content_planner.py`), then deterministic renderers for pptx/docx/pdf (`deck_builder.py`, `report_builder.py`, `pdf_builder.py`), native + matplotlib chart building, and `.pptx` template style extraction (`style_profile.py`, python-pptx, never LLM-guessed). |
 | `research/` | The Advocate/Opposing/Adjudicator thematic-matching debate (`match_graph.py`, `matcher_agents.py`), the taxonomy library's five creation methods, standards crosswalks (NACE/NAICS/SIC/GICS), the opt-in indirect (input-output/Leontief) exposure tier, and the opt-in revenue/CapEx exposure cascade. |
 | `retrieval/` | BM25 evidence selection (default) plus an opt-in hybrid semantic layer (`embeddings.py`, fastembed-backed) and its on-disk index cache. |
 | `schemas/` | Every Pydantic model in the system — one module per domain, all LLM structured-output shapes included. |
 | `storage/` | File-backed stores for runs, portfolios, engagements, taxonomies, plus `DocumentContentStore` (the one SQLite exception, itself split into three focused collaborators — parsed-content cache, document registry, chunk-embeddings cache — behind a thin facade) and `KeyedLock` (per-key reentrant locking against read-modify-write races between concurrent request handlers and background batch threads). |
+| `transition_plan/` | Transition Plan Assessment: the paper's 64 fixed indicators (`indicators.py`), the per-indicator RAG agent + independent verifier wired through `indicator_graph.py`, and per-company walk/talk aggregation. |
 | `voting/` | Proxy-ballot pipeline: proposal extraction from proxy statements, policy-rule + LLM-judgment vote recommendations, human review, ballot casting. |
 
 ### Frontend structure (`frontend/src/`)
@@ -105,7 +111,22 @@ Aggregates holdings across every portfolio via a deterministic (zero-LLM) engine
 ### 3.11 Climate Analytics
 A sub-module of Portfolio Risk: weighted-average carbon intensity (WACI), PCAF-style financed emissions, and data-coverage reporting, sourced from a mock internal ESG API and cross-validated against the Extraction Engine's independent read of the same companies' disclosures — a mismatch between the two sources is surfaced, not silently resolved.
 
-### 3.12 Cross-cutting: orchestration, review, monitoring
+### 3.12 Transition Plan Assessment
+A direct replication of Colesanti Senni, Schimanski, Bingler, Ni & Leippold (2024): scores a company's climate disclosures against the paper's 64 fixed indicators (Target/Governance/Strategy/Tracking), each classified "talk" (future target) or "walk" (concrete, verifiable activity), one grounded RAG verdict (YES/NO/NA) per indicator. Unlike the paper's tool, every citation is independently re-verified against the source document by the same programmatic grounding check used everywhere else here, rather than trusted from the model's self-report.
+
+### 3.13 Presentation & Reporting Tool
+Turns qualitative findings and uploaded CSV/XLSX datasets into a pptx/docx/pdf for a stated audience. Exactly one LLM call (the Content Planner) drafts a structured `ReportPlan`; everything after it is deterministic rendering, and the plan can be reviewed or hand-edited via `GET`/`PUT /api/reports/{id}/plan` before the final render. A `.pptx` template can be ingested first so the output reuses its layouts, theme colors and fonts, extracted deterministically via python-pptx.
+
+### 3.14 Investment Strategy Replication
+Reduces an academic outperformance paper to an executable `StrategySpec` through the same extractor/independent-verifier/grounding pipeline used elsewhere, then backtests it deterministically (zero LLM calls in the computation) in-sample against the paper's own reported numbers and out-of-sample over any later window. Carries a multiple-testing-aware significance hurdle, a Deflated/Probabilistic Sharpe Ratio, PBO via purged and embargoed CSCV, and a regime-stratified breakdown. Human gates: a drafted spec must be reviewed and approved (re-checked server-side) before a backtest can run.
+
+### 3.15 Emerging Themes Scanner
+The bottom-up counterpart to the Thematic Universe Builder. Ingests EDGAR full-text search, GDELT and regulatory RSS across a universe, tags each mention into grounded evidence, clusters the tags, and tracks cluster lineage across ISO weeks (birth/continuation/merge/split) so novelty is measured against the prior period. Clusters are scored on velocity, breadth, persistence, novelty, materiality and contradiction; the promotion gate is the **action score** — the share of evidence describing something a company *did*, optionally corroborated against real SEC XBRL capex/R&D movement — so mention counts alone cannot produce a candidate. A two-tier engine classifies each company's role in a candidate theme with a risk/momentum/evidence-quality triple, leaving the full Revenue/CapEx/Demand/Enablement cascade to Tool 1 once promoted. Promote, reject and disconfirm are all human decisions and all require a recorded written reason; contradiction evidence is retained and displayed even on promoted candidates. See [`EMERGING_THEMES_VOCABULARY.md`](EMERGING_THEMES_VOCABULARY.md).
+
+### 3.16 Standing agents (propose, never auto-apply)
+The **Taxonomy Researcher** and the **Calibration Agent** (`agents/`) run on a schedule and surface proposals — candidate taxonomy activity/source updates, and confidence-calibration drift against reviewed outcomes — for a human to accept or discard. Neither writes to the taxonomy library or to settings on its own.
+
+### 3.17 Cross-cutting: orchestration, review, monitoring
 Every run type (`theme`, `extraction`, `financials`, `voting`, `identity`, `discovery`) shares one checkpointed/resumable batch-runner: results append to `runs/<run_id>/results.jsonl` per company as they complete, so an interrupted batch resumes without redoing finished work. Any running/pending run can be cooperatively cancelled and (for theme runs) resumed. The **Review Queue** is the single human checkpoint for anything flagged, ungrounded, or low-confidence across all five review-producing run types. The **Monitoring Dashboard** gives a live cross-pipeline view (currently executing, recently finished, open engagement issues, SLA breaches, ballot items awaiting decision), polling every 3 seconds while open.
 
 ---
@@ -212,6 +233,14 @@ arp engagement issue-open | trigger-scan | dossier-draft | issue-escalate | reco
 arp voting run | ballots | review | cast
 arp portfolio seed-demo | list | review-queue | aggregate | ask | classify-news
 arp climate waci | financed-emissions | coverage
+arp emerging-themes run | candidates | show | promote | reject | disconfirm | schedule
+arp transition-plan indicators | run
+arp report draft | plan | render | templates
+arp replicate extract | backtest | compare | discover-papers | score-sentiment | pbo | regime-report | sanity-check | golden-set
+arp taxonomy-researcher run | schedule
+arp calibration run | schedule
+arp golden-set run | run-roles | planner
+arp db init-postgres | project
 arp runs list | show | cancel
 ```
 
