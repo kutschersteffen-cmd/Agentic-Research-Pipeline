@@ -130,6 +130,19 @@ cap; and per-company output of a walk/talk-annotated verdict grid plus the
 disclosed-count-out-of-64 metric the paper uses as its core
 disclosure-completeness score.
 
+### The sector-level counterpart
+
+This assessment scores a *company's* credibility. The companion **Transition
+Barrier Assessment** (`backend/arp/transition_barrier/`) scores whether the
+transition is feasible in that company's sector and region at all -- a 105-cell
+matrix of 35 criteria x EU/US/China, rated H/M/L against explicit rubrics and
+backed by 86 verified sources. Read together they separate ambition from
+headroom: a weak transition plan in a sector where barriers are rated `L` is a
+different case from the same plan where they are rated `H`. Its methodology,
+operating rules and the full criteria and source lists are documented
+separately in
+[`docs/TRANSITION_BARRIER_ASSESSMENT.md`](TRANSITION_BARRIER_ASSESSMENT.md).
+
 ## The precision controls, concretely
 
 1. **Programmatic grounding, not LLM self-report** (`backend/arp/grounding.py`).

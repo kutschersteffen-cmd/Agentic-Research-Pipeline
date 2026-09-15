@@ -112,6 +112,11 @@ include = ["arp*"]
 [tool.setuptools.package-data]
 "arp.research.indirect_exposure" = ["sample_data/*.csv", "sample_data/*.md"]
 "arp.golden_set" = ["data/*.json"]
+"arp.transition_barrier" = ["data/*.json"]
+# These two were missing: their bundled data only resolves because CI and dev
+# both use `pip install -e .`, so a non-editable wheel would drop it silently.
+"arp.transition_plan" = ["data/*.json"]
+"arp.replication" = ["data/*.json"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

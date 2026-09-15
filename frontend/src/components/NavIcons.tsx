@@ -63,6 +63,15 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <path d="M12 3 L20 6 V12 C20 17 16.5 20.5 12 22 C7.5 20.5 4 17 4 12 V6 Z" />
     </svg>
   ),
+  // A hurdle: the barrier between where a sector is and where it needs to get to.
+  transitionBarrier: (
+    <svg {...ICON_PROPS}>
+      <path d="M3 20 V9" />
+      <path d="M21 20 V9" />
+      <path d="M3 11 H21" />
+      <path d="M3 15 H21" />
+    </svg>
+  ),
   identity: (
     <svg {...ICON_PROPS}>
       <rect x="3" y="5" width="18" height="14" rx="2" />

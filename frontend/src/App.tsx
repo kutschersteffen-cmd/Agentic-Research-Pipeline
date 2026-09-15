@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ThemeBuilder } from "./pages/ThemeBuilder";
 import { Extraction } from "./pages/Extraction";
 import { TransitionPlanAssessment } from "./pages/TransitionPlanAssessment";
+import { TransitionBarrierAssessment } from "./pages/TransitionBarrierAssessment";
 import { DocumentDiscovery } from "./pages/DocumentDiscovery";
 import { EmergingThemesDetector } from "./pages/EmergingThemesDetector";
 import { IdentityResolution } from "./pages/IdentityResolution";
@@ -29,6 +30,7 @@ const TABS = [
   { id: "backgroundAgents", label: "Background Agents" },
   { id: "extraction", label: "Extraction" },
   { id: "transitionPlan", label: "Transition Plan Assessment" },
+  { id: "transitionBarrier", label: "Transition Barrier Assessment" },
   { id: "identity", label: "Identity Resolution" },
   { id: "discovery", label: "Document Discovery" },
   { id: "portfolio-monitoring", label: "Portfolio Risk Monitoring Tool" },
@@ -46,7 +48,7 @@ const NAV_GROUPS: { label: string | null; ids: readonly (typeof TABS)[number]["i
   { label: null, ids: ["dashboard", "search"] },
   { label: "Theme Machine", ids: ["theme", "taxonomy", "emergingThemes"] },
   { label: "Company Research", ids: ["backgroundAgents", "extraction", "identity", "discovery"] },
-  { label: "Portfolio Analysis", ids: ["transitionPlan", "portfolio-monitoring", "strategyReplication"] },
+  { label: "Portfolio Analysis", ids: ["transitionPlan", "transitionBarrier", "portfolio-monitoring", "strategyReplication"] },
   { label: "StewardIQ", ids: ["engagement", "voting"] },
   { label: "Operations", ids: ["review", "history"] },
   { label: "Output", ids: ["reporting", "library"] },
@@ -112,6 +114,7 @@ function App() {
         {active === "backgroundAgents" && <BackgroundAgents />}
         {active === "extraction" && <Extraction pendingUniverse={pendingUniverse} />}
         {active === "transitionPlan" && <TransitionPlanAssessment pendingUniverse={pendingUniverse} />}
+        {active === "transitionBarrier" && <TransitionBarrierAssessment />}
         {active === "identity" && <IdentityResolution onSendToDiscovery={sendToDiscovery} />}
         {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingDiscoveryUniverse} />}
         {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool />}

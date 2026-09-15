@@ -37,6 +37,7 @@ from arp.api.routers import (
     taxonomy_researcher,
     themes,
     tnfd,
+    transition_barrier,
     transition_plan,
     universe,
     voting,
@@ -93,6 +94,7 @@ app.include_router(voting.router)
 app.include_router(financials.router)
 app.include_router(tnfd.router)
 app.include_router(transition_plan.router)
+app.include_router(transition_barrier.router)
 app.include_router(portfolio.router)
 app.include_router(climate.router)
 app.include_router(genbi.router)

@@ -58,6 +58,7 @@ The backend and frontend are fully decoupled: the CLI and the API call the exact
 | `retrieval/` | BM25 evidence selection (default) plus an opt-in hybrid semantic layer (`embeddings.py`, fastembed-backed) and its on-disk index cache. |
 | `schemas/` | Every Pydantic model in the system — one module per domain, all LLM structured-output shapes included. |
 | `storage/` | File-backed stores for runs, portfolios, engagements, taxonomies, plus `DocumentContentStore` (the one SQLite exception, itself split into three focused collaborators — parsed-content cache, document registry, chunk-embeddings cache — behind a thin facade) and `KeyedLock` (per-key reentrant locking against read-modify-write races between concurrent request handlers and background batch threads). |
+| `transition_barrier/` | Transition Barrier Assessment: the bundled 105-cell sector x region feasibility matrix (`data/*.json` + `dataset.py` loaders), staleness tracking independent of confidence (`staleness.py`), and the EUR-Lex source-refresh slice (`refresh/`) whose reconciler may propose an H/M/L change but never apply one. |
 | `transition_plan/` | Transition Plan Assessment: the paper's 64 fixed indicators (`indicators.py`), the per-indicator RAG agent + independent verifier wired through `indicator_graph.py`, and per-company walk/talk aggregation. |
 | `voting/` | Proxy-ballot pipeline: proposal extraction from proxy statements, policy-rule + LLM-judgment vote recommendations, human review, ballot casting. |
 
@@ -114,19 +115,22 @@ A sub-module of Portfolio Risk: weighted-average carbon intensity (WACI), PCAF-s
 ### 3.12 Transition Plan Assessment
 A direct replication of Colesanti Senni, Schimanski, Bingler, Ni & Leippold (2024): scores a company's climate disclosures against the paper's 64 fixed indicators (Target/Governance/Strategy/Tracking), each classified "talk" (future target) or "walk" (concrete, verifiable activity), one grounded RAG verdict (YES/NO/NA) per indicator. Unlike the paper's tool, every citation is independently re-verified against the source document by the same programmatic grounding check used everywhere else here, rather than trusted from the model's self-report.
 
-### 3.13 Presentation & Reporting Tool
+### 3.13 Transition Barrier Assessment
+The sector-level counterpart to 3.12: where that asks whether a company is credible about transitioning, this asks whether transition is feasible in that sector and region at all. A curated 105-cell matrix — 35 criteria across 9 hard-to-abate sectors x Technology/Regulation/Demand & Economics, each rated H/M/L for the EU, US and China — with per-cell evidence, a confidence tier, a last-verified date and 86 verified sources behind it. Note H means transition is *more* feasible (fewer barriers). Staleness is tracked separately from confidence, since a high-confidence rating can simply be old. The refresh pipeline currently covers only the 15 EUR-Lex `legal_regulatory_text` sources (stable ELI/CELEX identifiers); `GET /api/transition-barrier/refresh/coverage` reports the other 71 as manual rather than silently skipping them. A refresh may propose a rating change but never applies one — candidates go to the run's review queue. See `docs/TRANSITION_BARRIER_ASSESSMENT.md` for the full criteria and source lists.
+
+### 3.14 Presentation & Reporting Tool
 Turns qualitative findings and uploaded CSV/XLSX datasets into a pptx/docx/pdf for a stated audience. Exactly one LLM call (the Content Planner) drafts a structured `ReportPlan`; everything after it is deterministic rendering, and the plan can be reviewed or hand-edited via `GET`/`PUT /api/reports/{id}/plan` before the final render. A `.pptx` template can be ingested first so the output reuses its layouts, theme colors and fonts, extracted deterministically via python-pptx.
 
-### 3.14 Investment Strategy Replication
+### 3.15 Investment Strategy Replication
 Reduces an academic outperformance paper to an executable `StrategySpec` through the same extractor/independent-verifier/grounding pipeline used elsewhere, then backtests it deterministically (zero LLM calls in the computation) in-sample against the paper's own reported numbers and out-of-sample over any later window. Carries a multiple-testing-aware significance hurdle, a Deflated/Probabilistic Sharpe Ratio, PBO via purged and embargoed CSCV, and a regime-stratified breakdown. Human gates: a drafted spec must be reviewed and approved (re-checked server-side) before a backtest can run.
 
-### 3.15 Emerging Themes Scanner
+### 3.16 Emerging Themes Scanner
 The bottom-up counterpart to the Thematic Universe Builder. Ingests EDGAR full-text search, GDELT and regulatory RSS across a universe, tags each mention into grounded evidence, clusters the tags, and tracks cluster lineage across ISO weeks (birth/continuation/merge/split) so novelty is measured against the prior period. Clusters are scored on velocity, breadth, persistence, novelty, materiality and contradiction; the promotion gate is the **action score** — the share of evidence describing something a company *did*, optionally corroborated against real SEC XBRL capex/R&D movement — so mention counts alone cannot produce a candidate. A two-tier engine classifies each company's role in a candidate theme with a risk/momentum/evidence-quality triple, leaving the full Revenue/CapEx/Demand/Enablement cascade to Tool 1 once promoted. Promote, reject and disconfirm are all human decisions and all require a recorded written reason; contradiction evidence is retained and displayed even on promoted candidates. See [`EMERGING_THEMES_VOCABULARY.md`](EMERGING_THEMES_VOCABULARY.md).
 
-### 3.16 Standing agents (propose, never auto-apply)
+### 3.17 Standing agents (propose, never auto-apply)
 The **Taxonomy Researcher** and the **Calibration Agent** (`agents/`) run on a schedule and surface proposals — candidate taxonomy activity/source updates, and confidence-calibration drift against reviewed outcomes — for a human to accept or discard. Neither writes to the taxonomy library or to settings on its own.
 
-### 3.17 Cross-cutting: orchestration, review, monitoring
+### 3.18 Cross-cutting: orchestration, review, monitoring
 Every run type (`theme`, `extraction`, `financials`, `voting`, `identity`, `discovery`) shares one checkpointed/resumable batch-runner: results append to `runs/<run_id>/results.jsonl` per company as they complete, so an interrupted batch resumes without redoing finished work. Any running/pending run can be cooperatively cancelled and (for theme runs) resumed. The **Review Queue** is the single human checkpoint for anything flagged, ungrounded, or low-confidence across all five review-producing run types. The **Monitoring Dashboard** gives a live cross-pipeline view (currently executing, recently finished, open engagement issues, SLA breaches, ballot items awaiting decision), polling every 3 seconds while open.
 
 ---
@@ -235,6 +239,7 @@ arp portfolio seed-demo | list | review-queue | aggregate | ask | classify-news
 arp climate waci | financed-emissions | coverage
 arp emerging-themes run | candidates | show | promote | reject | disconfirm | schedule
 arp transition-plan indicators | run
+arp transition-barrier criteria | scores | sources | staleness | coverage | refresh
 arp report draft | plan | render | templates
 arp replicate extract | backtest | compare | discover-papers | score-sentiment | pbo | regime-report | sanity-check | golden-set
 arp taxonomy-researcher run | schedule
