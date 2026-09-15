@@ -35,6 +35,15 @@ import type {
 } from "../types";
 import type { QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, TemplateStyleProfile } from "../types";
 import type { PaperCandidate, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
+import type {
+  BarrierCriterion,
+  BarrierCriterionDetail,
+  BarrierMatrix,
+  BarrierRefreshCoverage,
+  BarrierRegistrySource,
+  BarrierScore,
+  BarrierStalenessReport,
+} from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
@@ -143,6 +152,24 @@ export const api = {
   getTransitionPlanReviewDecisions: (runId: string) => request(`/api/transition-plan/runs/${runId}/review-decisions`),
   getTransitionPlanReviewHistory: (runId: string, itemKey: string) =>
     request(`/api/transition-plan/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
+
+  // Transition Barrier Assessment (105-cell sector x region feasibility matrix)
+  getBarrierMatrix: () => request<BarrierMatrix>("/api/transition-barrier/matrix"),
+  getBarrierCriteria: () => request<BarrierCriterion[]>("/api/transition-barrier/criteria"),
+  getBarrierCriterionDetail: (code: string) =>
+    request<BarrierCriterionDetail>(`/api/transition-barrier/criteria/${encodeURIComponent(code)}`),
+  getBarrierScores: (params: { sector?: string; region?: string; pillar?: string; rating?: string } = {}) =>
+    request<BarrierScore[]>(`/api/transition-barrier/scores${buildQuery(params)}`),
+  getBarrierSources: () => request<BarrierRegistrySource[]>("/api/transition-barrier/sources"),
+  getBarrierStaleness: () => request<BarrierStalenessReport>("/api/transition-barrier/staleness"),
+  getBarrierRefreshCoverage: () => request<BarrierRefreshCoverage>("/api/transition-barrier/refresh/coverage"),
+  startBarrierRefreshRun: () =>
+    request<{ run_id: string; source_count: number }>("/api/transition-barrier/refresh/runs", { method: "POST" }),
+  getBarrierRefreshReviewQueue: (runId: string) => request(`/api/transition-barrier/refresh/runs/${runId}/review-queue`),
+  submitBarrierRefreshReview: (runId: string, body: unknown) =>
+    request(`/api/transition-barrier/refresh/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
+  getBarrierRefreshReviewHistory: (runId: string, itemKey: string) =>
+    request(`/api/transition-barrier/refresh/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
 
   // Documents
   uploadDocument: (companyId: string, docType: string, file: File) => {

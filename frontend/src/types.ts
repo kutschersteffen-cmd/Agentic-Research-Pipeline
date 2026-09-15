@@ -1575,3 +1575,100 @@ export interface ReplicationRunDetail {
   sanity_check?: SanityCheckAssessment | null;
   regime_report?: RegimeStratifiedReport | null;
 }
+
+// --- Transition Barrier Assessment (105-cell sector x region
+// transition-feasibility matrix: 35 criteria x EU/US/China) ---
+// Note H means transition is MORE feasible -- fewer barriers -- not that the
+// barrier is high.
+
+export type BarrierRegion = "European Union" | "United States" | "China";
+export type BarrierPillar = "Technology" | "Regulation" | "Demand & Economics";
+export type BarrierRating = "H" | "M" | "L";
+export type BarrierConfidence = "high" | "medium" | "low";
+export type BarrierAccessPattern =
+  | "periodic_pdf_report"
+  | "government_agency_publication"
+  | "legal_regulatory_text"
+  | "industry_tracker_database"
+  | "company_disclosure"
+  | "structured_api_or_dashboard";
+
+export interface BarrierPrimarySource {
+  source_name: string;
+  publisher: string;
+  url: string | null;
+  access_pattern: BarrierAccessPattern;
+  refresh_cadence: string;
+  locator: string;
+}
+
+export interface BarrierCriterion {
+  code: string;
+  sector: string;
+  category: BarrierPillar;
+  criterion: string;
+  metric: string;
+  unit: string;
+  rating_rubric: Record<BarrierRating, string>;
+  primary_sources: BarrierPrimarySource[];
+}
+
+export interface BarrierScore {
+  code: string;
+  sector: string;
+  category: BarrierPillar;
+  criterion: string;
+  region: BarrierRegion;
+  rating: BarrierRating;
+  confidence: BarrierConfidence;
+  evidence: string;
+  source: string;
+  last_verified: string;
+}
+
+export interface BarrierMatrixCell extends BarrierScore {
+  stale: boolean;
+  staleness_days: number;
+}
+
+export interface BarrierRegistrySource {
+  key: string;
+  source_name: string;
+  publisher: string;
+  used_by_criteria: string[];
+  access_pattern: BarrierAccessPattern;
+  refresh_cadence: string;
+  locator: string;
+  url: string | null;
+}
+
+export interface BarrierMatrix {
+  sectors: string[];
+  regions: BarrierRegion[];
+  pillars: BarrierPillar[];
+  criteria: BarrierCriterion[];
+  cells: Record<string, Record<string, BarrierMatrixCell>>;
+  distribution: Record<string, Record<BarrierRating, number>>;
+}
+
+export interface BarrierCriterionDetail {
+  criterion: BarrierCriterion;
+  scores: BarrierScore[];
+  sources: BarrierRegistrySource[];
+}
+
+export interface BarrierStalenessReport {
+  threshold_days: number;
+  as_of: string;
+  total: number;
+  stale: number;
+  fresh: number;
+  stale_codes: string[];
+}
+
+export interface BarrierRefreshCoverage {
+  total_sources: number;
+  automatable: number;
+  manual: number;
+  enabled_patterns: string[];
+}

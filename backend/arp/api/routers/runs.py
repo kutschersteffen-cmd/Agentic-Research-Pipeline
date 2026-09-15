@@ -183,6 +183,20 @@ def export_run_csv(run_id: str, run_store: RunStore = Depends(get_run_store)) ->
                      ind["category"], ind["walk_or_talk"], ind["question"], ind["verdict"], ind["answer"],
                      ind["grounded"], ind["needs_review"], record["disclosed_count"], record["overall_confidence"]]
                 )
+    elif manifest.run_type == "transition_barrier_refresh":
+        writer = csv.writer(buf)
+        writer.writerow(
+            ["code", "region", "source_key", "outcome", "current_rating", "proposed_rating",
+             "needs_review", "detail", "source_quote", "checked_at"]
+        )
+        for record in rows:
+            # A proposed_rating is advisory only -- it is queued for review, never applied.
+            writer.writerow(
+                [record["code"], record["region"], record["source_key"], record["outcome"],
+                 record["current_rating"], record.get("proposed_rating"),
+                 record["outcome"] == "rating_change_candidate",
+                 record.get("detail"), record.get("source_quote"), record.get("checked_at")]
+            )
     else:  # discovery
         writer = csv.writer(buf)
         writer.writerow(["company_id", "name", "homepage_used", "doc_type", "url", "local_path"])

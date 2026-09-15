@@ -99,7 +99,20 @@ precision at scale (designed for up to ~4,000 companies per run).
    "walk vs. talk" disclosure-completeness metric per company. See
    [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md#transition-plan-assessment)
    for the full mapping from paper to implementation.
-9. **Presentation & Reporting Tool** — turns qualitative findings and
+9. **Transition Barrier Assessment** — the sector-level counterpart to the
+   above: where the Transition Plan Assessment asks whether a *company* is
+   credible about transitioning, this asks whether transition is feasible
+   in that sector and region at all. A 105-cell matrix (35 criteria across
+   9 hard-to-abate sectors x Technology/Regulation/Demand & Economics,
+   each rated H/M/L for the EU, US and China) backed by 86 verified
+   sources, with per-cell evidence, a confidence tier and a last-verified
+   date. Note H means transition is *more* feasible — fewer barriers — not
+   that the barrier is high. Includes staleness tracking (independent of
+   confidence) and a EUR-Lex source-refresh pipeline that proposes rating
+   changes for human review but never applies them. See
+   [`docs/TRANSITION_BARRIER_ASSESSMENT.md`](docs/TRANSITION_BARRIER_ASSESSMENT.md)
+   for the full criteria and source lists.
+10. **Presentation & Reporting Tool** — turns qualitative findings and
    quantitative datasets (CSV/XLSX upload) into a pptx/docx/pdf, matched to
    a stated audience and layout instructions. A `.pptx` template can be
    ingested first so the generated deck reuses its slide layouts, theme
@@ -121,7 +134,7 @@ precision at scale (designed for up to ~4,000 companies per run).
    pipeline in this codebase, and the main lever for large flexibility over
    the output without re-prompting the model.
 
-10. **Investment Strategy Replication** — reduces an academic "outperformance"
+11. **Investment Strategy Replication** — reduces an academic "outperformance"
    strategy paper (momentum, book-to-market value, quality, ...) to an
    executable spec via the same extractor/independent-verifier/grounding
    pipeline used everywhere else in this codebase, then backtests it
@@ -188,7 +201,7 @@ precision at scale (designed for up to ~4,000 companies per run).
    its current limitations (no point-in-time universe reconstruction, no
    transaction-cost modeling).
 
-11. **Emerging Themes Scanner** — the bottom-up counterpart to the
+12. **Emerging Themes Scanner** — the bottom-up counterpart to the
    Thematic Universe Builder, which starts from a theme you already have
    in mind. This one starts from the public record instead: it ingests
    SEC EDGAR full-text search, GDELT news, and regulatory RSS flow across
@@ -439,6 +452,13 @@ arp golden-set planner                                     # the same, for the g
 # Transition Plan Assessment: 64-indicator walk/talk climate disclosure scoring (Colesanti Senni et al. 2024)
 arp transition-plan indicators                          # inspect the 64 fixed indicators
 arp transition-plan run --universe companies.csv
+
+# Transition Barrier Assessment: 105-cell sector x region transition-feasibility matrix
+arp transition-barrier criteria --sector Steel          # the 35 criteria, with metrics and H/M/L rubrics
+arp transition-barrier scores --region China --pillar Regulation
+arp transition-barrier sources --code OGU-R1            # the sources behind one criterion
+arp transition-barrier staleness                        # cells overdue for re-verification
+arp transition-barrier coverage                         # what the refresh pipeline can and cannot automate
 
 # Investment Strategy Replication: extract a paper's methodology, then backtest it in/out-of-sample
 arp replicate examples                                                    # list bundled worked-example specs

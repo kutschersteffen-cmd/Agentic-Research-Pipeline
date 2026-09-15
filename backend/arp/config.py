@@ -271,6 +271,22 @@ class Settings(BaseSettings):
         default="medium", description="Minimum NewsRiskFlag.severity that opens a news_controversy alert."
     )
 
+    # Transition Barrier Assessment (arp/transition_barrier/). The 105-cell
+    # matrix itself is bundled static data and always readable; only the
+    # source-refresh pipeline is gated, since it makes live outbound requests.
+    transition_barrier_refresh_enabled: bool = Field(
+        default=False,
+        description="Enables the EUR-Lex source-refresh pipeline, which makes live outbound requests. Off by default; "
+        "the bundled matrix is queryable regardless. A refresh never rewrites an H/M/L rating -- it queues "
+        "candidates for human review.",
+    )
+    transition_barrier_staleness_days: int = Field(
+        default=548,
+        description="Days after which a matrix cell counts as stale (default 18 months). Tracked separately from "
+        "confidence: a high-confidence rating that has not been re-checked in 18 months is stale, not "
+        "low-confidence.",
+    )
+
     # Optional Postgres/pgvector store (arp/storage/postgres*.py, requires
     # the `postgres` extra: pip install -e ".[postgres]"). Additive, not a
     # replacement for the file-based run/review audit trail: at this

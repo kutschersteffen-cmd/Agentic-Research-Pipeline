@@ -9,6 +9,7 @@ const RUN_TYPE_LABEL: Record<string, string> = {
   discovery: "Document discovery",
   proxy_voting: "Proxy voting",
   transition_plan: "Transition plan assessment",
+  transition_barrier_refresh: "Transition barrier source refresh",
   taxonomy_research: "Taxonomy Researcher",
   calibration: "Calibration Agent",
 };

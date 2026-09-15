@@ -19,6 +19,7 @@ export function RunProgress({
     | "financials"
     | "identity"
     | "transition_plan"
+    | "transition_barrier_refresh"
     | "taxonomy_research"
     | "calibration"
     | "emerging_themes";
