@@ -72,6 +72,13 @@ blended into the qualitative `exposure_estimate` the debate produces — see
 
 ## Transition Plan Assessment
 
+> A distributable Word write-up of this section -- framework, scoring
+> method, and all 64 criteria with their exact question text and
+> expert-centric guidelines -- is at
+> [`docs/Transition_Plan_Assessment.docx`](Transition_Plan_Assessment.docx),
+> regenerated from `indicators.json` by
+> `node docs/scripts/build_transition_plan_docx.js`.
+
 **Colesanti Senni, Schimanski, Bingler, Ni & Leippold, ["Using AI to assess
 corporate climate transition
 disclosures"](https://iopscience.iop.org/article/10.1088/2515-7620/ad9e88)**
