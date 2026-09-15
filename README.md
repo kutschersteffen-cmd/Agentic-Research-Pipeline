@@ -99,6 +99,13 @@ seven-layer target architecture (Postgres/pgvector, Temporal, per-role
 model tiering) — what already exceeds it, and which of its gaps
 (decorrelated critic model, XBRL ingestion, a golden set) are genuinely
 worth adopting.
+[`docs/AI_FINANCIAL_ANALYSIS_USE_CASES.md`](docs/AI_FINANCIAL_ANALYSIS_USE_CASES.md)
+does the same for five commonly-proposed AI-in-finance use cases (real-time
+earnings-call summarization, analyst-bias detection, portfolio construction,
+investment-thesis drift, change-of-facts alerting) — which of them this
+system is already most of the way to, which reduce to two missing primitives
+(a point-in-time value series and a machine-checkable thesis object), and
+which are data-licensing or quant problems that should not be built here.
 
 ## Architecture
 
