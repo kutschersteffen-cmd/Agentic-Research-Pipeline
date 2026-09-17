@@ -100,6 +100,13 @@ model tiering) — what already exceeds it, and which of its gaps
 (decorrelated critic model, XBRL ingestion, a golden set) are genuinely
 worth adopting.
 
+Planned, not yet built:
+[`docs/DECISION_MECHANISM_PLAN.md`](docs/DECISION_MECHANISM_PLAN.md)
+proposes a ninth pillar — a deterministic **Decision Mechanism** layer
+(scoring, ranking, tiering) that turns the per-company tables the eight
+pillars above already produce into a versioned, ratifiable and fully
+audited decision: which companies to engage, exclude or park, and why.
+
 ## Architecture
 
 ```

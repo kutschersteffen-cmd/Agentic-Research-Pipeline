@@ -1,0 +1,1591 @@
+<title>Decision Mechanism Studio</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Carlito:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ink:#12243D; --ink-2:#3B4B64; --ink-3:#6C7B91;
+  --paper:#EEF2F5; --surface:#FFFFFF; --surface-2:#F6F9FA; --surface-3:#EAF0F3;
+  --line:#D3DCE3; --line-2:#E5EBEF;
+  --teal:#009389; --teal-ink:#0B5F59; --claret:#B02F26; --gold:#A97C18;
+  --t1:#0B5F59; --t1-ink:#FFFFFF;
+  --t2:#2E8781; --t2-ink:#FFFFFF;
+  --t3:#93BCB8; --t3-ink:#12243D;
+  --t4:#CEDEDC; --t4-ink:#12243D;
+  --muted-fill:#C3CCD5; --muted-ink:#3B4B64;
+  --bar:#4C6A88; --bar-2:#9FB3C6;
+  --shadow:0 1px 2px rgba(18,36,61,.06), 0 8px 24px rgba(18,36,61,.06);
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --body:"Carlito","Calibri",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --display:"Source Serif 4","Cambria","Georgia",serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#E6ECF2; --ink-2:#B2BFCE; --ink-3:#8492A5;
+    --paper:#0D141C; --surface:#151F2A; --surface-2:#1B2733; --surface-3:#22303D;
+    --line:#2C3B4B; --line-2:#233140;
+    --teal:#14A092; --teal-ink:#35C0B0; --claret:#E2574C; --gold:#BE9A2A;
+    --t1:#35C0B0; --t1-ink:#06231F;
+    --t2:#1E9284; --t2-ink:#F2FBF9;
+    --t3:#17655C; --t3-ink:#E6ECF2;
+    --t4:#1C3F3C; --t4-ink:#E6ECF2;
+    --muted-fill:#3A4A5B; --muted-ink:#D6DEE7;
+    --bar:#7E9CBB; --bar-2:#43596F;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#E6ECF2; --ink-2:#B2BFCE; --ink-3:#8492A5;
+  --paper:#0D141C; --surface:#151F2A; --surface-2:#1B2733; --surface-3:#22303D;
+  --line:#2C3B4B; --line-2:#233140;
+  --teal:#14A092; --teal-ink:#35C0B0; --claret:#E2574C; --gold:#BE9A2A;
+  --t1:#35C0B0; --t1-ink:#06231F;
+  --t2:#1E9284; --t2-ink:#F2FBF9;
+  --t3:#17655C; --t3-ink:#E6ECF2;
+  --t4:#1C3F3C; --t4-ink:#E6ECF2;
+  --muted-fill:#3A4A5B; --muted-ink:#D6DEE7;
+  --bar:#7E9CBB; --bar-2:#43596F;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;-webkit-text-size-adjust:100%}
+h1,h2,h3,h4{font-family:var(--display);font-weight:600;margin:0;text-wrap:balance;letter-spacing:-.005em}
+.num,td.n,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+button,select,input,textarea{font-family:inherit;font-size:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+a{color:var(--teal-ink)}
+
+/* ---------- shell ---------- */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{max-width:1180px;margin:0 auto;padding:12px 16px 0;display:flex;flex-direction:column;gap:10px}
+.brandrow{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;gap:2px;min-width:0}
+.brand h1{font-size:19px;line-height:1.15}
+.brand .sub{font-size:12.5px;color:var(--ink-3)}
+.topmeta{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{font-size:12px;padding:4px 9px;border:1px solid var(--line);border-radius:999px;color:var(--ink-2);background:var(--surface-2);white-space:nowrap}
+.pill b{font-family:var(--mono);font-weight:600;color:var(--ink)}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{appearance:none;background:none;border:0;border-bottom:2px solid transparent;padding:9px 11px 10px;color:var(--ink-3);white-space:nowrap;cursor:pointer;font-size:13.5px;letter-spacing:.01em}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--teal);font-weight:700}
+.tab .tn{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-right:5px}
+.tab[aria-selected="true"] .tn{color:var(--teal-ink)}
+main{max-width:1180px;margin:0 auto;padding:18px 16px 64px}
+.panel{display:flex;flex-direction:column;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px}
+.card.pad0{padding:0;overflow:hidden}
+.card>h2{font-size:16.5px;margin-bottom:2px}
+.card>.note,.note{font-size:13px;color:var(--ink-3)}
+.lede{font-size:14px;color:var(--ink-2);max-width:68ch}
+.eyebrow{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.hr{height:1px;background:var(--line-2);border:0;margin:4px 0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.rowflex{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.spacer{flex:1}
+
+/* ---------- controls ---------- */
+.btn{appearance:none;background:var(--surface-2);border:1px solid var(--line);border-radius:4px;padding:7px 12px;cursor:pointer;font-size:13.5px;color:var(--ink);transition:background .12s}
+.btn:hover{background:var(--surface-3)}
+.btn.primary{background:var(--teal-ink);border-color:var(--teal-ink);color:#fff;font-weight:700}
+:root[data-theme="dark"] .btn.primary,:root:not([data-theme="light"]) .btn.primary{color:#06231F}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .btn.primary{color:#fff}}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.sm{padding:4px 9px;font-size:12.5px}
+.btn.ghost{background:none}
+select,input[type=text],input[type=number],textarea{background:var(--surface-2);border:1px solid var(--line);border-radius:4px;padding:6px 8px;max-width:100%}
+input[type=number]{width:78px;font-family:var(--mono)}
+label.lab{font-size:12px;color:var(--ink-3);display:flex;flex-direction:column;gap:4px}
+input[type=range]{accent-color:var(--teal);width:100%;min-width:90px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{appearance:none;background:var(--surface-2);border:0;border-right:1px solid var(--line);padding:6px 10px;font-size:12.5px;cursor:pointer;color:var(--ink-2)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--teal-ink);color:#fff;font-weight:700}
+:root[data-theme="dark"] .seg button[aria-pressed="true"]{color:#06231F}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .seg button[aria-pressed="true"]{color:#06231F}}
+
+/* ---------- tables ---------- */
+.tablewrap{overflow:auto;max-height:70vh;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line-2);vertical-align:middle;white-space:nowrap}
+thead th{position:sticky;top:0;background:var(--surface-2);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:700;border-bottom:1px solid var(--line);z-index:2}
+thead th.sortable{cursor:pointer;user-select:none}
+thead th.sortable:hover{color:var(--ink)}
+td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+tbody tr:hover{background:var(--surface-2)}
+tbody tr.sel{background:var(--surface-3)}
+.name{font-weight:700;white-space:nowrap;max-width:230px;overflow:hidden;text-overflow:ellipsis}
+.sub2{font-size:11.5px;color:var(--ink-3);font-weight:400}
+
+/* ---------- chips ---------- */
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;padding:2px 8px;border-radius:3px;font-weight:700;letter-spacing:.02em;white-space:nowrap}
+.t1{background:var(--t1);color:var(--t1-ink)} .t2{background:var(--t2);color:var(--t2-ink)}
+.t3{background:var(--t3);color:var(--t3-ink)} .t4{background:var(--t4);color:var(--t4-ink)}
+.tx{background:var(--muted-fill);color:var(--muted-ink)}
+.chip.out{background:none;border:1px solid var(--claret);color:var(--claret)}
+.chip.warnflag{background:none;border:1px solid var(--gold);color:var(--gold)}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border:1px solid var(--line);border-radius:3px;color:var(--ink-3);background:var(--surface-2)}
+.tag.num{border-color:color-mix(in srgb,var(--teal) 40%,var(--line))}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+
+/* ---------- kpi ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:1px;background:var(--line-2);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.kpi{background:var(--surface);padding:12px 14px}
+.kpi .k{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.kpi .v{font-family:var(--mono);font-size:21px;font-weight:600;line-height:1.3}
+.kpi .d{font-size:11.5px;color:var(--ink-3)}
+
+/* ---------- micro bars ---------- */
+.mb{display:inline-flex;gap:3px;align-items:center}
+.mb i{display:block;width:16px;height:16px;border-radius:2px;background:var(--surface-3);position:relative;overflow:hidden}
+.mb i b{position:absolute;left:0;right:0;bottom:0;display:block;background:var(--teal)}
+.wbar{height:5px;background:var(--surface-3);border-radius:3px;overflow:hidden;min-width:56px}
+.wbar span{display:block;height:100%;background:var(--teal)}
+
+/* ---------- criteria editor ---------- */
+.dimblock{border:1px solid var(--line);border-radius:5px;overflow:hidden;background:var(--surface)}
+.dimhead{display:flex;gap:10px;align-items:center;padding:9px 12px;background:var(--surface-2);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.dimhead .dn{font-family:var(--display);font-weight:700;font-size:14.5px}
+.dimhead input[type=text]{font-family:var(--display);font-weight:700;font-size:14.5px;background:none;border:1px dashed transparent;padding:2px 4px}
+.dimhead input[type=text]:hover,.dimhead input[type=text]:focus{border-color:var(--line);background:var(--surface)}
+.critrow{display:grid;grid-template-columns:minmax(150px,2fr) 100px minmax(100px,1.2fr) 52px 112px;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line-2)}
+.critrow:last-child{border-bottom:0}
+.critrow .cn{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.critrow .cn .sub2{display:block}
+@media (max-width:700px){
+  .critrow{grid-template-columns:1fr 1fr;gap:8px}
+  .critrow .cn{grid-column:1/-1}
+}
+
+/* ---------- tree ---------- */
+.tree{display:flex;flex-direction:column;gap:0}
+.tnode{border:1px solid var(--line);border-left:3px solid var(--bar);border-radius:5px;padding:10px 13px;background:var(--surface-2)}
+.tnode.gate{border-left-color:var(--claret)}
+.tnode.band{border-left-color:var(--teal)}
+.tnode.mod{border-left-color:var(--gold)}
+.tnode h4{font-size:13.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tnode .q{font-size:12.5px;color:var(--ink-3);margin-top:3px}
+.stem{width:3px;height:14px;background:var(--line);margin-left:22px}
+.outcomes{display:flex;flex-direction:column;gap:6px;margin-top:9px}
+.oc{display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:center;font-size:12.5px}
+.gaterow{display:grid;grid-template-columns:minmax(130px,1.5fr) 96px 88px 140px 30px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line-2)}
+@media (max-width:700px){.gaterow{grid-template-columns:1fr 1fr;gap:7px}}
+.xbtn{appearance:none;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-3);border-radius:3px;width:26px;height:26px;cursor:pointer;line-height:1}
+.xbtn:hover{color:var(--claret);border-color:var(--claret)}
+
+/* ---------- drawer ---------- */
+.scrim{position:fixed;inset:0;background:rgba(9,16,25,.44);z-index:60;opacity:0;pointer-events:none;transition:opacity .16s}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(460px,100%);background:var(--surface);border-left:1px solid var(--line);z-index:61;transform:translateX(100%);transition:transform .2s ease;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.drawer.on{transform:none}
+.dhead{padding:14px 16px calc(12px + env(safe-area-inset-top,0px));border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start}
+.dbody{overflow-y:auto;padding:14px 16px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.contrib{display:flex;flex-direction:column;gap:5px}
+.cbar{display:grid;grid-template-columns:1fr 132px 52px;gap:8px;align-items:center;font-size:12.5px}
+.cbar .track{position:relative;height:14px;background:var(--surface-3);border-radius:2px}
+.cbar .track b{position:absolute;top:0;bottom:0;display:block;border-radius:2px}
+.cbar .track .zero{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--ink-3);left:50%}
+.pos{background:var(--teal)} .neg{background:var(--claret)}
+
+/* ---------- chart ---------- */
+.charthost{position:relative}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--paper);font-size:11.5px;padding:5px 8px;border-radius:4px;transform:translate(-50%,-115%);white-space:nowrap;opacity:0;transition:opacity .1s;font-family:var(--mono);z-index:5}
+.tip.on{opacity:1}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:11px;height:11px;border-radius:2px;display:block}
+
+/* ---------- drop zone / log ---------- */
+.drop{border:1.5px dashed var(--line);border-radius:6px;padding:22px 16px;text-align:center;background:var(--surface-2);transition:.15s}
+.drop.hot{border-color:var(--teal);background:color-mix(in srgb,var(--teal) 8%,var(--surface))}
+.logl{display:grid;grid-template-columns:118px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-2);font-size:13px;align-items:baseline}
+.logl .st{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.logl b{font-weight:700}
+.logl .why{color:var(--ink-3);font-size:12.5px;display:block}
+textarea.out{width:100%;min-height:150px;font-family:var(--mono);font-size:11.5px;white-space:pre;overflow:auto}
+.banner{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;background:var(--surface-3);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:5px;padding:9px 12px;color:var(--ink-2)}
+.warn{color:var(--claret);font-weight:700}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="top">
+  <div class="top-in">
+    <div class="brandrow">
+      <div class="brand">
+        <h1>Decision Mechanism Studio</h1>
+        <div class="sub">Read a dataset &rarr; derive a scoring, ranking and decision-tree mechanism &rarr; tune every rule.</div>
+      </div>
+      <div class="topmeta" id="topmeta"></div>
+    </div>
+    <div class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-p="data"><span class="tn">01</span>Data</button>
+      <button class="tab" role="tab" data-p="profile"><span class="tn">02</span>Profile</button>
+      <button class="tab" role="tab" data-p="mech"><span class="tn">03</span>Mechanism</button>
+      <button class="tab" role="tab" data-p="tree"><span class="tn">04</span>Decision tree</button>
+      <button class="tab" role="tab" data-p="results"><span class="tn">05</span>Results</button>
+      <button class="tab" role="tab" data-p="audit"><span class="tn">06</span>Audit</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <section class="panel" id="p-data" hidden>
+    <div class="card">
+      <h2>Load the data the decision rests on</h2>
+      <p class="lede">One row per entity, one column per indicator. CSV, TSV or Excel. Semicolon delimiters and comma decimals are read correctly, so an Excel export saved in a German locale needs no cleaning first.</p>
+      <div class="drop" id="drop">
+        <div style="font-size:13.5px;color:var(--ink-2)">Drop a file here, or</div>
+        <div class="rowflex" style="justify-content:center;margin-top:10px">
+          <button class="btn primary" id="pick">Choose file</button>
+          <button class="btn" id="loadSample">Load example dataset</button>
+        </div>
+        <input type="file" id="file" accept=".csv,.tsv,.txt,.xlsx,.xls" hidden>
+        <div class="note" style="margin-top:10px">Nothing leaves your browser — parsing and scoring run locally on this page.</div>
+      </div>
+      <div id="loadmsg" style="margin-top:12px"></div>
+    </div>
+    <div class="card pad0" id="previewCard" hidden>
+      <div style="padding:14px 16px 10px"><h2>Loaded data</h2><div class="note" id="previewNote"></div></div>
+      <div class="tablewrap" id="preview"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-profile" hidden>
+    <div class="card">
+      <h2>Every column gets a type, a coverage figure and a job</h2>
+      <p class="lede">Types come from the values, not the headers. Direction is inferred from the column name and is the one guess most worth checking — a wrong direction inverts the ranking.</p>
+      <div class="rowflex" style="margin-top:10px">
+        <span class="pill" id="profSum"></span>
+        <div class="spacer"></div>
+        <button class="btn sm" id="reprofile">Re-derive from data</button>
+      </div>
+    </div>
+    <div class="card pad0"><div class="tablewrap" id="profTable"></div></div>
+  </section>
+
+  <section class="panel" id="p-mech" hidden>
+    <div class="card">
+      <h2>The mechanism, derived and open to edit</h2>
+      <p class="lede">Correlated indicators are grouped into dimensions so three ways of saying the same thing do not earn three times the weight. A dimension's weight follows the square root of how many criteria it holds; criteria then split it evenly.</p>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="eyebrow">Normalisation</div>
+        <div class="rowflex" style="margin-top:8px">
+          <div class="seg" id="normSeg">
+            <button data-v="percentile" aria-pressed="false">Percentile rank</button>
+            <button data-v="minmax" aria-pressed="false">Min&ndash;max</button>
+            <button data-v="zscore" aria-pressed="false">Z-score</button>
+          </div>
+        </div>
+        <div class="note" id="normNote" style="margin-top:8px"></div>
+        <div class="rowflex" style="margin-top:12px">
+          <label class="lab">Winsorise tails (%)<input type="number" id="winsor" min="0" max="20" step="1"></label>
+          <label class="lab">Min. weight covered (%)<input type="number" id="mincov" min="0" max="100" step="5"></label>
+        </div>
+      </div>
+      <div class="card">
+        <div class="eyebrow">Missing values</div>
+        <div class="rowflex" style="margin-top:8px">
+          <div class="seg" id="missSeg">
+            <button data-v="renormalise" aria-pressed="false">Re-weight</button>
+            <button data-v="neutral" aria-pressed="false">Neutral 50</button>
+            <button data-v="mean" aria-pressed="false">Peer mean</button>
+            <button data-v="penalise" aria-pressed="false">Penalise</button>
+          </div>
+        </div>
+        <div class="note" id="missNote" style="margin-top:8px"></div>
+        <div class="hr" style="margin:12px 0"></div>
+        <div class="eyebrow">Weighting preset</div>
+        <div class="rowflex" style="margin-top:8px">
+          <div class="seg" id="wSeg">
+            <button data-v="balanced" aria-pressed="false">Breadth-adjusted</button>
+            <button data-v="equal" aria-pressed="false">Equal criteria</button>
+            <button data-v="entropy" aria-pressed="false">Discriminating power</button>
+          </div>
+        </div>
+        <div class="note" id="wNote" style="margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="rowflex"><h2 style="font-size:16.5px">Dimensions &amp; criteria</h2><div class="spacer"></div>
+        <button class="btn sm" id="addDim">Add dimension</button>
+        <button class="btn sm" id="resetW">Reset weights</button></div>
+      <div class="note">Weights are relative; they are normalised to 100% behind the scenes. Set a criterion to 0 to park it without deleting it.</div>
+      <div id="dims" style="display:flex;flex-direction:column;gap:12px;margin-top:12px"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-tree" hidden>
+    <div class="card">
+      <h2>Decisions run in a fixed order, so results are reproducible</h2>
+      <p class="lede">Sufficiency first, then hard gates, then the score band, then modifiers. Anything a gate settles never reaches the score — a knockout is a decision, not a deduction.</p>
+    </div>
+    <div class="card"><div class="tree" id="treeView"></div></div>
+    <div class="grid2">
+      <div class="card">
+        <div class="rowflex"><div class="eyebrow">Gate rules</div><div class="spacer"></div><button class="btn sm" id="addGate">Add gate</button></div>
+        <div id="gates" style="margin-top:10px"></div>
+        <div class="note" id="gateNote" style="margin-top:8px"></div>
+      </div>
+      <div class="card">
+        <div class="eyebrow">Tier cut-points</div>
+        <div class="rowflex" style="margin-top:8px">
+          <div class="seg" id="cutSeg">
+            <button data-v="quantile" aria-pressed="false">Quantiles</button>
+            <button data-v="breaks" aria-pressed="false">Natural breaks</button>
+            <button data-v="absolute" aria-pressed="false">Fixed</button>
+          </div>
+        </div>
+        <div class="note" id="cutNote" style="margin-top:8px"></div>
+        <div id="cuts" style="display:flex;flex-direction:column;gap:8px;margin-top:12px"></div>
+        <div class="hr" style="margin:14px 0"></div>
+        <div class="eyebrow">Modifier</div>
+        <label class="rowflex" style="margin-top:8px;font-size:13px;gap:8px">
+          <input type="checkbox" id="vetoOn"> Demote one tier if any dimension scores below
+          <input type="number" id="vetoMin" min="0" max="100" step="5">
+        </label>
+        <div class="note" style="margin-top:6px">Stops a single strong dimension from carrying an entity that fails elsewhere. Applied only to dimensions measured by two or more criteria, so one yes/no answer cannot demote on its own.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-results" hidden>
+    <div id="sampleBanner"></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="card">
+      <div class="rowflex"><h2 style="font-size:16.5px">Score distribution and where the tiers cut</h2><div class="spacer"></div></div>
+      <div class="charthost" id="histHost" style="margin-top:8px">
+        <div id="hist"></div><div class="tip" id="histTip"></div>
+      </div>
+      <div class="legend" id="histLegend"></div>
+    </div>
+    <div class="card pad0">
+      <div style="padding:14px 16px 10px" class="rowflex">
+        <div><h2 style="font-size:16.5px">Ranked outcome</h2><div class="note" id="resNote"></div></div>
+        <div class="spacer"></div>
+        <input type="text" id="search" placeholder="Filter by name…" style="width:150px">
+        <select id="tierFilter"><option value="">All outcomes</option></select>
+        <select id="rankBy" hidden><option value="score">Order by score</option><option value="leverage">Order by leverage</option></select>
+        <button class="btn sm" id="copyRes">Copy as CSV</button>
+      </div>
+      <div class="tablewrap" id="resTable"></div>
+      <div style="padding:10px 16px 14px" class="note" id="resFoot"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-audit" hidden>
+    <div class="card">
+      <h2>Every automated choice, with the basis for it</h2>
+      <p class="lede">The log is written as the mechanism is derived and updated as you edit, so a reviewer can see which rules came from the data and which came from you.</p>
+    </div>
+    <div class="card pad0"><div style="padding:14px 16px" id="logView"></div></div>
+    <div class="grid2">
+      <div class="card">
+        <div class="rowflex"><div class="eyebrow">Configuration</div><div class="spacer"></div><button class="btn sm" id="copyCfg">Copy</button></div>
+        <div class="note" style="margin:6px 0 8px">Paste this back into the box below to restore or share a framework.</div>
+        <textarea class="out" id="cfgOut" spellcheck="false"></textarea>
+        <div class="rowflex" style="margin-top:8px"><button class="btn sm" id="applyCfg">Apply pasted configuration</button><span class="note" id="cfgMsg"></span></div>
+      </div>
+      <div class="card">
+        <div class="rowflex"><div class="eyebrow">Audit log</div><div class="spacer"></div><button class="btn sm" id="copyLog">Copy</button></div>
+        <div class="note" style="margin:6px 0 8px">Plain text, ready to drop into a methodology annex.</div>
+        <textarea class="out" id="logOut" spellcheck="false" readonly></textarea>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="dhead">
+    <div style="min-width:0"><div class="eyebrow" id="dRank"></div><h2 style="font-size:17px" id="dName"></h2><div class="note" id="dMeta"></div></div>
+    <div class="spacer"></div><button class="xbtn" id="dClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="dbody" id="dBody"></div>
+</aside>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   Decision Mechanism Studio
+   Data -> profile -> derived mechanism -> decision tree -> ranked outcome
+   ============================================================ */
+
+const SAMPLE_NAME = "example_transition_universe.csv";
+const SAMPLE_CSV = `Company,ISIN,Sector,Region,Portfolio_Weight_bps,Scope12_Intensity_tCO2e_per_mEUR,Scope3_Reported,SBTi_Validated_Target,Target_Ambition_0_5,Transition_Plan_Disclosure_0_100,Green_Capex_Share_pct,Climate_Lobbying_Alignment_0_100,Board_Climate_Oversight_0_3,Say_on_Climate_Support_pct,Emissions_Data_Coverage_pct,Coal_Expansion_Flag,Severe_Controversy_Flag
+Nordwind Energie AG,DE000NWE0017,Utilities,Europe,84,212,Yes,Yes,4,78,41,72,3,91.4,96,No,No
+Alpina Grid SA,CH0012345678,Utilities,Europe,61,88,Yes,Yes,4,84,55,81,3,94.1,98,No,No
+Meridian Steel plc,GB00MER00019,Materials,UK,37,1840,Yes,No,2,44,12,38,2,,88,No,No
+Kanto Heavy Industries,JP3812345678,Industrials,APAC,52,640,No,No,2,31,9,29,1,,71,No,No
+Batavia Chemicals NV,NL0011234567,Materials,Europe,44,910,Yes,Yes,3,62,24,54,2,78.2,92,No,No
+Aurora Mobility Group,DE000AMG0012,Consumer Discretionary,Europe,96,148,Yes,Yes,4,71,63,66,3,88.7,94,No,No
+Sable Petroleum Ltd,GB00SAB00023,Energy,UK,118,1420,Yes,No,1,38,7,21,2,42.3,84,No,Yes
+Tarn Mining Corp,AU000TRN0015,Materials,APAC,29,1260,No,No,1,22,4,18,1,,63,Yes,Yes
+Lumen Semiconductor,TW0002345678,Information Technology,APAC,140,96,Yes,Yes,5,88,47,74,3,,97,No,No
+Rheinpfad Logistik SE,DE000RPL0019,Industrials,Europe,23,430,Yes,No,3,57,19,58,2,81.0,89,No,No
+Cordillera Cement SAB,MX01CC000014,Materials,LatAm,18,2110,Yes,Yes,3,66,21,47,2,,90,No,No
+Northgate Retail plc,GB00NGR00027,Consumer Staples,UK,55,74,Yes,Yes,4,73,28,69,3,92.8,95,No,No
+Sunda Palm Resources,SG1A23456789,Consumer Staples,APAC,12,520,No,No,1,18,3,12,0,,48,No,Yes
+Vega Power Holdings,KR7009876543,Utilities,APAC,47,1680,No,No,1,27,6,24,1,,66,Yes,No
+Baltic Wind Partners,DK0061234567,Utilities,Europe,33,31,Yes,Yes,5,91,88,86,3,96.2,99,No,No
+Osaka Precision KK,JP3876543210,Industrials,APAC,26,187,Yes,Yes,3,64,26,51,2,,93,No,No
+Severn Vale Water plc,GB00SVW00031,Utilities,UK,21,264,Yes,No,2,49,17,44,2,69.5,87,No,Yes
+Kestrel Airlines Group,IE00KST00018,Industrials,Europe,19,980,Yes,No,2,41,11,33,1,55.4,79,No,No
+Zenith Property REIT,SG1B34567890,Real Estate,APAC,31,118,No,,,,,,,,58,No,No
+Ardent Pharma NV,NL0019876543,Health Care,Europe,102,58,Yes,Yes,4,69,22,71,2,89.9,94,No,No
+Silverline Autoparts,DE000SLA0014,Consumer Discretionary,Europe,27,352,Yes,No,3,53,31,49,2,74.6,86,No,No
+Kalahari Resources Ltd,AU000KLR0022,Energy,APAC,16,1590,No,No,0,14,2,9,0,,44,Yes,Yes
+Brera Fashion SpA,IT0005123456,Consumer Discretionary,Europe,14,92,Yes,No,2,46,13,52,1,,77,No,No
+Polaris Data Centres,SE0012345678,Information Technology,Europe,58,134,Yes,Yes,4,79,58,77,3,93.3,96,No,No`;
+
+/* ---------- small helpers ---------- */
+const $ = id => document.getElementById(id);
+const el = (t, cls, txt) => { const n = document.createElement(t); if (cls) n.className = cls; if (txt != null) n.textContent = txt; return n; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = (v, d = 1) => (v == null || !isFinite(v)) ? "—" : Number(v).toFixed(d);
+const pct = v => (v == null || !isFinite(v)) ? "—" : Math.round(v * 100) + "%";
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+function quantile(sorted, q) {
+  if (!sorted.length) return null;
+  const p = (sorted.length - 1) * q, lo = Math.floor(p), hi = Math.ceil(p);
+  return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (p - lo);
+}
+function sd(a) { if (a.length < 2) return 0; const m = mean(a); return Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1)); }
+function titleise(s) {
+  return String(s).replace(/[_]+/g, " ").replace(/\s+/g, " ").trim()
+    .replace(/\b([a-z])/g, (m, c) => c.toUpperCase());
+}
+function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "_"); }
+const UNIT_TOK = new Set(["pct", "percent", "eur", "meur", "usd", "gbp", "tco2e", "co2e", "per", "bps", "mn", "bn", "kt", "mt", "ratio", "idx"]);
+/* a readable label that keeps the source column's own capitalisation (SBTi stays SBTi) */
+function prettyCol(c) {
+  const parts = String(c).split(/[_\s]+/).filter(t => t && !UNIT_TOK.has(t.toLowerCase()) && !/^\d+$/.test(t));
+  const out = (parts.length ? parts : [String(c)]).join(" ");
+  return /[a-z]/.test(out) ? out : titleise(out);
+}
+
+/* ============================================================
+   1. Parsing
+   ============================================================ */
+function sniffDelim(text) {
+  const line = text.split(/\r?\n/).find(l => l.trim().length) || "";
+  const cands = [",", ";", "\t", "|"];
+  let best = ",", bestN = -1;
+  for (const d of cands) {
+    let n = 0, q = false;
+    for (const ch of line) { if (ch === '"') q = !q; else if (ch === d && !q) n++; }
+    if (n > bestN) { bestN = n; best = d; }
+  }
+  return best;
+}
+function parseDelimited(text, delim) {
+  text = text.replace(/^﻿/, "");
+  const rows = []; let row = [], field = "", q = false, i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i += 2; continue; } q = false; i++; continue; }
+      field += c; i++; continue;
+    }
+    if (c === '"') { q = true; i++; continue; }
+    if (c === delim) { row.push(field); field = ""; i++; continue; }
+    if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(field); rows.push(row); row = []; field = ""; i++; continue;
+    }
+    field += c; i++;
+  }
+  row.push(field); rows.push(row);
+  return rows.filter(r => r.some(v => String(v).trim() !== ""));
+}
+const BOOL_TRUE = new Set(["yes", "y", "true", "ja", "wahr", "1", "x", "t"]);
+const BOOL_FALSE = new Set(["no", "n", "false", "nein", "falsch", "0", "f", "-"]);
+function isBlank(v) { return v == null || String(v).trim() === "" || /^(n\/?a|na|null|none|nd|n\.a\.)$/i.test(String(v).trim()); }
+function detectNumLocale(vals) {
+  let de = 0, en = 0;
+  for (const v of vals) {
+    const s = String(v).trim();
+    if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s) || /^-?\d+,\d+$/.test(s)) de++;
+    else if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s) || /^-?\d+\.\d+$/.test(s)) en++;
+  }
+  return de > en ? "de" : "en";
+}
+function toNum(v, loc) {
+  if (isBlank(v)) return null;
+  let s = String(v).trim().replace(/[\s '€$£%]/g, "");
+  if (loc === "de") s = s.replace(/\./g, "").replace(",", ".");
+  else s = s.replace(/,/g, "");
+  if (s === "" || s === "-") return null;
+  const n = Number(s);
+  return isFinite(n) ? n : null;
+}
+function toBool(v) {
+  if (isBlank(v)) return null;
+  const s = String(v).trim().toLowerCase();
+  if (BOOL_TRUE.has(s)) return 1;
+  if (BOOL_FALSE.has(s)) return 0;
+  return null;
+}
+
+/* ============================================================
+   2. State
+   ============================================================ */
+const S = {
+  name: "", columns: [], rows: [], raw: [],
+  prof: {},                 // column -> profile
+  cfg: null, log: [], res: [], isSample: true,
+  sortKey: "rank", sortDir: 1, selected: -1, rankBy: "score", showN: 250
+};
+
+/* keyword dictionaries for direction inference */
+const KW_HIGH = [["coverage", 3], ["disclos", 3], ["reported", 3], ["transparen", 3], ["alignment", 2], ["support", 2],
+["score", 2], ["rating", 2], ["target", 2], ["ambition", 2], ["commit", 2], ["oversight", 2], ["readiness", 2],
+["progress", 2], ["green", 2], ["renewable", 2], ["capex", 1], ["validated", 2], ["quality", 2], ["margin", 1],
+["growth", 1], ["abdeckung", 3], ["ziel", 2], ["fortschritt", 2], ["transparenz", 3]];
+const KW_LOW = [["intensity", 3], ["intensit", 3], ["emission", 2], ["co2", 3], ["ghg", 3], ["carbon", 2],
+["risk", 2], ["risiko", 2], ["controvers", 3], ["violat", 3], ["incident", 2], ["breach", 2], ["gap", 2],
+["fossil", 2], ["coal", 2], ["kohle", 2], ["debt", 2], ["cost", 1], ["kosten", 1], ["penalt", 2], ["lag", 1], ["verstoss", 3]];
+const KW_GATE = ["controvers", "violat", "breach", "sanction", "weapon", "coal", "kohle", "tobacco", "exclusion", "expansion", "verstoss"];
+const KW_SEVERE = ["severe", "controvers", "violat", "sanction", "weapon", "schwer"];
+const KW_SIZE = ["weight", "bps", "aum", "exposure", "holding", "position", "market_value", "marktwert", "notional", "size"];
+const KW_ID = ["isin", "sedol", "cusip", "ticker", "lei", "id", "permid", "figi"];
+
+function kwScore(name, dict) {
+  const n = name.toLowerCase();
+  let s = 0, hits = [];
+  for (const [k, w] of dict) if (n.includes(k)) { s += w; hits.push(k); }
+  return { s, hits };
+}
+/* short keys (id, na) must match a whole token, or "Validated" would read as an identifier */
+function hasKw(name, list) {
+  const n = name.toLowerCase(), toks = slug(name).split("_").filter(Boolean);
+  return list.some(k => k.length >= 4 ? n.includes(k) : toks.includes(k));
+}
+
+/* ============================================================
+   3. Profiling
+   ============================================================ */
+function buildDataset(name, matrix) {
+  const header = matrix[0].map((h, i) => String(h).trim() || ("Column " + (i + 1)));
+  const seen = {};
+  const cols = header.map(h => { seen[h] = (seen[h] || 0) + 1; return seen[h] > 1 ? h + "_" + seen[h] : h; });
+  const rows = matrix.slice(1).map(r => { const o = {}; cols.forEach((c, i) => o[c] = r[i] == null ? "" : String(r[i]).trim()); return o; });
+  S.name = name; S.columns = cols; S.rows = rows; S.prof = {};
+  profile();
+}
+function profile() {
+  const n = S.rows.length;
+  S.prof = {};
+  for (const c of S.columns) {
+    const raw = S.rows.map(r => r[c]);
+    const nonEmpty = raw.filter(v => !isBlank(v));
+    const uniq = new Set(nonEmpty.map(v => String(v).trim().toLowerCase()));
+    const loc = detectNumLocale(nonEmpty);
+    const nums = nonEmpty.map(v => toNum(v, loc)).filter(v => v !== null);
+    const bools = nonEmpty.map(toBool).filter(v => v !== null);
+    const p = { name: c, n, coverage: n ? nonEmpty.length / n : 0, unique: uniq.size, loc, values: null };
+
+    if (nonEmpty.length && bools.length / nonEmpty.length >= 0.95 && uniq.size <= 3) p.type = "boolean";
+    else if (nonEmpty.length && nums.length / nonEmpty.length >= 0.8) {
+      const allInt = nums.every(v => Number.isInteger(v));
+      p.type = (allInt && uniq.size <= 7) ? "ordinal" : "numeric";
+    }
+    else if (uniq.size <= 12 && uniq.size < Math.max(3, n * 0.5)) p.type = "categorical";
+    else if (uniq.size >= n * 0.9) p.type = "identifier";
+    else p.type = "text";
+
+    if (p.type === "numeric" || p.type === "ordinal") {
+      const s = nums.slice().sort((a, b) => a - b);
+      p.stats = { min: s[0], p5: quantile(s, .05), q1: quantile(s, .25), med: quantile(s, .5), q3: quantile(s, .75), p95: quantile(s, .95), max: s[s.length - 1], mean: mean(s), sd: sd(s), count: s.length };
+      p.values = S.rows.map(r => toNum(r[c], loc));
+      p.spread = p.stats.max > p.stats.min;
+    } else if (p.type === "boolean") {
+      p.values = S.rows.map(r => toBool(r[c]));
+      const ones = p.values.filter(v => v === 1).length;
+      p.stats = { count: p.values.filter(v => v !== null).length, trueShare: ones / Math.max(1, p.values.filter(v => v !== null).length) };
+      p.spread = new Set(p.values.filter(v => v !== null)).size > 1;
+    } else {
+      p.values = null; p.spread = uniq.size > 1;
+      p.levels = [...new Set(nonEmpty.map(v => String(v).trim()))].slice(0, 20);
+    }
+    S.prof[c] = p;
+  }
+}
+
+/* ---------- role + direction proposal ---------- */
+function proposeRoles(log) {
+  const roles = {}, dirs = {};
+  let labelPicked = false;
+  for (const c of S.columns) {
+    const p = S.prof[c];
+    let role, why;
+    if (!labelPicked && (p.type === "identifier" || p.type === "text") && !hasKw(c, KW_ID)) { role = "label"; why = "first high-cardinality text column"; labelPicked = true; }
+    else if (hasKw(c, KW_ID) || p.type === "identifier") { role = "reference"; why = "looks like an identifier"; }
+    else if (hasKw(c, KW_SIZE) && (p.type === "numeric")) { role = "size"; why = "name signals position size, not quality"; }
+    else if (p.type === "boolean" && hasKw(c, KW_GATE)) { role = "gate"; why = "binary flag with exclusion-type wording"; }
+    else if (p.type === "numeric" || p.type === "ordinal" || p.type === "boolean") {
+      if (!p.spread) { role = "excluded"; why = "single value across all rows — no discriminating power"; }
+      else if (p.coverage < 0.25) { role = "excluded"; why = "coverage below 25%"; }
+      else { role = "criterion"; why = p.type + " indicator with spread"; }
+    }
+    else if (p.type === "categorical") { role = "segment"; why = p.unique + " levels — usable as a grouping"; }
+    else { role = "excluded"; why = "free text"; }
+    roles[c] = role;
+    if (log) log.push({ stage: "Roles", item: c, decision: role, why });
+
+    const hi = kwScore(c, KW_HIGH), lo = kwScore(c, KW_LOW);
+    let dir = lo.s > hi.s ? "lower" : "higher";
+    dirs[c] = dir;
+    if (role === "criterion" && log) {
+      const both = hi.s > 0 && lo.s > 0;
+      log.push({
+        stage: "Direction", item: c, decision: dir === "higher" ? "higher is better" : "lower is better",
+        why: (hi.s || lo.s) ? ("name matches " + (dir === "higher" ? hi.hits.join(", ") : lo.hits.join(", ")) + (both ? " — mixed signals, worth checking" : "")) : "no directional keyword found — defaulted to higher is better, please confirm",
+        check: both || (!hi.s && !lo.s)
+      });
+    }
+  }
+  return { roles, dirs };
+}
+
+/* ============================================================
+   4. Normalisation
+   ============================================================ */
+const normCache = new Map();
+function normalise(col, method, winsor) {
+  const key = col + "|" + method + "|" + winsor + "|" + S.cfg.dir[col];
+  if (normCache.has(key)) return normCache.get(key);
+  const p = S.prof[col];
+  const vals = p.values || [];
+  let out;
+  if (p.type === "boolean") {
+    out = vals.map(v => v == null ? null : (v === 1 ? 100 : 0));
+  } else {
+    const present = vals.map((v, i) => [v, i]).filter(x => x[0] !== null);
+    const nums = present.map(x => x[0]).sort((a, b) => a - b);
+    if (!nums.length) out = vals.map(() => null);
+    else if (method === "percentile") {
+      const order = present.slice().sort((a, b) => a[0] - b[0]);
+      const ranks = new Array(vals.length).fill(null);
+      let i = 0;
+      while (i < order.length) {
+        let j = i; while (j + 1 < order.length && order[j + 1][0] === order[i][0]) j++;
+        const avg = (i + j) / 2;
+        for (let k = i; k <= j; k++) ranks[order[k][1]] = order.length > 1 ? (avg / (order.length - 1)) * 100 : 50;
+        i = j + 1;
+      }
+      out = ranks;
+    } else {
+      const w = winsor / 100;
+      const lo = quantile(nums, w), hi = quantile(nums, 1 - w);
+      if (method === "minmax") {
+        out = vals.map(v => v === null ? null : (hi === lo ? 50 : clamp((clamp(v, lo, hi) - lo) / (hi - lo) * 100, 0, 100)));
+      } else {
+        const wins = nums.map(v => clamp(v, lo, hi));
+        const m = mean(wins), s = sd(wins) || 1;
+        out = vals.map(v => v === null ? null : clamp(50 + 15 * ((clamp(v, lo, hi) - m) / s), 0, 100));
+      }
+    }
+  }
+  if (S.cfg.dir[col] === "lower") out = out.map(v => v === null ? null : 100 - v);
+  normCache.set(key, out);
+  return out;
+}
+function spearman(a, b) {
+  const pairs = [];
+  for (let i = 0; i < a.length; i++) if (a[i] !== null && b[i] !== null) pairs.push([a[i], b[i]]);
+  if (pairs.length < 5) return 0;
+  const rk = idx => { const s = pairs.map((p, i) => [p[idx], i]).sort((x, y) => x[0] - y[0]); const r = new Array(pairs.length); s.forEach((v, i) => r[v[1]] = i); return r; };
+  const ra = rk(0), rb = rk(1), ma = mean(ra), mb = mean(rb);
+  let num = 0, da = 0, db = 0;
+  for (let i = 0; i < ra.length; i++) { num += (ra[i] - ma) * (rb[i] - mb); da += (ra[i] - ma) ** 2; db += (rb[i] - mb) ** 2; }
+  return (da && db) ? num / Math.sqrt(da * db) : 0;
+}
+
+/* ============================================================
+   5. Derive the mechanism
+   ============================================================ */
+function deriveMechanism() {
+  normCache.clear();
+  const log = [];
+  const { roles, dirs } = proposeRoles(log);
+  S.cfg = {
+    role: roles, dir: dirs, norm: "percentile", winsor: 5, missing: "renormalise",
+    weighting: "balanced", minCov: 60, dims: [], crit: {}, gates: [],
+    cutMode: "quantile", cuts: [75, 50, 25], veto: { on: true, min: 30 },
+    tierName: ["Tier 1", "Tier 2", "Tier 3", "Tier 4"],
+    tierAction: ["Act now", "Prepare and engage", "Monitor", "Park"],
+    labelCol: null, sizeCol: null, segCol: null
+  };
+  S.cfg.labelCol = S.columns.find(c => roles[c] === "label") || S.columns[0];
+  S.cfg.sizeCol = S.columns.find(c => roles[c] === "size") || null;
+  S.cfg.segCol = S.columns.find(c => roles[c] === "segment") || null;
+
+  /* gates from flagged booleans */
+  for (const c of S.columns) {
+    if (roles[c] !== "gate") continue;
+    const severe = hasKw(c, KW_SEVERE);
+    S.cfg.gates.push({ id: "g" + S.cfg.gates.length, col: c, op: "is", val: "Yes", out: severe ? "exclude" : "demote" });
+    log.push({
+      stage: "Gates", item: c, decision: severe ? "hard exclusion" : "demote one tier",
+      why: severe ? "severity wording — a knockout belongs in the tree, not in the average" : "flag wording — treated as a modifier so it cannot be averaged away"
+    });
+  }
+
+  /* criteria + dimension clustering */
+  const crits = S.columns.filter(c => roles[c] === "criterion");
+  if (!crits.length) {
+    log.push({ stage: "Dimensions", item: "—", decision: "no criteria found", why: "no numeric, ordinal or binary column carried usable spread" });
+    S.log = log; return;
+  }
+  const norms = {}; crits.forEach(c => norms[c] = normalise(c, "percentile", 5));
+
+  /* complete-linkage clustering on direction-adjusted Spearman.
+     Complete, not single: every pair inside a dimension must clear the threshold,
+     so one chain of moderate correlations cannot swallow the whole framework. */
+  const TH = 0.72;
+  const R = {};
+  const key2 = (a, b) => a < b ? a + " " + b : b + " " + a;
+  for (let i = 0; i < crits.length; i++) for (let j = i + 1; j < crits.length; j++)
+    R[key2(crits[i], crits[j])] = spearman(norms[crits[i]], norms[crits[j]]);
+  let clusters = crits.map(c => [c]);
+  const minLink = (A, B) => { let m = Infinity; for (const a of A) for (const b of B) m = Math.min(m, R[key2(a, b)] ?? 0); return m; };
+  while (clusters.length > 1) {
+    let best = -Infinity, bi = -1, bj = -1;
+    for (let i = 0; i < clusters.length; i++) for (let j = i + 1; j < clusters.length; j++) {
+      const m = minLink(clusters[i], clusters[j]);
+      if (m > best) { best = m; bi = i; bj = j; }
+    }
+    if (best < TH) break;
+    clusters[bi] = clusters[bi].concat(clusters[bj]);
+    clusters.splice(bj, 1);
+  }
+  const groups = {};
+  clusters.forEach((cl, k) => groups["c" + k] = cl);
+  const links = [];
+  for (const cl of clusters) for (let i = 0; i < cl.length; i++) for (let j = i + 1; j < cl.length; j++) links.push([cl[i], cl[j], R[key2(cl[i], cl[j])]]);
+  const STOP = new Set(["the", "of", "and", "per", "pct", "percent", "score", "0", "100", "1", "2", "3", "5", "flag", "eur", "meur", "usd", "total", "share", "rate", "index", "level", "co2e", "tco2e"]);
+  const tokens = c => slug(c).split("_").filter(t => t && !STOP.has(t) && isNaN(Number(t)));
+  let di = 0;
+  for (const key of Object.keys(groups)) {
+    const members = groups[key];
+    let nm;
+    if (members.length > 1) {
+      const sets = members.map(m => new Set(tokens(m)));
+      const common = [...sets[0]].filter(t => sets.every(s => s.has(t)));
+      if (common.length) nm = titleise(common.join(" "));
+      else {
+        /* name the group after its medoid — the member most typical of the rest */
+        let bestM = members[0], bestV = -Infinity;
+        members.forEach(m => { const v = mean(members.filter(o => o !== m).map(o => R[key2(m, o)] ?? 0)); if (v > bestV) { bestV = v; bestM = m; } });
+        nm = prettyCol(bestM).split(" ").slice(0, 2).join(" ") + " group";
+      }
+    } else nm = prettyCol(members[0]);
+    const id = "d" + (di++);
+    S.cfg.dims.push({ id, name: nm, w: Math.sqrt(members.length) });
+    members.forEach(m => S.cfg.crit[m] = { dim: id, w: 1, on: true });
+    if (members.length > 1) {
+      const rs = links.filter(l => members.includes(l[0]) && members.includes(l[1])).map(l => l[2]);
+      log.push({
+        stage: "Dimensions", item: nm, decision: members.length + " criteria grouped",
+        why: "rank correlation " + fmt(Math.min(...rs), 2) + "–" + fmt(Math.max(...rs), 2) + " between " + members.map(prettyCol).join(", ") + " — grouped so the shared signal is counted once"
+      });
+    } else {
+      log.push({ stage: "Dimensions", item: nm, decision: "stands alone", why: "no rank correlation at or above 0.60 with any other criterion" });
+    }
+  }
+  log.push({ stage: "Weighting", item: "Preset", decision: "breadth-adjusted dimensions", why: S.cfg.dims.length + " dimensions weighted by the square root of how many criteria they hold — a theme measured seven ways counts for more than one measured once, but not seven times more; criteria then split their dimension evenly" });
+  log.push({ stage: "Normalisation", item: "Method", decision: "percentile rank", why: "ranks are unaffected by outliers and by the units each indicator is reported in" });
+  log.push({ stage: "Missing data", item: "Policy", decision: "re-weight over what is present", why: "no value is invented; an entity below " + S.cfg.minCov + "% of weight covered is routed to a data-collection outcome instead of being scored" });
+  S.log = log;
+}
+
+/* ============================================================
+   6. Scoring
+   ============================================================ */
+function activeCrit() { return Object.keys(S.cfg.crit).filter(c => S.cfg.crit[c].on && S.cfg.role[c] === "criterion" && S.prof[c]); }
+function effWeights(mode) {
+  const crits = activeCrit(); const w = {};
+  if (!crits.length) return w;
+  if (mode === "equal") { crits.forEach(c => w[c] = 1 / crits.length); return w; }
+  if (mode === "entropy") {
+    let tot = 0;
+    crits.forEach(c => {
+      const v = normalise(c, "minmax", S.cfg.winsor).filter(x => x !== null).map(x => x + 1);
+      const sum = v.reduce((a, b) => a + b, 0) || 1;
+      let e = 0; v.forEach(x => { const p = x / sum; e -= p * Math.log(p); });
+      const d = 1 - (v.length > 1 ? e / Math.log(v.length) : 1);
+      w[c] = Math.max(d, 1e-6); tot += w[c];
+    });
+    crits.forEach(c => w[c] /= tot);
+    return w;
+  }
+  // balanced / manual: dimension weight split across its criteria by criterion weight
+  const dimTot = {}; let dw = 0;
+  S.cfg.dims.forEach(d => { dimTot[d.id] = 0; });
+  crits.forEach(c => { const d = S.cfg.crit[c].dim; if (dimTot[d] != null) dimTot[d] += Math.max(0, S.cfg.crit[c].w); });
+  S.cfg.dims.forEach(d => { if (dimTot[d.id] > 0) dw += Math.max(0, d.w); });
+  if (!dw) { crits.forEach(c => w[c] = 1 / crits.length); return w; }
+  crits.forEach(c => {
+    const d = S.cfg.crit[c].dim, dobj = S.cfg.dims.find(x => x.id === d);
+    if (!dobj || !dimTot[d]) { w[c] = 0; return; }
+    w[c] = (Math.max(0, dobj.w) / dw) * (Math.max(0, S.cfg.crit[c].w) / dimTot[d]);
+  });
+  return w;
+}
+function computeScores(opt) {
+  const method = opt.norm, weights = opt.weights, miss = opt.missing;
+  const crits = Object.keys(weights).filter(c => weights[c] > 0);
+  const N = {}; crits.forEach(c => N[c] = normalise(c, method, S.cfg.winsor));
+  const colMean = {}; crits.forEach(c => colMean[c] = mean(N[c].filter(v => v !== null)) ?? 50);
+  const n = S.rows.length, out = [];
+  for (let i = 0; i < n; i++) {
+    let num = 0, wPresent = 0, wAll = 0, wUsed = 0; const contrib = [];
+    for (const c of crits) {
+      const w = weights[c]; wAll += w;
+      const raw = N[c][i];
+      let v = raw;
+      if (raw === null) {
+        if (miss === "neutral") v = 50;
+        else if (miss === "mean") v = colMean[c];
+        else if (miss === "penalise") v = 25;
+        else { contrib.push({ col: c, s: null, w, c: 0 }); continue; }
+      } else wPresent += w;
+      num += v * w; wUsed += w;
+      contrib.push({ col: c, s: v, w, c: 0, imputed: raw === null });
+    }
+    const score = wUsed > 0 ? num / wUsed : null;
+    contrib.forEach(k => { if (k.s !== null && wUsed > 0) k.c = (k.w / wUsed) * (k.s - 50); });
+    out.push({ score, cov: wAll > 0 ? wPresent / wAll : 0, contrib });
+  }
+  return out;
+}
+function ranksOf(scores) {
+  const idx = scores.map((s, i) => [s, i]).sort((a, b) => (b[0] ?? -1) - (a[0] ?? -1));
+  const r = new Array(scores.length);
+  idx.forEach((p, k) => r[p[1]] = k + 1);
+  return r;
+}
+
+/* ============================================================
+   7. Decision tree
+   ============================================================ */
+function gateHit(g, i) {
+  const p = S.prof[g.col]; if (!p) return false;
+  const raw = S.rows[i][g.col];
+  if (p.type === "boolean") { const b = toBool(raw); return g.op === "is" ? b === 1 : b === 0; }
+  if (p.type === "numeric" || p.type === "ordinal") {
+    const v = toNum(raw, p.loc), t = Number(g.val);
+    if (v === null || !isFinite(t)) return false;
+    return g.op === "lt" ? v < t : g.op === "gt" ? v > t : v === t;
+  }
+  const s = String(raw).trim().toLowerCase(), t = String(g.val).trim().toLowerCase();
+  return g.op === "isnot" ? s !== t : s === t;
+}
+function deriveCuts(scores) {
+  const s = scores.filter(v => v != null).sort((a, b) => a - b);
+  if (s.length < 4) return [75, 50, 25];
+  if (S.cfg.cutMode === "quantile") return [quantile(s, .8), quantile(s, .5), quantile(s, .2)].map(v => Math.round(v * 10) / 10);
+  if (S.cfg.cutMode === "breaks") {
+    const minBand = Math.max(1, Math.floor(s.length * 0.1));
+    const gaps = [];
+    for (let i = minBand; i < s.length - minBand; i++) gaps.push([s[i] - s[i - 1], i]);
+    gaps.sort((a, b) => b[0] - a[0]);
+    const picks = [];
+    for (const [, i] of gaps) { if (picks.every(p => Math.abs(p - i) >= minBand)) picks.push(i); if (picks.length === 3) break; }
+    if (picks.length < 3) return [quantile(s, .8), quantile(s, .5), quantile(s, .2)].map(v => Math.round(v * 10) / 10);
+    return picks.sort((a, b) => b - a).map(i => Math.round(((s[i] + s[i - 1]) / 2) * 10) / 10);
+  }
+  return S.cfg.cuts;
+}
+function dimScores(contrib, weights) {
+  const acc = {};
+  S.cfg.dims.forEach(d => acc[d.id] = { n: 0, w: 0 });
+  for (const k of contrib) {
+    if (k.s === null) continue;
+    const d = S.cfg.crit[k.col] && S.cfg.crit[k.col].dim;
+    if (!acc[d]) continue;
+    acc[d].n += k.s * k.w; acc[d].w += k.w;
+  }
+  const out = {};
+  S.cfg.dims.forEach(d => out[d.id] = acc[d.id].w > 0 ? acc[d.id].n / acc[d.id].w : null);
+  return out;
+}
+function recompute() {
+  normCache.clear();
+  const weights = effWeights(S.cfg.weighting);
+  const base = computeScores({ norm: S.cfg.norm, weights, missing: S.cfg.missing });
+
+  /* gates and sufficiency come first — they decide who the cut-points are drawn over */
+  const pre = S.rows.map((r, i) => {
+    const gates = S.cfg.gates.filter(g => gateHit(g, i));
+    const excl = gates.find(g => g.out === "exclude");
+    const insufficient = base[i].score === null || base[i].cov * 100 < S.cfg.minCov;
+    return { gates, excl, insufficient };
+  });
+  const mask = arr => arr.map((v, i) => (!pre[i].excl && !pre[i].insufficient) ? v : null);
+
+  /* alternative specifications, ranked over the same eligible field, for rank stability */
+  const specs = [base.map(b => b.score)];
+  specs.push(computeScores({ norm: S.cfg.norm, weights: effWeights("equal"), missing: S.cfg.missing }).map(b => b.score));
+  specs.push(computeScores({ norm: S.cfg.norm, weights: effWeights("entropy"), missing: S.cfg.missing }).map(b => b.score));
+  specs.push(computeScores({ norm: S.cfg.norm === "zscore" ? "minmax" : "zscore", weights, missing: S.cfg.missing }).map(b => b.score));
+  const specRanks = specs.map(s => ranksOf(mask(s)));
+
+  const eligible = mask(base.map(b => b.score));
+  const cuts = deriveCuts(eligible);
+  if (S.cfg.cutMode !== "absolute") S.cfg.cuts = cuts;
+  const C = S.cfg.cuts;
+
+  const ranks = ranksOf(eligible);
+  const critList = activeCrit();
+  /* a dimension floor is only meaningful where the dimension is measured more than once */
+  const vetoDims = S.cfg.dims.filter(d => critList.filter(c => S.cfg.crit[c].dim === d.id).length >= 2);
+  const sizeCol = S.cfg.sizeCol;
+  const res = S.rows.map((r, i) => {
+    const b = base[i], p = pre[i];
+    const ds = dimScores(b.contrib, weights);
+    let tier = null, status = "scored", notes = [];
+    if (p.excl) { status = "excluded"; notes.push("Gate: " + prettyCol(p.excl.col)); }
+    else if (p.insufficient) { status = "insufficient"; notes.push(Math.round(b.cov * 100) + "% of weight covered"); }
+    else {
+      tier = b.score >= C[0] ? 1 : b.score >= C[1] ? 2 : b.score >= C[2] ? 3 : 4;
+      const dem = p.gates.filter(g => g.out === "demote");
+      dem.forEach(g => notes.push("Demoted: " + prettyCol(g.col)));
+      let vetoHit = null;
+      if (S.cfg.veto.on) {
+        for (const d of vetoDims) { const v = ds[d.id]; if (v !== null && v < S.cfg.veto.min) { vetoHit = d.name; break; } }
+      }
+      if (vetoHit) notes.push("Demoted: " + vetoHit + " below " + S.cfg.veto.min);
+      const steps = dem.length + (vetoHit ? 1 : 0);
+      if (steps) tier = Math.min(4, tier + steps);
+      p.gates.filter(g => g.out === "flag").forEach(g => notes.push("Flag: " + prettyCol(g.col)));
+    }
+    const size = sizeCol ? toNum(r[sizeCol], S.prof[sizeCol].loc) : null;
+    const rr = specRanks.map(x => x[i]);
+    return {
+      i, name: r[S.cfg.labelCol] || ("Row " + (i + 1)), seg: S.cfg.segCol ? r[S.cfg.segCol] : "",
+      score: b.score, cov: b.cov, contrib: b.contrib, dims: ds, tier, status, notes,
+      rank: status === "scored" ? ranks[i] : null, size,
+      leverage: (size != null && b.score != null) ? size * (100 - b.score) / 100 : null,
+      rMin: Math.min(...rr), rMax: Math.max(...rr)
+    };
+  });
+  /* leverage ranking */
+  const lev = res.filter(r => r.leverage != null && r.status === "scored").sort((a, b) => b.leverage - a.leverage);
+  lev.forEach((r, k) => r.levRank = k + 1);
+  S.res = res; S.weights = weights;
+  saveCfg();
+}
+
+/* ============================================================
+   8. Persistence
+   ============================================================ */
+function sig() { return "dms:" + S.columns.join("|").slice(0, 200); }
+function saveCfg() { try { localStorage.setItem(sig(), JSON.stringify(S.cfg)); } catch (e) { } }
+function loadCfg() { try { const v = localStorage.getItem(sig()); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+
+/* ============================================================
+   9. Rendering
+   ============================================================ */
+function showTab(p) {
+  ["data", "profile", "mech", "tree", "results", "audit"].forEach(k => { $("p-" + k).hidden = (k !== p); });
+  [...$("tabs").children].forEach(b => b.setAttribute("aria-selected", b.dataset.p === p ? "true" : "false"));
+  if (p === "results") drawHist();
+  try { localStorage.setItem("dms:tab", p); } catch (e) { }
+}
+function renderTop() {
+  const m = $("topmeta"); m.innerHTML = "";
+  const crits = activeCrit().length;
+  const add = (k, v) => { const s = el("span", "pill"); s.innerHTML = esc(k) + " <b>" + esc(v) + "</b>"; m.appendChild(s); };
+  add("Rows", S.rows.length); add("Columns", S.columns.length);
+  add("Criteria", crits); add("Dimensions", S.cfg.dims.length); add("Gates", S.cfg.gates.length);
+}
+
+/* ---------- data preview ---------- */
+function renderPreview() {
+  $("previewCard").hidden = false;
+  $("previewNote").textContent = S.name + " — " + S.rows.length + " rows × " + S.columns.length + " columns. First 8 rows shown.";
+  const t = el("table"), th = el("thead"), tr = el("tr");
+  S.columns.forEach(c => { const h = el("th", null, c); tr.appendChild(h); });
+  th.appendChild(tr); t.appendChild(th);
+  const tb = el("tbody");
+  S.rows.slice(0, 8).forEach(r => {
+    const row = el("tr");
+    S.columns.forEach(c => { const td = el("td", ["numeric", "ordinal"].includes(S.prof[c].type) ? "n" : null, isBlank(r[c]) ? "—" : r[c]); row.appendChild(td); });
+    tb.appendChild(row);
+  });
+  t.appendChild(tb); $("preview").innerHTML = ""; $("preview").appendChild(t);
+}
+
+/* ---------- profile ---------- */
+const TYPE_LABEL = { numeric: "Numeric", ordinal: "Ordinal", boolean: "Binary", categorical: "Categorical", identifier: "Identifier", text: "Text" };
+function renderProfile() {
+  const crit = activeCrit().length, gates = S.cfg.gates.length;
+  const lowCov = S.columns.filter(c => S.prof[c].coverage < 0.6 && S.cfg.role[c] === "criterion").length;
+  $("profSum").innerHTML = "<b>" + crit + "</b> criteria · <b>" + gates + "</b> gate columns · <b>" + lowCov + "</b> criteria below 60% coverage";
+  const t = el("table");
+  t.innerHTML = "<thead><tr><th>Column</th><th>Detected type</th><th class='n'>Coverage</th><th class='n'>Distinct</th><th>Distribution</th><th>Role</th><th>Direction</th></tr></thead>";
+  const tb = el("tbody");
+  S.columns.forEach(c => {
+    const p = S.prof[c], tr = el("tr");
+    const c1 = el("td"); c1.innerHTML = "<span class='name'>" + esc(prettyCol(c)) + "</span>"; tr.appendChild(c1);
+    const c2 = el("td"); c2.innerHTML = "<span class='tag" + (["numeric", "ordinal", "boolean"].includes(p.type) ? " num" : "") + "'>" + TYPE_LABEL[p.type] + "</span>"; tr.appendChild(c2);
+    const c3 = el("td", "n"); c3.innerHTML = Math.round(p.coverage * 100) + "%" + (p.coverage < 0.6 ? " <span class='warn'>!</span>" : ""); tr.appendChild(c3);
+    tr.appendChild(el("td", "n", String(p.unique)));
+    const c5 = el("td");
+    if (p.stats && p.type !== "boolean") c5.innerHTML = "<span class='sub2 mono'>" + fmt(p.stats.min, 1) + " · med " + fmt(p.stats.med, 1) + " · " + fmt(p.stats.max, 1) + "</span>";
+    else if (p.type === "boolean") c5.innerHTML = "<span class='sub2 mono'>" + Math.round((p.stats.trueShare || 0) * 100) + "% true</span>";
+    else if (p.levels) c5.innerHTML = "<span class='sub2'>" + esc(p.levels.slice(0, 3).join(", ")) + (p.levels.length > 3 ? " +" + (p.levels.length - 3) : "") + "</span>";
+    tr.appendChild(c5);
+    const c6 = el("td"), sel = el("select");
+    ["criterion", "gate", "segment", "label", "size", "reference", "excluded"].forEach(r => { const o = el("option", null, titleise(r)); o.value = r; if (S.cfg.role[c] === r) o.selected = true; sel.appendChild(o); });
+    sel.onchange = () => { setRole(c, sel.value); };
+    c6.appendChild(sel); tr.appendChild(c6);
+    const c7 = el("td");
+    if (["numeric", "ordinal", "boolean"].includes(p.type)) {
+      const d = el("select");
+      [["higher", "Higher is better"], ["lower", "Lower is better"]].forEach(([v, l]) => { const o = el("option", null, l); o.value = v; if (S.cfg.dir[c] === v) o.selected = true; d.appendChild(o); });
+      d.onchange = () => { S.cfg.dir[c] = d.value; logEdit("Direction", c, d.value === "higher" ? "higher is better" : "lower is better", "set by hand"); refresh(); };
+      c7.appendChild(d);
+    } else c7.textContent = "—";
+    tr.appendChild(c7);
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb); $("profTable").innerHTML = ""; $("profTable").appendChild(t);
+}
+function setRole(c, r) {
+  const old = S.cfg.role[c]; S.cfg.role[c] = r;
+  if (r === "criterion" && !S.cfg.crit[c]) {
+    if (!S.cfg.dims.length) S.cfg.dims.push({ id: "d0", name: "Composite", w: 1 });
+    S.cfg.crit[c] = { dim: S.cfg.dims[0].id, w: 1, on: true };
+  }
+  if (r === "criterion") S.cfg.crit[c].on = true;
+  if (old === "criterion" && r !== "criterion" && S.cfg.crit[c]) S.cfg.crit[c].on = false;
+  if (r === "gate" && !S.cfg.gates.some(g => g.col === c)) S.cfg.gates.push({ id: "g" + Date.now(), col: c, op: "is", val: S.prof[c].type === "boolean" ? "Yes" : (S.prof[c].levels ? S.prof[c].levels[0] : "0"), out: "demote" });
+  if (old === "gate" && r !== "gate") S.cfg.gates = S.cfg.gates.filter(g => g.col !== c);
+  if (r === "label") S.cfg.labelCol = c;
+  if (r === "size") S.cfg.sizeCol = c;
+  if (r === "segment") S.cfg.segCol = c;
+  logEdit("Roles", c, r, "set by hand");
+  refresh(true);
+}
+function logEdit(stage, item, decision, why) {
+  S.log = S.log.filter(l => !(l.stage === stage && l.item === item && l.edited));
+  S.log.push({ stage, item, decision, why, edited: true });
+}
+
+/* ---------- mechanism ---------- */
+function segSet(id, val, fn) {
+  const box = $(id);
+  [...box.children].forEach(b => { b.setAttribute("aria-pressed", b.dataset.v === val ? "true" : "false"); b.onclick = () => fn(b.dataset.v); });
+}
+function renderMech() {
+  segSet("normSeg", S.cfg.norm, v => { S.cfg.norm = v; logEdit("Normalisation", "Method", v, "set by hand"); refresh(); });
+  segSet("missSeg", S.cfg.missing, v => { S.cfg.missing = v; logEdit("Missing data", "Policy", v, "set by hand"); refresh(); });
+  segSet("wSeg", S.cfg.weighting === "manual" ? "" : S.cfg.weighting, v => { S.cfg.weighting = v; applyPreset(v); logEdit("Weighting", "Preset", v, "set by hand"); refresh(); });
+  $("normNote").textContent = {
+    percentile: "Each entity is placed by its rank inside the column, so an extreme value cannot drag the scale.",
+    minmax: "Linear between the winsorised floor and ceiling — keeps the size of gaps, exposed to outliers.",
+    zscore: "Distance from the mean in standard deviations, centred on 50. Assumes a roughly symmetric column."
+  }[S.cfg.norm];
+  $("missNote").textContent = {
+    renormalise: "Weights are redistributed across the indicators that are present; nothing is imputed.",
+    neutral: "A missing indicator scores 50 — neither rewarded nor penalised.",
+    mean: "A missing indicator takes the average of the entities that do report it.",
+    penalise: "A missing indicator scores 25, so non-disclosure costs the entity."
+  }[S.cfg.missing];
+  $("wNote").textContent = S.cfg.weighting === "manual" ? "Manual — weights below are yours." : {
+    balanced: "Each dimension is weighted by the square root of how many criteria it holds, then criteria split it evenly. Breadth counts, redundancy does not stack.",
+    equal: "Every criterion equal, regardless of how many measure the same thing.",
+    entropy: "Weight follows discriminating power: indicators that separate the field earn more. Objective, but it lets the data choose what matters."
+  }[S.cfg.weighting];
+  $("winsor").value = S.cfg.winsor; $("mincov").value = S.cfg.minCov;
+
+  const host = $("dims"); host.innerHTML = "";
+  const W = S.weights || {};
+  S.cfg.dims.forEach(d => {
+    const members = activeCrit().filter(c => S.cfg.crit[c].dim === d.id);
+    const dw = members.reduce((s, c) => s + (W[c] || 0), 0);
+    const box = el("div", "dimblock"), head = el("div", "dimhead");
+    const nm = el("input"); nm.type = "text"; nm.value = d.name; nm.size = Math.max(10, d.name.length);
+    nm.onchange = () => { d.name = nm.value.trim() || d.name; refresh(true); };
+    head.appendChild(nm);
+    const wb = el("div", "rowflex"); wb.style.cssText = "margin-left:auto;gap:8px;align-items:center";
+    const rng = el("input"); rng.type = "range"; rng.min = 0; rng.max = 5; rng.step = .1; rng.value = d.w; rng.style.width = "110px";
+    rng.oninput = () => { d.w = Number(rng.value); S.cfg.weighting = "manual"; refresh(); };
+    const lab = el("span", "mono"); lab.style.cssText = "font-size:12.5px;min-width:44px;text-align:right"; lab.textContent = Math.round(dw * 1000) / 10 + "%";
+    wb.appendChild(el("span", "note", "weight")); wb.appendChild(rng); wb.appendChild(lab);
+    head.appendChild(wb); box.appendChild(head);
+    if (!members.length) { const e = el("div", "note"); e.style.padding = "10px 12px"; e.textContent = "No criteria assigned."; box.appendChild(e); }
+    members.forEach(c => {
+      const row = el("div", "critrow"), p = S.prof[c];
+      const cn = el("div", "cn");
+      cn.innerHTML = "<span>" + esc(prettyCol(c)) + "</span><span class='sub2'>" + TYPE_LABEL[p.type] + " · " + Math.round(p.coverage * 100) + "% covered</span>";
+      row.appendChild(cn);
+      const ds = el("select");
+      [["higher", "Higher ↑"], ["lower", "Lower ↑"]].forEach(([v, l]) => { const o = el("option", null, l); o.value = v; if (S.cfg.dir[c] === v) o.selected = true; ds.appendChild(o); });
+      ds.onchange = () => { S.cfg.dir[c] = ds.value; logEdit("Direction", c, ds.value, "set by hand"); refresh(); };
+      row.appendChild(ds);
+      const rr = el("input"); rr.type = "range"; rr.min = 0; rr.max = 3; rr.step = .1; rr.value = S.cfg.crit[c].w;
+      rr.oninput = () => { S.cfg.crit[c].w = Number(rr.value); S.cfg.weighting = "manual"; refresh(); };
+      row.appendChild(rr);
+      const pcv = el("div", "mono"); pcv.style.cssText = "font-size:12.5px;text-align:right"; pcv.textContent = Math.round((W[c] || 0) * 1000) / 10 + "%";
+      row.appendChild(pcv);
+      const move = el("select"); move.title = "Move this criterion to another dimension";
+      S.cfg.dims.forEach(x => { const o = el("option", null, x.name); o.value = x.id; if (x.id === d.id) o.selected = true; move.appendChild(o); });
+      move.onchange = () => { S.cfg.crit[c].dim = move.value; logEdit("Dimensions", c, "moved to " + (S.cfg.dims.find(x => x.id === move.value) || {}).name, "set by hand"); refresh(true); };
+      move.setAttribute("aria-label", "Move to another dimension"); move.style.width = "100%";
+      row.appendChild(move);
+      box.appendChild(row);
+    });
+    host.appendChild(box);
+  });
+}
+function applyPreset(v) {
+  if (v === "balanced") {
+    const crits = activeCrit();
+    S.cfg.dims.forEach(d => d.w = Math.sqrt(Math.max(1, crits.filter(c => S.cfg.crit[c].dim === d.id).length)));
+    Object.values(S.cfg.crit).forEach(c => c.w = 1);
+    S.cfg.weighting = "balanced"; return;
+  }
+  /* materialise the preset into the sliders so the next hand edit starts from it */
+  const W = effWeights(v), crits = activeCrit(), dimSum = {};
+  S.cfg.dims.forEach(d => dimSum[d.id] = 0);
+  crits.forEach(c => { const d = S.cfg.crit[c].dim; if (dimSum[d] != null) dimSum[d] += W[c] || 0; });
+  const D = Math.max(1, S.cfg.dims.filter(d => dimSum[d.id] > 0).length);
+  S.cfg.dims.forEach(d => d.w = clamp((dimSum[d.id] || 0) * D, 0, 3));
+  crits.forEach(c => { const ds = dimSum[S.cfg.crit[c].dim] || 0; S.cfg.crit[c].w = ds > 0 ? clamp((W[c] / ds) * 2, 0, 3) : 0; });
+  S.cfg.weighting = "manual";
+}
+
+/* ---------- decision tree ---------- */
+const OUT_LABEL = { exclude: "Exclude", demote: "Demote one tier", flag: "Flag only" };
+function renderTree() {
+  const v = $("treeView"); v.innerHTML = "";
+  const n = S.res.length;
+  const cnt = k => S.res.filter(k).length;
+  const node = (cls, title, q, lines) => {
+    const d = el("div", "tnode " + cls);
+    const h = el("h4"); h.innerHTML = title; d.appendChild(h);
+    if (q) { const p = el("div", "q"); p.innerHTML = q; d.appendChild(p); }
+    if (lines && lines.length) {
+      const o = el("div", "outcomes");
+      lines.forEach(l => { const r = el("div", "oc"); r.innerHTML = l; o.appendChild(r); });
+      d.appendChild(o);
+    }
+    v.appendChild(d); v.appendChild(el("div", "stem"));
+  };
+  node("", "<span class='eyebrow'>Step 1</span> Data sufficiency",
+    "Is at least <b>" + S.cfg.minCov + "%</b> of the criterion weight present for this entity?",
+    ["<span class='chip tx'>No</span><span>Insufficient data → collect data before deciding · <b class='mono'>" + cnt(r => r.status === "insufficient") + "</b> of " + n + "</span>"]);
+  node("gate", "<span class='eyebrow'>Step 2</span> Hard gates",
+    S.cfg.gates.length ? "Does any exclusion rule fire?" : "No gate rules defined.",
+    S.cfg.gates.filter(g => g.out === "exclude").map(g => "<span class='chip out'>Exclude</span><span>" + esc(prettyCol(g.col)) + " " + (g.op === "is" ? "is" : g.op === "isnot" ? "is not" : g.op === "lt" ? "below" : "above") + " " + esc(g.val) + " · <b class='mono'>" + cnt(r => r.status === "excluded") + "</b> excluded</span>"));
+  node("band", "<span class='eyebrow'>Step 3</span> Score band",
+    "Weighted score on 0–100, cut at <b class='mono'>" + S.cfg.cuts.map(c => fmt(c, 1)).join(" / ") + "</b> (" + S.cfg.cutMode + ")",
+    [0, 1, 2, 3].map(t => "<span class='chip t" + (t + 1) + "'>" + esc(S.cfg.tierName[t]) + "</span><span>" + esc(S.cfg.tierAction[t]) + " · <b class='mono'>" + cnt(r => r.tier === t + 1) + "</b></span>"));
+  const dem = S.cfg.gates.filter(g => g.out === "demote");
+  node("mod", "<span class='eyebrow'>Step 4</span> Modifiers",
+    (dem.length || S.cfg.veto.on) ? "Applied after the band, so a knockout-adjacent signal is never averaged away." : "None active.",
+    dem.map(g => "<span class='chip warnflag'>Demote</span><span>" + esc(prettyCol(g.col)) + " · <b class='mono'>" + cnt(r => r.notes.some(x => x.startsWith("Demoted: " + prettyCol(g.col)))) + "</b></span>")
+      .concat(S.cfg.veto.on ? ["<span class='chip warnflag'>Demote</span><span>any dimension below " + S.cfg.veto.min + " · <b class='mono'>" + cnt(r => r.notes.some(x => x.includes("below " + S.cfg.veto.min))) + "</b></span>"] : []));
+  if (v.lastChild && v.lastChild.className === "stem") v.removeChild(v.lastChild);
+
+  /* gate editor */
+  const g = $("gates"); g.innerHTML = "";
+  S.cfg.gates.forEach(rule => {
+    const row = el("div", "gaterow");
+    const cs = el("select");
+    S.columns.filter(c => ["boolean", "categorical", "numeric", "ordinal"].includes(S.prof[c].type)).forEach(c => { const o = el("option", null, prettyCol(c)); o.value = c; if (c === rule.col) o.selected = true; cs.appendChild(o); });
+    cs.onchange = () => { rule.col = cs.value; refresh(true); }; row.appendChild(cs);
+    const os = el("select");
+    const isBool = S.prof[rule.col] && S.prof[rule.col].type === "boolean";
+    const opts = S.prof[rule.col] && ["numeric", "ordinal"].includes(S.prof[rule.col].type) ? [["lt", "below"], ["gt", "above"], ["is", "equals"]]
+      : isBool ? [["is", "is true"], ["isnot", "is false"]] : [["is", "is"], ["isnot", "is not"]];
+    opts.forEach(([vv, l]) => { const o = el("option", null, l); o.value = vv; if (rule.op === vv) o.selected = true; os.appendChild(o); });
+    os.onchange = () => { rule.op = os.value; refresh(true); }; row.appendChild(os);
+    const val = el("input"); val.type = "text"; val.value = isBool ? "—" : rule.val; val.style.width = "100%";
+    if (isBool) { val.disabled = true; val.title = "A binary column needs no comparison value."; val.style.opacity = ".5"; }
+    val.onchange = () => { rule.val = val.value; refresh(true); }; row.appendChild(val);
+    const out = el("select");
+    Object.entries(OUT_LABEL).forEach(([vv, l]) => { const o = el("option", null, l); o.value = vv; if (rule.out === vv) o.selected = true; out.appendChild(o); });
+    out.onchange = () => { rule.out = out.value; logEdit("Gates", rule.col, out.value, "set by hand"); refresh(true); }; row.appendChild(out);
+    const x = el("button", "xbtn", "×"); x.onclick = () => { S.cfg.gates = S.cfg.gates.filter(r => r !== rule); refresh(true); }; row.appendChild(x);
+    g.appendChild(row);
+  });
+  $("gateNote").textContent = S.cfg.gates.length ? "A gate column is kept out of the score, so a knockout is never diluted by good performance elsewhere." : "No gates. Add one to knock out or demote on a binary flag or a threshold breach.";
+
+  segSet("cutSeg", S.cfg.cutMode, v2 => { S.cfg.cutMode = v2; logEdit("Cut-points", "Mode", v2, "set by hand"); refresh(true); });
+  $("cutNote").textContent = {
+    quantile: "Top 20% / next 30% / next 30% / bottom 20% of the scored field — a fixed workload, whatever the data does.",
+    breaks: "Cuts sit in the widest gaps in the score distribution, so tiers follow real separations rather than a quota.",
+    absolute: "Fixed thresholds you set — comparable across reruns and across universes."
+  }[S.cfg.cutMode];
+  const cb = $("cuts"); cb.innerHTML = "";
+  [0, 1, 2].forEach(k => {
+    const r = el("div", "rowflex");
+    const chip = el("span", "chip t" + (k + 1), S.cfg.tierName[k]);
+    const inp = el("input"); inp.type = "number"; inp.step = "0.5"; inp.min = 0; inp.max = 100; inp.value = fmt(S.cfg.cuts[k], 1);
+    inp.onchange = () => { S.cfg.cuts[k] = Number(inp.value); S.cfg.cutMode = "absolute"; logEdit("Cut-points", "Threshold " + (k + 1), inp.value, "set by hand"); refresh(true); };
+    const act = el("input"); act.type = "text"; act.value = S.cfg.tierAction[k]; act.style.flex = "1"; act.style.minWidth = "120px";
+    act.onchange = () => { S.cfg.tierAction[k] = act.value; refresh(true); };
+    r.appendChild(chip); r.appendChild(el("span", "note", "at or above")); r.appendChild(inp); r.appendChild(act);
+    cb.appendChild(r);
+  });
+  const last = el("div", "rowflex");
+  last.appendChild(el("span", "chip t4", S.cfg.tierName[3])); last.appendChild(el("span", "note", "below " + fmt(S.cfg.cuts[2], 1)));
+  const act4 = el("input"); act4.type = "text"; act4.value = S.cfg.tierAction[3]; act4.style.flex = "1"; act4.style.minWidth = "120px";
+  act4.onchange = () => { S.cfg.tierAction[3] = act4.value; refresh(true); };
+  last.appendChild(act4); cb.appendChild(last);
+  $("vetoOn").checked = S.cfg.veto.on; $("vetoMin").value = S.cfg.veto.min;
+}
+
+/* ---------- KPIs + results ---------- */
+function renderResults() {
+  const scored = S.res.filter(r => r.status === "scored");
+  const ss = scored.map(r => r.score).sort((a, b) => a - b);
+  const k = $("kpis"); k.innerHTML = "";
+  const kpi = (lab, val, det) => { const d = el("div", "kpi"); d.innerHTML = "<div class='k'>" + lab + "</div><div class='v'>" + val + "</div><div class='d'>" + det + "</div>"; k.appendChild(d); };
+  kpi("Scored", scored.length, "of " + S.res.length + " rows");
+  kpi("Median score", fmt(quantile(ss, .5), 1), "spread " + fmt(quantile(ss, .1), 0) + "–" + fmt(quantile(ss, .9), 0) + " (P10–P90)");
+  kpi(S.cfg.tierName[0] + " count", S.res.filter(r => r.tier === 1).length, S.cfg.tierAction[0]);
+  kpi("Excluded by gate", S.res.filter(r => r.status === "excluded").length, "settled before scoring");
+  kpi("Insufficient data", S.res.filter(r => r.status === "insufficient").length, "below " + S.cfg.minCov + "% weight covered");
+  const unstable = scored.filter(r => (r.rMax - r.rMin) > Math.max(2, scored.length * 0.2)).length;
+  kpi("Spec-sensitive", unstable, "rank moves widely across weightings");
+
+  const tf = $("tierFilter"), cur = tf.value;
+  tf.innerHTML = "<option value=''>All outcomes</option>" + [1, 2, 3, 4].map(t => "<option value='t" + t + "'>" + esc(S.cfg.tierName[t - 1]) + "</option>").join("") + "<option value='excluded'>Excluded</option><option value='insufficient'>Insufficient data</option>";
+  tf.value = cur;
+
+  const rb = $("rankBy"); rb.hidden = !S.cfg.sizeCol; rb.value = S.rankBy;
+
+  const q = ($("search").value || "").toLowerCase();
+  let rows = S.res.filter(r => !q || r.name.toLowerCase().includes(q) || (r.seg || "").toLowerCase().includes(q));
+  if (cur) rows = rows.filter(r => cur.startsWith("t") ? r.tier === Number(cur.slice(1)) : r.status === cur);
+  const key = S.sortKey, dir = S.sortDir;
+  rows.sort((a, b) => {
+    const pick = r => key === "name" ? r.name.toLowerCase() : key === "rank" ? (S.rankBy === "leverage" ? (r.levRank ?? 9e9) : (r.rank ?? 9e9)) : key === "score" ? (r.score ?? -1) : key === "tier" ? (r.tier ?? 9) : key === "cov" ? r.cov : key === "size" ? (r.size ?? -1) : key === "range" ? (r.rMax - r.rMin) : 0;
+    const x = pick(a), y = pick(b);
+    return (x > y ? 1 : x < y ? -1 : 0) * dir;
+  });
+  const shown = rows.slice(0, S.showN);
+  $("resNote").textContent = "Click any row for its contribution breakdown." + (S.cfg.sizeCol ? " Ordering by " + (S.rankBy === "leverage" ? "engagement leverage (position size × shortfall to 100)." : "score.") : "");
+  $("resFoot").textContent = shown.length < rows.length ? "Showing " + shown.length + " of " + rows.length + " matching rows." : rows.length + " rows.";
+
+  const t = el("table");
+  const cols = [["rank", "#", "n"], ["name", "Entity", ""], ["score", "Score", "n"], ["", "Dimensions", ""], ["tier", "Outcome", ""], ["", "Action", ""], ["", "Notes", ""], ["cov", "Cov.", "n"], ["range", "Rank range", "n"]];
+  if (S.cfg.sizeCol) cols.push(["size", prettyCol(S.cfg.sizeCol), "n"]);
+  const th = el("thead"), tr = el("tr");
+  cols.forEach(([k2, lab, cls]) => {
+    const h = el("th", (cls || "") + (k2 ? " sortable" : ""), lab);
+    if (k2) h.onclick = () => { if (S.sortKey === k2) S.sortDir *= -1; else { S.sortKey = k2; S.sortDir = (k2 === "score" || k2 === "size" || k2 === "cov") ? -1 : 1; } renderResults(); };
+    if (k2 === S.sortKey) h.textContent = lab + (dir > 0 ? " ▲" : " ▼");
+    tr.appendChild(h);
+  });
+  th.appendChild(tr); t.appendChild(th);
+  const tb = el("tbody");
+  shown.forEach(r => {
+    const row = el("tr"); if (r.i === S.selected) row.classList.add("sel");
+    row.onclick = () => openDrawer(r.i);
+    const rk = S.rankBy === "leverage" ? r.levRank : r.rank;
+    row.appendChild(el("td", "n", rk ? String(rk) : "—"));
+    const nm = el("td"); nm.innerHTML = "<div class='name'>" + esc(r.name) + "</div>" + (r.seg ? "<div class='sub2'>" + esc(r.seg) + "</div>" : ""); row.appendChild(nm);
+    row.appendChild(el("td", "n", r.score == null ? "—" : fmt(r.score, 1)));
+    const dcell = el("td"); const mb = el("div", "mb");
+    S.cfg.dims.forEach(d => {
+      const v = r.dims[d.id]; const b = el("i"); b.title = d.name + ": " + (v == null ? "no data" : fmt(v, 0));
+      const f = el("b"); f.style.height = (v == null ? 0 : Math.max(6, v)) + "%"; if (v == null) b.style.background = "var(--muted-fill)";
+      b.appendChild(f); mb.appendChild(b);
+    });
+    dcell.appendChild(mb); row.appendChild(dcell);
+    const tc = el("td");
+    if (r.status === "scored") tc.innerHTML = "<span class='chip t" + r.tier + "'>" + esc(S.cfg.tierName[r.tier - 1]) + "</span>";
+    else if (r.status === "excluded") tc.innerHTML = "<span class='chip out'>Excluded</span>";
+    else tc.innerHTML = "<span class='chip tx'>Insufficient data</span>";
+    row.appendChild(tc);
+    row.appendChild(el("td", null, r.status === "scored" ? S.cfg.tierAction[r.tier - 1] : r.status === "excluded" ? "Out of scope" : "Collect data"));
+    const nc = el("td"); nc.innerHTML = r.notes.length ? r.notes.map(x => "<span class='tag'>" + esc(x) + "</span>").join(" ") : "<span class='sub2'>—</span>"; row.appendChild(nc);
+    row.appendChild(el("td", "n", Math.round(r.cov * 100) + "%"));
+    row.appendChild(el("td", "n", r.status === "scored" ? (r.rMin === r.rMax ? String(r.rMin) : r.rMin + "–" + r.rMax) : "—"));
+    if (S.cfg.sizeCol) row.appendChild(el("td", "n", r.size == null ? "—" : fmt(r.size, 0)));
+    tb.appendChild(row);
+  });
+  t.appendChild(tb); $("resTable").innerHTML = ""; $("resTable").appendChild(t);
+
+  $("sampleBanner").innerHTML = S.isSample
+    ? "<div class='banner'><b>Example data.</b> 24 invented issuers with illustrative indicators — enough to show the mechanism working. Load your own file on the Data tab to replace it.</div>" : "";
+}
+
+/* ---------- histogram ---------- */
+let histBins = [];
+function drawHist() {
+  const host = $("hist"); if (!host) return;
+  const W = Math.max(300, host.clientWidth || 700), H = 224;
+  const m = { t: 30, r: 12, b: 34, l: 34 };
+  const scored = S.res.filter(r => r.status === "scored" && r.score != null);
+  const nb = 20, bins = new Array(nb).fill(0).map((_, i) => ({ lo: i * 5, hi: i * 5 + 5, n: 0, names: [] }));
+  scored.forEach(r => { const k = clamp(Math.floor(r.score / 5), 0, nb - 1); bins[k].n++; bins[k].names.push(r.name); });
+  histBins = bins;
+  const maxN = Math.max(1, ...bins.map(b => b.n));
+  const x = v => m.l + (v / 100) * (W - m.l - m.r);
+  const y = v => H - m.b - (v / maxN) * (H - m.t - m.b);
+  const C = S.cfg.cuts, tierFill = ["var(--t1)", "var(--t2)", "var(--t3)", "var(--t4)"];
+  const bands = [[C[0], 100, 0], [C[1], C[0], 1], [C[2], C[1], 2], [0, C[2], 3]];
+  let s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Histogram of scores with tier bands">';
+  bands.forEach(([lo, hi, t]) => {
+    if (hi <= lo) return;
+    const bw = x(hi) - x(lo);
+    s += '<rect x="' + x(lo) + '" y="' + m.t + '" width="' + bw + '" height="' + (H - m.t - m.b) + '" fill="' + tierFill[t] + '" opacity="0.14"></rect>';
+    s += '<rect x="' + (x(lo) + 1) + '" y="' + (m.t - 4) + '" width="' + Math.max(1, bw - 2) + '" height="3" rx="1.5" fill="' + tierFill[t] + '"></rect>';
+    if (bw > 52) s += '<text x="' + ((x(lo) + x(hi)) / 2) + '" y="' + (m.t - 11) + '" text-anchor="middle" font-family="Carlito,sans-serif" font-size="10.5" fill="currentColor" opacity=".7" letter-spacing=".08em">' + esc(S.cfg.tierName[t].toUpperCase()) + '</text>';
+  });
+  for (let g = 0; g <= maxN; g += Math.max(1, Math.ceil(maxN / 4))) {
+    s += '<line x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + y(g) + '" y2="' + y(g) + '" stroke="currentColor" opacity=".13"></line>';
+    s += '<text x="' + (m.l - 7) + '" y="' + (y(g) + 3.5) + '" text-anchor="end" font-family="IBM Plex Mono,monospace" font-size="10" fill="currentColor" opacity=".5">' + g + '</text>';
+  }
+  bins.forEach((b, i) => {
+    if (!b.n) return;
+    const bx = x(b.lo) + 1.2, bw = Math.max(2, x(b.hi) - x(b.lo) - 2.4), by = y(b.n), bh = (H - m.b) - by;
+    s += '<rect class="hb" data-i="' + i + '" x="' + bx + '" y="' + by + '" width="' + bw + '" height="' + bh + '" rx="3" fill="var(--bar)"></rect>';
+  });
+  C.forEach((c, k) => {
+    s += '<line x1="' + x(c) + '" x2="' + x(c) + '" y1="' + (m.t - 4) + '" y2="' + (H - m.b) + '" stroke="var(--ink)" stroke-width="1.2" stroke-dasharray="3 3" opacity=".65"></line>';
+    s += '<text x="' + x(c) + '" y="' + (H - m.b + 25) + '" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="10.5" fill="currentColor" opacity=".8">' + fmt(c, 1) + '</text>';
+  });
+  s += '<line x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + (H - m.b) + '" y2="' + (H - m.b) + '" stroke="currentColor" opacity=".35"></line>';
+  [0, 25, 50, 75, 100].forEach(v => { s += '<text x="' + x(v) + '" y="' + (H - m.b + 13) + '" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="10" fill="currentColor" opacity=".5">' + v + '</text>'; });
+  s += '<text x="' + m.l + '" y="' + (H - 3) + '" font-family="Carlito,sans-serif" font-size="10.5" fill="currentColor" opacity=".55">Weighted score (0–100) · dashed lines are the live cut-points</text>';
+  s += "</svg>";
+  host.innerHTML = s;
+  $("histLegend").innerHTML = "<span><i style='background:var(--bar)'></i>Entities per 5-point band</span>" +
+    [0, 1, 2, 3].map(t => "<span><i style='background:" + tierFill[t] + "'></i>" + esc(S.cfg.tierName[t]) + "</span>").join("");
+}
+$("histHost").addEventListener("mousemove", e => {
+  const r = e.target.closest(".hb"), tip = $("histTip");
+  if (!r) { tip.classList.remove("on"); return; }
+  const b = histBins[+r.dataset.i], host = $("histHost").getBoundingClientRect(), br = r.getBoundingClientRect();
+  tip.textContent = b.lo + "–" + b.hi + " · " + b.n + (b.n === 1 ? " entity" : " entities");
+  tip.style.left = (br.left - host.left + br.width / 2) + "px";
+  tip.style.top = (br.top - host.top) + "px";
+  tip.classList.add("on");
+});
+$("histHost").addEventListener("mouseleave", () => $("histTip").classList.remove("on"));
+
+/* ---------- drawer ---------- */
+function openDrawer(i) {
+  S.selected = i; const r = S.res.find(x => x.i === i); if (!r) return;
+  $("dRank").textContent = r.status === "scored" ? ("Rank " + r.rank + " of " + S.res.filter(x => x.status === "scored").length) : (r.status === "excluded" ? "Excluded by gate" : "Insufficient data");
+  $("dName").textContent = r.name;
+  $("dMeta").textContent = [r.seg, S.cfg.sizeCol && r.size != null ? prettyCol(S.cfg.sizeCol) + " " + fmt(r.size, 0) : null].filter(Boolean).join(" · ");
+  const b = $("dBody"); b.innerHTML = "";
+
+  const head = el("div", "rowflex");
+  if (r.status === "scored") {
+    head.innerHTML = "<span class='chip t" + r.tier + "'>" + esc(S.cfg.tierName[r.tier - 1]) + "</span><span style='font-family:var(--mono);font-size:22px;font-weight:600'>" + fmt(r.score, 1) + "</span><span class='note'>weighted score · " + Math.round(r.cov * 100) + "% of weight covered</span>";
+  } else head.innerHTML = "<span class='chip " + (r.status === "excluded" ? "out" : "tx") + "'>" + (r.status === "excluded" ? "Excluded" : "Insufficient data") + "</span><span class='note'>" + esc(r.notes.join(" · ")) + "</span>";
+  b.appendChild(head);
+
+  /* rationale */
+  const pos = r.contrib.filter(c => c.c > 0).sort((a, c) => c.c - a.c).slice(0, 2);
+  const neg = r.contrib.filter(c => c.c < 0).sort((a, c) => a.c - c.c).slice(0, 2);
+  const sent = el("p", "lede");
+  if (r.status === "scored") {
+    sent.innerHTML = "Placed in <b>" + esc(S.cfg.tierName[r.tier - 1]) + "</b> — " + esc(S.cfg.tierAction[r.tier - 1].toLowerCase()) + ". " +
+      (pos.length ? "Lifted by " + pos.map(c => esc(prettyCol(c.col)) + " (+" + fmt(c.c, 1) + ")").join(" and ") + ". " : "") +
+      (neg.length ? "Held back by " + neg.map(c => esc(prettyCol(c.col)) + " (" + fmt(c.c, 1) + ")").join(" and ") + ". " : "") +
+      (r.notes.length ? "<br><b>" + esc(r.notes.join(" · ")) + "</b>" : "") +
+      "<br><span class='note'>Across four alternative weightings this entity sits between rank " + r.rMin + " and " + r.rMax + ".</span>";
+  } else sent.textContent = r.status === "excluded" ? "A gate settled this before scoring. Review the gate rule if that is not intended." : "Too little of the criterion weight is present to score this entity honestly. The outcome is a data request, not a judgement.";
+  b.appendChild(sent);
+
+  /* dimensions */
+  const dh = el("div"); dh.innerHTML = "<div class='eyebrow'>Dimension scores</div>"; b.appendChild(dh);
+  const dl = el("div", "contrib");
+  S.cfg.dims.forEach(d => {
+    const v = r.dims[d.id];
+    const row = el("div", "cbar");
+    row.innerHTML = "<span>" + esc(d.name) + "</span><span class='track'><b class='pos' style='left:0;width:" + (v == null ? 0 : v) + "%'></b></span><span class='mono' style='text-align:right'>" + (v == null ? "—" : fmt(v, 0)) + "</span>";
+    dl.appendChild(row);
+  });
+  b.appendChild(dl);
+
+  /* contributions */
+  const ch = el("div"); ch.innerHTML = "<div class='eyebrow'>Contribution to the score</div><div class='note'>Weighted distance from a neutral 50. The bars sum to the score minus 50.</div>"; b.appendChild(ch);
+  const cl = el("div", "contrib");
+  const maxAbs = Math.max(0.5, ...r.contrib.map(c => Math.abs(c.c)));
+  r.contrib.slice().sort((a, c) => c.c - a.c).forEach(c => {
+    const row = el("div", "cbar");
+    const w = Math.abs(c.c) / maxAbs * 50;
+    const bar = c.s === null ? "<b style='background:var(--muted-fill);left:49%;width:2%'></b>"
+      : (c.c >= 0 ? "<b class='pos' style='left:50%;width:" + w + "%'></b>" : "<b class='neg' style='left:" + (50 - w) + "%;width:" + w + "%'></b>");
+    row.innerHTML = "<span title='" + esc(c.col) + "'>" + esc(prettyCol(c.col)) + (c.s === null ? " <span class='tag'>no data</span>" : c.imputed ? " <span class='tag'>imputed</span>" : "") + "</span>" +
+      "<span class='track'>" + bar + "<span class='zero'></span></span>" +
+      "<span class='mono' style='text-align:right'>" + (c.s === null ? "—" : (c.c >= 0 ? "+" : "") + fmt(c.c, 1)) + "</span>";
+    cl.appendChild(row);
+  });
+  b.appendChild(cl);
+
+  /* raw values */
+  const rh = el("div"); rh.innerHTML = "<div class='eyebrow'>Reported values</div>"; b.appendChild(rh);
+  const tw = el("div", "tablewrap"), t = el("table");
+  const tb2 = el("tbody");
+  S.columns.filter(c => ["criterion", "gate", "size"].includes(S.cfg.role[c])).forEach(c => {
+    const tr = el("tr");
+    tr.appendChild(el("td", null, prettyCol(c)));
+    const v = S.rows[i][c];
+    tr.appendChild(el("td", "n", isBlank(v) ? "—" : v));
+    tb2.appendChild(tr);
+  });
+  t.appendChild(tb2); tw.appendChild(t); b.appendChild(tw);
+
+  $("drawer").classList.add("on"); $("drawer").setAttribute("aria-hidden", "false"); $("scrim").classList.add("on");
+  renderResults();
+}
+function closeDrawer() { $("drawer").classList.remove("on"); $("drawer").setAttribute("aria-hidden", "true"); $("scrim").classList.remove("on"); S.selected = -1; renderResults(); }
+
+/* ---------- audit ---------- */
+function renderAudit() {
+  const v = $("logView"); v.innerHTML = "";
+  const order = ["Roles", "Direction", "Dimensions", "Weighting", "Normalisation", "Missing data", "Gates", "Cut-points"];
+  const groups = {};
+  S.log.forEach(l => (groups[l.stage] = groups[l.stage] || []).push(l));
+  order.concat(Object.keys(groups).filter(k => !order.includes(k))).forEach(st => {
+    const items = groups[st]; if (!items) return;
+    items.forEach(l => {
+      const d = el("div", "logl");
+      d.innerHTML = "<div class='st'>" + esc(st) + "</div><div><b>" + esc(prettyCol(l.item)) + "</b> → " + esc(l.decision) +
+        (l.edited ? " <span class='tag'>edited</span>" : "") + (l.check ? " <span class='tag' style='border-color:var(--gold);color:var(--gold)'>check</span>" : "") +
+        "<span class='why'>" + esc(l.why) + "</span></div>";
+      v.appendChild(d);
+    });
+  });
+  $("cfgOut").value = JSON.stringify(S.cfg, null, 1);
+  $("logOut").value = logText();
+}
+function logText() {
+  const lines = ["Decision mechanism — derivation log", "Dataset: " + S.name + " (" + S.rows.length + " rows × " + S.columns.length + " columns)", ""];
+  S.log.forEach(l => lines.push("[" + l.stage + "] " + prettyCol(l.item) + " -> " + l.decision + (l.edited ? " (edited by user)" : "") + "\n    basis: " + l.why));
+  lines.push("", "Effective weights:");
+  Object.entries(S.weights || {}).sort((a, b) => b[1] - a[1]).forEach(([c, w]) => lines.push("    " + prettyCol(c) + ": " + (Math.round(w * 1000) / 10) + "%"));
+  lines.push("", "Cut-points (" + S.cfg.cutMode + "): " + S.cfg.cuts.map(c => fmt(c, 1)).join(" / "));
+  return lines.join("\n");
+}
+function resultsCSV() {
+  const head = ["rank", "entity", "segment", "score", "outcome", "action", "coverage_pct", "rank_low", "rank_high", "notes"];
+  if (S.cfg.sizeCol) head.push(slug(S.cfg.sizeCol));
+  S.cfg.dims.forEach(d => head.push("dim_" + slug(d.name)));
+  const rows = S.res.slice().sort((a, b) => (a.rank ?? 9e9) - (b.rank ?? 9e9)).map(r => {
+    const base = [r.rank ?? "", r.name, r.seg || "", r.score == null ? "" : fmt(r.score, 1),
+    r.status === "scored" ? S.cfg.tierName[r.tier - 1] : r.status === "excluded" ? "Excluded" : "Insufficient data",
+    r.status === "scored" ? S.cfg.tierAction[r.tier - 1] : r.status === "excluded" ? "Out of scope" : "Collect data",
+      Math.round(r.cov * 100), r.rMin, r.rMax, r.notes.join("; ")];
+    if (S.cfg.sizeCol) base.push(r.size ?? "");
+    S.cfg.dims.forEach(d => base.push(r.dims[d.id] == null ? "" : fmt(r.dims[d.id], 1)));
+    return base;
+  });
+  return [head, ...rows].map(r => r.map(v => /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v).join(",")).join("\n");
+}
+async function copy(text, btn) {
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch (e2) { } ta.remove(); }
+  const old = btn.textContent; btn.textContent = "Copied"; setTimeout(() => btn.textContent = old, 1400);
+}
+
+/* ============================================================
+   10. Orchestration
+   ============================================================ */
+function refresh(structural) {
+  recompute();
+  renderTop();
+  if (structural) renderProfile();
+  renderMech(); renderTree(); renderResults(); renderAudit();
+  if (!$("p-results").hidden) drawHist();
+}
+function loadMatrix(name, matrix, isSample) {
+  if (!matrix.length || matrix[0].length < 2) { msg("That file did not parse into at least two columns. Check the delimiter and try again.", true); return; }
+  buildDataset(name, matrix);
+  S.isSample = !!isSample;
+  deriveMechanism();
+  const saved = loadCfg();
+  let restored = false;
+  if (saved && saved.dims && saved.crit) {
+    try { S.cfg = Object.assign(S.cfg, saved); restored = true; } catch (e) { }
+  }
+  recompute(); renderPreview(); renderProfile(); refresh(true);
+  msg("Loaded <b>" + esc(name) + "</b> — " + S.rows.length + " rows, " + activeCrit().length + " criteria across " + S.cfg.dims.length + " dimensions, " + S.cfg.gates.length + " gate rule(s)." +
+    (restored ? " Your saved settings for this column layout were restored." : "") +
+    " <button class='btn sm' id='goMech'>Review the mechanism</button>" + (restored ? " <button class='btn sm' id='resetDerived'>Reset to derived</button>" : ""), false);
+  const gm = $("goMech"); if (gm) gm.onclick = () => showTab("mech");
+  const rd = $("resetDerived"); if (rd) rd.onclick = () => { try { localStorage.removeItem(sig()); } catch (e) { } deriveMechanism(); refresh(true); showTab("mech"); };
+}
+function msg(html, bad) { $("loadmsg").innerHTML = "<div class='banner'" + (bad ? " style='border-left-color:var(--claret)'" : "") + ">" + html + "</div>"; }
+function readFile(f) {
+  const ext = (f.name.split(".").pop() || "").toLowerCase();
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      if (ext === "xlsx" || ext === "xls") {
+        if (typeof XLSX === "undefined") { msg("The spreadsheet reader did not load. Save the sheet as CSV and try again.", true); return; }
+        const wb = XLSX.read(new Uint8Array(rd.result), { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const csv = XLSX.utils.sheet_to_csv(ws, { FS: "," });
+        loadMatrix(f.name, parseDelimited(csv, ","), false);
+      } else {
+        const txt = rd.result;
+        loadMatrix(f.name, parseDelimited(txt, sniffDelim(txt)), false);
+      }
+    } catch (e) { msg("That file could not be read: " + esc(e.message) + ". A plain CSV export is the safest input.", true); }
+  };
+  rd.onerror = () => msg("The file could not be opened.", true);
+  if (ext === "xlsx" || ext === "xls") rd.readAsArrayBuffer(f); else rd.readAsText(f);
+}
+
+/* events */
+$("pick").onclick = () => $("file").click();
+$("file").onchange = e => { if (e.target.files[0]) readFile(e.target.files[0]); };
+$("loadSample").onclick = () => { loadMatrix(SAMPLE_NAME, parseDelimited(SAMPLE_CSV, ","), true); showTab("results"); };
+const dz = $("drop");
+["dragenter", "dragover"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add("hot"); }));
+["dragleave", "drop"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove("hot"); }));
+dz.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if (f) readFile(f); });
+$("tabs").onclick = e => { const b = e.target.closest(".tab"); if (b) showTab(b.dataset.p); };
+$("reprofile").onclick = () => { try { localStorage.removeItem(sig()); } catch (err) { } profile(); deriveMechanism(); refresh(true); };
+$("winsor").onchange = e => { S.cfg.winsor = clamp(Number(e.target.value) || 0, 0, 20); logEdit("Normalisation", "Winsorising", S.cfg.winsor + "%", "set by hand"); refresh(); };
+$("mincov").onchange = e => { S.cfg.minCov = clamp(Number(e.target.value) || 0, 0, 100); logEdit("Missing data", "Minimum coverage", S.cfg.minCov + "%", "set by hand"); refresh(); };
+$("addDim").onclick = () => { S.cfg.dims.push({ id: "d" + Date.now(), name: "New dimension", w: 1 }); refresh(true); };
+$("resetW").onclick = () => { S.cfg.weighting = "balanced"; applyPreset("balanced"); refresh(); };
+$("addGate").onclick = () => {
+  const c = S.columns.find(x => S.prof[x].type === "boolean") || S.columns.find(x => ["numeric", "ordinal", "categorical"].includes(S.prof[x].type));
+  if (!c) return;
+  S.cfg.gates.push({ id: "g" + Date.now(), col: c, op: S.prof[c].type === "boolean" ? "is" : "lt", val: S.prof[c].type === "boolean" ? "Yes" : "0", out: "demote" });
+  refresh(true);
+};
+$("vetoOn").onchange = e => { S.cfg.veto.on = e.target.checked; logEdit("Cut-points", "Dimension floor", e.target.checked ? "on" : "off", "set by hand"); refresh(true); };
+$("vetoMin").onchange = e => { S.cfg.veto.min = clamp(Number(e.target.value) || 0, 0, 100); refresh(true); };
+$("search").oninput = () => renderResults();
+$("tierFilter").onchange = () => renderResults();
+$("rankBy").onchange = e => { S.rankBy = e.target.value; S.sortKey = "rank"; S.sortDir = 1; renderResults(); };
+$("copyRes").onclick = e => copy(resultsCSV(), e.target);
+$("copyCfg").onclick = e => copy(JSON.stringify(S.cfg, null, 1), e.target);
+$("copyLog").onclick = e => copy(logText(), e.target);
+$("applyCfg").onclick = () => {
+  try {
+    const c = JSON.parse($("cfgOut").value);
+    if (!c.dims || !c.crit) throw new Error("not a mechanism configuration");
+    S.cfg = Object.assign(S.cfg, c); refresh(true); $("cfgMsg").textContent = "Applied.";
+  } catch (e) { $("cfgMsg").innerHTML = "<span class='warn'>Could not apply: " + esc(e.message) + "</span>"; }
+};
+$("scrim").onclick = closeDrawer; $("dClose").onclick = closeDrawer;
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (!$("p-results").hidden) drawHist(); }, 150); });
+
+/* boot */
+loadMatrix(SAMPLE_NAME, parseDelimited(SAMPLE_CSV, ","), true);
+let startTab = "results";
+try { const t = localStorage.getItem("dms:tab"); if (t) startTab = t; } catch (e) { }
+showTab(startTab);
+requestAnimationFrame(drawHist);
+</script>
