@@ -67,11 +67,12 @@ jobs:
           echo "OpenSearch did not become ready in time" >&2
           exit 1
 
-      - name: Ruff lint
-        run: ruff check .
-
-      - name: Pytest
-        run: pytest -q
+      # Same script a contributor runs locally (scripts/verify.sh), so a
+      # green local run and a green CI job are the same claim. The
+      # Postgres/OpenSearch suites gate on the ARP_TEST_* vars set above
+      # and run here; they skip locally when those are unset.
+      - name: Verify (ruff + pytest)
+        run: bash ../scripts/verify.sh --backend
 
   frontend:
     name: Frontend (build + lint)
@@ -92,11 +93,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck + build
-        run: npm run build
+      # Same script a contributor runs locally -- see the backend job.
+      - name: Verify (lint + typecheck + build)
+        run: bash ../scripts/verify.sh --frontend
 
   # --- Corporate Readiness Plan, Phase 0 (docs/CORPORATE_READINESS_PLAN.md) ---
 
