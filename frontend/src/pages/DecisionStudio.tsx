@@ -28,12 +28,19 @@ const SUB_TABS = [
   { id: "audit", label: "7 · Audit" },
 ] as const;
 
+// `entity` names what one row of the resulting table actually is. Three of
+// these are not companies, which is the point: the engine scores rows.
 const SOURCES = [
-  { id: "transition_plan_run", label: "Transition plan run", needsRun: true },
-  { id: "extraction_run", label: "Extraction run", needsRun: true },
-  { id: "theme_run", label: "Thematic universe run", needsRun: true },
-  { id: "portfolio_snapshot", label: "Portfolio snapshot + climate", needsRun: false },
+  { id: "transition_plan_run", label: "Transition plan run", entity: "company", needsRun: true, needsRegion: false },
+  { id: "extraction_run", label: "Extraction run", entity: "company", needsRun: true, needsRegion: false },
+  { id: "theme_run", label: "Thematic universe run", entity: "company", needsRun: true, needsRegion: false },
+  { id: "portfolio_snapshot", label: "Portfolio snapshot + climate", entity: "company", needsRun: false, needsRegion: false },
+  { id: "transition_barrier", label: "Transition barrier matrix", entity: "sector × region", needsRun: false, needsRegion: true },
+  { id: "emerging_themes_run", label: "Emerging themes run", entity: "theme", needsRun: true, needsRegion: false },
+  { id: "replication_runs", label: "Strategy replication runs", entity: "strategy", needsRun: false, needsRegion: false },
 ] as const;
+
+const BARRIER_REGIONS = ["", "European Union", "United States", "China"];
 
 export function DecisionStudio() {
   const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("data");
@@ -49,6 +56,7 @@ export function DecisionStudio() {
   const [error, setError] = useState("");
   const [source, setSource] = useState<string>("transition_plan_run");
   const [runId, setRunId] = useState("");
+  const [region, setRegion] = useState("");
   const [compareWith, setCompareWith] = useState("");
   const [baseVersion, setBaseVersion] = useState<number | null>(null);
   const scoreTimer = useRef<number | undefined>(undefined);
@@ -88,7 +96,7 @@ export function DecisionStudio() {
 
   async function onFromSource() {
     const summary = await guard("Building the table…", () =>
-      api.decisionDatasetFromSource({ source, run_id: runId || undefined }),
+      api.decisionDatasetFromSource({ source, run_id: runId || undefined, region: region || undefined }),
     );
     if (summary) {
       selectDataset(summary);
@@ -308,10 +316,23 @@ export function DecisionStudio() {
             {SOURCES.find((s) => s.id === source)?.needsRun && (
               <input placeholder="run id" value={runId} onChange={(e) => setRunId(e.target.value)} />
             )}
+            {SOURCES.find((s) => s.id === source)?.needsRegion && (
+              <select value={region} onChange={(e) => setRegion(e.target.value)}>
+                {BARRIER_REGIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r || "All regions"}
+                  </option>
+                ))}
+              </select>
+            )}
             <button className="link-button" onClick={onFromSource}>
               Build table
             </button>
           </div>
+          <p className="help-text">
+            One row per {SOURCES.find((s) => s.id === source)?.entity}. Nothing in the engine assumes an entity is a
+            company — a sector in a jurisdiction, a theme and a strategy are scored the same way.
+          </p>
 
           {datasets.length > 0 && (
             <>

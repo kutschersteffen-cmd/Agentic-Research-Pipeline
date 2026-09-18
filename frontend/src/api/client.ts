@@ -591,7 +591,7 @@ export const api = {
     form.append("file", file);
     return request<DatasetSummary>("/api/decision/datasets", { method: "POST", body: form });
   },
-  decisionDatasetFromSource: (body: { source: string; run_id?: string; as_of?: string; portfolio_ids?: string[] }) =>
+  decisionDatasetFromSource: (body: { source: string; run_id?: string; run_ids?: string[]; as_of?: string; portfolio_ids?: string[]; region?: string; sectors?: string[] }) =>
     request<DatasetSummary>("/api/decision/datasets/from-source", { method: "POST", body: JSON.stringify(body) }),
   listDecisionDatasets: () => request<DatasetSummary[]>("/api/decision/datasets"),
   getDecisionDataset: (datasetId: string) => request<DatasetSummary>(`/api/decision/datasets/${datasetId}`),

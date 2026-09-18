@@ -126,10 +126,16 @@ async def upload_dataset(
 
 
 class FromSourceRequest(BaseModel):
-    source: str = Field(description="transition_plan_run | extraction_run | theme_run | portfolio_snapshot")
+    source: str = Field(
+        description="transition_plan_run | extraction_run | theme_run | portfolio_snapshot | "
+        "transition_barrier | emerging_themes_run | replication_runs"
+    )
     run_id: str | None = None
+    run_ids: list[str] | None = Field(default=None, description="replication_runs: defaults to every strategy_replication run.")
     as_of: str | None = None
     portfolio_ids: list[str] | None = None
+    region: str | None = Field(default=None, description="transition_barrier: one of the matrix's three jurisdictions.")
+    sectors: list[str] | None = None
 
 
 @router.post("/datasets/from-source", response_model=DatasetSummary)
@@ -151,6 +157,14 @@ def dataset_from_source(
             dataset = sources.from_theme_run(run_store, _require(req.run_id, "run_id"))
         elif req.source == "portfolio_snapshot":
             dataset = sources.from_portfolio_snapshot(portfolio_store, req.as_of, req.portfolio_ids)
+        # The three below score something other than a company -- a sector in
+        # a jurisdiction, a theme, a strategy. The engine does not care.
+        elif req.source == "transition_barrier":
+            dataset = sources.from_transition_barrier(req.region, req.sectors)
+        elif req.source == "emerging_themes_run":
+            dataset = sources.from_emerging_themes_run(run_store, _require(req.run_id, "run_id"))
+        elif req.source == "replication_runs":
+            dataset = sources.from_replication_runs(run_store, req.run_ids)
         else:
             raise HTTPException(400, f"Unknown source: {req.source}")
     except ValueError as exc:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 
 from arp.decision.dataset import Dataset, build_dataset
@@ -234,3 +235,224 @@ def _field_column(field) -> str:
     if unit in ("%", "pct", "percent") and not base.lower().endswith("pct"):
         return f"{base}_pct"
     return base
+
+
+# --- Sources whose entity is not a company ------------------------------
+#
+# Nothing in the engine assumes an entity is a company: it scores rows.
+# A sector-and-region cell, a theme, and a strategy are all perfectly good
+# entities, and the three adapters below are what make that concrete.
+
+_RATING_SCALE = {"H": 100.0, "M": 50.0, "L": 0.0}
+_CONFIDENCE_SCALE = {"high": 1.0, "medium": 0.6, "low": 0.2}
+
+
+def from_transition_barrier(region: str | None = None, sectors: list[str] | None = None) -> Dataset:
+    """The barrier matrix -> one row per sector x region.
+
+    The columns are named for **feasibility**, not for barriers, and that is
+    deliberate rather than stylistic: `Rating.HIGH` in this dataset means the
+    transition is *more* feasible -- fewer barriers -- so a column called
+    `..._Barrier_...` would be read by direction inference as
+    lower-is-better and would invert the entire ranking while every number
+    on screen still looked correct.
+    """
+    from arp.transition_barrier.dataset import load_scores
+    from arp.transition_barrier.staleness import staleness_days
+
+    rows_in = [s for s in load_scores() if (region is None or s.region.value == region) and (sectors is None or s.sector in sectors)]
+    if not rows_in:
+        raise ValueError("No barrier scores match that sector/region filter.")
+
+    pillars = sorted({s.category.value for s in rows_in})
+    grouped: dict[tuple[str, str], list] = defaultdict(list)
+    for score in rows_in:
+        grouped[(score.sector, score.region.value)].append(score)
+
+    columns = [
+        "Assessment",
+        "Sector",
+        "Region",
+        *[f"{_slug_title(p)}_Feasibility_0_100" for p in pillars],
+        "Assessment_Confidence_pct",
+        "Evidence_Staleness_Days",
+        "Criteria_Rated_Count",
+    ]
+    rows: list[list[str]] = []
+    confidence: dict[str, list[float | None]] = defaultdict(list)
+    for (sector, region_value), cells in sorted(grouped.items()):
+        row = [f"{sector} - {region_value}", sector, region_value]
+        for pillar in pillars:
+            members = [c for c in cells if c.category.value == pillar]
+            column = f"{_slug_title(pillar)}_Feasibility_0_100"
+            if members:
+                row.append(f"{sum(_RATING_SCALE[m.rating.value] for m in members) / len(members):.1f}")
+                confidence[column].append(sum(_CONFIDENCE_SCALE.get(m.confidence.value, 0.2) for m in members) / len(members))
+            else:
+                row.append("")
+                confidence[column].append(None)
+        confidences = [_CONFIDENCE_SCALE.get(c.confidence.value, 0.2) for c in cells]
+        row.append(f"{sum(confidences) / len(confidences) * 100:.1f}")
+        row.append(str(max(staleness_days(c) for c in cells)))
+        row.append(str(len(cells)))
+        rows.append(row)
+
+    dataset = build_dataset(
+        f"Transition barrier matrix{f' ({region})' if region else ''}",
+        _matrix(columns, rows),
+        source="transition_barrier",
+        source_ref=region or "all regions",
+    )
+    dataset.confidence = dict(confidence)
+    return dataset
+
+
+def _slug_title(pillar: str) -> str:
+    """"Demand & Economics" -> "Demand_Economics". Runs of separators collapse
+    to one underscore, so the column name stays readable and the keyword
+    dictionaries still tokenise it."""
+    return re.sub(r"_+", "_", "".join(ch if ch.isalnum() else "_" for ch in pillar)).strip("_")
+
+
+def from_emerging_themes_run(run_store: RunStore, run_id: str) -> Dataset:
+    """An Emerging Themes run -> one row per candidate theme.
+
+    Read through `load_candidates_with_status`, not off results.jsonl, so a
+    theme an analyst has already rejected or disconfirmed arrives with that
+    status rather than as a live candidate -- the promote/reject log is
+    append-only and folding it in is the only way to see current state.
+    """
+    from arp.emerging_themes.pipeline import load_candidates_with_status
+
+    candidates = load_candidates_with_status(run_store, run_id)
+    if not candidates:
+        raise ValueError(f"Emerging themes run {run_id} has no candidates.")
+
+    columns = [
+        "Theme",
+        "Theme_Id",
+        "Signal_Velocity",
+        "Breadth_pct",
+        "Persistence_Periods",
+        "Novelty_pct",
+        "Action_Score_pct",
+        "Materiality_pct",
+        "Contradiction_pct",
+        "Companies_Count",
+        "Grounded_Sources_pct",
+        "Status",
+        "Disconfirmed_Flag",
+    ]
+    rows: list[list[str]] = []
+    for candidate in candidates:
+        sources = candidate.corroborating_sources
+        grounded = [s for s in sources if s.grounded]
+        rows.append(
+            [
+                candidate.theme_name,
+                candidate.theme_id,
+                f"{candidate.signal_velocity:.3f}",
+                f"{candidate.breadth * 100:.1f}",
+                str(candidate.persistence),
+                f"{candidate.novelty * 100:.1f}",
+                f"{candidate.action_score * 100:.1f}",
+                f"{candidate.materiality * 100:.1f}",
+                f"{candidate.contradiction * 100:.1f}",
+                str(len(candidate.candidate_sectors_companies)),
+                f"{len(grounded) / len(sources) * 100:.1f}" if sources else "",
+                candidate.status.value,
+                # A disconfirmed theme's transmission mechanism has been
+                # invalidated by material counter-evidence. That is a
+                # knockout, not a deduction -- it belongs in the tree.
+                "Yes" if candidate.status.value == "disconfirmed" else "No",
+            ]
+        )
+
+    dataset = build_dataset(
+        f"Emerging themes run {run_id}", _matrix(columns, rows), source="emerging_themes_run", source_ref=run_id
+    )
+    scores = [float(c.confidence_score) for c in candidates]
+    for column in ("Signal_Velocity", "Breadth_pct", "Novelty_pct", "Action_Score_pct", "Materiality_pct"):
+        dataset.confidence[column] = list(scores)
+    return dataset
+
+
+def from_replication_runs(run_store: RunStore, run_ids: list[str] | None = None) -> Dataset:
+    """Strategy replication runs -> one row per replicated strategy.
+
+    One run replicates one spec, so a table worth ranking spans runs: the
+    question this answers is which of the strategies we replicated actually
+    deserve capital, and a single run cannot answer it.
+
+    `Out_Of_Sample_Persistence_pp` carries the sign the engine needs
+    (higher = held up better) and is deliberately not called a "gap": `gap`
+    is in the lower-is-better dictionary, and a column named that way would
+    be scored upside-down.
+    """
+    if run_ids is None:
+        run_ids = [m.run_id for m in run_store.list_runs(run_type="strategy_replication")]
+    if not run_ids:
+        raise ValueError("No strategy_replication runs found.")
+
+    columns = [
+        "Strategy",
+        "Spec_Id",
+        "Run_Id",
+        "Verdict",
+        "In_Sample_Sharpe",
+        "Out_Of_Sample_Sharpe",
+        "In_Sample_Annualized_Return_pct",
+        "Out_Of_Sample_Annualized_Return_pct",
+        "Out_Of_Sample_Persistence_pp",
+        "Max_Drawdown_pct",
+        "Deflated_Sharpe_Ratio",
+        "Universe_Size",
+        "Monthly_Turnover_pct",
+        "Data_Warnings_Count",
+        "Not_Replicated_Flag",
+    ]
+    rows: list[list[str]] = []
+    for run_id in run_ids:
+        records = run_store.read_jsonl(run_store.results_path(run_id))
+        report = next((r for r in records if r.get("type") == "comparison"), None)
+        if report is None:
+            continue
+        spec = next((r for r in records if r.get("type") == "spec"), {})
+        in_sample = report.get("in_sample") or {}
+        out_of_sample = report.get("out_of_sample") or {}
+        in_leg = (in_sample.get("long_short") or {})
+        out_leg = (out_of_sample.get("long_short") or {})
+        deflated = (report.get("deflated_sharpe") or {}).get("deflated_sharpe_ratio")
+        verdict = str(report.get("verdict") or "")
+        rows.append(
+            [
+                str(spec.get("strategy_name") or report.get("spec_id") or run_id),
+                str(report.get("spec_id") or ""),
+                run_id,
+                verdict,
+                _num(in_leg.get("sharpe_ratio")),
+                _num(out_leg.get("sharpe_ratio")),
+                _num(in_leg.get("annualized_return_pct")),
+                _num(out_leg.get("annualized_return_pct")),
+                _num(report.get("out_of_sample_return_gap_pp")),
+                _num(in_leg.get("max_drawdown_pct")),
+                _num(deflated),
+                str(in_sample.get("universe_size") or ""),
+                _num(in_sample.get("monthly_turnover_pct")),
+                str(len(in_sample.get("warnings") or [])),
+                # Wrong sign, indistinguishable from zero, or not enough
+                # data: none of those is a low score to be averaged against
+                # a good Sharpe elsewhere.
+                "Yes" if verdict in ("not_replicated", "insufficient_data") else "No",
+            ]
+        )
+
+    if not rows:
+        raise ValueError("None of those runs carry a completed replication comparison.")
+    return build_dataset(
+        "Strategy replication runs", _matrix(columns, rows), source="replication_runs", source_ref=",".join(run_ids)
+    )
+
+
+def _num(value) -> str:
+    return "" if value is None else f"{float(value):g}"

@@ -98,6 +98,18 @@ across every row.
 
 ### 3c. Roles and direction (`roles.py`)
 
+Two traps this caught, both recorded because a column name is the only
+thing standing between a correct ranking and a silently inverted one:
+
+- The Transition Barrier matrix rates **feasibility**, where `HIGH` means
+  *fewer* barriers. Emitting it as `..._Barrier_...` would have matched the
+  lower-is-better dictionary and inverted the ranking, so `sources.py`
+  names those columns for feasibility instead.
+- A replication's out-of-sample decay figure cannot be called a *gap*:
+  `gap` is a lower-is-better key, and the number's sign already means
+  higher-is-better. It is `Out_Of_Sample_Persistence_pp`.
+
+
 Each column is assigned a job (`label`, `reference`, `size`, `gate`,
 `criterion`, `segment`, `excluded`) and a direction, from keyword
 dictionaries held in `arp/decision/data/role_keywords.json` — **data, not
@@ -254,12 +266,18 @@ distinction the log exists to draw.
 
 ## 7. Building the table from this system's own data (`sources.py`)
 
-| Source | Produces |
-| --- | --- |
-| `transition_plan_run` | one row per company: disclosed count, walk/talk split, per-category disclosure %, assessment confidence — carried per cell |
-| `extraction_run` | one row per company, one column per schema field, each cell's confidence carried, and **zero** where the citation did not ground |
-| `theme_run` | per-company aggregate of the per-activity matches: activities included, best and mean exposure, adjudicator confidence |
-| `portfolio_snapshot` | holdings as of one date joined to climate data-point observations, with `market_value_eur` as the size column |
+Nothing in the engine assumes an entity is a company — it scores rows. Three
+of these seven sources prove it.
+
+| Source | Entity | Produces |
+| --- | --- | --- |
+| `transition_plan_run` | company | disclosed count, walk/talk split, per-category disclosure %, assessment confidence — carried per cell |
+| `extraction_run` | company | one column per schema field, each cell's confidence carried, and **zero** where the citation did not ground |
+| `theme_run` | company | aggregate of the per-activity matches: activities included, best and mean exposure, adjudicator confidence |
+| `portfolio_snapshot` | company | holdings as of one date joined to climate data-point observations, with `market_value_eur` as the size column |
+| `transition_barrier` | **sector × region** | the shipped matrix, one row per cell: per-pillar feasibility, confidence, staleness. Needs no run — it is reference data |
+| `emerging_themes_run` | **theme** | velocity, breadth, persistence, novelty, action score, materiality, contradiction, grounded-source share, status |
+| `replication_runs` | **strategy** | in/out-of-sample Sharpe and return, out-of-sample persistence, max drawdown, deflated Sharpe, verdict. Spans runs, because one run replicates one spec |
 
 Emitted column names follow the conventions the keyword dictionaries
 already recognise (`*_Coverage_pct`, `*_Intensity_*`, `*_Flag`), so role
@@ -341,12 +359,7 @@ frameworks/                            versioned frameworks + saved datasets (gi
    Tier-1-or-leverage-ranked list into `arp/engagement/triggers.py` as
    `TriggerEvent`s — carrying the framework version as the justification —
    is the next step, and the store already keeps what that citation needs.
-5. **Four source adapters exist, not fourteen.** `sources.py` covers the
-   transition-plan, extraction, thematic and portfolio paths. Three more
-   are worth adding and are not built: the **Transition Barrier
-   Assessment** (entity = sector × region rather than company, which the
-   engine handles unchanged), the **Emerging Themes Scanner** (entity =
-   theme cluster, scored on its action components), and **Strategy
-   Replication** (entity = strategy spec, scored on its out-of-sample
-   statistics). Each is an adapter returning a `Dataset`; nothing in the
+5. **Seven source adapters exist, not one per function.** Company
+   financials, document discovery and indirect exposure have no adapter
+   yet; each is a function returning a `Dataset`, and nothing in the
    engine needs to change for them.

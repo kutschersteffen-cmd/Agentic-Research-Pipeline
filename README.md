@@ -28,7 +28,7 @@ file-based state by default — no database required.
 | 11 | **Investment Strategy Replication** | Reduces a strategy paper to an executable spec, then backtests it deterministically in- and out-of-sample, with deflated Sharpe, PBO via purged/embargoed CSCV, and regime stratification. |
 | 12 | **Emerging Themes Scanner** | Bottom-up theme discovery from EDGAR full-text search, GDELT and regulatory RSS, with cross-period cluster lineage and an action-score promotion gate (corporate action, not mention counts). |
 | 13 | **Presentation & Reporting Tool** | One LLM call drafts a report plan; deterministic renderers emit pptx/docx/pdf, reusing an ingested `.pptx` template's layouts, colors and fonts. |
-| 15 | **Decision Studio** | Turns any per-entity table the functions above produce into a scored, ranked and tiered decision. Correlated criteria are grouped so one theme measured seven ways doesn't earn seven times the weight; criteria are normalised within peer cohorts; direction is inferred and *flagged where it is a guess*. Gates resolve before the average, a sufficiency gate precedes scoring, and every entity carries its rank *range* across four specifications. Frameworks are versioned and ratifiable; the audit log separates what the data proposed from what a person changed. Zero LLM calls. |
+| 15 | **Decision Studio** | Turns any per-entity table the functions above produce into a scored, ranked and tiered decision — entities are companies, sectors in a jurisdiction, themes or strategies, since the engine scores rows. Correlated criteria are grouped so one theme measured seven ways doesn't earn seven times the weight; criteria are normalised within peer cohorts; direction is inferred and *flagged where it is a guess*. Gates resolve before the average, a sufficiency gate precedes scoring, and every entity carries its rank *range* across four specifications. Frameworks are versioned and ratifiable; the audit log separates what the data proposed from what a person changed. Zero LLM calls. |
 | 14 | **Standing agents** | Taxonomy Researcher and Calibration Agent run on a schedule and *propose* changes for human review — they never apply them. |
 
 ## Architecture
@@ -116,6 +116,7 @@ arp replicate backtest --spec spec.json --prices prices.csv --tickers universe.c
 arp portfolio bi generate "climate risk overview of the leaders fund" --save
 arp climate waci --group-by portfolio_id
 arp decision derive --source transition_plan_run --run-id <run_id> --save   # no API key: zero LLM calls
+arp decision score --source transition_barrier --region "European Union"  # entity = sector, not company
 arp decision score --dataset <dataset_id> --framework <fw_id>
 arp report run --title "Electrification Review" --notes notes.txt --format pptx --out review.pptx
 arp discover run --universe companies.csv

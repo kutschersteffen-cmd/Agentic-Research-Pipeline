@@ -200,3 +200,43 @@ def test_from_source_rejects_an_unknown_source(client):
 def test_from_source_requires_a_run_id(client):
     response = client.post("/api/decision/datasets/from-source", json={"source": "theme_run"})
     assert response.status_code == 400
+
+
+def test_from_source_builds_the_barrier_matrix_without_a_run(client):
+    """The only source that needs no run at all -- the matrix is shipped
+    data, and its entity is a sector in a jurisdiction, not a company."""
+    response = client.post("/api/decision/datasets/from-source", json={"source": "transition_barrier", "region": "China"})
+    assert response.status_code == 200, response.text
+    summary = response.json()
+    assert summary["row_count"] >= 1
+    assert all(r["Region"] == "China" for r in summary["preview"])
+    assert any(c.endswith("_Feasibility_0_100") for c in summary["columns"])
+    assert summary["has_confidence"] is True
+    proposals = {p["column"]: p for p in summary["proposals"]}
+    feasibility = next(c for c in summary["columns"] if c.endswith("_Feasibility_0_100"))
+    assert proposals[feasibility]["direction"] == "higher"
+    assert proposals[feasibility]["needs_check"] is False
+
+
+def test_from_source_rejects_a_barrier_filter_that_matches_nothing(client):
+    response = client.post(
+        "/api/decision/datasets/from-source", json={"source": "transition_barrier", "region": "Atlantis"}
+    )
+    assert response.status_code == 400
+
+
+def test_barrier_matrix_scores_through_the_api(client):
+    dataset_id = client.post(
+        "/api/decision/datasets/from-source", json={"source": "transition_barrier"}
+    ).json()["dataset_id"]
+    derived = client.post("/api/decision/mechanisms/derive", json={"dataset_id": dataset_id}).json()
+    assert derived["config"]["normalise_within"] == "Region"
+    result = client.post("/api/decision/score", json={"dataset_id": dataset_id, "config": derived["config"]}).json()
+    assert result["scored_count"] > 0
+    assert {e["cohort"] for e in result["entities"]} <= {"China", "European Union", "United States"}
+
+
+def test_replication_source_with_no_runs_is_a_clean_400(client):
+    response = client.post("/api/decision/datasets/from-source", json={"source": "replication_runs"})
+    assert response.status_code == 400
+    assert "strategy_replication" in response.json()["detail"]

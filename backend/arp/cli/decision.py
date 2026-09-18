@@ -32,6 +32,7 @@ def _dataset(
     source: str | None,
     run_id: str | None,
     as_of: str | None,
+    region: str | None = None,
 ) -> Dataset:
     """One table, from wherever the caller has it: a file on disk, a stored
     dataset, or one of this system's own run results."""
@@ -55,6 +56,12 @@ def _dataset(
                 dataset = decision_sources.from_theme_run(run_store, _require(run_id))
             elif source == "portfolio_snapshot":
                 dataset = decision_sources.from_portfolio_snapshot(_portfolio_store(), as_of)
+            elif source == "transition_barrier":
+                dataset = decision_sources.from_transition_barrier(region)
+            elif source == "emerging_themes_run":
+                dataset = decision_sources.from_emerging_themes_run(run_store, _require(run_id))
+            elif source == "replication_runs":
+                dataset = decision_sources.from_replication_runs(run_store, [run_id] if run_id else None)
             else:
                 typer.echo(f"Unknown source: {source}", err=True)
                 raise typer.Exit(1)
@@ -90,12 +97,13 @@ def _config(dataset: Dataset, framework_id: str | None, version: int | None, fra
 def decision_profile(
     table: Path = typer.Option(None, "--table", help="CSV/TSV/XLSX table, one row per entity."),
     dataset_id: str = typer.Option(None, "--dataset"),
-    source: str = typer.Option(None, "--source", help="transition_plan_run | extraction_run | theme_run | portfolio_snapshot"),
+    source: str = typer.Option(None, "--source", help="transition_plan_run | extraction_run | theme_run | portfolio_snapshot | transition_barrier | emerging_themes_run | replication_runs"),
     run_id: str = typer.Option(None, "--run-id"),
     as_of: str = typer.Option(None, "--as-of"),
+    region: str = typer.Option(None, "--region", help="transition_barrier only: one of the matrix's three jurisdictions."),
 ) -> None:
     """Types every column from its values and proposes a job for it."""
-    dataset = _dataset(table, dataset_id, source, run_id, as_of)
+    dataset = _dataset(table, dataset_id, source, run_id, as_of, region)
     profiles = profile_dataset(dataset)
     typer.echo(f"{dataset.dataset_id}\t{dataset.row_count} rows\t{len(dataset.columns)} columns")
     for proposal in propose_roles(profiles, dataset.columns):
@@ -114,12 +122,13 @@ def decision_derive(
     source: str = typer.Option(None, "--source"),
     run_id: str = typer.Option(None, "--run-id"),
     as_of: str = typer.Option(None, "--as-of"),
+    region: str = typer.Option(None, "--region", help="transition_barrier only: one of the matrix's three jurisdictions."),
     name: str = typer.Option(None, "--name", help="Framework name."),
     save: bool = typer.Option(False, "--save", help="Persist the derived framework as v1."),
     out: Path = typer.Option(None, "--out", help="Write the framework JSON here."),
 ) -> None:
     """Derives a scoring/tiering mechanism from a table, with the reason for every choice."""
-    dataset = _dataset(table, dataset_id, source, run_id, as_of)
+    dataset = _dataset(table, dataset_id, source, run_id, as_of, region)
     config, audit = derive_mechanism(dataset, name=name)
     for entry in audit:
         flag = "  <-- check" if entry.needs_check else ""
@@ -139,6 +148,7 @@ def decision_score(
     source: str = typer.Option(None, "--source"),
     run_id: str = typer.Option(None, "--run-id"),
     as_of: str = typer.Option(None, "--as-of"),
+    region: str = typer.Option(None, "--region", help="transition_barrier only: one of the matrix's three jurisdictions."),
     framework_id: str = typer.Option(None, "--framework", help="Stored framework to apply; derived on the fly if omitted."),
     version: int = typer.Option(None, "--version"),
     framework_file: Path = typer.Option(None, "--framework-file"),
@@ -146,7 +156,7 @@ def decision_score(
     out: Path = typer.Option(None, "--out", help="Write the full result JSON here."),
 ) -> None:
     """Applies a mechanism and prints the ranked outcome."""
-    dataset = _dataset(table, dataset_id, source, run_id, as_of)
+    dataset = _dataset(table, dataset_id, source, run_id, as_of, region)
     config, audit = _config(dataset, framework_id, version, framework_file)
     result = apply_mechanism(dataset, config, derivation_audit=audit)
     cuts = ", ".join(f"{c:.1f}" for c in result.effective_cuts)
@@ -174,13 +184,14 @@ def decision_sensitivity(
     source: str = typer.Option(None, "--source"),
     run_id: str = typer.Option(None, "--run-id"),
     as_of: str = typer.Option(None, "--as-of"),
+    region: str = typer.Option(None, "--region", help="transition_barrier only: one of the matrix's three jurisdictions."),
     framework_id: str = typer.Option(None, "--framework"),
     version: int = typer.Option(None, "--version"),
     framework_file: Path = typer.Option(None, "--framework-file"),
     steps: int = typer.Option(13, "--steps"),
 ) -> None:
     """How far a dimension's weight must move before a tier changes."""
-    dataset = _dataset(table, dataset_id, source, run_id, as_of)
+    dataset = _dataset(table, dataset_id, source, run_id, as_of, region)
     config, _audit = _config(dataset, framework_id, version, framework_file)
     for row in tipping_points(dataset, config, entity_keys=list(entity) if entity else None, steps=steps):
         summary = (
