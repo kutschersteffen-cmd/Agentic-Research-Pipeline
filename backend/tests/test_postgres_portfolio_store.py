@@ -20,6 +20,7 @@ import pytest
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import Holding, Portfolio, SecurityRef, SecurityResolution
 from arp.storage.portfolio_store import PortfolioStore
+from tests.postgres_helpers import reset_postgres_tables
 
 DSN = os.environ.get("ARP_TEST_POSTGRES_DSN")
 pytestmark = pytest.mark.skipif(not DSN, reason="ARP_TEST_POSTGRES_DSN not set -- opt-in Postgres integration test")
@@ -31,6 +32,7 @@ def store(tmp_path):
     from arp.storage.postgres_portfolio_store import PostgresPortfolioStore
 
     ensure_schema(DSN)
+    reset_postgres_tables(DSN)  # own the scratch database for this test
     pg = PostgresPortfolioStore(DSN, PortfolioStore(tmp_path / "files"))
     yield pg
     # Clean up so re-runs against the same scratch DB are repeatable.
@@ -164,6 +166,33 @@ def test_observations_and_news_delegate_to_file_store(store):
     loaded = store.load_observations("bmw", "waci")
     assert len(loaded) == 1
     assert loaded[0].value == 42.0
+
+
+def test_monitoring_rules_and_alerts_delegate_to_file_store(store):
+    """Monitoring rules/alerts are another non-relational surface,
+    delegated the same way observations/news/flags/analytics are (see
+    test_observations_and_news_delegate_to_file_store above) -- this is
+    exactly where forgetting to add a delegation method would surface as
+    an AttributeError under ARP_PORTFOLIO_BACKEND=postgres."""
+    from arp.schemas.portfolio_monitoring import AlertRule
+
+    rule = AlertRule(name="High carbon intensity", rule_type="field_threshold", field_id="climate_carbon_intensity", comparator="gt", threshold_value=400.0)
+    store.save_rule(rule)
+    assert store.get_rule(rule.rule_id) == rule
+    assert store.list_rules() == [rule]
+
+    store.append_alert_event("bmw", "alert_raised", {"alert": {"alert_id": "a1"}})
+    assert store.list_alert_events("bmw")[0]["alert"]["alert_id"] == "a1"
+    assert store.list_all_alert_scope_ids() == ["bmw"]
+
+
+def test_governance_events_delegate_to_file_store(store):
+    """Governance events are another non-relational surface, delegated the
+    same way monitoring rules/alerts are above -- this is exactly where
+    forgetting to add a delegation method would surface as an
+    AttributeError under ARP_PORTFOLIO_BACKEND=postgres."""
+    store.append_governance_event("decision_recorded", {"decision": {"item_key": "s1"}})
+    assert store.list_governance_events()[0]["decision"]["item_key"] == "s1"
 
 
 def test_pgvector_embeddings_store_roundtrip():

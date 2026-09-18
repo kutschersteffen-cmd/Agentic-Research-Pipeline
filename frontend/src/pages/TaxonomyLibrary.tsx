@@ -22,6 +22,7 @@ const METHOD_LABELS: Record<DerivationMethod, string> = {
   etf_index_holdings: "ETF / index holdings (bottom-up)",
   news_transcript_mining: "News & earnings-call transcript mining",
   empirical: "Empirical (Extraction Engine readings)",
+  emerging_signal_discovery: "Emerging Themes Scanner (Tool 0)",
   merged: "Merged from existing taxonomies",
   manual: "Manual / hand-authored",
 };
@@ -43,7 +44,11 @@ const SUB_TABS = [
   { id: "overlap", label: "ETF holdings overlap" },
 ] as const;
 
-export function TaxonomyLibrary() {
+interface Props {
+  onUseInTheme?: (taxonomyId: string) => void;
+}
+
+export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
   const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("library");
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
 
@@ -71,7 +76,7 @@ export function TaxonomyLibrary() {
           </button>
         ))}
       </nav>
-      {sub === "library" && <LibraryView taxonomies={taxonomies} onChange={refreshLibrary} />}
+      {sub === "library" && <LibraryView taxonomies={taxonomies} onChange={refreshLibrary} onUseInTheme={onUseInTheme} />}
       {sub === "new" && <NewTaxonomyWizard onCreated={refreshLibrary} />}
       {sub === "compare" && <CompareMergeView taxonomies={taxonomies} onSaved={refreshLibrary} />}
       {sub === "universe" && <UniverseBuilderView />}
@@ -82,7 +87,15 @@ export function TaxonomyLibrary() {
 
 // --- Library: list + detail edit/ratify -----------------------------------
 
-function LibraryView({ taxonomies, onChange }: { taxonomies: Taxonomy[]; onChange: () => void }) {
+function LibraryView({
+  taxonomies,
+  onChange,
+  onUseInTheme,
+}: {
+  taxonomies: Taxonomy[];
+  onChange: () => void;
+  onUseInTheme?: (taxonomyId: string) => void;
+}) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [activities, setActivities] = useState<ActivityDefinition[]>([]);
   const [notes, setNotes] = useState("Manual edit.");
@@ -148,86 +161,93 @@ function LibraryView({ taxonomies, onChange }: { taxonomies: Taxonomy[]; onChang
 
   return (
     <section className="card">
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Method</th>
-            <th>Version</th>
-            <th>Status</th>
-            <th>Activities</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {taxonomies.map((t) => (
-            <Fragment key={t.taxonomy_id}>
-              <tr className="clickable-row" onClick={() => open(t)}>
-                <td>{t.name}</td>
-                <td>{METHOD_LABELS[t.derivation_method]}</td>
-                <td>v{t.version}</td>
-                <td>
-                  <span className={t.status === "ratified" ? "badge badge-high" : "badge badge-neutral"}>{t.status}</span>
-                </td>
-                <td>{t.theme.activities.length}</td>
-                <td>{openId === t.taxonomy_id ? "▲" : "▼"}</td>
-              </tr>
-              {openId === t.taxonomy_id && (
-                <tr>
-                  <td colSpan={6} className="detail-cell">
-                    <p className="muted">{t.source_notes}</p>
-                    <ActivityEditorTable activities={activities} onChange={setActivities} />
-                    <label className="field-label">Version notes</label>
-                    <input value={notes} onChange={(e) => setNotes(e.target.value)} />
-                    <div className="toolbar">
-                      <button onClick={() => saveVersion(t)} disabled={busy}>
-                        Save as new version
-                      </button>
-                    </div>
-                    {t.status === "draft" && (
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Method</th>
+              <th>Version</th>
+              <th>Status</th>
+              <th>Activities</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {taxonomies.map((t) => (
+              <Fragment key={t.taxonomy_id}>
+                <tr className="clickable-row" onClick={() => open(t)}>
+                  <td>{t.name}</td>
+                  <td>{METHOD_LABELS[t.derivation_method]}</td>
+                  <td>v{t.version}</td>
+                  <td>
+                    <span className={t.status === "ratified" ? "badge badge-high" : "badge badge-neutral"}>{t.status}</span>
+                  </td>
+                  <td>{t.theme.activities.length}</td>
+                  <td>{openId === t.taxonomy_id ? "▲" : "▼"}</td>
+                </tr>
+                {openId === t.taxonomy_id && (
+                  <tr>
+                    <td colSpan={6} className="detail-cell">
+                      <p className="muted">{t.source_notes}</p>
+                      <ActivityEditorTable activities={activities} onChange={setActivities} />
+                      <label className="field-label">Version notes</label>
+                      <input value={notes} onChange={(e) => setNotes(e.target.value)} />
                       <div className="toolbar">
-                        <input
-                          placeholder="Ratified by (name)"
-                          value={ratifiedBy}
-                          onChange={(e) => setRatifiedBy(e.target.value)}
-                        />
-                        <button onClick={() => ratify(t)} disabled={busy || !ratifiedBy}>
-                          Ratify v{t.version}
+                        <button onClick={() => saveVersion(t)} disabled={busy}>
+                          Save as new version
                         </button>
                       </div>
-                    )}
-                    <div className="toolbar">
-                      <label className="checkbox-label">
-                        <input type="checkbox" checked={useSampleIcio} onChange={(e) => setUseSampleIcio(e.target.checked)} />
-                        sample ICIO (for ISIC classification)
-                      </label>
-                      <label className="checkbox-label">
-                        <input type="checkbox" checked={useSampleStandards} onChange={(e) => setUseSampleStandards(e.target.checked)} />
-                        sample NACE/NAICS/SIC/GICS reference data
-                      </label>
-                      <button onClick={() => mapStandards(t)} disabled={busy}>
-                        Map to NACE / NAICS / SIC / GICS
-                      </button>
-                      <a href={api.standardsCsvUrl(t.taxonomy_id)} target="_blank" rel="noreferrer">
-                        Export standards CSV
-                      </a>
-                    </div>
-                    <p className="help-text">
-                      Uses configured ARP_NACE_CROSSWALK_PATH / ARP_NAICS_CROSSWALK_PATH / ARP_SIC_CROSSWALK_PATH /
-                      ARP_GICS_REFERENCE_PATH by default; check the sample boxes to use the bundled illustrative data
-                      instead. Saves a new taxonomy version. <strong>The bundled GICS data below sector level is an
-                      unverified, LLM-reconstructed approximation of the licensed MSCI/S&amp;P structure</strong> --
-                      fine for testing this pipeline, not for citing. Supply a verified ARP_GICS_REFERENCE_PATH
-                      before relying on sub-industry-level GICS output.
-                    </p>
-                    {error && <p className="error-text">{error}</p>}
-                  </td>
-                </tr>
-              )}
-            </Fragment>
-          ))}
-        </tbody>
-      </table>
+                      {t.status === "draft" && (
+                        <div className="toolbar">
+                          <input
+                            placeholder="Ratified by (name)"
+                            value={ratifiedBy}
+                            onChange={(e) => setRatifiedBy(e.target.value)}
+                          />
+                          <button onClick={() => ratify(t)} disabled={busy || !ratifiedBy}>
+                            Ratify v{t.version}
+                          </button>
+                        </div>
+                      )}
+                      <div className="toolbar">
+                        <label className="checkbox-label">
+                          <input type="checkbox" checked={useSampleIcio} onChange={(e) => setUseSampleIcio(e.target.checked)} />
+                          sample ICIO (for ISIC classification)
+                        </label>
+                        <label className="checkbox-label">
+                          <input type="checkbox" checked={useSampleStandards} onChange={(e) => setUseSampleStandards(e.target.checked)} />
+                          sample NACE/NAICS/SIC/GICS reference data
+                        </label>
+                        <button onClick={() => mapStandards(t)} disabled={busy}>
+                          Map to NACE / NAICS / SIC / GICS
+                        </button>
+                        <a href={api.standardsCsvUrl(t.taxonomy_id)} target="_blank" rel="noreferrer">
+                          Export standards CSV
+                        </a>
+                      </div>
+                      {onUseInTheme && (
+                        <div className="toolbar">
+                          <button onClick={() => onUseInTheme(t.taxonomy_id)}>Use in Thematic Universe &rarr;</button>
+                        </div>
+                      )}
+                      <p className="help-text">
+                        Uses configured ARP_NACE_CROSSWALK_PATH / ARP_NAICS_CROSSWALK_PATH / ARP_SIC_CROSSWALK_PATH /
+                        ARP_GICS_REFERENCE_PATH by default; check the sample boxes to use the bundled illustrative data
+                        instead. Saves a new taxonomy version. <strong>The bundled GICS data below sector level is an
+                        unverified, LLM-reconstructed approximation of the licensed MSCI/S&amp;P structure</strong> --
+                        fine for testing this pipeline, not for citing. Supply a verified ARP_GICS_REFERENCE_PATH
+                        before relying on sub-industry-level GICS output.
+                      </p>
+                      {error && <p className="error-text">{error}</p>}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
@@ -641,26 +661,28 @@ function UniverseBuilderView() {
               Built {result.company_count} companies -- saved at <code>{result.path}</code>. Use this path as the
               universe for the empirical/news-mining derivation methods or the Thematic Universe Builder.
             </p>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>company_id</th>
-                  <th>name</th>
-                  <th>ticker</th>
-                  <th>sector</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(result.sample as Record<string, unknown>[]).map((c, i) => (
-                  <tr key={i}>
-                    <td>{String(c.company_id ?? "")}</td>
-                    <td>{String(c.name ?? "")}</td>
-                    <td>{String(c.ticker ?? "")}</td>
-                    <td>{String(c.sector ?? "")}</td>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>company_id</th>
+                    <th>name</th>
+                    <th>ticker</th>
+                    <th>sector</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(result.sample as Record<string, unknown>[]).map((c, i) => (
+                    <tr key={i}>
+                      <td>{String(c.company_id ?? "")}</td>
+                      <td>{String(c.name ?? "")}</td>
+                      <td>{String(c.ticker ?? "")}</td>
+                      <td>{String(c.sector ?? "")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </>
         )}
       </section>
@@ -734,34 +756,36 @@ function OverlapView() {
           <input type="file" accept=".csv" onChange={addFund} disabled={busy || !fundName} />
         </div>
         {funds.length > 0 && (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Fund</th>
-                <th>File</th>
-                <th></th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {funds.map((f, idx) => (
-                <tr key={idx}>
-                  <td>{f.name}</td>
-                  <td>{f.file.name}</td>
-                  <td>
-                    <button className="link-button" onClick={() => inspect(f)}>
-                      Inspect holdings
-                    </button>
-                  </td>
-                  <td>
-                    <button className="link-button" onClick={() => removeFund(idx)}>
-                      Remove
-                    </button>
-                  </td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Fund</th>
+                  <th>File</th>
+                  <th></th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {funds.map((f, idx) => (
+                  <tr key={idx}>
+                    <td>{f.name}</td>
+                    <td>{f.file.name}</td>
+                    <td>
+                      <button className="link-button" onClick={() => inspect(f)}>
+                        Inspect holdings
+                      </button>
+                    </td>
+                    <td>
+                      <button className="link-button" onClick={() => removeFund(idx)}>
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         <button onClick={compute} disabled={busy || funds.length < 2}>
           Compute holdings overlap
@@ -781,40 +805,44 @@ function OverlapView() {
           <p>
             <strong>Union of holdings:</strong> {result.union_tickers.length} tickers
           </p>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Fund pair</th>
-                <th>Weight-adjusted overlap</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(result.pairwise_overlap_pct).map(([pair, pct]) => (
-                <tr key={pair}>
-                  <td>{pair.replace("|", " vs ")}</td>
-                  <td>{pct.toFixed(1)}%</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Fund pair</th>
+                  <th>Weight-adjusted overlap</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {Object.entries(result.pairwise_overlap_pct).map(([pair, pct]) => (
+                  <tr key={pair}>
+                    <td>{pair.replace("|", " vs ")}</td>
+                    <td>{pct.toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <h4>Holdings inspection</h4>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Ticker</th>
-                <th>Held by</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.union_tickers.map((ticker) => (
-                <tr key={ticker}>
-                  <td>{ticker}</td>
-                  <td>{(result.ticker_presence[ticker] ?? []).join(", ")}</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Held by</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {result.union_tickers.map((ticker) => (
+                  <tr key={ticker}>
+                    <td>{ticker}</td>
+                    <td>{(result.ticker_presence[ticker] ?? []).join(", ")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
     </>

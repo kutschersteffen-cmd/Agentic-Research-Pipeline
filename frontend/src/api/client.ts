@@ -7,21 +7,48 @@ import type {
   EntitySensitivity,
   MechanismConfig,
   MechanismEnvelope,
+  Alert,
+  AlertRule,
+  AlertStatus,
   AnalyticRequest,
+  CompanyRef,
   CoverageBySource,
+  DashboardSpec,
+  DataPointObservation,
   DataPointSchema,
   DemoSeedSummary,
+  EmergingThemeCandidate,
+  EmergingThemesScheduleConfig,
   FinancedEmissionsResult,
+  GeneratedDashboard,
+  GovernanceDecision,
+  GovernanceDecisionType,
+  GovernanceItemType,
   NewsItem,
   NewsRiskFlag,
   PivotRequest,
   PivotResult,
+  PolicyChange,
+  PolicySettingName,
   PortfolioSummary,
   QAAnswer,
+  RiskCategoryOwner,
   SecurityResolution,
+  SearchResponse,
   TransitionPlanAssessmentRecord,
   TransitionPlanIndicatorDef,
   TrendPoint,
+} from "../types";
+import type { QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, TemplateStyleProfile } from "../types";
+import type { PaperCandidate, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
+import type {
+  BarrierCriterion,
+  BarrierCriterionDetail,
+  BarrierMatrix,
+  BarrierRefreshCoverage,
+  BarrierRegistrySource,
+  BarrierScore,
+  BarrierStalenessReport,
 } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
@@ -62,6 +89,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   base: API_BASE,
 
+  // Search
+  searchAll: (q: string, types?: string[], limit?: number) =>
+    request<SearchResponse>(`/api/search${buildQuery({ q, types, limit: limit ? String(limit) : undefined })}`),
+
   // Universe
   uploadUniverse: (file: File) => {
     const form = new FormData();
@@ -96,6 +127,8 @@ export const api = {
   getExtractionReviewDecisions: (runId: string) => request(`/api/extraction/runs/${runId}/review-decisions`),
   getExtractionReviewHistory: (runId: string, itemKey: string) =>
     request(`/api/extraction/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
+  getExtractionResultsForCompany: (companyId: string) =>
+    request(`/api/extraction/companies/${encodeURIComponent(companyId)}/results`),
 
   // Company Financials (business segments + CapEx + R&D, one combined pass)
   startFinancialsRun: (body: unknown) =>
@@ -108,6 +141,8 @@ export const api = {
   getFinancialsReviewDecisions: (runId: string) => request(`/api/financials/runs/${runId}/review-decisions`),
   getFinancialsReviewHistory: (runId: string, itemKey: string) =>
     request(`/api/financials/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
+  getFinancialsResultsForCompany: (companyId: string) =>
+    request(`/api/financials/companies/${encodeURIComponent(companyId)}/results`),
 
   // Transition Plan Assessment (64-indicator walk/talk RAG disclosure assessment)
   getTransitionPlanIndicators: () => request<TransitionPlanIndicatorDef[]>("/api/transition-plan/indicators"),
@@ -124,6 +159,24 @@ export const api = {
   getTransitionPlanReviewHistory: (runId: string, itemKey: string) =>
     request(`/api/transition-plan/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
 
+  // Transition Barrier Assessment (105-cell sector x region feasibility matrix)
+  getBarrierMatrix: () => request<BarrierMatrix>("/api/transition-barrier/matrix"),
+  getBarrierCriteria: () => request<BarrierCriterion[]>("/api/transition-barrier/criteria"),
+  getBarrierCriterionDetail: (code: string) =>
+    request<BarrierCriterionDetail>(`/api/transition-barrier/criteria/${encodeURIComponent(code)}`),
+  getBarrierScores: (params: { sector?: string; region?: string; pillar?: string; rating?: string } = {}) =>
+    request<BarrierScore[]>(`/api/transition-barrier/scores${buildQuery(params)}`),
+  getBarrierSources: () => request<BarrierRegistrySource[]>("/api/transition-barrier/sources"),
+  getBarrierStaleness: () => request<BarrierStalenessReport>("/api/transition-barrier/staleness"),
+  getBarrierRefreshCoverage: () => request<BarrierRefreshCoverage>("/api/transition-barrier/refresh/coverage"),
+  startBarrierRefreshRun: () =>
+    request<{ run_id: string; source_count: number }>("/api/transition-barrier/refresh/runs", { method: "POST" }),
+  getBarrierRefreshReviewQueue: (runId: string) => request(`/api/transition-barrier/refresh/runs/${runId}/review-queue`),
+  submitBarrierRefreshReview: (runId: string, body: unknown) =>
+    request(`/api/transition-barrier/refresh/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
+  getBarrierRefreshReviewHistory: (runId: string, itemKey: string) =>
+    request(`/api/transition-barrier/refresh/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
+
   // Documents
   uploadDocument: (companyId: string, docType: string, file: File) => {
     const form = new FormData();
@@ -135,6 +188,8 @@ export const api = {
   listDocuments: (companyId: string) => request(`/api/documents/${companyId}`),
   documentRawUrl: (companyId: string, docType: string, filename: string) =>
     `${API_BASE}/api/documents/${encodeURIComponent(companyId)}/${encodeURIComponent(docType)}/${encodeURIComponent(filename)}/raw`,
+  listCachedDocuments: (offset = 0, limit = 25) => request(`/api/documents/cache?offset=${offset}&limit=${limit}`),
+  getCachedDocumentText: (rowId: number) => request(`/api/documents/cache/${rowId}`),
 
   // Discovery
   startDiscoveryRun: (body: unknown) =>
@@ -145,6 +200,58 @@ export const api = {
   getDiscoverySchedule: () => request("/api/discovery/schedule"),
   updateDiscoverySchedule: (config: unknown) =>
     request("/api/discovery/schedule", { method: "PUT", body: JSON.stringify(config) }),
+
+  // Taxonomy Researcher (standing agent)
+  startTaxonomyResearcherRun: (body: unknown) =>
+    request<{ run_id: string }>("/api/taxonomy-researcher/runs", { method: "POST", body: JSON.stringify(body) }),
+  getTaxonomyResearcherRun: (runId: string) => request(`/api/taxonomy-researcher/runs/${runId}`),
+  getTaxonomyResearcherResults: (runId: string, offset = 0, limit = 200) =>
+    request(`/api/taxonomy-researcher/runs/${runId}/results?offset=${offset}&limit=${limit}`),
+  getTaxonomyResearcherSchedule: () => request("/api/taxonomy-researcher/schedule"),
+  updateTaxonomyResearcherSchedule: (config: unknown) =>
+    request("/api/taxonomy-researcher/schedule", { method: "PUT", body: JSON.stringify(config) }),
+
+  // Calibration Agent (standing agent)
+  startCalibrationRun: () => request<{ run_id: string }>("/api/calibration/runs", { method: "POST" }),
+  getCalibrationRun: (runId: string) => request(`/api/calibration/runs/${runId}`),
+  getCalibrationResults: (runId: string, offset = 0, limit = 200) =>
+    request(`/api/calibration/runs/${runId}/results?offset=${offset}&limit=${limit}`),
+  getCalibrationSchedule: () => request("/api/calibration/schedule"),
+  updateCalibrationSchedule: (config: unknown) =>
+    request("/api/calibration/schedule", { method: "PUT", body: JSON.stringify(config) }),
+
+  // Emerging Themes Scanner ("Tool 0")
+  startEmergingThemesRun: (body: { companies?: unknown[]; universe_path?: string }) =>
+    request<{ run_id: string; company_count: number }>("/api/emerging-themes/runs", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  getEmergingThemesRun: (runId: string) => request(`/api/emerging-themes/runs/${encodeURIComponent(runId)}`),
+  getEmergingThemesCandidates: (runId: string) =>
+    request<{ total: number; candidates: EmergingThemeCandidate[] }>(
+      `/api/emerging-themes/runs/${encodeURIComponent(runId)}/candidates`,
+    ),
+  promoteEmergingThemeCandidate: (runId: string, themeId: string, reason: string, taxonomyId?: string | null) =>
+    request<EmergingThemeCandidate>(
+      `/api/emerging-themes/runs/${encodeURIComponent(runId)}/candidates/${encodeURIComponent(themeId)}/promote`,
+      { method: "POST", body: JSON.stringify({ reason, taxonomy_id: taxonomyId ?? null }) },
+    ),
+  rejectEmergingThemeCandidate: (runId: string, themeId: string, reason: string) =>
+    request<{ theme_id: string; status: string }>(
+      `/api/emerging-themes/runs/${encodeURIComponent(runId)}/candidates/${encodeURIComponent(themeId)}/reject`,
+      { method: "POST", body: JSON.stringify({ reason }) },
+    ),
+  disconfirmEmergingThemeCandidate: (runId: string, themeId: string, reason: string) =>
+    request<{ theme_id: string; status: string }>(
+      `/api/emerging-themes/runs/${encodeURIComponent(runId)}/candidates/${encodeURIComponent(themeId)}/disconfirm`,
+      { method: "POST", body: JSON.stringify({ reason }) },
+    ),
+  getEmergingThemesSchedule: () => request<EmergingThemesScheduleConfig>("/api/emerging-themes/schedule"),
+  updateEmergingThemesSchedule: (config: EmergingThemesScheduleConfig) =>
+    request<EmergingThemesScheduleConfig>("/api/emerging-themes/schedule", {
+      method: "PUT",
+      body: JSON.stringify(config),
+    }),
 
   // Identity resolution (agentic name -> website/CIK, ahead of discovery)
   startIdentityRun: (body: unknown) =>
@@ -165,6 +272,7 @@ export const api = {
   exportRunCsvUrl: (runId: string) => `${API_BASE}/api/runs/${runId}/export.csv`,
   cancelRun: (runId: string) => request(`/api/runs/${runId}/cancel`, { method: "POST" }),
   resumeThemeRun: (runId: string) => request(`/api/themes/runs/${runId}/resume`, { method: "POST" }),
+  listKnownCompanies: (runType: string) => request(`/api/runs/known-companies?run_type=${runType}`),
 
   // Universe from an in-hand company list (e.g. filtered thematic-run matches)
   universeFromCompanies: (companies: unknown[], name: string) =>
@@ -309,6 +417,8 @@ export const api = {
   seedPortfolioDemo: () => request<DemoSeedSummary>("/api/portfolio/demo/seed", { method: "POST" }),
   listPortfolios: () => request<PortfolioSummary[]>("/api/portfolio/portfolios"),
   listSecuritiesNeedingReview: () => request<SecurityResolution[]>("/api/portfolio/securities-needing-review"),
+  listPortfolioCompanies: () => request<CompanyRef[]>("/api/portfolio/companies"),
+  listConflictingObservations: () => request<DataPointObservation[]>("/api/portfolio/climate-conflicts"),
   runPortfolioAggregate: (body: AnalyticRequest) =>
     request<AggregationResult | TrendPoint[]>("/api/portfolio/aggregate", { method: "POST", body: JSON.stringify(body) }),
   runPortfolioPivot: (body: PivotRequest) => request<PivotResult>("/api/portfolio/pivot", { method: "POST", body: JSON.stringify(body) }),
@@ -317,6 +427,53 @@ export const api = {
   classifyPortfolioNews: () =>
     request<{ classified: number; flags_created: number }>("/api/portfolio/news/classify", { method: "POST" }),
   listNewsFlags: (companyId?: string) => request<NewsRiskFlag[]>(`/api/portfolio/news/flags${buildQuery({ company_id: companyId })}`),
+  listMonitoringRules: () => request<AlertRule[]>("/api/portfolio/monitoring/rules"),
+  createMonitoringRule: (rule: Omit<AlertRule, "rule_id" | "created_at">) =>
+    request<AlertRule>("/api/portfolio/monitoring/rules", { method: "POST", body: JSON.stringify(rule) }),
+  listAlerts: (status?: AlertStatus) => request<Alert[]>(`/api/portfolio/monitoring/alerts${buildQuery({ status })}`),
+  transitionAlert: (scopeId: string, alertId: string, body: { status: AlertStatus; decided_by: string; reason?: string; owner?: string }) =>
+    request<Alert>(`/api/portfolio/monitoring/alerts/${encodeURIComponent(scopeId)}/${encodeURIComponent(alertId)}/transition`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  evaluateMonitoringNow: () =>
+    request<{ threshold_alerts_raised: number; news_alerts_raised: number }>("/api/portfolio/monitoring/evaluate-now", { method: "POST" }),
+  listPendingGovernanceReviews: () =>
+    request<{ entity_resolution: SecurityResolution[]; climate_conflict: DataPointObservation[] }>("/api/portfolio/governance/pending-reviews"),
+  recordGovernanceDecision: (body: {
+    item_type: GovernanceItemType;
+    item_key: string;
+    decision: GovernanceDecisionType;
+    decided_by: string;
+    reason?: string;
+    override_value?: number | string | boolean | null;
+  }) => request<GovernanceDecision>("/api/portfolio/governance/decisions", { method: "POST", body: JSON.stringify(body) }),
+  listGovernanceDecisions: (itemType?: GovernanceItemType) =>
+    request<GovernanceDecision[]>(`/api/portfolio/governance/decisions${buildQuery({ item_type: itemType })}`),
+  getGovernancePolicy: () =>
+    request<{ values: Record<PolicySettingName, number>; history: PolicyChange[] }>("/api/portfolio/governance/policy"),
+  updateGovernancePolicy: (body: { setting_name: PolicySettingName; new_value: number; changed_by: string; reason?: string }) =>
+    request<PolicyChange>("/api/portfolio/governance/policy", { method: "PUT", body: JSON.stringify(body) }),
+  listGovernanceOwners: () => request<RiskCategoryOwner[]>("/api/portfolio/governance/owners"),
+  assignGovernanceOwner: (category: string, body: { owner: string; assigned_by: string }) =>
+    request<RiskCategoryOwner>(`/api/portfolio/governance/owners/${encodeURIComponent(category)}`, { method: "PUT", body: JSON.stringify(body) }),
+
+  // Generative BI: brief -> planned panels -> deterministic numbers -> checked narrative
+  generateDashboard: (brief: string, opts?: { narrate?: boolean; save?: boolean }) =>
+    request<GeneratedDashboard>("/api/portfolio/bi/generate", {
+      method: "POST",
+      body: JSON.stringify({ brief, narrate: opts?.narrate ?? true, save: opts?.save ?? false }),
+    }),
+  executeDashboardSpec: (spec: DashboardSpec, asOf?: string) =>
+    request<GeneratedDashboard>(`/api/portfolio/bi/execute${buildQuery({ as_of: asOf })}`, {
+      method: "POST",
+      body: JSON.stringify(spec),
+    }),
+  listDashboards: () => request<DashboardSpec[]>("/api/portfolio/bi/dashboards"),
+  saveDashboard: (spec: DashboardSpec) =>
+    request<DashboardSpec>("/api/portfolio/bi/dashboards", { method: "POST", body: JSON.stringify(spec) }),
+  runDashboard: (dashboardId: string, asOf?: string) =>
+    request<GeneratedDashboard>(`/api/portfolio/bi/dashboards/${dashboardId}/run${buildQuery({ as_of: asOf })}`),
 
   // Climate analytics
   getClimateSchema: () => request<DataPointSchema>("/api/climate/schema"),
@@ -330,6 +487,100 @@ export const api = {
     request<CoverageBySource>(`/api/climate/coverage/${fieldId}${buildQuery({ as_of: asOf })}`),
   getClimatePivot: (fieldId: string, params: { row_dim?: string; col_dim?: string; as_of?: string; portfolio_id?: string[] }) =>
     request<PivotResult>(`/api/climate/pivot/${fieldId}${buildQuery(params)}`),
+
+  // Presentation & Reporting Tool
+  uploadReportTemplate: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<TemplateStyleProfile>("/api/reports/templates", { method: "POST", headers: {}, body: form });
+  },
+  listReportTemplates: () => request<{ templates: TemplateStyleProfile[] }>("/api/reports/templates"),
+  uploadReportDataset: (file: File, name?: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<QuantitativeDataset>(`/api/reports/datasets/upload${buildQuery({ name })}`, { method: "POST", headers: {}, body: form });
+  },
+  createReport: (body: ReportRequest, render = false) =>
+    request<ReportManifest>(`/api/reports${buildQuery({ render: String(render) })}`, { method: "POST", body: JSON.stringify(body) }),
+  listReports: () => request<{ reports: ReportManifest[] }>("/api/reports"),
+  getReport: (reportId: string) => request<ReportManifest>(`/api/reports/${encodeURIComponent(reportId)}`),
+  getReportPlan: (reportId: string) => request<ReportPlan>(`/api/reports/${encodeURIComponent(reportId)}/plan`),
+  updateReportPlan: (reportId: string, plan: ReportPlan) =>
+    request<ReportPlan>(`/api/reports/${encodeURIComponent(reportId)}/plan`, { method: "PUT", body: JSON.stringify(plan) }),
+  renderReport: (reportId: string) => request<ReportManifest>(`/api/reports/${encodeURIComponent(reportId)}/render`, { method: "POST" }),
+  reportDownloadUrl: (reportId: string) => `${API_BASE}/api/reports/${encodeURIComponent(reportId)}/download`,
+  getReportPreview: (reportId: string) => request<{ page_count: number }>(`/api/reports/${encodeURIComponent(reportId)}/preview`),
+  reportPreviewPageUrl: (reportId: string, page: number) => `${API_BASE}/api/reports/${encodeURIComponent(reportId)}/preview/${page}`,
+
+
+  // Investment Strategy Replication
+  discoverReplicationPapers: (topic: string, maxCandidates = 10) =>
+    request<{ candidates: PaperCandidate[] }>("/api/replication/discover", {
+      method: "POST",
+      body: JSON.stringify({ topic, max_candidates: maxCandidates }),
+    }),
+  createSpecDraft: (paperCitation: string, paperText: string) =>
+    request<{ spec_run_id: string; spec: StrategySpec; approved: boolean }>("/api/replication/specs", {
+      method: "POST",
+      body: JSON.stringify({ paper_citation: paperCitation, paper_text: paperText }),
+    }),
+  getSpecDraft: (specRunId: string) => request<SpecReviewState>(`/api/replication/specs/${encodeURIComponent(specRunId)}`),
+  updateSpecDraft: (specRunId: string, spec: StrategySpec) =>
+    request<{ spec_run_id: string; spec: StrategySpec; approved: boolean }>(`/api/replication/specs/${encodeURIComponent(specRunId)}`, {
+      method: "PUT",
+      body: JSON.stringify(spec),
+    }),
+  reviseSpecDraft: (specRunId: string, instruction: string) =>
+    request<{ spec_run_id: string; spec: StrategySpec; approved: boolean }>(`/api/replication/specs/${encodeURIComponent(specRunId)}/revise`, {
+      method: "POST",
+      body: JSON.stringify({ instruction }),
+    }),
+  approveSpecDraft: (specRunId: string, reviewer?: string) =>
+    request<{ spec_run_id: string; spec: StrategySpec; approved: boolean }>(`/api/replication/specs/${encodeURIComponent(specRunId)}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ reviewer }),
+    }),
+  uploadPriceDataset: (specRunId: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<{ ref: string }>(`/api/replication/specs/${encodeURIComponent(specRunId)}/datasets/prices`, {
+      method: "POST",
+      headers: {},
+      body: form,
+    });
+  },
+  uploadCharacteristicsDataset: (specRunId: string, name: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<{ ref: string }>(
+      `/api/replication/specs/${encodeURIComponent(specRunId)}/datasets/characteristics/${encodeURIComponent(name)}`,
+      { method: "POST", headers: {}, body: form }
+    );
+  },
+  runReplicationBacktest: (
+    specRunId: string,
+    body: {
+      tickers: string[];
+      prices_ref: string;
+      characteristics_refs?: Record<string, string>;
+      price_kind?: string;
+      benchmark?: string | null;
+      out_of_sample_start?: string | null;
+      out_of_sample_end?: string | null;
+    }
+  ) =>
+    request<{ run_id: string; verdict: string }>(`/api/replication/specs/${encodeURIComponent(specRunId)}/backtest`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  getReplicationRunDetail: (runId: string) => request<ReplicationRunDetail>(`/api/replication/runs/${encodeURIComponent(runId)}`),
+  runReplicationSanityCheck: (runId: string) =>
+    request<SanityCheckAssessment>(`/api/replication/runs/${encodeURIComponent(runId)}/sanity-check`, { method: "POST" }),
+  runReplicationRegimeReport: (runId: string, trailingWindowMonths = 12) =>
+    request<RegimeStratifiedReport>(
+      `/api/replication/runs/${encodeURIComponent(runId)}/regime-report${buildQuery({ trailing_window_months: String(trailingWindowMonths) })}`,
+      { method: "POST" }
+    ),
 
   // Decision Mechanism -- scoring, ranking and tiering. Every number on
   // this surface is computed by the backend engine: nothing here recomputes

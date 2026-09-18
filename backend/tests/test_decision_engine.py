@@ -8,12 +8,12 @@ from arp.decision.cluster import cluster_criteria, correlation_matrix
 from arp.decision.dataset import build_dataset, dataset_from_file
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
 from arp.decision.normalise import normalise_column
-from arp.decision.parsing import detect_decimal_comma, load_table, sniff_delimiter, to_bool, to_number
+from arp.decision.parsing import detect_decimal_comma, sniff_delimiter, to_bool, to_number
 from arp.decision.profiling import profile_dataset
 from arp.decision.scoring import compute_scores
 from arp.decision.tree import derive_cuts, quantile_positions, tier_for_score
 from arp.decision.weighting import breadth_adjusted_weight, effective_weights
-from arp.schemas.decision import ColumnProfile, Criterion, Dimension, GateRule, MechanismConfig
+from arp.schemas.decision import ColumnProfile, Criterion, Dimension, MechanismConfig
 
 SAMPLE = Path(__file__).resolve().parents[1] / "arp" / "decision" / "sample_data" / "example_transition_universe.csv"
 

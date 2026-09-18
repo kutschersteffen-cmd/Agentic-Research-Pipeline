@@ -112,6 +112,24 @@ export function LineChart({
 
   const tooltipPct = hoverIdx != null ? Math.min(Math.max((xAt(hoverIdx) / width) * 100, 10), 85) : 0;
 
+  // Thin the x-axis labels to a handful of evenly-spaced ticks -- every
+  // data point still gets plotted (and is reachable via hover/crosshair),
+  // but a dense series (e.g. 50+ monthly dates) would otherwise render
+  // one illegible <text> per point, all overlapping.
+  const maxLabels = 10;
+  const labelStride = Math.max(1, Math.ceil(dates.length / maxLabels));
+  const labelIndices: number[] = [];
+  for (let i = 0; i < dates.length; i += labelStride) labelIndices.push(i);
+  const lastIdx = dates.length - 1;
+  if (labelIndices[labelIndices.length - 1] !== lastIdx) {
+    // Only tack on the final date as an EXTRA label if it's a full stride
+    // away from the previous one -- these are multi-character date
+    // strings, not points, so anything closer collides; otherwise just
+    // snap the last tick to the final date instead of adding a new one.
+    if (lastIdx - labelIndices[labelIndices.length - 1] >= labelStride) labelIndices.push(lastIdx);
+    else labelIndices[labelIndices.length - 1] = lastIdx;
+  }
+
   return (
     <div>
       {series.length >= 2 && (
@@ -134,9 +152,9 @@ export function LineChart({
             </text>
           </g>
         ))}
-        {dates.map((d, i) => (
-          <text key={d} x={xAt(i)} y={height - 10} textAnchor="middle" className="chart-axis-label">
-            {d}
+        {labelIndices.map((i) => (
+          <text key={dates[i]} x={xAt(i)} y={height - 10} textAnchor="middle" className="chart-axis-label">
+            {dates[i]}
           </text>
         ))}
         {hoverIdx != null && (

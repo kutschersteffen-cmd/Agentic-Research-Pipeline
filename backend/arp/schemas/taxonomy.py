@@ -15,6 +15,7 @@ class DerivationMethod(StrEnum):
     ETF_INDEX_HOLDINGS = "etf_index_holdings"  # synthesized bottom-up from an existing thematic ETF/index's holdings
     NEWS_TRANSCRIPT_MINING = "news_transcript_mining"  # synthesized bottom-up from news search + earnings-call transcript mining
     EMPIRICAL = "empirical"  # synthesized bottom-up from the Extraction Engine's readings of a sample company universe
+    EMERGING_SIGNAL_DISCOVERY = "emerging_signal_discovery"  # promoted from a Tool 0 Emerging Themes Scanner candidate (see arp/emerging_themes/)
     MERGED = "merged"  # consolidated from two or more existing taxonomies
     MANUAL = "manual"  # hand-authored, no LLM involvement
 

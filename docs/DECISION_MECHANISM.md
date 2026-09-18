@@ -14,9 +14,10 @@ Implementation index at the end of this document.
 
 ## 1. Why this is a pillar rather than a page
 
-Eight pillars of this system each end in a **table of per-company
+Almost every function in this system ends in a **table of per-entity
 numbers** — thematic exposure and confidence, extracted data points,
-segment financials, transition-plan disclosure counts, discovery
+segment financials, transition-plan disclosure counts, transition-barrier
+scores per sector and region, emerging-theme action scores, discovery
 recency, indirect exposure, holdings and weights, WACI and financed
 emissions.
 
@@ -279,7 +280,8 @@ engagement priority list.
 LLM, so none needs `schedule_llm_run`: scoring is synchronous.
 
 **CLI** — `arp decision profile | derive | score | sensitivity | compare |
-list | show | audit | new-version | ratify`, mirroring `arp taxonomy`.
+list | show | audit | new-version | ratify` (`arp/cli/decision.py`),
+mirroring `arp taxonomy`.
 
 **UI** — `frontend/src/pages/DecisionStudio.tsx`, seven sub-tabs: Data,
 Profile, Mechanism, Decision tree, Results, Movement, Audit. Every number
@@ -312,6 +314,7 @@ backend/arp/decision/
 backend/arp/schemas/decision.py      every type named in this document
 backend/arp/storage/decision_store.py  versioned frameworks + datasets
 backend/arp/api/routers/decision.py    /api/decision
+backend/arp/cli/decision.py            arp decision ...
 backend/tests/test_decision_*.py       engine, store, analysis, sources, API
 frontend/src/pages/DecisionStudio.tsx
 frontend/src/components/{ColumnProfileTable,MechanismEditor,DecisionTreeEditor,
@@ -338,3 +341,12 @@ frameworks/                            versioned frameworks + saved datasets (gi
    Tier-1-or-leverage-ranked list into `arp/engagement/triggers.py` as
    `TriggerEvent`s — carrying the framework version as the justification —
    is the next step, and the store already keeps what that citation needs.
+5. **Four source adapters exist, not fourteen.** `sources.py` covers the
+   transition-plan, extraction, thematic and portfolio paths. Three more
+   are worth adding and are not built: the **Transition Barrier
+   Assessment** (entity = sector × region rather than company, which the
+   engine handles unchanged), the **Emerging Themes Scanner** (entity =
+   theme cluster, scored on its action components), and **Strategy
+   Replication** (entity = strategy spec, scored on its out-of-sample
+   statistics). Each is an adapter returning a `Dataset`; nothing in the
+   engine needs to change for them.

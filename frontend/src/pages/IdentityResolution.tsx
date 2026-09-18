@@ -90,38 +90,40 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
           <>
             <button onClick={refreshResults}>Refresh results</button>
             {results.length > 0 && (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Company</th>
-                    <th>Verdict</th>
-                    <th>Confidence</th>
-                    <th>Resolved website</th>
-                    <th>Resolved CIK</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {results.map((r) => (
-                    <tr key={r.company_id}>
-                      <td>{r.input_name}</td>
-                      <td>{r.verdict}</td>
-                      <td>{r.confidence.toFixed(2)}</td>
-                      <td>{r.resolved_website ?? "-"}</td>
-                      <td>{r.resolved_cik ?? "-"}</td>
-                      <td>
-                        {r.flagged_for_review ? (
-                          <span className="error-text" title={r.rationale}>
-                            ⚠️ needs review
-                          </span>
-                        ) : (
-                          "ok"
-                        )}
-                      </td>
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Company</th>
+                      <th>Verdict</th>
+                      <th>Confidence</th>
+                      <th>Resolved website</th>
+                      <th>Resolved CIK</th>
+                      <th>Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {results.map((r) => (
+                      <tr key={r.company_id}>
+                        <td>{r.input_name}</td>
+                        <td>{r.verdict}</td>
+                        <td>{r.confidence.toFixed(2)}</td>
+                        <td>{r.resolved_website ?? "-"}</td>
+                        <td>{r.resolved_cik ?? "-"}</td>
+                        <td>
+                          {r.flagged_for_review ? (
+                            <span className="error-text" title={r.rationale}>
+                              ⚠️ needs review
+                            </span>
+                          ) : (
+                            "ok"
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
             <div className="toolbar">
               <button onClick={sendToDiscovery} disabled={sendBusy}>

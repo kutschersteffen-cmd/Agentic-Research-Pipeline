@@ -3,13 +3,12 @@ from arp.ingestion.base import DocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.review_queue import record_review_decision
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
-from arp.schemas.voting import VotePosition
+from arp.schemas.voting import ProposalType, VotePosition
 from arp.storage.run_store import RunStore
 from arp.voting.ballot_casting import CastVoteError, ManualInstructionBallotPlatform, cast_vote
 from arp.voting.pipeline import _process_company, cast_approved_votes, create_voting_run, execute_voting_run
 from arp.voting.policy_agent import DEFAULT_POLICY_RULES
 from arp.voting.proposal_agent import ProposalDraft, ProposalListDraft
-from arp.schemas.voting import ProposalType
 
 
 class _FixedDocSource(DocumentSource):
@@ -139,7 +138,7 @@ async def test_cast_vote_refuses_without_human_decision():
 
     try:
         await cast_vote(platform, vote_record)
-        assert False, "expected CastVoteError"
+        raise AssertionError("expected CastVoteError")
     except CastVoteError:
         pass
 
@@ -154,7 +153,7 @@ async def test_cast_vote_refuses_alignment_flag_without_cosign():
 
     try:
         await cast_vote(platform, vote_record)
-        assert False, "expected CastVoteError"
+        raise AssertionError("expected CastVoteError")
     except CastVoteError:
         pass
 

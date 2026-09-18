@@ -110,7 +110,7 @@ def normalise_column(
 def spearman(a: list[float | None], b: list[float | None]) -> float:
     """Rank correlation over the rows where both columns are present.
     Fewer than five shared rows returns 0 -- too little to group on."""
-    pairs = [(x, y) for x, y in zip(a, b) if x is not None and y is not None]
+    pairs = [(x, y) for x, y in zip(a, b, strict=True) if x is not None and y is not None]
     if len(pairs) < 5:
         return 0.0
 
@@ -123,7 +123,7 @@ def spearman(a: list[float | None], b: list[float | None]) -> float:
 
     ra, rb = ranks(0), ranks(1)
     ma, mb = statistics.fmean(ra), statistics.fmean(rb)
-    num = sum((x - ma) * (y - mb) for x, y in zip(ra, rb))
+    num = sum((x - ma) * (y - mb) for x, y in zip(ra, rb, strict=True))
     da = sum((x - ma) ** 2 for x in ra)
     db = sum((y - mb) ** 2 for y in rb)
     return num / (da * db) ** 0.5 if da and db else 0.0

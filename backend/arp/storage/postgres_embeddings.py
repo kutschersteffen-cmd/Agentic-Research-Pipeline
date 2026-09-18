@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """pgvector-backed alternative to DocumentContentStore's SQLite chunk-
 embeddings cache (arp/storage/document_store.py::ChunkEmbeddingsCache),
 selected via Settings.embeddings_backend == "postgres" (requires
@@ -8,6 +6,8 @@ select_relevant_chunks/_vector_ranking (arp/retrieval/select_evidence.py)
 already calls on a `content_store`, so it's a drop-in swap -- no changes
 needed anywhere hybrid retrieval is wired up.
 """
+
+from __future__ import annotations
 
 import numpy as np
 

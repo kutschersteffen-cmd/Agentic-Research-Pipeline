@@ -4,7 +4,15 @@ import json
 
 from arp.portfolio import aggregation, datapoint_mapping
 from arp.schemas.common import CompanyRef
-from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotResult, PivotSpec, SecurityRef, TrendPoint
+from arp.schemas.portfolio import (
+    AggregationResult,
+    AggregationRow,
+    AnalyticSpec,
+    PivotResult,
+    PivotSpec,
+    SecurityRef,
+    TrendPoint,
+)
 from arp.storage.portfolio_store import PortfolioStore
 
 
@@ -92,6 +100,11 @@ def execute(
             spec_name=spec.name,
         )
 
+    if spec.metric == "market_value_sum":
+        sql_result = _try_aggregate_in_sql(spec, store)
+        if sql_result is not None:
+            return sql_result
+
     as_of, holdings, values = _resolve_point_in_time(
         as_of=spec.as_of,
         metric=spec.metric,
@@ -112,6 +125,65 @@ def execute(
         portfolio_filter=spec.portfolio_filter or None,
         data_point_values=values,
         spec_name=spec.name,
+    )
+
+
+def _try_aggregate_in_sql(spec: AnalyticSpec, store: PortfolioStore) -> AggregationResult | None:
+    """Computes a `market_value_sum` spec with one grouped SQL query when
+    the configured store can, else None so `execute` falls through to the
+    in-Python path.
+
+    This is the whole reason the relational backend exists (see
+    PostgresPortfolioStore.aggregate_holdings_by): grouping holdings by
+    sector or issuer across many portfolios and dates is a join, and doing
+    it in Python means loading every snapshot first. Capability-checked
+    with `hasattr` rather than an isinstance against the optional store, so
+    this module keeps working with no Postgres extra installed and the
+    default file backend stays the default.
+
+    `weighted_avg_datapoint` and `count` stay in Python deliberately: the
+    first needs `datapoint_mapping`'s source-priority cascade over
+    file-based observations (not in Postgres at all), and the second is
+    already free once the rows are loaded. Both paths are held to the same
+    numbers by tests/test_analytics_sql_parity.py.
+    """
+    if not hasattr(store, "aggregate_holdings_by"):
+        return None
+    as_of = spec.as_of
+    if as_of is None:
+        available_dates = store.all_snapshot_dates()
+        as_of = available_dates[-1] if available_dates else None
+    if as_of is None:
+        raise ValueError("No holdings snapshots available")
+
+    try:
+        rows, total = store.aggregate_holdings_by(
+            as_of,
+            spec.group_by,
+            portfolio_ids=spec.portfolio_filter or None,
+            security_filter=spec.security_filter or None,
+        )
+    except ValueError:
+        # An unsupported dimension: let the Python path raise its own
+        # (identical) error rather than reporting it from here.
+        return None
+
+    labelled = [
+        AggregationRow(group_value=key if key is not None else "(unresolved)", market_value_eur=value, holding_count=count)
+        for key, value, count in rows
+    ]
+    return AggregationResult(
+        spec_name=spec.name,
+        as_of=as_of,
+        metric=spec.metric,
+        group_by=spec.group_by,
+        # Sorted here, after labelling, not in SQL: `aggregation.aggregate`
+        # orders by the rendered group value, where "(unresolved)" sorts
+        # before every letter, whereas Postgres sorts a NULL group last
+        # whatever it is later renamed to. Ordering the labels is the only
+        # way the two paths return rows in the same order.
+        rows=sorted(labelled, key=lambda row: row.group_value),
+        total_market_value_eur=total,
     )
 
 

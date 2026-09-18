@@ -7,8 +7,42 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from arp.api.deps import get_scheduler, settings_dep
-from arp.api.routers import climate, decision, discovery, documents, engagement, extraction, financials, identity, overlap, portfolio, revenue_catalogue, runs, taxonomies, themes, transition_plan, universe, voting
+from arp.api.deps import (
+    get_calibration_scheduler,
+    get_emerging_themes_scheduler,
+    get_portfolio_monitoring_scheduler,
+    get_scheduler,
+    get_taxonomy_researcher_scheduler,
+    settings_dep,
+)
+from arp.api.routers import (
+    calibration,
+    climate,
+    decision,
+    discovery,
+    documents,
+    emerging_themes,
+    engagement,
+    extraction,
+    financials,
+    genbi,
+    identity,
+    overlap,
+    portfolio,
+    replication,
+    reporting,
+    revenue_catalogue,
+    runs,
+    search,
+    taxonomies,
+    taxonomy_researcher,
+    themes,
+    tnfd,
+    transition_barrier,
+    transition_plan,
+    universe,
+    voting,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -17,11 +51,23 @@ logging.basicConfig(level=logging.INFO)
 async def lifespan(app: FastAPI):
     settings_dep().ensure_dirs()
     scheduler = get_scheduler()
+    taxonomy_researcher_scheduler = get_taxonomy_researcher_scheduler()
+    calibration_scheduler = get_calibration_scheduler()
+    emerging_themes_scheduler = get_emerging_themes_scheduler()
+    portfolio_monitoring_scheduler = get_portfolio_monitoring_scheduler()
     scheduler.start()
+    taxonomy_researcher_scheduler.start()
+    calibration_scheduler.start()
+    emerging_themes_scheduler.start()
+    portfolio_monitoring_scheduler.start()
     try:
         yield
     finally:
         scheduler.shutdown()
+        taxonomy_researcher_scheduler.shutdown()
+        calibration_scheduler.shutdown()
+        emerging_themes_scheduler.shutdown()
+        portfolio_monitoring_scheduler.shutdown()
 
 
 app = FastAPI(title="Agentic Research Pipeline", version="0.1.0", lifespan=lifespan)
@@ -47,10 +93,19 @@ app.include_router(revenue_catalogue.router)
 app.include_router(engagement.router)
 app.include_router(voting.router)
 app.include_router(financials.router)
+app.include_router(tnfd.router)
 app.include_router(transition_plan.router)
+app.include_router(transition_barrier.router)
 app.include_router(portfolio.router)
 app.include_router(climate.router)
 app.include_router(decision.router)
+app.include_router(genbi.router)
+app.include_router(search.router)
+app.include_router(emerging_themes.router)
+app.include_router(taxonomy_researcher.router)
+app.include_router(calibration.router)
+app.include_router(reporting.router)
+app.include_router(replication.router)
 
 
 @app.exception_handler(RuntimeError)

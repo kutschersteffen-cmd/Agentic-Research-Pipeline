@@ -10,9 +10,9 @@ from pydantic import BaseModel, Field
 from arp.api.deps import get_decision_store, get_portfolio_store, get_run_store, settings_dep
 from arp.config import Settings
 from arp.decision import sources
+from arp.decision.compare import compare_results
 from arp.decision.dataset import Dataset, build_dataset
 from arp.decision.diffing import describe_changes
-from arp.decision.compare import compare_results
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
 from arp.decision.parsing import load_table
 from arp.decision.profiling import profile_dataset
