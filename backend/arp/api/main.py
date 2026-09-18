@@ -18,6 +18,7 @@ from arp.api.deps import (
 from arp.api.routers import (
     calibration,
     climate,
+    decision,
     discovery,
     documents,
     emerging_themes,
@@ -97,6 +98,7 @@ app.include_router(transition_plan.router)
 app.include_router(transition_barrier.router)
 app.include_router(portfolio.router)
 app.include_router(climate.router)
+app.include_router(decision.router)
 app.include_router(genbi.router)
 app.include_router(search.router)
 app.include_router(emerging_themes.router)

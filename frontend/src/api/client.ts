@@ -1,6 +1,12 @@
 import type { CompanyBallot, ResearchDossier, StewardshipReport, TriggerEvent, VoteRecord, VoteReviewDecision } from "../types";
 import type {
   AggregationResult,
+  DatasetSummary,
+  DecisionComparison,
+  DecisionResult,
+  EntitySensitivity,
+  MechanismConfig,
+  MechanismEnvelope,
   Alert,
   AlertRule,
   AlertStatus,
@@ -575,4 +581,37 @@ export const api = {
       `/api/replication/runs/${encodeURIComponent(runId)}/regime-report${buildQuery({ trailing_window_months: String(trailingWindowMonths) })}`,
       { method: "POST" }
     ),
+
+  // Decision Mechanism -- scoring, ranking and tiering. Every number on
+  // this surface is computed by the backend engine: nothing here recomputes
+  // a score locally, so what a reviewer sees is exactly what the audit
+  // trail records.
+  uploadDecisionDataset: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<DatasetSummary>("/api/decision/datasets", { method: "POST", body: form });
+  },
+  decisionDatasetFromSource: (body: { source: string; run_id?: string; run_ids?: string[]; as_of?: string; portfolio_ids?: string[]; region?: string; sectors?: string[] }) =>
+    request<DatasetSummary>("/api/decision/datasets/from-source", { method: "POST", body: JSON.stringify(body) }),
+  listDecisionDatasets: () => request<DatasetSummary[]>("/api/decision/datasets"),
+  getDecisionDataset: (datasetId: string) => request<DatasetSummary>(`/api/decision/datasets/${datasetId}`),
+  deriveMechanism: (body: { dataset_id: string; name?: string; cluster_threshold?: number; save?: boolean }) =>
+    request<MechanismEnvelope>("/api/decision/mechanisms/derive", { method: "POST", body: JSON.stringify(body) }),
+  saveMechanism: (body: { config: MechanismConfig; base_version?: number | null; by?: string | null }) =>
+    request<MechanismEnvelope>("/api/decision/mechanisms", { method: "POST", body: JSON.stringify(body) }),
+  listMechanisms: () => request<MechanismConfig[]>("/api/decision/mechanisms"),
+  getMechanism: (frameworkId: string, version?: number) =>
+    request<MechanismEnvelope>(`/api/decision/mechanisms/${frameworkId}${buildQuery({ version: version ? String(version) : undefined })}`),
+  listMechanismVersions: (frameworkId: string) => request<number[]>(`/api/decision/mechanisms/${frameworkId}/versions`),
+  ratifyMechanism: (frameworkId: string, version?: number) =>
+    request<MechanismConfig>(`/api/decision/mechanisms/${frameworkId}/ratify${buildQuery({ version: version ? String(version) : undefined })}`, {
+      method: "POST",
+    }),
+  scoreDecision: (body: { dataset_id: string; config?: MechanismConfig; framework_id?: string; version?: number }) =>
+    request<DecisionResult>("/api/decision/score", { method: "POST", body: JSON.stringify(body) }),
+  decisionSensitivity: (body: { dataset_id: string; config?: MechanismConfig; entity_keys?: string[]; steps?: number }) =>
+    request<EntitySensitivity[]>("/api/decision/sensitivity", { method: "POST", body: JSON.stringify(body) }),
+  compareDecisions: (body: { dataset_id_before: string; dataset_id_after: string; config?: MechanismConfig; framework_id?: string; version?: number }) =>
+    request<DecisionComparison>("/api/decision/compare", { method: "POST", body: JSON.stringify(body) }),
+  decisionExportUrl: () => `${API_BASE}/api/decision/export.csv`,
 };

@@ -117,6 +117,7 @@ include = ["arp*"]
 # both use `pip install -e .`, so a non-editable wheel would drop it silently.
 "arp.transition_plan" = ["data/*.json"]
 "arp.replication" = ["data/*.json"]
+"arp.decision" = ["data/*.json", "sample_data/*.csv"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

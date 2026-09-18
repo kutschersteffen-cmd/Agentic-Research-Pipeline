@@ -95,6 +95,15 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <rect x="16" y="3" width="4" height="17" rx="0.5" />
     </svg>
   ),
+  decision: (
+    <svg {...ICON_PROPS}>
+      <path d="M12 4v16" />
+      <path d="M5 7h14" />
+      <path d="M5 7l-2.5 5a2.5 2.5 0 005 0z" />
+      <path d="M19 7l-2.5 5a2.5 2.5 0 005 0z" />
+      <path d="M8.5 20h7" />
+    </svg>
+  ),
   review: (
     <svg {...ICON_PROPS}>
       <path d="M9 6h11" />

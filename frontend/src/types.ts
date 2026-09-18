@@ -1672,3 +1672,263 @@ export interface BarrierRefreshCoverage {
   manual: number;
   enabled_patterns: string[];
 }
+
+// --- Decision Mechanism (scoring, ranking, tiering) ---
+
+export type ColumnType = "numeric" | "ordinal" | "boolean" | "categorical" | "identifier" | "text";
+export type ColumnRole = "label" | "reference" | "size" | "gate" | "criterion" | "segment" | "excluded";
+export type Direction = "higher" | "lower";
+export type NormMethod = "percentile" | "minmax" | "zscore";
+export type MissingPolicy = "renormalise" | "neutral" | "mean" | "penalise";
+export type WeightPreset = "balanced" | "equal" | "entropy" | "manual";
+export type CutMode = "quantile" | "breaks" | "absolute";
+export type GateOp = "is" | "isnot" | "lt" | "gt" | "eq";
+export type GateOutcome = "exclude" | "demote" | "flag";
+export type EntityStatus = "scored" | "excluded" | "insufficient";
+
+export const COLUMN_ROLES: ColumnRole[] = ["label", "reference", "size", "gate", "criterion", "segment", "excluded"];
+
+export interface ColumnStats {
+  count: number;
+  min?: number | null;
+  p5?: number | null;
+  q1?: number | null;
+  median?: number | null;
+  q3?: number | null;
+  p95?: number | null;
+  max?: number | null;
+  mean?: number | null;
+  sd?: number | null;
+  true_share?: number | null;
+}
+
+export interface ColumnProfile {
+  name: string;
+  type: ColumnType;
+  coverage: number;
+  unique: number;
+  spread: boolean;
+  decimal_comma: boolean;
+  stats?: ColumnStats | null;
+  levels: string[];
+}
+
+export interface RoleProposal {
+  column: string;
+  role: ColumnRole;
+  role_reason: string;
+  direction: Direction;
+  direction_reason: string;
+  needs_check: boolean;
+}
+
+export interface DatasetSummary {
+  dataset_id: string;
+  name: string;
+  source: string;
+  source_ref?: string | null;
+  as_of?: string | null;
+  row_count: number;
+  columns: string[];
+  preview: Record<string, string>[];
+  profiles: ColumnProfile[];
+  proposals: RoleProposal[];
+  has_confidence: boolean;
+}
+
+export interface Dimension {
+  id: string;
+  name: string;
+  weight: number;
+  derived_from: string[];
+}
+
+export interface Criterion {
+  column: string;
+  dimension_id: string;
+  weight: number;
+  enabled: boolean;
+  direction: Direction;
+}
+
+export interface GateRule {
+  id: string;
+  column: string;
+  op: GateOp;
+  value: string;
+  outcome: GateOutcome;
+}
+
+export interface VetoRule {
+  enabled: boolean;
+  min_score: number;
+  min_criteria: number;
+}
+
+export interface TierDefinition {
+  rank: number;
+  name: string;
+  action: string;
+}
+
+export interface MechanismConfig {
+  framework_id: string;
+  version: number;
+  name: string;
+  notes: string;
+  ratified: boolean;
+  ratified_at?: string | null;
+  created_at: string;
+  norm: NormMethod;
+  winsor_pct: number;
+  missing: MissingPolicy;
+  weighting: WeightPreset;
+  min_coverage_pct: number;
+  normalise_within?: string | null;
+  min_cohort_size: number;
+  require_grounded_coverage: boolean;
+  grounded_confidence_min: number;
+  dimensions: Dimension[];
+  criteria: Criterion[];
+  gates: GateRule[];
+  cut_mode: CutMode;
+  pinned_cuts?: number[] | null;
+  veto: VetoRule;
+  tiers: TierDefinition[];
+  label_column?: string | null;
+  size_column?: string | null;
+  segment_column?: string | null;
+  cluster_threshold: number;
+}
+
+export interface AuditEntry {
+  stage: string;
+  item: string;
+  decision: string;
+  why: string;
+  needs_check: boolean;
+  origin: "derived" | "human";
+  at: string;
+  by?: string | null;
+}
+
+export interface MechanismEnvelope {
+  config: MechanismConfig;
+  audit: AuditEntry[];
+}
+
+export interface CriterionContribution {
+  column: string;
+  normalised?: number | null;
+  weight: number;
+  contribution: number;
+  imputed: boolean;
+  low_confidence: boolean;
+}
+
+export interface EntityDecision {
+  entity_key: string;
+  name: string;
+  segment?: string | null;
+  cohort?: string | null;
+  score?: number | null;
+  coverage: number;
+  grounded_coverage?: number | null;
+  status: EntityStatus;
+  tier?: number | null;
+  tier_name?: string | null;
+  tier_action?: string | null;
+  notes: string[];
+  rank?: number | null;
+  rank_min?: number | null;
+  rank_max?: number | null;
+  size?: number | null;
+  leverage?: number | null;
+  leverage_rank?: number | null;
+  dimension_scores: Record<string, number | null>;
+  contributions: CriterionContribution[];
+}
+
+export interface TierSummary {
+  rank: number;
+  name: string;
+  action: string;
+  count: number;
+  size_total?: number | null;
+}
+
+export interface HistogramBin {
+  lower: number;
+  upper: number;
+  count: number;
+}
+
+export interface DecisionResult {
+  framework_id: string;
+  framework_version: number;
+  dataset_id?: string | null;
+  computed_at: string;
+  norm: NormMethod;
+  effective_cuts: number[];
+  cuts_origin: CutMode;
+  effective_weights: Record<string, number>;
+  entities: EntityDecision[];
+  tier_summary: TierSummary[];
+  histogram: HistogramBin[];
+  scored_count: number;
+  excluded_count: number;
+  insufficient_count: number;
+  audit: AuditEntry[];
+}
+
+export interface TippingPoint {
+  dimension_id: string;
+  dimension_name: string;
+  current_weight_pct: number;
+  flip_weight_pct?: number | null;
+  delta_pct?: number | null;
+  new_tier?: number | null;
+  robust: boolean;
+}
+
+export interface EntitySensitivity {
+  entity_key: string;
+  name: string;
+  tier?: number | null;
+  score?: number | null;
+  tipping_points: TippingPoint[];
+  min_delta_pct?: number | null;
+}
+
+export interface EntityMovement {
+  entity_key: string;
+  name: string;
+  tier_before?: number | null;
+  tier_after?: number | null;
+  tier_delta?: number | null;
+  score_before?: number | null;
+  score_after?: number | null;
+  score_delta?: number | null;
+  rank_before?: number | null;
+  rank_after?: number | null;
+  rank_delta?: number | null;
+  status_before?: EntityStatus | null;
+  status_after?: EntityStatus | null;
+  drivers: string[];
+}
+
+export interface DecisionComparison {
+  framework_id: string;
+  framework_version: number;
+  label_before: string;
+  label_after: string;
+  improved: number;
+  worsened: number;
+  unchanged: number;
+  entered: number;
+  left: number;
+  movements: EntityMovement[];
+  comparable: boolean;
+  incomparable_reason?: string | null;
+  caveat?: string | null;
+}

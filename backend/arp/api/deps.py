@@ -17,6 +17,7 @@ from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.portfolio.monitoring.scheduler import PortfolioMonitoringScheduler
+from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.opensearch_client import OpenSearchNotConfigured
@@ -46,6 +47,11 @@ def get_run_store() -> RunStore:
 @lru_cache
 def get_taxonomy_store() -> TaxonomyStore:
     return TaxonomyStore(get_settings().taxonomies_dir)
+
+
+@lru_cache
+def get_decision_store() -> DecisionStore:
+    return DecisionStore(get_settings().frameworks_dir)
 
 
 @lru_cache

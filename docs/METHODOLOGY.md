@@ -249,6 +249,69 @@ separately in
    the LLM pipeline, since XBRL tagging isn't standardized enough across
    filers for those.
 
+## Turning numbers into a decision: the scoring layer's controls
+
+Every pillar above ends in a table of per-company numbers. The Decision
+Mechanism (`backend/arp/decision/`, full design in
+[`DECISION_MECHANISM.md`](DECISION_MECHANISM.md)) turns one into a tiered
+decision, deterministically and with no LLM anywhere in the computation.
+Its controls, and what each one catches:
+
+1. **Direction inference is flagged, never silent.** Higher-is-better vs.
+   lower-is-better is guessed from the column name; an ambiguous or absent
+   match marks itself for review. *Catches an inverted ranking* — the
+   failure mode that looks completely normal on screen, since every number
+   is still well-formed and every company still has a rank.
+2. **Correlated criteria are clustered before weighting** (complete-linkage
+   Spearman). *Catches a theme measured seven ways outweighing one measured
+   once by 7:1* — which is what an unadjusted per-criterion weighting does
+   to any real disclosure dataset, where indicators of the same thing
+   arrive in bundles.
+3. **Peer-cohort normalisation.** Criteria are ranked within a sector or
+   region rather than across the whole table. *Catches a utility and a
+   software company being scored on the same emissions-intensity
+   percentile*, where the resulting number describes the sector, not the
+   company's effort. Cohorts below a floor fall back to the whole table,
+   because a rank over three peers is noise dressed as a score.
+4. **Gates resolve before the average.** *Catches a knockout being diluted
+   into a deduction* — under a single weighted mean, a severe controversy
+   is worth a few points and a strong score elsewhere pays for it.
+5. **Sufficiency precedes scoring.** *Catches a company ranked first on a
+   third of the criteria*, which is otherwise indistinguishable from a
+   company that genuinely leads.
+6. **Missing data is re-weighted, not imputed, by default.** *Catches an
+   invented value entering a published ranking.* The alternatives (neutral
+   50, peer mean, penalise) remain available but are policy choices, and
+   the audit log names whichever was taken.
+7. **Grounded coverage, where the source supplies confidence.** The
+   sufficiency gate can key off the share of weight backed by an
+   independently *verified* value rather than a merely present one.
+   *Catches a score resting on extractions the verifier could not ground* —
+   the natural extension of this codebase's grounding check into the
+   decision layer, since present and verified are different claims.
+8. **Rank stability across four specifications.** Each entity carries the
+   best and worst rank it holds under the framework's own weights, equal
+   weights, entropy weights and the contrasting normalisation. *Catches a
+   ranking that only holds under one arbitrary weighting choice.*
+9. **The dimension floor applies only to dimensions with two or more
+   criteria.** *Catches a single binary answer demoting a company on its
+   own.*
+10. **Tipping-point sensitivity.** How far a dimension's weight must move
+    before an entity changes tier. *Catches a tier that is an artefact of
+    the weights* rather than of the company, and answers it with a number
+    instead of an assurance.
+11. **Versioned, ratifiable frameworks with a two-origin audit log.** Every
+    automated choice is recorded with its basis, and every human edit is
+    diffed against the version it was made on. *Catches the question nobody
+    can otherwise answer six months later*: which of these rules came from
+    the data, and which did we choose?
+
+One limitation is stated rather than worked around: a percentile-scored
+snapshot measures position in the field, so it cannot show absolute
+improvement between two periods. Comparing two such snapshots returns that
+caveat with the result, and period-on-period work should use min–max or
+z-score with pinned cut-points.
+
 ## The indirect (input-output) exposure tier
 
 Disabled by default; enabling it requires an industry x industry
