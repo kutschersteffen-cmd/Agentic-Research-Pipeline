@@ -27,6 +27,8 @@ taxonomies/*
 !taxonomies/.gitkeep
 portfolios/*
 !portfolios/.gitkeep
+frameworks/*
+!frameworks/.gitkeep
 data/documents/*
 !data/documents/.gitkeep
 backend/.cache/

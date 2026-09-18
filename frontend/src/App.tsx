@@ -13,6 +13,7 @@ import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
 import { PortfolioRisk } from "./pages/PortfolioRisk";
 import { ClimateAnalytics } from "./pages/ClimateAnalytics";
+import { DecisionStudio } from "./pages/DecisionStudio";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -25,6 +26,7 @@ const TABS = [
   { id: "discovery", label: "Document Discovery" },
   { id: "portfolio", label: "Portfolio Risk" },
   { id: "climate", label: "Climate Analytics" },
+  { id: "decision", label: "Decision Studio" },
   { id: "review", label: "Review Queue" },
   { id: "history", label: "Run History" },
   { id: "engagement", label: "Engagement" },
@@ -50,7 +52,7 @@ function App() {
     <div className="app-shell">
       <header className="app-header">
         <h1>Agentic Research Pipeline</h1>
-        <p className="tagline">Thematic investment universes, schema-driven document research, stewardship engagement &amp; voting, and portfolio risk &amp; climate analytics, at scale.</p>
+        <p className="tagline">Thematic investment universes, schema-driven document research, stewardship engagement &amp; voting, portfolio risk &amp; climate analytics, and auditable scoring and tiering decisions, at scale.</p>
       </header>
       <nav className="app-nav">
         {TABS.map((t) => (
@@ -70,6 +72,7 @@ function App() {
         {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingDiscoveryUniverse} />}
         {active === "portfolio" && <PortfolioRisk />}
         {active === "climate" && <ClimateAnalytics />}
+        {active === "decision" && <DecisionStudio />}
         {active === "review" && <ReviewQueue />}
         {active === "history" && <RunHistory />}
         {active === "engagement" && <EngagementDashboard />}

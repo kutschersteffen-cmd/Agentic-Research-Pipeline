@@ -90,6 +90,26 @@ precision at scale (designed for up to ~4,000 companies per run).
    "walk vs. talk" disclosure-completeness metric per company. See
    [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md#transition-plan-assessment)
    for the full mapping from paper to implementation.
+9. **Decision Mechanism (scoring, ranking & tiering)** — the layer that
+   turns the per-company tables every pillar above produces into a
+   *decision*: which companies to engage, exclude, prioritise or park.
+   Reads a table (uploaded, or built from a transition-plan / extraction /
+   thematic / portfolio run), types every column from its values, proposes
+   a scoring mechanism — correlated indicators grouped so one theme
+   measured seven ways doesn't earn seven times the weight, criteria
+   normalised **within peer cohorts** rather than across unlike sectors,
+   direction inferred and *flagged where it is a guess*, since a wrong
+   direction inverts a ranking and nothing on screen looks wrong — then
+   runs a fixed decision tree (sufficiency → hard gates → score band →
+   modifiers) whose order is what makes results reproducible. Every entity
+   carries its rank *range* across four alternative specifications, and
+   frameworks are versioned and ratifiable exactly as taxonomies are, with
+   an audit log that separates what the data proposed from what a person
+   changed. Zero LLM calls in the computation. Also answers the two
+   questions a ranking always attracts: *how much does this depend on the
+   weights you chose* (tipping-point sensitivity) and *what moved since
+   last quarter* (the same framework over two snapshots). See
+   [`docs/DECISION_MECHANISM.md`](docs/DECISION_MECHANISM.md).
 
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches, and
@@ -99,13 +119,6 @@ seven-layer target architecture (Postgres/pgvector, Temporal, per-role
 model tiering) — what already exceeds it, and which of its gaps
 (decorrelated critic model, XBRL ingestion, a golden set) are genuinely
 worth adopting.
-
-Planned, not yet built:
-[`docs/DECISION_MECHANISM_PLAN.md`](docs/DECISION_MECHANISM_PLAN.md)
-proposes a ninth pillar — a deterministic **Decision Mechanism** layer
-(scoring, ranking, tiering) that turns the per-company tables the eight
-pillars above already produce into a versioned, ratifiable and fully
-audited decision: which companies to engage, exclude or park, and why.
 
 ## Architecture
 
@@ -124,6 +137,8 @@ ballots/           voting-instruction files written by the (stub) manual
                    ballot-casting platform, one per cast vote
 portfolios/       portfolio holdings snapshots, security/company registries,
                    and climate data-point observations
+frameworks/       versioned decision frameworks (scoring/tiering
+                   mechanisms) + the tables they are applied to
 ```
 
 ### Agent stack
@@ -273,6 +288,17 @@ arp portfolio classify-news                              # requires ARP_ANTHROPI
 arp climate waci --group-by portfolio_id
 arp climate financed-emissions
 arp climate coverage climate_carbon_intensity
+
+# Decision Mechanism -- scoring, ranking & tiering (see docs/DECISION_MECHANISM.md)
+# Zero LLM calls: no API key needed for any of these.
+arp decision profile --table backend/arp/decision/sample_data/example_transition_universe.csv
+arp decision derive  --table backend/arp/decision/sample_data/example_transition_universe.csv --save
+arp decision score   --table backend/arp/decision/sample_data/example_transition_universe.csv
+arp decision score   --source transition_plan_run --run-id <run_id>   # score a run this system produced
+arp decision sensitivity --dataset <dataset_id> --framework <fw_id>   # how far a weight must move to change a tier
+arp decision compare --before <dataset_id> --after <dataset_id> --framework <fw_id>
+arp decision audit <fw_id>                        # which rules came from the data, which from a person
+arp decision ratify <fw_id>
 ```
 
 `companies.csv` columns: `company_id, name, ticker, website, cik, country,
@@ -343,6 +369,13 @@ around the input-output math.
 - Disk-backed LLM response cache (idempotent, free reruns during dev)
 - Opt-in indirect (input-output) exposure tier for companies with no direct
   textual evidence but real structural supply-chain linkage
+- Decision layer: direction inference flagged rather than silently applied;
+  correlated criteria grouped before weighting; hard gates resolved before
+  the average; a sufficiency gate ahead of scoring, optionally keyed to
+  *grounded* rather than merely present values; peer-cohort normalisation;
+  rank stability reported across four specifications; and a versioned,
+  ratifiable framework whose audit log separates derived rules from human
+  edits
 - Versioned taxonomy library with an explicit ratification step, so a
   theme's activity boundaries are a recorded, auditable decision rather
   than an implicit assumption baked into a one-off run

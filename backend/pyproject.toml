@@ -58,6 +58,8 @@ include = ["arp*"]
 [tool.setuptools.package-data]
 "arp.research.indirect_exposure" = ["sample_data/*.csv", "sample_data/*.md"]
 "arp.golden_set" = ["data/*.json"]
+"arp.decision" = ["data/*.json", "sample_data/*.csv"]
+"arp.transition_plan" = ["data/*.json"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

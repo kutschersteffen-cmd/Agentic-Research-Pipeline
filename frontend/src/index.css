@@ -465,3 +465,54 @@ button.link-button { background: transparent; color: var(--accent); padding: 4px
 .pivot-table th { color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--panel-border); }
 .pivot-table th:first-child, .pivot-table td:first-child { text-align: left; color: var(--muted); border-right: 1px solid var(--panel-border); }
 .pivot-cell-empty { color: var(--muted); }
+
+/* --- Decision Studio ---------------------------------------------------- */
+
+.decision-context { border-bottom: 1px solid var(--panel-border); padding-bottom: 8px; flex-wrap: wrap; }
+
+.decision-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.decision-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.decision-kpis .card { margin-bottom: 0; }
+.decision-kpis h3 { margin: 2px 0; font-size: 0.95rem; }
+.decision-kpi-value { font-size: 1.5rem; margin: 4px 0 0; font-variant-numeric: tabular-nums; }
+
+/* A guess this layer is not confident in is surfaced, never quietly
+   applied -- a wrong direction inverts a ranking and looks entirely
+   normal on screen. */
+.decision-check-banner {
+  border-left: 3px solid var(--mid);
+  background: var(--well);
+  padding: 8px 12px;
+  margin: 10px 0;
+  font-size: 0.85rem;
+}
+
+.audit-needs-check td { background: color-mix(in srgb, var(--mid) 7%, transparent); }
+.audit-stage { margin-bottom: 18px; }
+.audit-stage h4 { margin: 0 0 6px; font-size: 0.9rem; color: var(--muted); }
+
+.decision-dimension { border: 1px solid var(--panel-border); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.decision-dimension-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.decision-dimension-head input[type="text"], .decision-dimension-head > input { font-weight: 600; }
+
+.decision-gate { margin-bottom: 8px; flex-wrap: wrap; }
+.decision-tree-steps { margin: 0; padding-left: 20px; font-size: 0.88rem; line-height: 1.7; }
+.decision-dims { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+
+/* Recessive: the cut-point rule marks where a band starts, it is not the
+   data. */
+.chart-cut-halo { stroke: var(--panel); stroke-width: 3; }
+.chart-cut-line { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
+.chart-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.chart-legend-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }

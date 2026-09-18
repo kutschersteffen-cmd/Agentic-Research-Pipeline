@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     )
     discovery_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".discovery_state")
     engagements_dir: Path = Field(default=REPO_ROOT / "engagements")
+    frameworks_dir: Path = Field(
+        default=REPO_ROOT / "frameworks",
+        description="Versioned decision frameworks (scoring/tiering mechanisms) and the datasets they are "
+        "applied to; see arp.storage.decision_store.",
+    )
     ballots_dir: Path = Field(default=REPO_ROOT / "ballots", description="Where the manual-instruction ballot platform writes vote instruction files, absent a real custodian/proxy-platform integration.")
 
     # Batch / concurrency
@@ -189,6 +194,7 @@ class Settings(BaseSettings):
             self.discovery_state_dir,
             self.engagements_dir,
             self.ballots_dir,
+            self.frameworks_dir,
         ):
             d.mkdir(parents=True, exist_ok=True)
 
