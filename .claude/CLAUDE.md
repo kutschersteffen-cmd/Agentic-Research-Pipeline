@@ -12,16 +12,19 @@ Branch off `main` when starting work. If a branch was created from anything else
 
 ## Plugins
 
-`.claude/settings.json` registers the `ponytail` marketplace and enables `ponytail@ponytail`.
+`.claude/settings.json` registers two marketplaces and enables a plugin from each.
 Committed `enabledPlugins` entries do **not** auto-install a plugin from an external source,
-so each collaborator has to run the install once themselves:
+so each collaborator has to run both installs once themselves:
 
 ```
 claude plugin install ponytail@ponytail
+claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill
 ```
 
-The plugin's hooks run on `SessionStart`, `SubagentStart` and `UserPromptSubmit`, and require
-`node` on `PATH`.
+- **ponytail** — "lazy senior dev mode". Its hooks run on `SessionStart`, `SubagentStart`
+  and `UserPromptSubmit`, and require `node` on `PATH`.
+- **ui-ux-pro-max** — UI/UX design intelligence (styles, palettes, typography, charts,
+  per-stack guidelines). Skills only, no hooks; its scripts run on demand and need `python3`.
 
 # graphify
 - **graphify** (`.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`
