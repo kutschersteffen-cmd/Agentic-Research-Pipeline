@@ -3,8 +3,8 @@ import io
 from pathlib import Path
 
 from arp.config import Settings
-from arp.research.standards_mapping.crosswalk import CrosswalkTable, load_crosswalk
-from arp.research.standards_mapping.gics import GicsReferenceEntry, _GicsSelection, _GicsSelectionList, load_gics_reference
+from arp.research.standards_mapping.crosswalk import load_crosswalk
+from arp.research.standards_mapping.gics import _GicsSelection, _GicsSelectionList, load_gics_reference
 from arp.research.standards_mapping.mapper import format_standards_csv, map_activity_standards, map_theme_to_standards
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 
@@ -61,6 +61,22 @@ async def test_map_theme_to_standards_uses_sample_data_when_requested(tmp_path, 
     llm = fake_llm({_GicsSelectionList.__name__: [_GicsSelectionList(matches=[])]})
 
     updated, _usage = await map_theme_to_standards(theme, settings, llm, use_sample_icio=False, use_sample_standards=True)
+    mapping = updated.activities[0].standards_mapping
+    assert mapping is not None
+    assert [m.code for m in mapping.naics_codes] == ["3361"]
+
+
+async def test_map_theme_to_standards_use_sample_exiobase(tmp_path, fake_llm):
+    """use_sample_exiobase resolves an EXIOBASE-sourced model instead of the
+    default ICIO-sourced one, and the mapping still completes normally."""
+    settings = _settings(tmp_path)
+    theme = ThemeDefinition(
+        name="Electrification", description="",
+        activities=[ActivityDefinition(name="EV manufacturing", in_scope_description="x", out_of_scope_description="", core_isic_codes=["29"])],
+    )
+    llm = fake_llm({_GicsSelectionList.__name__: [_GicsSelectionList(matches=[])]})
+
+    updated, _usage = await map_theme_to_standards(theme, settings, llm, use_sample_exiobase=True, use_sample_standards=True)
     mapping = updated.activities[0].standards_mapping
     assert mapping is not None
     assert [m.code for m in mapping.naics_codes] == ["3361"]

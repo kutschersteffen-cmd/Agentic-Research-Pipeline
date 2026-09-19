@@ -1,0 +1,701 @@
+# Investment Strategy Replication: methodology
+
+Reviews an academic "outperformance" strategy paper, reduces it to an
+executable specification, and backtests it deterministically both
+in-sample (against the paper's own reported window) and out-of-sample
+(against any later window, run under identical rules) to see whether the
+effect holds up or decays. Code lives in `backend/arp/replication/`,
+schemas in `backend/arp/schemas/strategy_replication.py`, CLI in
+`backend/arp/cli/replication.py` (`arp replicate ...`).
+
+## Why this shape
+
+The rest of this codebase's precision controls (grounded citations,
+independent extractor/verifier pairs, a hard programmatic check before any
+LLM claim is trusted) exist because LLM output about a source document
+can't be trusted unless it's checked against that document. A quant
+strategy paper's *methodology* (formation period, holding period,
+portfolio construction, reported performance) is exactly this kind of
+claim, so **spec extraction reuses the same discipline**: `spec_graph.py`
+runs the same gather-evidence → extract → independent-verify → ground →
+aggregate flow as every extraction pipeline in `arp/extraction/`, via the
+same shared graph shape (`arp/extraction/graph_shape.py`). Every field on
+the resulting `StrategySpec` is either grounded in a verbatim quote from
+the paper or explicitly flagged `needs_review`.
+
+Once a `StrategySpec` exists, though, **replaying its rules is a pure,
+deterministic computation** — deciding which stocks rank into which
+decile and what a long-short portfolio returned is arithmetic on price
+data, not a judgment call an LLM should ever touch. So the entire backtest
+engine (`signals.py`, `backtest_engine.py`, `metrics.py`, `compare.py`) is
+zero-LLM, mirroring this codebase's existing "compute deterministically,
+gate on human review only where it isn't" pattern (e.g. the input-output
+exposure tier, the holdings-overlap engine).
+
+## Pipeline
+
+```
+paper text ──▶ spec_graph.py (extract/verify/ground) ──▶ StrategySpec
+                                                              │
+                                              tickers ──▶ PriceDataSource ──▶ PricePanel
+                                                              │                    │
+                                                              ▼                    ▼
+                                                       backtest_engine.py (in-sample window)
+                                                       backtest_engine.py (out-of-sample window)
+                                                              │
+                                                              ▼
+                                                        compare.py ──▶ ReplicationComparisonReport
+```
+
+`pipeline.py::run_replication` ties this together and persists every stage
+under `runs/<run_id>/results.jsonl` (rows tagged `spec` / `in_sample` /
+`out_of_sample` / `comparison`) plus a `manifest.json`, the same file-based
+convention every other run type in this codebase uses (`RunStore`) — so
+`arp runs list` / `arp runs show` see strategy-replication runs too.
+
+## StrategySpec: what gets extracted
+
+`arp/schemas/strategy_replication.py::StrategySpec` captures: the signal
+type, formation/holding periods (in months) and an optional skip month,
+number of cross-sectional buckets (deciles/quintiles/...) and which bucket
+is long vs. short, weighting scheme, the paper's own sample period, and
+its reported long/short/long-short performance (`ReportedPerformance`) —
+each figure left `null` rather than guessed if the paper doesn't report it.
+
+A signal is either computed from price history alone (`SignalType.MOMENTUM`:
+`formation_period_months`, `skip_month`) or from a fundamental
+characteristic (`SignalType.VALUE`: `characteristic_name`,
+`characteristic_lag_months`) — see "Two signal families" below for what
+each field means and ignores.
+
+Two ways to produce a StrategySpec:
+
+- **`arp replicate extract-spec`** — the grounded extractor/verifier
+  pipeline against real paper text. Requires `ARP_ANTHROPIC_API_KEY`. Works
+  for either signal family; the extractor's system prompt (`arp/
+  replication/spec_extractor_agent.py`) tells it which fields matter for
+  which.
+- **`arp replicate example <name>`** — a bundled, hand-authored worked
+  example:
+  - `jegadeesh_titman_1993`: the 6-month formation / 6-month holding
+    decile momentum strategy from Jegadeesh & Titman (1993), *Journal of
+    Finance* 48(1). Its methodology parameters (6/6 formation, decile
+    sort, no skip month, NYSE/AMEX universe, 1965-1989 sample) are
+    well-established facts repeated across the momentum literature.
+  - `book_to_market_value_premium`: a decile sort on book-to-market,
+    long the highest decile (cheap/value) and short the lowest (expensive/
+    growth). Unlike the momentum example, there is no single canonical
+    "the value paper" to cite the way Jegadeesh & Titman is for momentum —
+    this spec is a stylized composite of the classic book-to-market
+    literature (Rosenberg, Reid & Lanstein 1985; Fama & French 1992), and
+    its `extraction_notes` spells out two specific simplifications: (1)
+    this engine only implements monthly rebalancing, so its
+    `holding_period_months=12` is approximated as 12 overlapping
+    monthly-formed cohorts averaged together rather than the literature's
+    typical once-a-year, non-overlapping rebalance; (2)
+    `characteristic_lag_months=6` is a reasonable point-in-time-disclosure
+    lag, not a value transcribed from either paper.
+
+  Both examples' `reported_performance` figures are **approximate, not
+  transcribed from any paper's own tables** — see each spec's own
+  `extraction_notes`/`reported_performance.notes`, and its
+  `needs_review=True`/lowered `confidence`. Use these to exercise the
+  backtest engine end to end, not as ground truth for a paper's exact
+  reported numbers.
+
+## Four signal families
+
+`arp/replication/signals.py::compute_signal_scores` dispatches on
+`spec.signal_type`:
+
+- **MOMENTUM** (`momentum_scores`): the compounded return over the
+  trailing `formation_period_months`, read straight from the same
+  `PricePanel` the backtest already needs for realized returns. No extra
+  data source required.
+- **VALUE** (`value_scores`): the characteristic's own level, looked up
+  `characteristic_lag_months` months behind the ranking month from a
+  *separate* `CharacteristicPanel` (see "Characteristic data" below) —
+  not derived from price history at all. Higher characteristic = higher
+  score, so `long_leg_portfolio=1`/`short_leg_portfolio=N` reproduces the
+  standard long-value/short-growth construction for something like
+  book-to-market.
+- **TEXT_SENTIMENT**: mechanically identical to VALUE (same
+  `characteristic_name`/`characteristic_lag_months` fields, same
+  `CharacteristicPanel` plumbing) — the only difference is *how the panel
+  gets built*: `arp/replication/sentiment_scoring.py` scores dated news/
+  transcript text via a grounded LLM pass instead of reading a vendor's
+  fundamentals feed. Kept as its own `SignalType` (rather than reusing
+  VALUE) purely so a spec/report is self-describing about where the
+  signal came from — see "LLM-scored sentiment as a characteristic" below
+  for the specific precision control this needs that VALUE doesn't.
+- **COMPOSITE** (`composite_scores`): combines two or more other signals
+  (each a `CompositeSignalComponent` — the same per-signal parameters a
+  standalone spec would carry, minus portfolio construction, which is
+  decided once at the composite level) via **weighted rank-averaging**:
+  each component's raw scores are first converted to a `[0, 1]`
+  percentile rank (`_percentile_ranks`) before weighting, since a momentum
+  return, a book-to-market ratio, and a bounded sentiment score live on
+  incomparable scales and only their relative ordering is meaningful. A
+  ticker missing one component (e.g. no sentiment data that period) is
+  still scored on the components it does have, using only the weight of
+  those — never diluted by an assumed-zero contribution from a component
+  it was never eligible for. A component's own `signal_type` may not
+  itself be COMPOSITE (no nesting).
+
+All four feed the same `assign_portfolios` (rank into buckets, bucket 1 =
+highest score) and the same rebalance-scheduled backtest loop in
+`backtest_engine.py` — adding a fifth signal family (quality, low-
+volatility, ...) means one new scoring function and one new `SignalType`
+branch, not a new engine.
+
+## Characteristic data: the value/sentiment-signal counterpart to price data
+
+`arp/replication/characteristics_data.py::CharacteristicDataSource` is
+`PriceDataSource`'s counterpart for VALUE/TEXT_SENTIMENT/COMPOSITE: the
+same pluggable-adapter shape, so `signals.py`/`backtest_engine.py` never
+talk to a fundamentals (or sentiment) vendor directly.
+
+- **`CsvCharacteristicSource`** (the only implementation so far): a wide
+  CSV, one `date` column plus one column per ticker, holding the raw
+  characteristic level (e.g. book-to-market ratio, or a sentiment score)
+  directly — no return derivation, no index-0-is-always-None convention
+  (a characteristic doesn't need a prior period to be defined, unlike a
+  return).
+- `run_backtest`/`run_replication` take characteristics as a **dict keyed
+  by `characteristic_name`** (`arp replicate backtest --characteristics
+  book_to_market=bm.csv --characteristics news_sentiment=sent.csv`, one
+  entry per name), since a COMPOSITE spec's components may each need a
+  different one. `required_characteristic_names(spec)` (in
+  `backtest_engine.py`) resolves exactly which names a given spec needs,
+  and raises immediately (not a deferred, confusing failure) if a
+  VALUE/TEXT_SENTIMENT spec or component has no `characteristic_name` set
+  at all.
+- Every characteristics panel's `period_ends` must *exactly match* the
+  price panel's — a characteristic reported less often than monthly (the
+  normal case: book equity is typically an annual figure) is expected to
+  already be forward-filled onto the same monthly grid by whoever
+  prepares the CSV, rather than this engine trying to reconcile two
+  different date grids itself. A mismatch raises a clear `ValueError`
+  rather than silently misaligning indices.
+- **What this doesn't correct for**: restatements. The CSV's characteristic
+  values are trusted as point-in-time exactly as supplied — a real
+  point-in-time fundamentals vendor (Compustat, Sharadar) is a
+  straightforward second `CharacteristicDataSource` implementation when
+  that matters (same "Restated/point-in-time fundamentals" caveat as the
+  Price data section below).
+
+## LLM-scored sentiment as a characteristic
+
+`arp/replication/sentiment_scoring.py::build_sentiment_panel` scores one
+document per (ticker, period) cell — via `score_document_sentiment`, a
+single grounded LLM call bounded to `[-1.0, 1.0]` with a verbatim
+supporting quote — and assembles the results into a `CharacteristicPanel`
+exactly like a `CsvCharacteristicSource` would produce, so everything
+downstream (backtest engine, COMPOSITE) is unaware the data came from an
+LLM rather than a vendor feed. Two things distinguish it from a vendor
+characteristic:
+
+- **Grounding, not trust**: an ungrounded citation (the model's quote
+  doesn't actually appear in the source text) sets that cell to `None`
+  rather than keeping an unverifiable score — the same programmatic check
+  used everywhere else in this codebase, applied here to an LLM *opinion*
+  about a document rather than a fact extracted from one.
+- **Temporal contamination / hindsight risk** (the risk Glasserman & Lin
+  (2024) describe for pretrained models incorporating information from
+  future periods into a historical backtest): the scoring prompt is
+  explicitly instructed to score text *only* as a contemporary reader
+  would have, using nothing it might separately know about what happened
+  to the company afterward. This is a prompt-level mitigation, not a
+  provable guarantee — `SentimentScoreRecord.model` records exactly which
+  model scored each cell (persist it alongside the panel, `arp replicate
+  score-sentiment --records-out ...` writes it out), so a reviewer can at
+  least reason explicitly about how much of that model's training window
+  overlaps the scored period, instead of the risk being invisible.
+
+`arp replicate score-sentiment --manifest manifest.json --out sentiment.csv`
+takes a JSON manifest (`[{ticker, period_end, text, doc_type?}, ...]`) and
+writes a characteristics CSV ready for `backtest --characteristics
+<name>=sentiment.csv`. Wiring this to ARP's own document-discovery/news
+ingestion (`arp/discovery/`, `arp/portfolio/news/`) instead of a
+hand-built manifest is a natural next step, not yet done.
+
+## Price data: a pluggable adapter
+
+`arp/replication/price_data.py::PriceDataSource` is the only interface the
+signal/backtest code talks to — swapping data vendors never touches
+`signals.py`, `backtest_engine.py`, or `metrics.py`.
+
+- **`CsvPriceSource`** (default): a wide CSV, one `date` column plus one
+  column per ticker, either raw prices (returns derived period-over-period)
+  or already-computed periodic returns. Free, no network, no API key — the
+  only source this project's no-network unit tests exercise.
+- **`YFinancePriceSource`** (opt-in extra: `pip install -e ".[replication]"`):
+  free real-market monthly adjusted-close data via Yahoo Finance.
+
+**What neither of these correct for**, and what a paid point-in-time
+vendor (CRSP, Compustat, Sharadar, Bloomberg — a straightforward third
+`PriceDataSource` implementation) would:
+
+- **Survivorship bias**: today's ticker list, backtested over history,
+  silently excludes delisted/failed/acquired names — biasing results
+  upward versus what an investor could have actually traded at the time.
+- **Point-in-time universe membership**: a paper's universe ("NYSE
+  ordinary common shares") is a historical fact that changes every month;
+  this version backtests one fixed `tickers` list the caller supplies
+  (`run_replication`'s `tickers` argument), not a reconstruction of the
+  paper's exact historical universe at each formation date.
+- **Restated/point-in-time fundamentals**: irrelevant to the momentum
+  example (pure price signal) but binding for any future value/quality
+  signal that reads accounting data — as-reported figures at the time,
+  not today's restated numbers, are what a real backtest needs.
+
+## Backtest construction
+
+Only equal weighting is implemented (`backtest_engine.py` raises
+`NotImplementedError` for a `weighting` other than equal-weight) — this
+applies identically across all four signal families. Rebalance frequency, though, is
+fully user-defined: a new decile sort is formed at every valid *rebalance
+date*, and each formed portfolio is held for K (`holding_period_months`)
+months; a given calendar month's long/short return is the equal-weighted
+average, across however many of those portfolios are still within their
+holding window, of that month's realized return for the stocks in each
+leg.
+
+### Rebalance frequency: fixed presets or a fully custom schedule
+
+`StrategySpec.rebalance_frequency` (`arp/replication/rebalance.py`
+resolves it, `backtest_engine.py` consumes the result) is not limited to
+three hardcoded choices:
+
+- **MONTHLY / QUARTERLY / ANNUAL** imply a fixed interval of 1/3/12
+  months.
+- **CUSTOM** reads `rebalance_interval_months` directly — any positive
+  integer, so a paper with an oddball cadence (every 2 months, every 18
+  months) is a spec field, not a new enum member or a code change.
+- **`rebalance_anchor_month`** (optional, 1=Jan..12=Dec, any frequency)
+  anchors rebalances to a specific calendar month instead of simply every
+  `interval` months counted from the start of the fetched panel —
+  `rebalance_frequency=ANNUAL, rebalance_anchor_month=6` reproduces the
+  classic Fama & French June-aligned annual rebalance exactly;
+  `rebalance_anchor_month=2` with `QUARTERLY` rebalances every
+  February/May/August/November instead of whatever quarter boundary the
+  panel happens to start on. If the anchor month never occurs in the
+  fetched panel (e.g. a window shorter than a year), `run_backtest` warns
+  and simply produces no periods, rather than silently rebalancing on the
+  wrong months.
+
+The interval-and-rebalance-date resolution is a small, independently
+tested pure function (`resolve_rebalance_interval_months`,
+`resolve_rebalance_months` in `arp/replication/rebalance.py`) that
+`run_backtest` calls once per invocation; the main backtest loop itself
+doesn't know or care whether it's looking at a monthly, quarterly, annual,
+or custom schedule — it only asks "was `f` a valid rebalance date, and is
+it still within its holding window at month `m`?" This is what lets one
+`rebalance_interval_months`/`holding_period_months` pair reproduce either
+end of the spectrum with the exact same code path:
+
+- **interval = 1** (with K > 1): Jegadeesh & Titman (1993)'s own
+  overlapping-portfolio construction — up to K portfolios active at once,
+  averaged together, which is what lets a monthly return series exist even
+  though any one portfolio only re-ranks every K months.
+- **interval = K**: a standard **non-overlapping** rebalance — exactly one
+  portfolio active at a time. This is what the `book_to_market_value_premium`
+  worked example now uses (`rebalance_frequency=ANNUAL,
+  rebalance_anchor_month=6, holding_period_months=12`) to reproduce the
+  classic annual, June-aligned value-factor rebalance genuinely, rather
+  than the monthly-overlapping approximation of it this example used
+  before `rebalance_anchor_month`/interval-based scheduling existed.
+- **1 < interval < K**: a mix — fewer than K overlapping cohorts active at
+  once.
+
+`run_backtest` takes one `PricePanel` (and, for a characteristic-based
+signal, a dict of `CharacteristicPanel`s keyed by name) covering both the
+in-sample and out-of-sample windows (plus the lookback) and a
+`period_start`/`period_end` per call —
+it restricts which months are *emitted* as output to that window while
+still using earlier months in the same panel for lookback, so two calls
+(in-sample, out-of-sample) share one fetch and one formation cache instead
+of needing separately-windowed panels.
+
+## Metrics
+
+`metrics.py::compute_leg_performance` reports, per leg (long/short/
+long-short): geometric (CAGR-style) annualized return, annualized
+volatility, Sharpe ratio, a t-statistic on the mean monthly return,
+max drawdown from the compounded path, and (given a benchmark series)
+CAPM-style alpha/beta via a simple OLS fit. A near-zero-but-not-exactly-
+zero volatility (float64 noise on a genuinely constant series, ~1e-17)
+is treated as zero rather than producing an absurd Sharpe ratio or beta —
+see `_ZERO_VOLATILITY_EPSILON`.
+
+## In-sample vs. out-of-sample, and the verdict
+
+`compare.py::build_comparison_report` compares the in-sample backtest
+against `StrategySpec.reported_performance`, then (if an out-of-sample
+result is supplied) checks whether the effect persists:
+
+| Verdict | Meaning |
+|---|---|
+| `replicated` | In-sample long-short return is statistically significant, positive, and within a documented magnitude tolerance of the paper's own reported figure (or the paper reported no figure to compare against). |
+| `partially_replicated` | Same sign as the paper, but a material magnitude gap. |
+| `not_replicated` | Wrong sign, or not statistically distinguishable from zero in-sample. |
+| `decayed_out_of_sample` | Replicated in-sample, but the out-of-sample window is insignificant, non-positive, or a material downgrade — usually the finding of most interest for an "outperformance" claim. |
+| `insufficient_data` | Fewer than `MIN_PERIODS_FOR_A_VERDICT` (12) monthly observations. |
+
+The thresholds (`MIN_SIGNIFICANT_T_STAT=2.0`, `MIN_PERIODS_FOR_A_VERDICT=12`,
+`FULL_REPLICATION_MAGNITUDE_RATIO=0.5`) are reasonable, disclosed starting
+points — not empirically tuned against a labeled set of replication
+outcomes, the same caveat this codebase states for its other threshold
+constants (e.g. `Settings.arbitration_*`).
+
+## Provenance
+
+`StrategySpec.provenance` (a `ProvenanceInfo`, the same type
+`ExtractedField` carries elsewhere in this codebase) records which
+extractor/verifier model and system-prompt hash produced a spec from
+`arp replicate extract-spec` — left at its all-`None` default for a
+hand-authored spec (the bundled examples, or one you write by hand). A
+later prompt or model change is then detectable against a previously
+persisted spec instead of silently mixing pipeline versions, the same
+reasoning the rest of this codebase already applies to every extraction.
+
+## Golden set: behavioural equivalence tests for the backtest engine
+
+Everything in `signals.py`/`backtest_engine.py`/`rebalance.py`/
+`metrics.py` is deterministic, which cuts both ways: there's no
+inherent randomness to worry about, but also no test-time signal that a
+refactor silently changed *what a given input computes to*.
+`arp/replication/golden_set.py` (`arp replicate golden-set`) is this
+codebase's existing golden-set pattern (`arp golden_set/`, used for LLM
+extraction) applied to that risk: a small set of fixed
+`(StrategySpec, PricePanel, CharacteristicPanel*)` inputs with a captured,
+reviewed expected `long_short.annualized_return_pct`/period count, run
+before a change to any of those four modules ships. Unlike the
+extraction golden set (compared against a human-verified real answer),
+"known-correct" here means "captured from a reviewed run and guarded
+against silent drift" — the same spirit as a snapshot test, appropriate
+for code with no LLM variance to average out. The two bundled cases cover
+the two structurally distinct rebalance code paths this module has (a
+1-month-interval overlapping construction, and an interval-equals-K
+non-overlapping one) — add a case here whenever a change touches either
+path, or introduces a new signal family.
+
+## Sanity-check pass: a qualitative second opinion
+
+`arp/replication/sanity_check.py` (`arp replicate sanity-check <run_id>`)
+sends a completed `ReplicationComparisonReport`'s key figures (universe
+size, period counts, in/out-of-sample Sharpe/return/t-stat, the verdict)
+to an LLM instructed to flag anything a seasoned quant would find
+suspicious: an implausible Sharpe or annualized return, a too-thin
+universe or leg, a classic overfitting signature (dramatic in-sample vs.
+out-of-sample gap combined with many free parameters), or reported
+performance that suspiciously exactly matches the replication. This is
+the AFI ("augment, never replace") pattern applied to this module's own
+output — the assessment is advisory only, appended to the run's
+`results.jsonl` as its own row (`type=sanity_check`), and never mutates
+or overrides the deterministic numbers it reviews. There is no grounding
+check here (unlike every other LLM call in this codebase): a sanity check
+is an opinion about whether a set of numbers looks plausible, not a fact
+extracted from a source document, so there's nothing to check a quote
+against — `SanityCheckAssessment`'s own docstring says this explicitly.
+
+## Literature discovery: proposing candidate papers
+
+`arp/replication/paper_discovery.py` (`arp replicate discover-papers
+"<topic>"`) closes the loop back toward this module's original purpose —
+*finding* papers to replicate, not just replicating ones already in hand.
+It mirrors the Taxonomy Researcher's shape exactly
+(`arp/agents/taxonomy_researcher.py`): `discover_candidate_papers`
+searches a `WebSearchClient` with a handful of varied query templates and
+dedupes by URL; `rank_candidate_papers` sends the results (title/URL/
+snippet only — never the paper itself) to an LLM that scores each for
+replication-worthiness (a specific, testable claim; plausibly replicable
+with price/one-fundamental-ratio/text data; a real academic/practitioner
+source) and guesses a `suggested_signal_type` as a starting hint. Nothing
+is fetched, read, or turned into a `StrategySpec` automatically —
+candidates are written to a JSON file for a human to review and pick
+from, the same "propose, never auto-apply" discipline as every other
+discovery/research agent in this codebase. Feeding a chosen candidate's
+actual full text into `arp replicate extract-spec` is a separate,
+deliberate next step. A persistent background scheduler (like
+`TaxonomyResearcherScheduler`) would be a natural extension but doesn't
+exist yet — this is on-demand only today.
+
+### Search sources (`--source`)
+
+`discover_candidate_papers` only ever talks to the generic `WebSearchClient`
+interface, so which real search backend runs is a caller choice
+(`arp replicate discover-papers "<topic>" --source ...`):
+
+- **`arxiv`** (`arp/discovery/academic_search.py::ArxivSearchClient`) —
+  arXiv's own free, documented, no-API-key API
+  (export.arxiv.org/api/query), restricted by default to its
+  quantitative-finance categories (`q-fin.PM/ST/TR/PR/RM/GN`) so results
+  stay on-topic. Skews toward more recent/technical quant work.
+- **`semanticscholar`** (`SemanticScholarSearchClient`) — the Semantic
+  Scholar Graph API, free and documented, covering a much broader venue
+  set (SSRN-hosted, NBER, and journal-published working papers) via its
+  corpus. This is the deliberate stand-in for "search SSRN directly": SSRN
+  (an Elsevier property) publishes no public search API, and scraping its
+  search results would violate its terms of service, so this codebase
+  does not do that.
+- **`duckduckgo`** — the original generic-web-search fallback
+  (`arp/discovery/site_finder.py::DuckDuckGoSearchClient`), same one used
+  elsewhere in ARP for company IR-site lookup.
+- **`all`** (default) — all three, fanned out and merged/deduped by URL
+  via `CompositeSearchClient`, which also means one source failing (rate
+  limit, outage) doesn't blank the whole search.
+
+Both `ArxivSearchClient` and `SemanticScholarSearchClient` are covered by
+unit tests against mocked HTTP responses (`tests/test_academic_search.py`)
+-- neither host was reachable for a live end-to-end check from this
+particular sandboxed session (both `export.arxiv.org` and
+`api.semanticscholar.org` were blocked by this session's own egress
+allowlist, confirmed via the agent proxy's status endpoint, not a code
+issue). Worth a live smoke test in an environment whose network policy
+allows those two hosts before relying on this in production — see
+`docs/CORPORATE_READINESS_PLAN.md` for how this project already handles
+per-host egress as a deployment-time decision.
+
+## Statistical rigor: multiple testing, backtest overfitting, and regime dependence
+
+A plain in-sample/out-of-sample verdict (see above) answers "does this
+look like an effect?" but not "how surprised should I be that it looks
+like an effect, given how many things could have been tried?" — the
+question a run of academic-finance methodology papers (Harvey, Liu & Zhu
+2016; Bailey & Lopez de Prado's Deflated Sharpe Ratio; Bailey, Borwein,
+Lopez de Prado & Zhu's Probability of Backtest Overfitting; Deutsche Bank
+Quant Strategy's "Seven Sins of Quantitative Investing"; and the newer
+LLM/agentic-factor-generation literature, e.g. arXiv 2512.12924's finding
+of strongly regime-dependent performance) all push on from different
+angles. This module addresses that with three additions, layered on top
+of (never replacing) the deterministic verdict above:
+
+**Multiple-testing-aware significance (`compare.py`).**
+`StrategySpec.num_trials_attempted` declares how many variants (formation
+windows, universes, parameter values, ...) were effectively tried before
+landing on this exact spec — default 1, meaning "no adjustment, this was
+the only thing tried," which is honest only when that's actually true.
+`compare.py::significance_threshold` raises the in-sample/out-of-sample
+t-stat hurdle from the flat 2.0 smoothly toward a Harvey-Liu-Zhu-inspired
+ceiling of 3.0 (log-scaled, reaching 3.0 around 100 trials) — a simple,
+disclosed heuristic in the spirit of their argument that a flat t>=2 bar
+passes far too much noise once hundreds of factors have already been
+data-mined in the literature, not a re-derivation of their full
+multiple-testing/FDR model.
+
+**Deflated Sharpe Ratio (`deflated_sharpe.py`).** A numpy-only
+(no scipy dependency — a hand-rolled standard-normal CDF via `math.erf`
+and a Peter Acklam PPF approximation cover the one spot an inverse-CDF is
+needed) implementation of Bailey & Lopez de Prado's Probabilistic and
+Deflated Sharpe Ratio: `probabilistic_sharpe_ratio` is the probability the
+*true* per-period Sharpe ratio exceeds a benchmark, given the sample size
+and the return series' own skew/kurtosis (a fat-tailed or negatively
+skewed series needs more data to trust the same observed Sharpe ratio);
+`expected_max_sharpe_under_trials` is how much the best-of-N-trials Sharpe
+ratio is expected to be inflated by pure luck under zero true skill; and
+`deflated_sharpe_ratio` combines them into one PSR-against-that-inflated-
+benchmark figure. `compare.py::build_comparison_report` computes this
+automatically (as `ReplicationComparisonReport.deflated_sharpe`) from the
+in-sample long-short monthly returns whenever there are 2+ periods,
+passing `num_trials_attempted` through — and `sanity_check.py`'s LLM
+prompt is told the DSR/PSR figures explicitly, alongside `num_trials_
+attempted` itself, so a spec that declares many trials but doesn't show a
+correspondingly deflated Sharpe is something the LLM pass can flag.
+
+**Probability of Backtest Overfitting via CPCV (`cpcv.py`).** Given 2+
+candidate `StrategySpec` variants for the same paper (different formation
+windows, characteristics, universes, ...), `run_pbo_analysis` implements
+Combinatorially Symmetric Cross-Validation (Bailey, Borwein, Lopez de
+Prado & Zhu): the sample is split into `num_blocks` contiguous blocks, and
+for every way of choosing half of them as a test set (`num_blocks` choose
+`num_blocks/2` splits), each candidate is backtested on the purged +
+embargoed training blocks and on the held-out test blocks. The candidate
+that looked best on training is noted, and how well *that* candidate
+ranked out-of-sample (relative to all candidates, on that split) becomes
+one logit; PBO is the fraction of splits where the in-sample-best
+candidate performed at or below the out-of-sample median. This reuses
+`backtest_engine.py::run_backtest`'s new `allowed_period_ends` parameter
+(a set of exact period-end strings to emit, rather than a single
+contiguous `[period_start, period_end]` window) to evaluate every split
+against the same already-fetched panel — no re-fetching or re-slicing
+data per split. Purging drops training periods within `purge_months`
+(default: the largest `holding_period_months` across candidates)
+immediately *before* a test block, since a spec's return realization can
+lag its formation date by up to that many months; embargo additionally
+drops `embargo_months` periods immediately *after* a test block, guarding
+against serial-correlation leakage into subsequent training. This is a
+practical, period-count approximation of purging/embargo (the convention
+popularized in Lopez de Prado's "Advances in Financial Machine
+Learning"), not an exact per-signal overlap computation. A high PBO
+(materially above 0.5) is a warning about the *selection process* — that
+picking the best-looking variant in-sample was little better than a coin
+flip — not proof that any single candidate's own backtest is broken.
+Exposed via `arp replicate pbo` (deterministic, zero LLM calls, same as
+the rest of the backtest engine).
+
+**Regime-stratified performance (`regime_analysis.py`).** Pooling every
+period into one full-sample Sharpe ratio can hide a strategy that only
+works in calm markets (or only in turbulent ones) — the kind of
+regime-dependence arXiv 2512.12924 ("Interpretable Hypothesis-Driven
+Trading") found to be common and strong. `regime_stratified_report`
+splits a completed `BacktestResult`'s periods into low/mid/high terciles
+of the *benchmark's* own trailing realized volatility (never the
+strategy's own return volatility — that would be circular, since the
+strategy's returns would then partly define the buckets it's evaluated
+within) and reports the long-short leg's performance separately per
+regime. Requires `run_backtest` to have been called with
+`benchmark_returns` set; exposed via `arp replicate regime-report
+<run_id>`.
+
+None of these three additions override the plain verdict in
+`ReplicationComparisonReport.verdict` — they're additional, more
+conservative reads attached alongside it (`deflated_sharpe` on the same
+report; PBO and regime stratification as their own separate reports),
+in keeping with this module's existing "complement, never silently
+override the deterministic numbers" discipline (see "Sanity-check pass"
+above).
+
+## Frontend workflow: propose, review, backtest
+
+This module has a full frontend page (`frontend/src/pages/StrategyReplication.tsx`,
+"Strategy Replication" nav tab) covering three explicit, gated stages backed
+by a new API router (`arp/api/routers/replication.py`) -- CLI commands above
+still work unchanged and read/write the exact same `RunStore` state as the
+UI.
+
+**Stage A -- Propose.** `POST /api/replication/discover` wraps
+`discover_candidate_papers`/`rank_candidate_papers` (unchanged) so the UI can
+search a topic and show ranked `PaperCandidate`s to pick from, or a user can
+skip straight to describing their own methodology in plain English -- both
+converge on `POST /api/replication/specs {paper_citation, paper_text}`, which
+runs the normal extractor/verifier/grounding pipeline. `paper_text` is reused
+verbatim for either case: a pasted paper excerpt and a user's own free-form
+methodology description hit the identical extraction/grounding code path,
+only the UI's label differs.
+
+**Stage B -- Spec review & approval.** The drafted `StrategySpec` is *not*
+usable for a backtest until explicitly approved. This reuses the review/
+audit-trail machinery already shared by five other routers
+(`arp/orchestration/review_queue.py`'s `record_review_decision`/
+`latest_decisions`/`decision_history`, plus `arp/api/review_endpoints.py`)
+rather than inventing a new approval mechanism: the whole spec is treated as
+one reviewable item (`item_key="spec"`), and **approved** means the *latest*
+recorded decision for that key is `"approve"` -- any edit afterwards becomes
+the new latest decision and automatically un-approves it, with no separate
+bookkeeping. Two ways to change the spec, both recorded as `"edit"`
+decisions with a full snapshot in `edited_value`:
+- **Direct edit** (`PUT /api/replication/specs/{id}` with a full
+  `StrategySpec`) -- the UI's JSON editor lets a reviewer change literally
+  anything.
+- **Natural-language instruction** (`POST .../revise {instruction}`, backed
+  by `arp/replication/spec_revision.py::revise_spec_via_instruction`) -- one
+  schema-forced LLM call (`StrategySpecRevisionDraft`, a narrower model
+  covering only the revisable methodology fields, deliberately excluding
+  citations/confidence) applies the instruction. **Safety rule enforced in
+  code, not trusted from the LLM:** the old and new spec are diffed
+  field-by-field; if anything actually changed, the resulting spec's
+  `grounded` is forced to `False` and `needs_review` to `True`, with a
+  timestamped note appended to `extraction_notes` -- `grounded` is a
+  whole-spec flag in this schema (citations aren't tagged per-field), so a
+  manual/instruction-driven change to *any* field means the spec as a whole
+  can no longer be asserted as fully grounded against the original source
+  text, even though existing citations are left in place rather than
+  deleted (some may still genuinely support untouched fields).
+
+**Stage C -- Backtest & analyze.** Reachable only once approved --
+`POST /api/replication/specs/{id}/backtest` **re-checks approval
+server-side** (403 otherwise, never trusted from the client alone) before
+calling the existing `run_replication()` unchanged. Price/characteristics
+CSVs are uploaded via `POST .../datasets/prices` and
+`.../datasets/characteristics/{name}` (mirroring the Reporting Tool's
+`UploadFile` pattern), stored under the spec-draft run's own directory.
+Results are served as one bundled `ReplicationRunDetail`
+(`arp/replication/run_detail.py` -- composition only, every field an
+existing model, assembled by dispatching `results.jsonl` rows by their
+`type` tag) via `GET /api/replication/runs/{run_id}`, and rendered as an
+equity curve + drawdown-depth chart (hand-rolled SVG `LineChart`, this
+codebase's only charting approach -- no npm chart library), a KPI stat-tile
+row, and a reported-vs-measured comparison table. Unlike the CLI (where
+`sanity-check`/`regime-report` are separate, deliberate commands), the UI
+also exposes `POST .../runs/{run_id}/sanity-check` and `.../regime-report`
+as on-demand triggers -- a real interactive review tool should let the user
+ask for these without a separate CLI step, so this is the one deliberate
+difference from this module's usual "expensive/LLM actions are explicit CLI
+invocations" pattern. Charts are long/short/long-short leg-level only -- no
+per-decile breakdown, since the engine doesn't retain individual portfolios'
+returns.
+
+Both `LineChart` (client-side, display-only) and the equity-curve math
+computed from `BacktestResult.periods` are presentation only: the real
+Sharpe/return/t-stat numbers always come from the backend's
+`LegPerformance`, never recomputed in the frontend.
+
+## Known limitations / next steps
+
+- MOMENTUM, VALUE, TEXT_SENTIMENT, and COMPOSITE are implemented; quality/
+  low-volatility/size are new `SignalType`s and scoring functions in
+  `signals.py`, not a redesign (they'd likely reuse `CharacteristicDataSource`
+  exactly as VALUE/TEXT_SENTIMENT do, and could be combined into a
+  COMPOSITE spec immediately once they exist).
+- Rebalance frequency is fully flexible (see "Backtest construction"
+  above) but every rebalance date still shares one fixed `holding_period_
+  months`/`num_portfolios`/leg-selection for the whole sample — a paper
+  that changes its own methodology partway through its sample (rare, but
+  not unheard of) would need two specs and two backtests stitched
+  together, not a single run.
+- No transaction-cost or turnover modeling yet
+  (`BacktestResult.monthly_turnover_pct` is reserved but unset).
+- No point-in-time universe reconstruction, survivorship-bias handling, or
+  restatement-aware fundamentals (see "Price data" and "Characteristic
+  data" above) — a real quant-research use of this beyond a worked example
+  needs point-in-time vendors behind new `PriceDataSource`/
+  `CharacteristicDataSource` implementations.
+- Equal weighting only; value-weighting is declared in the schema
+  (`WeightingScheme.VALUE` — market-cap weighting in the standard finance
+  sense, unrelated to `SignalType.VALUE`) but not yet implemented in
+  `backtest_engine.py`.
+- `score-sentiment` takes a hand-built JSON manifest, not a live feed from
+  ARP's own document-discovery/news infrastructure (`arp/discovery/`,
+  `arp/portfolio/news/`) — wiring those together is a natural next step.
+- `discover-papers` is on-demand only; a persistent background scheduler
+  (mirroring `TaxonomyResearcherScheduler`) that periodically re-scans
+  topics and accumulates candidates over time doesn't exist yet.
+- `StrategySpecDraft`/the extractor prompt don't cover COMPOSITE specs --
+  a composite spec is assembled by hand today (or by combining two
+  already-extracted specs' components), not extracted from one paper in
+  one pass.
+- `num_trials_attempted` is a hand-declared, honesty-dependent input, not
+  something inferred from the extraction pipeline or a paper's own text --
+  the extractor prompt doesn't yet ask a paper how many variants it
+  reports having tried, so this defaults to 1 (no adjustment) unless a
+  caller sets it deliberately.
+- `significance_threshold`'s log-scaled 2.0->3.0 hurdle and `cpcv.py`'s
+  fixed-period-count purge/embargo are both simple, disclosed
+  approximations of the Harvey-Liu-Zhu and Lopez de Prado methodologies
+  they're inspired by, not exact reproductions of either paper's full
+  statistical model -- see "Statistical rigor" above for what each does
+  and doesn't claim to do.
+- The Deutsche Bank "Seven Sins" checklist folded into `sanity_check.py`'s
+  prompt is still qualitative/LLM-judged, the same as the rest of that
+  pass -- there's no programmatic check for survivorship bias or
+  look-ahead bias (that would require point-in-time universe/fundamentals
+  data this project doesn't have yet; see the limitations above), only a
+  more specific set of things for the LLM to reason about.
+- The frontend's backtest stage supports uploading only ONE characteristics
+  CSV, keyed to the spec's own top-level `characteristic_name` -- a
+  COMPOSITE spec whose components need more than one distinct
+  characteristic isn't fully supported from the UI yet (the CLI's
+  `--characteristics name=path.csv`, repeatable, already handles this; the
+  API's `characteristics_refs` dict already accepts multiple entries too,
+  it's only the page's upload UI that's single-characteristic for now).
+- A spec draft's progress lives entirely in the browser's component state
+  plus its `spec_run_id` -- refreshing the page loses the in-progress
+  review unless the user has noted that ID down to paste into "resume a
+  spec draft you started earlier." There's no "recent spec drafts" list in
+  the UI yet (though `GET /api/runs?run_type=strategy_replication_spec`
+  already works for building one).
+- The spec sheet's direct-edit box is a raw JSON textarea, not a
+  per-field form with inline validation -- a malformed edit only surfaces
+  as a JSON.parse error or a Pydantic validation error from the API, not a
+  live per-field check while typing.

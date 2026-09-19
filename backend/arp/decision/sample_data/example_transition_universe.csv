@@ -1,0 +1,25 @@
+Company,ISIN,Sector,Region,Portfolio_Weight_bps,Scope12_Intensity_tCO2e_per_mEUR,Scope3_Reported,SBTi_Validated_Target,Target_Ambition_0_5,Transition_Plan_Disclosure_0_100,Green_Capex_Share_pct,Climate_Lobbying_Alignment_0_100,Board_Climate_Oversight_0_3,Say_on_Climate_Support_pct,Emissions_Data_Coverage_pct,Coal_Expansion_Flag,Severe_Controversy_Flag
+Nordwind Energie AG,DE000NWE0017,Utilities,Europe,84,212,Yes,Yes,4,78,41,72,3,91.4,96,No,No
+Alpina Grid SA,CH0012345678,Utilities,Europe,61,88,Yes,Yes,4,84,55,81,3,94.1,98,No,No
+Meridian Steel plc,GB00MER00019,Materials,UK,37,1840,Yes,No,2,44,12,38,2,,88,No,No
+Kanto Heavy Industries,JP3812345678,Industrials,APAC,52,640,No,No,2,31,9,29,1,,71,No,No
+Batavia Chemicals NV,NL0011234567,Materials,Europe,44,910,Yes,Yes,3,62,24,54,2,78.2,92,No,No
+Aurora Mobility Group,DE000AMG0012,Consumer Discretionary,Europe,96,148,Yes,Yes,4,71,63,66,3,88.7,94,No,No
+Sable Petroleum Ltd,GB00SAB00023,Energy,UK,118,1420,Yes,No,1,38,7,21,2,42.3,84,No,Yes
+Tarn Mining Corp,AU000TRN0015,Materials,APAC,29,1260,No,No,1,22,4,18,1,,63,Yes,Yes
+Lumen Semiconductor,TW0002345678,Information Technology,APAC,140,96,Yes,Yes,5,88,47,74,3,,97,No,No
+Rheinpfad Logistik SE,DE000RPL0019,Industrials,Europe,23,430,Yes,No,3,57,19,58,2,81.0,89,No,No
+Cordillera Cement SAB,MX01CC000014,Materials,LatAm,18,2110,Yes,Yes,3,66,21,47,2,,90,No,No
+Northgate Retail plc,GB00NGR00027,Consumer Staples,UK,55,74,Yes,Yes,4,73,28,69,3,92.8,95,No,No
+Sunda Palm Resources,SG1A23456789,Consumer Staples,APAC,12,520,No,No,1,18,3,12,0,,48,No,Yes
+Vega Power Holdings,KR7009876543,Utilities,APAC,47,1680,No,No,1,27,6,24,1,,66,Yes,No
+Baltic Wind Partners,DK0061234567,Utilities,Europe,33,31,Yes,Yes,5,91,88,86,3,96.2,99,No,No
+Osaka Precision KK,JP3876543210,Industrials,APAC,26,187,Yes,Yes,3,64,26,51,2,,93,No,No
+Severn Vale Water plc,GB00SVW00031,Utilities,UK,21,264,Yes,No,2,49,17,44,2,69.5,87,No,Yes
+Kestrel Airlines Group,IE00KST00018,Industrials,Europe,19,980,Yes,No,2,41,11,33,1,55.4,79,No,No
+Zenith Property REIT,SG1B34567890,Real Estate,APAC,31,118,No,,,,,,,,58,No,No
+Ardent Pharma NV,NL0019876543,Health Care,Europe,102,58,Yes,Yes,4,69,22,71,2,89.9,94,No,No
+Silverline Autoparts,DE000SLA0014,Consumer Discretionary,Europe,27,352,Yes,No,3,53,31,49,2,74.6,86,No,No
+Kalahari Resources Ltd,AU000KLR0022,Energy,APAC,16,1590,No,No,0,14,2,9,0,,44,Yes,Yes
+Brera Fashion SpA,IT0005123456,Consumer Discretionary,Europe,14,92,Yes,No,2,46,13,52,1,,77,No,No
+Polaris Data Centres,SE0012345678,Information Technology,Europe,58,134,Yes,Yes,4,79,58,77,3,93.3,96,No,No

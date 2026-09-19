@@ -1,8 +1,18 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import type { RunManifest } from "../types";
+import type { ReviewableRunKind, RunManifest } from "../types";
 
-export function RunHistory() {
+const REVIEWABLE_KINDS = new Set<ReviewableRunKind>(["theme", "extraction", "financials", "identity"]);
+
+function isReviewable(runType: string): runType is ReviewableRunKind {
+  return REVIEWABLE_KINDS.has(runType as ReviewableRunKind);
+}
+
+interface Props {
+  onOpenReview?: (kind: ReviewableRunKind, runId: string) => void;
+}
+
+export function RunHistory({ onOpenReview }: Props = {}) {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [filter, setFilter] = useState<string>("");
 
@@ -29,44 +39,60 @@ export function RunHistory() {
           <option value="extraction">Extraction</option>
           <option value="financials">Company financials</option>
           <option value="discovery">Discovery</option>
+          <option value="taxonomy_research">Taxonomy Researcher</option>
+          <option value="calibration">Calibration</option>
+          <option value="emerging_themes">Emerging themes</option>
         </select>
         <button onClick={load}>Refresh</button>
         <p className="muted">Total estimated spend across {runs.length} runs: ${totalCost.toFixed(2)}</p>
       </section>
 
       <section className="card">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Run ID</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>Progress</th>
-              <th>Flagged</th>
-              <th>Cost</th>
-              <th>Created</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {runs.map((r) => (
-              <tr key={r.run_id}>
-                <td>{r.run_id}</td>
-                <td>{r.run_type}</td>
-                <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
-                <td>{r.review_count}</td>
-                <td>${r.estimated_cost_usd.toFixed(2)}</td>
-                <td>{new Date(r.created_at).toLocaleString()}</td>
-                <td>
-                  <a href={api.exportRunCsvUrl(r.run_id)} target="_blank" rel="noreferrer">
-                    CSV
-                  </a>
-                </td>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Run ID</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Progress</th>
+                <th>Flagged</th>
+                <th>Cost</th>
+                <th>Created</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {runs.map((r) => {
+                const runType = r.run_type;
+                return (
+                  <tr key={r.run_id}>
+                    <td>{r.run_id}</td>
+                    <td>{runType}</td>
+                    <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
+                    <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
+                    <td>{r.review_count}</td>
+                    <td>${r.estimated_cost_usd.toFixed(2)}</td>
+                    <td>{new Date(r.created_at).toLocaleString()}</td>
+                    <td>
+                      <a href={api.exportRunCsvUrl(r.run_id)} target="_blank" rel="noreferrer">
+                        CSV
+                      </a>
+                      {r.review_count > 0 && isReviewable(runType) && onOpenReview && (
+                        <>
+                          {" "}
+                          <button className="link-button" onClick={() => onOpenReview(runType, r.run_id)}>
+                            Review
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );

@@ -50,6 +50,25 @@ def resolve_field_values_for_universe(
     return values
 
 
+def list_conflicting_observations(store: PortfolioStore) -> list[DataPointObservation]:
+    """Every (company_id, field_id) pair whose currently-resolved
+    observation -- the one `resolve_field_value` would actually hand to
+    the aggregation engine, not just the most recently written row -- is
+    stamped `conflicting_sources=True`. `cross_check_and_store` always
+    writes the flagged internal-API observation before the raw extracted
+    one for audit, so a naive "last row in the file" read would almost
+    always find the unflagged extracted row instead; going through the
+    same source-priority cascade every other resolution uses is what
+    keeps this consistent with what a query actually sees.
+    """
+    conflicting: list[DataPointObservation] = []
+    for company_id, field_id in store.list_observation_keys():
+        obs = resolve_field_value(store, company_id, field_id)
+        if obs is not None and obs.conflicting_sources:
+            conflicting.append(obs)
+    return conflicting
+
+
 def coverage_summary(store: PortfolioStore, company_ids: list[str], field_id: str, as_of: str | None = None) -> dict[str, int]:
     """Counts of companies resolved per source, plus a `missing` bucket --
     the raw material for the internal-API / extracted / estimated / missing

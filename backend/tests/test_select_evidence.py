@@ -55,3 +55,61 @@ def test_no_fallback_returns_empty_when_nothing_matches():
 
 def test_empty_chunks_returns_empty():
     assert select_relevant_chunks([], ["anything"]) == []
+
+
+def test_explicit_bm25_backend_matches_default_behavior():
+    """retrieval_backend='bm25' is the default -- passing it explicitly
+    must be byte-identical to omitting it, confirming this is a strict
+    addition, not a behavior change."""
+    chunks = [
+        _chunk("The company reported strong revenue growth in the automotive segment."),
+        _chunk("Green capex increased significantly due to solar investments."),
+        _chunk("Capital expenditure on renewable energy projects doubled."),
+    ]
+    default = select_relevant_chunks(chunks, ["green", "capex", "renewable"], max_chunks=10)
+    explicit = select_relevant_chunks(chunks, ["green", "capex", "renewable"], max_chunks=10, retrieval_backend="bm25")
+    assert [c.chunk_id for c in default] == [c.chunk_id for c in explicit]
+
+
+class _FakeOpenSearchClient:
+    def __init__(self, scored_chunk_ids: dict[str, float]):
+        self._scored = scored_chunk_ids
+
+    def search(self, index, body):
+        requested_ids = set(body["query"]["bool"]["filter"]["terms"]["chunk_id"])
+        hits = [
+            {"_source": {"chunk_id": cid}, "_score": score}
+            for cid, score in sorted(self._scored.items(), key=lambda kv: kv[1], reverse=True)
+            if cid in requested_ids
+        ]
+        return {"hits": {"hits": hits}}
+
+
+def test_opensearch_backend_ranks_by_returned_score():
+    chunks = [_chunk("alpha"), _chunk("beta"), _chunk("gamma")]
+    client = _FakeOpenSearchClient({chunks[0].chunk_id: 0.5, chunks[1].chunk_id: 9.0, chunks[2].chunk_id: 0.0})
+
+    result = select_relevant_chunks(
+        chunks, ["query"], max_chunks=10, require_hit=False, retrieval_backend="opensearch", opensearch_client=client
+    )
+
+    assert [c.chunk_id for c in result] == [chunks[1].chunk_id, chunks[0].chunk_id, chunks[2].chunk_id]
+
+
+def test_opensearch_backend_require_hit_drops_zero_score():
+    chunks = [_chunk("alpha"), _chunk("beta")]
+    client = _FakeOpenSearchClient({chunks[0].chunk_id: 0.0, chunks[1].chunk_id: 1.0})
+
+    result = select_relevant_chunks(chunks, ["query"], retrieval_backend="opensearch", opensearch_client=client)
+
+    assert [c.chunk_id for c in result] == [chunks[1].chunk_id]
+
+
+def test_opensearch_backend_without_client_falls_back_to_bm25():
+    """retrieval_backend='opensearch' with no client supplied must not
+    error -- falls back to the default BM25 path, matching how
+    hybrid_retrieval_enabled with no content_store already behaves."""
+    chunks = [_chunk("green capex mentioned here"), _chunk("unrelated text")]
+    result = select_relevant_chunks(chunks, ["capex"], retrieval_backend="opensearch", opensearch_client=None)
+    assert len(result) == 1
+    assert result[0].text == chunks[0].text

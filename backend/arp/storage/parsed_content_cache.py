@@ -4,9 +4,9 @@ import hashlib
 import json
 import logging
 import sqlite3
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable
 
 from arp.schemas.common import now_iso
 
@@ -217,7 +217,7 @@ class ParsedContentCache:
         e.g. an EDGAR accession-derived key), returns cached parsed text on
         a hit or calls `compute()` and caches the result on a miss.
         `compute` is injected rather than imported, so this cache never
-        depends on pymupdf4llm/trafilatura and is testable with a
+        depends on docling/trafilatura and is testable with a
         call-counting fake.
         """
         cached = self.lookup(content_key, parser_version)
@@ -249,6 +249,56 @@ class ParsedContentCache:
             byte_size=path.stat().st_size,
             compute=lambda: parse(path),
         )
+
+    def list_cached(self, offset: int, limit: int) -> tuple[list[dict], int]:
+        """Lists parsed_content rows newest-first for the "view stored
+        extractions" browser, deliberately excluding full_text/page_breaks
+        (rows can be multi-MB) -- callers fetch a row's text on demand via
+        get_full_text once the user picks it."""
+        if not self.enabled:
+            return [], 0
+        conn = self._connect()
+        try:
+            total = conn.execute("SELECT COUNT(*) FROM parsed_content").fetchone()[0]
+            rows = conn.execute(
+                "SELECT id, content_key, key_kind, parser_version, source_suffix, char_len, byte_size, "
+                "text_sha256, created_at FROM parsed_content ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (limit, offset),
+            ).fetchall()
+            columns = [
+                "id", "content_key", "key_kind", "parser_version", "source_suffix", "char_len", "byte_size",
+                "text_sha256", "created_at",
+            ]
+            return [dict(zip(columns, row, strict=True)) for row in rows], total
+        finally:
+            conn.close()
+
+    def get_full_text(self, row_id: int) -> ParsedContent | None:
+        """Fetches one cached row's full text + page_breaks by its rowid
+        (as returned by list_cached), for the "view stored extractions"
+        browser's expand-a-row action. Same corrupt-JSON self-heal as
+        _lookup_parsed, keyed by id instead of (content_key, parser_version)."""
+        if not self.enabled:
+            return None
+        conn = self._connect()
+        try:
+            row = conn.execute(
+                "SELECT content_key, page_breaks, full_text, text_sha256 FROM parsed_content WHERE id=?",
+                (row_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            content_key, page_breaks_json, full_text, text_sha256 = row
+            try:
+                page_breaks = json.loads(page_breaks_json)
+            except json.JSONDecodeError:
+                logger.warning("Corrupt page_breaks for parsed_content row id=%s; discarding", row_id)
+                conn.execute("DELETE FROM parsed_content WHERE id=?", (row_id,))
+                conn.commit()
+                return None
+            return ParsedContent(content_key=content_key, full_text=full_text, page_breaks=page_breaks, text_sha256=text_sha256)
+        finally:
+            conn.close()
 
     def stats(self, conn: sqlite3.Connection) -> dict:
         """Takes an already-open connection -- called by

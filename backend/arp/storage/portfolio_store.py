@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
-from arp.schemas.common import CompanyRef
+from arp.schemas.common import CompanyRef, now_iso
 from arp.schemas.portfolio import (
     DataPointObservation,
     Holding,
@@ -13,7 +15,20 @@ from arp.schemas.portfolio import (
     SecurityRef,
     SecurityResolution,
 )
+from arp.schemas.portfolio_monitoring import AlertRule
+from arp.storage.atomic_io import atomic_write_text
+from arp.storage.jsonl_io import append_jsonl, read_jsonl
+from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import safe_id
+
+
+def _sidecar_lock_path(key: str) -> Path:
+    """`.<filename>.lock` beside the file a PortfolioStore write targets --
+    this store's lock keys are paths, unlike the other stores' opaque ids.
+    A dotted sibling rather than a suffix change so it never matches the
+    `*.jsonl` / `*.json` globs the listing methods use."""
+    path = Path(key)
+    return path.parent / f".{path.name}.lock"
 
 
 class PortfolioStore:
@@ -29,10 +44,39 @@ class PortfolioStore:
         portfolios/securities.json                          SecurityRef reference data
         portfolios/security_resolutions.json                  ISIN -> company_id resolutions
         portfolios/<portfolio_id>/snapshots/<as_of_date>.jsonl  Holding[] per snapshot
+
+    The registry-style files above (`registry.json`, `securities.json`,
+    `companies.json`, `security_resolutions.json`, `analytics.json`,
+    `monitoring/rules.json`) each hold *many* records in one JSON object,
+    so saving one record is a read-modify-write of the whole file. Those
+    go through `_put_json_entry`, which takes a per-file KeyedLock and
+    writes atomically -- exactly what RunStore/EngagementStore already do
+    for their own read-modify-write cycles, and for the same reason: this
+    store is an lru_cached singleton (api/deps.py::get_portfolio_store)
+    shared by every sync route handler's worker thread, so two concurrent
+    saves against one file otherwise lose one side's record outright and
+    a concurrent reader can observe the file mid-truncation.
     """
 
     def __init__(self, portfolios_dir: Path) -> None:
         self.portfolios_dir = portfolios_dir
+        # Keyed by the file being written, and locked across processes as
+        # well as threads: an `arp portfolio ...` CLI command writes the
+        # same registry files as a live API process. See KeyedLock.
+        self._locks = KeyedLock(lock_path=_sidecar_lock_path)
+
+    @contextmanager
+    def _lock(self, path: Path) -> Iterator[None]:
+        """Serializes access to one file within this process, keyed by
+        path. Deliberately not public, unlike RunStore.lock/
+        EngagementStore.lock: those exist because JobManager and the
+        engagement orchestrator wrap several of their calls in one
+        cycle, whereas every read-modify-write here is a single save. A
+        caller wanting two of these saves to land together would need
+        more than a shared lock anyway -- they touch different files,
+        which no lock makes atomic as a pair."""
+        with self._locks.acquire(str(path)):
+            yield
 
     @staticmethod
     def _read_json(path: Path) -> dict:
@@ -42,26 +86,23 @@ class PortfolioStore:
 
     def _write_json(self, path: Path, data: dict) -> None:
         self.portfolios_dir.mkdir(parents=True, exist_ok=True)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, indent=2))
+        atomic_write_text(path, json.dumps(data, indent=2))
+
+    def _put_json_entry(self, path: Path, key: str, value: dict) -> None:
+        """Sets one record in a registry file, serialized against other
+        writers of the same file and atomic for readers."""
+        with self._lock(path):
+            data = self._read_json(path)
+            data[key] = value
+            self._write_json(path, data)
 
     @staticmethod
     def _read_jsonl(path: Path) -> list[dict]:
-        if not path.exists():
-            return []
-        rows = []
-        with path.open() as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    rows.append(json.loads(line))
-        return rows
+        return read_jsonl(path)
 
-    @staticmethod
-    def _append_jsonl(path: Path, row: dict) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a") as f:
-            f.write(json.dumps(row) + "\n")
+    def _append_jsonl(self, path: Path, row: dict) -> None:
+        with self._lock(path):
+            append_jsonl(path, row)
 
     # --- portfolios ---
 
@@ -69,9 +110,7 @@ class PortfolioStore:
         return self.portfolios_dir / "registry.json"
 
     def save_portfolio(self, portfolio: Portfolio) -> None:
-        registry = self._read_json(self.registry_path())
-        registry[portfolio.portfolio_id] = json.loads(portfolio.model_dump_json())
-        self._write_json(self.registry_path(), registry)
+        self._put_json_entry(self.registry_path(), portfolio.portfolio_id, json.loads(portfolio.model_dump_json()))
 
     def get_portfolio(self, portfolio_id: str) -> Portfolio | None:
         row = self._read_json(self.registry_path()).get(portfolio_id)
@@ -86,9 +125,7 @@ class PortfolioStore:
         return self.portfolios_dir / "securities.json"
 
     def save_security(self, security: SecurityRef) -> None:
-        data = self._read_json(self.securities_path())
-        data[security.security_id] = json.loads(security.model_dump_json())
-        self._write_json(self.securities_path(), data)
+        self._put_json_entry(self.securities_path(), security.security_id, json.loads(security.model_dump_json()))
 
     def get_security(self, security_id: str) -> SecurityRef | None:
         row = self._read_json(self.securities_path()).get(security_id)
@@ -103,9 +140,7 @@ class PortfolioStore:
         return self.portfolios_dir / "companies.json"
 
     def save_company(self, company: CompanyRef) -> None:
-        data = self._read_json(self.companies_path())
-        data[company.company_id] = json.loads(company.model_dump_json())
-        self._write_json(self.companies_path(), data)
+        self._put_json_entry(self.companies_path(), company.company_id, json.loads(company.model_dump_json()))
 
     def get_company(self, company_id: str) -> CompanyRef | None:
         row = self._read_json(self.companies_path()).get(company_id)
@@ -120,9 +155,7 @@ class PortfolioStore:
         return self.portfolios_dir / "security_resolutions.json"
 
     def save_resolution(self, resolution: SecurityResolution) -> None:
-        data = self._read_json(self.resolutions_path())
-        data[resolution.security_id] = json.loads(resolution.model_dump_json())
-        self._write_json(self.resolutions_path(), data)
+        self._put_json_entry(self.resolutions_path(), resolution.security_id, json.loads(resolution.model_dump_json()))
 
     def get_resolution(self, security_id: str) -> SecurityResolution | None:
         row = self._read_json(self.resolutions_path()).get(security_id)
@@ -141,11 +174,13 @@ class PortfolioStore:
         return self.portfolios_dir / safe_id(portfolio_id, label="portfolio_id") / "snapshots" / f"{safe_id(as_of_date, label='as_of_date')}.jsonl"
 
     def save_snapshot(self, portfolio_id: str, as_of_date: str, holdings: list[Holding]) -> None:
+        """Writes one snapshot file whole. Atomic (and locked) because a
+        re-pull for a date already on disk is a deliberate overwrite: a
+        reader must see the previous pull or the new one, never a file
+        truncated to the first N holdings of the new one."""
         path = self.snapshot_path(portfolio_id, as_of_date)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w") as f:
-            for h in holdings:
-                f.write(h.model_dump_json() + "\n")
+        with self._lock(path):
+            atomic_write_text(path, "".join(h.model_dump_json() + "\n" for h in holdings))
 
     def load_snapshot(self, portfolio_id: str, as_of_date: str) -> list[Holding]:
         return [Holding.model_validate(row) for row in self._read_jsonl(self.snapshot_path(portfolio_id, as_of_date))]
@@ -201,6 +236,16 @@ class PortfolioStore:
             obs = [o for o in obs if o.observed_at[:10] <= as_of]
         return obs[-1] if obs else None
 
+    def list_observation_keys(self) -> list[tuple[str, str]]:
+        """Every (company_id, field_id) pair with at least one recorded
+        observation -- a pure directory listing, no resolution logic (see
+        `datapoint_mapping.list_conflicting_observations` for the cascade-
+        aware conflict scan built on top of this)."""
+        datapoints_dir = self.portfolios_dir / "datapoints"
+        if not datapoints_dir.exists():
+            return []
+        return sorted((path.parent.name, path.stem) for path in datapoints_dir.glob("*/*.jsonl"))
+
     # --- news + risk flags ---
 
     def news_path(self) -> Path:
@@ -229,12 +274,89 @@ class PortfolioStore:
         return self.portfolios_dir / "analytics.json"
 
     def save_analytic(self, spec_json: dict) -> None:
-        data = self._read_json(self.analytics_path())
-        data[spec_json["analytic_id"]] = spec_json
-        self._write_json(self.analytics_path(), data)
+        self._put_json_entry(self.analytics_path(), spec_json["analytic_id"], spec_json)
 
     def list_analytics(self) -> list[dict]:
         return list(self._read_json(self.analytics_path()).values())
 
     def get_analytic(self, analytic_id: str) -> dict | None:
         return self._read_json(self.analytics_path()).get(analytic_id)
+
+    # --- saved generative-BI dashboards ---
+
+    def dashboards_path(self) -> Path:
+        return self.portfolios_dir / "dashboards.json"
+
+    def save_dashboard(self, spec_json: dict) -> None:
+        """Persists a `DashboardSpec` -- the re-runnable plan, never the
+        generated prose or the figures it described. Re-running a stored
+        dashboard recomputes everything from live holdings, so a saved
+        dashboard can't serve a stale number under a current date."""
+        data = self._read_json(self.dashboards_path())
+        data[spec_json["dashboard_id"]] = spec_json
+        self._write_json(self.dashboards_path(), data)
+
+    def list_dashboards(self) -> list[dict]:
+        return list(self._read_json(self.dashboards_path()).values())
+
+    def get_dashboard(self, dashboard_id: str) -> dict | None:
+        return self._read_json(self.dashboards_path()).get(dashboard_id)
+
+    # --- continuous monitoring & alerting (arp/portfolio/monitoring/) ---
+
+    def rules_path(self) -> Path:
+        return self.portfolios_dir / "monitoring" / "rules.json"
+
+    def save_rule(self, rule: AlertRule) -> None:
+        self._put_json_entry(self.rules_path(), rule.rule_id, json.loads(rule.model_dump_json()))
+
+    def get_rule(self, rule_id: str) -> AlertRule | None:
+        row = self._read_json(self.rules_path()).get(rule_id)
+        return AlertRule.model_validate(row) if row else None
+
+    def list_rules(self, enabled_only: bool = False) -> list[AlertRule]:
+        rules = [AlertRule.model_validate(v) for v in self._read_json(self.rules_path()).values()]
+        return [r for r in rules if r.enabled] if enabled_only else rules
+
+    def alert_events_path(self, scope_id: str) -> Path:
+        """One append-only event log per scope -- generalizes
+        EngagementStore's per-company `events.jsonl` sharding to this
+        module's two scope kinds (a bare company_id, or
+        "portfolio__<portfolio_id>" for portfolio-scoped rules; the double
+        underscore keeps the id within safe_id's allowed character set,
+        which rejects the ":" a "portfolio:<id>" convention would need).
+        Two event types land here: "alert_raised" (the full Alert payload,
+        no decided_by -- system-generated, same as engagement's
+        open_issue never logging an EscalationTransition) and
+        "status_changed" (an AlertTransition, decided_by required).
+        """
+        return self.portfolios_dir / "monitoring" / safe_id(scope_id, label="scope_id") / "events.jsonl"
+
+    def append_alert_event(self, scope_id: str, event_type: str, payload: dict) -> None:
+        self._append_jsonl(self.alert_events_path(scope_id), {"event_type": event_type, "at": now_iso(), **payload})
+
+    def list_alert_events(self, scope_id: str) -> list[dict]:
+        return self._read_jsonl(self.alert_events_path(scope_id))
+
+    def list_all_alert_scope_ids(self) -> list[str]:
+        d = self.portfolios_dir / "monitoring"
+        if not d.exists():
+            return []
+        return sorted(p.name for p in d.iterdir() if p.is_dir())
+
+    # --- governance & workflow (arp/portfolio/governance.py) ---
+
+    def governance_events_path(self) -> Path:
+        """One unified append-only log for every governance event type
+        (decision_recorded / policy_changed / owner_assigned) -- not
+        sharded per-item like alert_events_path, since a climate-conflict
+        item_key ("{company_id}:{field_id}") contains a ":" that safe_id()
+        rejects as a path segment, and this data is low-volume enough that
+        a single small fold per page-load is fine."""
+        return self.portfolios_dir / "governance" / "events.jsonl"
+
+    def append_governance_event(self, event_type: str, payload: dict) -> None:
+        self._append_jsonl(self.governance_events_path(), {"event_type": event_type, "at": now_iso(), **payload})
+
+    def list_governance_events(self) -> list[dict]:
+        return self._read_jsonl(self.governance_events_path())

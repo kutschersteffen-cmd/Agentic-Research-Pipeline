@@ -9,6 +9,10 @@ export type DocType =
 
 export type JobStatus = "pending" | "running" | "completed" | "partially_completed" | "failed" | "cancelled";
 
+// The run types the Review Queue endpoints exist for -- a subset of every
+// run_type, since discovery has no review queue of its own.
+export type ReviewableRunKind = "theme" | "extraction" | "financials" | "identity";
+
 export interface CompanyRef {
   company_id: string;
   name: string;
@@ -301,6 +305,8 @@ export interface IndicatorAssessment {
   grounded: boolean;
   confidence: number;
   needs_review: boolean;
+  verifier_notes?: string | null;
+  assessment_error: boolean;
 }
 
 export interface CategoryBreakdown {
@@ -415,6 +421,39 @@ export interface DiscoveryScheduleConfig {
   next_run_at?: string | null;
 }
 
+export interface TaxonomyResearcherScheduleConfig {
+  enabled: boolean;
+  interval_hours: number;
+  taxonomy_ids?: string[] | null;
+  last_run_id?: string | null;
+}
+
+export interface CalibrationScheduleConfig {
+  enabled: boolean;
+  interval_hours: number;
+  last_run_id?: string | null;
+}
+
+export interface TaxonomyResearchFinding {
+  taxonomy_id: string;
+  taxonomy_name: string;
+  proposed: boolean;
+  new_version?: number | null;
+  added_activity_names: string[];
+  reason: string;
+}
+
+export interface DriftFlag {
+  source_run_id: string;
+  company_id: string;
+  activity_id: string;
+  old_verdict: string;
+  old_confidence: number;
+  old_generated_at: string;
+  newest_document_at: string;
+  reason: string;
+}
+
 export interface ReviewQueueResponse {
   pending: Record<string, unknown>[];
   decided: { item: Record<string, unknown>; decision: Record<string, unknown> }[];
@@ -429,6 +468,7 @@ export type DerivationMethod =
   | "etf_index_holdings"
   | "news_transcript_mining"
   | "empirical"
+  | "emerging_signal_discovery"
   | "merged"
   | "manual";
 
@@ -496,6 +536,84 @@ export interface HoldingsOverlapResult {
   union_tickers: string[];
   ticker_presence: Record<string, string[]>;
   pairwise_overlap_pct: Record<string, number>;
+}
+
+// --- Emerging Themes Scanner ("Tool 0") ---
+
+export type MentionSourceType = "edgar_fts" | "gdelt" | "regulatory_rss";
+
+export interface MentionCitation {
+  mention_id: string;
+  source_type: MentionSourceType;
+  url: string;
+  quote: string;
+  grounded: boolean;
+}
+
+export type CandidateStatus = "candidate" | "under_review" | "promoted" | "rejected" | "disconfirmed";
+
+export interface CompanyActionEvidence {
+  company_id: string;
+  cik: string;
+  capex_pct_change?: number | null;
+  rnd_pct_change?: number | null;
+  as_of: string;
+}
+
+export type CompanyRole =
+  | "beneficiary"
+  | "enabler"
+  | "adopter"
+  | "transition_candidate"
+  | "bottleneck_owner"
+  | "negatively_exposed"
+  | "ambiguous";
+
+export interface CompanyExposure {
+  company_id: string;
+  role: CompanyRole;
+  role_rationale: string;
+  risk: number;
+  momentum: number;
+  evidence_quality: number;
+  as_of: string;
+}
+
+export interface EmergingThemeCandidate {
+  theme_id: string;
+  theme_name: string;
+  description: string;
+  first_detected_date: string;
+  signal_velocity: number;
+  breadth: number;
+  persistence: number;
+  novelty: number;
+  corroborating_sources: MentionCitation[];
+  candidate_sectors_companies: string[];
+  rationale: string;
+  economic_rationale: string;
+  confidence_score: number;
+  action_score: number;
+  xbrl_corroboration: CompanyActionEvidence[];
+  materiality: number;
+  contradiction: number;
+  contradiction_evidence: MentionCitation[];
+  company_exposure: CompanyExposure[];
+  status: CandidateStatus;
+  promoted_to_taxonomy_id?: string | null;
+  promoted_to_taxonomy_version?: number | null;
+  decision_reason?: string | null;
+  cluster_id: string;
+  run_id: string;
+  created_at: string;
+}
+
+export interface EmergingThemesScheduleConfig {
+  enabled: boolean;
+  interval_hours: number;
+  universe_path?: string | null;
+  last_run_id?: string | null;
+  next_run_at?: string | null;
 }
 
 // --- Engagement (stewardship) ---
@@ -790,6 +908,21 @@ export interface SecurityResolution {
   resolved_at: string;
 }
 
+export interface DataPointObservation {
+  company_id: string;
+  field_id: string;
+  field_name: string;
+  value: number | string | boolean | null;
+  unit?: string | null;
+  period: string;
+  observed_at: string;
+  source: "internal_api" | "extracted" | "catalogue" | "estimated_proxy";
+  conflicting_sources: boolean;
+  conflicting_value?: number | string | boolean | null;
+  conflicting_source_label?: string | null;
+  notes: string;
+}
+
 export interface AggregationRow {
   group_value: string;
   market_value_eur?: number | null;
@@ -855,6 +988,74 @@ export interface NewsRiskFlag {
   generated_at: string;
 }
 
+export type AlertRuleType = "field_threshold" | "concentration_threshold" | "portfolio_aggregate_threshold";
+export type AlertComparator = "gt" | "gte" | "lt" | "lte";
+export type AlertStatus = "open" | "acknowledged" | "escalated" | "resolved" | "false_positive";
+export type BreachType = "holdings_caused" | "data_caused" | "mixed" | "unknown";
+
+export interface AlertRule {
+  rule_id: string;
+  name: string;
+  rule_type: AlertRuleType;
+  field_id?: string | null;
+  company_ids: string[];
+  portfolio_ids: string[];
+  comparator: AlertComparator;
+  threshold_value: number;
+  severity: "low" | "medium" | "high";
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface Alert {
+  alert_id: string;
+  rule_id?: string | null;
+  category: "threshold_breach" | "news_controversy";
+  scope_id: string;
+  company_id?: string | null;
+  portfolio_id?: string | null;
+  triggered_at: string;
+  observed_value?: number | null;
+  threshold_value?: number | null;
+  breach_type: BreachType;
+  snapshot_date?: string | null;
+  data_point_values?: Record<string, number> | null;
+  source_flag_id?: string | null;
+  rationale: string;
+  status: AlertStatus;
+  owner?: string | null;
+}
+
+export type GovernanceItemType = "entity_resolution" | "climate_conflict";
+export type GovernanceDecisionType = "accept" | "override" | "reject";
+export type PolicySettingName = "portfolio_confidence_review_threshold" | "climate_validation_tolerance_pct";
+
+export interface GovernanceDecision {
+  item_type: GovernanceItemType;
+  item_key: string;
+  decision: GovernanceDecisionType;
+  decided_by: string;
+  reason: string;
+  override_value?: number | string | boolean | null;
+  decided_at: string;
+}
+
+export interface RiskCategoryOwner {
+  category: string;
+  owner: string;
+  assigned_by: string;
+  assigned_at: string;
+}
+
+export interface PolicyChange {
+  setting_name: PolicySettingName;
+  old_value: number;
+  new_value: number;
+  changed_by: string;
+  reason: string;
+  changed_at: string;
+}
+
 export interface DemoSeedSummary {
   company_count: number;
   security_count: number;
@@ -898,6 +1099,55 @@ export interface PivotCell {
   holding_count: number;
 }
 
+// --- Data library ---
+
+// From /api/runs/known-companies -- every company_id seen across a run
+// type's history, with its most recently seen name/ticker. Not a full
+// CompanyRef: only what the result rows themselves carried.
+export interface CompanyDirectoryEntry {
+  company_id: string;
+  name?: string | null;
+  ticker?: string | null;
+}
+
+export interface CompanyDocumentRow {
+  doc_type: string;
+  filename: string;
+  size_bytes: number;
+}
+
+// Browsing cached parsed document text across all runs ---
+
+export interface CachedDocumentRow {
+  id: number;
+  content_key: string;
+  key_kind: string;
+  parser_version: string;
+  source_suffix: string;
+  char_len: number;
+  byte_size: number;
+  text_sha256: string;
+  created_at: string;
+  company_id?: string | null;
+  doc_type?: string | null;
+  title?: string | null;
+  filename?: string | null;
+}
+
+// Deliberately not `extends CachedDocumentRow` -- the detail endpoint
+// doesn't re-send the list-row metadata (id/parser_version/char_len/etc.),
+// only the text plus the same company/doc_type/title/filename enrichment.
+export interface CachedDocumentDetail {
+  content_key: string;
+  text_sha256: string;
+  full_text: string;
+  page_breaks: number[];
+  company_id?: string | null;
+  doc_type?: string | null;
+  title?: string | null;
+  filename?: string | null;
+}
+
 export interface PivotResult {
   spec_name: string;
   as_of: string;
@@ -909,4 +1159,776 @@ export interface PivotResult {
   cells: PivotCell[];
   total_market_value_eur: number;
   unresolved_market_value_eur: number;
+}
+
+// --- Generative BI (portfolio risk dashboards) ---
+// Mirrors backend/arp/portfolio/genbi/schemas.py. The spec is the durable
+// artifact (re-runnable with no LLM); the narrative is layered on top and
+// carries its own grounding verdict.
+
+export type PanelKind = "aggregation" | "trend" | "pivot";
+export type ChartHint = "bar" | "line" | "table" | "grid";
+
+export interface PanelSpec {
+  panel_id: string;
+  title: string;
+  question: string;
+  kind: PanelKind;
+  portfolio_filter: string[];
+  security_filter: Record<string, string>;
+  group_by: string;
+  row_dim: string;
+  col_dim: string;
+  metric: AggregationMetric;
+  data_point_field_id?: string | null;
+  as_of?: string | null;
+  date_range?: [string, string] | null;
+  chart: ChartHint;
+}
+
+export interface DashboardSpec {
+  dashboard_id: string;
+  title: string;
+  brief: string;
+  goal: string;
+  panels: PanelSpec[];
+  created_at: string;
+}
+
+export interface DashboardFact {
+  fact_id: string;
+  panel_id: string;
+  kind: string;
+  label: string;
+  value?: number | null;
+  unit: string;
+  text: string;
+}
+
+export interface PanelResult {
+  panel: PanelSpec;
+  as_of: string;
+  aggregation?: AggregationResult | null;
+  trend?: TrendPoint[] | null;
+  pivot?: PivotResult | null;
+  facts: DashboardFact[];
+  error: string;
+}
+
+export interface Narrative {
+  text: string;
+  grounded: boolean;
+  source: "llm" | "llm_partial" | "deterministic_fallback";
+  ungrounded_tokens: string[];
+  rejected_sentences: string[];
+}
+
+export interface GeneratedDashboard {
+  spec: DashboardSpec;
+  generated_at: string;
+  as_of: string;
+  panels: PanelResult[];
+  headline: Narrative;
+  panel_narratives: Record<string, Narrative>;
+  warnings: string[];
+  clarification_needed: string;
+}
+
+export type SearchResultType = "company" | "document" | "taxonomy";
+
+export interface SearchHit {
+  type: SearchResultType;
+  id: string;
+  title: string;
+  snippet: string;
+  score: number;
+  company_id?: string | null;
+  link?: string | null;
+}
+
+export interface SearchResponse {
+  query: string;
+  total: number;
+  hits: SearchHit[];
+}
+
+// ---- Presentation & Reporting Tool -----------------------------------------
+
+export type AudienceLevel = "executive" | "technical" | "general";
+export type Tone = "formal" | "conversational" | "persuasive" | "neutral_analytical";
+
+export interface AudienceProfile {
+  level: AudienceLevel;
+  tone: Tone;
+  description: string;
+  focus_areas: string[];
+}
+
+export type OutputFormat = "pptx" | "docx" | "pdf";
+
+export interface LayoutInstructions {
+  output_format: OutputFormat;
+  target_length?: number | null;
+  max_bullets_per_slide: number;
+  include_title_slide: boolean;
+  include_agenda_slide: boolean;
+  include_appendix: boolean;
+  section_order_hint: string[];
+  free_instructions: string;
+}
+
+export type ColumnKind = "category" | "number" | "date" | "percent";
+
+export interface DatasetColumn {
+  name: string;
+  kind: ColumnKind;
+}
+
+export interface QuantitativeDataset {
+  dataset_id: string;
+  name: string;
+  description: string;
+  columns: DatasetColumn[];
+  rows: Record<string, unknown>[];
+}
+
+export interface TemplateLayoutInfo {
+  index: number;
+  name: string;
+  placeholder_types: string[];
+}
+
+export interface TemplateStyleProfile {
+  template_id: string;
+  source_filename: string;
+  slide_width_emu: number;
+  slide_height_emu: number;
+  layouts: TemplateLayoutInfo[];
+  theme_colors: Record<string, string>;
+  major_font?: string | null;
+  minor_font?: string | null;
+  stored_path: string;
+}
+
+export type ChartType =
+  | "bar" | "column" | "stacked_column" | "line" | "area" | "pie" | "doughnut"
+  | "scatter" | "radar" | "waterfall" | "heatmap" | "table";
+
+export const CHART_TYPES: ChartType[] = [
+  "bar", "column", "stacked_column", "line", "area", "pie", "doughnut", "scatter", "radar", "waterfall", "heatmap", "table",
+];
+
+export interface ChartSpec {
+  dataset_id: string;
+  chart_type: ChartType;
+  title: string;
+  category_column?: string | null;
+  value_columns: string[];
+  x_column?: string | null;
+  y_column?: string | null;
+  value_column?: string | null;
+  notes: string;
+}
+
+export interface TableSpec {
+  dataset_id: string;
+  columns: string[];
+  max_rows: number;
+}
+
+export interface ContentItem {
+  text: string;
+  bullet: boolean;
+}
+
+export type SectionLayoutHint = "standard" | "chart_focus" | "text_only" | "section_header";
+
+export interface ReportSection {
+  heading: string;
+  layout_hint: SectionLayoutHint;
+  narrative: ContentItem[];
+  chart?: ChartSpec | null;
+  table?: TableSpec | null;
+  speaker_notes: string;
+  appendix: boolean;
+}
+
+export interface ReportPlan {
+  title: string;
+  subtitle: string;
+  sections: ReportSection[];
+}
+
+export interface ReportRequest {
+  title: string;
+  qualitative_notes: string;
+  datasets: QuantitativeDataset[];
+  audience: AudienceProfile;
+  layout: LayoutInstructions;
+  template_id?: string | null;
+}
+
+export type ReportStatus = "pending" | "planning" | "plan_ready" | "rendering" | "completed" | "failed";
+
+export interface ReportManifest {
+  report_id: string;
+  created_at: string;
+  updated_at: string;
+  status: ReportStatus;
+  title: string;
+  output_format: OutputFormat;
+  template_id?: string | null;
+  output_filename?: string | null;
+  error?: string | null;
+  input_tokens: number;
+  output_tokens: number;
+  model?: string | null;
+}
+
+// ---- Investment Strategy Replication ---------------------------------------
+
+export interface PaperCandidate {
+  candidate_id: string;
+  title: string;
+  url: string;
+  snippet: string;
+  replication_worthiness_score?: number | null;
+  worthiness_reasoning?: string | null;
+  suggested_signal_type?: SignalType | null;
+}
+
+export type SignalType = "momentum" | "value" | "text_sentiment" | "composite";
+export type WeightingScheme = "equal" | "value";
+export type RebalanceFrequency = "monthly" | "quarterly" | "annual" | "custom";
+
+export interface CompositeSignalComponent {
+  signal_type: SignalType;
+  weight: number;
+  formation_period_months: number;
+  skip_month: boolean;
+  characteristic_name?: string | null;
+  characteristic_lag_months: number;
+}
+
+export interface LegPerformance {
+  annualized_return_pct?: number | null;
+  monthly_mean_return_pct?: number | null;
+  annualized_volatility_pct?: number | null;
+  sharpe_ratio?: number | null;
+  t_stat?: number | null;
+  max_drawdown_pct?: number | null;
+  alpha_annualized_pct?: number | null;
+  beta?: number | null;
+}
+
+export interface ReportedPerformance {
+  long_leg: LegPerformance;
+  short_leg: LegPerformance;
+  long_short: LegPerformance;
+  benchmark_name?: string | null;
+  notes: string;
+}
+
+export interface ProvenanceInfo {
+  extractor_model?: string | null;
+  extractor_prompt_version?: string | null;
+  verifier_model?: string | null;
+  verifier_prompt_version?: string | null;
+}
+
+export interface StrategySpec {
+  spec_id: string;
+  paper_citation: string;
+  paper_title: string;
+  strategy_name: string;
+  signal_type: SignalType;
+  universe_description: string;
+  formation_period_months: number;
+  skip_month: boolean;
+  holding_period_months: number;
+  rebalance_frequency: RebalanceFrequency;
+  rebalance_interval_months?: number | null;
+  rebalance_anchor_month?: number | null;
+  characteristic_name?: string | null;
+  characteristic_lag_months: number;
+  composite_components: CompositeSignalComponent[];
+  num_portfolios: number;
+  long_leg_portfolio: number;
+  short_leg_portfolio: number;
+  weighting: WeightingScheme;
+  sample_period_start: string;
+  sample_period_end: string;
+  reported_performance: ReportedPerformance;
+  citations: Citation[];
+  grounded: boolean;
+  confidence: number;
+  needs_review: boolean;
+  verifier_notes?: string | null;
+  provenance: ProvenanceInfo;
+  num_trials_attempted: number;
+  extraction_notes: string;
+  created_at: string;
+}
+
+export interface SpecReviewDecision {
+  item_key: string;
+  decision: "approve" | "edit" | "reject";
+  reviewer?: string | null;
+  edited_value?: Record<string, unknown> | null;
+  comment?: string | null;
+  decided_at: string;
+}
+
+export interface SpecReviewState {
+  spec_run_id: string;
+  spec: StrategySpec;
+  approved: boolean;
+  history: SpecReviewDecision[];
+}
+
+export interface PortfolioPeriodReturn {
+  period_end: string;
+  long_return_pct: number;
+  short_return_pct: number;
+  long_short_return_pct: number;
+  num_long: number;
+  num_short: number;
+  benchmark_return_pct?: number | null;
+}
+
+export interface BacktestResult {
+  result_id: string;
+  spec_id: string;
+  period_label: string;
+  period_start: string;
+  period_end: string;
+  data_source: string;
+  universe_size: number;
+  periods: PortfolioPeriodReturn[];
+  long_leg: LegPerformance;
+  short_leg: LegPerformance;
+  long_short: LegPerformance;
+  avg_num_long: number;
+  avg_num_short: number;
+  monthly_turnover_pct?: number | null;
+  warnings: string[];
+  generated_at: string;
+}
+
+export type ReplicationVerdict = "replicated" | "partially_replicated" | "not_replicated" | "decayed_out_of_sample" | "insufficient_data";
+
+export interface DeflatedSharpeAssessment {
+  n_obs: number;
+  n_trials: number;
+  sharpe_ratio_period?: number | null;
+  skewness?: number | null;
+  kurtosis?: number | null;
+  expected_max_sharpe_under_null_period?: number | null;
+  probabilistic_sharpe_ratio?: number | null;
+  deflated_sharpe_ratio?: number | null;
+  notes: string;
+}
+
+export interface ReplicationComparisonReport {
+  report_id: string;
+  spec_id: string;
+  in_sample: BacktestResult;
+  out_of_sample?: BacktestResult | null;
+  reported_performance: ReportedPerformance;
+  in_sample_return_gap_pp?: number | null;
+  out_of_sample_return_gap_pp?: number | null;
+  deflated_sharpe?: DeflatedSharpeAssessment | null;
+  verdict: ReplicationVerdict;
+  verdict_notes: string;
+  generated_at: string;
+}
+
+export interface SanityCheckFinding {
+  concern: string;
+  explanation: string;
+}
+
+export interface SanityCheckAssessment {
+  plausible: boolean;
+  findings: SanityCheckFinding[];
+  summary: string;
+}
+
+export interface RegimeBucketPerformance {
+  regime: "low_volatility" | "mid_volatility" | "high_volatility";
+  num_periods: number;
+  long_short: LegPerformance;
+}
+
+export interface RegimeStratifiedReport {
+  trailing_window_months: number;
+  buckets: RegimeBucketPerformance[];
+  notes: string;
+}
+
+export interface ReplicationRunDetail {
+  run_id: string;
+  spec: StrategySpec;
+  in_sample: BacktestResult;
+  out_of_sample?: BacktestResult | null;
+  comparison: ReplicationComparisonReport;
+  sanity_check?: SanityCheckAssessment | null;
+  regime_report?: RegimeStratifiedReport | null;
+}
+
+// --- Transition Barrier Assessment (105-cell sector x region
+// transition-feasibility matrix: 35 criteria x EU/US/China) ---
+// Note H means transition is MORE feasible -- fewer barriers -- not that the
+// barrier is high.
+
+export type BarrierRegion = "European Union" | "United States" | "China";
+export type BarrierPillar = "Technology" | "Regulation" | "Demand & Economics";
+export type BarrierRating = "H" | "M" | "L";
+export type BarrierConfidence = "high" | "medium" | "low";
+export type BarrierAccessPattern =
+  | "periodic_pdf_report"
+  | "government_agency_publication"
+  | "legal_regulatory_text"
+  | "industry_tracker_database"
+  | "company_disclosure"
+  | "structured_api_or_dashboard";
+
+export interface BarrierPrimarySource {
+  source_name: string;
+  publisher: string;
+  url: string | null;
+  access_pattern: BarrierAccessPattern;
+  refresh_cadence: string;
+  locator: string;
+}
+
+export interface BarrierCriterion {
+  code: string;
+  sector: string;
+  category: BarrierPillar;
+  criterion: string;
+  metric: string;
+  unit: string;
+  rating_rubric: Record<BarrierRating, string>;
+  primary_sources: BarrierPrimarySource[];
+}
+
+export interface BarrierScore {
+  code: string;
+  sector: string;
+  category: BarrierPillar;
+  criterion: string;
+  region: BarrierRegion;
+  rating: BarrierRating;
+  confidence: BarrierConfidence;
+  evidence: string;
+  source: string;
+  last_verified: string;
+}
+
+export interface BarrierMatrixCell extends BarrierScore {
+  stale: boolean;
+  staleness_days: number;
+}
+
+export interface BarrierRegistrySource {
+  key: string;
+  source_name: string;
+  publisher: string;
+  used_by_criteria: string[];
+  access_pattern: BarrierAccessPattern;
+  refresh_cadence: string;
+  locator: string;
+  url: string | null;
+}
+
+export interface BarrierMatrix {
+  sectors: string[];
+  regions: BarrierRegion[];
+  pillars: BarrierPillar[];
+  criteria: BarrierCriterion[];
+  cells: Record<string, Record<string, BarrierMatrixCell>>;
+  distribution: Record<string, Record<BarrierRating, number>>;
+}
+
+export interface BarrierCriterionDetail {
+  criterion: BarrierCriterion;
+  scores: BarrierScore[];
+  sources: BarrierRegistrySource[];
+}
+
+export interface BarrierStalenessReport {
+  threshold_days: number;
+  as_of: string;
+  total: number;
+  stale: number;
+  fresh: number;
+  stale_codes: string[];
+}
+
+export interface BarrierRefreshCoverage {
+  total_sources: number;
+  automatable: number;
+  manual: number;
+  enabled_patterns: string[];
+}
+
+// --- Decision Mechanism (scoring, ranking, tiering) ---
+
+export type ColumnType = "numeric" | "ordinal" | "boolean" | "categorical" | "identifier" | "text";
+export type ColumnRole = "label" | "reference" | "size" | "gate" | "criterion" | "segment" | "excluded";
+export type Direction = "higher" | "lower";
+export type NormMethod = "percentile" | "minmax" | "zscore";
+export type MissingPolicy = "renormalise" | "neutral" | "mean" | "penalise";
+export type WeightPreset = "balanced" | "equal" | "entropy" | "manual";
+export type CutMode = "quantile" | "breaks" | "absolute";
+export type GateOp = "is" | "isnot" | "lt" | "gt" | "eq";
+export type GateOutcome = "exclude" | "demote" | "flag";
+export type EntityStatus = "scored" | "excluded" | "insufficient";
+
+export const COLUMN_ROLES: ColumnRole[] = ["label", "reference", "size", "gate", "criterion", "segment", "excluded"];
+
+export interface ColumnStats {
+  count: number;
+  min?: number | null;
+  p5?: number | null;
+  q1?: number | null;
+  median?: number | null;
+  q3?: number | null;
+  p95?: number | null;
+  max?: number | null;
+  mean?: number | null;
+  sd?: number | null;
+  true_share?: number | null;
+}
+
+export interface ColumnProfile {
+  name: string;
+  type: ColumnType;
+  coverage: number;
+  unique: number;
+  spread: boolean;
+  decimal_comma: boolean;
+  stats?: ColumnStats | null;
+  levels: string[];
+}
+
+export interface RoleProposal {
+  column: string;
+  role: ColumnRole;
+  role_reason: string;
+  direction: Direction;
+  direction_reason: string;
+  needs_check: boolean;
+}
+
+export interface DatasetSummary {
+  dataset_id: string;
+  name: string;
+  source: string;
+  source_ref?: string | null;
+  as_of?: string | null;
+  row_count: number;
+  columns: string[];
+  preview: Record<string, string>[];
+  profiles: ColumnProfile[];
+  proposals: RoleProposal[];
+  has_confidence: boolean;
+}
+
+export interface Dimension {
+  id: string;
+  name: string;
+  weight: number;
+  derived_from: string[];
+}
+
+export interface Criterion {
+  column: string;
+  dimension_id: string;
+  weight: number;
+  enabled: boolean;
+  direction: Direction;
+}
+
+export interface GateRule {
+  id: string;
+  column: string;
+  op: GateOp;
+  value: string;
+  outcome: GateOutcome;
+}
+
+export interface VetoRule {
+  enabled: boolean;
+  min_score: number;
+  min_criteria: number;
+}
+
+export interface TierDefinition {
+  rank: number;
+  name: string;
+  action: string;
+}
+
+export interface MechanismConfig {
+  framework_id: string;
+  version: number;
+  name: string;
+  notes: string;
+  ratified: boolean;
+  ratified_at?: string | null;
+  created_at: string;
+  norm: NormMethod;
+  winsor_pct: number;
+  missing: MissingPolicy;
+  weighting: WeightPreset;
+  min_coverage_pct: number;
+  normalise_within?: string | null;
+  min_cohort_size: number;
+  require_grounded_coverage: boolean;
+  grounded_confidence_min: number;
+  dimensions: Dimension[];
+  criteria: Criterion[];
+  gates: GateRule[];
+  cut_mode: CutMode;
+  pinned_cuts?: number[] | null;
+  veto: VetoRule;
+  tiers: TierDefinition[];
+  label_column?: string | null;
+  size_column?: string | null;
+  segment_column?: string | null;
+  cluster_threshold: number;
+}
+
+export interface AuditEntry {
+  stage: string;
+  item: string;
+  decision: string;
+  why: string;
+  needs_check: boolean;
+  origin: "derived" | "human";
+  at: string;
+  by?: string | null;
+}
+
+export interface MechanismEnvelope {
+  config: MechanismConfig;
+  audit: AuditEntry[];
+}
+
+export interface CriterionContribution {
+  column: string;
+  normalised?: number | null;
+  weight: number;
+  contribution: number;
+  imputed: boolean;
+  low_confidence: boolean;
+}
+
+export interface EntityDecision {
+  entity_key: string;
+  name: string;
+  segment?: string | null;
+  cohort?: string | null;
+  score?: number | null;
+  coverage: number;
+  grounded_coverage?: number | null;
+  status: EntityStatus;
+  tier?: number | null;
+  tier_name?: string | null;
+  tier_action?: string | null;
+  notes: string[];
+  rank?: number | null;
+  rank_min?: number | null;
+  rank_max?: number | null;
+  size?: number | null;
+  leverage?: number | null;
+  leverage_rank?: number | null;
+  dimension_scores: Record<string, number | null>;
+  contributions: CriterionContribution[];
+}
+
+export interface TierSummary {
+  rank: number;
+  name: string;
+  action: string;
+  count: number;
+  size_total?: number | null;
+}
+
+export interface HistogramBin {
+  lower: number;
+  upper: number;
+  count: number;
+}
+
+export interface DecisionResult {
+  framework_id: string;
+  framework_version: number;
+  dataset_id?: string | null;
+  computed_at: string;
+  norm: NormMethod;
+  effective_cuts: number[];
+  cuts_origin: CutMode;
+  effective_weights: Record<string, number>;
+  entities: EntityDecision[];
+  tier_summary: TierSummary[];
+  histogram: HistogramBin[];
+  scored_count: number;
+  excluded_count: number;
+  insufficient_count: number;
+  audit: AuditEntry[];
+}
+
+export interface TippingPoint {
+  dimension_id: string;
+  dimension_name: string;
+  current_weight_pct: number;
+  flip_weight_pct?: number | null;
+  delta_pct?: number | null;
+  new_tier?: number | null;
+  robust: boolean;
+}
+
+export interface EntitySensitivity {
+  entity_key: string;
+  name: string;
+  tier?: number | null;
+  score?: number | null;
+  tipping_points: TippingPoint[];
+  min_delta_pct?: number | null;
+}
+
+export interface EntityMovement {
+  entity_key: string;
+  name: string;
+  tier_before?: number | null;
+  tier_after?: number | null;
+  tier_delta?: number | null;
+  score_before?: number | null;
+  score_after?: number | null;
+  score_delta?: number | null;
+  rank_before?: number | null;
+  rank_after?: number | null;
+  rank_delta?: number | null;
+  status_before?: EntityStatus | null;
+  status_after?: EntityStatus | null;
+  drivers: string[];
+}
+
+export interface DecisionComparison {
+  framework_id: string;
+  framework_version: number;
+  label_before: string;
+  label_after: string;
+  improved: number;
+  worsened: number;
+  unchanged: number;
+  entered: number;
+  left: number;
+  movements: EntityMovement[];
+  comparable: boolean;
+  incomparable_reason?: string | null;
+  caveat?: string | null;
 }

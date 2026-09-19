@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 import numpy as np
 
@@ -84,6 +84,7 @@ class DocumentContentStore:
             try:
                 conn.executescript(_SCHEMA)
                 conn.commit()
+                document_registry.ensure_storage_uri_column(conn)
             finally:
                 conn.close()
 
@@ -115,6 +116,12 @@ class DocumentContentStore:
     def get_or_parse(self, path: Path, **kwargs) -> ParsedContent:
         return self._parsed_content.get_or_parse(path, **kwargs)
 
+    def list_cached_content(self, offset: int, limit: int) -> tuple[list[dict], int]:
+        return self._parsed_content.list_cached(offset, limit)
+
+    def get_cached_text(self, row_id: int) -> ParsedContent | None:
+        return self._parsed_content.get_full_text(row_id)
+
     # --- document directory (delegates to DocumentRegistry) ----------------
 
     def register_document(self, **kwargs) -> str:
@@ -122,6 +129,15 @@ class DocumentContentStore:
 
     def resolve_document(self, doc_id: str) -> StoredDocumentRef | None:
         return self._registry.resolve_document(doc_id)
+
+    def list_documents_by_content_keys(self, content_keys: list[str]) -> dict[str, StoredDocumentRef]:
+        return self._registry.list_by_content_keys(content_keys)
+
+    def set_storage_uri(self, doc_id: str, storage_uri: str) -> None:
+        return self._registry.set_storage_uri(doc_id, storage_uri)
+
+    def list_all_documents(self) -> list[StoredDocumentRef]:
+        return self._registry.list_all()
 
     # --- chunk embeddings (delegates to ChunkEmbeddingsCache) ---------------
 

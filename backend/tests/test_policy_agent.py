@@ -1,6 +1,12 @@
 from arp.schemas.engagement import EngagementIssue, EngagementRecord, EscalationStage, TriggerSource
 from arp.schemas.voting import Proposal, ProposalType, VotePosition
-from arp.voting.policy_agent import PolicyJudgmentDraft, apply_policy, check_engagement_alignment, rule_auditor_independence, rule_egregious_pay_ratio
+from arp.voting.policy_agent import (
+    PolicyJudgmentDraft,
+    apply_policy,
+    check_engagement_alignment,
+    rule_auditor_independence,
+    rule_egregious_pay_ratio,
+)
 
 
 def _proposal(**overrides) -> Proposal:

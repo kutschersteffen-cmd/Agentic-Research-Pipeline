@@ -3,6 +3,7 @@ from arp.schemas.transition_plan import IndicatorCategory, TransitionPlanIndicat
 from arp.transition_plan import company_assessment
 from arp.transition_plan.basic_info_agent import BasicCompanyInfo
 from arp.transition_plan.indicator_agent import IndicatorAnswerDraft
+from arp.transition_plan.verifier_agent import IndicatorVerifierOutput
 
 _TWO_INDICATORS = [
     TransitionPlanIndicator(
@@ -39,7 +40,12 @@ async def test_assess_company_summarizes_walk_talk_and_category_counts(monkeypat
         verdict=Verdict.NO, answer="No scope 1 emissions figure is disclosed.", citations=[],
     )
 
-    llm = fake_llm({"BasicCompanyInfo": [basic_info], "IndicatorAnswerDraft": [target_draft, tracking_draft]})
+    agreeing_verifier = IndicatorVerifierOutput(agrees=True, confidence=1.0, notes="")
+    llm = fake_llm({
+        "BasicCompanyInfo": [basic_info],
+        "IndicatorAnswerDraft": [target_draft, tracking_draft],
+        "IndicatorVerifierOutput": [agreeing_verifier, agreeing_verifier],
+    })
 
     record, usages = await company_assessment.assess_company_transition_plan(
         company, documents=[doc], llm=llm, fuzzy_threshold=0.92, run_id="run_1",
@@ -57,9 +63,13 @@ async def test_assess_company_summarizes_walk_talk_and_category_counts(monkeypat
     assert breakdown[IndicatorCategory.TRACKING].disclosed_count == 0
     assert record.company_sector == "Industrials"  # supplied by the universe, not overwritten
     assert record.company_location == "Zurich, Switzerland"
-    # One basic-info call + one call per indicator.
-    assert llm.calls == ["BasicCompanyInfo", "IndicatorAnswerDraft", "IndicatorAnswerDraft"]
-    assert len(usages) == 3
+    # One basic-info call + one answer call and one verify call per indicator.
+    assert llm.calls == [
+        "BasicCompanyInfo",
+        "IndicatorAnswerDraft", "IndicatorVerifierOutput",
+        "IndicatorAnswerDraft", "IndicatorVerifierOutput",
+    ]
+    assert len(usages) == 5
 
 
 async def test_assess_company_no_documents_skips_basic_info_call(monkeypatch, fake_llm):

@@ -1,0 +1,85 @@
+[
+  {
+    "case_id": "momentum_persistent_winners_losers",
+    "description": "Monthly-overlapping momentum construction (Jegadeesh & Titman-style, J=3/K=3) against two persistent winners and two persistent losers -- catches a regression in momentum_scores, assign_portfolios, the overlapping-cohort averaging in run_backtest, or compute_leg_performance's CAGR annualization.",
+    "spec": {
+      "spec_id": "spec_golden_momentum_0001",
+      "paper_citation": "Golden set case (synthetic, not a real paper)",
+      "paper_title": "Momentum golden-set fixture",
+      "strategy_name": "momentum golden case",
+      "signal_type": "momentum",
+      "universe_description": "synthetic",
+      "formation_period_months": 3,
+      "skip_month": false,
+      "holding_period_months": 3,
+      "rebalance_frequency": "monthly",
+      "num_portfolios": 2,
+      "long_leg_portfolio": 1,
+      "short_leg_portfolio": 2,
+      "weighting": "equal",
+      "sample_period_start": "2000-01-01",
+      "sample_period_end": "2001-12-01",
+      "created_at": "2026-01-01T00:00:00+00:00"
+    },
+    "panel": {
+      "period_ends": ["2000-01-01", "2000-02-01", "2000-03-01", "2000-04-01", "2000-05-01", "2000-06-01", "2000-07-01", "2000-08-01", "2000-09-01", "2000-10-01", "2000-11-01", "2000-12-01", "2001-01-01", "2001-02-01", "2001-03-01", "2001-04-01", "2001-05-01", "2001-06-01", "2001-07-01", "2001-08-01", "2001-09-01", "2001-10-01", "2001-11-01", "2001-12-01"],
+      "returns": {
+        "WIN1": [null, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02],
+        "WIN2": [null, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025],
+        "LOSE1": [null, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01],
+        "LOSE2": [null, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015, -0.015]
+      }
+    },
+    "characteristics": {},
+    "period_start": "2000-01-01",
+    "period_end": "2001-12-01",
+    "expected_long_short_annualized_return_pct": 51.10686573463601,
+    "expected_num_periods": 20,
+    "tolerance_pct": 0.001
+  },
+  {
+    "case_id": "annual_june_anchored_value_rebalance",
+    "description": "Non-overlapping ANNUAL rebalance anchored to June (interval == holding_period_months == 12) with a VALUE signal -- catches a regression in resolve_rebalance_months' anchor-month logic, value_scores, or the interval==K non-overlapping code path in run_backtest specifically (distinct from the momentum case's 1-month-interval overlapping path).",
+    "spec": {
+      "spec_id": "spec_golden_value_0001",
+      "paper_citation": "Golden set case (synthetic, not a real paper)",
+      "paper_title": "Annual value golden-set fixture",
+      "strategy_name": "annual value golden case",
+      "signal_type": "value",
+      "universe_description": "synthetic",
+      "holding_period_months": 12,
+      "rebalance_frequency": "annual",
+      "rebalance_anchor_month": 6,
+      "characteristic_name": "book_to_market",
+      "characteristic_lag_months": 0,
+      "num_portfolios": 2,
+      "long_leg_portfolio": 1,
+      "short_leg_portfolio": 2,
+      "weighting": "equal",
+      "sample_period_start": "1998-01-01",
+      "sample_period_end": "2000-01-01",
+      "created_at": "2026-01-01T00:00:00+00:00"
+    },
+    "panel": {
+      "period_ends": ["1998-01-01", "1998-02-01", "1998-03-01", "1998-04-01", "1998-05-01", "1998-06-01", "1998-07-01", "1998-08-01", "1998-09-01", "1998-10-01", "1998-11-01", "1998-12-01", "1999-01-01", "1999-02-01", "1999-03-01", "1999-04-01", "1999-05-01", "1999-06-01", "1999-07-01", "1999-08-01", "1999-09-01", "1999-10-01", "1999-11-01", "1999-12-01", "2000-01-01", "2000-02-01", "2000-03-01", "2000-04-01", "2000-05-01", "2000-06-01", "2000-07-01", "2000-08-01", "2000-09-01", "2000-10-01", "2000-11-01", "2000-12-01", "2001-01-01"],
+      "returns": {
+        "A": [null, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03],
+        "B": [null, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005]
+      }
+    },
+    "characteristics": {
+      "book_to_market": {
+        "period_ends": ["1998-01-01", "1998-02-01", "1998-03-01", "1998-04-01", "1998-05-01", "1998-06-01", "1998-07-01", "1998-08-01", "1998-09-01", "1998-10-01", "1998-11-01", "1998-12-01", "1999-01-01", "1999-02-01", "1999-03-01", "1999-04-01", "1999-05-01", "1999-06-01", "1999-07-01", "1999-08-01", "1999-09-01", "1999-10-01", "1999-11-01", "1999-12-01", "2000-01-01", "2000-02-01", "2000-03-01", "2000-04-01", "2000-05-01", "2000-06-01", "2000-07-01", "2000-08-01", "2000-09-01", "2000-10-01", "2000-11-01", "2000-12-01", "2001-01-01"],
+        "values": {
+          "A": [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0],
+          "B": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+        }
+      }
+    },
+    "period_start": "1998-01-01",
+    "period_end": "2000-01-01",
+    "expected_long_short_annualized_return_pct": 34.48888242462971,
+    "expected_num_periods": 19,
+    "tolerance_pct": 0.001
+  }
+]

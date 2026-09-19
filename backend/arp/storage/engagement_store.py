@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-import os
-import tempfile
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
 
 from arp.schemas.common import now_iso
-from arp.storage.locks import KeyedLock
-from arp.storage.safe_path import safe_id
 from arp.schemas.engagement import (
     Commitment,
     CommitmentStatus,
@@ -22,6 +18,10 @@ from arp.schemas.engagement import (
     MilestoneStage,
     TriggerSource,
 )
+from arp.storage.atomic_io import atomic_write_text
+from arp.storage.locks import KeyedLock
+from arp.storage.postgres_projection_config import ProjectionConfig
+from arp.storage.safe_path import safe_id
 
 
 class EngagementStore:
@@ -36,9 +36,10 @@ class EngagementStore:
     current snapshot.
     """
 
-    def __init__(self, engagements_dir: Path) -> None:
+    def __init__(self, engagements_dir: Path, projection_config: ProjectionConfig | None = None) -> None:
         self.engagements_dir = engagements_dir
-        self._locks = KeyedLock()
+        self._locks = KeyedLock(lock_path=lambda company_id: self._dir(company_id) / ".lock")
+        self._projection_config = projection_config
 
     @contextmanager
     def lock(self, company_id: str) -> Iterator[None]:
@@ -65,17 +66,14 @@ class EngagementStore:
 
     def _save(self, record: EngagementRecord) -> EngagementRecord:
         record = record.model_copy(update={"updated_at": now_iso()})
-        path = self._record_path(record.company_id)
-        # Write-then-rename is atomic on POSIX -- a concurrent reader never
-        # sees a half-written record.json.
-        fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=".record_", suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w") as f:
-                f.write(record.model_dump_json(indent=2))
-            os.replace(tmp_path, path)
-        except BaseException:
-            Path(tmp_path).unlink(missing_ok=True)
-            raise
+        # Write-then-rename (see arp/storage/atomic_io.py) -- a concurrent
+        # reader never sees a half-written record.json.
+        atomic_write_text(self._record_path(record.company_id), record.model_dump_json(indent=2), prefix=".record_")
+
+        if self._projection_config is not None and self._projection_config.engagement_enabled:
+            from arp.storage.postgres_engagement_projection import sync_record_if_enabled
+
+            sync_record_if_enabled(self._projection_config, record)
         return record
 
     def _log_event(self, company_id: str, event_type: str, detail: dict) -> None:

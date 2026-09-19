@@ -1,0 +1,33 @@
+{
+  "paper_citation": "Jegadeesh, N., & Titman, S. (1993). Returns to Buying Winners and Selling Losers: Implications for Stock Market Efficiency. Journal of Finance, 48(1), 65-91.",
+  "paper_title": "Returns to Buying Winners and Selling Losers: Implications for Stock Market Efficiency",
+  "strategy_name": "6-month/6-month relative-strength (momentum) strategy",
+  "signal_type": "momentum",
+  "universe_description": "NYSE and AMEX ordinary common shares (financial data from CRSP), excluding stocks with a missing price history over the formation window.",
+  "formation_period_months": 6,
+  "skip_month": false,
+  "holding_period_months": 6,
+  "rebalance_frequency": "monthly",
+  "num_portfolios": 10,
+  "long_leg_portfolio": 1,
+  "short_leg_portfolio": 10,
+  "weighting": "equal",
+  "sample_period_start": "1965-01-01",
+  "sample_period_end": "1989-12-31",
+  "reported_performance": {
+    "long_leg": {},
+    "short_leg": {},
+    "long_short": {
+      "monthly_mean_return_pct": 1.0,
+      "t_stat": 3.07
+    },
+    "benchmark_name": null,
+    "notes": "APPROXIMATE / ILLUSTRATIVE, not transcribed from the paper's own tables: the J=6/K=6 zero-cost (winners-minus-losers) portfolio is widely cited in secondary literature summarizing this paper as earning roughly 1% per month, positive and statistically significant. Verify the exact figures against the original paper's Table I before using this spec as a rigorous replication benchmark -- annualized_return_pct/sharpe_ratio/alpha/volatility/max_drawdown are deliberately left null here rather than guessed."
+  },
+  "citations": [],
+  "grounded": false,
+  "confidence": 0.5,
+  "needs_review": true,
+  "verifier_notes": null,
+  "extraction_notes": "Hand-authored worked example, not produced by arp/replication/spec_graph.py's extractor/verifier pipeline against the actual paper text. Methodology parameters (6-month formation, 6-month holding, decile sort, no skip month, NYSE/AMEX universe, 1965-1989 sample) are well-established facts about this paper repeated across the momentum literature. Reported-performance figures are approximate (see reported_performance.notes) -- confidence and needs_review are set accordingly so this is never mistaken for a grounded, paper-verified spec. Use `arp replicate extract-spec` against the real paper text for a citation-grounded spec instead."
+}

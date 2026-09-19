@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import threading
 from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from arp.schemas.common import DocType
 

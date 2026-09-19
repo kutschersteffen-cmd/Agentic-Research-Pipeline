@@ -12,6 +12,7 @@ from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
 from arp.discovery.scheduler import DiscoveryScheduler
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.discovery import DiscoveryScheduleConfig
+from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/api/discovery", tags=["discovery"])
 
 
 def _run_store(settings: Settings = Depends(settings_dep)) -> RunStore:
-    return RunStore(settings.runs_dir)
+    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
 
 
 class DiscoveryRunRequest(BaseModel):

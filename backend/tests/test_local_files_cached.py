@@ -1,11 +1,36 @@
 import asyncio
 
-import pymupdf4llm
-
 from arp.grounding import ground_citations
+from arp.ingestion import local_files
+from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.schemas.common import Citation, CompanyRef, DocType
 from arp.storage.document_store import DocumentContentStore
+
+
+class _FakeDoclingDocument:
+    """See test_local_files_pdf_pages.py's copy for why this fakes Docling
+    instead of driving its real (network-dependent) ML pipeline."""
+
+    def __init__(self, page_texts: list[str]):
+        self._page_texts = page_texts
+        self.pages = {i + 1: object() for i in range(len(page_texts))}
+
+    def export_to_markdown(self, page_no: int) -> str:
+        return self._page_texts[page_no - 1]
+
+
+class _FakeConversionResult:
+    def __init__(self, document: _FakeDoclingDocument):
+        self.document = document
+
+
+class _FakeDoclingConverter:
+    def __init__(self, page_texts: list[str]):
+        self._page_texts = page_texts
+
+    def convert(self, path):
+        return _FakeConversionResult(_FakeDoclingDocument(self._page_texts))
 
 
 def _write_doc(tmp_path, company_id, doc_type, name, text):
@@ -14,6 +39,46 @@ def _write_doc(tmp_path, company_id, doc_type, name, text):
     path = d / name
     path.write_text(text)
     return path
+
+
+def test_indexing_config_hooks_are_called_on_registration(tmp_path, monkeypatch):
+    index_calls = []
+    upload_calls = []
+    monkeypatch.setattr(
+        "arp.retrieval.search_indexer.index_document_if_enabled", lambda config, **kwargs: index_calls.append(kwargs)
+    )
+    monkeypatch.setattr(
+        "arp.storage.document_blob_store.upload_document_if_enabled",
+        lambda config, content_key, data: upload_calls.append((content_key, data)) or "s3://arp-documents/fake",
+    )
+    _write_doc(tmp_path, "acme", DocType.ANNUAL_REPORT_10K, "report.txt", "Some disclosure text about green capex.")
+    content_store = DocumentContentStore(tmp_path / "store")
+    config = IndexingConfig(opensearch_url="http://localhost:9200", search_live_indexing_enabled=True)
+    source = LocalFileDocumentSource(tmp_path / "docs", content_store=content_store, indexing_config=config)
+
+    docs = asyncio.run(source.fetch(CompanyRef(company_id="acme", name="Acme")))
+
+    assert len(index_calls) == 1
+    assert index_calls[0]["company_id"] == "acme"
+    assert index_calls[0]["full_text"] == "Some disclosure text about green capex."
+    assert len(upload_calls) == 1
+    assert upload_calls[0][1] == b"Some disclosure text about green capex."
+    # the upload hook's returned storage_uri gets recorded against the document
+    assert content_store.resolve_document(docs[0].doc_id).storage_uri == "s3://arp-documents/fake"
+
+
+def test_no_indexing_config_never_calls_the_hooks(tmp_path, monkeypatch):
+    index_calls = []
+    monkeypatch.setattr(
+        "arp.retrieval.search_indexer.index_document_if_enabled", lambda config, **kwargs: index_calls.append(kwargs)
+    )
+    _write_doc(tmp_path, "acme", DocType.ANNUAL_REPORT_10K, "report.txt", "text")
+    content_store = DocumentContentStore(tmp_path / "store")
+    source = LocalFileDocumentSource(tmp_path / "docs", content_store=content_store)
+
+    asyncio.run(source.fetch(CompanyRef(company_id="acme", name="Acme")))
+
+    assert index_calls == []
 
 
 def test_fetch_without_a_store_behaves_exactly_as_before(tmp_path):
@@ -78,8 +143,8 @@ def test_second_fetch_hits_the_content_cache_and_does_not_reparse(tmp_path, monk
 
 
 def test_grounding_resolves_the_page_from_cached_page_breaks(tmp_path, monkeypatch):
-    fake_pages = [{"text": "Page one intro."}, {"text": "Revenue grew due to green capex investment."}]
-    monkeypatch.setattr(pymupdf4llm, "to_markdown", lambda *args, **kwargs: fake_pages)
+    fake_pages = ["Page one intro.", "Revenue grew due to green capex investment."]
+    monkeypatch.setattr(local_files, "_docling_converter", lambda: _FakeDoclingConverter(fake_pages))
 
     doc_dir = tmp_path / "docs" / "acme" / DocType.ANNUAL_REPORT_10K.value
     doc_dir.mkdir(parents=True)

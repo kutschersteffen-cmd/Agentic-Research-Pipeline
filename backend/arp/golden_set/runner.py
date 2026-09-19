@@ -6,7 +6,7 @@ from pathlib import Path
 from arp.extraction.field_graph import extract_one_field
 from arp.golden_set.schema import GoldenSetCase, GoldenSetCaseResult, GoldenSetReport
 from arp.llm.base import LLMClient
-from arp.schemas.common import SourceDocument, now_iso, new_id
+from arp.schemas.common import SourceDocument, new_id, now_iso
 
 _BUNDLED_CASES_PATH = Path(__file__).parent / "data" / "extraction_cases.json"
 
