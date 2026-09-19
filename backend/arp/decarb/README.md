@@ -52,6 +52,7 @@ To run against real data, build a `Panel` of `FirmYear` rows and pass it to
 | `research.inference` | Panel OLS, clustered SEs, sign-stability | 8 |
 | `research.models` | Model comparison, level against change | 6.5 |
 | `research.figures` | The paper's six figures, light and dark | all |
+| `research.silvia` | Silvia et al. (2026) replication package: CTPCI instrument, their three models, Monte Carlo verification | 6.4 |
 
 ## What this reproduces, and what it does not
 
@@ -82,7 +83,8 @@ looks like theirs".
 | Ruiz Manuel & Blok (2023) | Additionality assessment of RE sourcing | — | Not implemented |
 | Bingler et al. (2024) | ClimateBertCTI cheap-talk index | — | Not implemented |
 | Schimanski et al. (2023) | ClimateBERT-NetZero classifier | — | Not implemented |
-| Silvia et al. (2026) | Transition-plan credibility index | — | Not implemented |
+
+| Silvia et al. (2026) | 24-item CTPCI, firm+year FE, firm-clustered SEs | `research.silvia` | Instrument and specifications implemented; estimator verified unbiased by Monte Carlo. **Their Appendix A coding rules are not in the published PDF**, so item decision rules are a reconstruction. Finding not reproduced - data unreachable |
 | Oyewo (2023) | **Panel quantile regression** q0.1-q0.95 (this is what "curvilinear" means in the title, not a quadratic term), 2SLS/IV robustness | `research.inference` | Sign-stability check only; no quantile regression |
 | Frisch et al. (2025) | Qualitative core-business framework | — | Not code |
 
