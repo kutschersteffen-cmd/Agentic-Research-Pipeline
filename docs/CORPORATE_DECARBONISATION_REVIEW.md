@@ -624,9 +624,18 @@ on one proxy is conditional on that proxy.
 Five rules follow from the review. They are addressed to anyone building firm-level
 empirical work or a predictive model in this area.
 
-**Construct the label before the features.** The dependent variable should be a
-constant-perimeter, multi-year change in Scope 1 and 2 emissions with the Scope 2
-accounting method fixed, computed on disclosed emissions for training. Single-year changes
+**Construct the label before the features, and decompose it.** The dependent
+variable should be a constant-perimeter, multi-year change in Scope 1 and 2
+emissions with the Scope 2 accounting method fixed, computed on disclosed
+emissions for training. It should then be split into the part the firm can be
+credited with and the part it cannot. A fall in Scope 1 and 2 can come from
+energy intensity, fuel mix or electricity intensity, which are management, or
+from output, the grid emission factor and perimeter changes, which are not.
+Location-based Scope 2 is better than market-based here but still rewards
+operating in a country with a clean grid. Two firms can post near-identical
+headline reductions where one cut energy intensity by a sixth and the other
+merely shrank and sat in a decarbonising grid; a label that cannot tell them
+apart will train a model to identify firms in clean grids having bad years. Single-year changes
 carry too much noise, mixed Scope 2 methods measure procurement, and estimated emissions
 in the label mean the model partly learns the vendor's estimation function. Restatements
 from mergers, acquisitions and divestments are the largest practical hazard and have to be

@@ -67,6 +67,14 @@ class FirmYear:
     scope2_market: float | None = None
     scope2_location: float | None = None
     scope3_material: float | None = None
+    # Physical activity data, needed to separate firm action from passive
+    # change. Rarely disclosed outside high-emitting sectors, which is why
+    # `kaya.py` degrades through tiers rather than requiring all of it.
+    output: float | None = None          # physical output, sector-specific units
+    fuel_energy: float | None = None     # own-combustion energy, MWh or GJ
+    electricity_mwh: float | None = None # purchased electricity
+    grid_factor: float | None = None     # tCO2e per MWh of the grid drawn from
+    restated: bool = False               # base year restated: change not comparable
     revenue: float | None = None
     evic: float | None = None
     basis: EmissionsBasis = EmissionsBasis.REPORTED

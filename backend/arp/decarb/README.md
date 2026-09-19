@@ -39,6 +39,7 @@ To run against real data, build a `Panel` of `FirmYear` rows and pass it to
 | `saturation` | Prevalence decay, rarity weighting, stratified AUC | 6.3, rule 3 |
 | `redflags` | Seven-dimension profile and the orthogonality test | 7, rule 4 |
 | `divergence` | Rank correlation across transition-risk metric families | 3.5, rule 5 |
+| `kaya` | Firm-level Kaya/LMDI: separates firm-attributable abatement from output and grid effects; tiered label constructor | 2.3, 3.1, rule 1 |
 | `predict` | Out-of-time increment over a persistence baseline | 6.5, rule 2 |
 | `synthetic` | Calibrated simulated panel | — |
 
@@ -117,6 +118,40 @@ that does lower emissions. A naive adopter/non-adopter comparison therefore find
 about -0.8 percentage points a year that is not there, and the DiD returns
 estimates indistinguishable from zero. Both are asserted in
 `tests/test_decarb_research.py`.
+
+## What counts as a carbon reduction
+
+`kaya.py` exists because a fall in Scope 1+2 is not the same as a firm abating.
+Six drivers move the number: energy intensity, fuel mix and electricity
+intensity are management; output, the grid emission factor, and perimeter or
+accounting changes are not. Location-based Scope 2 is better than market-based
+for this purpose but still rewards being in France rather than Poland.
+
+Two firms with near-identical headline reductions, decomposed:
+
+```
+Firm A   headline -22.0%   attributable -22.0%   passive   0.0%
+Firm B   headline -19.9%   attributable   0.0%   passive -19.9%
+```
+
+Firm B shrank 15% and sat in a grid that cleaned up 5%. A label built on
+headline change treats them as the same firm.
+
+Three tiers, by what the firm discloses:
+
+| Tier | Needs | Removes |
+|---|---|---|
+| 1 full Kaya | output, energy, electricity, grid factor | output **and** grid |
+| 2 constant grid | electricity, grid factor | grid only; output stays in |
+| 3 chained | emissions only | nothing |
+
+`tier_contamination()` measures what each weaker tier over-credits, on the
+firms that support tier 1. Read its **absolute** gap: while grids are cleaning,
+tier 3's output and grid biases point opposite ways and partly cancel, so its
+signed gap can look better than tier 2's while being no more accurate.
+
+Tier availability is correlated with sector and firm quality, so a tier-1
+sample is selected. `tier_coverage()` reports the split; report it.
 
 ## Four things the code refuses to let you do
 

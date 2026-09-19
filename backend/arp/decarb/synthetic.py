@@ -159,6 +159,19 @@ def make_panel(
         else:
             ltnz_year = None
 
+        # Activity data. Disclosure of physical output and energy is rare and
+        # skewed toward heavy industry, which is what makes a tier-1 sample
+        # selected; `kaya.tier_coverage` reports the split.
+        discloses_output = rng.random() < (0.55 if sector in {"Utilities", "Materials", "Industrials"} else 0.12)
+        discloses_energy = discloses_output or rng.random() < 0.35
+        output0 = rng.lognormvariate(4.0, 0.8)
+        grid0 = {"Developed Europe": 0.28, "North America": 0.38,
+                 "Developed Asia": 0.45, "Emerging": 0.58}[region]
+        # Grids clean up at different speeds. This is passive from the firm's
+        # point of view and is exactly what tier 2 exists to remove.
+        grid_trend = rng.uniform(-0.055, -0.005)
+        output_trend = rng.gauss(0.015, 0.045)
+
         drift = _drift(rng, sector, demanding_propensity > 0.80, ets_exposed)
         # Vendor-estimated firms are a minority and skew smaller.
         basis = EmissionsBasis.ESTIMATED if rng.random() < 0.22 else EmissionsBasis.REPORTED
@@ -195,6 +208,12 @@ def make_panel(
             if year < enters or year > exits:
                 continue
 
+            output_t = output0 * (1.0 + output_trend) ** t
+            grid_t = max(0.02, grid0 * (1.0 + grid_trend) ** t)
+            # Electricity implied by the Scope 2 the firm actually reports.
+            elec_t = max(1e-6, scope2_loc / grid_t)
+            fuel_t = max(1e-6, scope1 / rng.uniform(0.55, 0.70)) if discloses_energy else None
+
             rows.append(
                 FirmYear(
                     firm_id=firm_id,
@@ -211,6 +230,11 @@ def make_panel(
                     region=region,
                     weight=None,
                     ltnz_adoption_year=ltnz_year,
+                    output=output_t if discloses_output else None,
+                    fuel_energy=fuel_t if discloses_output else None,
+                    electricity_mwh=elec_t,
+                    grid_factor=grid_t,
+                    restated=rng.random() < 0.04,
                     indicators=indicators,
                     red_flags=flags,
                     metrics={
