@@ -143,7 +143,9 @@ emitters") is the same problem surfacing.
 Key findings from the data-quality literature:
 
 - **Provider divergence is scope-dependent.** Reported Scope 1 correlates ~0.97 across
-  providers; *estimated* Scope 1 ~0.85. Scope 3 is far worse — the correlation between
+  providers; *estimated* Scope 1 ~0.85. ⚠️ These two correlations come from a search summary
+  that synthesised several studies; they may not originate in the paper cited below. Verify
+  the source before quoting them. Scope 3 is far worse — the correlation between
   aggregated Scope 3 from ISS and Trucost has been measured as low as **16%**. ISS's
   divergence is largest because it substitutes EEIO/LCA model estimates for reported
   figures. See Busch et al., *Corporate carbon emissions data for equity and bond
@@ -152,12 +154,12 @@ Key findings from the data-quality literature:
 - **ML estimation of Scope 3 has a low ceiling.** Machine learning improves aggregate
   Scope 3 prediction accuracy by up to 6% (up to 25% when categories are estimated
   individually), but *absolute* prediction performance remains poor even for best models,
-  limited by thin observation counts per category. Nguyen et al., PLOS Climate;
+  limited by thin observation counts per category. PLOS Climate [authors not verified];
   https://journals.plos.org/climate/article?id=10.1371%2Fjournal.pclm.0000208
-- **Interpretable ML for non-reported emissions**: Heurtebize et al., *Greenhouse gases
+- **Interpretable ML for non-reported emissions**: *Greenhouse gases
   emissions: estimating corporate non-reported emissions using interpretable machine
-  learning* (arXiv 2212.10844); and Nguyen et al., *Estimation of Corporate Greenhouse Gas
-  Emissions via Machine Learning* (arXiv 2109.04318). Both are relevant less as estimators
+  learning* (arXiv 2212.10844); and *Estimation of Corporate Greenhouse Gas
+  Emissions via Machine Learning* (arXiv 2109.04318) [authors not verified]. Both are relevant less as estimators
   than as documentation of which features carry signal.
 - **Supervisory/central-bank work**: Banque de France, *Estimating corporate carbon
   emissions using artificial intelligence*;
@@ -194,9 +196,9 @@ each. Otherwise the model is partly learning the vendor's estimation model, and 
   artefact the LSEG report's Box 1 warns about: the apparent effect may partly be
   procurement accounting rather than abatement.
   https://link.springer.com/article/10.1007/s44498-026-00058-4
-- **Target *outcome* tracking — the accountability gap.** Bolton, Kacperczyk et al.,
+- **Target *outcome* tracking — the accountability gap.** Jiang, X., Kim, S. & Lu, S.,
   *Limited accountability and awareness of corporate emissions target outcomes*, Nature
-  Climate Change (2024): of 1,041 firms with targets ending in 2020, **88 (9%) failed and
+  Climate Change 15, 279–286 (2025): of 1,041 firms with targets ending in 2020, **88 (9%) failed and
   320 (31%) simply disappeared** (target quietly dropped). After a failure there is *no*
   significant market reaction, no change in media sentiment, environmental scores, or
   environment-related shareholder proposals — in sharp contrast to the announcement, which
@@ -206,7 +208,7 @@ each. Otherwise the model is partly learning the vendor's estimation model, and 
   **This is the single most important paper for justifying credibility adjustment.** It says
   the target-setting signal is not merely noisy — it is unpoliced, and target *disappearance*
   is three times more common than target *failure*.
-- **Target integrity**: Bjørn et al., *Renewable energy certificates threaten the integrity of
+- **Target integrity**: Bjørn, A., Lloyd, S.M., Brander, M. & Matthews, H.D., *Renewable energy certificates threaten the integrity of
   corporate science-based targets*, Nature Climate Change (2022) — RECs let firms claim
   progress without real reductions; https://www.nature.com/articles/s41558-022-01379-5
 - **Initiative-level evaluation**: *Quantitative evaluation of large corporate climate action
@@ -313,7 +315,7 @@ of WACI reduction 2016–2021. Composition, not abatement.
 Most relevant to this repo, since the Extraction Engine already does grounded document
 extraction.
 
-- **ClimateBERT** (Webersinke et al., arXiv 2110.12010) — DistilRoBERTa pretrained on >2M
+- **ClimateBERT** (arXiv 2110.12010) [authors not verified] — DistilRoBERTa pretrained on >2M
   climate paragraphs; 3.6–35.7% error reduction across climate downstream tasks.
 - **ClimateBERT-NetZero** (arXiv 2310.08096) — detects and classifies net-zero vs general
   reduction targets in text at scale. Directly relevant to building the report's
@@ -374,7 +376,7 @@ and sample breadth, not effect size.
 | 8 | **Green revenue share** | + (slow-moving) | LSEG report Fig. 7: every sector raised green revenue share and cut intensity 2016–2024; benchmark 8% in 2024. Utilities show the trap — ~25% green revenue yet still >5× benchmark intensity | **Medium** — measures *what a firm sells*, not how cleanly it operates; the two must be modelled jointly |
 | 9 | **Green patents / R&D orientation** | + | R&D-oriented and smaller firms better positioned to pair digital and low-carbon innovation; not all patents convert to revenue | **Low-Medium** |
 | 10 | **Carbon-price / ETS regulatory exposure** | **+ strongly, causal** | Colmer, Martin, Muûls & Wagner, *Does Pricing Carbon Mitigate Climate Change?*, Review of Economic Studies 92(3) (2025): EU ETS caused **−14 to −16%** CO2 with no detectable output contraction; Phase II effect 25–28pp vs controls, Phase I ≈ 0. Meta-evidence: 483 effect sizes / 80 evaluations / 21 schemes — immediate substantial reductions for ≥17 | **High** — best causal identification in the literature |
-| 11 | **Green/climate-motivated institutional ownership (engagement)** | + | Azar/Duro/Kadach/Ormazabal and NBER w31791: emissions fall when *green fund* ownership rises, unchanged for non-green; effect strongest for actively engaging pensions rather than passive funds | **High** |
+| 11 | **Green/climate-motivated institutional ownership (engagement)** | + | Cohen/Kadach/Ormazabal (JAE 2023) and NBER w31791: emissions fall when *green fund* ownership rises, unchanged for non-green; effect strongest for actively engaging pensions rather than passive funds | **High** |
 | 12 | **Divestment pressure** | ≈ 0 / possibly **−** | divestment likely counterproductive vs holding; engagement, not exit, moves emissions | **Medium-High** |
 | 13 | **Climate-linked executive compensation** | + *if emission-specific* | emission-specific KPIs show a significant negative relation to emissions, strongest in regulated industries; **generic ESG-linked pay does not** — vague/weakly monitored KPIs are adopted symbolically | **Medium** — the *specificity* of the KPI is the feature, not its presence |
 | 14 | **Board networks / interlocks with regulated peers** | + | 1,952 firms / 48 countries / 2003–2020, stacked DiD on exogenous carbon-regulation shocks: focal firms cut absolute emissions ~**9%**; concentrated in high emitters under strict regulation, *with* targets and policies, and with low financial constraints | **Medium-High** |
@@ -474,8 +476,10 @@ Combining the report's method with the literature, five design rules:
 - Bolton, P. & Kacperczyk, M. *Firm Commitments.* NBER WP 31244 / SSRN 3840813.
   https://www.nber.org/system/files/working_papers/w31244/w31244.pdf ;
   https://ssrn.com/abstract=3840813
-- *Limited accountability and awareness of corporate emissions target outcomes.* Nature Climate
-  Change (2024). https://www.nature.com/articles/s41558-024-02236-3
+- Jiang, X., Kim, S. & Lu, S. *Limited accountability and awareness of corporate emissions target
+  outcomes.* Nature Climate Change 15, 279–286 (2025).
+  https://www.nature.com/articles/s41558-024-02236-3 ; working paper:
+  https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4676649
 - *Renewable energy certificates threaten the integrity of corporate science-based targets.*
   Nature Climate Change (2022). https://www.nature.com/articles/s41558-022-01379-5
 - *Quantitative evaluation of large corporate climate action initiatives shows mixed progress in
@@ -503,14 +507,15 @@ Combining the report's method with the literature, five design rules:
   one-year-ahead abatement). **Authors, year and venue unresolved** - the only locator found was
   an aggregator page: https://paperswithbacktest.com/strategies/the-anatomy-of-decarbonizing-firms
   Highest-priority item to verify; see Sourcing caveats.
-- Colmer, Martin, Muûls & Wagner. *Does Pricing Carbon Mitigate Climate Change? Firm-Level Evidence
-  from the European Union Emissions Trading System.* Review of Economic Studies 92(3), 2025.
+- Colmer, J., Martin, R., Muûls, M. & Wagner, U.J. *Does Pricing Carbon Mitigate Climate Change?
+  Firm-Level Evidence from the European Union Emissions Trading System.* Review of Economic
+  Studies 92(3), 1625 (2025 issue; online-first May 2024).
   https://academic.oup.com/restud/article/92/3/1625/7681739 ;
   working paper: https://cep.lse.ac.uk/pubs/download/dp1728.pdf
 - *Divestment and Engagement: The Effect of Green Investors on Corporate Carbon Emissions.*
   NBER WP 31791. https://www.nber.org/system/files/working_papers/w31791/w31791.pdf
-- Azar, Duro, Kadach & Ormazabal. *Institutional investors, climate disclosure, and carbon emissions.*
-  Journal of Accounting and Economics (2023).
+- Cohen, S., Kadach, I. & Ormazabal, G. *Institutional investors, climate disclosure, and carbon
+  emissions.* Journal of Accounting and Economics 76(2), 101640, 2023.
   https://www.sciencedirect.com/science/article/pii/S0165410123000642
 - Bingler, Kraus, Leippold & Webersinke. *How cheap talk in climate disclosures relates to climate
   initiatives, corporate emissions, and reputation risk.* Journal of Banking & Finance (2024).
@@ -532,8 +537,9 @@ Combining the report's method with the literature, five design rules:
   Evidence from High-Emission Sectors.* Sustainability (MDPI). https://www.mdpi.com/2071-1050/18/5/2351
 
 **Emissions data quality and estimation**
-- Busch et al. *Corporate carbon emissions data for equity and bond portfolios.* Managerial Finance
-  50(1), 2024. https://www.emerald.com/mf/article/50/1/118/1224623/Corporate-carbon-emissions-data-for-equity-and
+- Markwat, T. & Swinkels, L. *Corporate carbon emissions data for equity and bond portfolios.*
+  Managerial Finance 50(1), 118–139, 2024. DOI 10.1108/MF-02-2023-0077.
+  https://www.emerald.com/insight/content/doi/10.1108/mf-02-2023-0077/full/html https://www.emerald.com/mf/article/50/1/118/1224623/Corporate-carbon-emissions-data-for-equity-and
 - *Scope 3 emissions: Data quality and machine learning prediction accuracy.* PLOS Climate.
   https://journals.plos.org/climate/article?id=10.1371%2Fjournal.pclm.0000208
 - *Greenhouse gases emissions: estimating corporate non-reported emissions using interpretable machine
@@ -585,11 +591,13 @@ Combining the report's method with the literature, five design rules:
 - SBTi Finance Tool (temperature scoring). https://sciencebasedtargets.github.io/SBTi-finance-tool/intro.html
 
 **NLP / LLM approaches**
-- Webersinke et al. *ClimateBert: A Pretrained Language Model for Climate-Related Text.* arXiv 2110.12010.
+- *ClimateBert: A Pretrained Language Model for Climate-Related Text.* arXiv 2110.12010. [authors not verified]
   https://arxiv.org/abs/2110.12010 ; project site: https://www.chatclimate.ai/climatebert
 - *ClimateBERT-NetZero: Detecting and Assessing Net Zero and Reduction Targets.* arXiv 2310.08096.
   https://arxiv.org/abs/2310.08096
-- Ni et al. *ChatReport* (TCFD-based LLM evaluation of sustainability reports).
+- Ni, J., Bingler, J., Colesanti Senni, C., Kraus, M., Gostlow, G., Schimanski, T., Stammbach, D.,
+  Vaghefi, S.A., Wang, Q., Webersinke, N., Wekhof, T., Yu, T. & Leippold, M. *CHATREPORT:
+  Democratizing Sustainability Disclosure Analysis through LLM-based Tools.* arXiv 2307.15770.
   https://arxiv.org/abs/2307.15770
 - *Judging It, Washing It: Scoring and Greenwashing Corporate Climate Disclosures using LLMs.*
   arXiv 2502.15094. https://arxiv.org/abs/2502.15094
@@ -601,32 +609,60 @@ Combining the report's method with the literature, five design rules:
 
 ---
 
-## Sourcing caveats
+## Sourcing and verification status
 
-**Read this before citing anything below the Part 0 line.**
+**Read this before citing anything outside Part 0.**
 
-Findings attributed to the LSEG/NZAOA report (Part 0, and every figure elsewhere marked as
-the report's) are read directly from the source PDF and are reliable.
+### What is reliable
 
-**Every claim about the external literature in Parts 1–3 and the bibliography rests on web
-search-result summaries, not on the papers themselves.** No external full text was retrieved:
-this environment's network egress proxy denies all the relevant domains — nber.org,
-nature.com, academic.oup.com, sciencedirect.com, link.springer.com, emerald.com,
-cep.lse.ac.uk, arxiv.org, ecgi.global, unepfi.org, journals.plos.org and
-transitionpathwayinitiative.org all return a policy denial. Titles, venues and URLs were
-resolved from search indexes; quantitative details, effect sizes and characterisations of
-method were paraphrased by the search tool from page content it retrieved.
+Part 0, and every figure elsewhere marked as the anchor report's, is read directly from the
+LSEG/NZAOA PDF.
 
-Practical consequences:
+### What is not
 
-- Treat every number in the Part 2 evidence table as **unverified against source**. The
-  direction of each finding is more trustworthy than its magnitude.
-- Publication years — particularly for 2025–2026 items — are as reported by the search index
-  and may refer to online-first versions, preprints, or in some cases may be wrong.
-- *The Anatomy of Decarbonizing Firms* is cited without authors or a venue because the search
-  results did not supply them. It carries substantial weight in §2.1 and design rule 2, and is
-  the single highest-priority item to verify.
-- Where a search summary attributed a finding to a named journal, that attribution has not been
-  independently checked.
+**No external full text was retrieved for this memo.** All 64 links in this document were
+checked on 2026-09-19 and **every one is blocked** by this environment's egress policy —
+the proxy answers 403 to CONNECT for nature.com, nber.org, academic.oup.com, sciencedirect,
+springer, emerald, wiley, mdpi, iopscience, arxiv, ecgi, unepfi, plos, cepr, iigcc, lseg,
+msci, transitionpathwayinitiative and the rest. A control host returns a normal HTTP
+response through the same proxy, so this is policy denial, not a tooling fault. Every
+external claim therefore rests on **web search-result summaries**.
+
+### Link status
+
+- All 64 URLs appeared in a live search index during research on 2026-09-19, which is
+  reasonable evidence they resolve, but **none was confirmed by fetching it**.
+- 18 URLs were constructed rather than copied — arXiv `/pdf/` → `/abs/` transforms, which
+  are safe. One (`arxiv.org/abs/2307.15770`, ChatReport) was written from memory before any
+  search supported it; a subsequent search confirmed the ID is correct, but it should not
+  have been written unverified.
+
+### Attribution errors found and corrected
+
+An audit of author attributions found that names had been supplied from background recall
+wherever search returned only a title and URL. Six were checked; **three were wrong**:
+
+| Originally cited as | Actually |
+|---|---|
+| Bolton, Kacperczyk et al. (2024) | **Jiang, Kim & Lu**, Nat. Clim. Chg. 15, 279–286 (2025) |
+| Busch et al., Managerial Finance | **Markwat & Swinkels**, Man. Fin. 50(1), 118–139 (2024) |
+| Azar, Duro, Kadach & Ormazabal | **Cohen, Kadach & Ormazabal**, JAE 76, 101640 (2023) |
+
+Three checked out: Bolton & Kacperczyk (*Firm Commitments*); Bjørn, Lloyd, Brander &
+Matthews (RECs); Colmer, Martin, Muûls & Wagner (EU ETS). Remaining author names that
+search never confirmed have been **removed** and marked `[authors not verified]` rather
+than left as plausible guesses.
+
+### How to treat the rest
+
+- Every number in the Part 2 evidence table is **unverified against source**. Directions are
+  more trustworthy than magnitudes.
+- Two figures are explicitly flagged in-line (the ~0.97 / ~0.85 provider correlations) as
+  possibly not originating in the paper they sit next to.
+- Publication years, especially 2025–2026 items, are as reported by search indexes and may
+  refer to online-first versions. The Jiang/Kim/Lu correction above arose from exactly this:
+  the DOI contains `-024-` while the article is a 2025 issue.
+- *The Anatomy of Decarbonizing Firms* still has no confirmed authors, year or venue, and
+  carries weight in §2.1 and design rule 2. Highest-priority item to verify.
 
 Verify against primary sources before any external use.
