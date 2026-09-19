@@ -656,6 +656,19 @@ pairs, summing the seven dimensions into a greenwashing score discards most of t
 information. Model them jointly, look at which combinations co-occur, and test whether
 particular combinations predict subsequent emissions differently.
 
+**Treat sector by region as a mechanism, not a nuisance.** The cell stands for
+three measurable forces: the effective carbon rate actually faced, the cost of
+the cheapest scaled abatement option, and the premium buyers will pay for the
+low-carbon product. Abatement happens where all three clear together, which is
+why Ruiz Manuel and Blok find 86% of member reductions in eight electricity and
+heavy-industry firms, and why the same sector behaves differently across
+regions: European green steel premiums run EUR120-180 a tonne against a Chinese
+willingness to pay capped near a seventh of the cost gap. A fixed effect absorbs
+all of this, which is right for identification and leaves nothing to interpret
+and no way to extrapolate to a cell the sample never contained. A separate note,
+`SECTOR_REGION_MECHANISMS.md`, works through the evidence and the test for
+whether measured mechanisms can replace the dummies.
+
 **Vary the transition risk proxy and report the spread.** Fliegel's recommendation is the
 right minimum standard. Where a result holds under taxonomy alignment, emission intensity
 and text-based measures alike, it is a result. Where it holds under one, it is a
