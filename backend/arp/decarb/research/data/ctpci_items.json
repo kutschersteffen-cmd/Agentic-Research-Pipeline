@@ -1,0 +1,170 @@
+[
+ {
+  "item_id": "TC1",
+  "dimension": "target_credibility",
+  "label": "Net-zero or long-term climate target",
+  "question": "Does the firm disclose a net-zero, carbon-neutral or equivalent long-term climate target?",
+  "coding_rule": "Score 1 only where a long-term target is stated explicitly with an identifiable end point. General ambition to 'support the Paris Agreement' without a firm-level target scores 0."
+ },
+ {
+  "item_id": "TC2",
+  "dimension": "target_credibility",
+  "label": "Interim target",
+  "question": "Does the firm disclose an interim or near-term emissions target ahead of its long-term goal?",
+  "coding_rule": "Requires a dated milestone earlier than the long-term target year. A single long-term target alone scores 0."
+ },
+ {
+  "item_id": "TC3",
+  "dimension": "target_credibility",
+  "label": "Baseline year",
+  "question": "Does the firm state the baseline year against which its target is measured?",
+  "coding_rule": "An explicit base year must be given. 'Versus recent levels' scores 0."
+ },
+ {
+  "item_id": "TC4",
+  "dimension": "target_credibility",
+  "label": "Quantified target",
+  "question": "Is the target expressed as a quantified reduction?",
+  "coding_rule": "A percentage or absolute tonnage reduction. Directional language such as 'significantly reduce' scores 0."
+ },
+ {
+  "item_id": "TC5",
+  "dimension": "target_credibility",
+  "label": "Target horizon",
+  "question": "Is the target year or horizon explicitly stated?",
+  "coding_rule": "The end year must be identifiable. 'By mid-century' scores 1 only where the firm elsewhere fixes the year."
+ },
+ {
+  "item_id": "ES1",
+  "dimension": "emissions_scope_coverage",
+  "label": "Scope 1 emissions",
+  "question": "Does the firm report Scope 1 emissions?",
+  "coding_rule": "Quantitative disclosure of direct emissions for the reporting year."
+ },
+ {
+  "item_id": "ES2",
+  "dimension": "emissions_scope_coverage",
+  "label": "Scope 2 emissions",
+  "question": "Does the firm report Scope 2 emissions?",
+  "coding_rule": "Quantitative disclosure of purchased-energy emissions. Either accounting basis scores 1; record which basis separately."
+ },
+ {
+  "item_id": "ES3",
+  "dimension": "emissions_scope_coverage",
+  "label": "Relevant Scope 3 consideration",
+  "question": "Does the firm address Scope 3 emissions relevant to its activities?",
+  "coding_rule": "Either quantitative disclosure of material categories or an explicit reasoned assessment of relevance. A boilerplate mention of Scope 3 scores 0."
+ },
+ {
+  "item_id": "IS1",
+  "dimension": "implementation_strategy",
+  "label": "Renewable energy strategy",
+  "question": "Does the firm disclose a renewable energy strategy?",
+  "coding_rule": "A stated approach to sourcing or generating renewable energy, beyond noting that some energy is renewable."
+ },
+ {
+  "item_id": "IS2",
+  "dimension": "implementation_strategy",
+  "label": "Energy efficiency measures",
+  "question": "Does the firm disclose specific energy efficiency measures?",
+  "coding_rule": "Named programmes or measures, not a general commitment to efficiency."
+ },
+ {
+  "item_id": "IS3",
+  "dimension": "implementation_strategy",
+  "label": "Low-carbon technology",
+  "question": "Does the firm disclose investment in or deployment of low-carbon technology?",
+  "coding_rule": "Identifiable technologies, processes or fuel switches."
+ },
+ {
+  "item_id": "IS4",
+  "dimension": "implementation_strategy",
+  "label": "Operational pathway",
+  "question": "Does the firm disclose an operational pathway linking actions to its target?",
+  "coding_rule": "A sequenced route from current emissions to the target, such as a lever-by-lever breakdown or a marginal abatement view."
+ },
+ {
+  "item_id": "IS5",
+  "dimension": "implementation_strategy",
+  "label": "Capital or investment alignment",
+  "question": "Does the firm disclose capital or investment allocation aligned to the transition?",
+  "coding_rule": "A quantified or clearly delineated capital commitment. Aspirational investment language scores 0."
+ },
+ {
+  "item_id": "GA1",
+  "dimension": "governance_accountability",
+  "label": "Board oversight",
+  "question": "Is board-level oversight of climate matters disclosed?",
+  "coding_rule": "A named board or committee with climate responsibility."
+ },
+ {
+  "item_id": "GA2",
+  "dimension": "governance_accountability",
+  "label": "Management responsibility",
+  "question": "Is management-level responsibility for climate assigned?",
+  "coding_rule": "A named executive role or function accountable for delivery."
+ },
+ {
+  "item_id": "GA3",
+  "dimension": "governance_accountability",
+  "label": "Executive remuneration",
+  "question": "Is executive remuneration linked to climate performance?",
+  "coding_rule": "An explicit link between climate metrics and pay. Generic ESG-linked pay scores 1 only where a climate component is identifiable."
+ },
+ {
+  "item_id": "GA4",
+  "dimension": "governance_accountability",
+  "label": "Internal monitoring and accountability",
+  "question": "Are internal monitoring or accountability mechanisms disclosed?",
+  "coding_rule": "Internal review, audit or escalation processes for climate performance."
+ },
+ {
+  "item_id": "RS1",
+  "dimension": "risk_strategic_integration",
+  "label": "Climate scenario analysis",
+  "question": "Does the firm disclose climate scenario analysis?",
+  "coding_rule": "Named scenarios or an described analytical exercise, not an intention to conduct one."
+ },
+ {
+  "item_id": "RS2",
+  "dimension": "risk_strategic_integration",
+  "label": "Transition risk",
+  "question": "Does the firm identify transition risks?",
+  "coding_rule": "Specific transition risks relevant to the firm's activities."
+ },
+ {
+  "item_id": "RS3",
+  "dimension": "risk_strategic_integration",
+  "label": "Physical climate risk",
+  "question": "Does the firm identify physical climate risks?",
+  "coding_rule": "Specific physical risks, acute or chronic."
+ },
+ {
+  "item_id": "RS4",
+  "dimension": "risk_strategic_integration",
+  "label": "Integration into business strategy",
+  "question": "Is climate integrated into business strategy?",
+  "coding_rule": "Evidence that climate shapes strategic or capital decisions, beyond a standalone sustainability section."
+ },
+ {
+  "item_id": "PR1",
+  "dimension": "progress_reporting",
+  "label": "Progress against targets",
+  "question": "Does the firm report progress against its stated targets?",
+  "coding_rule": "A stated position relative to the target, such as percentage complete or current versus base year."
+ },
+ {
+  "item_id": "PR2",
+  "dimension": "progress_reporting",
+  "label": "Explanation of achievement or non-achievement",
+  "question": "Does the firm explain target achievement or non-achievement?",
+  "coding_rule": "A reasoned explanation where a target was met, missed or revised. Silence on a missed target scores 0."
+ },
+ {
+  "item_id": "PR3",
+  "dimension": "progress_reporting",
+  "label": "Year-on-year emissions reporting",
+  "question": "Does the firm report emissions on a comparable year-on-year basis?",
+  "coding_rule": "A time series or restated prior-year figures permitting comparison."
+ }
+]
