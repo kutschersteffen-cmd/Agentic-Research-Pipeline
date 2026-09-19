@@ -588,12 +588,30 @@ Combining the report's method with the literature, five design rules:
 
 ## Sourcing caveats
 
-Findings attributed to the LSEG/NZAOA report are read directly from the source PDF and are
-reliable. For the external literature, papers were located by web search; several full texts
-(arXiv, ECGI, and one aggregator) could not be retrieved because the session's network egress
-proxy blocks those domains, so a minority of the quantitative details — notably for
-*The Anatomy of Decarbonizing Firms*, *Dynamic Evolution of Corporate Emissions Determinants*,
-and *Corporate Decarbonization under Financial Constraints* — come from search-result summaries
-rather than the papers themselves. Verify those figures against the primary sources before
-citing them externally. Where a publication year is given it is as reported by the search index
-and, for very recent items, may refer to an online-first version.
+**Read this before citing anything below the Part 0 line.**
+
+Findings attributed to the LSEG/NZAOA report (Part 0, and every figure elsewhere marked as
+the report's) are read directly from the source PDF and are reliable.
+
+**Every claim about the external literature in Parts 1–3 and the bibliography rests on web
+search-result summaries, not on the papers themselves.** No external full text was retrieved:
+this environment's network egress proxy denies all the relevant domains — nber.org,
+nature.com, academic.oup.com, sciencedirect.com, link.springer.com, emerald.com,
+cep.lse.ac.uk, arxiv.org, ecgi.global, unepfi.org, journals.plos.org and
+transitionpathwayinitiative.org all return a policy denial. Titles, venues and URLs were
+resolved from search indexes; quantitative details, effect sizes and characterisations of
+method were paraphrased by the search tool from page content it retrieved.
+
+Practical consequences:
+
+- Treat every number in the Part 2 evidence table as **unverified against source**. The
+  direction of each finding is more trustworthy than its magnitude.
+- Publication years — particularly for 2025–2026 items — are as reported by the search index
+  and may refer to online-first versions, preprints, or in some cases may be wrong.
+- *The Anatomy of Decarbonizing Firms* is cited without authors or a venue because the search
+  results did not supply them. It carries substantial weight in §2.1 and design rule 2, and is
+  the single highest-priority item to verify.
+- Where a search summary attributed a finding to a named journal, that attribution has not been
+  independently checked.
+
+Verify against primary sources before any external use.
