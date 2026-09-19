@@ -91,6 +91,15 @@ precision at scale (designed for up to ~4,000 companies per run).
    [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md#transition-plan-assessment)
    for the full mapping from paper to implementation.
 
+**Planned, design only — nothing built yet:** an **Equity Index
+Construction** engine (point-in-time bitemporal store, eligibility screens
+with buffers, deterministic capping, index shares + divisor engine,
+PR/GTR/NTR levels, backtest and governance layer) that consumes the
+Thematic Universe Builder's output as its thematic eligibility screen. See
+[`docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md`](docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md)
+for the full design, the reuse map against what already exists here, and
+the phased build sequence.
+
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches, and
 [`docs/THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md`](docs/THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md)
