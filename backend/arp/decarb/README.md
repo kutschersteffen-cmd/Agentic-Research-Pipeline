@@ -4,14 +4,25 @@ Companion code for [`docs/CORPORATE_DECARBONISATION_REVIEW.md`](../../../docs/CO
 Every module implements a specific claim in that paper so a reader can check
 the argument by running it rather than taking the prose on trust.
 
-No numpy, pandas or scikit-learn. Standard library only, Python 3.11+.
+Two layers. The **core** (`arp/decarb/*.py`) is standard library only, Python
+3.11+, and runs anywhere. The **research subpackage** (`arp/decarb/research/`)
+holds the econometrics and figures and needs the scientific stack.
+
+The split is deliberate: label construction, attribution and the saturation
+analysis are the parts most likely to be lifted into another codebase, and they
+should not drag numpy, statsmodels and matplotlib with them. The estimators that
+genuinely need those libraries live behind the extra.
 
 ## Run it
 
 ```bash
 cd backend
-python -m arp.decarb.pipeline          # full report on a calibrated synthetic panel
-python -m pytest tests/test_decarb_*.py -q
+python -m arp.decarb.pipeline            # descriptive report, no dependencies
+python -m pytest tests/test_decarb_stats.py tests/test_decarb_analysis.py -q
+
+pip install -e ".[research]"             # econometrics and figures
+python -m arp.decarb.research.figures    # regenerate the paper's figures
+python -m pytest tests/test_decarb_research.py -q
 ```
 
 To run against real data, build a `Panel` of `FirmYear` rows and pass it to
@@ -30,6 +41,39 @@ To run against real data, build a `Panel` of `FirmYear` rows and pass it to
 | `divergence` | Rank correlation across transition-risk metric families | 3.5, rule 5 |
 | `predict` | Out-of-time increment over a persistence baseline | 6.5, rule 2 |
 | `synthetic` | Calibrated simulated panel | — |
+
+### Research subpackage (needs `arp[research]`)
+
+| Module | Implements | Review section |
+|---|---|---|
+| `research.frames` | Panel to pandas, growth and lag columns | — |
+| `research.matching` | Coarsened exact matching, balance table | 4 |
+| `research.did` | Staggered DiD event study, group-time ATTs | 4, 6.3 |
+| `research.inference` | Panel OLS, clustered SEs, sign-stability | 8 |
+| `research.models` | Model comparison, level against change | 6.5 |
+| `research.figures` | The paper's six figures, light and dark | all |
+
+## What the estimators are for
+
+The corpus this review draws on runs almost entirely on difference-in-differences
+with matching, because adoption of a climate target is voluntary and heavily
+selected. The research subpackage implements that machinery rather than gesturing
+at it.
+
+`research.did` estimates group-time average treatment effects in the style of
+Callaway and Sant'Anna rather than two-way fixed effects. Under staggered
+adoption with heterogeneous effects, TWFE uses already-treated firms as controls
+for later-treated ones and can return the wrong sign; `twfe_event_study` is
+included so the gap is visible. Standard errors come from a firm-level block
+bootstrap, because resampling firm-years instead of firms would treat one firm's
+nine observations as nine independent draws.
+
+The synthetic generator makes this checkable. Target adoption has **no** causal
+effect on emissions in it, but adopters are selected on an unobserved propensity
+that does lower emissions. A naive adopter/non-adopter comparison therefore finds
+about -0.8 percentage points a year that is not there, and the DiD returns
+estimates indistinguishable from zero. Both are asserted in
+`tests/test_decarb_research.py`.
 
 ## Four things the code refuses to let you do
 

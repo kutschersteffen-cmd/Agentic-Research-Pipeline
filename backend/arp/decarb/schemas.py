@@ -73,9 +73,15 @@ class FirmYear:
     sector: str | None = None
     region: str | None = None
     weight: float | None = None
+    ltnz_adoption_year: int | None = None
     indicators: dict[str, bool] = field(default_factory=dict)
     red_flags: dict[str, bool] = field(default_factory=dict)
     metrics: dict[str, float] = field(default_factory=dict)
+
+    @property
+    def is_treated(self) -> bool:
+        """Whether the firm has adopted its long-term target by this year."""
+        return self.ltnz_adoption_year is not None and self.year >= self.ltnz_adoption_year
 
     @property
     def scope12(self) -> float | None:

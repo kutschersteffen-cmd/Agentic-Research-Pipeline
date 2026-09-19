@@ -146,6 +146,19 @@ def make_panel(
         enters = start_year if rng.random() > 0.18 else rng.randint(start_year + 1, end_year)
         exits = end_year if rng.random() > 0.15 else rng.randint(enters, end_year - 1) if enters < end_year else end_year
 
+        # Long-term net zero adoption year, with selection into treatment.
+        # Firms with a demanding-practice propensity adopt earlier, which is
+        # exactly the selection Dietz & Hastreiter (2026) document. Adoption
+        # has NO causal effect on emissions in this generator: any apparent
+        # effect in a naive comparison is selection, and a correctly
+        # specified DiD should recover approximately zero.
+        adoption_pressure = demanding_propensity + rng.gauss(0.0, 0.25)
+        if adoption_pressure > 0.45:
+            offset = int(max(0.0, 9.0 - 7.0 * adoption_pressure + rng.gauss(0, 1.4)))
+            ltnz_year = min(end_year, start_year + 6 + offset)
+        else:
+            ltnz_year = None
+
         drift = _drift(rng, sector, demanding_propensity > 0.80, ets_exposed)
         # Vendor-estimated firms are a minority and skew smaller.
         basis = EmissionsBasis.ESTIMATED if rng.random() < 0.22 else EmissionsBasis.REPORTED
@@ -197,6 +210,7 @@ def make_panel(
                     sector=sector,
                     region=region,
                     weight=None,
+                    ltnz_adoption_year=ltnz_year,
                     indicators=indicators,
                     red_flags=flags,
                     metrics={

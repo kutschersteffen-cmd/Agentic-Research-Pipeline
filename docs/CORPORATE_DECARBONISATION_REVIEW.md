@@ -115,6 +115,14 @@ corporate-bond results are starker. In the high-yield universe, aggregate emissi
 years, fell 2%. Between 2016 and 2019 allocation effects alone removed 66% of high-yield
 WACI as higher-intensity issuers left the index.
 
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/fig1-attribution-dark.png">
+  <img alt="Waterfall decomposition of a change in weighted average carbon intensity into emissions, normalisation and allocation contributions" src="figures/fig1-attribution-light.png" width="100%">
+</picture>
+
+**Figure 1.** Log-mean Divisia decomposition of a change in weighted average carbon intensity. The normalisation term dominates while constituent emissions push the metric up. Method illustration on the synthetic panel, not an empirical estimate.
+
 This matters beyond portfolio accounting because it establishes the general point: a
 carbon metric can fall a long way without any company emitting less. The chained series is
 the useful construct here, and it transfers directly to firm-level work. Holding the
@@ -158,6 +166,14 @@ growing fastest. Among FTSE All-World constituents that consistently disclosed b
 measures from 2020 to 2024, Technology's location-based Scope 2 rose 60% while its
 market-based Scope 2 rose 22%. Technology Scope 1 and 2 emissions rose 28% between 2019
 and 2024, more than any other sector, and Scope 2 is about 84% of that sector's total.
+
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/fig2-scope2-wedge-dark.png">
+  <img alt="Location-based and market-based Scope 2 emissions indexed to 100, diverging over time for technology firms" src="figures/fig2-scope2-wedge-light.png" width="100%">
+</picture>
+
+**Figure 2.** The two Scope 2 measures for firms reporting both throughout. Market-based reporting absorbs procurement; location-based tracks the grid. Method illustration on the synthetic panel.
 
 Three independent sources, then, point at the same seam in the accounting system. I take
 this to be the central empirical fact about corporate decarbonisation as currently
@@ -285,6 +301,14 @@ universe. They find little evidence of large or immediate emissions reductions. 
 coefficients are generally negative and consistent with gradual reduction, but noisy and
 imprecisely estimated.
 
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/fig5-event-study-dark.png">
+  <img alt="Event study showing effects of target adoption on emissions, with confidence intervals spanning zero in every post-adoption year" src="figures/fig5-event-study-light.png" width="100%">
+</picture>
+
+**Figure 3.** Group-time average treatment effects of long-term target adoption on log Scope 1+2 emissions, with not-yet-treated controls and a firm-level block bootstrap. Estimates are negative and indistinguishable from zero. Generated on a synthetic panel in which adoption has no causal effect and adopters are selected on an unobserved propensity, so this is a demonstration that the estimator recovers the null where a naive comparison would not.
+
 Their governance results are the more interesting part, and I return to them in Section
 6.3 because they bear on indicator design rather than on accountability.
 
@@ -387,6 +411,14 @@ Strategy result is preceded by a significant coefficient in the year before adop
 which the authors attribute to anticipation, and cohort analysis locates that pre-trend
 in the 2021 cohort specifically.
 
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/fig3-saturation-dark.png">
+  <img alt="Line chart of indicator prevalence over time, showing common governance practices rising to near-universal adoption while demanding practices remain scarce" src="figures/fig3-saturation-light.png" width="100%">
+</picture>
+
+**Figure 4.** Indicator prevalence over time. Once a practice is satisfied by nearly every firm it stops separating them, which is why a raw count of indicators can lose discriminatory power while a rarity-weighted score retains it. Method illustration on the synthetic panel.
+
 Two lessons. Rarity-weighting a governance indicator set recovers signal that a raw count
 destroys. And the timing of improvement runs slightly ahead of the announcement, which
 means event studies keyed to announcement dates will understate the association.
@@ -424,6 +456,14 @@ XGBoost best, with R² of 0.95 in the pre-COVID period using all variables and 0
 excluding carbon-related variables. Within the governance category, board characteristics
 carry the highest importance, and with the carbon signal removed the model shifts weight
 onto liquidity, profitability and firm value.
+
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/fig6-level-vs-change-dark.png">
+  <img alt="Grouped bar chart of out-of-time R-squared by model for predicting intensity levels, levels with sector shuffled, and emissions change" src="figures/fig6-level-vs-change-light.png" width="100%">
+</picture>
+
+**Figure 5.** Out-of-time R-squared for the same feature set against a level target and a change target, with a sector-shuffled control. Shuffling sector destroys performance on levels, which is what most of that performance was. Method illustration on the synthetic panel.
 
 The result is interesting but it should not be read as evidence that governance predicts
 decarbonisation. Their target is carbon emission *intensity*, a level, not a change. An R²
@@ -477,6 +517,14 @@ weakly correlated with each other, and several of the pairwise phi correlations 
 negative. Higher target ambition is *negatively* associated with Scope 3 gaps (r = −0.19)
 and with offset reliance (r = −0.18). Being off-track shows near-zero correlations with
 almost everything.
+
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/fig4-redflag-matrix-dark.png">
+  <img alt="Lower-triangular correlation matrix of seven greenwashing red flags, with all off-diagonal values close to zero" src="figures/fig4-redflag-matrix-light.png" width="100%">
+</picture>
+
+**Figure 6.** Pairwise phi correlations between the seven red flags. Values cluster near zero and several are negative. Method illustration on a synthetic panel calibrated to the prevalences Brown, Hsu and Manya report.
 
 Greenwashing, on this evidence, is not a single latent trait that a composite score can
 measure. A firm with an ambitious target and heavy offset reliance and a firm with a
@@ -632,6 +680,55 @@ have reasonable support, rarity-weighted management practice has one good study 
 and everything else is contested.
 
 ---
+
+## A note on the estimators
+
+Because almost every study reviewed here rests on the same two techniques, it is
+worth being explicit about what they do and where they fail. Both are implemented
+in the accompanying code.
+
+**Matching.** Adoption of a climate target is voluntary and strongly selected.
+Bolton and Kacperczyk find that committers already have lower emissions and that
+firms are less likely to make an ambitious commitment when their Scope 1 emissions
+are higher. Coarsened exact matching, as Schüder and Zülch use it, bins covariates,
+keeps only strata containing both adopters and non-adopters, and discards the rest.
+The discard is the cost and should always be reported: over-specify the covariate
+list and half the sample can disappear, at which point the estimate applies to a
+population that no longer resembles the one of interest.
+
+**Staggered difference-in-differences.** Firms adopt in different years, so there
+is no single before and after. The standard two-way fixed effects specification
+handles this badly: with heterogeneous effects it uses already-treated firms as
+controls for later-treated ones, and the resulting weighted average can carry the
+wrong sign even when every underlying effect shares a sign. The alternative is to
+estimate a separate effect for each adoption cohort and period against a clean
+control group, either never-treated firms or those not yet treated, then aggregate
+by event time. Dietz and Hastreiter use this approach.
+
+Two practical points. Standard errors should be clustered or bootstrapped at the
+firm level, since emissions are highly persistent within a firm and treating
+firm-years as independent shrinks standard errors by roughly the square root of
+the panel length. And pre-treatment estimates are part of the result, not a
+diagnostic to be dropped: Dietz and Hastreiter's significant coefficient in the
+year before adoption is what tells them firms begin acting before they announce.
+
+## Code and figures
+
+Every analysis in this review is implemented in `backend/arp/decarb/`, with the
+econometrics in `backend/arp/decarb/research/`. `python -m arp.decarb.pipeline`
+reproduces the descriptive results and `python -m arp.decarb.research.figures`
+regenerates every figure.
+
+**All figures in this paper are generated from a synthetic panel**, calibrated so
+that its headline statistics match the magnitudes reported in the literature
+reviewed here. They illustrate what each method does and what its output looks
+like. They are not empirical estimates, and no number in them is evidence about
+any company. The empirical claims in the text are sourced to the studies cited,
+not to the figures.
+
+The synthetic panel exists because the underlying data is licensed. Running the
+same code against a real panel requires only building the input frame; the
+analysis functions take the same types either way.
 
 ## References
 
