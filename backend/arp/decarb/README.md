@@ -1,0 +1,99 @@
+# `arp.decarb` — analyses for the corporate decarbonisation review
+
+Companion code for [`docs/CORPORATE_DECARBONISATION_REVIEW.md`](../../../docs/CORPORATE_DECARBONISATION_REVIEW.md).
+Every module implements a specific claim in that paper so a reader can check
+the argument by running it rather than taking the prose on trust.
+
+No numpy, pandas or scikit-learn. Standard library only, Python 3.11+.
+
+## Run it
+
+```bash
+cd backend
+python -m arp.decarb.pipeline          # full report on a calibrated synthetic panel
+python -m pytest tests/test_decarb_*.py -q
+```
+
+To run against real data, build a `Panel` of `FirmYear` rows and pass it to
+`pipeline.run(panel)`.
+
+## What each module does
+
+| Module | Implements | Review section |
+|---|---|---|
+| `schemas` | `Panel`/`FirmYear`; rejects mixed Scope 2 bases | 3.1 |
+| `labels` | Chained (constant-perimeter) and forward-looking labels | 2.2, rule 1 |
+| `attribution` | LMDI split into emissions / normalisation / allocation | 2.2 |
+| `scope2` | Location- against market-based Scope 2 wedge | 2.3, 3.1 |
+| `saturation` | Prevalence decay, rarity weighting, stratified AUC | 6.3, rule 3 |
+| `redflags` | Seven-dimension profile and the orthogonality test | 7, rule 4 |
+| `divergence` | Rank correlation across transition-risk metric families | 3.5, rule 5 |
+| `predict` | Out-of-time increment over a persistence baseline | 6.5, rule 2 |
+| `synthetic` | Calibrated simulated panel | — |
+
+## Four things the code refuses to let you do
+
+These are the errors the review argues are doing most of the damage in
+published work, so they are enforced rather than documented.
+
+**Mixing Scope 2 bases.** `Panel.__post_init__` raises if a panel contains
+both location-based and market-based Scope 2. Schüder and Zülch (2026) find
+the SBTi effect in the market-based series and not the location-based one, so
+a pooled series measures procurement policy as much as abatement.
+
+**Letting composition masquerade as abatement.** `labels.chained_change`
+returns the aggregate change, the constant-perimeter change and the gap. On
+the synthetic panel the aggregate reads +0.4% while the chained series reads
++7.2%, meaning turnover is hiding real emissions growth. LSEG (2026) report
+the mirror image in high-yield bonds, where aggregate emissions fell 9% a year
+against 2% chained.
+
+**Leaking the outcome into the features.** `labels.forward_labels` keys the
+label by base year over a forward window, and `predict.Design` refuses
+overlapping or look-ahead splits. `pipeline._persistence_test` additionally
+embargoes `horizon` years between train and test so no training label window
+reaches into the test period. An earlier version of this pipeline reported
+R² = 1.000 because the numeric outcome was also a baseline feature.
+
+**Reading a pooled AUC as a property of an indicator.**
+`saturation.discriminatory_power` stratifies by sector by default. Sector
+dominates emissions trajectories, so an unstratified AUC mostly ranks sectors,
+and an indicator slightly more common in a fast-growing sector will score
+below 0.5 even when it is associated with lower emissions inside every sector.
+
+## Reading the output
+
+Two results in the demo run are worth explaining because they look like bugs
+and are not.
+
+*Section 8 reports no gain over persistence.* This is correct. The synthetic
+generator makes the demanding practices lower a firm's emissions drift, and
+lagged emissions growth already contains that drift. Features acting through
+the emissions trajectory add nothing once the trajectory is controlled for.
+That is design rule 2 working, and it is why an incremental test is the only
+interpretable one.
+
+*The rarity-weighted score beats the raw count only on average.* Across 20
+seeds it wins 15 times, with mean stratified AUC 0.547 against 0.540. The
+effect is real but small relative to cross-firm dispersion in emissions
+growth, so a single panel can invert it. The test asserts the mean over 12
+seeds for that reason. The same fragility applies to the real data, which is
+why the review treats Dietz and Hastreiter's result as one good study rather
+than a settled fact.
+
+## The synthetic panel
+
+`synthetic.make_panel` is calibrated so the published magnitudes reproduce:
+median annual Scope 1+2 change near zero with roughly half of firms still
+growing, quartiles near LSEG's reported −5.6%/+7.0%, red-flag prevalences
+matching Brown, Hsu and Manya (2026) within a few points, Technology carrying
+much the widest Scope 2 wedge, and transition metrics correlating within
+families but not across them.
+
+Effect sizes for the causal links are set deliberately larger than the
+literature's point estimates so the mechanisms are visible at test sample
+sizes. Cross-firm dispersion is kept realistic, which means the effects are
+still not reliably recoverable from any one panel.
+
+This is simulated data. It exists to prove the code runs and to make the tests
+deterministic. No number produced from it is evidence about any company.
