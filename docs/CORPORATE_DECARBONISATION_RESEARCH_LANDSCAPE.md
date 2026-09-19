@@ -302,6 +302,7 @@ each. Otherwise the model is partly learning the vendor's estimation model, and 
 - FactSet's practitioner implementation of the NZAOA model;
   https://insight.factset.com/measuring-portfolio-decarbonization-applying-the-nzaoa-attribution-model-in-practice
 - MSCI *Carbon Footprinting Demystified* — the older metric-choice reference.
+  https://www.msci.com/documents/10199/a57d8424-34a9-3ea4-5a74-030349845bb3
 
 Published attribution results are consistent with the LSEG report: in one NZAOA-style
 analysis, reductions in constituent weights in high-carbon industries accounted for **64%**
@@ -471,7 +472,8 @@ Combining the report's method with the literature, five design rules:
 
 **Targets, commitments and accountability**
 - Bolton, P. & Kacperczyk, M. *Firm Commitments.* NBER WP 31244 / SSRN 3840813.
-  https://www.nber.org/system/files/working_papers/w31244/w31244.pdf
+  https://www.nber.org/system/files/working_papers/w31244/w31244.pdf ;
+  https://ssrn.com/abstract=3840813
 - *Limited accountability and awareness of corporate emissions target outcomes.* Nature Climate
   Change (2024). https://www.nature.com/articles/s41558-024-02236-3
 - *Renewable energy certificates threaten the integrity of corporate science-based targets.*
@@ -498,7 +500,9 @@ Combining the report's method with the literature, five design rules:
 
 **Predictive variables and firm-level drivers**
 - *The Anatomy of Decarbonizing Firms.* (persistence; SBT catalyst; ML beats heuristics for
-  one-year-ahead abatement)
+  one-year-ahead abatement). **Authors, year and venue unresolved** - the only locator found was
+  an aggregator page: https://paperswithbacktest.com/strategies/the-anatomy-of-decarbonizing-firms
+  Highest-priority item to verify; see Sourcing caveats.
 - Colmer, Martin, Muûls & Wagner. *Does Pricing Carbon Mitigate Climate Change? Firm-Level Evidence
   from the European Union Emissions Trading System.* Review of Economic Studies 92(3), 2025.
   https://academic.oup.com/restud/article/92/3/1625/7681739 ;
@@ -521,7 +525,9 @@ Combining the report's method with the literature, five design rules:
   relationships.* Journal of Environmental Management (2023).
   https://www.sciencedirect.com/science/article/pii/S0301479723002621
 - *Corporate Decarbonization under Financial Constraints.* ECGI working paper.
+  https://www.ecgi.global/sites/default/files/working_papers/documents/carbonization.pdf
 - *Dynamic Evolution of Corporate Emissions Determinants.* arXiv 2605.22994.
+  https://arxiv.org/abs/2605.22994
 - *Modelling Corporate Transition Dynamics Using Markov Chains, Hidden Markov Models and CatBoost:
   Evidence from High-Emission Sectors.* Sustainability (MDPI). https://www.mdpi.com/2071-1050/18/5/2351
 
@@ -531,19 +537,22 @@ Combining the report's method with the literature, five design rules:
 - *Scope 3 emissions: Data quality and machine learning prediction accuracy.* PLOS Climate.
   https://journals.plos.org/climate/article?id=10.1371%2Fjournal.pclm.0000208
 - *Greenhouse gases emissions: estimating corporate non-reported emissions using interpretable machine
-  learning.* arXiv 2212.10844.
+  learning.* arXiv 2212.10844. https://arxiv.org/abs/2212.10844
 - *Estimation of Corporate Greenhouse Gas Emissions via Machine Learning.* arXiv 2109.04318.
+  https://arxiv.org/abs/2109.04318
 - *Machine learning for predicting corporate carbon emissions: The role of corporate governance.*
   https://www.sciencedirect.com/science/article/pii/S2773067025000512
 - Banque de France. *Estimating corporate carbon emissions using artificial intelligence.*
 - *GHGbench: A Unified Multi-Entity, Multi-Task Benchmark for Carbon Emission Prediction.*
-  arXiv 2605.13743.
+  arXiv 2605.13743. https://arxiv.org/abs/2605.13743
 - LSEG. *ESG carbon data and estimate models* (factsheet).
   https://www.lseg.com/content/dam/data-analytics/en_us/documents/fact-sheets/lseg-esg-carbon-data-and-estimate-models.pdf
 
 **Frameworks and assessment**
 - Transition Pathway Initiative. *Methodology and Indicators, Management Quality and Carbon
-  Performance, v4.0* (Nov 2021). https://www.transitionpathwayinitiative.org/methodology
+  Performance, v4.0* (Nov 2021).
+  https://www.transitionpathwayinitiative.org/publications/uploads/2021-methodology-report-management-quality-and-carbon-performance-version-4-0
+  Overview: https://www.transitionpathwayinitiative.org/methodology
 - LSEG. *TPI Management Quality Scores, powered by LSEG* (factsheet).
   https://www.lseg.com/content/dam/data-analytics/en_us/documents/fact-sheets/lseg-tpi-mq-scores-factsheet.pdf
 - Climate Action 100+. *Net Zero Company Benchmark — methodology* (2026 framework).
@@ -572,16 +581,22 @@ Combining the report's method with the literature, five design rules:
   Ecological Economics (2025). https://www.sciencedirect.com/science/article/pii/S092911992500207X
 - WWF. *The Alignment Cookbook.*
 - *Uncertainty Quantification in Portfolio Temperature Alignment.* arXiv 2412.14182.
+  https://arxiv.org/abs/2412.14182
 - SBTi Finance Tool (temperature scoring). https://sciencebasedtargets.github.io/SBTi-finance-tool/intro.html
 
 **NLP / LLM approaches**
 - Webersinke et al. *ClimateBert: A Pretrained Language Model for Climate-Related Text.* arXiv 2110.12010.
+  https://arxiv.org/abs/2110.12010 ; project site: https://www.chatclimate.ai/climatebert
 - *ClimateBERT-NetZero: Detecting and Assessing Net Zero and Reduction Targets.* arXiv 2310.08096.
+  https://arxiv.org/abs/2310.08096
 - Ni et al. *ChatReport* (TCFD-based LLM evaluation of sustainability reports).
+  https://arxiv.org/abs/2307.15770
 - *Judging It, Washing It: Scoring and Greenwashing Corporate Climate Disclosures using LLMs.*
-  arXiv 2502.15094.
+  arXiv 2502.15094. https://arxiv.org/abs/2502.15094
 - *Climate AI for Corporate Decarbonization Metrics Extraction.* arXiv 2411.03402.
+  https://arxiv.org/abs/2411.03402
 - *Glitter or Gold? Deriving Structured Insights from Sustainability Reports via LLMs.* arXiv 2310.05628.
+  https://arxiv.org/abs/2310.05628
 - WWF. *Combining AI and Domain Expertise to Assess Corporate Climate Transition Plans* (2024).
 
 ---
