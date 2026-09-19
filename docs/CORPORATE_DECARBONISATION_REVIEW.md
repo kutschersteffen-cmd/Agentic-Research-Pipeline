@@ -21,6 +21,15 @@ composition and by revenue growth rather than by investee abatement. Target adop
 carries almost no accountability, with roughly a third of expiring targets simply
 vanishing from disclosure without consequence.
 
+I then derive why abatement concentrates where it does, from the condition under
+which a firm abates a marginal tonne: the marginal abatement cost against the
+carbon price actually faced, the input savings the measure delivers, and the
+premium a buyer will pay, less a hurdle from irreversibility. Regulation,
+technology and demand are the three terms in that inequality, and reading it
+back explains several findings that otherwise look like puzzles. It also bounds
+what follows, because firm characteristics can only tip decisions where a
+sector and region leave the economics near balance.
+
 I then review the firm-level features that have been tested as predictors of
 decarbonisation, and separate them into those with stable signs across studies
 (regulatory exposure, committed capital, demanding management practice, target
@@ -29,9 +38,12 @@ scores, compensation design), and those that function as warning signs rather th
 predictors (Scope 3 exclusion, offset reliance, misaligned lobbying, disclosure
 vagueness). Two structural problems cut across the whole indicator literature. Indicators
 saturate: as an indicator becomes universal it stops carrying information, which means
-predictive power decays and has to be re-estimated rather than assumed. And greenwashing
+predictive power decays and has to be re-estimated rather than assumed. Greenwashing
 indicators are close to orthogonal to each other, so the common practice of summing them
-into a composite score discards most of what they contain.
+into a composite score discards most of what they contain. And the statistic
+usually chosen to evaluate an indicator, the area under the ROC curve, is
+invariant to the base rate and systematically misleading here: it is highest in
+precisely the cells where an indicator changes fewest outcomes.
 
 The review closes with design rules for empirical work in this area and an accompanying
 open codebase that implements the analyses the argument depends on.
@@ -61,8 +73,9 @@ is organised around that claim. Section 2 sets out where corporate decarbonisati
 actually stands. Section 3 works through the measurement choices that shape nearly every
 published estimate in this field, because several apparent empirical findings turn out to
 be properties of those choices. Section 4 covers accountability. Section 5 identifies the
-challenges that follow. Sections 6 to 8 review candidate predictive indicators, and
-Section 9 sets out design rules that follow from the review. Section 10 lists what I think
+challenges that follow. Section 6 turns to mechanism, deriving the condition under
+which a firm abates at all, because it bounds what any firm-level indicator can do. Sections 6 to 8 review candidate predictive indicators, and
+Section 10 sets out design rules that follow from the review. Section 11 lists what I think
 the field still needs.
 
 A note on the evidence base. This review draws on fifteen studies, listed in the
@@ -310,7 +323,7 @@ imprecisely estimated.
 **Figure 3.** Group-time average treatment effects of long-term target adoption on log Scope 1+2 emissions, with not-yet-treated controls and a firm-level block bootstrap. Estimates are negative and indistinguishable from zero. Generated on a synthetic panel in which adoption has no causal effect and adopters are selected on an unobserved propensity, so this is a demonstration that the estimator recovers the null where a naive comparison would not.
 
 Their governance results are the more interesting part, and I return to them in Section
-6.3 because they bear on indicator design rather than on accountability.
+7.3 because they bear on indicator design rather than on accountability.
 
 ---
 
@@ -333,7 +346,7 @@ target adoption rather than target structure will keep producing coverage statis
 overstate committed abatement.
 
 **Indicator saturation is eroding the discriminating power of the standard measures.**
-This is developed in Section 9, but the short version is that when 70% of an index has a
+This is developed in Section 10, but the short version is that when 70% of an index has a
 target and 81% disclose emissions, those variables no longer separate firms. Dietz and
 Hastreiter provide direct evidence of the mechanism.
 
@@ -343,13 +356,223 @@ trajectory fixes this before 2030.
 
 ---
 
-## 6. Indicators with a stable relationship to decarbonisation
+## 6. Why abatement happens where it does
+
+The sections above describe what has happened. This one asks why, because the
+answer bounds what any firm-level indicator can possibly do, and the sections
+that follow cannot be read correctly without it.
+
+### 6.1 One inequality
+
+A firm abates a marginal tonne when the value it captures covers what abatement
+costs it:
+
+```
+    abate  iff   MAC  ≤  p·κ  +  s  +  π  −  h
+```
+
+where MAC is the marginal abatement cost, `p·κ` the carbon price times the share
+of the firm's marginal emissions actually priced, `s` the input cost savings the
+measure itself delivers, `π` the revenue premium per tonne from customers paying
+more for the low-carbon product, and `h` a hurdle arising from irreversibility
+under uncertainty. Call the difference the **abatement gap**:
+
+```
+    G  =  MAC  −  (p·κ + s + π)  +  h
+```
+
+Firms abate where `G < 0`. Regulation, technology and demand are simply the
+three terms that push it down. Nothing in this literature escapes the
+inequality: targets, governance and disclosure operate by shifting a firm's
+position relative to it, never by suspending it.
+
+This reframes the concentration result from Section 2. Ruiz Manuel and Blok find
+86% of member abatement in eight electricity and heavy-industry firms, with
+98.6% of all internal Scope 1 reductions. The natural reading is that those
+firms were better managed. The more economical one is that `G` was already
+negative in their cell and positive nearly everywhere else.
+
+### 6.2 Regulation: the effective marginal price
+
+Two features of `p·κ` matter more than the headline carbon price.
+
+**Free allocation design decides whether the price bites, and how.** Lump-sum or
+grandfathered allocation is an infra-marginal transfer: it changes the firm's
+wealth, not its marginal incentive, so abatement incentives are preserved
+intact. Output-based or benchmarked allocation ties allowances to production,
+which functions as an output subsidy alongside the carbon price. The firm
+retains a full incentive to cut emissions *per unit of output* and a weakened
+one to cut emissions *absolutely*.
+
+That has a signature this review has already documented: intensity falling while
+absolute emissions stay flat. Composition and revenue growth explain most of
+that gap, as Section 2.2 sets out, but output-based allocation is a second
+mechanism pushing the same way, and unlike composition it is deliberate policy
+design rather than an accounting artefact.
+
+**Colmer et al.'s null Phase I result needs no behavioural explanation.** Phase I
+over-allocated, the price collapsed toward zero, so `p·κ ≈ 0` and `G` never
+turned negative. The policy did not fail to change behaviour; it failed to
+create a price. The measurement implication is direct: a binary "covered by an
+ETS" indicator encodes `κ > 0`, which is not the variable in the inequality. A
+firm inside a scheme with a collapsed price is, for predictive purposes,
+unregulated.
+
+**Credibility enters through the variance, not the mean.** Abatement capital is
+irreversible and long-lived, so what matters is the expected carbon price across
+decades. Under uncertainty an irreversible investment carries an option value of
+waiting, and the firm rationally requires expected value to exceed cost by a
+margin rather than merely equal it. That margin is `h`. It follows that a
+legislated price floor or a credible long-dated trajectory can trigger
+investment by narrowing the distribution of expected prices without raising its
+mean at all, that a credible future constraint moves investment years before it
+binds, and that price volatility is a genuine cost of market-based instruments
+which headline-rate comparisons miss entirely.
+
+### 6.3 Technology: learning is a property of manufacturing multiplicity
+
+Technology costs follow cumulative production rather than calendar time, falling
+a roughly constant fraction per doubling: about 24% for solar PV and 20% for
+battery packs, giving declines of 89% and 86% respectively since 2010. This is a
+positive feedback loop, since deployment lowers cost which raises deployment,
+and systems with positive feedback do not respond proportionally to a forcing.
+They sit still and then tip. That is why sectoral abatement looks binary rather
+than graduated, and why extrapolating a sector's past rate is a poor forecast on
+either side of its tipping point.
+
+The reason cement does not get a learning curve is that the learning denominator
+is *units manufactured*. Solar modules have been produced billions of times; a
+cement kiln with carbon capture a handful. The available doublings differ by
+orders of magnitude. Steep learning is therefore not a property of clean
+technology but of modular, mass-manufactured goods, and its absence is a
+property of bespoke capital projects. Over the same period in which clean
+modular goods fell 64 to 89%, thermal plant construction costs *rose* by roughly
+28%.
+
+The useful consequence is that **electrification transfers learning between
+sectors**. A sector that can electrify inherits a 20 to 24% learning rate it did
+nothing to earn; it buys the product of someone else's cost declines. A sector
+that cannot, whether for energy density as in aviation, process temperature, or
+process chemistry as in cement calcination, must fund its own learning with far
+fewer doublings available. The decisive technology question for a sector is
+therefore not whether a green option exists but whether the process can be
+electrified.
+
+This also explains an apparent paradox in Section 2. Technology-sector emissions
+are rising faster than any other sector's while its firms are among the most
+engaged on climate. Their emissions are overwhelmingly Scope 2, their abatement
+is the grid's problem rather than theirs, and their demand growth is outrunning
+the grid's improvement.
+
+### 6.4 Demand: a missing market rather than a missing preference
+
+The premium term is where analysis usually stops at the observation that
+customers will not pay. The mechanism is more specific.
+
+Abatement cost is concentrated upstream in materials and energy; willingness to
+pay sits downstream with the final consumer. A €150 per tonne green steel
+premium is roughly €100 to €150 on a car containing about a tonne of steel,
+which is immaterial against a €30,000 vehicle and decisive against a
+steelmaker's margin. **The premium is negligible where the money is and decisive
+where the cost is**, so position in the value chain rather than intensity of
+preference determines who can absorb it. That is why automotive offtake
+agreements at $30 to $80 a tonne exist at all.
+
+Three failures stop a premium forming without institutional help. Low-carbon
+steel is physically identical to ordinary steel, making it a **credence good**
+whose attribute the buyer cannot verify, so certification is a precondition for
+the market rather than an accessory to it. The first buyer to pay a premium
+funds the deployment that moves the producer down its cost curve, and
+competitors then buy cheaper, so **first movers are undersupplied relative to
+the social return**. And no liquid market exists for differentiated low-carbon
+commodities, so price discovery happens bilaterally, which is why the evidence
+on premiums arrives as contract disclosures rather than published prices.
+
+It follows that the premium is the most regionally variable of the three terms
+and the one most directly manufactured by policy. The clearest illustration is
+Chinese steel: a production cost gap around $140 a tonne against a willingness
+to pay capped near $20, roughly a seventh of the gap, for the same technology
+and the same physics as a European producer facing €120 to €180 premiums. The
+EU's border adjustment mechanism is best understood in exactly these terms, as
+converting the premium from something a buyer may choose to pay into something
+an importer must, which changes a sector's economics far more than its
+technology does.
+
+Note finally that electricity required no demand channel at all. Electrons are
+fungible, so a clean generator sells into the same market at the same price.
+That is a third reason the sector moved first, alongside early pricing and steep
+learning: it is the one sector where decarbonising required no customer to pay
+more for a differentiated product.
+
+### 6.5 Why the three behave as complements
+
+At the margin the three terms are substitutes, entering the inequality
+additively, and any one of them closing the gap suffices. Empirically they
+behave as complements, and the reason is `h` combined with lumpiness. A firm
+does not buy 3% of an electric arc furnace. It faces a discrete, irreversible,
+long-lived commitment that must clear the cost with a margin for the option
+value of waiting. For hard-to-abate sectors no single channel is large enough to
+clear a MAC of $150 to $300 a tonne on its own: a $60 carbon price does not do
+it, a 10 to 25% premium on a thin slice of demand does not do it, and the
+technology has no learning curve to ride. All three must move together, so they
+appear multiplicative in the data though the underlying model is additive.
+
+There is also a dynamic complementarity with no static counterpart. Deployment
+funded through any channel today lowers MAC tomorrow through learning, which
+lowers the carbon price and premium needed thereafter. Policy that subsidises
+early deployment is buying down the future cost of every other instrument.
+
+### 6.6 What this bounds
+
+The inequality places a sharp limit on the sections that follow. Where `G` is
+large and negative every firm abates, and where it is large and positive none
+does; in both cases there is no variation left for a firm-level indicator to
+explain. Firm characteristics such as capital access, management quality and
+planning horizon tip the decision only where the cell's economics leave it near
+balance.
+
+Simulating a firm-quality indicator across the gap distribution makes the shape
+explicit, and exposes a trap in the statistic:
+
+| cell gap $/tCO2e | share abating | AUC | risk difference |
+|---|---|---|---|
+| −120 | 100% | 0.500 | 0.000 |
+| −60 | 98% | 0.646 | 0.025 |
+| −30 | 85% | 0.630 | 0.151 |
+| 0 | 50% | 0.634 | **0.301** |
+| +30 | 15% | 0.660 | 0.184 |
+| +60 | 2% | **0.715** | 0.038 |
+| +120 | 0% | 0.500 | 0.000 |
+
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/fig7-abatement-gap-dark.png">
+  <img alt="Risk difference traces an inverted U peaking at a balanced abatement gap while AUC rises toward the hard-to-abate tail" src="figures/fig7-abatement-gap-light.png" width="100%">
+</picture>
+
+**Figure 7.** Two statistics on the same simulated data, across the abatement gap. The risk difference traces decision relevance; the AUC does not, and is highest where the indicator changes fewest outcomes. AUC is shown as undefined where one class is empty. Method illustration on simulated data.
+
+Decision relevance is an inverted U, peaking where the cell is balanced and
+collapsing at both extremes. The risk difference traces it; **the AUC does
+not**, instead rising to 0.715 at a gap of +60 where the indicator changes
+almost no outcomes. AUC is rank-based and invariant to the base rate, so where
+few firms abate the handful that do are strongly selected on quality and the
+ranking looks excellent while nothing is decided. A study reporting AUC alone
+would conclude an indicator works best in hard-to-abate sectors, which is the
+opposite of where it matters.
+
+This is also a candidate explanation for why the literature disagrees with
+itself about firm-level predictors. Studies sampling different sectors and
+periods sample different parts of the gap distribution, and correct analyses of
+the same underlying process will reach different conclusions.
+
+## 7. Indicators with a stable relationship to decarbonisation
 
 I group candidate predictors by how much confidence the current evidence supports. The
 criterion is not effect size but whether the sign is stable across studies with different
 samples and designs.
 
-### 6.1 Carbon pricing exposure
+### 7.1 Carbon pricing exposure
 
 This is the best-identified result in the field. Colmer, Martin, Muûls and Wagner (2025)
 use administrative data on French manufacturing firms to estimate that the EU Emissions
@@ -367,7 +590,7 @@ energy-saving capital before regulation, and show larger emissions reductions an
 increases in economic activity afterwards. If that mechanism generalises, the firms where
 regulation produces the most abatement are identifiable in advance.
 
-### 6.2 Committed capital
+### 7.2 Committed capital
 
 Fliegel's evaluation puts EU taxonomy capex alignment among the strongest performing
 transition metrics, and his general conclusion favours forward-looking measures over
@@ -386,7 +609,7 @@ should be assessed by how deeply it is integrated into the core business rather 
 counting climate management activities in isolation. Investment allocation is the
 dimension in their scheme that is hardest to fake.
 
-### 6.3 Demanding management practice, weighted by rarity
+### 7.3 Demanding management practice, weighted by rarity
 
 This is the most useful methodological finding in the corpus and it comes from Dietz and
 Hastreiter (2026).
@@ -423,7 +646,7 @@ Two lessons. Rarity-weighting a governance indicator set recovers signal that a 
 destroys. And the timing of improvement runs slightly ahead of the announcement, which
 means event studies keyed to announcement dates will understate the association.
 
-### 6.4 Target structure
+### 7.4 Target structure
 
 Target design carries information that target existence does not. The LSEG funnel from
 9.5 Gt to 7 Gt to 5 Gt is one form of evidence. Bolton and Kacperczyk note that absolute
@@ -441,7 +664,7 @@ more modest moderating support. The Scope 3 subsample produces weaker evidence, 
 with everything else in this review. The design is observational panel, and the authors
 are appropriately careful about causal language.
 
-### 6.5 Past emissions
+### 7.5 Past emissions
 
 Any model in this area has to beat a persistence baseline. Emissions trajectories are
 highly autocorrelated, and the strongest single predictor of next year's emissions is this
@@ -475,13 +698,13 @@ the machine learning literature in this area from the question investors actuall
 
 ---
 
-## 7. Indicators that flag the absence of transition
+## 8. Indicators that flag the absence of transition
 
 A separate literature has developed around detecting the opposite condition. These
 measures are not predictors with the sign reversed; they behave differently and should be
 handled differently.
 
-### 7.1 The red flag framework
+### 8.1 The red flag framework
 
 Brown, Hsu and Manya (2026) built the largest empirical assessment of its kind, combining
 CDP, InfluenceMap and Net Zero Tracker data across 4,131 companies, of which 3,574 made
@@ -519,7 +742,7 @@ Regional variation is modest overall, at 95% in Europe and the Global South agai
 97% in North America and East Asia and the Pacific, but the lobbying indicator is
 noticeably less prevalent among European firms.
 
-### 7.2 The orthogonality problem
+### 8.2 The orthogonality problem
 
 The most consequential result in that paper is easy to miss, and the authors act
 on it themselves: they decline to aggregate the seven dimensions into a single
@@ -545,7 +768,7 @@ narrow target and no offsets are different objects, and summing flags makes them
 identical. The framework is better used as a profile, and the analytically interesting
 question is which combinations occur together and what each combination predicts.
 
-### 7.3 Disclosure language
+### 8.3 Disclosure language
 
 Bingler et al. (2024) fine-tune ClimateBERT to build ClimateBertCTI, a classifier for
 climate-related cheap talk, and construct a firm-level cheap talk index from annual
@@ -561,7 +784,7 @@ which the authors attribute to increased public awareness after 2015. A relation
 appears only in a subperiod, only in one data source, deserves replication before it goes
 into a production model.
 
-### 7.4 Target detection at scale
+### 8.4 Target detection at scale
 
 Schimanski et al. (2023) provide the tooling layer. ClimateBERT-NetZero is trained on an
 expert-annotated set of 3.5K text samples to classify whether a passage contains a net
@@ -577,7 +800,7 @@ tractable across a large universe.
 
 ---
 
-## 8. Indicators that do not behave as expected
+## 9. Indicators that do not behave as expected
 
 It is worth being blunt about the measures that do not survive contact with the evidence,
 because several are widely used.
@@ -619,7 +842,7 @@ on one proxy is conditional on that proxy.
 
 ---
 
-## 9. Design rules
+## 10. Design rules
 
 Five rules follow from the review. They are addressed to anyone building firm-level
 empirical work or a predictive model in this area.
@@ -665,8 +888,8 @@ difference is 0.038. A study reporting AUC alone concludes an indicator works
 best in hard-to-abate sectors, which is the opposite of where it decides
 anything.
 
-**Treat sector by region as a mechanism, not a nuisance.** The cell stands for
-three measurable forces: the effective carbon rate actually faced, the cost of
+**Treat sector by region as a mechanism, not a nuisance.** Section 6 derives the
+inequality; the cell stands for its three terms: the effective carbon rate actually faced, the cost of
 the cheapest scaled abatement option, and the premium buyers will pay for the
 low-carbon product. Abatement happens where all three clear together, which is
 why Ruiz Manuel and Blok find 86% of member reductions in eight electricity and
@@ -687,7 +910,7 @@ description of that measure.
 
 ---
 
-## 10. What the field still needs
+## 11. What the field still needs
 
 Four things, in rough order of how much difference they would make.
 
@@ -720,7 +943,7 @@ is explicitly interpreted as associational.
 
 The recurring pattern I have described, where improvement concentrates in procurement-
 sensitive and composition-sensitive measures, is consistent across enough independent
-designs that I am fairly confident in it. The firm-level predictors in Section 6 are on
+designs that I am fairly confident in it. The firm-level predictors in Section 7 are on
 weaker ground, and the honest summary is that regulatory exposure and committed capital
 have reasonable support, rarity-weighted management practice has one good study behind it,
 and everything else is contested.

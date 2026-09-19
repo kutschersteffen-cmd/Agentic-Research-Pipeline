@@ -36,11 +36,11 @@ To run against real data, build a `Panel` of `FirmYear` rows and pass it to
 | `labels` | Chained (constant-perimeter) and forward-looking labels | 2.2, rule 1 |
 | `attribution` | LMDI split into emissions / normalisation / allocation | 2.2 |
 | `scope2` | Location- against market-based Scope 2 wedge | 2.3, 3.1 |
-| `saturation` | Prevalence decay, rarity weighting, stratified AUC, risk difference | 6.3, rule 3 |
-| `redflags` | Seven-dimension profile and the orthogonality test | 7, rule 4 |
+| `saturation` | Prevalence decay, rarity weighting, stratified AUC, risk difference | 7.3, rule 3 |
+| `redflags` | Seven-dimension profile and the orthogonality test | 8, rule 4 |
 | `divergence` | Rank correlation across transition-risk metric families | 3.5, rule 5 |
-| `kaya` | Firm-level Kaya/LMDI: separates firm-attributable abatement from output and grid effects; tiered label constructor | 2.3, 3.1, rule 1 |
-| `predict` | Out-of-time increment over a persistence baseline | 6.5, rule 2 |
+| `kaya` | Firm-level Kaya/LMDI: separates firm-attributable abatement from output and grid effects; tiered label constructor | 2.3, 3.1, 6, rule 1 |
+| `predict` | Out-of-time increment over a persistence baseline | 7.5, rule 2 |
 | `synthetic` | Calibrated simulated panel | — |
 
 ### Research subpackage (needs `arp[research]`)
@@ -49,11 +49,11 @@ To run against real data, build a `Panel` of `FirmYear` rows and pass it to
 |---|---|---|
 | `research.frames` | Panel to pandas, growth and lag columns | — |
 | `research.matching` | Coarsened exact matching, balance table | 4 |
-| `research.did` | Staggered DiD event study, group-time ATTs | 4, 6.3 |
+| `research.did` | Staggered DiD event study, group-time ATTs | 4, 7.3 |
 | `research.inference` | Panel OLS, clustered SEs, sign-stability | 8 |
-| `research.models` | Model comparison, level against change | 6.5 |
+| `research.models` | Model comparison, level against change | 7.5 |
 | `research.figures` | The paper's six figures, light and dark | all |
-| `research.mechanisms` | Sector x region variance decomposition and the mechanism-sufficiency test | see SECTOR_REGION_MECHANISMS.md |
+| `research.mechanisms` | Sector x region variance decomposition and the mechanism-sufficiency test | 6 |
 | `research.silvia` | Silvia et al. (2026) replication package: CTPCI instrument, their three models, Monte Carlo verification | 6.4 |
 
 ## What this reproduces, and what it does not
@@ -86,7 +86,7 @@ looks like theirs".
 | Bingler et al. (2024) | ClimateBertCTI cheap-talk index | — | Not implemented |
 | Schimanski et al. (2023) | ClimateBERT-NetZero classifier | — | Not implemented |
 
-| Silvia et al. (2026) | 24-item CTPCI, firm+year FE, firm-clustered SEs | `research.mechanisms` | Sector x region variance decomposition and the mechanism-sufficiency test | see SECTOR_REGION_MECHANISMS.md |
+| Silvia et al. (2026) | 24-item CTPCI, firm+year FE, firm-clustered SEs | `research.mechanisms` | Sector x region variance decomposition and the mechanism-sufficiency test | 6 |
 | `research.silvia` | Instrument and specifications implemented; estimator verified unbiased by Monte Carlo. **Their Appendix A coding rules are not in the published PDF**, so item decision rules are a reconstruction. Finding not reproduced - data unreachable |
 | Oyewo (2023) | **Panel quantile regression** q0.1-q0.95 (this is what "curvilinear" means in the title, not a quadratic term), 2SLS/IV robustness | `research.inference` | Sign-stability check only; no quantile regression |
 | Frisch et al. (2025) | Qualitative core-business framework | — | Not code |
