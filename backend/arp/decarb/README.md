@@ -53,6 +53,43 @@ To run against real data, build a `Panel` of `FirmYear` rows and pass it to
 | `research.models` | Model comparison, level against change | 6.5 |
 | `research.figures` | The paper's six figures, light and dark | all |
 
+## What this reproduces, and what it does not
+
+Worth being blunt, because "implements the method from paper X" can mean very
+different things.
+
+**Nothing here reproduces a published result.** No number in this repository is
+a replication of any paper's finding. Every analysis runs on a synthetic panel
+(see below). The empirical claims in the review are sourced to the studies
+themselves, never to this code.
+
+What is implemented is the *estimator family* each paper uses, validated
+against ground truth in data where the right answer is known by construction.
+That is a weaker claim than replication and a stronger one than "a chart that
+looks like theirs".
+
+| Paper | Its method | Here | Fidelity |
+|---|---|---|---|
+| LSEG (2026) App. IV | Log-change attribution of WACI | `attribution` | Close. Written from their prose; the equation is a raster image in the PDF. Their footnote 39 pins one case and `decompose_waci_proportional` matches it exactly |
+| Dietz & Hastreiter (2026) | Staggered DiD + matching on TPI | `research.did`, `research.matching` | Same family. Group-time ATTs, not their exact covariate set or MQ weighting |
+| Schüder & Zülch (2026) | CEM then OLS, sector×year×region FE | `research.matching`, `research.inference` | Components present; their t+1..t+4 specification is not pre-built |
+| Xu, Wei & Ji (2026) | Six models, 60 features, XGBoost Gain | `research.models` | Five models, sklearn GBM not XGBoost, permutation importance. Design, not specification |
+| Brown, Hsu & Manya (2026) | Seven flags from CDP/InfluenceMap/NZT | `redflags` | Their dimension names, prevalences and the orthogonality analysis. **Flag construction not implemented** - the user supplies booleans |
+| Fliegel (2026) | Rank correlation **plus** return sensitivity of brown/green portfolios to climate news | `divergence` | Only the correlation half. **His evaluation design is not implemented** |
+| Colmer et al. (2025) | EU ETS DiD on administrative microdata | — | Not implemented |
+| Jiang, Kim & Lu (2025) | Target outcome tracking, event study on failure | — | Not implemented |
+| Bolton & Kacperczyk (2025) | Commitment selection models | — | Not implemented |
+| Ruiz Manuel & Blok (2023) | Additionality assessment of RE sourcing | — | Not implemented |
+| Bingler et al. (2024) | ClimateBertCTI cheap-talk index | — | Not implemented |
+| Schimanski et al. (2023) | ClimateBERT-NetZero classifier | — | Not implemented |
+| Silvia et al. (2026) | Transition-plan credibility index | — | Not implemented |
+| Oyewo (2023) | Curvilinear governance terms | `research.inference` | Sign-stability check only; no quadratic specification |
+| Frisch et al. (2025) | Qualitative core-business framework | — | Not code |
+
+The figures are outputs of these implementations on synthetic data. They show
+what each method does and what its output looks like. They are not
+reproductions of any paper's charts.
+
 ## What the estimators are for
 
 The corpus this review draws on runs almost entirely on difference-in-differences

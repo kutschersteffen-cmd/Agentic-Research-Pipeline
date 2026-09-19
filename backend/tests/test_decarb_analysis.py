@@ -112,6 +112,35 @@ def test_attribution_assigns_pure_revenue_growth_to_normalisation():
     assert attr.total_change < 0  # intensity halved
 
 
+def test_lmdi_and_proportional_agree_except_on_exact_cancellation():
+    """The two readings of LSEG's prose are algebraically the same estimator.
+
+    L(m1,m0) * l_em == (m1-m0) * l_em / (l_em + l_norm + l_alloc), because the
+    three log changes sum to ln(m1/m0). They part company only where that sum
+    is zero, which is the case LSEG's footnote 39 legislates.
+    """
+    decompose_waci = attribution.decompose_waci
+    decompose_waci_proportional = attribution.decompose_waci_proportional
+
+    # Partial offset: the two must agree exactly.
+    start = {"A": FirmYear("A", 2019, scope1=100, revenue=10, weight=1.0)}
+    end = {"A": FirmYear("A", 2024, scope1=160, revenue=15, weight=1.0)}
+    a, b = decompose_waci(start, end), decompose_waci_proportional(start, end)
+    assert a.emissions == pytest.approx(b.emissions, abs=1e-9)
+    assert a.normalisation == pytest.approx(b.normalisation, abs=1e-9)
+
+    # Exact cancellation: emissions and revenue both double, intensity flat.
+    start = {"A": FirmYear("A", 2019, scope1=100, revenue=10, weight=1.0)}
+    end = {"A": FirmYear("A", 2024, scope1=200, revenue=20, weight=1.0)}
+    a, b = decompose_waci(start, end), decompose_waci_proportional(start, end)
+    assert a.total_change == pytest.approx(0.0, abs=1e-12)
+    assert abs(a.emissions) > 1.0 and a.emissions == pytest.approx(-a.normalisation, abs=1e-9)
+    # The footnote's rule: contributions are zero, not equal and opposite.
+    assert b.emissions == pytest.approx(0.0, abs=1e-12)
+    assert b.normalisation == pytest.approx(0.0, abs=1e-12)
+    assert b.residual == pytest.approx(0.0, abs=1e-12)
+
+
 def test_attribution_assigns_entries_and_exits_to_allocation():
     start = {"A": FirmYear("A", 2019, scope1=100, revenue=10, weight=1.0)}
     end = {

@@ -1,7 +1,13 @@
 """Greenwashing red-flag profiles.
 
-Implements the seven-dimension framework of Brown, Hsu & Manya (2026) and,
-more importantly, the constraint their results place on how it may be used.
+Carries the seven dimension *names* and published prevalences from Brown, Hsu
+& Manya (2026), and implements the constraint their results place on how the
+framework may be used.
+
+It does not reproduce their flag construction. Each of their dimensions is
+derived from CDP, InfluenceMap and Net Zero Tracker records by rules this
+module does not implement; a user supplies the booleans. What is implemented
+is the analysis of a flag set once it exists.
 
 They find 96% of pledging companies exhibit at least one red flag, and that
 the flags are only weakly correlated with each other. Several pairwise phi

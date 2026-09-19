@@ -730,6 +730,19 @@ The synthetic panel exists because the underlying data is licensed. Running the
 same code against a real panel requires only building the input frame; the
 analysis functions take the same types either way.
 
+**The code implements estimator families, not replications.** No number it
+produces reproduces a published result, and several methods central to the
+papers reviewed here are not implemented at all, among them the ClimateBert
+cheap-talk index, the ClimateBERT-NetZero classifier, Fliegel's return-
+sensitivity evaluation, and the EU ETS administrative-data design. A table in
+`backend/arp/decarb/README.md` sets out, paper by paper, what is implemented
+and to what fidelity. One point of detail is worth recording here: LSEG state
+their attribution method in prose and publish the equation as an image, so the
+implementation was written from the prose. Two readings of that prose turn out
+to be algebraically identical except where a constituent's factors exactly
+cancel, which is the one case their footnote 39 pins down, and both are
+implemented.
+
 ## References
 
 Bingler, J.A., Kraus, M., Leippold, M. and Webersinke, N. (2024). How cheap talk in

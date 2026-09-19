@@ -82,7 +82,13 @@ class TargetComparison:
 
 
 def build_models(*, seed: int = 0) -> dict:
-    """The six-model family used by Xu et al., with sklearn's GBM for XGBoost."""
+    """Five models spanning the families Xu et al. compare.
+
+    Not their exact specification: they run six, including a neural network,
+    and use XGBoost where this uses sklearn's gradient booster. Their feature
+    set is 60 variables in four categories, which a user supplies here. The
+    point of this function is the comparison design, not a replication.
+    """
     return {
         "lasso": Lasso(alpha=0.001, max_iter=5000),
         "ridge": Ridge(alpha=1.0),
