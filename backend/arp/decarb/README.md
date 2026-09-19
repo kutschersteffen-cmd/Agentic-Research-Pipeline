@@ -71,11 +71,11 @@ looks like theirs".
 | Paper | Its method | Here | Fidelity |
 |---|---|---|---|
 | LSEG (2026) App. IV | Log-change attribution of WACI | `attribution` | Close. Written from their prose; the equation is a raster image in the PDF. Their footnote 39 pins one case and `decompose_waci_proportional` matches it exactly |
-| Dietz & Hastreiter (2026) | Staggered DiD + matching on TPI | `research.did`, `research.matching` | Same family. Group-time ATTs, not their exact covariate set or MQ weighting |
+| Dietz & Hastreiter (2026) | Callaway-Sant'Anna group-time ATTs + **propensity score** matching (cohort-level, caliper 0.2) on the TPI universe | `research.did`, `research.matching` | Estimator family matches. Matching here is CEM, **not** PSM, so the pipeline is not their design |
 | Schüder & Zülch (2026) | CEM then OLS, sector×year×region FE | `research.matching`, `research.inference` | Components present; their t+1..t+4 specification is not pre-built |
 | Xu, Wei & Ji (2026) | Six models, 60 features, XGBoost Gain | `research.models` | Five models, sklearn GBM not XGBoost, permutation importance. Design, not specification |
 | Brown, Hsu & Manya (2026) | Seven flags from CDP/InfluenceMap/NZT | `flags`, `redflags` | Coding rules implemented from their Methods, including the CDP interim-target fallback, the PETA progress measure and the C-or-lower lobbying threshold. Their PETA equations do not reconcile as typeset; the documented reading is implemented |
-| Fliegel (2026) | Rank correlation **plus** return sensitivity of brown/green portfolios to climate news | `divergence` | Only the correlation half. **His evaluation design is not implemented** |
+| Fliegel (2026) | Rank correlation, **plus** 70/30 sorted equal-weighted portfolios regressed on FF5 + a climate news shock index, Feb 2010-Jul 2024 | `divergence` | Only the correlation half. **His evaluation design, which is the point of the paper, is not implemented** |
 | Colmer et al. (2025) | EU ETS DiD on administrative microdata | — | Not implemented |
 | Jiang, Kim & Lu (2025) | Target outcome tracking, event study on failure | — | Not implemented |
 | Bolton & Kacperczyk (2025) | Commitment selection models | — | Not implemented |
@@ -83,12 +83,16 @@ looks like theirs".
 | Bingler et al. (2024) | ClimateBertCTI cheap-talk index | — | Not implemented |
 | Schimanski et al. (2023) | ClimateBERT-NetZero classifier | — | Not implemented |
 | Silvia et al. (2026) | Transition-plan credibility index | — | Not implemented |
-| Oyewo (2023) | Curvilinear governance terms | `research.inference` | Sign-stability check only; no quadratic specification |
+| Oyewo (2023) | **Panel quantile regression** q0.1-q0.95 (this is what "curvilinear" means in the title, not a quadratic term), 2SLS/IV robustness | `research.inference` | Sign-stability check only; no quantile regression |
 | Frisch et al. (2025) | Qualitative core-business framework | — | Not code |
 
 The figures are outputs of these implementations on synthetic data. They show
 what each method does and what its output looks like. They are not
 reproductions of any paper's charts.
+
+Full method extractions - samples, filters, variable definitions, estimators,
+inference, target results and what blocks replication - are in
+[`docs/REPLICATION_SPECIFICATIONS.md`](../../../docs/REPLICATION_SPECIFICATIONS.md).
 
 ## What the estimators are for
 

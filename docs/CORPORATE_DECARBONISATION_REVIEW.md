@@ -743,6 +743,11 @@ The synthetic panel exists because the underlying data is licensed. Running the
 same code against a real panel requires only building the input frame; the
 analysis functions take the same types either way.
 
+Method extractions for all fifteen studies - sample construction, variable
+definitions, estimators, inference, target results and the specific obstacles to
+replicating each - are in
+[`REPLICATION_SPECIFICATIONS.md`](REPLICATION_SPECIFICATIONS.md).
+
 **The code implements estimator families, not replications.** No number it
 produces reproduces a published result, and several methods central to the
 papers reviewed here are not implemented at all, among them the ClimateBert
