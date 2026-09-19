@@ -54,7 +54,7 @@ To run against real data, build a `Panel` of `FirmYear` rows and pass it to
 | `research.models` | Model comparison, level against change | 7.5 |
 | `research.figures` | The paper's six figures, light and dark | all |
 | `research.mechanisms` | Sector x region variance decomposition and the mechanism-sufficiency test | 6 |
-| `research.silvia` | Silvia et al. (2026) replication package: CTPCI instrument, their three models, Monte Carlo verification | 6.4 |
+| `research.silvia` | Silvia et al. (2026) replication package: CTPCI instrument, their three models, Monte Carlo verification | 7.4 |
 
 ## What this reproduces, and what it does not
 
