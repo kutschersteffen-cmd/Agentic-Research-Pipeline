@@ -267,6 +267,67 @@ def test_stratified_auc_removes_a_sector_confound():
     assert auc_stratified(scores, ys, strata) > 0.5
 
 
+def test_risk_difference_and_auc_measure_different_things():
+    """AUC ranks; the risk difference decides. They diverge at extreme base rates.
+
+    Construct a rare-outcome cell: only a handful of firms decarbonise, and
+    they all carry the indicator. AUC is near-perfect because the ranking is
+    perfect. The risk difference is small because the indicator is common and
+    changes almost no outcomes. Reporting AUC alone would call this a strong
+    predictor. See docs/ABATEMENT_MECHANISMS.md section 6.2.
+    """
+    from arp.decarb.stats import auc
+
+    rows, labels = [], {}
+    for i in range(200):
+        has = i < 100                      # half carry the indicator
+        decarbonised = i < 4               # only 4 firms abate, all with it
+        rows.append(FirmYear(f"F{i}", 2020, scope1=1.0, sector="S",
+                             indicators={"x": has}))
+        labels[f"F{i}"] = decarbonised
+    panel = Panel(rows)
+
+    scores = [1.0 if r.indicators["x"] else 0.0 for r in panel.rows]
+    ys = [labels[r.firm_id] for r in panel.rows]
+    ranked = auc(scores, ys)
+    decided = saturation.risk_difference(panel, "x", labels, year=2020)
+
+    assert ranked > 0.70, "the ranking is excellent"
+    assert decided < 0.05, "yet almost no decisions are flipped"
+
+
+def test_risk_difference_sign_follows_the_association():
+    rows, labels = [], {}
+    for i in range(100):
+        has = i % 2 == 0
+        rows.append(FirmYear(f"F{i}", 2020, scope1=1.0, indicators={"good": has, "bad": has}))
+        labels[f"F{i}"] = has  # "good" perfectly predicts, "bad" is the same flag
+    panel = Panel(rows)
+    assert saturation.risk_difference(panel, "good", labels, year=2020) == pytest.approx(1.0)
+    # Invert the labels: the same indicator now predicts the opposite.
+    flipped = {k: not v for k, v in labels.items()}
+    assert saturation.risk_difference(panel, "good", flipped, year=2020) == pytest.approx(-1.0)
+
+
+def test_risk_difference_is_zero_when_an_arm_is_empty():
+    rows = [FirmYear(f"F{i}", 2020, scope1=1.0, indicators={"x": True}) for i in range(20)]
+    labels = {f"F{i}": i < 10 for i in range(20)}
+    assert saturation.risk_difference(Panel(rows), "x", labels, year=2020) == 0.0
+
+
+def test_decision_relevance_reports_prevalence_auc_and_risk_together():
+    panel = make_panel(n_firms=300, seed=4)
+    first, last = panel.years[0], panel.years[-1]
+    lab = labels.decarboniser_labels(panel, start_year=first, end_year=last)
+    binary = {f: d for f, (_, d) in lab.items()}
+    out = saturation.decision_relevance(panel, GOVERNANCE_INDICATORS, binary, year=first)
+    assert out
+    for entry in out:
+        assert entry.auc is not None and entry.risk_difference is not None
+        assert 0.0 <= entry.prevalence <= 1.0
+        assert -1.0 <= entry.risk_difference <= 1.0
+
+
 # --------------------------------------------------------------------------
 # redflags
 # --------------------------------------------------------------------------

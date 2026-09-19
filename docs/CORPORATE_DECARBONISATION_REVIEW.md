@@ -656,6 +656,15 @@ pairs, summing the seven dimensions into a greenwashing score discards most of t
 information. Model them jointly, look at which combinations co-occur, and test whether
 particular combinations predict subsequent emissions differently.
 
+**Report a risk difference alongside any AUC.** The two answer different
+questions and diverge systematically. AUC is rank-based and invariant to the
+base rate, so in a cell where few firms abate the handful that do are strongly
+selected and the ranking looks excellent while the indicator changes almost no
+outcomes. Simulated across the abatement gap, AUC reads 0.715 where the risk
+difference is 0.038. A study reporting AUC alone concludes an indicator works
+best in hard-to-abate sectors, which is the opposite of where it decides
+anything.
+
 **Treat sector by region as a mechanism, not a nuisance.** The cell stands for
 three measurable forces: the effective carbon rate actually faced, the cost of
 the cheapest scaled abatement option, and the premium buyers will pay for the
@@ -667,7 +676,9 @@ willingness to pay capped near a seventh of the cost gap. A fixed effect absorbs
 all of this, which is right for identification and leaves nothing to interpret
 and no way to extrapolate to a cell the sample never contained. A separate note,
 `SECTOR_REGION_MECHANISMS.md`, works through the evidence and the test for
-whether measured mechanisms can replace the dummies.
+whether measured mechanisms can replace the dummies; `ABATEMENT_MECHANISMS.md`
+derives why the three behave as they do, from the condition under which a firm
+abates at all.
 
 **Vary the transition risk proxy and report the spread.** Fliegel's recommendation is the
 right minimum standard. Where a result holds under taxonomy alignment, emission intensity

@@ -36,7 +36,7 @@ To run against real data, build a `Panel` of `FirmYear` rows and pass it to
 | `labels` | Chained (constant-perimeter) and forward-looking labels | 2.2, rule 1 |
 | `attribution` | LMDI split into emissions / normalisation / allocation | 2.2 |
 | `scope2` | Location- against market-based Scope 2 wedge | 2.3, 3.1 |
-| `saturation` | Prevalence decay, rarity weighting, stratified AUC | 6.3, rule 3 |
+| `saturation` | Prevalence decay, rarity weighting, stratified AUC, risk difference | 6.3, rule 3 |
 | `redflags` | Seven-dimension profile and the orthogonality test | 7, rule 4 |
 | `divergence` | Rank correlation across transition-risk metric families | 3.5, rule 5 |
 | `kaya` | Firm-level Kaya/LMDI: separates firm-attributable abatement from output and grid effects; tiered label constructor | 2.3, 3.1, rule 1 |

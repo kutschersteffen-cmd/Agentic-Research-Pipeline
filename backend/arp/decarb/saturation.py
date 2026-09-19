@@ -31,6 +31,8 @@ from arp.decarb.stats import auc, auc_stratified
 
 __all__ = [
     "IndicatorYear",
+    "risk_difference",
+    "decision_relevance",
     "prevalence_by_year",
     "discriminatory_power",
     "rarity_weights",
@@ -48,6 +50,7 @@ class IndicatorYear:
     prevalence: float
     n: int
     auc: float | None = None
+    risk_difference: float | None = None
 
     @property
     def rarity_weight(self) -> float:
@@ -173,4 +176,57 @@ def saturation_report(
             if labels:
                 entry.auc = discriminatory_power(panel, ind, labels, year=year, stratify_by=stratify_by)
             out.append(entry)
+    return out
+
+
+def risk_difference(panel: Panel, indicator: str, labels: dict[str, bool], *, year: int | None = None) -> float:
+    """Difference in decarbonisation rate between firms with and without the indicator.
+
+    Report this alongside AUC, never instead of it, and never AUC alone.
+
+    The two measure different things and diverge systematically. AUC is
+    rank-based and invariant to the base rate: in a cell where only 2% of firms
+    abate, those few are strongly selected on quality, so the ranking looks
+    excellent while the indicator changes almost no outcomes. The risk
+    difference is the share of decisions actually flipped.
+
+    Simulating a firm-quality indicator across the abatement gap (see
+    docs/ABATEMENT_MECHANISMS.md) makes the divergence concrete: at a gap of
+    +60 $/tCO2e the AUC reads 0.715 while the risk difference is 0.038. A study
+    reporting AUC alone would conclude the indicator works best in hard-to-abate
+    sectors, which is the opposite of where it decides anything.
+    """
+    rows = [r for r in panel.rows if indicator in r.indicators and r.firm_id in labels]
+    if year is not None:
+        rows = [r for r in rows if r.year == year]
+    with_ind = [labels[r.firm_id] for r in rows if r.indicators[indicator]]
+    without = [labels[r.firm_id] for r in rows if not r.indicators[indicator]]
+    if not with_ind or not without:
+        return 0.0
+    return (sum(with_ind) / len(with_ind)) - (sum(without) / len(without))
+
+
+def decision_relevance(
+    panel: Panel,
+    indicators: list[str],
+    labels: dict[str, bool],
+    *,
+    year: int,
+    stratify_by: str | None = "sector",
+) -> list[IndicatorYear]:
+    """Prevalence, AUC and risk difference for each indicator in one year.
+
+    The three together are what an indicator evaluation needs: prevalence says
+    whether it still separates anyone, AUC says whether it ranks, and the risk
+    difference says whether it decides.
+    """
+    out: list[IndicatorYear] = []
+    for ind in indicators:
+        by_year = prevalence_by_year(panel, ind)
+        if year not in by_year:
+            continue
+        entry = by_year[year]
+        entry.auc = discriminatory_power(panel, ind, labels, year=year, stratify_by=stratify_by)
+        entry.risk_difference = risk_difference(panel, ind, labels, year=year)
+        out.append(entry)
     return out
