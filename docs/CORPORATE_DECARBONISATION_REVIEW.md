@@ -497,8 +497,17 @@ Prevalence by dimension:
 | No interim targets | 21% |
 | Lack of progress toward targets | 20% |
 | No implementation plan | 18% |
-| Scope disconnect in neutrality claim | 11% |
+| Neutrality claim on a CO2-only or unspecified gas inventory | 11% |
 | Lobbying inconsistent with commitment | 10% |
+
+One dimension is routinely misread, including in the paper's own results text,
+which describes it as a failure "to comprehensively address all emission
+scopes". Their Methods section is explicit that it concerns *gases*: the flag
+fires when a company claims net zero, GHG neutrality or similar while its
+inventory covers only carbon dioxide or does not say which gases it covers. A
+company with a plain percentage-reduction target is not caught by it at all,
+because there is no neutrality claim for the incomplete inventory to
+contradict.
 
 Two-fifths of companies show exactly one flag, and 12% are flagged on four or more.
 Restricting to firms with explicit net-zero targets barely moves the overall incidence
@@ -512,9 +521,13 @@ noticeably less prevalent among European firms.
 
 ### 7.2 The orthogonality problem
 
-The most consequential result in that paper is easy to miss. The seven indicators are only
-weakly correlated with each other, and several of the pairwise phi correlations are
-negative. Higher target ambition is *negatively* associated with Scope 3 gaps (r = −0.19)
+The most consequential result in that paper is easy to miss, and the authors act
+on it themselves: they decline to aggregate the seven dimensions into a single
+index at all. Their stated reasons are that no agreed weighting approach exists,
+that any weighting would be "inherently subjective", and that binary indicators
+with no intensity dimension "could dilute their meaning" once combined. The
+supporting evidence is that the seven indicators are only weakly correlated with
+each other, and several of the pairwise phi correlations are negative. Higher target ambition is *negatively* associated with Scope 3 gaps (r = −0.19)
 and with offset reliance (r = −0.18). Being off-track shows near-zero correlations with
 almost everything.
 

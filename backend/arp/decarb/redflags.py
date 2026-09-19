@@ -1,13 +1,11 @@
 """Greenwashing red-flag profiles.
 
-Carries the seven dimension *names* and published prevalences from Brown, Hsu
-& Manya (2026), and implements the constraint their results place on how the
-framework may be used.
+Analysis of a greenwashing red-flag profile, and the constraint Brown, Hsu &
+Manya's (2026) results place on how such a profile may be used.
 
-It does not reproduce their flag construction. Each of their dimensions is
-derived from CDP, InfluenceMap and Net Zero Tracker records by rules this
-module does not implement; a user supplies the booleans. What is implemented
-is the analysis of a flag set once it exists.
+The flags themselves are built by `arp.decarb.flags`, which implements their
+coding rules against Net Zero Tracker, CDP and LobbyMap fields. This module
+takes the resulting booleans and asks what can be done with them.
 
 They find 96% of pledging companies exhibit at least one red flag, and that
 the flags are only weakly correlated with each other. Several pairwise phi
@@ -32,6 +30,7 @@ from arp.decarb.schemas import RED_FLAGS, Panel
 from arp.decarb.stats import phi_coefficient
 
 __all__ = [
+    "from_assessments",
     "FlagPrevalence",
     "CompositeVerdict",
     "prevalence",
@@ -177,3 +176,28 @@ def profile_is_multidimensional(
         n_pairs=len(values),
         composite_defensible=mean_abs >= threshold,
     )
+
+
+def from_assessments(assessments, *, year: int, sector: str | None = None) -> Panel:
+    """Build a Panel from `arp.decarb.flags.assess` output, for analysis here.
+
+    Companies with no climate claim are dropped. The framework measures the
+    gap between a claim and the behaviour behind it, so a company that made no
+    claim is not a clean one, it is out of scope. Including it would inflate
+    the denominator and understate every prevalence relative to the published
+    figures, which are reported among pledging companies.
+    """
+    from arp.decarb.schemas import FirmYear
+
+    rows = [
+        FirmYear(
+            firm_id=a.firm_id,
+            year=year,
+            sector=sector,
+            red_flags=dict(a.flags),
+            metrics={k: v for k, v in (("peta", a.peta), ("ambition", a.ambition)) if v is not None},
+        )
+        for a in assessments
+        if a.made_climate_claim
+    ]
+    return Panel(rows)

@@ -74,7 +74,7 @@ looks like theirs".
 | Dietz & Hastreiter (2026) | Staggered DiD + matching on TPI | `research.did`, `research.matching` | Same family. Group-time ATTs, not their exact covariate set or MQ weighting |
 | Schüder & Zülch (2026) | CEM then OLS, sector×year×region FE | `research.matching`, `research.inference` | Components present; their t+1..t+4 specification is not pre-built |
 | Xu, Wei & Ji (2026) | Six models, 60 features, XGBoost Gain | `research.models` | Five models, sklearn GBM not XGBoost, permutation importance. Design, not specification |
-| Brown, Hsu & Manya (2026) | Seven flags from CDP/InfluenceMap/NZT | `redflags` | Their dimension names, prevalences and the orthogonality analysis. **Flag construction not implemented** - the user supplies booleans |
+| Brown, Hsu & Manya (2026) | Seven flags from CDP/InfluenceMap/NZT | `flags`, `redflags` | Coding rules implemented from their Methods, including the CDP interim-target fallback, the PETA progress measure and the C-or-lower lobbying threshold. Their PETA equations do not reconcile as typeset; the documented reading is implemented |
 | Fliegel (2026) | Rank correlation **plus** return sensitivity of brown/green portfolios to climate news | `divergence` | Only the correlation half. **His evaluation design is not implemented** |
 | Colmer et al. (2025) | EU ETS DiD on administrative microdata | — | Not implemented |
 | Jiang, Kim & Lu (2025) | Target outcome tracking, event study on failure | — | Not implemented |

@@ -134,12 +134,21 @@ class Panel:
 # they report among pledging companies. Prevalence is carried here so that
 # `redflags.compare_to_published_prevalence` can check whether a user's
 # panel looks like the published population before conclusions are drawn.
+#
+# `arp.decarb.flags` builds these from Net Zero Tracker, CDP and LobbyMap
+# records using the authors' coding rules.
+#
+# Note on naming: their fifth dimension is about *gases*, not scopes. It fires
+# when a company claims neutrality while its inventory covers only CO2 or does
+# not say which gases it covers. The paper's results text describes it loosely
+# as failing "to comprehensively address all emission scopes"; the Methods
+# section is explicit that it concerns GHG coverage.
 RED_FLAGS: dict[str, float] = {
     "no_scope3_coverage": 0.70,
     "questionable_offsets": 0.40,
     "no_interim_targets": 0.21,
     "off_track_vs_target": 0.20,
     "no_implementation_plan": 0.18,
-    "scope_disconnect": 0.11,
+    "incomplete_ghg_coverage": 0.11,
     "misaligned_lobbying": 0.10,
 }
