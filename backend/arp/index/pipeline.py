@@ -4,6 +4,7 @@ from math import fsum
 
 from arp.index.calc import divisor_for_level, index_shares, market_cap, one_way_turnover
 from arp.index.capping import apply_constraints
+from arp.index.optimize import uses_integers
 from arp.index.fields import metric_value
 from arp.index.risk import RiskModel
 from arp.index.screens import apply_screens
@@ -130,6 +131,16 @@ def run_review(
         trajectory_iterations = int(trajectory_trace.detail.get("iterations", 0) or 0)
 
     weights = {k: round(v, spec.rounding.weight_decimals) for k, v in sorted(weights.items())}
+    # A weight that rounds to zero at the published precision is not a
+    # holding. The integer path makes this routine -- every name the solver
+    # declines to hold comes back at exactly zero -- but it is the right rule
+    # for every path: publishing a constituent at 0.000000% with zero index
+    # shares is a list of names, not an index.
+    dropped = [k for k, v in weights.items() if v <= 0.0]
+    if dropped:
+        weights = {k: v for k, v in weights.items() if v > 0.0}
+        if not weights:
+            raise ValueError("every constituent was left at zero weight")
 
     previous_level = prior_state.index_level if prior_state and prior_state.index_level else spec.calendar.base_level
     previous_divisor = prior_state.divisor if prior_state and prior_state.divisor else None
@@ -216,6 +227,7 @@ def run_review(
         # covariance directly. Reading it off the constraint stage would
         # report a number the trajectory has since moved.
         tracking_error=round(risk_model.tracking_error(weights, benchmark_weights), 8) if risk_model is not None else None,
+        integer_constraints=uses_integers(spec.constraints),
         trajectory_iterations=trajectory_iterations,
     )
 

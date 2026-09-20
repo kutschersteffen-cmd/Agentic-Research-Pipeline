@@ -373,6 +373,41 @@ class ConstraintSolver(BaseModel):
         default=None, description="method='max_score' only: the numeric field whose index-weighted value is maximised."
     )
     risk_model: RiskModelSpec = Field(default_factory=RiskModelSpec)
+    enforce_semicontinuous: bool = Field(
+        default=False,
+        description=(
+            "Treat min_weight as the disjunction it really is -- a name is held at or above it, or not at all -- "
+            "instead of pruning the smallest names. Needs integer variables."
+        ),
+    )
+    mip_solver: Literal["SCIP", "HIGHS", "GUROBI", "MOSEK", "CPLEX"] = Field(
+        default="SCIP",
+        description="Backend for the integer problem. SCIP is the free one; the rest need a commercial licence. Pinned per calibration.",
+    )
+    mip_gap: float = Field(
+        default=0.0,
+        ge=0.0,
+        description=(
+            "Optimality gap the integer solve must close. Left at 0 deliberately: any positive gap means the solver may "
+            "return any incumbent within it, and which one it returns varies by version and machine."
+        ),
+    )
+    mip_time_limit_seconds: float | None = Field(
+        default=120.0,
+        gt=0.0,
+        description=(
+            "Wall-clock ceiling on the integer solve. A truncated solve raises rather than returning its incumbent, so "
+            "a slow machine produces a recorded failure instead of a different index."
+        ),
+    )
+    tie_break_epsilon: float = Field(
+        default=1e-8,
+        ge=0.0,
+        description=(
+            "Integer problems routinely have several holdings that score identically, and which one a solver returns is "
+            "arbitrary. A vanishing penalty on a fixed name ordering makes the choice a rule instead. Set 0 to disable."
+        ),
+    )
     min_risk_coverage: float = Field(
         default=0.98,
         ge=0.0,
@@ -410,7 +445,22 @@ class ConstraintSet(BaseModel):
     single_name_cap: float | None = Field(default=None, gt=0.0, le=1.0)
     group_caps: list[GroupCap] = Field(default_factory=list)
     ucits_5_10_40: bool = Field(default=False, description="No issuer above 10%, and issuers above 5% summing to at most 40%.")
-    min_weight: float | None = Field(default=None, ge=0.0, lt=1.0, description="Constituents below this are dropped and their weight redistributed.")
+    min_weight: float | None = Field(
+        default=None,
+        ge=0.0,
+        lt=1.0,
+        description=(
+            "Minimum weight for a held constituent. By default this is a prune-and-redistribute heuristic: names below "
+            "the threshold are dropped. Set solver.enforce_semicontinuous to make it the real constraint "
+            "(w = 0 or w >= min_weight), which needs integer variables."
+        ),
+    )
+    max_constituents: int | None = Field(
+        default=None, gt=0, description="Cardinality ceiling. Needs integer variables -- see solver.mip_solver."
+    )
+    min_constituents: int | None = Field(
+        default=None, gt=0, description="Cardinality floor, e.g. a diversification commitment. Needs integer variables."
+    )
     max_iterations: int = Field(default=200, gt=0)
     solver: ConstraintSolver = Field(default_factory=ConstraintSolver)
 
@@ -600,6 +650,7 @@ class ReviewDiagnostics(BaseModel):
     tracking_error: float | None = Field(
         default=None, description="Annualised ex-ante tracking error versus the benchmark, when a risk model was supplied."
     )
+    integer_constraints: bool = Field(default=False, description="Whether the weighting step used a mixed-integer programme.")
 
 
 class ReviewResult(BaseModel):

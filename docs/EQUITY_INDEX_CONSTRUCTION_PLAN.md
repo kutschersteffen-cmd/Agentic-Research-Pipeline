@@ -6,13 +6,14 @@ store described in sections 6, 7 and 15 now exist: `backend/arp/index/`
 path-dependent trajectory, index shares and divisor), `backend/arp/storage/index_store.py`
 (versioned, effective-dated calibrations), `backend/arp/api/routers/index.py`,
 `arp index --help`, and a rule-composer UI on the `Index Construction` tab.
-An optional convex path (`arp/index/optimize.py` and `risk.py`, the
-`optimize` extra) implements Stages 1 and 2 of
+An optional optimisation path (`arp/index/optimize.py` and `risk.py`, the
+`optimize` extra) implements all three stages of
 [`OPTIMIZATION_TOOLING.md`](OPTIMIZATION_TOOLING.md) section 9 — a
 least-squares projection, minimum tracking error, and score maximisation
-under a tracking-error budget, on an estimated or supplied risk model —
-chosen per calibration, with the deterministic waterfall as both the default
-and the fallback.
+under a tracking-error budget on an estimated or supplied risk model, plus
+cardinality limits and an enforced minimum weight as a mixed-integer
+programme on SCIP — chosen per calibration, with the deterministic waterfall
+as both the default and the fallback.
 Phases 1, 3, 5, 6 and 7 are not built: no bitemporal store, no vendor feeds,
 no corporate actions, no FX or withholding tax, no total-return variants, no
 backtester, no governance workflow, and no file distribution. The rest of
@@ -341,7 +342,10 @@ carries four amendments to this section: an index **state store** for
 path-dependent methodologies, the optimiser's **relaxation ladder as versioned
 config** rather than error handling, mandatory **floors and ceilings on tilt
 multipliers**, and a declared fallback for **absolute-threshold screens that can
-empty a sector**.
+empty a sector**. Its §7.4 note that `min_weight` is only a heuristic for
+the semi-continuous constraint is now resolved: the real constraint is
+available via `solver.enforce_semicontinuous`, and it gives a materially
+different index.
 
 ### 7.1 Deterministic capping first
 

@@ -211,6 +211,16 @@ def _optimizer_available() -> bool:
     return available()
 
 
+def _mip_available() -> bool:
+    """Whether a mixed-integer backend is actually installed, so the UI can
+    say so before a calibration is written that would silently fall back."""
+    if not _optimizer_available():
+        return False
+    import cvxpy
+
+    return bool({"SCIP", "GUROBI", "MOSEK", "CPLEX", "HIGHS"} & set(cvxpy.installed_solvers()))
+
+
 def rule_catalogue() -> dict:
     """Machine-readable description of every rule type, its parameters and
     defaults -- the single source the UI builds its pickers from, so a new
@@ -323,7 +333,9 @@ def rule_catalogue() -> dict:
             {"name": "single_name_cap", "kind": "fraction", "help": "Maximum weight per issuer, applied by the deterministic waterfall."},
             {"name": "group_caps", "kind": "group_cap_list", "help": "Maximum aggregate weight per sector / country / any categorical dimension."},
             {"name": "ucits_5_10_40", "kind": "boolean", "help": "No issuer above 10%, and issuers above 5% summing to at most 40%."},
-            {"name": "min_weight", "kind": "fraction", "help": "Constituents below this are dropped and their weight redistributed."},
+            {"name": "min_weight", "kind": "fraction", "help": "Minimum weight for a held constituent. A prune-and-redistribute heuristic unless solver.enforce_semicontinuous makes it the real disjunction."},
+            {"name": "max_constituents", "kind": "integer", "help": "Cardinality ceiling. Needs integer variables. A ceiling is not a target: a linear objective concentrates into fewer names, so pin min_constituents to the same number for a fixed-size index."},
+            {"name": "min_constituents", "kind": "integer", "help": "Cardinality floor. Needs integer variables."},
         ],
         "constraint_solver": {
             "help": (
@@ -346,6 +358,11 @@ def rule_catalogue() -> dict:
                 },
                 {"name": "score_field", "kind": "metric_field", "default": None, "help": "method='max_score' only: the field whose index-weighted value is maximised."},
                 {"name": "min_risk_coverage", "kind": "fraction", "default": 0.98, "help": "Minimum share of index weight the risk model must cover before a budget is trusted."},
+                {"name": "enforce_semicontinuous", "kind": "boolean", "default": False, "help": "Treat min_weight as 'held at or above the floor, or not at all' instead of pruning the smallest names. Needs integer variables."},
+                {"name": "mip_solver", "kind": "enum", "options": ["SCIP", "HIGHS", "GUROBI", "MOSEK", "CPLEX"], "default": "SCIP", "help": "Backend for the integer problem. SCIP is the free one."},
+                {"name": "mip_gap", "kind": "number", "default": 0.0, "help": "Left at 0 deliberately: any positive gap lets the solver return any incumbent within it, and which one varies by version and machine."},
+                {"name": "mip_time_limit_seconds", "kind": "number", "default": 120.0, "help": "A truncated solve is recorded as a failure rather than published, so a slow machine cannot produce a different index."},
+                {"name": "tie_break_epsilon", "kind": "number", "default": 1e-8, "help": "A vanishing penalty on a fixed name ordering, so that equally-scoring holdings are chosen by a rule rather than arbitrarily."},
             ],
             "methods": [
                 {"name": "waterfall", "label": "Deterministic waterfall", "needs_solver": False, "needs_risk_model": False},
@@ -364,6 +381,7 @@ def rule_catalogue() -> dict:
                 ],
             },
             "available": _optimizer_available(),
+            "integer_available": _mip_available(),
         },
         "trajectory": {
             "help": "The path-dependent layer. Two reductions bind at once: the trajectory decays geometrically from a fixed base, the universe-relative floor moves with the investable universe. Whichever is tighter binds, and the engine records which.",

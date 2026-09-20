@@ -125,8 +125,12 @@ precision at scale (designed for up to ~4,000 companies per run).
    own "optimal" status is never taken as proof, and a failed solve or a
    failed check falls back to the waterfall with the reason recorded —
    including, when a budget is unreachable, the minimum tracking error that
-   actually is. Still not built: the mixed-integer constraints (minimum
-   weight *if held*, a fixed constituent count). What
+   actually is. **Cardinality limits and a genuinely enforced minimum
+   weight** — `w = 0 or w >= m`, the disjunction a prune heuristic only
+   approximates — run as a mixed-integer programme on SCIP, needing no
+   commercial licence; a solve that cannot prove optimality within its time
+   limit is recorded as a failure rather than published, because a slower
+   machine must not produce a different index. What
    is *not* built yet: the bitemporal point-in-time store, real vendor
    feeds, corporate actions, FX and withholding tax, total-return variants,
    the backtester, and the governance workflow — see the plan for the full
@@ -342,6 +346,8 @@ arp index preview --preset eu_pab --review-date 2026-03-31 --solver-method least
 arp index preview --preset eu_pab --review-date 2026-03-31 --solver-method min_tracking_error
 arp index preview --preset eu_pab --review-date 2026-03-31 --solver-method max_score \
     --score-field esg_score --tracking-error-budget 0.05
+arp index preview --preset eu_pab --review-date 2026-03-31 --solver-method least_squares \
+    --max-constituents 20                                  # mixed-integer: exactly 20 names
 ```
 
 Every `arp index` command runs against a built-in, deterministic demo

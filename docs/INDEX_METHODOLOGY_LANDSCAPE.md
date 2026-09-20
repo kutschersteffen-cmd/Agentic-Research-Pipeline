@@ -11,6 +11,11 @@ C4's constraint vocabulary, as an opt-in path (`arp/index/optimize.py` and
 model itself -- ships as three estimators rather than a licensed factor
 model, with `supplied_factor_model()` as the slot a vendor file drops into.
 
+The mixed-integer constraints this document flags as the one thing that
+"buys a commercial solver" are built too, and did **not** need one: SCIP
+handles them, so cardinality limits and a genuinely enforced minimum weight
+are available without a licence.
+
 The **default path still deploys no solver at all**, and meets the
 decarbonisation target by *exponential (entropy) tilting*: `w_i ∝ w_i^base · exp(-lambda · x_i)` is the analytic
 minimum-relative-entropy reweighting subject to a linear constraint on the
@@ -396,6 +401,8 @@ cost in our architecture, and it is the point of the exercise.
 | B6 | **Bucket multiplier table** | Fixed over/underweight per rating bucket, from config | Common in custom mandates | Trivial — and the most auditable of all |
 | B7 | **Issuer capping** | Hard cap per issuer post-tilt (e.g. 5%) | MSCI thematic | Low — the waterfall already in the plan |
 | B8 | **Regulatory capping** | UCITS 5/10/40 as a second pass | UCITS-backing indices | Low–medium; interacts with B7 |
+| B12 | **Minimum weight if held** | `w = 0 or w >= m` -- a disjunction, not a bound | Widespread as a published commitment | **Integer.** Built via SCIP; the prune heuristic it replaces gives a materially different index (21 vs 33 names on our demo universe) |
+| B13 | **Cardinality limit** | `sum z <= N`, with `z` a binary per name | Fixed-size indices | **Integer.** Built. A ceiling is not a target -- pin both bounds for a fixed count |
 | B9 | **Equal weight / tiered weight** | Ignore market cap entirely, or in bands | Widespread in thematic | Trivial |
 | B10 | **Iterative step heuristic** | Shift weight in fixed increments until a constraint is met | Solactive (0.25% steps) | Low — deterministic by construction |
 | B11 | **Inverse-intensity weighting** | Weight ∝ market cap / carbon intensity | Low-carbon families | Trivial; degenerate for near-zero intensities, needs a floor |

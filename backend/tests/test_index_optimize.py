@@ -538,3 +538,192 @@ def test_a_budget_that_conflicts_with_the_trajectory_keeps_the_budget():
     assert result.diagnostics.tracking_error <= 0.005 * (1 + 1e-3) or result.exceptions
     assert result.state.shortfall_carry > 0
     assert any("not reached" in e or "did not produce a usable solution" in e for e in result.exceptions)
+
+
+# ====================================================== stage 3: integers
+
+scip = pytest.importorskip("pyscipopt", reason="the integer path needs a MIP backend (SCIP)")
+
+
+def _integer_spec(**constraint_kwargs):
+    spec = build_preset("exclusion_only")
+    spec.constraints.solver.method = "least_squares"
+    for key, value in constraint_kwargs.items():
+        if hasattr(spec.constraints, key):
+            setattr(spec.constraints, key, value)
+        else:
+            setattr(spec.constraints.solver, key, value)
+    return spec
+
+
+def _held(result):
+    return [c for c in result.constituents if c.weight > 0]
+
+
+def test_cardinality_is_exact_not_approximate():
+    universe = demo_universe()
+    for limit in (15, 25):
+        result = run_review(_integer_spec(max_constituents=limit), universe, index_id="x", review_date="2026-03-31")
+        assert len(_held(result)) == limit
+        assert fsum(c.weight for c in result.constituents) == pytest.approx(1.0, abs=1e-6)
+        assert result.diagnostics.integer_constraints is True
+
+
+def test_unheld_names_are_not_published_as_constituents():
+    """A solver declines a name by setting its weight to exactly zero. An
+    index that lists it at 0.000000% with zero index shares is a list of
+    names, not an index."""
+    universe = demo_universe()
+    result = run_review(_integer_spec(max_constituents=20), universe, index_id="x", review_date="2026-03-31")
+    assert len(result.constituents) == 20
+    assert all(c.weight > 0 and c.index_shares > 0 for c in result.constituents)
+
+
+def test_a_minimum_weight_floor_lifts_names_rather_than_dropping_them():
+    """The whole point of stage 3. The prune heuristic answers "which small
+    names do we drop"; the semi-continuous constraint answers the real
+    question, "hold this name at the floor or not at all" -- and gives a
+    materially different index."""
+    universe = demo_universe()
+    heuristic = run_review(_integer_spec(min_weight=0.02), universe, index_id="x", review_date="2026-03-31")
+    enforced = run_review(
+        _integer_spec(min_weight=0.02, enforce_semicontinuous=True), universe, index_id="x", review_date="2026-03-31"
+    )
+
+    assert min(c.weight for c in _held(enforced)) >= 0.02 - 1e-9
+    assert min(c.weight for c in _held(heuristic)) >= 0.02 - 1e-9
+    # The constraint keeps names the heuristic throws away.
+    assert len(_held(enforced)) > len(_held(heuristic))
+    assert any("dropped" in e for e in heuristic.exceptions)
+    assert enforced.exceptions == []
+
+
+def test_a_cardinality_floor_holds_too():
+    universe = demo_universe()
+    result = run_review(
+        _integer_spec(min_constituents=40, min_weight=0.01, enforce_semicontinuous=True),
+        universe,
+        index_id="x",
+        review_date="2026-03-31",
+    )
+    assert len(_held(result)) >= 40
+    assert min(c.weight for c in _held(result)) >= 0.01 - 1e-9
+
+
+def test_arithmetically_impossible_limits_are_caught_before_a_solver_runs():
+    """`max_constituents x cap < 1` cannot hold whatever the solver does.
+    Saying so in a sentence beats an `infeasible` status ten seconds later."""
+    universe = demo_universe()
+    spec = _integer_spec(max_constituents=10)
+    spec.constraints.single_name_cap = 0.05
+    result = run_review(spec, universe, index_id="x", review_date="2026-03-31")
+    assert any("can hold only" in e for e in result.exceptions)
+
+
+def test_contradictory_cardinality_bounds_are_named():
+    from arp.index.optimize import integer_feasibility
+    from arp.schemas.index import ConstraintSet
+
+    blocker = integer_feasibility(ConstraintSet(min_constituents=30, max_constituents=10), universe_size=100)
+    assert blocker is not None and "exceeds max_constituents" in blocker
+
+
+def test_a_floor_that_cannot_fit_the_minimum_count_is_named():
+    from arp.index.optimize import integer_feasibility
+    from arp.schemas.index import ConstraintSet
+
+    blocker = integer_feasibility(ConstraintSet(min_constituents=60, min_weight=0.02), universe_size=100)
+    assert blocker is not None and "would need" in blocker
+
+
+def test_the_waterfall_refuses_integer_constraints_rather_than_ignoring_them():
+    from arp.schemas.index import ConstraintSet
+
+    universe = demo_universe(20)
+    with pytest.raises(ValueError, match="integer variables"):
+        apply_constraints(_base(universe), universe, ConstraintSet(max_constituents=10))
+
+
+def test_integer_solves_repeat_identically():
+    """Branch-and-bound has no unique-optimum guarantee, so the tie-break on a
+    fixed name ordering is doing real work here."""
+    universe = demo_universe()
+    spec = _integer_spec(max_constituents=20)
+    first = run_review(spec, universe, index_id="x", review_date="2026-03-31")
+    for _ in range(3):
+        again = run_review(spec, universe, index_id="x", review_date="2026-03-31")
+        assert [(c.company_id, c.weight) for c in again.constituents] == [
+            (c.company_id, c.weight) for c in first.constituents
+        ]
+
+
+def test_cardinality_composes_with_a_tracking_error_budget():
+    """A mixed-integer second-order cone problem -- the hardest shape the
+    engine produces."""
+    from arp.index.mock_data import demo_risk_model
+
+    universe = demo_universe()
+    model = demo_risk_model(universe)
+    spec = _integer_spec(max_constituents=20, tracking_error_budget=0.06)
+    result = run_review(spec, universe, index_id="x", review_date="2026-03-31", risk_model=model)
+    assert result.exceptions == []
+    assert len(_held(result)) == 20
+    assert result.diagnostics.tracking_error <= 0.06 * (1 + 1e-4)
+
+
+def test_cardinality_composes_with_score_maximisation():
+    from arp.index.mock_data import demo_risk_model
+
+    universe = demo_universe()
+    model = demo_risk_model(universe)
+    spec = _integer_spec(max_constituents=20, tracking_error_budget=0.08)
+    spec.constraints.solver.method = "max_score"
+    spec.constraints.solver.score_field = "esg_score"
+    result = run_review(spec, universe, index_id="x", review_date="2026-03-31", risk_model=model)
+    assert result.exceptions == []
+    assert len(_held(result)) <= 20
+    assert result.diagnostics.weighted_metrics["esg_score"] > result.diagnostics.universe_weighted_metrics["esg_score"]
+
+
+def test_a_cardinality_ceiling_is_not_a_target():
+    """Easy to misread. A linear objective concentrates into the fewest names
+    the caps allow, so `max_constituents` alone does not give a fixed-size
+    index -- a quadratic objective happens to fill the ceiling, a linear one
+    does not. Pin both bounds to the same number to fix the count."""
+    from arp.index.mock_data import demo_risk_model
+
+    universe = demo_universe()
+    model = demo_risk_model(universe)
+
+    scoring = _integer_spec(max_constituents=20, tracking_error_budget=0.08)
+    scoring.constraints.solver.method = "max_score"
+    scoring.constraints.solver.score_field = "esg_score"
+    concentrated = run_review(scoring, universe, index_id="x", review_date="2026-03-31", risk_model=model)
+    assert len(_held(concentrated)) < 20
+
+    exact = _integer_spec(min_constituents=20, max_constituents=20)
+    fixed = run_review(exact, universe, index_id="x", review_date="2026-03-31")
+    assert len(_held(fixed)) == 20
+
+
+def test_a_truncated_integer_solve_is_a_failure_not_an_answer():
+    """A time-limited branch-and-bound returns whatever incumbent it had when
+    the clock ran out, which depends on how fast the machine is. Only a proven
+    optimum is reproducible, so a truncation must fall back rather than
+    publish."""
+    universe = demo_universe()
+    spec = _integer_spec(max_constituents=20, mip_time_limit_seconds=0.001)
+    result = run_review(spec, universe, index_id="x", review_date="2026-03-31")
+    assert any("did not produce a usable solution" in e for e in result.exceptions)
+
+
+def test_integer_verification_is_independent_of_the_solver(monkeypatch):
+    """The floor is re-checked on the returned weights, because a solver can
+    satisfy its linking constraints to its own tolerance and still leave a
+    name below the published floor."""
+    from arp.index.optimize import IntegerSpec, _verify_integer
+
+    spec = IntegerSpec(min_weight=0.02, max_constituents=3, min_constituents=None, tie_break_epsilon=0.0)
+    violations = _verify_integer({"a": 0.5, "b": 0.49, "c": 0.005, "d": 0.005}, spec, 1e-9)
+    assert any("below the" in v for v in violations)
+    assert any("exceeds the maximum" in v for v in violations)

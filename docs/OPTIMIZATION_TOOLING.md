@@ -1,15 +1,16 @@
 # Optimization Tooling — What Exists, and What This Engine Would Actually Use
 
-Status: **survey, recommendation, and §9 Stages 1 and 2 are now built.** The
-index engine carries an optional convex path
+Status: **survey, recommendation, and all three stages of §9 are now
+built.** The index engine carries an optional optimisation path
 (`backend/arp/index/optimize.py` and `risk.py`, the `optimize` extra)
-selected per calibration via `ConstraintSet.solver.method`: a least-squares
+selected per calibration via `ConstraintSet.solver`: a least-squares
 projection, a minimum-tracking-error objective, and score maximisation under
-a tracking-error budget, with three risk-model estimators and a slot for a
-supplied vendor factor model. The deterministic waterfall remains the
-default and the fallback. Stage 3 — integer variables — is not built. The
-rest of this document is what to reach for if a methodology needs more than
-that, and — more usefully — how to tell whether it does.
+a tracking-error budget; three risk-model estimators plus a slot for a
+supplied vendor factor model; and a mixed-integer path for cardinality
+limits and an enforced minimum weight, on SCIP. The deterministic waterfall
+remains the default and the fallback throughout. The rest of this document
+is the reasoning behind that shape, and — more usefully — how to tell which
+part a methodology actually needs.
 
 The short version: the question is not "which optimiser is best". It is
 **"which problem class does the methodology generate?"** That answer picks
@@ -104,7 +105,7 @@ later without touching the calling code.
 | **SCS** | Conic (LP/QP/SOCP/SDP) | ADMM | MIT | Same accuracy caveat as OSQP. |
 | **HiGHS** | LP, MIP, **convex QP** | Simplex / IPM / branch-and-cut | MIT | Excellent LP and MILP. **No native MIQP** — so it does not solve the cardinality case directly. |
 | **PIQP / ProxQP / DAQP / qpOASES / quadprog** | QP | Proximal IPM, augmented Lagrangian, active set | Mostly BSD/LGPL | Specialist QP solvers; reachable through qpsolvers and mostly through cvxpy. Worth benchmarking rather than assuming. |
-| **SCIP** | MILP, **MINLP**, MIQP | Branch-cut-and-price | Apache-2.0 (since 9.0; 10.0 confirms) | **The only credible free MIQP route.** The licence change matters: it used to be academic-only, which is why older advice says MIQP requires paying. Slower than Gurobi, often by a lot, but it is genuinely usable now. |
+| **SCIP** | MILP, **MINLP**, MIQP, MISOCP | Branch-cut-and-price | Apache-2.0 (since 9.0; 10.0 confirms) | **The only credible free MIQP route, and it is genuinely usable** — now the backend of this engine's stage-3 path. Measured here: MIQP with a 25-name cardinality limit on 60 names in 0.3s, and MISOCP (cardinality plus a tracking-error budget) in 1.75s. The licence change matters: it used to be academic-only, which is why older advice says MIQP requires paying. |
 | **CBC / GLPK** | LP, MILP | Branch-and-cut / simplex | EPL / GPL | Older; HiGHS supersedes both for new work. |
 | **Ipopt** | NLP | Interior point | EPL | For genuinely non-convex objectives. Local optima only — a poor fit for a methodology that must be defensible. |
 | **NVIDIA cuOpt** | LP, QP; beta MIP, QCQP, SOCP | GPU | Apache-2.0 | Newly open-sourced and GPU-accelerated. Interesting for very large problems; at 4,000 names we are nowhere near needing it, and beta status plus GPU non-determinism are both disqualifying for a published index today. |
@@ -292,12 +293,50 @@ Tolerance note carried over from Stage 1: Clarabel at 1e-12 returns
 improving the answer. 1e-10 — still two orders tighter than default — is
 the setting.
 
-**Stage 3 — semi-continuous or cardinality constraints (only if needed).**
-This is the MIQP step and the only one that needs a commercial solver, with
-SCIP as the free fallback now that it is Apache-2.0. **Do not take this
-stage speculatively.** Take it when a methodology commits to a minimum
-weight if held or a fixed constituent count — and note that this engine's
-`min_weight` heuristic is the thing that becomes insufficient at that point.
+**Stage 3 — semi-continuous and cardinality constraints. ✅ Built, on SCIP.**
+No commercial licence was needed: SCIP handles MIQP, and MISOCP (a
+cardinality limit alongside a tracking-error budget) in under a second on a
+60-name universe. `ConstraintSet.max_constituents` / `min_constituents` and
+`solver.enforce_semicontinuous` activate it; `mip_solver` can be pointed at
+Gurobi, MOSEK, CPLEX or HiGHS for a harder problem.
+
+**The finding that justifies the stage.** On the demo universe, a 2%
+minimum weight gives two materially different indices depending on how it
+is read:
+
+| Reading | Result |
+|---|---|
+| Prune heuristic — drop names below the floor | **21 constituents** |
+| Semi-continuous constraint — hold at the floor, or not at all | **33 constituents** |
+
+The heuristic answers "which small names do we drop". The constraint
+answers the question the floor actually asks, and keeps 12 names the
+heuristic throws away by lifting them to the floor. Anywhere a minimum
+weight is a published commitment, those are not interchangeable.
+
+**A ceiling is not a target.** `max_constituents` alone does not give a
+fixed-size index: a quadratic objective fills the ceiling, but a linear one
+(score maximisation) concentrates into the fewest names the caps allow —
+10 of an allowed 20, at a 10% cap. Pin both bounds to the same number for a
+fixed count. There is a test named after this.
+
+**Reproducibility is weakest here, and the controls are partial.**
+Branch-and-bound has no unique-optimum guarantee the way a strictly convex
+problem does, so three things are enforced rather than hoped for: the gap
+defaults to 0 (any positive gap lets the solver return whichever incumbent
+it found inside it), a solve that hits the time limit is recorded as a
+*failure* rather than published (SCIP raises rather than returning its
+incumbent, which is the behaviour you want — a slower machine produces a
+recorded failure, not a different index), and a vanishing penalty along a
+fixed name ordering turns an arbitrary choice among equal-scoring holdings
+into a rule. Repeat solves are byte-identical in-process; across solver
+versions they are not guaranteed, and that is a real step down from the
+convex path.
+
+**Infeasibility is arithmetic before it is a solve.** `max_constituents ×
+cap < 1` cannot hold whatever the solver does, and nor can `min_constituents
+× min_weight > 1`. Both are caught in microseconds with a sentence naming
+the fix, rather than after a branch-and-bound returns `infeasible`.
 
 **The seam already exists.** `apply_constraints(weights, candidates,
 constraints)` is a pure function from weights to weights, and the trajectory

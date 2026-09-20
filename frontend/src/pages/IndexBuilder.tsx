@@ -47,7 +47,14 @@ const EMPTY_SPEC: ConstructionSpec = {
       score_field: null,
       min_risk_coverage: 0.98,
       risk_model: { source: "ledoit_wolf", lookback_periods: 260, min_observations: 60, periods_per_year: 252, factor_fields: [] },
+      enforce_semicontinuous: false,
+      mip_solver: "SCIP",
+      mip_gap: 0,
+      mip_time_limit_seconds: 120,
+      tie_break_epsilon: 1e-8,
     },
+    max_constituents: null,
+    min_constituents: null,
   },
   trajectory: {
     enabled: false,
@@ -298,7 +305,7 @@ export function IndexBuilder() {
           <SelectionCard spec={spec} setSpec={setSpec} fields={fields} />
           <WeightingCard spec={spec} setSpec={setSpec} fields={fields} />
           <TiltsCard spec={spec} setSpec={setSpec} fields={fields} />
-          <ConstraintsCard spec={spec} setSpec={setSpec} fields={fields} optimizerAvailable={catalogue?.constraint_solver?.available ?? null} />
+          <ConstraintsCard spec={spec} setSpec={setSpec} fields={fields} optimizerAvailable={catalogue?.constraint_solver?.available ?? null} integerAvailable={catalogue?.constraint_solver?.integer_available ?? null} />
           <TrajectoryCard spec={spec} setSpec={setSpec} fields={fields} />
 
           <div className="card">
@@ -713,15 +720,18 @@ function ConstraintsCard({
   setSpec,
   fields,
   optimizerAvailable,
+  integerAvailable,
 }: {
   spec: ConstructionSpec;
   setSpec: (s: ConstructionSpec) => void;
   fields: IndexCatalogue["fields"];
   optimizerAvailable: boolean | null;
+  integerAvailable: boolean | null;
 }) {
   const c = spec.constraints;
   const solver = c.solver ?? EMPTY_SPEC.constraints.solver;
   const needsRiskModel = solver.method === "min_tracking_error" || solver.method === "max_score" || solver.tracking_error_budget != null;
+  const usesIntegers = Boolean(c.max_constituents || c.min_constituents || (solver.enforce_semicontinuous && c.min_weight));
   function update(patch: Partial<ConstructionSpec["constraints"]>) {
     setSpec({ ...spec, constraints: { ...c, ...patch } });
   }
@@ -739,6 +749,33 @@ function ConstraintsCard({
         <NumberField label="Single-name cap (0-1)" value={c.single_name_cap} onChange={(single_name_cap) => update({ single_name_cap })} step="0.01" placeholder="none" />
         <NumberField label="Minimum weight (0-1)" value={c.min_weight} onChange={(min_weight) => update({ min_weight })} step="0.001" placeholder="none" />
       </div>
+      {c.min_weight ? (
+        <>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={solver.enforce_semicontinuous}
+              onChange={(e) => setSolver({ enforce_semicontinuous: e.target.checked })}
+            />
+            Enforce the floor properly — hold at or above it, or not at all
+          </label>
+          <p className="muted">
+            {solver.enforce_semicontinuous
+              ? "The real constraint. Small names are lifted to the floor rather than dropped, which needs integer variables and gives a materially different index."
+              : "Currently a prune-and-redistribute heuristic: names below the floor are dropped. That answers a different question from the one the floor asks."}
+          </p>
+        </>
+      ) : null}
+      <div className="inline-fields">
+        <NumberField label="Max constituents" value={c.max_constituents} onChange={(max_constituents) => update({ max_constituents })} step="1" placeholder="none" />
+        <NumberField label="Min constituents" value={c.min_constituents} onChange={(min_constituents) => update({ min_constituents })} step="1" placeholder="none" />
+      </div>
+      {(c.max_constituents || c.min_constituents) && (
+        <p className="muted">
+          A ceiling is not a target: a linear objective concentrates into the fewest names the caps allow. Pin both
+          bounds to the same number for a fixed-size index.
+        </p>
+      )}
       <label className="checkbox-label">
         <input type="checkbox" checked={c.ucits_5_10_40} onChange={(e) => update({ ucits_5_10_40: e.target.checked })} />
         UCITS 5/10/40 — no issuer above 10%, and issuers above 5% summing to at most 40%
@@ -768,6 +805,12 @@ function ConstraintsCard({
         + Group cap
       </button>
 
+      {usesIntegers && solver.method === "waterfall" && (
+        <p className="error-text">
+          Cardinality limits and an enforced floor need integer variables, which the waterfall cannot express. Pick a
+          solver-backed objective below, or drop the constraint.
+        </p>
+      )}
       <h4>How the constraints are satisfied</h4>
       <p className="help-text">
         The <strong>waterfall</strong> needs nothing installed and is byte-identical everywhere, but applies the
@@ -827,6 +870,46 @@ function ConstraintsCard({
             A solver swap can move the last digits, so it is stored with the calibration and changes its config hash —
             the same treatment any other methodology parameter gets.
           </p>
+
+          {usesIntegers && (
+            <>
+              <h4>
+                Mixed-integer solve <span className="badge badge-neutral">cardinality / floor</span>
+              </h4>
+              <p className="help-text">
+                Cardinality limits and an enforced minimum weight are disjunctions, not bounds, so they need a binary per
+                name. Reproducibility is weaker here than anywhere else in the engine: branch-and-bound has no
+                unique-optimum guarantee, so the result is pinned by requiring a proven optimum, a zero gap, and a
+                tie-break on a fixed name ordering. A solve that hits the time limit is recorded as a failure rather than
+                published — otherwise a slower machine would produce a different index.
+              </p>
+              {integerAvailable === false && (
+                <p className="error-text">
+                  No mixed-integer backend is installed on the server, so this calibration will fall back to the
+                  deterministic waterfall. Install one with <code>pip install pyscipopt</code>.
+                </p>
+              )}
+              <div className="inline-fields">
+                <SelectField
+                  label="MIP solver (pinned)"
+                  value={solver.mip_solver}
+                  options={["SCIP", "HIGHS", "GUROBI", "MOSEK", "CPLEX"]}
+                  onChange={(name) => setSolver({ mip_solver: name as ConstraintSolver["mip_solver"] })}
+                />
+                <NumberField label="Optimality gap" value={solver.mip_gap} step="0.0001" onChange={(v) => setSolver({ mip_gap: v ?? 0 })} />
+                <NumberField
+                  label="Time limit (s)"
+                  value={solver.mip_time_limit_seconds}
+                  step="10"
+                  onChange={(v) => setSolver({ mip_time_limit_seconds: v })}
+                />
+              </div>
+              <p className="muted">
+                Leave the gap at 0. Any positive value lets the solver return whichever incumbent it found inside it, and
+                which one that is varies by solver version and machine.
+              </p>
+            </>
+          )}
 
           <h4>Tracking error</h4>
           <p className="help-text">

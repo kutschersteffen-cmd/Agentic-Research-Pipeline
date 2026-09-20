@@ -999,6 +999,11 @@ export interface ConstraintSolver {
   score_field?: string | null;
   min_risk_coverage: number;
   risk_model: RiskModelSpec;
+  enforce_semicontinuous: boolean;
+  mip_solver: "SCIP" | "HIGHS" | "GUROBI" | "MOSEK" | "CPLEX";
+  mip_gap: number;
+  mip_time_limit_seconds?: number | null;
+  tie_break_epsilon: number;
 }
 
 export interface ConstraintSet {
@@ -1006,6 +1011,8 @@ export interface ConstraintSet {
   group_caps: GroupCap[];
   ucits_5_10_40: boolean;
   min_weight?: number | null;
+  max_constituents?: number | null;
+  min_constituents?: number | null;
   max_iterations?: number;
   solver: ConstraintSolver;
 }
@@ -1099,6 +1106,7 @@ export interface ReviewDiagnostics {
   capping_iterations: number;
   trajectory_iterations: number;
   tracking_error?: number | null;
+  integer_constraints?: boolean;
 }
 
 export interface IndexReviewResult {
@@ -1147,6 +1155,7 @@ export interface IndexCatalogue {
     help: string;
     params: RuleParamSpec[];
     available: boolean;
+    integer_available: boolean;
     methods: { name: string; label: string; needs_solver: boolean; needs_risk_model: boolean }[];
     risk_model: { help: string; params: RuleParamSpec[] };
   };

@@ -54,6 +54,7 @@ from arp.schemas.index import ConstraintSet, IndexCandidate
 # Rounding at a fixed precision before the constraint check keeps the result
 # stable across BLAS builds, where a solver's last few digits are not.
 SOLUTION_DECIMALS = 9
+TOL = 1e-10
 _ROUND_TOL = 10.0 ** -SOLUTION_DECIMALS
 
 
@@ -72,6 +73,45 @@ class LinearConstraint:
     rhs: float = 0.0
 
 
+@dataclass(frozen=True)
+class IntegerSpec:
+    """The integer side of the problem, kept separate so the convex path
+    never pays for machinery it does not use."""
+
+    min_weight: float | None
+    max_constituents: int | None
+    min_constituents: int | None
+    tie_break_epsilon: float
+    gap: float = 0.0
+    time_limit_seconds: float | None = None
+
+
+def _mip_options(solver: str, integer: IntegerSpec) -> dict:
+    """Deterministic settings for the integer solve.
+
+    The gap and the time limit both exist to protect reproducibility rather
+    than speed: a non-zero gap lets the solver return any incumbent within
+    it, and a truncated solve returns whatever it had when the clock ran
+    out. Both are controlled by the calibration, and a truncated solve is
+    treated as a failure rather than an answer.
+    """
+    options: dict = {}
+    if solver == "SCIP":
+        params = {"limits/gap": integer.gap}
+        if integer.time_limit_seconds is not None:
+            params["limits/time"] = integer.time_limit_seconds
+        options["scip_params"] = params
+    elif solver == "GUROBI":
+        options["MIPGap"] = integer.gap
+        if integer.time_limit_seconds is not None:
+            options["TimeLimit"] = integer.time_limit_seconds
+    elif solver in ("HIGHS", "CPLEX", "MOSEK"):
+        options["mip_rel_gap"] = integer.gap
+        if integer.time_limit_seconds is not None:
+            options["time_limit"] = integer.time_limit_seconds
+    return options
+
+
 @dataclass
 class ProjectionResult:
     weights: dict[str, float] | None
@@ -82,6 +122,45 @@ class ProjectionResult:
     iterations: int = 0
     violations: list[str] = field(default_factory=list)
     tracking_error: float | None = None
+
+
+def uses_integers(constraints: ConstraintSet) -> bool:
+    """Whether this constraint set genuinely needs binary variables.
+
+    Only three things do, and all three are disjunctions rather than
+    bounds: a cardinality ceiling, a cardinality floor, and a minimum
+    weight that must hold *if* a name is held.
+    """
+    settings = constraints.solver
+    if constraints.max_constituents is not None or constraints.min_constituents is not None:
+        return True
+    return bool(settings.enforce_semicontinuous and constraints.min_weight)
+
+
+def integer_feasibility(constraints: ConstraintSet, universe_size: int) -> str | None:
+    """Arithmetic that makes the integer problem impossible before a solver
+    is ever asked. Reported as a sentence rather than discovered as an
+    `infeasible` status ten seconds later."""
+    cap = constraints.single_name_cap
+    floor = constraints.min_weight or 0.0
+    most = constraints.max_constituents
+    fewest = constraints.min_constituents
+
+    if most is not None and cap is not None and most * cap < 1.0 - TOL:
+        return (
+            f"at most {most} constituents capped at {cap:.2%} can hold only {most * cap:.2%} of the index; "
+            "raise the cap or the constituent limit"
+        )
+    if fewest is not None and floor and fewest * floor > 1.0 + TOL:
+        return (
+            f"at least {fewest} constituents at a {floor:.2%} floor would need {fewest * floor:.2%} of the index; "
+            "lower the floor or the minimum count"
+        )
+    if most is not None and fewest is not None and fewest > most:
+        return f"min_constituents ({fewest}) exceeds max_constituents ({most})"
+    if fewest is not None and fewest > universe_size:
+        return f"min_constituents ({fewest}) exceeds the {universe_size} eligible constituents"
+    return None
 
 
 def available() -> bool:
@@ -245,12 +324,28 @@ def _solve_once(
     benchmark: dict[str, float] | None = None,
     tracking_error_budget: float | None = None,
     score: np.ndarray | None = None,
+    integer: "IntegerSpec | None" = None,
 ) -> tuple[np.ndarray | None, str, float | None]:
     import cvxpy as cp
 
     index_of = {name: i for i, name in enumerate(names)}
     w = cp.Variable(len(names))
-    conditions = [cp.sum(w) == 1, w >= 0, w <= upper]
+    conditions = [cp.sum(w) == 1, w >= 0]
+
+    held = None
+    if integer is None:
+        conditions.append(w <= upper)
+    else:
+        # A binary per name, with the two linking constraints that turn a
+        # bound into a disjunction: held at or above the floor, or not held.
+        held = cp.Variable(len(names), boolean=True)
+        conditions.append(w <= cp.multiply(upper, held))
+        if integer.min_weight:
+            conditions.append(w >= cp.multiply(integer.min_weight, held))
+        if integer.max_constituents is not None:
+            conditions.append(cp.sum(held) <= integer.max_constituents)
+        if integer.min_constituents is not None:
+            conditions.append(cp.sum(held) >= integer.min_constituents)
     for _label, members, cap in group_rows:
         selector = np.zeros(len(names))
         for member in members:
@@ -275,21 +370,43 @@ def _solve_once(
     if objective == "min_tracking_error":
         if risk_expression is None:
             return None, "min_tracking_error needs a risk model and a benchmark", None
-        goal = cp.Minimize(cp.sum_squares(risk_expression))
+        expression = cp.sum_squares(risk_expression)
+        maximising = False
     elif objective == "max_score":
         if score is None:
             return None, "max_score needs a score vector", None
-        goal = cp.Maximize(score @ w)
+        expression = score @ w
+        maximising = True
     else:
-        goal = cp.Minimize(cp.sum_squares(w - base))
+        expression = cp.sum_squares(w - base)
+        maximising = False
 
+    if held is not None and integer is not None and integer.tie_break_epsilon > 0:
+        # Several holdings usually score identically once names are
+        # interchangeable, and which one a branch-and-bound returns is
+        # arbitrary. A vanishing penalty along a fixed name ordering turns
+        # that arbitrary choice into a rule, at a cost far below the
+        # objective's own scale.
+        ranks = np.arange(len(names), dtype=float) / max(len(names), 1)
+        penalty = integer.tie_break_epsilon * (ranks @ held)
+        expression = expression - penalty if maximising else expression + penalty
+
+    goal = cp.Maximize(expression) if maximising else cp.Minimize(expression)
     problem = cp.Problem(goal, conditions)
+    options = dict(_solver_options(solver))
+    if integer is not None:
+        options = _mip_options(solver, integer)
     try:
-        problem.solve(solver=solver, **_solver_options(solver))
+        problem.solve(solver=solver, **options)
     except Exception as exc:  # cvxpy raises a variety of solver-specific errors
         return None, f"solver_error: {type(exc).__name__}: {exc}", None
     if w.value is None:
         return None, str(problem.status), None
+    if integer is not None and problem.status != "optimal":
+        # An integer solve that stopped short returns whatever incumbent it
+        # had, which depends on how fast the machine was. Only a proven
+        # optimum is reproducible, so anything else is a failure here.
+        return None, f"integer solve did not prove optimality (status: {problem.status})", None
     return np.asarray(w.value, dtype=float), str(problem.status), float(problem.value)
 
 
@@ -324,8 +441,23 @@ def project(
     cap = constraints.single_name_cap if constraints.single_name_cap is not None else 1.0
     group_rows = _group_rows(candidates, names, constraints)
     settings = constraints.solver
-    solver = settings.solver
+    integer_mode = uses_integers(constraints)
+    solver = settings.mip_solver if integer_mode else settings.solver
     tolerance = settings.verify_tolerance
+
+    integer: IntegerSpec | None = None
+    if integer_mode:
+        blocker = integer_feasibility(constraints, len(names))
+        if blocker:
+            return ProjectionResult(weights=None, status=f"infeasible by construction: {blocker}", solver=solver)
+        integer = IntegerSpec(
+            min_weight=constraints.min_weight if settings.enforce_semicontinuous else None,
+            max_constituents=constraints.max_constituents,
+            min_constituents=constraints.min_constituents,
+            tie_break_epsilon=settings.tie_break_epsilon,
+            gap=settings.mip_gap,
+            time_limit_seconds=settings.mip_time_limit_seconds,
+        )
     objective = settings.method if settings.method in ("min_tracking_error", "max_score") else "least_squares"
     budget = settings.tracking_error_budget
 
@@ -360,6 +492,7 @@ def project(
                 benchmark=benchmark_weights if risk_model is not None else None,
                 tracking_error_budget=budget,
                 score=score_vector,
+                integer=integer,
             )
         except RiskModelCoverageError as exc:
             return None, str(exc), None
@@ -418,6 +551,8 @@ def project(
         benchmark=benchmark_weights if risk_model is not None else None,
         tracking_error_budget=budget,
     )
+    if integer is not None:
+        violations.extend(_verify_integer(solution, integer, tolerance))
     if violations:
         return ProjectionResult(
             weights=None,
@@ -435,3 +570,27 @@ def project(
         iterations=iterations,
         tracking_error=risk_model.tracking_error(solution, benchmark_weights) if risk_model is not None else None,
     )
+
+
+def _verify_integer(weights: dict[str, float], integer: IntegerSpec, tolerance: float) -> list[str]:
+    """The integer conditions, re-checked on the returned weights.
+
+    Worth checking separately: a solver can satisfy `w <= cap * z` and
+    `w >= floor * z` to its own tolerance and still leave a name at a weight
+    that rounds to something below the published floor, which is precisely
+    the commitment the constraint existed to make.
+    """
+    violations: list[str] = []
+    held = [name for name, weight in sorted(weights.items()) if weight > tolerance]
+    if integer.min_weight:
+        below = [name for name in held if weights[name] < integer.min_weight - tolerance]
+        if below:
+            violations.append(
+                f"{len(below)} held constituent(s) below the {integer.min_weight:.4%} floor, e.g. "
+                f"{below[0]} at {weights[below[0]]:.6%}"
+            )
+    if integer.max_constituents is not None and len(held) > integer.max_constituents:
+        violations.append(f"{len(held)} constituents exceeds the maximum of {integer.max_constituents}")
+    if integer.min_constituents is not None and len(held) < integer.min_constituents:
+        violations.append(f"{len(held)} constituents is below the minimum of {integer.min_constituents}")
+    return violations

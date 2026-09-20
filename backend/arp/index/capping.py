@@ -4,7 +4,7 @@ from collections import defaultdict
 from math import fsum
 
 from arp.index.fields import EPS
-from arp.index.optimize import LinearConstraint, available as optimizer_available, project
+from arp.index.optimize import LinearConstraint, available as optimizer_available, project, uses_integers
 from arp.index.risk import RiskModel
 from arp.index.weighting import normalise
 from arp.schemas.index import ConstraintSet, IndexCandidate, StageTrace
@@ -177,13 +177,23 @@ def apply_constraints(
     exceptions: list[str] = []
     iterations = 0
     extra_linear = list(extra_linear or [])
+    if uses_integers(constraints) and constraints.solver.method == "waterfall":
+        raise ValueError(
+            "cardinality limits and an enforced minimum weight need integer variables, which the waterfall has no way "
+            "to express; choose a convex solver method or drop the constraint rather than have it silently ignored"
+        )
     if extra_linear and constraints.solver.method == "waterfall":
         raise ValueError(
             "extra_linear constraints require a convex solver method; "
             "the waterfall cannot express them and must not silently ignore them"
         )
 
-    if constraints.min_weight:
+    enforcing_floor = constraints.solver.enforce_semicontinuous and constraints.min_weight
+    if constraints.min_weight and not enforcing_floor:
+        # The heuristic: drop the smallest names. Skipped entirely when the
+        # floor is being enforced properly, because pruning first would
+        # decide the very question the integer programme exists to answer --
+        # whether a small name should be lifted to the floor or dropped.
         kept = {k: v for k, v in current.items() if v >= constraints.min_weight}
         if not kept:
             raise ValueError(f"min_weight={constraints.min_weight} removed every constituent")
@@ -205,11 +215,15 @@ def apply_constraints(
                 candidates_out=len(projected),
                 detail={
                     "objective": constraints.solver.method,
-                    "solver": constraints.solver.solver,
+                    # The solver actually used, which is the MIP backend
+                    # whenever integer variables are in play -- reporting the
+                    # convex one there would name a solver that never ran.
+                    "solver": constraints.solver.mip_solver if uses_integers(constraints) else constraints.solver.solver,
                     "max_weight": round(max(projected.values(), default=0.0), 6),
                     "single_name_cap": constraints.single_name_cap if constraints.single_name_cap is not None else "none",
                     "ucits_5_10_40": "on" if constraints.ucits_5_10_40 else "off",
                     "extra_linear": len(extra_linear),
+                    "integer": "on" if uses_integers(constraints) else "off",
                     **info,
                 },
             )
@@ -327,6 +341,8 @@ def _least_squares(
         info: dict = {}
         if result.tracking_error is not None:
             info["tracking_error"] = round(result.tracking_error, 8)
+        if uses_integers(constraints):
+            info["constituents_held"] = sum(1 for v in result.weights.values() if v > settings.verify_tolerance)
         if settings.tracking_error_budget is not None:
             info["te_budget"] = settings.tracking_error_budget
         if risk_model is not None:

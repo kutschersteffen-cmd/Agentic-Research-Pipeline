@@ -1454,6 +1454,9 @@ def index_preview(
     solver_method: str = typer.Option(None, help="Override the constraint method: waterfall | least_squares | min_tracking_error | max_score."),
     tracking_error_budget: float = typer.Option(None, help="Annualised ex-ante TE ceiling, e.g. 0.015. Needs a risk model."),
     score_field: str = typer.Option(None, help="method='max_score' only: the field to maximise."),
+    max_constituents: int = typer.Option(None, help="Cardinality ceiling. Needs a mixed-integer solve."),
+    min_constituents: int = typer.Option(None, help="Cardinality floor. Needs a mixed-integer solve."),
+    enforce_min_weight: bool = typer.Option(False, help="Treat min_weight as 'held at the floor or not at all' instead of pruning."),
     returns_file: Path = typer.Option(None, help="JSON {period: {company_id: return}} for the risk model. Omit for the demo panel."),
     show: str = typer.Option("summary", help="summary | trace | constituents | json"),
 ) -> None:
@@ -1465,6 +1468,14 @@ def index_preview(
         spec.constraints.solver.tracking_error_budget = tracking_error_budget
     if score_field:
         spec.constraints.solver.score_field = score_field
+    if max_constituents:
+        spec.constraints.max_constituents = max_constituents
+    if min_constituents:
+        spec.constraints.min_constituents = min_constituents
+    if enforce_min_weight:
+        spec.constraints.solver.enforce_semicontinuous = True
+        if not spec.constraints.min_weight:
+            typer.echo("Note: --enforce-min-weight has nothing to enforce -- this methodology sets no min_weight.")
     universe = _index_universe(universe_file)
     result = run_review(
         spec, universe, index_id="preview", review_date=review_date, risk_model=_index_risk_model(spec, universe, returns_file)
@@ -1585,6 +1596,8 @@ def _echo_review(result, show: str) -> None:
     constraint_stage = next((s for s in result.trace if s.stage == "constraints"), None)
     if constraint_stage is not None:
         typer.echo(f"  constraints: {constraint_stage.label}")
+    if d.integer_constraints:
+        typer.echo(f"  mixed-integer solve: {d.final_size} constituents held")
     if d.tracking_error is not None:
         typer.echo(f"  ex-ante tracking error {d.tracking_error:.4%} (annualised, vs the eligible universe)")
     typer.echo(f"  max weight {d.max_weight:.4%}   effective N {d.effective_n:.1f}" + (f"   turnover {d.one_way_turnover:.2%}" if d.one_way_turnover is not None else ""))

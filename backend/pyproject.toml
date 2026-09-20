@@ -43,6 +43,10 @@ dev = [
 # no commercial licence and no risk model is involved at this stage.
 optimize = [
     "cvxpy>=1.5",
+    # SCIP, via PySCIPopt, is the free mixed-integer backend -- needed only
+    # by cardinality limits and an enforced minimum weight, which are
+    # disjunctions rather than bounds. Apache-2.0 since SCIP 9.
+    "pyscipopt>=5.0",
 ]
 # Opt-in relational/vector store (arp/storage/postgres*.py): portfolio
 # holdings + an alternate pgvector embeddings-cache backend. Not required
