@@ -29,6 +29,7 @@ file-based state by default — no database required.
 | 12 | **Emerging Themes Scanner** | Bottom-up theme discovery from EDGAR full-text search, GDELT and regulatory RSS, with cross-period cluster lineage and an action-score promotion gate (corporate action, not mention counts). |
 | 13 | **Presentation & Reporting Tool** | One LLM call drafts a report plan; deterministic renderers emit pptx/docx/pdf, reusing an ingested `.pptx` template's layouts, colors and fonts. |
 | 15 | **Decision Studio** | Turns any per-entity table the functions above produce into a scored, ranked and tiered decision — entities are companies, sectors in a jurisdiction, themes or strategies, since the engine scores rows. Correlated criteria are grouped so one theme measured seven ways doesn't earn seven times the weight; criteria are normalised within peer cohorts; direction is inferred and *flagged where it is a guess*. Gates resolve before the average, a sufficiency gate precedes scoring, and every entity carries its rank *range* across four specifications. Frameworks are versioned and ratifiable; the audit log separates what the data proposed from what a person changed. Zero LLM calls. |
+| 16 | **Equity Index Construction** | Builds an index methodology by composing named rules — ordered screens, one selection rule (best-in-class to a market-cap *or* count coverage target with hysteresis buffers, an absolute threshold, or top-N), a weighting scheme, bounded multiplicative tilts, a deterministic capping waterfall (single-name, group, UCITS 5/10/40) and the path-dependent EU PAB/CTB decarbonisation trajectory. Zero LLM calls in the numbers: a model-derived thematic score enters only as a frozen, effective-dated snapshot. The composition saves as a versioned, effective-dated **calibration**, and a review resolves the version *in force on its review date*, so today's parameters cannot rewrite a past one. Optionally (`.[optimize]`) swaps the waterfall for a convex programme — least-squares projection, minimum tracking error, or score maximisation under a TE budget on an estimated or vendor risk model — or a mixed-integer one on SCIP for cardinality limits and a genuinely enforced minimum weight. Every constraint is re-verified in plain Python afterwards; a solver's own "optimal" is never taken as proof. |
 | 14 | **Standing agents** | Taxonomy Researcher and Calibration Agent run on a schedule and *propose* changes for human review — they never apply them. |
 
 ## Architecture
@@ -39,6 +40,7 @@ frontend/  React + TypeScript (Vite) — authoring, monitoring, review UI
 runs/      file-based run state: manifest, results, errors, review queue
 taxonomies/ portfolios/ reports/ report_templates/ data/documents/
 frameworks/ versioned decision frameworks + the tables they are applied to
+indices/   index construction calibrations (versioned, effective-dated) + reviews
 ```
 
 - **LangChain** (`langchain-anthropic`) is the LLM client, behind one narrow
@@ -122,7 +124,23 @@ arp report run --title "Electrification Review" --notes notes.txt --format pptx 
 arp discover run --universe companies.csv
 arp golden-set run                # regression-test before a prompt/model change
 arp runs list                     # also: arp runs show <run_id>, arp runs cancel <run_id>
+
+# Index construction (see docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md)
+arp index presets                                        # the named methodology shapes
+arp index preview --preset eu_pab --review-date 2026-03-31 --show trace
+arp index calibration-save --name "DWS Electrification PAB" --effective-from 2026-01-01 \
+    --preset eu_pab --approved-by "IC-2026-01-14"
+arp index run --index-id dws_pab --review-date 2026-03-31 --calibration-id <cal_id>
+# Optional convex / integer paths (pip install -e ".[optimize]")
+arp index preview --preset eu_pab --review-date 2026-03-31 --solver-method min_tracking_error
+arp index preview --preset eu_pab --review-date 2026-03-31 --max-constituents 20
 ```
+
+Every `arp index` command runs against a built-in, deterministic demo
+universe unless `--universe-file` supplies one, so the engine is usable
+before any data feed is connected. `--spec-file` takes a `ConstructionSpec`
+JSON exactly as the UI saves it, so a methodology composed in the browser
+runs headless without retyping.
 
 `companies.csv` columns: `company_id, name, ticker, website, cik, country,
 sector` — only `company_id`/`name` are required.

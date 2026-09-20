@@ -1932,3 +1932,268 @@ export interface DecisionComparison {
   incomparable_reason?: string | null;
   caveat?: string | null;
 }
+
+// ---------------------------------------------------------------- index
+
+// Named for the index engine specifically: `MissingPolicy` is already taken by
+// Decision Studio's missing-data handling, which is a different question about
+// a different kind of gap.
+export type IndexMissingPolicy = "block" | "fail" | "pass";
+
+export interface RuleBase {
+  rule_id?: string;
+  label?: string;
+  enabled?: boolean;
+}
+
+export type ScreenRule = RuleBase &
+  (
+    | { type: "metric_threshold"; field: string; min_value?: number | null; max_value?: number | null; missing?: IndexMissingPolicy }
+    | { type: "flag_exclusion"; field: string; exclude_when?: boolean; missing?: IndexMissingPolicy }
+    | { type: "category_screen"; field: string; allow?: string[]; deny?: string[]; missing?: IndexMissingPolicy }
+  );
+
+export type SelectionRule = RuleBase &
+  (
+    | { type: "select_all" }
+    | {
+        type: "best_in_class_coverage";
+        score_field: string;
+        group_by?: string;
+        target_pct?: number;
+        basis?: "float_mcap" | "count";
+        buffer_pct?: number;
+        higher_is_better?: boolean;
+        missing?: IndexMissingPolicy;
+      }
+    | {
+        type: "absolute_threshold";
+        score_field: string;
+        threshold: number;
+        group_by?: string;
+        group_thresholds?: Record<string, number>;
+        higher_is_better?: boolean;
+        on_empty_group?: "leave_empty" | "fallback_relative" | "block";
+        fallback_target_pct?: number;
+        missing?: IndexMissingPolicy;
+      }
+    | { type: "top_n"; score_field: string; n: number; group_by?: string; higher_is_better?: boolean; missing?: IndexMissingPolicy }
+  );
+
+export type TiltRule = RuleBase &
+  (
+    | {
+        type: "metric_tilt";
+        field: string;
+        normalisation?: "none" | "max" | "group_max" | "rank_percentile" | "zscore";
+        group_by?: string;
+        floor?: number;
+        ceiling?: number;
+        higher_is_better?: boolean;
+        missing?: IndexMissingPolicy;
+      }
+    | { type: "bucket_tilt"; field: string; multipliers: Record<string, number>; default_multiplier?: number; missing?: IndexMissingPolicy }
+  );
+
+export interface BaseWeighting {
+  scheme: "free_float_mcap" | "equal" | "metric" | "inverse_metric";
+  field?: string | null;
+  floor?: number;
+}
+
+export interface GroupCap {
+  dimension: string;
+  max_weight: number;
+  label?: string;
+}
+
+export interface RiskModelSpec {
+  source: "ledoit_wolf" | "sample" | "factor" | "supplied";
+  lookback_periods: number;
+  min_observations: number;
+  periods_per_year: number;
+  factor_fields: string[];
+}
+
+export interface ConstraintSolver {
+  method: "waterfall" | "least_squares" | "min_tracking_error" | "max_score";
+  solver: "CLARABEL" | "OSQP" | "SCS";
+  verify_tolerance: number;
+  fallback_to_waterfall: boolean;
+  tracking_error_budget?: number | null;
+  score_field?: string | null;
+  min_risk_coverage: number;
+  risk_model: RiskModelSpec;
+  enforce_semicontinuous: boolean;
+  mip_solver: "SCIP" | "HIGHS" | "GUROBI" | "MOSEK" | "CPLEX";
+  mip_gap: number;
+  mip_time_limit_seconds?: number | null;
+  tie_break_epsilon: number;
+}
+
+export interface ConstraintSet {
+  single_name_cap?: number | null;
+  group_caps: GroupCap[];
+  ucits_5_10_40: boolean;
+  min_weight?: number | null;
+  max_constituents?: number | null;
+  min_constituents?: number | null;
+  max_iterations?: number;
+  solver: ConstraintSolver;
+}
+
+export interface DecarbonisationTrajectory {
+  enabled: boolean;
+  metric_field: string;
+  annual_reduction_rate: number;
+  base_date?: string | null;
+  universe_reduction_pct?: number | null;
+  compensate_missed_targets: boolean;
+  max_tilt_strength?: number;
+  tolerance?: number;
+  missing?: IndexMissingPolicy;
+}
+
+export interface ConstructionSpec {
+  index_currency: string;
+  screens: ScreenRule[];
+  selection: SelectionRule;
+  base_weighting: BaseWeighting;
+  tilts: TiltRule[];
+  constraints: ConstraintSet;
+  trajectory: DecarbonisationTrajectory;
+  calendar: { review_frequency: string; selection_lag_days: number; base_level: number };
+  rounding: { weight_decimals: number; shares_decimals: number; level_decimals: number };
+}
+
+export interface IndexCalibration {
+  calibration_id: string;
+  name: string;
+  version: number;
+  based_on_version?: number | null;
+  effective_from: string;
+  effective_to?: string | null;
+  approved_by: string[];
+  notes: string;
+  created_at: string;
+  spec: ConstructionSpec;
+}
+
+export interface StageTrace {
+  stage: string;
+  rule_type: string;
+  label: string;
+  candidates_in: number;
+  candidates_out: number;
+  dropped_sample: string[];
+  detail: Record<string, string | number>;
+}
+
+export interface IndexConstituent {
+  company_id: string;
+  name: string;
+  sector?: string | null;
+  country?: string | null;
+  weight: number;
+  base_weight: number;
+  tilt_multiplier: number;
+  capping_factor: number;
+  price: number;
+  fx_rate: number;
+  index_shares: number;
+  metrics: Record<string, number>;
+}
+
+export interface IndexState {
+  index_id: string;
+  review_date: string;
+  base_date?: string | null;
+  base_metric_value?: number | null;
+  required_metric_value?: number | null;
+  achieved_metric_value?: number | null;
+  universe_metric_value?: number | null;
+  shortfall_carry: number;
+  binding_constraint: "none" | "trajectory" | "universe_relative";
+  divisor?: number | null;
+  index_level?: number | null;
+}
+
+export interface ReviewDiagnostics {
+  universe_size: number;
+  eligible_size: number;
+  selected_size: number;
+  final_size: number;
+  weighted_metrics: Record<string, number>;
+  universe_weighted_metrics: Record<string, number>;
+  effective_n: number;
+  max_weight: number;
+  one_way_turnover?: number | null;
+  capping_iterations: number;
+  trajectory_iterations: number;
+  tracking_error?: number | null;
+  integer_constraints?: boolean;
+}
+
+export interface IndexReviewResult {
+  index_id: string;
+  review_date: string;
+  calibration_id?: string | null;
+  calibration_version?: number | null;
+  config_hash: string;
+  constituents: IndexConstituent[];
+  diagnostics: ReviewDiagnostics;
+  trace: StageTrace[];
+  state: IndexState;
+  exceptions: string[];
+  created_at: string;
+}
+
+export interface IndexFieldInventory {
+  metrics: string[];
+  flags: string[];
+  categories: string[];
+}
+
+export interface RuleParamSpec {
+  name: string;
+  kind: string;
+  required?: boolean;
+  default?: unknown;
+  options?: string[];
+  help?: string;
+}
+
+export interface RuleTypeSpec {
+  type: string;
+  label: string;
+  help: string;
+  params: RuleParamSpec[];
+}
+
+export interface IndexCatalogue {
+  screens: RuleTypeSpec[];
+  selection: RuleTypeSpec[];
+  base_weighting: { scheme: string; label: string; needs_field: boolean }[];
+  tilts: RuleTypeSpec[];
+  constraints: RuleParamSpec[];
+  constraint_solver: {
+    help: string;
+    params: RuleParamSpec[];
+    available: boolean;
+    integer_available: boolean;
+    methods: { name: string; label: string; needs_solver: boolean; needs_risk_model: boolean }[];
+    risk_model: { help: string; params: RuleParamSpec[] };
+  };
+  trajectory: { help: string; params: RuleParamSpec[] };
+  presets: { name: string; label: string; description: string }[];
+  screen_bundles: { name: string; label: string; description: string }[];
+  fields: IndexFieldInventory;
+}
+
+export interface IndexLevelPoint {
+  date: string;
+  level: number;
+  divisor: number;
+  market_cap: number;
+  constituents_priced: number;
+}

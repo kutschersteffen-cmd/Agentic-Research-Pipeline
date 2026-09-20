@@ -20,6 +20,7 @@ from arp.portfolio.monitoring.scheduler import PortfolioMonitoringScheduler
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
+from arp.storage.index_store import IndexStore
 from arp.storage.opensearch_client import OpenSearchNotConfigured
 from arp.storage.opensearch_client import get_client as get_opensearch_client
 from arp.storage.portfolio_store_factory import build_portfolio_store
@@ -52,6 +53,8 @@ def get_taxonomy_store() -> TaxonomyStore:
 @lru_cache
 def get_decision_store() -> DecisionStore:
     return DecisionStore(get_settings().frameworks_dir)
+def get_index_store() -> IndexStore:
+    return IndexStore(get_settings().indices_dir)
 
 
 @lru_cache

@@ -53,6 +53,18 @@ dev = [
     "ruff>=0.8,<1.0",
     "pre-commit>=3.7,<5.0",
 ]
+# Opt-in least-squares constraint projection for index construction
+# (arp/index/optimize.py). Without it, ConstraintSolver.method='least_squares'
+# falls back to the deterministic waterfall and records why. cvxpy ships
+# Clarabel, OSQP and SCS, which is every solver the projection can use --
+# no commercial licence and no risk model is involved at this stage.
+optimize = [
+    "cvxpy>=1.5",
+    # SCIP, via PySCIPopt, is the free mixed-integer backend -- needed only
+    # by cardinality limits and an enforced minimum weight, which are
+    # disjunctions rather than bounds. Apache-2.0 since SCIP 9.
+    "pyscipopt>=5.0",
+]
 # Opt-in relational/vector store (arp/storage/postgres*.py): portfolio
 # holdings + an alternate pgvector embeddings-cache backend. Not required
 # for the file-based default path -- see Settings.postgres_dsn.

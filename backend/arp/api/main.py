@@ -27,6 +27,7 @@ from arp.api.routers import (
     financials,
     genbi,
     identity,
+    index,
     overlap,
     portfolio,
     replication,
@@ -106,6 +107,7 @@ app.include_router(taxonomy_researcher.router)
 app.include_router(calibration.router)
 app.include_router(reporting.router)
 app.include_router(replication.router)
+app.include_router(index.router)
 
 
 @app.exception_handler(RuntimeError)

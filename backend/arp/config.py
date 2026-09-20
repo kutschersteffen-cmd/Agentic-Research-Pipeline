@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     )
     discovery_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".discovery_state")
     engagements_dir: Path = Field(default=REPO_ROOT / "engagements")
+    indices_dir: Path = Field(
+        default=REPO_ROOT / "indices",
+        description="Index construction calibrations (versioned, effective-dated) and the reviews run from them; see arp/storage/index_store.py.",
+    )
     ballots_dir: Path = Field(default=REPO_ROOT / "ballots", description="Where the manual-instruction ballot platform writes vote instruction files, absent a real custodian/proxy-platform integration.")
     reports_dir: Path = Field(default=REPO_ROOT / "reports", description="Presentation/Reporting Tool: one directory per generated report (manifest, request, plan, rendered output file).")
     report_templates_dir: Path = Field(default=REPO_ROOT / "report_templates", description="Presentation/Reporting Tool: ingested .pptx template style profiles + the original template file each is cloned from.")
@@ -450,6 +454,7 @@ class Settings(BaseSettings):
             self.calibration_agent_state_dir,
             self.portfolio_monitoring_state_dir,
             self.frameworks_dir,
+            self.indices_dir,
         ):
             d.mkdir(parents=True, exist_ok=True)
 
