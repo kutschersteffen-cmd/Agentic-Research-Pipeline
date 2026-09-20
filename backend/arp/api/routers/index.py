@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
@@ -251,8 +253,19 @@ def get_levels(
     universe = [c for c in demo_universe() if c.company_id in members]
     if len(universe) != len(members):
         raise HTTPException(409, "Level series is only available for reviews run on the built-in demo universe")
-    dates = [f"{review_date[:8]}{d:02d}" for d in range(1, min(days, 28) + 1)]
+    # Dates *after* the effective close. Generating them from the review
+    # date's month ran the series over the period before the rebalance --
+    # the index shown doing things it had not yet been constituted to do.
+    start = date.fromisoformat(review_date)
+    dates = [(start + timedelta(days=offset)).isoformat() for offset in range(1, min(days, 60) + 1)]
     panel = demo_price_panel(universe, dates)
     shares = {c.company_id: c.index_shares for c in review.constituents}
-    return level_series(shares, panel, divisor=review.state.divisor, rounding=None)
+    # Seeded from the review's own prices, so a constituent the panel has not
+    # priced yet carries its effective-close price rather than contributing
+    # nothing and dragging the level down.
+    seed = {c.company_id: c.price for c in review.constituents}
+    seed_fx = {c.company_id: c.fx_rate for c in review.constituents}
+    return level_series(
+        shares, panel, divisor=review.state.divisor, rounding=None, seed_prices=seed, seed_fx=seed_fx
+    )
 

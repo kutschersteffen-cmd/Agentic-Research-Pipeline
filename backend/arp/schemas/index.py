@@ -631,8 +631,21 @@ class IndexState(BaseModel):
     binding_constraint: Literal["none", "trajectory", "universe_relative"] = "none"
     divisor: float | None = None
     index_level: float | None = None
-    prior_weights: dict[str, float] = Field(default_factory=dict)
+    prior_weights: dict[str, float] = Field(
+        default_factory=dict, description="Target weights set at this review, before any price drift."
+    )
     prior_members: list[str] = Field(default_factory=list)
+    prior_index_shares: dict[str, float] = Field(
+        default_factory=dict,
+        description=(
+            "Index shares fixed at this review. With prior_prices these let the next review reconstruct the *drifted* "
+            "weights it is actually trading away from, which is what turnover has to be measured against."
+        ),
+    )
+    prior_prices: dict[str, float] = Field(
+        default_factory=dict,
+        description="Price x FX in index currency at this review, so a name absent from the next universe carries its last price.",
+    )
 
 
 class ReviewDiagnostics(BaseModel):

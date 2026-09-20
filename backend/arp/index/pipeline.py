@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from math import fsum
 
-from arp.index.calc import divisor_for_level, index_shares, market_cap, one_way_turnover
+from arp.index.calc import divisor_for_level, drifted_weights, index_shares, market_cap, one_way_turnover
 from arp.index.capping import apply_constraints
 from arp.index.optimize import uses_integers
 from arp.index.fields import metric_value
@@ -198,7 +198,27 @@ def run_review(
         if universe_value is not None:
             universe_metrics[field] = round(universe_value, 6)
 
-    turnover = one_way_turnover(prior_state.prior_weights, weights) if prior_state and prior_state.prior_weights else None
+    # Turnover is measured against what the previous index actually holds
+    # *now*, after price drift, not against the targets it was set to at the
+    # last review. Comparing target to target reports zero whenever the
+    # methodology is unchanged, which is exactly when a cap-weighted index is
+    # quietly trading the most.
+    turnover = None
+    if prior_state and prior_state.prior_index_shares:
+        current_prices = {c.company_id: c.price * c.fx_rate for c in universe}
+        previous = drifted_weights(
+            prior_state.prior_index_shares, current_prices, fallback_prices=prior_state.prior_prices
+        )
+        if previous:
+            turnover = one_way_turnover(previous, weights)
+    elif prior_state and prior_state.prior_weights:
+        # A review stored before index shares were carried. Measuring against
+        # stale targets would understate the number, so report nothing rather
+        # than something misleading.
+        exceptions.append(
+            f"turnover not reported: the {prior_state.review_date} review predates carried index shares, "
+            "so the drifted pre-rebalance weights cannot be reconstructed"
+        )
     sum_squares = fsum(w * w for w in weights.values())
 
     state = state.model_copy(
@@ -209,6 +229,8 @@ def run_review(
             "index_level": previous_level,
             "prior_weights": weights,
             "prior_members": sorted(weights),
+            "prior_index_shares": shares,
+            "prior_prices": {c.company_id: c.price * c.fx_rate for c in selected if c.company_id in weights},
         }
     )
 

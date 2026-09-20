@@ -69,6 +69,8 @@ def level_series(
     divisor: float,
     fx_panel: dict[str, dict[str, float]] | None = None,
     rounding: RoundingPolicy | None = None,
+    seed_prices: dict[str, float] | None = None,
+    seed_fx: dict[str, float] | None = None,
 ) -> list[IndexLevelPoint]:
     """Index levels across a price panel with the shares held fixed.
 
@@ -76,11 +78,18 @@ def level_series(
     a date carries its last observed price -- the standard stale-price
     treatment -- and the count of names actually priced that day is reported
     so a stale-heavy day is visible rather than hidden.
+
+    `seed_prices` are the prices the shares were set from, normally the
+    review's own constituent prices. They matter because a constituent with
+    no price *yet* has no last price to carry: without a seed it would
+    contribute nothing and the level would come out low -- wrong rather than
+    stale, and indistinguishable from a genuine fall. Rather than let that
+    publish, a name with neither a price nor a seed raises.
     """
     rounding = rounding or RoundingPolicy()
     points: list[IndexLevelPoint] = []
-    last_price: dict[str, float] = {}
-    last_fx: dict[str, float] = {}
+    last_price: dict[str, float] = dict(seed_prices or {})
+    last_fx: dict[str, float] = dict(seed_fx or {})
     for as_of in sorted(price_panel):
         prices = price_panel[as_of]
         fx_rates = (fx_panel or {}).get(as_of, {})
@@ -94,8 +103,13 @@ def level_series(
             fx = fx_rates.get(company_id)
             if fx is not None:
                 last_fx[company_id] = fx
-            if company_id in last_price:
-                total += shares[company_id] * last_price[company_id] * last_fx.get(company_id, 1.0)
+            if company_id not in last_price:
+                raise ValueError(
+                    f"{company_id} has no price on {as_of} and none carried forward; "
+                    "pass seed_prices (the review's constituent prices) so the series starts from a known level "
+                    "instead of silently understating it"
+                )
+            total += shares[company_id] * last_price[company_id] * last_fx.get(company_id, 1.0)
         points.append(
             IndexLevelPoint(
                 date=as_of,
@@ -111,9 +125,43 @@ def level_series(
 def one_way_turnover(previous: dict[str, float], current: dict[str, float]) -> float:
     """Half the sum of absolute weight changes.
 
-    Note the caller's responsibility: `previous` should be the *drifted*
-    pre-rebalance weights at the effective close, not the previous review's
-    target weights, or the number understates real trading.
+    `previous` must be the *drifted* pre-rebalance weights at the effective
+    close, not the previous review's target weights. Use `drifted_weights`
+    to build them: comparing target to target reports the trading the index
+    would have needed had prices not moved, which is zero whenever the
+    methodology is unchanged -- a number that looks reassuring and means
+    nothing.
     """
     keys = sorted(set(previous) | set(current))
     return fsum(abs(current.get(k, 0.0) - previous.get(k, 0.0)) for k in keys) / 2.0
+
+
+def drifted_weights(
+    shares: dict[str, float],
+    prices: dict[str, float],
+    *,
+    fallback_prices: dict[str, float] | None = None,
+) -> dict[str, float]:
+    """The weights a previous review's index actually carries today.
+
+    Index shares are fixed between rebalances, so the weights move with
+    price. Those drifted weights -- not the last set of targets -- are what
+    the next rebalance trades away from.
+
+    `prices` are today's, already in index currency. A holding that has left
+    the universe (delisted, acquired) falls back to its last observed price,
+    which is the standard stale treatment and keeps it in the turnover as
+    the full sale it is. A holding with neither is dropped, and its weight
+    shows up as turnover, which is also correct.
+    """
+    fallback_prices = fallback_prices or {}
+    values: dict[str, float] = {}
+    for company_id in sorted(shares):
+        price = prices.get(company_id, fallback_prices.get(company_id))
+        if price is None or price <= 0:
+            continue
+        values[company_id] = shares[company_id] * price
+    total = fsum(values[k] for k in sorted(values))
+    if total <= 0:
+        return {}
+    return {k: v / total for k, v in values.items()}

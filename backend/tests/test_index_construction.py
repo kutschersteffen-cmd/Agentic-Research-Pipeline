@@ -5,7 +5,15 @@ from math import fsum
 
 import pytest
 
-from arp.index.calc import adjust_divisor, divisor_for_level, index_shares, level_series, market_cap, one_way_turnover
+from arp.index.calc import (
+    adjust_divisor,
+    divisor_for_level,
+    drifted_weights,
+    index_shares,
+    level_series,
+    market_cap,
+    one_way_turnover,
+)
 from arp.index.capping import apply_constraints
 from arp.index.fields import DataQualityBlock
 from arp.index.mock_data import demo_price_panel, demo_universe
@@ -387,7 +395,9 @@ def test_weights_drift_with_price_between_rebalances():
     candidates = [_candidate("a", price=100.0), _candidate("b", price=100.0)]
     shares = index_shares({"a": 0.5, "b": 0.5}, candidates, index_market_cap=1_000_000.0, rounding=RoundingPolicy())
     panel = {"2026-01-01": {"a": 100.0, "b": 100.0}, "2026-01-02": {"a": 120.0, "b": 100.0}}
-    points = level_series(shares, panel, divisor=divisor_for_level(market_cap(shares, candidates), 100.0))
+    points = level_series(
+        shares, panel, divisor=divisor_for_level(market_cap(shares, candidates), 100.0), seed_prices={"a": 100.0, "b": 100.0}
+    )
     assert points[0].level == pytest.approx(100.0, abs=1e-6)
     assert points[1].level == pytest.approx(110.0, abs=1e-3)
 
@@ -396,7 +406,9 @@ def test_stale_prices_are_carried_and_counted():
     candidates = [_candidate("a", price=100.0), _candidate("b", price=100.0)]
     shares = index_shares({"a": 0.5, "b": 0.5}, candidates, index_market_cap=1_000_000.0, rounding=RoundingPolicy())
     panel = {"2026-01-01": {"a": 100.0, "b": 100.0}, "2026-01-02": {"a": 110.0}}
-    points = level_series(shares, panel, divisor=divisor_for_level(market_cap(shares, candidates), 100.0))
+    points = level_series(
+        shares, panel, divisor=divisor_for_level(market_cap(shares, candidates), 100.0), seed_prices={"a": 100.0, "b": 100.0}
+    )
     assert points[1].constituents_priced == 1
     assert points[1].level > points[0].level
 
@@ -520,3 +532,96 @@ def test_a_continuing_index_keeps_its_level_across_a_rebalance(tmp_path):
     store.save_review(first)
     second = run_review(spec, demo_universe(), index_id="i", review_date="2026-06-30", prior_state=first.state)
     assert second.state.index_level == pytest.approx(first.state.index_level)
+
+
+# ------------------------------------------------- turnover and drift
+
+
+def test_drifted_weights_follow_price_between_rebalances():
+    """Index shares are fixed, so a name that outperforms gains weight with
+    no trading. Those are the weights the next rebalance trades away from."""
+    shares = {"a": 10.0, "b": 10.0}
+    assert drifted_weights(shares, {"a": 100.0, "b": 100.0}) == {"a": 0.5, "b": 0.5}
+    doubled = drifted_weights(shares, {"a": 200.0, "b": 100.0})
+    assert doubled["a"] == pytest.approx(2 / 3)
+    assert doubled["b"] == pytest.approx(1 / 3)
+
+
+def test_a_delisted_holding_carries_its_last_price_into_turnover():
+    """A name that has left the universe is still held until the deletion is
+    processed. Dropping it from the drift would hide the sale."""
+    shares = {"a": 10.0, "gone": 10.0}
+    weights = drifted_weights(shares, {"a": 100.0}, fallback_prices={"gone": 100.0})
+    assert set(weights) == {"a", "gone"}
+    assert weights["gone"] == pytest.approx(0.5)
+
+
+def test_turnover_is_measured_against_drift_not_against_the_last_targets():
+    """The defect this replaces: an equal-weighted index has identical targets
+    at every review, so comparing target to target reports zero turnover --
+    precisely when the index has to trade hardest to get back to equal."""
+    universe = demo_universe(30)
+    spec = build_preset("exclusion_only")
+    spec.base_weighting.scheme = "equal"
+    spec.constraints.single_name_cap = None
+
+    first = run_review(spec, universe, index_id="t", review_date="2026-03-31")
+    moved = [c.model_copy(update={"price": c.price * (1.5 if i % 2 else 0.6)}) for i, c in enumerate(universe)]
+    second = run_review(spec, moved, index_id="t", review_date="2026-06-30", prior_state=first.state)
+
+    target_to_target = one_way_turnover(first.state.prior_weights, {c.company_id: c.weight for c in second.constituents})
+    assert target_to_target == pytest.approx(0.0, abs=1e-9)
+    assert second.diagnostics.one_way_turnover > 0.05
+
+
+def test_a_cap_weighted_index_needs_no_trading_for_price_moves():
+    """The counterpart, and the reason cap weighting is low-turnover: drifted
+    weights and fresh cap weights coincide, so turnover really is ~zero."""
+    universe = demo_universe(30)
+    spec = build_preset("exclusion_only")
+    spec.constraints.single_name_cap = None
+
+    first = run_review(spec, universe, index_id="t", review_date="2026-03-31")
+    moved = [c.model_copy(update={"price": c.price * (1.4 if i % 3 else 0.7)}) for i, c in enumerate(universe)]
+    second = run_review(spec, moved, index_id="t", review_date="2026-06-30", prior_state=first.state)
+    assert second.diagnostics.one_way_turnover == pytest.approx(0.0, abs=1e-6)
+
+
+def test_state_carries_what_drift_needs():
+    universe = demo_universe(20)
+    result = run_review(build_preset("exclusion_only"), universe, index_id="t", review_date="2026-03-31")
+    assert set(result.state.prior_index_shares) == set(result.state.prior_weights)
+    assert set(result.state.prior_prices) == set(result.state.prior_weights)
+    assert all(v > 0 for v in result.state.prior_index_shares.values())
+
+
+def test_a_state_without_carried_shares_reports_no_turnover_rather_than_a_wrong_one():
+    """Reviews stored before shares were carried cannot have their drift
+    reconstructed. Falling back to the old target-to-target comparison would
+    silently understate; saying nothing is the honest option."""
+    universe = demo_universe(20)
+    first = run_review(build_preset("exclusion_only"), universe, index_id="t", review_date="2026-03-31")
+    legacy = first.state.model_copy(update={"prior_index_shares": {}, "prior_prices": {}})
+    second = run_review(build_preset("exclusion_only"), universe, index_id="t", review_date="2026-06-30", prior_state=legacy)
+    assert second.diagnostics.one_way_turnover is None
+    assert any("turnover not reported" in e for e in second.exceptions)
+
+
+# ------------------------------------------------------- level series
+
+
+def test_an_unpriced_constituent_raises_rather_than_understating_the_level():
+    """Contributing zero produces a level that is wrong, not stale -- and
+    indistinguishable from a genuine fall."""
+    shares = {"a": 100.0, "b": 100.0}
+    panel = {"d1": {"a": 10.0}, "d2": {"a": 10.0, "b": 10.0}}
+    with pytest.raises(ValueError, match="no price on d1"):
+        level_series(shares, panel, divisor=200.0)
+
+
+def test_seed_prices_start_the_series_at_the_right_level():
+    shares = {"a": 100.0, "b": 100.0}
+    panel = {"d1": {"a": 10.0}, "d2": {"a": 10.0, "b": 10.0}}
+    points = level_series(shares, panel, divisor=200.0, seed_prices={"a": 10.0, "b": 10.0})
+    assert [p.level for p in points] == [10.0, 10.0]
+    assert points[0].constituents_priced == 1  # still visibly stale, just not wrong

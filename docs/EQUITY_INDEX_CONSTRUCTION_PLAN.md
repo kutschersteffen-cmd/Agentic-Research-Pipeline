@@ -921,8 +921,11 @@ decided in code, because building them answered them:
    decarbonisation base and base date, required vs. achieved metric, the
    shortfall owed under the compensation rule, which of the two
    simultaneous reduction constraints currently binds, the divisor and
-   level, and the prior weights and members that turnover and selection
-   buffers need. It is written per review alongside the result.
+   level, the prior weights and members that selection buffers need, and
+   the prior index shares and prices that turnover needs -- turnover is
+   measured against the *drifted* pre-rebalance weights per §16, which
+   requires reconstructing them from shares and today's prices rather than
+   comparing one set of targets to the next. It is written per review alongside the result.
 2. **PAB/CTB compliance does not require a licensed risk model.** The
    trajectory is met by solving a single bounded exponential tilt with the
    constraint set applied *inside* the objective, by bisection. It is
