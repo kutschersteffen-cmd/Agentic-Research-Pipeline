@@ -1,7 +1,14 @@
 # Index Construction Methodology Landscape — MSCI, ISS STOXX, Solactive
 
-Status: **research input for `docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md`.** Nothing
-here is built. It exists to answer the plan's open decision #3 — single index
+Status: **research input for `docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md`** -- and
+now partly implemented. The catalogue in section 6 is the menu the rule
+engine in `backend/arp/index/` offers: families A (screening and selection),
+B (closed-form tilts), D (path-dependent) and C3 (the risk-model-free
+optimisation) are built; C1, C2 and C6 -- anything needing a licensed factor
+risk model -- are not, and section 7.2 explains why that is the right order.
+The rest of this document remains research.
+
+It exists to answer the plan's open decision #3 — single index
 or a family, and with what weighting machinery — with evidence rather than
 preference, and to size §7 of the plan (weighting and constraints) against
 what the three providers actually do.

@@ -91,19 +91,40 @@ precision at scale (designed for up to ~4,000 companies per run).
    [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md#transition-plan-assessment)
    for the full mapping from paper to implementation.
 
-**Planned, design only — nothing built yet:** an **Equity Index
-Construction** engine (point-in-time bitemporal store, eligibility screens
-with buffers, deterministic capping, index shares + divisor engine,
-PR/GTR/NTR levels, backtest and governance layer) that consumes the
-Thematic Universe Builder's output as its thematic eligibility screen. See
-[`docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md`](docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md)
-for the full design, the reuse map against what already exists here, and
-the phased build sequence.
+9. **Equity Index Construction** — build an index methodology by composing
+   named rules rather than writing a bespoke script: ordered screens
+   (metric thresholds, flag exclusions, category allow/deny), one selection
+   rule (best-in-class to a market-cap *or* count coverage target with
+   hysteresis buffers, an absolute threshold with a declared fallback, or
+   top-N), a base weighting scheme, ordered multiplicative tilts with
+   mandatory floor and ceiling, a deterministic capping waterfall
+   (single-name, group, UCITS 5/10/40) and the path-dependent EU PAB/CTB
+   decarbonisation trajectory. Zero LLM calls anywhere in the numbers —
+   an LLM-derived thematic score enters only as a frozen, effective-dated
+   snapshot upstream of the engine. The whole composition saves as a
+   versioned, effective-dated **calibration**, and a review resolves the
+   version *in force on its review date* rather than the latest one, so
+   today's parameters cannot silently rewrite a past review. Every stage
+   emits a trace line, so the construction funnel a committee reviews and
+   the audit trail are the same object. Backend + CLI + API + a
+   rule-composer UI (`Index Construction` tab); the trajectory solve is the
+   risk-model-free route to PAB/CTB compliance (minimise weight distortion
+   subject to the intensity target) rather than a licensed optimiser. What
+   is *not* built yet: the bitemporal point-in-time store, real vendor
+   feeds, corporate actions, FX and withholding tax, total-return variants,
+   the backtester, and the governance workflow — see the plan for the full
+   sequence. Try it with `arp index presets` and `arp index preview
+   --preset eu_pab --review-date 2026-03-31`.
+
+See [`docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md`](docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md)
+for the index engine's full design, the reuse map against what already
+exists here, and the phased build sequence, and
 [`docs/INDEX_METHODOLOGY_LANDSCAPE.md`](docs/INDEX_METHODOLOGY_LANDSCAPE.md)
-surveys how MSCI, ISS STOXX and Solactive construct their ESG, thematic and EU
-PAB/CTB indices, and catalogues the construction approaches — screening and
-selection rules, simple tilt rules, optimisation formulations, and the
-path-dependent ones — with the engineering cost of each.
+for how MSCI, ISS STOXX and Solactive construct their ESG, thematic and EU
+PAB/CTB indices, with a catalogue of the construction approaches —
+screening and selection rules, simple tilt rules, optimisation
+formulations, and the path-dependent ones — and the engineering cost of
+each.
 
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches, and
@@ -131,6 +152,8 @@ ballots/           voting-instruction files written by the (stub) manual
                    ballot-casting platform, one per cast vote
 portfolios/       portfolio holdings snapshots, security/company registries,
                    and climate data-point observations
+indices/          index construction calibrations (versioned, effective-dated)
+                   and the reviews run from them
 ```
 
 ### Agent stack
@@ -280,7 +303,25 @@ arp portfolio classify-news                              # requires ARP_ANTHROPI
 arp climate waci --group-by portfolio_id
 arp climate financed-emissions
 arp climate coverage climate_carbon_intensity
+
+# Index construction (see docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md)
+arp index presets                                        # the named methodology shapes
+arp index catalogue                                        # every rule type, its params and defaults
+arp index preview --preset eu_pab --review-date 2026-03-31 --show trace
+arp index preview --preset best_in_class --review-date 2026-03-31 --show constituents
+arp index calibration-save --name "DWS Electrification PAB" --effective-from 2026-01-01 \
+    --preset eu_pab --approved-by "IC-2026-01-14"
+arp index calibration-list
+arp index run --index-id dws_pab --review-date 2026-03-31 --calibration-id <cal_id>
+arp index run --index-id dws_pab --review-date 2027-03-31 --calibration-id <cal_id>   # ratchets: the 7% trajectory takes over
+arp index calibration-history <cal_id>                       # every version and the window it governs
 ```
+
+Every `arp index` command runs against a built-in, deterministic demo
+universe unless `--universe-file` supplies one, so the engine is usable
+before any data feed is connected. `--spec-file` takes a `ConstructionSpec`
+JSON exactly as the UI saves it, so a methodology composed in the browser
+runs headless without retyping.
 
 `companies.csv` columns: `company_id, name, ticker, website, cik, country,
 sector` (only `company_id`/`name` required — supply `website`/`cik` when

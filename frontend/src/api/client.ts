@@ -1,6 +1,11 @@
 import type { CompanyBallot, ResearchDossier, StewardshipReport, TriggerEvent, VoteRecord, VoteReviewDecision } from "../types";
 import type {
   AggregationResult,
+  ConstructionSpec,
+  IndexCalibration,
+  IndexCatalogue,
+  IndexLevelPoint,
+  IndexReviewResult,
   AnalyticRequest,
   CoverageBySource,
   DataPointSchema,
@@ -324,4 +329,32 @@ export const api = {
     request<CoverageBySource>(`/api/climate/coverage/${fieldId}${buildQuery({ as_of: asOf })}`),
   getClimatePivot: (fieldId: string, params: { row_dim?: string; col_dim?: string; as_of?: string; portfolio_id?: string[] }) =>
     request<PivotResult>(`/api/climate/pivot/${fieldId}${buildQuery(params)}`),
+
+  // Index construction
+  getIndexCatalogue: () => request<IndexCatalogue>("/api/index/catalogue"),
+  getIndexPreset: (name: string) => request<ConstructionSpec>(`/api/index/presets/${name}`),
+  getIndexScreenBundle: (name: string) =>
+    request<{ name: string; screens: ConstructionSpec["screens"] }>(`/api/index/screen-bundles/${name}`),
+  listIndexCalibrations: () => request<IndexCalibration[]>("/api/index/calibrations"),
+  getIndexCalibration: (calibrationId: string, version?: number) =>
+    request<IndexCalibration>(`/api/index/calibrations/${calibrationId}${buildQuery({ version: version?.toString() })}`),
+  listIndexCalibrationVersions: (calibrationId: string) =>
+    request<IndexCalibration[]>(`/api/index/calibrations/${calibrationId}/versions`),
+  createIndexCalibration: (body: { name: string; effective_from: string; spec: ConstructionSpec; notes?: string; approved_by?: string[] }) =>
+    request<IndexCalibration>("/api/index/calibrations", { method: "POST", body: JSON.stringify(body) }),
+  createIndexCalibrationVersion: (
+    calibrationId: string,
+    body: { name: string; effective_from: string; spec: ConstructionSpec; notes?: string; approved_by?: string[] },
+  ) => request<IndexCalibration>(`/api/index/calibrations/${calibrationId}/versions`, { method: "POST", body: JSON.stringify(body) }),
+  runIndexReview: (body: {
+    index_id: string;
+    review_date: string;
+    spec?: ConstructionSpec;
+    calibration_id?: string;
+    persist?: boolean;
+    use_prior_state?: boolean;
+  }) => request<IndexReviewResult>("/api/index/run", { method: "POST", body: JSON.stringify(body) }),
+  listIndexReviews: (indexId: string) => request<{ index_id: string; review_dates: string[] }>(`/api/index/${indexId}/reviews`),
+  getIndexLevels: (indexId: string, reviewDate: string) =>
+    request<IndexLevelPoint[]>(`/api/index/${indexId}/levels/${reviewDate}`),
 };

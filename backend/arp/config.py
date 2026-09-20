@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     )
     discovery_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".discovery_state")
     engagements_dir: Path = Field(default=REPO_ROOT / "engagements")
+    indices_dir: Path = Field(
+        default=REPO_ROOT / "indices",
+        description="Index construction calibrations (versioned, effective-dated) and the reviews run from them; see arp/storage/index_store.py.",
+    )
     ballots_dir: Path = Field(default=REPO_ROOT / "ballots", description="Where the manual-instruction ballot platform writes vote instruction files, absent a real custodian/proxy-platform integration.")
 
     # Batch / concurrency
@@ -189,6 +193,7 @@ class Settings(BaseSettings):
             self.discovery_state_dir,
             self.engagements_dir,
             self.ballots_dir,
+            self.indices_dir,
         ):
             d.mkdir(parents=True, exist_ok=True)
 

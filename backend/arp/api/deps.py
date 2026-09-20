@@ -13,6 +13,7 @@ from arp.llm.base import LLMClient
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
+from arp.storage.index_store import IndexStore
 from arp.storage.portfolio_store_factory import build_portfolio_store
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
@@ -31,6 +32,11 @@ def get_run_store() -> RunStore:
 @lru_cache
 def get_taxonomy_store() -> TaxonomyStore:
     return TaxonomyStore(get_settings().taxonomies_dir)
+
+
+@lru_cache
+def get_index_store() -> IndexStore:
+    return IndexStore(get_settings().indices_dir)
 
 
 @lru_cache

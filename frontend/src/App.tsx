@@ -13,6 +13,7 @@ import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
 import { PortfolioRisk } from "./pages/PortfolioRisk";
 import { ClimateAnalytics } from "./pages/ClimateAnalytics";
+import { IndexBuilder } from "./pages/IndexBuilder";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -25,6 +26,7 @@ const TABS = [
   { id: "discovery", label: "Document Discovery" },
   { id: "portfolio", label: "Portfolio Risk" },
   { id: "climate", label: "Climate Analytics" },
+  { id: "index", label: "Index Construction" },
   { id: "review", label: "Review Queue" },
   { id: "history", label: "Run History" },
   { id: "engagement", label: "Engagement" },
@@ -70,6 +72,7 @@ function App() {
         {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingDiscoveryUniverse} />}
         {active === "portfolio" && <PortfolioRisk />}
         {active === "climate" && <ClimateAnalytics />}
+        {active === "index" && <IndexBuilder />}
         {active === "review" && <ReviewQueue />}
         {active === "history" && <RunHistory />}
         {active === "engagement" && <EngagementDashboard />}

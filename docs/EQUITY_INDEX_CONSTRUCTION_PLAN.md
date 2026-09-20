@@ -1,7 +1,17 @@
 # Equity Index Construction — Enhanced Plan
 
-Status: **design only, nothing built.** This document reviews the submitted
-draft *"Implementation Plan — A Python-Native Equity Index Construction
+Status: **partially built.** The composable rule engine and the calibration
+store described in sections 6, 7 and 15 now exist: `backend/arp/index/`
+(screens, selection, weighting and tilts, the capping waterfall, the
+path-dependent trajectory, index shares and divisor), `backend/arp/storage/index_store.py`
+(versioned, effective-dated calibrations), `backend/arp/api/routers/index.py`,
+`arp index --help`, and a rule-composer UI on the `Index Construction` tab.
+Phases 1, 3, 5, 6 and 7 are not built: no bitemporal store, no vendor feeds,
+no corporate actions, no FX or withholding tax, no total-return variants, no
+backtester, no governance workflow, and no file distribution. The rest of
+this document describes the target design; section 21 says what to do next.
+
+This document reviews the submitted draft *"Implementation Plan — A Python-Native Equity Index Construction
 System"* (DWS, Investment Intelligence & Positioning), keeps what holds up,
 fixes what doesn't, and fills the gaps that would otherwise be discovered
 mid-build. It is written to be implementable against *this* repository —
@@ -873,6 +883,38 @@ history), **corporate-action data coverage**, and **the BMR
 determination**. All three are Phase 0 items for exactly that reason.
 
 ---
+
+## 20b. What the rule engine already settles
+
+Four things in this plan were open questions when it was written and are now
+decided in code, because building them answered them:
+
+1. **Path dependence needs an index state object**, not a config flag. A
+   review is `f(data, spec, state[t-1])`: `IndexState` carries the
+   decarbonisation base and base date, required vs. achieved metric, the
+   shortfall owed under the compensation rule, which of the two
+   simultaneous reduction constraints currently binds, the divisor and
+   level, and the prior weights and members that turnover and selection
+   buffers need. It is written per review alongside the result.
+2. **PAB/CTB compliance does not require a licensed risk model.** The
+   trajectory is met by solving a single bounded exponential tilt with the
+   constraint set applied *inside* the objective, by bisection. It is
+   deterministic, needs no covariance matrix, and lands on the target
+   exactly. Composing tilt and capping inside one solve rather than
+   alternating them is what makes it converge -- alternating hands weight
+   straight back to the names the tilt just took it from.
+3. **Infeasibility is routine and must be diagnosed, not iterated.** When a
+   target sits below what the constraint set can reach, the engine reports
+   the frontier -- the lowest weighted average attainable by filling from
+   the best names at the single-name cap -- and names the three ways out
+   (relax the cap, widen the universe, lower the ambition). The same
+   applies to an infeasible group cap, which is detected up front instead
+   of oscillating between groups.
+4. **Every relaxation and override is a recorded exception**, carried on the
+   review result and shown in the UI, exactly as section 11.5 requires. The
+   `block` / `fail` / `pass` policy on each rule's missing-value handling is
+   part of the calibration, so an override is a versioned, diffable
+   decision rather than an edit to a data file.
 
 ## 21. Recommended next step
 

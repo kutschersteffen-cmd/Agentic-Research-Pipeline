@@ -83,6 +83,7 @@ climate_app = typer.Typer(help="Portfolio climate analytics: WACI, financed emis
 documents_app = typer.Typer(help="Operator surface for the document content cache (arp/storage/document_store.py).")
 identity_app = typer.Typer(help="Agentic company identity resolution: resolve bare company names to website/CIK before discovery.")
 golden_set_app = typer.Typer(help="Golden-set regression testing for the extraction pipeline -- run before every prompt/model change reaches a real batch.")
+index_app = typer.Typer(help="Equity index construction: compose screens/selection/weighting/constraints into a saved, versioned calibration and run reviews from it.")
 db_app = typer.Typer(help="Opt-in Postgres/pgvector store setup (arp/storage/postgres*.py). Requires ARP_POSTGRES_DSN and the `postgres` extra.")
 app.add_typer(theme_app, name="theme")
 app.add_typer(taxonomy_app, name="taxonomy")
@@ -99,6 +100,7 @@ app.add_typer(climate_app, name="climate")
 app.add_typer(documents_app, name="documents")
 app.add_typer(identity_app, name="identity")
 app.add_typer(golden_set_app, name="golden-set")
+app.add_typer(index_app, name="index")
 app.add_typer(db_app, name="db")
 
 
@@ -1367,6 +1369,200 @@ def climate_coverage(field_id: str, as_of: str = typer.Option(None)) -> None:
     securities, _companies = _portfolio_directories(store)
     result = climate_metrics.coverage_report(store, securities, field_id, as_of)
     typer.echo(json.dumps(result, indent=2))
+
+
+# ---------------------------------------------------------------- index ---
+
+
+def _index_store():
+    from arp.storage.index_store import IndexStore
+
+    return IndexStore(get_settings().indices_dir)
+
+
+def _index_universe(universe_file: Path | None):
+    """The built-in demo universe unless a JSON file of IndexCandidate
+    records is supplied, so every command below runs without a data feed."""
+    from arp.index.mock_data import demo_universe
+    from arp.schemas.index import IndexCandidate
+
+    if universe_file is None:
+        return demo_universe()
+    rows = json.loads(Path(universe_file).read_text())
+    return [IndexCandidate(**row) for row in rows]
+
+
+def _load_spec(preset: str | None, spec_file: Path | None):
+    from arp.index.presets import build_preset
+    from arp.schemas.index import ConstructionSpec
+
+    if spec_file is not None:
+        return ConstructionSpec.model_validate_json(Path(spec_file).read_text())
+    if preset is not None:
+        return build_preset(preset)
+    raise typer.BadParameter("Supply --preset or --spec-file.")
+
+
+@index_app.command("catalogue")
+def index_catalogue() -> None:
+    """Every rule type, its parameters and defaults, plus presets and screen bundles."""
+    from arp.index.presets import rule_catalogue
+
+    typer.echo(json.dumps(rule_catalogue(), indent=2))
+
+
+@index_app.command("presets")
+def index_presets() -> None:
+    """List the named methodology presets."""
+    from arp.index.presets import PRESETS
+
+    for name, preset in sorted(PRESETS.items()):
+        typer.echo(f"{name:24s} {preset['label']}")
+        typer.echo(f"{'':24s} {preset['description']}")
+
+
+@index_app.command("preview")
+def index_preview(
+    review_date: str = typer.Option(..., help="ISO date of the review."),
+    preset: str = typer.Option(None, help="Named preset, e.g. eu_pab."),
+    spec_file: Path = typer.Option(None, help="ConstructionSpec JSON, as saved from the UI."),
+    universe_file: Path = typer.Option(None, help="IndexCandidate JSON list. Omit for the demo universe."),
+    show: str = typer.Option("summary", help="summary | trace | constituents | json"),
+) -> None:
+    """Runs a review without persisting anything."""
+    from arp.index.pipeline import run_review
+
+    spec = _load_spec(preset, spec_file)
+    result = run_review(spec, _index_universe(universe_file), index_id="preview", review_date=review_date)
+    _echo_review(result, show)
+
+
+@index_app.command("run")
+def index_run(
+    index_id: str = typer.Option(..., help="The index this review belongs to."),
+    review_date: str = typer.Option(..., help="ISO date of the review."),
+    calibration_id: str = typer.Option(None, help="Run the calibration version in force on the review date."),
+    preset: str = typer.Option(None),
+    spec_file: Path = typer.Option(None),
+    universe_file: Path = typer.Option(None),
+    show: str = typer.Option("summary"),
+) -> None:
+    """Runs a review and persists it, chaining state from the previous one."""
+    from arp.index.pipeline import run_review
+
+    store = _index_store()
+    calibration_version = None
+    if calibration_id:
+        calibration = store.resolve_for_date(calibration_id, review_date)
+        if calibration is None:
+            raise typer.BadParameter(f"No version of {calibration_id} is in force on {review_date}.")
+        spec, calibration_version = calibration.spec, calibration.version
+        typer.echo(f"Using calibration {calibration.name} v{calibration.version} (effective {calibration.effective_from}).")
+    else:
+        spec = _load_spec(preset, spec_file)
+
+    prior = store.latest_state_before(index_id, review_date)
+    if prior is not None:
+        typer.echo(f"Chaining from the {prior.review_date} review (carry {prior.shortfall_carry:.4%}).")
+    result = run_review(
+        spec,
+        _index_universe(universe_file),
+        index_id=index_id,
+        review_date=review_date,
+        prior_state=prior,
+        calibration_id=calibration_id,
+        calibration_version=calibration_version,
+    )
+    store.save_review(result)
+    _echo_review(result, show)
+
+
+@index_app.command("calibration-save")
+def index_calibration_save(
+    name: str = typer.Option(..., help="Display name."),
+    effective_from: str = typer.Option(..., help="ISO date: the first review date this version governs."),
+    preset: str = typer.Option(None),
+    spec_file: Path = typer.Option(None),
+    calibration_id: str = typer.Option(None, help="Supply to add a new version to an existing calibration."),
+    notes: str = typer.Option(""),
+    approved_by: str = typer.Option("", help="Comma-separated committee minute references."),
+) -> None:
+    """Saves a construction spec as a new calibration, or a new version of one."""
+    store = _index_store()
+    spec = _load_spec(preset, spec_file)
+    approvals = [a.strip() for a in approved_by.split(",") if a.strip()]
+    if calibration_id:
+        calibration = store.new_calibration_version(
+            calibration_id, spec, effective_from=effective_from, notes=notes, approved_by=approvals
+        )
+    else:
+        calibration = store.create_calibration(name, spec, effective_from=effective_from, notes=notes, approved_by=approvals)
+    typer.echo(f"{calibration.calibration_id} v{calibration.version}  effective {calibration.effective_from}  hash {calibration.config_hash[:12]}")
+
+
+@index_app.command("calibration-list")
+def index_calibration_list() -> None:
+    """Lists saved calibrations at their latest version."""
+    for calibration in _index_store().list_calibrations():
+        typer.echo(
+            f"{calibration.calibration_id}  v{calibration.version}  {calibration.name}  "
+            f"effective {calibration.effective_from}  hash {calibration.config_hash[:12]}"
+        )
+
+
+@index_app.command("calibration-show")
+def index_calibration_show(
+    calibration_id: str = typer.Argument(...),
+    version: int = typer.Option(None, help="Omit for the latest version."),
+    as_of: str = typer.Option(None, help="Resolve the version in force on this review date instead."),
+) -> None:
+    """Prints a calibration, or its whole version history."""
+    store = _index_store()
+    calibration = store.resolve_for_date(calibration_id, as_of) if as_of else store.get_calibration(calibration_id, version)
+    if calibration is None:
+        raise typer.BadParameter(f"No calibration {calibration_id}" + (f" in force on {as_of}" if as_of else ""))
+    typer.echo(calibration.model_dump_json(indent=2))
+
+
+@index_app.command("calibration-history")
+def index_calibration_history(calibration_id: str = typer.Argument(...)) -> None:
+    """Every version of a calibration, with the window each one governs."""
+    for calibration in _index_store().list_calibration_versions(calibration_id):
+        window = f"{calibration.effective_from} -> {calibration.effective_to or 'open'}"
+        typer.echo(f"v{calibration.version:<3d} {window:<26s} hash {calibration.config_hash[:12]}  {calibration.notes}")
+
+
+def _echo_review(result, show: str) -> None:
+    if show == "json":
+        typer.echo(result.model_dump_json(indent=2))
+        return
+    d = result.diagnostics
+    typer.echo(f"\n{result.index_id} @ {result.review_date}   config {result.config_hash[:12]}")
+    typer.echo(f"  universe {d.universe_size} -> eligible {d.eligible_size} -> selected {d.selected_size} -> final {d.final_size}")
+    typer.echo(f"  max weight {d.max_weight:.4%}   effective N {d.effective_n:.1f}" + (f"   turnover {d.one_way_turnover:.2%}" if d.one_way_turnover is not None else ""))
+    for field, value in sorted(d.weighted_metrics.items()):
+        universe_value = d.universe_weighted_metrics.get(field)
+        if universe_value is None or abs(universe_value) < 1e-9:
+            continue
+        # Signed as "the index value relative to the universe": a 50%
+        # intensity cut reads -50%, which is the direction people expect.
+        typer.echo(f"  {field}: index {value:.4f} vs universe {universe_value:.4f}  ({value / universe_value - 1:+.2%})")
+    if result.state.required_metric_value is not None:
+        typer.echo(
+            f"  trajectory: target {result.state.required_metric_value:.4f}, achieved {result.state.achieved_metric_value:.4f}, "
+            f"binding {result.state.binding_constraint}, carry {result.state.shortfall_carry:.4%}"
+        )
+    for exception in result.exceptions:
+        typer.echo(f"  ! {exception}")
+    if show == "trace":
+        typer.echo("")
+        for stage in result.trace:
+            typer.echo(f"  {stage.stage:<12s} {stage.label:<46s} {stage.candidates_in:>4d} -> {stage.candidates_out:<4d} {stage.detail}")
+    if show == "constituents":
+        typer.echo("")
+        for constituent in sorted(result.constituents, key=lambda c: -c.weight):
+            typer.echo(f"  {constituent.company_id:<10s} {constituent.name:<28s} {constituent.weight:>8.4%}  shares {constituent.index_shares:>14.4f}")
+
 
 
 if __name__ == "__main__":
