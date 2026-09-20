@@ -225,11 +225,19 @@ export function MonitoringAlerts() {
       <section className="card">
         <h3>Alerts ({visibleAlerts.length})</h3>
         <div className="toolbar">
-          {STATUS_FILTERS.map((s) => (
-            <button key={s} className={s === statusFilter ? "nav-tab active" : "nav-tab"} onClick={() => setStatusFilter(s)}>
-              {s.replace("_", " ")}
-            </button>
-          ))}
+          <div className="view-toggle" role="group" aria-label="Filter alerts by status">
+            {STATUS_FILTERS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={s === statusFilter ? "active" : ""}
+                aria-pressed={s === statusFilter}
+                onClick={() => setStatusFilter(s)}
+              >
+                {s.replace("_", " ")}
+              </button>
+            ))}
+          </div>
           <Button onClick={evaluateNow} disabled={evaluating}>
             {evaluating ? "Evaluating..." : "Evaluate now"}
           </Button>

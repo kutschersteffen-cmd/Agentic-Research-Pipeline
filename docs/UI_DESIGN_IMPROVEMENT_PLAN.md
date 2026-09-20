@@ -195,7 +195,9 @@ One state machine, rendered the same way everywhere:
   also fixes the red/green pair for deuteranopia.
 - Contrast: verify `--muted` (`oklch(48%)`) at `--fs-50` against `--panel`; darken to
   ~`oklch(44%)` if it misses 4.5:1.
-- Modals: native `<dialog>`, focus trap, Escape, restored focus.
+- Modals: native `<dialog>`, focus trap, Escape, restored focus. *(Still open:
+  the two `.modal-overlay` modals and the two `window.confirm` calls move to the
+  `Dialog` primitive in phase 3.)*
 - Full keyboard path through every workflow, tab order matching visual order.
 
 ## 4. Phased delivery
@@ -206,8 +208,8 @@ Each phase ships independently and leaves the app working.
 | --- | --- | --- | --- | --- | --- |
 | 0 | Split `index.css` into layers, extract tokens, merge the duplicated legend rules | 0.5 d | Low | Values snap to the scale (1–2px in places) | **Landed** |
 | 1 | `ui/` primitives; retire the global `button` selector; migrate `Button`, `Field`, `StateBlock` app-wide | 1.5 d | Medium | Button hierarchy appears; forms become labelled | **Landed** |
-| 2 | Routing, command palette, responsive sidebar, a11y baseline | 1.5 d | Medium | Deep links and back button work | Next |
-| 3 | Apply the three templates, starting with Extraction, Monitoring, Review Queue, Search, Index Builder | 2 d | Medium | The app reads as one product | |
+| 2 | Routing, command palette, responsive sidebar, a11y baseline | 1.5 d | Medium | Deep links and back button work | **Landed** |
+| 3 | Apply the three templates, starting with Extraction, Monitoring, Review Queue, Search, Index Builder | 2 d | Medium | The app reads as one product | Next |
 | 4 | `DataTable` upgrades, run strip, dark mode + palette re-validation | 1.5 d | Low | Density and mode choice | |
 | 5 | Guardrails: stylelint scale enforcement, a CI grep for raw hex / inline `style={{` in `.tsx`, an axe pass on the five busiest pages | 0.5 d | Low | None — keeps the system from drifting | |
 
@@ -241,6 +243,47 @@ twenty-one-separate-tools feeling actually comes from.
   form-heavy screens carry an accessible name, and the focus ring resolves on the
   first tab stop.
 
+### What phase 2 actually changed
+
+- **Every view has an address.** `src/router.ts` is a ~90-line hash router
+  (`#/<tab>[/<sub-tab>][?params]`) built on `useSyncExternalStore`, with no
+  dependency and no change to `nginx.conf`. Sidebar items are real links, so
+  middle-click and "copy link" work; the back button, a refresh and a pasted
+  link all land where they should.
+- **Handoffs travel in the URL.** "Send this universe to extraction", "open this
+  run in the review queue" and "use this taxonomy" were parent state in
+  `App.tsx`; they are now route params, so the result of a handoff is a link an
+  analyst can keep or send to a colleague.
+- **`⌘K` / `Ctrl-K` opens a command palette** over every destination in
+  `src/nav.ts` — 21 pages and their 28 sub-tabs, one registry that the sidebar,
+  the palette and each page's tab strip all read, so a view cannot be reachable
+  from one and invisible to the others.
+- **Sub-tabs became `<Tabs>`**: underline tabs with `role="tablist"`, arrow-key
+  and Home/End movement, and the active tab in the URL. They no longer borrow
+  the sidebar's filled pill, which read as a page's primary action sitting in
+  the content column. The nine in-content buttons and two filter rows that had
+  also borrowed `.nav-tab` became secondary buttons and segmented controls, so
+  the class now belongs to the sidebar alone.
+- **The sidebar has three states**: full, an icon rail between 900 and 1200px
+  where the labels would truncate anyway, and an off-canvas drawer below 900px
+  with a scrim. The collapse preference persists, and a `localStorage` that
+  throws costs nothing but the preference.
+- **Accessibility**: a skip link as the first tab stop, `aria-current="page"` on
+  the active destination, keyboard-operable tabs, and a glyph on every status
+  pill so run status is not carried by colour alone.
+- **New in this phase, because deep links created the risk:** URL params are
+  validated before a page sees them (an unknown `?kind=` used to index a lookup
+  table and take the whole window down with it), and an error boundary around
+  the routed view turns a page that throws into a message with a way out
+  instead of a blank window.
+- Verified headlessly against the built app: 11 behaviour checks (deep link to a
+  page and to a sub-tab, back button, refresh, `aria-current`, palette jump,
+  arrow-key tabbing, skip link, handoff params, unknown route, unknown param)
+  all pass, and the three sidebar states plus the drawer were checked at 1440,
+  1100 and 720px. That pass also caught two defects, both fixed: the blank-window
+  crash above, and a scrim left covering the app when the window was widened with
+  the drawer open.
+
 ## 5. Explicitly out of scope
 
 - **No Tailwind / CSS-in-JS / component-library migration.** The app has two runtime
@@ -260,7 +303,7 @@ The plan is done when:
 2. `grep -c 'style={{' src -r` is in single digits, all of them dynamic values (chart
    geometry, computed widths). *47 at the start, 31 after phase 1; phase 3 closes the rest.*
 3. `font-size` outside `tokens.css` is zero; the same for `border-radius` and raw hex. **Met** (the one numeric radius left is a `0` corner in a segmented control).
-4. Every destination is reachable by URL, and refreshing keeps the analyst where they were.
+4. Every destination is reachable by URL, and refreshing keeps the analyst where they were. **Met.**
 5. An axe scan of Dashboard, Extraction, Review Queue, Search and Index Builder reports
    no serious or critical issues; each is fully operable by keyboard.
 6. Adding a new page means composing `PageHeader + Tabs + Card + DataTable` — and a

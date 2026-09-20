@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ThemeBuilder } from "./pages/ThemeBuilder";
 import { Extraction } from "./pages/Extraction";
 import { TransitionPlanAssessment } from "./pages/TransitionPlanAssessment";
@@ -20,119 +20,213 @@ import { StrategyReplication } from "./pages/StrategyReplication";
 import { Search } from "./pages/Search";
 import { DecisionStudio } from "./pages/DecisionStudio";
 import { IndexBuilder } from "./pages/IndexBuilder";
-import { NAV_ICONS } from "./components/NavIcons";
+import { CHROME_ICONS, NAV_ICONS } from "./components/NavIcons";
+import { CommandPalette } from "./components/CommandPalette";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { DEFAULT_TAB, NAV_GROUPS, TABS, isTabId } from "./nav";
+import { href, navigate, useRoute } from "./router";
 import type { ReviewableRunKind } from "./types";
 
-const TABS = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "search", label: "Search" },
-  { id: "theme", label: "Thematic Universe" },
-  { id: "taxonomy", label: "Taxonomy Library" },
-  { id: "emergingThemes", label: "Emerging Themes" },
-  { id: "backgroundAgents", label: "Background Agents" },
-  { id: "extraction", label: "Extraction" },
-  { id: "transitionPlan", label: "Transition Plan Assessment" },
-  { id: "transitionBarrier", label: "Transition Barrier Assessment" },
-  { id: "identity", label: "Identity Resolution" },
-  { id: "discovery", label: "Document Discovery" },
-  { id: "portfolio-monitoring", label: "Portfolio Risk Monitoring Tool" },
-  { id: "review", label: "Review Queue" },
-  { id: "history", label: "Run History" },
-  { id: "engagement", label: "Engagement" },
-  { id: "voting", label: "Voting" },
-  { id: "reporting", label: "Presentations & Reports" },
-  { id: "strategyReplication", label: "Strategy Replication" },
-  { id: "decision", label: "Decision Studio" },
-  { id: "index", label: "Index Construction" },
-  { id: "library", label: "Data Library" },
-] as const;
+const SIDEBAR_KEY = "arp:sidebar-collapsed";
 
-// Purely a sidebar presentation grouping -- ids must match TABS above.
-const NAV_GROUPS: { label: string | null; ids: readonly (typeof TABS)[number]["id"][] }[] = [
-  { label: null, ids: ["dashboard", "search"] },
-  { label: "Theme Machine", ids: ["theme", "taxonomy", "emergingThemes"] },
-  { label: "Company Research", ids: ["backgroundAgents", "extraction", "identity", "discovery"] },
-  { label: "Portfolio Analysis", ids: ["transitionPlan", "transitionBarrier", "portfolio-monitoring", "strategyReplication", "decision", "index"] },
-  { label: "StewardIQ", ids: ["engagement", "voting"] },
-  { label: "Operations", ids: ["review", "history"] },
-  { label: "Output", ids: ["reporting", "library"] },
-];
+// A URL is typed, pasted and edited by hand, so nothing read out of one is
+// trusted: an unknown review kind is dropped rather than handed to a page
+// that would index a lookup table with it.
+const REVIEW_KINDS: ReviewableRunKind[] = ["theme", "extraction", "financials", "identity"];
+
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === "true";
+  } catch {
+    // Private mode or blocked storage: the sidebar just starts expanded.
+    return false;
+  }
+}
 
 function App() {
-  const [active, setActive] = useState<(typeof TABS)[number]["id"]>("dashboard");
-  const [pendingUniverse, setPendingUniverse] = useState<{ path: string; count: number } | null>(null);
-  const [pendingDiscoveryUniverse, setPendingDiscoveryUniverse] = useState<{ path: string; count: number } | null>(null);
-  const [pendingTaxonomyId, setPendingTaxonomyId] = useState<string | null>(null);
-  const [pendingReview, setPendingReview] = useState<{ kind: ReviewableRunKind; runId: string } | null>(null);
+  const route = useRoute();
+  const active = isTabId(route.tab) ? route.tab : DEFAULT_TAB;
 
-  function sendToExtraction(path: string, count: number) {
-    setPendingUniverse({ path, count });
-    setActive("extraction");
-  }
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-  function sendToDiscovery(path: string, count: number) {
-    setPendingDiscoveryUniverse({ path, count });
-    setActive("discovery");
-  }
+  // Handoffs between pages travel in the URL, so "send this universe to
+  // extraction" produces a link the analyst can keep, not hidden state.
+  const universe = route.params.get("universe");
+  const universeCount = route.params.get("count");
+  const taxonomyId = route.params.get("taxonomy");
+  const reviewKind = route.params.get("kind");
+  const reviewRun = route.params.get("run");
 
-  function sendToTheme(taxonomyId: string) {
-    setPendingTaxonomyId(taxonomyId);
-    setActive("theme");
-  }
+  // Stable identities: several pages re-run a fetch whenever these change.
+  const pendingUniverse = useMemo(() => {
+    if (!universe) return null;
+    const count = Number(universeCount);
+    return { path: universe, count: Number.isFinite(count) ? count : 0 };
+  }, [universe, universeCount]);
+  const pendingReview = useMemo(() => {
+    const kind = REVIEW_KINDS.find((k) => k === reviewKind);
+    return kind && reviewRun ? { kind, runId: reviewRun } : null;
+  }, [reviewKind, reviewRun]);
 
-  function openReview(kind: ReviewableRunKind, runId: string) {
-    setPendingReview({ kind, runId });
-    setActive("review");
+  const sendToExtraction = useCallback(
+    (path: string, count: number) => navigate("extraction", { params: { universe: path, count } }),
+    []
+  );
+  const sendToDiscovery = useCallback(
+    (path: string, count: number) => navigate("discovery", { params: { universe: path, count } }),
+    []
+  );
+  const sendToTheme = useCallback((id: string) => navigate("theme", { params: { taxonomy: id } }), []);
+  const openReview = useCallback(
+    (kind: ReviewableRunKind, runId: string) => navigate("review", { params: { kind, run: runId } }),
+    []
+  );
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  // An address that names no page (a bare "/", or a stale link to something
+  // renamed) resolves to the dashboard, and says so in the URL rather than
+  // showing one view while the address bar claims another.
+  useEffect(() => {
+    if (!isTabId(route.tab)) navigate(DEFAULT_TAB, { replace: true });
+  }, [route.tab]);
+
+  // A destination has been reached; the drawer has done its job.
+  useEffect(() => setDrawerOpen(false), [route.tab, route.sub]);
+
+  // Widening the window (or rotating a tablet) past the drawer breakpoint
+  // puts the sidebar back in the layout, so the drawer -- and its scrim --
+  // must stand down with it.
+  useEffect(() => {
+    const wide = window.matchMedia("(min-width: 901px)");
+    const sync = () => wide.matches && setDrawerOpen(false);
+    sync();
+    wide.addEventListener("change", sync);
+    return () => wide.removeEventListener("change", sync);
+  }, []);
+
+  function toggleCollapsed() {
+    setCollapsed((was) => {
+      const next = !was;
+      try {
+        localStorage.setItem(SIDEBAR_KEY, String(next));
+      } catch {
+        // Preference is a convenience; losing it changes nothing else.
+      }
+      return next;
+    });
   }
 
   return (
-    <div className="app-shell">
-      <aside className="app-sidebar">
-        <div className="app-sidebar-brand">
-          <span className="app-sidebar-mark">A</span>
-          <span className="app-sidebar-wordmark">ARP</span>
-        </div>
-        <nav className="app-nav">
-          {NAV_GROUPS.map((group, i) => (
-            <div className="nav-group" key={group.label ?? `group-${i}`}>
-              {group.label && <div className="nav-group-label">{group.label}</div>}
-              {group.ids.map((id) => {
-                const t = TABS.find((tab) => tab.id === id)!;
-                return (
-                  <button key={t.id} className={t.id === active ? "nav-tab active" : "nav-tab"} onClick={() => setActive(t.id)}>
-                    <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
-                    <span className="nav-tab-label">{t.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-      </aside>
-      <main className="app-main">
-        {active === "dashboard" && <MonitoringDashboard onNavigate={setActive} onOpenReview={openReview} />}
-        {active === "search" && <Search />}
-        {active === "theme" && <ThemeBuilder onSendToExtraction={sendToExtraction} pendingTaxonomyId={pendingTaxonomyId} />}
-        {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
-        {active === "emergingThemes" && <EmergingThemesDetector onNavigate={setActive} />}
-        {active === "backgroundAgents" && <BackgroundAgents />}
-        {active === "extraction" && <Extraction pendingUniverse={pendingUniverse} />}
-        {active === "transitionPlan" && <TransitionPlanAssessment pendingUniverse={pendingUniverse} />}
-        {active === "transitionBarrier" && <TransitionBarrierAssessment />}
-        {active === "identity" && <IdentityResolution onSendToDiscovery={sendToDiscovery} />}
-        {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingDiscoveryUniverse} />}
-        {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool />}
-        {active === "review" && <ReviewQueue pendingReview={pendingReview} />}
-        {active === "history" && <RunHistory onOpenReview={openReview} />}
-        {active === "engagement" && <EngagementDashboard />}
-        {active === "voting" && <VotingRuns />}
-        {active === "reporting" && <ReportBuilder />}
-        {active === "strategyReplication" && <StrategyReplication />}
-        {active === "decision" && <DecisionStudio />}
-        {active === "index" && <IndexBuilder />}
-        {active === "library" && <DataLibrary />}
-      </main>
-    </div>
+    <>
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
+      <div className="app-shell" data-sidebar={collapsed ? "rail" : "full"} data-drawer={drawerOpen ? "open" : "closed"}>
+        {drawerOpen && <div className="app-scrim" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
+        <aside className="app-sidebar">
+          <div className="app-sidebar-brand">
+            <span className="app-sidebar-mark">A</span>
+            <span className="app-sidebar-wordmark">ARP</span>
+            <button
+              type="button"
+              className="sidebar-toggle"
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? "Expand the sidebar" : "Collapse the sidebar"}
+              aria-pressed={collapsed}
+            >
+              {collapsed ? CHROME_ICONS.expand : CHROME_ICONS.collapse}
+            </button>
+          </div>
+          <button type="button" className="palette-trigger" onClick={() => setPaletteOpen(true)}>
+            {CHROME_ICONS.search}
+            <span className="palette-trigger-label">Go to...</span>
+            <kbd className="palette-trigger-key">⌘K</kbd>
+          </button>
+          <nav className="app-nav" aria-label="Primary">
+            {NAV_GROUPS.map((group, i) => (
+              <div className="nav-group" key={group.label ?? `group-${i}`}>
+                {group.label && <div className="nav-group-label">{group.label}</div>}
+                {group.ids.map((id) => {
+                  const t = TABS.find((tab) => tab.id === id)!;
+                  return (
+                    <a
+                      key={t.id}
+                      className={t.id === active ? "nav-tab active" : "nav-tab"}
+                      href={href(t.id)}
+                      aria-current={t.id === active ? "page" : undefined}
+                      title={t.label}
+                    >
+                      <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
+                      <span className="nav-tab-label">{t.label}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
+        </aside>
+        <main className="app-main" id="main" tabIndex={-1}>
+          <header className="app-topbar">
+            <button
+              type="button"
+              className="topbar-button"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open the navigation"
+              aria-expanded={drawerOpen}
+            >
+              {CHROME_ICONS.menu}
+            </button>
+            <span className="app-sidebar-wordmark">ARP</span>
+            <button
+              type="button"
+              className="topbar-button topbar-search"
+              onClick={() => setPaletteOpen(true)}
+              aria-label="Go to a page"
+            >
+              {CHROME_ICONS.search}
+            </button>
+          </header>
+          <ErrorBoundary resetKey={`${route.tab}/${route.sub ?? ""}`}>
+            {active === "dashboard" && <MonitoringDashboard onNavigate={navigate} onOpenReview={openReview} />}
+            {active === "search" && <Search />}
+            {active === "theme" && (
+              <ThemeBuilder key={taxonomyId ?? "theme"} onSendToExtraction={sendToExtraction} pendingTaxonomyId={taxonomyId} />
+            )}
+            {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
+            {active === "emergingThemes" && <EmergingThemesDetector onNavigate={navigate} />}
+            {active === "backgroundAgents" && <BackgroundAgents />}
+            {active === "extraction" && <Extraction key={universe ?? "extraction"} pendingUniverse={pendingUniverse} />}
+            {active === "transitionPlan" && <TransitionPlanAssessment key={universe ?? "plan"} pendingUniverse={pendingUniverse} />}
+            {active === "transitionBarrier" && <TransitionBarrierAssessment />}
+            {active === "identity" && <IdentityResolution onSendToDiscovery={sendToDiscovery} />}
+            {active === "discovery" && <DocumentDiscovery key={universe ?? "discovery"} pendingUniverse={pendingUniverse} />}
+            {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool />}
+            {active === "review" && <ReviewQueue pendingReview={pendingReview} />}
+            {active === "history" && <RunHistory onOpenReview={openReview} />}
+            {active === "engagement" && <EngagementDashboard />}
+            {active === "voting" && <VotingRuns />}
+            {active === "reporting" && <ReportBuilder />}
+            {active === "strategyReplication" && <StrategyReplication />}
+            {active === "decision" && <DecisionStudio />}
+            {active === "index" && <IndexBuilder />}
+            {active === "library" && <DataLibrary />}
+          </ErrorBoundary>
+        </main>
+      </div>
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+    </>
   );
 }
 

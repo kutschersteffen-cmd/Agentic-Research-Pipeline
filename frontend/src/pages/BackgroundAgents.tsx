@@ -10,15 +10,12 @@ import type {
   TaxonomyResearcherScheduleConfig,
   TaxonomyResearchFinding,
 } from "../types";
-import { Button, Field, StateBlock } from "../ui";
-
-const SUB_TABS = [
-  { id: "taxonomyResearcher", label: "Taxonomy Researcher" },
-  { id: "calibration", label: "Calibration Agent" },
-] as const;
+import { BACKGROUND_AGENT_TABS as SUB_TABS } from "../nav";
+import { useSubTab } from "../router";
+import { Button, Field, StateBlock, TabPanel, Tabs } from "../ui";
 
 export function BackgroundAgents() {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("taxonomyResearcher");
+  const [sub, setSub] = useSubTab(SUB_TABS, "taxonomyResearcher");
 
   return (
     <div className="page">
@@ -28,15 +25,17 @@ export function BackgroundAgents() {
         neither one auto-applies a change: a Taxonomy Researcher proposal still needs a human to ratify it,
         and a Calibration Agent drift flag still needs a human to decide whether to re-run classification.
       </p>
-      <nav className="sub-nav">
-        {SUB_TABS.map((t) => (
-          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} onClick={() => setSub(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </nav>
-      {sub === "taxonomyResearcher" && <TaxonomyResearcherPanel />}
-      {sub === "calibration" && <CalibrationPanel />}
+      <Tabs
+        id="backgroundAgents"
+        tabs={SUB_TABS}
+        active={sub}
+        onChange={(id) => setSub(id as typeof sub)}
+        label="Background agent"
+      />
+      <TabPanel id="backgroundAgents" active={sub}>
+        {sub === "taxonomyResearcher" && <TaxonomyResearcherPanel />}
+        {sub === "calibration" && <CalibrationPanel />}
+      </TabPanel>
     </div>
   );
 }

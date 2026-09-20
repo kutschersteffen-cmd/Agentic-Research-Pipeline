@@ -14,7 +14,9 @@ import type {
   TaxonomyRef,
   ThemeDefinition,
 } from "../types";
-import { Button, Field, StateBlock } from "../ui";
+import { TAXONOMY_TABS as SUB_TABS } from "../nav";
+import { useSubTab } from "../router";
+import { Button, Field, StateBlock, TabPanel, Tabs } from "../ui";
 
 const METHOD_LABELS: Record<DerivationMethod, string> = {
   llm_draft: "LLM draft (freeform)",
@@ -37,20 +39,12 @@ const CREATABLE_METHODS: DerivationMethod[] = [
   "empirical",
 ];
 
-const SUB_TABS = [
-  { id: "library", label: "Library" },
-  { id: "new", label: "New taxonomy" },
-  { id: "compare", label: "Compare & merge" },
-  { id: "universe", label: "Universe builder" },
-  { id: "overlap", label: "ETF holdings overlap" },
-] as const;
-
 interface Props {
   onUseInTheme?: (taxonomyId: string) => void;
 }
 
 export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("library");
+  const [sub, setSub] = useSubTab(SUB_TABS, "library");
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
 
   async function refreshLibrary() {
@@ -70,18 +64,20 @@ export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
         existing ETF/index's holdings, news &amp; transcripts, or the Extraction Engine's own readings, then review,
         edit, ratify, compare and merge.
       </p>
-      <nav className="sub-nav">
-        {SUB_TABS.map((t) => (
-          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} onClick={() => setSub(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </nav>
-      {sub === "library" && <LibraryView taxonomies={taxonomies} onChange={refreshLibrary} onUseInTheme={onUseInTheme} />}
-      {sub === "new" && <NewTaxonomyWizard onCreated={refreshLibrary} />}
-      {sub === "compare" && <CompareMergeView taxonomies={taxonomies} onSaved={refreshLibrary} />}
-      {sub === "universe" && <UniverseBuilderView />}
-      {sub === "overlap" && <OverlapView />}
+      <Tabs
+        id="taxonomy"
+        tabs={SUB_TABS}
+        active={sub}
+        onChange={(id) => setSub(id as typeof sub)}
+        label="Taxonomy library view"
+      />
+      <TabPanel id="taxonomy" active={sub}>
+        {sub === "library" && <LibraryView taxonomies={taxonomies} onChange={refreshLibrary} onUseInTheme={onUseInTheme} />}
+        {sub === "new" && <NewTaxonomyWizard onCreated={refreshLibrary} />}
+        {sub === "compare" && <CompareMergeView taxonomies={taxonomies} onSaved={refreshLibrary} />}
+        {sub === "universe" && <UniverseBuilderView />}
+        {sub === "overlap" && <OverlapView />}
+      </TabPanel>
     </div>
   );
 }

@@ -13,16 +13,12 @@ import type {
   ReviewDecision,
   RunManifest,
 } from "../types";
-import { Button, Field, StateBlock } from "../ui";
-
-const SUB_TABS = [
-  { id: "results", label: "Run results" },
-  { id: "by_company", label: "By company" },
-  { id: "parsed", label: "Parsed documents" },
-] as const;
+import { DATA_LIBRARY_TABS as SUB_TABS } from "../nav";
+import { useSubTab } from "../router";
+import { Button, Field, StateBlock, TabPanel, Tabs } from "../ui";
 
 export function DataLibrary() {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("results");
+  const [sub, setSub] = useSubTab(SUB_TABS, "results");
 
   return (
     <div className="page">
@@ -31,16 +27,18 @@ export function DataLibrary() {
         Browse everything already stored: results from any past extraction or financials run, and every parsed
         document text this instance has cached -- across all companies and runs, not just the last one you looked at.
       </p>
-      <nav className="sub-nav">
-        {SUB_TABS.map((t) => (
-          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} onClick={() => setSub(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </nav>
-      {sub === "results" && <RunResultsView />}
-      {sub === "by_company" && <CompanyResultsView />}
-      {sub === "parsed" && <ParsedDocumentsView />}
+      <Tabs
+        id="library"
+        tabs={SUB_TABS}
+        active={sub}
+        onChange={(id) => setSub(id as typeof sub)}
+        label="Data library view"
+      />
+      <TabPanel id="library" active={sub}>
+        {sub === "results" && <RunResultsView />}
+        {sub === "by_company" && <CompanyResultsView />}
+        {sub === "parsed" && <ParsedDocumentsView />}
+      </TabPanel>
     </div>
   );
 }

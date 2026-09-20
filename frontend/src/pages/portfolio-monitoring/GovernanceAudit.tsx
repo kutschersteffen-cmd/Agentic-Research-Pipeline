@@ -246,12 +246,14 @@ export function GovernanceAudit() {
       </section>
 
       <div className="toolbar">
-        <button className={view === "pending" ? "nav-tab active" : "nav-tab"} onClick={() => setView("pending")}>
-          pending
-        </button>
-        <button className={view === "all" ? "nav-tab active" : "nav-tab"} onClick={() => setView("all")}>
-          all
-        </button>
+        <div className="view-toggle" role="group" aria-label="Which decisions to show">
+          <button type="button" className={view === "pending" ? "active" : ""} aria-pressed={view === "pending"} onClick={() => setView("pending")}>
+            pending
+          </button>
+          <button type="button" className={view === "all" ? "active" : ""} aria-pressed={view === "all"} onClick={() => setView("all")}>
+            all
+          </button>
+        </div>
         <input placeholder="Decided by (required to act on an item)" value={decidedBy} onChange={(e) => setDecidedBy(e.target.value)} />
       </div>
       {error && <StateBlock kind="error" message={error} />}

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { PortfolioPaneProvider } from "../context/PortfolioPaneContext";
 import { PersistentSelectionPane } from "../components/PersistentSelectionPane";
 import { StandardAnalytics } from "./portfolio-monitoring/StandardAnalytics";
@@ -9,17 +8,9 @@ import { CustomAnalysisStub } from "./portfolio-monitoring/CustomAnalysisStub";
 import { AskThePortfolio } from "./portfolio-monitoring/AskThePortfolio";
 import { GenerativeBI } from "./portfolio-monitoring/GenerativeBI";
 import { GovernanceAudit } from "./portfolio-monitoring/GovernanceAudit";
-
-const SUB_TABS = [
-  { id: "standard", label: "Standard Analytics & Visuals" },
-  { id: "pivot", label: "Pivot Explorer" },
-  { id: "monitoring", label: "Monitoring & Alerts" },
-  { id: "profiles", label: "Company Profiles" },
-  { id: "notebook", label: "Custom Analysis" },
-  { id: "ask", label: "Ask the Portfolio" },
-  { id: "genbi", label: "Generative BI" },
-  { id: "governance", label: "Governance & Audit" },
-] as const;
+import { PORTFOLIO_TABS as SUB_TABS } from "../nav";
+import { useSubTab } from "../router";
+import { TabPanel, Tabs } from "../ui";
 
 /** One top-level tool (spec §9): a persistent portfolio/date selection
  * pane that isn't itself a sub-tab, plus one MECE sub-tab per capability
@@ -35,7 +26,7 @@ export function PortfolioRiskMonitoringTool() {
 }
 
 function Inner() {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("standard");
+  const [sub, setSub] = useSubTab(SUB_TABS, "standard");
 
   return (
     <div className="page">
@@ -48,22 +39,23 @@ function Inner() {
 
       <PersistentSelectionPane />
 
-      <nav className="sub-nav">
-        {SUB_TABS.map((t) => (
-          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} onClick={() => setSub(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </nav>
-
-      {sub === "standard" && <StandardAnalytics />}
-      {sub === "pivot" && <PivotExplorer />}
-      {sub === "monitoring" && <MonitoringAlerts />}
-      {sub === "profiles" && <CompanyProfiles />}
-      {sub === "notebook" && <CustomAnalysisStub />}
-      {sub === "ask" && <AskThePortfolio />}
-      {sub === "genbi" && <GenerativeBI />}
-      {sub === "governance" && <GovernanceAudit />}
+      <Tabs
+        id="portfolio"
+        tabs={SUB_TABS}
+        active={sub}
+        onChange={(id) => setSub(id as typeof sub)}
+        label="Portfolio tool"
+      />
+      <TabPanel id="portfolio" active={sub}>
+        {sub === "standard" && <StandardAnalytics />}
+        {sub === "pivot" && <PivotExplorer />}
+        {sub === "monitoring" && <MonitoringAlerts />}
+        {sub === "profiles" && <CompanyProfiles />}
+        {sub === "notebook" && <CustomAnalysisStub />}
+        {sub === "ask" && <AskThePortfolio />}
+        {sub === "genbi" && <GenerativeBI />}
+        {sub === "governance" && <GovernanceAudit />}
+      </TabPanel>
     </div>
   );
 }

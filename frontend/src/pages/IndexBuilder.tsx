@@ -10,7 +10,9 @@ import type {
   SelectionRule,
   TiltRule,
 } from "../types";
-import { Button, Field, StateBlock } from "../ui";
+import { INDEX_BUILDER_TABS as SUB_TABS } from "../nav";
+import { useSubTab } from "../router";
+import { Button, Field, StateBlock, TabPanel, Tabs } from "../ui";
 
 /**
  * Compose an index methodology out of named rules, save it as a versioned
@@ -21,12 +23,6 @@ import { Button, Field, StateBlock } from "../ui";
  * `docs/INDEX_METHODOLOGY_LANDSCAPE.md` for where each rule type comes from
  * and `docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md` for the wider design.
  */
-
-const SUB_TABS = [
-  { id: "compose", label: "Compose" },
-  { id: "calibrations", label: "Calibrations" },
-  { id: "result", label: "Result" },
-] as const;
 
 const EMPTY_SPEC: ConstructionSpec = {
   index_currency: "EUR",
@@ -183,7 +179,7 @@ function RuleShell({
 }
 
 export function IndexBuilder() {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("compose");
+  const [sub, setSub] = useSubTab(SUB_TABS, "compose");
   const [catalogue, setCatalogue] = useState<IndexCatalogue | null>(null);
   const [spec, setSpec] = useState<ConstructionSpec>(EMPTY_SPEC);
   const [calibrations, setCalibrations] = useState<IndexCalibration[]>([]);
@@ -269,83 +265,85 @@ export function IndexBuilder() {
         zero-LLM. See <code>docs/INDEX_METHODOLOGY_LANDSCAPE.md</code> for where each rule type comes from.
       </p>
 
-      <nav className="sub-nav">
-        {SUB_TABS.map((t) => (
-          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} onClick={() => setSub(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </nav>
+      <Tabs
+        id="index"
+        tabs={SUB_TABS}
+        active={sub}
+        onChange={(id) => setSub(id as typeof sub)}
+        label="Index construction step"
+      />
 
       {error && <StateBlock kind="error" message={error} />}
       {status && <p className="status-text">{status}</p>}
 
-      {sub === "compose" && (
-        <>
-          <div className="card">
-            <h3>Start from a preset</h3>
-            <p className="help-text">
-              A preset expands into the ordinary rules below -- nothing is hidden, and every rule stays editable.
-            </p>
-            <div className="toolbar" style={{ flexWrap: "wrap" }}>
-              {(catalogue?.presets ?? []).map((p) => (
-                <button key={p.name} className="nav-tab" title={p.description} onClick={() => loadPreset(p.name)}>
-                  {p.label}
-                </button>
-              ))}
-              <button className="nav-tab" onClick={() => { setSpec(EMPTY_SPEC); setLoaded(null); setStatus("Started from an empty methodology."); }}>
-                Empty
-              </button>
+      <TabPanel id="index" active={sub}>
+        {sub === "compose" && (
+          <>
+            <div className="card">
+              <h3>Start from a preset</h3>
+              <p className="help-text">
+                A preset expands into the ordinary rules below -- nothing is hidden, and every rule stays editable.
+              </p>
+              <div className="toolbar" style={{ flexWrap: "wrap" }}>
+                {(catalogue?.presets ?? []).map((p) => (
+                  <Button variant="secondary" size="sm" key={p.name} title={p.description} onClick={() => loadPreset(p.name)}>
+                    {p.label}
+                  </Button>
+                ))}
+                <Button variant="secondary" size="sm" onClick={() => { setSpec(EMPTY_SPEC); setLoaded(null); setStatus("Started from an empty methodology."); }}>
+                  Empty
+                </Button>
+              </div>
             </div>
-          </div>
 
-          <ScreensCard spec={spec} setSpec={setSpec} catalogue={catalogue} fields={fields} onAddBundle={addBundle} />
-          <SelectionCard spec={spec} setSpec={setSpec} fields={fields} />
-          <WeightingCard spec={spec} setSpec={setSpec} fields={fields} />
-          <TiltsCard spec={spec} setSpec={setSpec} fields={fields} />
-          <ConstraintsCard spec={spec} setSpec={setSpec} fields={fields} optimizerAvailable={catalogue?.constraint_solver?.available ?? null} integerAvailable={catalogue?.constraint_solver?.integer_available ?? null} />
-          <TrajectoryCard spec={spec} setSpec={setSpec} fields={fields} />
+            <ScreensCard spec={spec} setSpec={setSpec} catalogue={catalogue} fields={fields} onAddBundle={addBundle} />
+            <SelectionCard spec={spec} setSpec={setSpec} fields={fields} />
+            <WeightingCard spec={spec} setSpec={setSpec} fields={fields} />
+            <TiltsCard spec={spec} setSpec={setSpec} fields={fields} />
+            <ConstraintsCard spec={spec} setSpec={setSpec} fields={fields} optimizerAvailable={catalogue?.constraint_solver?.available ?? null} integerAvailable={catalogue?.constraint_solver?.integer_available ?? null} />
+            <TrajectoryCard spec={spec} setSpec={setSpec} fields={fields} />
 
-          <div className="card">
-            <h3>Run a review</h3>
-            <div className="inline-fields">
-              <Field label="Index id">
-                <input type="text" value={indexId} onChange={(e) => setIndexId(e.target.value)} />
-              </Field>
-              <Field label="Review date">
-                <input type="date" value={reviewDate} onChange={(e) => setReviewDate(e.target.value)} />
-              </Field>
+            <div className="card">
+              <h3>Run a review</h3>
+              <div className="inline-fields">
+                <Field label="Index id">
+                  <input type="text" value={indexId} onChange={(e) => setIndexId(e.target.value)} />
+                </Field>
+                <Field label="Review date">
+                  <input type="date" value={reviewDate} onChange={(e) => setReviewDate(e.target.value)} />
+                </Field>
+              </div>
+              <p className="help-text">
+                A saved review chains state into the next one: the decarbonisation base, the shortfall carried forward, and
+                the incumbents a selection buffer needs. A preview writes nothing.
+              </p>
+              <div className="toolbar">
+                <Button onClick={() => runReview(false)} disabled={busy}>
+                  {busy ? "Running..." : "Preview"}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => runReview(true)} disabled={busy}>
+                  Run &amp; save
+                </Button>
+              </div>
             </div>
-            <p className="help-text">
-              A saved review chains state into the next one: the decarbonisation base, the shortfall carried forward, and
-              the incumbents a selection buffer needs. A preview writes nothing.
-            </p>
-            <div className="toolbar">
-              <Button onClick={() => runReview(false)} disabled={busy}>
-                {busy ? "Running..." : "Preview"}
-              </Button>
-              <button onClick={() => runReview(true)} disabled={busy} className="nav-tab">
-                Run &amp; save
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
 
-      {sub === "calibrations" && (
-        <CalibrationsTab
-          spec={spec}
-          setSpec={setSpec}
-          calibrations={calibrations}
-          loaded={loaded}
-          setLoaded={setLoaded}
-          refresh={refreshCalibrations}
-          setError={setError}
-          setStatus={setStatus}
-        />
-      )}
+        {sub === "calibrations" && (
+          <CalibrationsTab
+            spec={spec}
+            setSpec={setSpec}
+            calibrations={calibrations}
+            loaded={loaded}
+            setLoaded={setLoaded}
+            refresh={refreshCalibrations}
+            setError={setError}
+            setStatus={setStatus}
+          />
+        )}
 
-      {sub === "result" && <ResultTab result={result} indexId={indexId} />}
+        {sub === "result" && <ResultTab result={result} indexId={indexId} />}
+      </TabPanel>
     </div>
   );
 }
@@ -395,14 +393,14 @@ function ScreensCard({
       </p>
       <div className="toolbar" style={{ flexWrap: "wrap" }}>
         {(catalogue?.screens ?? []).map((s) => (
-          <button key={s.type} className="nav-tab" title={s.help} onClick={() => add(s.type as ScreenRule["type"])}>
+          <Button variant="secondary" size="sm" key={s.type} title={s.help} onClick={() => add(s.type as ScreenRule["type"])}>
             + {s.label}
-          </button>
+          </Button>
         ))}
         {(catalogue?.screen_bundles ?? []).map((b) => (
-          <button key={b.name} className="nav-tab" title={b.description} onClick={() => onAddBundle(b.name)}>
+          <Button variant="secondary" size="sm" key={b.name} title={b.description} onClick={() => onAddBundle(b.name)}>
             + {b.label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -634,12 +632,12 @@ function TiltsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setSpec:
         silently becomes an exclusion, which is a methodology change nobody approved.
       </p>
       <div className="toolbar">
-        <button className="nav-tab" onClick={() => add("metric_tilt")}>
+        <Button variant="secondary" size="sm" onClick={() => add("metric_tilt")}>
           + Metric tilt
-        </button>
-        <button className="nav-tab" onClick={() => add("bucket_tilt")}>
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => add("bucket_tilt")}>
           + Category multiplier table
-        </button>
+        </Button>
       </div>
 
       {spec.tilts.length === 0 && <StateBlock kind="empty" message="No tilts. Constituents keep their base weight." />}
@@ -794,9 +792,9 @@ function ConstraintsCard({
           </Button>
         </div>
       ))}
-      <button className="nav-tab" onClick={() => update({ group_caps: [...c.group_caps, { dimension: fields.categories[0] ?? "sector", max_weight: 0.4 }] })}>
+      <Button variant="secondary" size="sm" onClick={() => update({ group_caps: [...c.group_caps, { dimension: fields.categories[0] ?? "sector", max_weight: 0.4 }] })}>
         + Group cap
-      </button>
+      </Button>
 
       {usesIntegers && solver.method === "waterfall" && (
         <p className="error-text">
@@ -1131,9 +1129,9 @@ function CalibrationsTab({
           <Button onClick={() => save(false)} disabled={!name.trim()}>
             Save as new calibration
           </Button>
-          <button className="nav-tab" onClick={() => save(true)} disabled={!loaded}>
+          <Button variant="secondary" size="sm" onClick={() => save(true)} disabled={!loaded}>
             {loaded ? `Save as v${loaded.version + 1} of ${loaded.name}` : "Save as new version"}
-          </button>
+          </Button>
         </div>
       </div>
 

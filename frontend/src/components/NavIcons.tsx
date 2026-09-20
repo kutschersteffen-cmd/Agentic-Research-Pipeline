@@ -11,8 +11,35 @@ const ICON_PROPS = {
   strokeLinejoin: "round" as const,
 };
 
+// Chrome icons that belong to the shell rather than to a destination.
+export const CHROME_ICONS = {
+  menu: (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  ),
+  collapse: (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
+  ),
+  expand: (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  ),
+  search: (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <line x1="16.5" y1="16.5" x2="21" y2="21" />
+    </svg>
+  ),
+};
+
 // One consistent stroke-icon set for the sidebar nav, keyed by tab id (see
-// App.tsx's TABS). Kept as inline SVG (not a font/emoji) so it recolors
+// nav.ts's TABS). Kept as inline SVG (not a font/emoji) so it recolors
 // with currentColor and stays crisp at any zoom.
 export const NAV_ICONS: Record<string, ReactElement> = {
   dashboard: (
