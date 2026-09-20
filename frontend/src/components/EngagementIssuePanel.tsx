@@ -360,7 +360,7 @@ export function EngagementIssuePanel({
                 <p>
                   <strong>{letter.subject}</strong> &rarr; {letter.recommended_recipient}
                 </p>
-                <p style={{ whiteSpace: "pre-wrap" }}>{letter.body}</p>
+                <p className="prewrap">{letter.body}</p>
                 <div className="toolbar">
                   <Button onClick={logSent} disabled={busy || !actor}>
                     Log outreach sent (human-authorized)

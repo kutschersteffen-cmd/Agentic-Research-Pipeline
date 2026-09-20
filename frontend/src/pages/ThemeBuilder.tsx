@@ -6,7 +6,7 @@ import { ConfidenceBadge, VerdictBadge } from "../components/ConfidenceBadge";
 import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import type { ActivityCatalogueMapping, ActivityDefinition, CompanyMatch, Taxonomy, ThemeDefinition } from "../types";
-import { Button, Field, StateBlock } from "../ui";
+import { Button, Field, PageHeader, StateBlock } from "../ui";
 
 const EXPOSURE_RANK: Record<string, number> = { pure_play: 3, significant: 2, minor: 1, none: 0 };
 
@@ -216,11 +216,15 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
 
   return (
     <div className="page">
-      <h2>Thematic Investment Universe Builder</h2>
-      <p className="help-text">
-        Decompose a macro theme into checkable activities, then screen a company universe against each one using an
-        Advocate / Opposing / Adjudicator agent pipeline with programmatically grounded citations.
-      </p>
+      <PageHeader
+        title="Thematic Investment Universe Builder"
+        description={
+          <>
+            Decompose a macro theme into checkable activities, then screen a company universe against each one using an
+            Advocate / Opposing / Adjudicator agent pipeline with programmatically grounded citations.
+          </>
+        }
+      />
 
       <section className="card">
         <h3>1. Define the theme</h3>
@@ -234,7 +238,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
           Decompose into activities
         </Button>
 
-        <p className="help-text" style={{ marginTop: 16 }}>
+        <p className="help-text mt-4">
           Or load an existing, versioned taxonomy from the Taxonomy Library instead of drafting a new one:
         </p>
         <div className="inline-fields">
@@ -315,7 +319,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
             backend instead and leave this off.
           </p>
 
-          <p className="help-text" style={{ marginTop: 16 }}>
+          <p className="help-text mt-4">
             Optional: a structured revenue/CapEx catalogue -- resolves exposure from hard disclosed numbers
             (catalogue match, then extraction from disclosures) before falling back to the qualitative debate above.
           </p>

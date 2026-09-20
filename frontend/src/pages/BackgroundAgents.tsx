@@ -12,19 +12,23 @@ import type {
 } from "../types";
 import { BACKGROUND_AGENT_TABS as SUB_TABS } from "../nav";
 import { useSubTab } from "../router";
-import { Button, Field, StateBlock, TabPanel, Tabs } from "../ui";
+import { Button, Field, PageHeader, StateBlock, TabPanel, Tabs } from "../ui";
 
 export function BackgroundAgents() {
   const [sub, setSub] = useSubTab(SUB_TABS, "taxonomyResearcher");
 
   return (
     <div className="page">
-      <h2>Background Agents</h2>
-      <p className="help-text">
-        Two standing agents run continuously rather than on demand. Both only ever propose or flag --
-        neither one auto-applies a change: a Taxonomy Researcher proposal still needs a human to ratify it,
-        and a Calibration Agent drift flag still needs a human to decide whether to re-run classification.
-      </p>
+      <PageHeader
+        title="Background Agents"
+        description={
+          <>
+            Two standing agents run continuously rather than on demand. Both only ever propose or flag --
+            neither one auto-applies a change: a Taxonomy Researcher proposal still needs a human to ratify it,
+            and a Calibration Agent drift flag still needs a human to decide whether to re-run classification.
+          </>
+        }
+      />
       <Tabs
         id="backgroundAgents"
         tabs={SUB_TABS}

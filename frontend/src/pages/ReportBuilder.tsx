@@ -14,7 +14,7 @@ import type {
   Tone,
 } from "../types";
 import { CHART_TYPES } from "../types";
-import { Button, Field, StateBlock } from "../ui";
+import { Button, Dialog, Field, PageHeader, StateBlock } from "../ui";
 
 const AUDIENCE_LEVELS: AudienceLevel[] = ["executive", "technical", "general"];
 const TONES: Tone[] = ["formal", "conversational", "persuasive", "neutral_analytical"];
@@ -229,13 +229,17 @@ export function ReportBuilder() {
   return (
     <div className={previewReportId ? "page split-review" : "page"} style={previewReportId ? { maxWidth: 1560 } : undefined}>
     <div className={previewReportId ? "split-review-main" : undefined}>
-      <h2>Presentation &amp; Reporting Tool</h2>
-      <p className="help-text">
-        Drafts a structured content plan from your qualitative notes and quantitative data -- matched to the
-        audience and layout instructions below, and to an ingested template's style if one is supplied -- then
-        deterministically renders it to pptx/docx/pdf. Review and edit the plan (reorder sections, swap a chart
-        type, tweak text) before rendering the final file.
-      </p>
+      <PageHeader
+        title="Presentation & Reporting Tool"
+        description={
+          <>
+            Drafts a structured content plan from your qualitative notes and quantitative data -- matched to the
+            audience and layout instructions below, and to an ingested template's style if one is supplied -- then
+            deterministically renders it to pptx/docx/pdf. Review and edit the plan (reorder sections, swap a chart
+            type, tweak text) before rendering the final file.
+          </>
+        }
+      />
 
       <section className="card">
         <h3>1. Content</h3>
@@ -254,7 +258,7 @@ export function ReportBuilder() {
             {datasets.map((ds, i) => (
               <span className="chip" key={ds.dataset_id}>
                 {ds.name} ({ds.rows.length} rows)
-                <Button variant="ghost" style={{ marginLeft: 6 }} onClick={() => setDatasets(datasets.filter((_, j) => j !== i))}>
+                <Button variant="ghost" className="ml-2" onClick={() => setDatasets(datasets.filter((_, j) => j !== i))}>
                   &times;
                 </Button>
               </span>
@@ -453,7 +457,7 @@ export function ReportBuilder() {
                       {r.status === "completed" && (
                         <>
                           <Button variant="ghost"
-                            style={{ marginRight: 10 }}
+                            className="mr-3"
                             onClick={(e) => {
                               e.stopPropagation();
                               openPreview(r.report_id, r.title);
@@ -499,23 +503,26 @@ export function ReportBuilder() {
     )}
 
     {enlargedPage && previewReportId && (
-      <div className="modal-overlay" onClick={() => setEnlargedPage(null)}>
-        <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
-            <h4>{previewTitle} -- page {enlargedPage} / {previewPageCount}</h4>
-            <Button variant="ghost" onClick={() => setEnlargedPage(null)}>Close</Button>
-          </div>
-          <img className="modal-image" src={api.reportPreviewPageUrl(previewReportId, enlargedPage)} alt={`Page ${enlargedPage}`} />
-          <div className="toolbar">
-            <Button onClick={() => setEnlargedPage((p) => Math.max(1, (p ?? 1) - 1))} disabled={enlargedPage <= 1}>
+      <Dialog
+        title={`${previewTitle} -- page ${enlargedPage} / ${previewPageCount}`}
+        onClose={() => setEnlargedPage(null)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEnlargedPage((p) => Math.max(1, (p ?? 1) - 1))} disabled={enlargedPage <= 1}>
               &larr; Prev
             </Button>
-            <Button onClick={() => setEnlargedPage((p) => Math.min(previewPageCount, (p ?? 1) + 1))} disabled={enlargedPage >= previewPageCount}>
+            <Button
+              variant="secondary"
+              onClick={() => setEnlargedPage((p) => Math.min(previewPageCount, (p ?? 1) + 1))}
+              disabled={enlargedPage >= previewPageCount}
+            >
               Next &rarr;
             </Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      >
+        <img className="modal-image" src={api.reportPreviewPageUrl(previewReportId, enlargedPage)} alt={`Page ${enlargedPage}`} />
+      </Dialog>
     )}
     </div>
   );

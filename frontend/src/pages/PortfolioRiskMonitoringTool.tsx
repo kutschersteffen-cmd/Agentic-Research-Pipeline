@@ -10,7 +10,7 @@ import { GenerativeBI } from "./portfolio-monitoring/GenerativeBI";
 import { GovernanceAudit } from "./portfolio-monitoring/GovernanceAudit";
 import { PORTFOLIO_TABS as SUB_TABS } from "../nav";
 import { useSubTab } from "../router";
-import { TabPanel, Tabs } from "../ui";
+import { PageHeader, TabPanel, Tabs } from "../ui";
 
 /** One top-level tool (spec §9): a persistent portfolio/date selection
  * pane that isn't itself a sub-tab, plus one MECE sub-tab per capability
@@ -30,12 +30,16 @@ function Inner() {
 
   return (
     <div className="page">
-      <h2>Portfolio Risk Monitoring Tool</h2>
-      <p className="help-text">
-        Select a portfolio (or group) and an as-of date below -- the selection carries across every sub-tab. See{" "}
-        <code>docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md</code> for the underlying engine and{" "}
-        <code>docs/SPEC_GAP_ANALYSIS.md</code> for how this compares against the functional spec.
-      </p>
+      <PageHeader
+        title="Portfolio Risk Monitoring Tool"
+        description={
+          <>
+            Select a portfolio (or group) and an as-of date below -- the selection carries across every sub-tab. See{" "}
+            <code>docs/PORTFOLIO_RISK_EXPOSURE_PLAN.md</code> for the underlying engine and{" "}
+            <code>docs/SPEC_GAP_ANALYSIS.md</code> for how this compares against the functional spec.
+          </>
+        }
+      />
 
       <PersistentSelectionPane />
 

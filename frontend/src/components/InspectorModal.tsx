@@ -4,7 +4,8 @@
  * text already available client-side (e.g. an uploaded holdings CSV,
  * previewed without a round trip). */
 
-import { Button } from "../ui";
+import { Dialog } from "../ui";
+
 interface Props {
   title: string;
   onClose: () => void;
@@ -14,17 +15,9 @@ interface Props {
 
 export function InspectorModal({ title, onClose, src, text }: Props) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h4>{title}</h4>
-          <Button variant="ghost" onClick={onClose}>
-            Close
-          </Button>
-        </div>
-        {src && <iframe className="modal-iframe" src={src} title={title} />}
-        {text !== undefined && <pre className="modal-text">{text}</pre>}
-      </div>
-    </div>
+    <Dialog title={title} onClose={onClose}>
+      {src && <iframe className="modal-iframe" src={src} title={title} />}
+      {text !== undefined && <pre className="modal-text">{text}</pre>}
+    </Dialog>
   );
 }

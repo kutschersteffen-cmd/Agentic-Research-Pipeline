@@ -16,7 +16,7 @@ import type {
 } from "../types";
 import { TAXONOMY_TABS as SUB_TABS } from "../nav";
 import { useSubTab } from "../router";
-import { Button, Field, StateBlock, TabPanel, Tabs } from "../ui";
+import { Button, Field, PageHeader, StateBlock, TabPanel, Tabs } from "../ui";
 
 const METHOD_LABELS: Record<DerivationMethod, string> = {
   llm_draft: "LLM draft (freeform)",
@@ -58,12 +58,16 @@ export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Taxonomy Library</h2>
-      <p className="help-text">
-        Reusable, versioned thematic taxonomies with provenance -- draft one from an authoritative source, an
-        existing ETF/index's holdings, news &amp; transcripts, or the Extraction Engine's own readings, then review,
-        edit, ratify, compare and merge.
-      </p>
+      <PageHeader
+        title="Taxonomy Library"
+        description={
+          <>
+            Reusable, versioned thematic taxonomies with provenance -- draft one from an authoritative source, an
+            existing ETF/index's holdings, news &amp; transcripts, or the Extraction Engine's own readings, then review,
+            edit, ratify, compare and merge.
+          </>
+        }
+      />
       <Tabs
         id="taxonomy"
         tabs={SUB_TABS}

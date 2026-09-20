@@ -130,6 +130,86 @@ span.field-label { display: block; }
 }
 @keyframes skeleton-shimmer { to { background-position: -200% 0; } }
 
+/* --- Page header (ui/PageHeader.tsx) ------------------------------------ */
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+.page-header-text { min-width: 0; }
+.page-header h2 { margin: 0 0 var(--sp-2); }
+.page-header-description { margin: 0; color: var(--muted); font-size: var(--fs-200); max-width: 80ch; }
+.page-header-actions { display: flex; gap: var(--sp-2); flex-shrink: 0; }
+.page-header-actions .btn { margin-top: 0; }
+
+/* --- Workflow steps (ui/Steps.tsx) --------------------------------------- */
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-5);
+  list-style: none;
+  margin: 0 0 var(--sp-4);
+  padding: 0 0 var(--sp-3);
+  border-bottom: 1px solid var(--panel-border);
+}
+.step { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-200); color: var(--muted); }
+.step[data-state="current"] { color: var(--text); font-weight: 600; }
+.step[data-state="done"] { color: var(--muted); }
+
+.step-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: var(--r-full);
+  border: 1px solid var(--panel-border);
+  font-size: var(--fs-50);
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--panel);
+}
+.step[data-state="current"] .step-marker { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.step[data-state="done"] .step-marker { border-color: var(--high); color: var(--high); }
+
+.step-card-head { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.step-card-head h3 { margin: 0; }
+.step-card[data-state="done"] .step-marker { border-color: var(--high); color: var(--high); }
+.step-card-summary { margin-left: auto; color: var(--muted); font-size: var(--fs-100); }
+.step-card-head .btn { margin-top: 0; }
+/* A collapsed step is a line, not a card with a hole in it. */
+.step-card[data-open="false"] { padding-top: var(--sp-3); padding-bottom: var(--sp-3); }
+.step-card[data-open="false"] .step-card-head { margin-bottom: 0; }
+
+/* --- Filter bar (ui/FilterBar.tsx) --------------------------------------- */
+
+.filter-bar-controls { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: flex-end; }
+.filter-bar-controls .field { margin-top: 0; min-width: 180px; }
+.filter-bar-controls .btn { margin-top: 0; }
+.filter-bar-summary { margin: var(--sp-3) 0 0; color: var(--muted); font-size: var(--fs-100); }
+.filter-chip { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--text); }
+.filter-chip-clear { color: var(--muted); font-size: var(--fs-200); line-height: 1; padding: 0 var(--sp-05); }
+.filter-chip-clear:hover { color: var(--low); }
+
+/* --- Sticky run strip ----------------------------------------------------
+   A run takes minutes and its results are long; progress that scrolls away
+   is progress the analyst has to hunt for. */
+
+.run-strip {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--panel);
+  border-bottom: 1px solid var(--panel-border);
+  padding: var(--sp-3) 0;
+  margin-bottom: var(--sp-3);
+}
+
 /* --- Card and section -------------------------------------------------- */
 
 .card {
@@ -240,15 +320,33 @@ span.field-label { display: block; }
 .progress-bar-fill { background: var(--accent); height: 100%; transition: width 0.4s ease; }
 
 .stat-tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--sp-3); margin: var(--sp-3) 0; }
-.stat-tile { background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-lg); padding: var(--sp-3) var(--sp-4); }
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-lg);
+  padding: var(--sp-3) var(--sp-4);
+  text-decoration: none;
+  color: inherit;
+}
+/* A tile that links somewhere says so on hover; one that does not stays flat
+   rather than pretending to be clickable. */
+a.stat-tile:hover { border-color: var(--accent); }
+a.stat-tile:hover .stat-value { color: var(--accent); }
 .stat-tile .stat-value {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-400);
   font-weight: 500;
   display: block;
+  line-height: var(--lh-tight);
 }
+.stat-tile[data-tone="accent"] .stat-value { color: var(--accent); }
+.stat-tile[data-tone="warn"] .stat-value { color: var(--mid); }
 .stat-tile .stat-label { color: var(--muted); font-size: var(--fs-50); }
+.stat-tile .stat-hint { color: var(--muted); font-size: var(--fs-50); }
 
 .coverage-bar-row { display: flex; align-items: center; gap: var(--sp-3); margin: var(--sp-2) 0; font-size: var(--fs-200); }
 .coverage-bar-label { width: 110px; flex-shrink: 0; color: var(--muted); }
@@ -308,34 +406,41 @@ span.field-label { display: block; }
 .view-toggle button:last-child { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
 .view-toggle button.active { background: var(--panel); color: var(--text); border-color: var(--accent); }
 
-/* --- Modal --------------------------------------------------------------- */
+/* --- Dialog (ui/Dialog.tsx) ---------------------------------------------- */
 
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: var(--sp-5);
+.dialog {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: min(900px, 92vw);
+  width: 100%;
+  max-height: 88vh;
+  overflow: visible;
 }
-.modal-panel {
+.dialog::backdrop { background: var(--overlay); }
+.dialog-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  max-height: 88vh;
   background: var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-2);
-  width: min(900px, 100%);
-  height: min(80vh, 100%);
-  display: flex;
-  flex-direction: column;
   padding: var(--sp-4);
 }
-.modal-header { display: flex; justify-content: space-between; align-items: center; }
-.modal-header h4 { margin: 0; }
-.modal-iframe { flex: 1; border: none; background: var(--input-bg); border-radius: var(--r-sm); margin-top: var(--sp-3); }
+.dialog-header { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); }
+.dialog-header h4 { margin: 0; }
+.dialog-footer { display: flex; gap: var(--sp-2); align-items: center; }
+.dialog-panel .modal-iframe,
+.dialog-panel .modal-image,
+.dialog-panel .modal-text { margin-top: 0; min-height: 0; }
+
+/* --- Media inside a dialog ---------------------------------------------- */
+
+.modal-iframe { flex: 1; border: none; background: var(--input-bg); border-radius: var(--r-sm); height: 70vh; }
+.modal-image { width: 100%; object-fit: contain; background: var(--well); border-radius: var(--r-sm); max-height: 70vh; }
 .modal-text {
-  flex: 1;
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-word;
@@ -343,9 +448,8 @@ span.field-label { display: block; }
   padding: var(--sp-3);
   border-radius: var(--r-sm);
   font-size: var(--fs-100);
-  margin-top: var(--sp-3);
+  max-height: 70vh;
 }
-.modal-image { flex: 1; width: 100%; object-fit: contain; background: var(--well); border-radius: var(--r-sm); margin-top: var(--sp-3); }
 
 /* --- Text utilities ------------------------------------------------------ */
 

@@ -5,7 +5,7 @@ import { UniversePicker } from "../components/UniversePicker";
 import { CandidateStatusBadge, ConfidenceBadge } from "../components/ConfidenceBadge";
 import { MentionCitationList } from "../components/MentionCitationList";
 import type { EmergingThemeCandidate, EmergingThemesScheduleConfig, RunManifest } from "../types";
-import { Button, Field, StateBlock } from "../ui";
+import { Button, Field, PageHeader, StateBlock } from "../ui";
 
 interface Props {
   onNavigate?: (tab: "taxonomy" | "theme") => void;
@@ -144,13 +144,17 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Emerging Themes Detector</h2>
-      <p className="help-text">
-        "Tool 0" of the research stack: watches public news, filings, and regulatory flow across a universe for
-        topics nobody has named yet -- clusters mentions with period-over-period lineage tracking, and proposes a
-        candidate theme only when it's genuinely new (no lineage back to a prior period), backed by at least two
-        independent sources. No candidate reaches the Taxonomy Library without an explicit promote below.
-      </p>
+      <PageHeader
+        title="Emerging Themes Detector"
+        description={
+          <>
+            "Tool 0" of the research stack: watches public news, filings, and regulatory flow across a universe for
+            topics nobody has named yet -- clusters mentions with period-over-period lineage tracking, and proposes a
+            candidate theme only when it's genuinely new (no lineage back to a prior period), backed by at least two
+            independent sources. No candidate reaches the Taxonomy Library without an explicit promote below.
+          </>
+        }
+      />
 
       <section className="card">
         <h3>Run a scan now</h3>

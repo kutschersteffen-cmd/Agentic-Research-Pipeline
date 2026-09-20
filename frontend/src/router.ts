@@ -78,3 +78,24 @@ export function useSubTab<T extends string>(tabs: readonly { id: T }[], fallback
   );
   return [active, set];
 }
+
+/** A single query param, read from and written to the URL. Filters go
+ *  through here so a filtered list is a link -- and they replace rather
+ *  than push, so narrowing a list five times does not cost five presses of
+ *  the back button to leave the page. */
+export function useParam(name: string, fallback = ""): [string, (value: string | null) => void] {
+  const route = useRoute();
+  const value = route.params.get(name) ?? fallback;
+  const { tab, sub } = route;
+  const query = route.params.toString();
+  const set = useCallback(
+    (next: string | null) => {
+      const params: Params = Object.fromEntries(new URLSearchParams(query));
+      if (next) params[name] = next;
+      else delete params[name];
+      navigate(tab, { sub, params, replace: true });
+    },
+    [name, tab, sub, query]
+  );
+  return [value, set];
+}

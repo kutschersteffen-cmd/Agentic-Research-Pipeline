@@ -1,5 +1,7 @@
 /* Monitoring dashboard and the persistent portfolio selection pane. */
 
+/* A wrapped two-line label must not drop its number below the others. */
+.dashboard-grid .stat-label { min-height: 2.4em; }
 .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-2); }
 
 .activity-row { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) 0; border-bottom: 1px solid var(--panel-border); }

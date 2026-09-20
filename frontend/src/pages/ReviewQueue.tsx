@@ -4,7 +4,7 @@ import { ConfidenceBadge, VerdictBadge } from "../components/ConfidenceBadge";
 import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import type { Citation, ReviewableRunKind, RunManifest } from "../types";
-import { Button, Field, StateBlock } from "../ui";
+import { Button, Field, PageHeader, StateBlock } from "../ui";
 
 const REVIEW_KIND_LABEL: Record<ReviewableRunKind, string> = {
   theme: "Thematic universe",
@@ -68,7 +68,7 @@ function ReviewItemFields({ item, onOpenSource }: { item: Record<string, unknown
       )}
       {hasRest && (
         <details className="inline-block">
-          <summary className="muted" style={{ cursor: "pointer" }}>
+          <summary className="muted clickable-row">
             Full record
           </summary>
           <pre className="review-json">{JSON.stringify(rest, null, 2)}</pre>
@@ -129,11 +129,15 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Review Queue</h2>
-      <p className="help-text">
-        Every low-confidence verdict, ungrounded citation, or "uncertain" call lands here instead of the trusted
-        output. Nothing flagged is included in exports until a human approves it.
-      </p>
+      <PageHeader
+        title="Review Queue"
+        description={
+          <>
+            Every low-confidence verdict, ungrounded citation, or "uncertain" call lands here instead of the trusted
+            output. Nothing flagged is included in exports until a human approves it.
+          </>
+        }
+      />
 
       <section className="card">
         <Field label="Run type">

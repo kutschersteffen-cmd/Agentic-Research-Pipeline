@@ -105,7 +105,7 @@ export function CompanyProfiles() {
 
       {selected && !loading && (
         <>
-          <div className="card" style={{ marginTop: 16 }}>
+          <div className="card mt-4">
             <h4>{selected.name}</h4>
             <p className="muted">
               {selected.company_id}

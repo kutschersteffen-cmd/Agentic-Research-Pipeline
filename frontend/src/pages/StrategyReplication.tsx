@@ -9,7 +9,7 @@ import type {
   SpecReviewState,
   StrategySpec,
 } from "../types";
-import { Button, Field, StateBlock } from "../ui";
+import { Button, Field, PageHeader, StateBlock } from "../ui";
 
 // ---- helpers ----------------------------------------------------------------
 
@@ -274,7 +274,7 @@ function ReviewStage({
           value={instruction}
           onChange={(e) => setInstruction(e.target.value)}
           placeholder="e.g. switch to quarterly rebalancing"
-          style={{ flex: 1 }}
+          className="grow"
         />
         <Button onClick={reviseWithInstruction} disabled={busy || !instruction.trim()}>
           Apply instruction
@@ -288,7 +288,7 @@ function ReviewStage({
         <Button onClick={saveDirectEdit} disabled={busy}>
           Save direct edit
         </Button>
-        <Button onClick={approve} disabled={busy} style={{ marginLeft: "auto" }}>
+        <Button onClick={approve} disabled={busy} className="push">
           Approve spec
         </Button>
       </div>
@@ -606,12 +606,16 @@ export function StrategyReplication() {
 
   return (
     <div className="page">
-      <h2>Investment Strategy Replication</h2>
-      <p className="help-text">
-        Propose a strategy (from a paper or your own description), review and approve the spec sheet it produces,
-        then backtest it and analyze the results -- nothing runs against real data until you explicitly approve the
-        spec.
-      </p>
+      <PageHeader
+        title="Investment Strategy Replication"
+        description={
+          <>
+            Propose a strategy (from a paper or your own description), review and approve the spec sheet it produces,
+            then backtest it and analyze the results -- nothing runs against real data until you explicitly approve the
+            spec.
+          </>
+        }
+      />
 
       <ProposeStage onSpecCreated={onSpecCreated} onSpecLoaded={onSpecLoaded} />
 

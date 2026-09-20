@@ -15,18 +15,22 @@ import type {
 } from "../types";
 import { DATA_LIBRARY_TABS as SUB_TABS } from "../nav";
 import { useSubTab } from "../router";
-import { Button, Field, StateBlock, TabPanel, Tabs } from "../ui";
+import { Button, Field, PageHeader, StateBlock, TabPanel, Tabs } from "../ui";
 
 export function DataLibrary() {
   const [sub, setSub] = useSubTab(SUB_TABS, "results");
 
   return (
     <div className="page">
-      <h2>Data Library</h2>
-      <p className="help-text">
-        Browse everything already stored: results from any past extraction or financials run, and every parsed
-        document text this instance has cached -- across all companies and runs, not just the last one you looked at.
-      </p>
+      <PageHeader
+        title="Data Library"
+        description={
+          <>
+            Browse everything already stored: results from any past extraction or financials run, and every parsed
+            document text this instance has cached -- across all companies and runs, not just the last one you looked at.
+          </>
+        }
+      />
       <Tabs
         id="library"
         tabs={SUB_TABS}
@@ -415,7 +419,7 @@ function ParsedDocumentsView() {
                         {detail === null ? (
                           <StateBlock kind="loading" />
                         ) : (
-                          <pre className="review-json" style={{ maxHeight: 400, overflow: "auto" }}>
+                          <pre className="review-json scroll-box">
                             {detail.full_text}
                           </pre>
                         )}

@@ -11,7 +11,7 @@ import type {
   BarrierRefreshCoverage,
   BarrierStalenessReport,
 } from "../types";
-import { Button, StateBlock } from "../ui";
+import { Button, PageHeader, StateBlock } from "../ui";
 
 const PILLARS: BarrierPillar[] = ["Technology", "Regulation", "Demand & Economics"];
 
@@ -198,13 +198,17 @@ export function TransitionBarrierAssessment() {
 
   return (
     <div>
-      <h2>Transition Barrier Assessment</h2>
-      <p className="muted">
-        How feasible decarbonisation is for {matrix.sectors.length} hard-to-abate sectors across{" "}
-        {matrix.regions.length} regions -- {matrix.criteria.length} criteria x {matrix.regions.length} regions ={" "}
-        {matrix.criteria.length * matrix.regions.length} rated cells. <strong>H means transition is more feasible</strong>{" "}
-        (fewer barriers), not that the barrier is high.
-      </p>
+      <PageHeader
+        title="Transition Barrier Assessment"
+        description={
+          <>
+            How feasible decarbonisation is for {matrix.sectors.length} hard-to-abate sectors across{" "}
+            {matrix.regions.length} regions -- {matrix.criteria.length} criteria x {matrix.regions.length} regions ={" "}
+            {matrix.criteria.length * matrix.regions.length} rated cells. <strong>H means transition is more feasible</strong>{" "}
+            (fewer barriers), not that the barrier is high.
+          </>
+        }
+      />
 
       <div className="stat-tile-grid">
         <div className="stat-tile">

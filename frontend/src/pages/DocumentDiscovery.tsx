@@ -3,7 +3,7 @@ import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import type { DiscoveryCompanyResult, DiscoveryScheduleConfig, DocumentEvent } from "../types";
-import { Button, Field, StateBlock } from "../ui";
+import { Button, Field, PageHeader, StateBlock } from "../ui";
 
 interface Props {
   pendingUniverse?: { path: string; count: number } | null;
@@ -68,13 +68,17 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Document Discovery</h2>
-      <p className="help-text">
-        Finds each company's investor-relations site, crawls it (bounded, robots.txt-respecting, same-domain only)
-        for annual reports / sustainability reports / proxy statements / transcripts, downloads new or changed
-        documents into the local store, and raises an event the moment something new appears -- run manually or on
-        an automatic schedule.
-      </p>
+      <PageHeader
+        title="Document Discovery"
+        description={
+          <>
+            Finds each company's investor-relations site, crawls it (bounded, robots.txt-respecting, same-domain only)
+            for annual reports / sustainability reports / proxy statements / transcripts, downloads new or changed
+            documents into the local store, and raises an event the moment something new appears -- run manually or on
+            an automatic schedule.
+          </>
+        }
+      />
 
       <section className="card">
         <h3>Run now (manual)</h3>

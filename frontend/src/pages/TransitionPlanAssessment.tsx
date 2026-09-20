@@ -8,7 +8,7 @@ import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { BarChart } from "../components/BarChart";
 import type { IndicatorAssessment, IndicatorCategory, ReviewDecision, TransitionPlanAssessmentRecord, TransitionPlanIndicatorDef } from "../types";
-import { Button, Field, StateBlock } from "../ui";
+import { Button, Field, PageHeader, StateBlock } from "../ui";
 
 interface Props {
   pendingUniverse?: { path: string; count: number } | null;
@@ -217,17 +217,21 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Transition Plan Assessment</h2>
-      <p className="help-text">
-        Assesses each company's climate transition disclosures against the 64 indicators from Colesanti Senni,
-        Schimanski, Bingler, Ni &amp; Leippold (2024), <em>"Using AI to assess corporate climate transition
-        disclosures"</em> (Environmental Research Communications). Each indicator gets a grounded RAG verdict --
-        disclosed (YES), not disclosed (NO), or not applicable (NA) -- with a critical, greenwashing-aware
-        explanation and citations independently verified against the source document (never LLM-self-reported).
-        Indicators are classified as "talk" (future targets / general management approach) or "walk" (concrete,
-        already-verifiable activity), mirroring the paper's headline finding that companies over-disclose talk and
-        under-disclose walk.
-      </p>
+      <PageHeader
+        title="Transition Plan Assessment"
+        description={
+          <>
+            Assesses each company's climate transition disclosures against the 64 indicators from Colesanti Senni,
+            Schimanski, Bingler, Ni &amp; Leippold (2024), <em>"Using AI to assess corporate climate transition
+            disclosures"</em> (Environmental Research Communications). Each indicator gets a grounded RAG verdict --
+            disclosed (YES), not disclosed (NO), or not applicable (NA) -- with a critical, greenwashing-aware
+            explanation and citations independently verified against the source document (never LLM-self-reported).
+            Indicators are classified as "talk" (future targets / general management approach) or "walk" (concrete,
+            already-verifiable activity), mirroring the paper's headline finding that companies over-disclose talk and
+            under-disclose walk.
+          </>
+        }
+      />
       <Button variant="ghost" onClick={() => setShowMethodology((s) => !s)}>
         {showMethodology ? "Hide" : "Show"} the 64 indicators
       </Button>

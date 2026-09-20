@@ -12,7 +12,7 @@ import type {
 } from "../types";
 import { INDEX_BUILDER_TABS as SUB_TABS } from "../nav";
 import { useSubTab } from "../router";
-import { Button, Field, StateBlock, TabPanel, Tabs } from "../ui";
+import { Button, Field, PageHeader, StateBlock, TabPanel, Tabs } from "../ui";
 
 /**
  * Compose an index methodology out of named rules, save it as a versioned
@@ -154,10 +154,10 @@ function RuleShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="activity-editor" style={enabled ? undefined : { opacity: 0.55 }}>
-      <div className="toolbar" style={{ marginTop: 0 }}>
-        <strong style={{ flex: 1 }}>{title}</strong>
-        <label className="checkbox-label" style={{ margin: 0 }}>
+    <div className={enabled ? "activity-editor" : "activity-editor dimmed"}>
+      <div className="toolbar mt-0">
+        <strong className="grow">{title}</strong>
+        <label className="checkbox-label m-0">
           <input type="checkbox" checked={enabled} onChange={onToggle} /> on
         </label>
         <Button variant="ghost" onClick={onMoveUp} disabled={!onMoveUp} title="Move earlier">
@@ -258,12 +258,16 @@ export function IndexBuilder() {
 
   return (
     <div className="page">
-      <h2>Index Construction</h2>
-      <p className="help-text">
-        Compose screens, a selection rule, weighting, tilts, constraints and the path-dependent decarbonisation layer into
-        one methodology, save it as a versioned calibration, and run a review. Everything here is deterministic and
-        zero-LLM. See <code>docs/INDEX_METHODOLOGY_LANDSCAPE.md</code> for where each rule type comes from.
-      </p>
+      <PageHeader
+        title="Index Construction"
+        description={
+          <>
+            Compose screens, a selection rule, weighting, tilts, constraints and the path-dependent decarbonisation layer into
+            one methodology, save it as a versioned calibration, and run a review. Everything here is deterministic and
+            zero-LLM. See <code>docs/INDEX_METHODOLOGY_LANDSCAPE.md</code> for where each rule type comes from.
+          </>
+        }
+      />
 
       <Tabs
         id="index"
@@ -284,7 +288,7 @@ export function IndexBuilder() {
               <p className="help-text">
                 A preset expands into the ordinary rules below -- nothing is hidden, and every rule stays editable.
               </p>
-              <div className="toolbar" style={{ flexWrap: "wrap" }}>
+              <div className="toolbar">
                 {(catalogue?.presets ?? []).map((p) => (
                   <Button variant="secondary" size="sm" key={p.name} title={p.description} onClick={() => loadPreset(p.name)}>
                     {p.label}
@@ -391,7 +395,7 @@ function ScreensCard({
         Applied in order. Order is part of the methodology: screens do not commute once a later one is rank-based, and the
         funnel a committee reviews depends on the order they ran in.
       </p>
-      <div className="toolbar" style={{ flexWrap: "wrap" }}>
+      <div className="toolbar">
         {(catalogue?.screens ?? []).map((s) => (
           <Button variant="secondary" size="sm" key={s.type} title={s.help} onClick={() => add(s.type as ScreenRule["type"])}>
             + {s.label}

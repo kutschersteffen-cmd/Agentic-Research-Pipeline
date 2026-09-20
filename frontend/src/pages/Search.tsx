@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { SearchHit, SearchResultType } from "../types";
-import { Field, StateBlock } from "../ui";
+import { FilterBar, Field, PageHeader, StateBlock } from "../ui";
 
 const ALL_TYPES: { id: SearchResultType; label: string }[] = [
   { id: "document", label: "Documents" },
@@ -53,8 +53,19 @@ export function Search() {
 
   return (
     <div className="page">
-      <h2>Search</h2>
-      <section className="card">
+      <PageHeader
+        title="Search"
+        description="Full-text search across cached documents, the company directory and taxonomy activities. Needs OpenSearch configured on the server."
+      />
+      <FilterBar
+        active={types.length < ALL_TYPES.length ? types.map((id) => ({
+          id,
+          label: ALL_TYPES.find((t) => t.id === id)?.label ?? id,
+          onClear: () => toggleType(id),
+        })) : []}
+        onClearAll={() => setTypes(ALL_TYPES.map((t) => t.id))}
+        summary={q.trim() && !loading ? `${hits.length} result${hits.length === 1 ? "" : "s"} for "${q.trim()}"` : null}
+      >
         <Field label="Query">
           <input
             type="text"
@@ -63,21 +74,25 @@ export function Search() {
             placeholder="Search companies, documents, taxonomy..."
           />
         </Field>
-        {ALL_TYPES.map((t) => (
-          <label key={t.id} style={{ marginLeft: "1rem" }}>
-            <input type="checkbox" checked={types.includes(t.id)} onChange={() => toggleType(t.id)} />
-            {" " + t.label}
-          </label>
-        ))}
-      </section>
+        <div className="chip-row" role="group" aria-label="Result types">
+          {ALL_TYPES.map((t) => (
+            <label key={t.id} className="checkbox-label">
+              <input type="checkbox" checked={types.includes(t.id)} onChange={() => toggleType(t.id)} />
+              {t.label}
+            </label>
+          ))}
+        </div>
+      </FilterBar>
 
       <section className="card">
         {notConfigured && (
-          <p className="muted">
-            Search is not enabled on this server -- an administrator needs to set ARP_OPENSEARCH_URL to turn it on.
-          </p>
+          <StateBlock
+            kind="empty"
+            title="Search is not enabled on this server"
+            message="An administrator needs to set ARP_OPENSEARCH_URL to turn it on."
+          />
         )}
-        {error && <p className="error">{error}</p>}
+        {error && <StateBlock kind="error" message={error} onRetry={load} />}
         {loading && <StateBlock kind="loading" message="Searching..." />}
         {!loading && !notConfigured && !error && q.trim() && hits.length === 0 && <StateBlock kind="empty" message="No results." />}
         {hits.length > 0 && (

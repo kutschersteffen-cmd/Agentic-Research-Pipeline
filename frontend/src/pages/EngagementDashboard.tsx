@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { EngagementIssuePanel } from "../components/EngagementIssuePanel";
 import { api } from "../api/client";
 import type { EngagementIssue, EngagementRecord, IssueSeverity, TriggerEvent } from "../types";
-import { Button, StateBlock } from "../ui";
+import { Button, PageHeader, StateBlock } from "../ui";
 
 interface ScanCompanyRow {
   company_id: string;
@@ -115,12 +115,16 @@ export function EngagementDashboard() {
 
   return (
     <div className="page">
-      <h2>Engagement</h2>
-      <p className="help-text">
-        The engagement record store: one entry per company, with per-issue milestone progression, an escalation
-        ladder, correspondence, and commitments. Every send/decide checkpoint is a human action -- nothing here
-        contacts a company or moves an escalation stage on its own.
-      </p>
+      <PageHeader
+        title="Engagement"
+        description={
+          <>
+            The engagement record store: one entry per company, with per-issue milestone progression, an escalation
+            ladder, correspondence, and commitments. Every send/decide checkpoint is a human action -- nothing here
+            contacts a company or moves an escalation stage on its own.
+          </>
+        }
+      />
       {error && <StateBlock kind="error" message={error} />}
 
       <section className="card">
@@ -183,7 +187,7 @@ export function EngagementDashboard() {
           + Add company
         </Button>
 
-        <span className="field-label" style={{ marginTop: 16 }}>
+        <span className="field-label mt-4">
           Controversy signals
         </span>
         <div className="table-wrap">

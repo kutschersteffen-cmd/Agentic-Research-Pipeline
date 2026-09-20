@@ -4,7 +4,7 @@ import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import { api } from "../api/client";
 import type { RunManifest } from "../types";
-import { Button, StateBlock } from "../ui";
+import { Button, PageHeader, StateBlock } from "../ui";
 
 export function VotingRuns() {
   const [universePath, setUniversePath] = useState<string | null>(null);
@@ -41,12 +41,16 @@ export function VotingRuns() {
 
   return (
     <div className="page">
-      <h2>Proxy Voting</h2>
-      <p className="help-text">
-        Proposal Analysis Agent extracts each company's ballot from its proxy statement; the Policy Application Agent
-        recommends a vote (a deterministic house rule, or an LLM judgment call) and cross-checks it against open
-        engagement issues. Every proposal requires an explicit human decision before it can be cast.
-      </p>
+      <PageHeader
+        title="Proxy Voting"
+        description={
+          <>
+            Proposal Analysis Agent extracts each company's ballot from its proxy statement; the Policy Application Agent
+            recommends a vote (a deterministic house rule, or an LLM judgment call) and cross-checks it against open
+            engagement issues. Every proposal requires an explicit human decision before it can be cast.
+          </>
+        }
+      />
 
       <section className="card">
         <h3>Start a voting run</h3>

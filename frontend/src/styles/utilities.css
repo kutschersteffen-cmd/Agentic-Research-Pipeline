@@ -18,3 +18,19 @@
 /* Inline error emphasis inside a sentence, a list item or a table cell --
    a failed *action* uses <StateBlock kind="error">, not this. */
 .error-text { color: var(--low); }
+
+/* A small, closed set of single-property helpers, so a one-off spacing or
+   alignment tweak lands on the scale instead of in a style={{...}}. */
+.m-0 { margin: 0; }
+.mt-0 { margin-top: 0; }
+.mt-4 { margin-top: var(--sp-4); }
+.ml-2 { margin-left: var(--sp-2); }
+.mr-3 { margin-right: var(--sp-3); }
+.push { margin-left: auto; }
+.grow { flex: 1; min-width: 0; }
+.capitalize { text-transform: capitalize; }
+.prewrap { white-space: pre-wrap; }
+.dimmed { opacity: 0.55; }
+/* A scrollable box for a long raw payload -- the page scrolls, the dump
+   does not push everything else off screen. */
+.scroll-box { max-height: 400px; overflow: auto; }

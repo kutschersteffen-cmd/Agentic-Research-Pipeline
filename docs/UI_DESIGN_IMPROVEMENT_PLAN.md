@@ -24,7 +24,7 @@ sidebar, not one product. The measurable symptoms:
 | No button hierarchy | The bare `button` element selector paints **every** button indigo with a magic `margin-top: 12px`; a destructive delete and a "Refresh" link look equally important |
 | Ad-hoc state rendering | 56 hand-written `error-text` sites and a dozen different `"Loading…"` / `"Searching…"` / `"Rendering preview…"` strings |
 | Navigation reuse | In-page tabs reuse the sidebar's `.nav-tab` class (`BackgroundAgents.tsx:30`, `IndexBuilder.tsx:274`, +4), so a selected sub-tab renders as a filled sidebar pill in the middle of the content column |
-| Accessibility floor | `focus-visible` appears 0 times; `aria-current` 0 times; 1 of 140 `<label>`s uses `htmlFor`; `window.confirm` is still the destructive-action dialog |
+| Accessibility floor | `focus-visible` appears 0 times; `aria-current` 0 times; 1 of 140 `<label>`s uses `htmlFor`; both modals are hand-rolled `div` overlays with no focus trap, no Escape and no focus restoration |
 | No deep links | `App.tsx` drives 21 destinations from `useState`, so no URL, no back button, no refresh-safe state, nothing shareable |
 | Light only | `color-scheme: light` is hard-coded although the chart ramps were already validated as mode-invariant |
 
@@ -195,9 +195,7 @@ One state machine, rendered the same way everywhere:
   also fixes the red/green pair for deuteranopia.
 - Contrast: verify `--muted` (`oklch(48%)`) at `--fs-50` against `--panel`; darken to
   ~`oklch(44%)` if it misses 4.5:1.
-- Modals: native `<dialog>`, focus trap, Escape, restored focus. *(Still open:
-  the two `.modal-overlay` modals and the two `window.confirm` calls move to the
-  `Dialog` primitive in phase 3.)*
+- Modals: native `<dialog>`, focus trap, Escape, restored focus.
 - Full keyboard path through every workflow, tab order matching visual order.
 
 ## 4. Phased delivery
@@ -209,8 +207,8 @@ Each phase ships independently and leaves the app working.
 | 0 | Split `index.css` into layers, extract tokens, merge the duplicated legend rules | 0.5 d | Low | Values snap to the scale (1–2px in places) | **Landed** |
 | 1 | `ui/` primitives; retire the global `button` selector; migrate `Button`, `Field`, `StateBlock` app-wide | 1.5 d | Medium | Button hierarchy appears; forms become labelled | **Landed** |
 | 2 | Routing, command palette, responsive sidebar, a11y baseline | 1.5 d | Medium | Deep links and back button work | **Landed** |
-| 3 | Apply the three templates, starting with Extraction, Monitoring, Review Queue, Search, Index Builder | 2 d | Medium | The app reads as one product | Next |
-| 4 | `DataTable` upgrades, run strip, dark mode + palette re-validation | 1.5 d | Low | Density and mode choice | |
+| 3 | Apply the three templates, starting with Extraction, Monitoring, Run History, Search | 2 d | Medium | The app reads as one product | **Landed** |
+| 4 | `DataTable` upgrades, dark mode + palette re-validation | 1.5 d | Low | Density and mode choice | Next |
 | 5 | Guardrails: stylelint scale enforcement, a CI grep for raw hex / inline `style={{` in `.tsx`, an axe pass on the five busiest pages | 0.5 d | Low | None — keeps the system from drifting | |
 
 Phases 0 and 1 are worth doing even if nothing else is: they are where the
@@ -242,6 +240,51 @@ twenty-one-separate-tools feeling actually comes from.
   headless pass over 9 screens: no page errors, 13 of 13 form controls on the
   form-heavy screens carry an accessible name, and the focus ring resolves on the
   first tab stop.
+
+### What phase 3 actually changed
+
+- **Every page opens the same way.** `PageHeader` (title, purpose, an actions
+  slot) is on all 21 pages; the two that had no description now say what they
+  are for.
+- **Workflow (Extraction).** A step rail — Describe → Review fields → Company
+  universe → Run & review — replaces four hand-numbered `<h3>`s, and follows the
+  mode (the financials path is two steps, not four). A step you have passed
+  collapses to its one-line result ("3 fields", "84 companies") with an Edit
+  control that re-opens it, so the step you are on is the one filling the
+  screen. `RunProgress` sits in a sticky strip: a run takes minutes and its
+  results run long, so progress no longer scrolls away above the table.
+- **Explorer (Search, Run History).** One `FilterBar`: controls, then the active
+  filters as removable chips, then a line saying what the list currently holds.
+  Run History's filters live in the URL, so a filtered history is a link — which
+  is what lets a dashboard tile point at the runs behind its number.
+- **Dashboard (Monitoring).** `StatTile` puts the label above the figure, adds
+  the window the figure is measured over ("most recent 25", "of 12 logged"), and
+  links to the list it came from. A stat nobody can open is a dead end.
+- **`Dialog`.** Both hand-rolled overlays are now one primitive on the native
+  `<dialog>`: focus trapped inside, Escape closing, focus returned to whatever
+  opened it, the page behind inert and not scrolling. The old `.modal-overlay`
+  rules are gone.
+- **Inline styles: 47 → 9**, and all nine are genuinely dynamic (a bar's width, a
+  tooltip's offset, a data-driven fill). The static ones became a small closed
+  set of utilities.
+- Also fixed on the way past: `Search` reported failures with `className="error"`,
+  a class that exists nowhere, so a failed search rendered as ordinary body text.
+- Verified against the built app: 8 behaviour checks (tile → filtered history,
+  chip clears its param, a filtered list is addressable, the rail and its mode,
+  `PageHeader` on 8 sampled pages, search error state) and 10 for the dialog
+  (modal, dimmed backdrop, scroll lock, focus trapped, background inert, Escape,
+  focus restored, backdrop click, panel click). The dialog pass caught one
+  defect: React unmounts the element before the cleanup runs, so the native
+  focus restoration never fired — the dialog now restores focus itself.
+
+**Two deliberate deviations from the plan above.** A workflow page's committing
+action stays in its step rather than moving to the page header: each step has a
+different one, so a header-mounted button would either duplicate it or separate
+it from the field it acts on — the rail supplies the orientation the header
+action was meant to give. And the explorer's right-hand detail drawer is not
+built: the two pages migrated here have no expanded-row detail, and the pages
+that do already use the split-review `SourcePanel`, which keeps list context the
+same way. Both belong with the remaining explorer pages in a later pass.
 
 ### What phase 2 actually changed
 
@@ -301,10 +344,11 @@ The plan is done when:
 
 1. `index.css` holds only `@layer`/`@import`; no selector is declared twice within a layer (a responsive override inside `@media` is not a duplicate). **Met.**
 2. `grep -c 'style={{' src -r` is in single digits, all of them dynamic values (chart
-   geometry, computed widths). *47 at the start, 31 after phase 1; phase 3 closes the rest.*
+   geometry, computed widths). **Met** — 47 at the start, 9 now, every one computed.
 3. `font-size` outside `tokens.css` is zero; the same for `border-radius` and raw hex. **Met** (the one numeric radius left is a `0` corner in a segmented control).
 4. Every destination is reachable by URL, and refreshing keeps the analyst where they were. **Met.**
 5. An axe scan of Dashboard, Extraction, Review Queue, Search and Index Builder reports
    no serious or critical issues; each is fully operable by keyboard.
 6. Adding a new page means composing `PageHeader + Tabs + Card + DataTable` — and a
-   reviewer can tell at a glance if it did not.
+   reviewer can tell at a glance if it did not. *Everything but `DataTable` exists;
+   phase 4 builds it.*

@@ -33,7 +33,7 @@ export function SegmentDetail({ segment, onOpenSource }: { segment: BusinessSegm
           <tbody>
             {(["revenue", "income", "assets"] as const).map((metric) => (
               <tr key={metric}>
-                <td style={{ textTransform: "capitalize" }}>{metric}</td>
+                <td className="capitalize">{metric}</td>
                 <td>
                   {fmtAmount(segment[metric].value)}
                   {segment[metric].raw_value_text && <span className="muted"> ({segment[metric].raw_value_text})</span>}
@@ -47,7 +47,7 @@ export function SegmentDetail({ segment, onOpenSource }: { segment: BusinessSegm
       {(["revenue", "income", "assets"] as const).map((metric) =>
         segment[metric].citations.length > 0 ? (
           <div key={metric}>
-            <span className="muted" style={{ textTransform: "capitalize" }}>{metric} citations:</span>
+            <span className="muted capitalize">{metric} citations:</span>
             <CitationList citations={segment[metric].citations} onOpenSource={onOpenSource} />
           </div>
         ) : null

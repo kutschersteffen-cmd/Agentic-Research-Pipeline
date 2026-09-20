@@ -6,7 +6,8 @@ import { ExtractionResultsTable, FinancialsResultsTable } from "../components/Ex
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { BarChart } from "../components/BarChart";
 import type { CompanyFinancialsRecord, DataPointSchema, ExtractionRecord, FieldDefinition, ReviewDecision } from "../types";
-import { Button, Field, StateBlock } from "../ui";
+import { Button, Field, PageHeader, StateBlock, StepCard, Steps } from "../ui";
+import type { Step } from "../ui";
 
 const DEFAULT_CRITERIA =
   "Green capex: total green/sustainable capital expenditure in USD/EUR millions for the most recent fiscal " +
@@ -147,14 +148,32 @@ export function Extraction({ pendingUniverse }: Props = {}) {
   const universeStepNumber = mode === "custom" ? 3 : 1;
   const readyForUniverseStep = mode === "financials" || (mode === "custom" && schema != null);
 
+  // The page's spine: what this run needs, in order, and where it has got
+  // to. Without it the analyst infers the sequence from which cards happen
+  // to be on screen.
+  const steps: Step[] = [
+    ...(mode === "custom"
+      ? ([
+          { id: "describe", label: "Describe", state: schema ? "done" : "current" },
+          { id: "fields", label: "Review fields", state: !schema ? "todo" : runId ? "done" : "current" },
+        ] as Step[])
+      : []),
+    { id: "universe", label: "Company universe", state: !readyForUniverseStep ? "todo" : runId ? "done" : "current" },
+    { id: "run", label: "Run & review", state: runId ? "current" : "todo" },
+  ];
+
   return (
     <div className="page">
-      <h2>Extraction</h2>
-      <p className="help-text">
-        Extract data from company disclosures with an independent verifier pass and a hard programmatic grounding
-        check on every citation. Either draft a custom schema for any research question (e.g. "green capex"), or run
-        the built-in combined pass for business segments, CapEx, and R&amp;D.
-      </p>
+      <PageHeader
+        title="Extraction"
+        description={
+          <>
+            Extract data from company disclosures with an independent verifier pass and a hard programmatic grounding
+            check on every citation. Either draft a custom schema for any research question (e.g. "green capex"), or run
+            the built-in combined pass for business segments, CapEx, and R&amp;D.
+          </>
+        }
+      />
 
       <div className="view-toggle">
         <button className={mode === "custom" ? "active" : ""} onClick={() => switchMode("custom")}>
@@ -165,9 +184,10 @@ export function Extraction({ pendingUniverse }: Props = {}) {
         </button>
       </div>
 
+      <Steps steps={steps} label="Extraction run" />
+
       {mode === "custom" && (
-        <section className="card">
-          <h3>1. Describe what to extract</h3>
+        <StepCard step={1} title="Describe what to extract" state={schema ? "done" : "current"}>
           <Field label="Research request">
             <textarea rows={2} value={criteria} onChange={(e) => setCriteria(e.target.value)} />
           </Field>
@@ -175,12 +195,16 @@ export function Extraction({ pendingUniverse }: Props = {}) {
             Draft extraction schema
           </Button>
           <p className="help-text">Or skip this and build a schema entirely by hand before starting a run.</p>
-        </section>
+        </StepCard>
       )}
 
       {mode === "custom" && schema && (
-        <section className="card">
-          <h3>2. Review &amp; edit fields</h3>
+        <StepCard
+          step={2}
+          title="Review & edit fields"
+          state={runId ? "done" : "current"}
+          summary={`${schema.fields.length} field${schema.fields.length === 1 ? "" : "s"}`}
+        >
           {schema.fields.map((f, idx) => (
             <div className="activity-editor" key={f.field_id}>
               <input value={f.name} onChange={(e) => updateField(idx, { name: e.target.value })} />
@@ -211,7 +235,7 @@ export function Extraction({ pendingUniverse }: Props = {}) {
               </Field>
             </div>
           ))}
-        </section>
+        </StepCard>
       )}
 
       {mode === "financials" && (
@@ -224,8 +248,12 @@ export function Extraction({ pendingUniverse }: Props = {}) {
       )}
 
       {readyForUniverseStep && (
-        <section className="card">
-          <h3>{universeStepNumber}. Choose the company universe</h3>
+        <StepCard
+          step={universeStepNumber}
+          title="Choose the company universe"
+          state={runId ? "done" : "current"}
+          summary={universePath ? `${companyCount || "?"} companies` : undefined}
+        >
           {pendingUniverse && universePath === pendingUniverse.path && (
             <p className="status-text">
               Using {pendingUniverse.count} companies sent from a Thematic Universe screen. Upload a different
@@ -243,15 +271,18 @@ export function Extraction({ pendingUniverse }: Props = {}) {
               ? `Extract across ${companyCount || "..."} companies`
               : `Extract financials across ${companyCount || "..."} companies`}
           </Button>
-        </section>
+        </StepCard>
       )}
 
       {error && <StateBlock kind="error" message={error} />}
 
       {runId && (
-        <section className="card">
-          <h3>{universeStepNumber + 1}. Run progress</h3>
-          <RunProgress runId={runId} runType={mode === "custom" ? "extraction" : "financials"} />
+        <StepCard step={universeStepNumber + 1} title="Run progress">
+          {/* Sticky: a run takes minutes and its results run long, so progress
+              stays in view instead of scrolling away above the table. */}
+          <div className="run-strip">
+            <RunProgress runId={runId} runType={mode === "custom" ? "extraction" : "financials"} />
+          </div>
           <div className="toolbar">
             <Button onClick={refreshResults}>Refresh results</Button>
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
@@ -296,7 +327,7 @@ export function Extraction({ pendingUniverse }: Props = {}) {
               <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
             </div>
           )}
-        </section>
+        </StepCard>
       )}
     </div>
   );

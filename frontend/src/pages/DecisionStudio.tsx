@@ -19,7 +19,7 @@ import type {
 } from "../types";
 import { DECISION_TABS as SUB_TABS } from "../nav";
 import { useSubTab } from "../router";
-import { Button, StateBlock, TabPanel, Tabs } from "../ui";
+import { Button, PageHeader, StateBlock, TabPanel, Tabs } from "../ui";
 
 // `entity` names what one row of the resulting table actually is. Three of
 // these are not companies, which is the point: the engine scores rows.
@@ -254,12 +254,16 @@ export function DecisionStudio() {
 
   return (
     <div className="page">
-      <h2>Decision Studio</h2>
-      <p className="help-text">
-        Turns any per-entity table this system produces into a scored, ranked and tiered decision — deterministically,
-        with no LLM anywhere in the numbers, and with every automated choice and every edit of yours recorded. See{" "}
-        <code>docs/DECISION_MECHANISM.md</code> for the design.
-      </p>
+      <PageHeader
+        title="Decision Studio"
+        description={
+          <>
+            Turns any per-entity table this system produces into a scored, ranked and tiered decision — deterministically,
+            with no LLM anywhere in the numbers, and with every automated choice and every edit of yours recorded. See{" "}
+            <code>docs/DECISION_MECHANISM.md</code> for the design.
+          </>
+        }
+      />
 
       <Tabs
         id="decision"
