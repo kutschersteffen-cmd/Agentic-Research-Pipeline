@@ -46,10 +46,16 @@ interface Props {
 export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
   const [sub, setSub] = useSubTab(SUB_TABS, "library");
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   async function refreshLibrary() {
-    const res = (await api.listTaxonomies()) as { taxonomies: Taxonomy[] };
-    setTaxonomies(res.taxonomies);
+    try {
+      const res = (await api.listTaxonomies()) as { taxonomies: Taxonomy[] };
+      setTaxonomies(res.taxonomies);
+      setError(null);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   useEffect(() => {
@@ -68,6 +74,8 @@ export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
           </>
         }
       />
+      {error && <StateBlock kind="error" message={error} onRetry={refreshLibrary} />}
+
       <Tabs
         id="taxonomy"
         tabs={SUB_TABS}
@@ -171,7 +179,7 @@ function LibraryView({
               <th>Version</th>
               <th>Status</th>
               <th>Activities</th>
-              <th></th>
+              <th><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -359,7 +367,7 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
   return (
     <>
       <section className="card">
-        <h3>1. Method &amp; theme</h3>
+        <h2>1. Method &amp; theme</h2>
         <Field label="Derivation method">
           <select value={method} onChange={(e) => setMethod(e.target.value as DerivationMethod)}>
             {CREATABLE_METHODS.map((m) => (
@@ -428,7 +436,7 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
 
       {draft && (
         <section className="card">
-          <h3>2. Review &amp; adjust the drafted taxonomy</h3>
+          <h2>2. Review &amp; adjust the drafted taxonomy</h2>
           <p className="muted">
             {draft.name} v{draft.version} -- {draft.source_notes}
           </p>
@@ -526,7 +534,7 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
 
   return (
     <section className="card">
-      <h3>Compare two taxonomies</h3>
+      <h2>Compare two taxonomies</h2>
       <div className="inline-fields">
         <select value={idA} onChange={(e) => setIdA(e.target.value)}>
           <option value="">Taxonomy A</option>
@@ -571,7 +579,7 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
         </div>
       )}
 
-      <h3>Merge into a new taxonomy</h3>
+      <h2>Merge into a new taxonomy</h2>
       <Field label="Merged taxonomy name">
         <input value={mergeName} onChange={(e) => setMergeName(e.target.value)} />
       </Field>
@@ -646,7 +654,7 @@ function UniverseBuilderView() {
   return (
     <>
       <section className="card">
-        <h3>1. Find sector/index funds (tool-assisted)</h3>
+        <h2>1. Find sector/index funds (tool-assisted)</h2>
         <Field label="Sector or index name">
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. S&amp;P 500, US technology sector" />
         </Field>
@@ -662,7 +670,7 @@ function UniverseBuilderView() {
       </section>
 
       <section className="card">
-        <h3>2. Build a company universe from a holdings export</h3>
+        <h2>2. Build a company universe from a holdings export</h2>
         <input type="file" accept=".csv" onChange={onHoldingsFile} disabled={busy} />
         {error && <StateBlock kind="error" message={error} />}
         {result && (
@@ -760,7 +768,7 @@ function OverlapView() {
   return (
     <>
       <section className="card">
-        <h3>1. Select ETFs/indices to compare</h3>
+        <h2>1. Select ETFs/indices to compare</h2>
         <div className="inline-fields">
           <input placeholder="Fund display name" value={fundName} onChange={(e) => setFundName(e.target.value)} />
           <input type="file" accept=".csv" onChange={addFund} disabled={busy || !fundName} />
@@ -772,8 +780,8 @@ function OverlapView() {
                 <tr>
                   <th>Fund</th>
                   <th>File</th>
-                  <th></th>
-                  <th></th>
+                  <th><span className="sr-only">Actions</span></th>
+                  <th><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -808,7 +816,7 @@ function OverlapView() {
 
       {result && (
         <section className="card">
-          <h3>2. Overlap</h3>
+          <h2>2. Overlap</h2>
           <p>
             <strong>Core holdings (in every fund):</strong> {result.core_tickers.join(", ") || "none"}
           </p>
@@ -834,7 +842,7 @@ function OverlapView() {
             </table>
           </div>
 
-          <h4>Holdings inspection</h4>
+          <h3>Holdings inspection</h3>
           <div className="table-wrap">
             <table className="data-table">
               <thead>

@@ -31,7 +31,7 @@ export function UniversePicker({ onResolved }: Props) {
   }
 
   return (
-    <div className="universe-picker">
+    <div>
       <Field label="Company universe (CSV or JSON)">
         <input type="file" accept=".csv,.json" onChange={onFile} disabled={busy} />
       </Field>

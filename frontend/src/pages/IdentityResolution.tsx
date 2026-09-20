@@ -21,9 +21,13 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
   const [sentUniverse, setSentUniverse] = useState<{ path: string; count: number } | null>(null);
 
   async function refreshResults() {
-    if (!runId) return;
-    const res = (await api.getIdentityResults(runId)) as { results: IdentityResolutionResult[] };
-    setResults(res.results);
+    try {
+      if (!runId) return;
+      const res = (await api.getIdentityResults(runId)) as { results: IdentityResolutionResult[] };
+      setResults(res.results);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function runNow() {
@@ -79,7 +83,7 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
       />
 
       <section className="card">
-        <h3>Resolve identity</h3>
+        <h2>Resolve identity</h2>
         <UniversePicker
           onResolved={(path, count) => {
             setUniversePath(path);

@@ -58,7 +58,7 @@ export function StepCard({ step, title, summary, state = "current", children }: 
         <span className="step-marker" aria-hidden="true">
           {state === "done" ? "✓" : step}
         </span>
-        <h3>{title}</h3>
+        <h2>{title}</h2>
         {summary && <span className="step-card-summary">{summary}</span>}
         {state === "done" && (
           <Button

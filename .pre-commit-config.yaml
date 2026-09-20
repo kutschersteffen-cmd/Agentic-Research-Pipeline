@@ -12,3 +12,16 @@ repos:
     rev: v8.21.2
     hooks:
       - id: gitleaks
+
+  # Frontend design-system guardrails (docs/UI_DESIGN_IMPROVEMENT_PLAN.md,
+  # phase 5). Needs `node` on PATH, which this repo already assumes. The
+  # same check runs in CI, so a contributor without pre-commit installed is
+  # still caught.
+  - repo: local
+    hooks:
+      - id: frontend-design-system
+        name: Frontend design-system check
+        entry: node frontend/scripts/check-design-system.mjs
+        language: system
+        files: ^frontend/src/.*\.(css|tsx)$
+        pass_filenames: false

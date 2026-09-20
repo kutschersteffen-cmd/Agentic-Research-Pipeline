@@ -106,7 +106,10 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
     api
       .listRuns(kind)
       .then((res) => setRuns((res as { runs: RunManifest[] }).runs))
-      .catch(() => setRuns([]));
+      .catch((err: Error) => {
+        setRuns([]);
+        setError(err.message);
+      });
   }, [kind]);
 
   // A run clicked from Run History's "Review" link arrives here -- load its
@@ -190,7 +193,7 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
         <div className="split-review">
           <div className="split-review-main">
             <section className="card">
-              <h3>{pending.length} pending</h3>
+              <h2>{pending.length} pending</h2>
               {pending.map((item) => (
                 <div className="review-item" key={item.item_key as string}>
                   <ReviewItemFields item={item} onOpenSource={setActiveSource} />

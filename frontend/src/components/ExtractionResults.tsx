@@ -234,17 +234,17 @@ export function FinancialsResultsTable({
               {expanded === r.company_id && (
                 <tr>
                   <td colSpan={6} className="detail-cell">
-                    <h4>Business Segments</h4>
+                    <h3>Business Segments</h3>
                     {r.segments.length === 0 && <StateBlock kind="empty" message="No segment reporting evidence found." />}
                     {r.segments.map((s, si) => (
                       <SegmentDetail key={si} segment={s} onOpenSource={onOpenSource} />
                     ))}
                     {r.segments_verifier_notes && <p className="muted">{r.segments_verifier_notes}</p>}
 
-                    <h4>CapEx</h4>
+                    <h3>CapEx</h3>
                     <SpendDetail label="CapEx" spend={r.capex} onOpenSource={onOpenSource} />
 
-                    <h4>R&amp;D</h4>
+                    <h3>R&amp;D</h3>
                     <SpendDetail label="R&D" spend={r.rnd} onOpenSource={onOpenSource} />
 
                     <ReviewControls

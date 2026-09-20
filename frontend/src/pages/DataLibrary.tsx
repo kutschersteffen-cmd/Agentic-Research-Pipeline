@@ -68,11 +68,16 @@ function RunResultsView() {
 
   useEffect(() => {
     (async () => {
-      const res = (await api.listRuns(kind)) as { runs: RunManifest[] };
-      setRuns(res.runs);
-      setRunId("");
-      setExpanded(null);
-      setActiveSource(null);
+      try {
+        const res = (await api.listRuns(kind)) as { runs: RunManifest[] };
+        setRuns(res.runs);
+        setRunId("");
+        setExpanded(null);
+        setActiveSource(null);
+        setError(null);
+      } catch (err) {
+        setError((err as Error).message);
+      }
     })();
   }, [kind]);
 
@@ -189,13 +194,18 @@ function CompanyResultsView() {
 
   useEffect(() => {
     (async () => {
-      const res = (await api.listKnownCompanies(kind)) as { companies: CompanyDirectoryEntry[] };
-      setCompanies(res.companies);
-      setCompanyId("");
-      setExtractionRecords([]);
-      setFinancialsRecords([]);
-      setDocuments([]);
-      setActiveSource(null);
+      try {
+        const res = (await api.listKnownCompanies(kind)) as { companies: CompanyDirectoryEntry[] };
+        setCompanies(res.companies);
+        setCompanyId("");
+        setExtractionRecords([]);
+        setFinancialsRecords([]);
+        setDocuments([]);
+        setActiveSource(null);
+        setError(null);
+      } catch (err) {
+        setError((err as Error).message);
+      }
     })();
   }, [kind]);
 
@@ -248,7 +258,7 @@ function CompanyResultsView() {
 
       {companyId && documents.length > 0 && (
         <section className="card">
-          <h3>Source documents on file</h3>
+          <h2>Source documents on file</h2>
           <div className="table-wrap">
             <table className="data-table">
               <thead>
@@ -285,7 +295,7 @@ function CompanyResultsView() {
             {kind === "extraction" &&
               extractionRecords.map((r) => (
                 <section className="card" key={r.run_id}>
-                  <h3>Run {r.run_id} -- {new Date(r.generated_at).toLocaleString()}</h3>
+                  <h2>Run {r.run_id} -- {new Date(r.generated_at).toLocaleString()}</h2>
                   <p>
                     <ConfidenceBadge value={r.overall_confidence} /> {r.needs_review && <span className="badge badge-low">needs review</span>}
                   </p>
@@ -298,18 +308,18 @@ function CompanyResultsView() {
             {kind === "financials" &&
               financialsRecords.map((r) => (
                 <section className="card" key={r.run_id}>
-                  <h3>Run {r.run_id} -- {new Date(r.generated_at).toLocaleString()}</h3>
+                  <h2>Run {r.run_id} -- {new Date(r.generated_at).toLocaleString()}</h2>
                   <p>
                     <ConfidenceBadge value={r.overall_confidence} /> {r.needs_review && <span className="badge badge-low">needs review</span>}
                   </p>
-                  <h4>Business Segments</h4>
+                  <h3>Business Segments</h3>
                   {r.segments.length === 0 && <StateBlock kind="empty" message="No segment reporting evidence found." />}
                   {r.segments.map((s, si) => (
                     <SegmentDetail key={si} segment={s} onOpenSource={setActiveSource} />
                   ))}
-                  <h4>CapEx</h4>
+                  <h3>CapEx</h3>
                   <SpendDetail label="CapEx" spend={r.capex} onOpenSource={setActiveSource} />
-                  <h4>R&amp;D</h4>
+                  <h3>R&amp;D</h3>
                   <SpendDetail label="R&D" spend={r.rnd} onOpenSource={setActiveSource} />
                 </section>
               ))}
@@ -356,15 +366,19 @@ function ParsedDocumentsView() {
   }, [offset]);
 
   async function toggleExpand(row: CachedDocumentRow) {
-    if (expandedId === row.id) {
-      setExpandedId(null);
+    try {
+      if (expandedId === row.id) {
+        setExpandedId(null);
+        setDetail(null);
+        return;
+      }
+      setExpandedId(row.id);
       setDetail(null);
-      return;
+      const res = (await api.getCachedDocumentText(row.id)) as CachedDocumentDetail;
+      setDetail(res);
+    } catch (err) {
+      setError((err as Error).message);
     }
-    setExpandedId(row.id);
-    setDetail(null);
-    const res = (await api.getCachedDocumentText(row.id)) as CachedDocumentDetail;
-    setDetail(res);
   }
 
   return (

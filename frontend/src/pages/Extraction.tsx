@@ -37,7 +37,7 @@ function BatchSpendChart({ results }: { results: CompanyFinancialsRecord[] }) {
 
   return (
     <section className="card">
-      <h3>Batch overview ({results.length} companies)</h3>
+      <h2>Batch overview ({results.length} companies)</h2>
       <div className="view-toggle">
         <button className={metric === "capex" ? "active" : ""} onClick={() => setMetric("capex")}>
           CapEx
@@ -131,17 +131,21 @@ export function Extraction({ pendingUniverse }: Props = {}) {
   }
 
   async function refreshResults() {
-    if (!runId) return;
-    if (mode === "custom") {
-      const res = (await api.getExtractionResults(runId)) as { results: ExtractionRecord[] };
-      setExtractionResults(res.results);
-      const decisionsRes = (await api.getExtractionReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
-      setExtractionReviewDecisions(decisionsRes.decisions);
-    } else {
-      const res = (await api.getFinancialsResults(runId)) as { results: CompanyFinancialsRecord[] };
-      setFinancialsResults(res.results);
-      const decisionsRes = (await api.getFinancialsReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
-      setFinancialsReviewDecisions(decisionsRes.decisions);
+    try {
+      if (!runId) return;
+      if (mode === "custom") {
+        const res = (await api.getExtractionResults(runId)) as { results: ExtractionRecord[] };
+        setExtractionResults(res.results);
+        const decisionsRes = (await api.getExtractionReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
+        setExtractionReviewDecisions(decisionsRes.decisions);
+      } else {
+        const res = (await api.getFinancialsResults(runId)) as { results: CompanyFinancialsRecord[] };
+        setFinancialsResults(res.results);
+        const decisionsRes = (await api.getFinancialsReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
+        setFinancialsReviewDecisions(decisionsRes.decisions);
+      }
+    } catch (err) {
+      setError((err as Error).message);
     }
   }
 

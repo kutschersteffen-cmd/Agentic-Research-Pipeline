@@ -79,7 +79,7 @@ export function CompanyProfiles() {
 
   return (
     <section className="card">
-      <h3>Company Profiles</h3>
+      <h2>Company Profiles</h2>
       <p className="help-text">
         Reached by picking an issuer directly, or by filtering to one <code>company_id</code> in Pivot Explorer. No
         engagement/voting history is shown -- this repo has no Engagement Record Store to draw from (see{" "}
@@ -106,7 +106,7 @@ export function CompanyProfiles() {
       {selected && !loading && (
         <>
           <div className="card mt-4">
-            <h4>{selected.name}</h4>
+            <h3>{selected.name}</h3>
             <p className="muted">
               {selected.company_id}
               {selected.sector ? ` -- ${selected.sector}` : ""}
@@ -128,7 +128,7 @@ export function CompanyProfiles() {
           </div>
 
           <div className="card">
-            <h4>News ({news.length})</h4>
+            <h3>News ({news.length})</h3>
             <div className="table-wrap">
               <table className="data-table">
                 <thead>
@@ -157,7 +157,7 @@ export function CompanyProfiles() {
           </div>
 
           <div className="card">
-            <h4>Risk flags ({flags.length})</h4>
+            <h3>Risk flags ({flags.length})</h3>
             {flags.map((f) => (
               <div key={f.flag_id} className="review-item">
                 <div className="run-progress-header">

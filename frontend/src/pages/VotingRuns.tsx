@@ -16,8 +16,12 @@ export function VotingRuns() {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
 
   async function loadRuns() {
-    const res = (await api.listRuns("proxy_voting")) as { runs: RunManifest[] };
-    setRuns(res.runs);
+    try {
+      const res = (await api.listRuns("proxy_voting")) as { runs: RunManifest[] };
+      setRuns(res.runs);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   useEffect(() => {
@@ -53,7 +57,7 @@ export function VotingRuns() {
       />
 
       <section className="card">
-        <h3>Start a voting run</h3>
+        <h2>Start a voting run</h2>
         <UniversePicker
           onResolved={(path, count) => {
             setUniversePath(path);
@@ -73,7 +77,7 @@ export function VotingRuns() {
 
       <section className="card">
         <div className="section-heading">
-          <h3>Runs</h3>
+          <h2>Runs</h2>
           <Button variant="ghost" onClick={loadRuns}>
             Refresh
           </Button>
@@ -89,7 +93,7 @@ export function VotingRuns() {
                   <th>Progress</th>
                   <th>Awaiting decision</th>
                   <th>Created</th>
-                  <th></th>
+                  <th><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>

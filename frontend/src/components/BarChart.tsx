@@ -52,7 +52,7 @@ export function BarChart({
         const y = i * rowHeight + 4;
         const barWidth = maxValue > 0 ? (Math.abs(d.value) / maxValue) * barAreaWidth : 0;
         return (
-          <g key={d.label} className="chart-bar-row">
+          <g key={d.label}>
             <text x={labelWidth - 8} y={y + barHeight / 2} textAnchor="end" dominantBaseline="middle" className="chart-axis-label">
               {d.label}
             </text>

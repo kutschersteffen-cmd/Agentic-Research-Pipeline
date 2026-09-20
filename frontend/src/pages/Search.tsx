@@ -103,7 +103,7 @@ export function Search() {
                   <th>Type</th>
                   <th>Title</th>
                   <th>Snippet</th>
-                  <th></th>
+                  <th><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>

@@ -210,7 +210,7 @@ Each phase ships independently and leaves the app working.
 | 2 | Routing, command palette, responsive sidebar, a11y baseline | 1.5 d | Medium | Deep links and back button work | **Landed** |
 | 3 | Apply the three templates, starting with Extraction, Monitoring, Run History, Search | 2 d | Medium | The app reads as one product | **Landed** |
 | 4 | `DataTable` upgrades, dark mode + palette re-validation | 1.5 d | Low | Density and mode choice | **Landed** |
-| 5 | Guardrails: stylelint scale enforcement, a CI grep for raw hex / inline `style={{` in `.tsx`, an axe pass on the five busiest pages | 0.5 d | Low | None — keeps the system from drifting | Next |
+| 5 | Guardrails: a design-system check in CI, an axe pass on the busiest pages | 0.5 d | Low | None — keeps the system from drifting | **Landed** |
 
 Phases 0 and 1 are worth doing even if nothing else is: they are where the
 twenty-one-separate-tools feeling actually comes from.
@@ -241,6 +241,43 @@ twenty-one-separate-tools feeling actually comes from.
   headless pass over 9 screens: no page errors, 13 of 13 form controls on the
   form-heavy screens carry an accessible name, and the focus ring resolves on the
   first tab stop.
+
+### What phase 5 actually changed
+
+- **`frontend/scripts/check-design-system.mjs`**, wired into `npm run
+  check:design`, the CI frontend job and a pre-commit hook. It fails on a
+  colour, type, radius or spacing value that skipped the token layer, on a
+  static inline style, and on a class a component names that no stylesheet
+  defines. A line carrying `ds-allow` opts out, for the rare value that
+  genuinely is not on a scale.
+  *No stylelint*: the plan named it, but half the rules here are about `.tsx`,
+  which stylelint cannot see, and one script with no dependency to install does
+  both jobs.
+  Its first run found 16 real problems, including six classes named by a
+  component and defined nowhere — the same defect class as the `className="error"`
+  found in phase 3.
+- **An axe pass** (`frontend/scripts/axe-scan.mjs`) over seven pages in both
+  themes. It is not in CI — it needs a browser, which would treble the install —
+  but it is committed, so it is repeatable. The first run found three things,
+  all now fixed:
+  1. `--high`, `--mid` and `--neutral` failed WCAG AA at the 12px size status
+     pills use (4.06, 3.32 and 4.43 against `--panel`). All four status colours
+     are re-stepped to clear 4.5:1 against the *darkest* surface they can sit on.
+  2. Eleven action columns had an empty `<th>`, which a screen reader announces
+     as an unnamed column. Each now carries a visually hidden "Actions".
+  3. No page had an `<h1>`: the page title was an `<h2>`. `PageHeader` renders
+     `<h1>` now, and card titles moved `h3 → h2`, sub-headings `h4 → h3`, with
+     the type scale shifted so nothing changes size. That is what the heading
+     order means to a screen reader: a level 3 under a level 1 with no level 2.
+  The scan is now clean at every impact level, including best-practice rules.
+- **Every API call reports its own failure.** This was the open defect from
+  phase 2: ~30 loaders let a rejection escape or swallowed it, so with the
+  backend unreachable a page sat empty with nothing said. 29 `async` loaders now
+  catch and set their component's error state, and the remaining promise chains
+  (including six `.catch(() => [])` swallows) either report or say in a comment
+  why they don't. Verified by browsing all 23 routes with the backend stopped:
+  **zero unhandled rejections, and no page that makes a request fails to report
+  it** — against four unhandled rejections and six silent pages before.
 
 ### What phase 4 actually changed
 
@@ -391,7 +428,9 @@ The plan is done when:
 3. `font-size` outside `tokens.css` is zero; the same for `border-radius` and raw hex. **Met** (the one numeric radius left is a `0` corner in a segmented control).
 4. Every destination is reachable by URL, and refreshing keeps the analyst where they were. **Met.**
 5. An axe scan of Dashboard, Extraction, Review Queue, Search and Index Builder reports
-   no serious or critical issues; each is fully operable by keyboard.
+   no serious or critical issues; each is fully operable by keyboard. **Met** — the
+   committed scan covers seven pages in both themes and is clean at every impact
+   level; run it with `node scripts/axe-scan.mjs`.
 6. Adding a new page means composing `PageHeader + Tabs + Card + DataTable` — and a
    reviewer can tell at a glance if it did not. **Met** — every primitive in the
    table above now exists except `Toast`, which no page has yet needed.

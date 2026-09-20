@@ -46,7 +46,10 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
 
   useEffect(() => {
-    api.listTaxonomies().then((res) => setTaxonomies((res as { taxonomies: Taxonomy[] }).taxonomies)).catch(() => {});
+    api
+      .listTaxonomies()
+      .then((res) => setTaxonomies((res as { taxonomies: Taxonomy[] }).taxonomies))
+      .catch((err: Error) => setError(err.message));
   }, []);
 
   // A taxonomy sent over from the Taxonomy Library's "Use in Thematic
@@ -163,9 +166,13 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
   }
 
   async function refreshResults() {
-    if (!runId) return;
-    const res = (await api.getThemeResults(runId)) as { results: CompanyMatch[] };
-    setResults(res.results);
+    try {
+      if (!runId) return;
+      const res = (await api.getThemeResults(runId)) as { results: CompanyMatch[] };
+      setResults(res.results);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   const filteredResults = useMemo(() => {
@@ -227,7 +234,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
       />
 
       <section className="card">
-        <h3>1. Define the theme</h3>
+        <h2>1. Define the theme</h2>
         <Field label="Macro theme name">
           <input value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
@@ -267,7 +274,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
 
       {theme && (
         <section className="card">
-          <h3>2. Review &amp; edit activities</h3>
+          <h2>2. Review &amp; edit activities</h2>
           {theme.activities.map((a, idx) => (
             <div className="activity-editor" key={a.activity_id}>
               <input value={a.name} onChange={(e) => updateActivity(idx, { name: e.target.value })} />
@@ -301,7 +308,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
 
       {theme && (
         <section className="card">
-          <h3>3. Choose the company universe</h3>
+          <h2>3. Choose the company universe</h2>
           <UniversePicker
             onResolved={(path, count) => {
               setUniversePath(path);
@@ -370,7 +377,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
 
       {runId && (
         <section className="card">
-          <h3>4. Run progress</h3>
+          <h2>4. Run progress</h2>
           <RunProgress runId={runId} />
           <div className="toolbar">
             <Button onClick={refreshResults}>Refresh results</Button>

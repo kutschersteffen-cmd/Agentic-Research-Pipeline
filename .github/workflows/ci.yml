@@ -95,6 +95,13 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # The design system is only a system while something checks it: this
+      # fails on a colour, type, radius or spacing value that skipped the
+      # token layer, a static inline style, or a class a component names but
+      # no stylesheet defines (see docs/UI_DESIGN_IMPROVEMENT_PLAN.md).
+      - name: Design-system check
+        run: npm run check:design
+
       - name: Typecheck + build
         run: npm run build
 

@@ -53,7 +53,7 @@ export function Dialog({ title, onClose, children, footer }: DialogProps) {
     >
       <div className="dialog-panel">
         <div className="dialog-header">
-          <h4>{title}</h4>
+          <h3>{title}</h3>
           <Button variant="ghost" onClick={onClose}>
             Close
           </Button>

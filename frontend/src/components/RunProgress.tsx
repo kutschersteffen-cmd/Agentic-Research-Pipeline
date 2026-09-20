@@ -88,7 +88,7 @@ export function RunProgress({
   const canResume = runType === "theme" && RESUMABLE_STATUSES.has(manifest.status);
 
   return (
-    <div className="run-progress">
+    <div>
       <div className="run-progress-header">
         <strong>{manifest.run_id}</strong>
         <span className={`status-pill status-${manifest.status}`}>{manifest.status}</span>

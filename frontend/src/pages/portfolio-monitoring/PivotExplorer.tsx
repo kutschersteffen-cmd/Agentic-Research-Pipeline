@@ -43,7 +43,7 @@ export function PivotExplorer() {
   const [mode, setMode] = useState<"single" | "cross-tab">("single");
   return (
     <section className="card">
-      <h3>Pivot Explorer</h3>
+      <h2>Pivot Explorer</h2>
       <p className="help-text">
         e.g. "how many EUR million is the exposure to stocks from BMW": single dimension = portfolio_id, filter
         company_id = bmw, asset_class = equity, metric = market value sum. Or cross-tab sector x portfolio_id to see

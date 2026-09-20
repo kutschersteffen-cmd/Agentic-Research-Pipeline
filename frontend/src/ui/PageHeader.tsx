@@ -9,12 +9,14 @@ interface PageHeaderProps {
 }
 
 /** Every page opens the same way: what this is, what it is for, and the one
- *  action that matters, in that order and in that place. */
+ *  action that matters, in that order and in that place. The title is the
+ *  document's <h1> -- with the page rendered inside a shell, nothing else
+ *  is. */
 export function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
     <header className="page-header">
       <div className="page-header-text">
-        <h2>{title}</h2>
+        <h1>{title}</h1>
         {description && <p className="page-header-description">{description}</p>}
       </div>
       {actions && <div className="page-header-actions">{actions}</div>}

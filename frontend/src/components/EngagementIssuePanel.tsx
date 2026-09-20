@@ -86,9 +86,13 @@ export function EngagementIssuePanel({
   }
 
   async function refreshRecord() {
-    const updated = (await api.getEngagementRecord(record.company_id)) as EngagementRecord;
-    onUpdated(updated);
-    return updated;
+    try {
+      const updated = (await api.getEngagementRecord(record.company_id)) as EngagementRecord;
+      onUpdated(updated);
+      return updated;
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function run<T>(fn: () => Promise<T>): Promise<T | undefined> {
@@ -105,111 +109,147 @@ export function EngagementIssuePanel({
   }
 
   async function escalate() {
-    await run(async () => {
-      await api.escalateEngagementIssue(record.company_id, issue.issue_id, {
-        stage: escalateStage,
-        decided_by: actor || "unknown",
-        reason: escalateReason,
+    try {
+      await run(async () => {
+        await api.escalateEngagementIssue(record.company_id, issue.issue_id, {
+          stage: escalateStage,
+          decided_by: actor || "unknown",
+          reason: escalateReason,
+        });
+        await refreshRecord();
+        await loadNextAction();
+        setEscalateReason("");
       });
-      await refreshRecord();
-      await loadNextAction();
-      setEscalateReason("");
-    });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function draftDossier() {
-    await run(async () => {
-      const res = await api.draftDossier(record.company_id, issue.issue_id, { company_id: record.company_id, name: record.name });
-      setDossier(res.dossier);
-      setRecipient(res.dossier.recommended_contacts[0] ?? "");
-    });
+    try {
+      await run(async () => {
+        const res = await api.draftDossier(record.company_id, issue.issue_id, { company_id: record.company_id, name: record.name });
+        setDossier(res.dossier);
+        setRecipient(res.dossier.recommended_contacts[0] ?? "");
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function draftLetter() {
-    if (!dossier) return;
-    await run(async () => {
-      const res = (await api.draftOutreachLetter(record.company_id, issue.issue_id, {
-        company_name: record.name,
-        recipient,
-        dossier,
-        house_style_notes: houseStyle,
-      })) as OutreachLetterDraft;
-      setLetter(res);
-    });
+    try {
+      if (!dossier) return;
+      await run(async () => {
+        const res = (await api.draftOutreachLetter(record.company_id, issue.issue_id, {
+          company_name: record.name,
+          recipient,
+          dossier,
+          house_style_notes: houseStyle,
+        })) as OutreachLetterDraft;
+        setLetter(res);
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function draftPoints() {
-    if (!dossier) return;
-    await run(async () => {
-      const res = (await api.draftTalkingPoints(record.company_id, issue.issue_id, { company_name: record.name, dossier })) as MeetingTalkingPoints;
-      setTalkingPoints(res);
-    });
+    try {
+      if (!dossier) return;
+      await run(async () => {
+        const res = (await api.draftTalkingPoints(record.company_id, issue.issue_id, { company_name: record.name, dossier })) as MeetingTalkingPoints;
+        setTalkingPoints(res);
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function logSent() {
-    if (!letter) return;
-    await run(async () => {
-      await api.logOutreachSent(record.company_id, issue.issue_id, {
-        summary: `${letter.subject} -- sent to ${letter.recommended_recipient}`,
-        sent_by: actor || "unknown",
+    try {
+      if (!letter) return;
+      await run(async () => {
+        await api.logOutreachSent(record.company_id, issue.issue_id, {
+          summary: `${letter.subject} -- sent to ${letter.recommended_recipient}`,
+          sent_by: actor || "unknown",
+        });
+        await refreshRecord();
+        await loadNextAction();
       });
-      await refreshRecord();
-      await loadNextAction();
-    });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function draftSummary() {
-    if (!notesOrTranscript.trim()) return;
-    await run(async () => {
-      const res = (await api.draftMeetingSummary(record.company_id, issue.issue_id, {
-        company_name: record.name,
-        notes_or_transcript: notesOrTranscript,
-      })) as MeetingSummaryDraft;
-      setMeetingSummary(res);
-    });
+    try {
+      if (!notesOrTranscript.trim()) return;
+      await run(async () => {
+        const res = (await api.draftMeetingSummary(record.company_id, issue.issue_id, {
+          company_name: record.name,
+          notes_or_transcript: notesOrTranscript,
+        })) as MeetingSummaryDraft;
+        setMeetingSummary(res);
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function validateAndLogSummary() {
-    if (!meetingSummary) return;
-    await run(async () => {
-      await api.logMeetingSummaryValidated(record.company_id, issue.issue_id, {
-        summary: meetingSummary.summary,
-        commitments: meetingSummary.commitments_identified,
-        validated_by: actor || "unknown",
+    try {
+      if (!meetingSummary) return;
+      await run(async () => {
+        await api.logMeetingSummaryValidated(record.company_id, issue.issue_id, {
+          summary: meetingSummary.summary,
+          commitments: meetingSummary.commitments_identified,
+          validated_by: actor || "unknown",
+        });
+        await refreshRecord();
+        await loadNextAction();
+        setMeetingSummary(null);
+        setNotesOrTranscript("");
       });
-      await refreshRecord();
-      await loadNextAction();
-      setMeetingSummary(null);
-      setNotesOrTranscript("");
-    });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function verifyCommitment(commitmentId: string) {
-    await run(async () => {
-      await api.verifyCommitment(record.company_id, issue.issue_id, { commitment_id: commitmentId, verified_by: actor || "unknown" });
-      await refreshRecord();
-      await loadNextAction();
-    });
+    try {
+      await run(async () => {
+        await api.verifyCommitment(record.company_id, issue.issue_id, { commitment_id: commitmentId, verified_by: actor || "unknown" });
+        await refreshRecord();
+        await loadNextAction();
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function addContact() {
-    if (!newContactName.trim()) return;
-    await run(async () => {
-      const body: Partial<Contact> = { name: newContactName, role: newContactRole, email: newContactEmail || null };
-      await api.addEngagementContact(record.company_id, body);
-      await refreshRecord();
-      setNewContactName("");
-      setNewContactRole("");
-      setNewContactEmail("");
-    });
+    try {
+      if (!newContactName.trim()) return;
+      await run(async () => {
+        const body: Partial<Contact> = { name: newContactName, role: newContactRole, email: newContactEmail || null };
+        await api.addEngagementContact(record.company_id, body);
+        await refreshRecord();
+        setNewContactName("");
+        setNewContactRole("");
+        setNewContactEmail("");
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   return (
     <section className="card">
       <div className="section-heading">
-        <h3>
+        <h2>
           {record.name} &middot; {issue.theme}
-        </h3>
+        </h2>
         <Button variant="ghost" onClick={onClose}>
           Close
         </Button>
@@ -238,7 +278,7 @@ export function EngagementIssuePanel({
       {error && <StateBlock kind="error" message={error} />}
 
       <div className="panel-section">
-        <h4>Escalation-lever decision</h4>
+        <h3>Escalation-lever decision</h3>
         <p className="help-text">
           The one non-negotiable human checkpoint for escalation -- this is the only way an issue's escalation stage
           moves.
@@ -259,7 +299,7 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Milestone &amp; escalation history</h4>
+        <h3>Milestone &amp; escalation history</h3>
         <ul className="timeline">
           {[...issue.milestone_history.map((t) => ({ label: `Milestone -> ${fmt(t.stage)}`, at: t.changed_at, note: t.reason })), ...issue.escalation_history.map((t) => ({ label: `Escalated -> ${fmt(t.stage)}`, at: t.changed_at, note: `${t.decided_by}${t.reason ? `: ${t.reason}` : ""}` }))]
             .sort((a, b) => (a.at < b.at ? -1 : 1))
@@ -277,7 +317,7 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Correspondence</h4>
+        <h3>Correspondence</h3>
         {issue.correspondence.length === 0 && <StateBlock kind="empty" message="None logged yet." />}
         <ul className="timeline">
           {issue.correspondence.map((c) => (
@@ -292,7 +332,7 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Commitments</h4>
+        <h3>Commitments</h3>
         {issue.commitments.length === 0 && <StateBlock kind="empty" message="None logged yet." />}
         {issue.commitments.map((c) => (
           <div className="activity-row" key={c.commitment_id}>
@@ -315,7 +355,7 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Research Agent</h4>
+        <h3>Research Agent</h3>
         <Button onClick={draftDossier} disabled={busy}>
           {dossier ? "Redraft dossier" : "Draft dossier"}
         </Button>
@@ -337,7 +377,7 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Drafting Agent</h4>
+        <h3>Drafting Agent</h3>
         {!dossier && <p className="help-text">Draft a dossier first -- the letter/talking points reuse its grounded citations.</p>}
         {dossier && (
           <>
@@ -393,7 +433,7 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Post-meeting summary &amp; validation</h4>
+        <h3>Post-meeting summary &amp; validation</h3>
         <Field label="Meeting notes or transcript">
           <textarea rows={4} value={notesOrTranscript} onChange={(e) => setNotesOrTranscript(e.target.value)} placeholder="Paste raw notes or a transcript..." />
         </Field>
@@ -431,7 +471,7 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Contacts</h4>
+        <h3>Contacts</h3>
         {record.contacts.length === 0 && <StateBlock kind="empty" message="None on file." />}
         <ul className="timeline">
           {record.contacts.map((c) => (

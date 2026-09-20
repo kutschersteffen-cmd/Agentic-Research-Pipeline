@@ -51,9 +51,9 @@ function CriterionDetail({ detail, onClose }: { detail: BarrierCriterionDetail; 
   return (
     <div className="card">
       <div className="section-heading">
-        <h3>
+        <h2>
           {criterion.code} -- {criterion.criterion}
-        </h3>
+        </h2>
         <Button type="button" onClick={onClose}>
           Close
         </Button>
@@ -62,11 +62,11 @@ function CriterionDetail({ detail, onClose }: { detail: BarrierCriterionDetail; 
         {criterion.sector} / {criterion.category}
       </p>
 
-      <h4>What is measured</h4>
+      <h3>What is measured</h3>
       <p>{criterion.metric}</p>
       <p className="muted">Unit: {criterion.unit}</p>
 
-      <h4>Rating rubric</h4>
+      <h3>Rating rubric</h3>
       <div className="table-wrap">
         <table className="data-table">
           <tbody>
@@ -82,7 +82,7 @@ function CriterionDetail({ detail, onClose }: { detail: BarrierCriterionDetail; 
         </table>
       </div>
 
-      <h4>Ratings by region</h4>
+      <h3>Ratings by region</h3>
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -110,7 +110,7 @@ function CriterionDetail({ detail, onClose }: { detail: BarrierCriterionDetail; 
         </table>
       </div>
 
-      <h4>Sources ({sources.length})</h4>
+      <h3>Sources ({sources.length})</h3>
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -232,7 +232,7 @@ export function TransitionBarrierAssessment() {
       </div>
 
       <div className="card">
-        <h3>Ratings by region</h3>
+        <h2>Ratings by region</h2>
         <BarChart
           data={matrix.regions.flatMap((region) =>
             (["H", "M", "L"] as BarrierRating[]).map((r) => ({
@@ -244,7 +244,7 @@ export function TransitionBarrierAssessment() {
       </div>
 
       <div className="section-heading">
-        <h3>The matrix</h3>
+        <h2>The matrix</h2>
         <div>
           <label htmlFor="pillar-filter">Pillar: </label>
           <select
@@ -299,7 +299,7 @@ export function TransitionBarrierAssessment() {
 
       <div className="card">
         <div className="section-heading">
-          <h3>Source refresh</h3>
+          <h2>Source refresh</h2>
           <Button type="button" onClick={startRefresh}>
             Re-check legal sources
           </Button>

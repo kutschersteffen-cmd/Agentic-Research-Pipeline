@@ -284,7 +284,7 @@ export function IndexBuilder() {
         {sub === "compose" && (
           <>
             <div className="card">
-              <h3>Start from a preset</h3>
+              <h2>Start from a preset</h2>
               <p className="help-text">
                 A preset expands into the ordinary rules below -- nothing is hidden, and every rule stays editable.
               </p>
@@ -308,7 +308,7 @@ export function IndexBuilder() {
             <TrajectoryCard spec={spec} setSpec={setSpec} fields={fields} />
 
             <div className="card">
-              <h3>Run a review</h3>
+              <h2>Run a review</h2>
               <div className="inline-fields">
                 <Field label="Index id">
                   <input type="text" value={indexId} onChange={(e) => setIndexId(e.target.value)} />
@@ -390,7 +390,7 @@ function ScreensCard({
 
   return (
     <div className="card">
-      <h3>1 · Screens</h3>
+      <h2>1 · Screens</h2>
       <p className="help-text">
         Applied in order. Order is part of the methodology: screens do not commute once a later one is rank-based, and the
         funnel a committee reviews depends on the order they ran in.
@@ -513,7 +513,7 @@ function SelectionCard({
 
   return (
     <div className="card">
-      <h3>2 · Selection</h3>
+      <h2>2 · Selection</h2>
       <p className="help-text">
         Who is in the index. One rule covers the published variants: a coverage target by market cap or by count, an
         absolute bar, or a fixed-size list.
@@ -587,7 +587,7 @@ function WeightingCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setS
   const needsField = spec.base_weighting.scheme === "metric" || spec.base_weighting.scheme === "inverse_metric";
   return (
     <div className="card">
-      <h3>3 · Base weighting</h3>
+      <h2>3 · Base weighting</h2>
       <div className="inline-fields">
         <SelectField
           label="Scheme"
@@ -630,7 +630,7 @@ function TiltsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setSpec:
 
   return (
     <div className="card">
-      <h3>4 · Tilts</h3>
+      <h2>4 · Tilts</h2>
       <p className="help-text">
         Applied in order, multiplicatively, onto the base weight. Floor and ceiling are mandatory: an unbounded tilt
         silently becomes an exclusion, which is a methodology change nobody approved.
@@ -735,7 +735,7 @@ function ConstraintsCard({
   }
   return (
     <div className="card">
-      <h3>5 · Constraints</h3>
+      <h2>5 · Constraints</h2>
       <p className="help-text">
         Applied by a deterministic waterfall, not a solver: pin every breach at its cap, redistribute pro-rata, repeat
         until no name breaches and the weights sum to one.
@@ -806,7 +806,7 @@ function ConstraintsCard({
           solver-backed objective below, or drop the constraint.
         </p>
       )}
-      <h4>How the constraints are satisfied</h4>
+      <h3>How the constraints are satisfied</h3>
       <p className="help-text">
         The <strong>waterfall</strong> needs nothing installed and is byte-identical everywhere, but applies the
         constraints in sequence. The <strong>least-squares projection</strong> solves them simultaneously and returns the
@@ -868,9 +868,9 @@ function ConstraintsCard({
 
           {usesIntegers && (
             <>
-              <h4>
+              <h3>
                 Mixed-integer solve <span className="badge badge-neutral">cardinality / floor</span>
-              </h4>
+              </h3>
               <p className="help-text">
                 Cardinality limits and an enforced minimum weight are disjunctions, not bounds, so they need a binary per
                 name. Reproducibility is weaker here than anywhere else in the engine: branch-and-bound has no
@@ -906,7 +906,7 @@ function ConstraintsCard({
             </>
           )}
 
-          <h4>Tracking error</h4>
+          <h3>Tracking error</h3>
           <p className="help-text">
             An ex-ante budget turns tracking error from something you measure afterwards into something you constrain.
             It needs a risk model. Note that the least-squares projection minimises distance in <em>weight</em> space,
@@ -994,7 +994,7 @@ function TrajectoryCard({ spec, setSpec, fields }: { spec: ConstructionSpec; set
   }
   return (
     <div className="card">
-      <h3>6 · Decarbonisation trajectory <span className="badge badge-neutral">path dependent</span></h3>
+      <h2>6 · Decarbonisation trajectory <span className="badge badge-neutral">path dependent</span></h2>
       <p className="help-text">
         The only layer whose result depends on prior reviews. Two reductions bind at once: the trajectory decays
         geometrically from a fixed base, while the universe-relative floor moves with the investable universe. The engine
@@ -1107,7 +1107,7 @@ function CalibrationsTab({
   return (
     <>
       <div className="card">
-        <h3>Save the current methodology</h3>
+        <h2>Save the current methodology</h2>
         <p className="help-text">
           A calibration is the whole composition above, versioned and effective-dated. Versions are append-only and
           forward-only, and a review resolves the version <em>in force on its review date</em> rather than the latest one —
@@ -1140,7 +1140,7 @@ function CalibrationsTab({
       </div>
 
       <div className="card">
-        <h3>Saved calibrations</h3>
+        <h2>Saved calibrations</h2>
         {calibrations.length === 0 && <p className="muted">Nothing saved yet.</p>}
         {calibrations.length > 0 && (
           <table className="data-table">
@@ -1178,7 +1178,7 @@ function CalibrationsTab({
 
       {loaded && versions.length > 0 && (
         <div className="card">
-          <h3>Version history — {loaded.name}</h3>
+          <h2>Version history — {loaded.name}</h2>
           <table className="data-table">
             <thead>
               <tr>
@@ -1226,9 +1226,9 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
   return (
     <>
       <div className="card">
-        <h3>
+        <h2>
           {indexId} @ {result.review_date}
-        </h3>
+        </h2>
         <p className="muted">
           config <code>{result.config_hash.slice(0, 12)}</code>
           {result.calibration_id ? ` · calibration ${result.calibration_id} v${result.calibration_version}` : " · ad-hoc spec"}
@@ -1260,7 +1260,7 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
 
         {result.exceptions.length > 0 && (
           <>
-            <h4>Exceptions</h4>
+            <h3>Exceptions</h3>
             <p className="help-text">Every relaxation and data-quality override applied, in order. These belong on the committee pack.</p>
             <ul>
               {result.exceptions.map((e, i) => (
@@ -1274,7 +1274,7 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
       </div>
 
       <div className="card">
-        <h3>Construction funnel</h3>
+        <h2>Construction funnel</h2>
         <table className="data-table">
           <thead>
             <tr>
@@ -1304,7 +1304,7 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
       </div>
 
       <div className="card">
-        <h3>Index vs. universe</h3>
+        <h2>Index vs. universe</h2>
         <table className="data-table">
           <thead>
             <tr>
@@ -1338,7 +1338,7 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
       </div>
 
       <div className="card">
-        <h3>Constituents</h3>
+        <h2>Constituents</h2>
         <table className="data-table">
           <thead>
             <tr>

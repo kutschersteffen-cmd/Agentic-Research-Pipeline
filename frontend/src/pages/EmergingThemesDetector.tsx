@@ -29,18 +29,26 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
   useEffect(() => {
     refreshRecentRuns();
-    api.getEmergingThemesSchedule().then((s) => setSchedule(s));
+    api.getEmergingThemesSchedule().then((s) => setSchedule(s)).catch((err: Error) => setError(err.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function refreshRecentRuns() {
-    const res = (await api.listRuns("emerging_themes")) as { runs: RunManifest[] };
-    setRecentRuns(res.runs);
+    try {
+      const res = (await api.listRuns("emerging_themes")) as { runs: RunManifest[] };
+      setRecentRuns(res.runs);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function refreshCandidates(id: string) {
-    const res = await api.getEmergingThemesCandidates(id);
-    setCandidates(res.candidates);
+    try {
+      const res = await api.getEmergingThemesCandidates(id);
+      setCandidates(res.candidates);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function runNow() {
@@ -157,7 +165,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
       />
 
       <section className="card">
-        <h3>Run a scan now</h3>
+        <h2>Run a scan now</h2>
         <UniversePicker
           onResolved={(path, count) => {
             setUniversePath(path);
@@ -172,7 +180,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
       </section>
 
       <section className="card">
-        <h3>Recent scans</h3>
+        <h2>Recent scans</h2>
         <Button onClick={refreshRecentRuns}>Refresh</Button>
         {recentRuns.length === 0 ? (
           <StateBlock kind="empty" message="No scans yet -- run one above, or enable the automatic schedule below." />
@@ -184,7 +192,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                 <th>Status</th>
                 <th>Awaiting review</th>
                 <th>Created</th>
-                <th></th>
+                <th><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -206,7 +214,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
       {selectedRunId && (
         <section className="card">
-          <h3>Candidates -- {selectedRunId}</h3>
+          <h2>Candidates -- {selectedRunId}</h2>
           <Button onClick={() => refreshCandidates(selectedRunId)}>Refresh candidates</Button>
           {candidates.length === 0 ? (
             <StateBlock kind="empty" message="No candidates for this run (nothing survived the independent-source-minimum and lineage-birth filters)." />
@@ -354,7 +362,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
       {schedule && (
         <section className="card">
-          <h3>Automatic schedule</h3>
+          <h2>Automatic schedule</h2>
           <label className="checkbox-label">
             <input
               type="checkbox"

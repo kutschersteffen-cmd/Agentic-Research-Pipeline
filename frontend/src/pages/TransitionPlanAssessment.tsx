@@ -87,7 +87,7 @@ function IndicatorTable({
         if (rows.length === 0) return null;
         return (
           <div key={cat}>
-            <h4>{CATEGORY_LABELS[cat]}</h4>
+            <h3>{CATEGORY_LABELS[cat]}</h3>
             <div className="table-wrap">
               <table className="data-table">
                 <thead>
@@ -157,7 +157,7 @@ function BatchOverview({ results }: { results: TransitionPlanAssessmentRecord[] 
 
   return (
     <section className="card">
-      <h3>Batch overview ({results.length} companies)</h3>
+      <h2>Batch overview ({results.length} companies)</h2>
       <div className="stat-tile-grid">
         <div className="stat-tile">
           <div className="stat-value">{walkTotal > 0 ? `${Math.round((walkDisclosed / walkTotal) * 100)}%` : "—"}</div>
@@ -189,7 +189,7 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
 
   useEffect(() => {
-    api.getTransitionPlanIndicators().then(setIndicators).catch(() => {});
+    api.getTransitionPlanIndicators().then(setIndicators).catch((err: Error) => setError(err.message));
   }, []);
 
   async function startRun() {
@@ -208,11 +208,15 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
   }
 
   async function refreshResults() {
-    if (!runId) return;
-    const res = await api.getTransitionPlanResults(runId);
-    setResults(res.results);
-    const decisionsRes = (await api.getTransitionPlanReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
-    setReviewDecisions(decisionsRes.decisions);
+    try {
+      if (!runId) return;
+      const res = await api.getTransitionPlanResults(runId);
+      setResults(res.results);
+      const decisionsRes = (await api.getTransitionPlanReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
+      setReviewDecisions(decisionsRes.decisions);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   return (
@@ -261,7 +265,7 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
       )}
 
       <section className="card">
-        <h3>1. Choose the company universe</h3>
+        <h2>1. Choose the company universe</h2>
         {pendingUniverse && universePath === pendingUniverse.path && (
           <p className="status-text">
             Using {pendingUniverse.count} companies sent from another screen. Upload a different universe below to
@@ -283,7 +287,7 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
 
       {runId && (
         <section className="card">
-          <h3>2. Run progress</h3>
+          <h2>2. Run progress</h2>
           <RunProgress runId={runId} runType="transition_plan" />
           <div className="toolbar">
             <Button onClick={refreshResults}>Refresh results</Button>

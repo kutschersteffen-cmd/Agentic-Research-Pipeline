@@ -144,7 +144,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
 
       <section className="card">
         <div className="section-heading">
-          <h3>Currently executing</h3>
+          <h2>Currently executing</h2>
         </div>
         {active.length === 0 && <p className="muted">Nothing running right now.</p>}
         {active.map((r) => {
@@ -179,7 +179,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
 
       <section className="card">
         <div className="section-heading">
-          <h3>Finished runs</h3>
+          <h2>Finished runs</h2>
           <span className="muted">most recent 25</span>
         </div>
         {finished.length === 0 && <StateBlock kind="empty" message="No finished runs yet." />}
@@ -194,7 +194,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                   <th>Progress</th>
                   <th>Flagged</th>
                   <th>Finished</th>
-                  <th></th>
+                  <th><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -223,7 +223,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
 
       <section className="card">
         <div className="section-heading">
-          <h3>Open engagement issues</h3>
+          <h2>Open engagement issues</h2>
           <Button variant="ghost" onClick={() => onNavigate("engagement")}>
             Open Engagement &rarr;
           </Button>
@@ -262,7 +262,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
       {votingRuns.length > 0 && (
         <section className="card">
           <div className="section-heading">
-            <h3>Proxy voting runs</h3>
+            <h2>Proxy voting runs</h2>
             <Button variant="ghost" onClick={() => onNavigate("voting")}>
               Open Voting &rarr;
             </Button>

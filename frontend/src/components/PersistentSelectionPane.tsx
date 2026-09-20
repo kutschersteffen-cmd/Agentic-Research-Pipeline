@@ -10,7 +10,7 @@ import { Button, StateBlock } from "../ui";
  * sub-tab itself, rendered once above the sub-nav, and read by every
  * sub-tab via `usePortfolioPane()` -- switching sub-tabs never resets it. */
 export function PersistentSelectionPane() {
-  const { portfolios, refreshPortfolios, selectedPortfolioIds, setSelectedPortfolioIds, groups, saveCurrentAsGroup, loadGroup, deleteGroup } =
+  const { portfolios, refreshPortfolios, loadError, selectedPortfolioIds, setSelectedPortfolioIds, groups, saveCurrentAsGroup, loadGroup, deleteGroup } =
     usePortfolioPane();
   const [groupName, setGroupName] = useState("");
   const [seeding, setSeeding] = useState(false);
@@ -32,6 +32,9 @@ export function PersistentSelectionPane() {
 
   return (
     <section className="card selection-pane">
+      {/* The pane loads what every sub-tab reads, so its failure belongs
+          here rather than repeated on each of them. */}
+      {loadError && <StateBlock kind="error" message={loadError} onRetry={refreshPortfolios} />}
       {portfolios.length === 0 ? (
         <>
           <p className="help-text">No portfolios yet. Seed the built-in illustrative demo dataset to get started.</p>

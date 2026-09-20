@@ -46,7 +46,7 @@ export function MechanismEditor({
     <div>
       <div className="decision-grid">
         <div className="card">
-          <h3>Normalisation</h3>
+          <h2>Normalisation</h2>
           <select value={config.norm} onChange={(e) => set({ norm: e.target.value as NormMethod })}>
             {NORMS.map((n) => (
               <option key={n.value} value={n.value}>
@@ -76,7 +76,7 @@ export function MechanismEditor({
         </div>
 
         <div className="card">
-          <h3>Missing values</h3>
+          <h2>Missing values</h2>
           <select value={config.missing} onChange={(e) => set({ missing: e.target.value as MissingPolicy })}>
             {MISSING.map((m) => (
               <option key={m.value} value={m.value}>
@@ -104,7 +104,7 @@ export function MechanismEditor({
         </div>
 
         <div className="card">
-          <h3>Weighting</h3>
+          <h2>Weighting</h2>
           <select value={config.weighting} onChange={(e) => set({ weighting: e.target.value as WeightPreset })}>
             {WEIGHTS.map((w) => (
               <option key={w.value} value={w.value}>
@@ -131,7 +131,7 @@ export function MechanismEditor({
       </div>
 
       <div className="card">
-        <h3>Dimensions &amp; criteria</h3>
+        <h2>Dimensions &amp; criteria</h2>
         <p className="help-text">
           Weights are relative and normalised to 100% behind the scenes. Park a criterion at weight 0 to keep it visible
           without letting it count. The effective column is what each criterion actually contributes once its dimension's

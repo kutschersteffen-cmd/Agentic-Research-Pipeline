@@ -78,7 +78,7 @@ function WaciCard() {
 
   return (
     <section className="card">
-      <h3>Weighted-average carbon intensity</h3>
+      <h2>Weighted-average carbon intensity</h2>
       <Field label="Group by">
         <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
           {AGGREGATION_DIMENSIONS.map((d) => (
@@ -118,7 +118,7 @@ function FinancedEmissionsCard() {
 
   return (
     <section className="card">
-      <h3>PCAF financed emissions</h3>
+      <h2>PCAF financed emissions</h2>
       <p className="help-text">
         <code>Σ (holding market value / issuer EVIC) × issuer Scope 1+2 emissions</code>. Holdings whose issuer lacks
         EVIC or Scope 1/2 data are excluded from the number, not treated as zero.
@@ -180,7 +180,7 @@ function CoverageCard() {
 
   return (
     <section className="card">
-      <h3>Data coverage</h3>
+      <h2>Data coverage</h2>
       <p className="help-text">Which source resolved each issuer's value for a field -- never mistake partial coverage for complete data.</p>
       <Field label="Field">
         <select value={fieldId} onChange={(e) => setFieldId(e.target.value)}>

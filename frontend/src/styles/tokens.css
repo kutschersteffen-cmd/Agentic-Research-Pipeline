@@ -30,15 +30,16 @@
 
   /* --- Status ----------------------------------------------------------
      high/mid/low/neutral are status semantics (run status, escalation
-     stage, badges) rendered as small text/borders on --panel, not chart
-     marks -- deepened past the dataviz skill's validated chart-status
-     hexes (tuned for icon+label chips) since these render as bare colored
-     text with no icon, and needed more contrast on a light surface at that
-     size. Chart marks come from lib/palette.ts, never from here. */
-  --high: #128a3e;
-  --mid: #b8791f;
-  --low: #c0392b;
-  --neutral: #6b7280;
+     stage, badges), not chart marks -- chart marks come from
+     lib/palette.ts, never from here. They render as 12px text, so each is
+     stepped to clear 4.5:1 against the darkest surface it can sit on
+     (--well), which the previous values did not: an axe pass measured the
+     old --high at 4.06:1 on --panel, --mid at 3.32 and --neutral at 4.43.
+     Worst-surface ratios now: high 4.79, mid 4.60, low 5.21, neutral 5.15. */
+  --high: oklch(50% 0.15 150);
+  --mid: oklch(53% 0.13 80);
+  --low: oklch(52% 0.17 25);
+  --neutral: oklch(50% 0.02 260);
   --high-wash: color-mix(in srgb, var(--high) 10%, transparent);
   --mid-wash: color-mix(in srgb, var(--mid) 12%, transparent);
   --low-wash: color-mix(in srgb, var(--low) 12%, transparent);

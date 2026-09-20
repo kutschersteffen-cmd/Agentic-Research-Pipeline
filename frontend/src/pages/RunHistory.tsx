@@ -145,7 +145,7 @@ export function RunHistory({ onOpenReview }: Props = {}) {
             },
             {
               id: "actions",
-              header: "",
+              header: <span className="sr-only">Actions</span>,
               render: (r) => (
                 <>
                   <a href={api.exportRunCsvUrl(r.run_id)} target="_blank" rel="noreferrer">

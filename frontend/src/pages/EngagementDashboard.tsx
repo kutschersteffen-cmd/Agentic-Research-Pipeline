@@ -128,7 +128,7 @@ export function EngagementDashboard() {
       {error && <StateBlock kind="error" message={error} />}
 
       <section className="card">
-        <h3>Open a new issue</h3>
+        <h2>Open a new issue</h2>
         <div className="inline-fields">
           <input placeholder="Company ID (e.g. AAPL)" value={newCompanyId} onChange={(e) => setNewCompanyId(e.target.value)} />
           <input placeholder="Company name" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} />
@@ -148,7 +148,7 @@ export function EngagementDashboard() {
       </section>
 
       <section className="card">
-        <h3>Trigger &amp; detection scan</h3>
+        <h2>Trigger &amp; detection scan</h2>
         <p className="help-text">
           Screens the given companies against caller-supplied controversy signals (no live data-provider feed is
           wired up -- see the architecture doc) and opens a new issue for every signal without an already-open issue
@@ -161,7 +161,7 @@ export function EngagementDashboard() {
               <tr>
                 <th>Company ID</th>
                 <th>Name</th>
-                <th></th>
+                <th><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -198,7 +198,7 @@ export function EngagementDashboard() {
                 <th>Theme</th>
                 <th>Severity</th>
                 <th>Detail</th>
-                <th></th>
+                <th><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -258,7 +258,7 @@ export function EngagementDashboard() {
 
       <section className="card">
         <div className="section-heading">
-          <h3>Records</h3>
+          <h2>Records</h2>
           <Button variant="ghost" onClick={load}>
             Refresh
           </Button>
@@ -302,9 +302,9 @@ export function EngagementDashboard() {
         (r) =>
           r.issues.length > 0 && (
             <section className="card" key={r.company_id}>
-              <h3>
+              <h2>
                 {r.name} <span className="muted">({r.company_id})</span> issues
-              </h3>
+              </h2>
               <div className="table-wrap">
                 <table className="data-table">
                   <thead>

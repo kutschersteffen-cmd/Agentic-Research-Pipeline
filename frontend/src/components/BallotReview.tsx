@@ -195,7 +195,7 @@ export function BallotReview({ runId }: { runId: string }) {
   return (
     <section className="card">
       <div className="section-heading">
-        <h3>Ballots for {runId}</h3>
+        <h2>Ballots for {runId}</h2>
         <Button variant="ghost" onClick={load}>
           Refresh
         </Button>
@@ -215,9 +215,9 @@ export function BallotReview({ runId }: { runId: string }) {
 
       {ballots.map((ballot) => (
         <div key={ballot.company_id} className="panel-section">
-          <h4>
+          <h3>
             {ballot.name} <span className="muted">({ballot.company_id})</span>
-          </h4>
+          </h3>
           {ballot.votes.length === 0 && <StateBlock kind="empty" message="No proposals found (no proxy statement available yet)." />}
           {ballot.votes.map((vote) => (
             <ProposalReview

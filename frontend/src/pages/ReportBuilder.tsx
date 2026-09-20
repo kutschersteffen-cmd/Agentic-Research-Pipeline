@@ -66,7 +66,7 @@ export function ReportBuilder() {
 
   useEffect(() => {
     refreshReports();
-    api.listReportTemplates().then((r) => setTemplates(r.templates)).catch(() => undefined);
+    api.listReportTemplates().then((r) => setTemplates(r.templates)).catch((err: Error) => setError(err.message));
   }, []);
 
   async function refreshReports() {
@@ -242,7 +242,7 @@ export function ReportBuilder() {
       />
 
       <section className="card">
-        <h3>1. Content</h3>
+        <h2>1. Content</h2>
         <Field label="Title">
           <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Electrification Thematic Review" />
         </Field>
@@ -287,7 +287,7 @@ export function ReportBuilder() {
       </section>
 
       <section className="card">
-        <h3>2. Audience &amp; layout</h3>
+        <h2>2. Audience &amp; layout</h2>
         <div className="inline-fields">
           <div>
             <Field label="Audience level">
@@ -356,7 +356,7 @@ export function ReportBuilder() {
       {manifest && plan && (
         <section className="card">
           <div className="section-heading">
-            <h3>3. Review &amp; render</h3>
+            <h2>3. Review &amp; render</h2>
             <span className={`status-pill status-${manifest.status}`}>{manifest.status}</span>
           </div>
 
@@ -432,7 +432,7 @@ export function ReportBuilder() {
       )}
 
       <section className="card">
-        <h3>Previous reports</h3>
+        <h2>Previous reports</h2>
         {reports.length === 0 && <StateBlock kind="empty" message="No reports generated yet." />}
         {reports.length > 0 && (
           <div className="table-wrap">
@@ -443,7 +443,7 @@ export function ReportBuilder() {
                   <th>Format</th>
                   <th>Status</th>
                   <th>Created</th>
-                  <th></th>
+                  <th><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -483,7 +483,7 @@ export function ReportBuilder() {
     {previewReportId && (
       <aside className="source-panel">
         <div className="source-panel-header">
-          <h4>Preview -- {previewTitle}</h4>
+          <h3>Preview -- {previewTitle}</h3>
           <Button variant="ghost" onClick={closePreview}>Close</Button>
         </div>
         {previewLoading && <StateBlock kind="loading" message="Rendering preview..." />}

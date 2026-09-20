@@ -38,7 +38,7 @@ export function DecisionTreeEditor({
   return (
     <div>
       <div className="card">
-        <h3>Order of decisions</h3>
+        <h2>Order of decisions</h2>
         <ol className="decision-tree-steps">
           <li>
             <strong>Sufficiency</strong> — below {config.min_coverage_pct}% of{" "}
@@ -65,7 +65,7 @@ export function DecisionTreeEditor({
       <div className="decision-grid">
         <div className="card">
           <div className="toolbar">
-            <h3>Gates</h3>
+            <h2>Gates</h2>
             <Button variant="ghost" onClick={addGate}>
               Add gate
             </Button>
@@ -117,7 +117,7 @@ export function DecisionTreeEditor({
         </div>
 
         <div className="card">
-          <h3>Tier cut-points</h3>
+          <h2>Tier cut-points</h2>
           <select value={config.cut_mode} onChange={(e) => set({ cut_mode: e.target.value as CutMode })}>
             <option value="quantile">Quantiles</option>
             <option value="breaks">Natural breaks</option>
@@ -152,7 +152,7 @@ export function DecisionTreeEditor({
             </div>
           )}
 
-          <h3>Dimension floor</h3>
+          <h2>Dimension floor</h2>
           <label className="checkbox-label">
             <input type="checkbox" checked={config.veto.enabled} onChange={(e) => set({ veto: { ...config.veto, enabled: e.target.checked } })} />
             Demote one tier when any dimension scores below

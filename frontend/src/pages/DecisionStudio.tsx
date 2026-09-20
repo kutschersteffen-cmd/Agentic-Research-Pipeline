@@ -66,8 +66,9 @@ export function DecisionStudio() {
   const refreshDatasets = useCallback(async () => {
     try {
       setDatasets(await api.listDecisionDatasets());
-    } catch {
+    } catch (err) {
       setDatasets([]);
+      setError((err as Error).message);
     }
   }, []);
 
@@ -298,7 +299,7 @@ export function DecisionStudio() {
       <TabPanel id="decision" active={sub}>
         {sub === "data" && (
           <div className="card">
-            <h3>Load the data the decision rests on</h3>
+            <h2>Load the data the decision rests on</h2>
             <p className="help-text">
               One row per entity, one column per indicator. CSV, TSV or Excel — semicolon delimiters and comma decimals are
               read correctly, so a German-locale export needs no cleaning first. Parsing happens on the server, where the
@@ -306,7 +307,7 @@ export function DecisionStudio() {
             </p>
             <input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
 
-            <h3>…or build it from a run this system already produced</h3>
+            <h2>…or build it from a run this system already produced</h2>
             <div className="inline-fields">
               <select value={source} onChange={(e) => setSource(e.target.value)}>
                 {SOURCES.map((s) => (
@@ -338,7 +339,7 @@ export function DecisionStudio() {
 
             {datasets.length > 0 && (
               <>
-                <h3>Loaded tables</h3>
+                <h2>Loaded tables</h2>
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -368,7 +369,7 @@ export function DecisionStudio() {
 
         {sub === "profile" && dataset && (
           <div className="card">
-            <h3>Every column gets a type, a coverage figure and a job</h3>
+            <h2>Every column gets a type, a coverage figure and a job</h2>
             <p className="help-text">
               Types come from the values, not the headers. Direction is the one guess most worth checking — a wrong
               direction inverts the ranking and nothing on the screen looks wrong.
@@ -407,13 +408,13 @@ export function DecisionStudio() {
               {result.tier_summary.map((tier) => (
                 <div key={tier.rank} className="card">
                   <div className="muted">{tier.action}</div>
-                  <h3>{tier.name}</h3>
+                  <h2>{tier.name}</h2>
                   <p className="decision-kpi-value">{tier.count}</p>
                 </div>
               ))}
               <div className="card">
                 <div className="muted">Not scored</div>
-                <h3>Gated / insufficient</h3>
+                <h2>Gated / insufficient</h2>
                 <p className="decision-kpi-value">
                   {result.excluded_count} / {result.insufficient_count}
                 </p>
@@ -421,7 +422,7 @@ export function DecisionStudio() {
             </div>
 
             <div className="card">
-              <h3>Score distribution and where the tiers cut</h3>
+              <h2>Score distribution and where the tiers cut</h2>
               <ScoreDistribution bins={result.histogram} cuts={result.effective_cuts} tiers={config.tiers} />
               <p className="help-text">
                 Cut-points ({result.cuts_origin}) drawn over the {result.scored_count} entities still eligible after gates
@@ -431,7 +432,7 @@ export function DecisionStudio() {
 
             <div className="card">
               <div className="toolbar">
-                <h3>Ranked outcome</h3>
+                <h2>Ranked outcome</h2>
                 <Button variant="ghost" onClick={onExport}>
                   Export CSV
                 </Button>
@@ -442,7 +443,7 @@ export function DecisionStudio() {
             {sensitivity && (
               <div className="card">
                 <div className="toolbar">
-                  <h3>How much do the weights matter — {sensitivity.name}</h3>
+                  <h2>How much do the weights matter — {sensitivity.name}</h2>
                   <Button variant="ghost" onClick={() => setSensitivity(null)}>
                     Close
                   </Button>
@@ -481,7 +482,7 @@ export function DecisionStudio() {
 
         {sub === "movement" && dataset && config && (
           <div className="card">
-            <h3>What moved since a previous snapshot</h3>
+            <h2>What moved since a previous snapshot</h2>
             <p className="help-text">
               Applies this framework, unchanged, to an earlier table. Holding the framework fixed is what makes the
               movement attributable to the companies rather than to a change in how they were judged.
@@ -554,7 +555,7 @@ export function DecisionStudio() {
           <>
             <div className="card">
               <div className="toolbar">
-                <h3>Every automated choice, with the basis for it</h3>
+                <h2>Every automated choice, with the basis for it</h2>
                 <Button variant="ghost" onClick={onSave}>
                   Save as new version
                 </Button>

@@ -61,14 +61,18 @@ function TaxonomyResearcherPanel() {
   }, []);
 
   async function refresh() {
-    const s = (await api.getTaxonomyResearcherSchedule()) as TaxonomyResearcherScheduleConfig;
-    setSchedule(s);
-    setScopeAll(s.taxonomy_ids == null);
-    setSelectedIds(s.taxonomy_ids ?? []);
-    const t = (await api.listTaxonomies()) as { taxonomies: Taxonomy[] };
-    setTaxonomies(t.taxonomies);
-    const r = (await api.listRuns("taxonomy_research")) as { runs: RunManifest[] };
-    setPastRuns(r.runs);
+    try {
+      const s = (await api.getTaxonomyResearcherSchedule()) as TaxonomyResearcherScheduleConfig;
+      setSchedule(s);
+      setScopeAll(s.taxonomy_ids == null);
+      setSelectedIds(s.taxonomy_ids ?? []);
+      const t = (await api.listTaxonomies()) as { taxonomies: Taxonomy[] };
+      setTaxonomies(t.taxonomies);
+      const r = (await api.listRuns("taxonomy_research")) as { runs: RunManifest[] };
+      setPastRuns(r.runs);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function saveSchedule() {
@@ -103,11 +107,15 @@ function TaxonomyResearcherPanel() {
   }
 
   async function refreshResults() {
-    if (!runId) return;
-    const res = (await api.getTaxonomyResearcherResults(runId)) as { results: TaxonomyResearchFinding[] };
-    setResults(res.results);
-    const r = (await api.listRuns("taxonomy_research")) as { runs: RunManifest[] };
-    setPastRuns(r.runs);
+    try {
+      if (!runId) return;
+      const res = (await api.getTaxonomyResearcherResults(runId)) as { results: TaxonomyResearchFinding[] };
+      setResults(res.results);
+      const r = (await api.listRuns("taxonomy_research")) as { runs: RunManifest[] };
+      setPastRuns(r.runs);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   function toggleId(id: string) {
@@ -125,7 +133,7 @@ function TaxonomyResearcherPanel() {
 
       {schedule && (
         <section className="card">
-          <h3>Automatic schedule</h3>
+          <h2>Automatic schedule</h2>
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -173,7 +181,7 @@ function TaxonomyResearcherPanel() {
       )}
 
       <section className="card">
-        <h3>Run now</h3>
+        <h2>Run now</h2>
         <Button onClick={runNow} disabled={busy}>
           Scan now
         </Button>
@@ -214,7 +222,7 @@ function TaxonomyResearcherPanel() {
       </section>
 
       <section className="card">
-        <h3>Past runs</h3>
+        <h2>Past runs</h2>
         {pastRuns.length === 0 && <StateBlock kind="empty" message="No taxonomy research runs yet." />}
         {pastRuns.length > 0 && (
           <div className="table-wrap">
@@ -261,10 +269,14 @@ function CalibrationPanel() {
   }, []);
 
   async function refresh() {
-    const s = (await api.getCalibrationSchedule()) as CalibrationScheduleConfig;
-    setSchedule(s);
-    const r = (await api.listRuns("calibration")) as { runs: RunManifest[] };
-    setPastRuns(r.runs);
+    try {
+      const s = (await api.getCalibrationSchedule()) as CalibrationScheduleConfig;
+      setSchedule(s);
+      const r = (await api.listRuns("calibration")) as { runs: RunManifest[] };
+      setPastRuns(r.runs);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function saveSchedule() {
@@ -296,11 +308,15 @@ function CalibrationPanel() {
   }
 
   async function refreshResults() {
-    if (!runId) return;
-    const res = (await api.getCalibrationResults(runId)) as { results: DriftFlag[] };
-    setResults(res.results);
-    const r = (await api.listRuns("calibration")) as { runs: RunManifest[] };
-    setPastRuns(r.runs);
+    try {
+      if (!runId) return;
+      const res = (await api.getCalibrationResults(runId)) as { results: DriftFlag[] };
+      setResults(res.results);
+      const r = (await api.listRuns("calibration")) as { runs: RunManifest[] };
+      setPastRuns(r.runs);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   return (
@@ -314,7 +330,7 @@ function CalibrationPanel() {
 
       {schedule && (
         <section className="card">
-          <h3>Automatic schedule</h3>
+          <h2>Automatic schedule</h2>
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -339,7 +355,7 @@ function CalibrationPanel() {
       )}
 
       <section className="card">
-        <h3>Run now</h3>
+        <h2>Run now</h2>
         <Button onClick={runNow} disabled={busy}>
           Check now
         </Button>
@@ -386,7 +402,7 @@ function CalibrationPanel() {
       </section>
 
       <section className="card">
-        <h3>Past runs</h3>
+        <h2>Past runs</h2>
         {pastRuns.length === 0 && <StateBlock kind="empty" message="No calibration runs yet." />}
         {pastRuns.length > 0 && (
           <div className="table-wrap">

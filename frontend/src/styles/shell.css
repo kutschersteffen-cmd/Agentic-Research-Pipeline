@@ -141,7 +141,7 @@
 }
 
 .page { max-width: var(--page-max); }
-.page h2 { margin-top: 0; }
+.page h1 { margin-top: 0; }
 
 /* Only the small-screen shell shows a top bar; above that the sidebar is
    always present and a bar would just cost vertical space. */

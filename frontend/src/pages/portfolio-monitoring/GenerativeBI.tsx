@@ -85,7 +85,7 @@ function PanelCard({ panel, narrative }: { panel: PanelResult; narrative?: Narra
 
   return (
     <section className="card">
-      <h4>{panel.panel.title}</h4>
+      <h3>{panel.panel.title}</h3>
       {panel.panel.question && <p className="help-text">{panel.panel.question}</p>}
       {panel.error ? (
         <div className="banner banner-danger">This panel could not be computed: {panel.error}</div>
@@ -142,7 +142,7 @@ function DashboardView({
   return (
     <>
       <section className="card">
-        <h3>{dashboard.spec.title}</h3>
+        <h2>{dashboard.spec.title}</h2>
         {dashboard.spec.goal && <p className="help-text">{dashboard.spec.goal}</p>}
         <NarrativeBlock narrative={dashboard.headline} />
         <div className="chip-row">
@@ -275,7 +275,7 @@ export function GenerativeBI() {
   return (
     <>
       <section className="card">
-        <h3>Describe the dashboard you want</h3>
+        <h2>Describe the dashboard you want</h2>
         <p className="help-text">
           The model plans the panels and writes the commentary; it never produces a number. Every figure comes from the same
           deterministic engine the Explore and Pivot tabs use, and every figure in the commentary is matched back to a computed
@@ -316,7 +316,7 @@ export function GenerativeBI() {
 
       {saved.length > 0 && (
         <section className="card">
-          <h3>Saved dashboards ({saved.length})</h3>
+          <h2>Saved dashboards ({saved.length})</h2>
           <p className="help-text">
             A saved dashboard is a re-runnable definition, not a stored answer: re-running recomputes every panel from current
             holdings with no LLM call at all, so a recurring report can't drift between runs except through the data.

@@ -144,7 +144,7 @@ export function GovernanceAudit() {
   return (
     <>
       <section className="card">
-        <h3>Methodology</h3>
+        <h2>Methodology</h2>
         <p className="help-text">
           Live-configurable governance settings -- the current value and full change history are both derived from
           the same append-only event log, never a separate mutable snapshot. Changing a setting only affects future
@@ -215,7 +215,7 @@ export function GovernanceAudit() {
       </section>
 
       <section className="card">
-        <h3>Risk category ownership</h3>
+        <h2>Risk category ownership</h2>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -259,9 +259,9 @@ export function GovernanceAudit() {
       {error && <StateBlock kind="error" message={error} />}
 
       <section className="card">
-        <h3>
+        <h2>
           Entity-resolution review queue ({resolutionRows.length})
-        </h3>
+        </h2>
         <p className="help-text">
           Securities whose issuer match fell below the confidence threshold -- never auto-matched, always surfaced
           here instead (see <code>entity_resolution.py</code>).
@@ -322,7 +322,7 @@ export function GovernanceAudit() {
       </section>
 
       <section className="card">
-        <h3>Climate data conflicts ({conflictRows.length})</h3>
+        <h2>Climate data conflicts ({conflictRows.length})</h2>
         <p className="help-text">
           Values where the internal ESG API disagreed with an independent extraction from company disclosures beyond
           tolerance. The internal-API value is still the one used for computation, but it's flagged rather than

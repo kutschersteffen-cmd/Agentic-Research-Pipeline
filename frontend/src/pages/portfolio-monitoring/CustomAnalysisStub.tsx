@@ -8,7 +8,7 @@
 export function CustomAnalysisStub() {
   return (
     <div className="stub-panel">
-      <h3>Custom Analysis -- not yet built</h3>
+      <h2>Custom Analysis -- not yet built</h2>
       <p>
         No managed notebook environment exists yet. The governed REST API it would query already does (see{" "}
         <code>backend/arp/api/routers/portfolio.py</code>) -- see <code>docs/SPEC_GAP_ANALYSIS.md</code> §7 for what

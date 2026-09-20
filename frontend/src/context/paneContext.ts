@@ -12,6 +12,8 @@ export interface PaneState {
   portfolios: PortfolioSummary[];
   refreshPortfolios: () => Promise<void>;
   climateSchema: DataPointSchema | null;
+  /** Why the portfolio list or climate schema is missing, if it is. */
+  loadError: string | null;
 
   selectedPortfolioIds: string[];
   setSelectedPortfolioIds: (ids: string[]) => void;

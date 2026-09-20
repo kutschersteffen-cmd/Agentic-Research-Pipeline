@@ -21,21 +21,29 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
   const [events, setEvents] = useState<DocumentEvent[]>([]);
 
   useEffect(() => {
-    api.getDiscoverySchedule().then((s) => setSchedule(s as DiscoveryScheduleConfig));
+    api.getDiscoverySchedule().then((s) => setSchedule(s as DiscoveryScheduleConfig)).catch((err: Error) => setError(err.message));
     refreshEvents();
     const timer = window.setInterval(refreshEvents, 10000);
     return () => window.clearInterval(timer);
   }, []);
 
   async function refreshEvents() {
-    const res = (await api.getDiscoveryEvents()) as { events: DocumentEvent[] };
-    setEvents(res.events.slice().reverse());
+    try {
+      const res = (await api.getDiscoveryEvents()) as { events: DocumentEvent[] };
+      setEvents(res.events.slice().reverse());
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function refreshResults() {
-    if (!runId) return;
-    const res = (await api.getDiscoveryResults(runId)) as { results: DiscoveryCompanyResult[] };
-    setResults(res.results);
+    try {
+      if (!runId) return;
+      const res = (await api.getDiscoveryResults(runId)) as { results: DiscoveryCompanyResult[] };
+      setResults(res.results);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function runNow() {
@@ -81,7 +89,7 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
       />
 
       <section className="card">
-        <h3>Run now (manual)</h3>
+        <h2>Run now (manual)</h2>
         {pendingUniverse && universePath === pendingUniverse.path && (
           <p className="status-text">
             Using {pendingUniverse.count} companies sent from Identity Resolution. Upload a different universe below
@@ -142,7 +150,7 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
 
       {schedule && (
         <section className="card">
-          <h3>Automatic schedule</h3>
+          <h2>Automatic schedule</h2>
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -174,7 +182,7 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
       )}
 
       <section className="card">
-        <h3>New document feed</h3>
+        <h2>New document feed</h2>
         <Button onClick={refreshEvents}>Refresh</Button>
         <div className="table-wrap">
           <table className="data-table">

@@ -137,7 +137,7 @@ export function MonitoringAlerts() {
   return (
     <>
       <section className="card">
-        <h3>Add a monitoring rule</h3>
+        <h2>Add a monitoring rule</h2>
         <p className="help-text">
           Threshold-based breach monitoring over the same deterministic engine Pivot Explorer uses -- no new data
           model. Factor/PAI/benchmark-relative rules aren't available yet (see{" "}
@@ -185,7 +185,7 @@ export function MonitoringAlerts() {
       </section>
 
       <section className="card">
-        <h3>Rules ({rules.length})</h3>
+        <h2>Rules ({rules.length})</h2>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -223,7 +223,7 @@ export function MonitoringAlerts() {
       </section>
 
       <section className="card">
-        <h3>Alerts ({visibleAlerts.length})</h3>
+        <h2>Alerts ({visibleAlerts.length})</h2>
         <div className="toolbar">
           <div className="view-toggle" role="group" aria-label="Filter alerts by status">
             {STATUS_FILTERS.map((s) => (

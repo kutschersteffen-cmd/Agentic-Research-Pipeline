@@ -39,7 +39,7 @@
 }
 .source-panel-empty { align-items: center; justify-content: center; text-align: center; color: var(--muted); }
 .source-panel-header { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-2); }
-.source-panel-header h4 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-panel-header h3 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .source-panel-quote {
   font-size: var(--fs-100);
   color: var(--muted);
