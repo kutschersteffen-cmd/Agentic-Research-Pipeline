@@ -315,6 +315,17 @@ this codebase — the model proposes, a deterministic engine computes.
 
 ## 7. Weighting & constraints
 
+A survey of how MSCI, ISS STOXX and Solactive actually construct their ESG,
+thematic and PAB/CTB indices — and a catalogue of the construction approaches
+worth supporting, split into screening/selection rules, simple tilt rules,
+optimisation formulations and path-dependent approaches — is in
+[`INDEX_METHODOLOGY_LANDSCAPE.md`](INDEX_METHODOLOGY_LANDSCAPE.md). Its §7
+carries four amendments to this section: an index **state store** for
+path-dependent methodologies, the optimiser's **relaxation ladder as versioned
+config** rather than error handling, mandatory **floors and ceilings on tilt
+multipliers**, and a declared fallback for **absolute-threshold screens that can
+empty a sector**.
+
 ### 7.1 Deterministic capping first
 
 Replace the draft's "cvxpy-based capping/redistribution solver" as the
@@ -822,7 +833,9 @@ the two-thirds the draft specifies least.
    *and constituent history for the reference index* (§11.2). The last one
    is the one usually missed. *Owner: data sourcing.*
 3. **Methodology** — single cap-weighted thematic index, or a family?
-   Family means the weighting engine is built for plurality from the start.
+   Family means the weighting engine is built for plurality from the start;
+   [`INDEX_METHODOLOGY_LANDSCAPE.md`](INDEX_METHODOLOGY_LANDSCAPE.md) §6 is the
+   menu that choice is made from, and its §7.2 the build order.
    Any CTB/PAB labelling ambition must be declared now (§7.2), because
    decarbonisation trajectories make weighting path-dependent.
 4. **Index currency, FX fixing source, and the withholding-tax table owner**

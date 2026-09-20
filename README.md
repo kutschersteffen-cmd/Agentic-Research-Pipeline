@@ -99,6 +99,11 @@ Thematic Universe Builder's output as its thematic eligibility screen. See
 [`docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md`](docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md)
 for the full design, the reuse map against what already exists here, and
 the phased build sequence.
+[`docs/INDEX_METHODOLOGY_LANDSCAPE.md`](docs/INDEX_METHODOLOGY_LANDSCAPE.md)
+surveys how MSCI, ISS STOXX and Solactive construct their ESG, thematic and EU
+PAB/CTB indices, and catalogues the construction approaches — screening and
+selection rules, simple tilt rules, optimisation formulations, and the
+path-dependent ones — with the engineering cost of each.
 
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches, and
