@@ -19,7 +19,7 @@ sidebar, not one product. The measurable symptoms:
 | --- | --- |
 | No type scale | 15 distinct `font-size` values (`0.68rem`, `0.74rem`, `0.76rem`, `0.78rem`, `0.8rem`, `0.82rem`, `0.85rem`, `0.88rem`, …) |
 | No radius/spacing scale | 9 distinct `border-radius` values; paddings drawn from 2/3/4/6/8/9/10/12/14/18/22/24px |
-| Stylesheet drift | 25 class selectors are declared **twice** in `index.css` (`.card`, `.data-table`, `.page`, `.chart-legend`, `.stat-tile`, …), so which rule wins depends on file order |
+| Stylesheet drift | Component rules, page rules and chart rules share one flat 634-line file, with nothing to stop a page rule outranking a component one; `.chart-legend`, `.chart-legend-item` and `.chart-legend-swatch` are each declared twice, 80 lines apart, so a legend's effective style is the merge of two rules no reader sees together |
 | Design tokens leak | 47 inline `style={{…}}` objects across 19 components hold layout and color outside the token layer |
 | No button hierarchy | The bare `button` element selector paints **every** button indigo with a magic `margin-top: 12px`; a destructive delete and a "Refresh" link look equally important |
 | Ad-hoc state rendering | 56 hand-written `error-text` sites and a dozen different `"Loading…"` / `"Searching…"` / `"Rendering preview…"` strings |
@@ -202,17 +202,44 @@ One state machine, rendered the same way everywhere:
 
 Each phase ships independently and leaves the app working.
 
-| Phase | Scope | Effort | Risk | Visible change |
-| --- | --- | --- | --- | --- |
-| 0 | Split `index.css` into layers, extract tokens, resolve the 25 duplicate selectors | 0.5 d | Low | None — pixel-identical by design |
-| 1 | `ui/` primitives; retire the global `button` selector; migrate `Button`, `Field`, `StateBlock` app-wide | 1.5 d | Medium | Button hierarchy appears; forms become labelled |
-| 2 | Routing, command palette, responsive sidebar, a11y baseline | 1.5 d | Medium | Deep links and back button work |
-| 3 | Apply the three templates, starting with Extraction, Monitoring, Review Queue, Search, Index Builder | 2 d | Medium | The app reads as one product |
-| 4 | `DataTable` upgrades, run strip, dark mode + palette re-validation | 1.5 d | Low | Density and mode choice |
-| 5 | Guardrails: stylelint scale enforcement, a CI grep for raw hex / inline `style={{` in `.tsx`, an axe pass on the five busiest pages | 0.5 d | Low | None — keeps the system from drifting |
+| Phase | Scope | Effort | Risk | Visible change | Status |
+| --- | --- | --- | --- | --- | --- |
+| 0 | Split `index.css` into layers, extract tokens, merge the duplicated legend rules | 0.5 d | Low | Values snap to the scale (1–2px in places) | **Landed** |
+| 1 | `ui/` primitives; retire the global `button` selector; migrate `Button`, `Field`, `StateBlock` app-wide | 1.5 d | Medium | Button hierarchy appears; forms become labelled | **Landed** |
+| 2 | Routing, command palette, responsive sidebar, a11y baseline | 1.5 d | Medium | Deep links and back button work | Next |
+| 3 | Apply the three templates, starting with Extraction, Monitoring, Review Queue, Search, Index Builder | 2 d | Medium | The app reads as one product | |
+| 4 | `DataTable` upgrades, run strip, dark mode + palette re-validation | 1.5 d | Low | Density and mode choice | |
+| 5 | Guardrails: stylelint scale enforcement, a CI grep for raw hex / inline `style={{` in `.tsx`, an axe pass on the five busiest pages | 0.5 d | Low | None — keeps the system from drifting | |
 
 Phases 0 and 1 are worth doing even if nothing else is: they are where the
 twenty-one-separate-tools feeling actually comes from.
+
+### What phases 0 and 1 actually changed
+
+- `index.css` is now a 14-line manifest; the rules live in `src/styles/`
+  (`tokens`, `reset`, `base`, `components`, `shell`, `charts`,
+  `pages/*`, `utilities`) ordered by `@layer`.
+- 15 font sizes became 7 scale steps, 9 radii became 5, and the spacing values
+  snapped to a 4px grid. Some values therefore moved by 1–2px; nothing moved by
+  more. Card radius (10 → 12px) and card padding (18/20 → 16/24px) are the
+  largest single changes.
+- `--muted` was darkened from `oklch(48%)` to `oklch(44%)` so secondary text
+  clears 4.5:1 on `--panel` at the smallest sizes.
+- 173 buttons now render through `<Button>` with an explicit variant; the 34 that
+  remain are the sidebar/sub-tab and toggle affordances that Phase 2 replaces
+  with `<Tabs>`. The bare `button` element selector no longer paints anything.
+- 102 controls are wrapped in `<Field>`, which associates label and control; the
+  labels that captioned a *group* of controls became `<span>`s, since a label
+  pointing at nothing helps no one.
+- 87 loading, empty and error states render through `<StateBlock>`. An empty
+  state stays a quiet muted line unless it carries a title or an action, so the
+  migration did not turn 29 "none yet" lines into 29 dashed boxes. The 8
+  remaining `.error-text` uses are inline emphasis inside a sentence, list item
+  or table cell — not failed actions.
+- Verified with `npm run build`, `npm run lint` (one pre-existing warning), and a
+  headless pass over 9 screens: no page errors, 13 of 13 form controls on the
+  form-heavy screens carry an accessible name, and the focus ring resolves on the
+  first tab stop.
 
 ## 5. Explicitly out of scope
 
@@ -229,10 +256,10 @@ twenty-one-separate-tools feeling actually comes from.
 
 The plan is done when:
 
-1. `index.css` holds only `@layer`/`@import`; no selector is declared twice.
+1. `index.css` holds only `@layer`/`@import`; no selector is declared twice within a layer (a responsive override inside `@media` is not a duplicate). **Met.**
 2. `grep -c 'style={{' src -r` is in single digits, all of them dynamic values (chart
-   geometry, computed widths).
-3. `font-size` outside `tokens.css` is zero; the same for `border-radius` and raw hex.
+   geometry, computed widths). *47 at the start, 31 after phase 1; phase 3 closes the rest.*
+3. `font-size` outside `tokens.css` is zero; the same for `border-radius` and raw hex. **Met** (the one numeric radius left is a `0` corner in a segmented control).
 4. Every destination is reachable by URL, and refreshing keeps the analyst where they were.
 5. An axe scan of Dashboard, Extraction, Review Queue, Search and Index Builder reports
    no serious or critical issues; each is fully operable by keyboard.

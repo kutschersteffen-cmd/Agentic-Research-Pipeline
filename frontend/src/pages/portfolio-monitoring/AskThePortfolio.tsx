@@ -3,6 +3,7 @@ import { api } from "../../api/client";
 import { usePortfolioPane } from "../../context/usePortfolioPane";
 import { AggregationView } from "../../components/ResultView";
 import type { QAAnswer } from "../../types";
+import { Button, StateBlock } from "../../ui";
 
 const EXAMPLE_QUESTIONS = [
   "How many EUR million is our exposure to BMW?",
@@ -49,13 +50,12 @@ export function AskThePortfolio() {
       <p className="selection-summary">Scoped to: {selectionLabel}</p>
       <textarea rows={2} value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ask about portfolio exposure..." />
       <div className="toolbar">
-        <button onClick={() => ask(question)} disabled={asking || !question.trim()}>
+        <Button onClick={() => ask(question)} disabled={asking || !question.trim()}>
           {asking ? "Asking..." : "Ask"}
-        </button>
+        </Button>
         {EXAMPLE_QUESTIONS.map((q) => (
-          <button
+          <Button variant="ghost"
             key={q}
-            className="link-button"
             onClick={() => {
               setQuestion(q);
               ask(q);
@@ -63,10 +63,10 @@ export function AskThePortfolio() {
             disabled={asking}
           >
             {q}
-          </button>
+          </Button>
         ))}
       </div>
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
       {answer && !answer.resolvable && <p className="help-text">Could not resolve the question: {answer.clarification_needed}</p>}
       {answer && answer.resolvable && (
         <>

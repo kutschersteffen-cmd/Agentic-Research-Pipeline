@@ -3,6 +3,8 @@
  * endpoint and rendered in an iframe, so PDFs render natively) or raw
  * text already available client-side (e.g. an uploaded holdings CSV,
  * previewed without a round trip). */
+
+import { Button } from "../ui";
 interface Props {
   title: string;
   onClose: () => void;
@@ -16,9 +18,9 @@ export function InspectorModal({ title, onClose, src, text }: Props) {
       <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h4>{title}</h4>
-          <button className="link-button" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose}>
             Close
-          </button>
+          </Button>
         </div>
         {src && <iframe className="modal-iframe" src={src} title={title} />}
         {text !== undefined && <pre className="modal-text">{text}</pre>}

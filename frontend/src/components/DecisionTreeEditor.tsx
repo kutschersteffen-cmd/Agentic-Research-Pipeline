@@ -1,4 +1,5 @@
 import type { ColumnProfile, CutMode, DecisionResult, GateOutcome, MechanismConfig } from "../types";
+import { Button, StateBlock } from "../ui";
 
 const OUTCOMES: { value: GateOutcome; label: string }[] = [
   { value: "exclude", label: "Exclude outright" },
@@ -65,11 +66,11 @@ export function DecisionTreeEditor({
         <div className="card">
           <div className="toolbar">
             <h3>Gates</h3>
-            <button className="link-button" onClick={addGate}>
+            <Button variant="ghost" onClick={addGate}>
               Add gate
-            </button>
+            </Button>
           </div>
-          {config.gates.length === 0 && <p className="muted">No gates. Every entity reaches the score.</p>}
+          {config.gates.length === 0 && <StateBlock kind="empty" message="No gates. Every entity reaches the score." />}
           {config.gates.map((gate) => (
             <div key={gate.id} className="inline-fields decision-gate">
               <select
@@ -108,9 +109,9 @@ export function DecisionTreeEditor({
                   </option>
                 ))}
               </select>
-              <button className="link-button" onClick={() => set({ gates: config.gates.filter((g) => g.id !== gate.id) })}>
+              <Button variant="ghost" onClick={() => set({ gates: config.gates.filter((g) => g.id !== gate.id) })}>
                 Remove
-              </button>
+              </Button>
             </div>
           ))}
         </div>
@@ -144,9 +145,9 @@ export function DecisionTreeEditor({
                 />
               ))}
               {(config.pinned_cuts ?? []).length === 0 && cuts.length > 0 && (
-                <button className="link-button" onClick={() => set({ pinned_cuts: cuts })}>
+                <Button variant="ghost" onClick={() => set({ pinned_cuts: cuts })}>
                   Pin the current cut-points
-                </button>
+                </Button>
               )}
             </div>
           )}

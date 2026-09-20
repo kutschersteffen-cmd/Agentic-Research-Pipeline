@@ -8,6 +8,7 @@ import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { BarChart } from "../components/BarChart";
 import type { IndicatorAssessment, IndicatorCategory, ReviewDecision, TransitionPlanAssessmentRecord, TransitionPlanIndicatorDef } from "../types";
+import { Button, Field, StateBlock } from "../ui";
 
 interface Props {
   pendingUniverse?: { path: string; count: number } | null;
@@ -227,9 +228,9 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
         already-verifiable activity), mirroring the paper's headline finding that companies over-disclose talk and
         under-disclose walk.
       </p>
-      <button className="link-button" onClick={() => setShowMethodology((s) => !s)}>
+      <Button variant="ghost" onClick={() => setShowMethodology((s) => !s)}>
         {showMethodology ? "Hide" : "Show"} the 64 indicators
-      </button>
+      </Button>
       {showMethodology && (
         <div className="table-wrap">
           <table className="data-table">
@@ -269,26 +270,25 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
             setCompanyCount(count);
           }}
         />
-        <button onClick={startRun} disabled={busy || !universePath}>
+        <Button onClick={startRun} disabled={busy || !universePath}>
           Assess transition plans across {companyCount || "..."} companies
-        </button>
+        </Button>
       </section>
 
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       {runId && (
         <section className="card">
           <h3>2. Run progress</h3>
           <RunProgress runId={runId} runType="transition_plan" />
           <div className="toolbar">
-            <button onClick={refreshResults}>Refresh results</button>
+            <Button onClick={refreshResults}>Refresh results</Button>
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
               Export CSV
             </a>
-            <label className="field-label" style={{ marginLeft: "auto" }}>
-              Reviewing as
-            </label>
-            <input placeholder="your name" value={reviewer} onChange={(e) => setReviewer(e.target.value)} style={{ maxWidth: 160 }} />
+            <Field label="Reviewing as" className="field-inline field-push">
+              <input placeholder="your name" value={reviewer} onChange={(e) => setReviewer(e.target.value)} />
+            </Field>
           </div>
           {results.length > 0 && <BatchOverview results={results} />}
           {results.length > 0 && (

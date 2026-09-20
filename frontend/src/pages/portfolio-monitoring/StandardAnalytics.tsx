@@ -3,6 +3,7 @@ import { api } from "../../api/client";
 import { usePortfolioPane } from "../../context/usePortfolioPane";
 import { AggregationView, TrendView } from "../../components/ResultView";
 import { AGGREGATION_DIMENSIONS, type AggregationResult, type CoverageBySource, type FinancedEmissionsResult, type TrendPoint } from "../../types";
+import { Field, StateBlock } from "../../ui";
 
 const CARBON_INTENSITY_UNIT = "tCO2e / EUR M revenue";
 const SOURCE_LABELS: Record<string, string> = {
@@ -78,16 +79,17 @@ function WaciCard() {
   return (
     <section className="card">
       <h3>Weighted-average carbon intensity</h3>
-      <label className="field-label">Group by</label>
-      <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
-        {AGGREGATION_DIMENSIONS.map((d) => (
-          <option key={d} value={d}>
-            {d}
-          </option>
-        ))}
-      </select>
-      {loading && <p className="muted">Loading...</p>}
-      {error && <p className="error-text">{error}</p>}
+      <Field label="Group by">
+        <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
+          {AGGREGATION_DIMENSIONS.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {loading && <StateBlock kind="loading" />}
+      {error && <StateBlock kind="error" message={error} />}
       {result && <AggregationView result={result} unit={CARBON_INTENSITY_UNIT} />}
       {trend && <TrendView trend={trend} unit={CARBON_INTENSITY_UNIT} />}
     </section>
@@ -121,8 +123,8 @@ function FinancedEmissionsCard() {
         <code>Σ (holding market value / issuer EVIC) × issuer Scope 1+2 emissions</code>. Holdings whose issuer lacks
         EVIC or Scope 1/2 data are excluded from the number, not treated as zero.
       </p>
-      {loading && <p className="muted">Loading...</p>}
-      {error && <p className="error-text">{error}</p>}
+      {loading && <StateBlock kind="loading" />}
+      {error && <StateBlock kind="error" message={error} />}
       {result && (
         <div className="stat-tile-grid">
           <div className="stat-tile">
@@ -180,15 +182,16 @@ function CoverageCard() {
     <section className="card">
       <h3>Data coverage</h3>
       <p className="help-text">Which source resolved each issuer's value for a field -- never mistake partial coverage for complete data.</p>
-      <label className="field-label">Field</label>
-      <select value={fieldId} onChange={(e) => setFieldId(e.target.value)}>
-        {(climateSchema?.fields ?? []).map((f) => (
-          <option key={f.field_id} value={f.field_id}>
-            {f.name}
-          </option>
-        ))}
-      </select>
-      {error && <p className="error-text">{error}</p>}
+      <Field label="Field">
+        <select value={fieldId} onChange={(e) => setFieldId(e.target.value)}>
+          {(climateSchema?.fields ?? []).map((f) => (
+            <option key={f.field_id} value={f.field_id}>
+              {f.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {error && <StateBlock kind="error" message={error} />}
       {counts && (
         <div className="inline-block">
           {Object.entries(counts).map(([source, count]) => (

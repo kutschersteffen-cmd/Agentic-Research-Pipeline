@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { EngagementIssuePanel } from "../components/EngagementIssuePanel";
 import { api } from "../api/client";
 import type { EngagementIssue, EngagementRecord, IssueSeverity, TriggerEvent } from "../types";
+import { Button, StateBlock } from "../ui";
 
 interface ScanCompanyRow {
   company_id: string;
@@ -120,7 +121,7 @@ export function EngagementDashboard() {
         ladder, correspondence, and commitments. Every send/decide checkpoint is a human action -- nothing here
         contacts a company or moves an escalation stage on its own.
       </p>
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       <section className="card">
         <h3>Open a new issue</h3>
@@ -136,9 +137,9 @@ export function EngagementDashboard() {
             <option value="medium">medium</option>
             <option value="high">high</option>
           </select>
-          <button onClick={createRecordAndIssue} disabled={busy || !newCompanyId.trim() || !newCompanyName.trim()}>
+          <Button onClick={createRecordAndIssue} disabled={busy || !newCompanyId.trim() || !newCompanyName.trim()}>
             Create
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -149,7 +150,7 @@ export function EngagementDashboard() {
           wired up -- see the architecture doc) and opens a new issue for every signal without an already-open issue
           on the same theme, plus an SLA sweep flagging stalled issues.
         </p>
-        <label className="field-label">Companies to screen</label>
+        <span className="field-label">Companies to screen</span>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -169,22 +170,22 @@ export function EngagementDashboard() {
                     <input placeholder="e.g. Apple Inc." value={row.name} onChange={(e) => updateCompanyRow(idx, { name: e.target.value })} />
                   </td>
                   <td>
-                    <button className="link-button" onClick={() => setCompanyRows((prev) => prev.filter((_, i) => i !== idx))}>
+                    <Button variant="ghost" onClick={() => setCompanyRows((prev) => prev.filter((_, i) => i !== idx))}>
                       Remove
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <button className="link-button" onClick={() => setCompanyRows((prev) => [...prev, { company_id: "", name: "" }])}>
+        <Button variant="ghost" onClick={() => setCompanyRows((prev) => [...prev, { company_id: "", name: "" }])}>
           + Add company
-        </button>
+        </Button>
 
-        <label className="field-label" style={{ marginTop: 16 }}>
+        <span className="field-label" style={{ marginTop: 16 }}>
           Controversy signals
-        </label>
+        </span>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -220,9 +221,9 @@ export function EngagementDashboard() {
                     <input placeholder="What happened" value={row.detail} onChange={(e) => updateSignalRow(idx, { detail: e.target.value })} />
                   </td>
                   <td>
-                    <button className="link-button" onClick={() => setSignalRows((prev) => prev.filter((_, i) => i !== idx))}>
+                    <Button variant="ghost" onClick={() => setSignalRows((prev) => prev.filter((_, i) => i !== idx))}>
                       Remove
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -230,13 +231,13 @@ export function EngagementDashboard() {
           </table>
         </div>
         <div className="toolbar">
-          <button className="link-button" onClick={() => setSignalRows((prev) => [...prev, { company_id: "", theme: "", severity: "medium", detail: "" }])}>
+          <Button variant="ghost" onClick={() => setSignalRows((prev) => [...prev, { company_id: "", theme: "", severity: "medium", detail: "" }])}>
             + Add signal
-          </button>
+          </Button>
         </div>
-        <button onClick={runTriggerScan} disabled={busy}>
+        <Button onClick={runTriggerScan} disabled={busy}>
           Run scan
-        </button>
+        </Button>
         {triggerResult && (
           <div className="review-item">
             <p className="muted">{triggerResult.length} event(s)</p>
@@ -254,11 +255,11 @@ export function EngagementDashboard() {
       <section className="card">
         <div className="section-heading">
           <h3>Records</h3>
-          <button className="link-button" onClick={load}>
+          <Button variant="ghost" onClick={load}>
             Refresh
-          </button>
+          </Button>
         </div>
-        {records.length === 0 && <p className="muted">No engagement records yet.</p>}
+        {records.length === 0 && <StateBlock kind="empty" message="No engagement records yet." />}
         {records.length > 0 && (
           <div className="table-wrap">
             <table className="data-table">

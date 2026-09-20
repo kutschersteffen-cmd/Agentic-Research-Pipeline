@@ -4,6 +4,7 @@ import { usePortfolioPane } from "../../context/usePortfolioPane";
 import { AggregationView, TrendView } from "../../components/ResultView";
 import { PivotTable } from "../../components/PivotTable";
 import type { DashboardSpec, GeneratedDashboard, Narrative, PanelResult } from "../../types";
+import { Button, StateBlock } from "../../ui";
 
 const EXAMPLE_BRIEFS = [
   "Give me a climate risk overview of the sustainable leaders fund",
@@ -151,9 +152,9 @@ function DashboardView({
         </div>
         <div className="toolbar">
           {onSave && (
-            <button onClick={onSave} disabled={saving}>
+            <Button onClick={onSave} disabled={saving}>
               {saving ? "Saving..." : "Save dashboard"}
-            </button>
+            </Button>
           )}
           {onRerun && (
             <>
@@ -165,7 +166,7 @@ function DashboardView({
                   </option>
                 ))}
               </select>
-              <button onClick={() => onRerun(asOf)}>Re-run (no LLM)</button>
+              <Button onClick={() => onRerun(asOf)}>Re-run (no LLM)</Button>
             </>
           )}
         </div>
@@ -294,13 +295,12 @@ export function GenerativeBI() {
           Write commentary (uncheck for panels and computed facts only -- one LLM call instead of two)
         </label>
         <div className="toolbar">
-          <button onClick={() => generate(brief)} disabled={busy || !brief.trim()}>
+          <Button onClick={() => generate(brief)} disabled={busy || !brief.trim()}>
             {busy ? "Generating..." : "Generate dashboard"}
-          </button>
+          </Button>
           {EXAMPLE_BRIEFS.map((b) => (
-            <button
+            <Button variant="ghost"
               key={b}
-              className="link-button"
               disabled={busy}
               onClick={() => {
                 setBrief(b);
@@ -308,10 +308,10 @@ export function GenerativeBI() {
               }}
             >
               {b}
-            </button>
+            </Button>
           ))}
         </div>
-        {error && <p className="error-text">{error}</p>}
+        {error && <StateBlock kind="error" message={error} />}
       </section>
 
       {saved.length > 0 && (
@@ -337,9 +337,9 @@ export function GenerativeBI() {
                   <td>{spec.panels.length}</td>
                   <td>{spec.created_at.slice(0, 10)}</td>
                   <td>
-                    <button className="link-button" disabled={busy} onClick={() => rerun(spec.dashboard_id, "")}>
+                    <Button variant="ghost" disabled={busy} onClick={() => rerun(spec.dashboard_id, "")}>
                       Re-run
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}

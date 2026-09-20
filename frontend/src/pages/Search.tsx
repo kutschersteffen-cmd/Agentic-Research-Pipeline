@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { SearchHit, SearchResultType } from "../types";
+import { Field, StateBlock } from "../ui";
 
 const ALL_TYPES: { id: SearchResultType; label: string }[] = [
   { id: "document", label: "Documents" },
@@ -54,13 +55,14 @@ export function Search() {
     <div className="page">
       <h2>Search</h2>
       <section className="card">
-        <label className="field-label">Query</label>
-        <input
-          type="text"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search companies, documents, taxonomy..."
-        />
+        <Field label="Query">
+          <input
+            type="text"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search companies, documents, taxonomy..."
+          />
+        </Field>
         {ALL_TYPES.map((t) => (
           <label key={t.id} style={{ marginLeft: "1rem" }}>
             <input type="checkbox" checked={types.includes(t.id)} onChange={() => toggleType(t.id)} />
@@ -76,8 +78,8 @@ export function Search() {
           </p>
         )}
         {error && <p className="error">{error}</p>}
-        {loading && <p className="muted">Searching...</p>}
-        {!loading && !notConfigured && !error && q.trim() && hits.length === 0 && <p className="muted">No results.</p>}
+        {loading && <StateBlock kind="loading" message="Searching..." />}
+        {!loading && !notConfigured && !error && q.trim() && hits.length === 0 && <StateBlock kind="empty" message="No results." />}
         {hits.length > 0 && (
           <div className="table-wrap">
             <table className="data-table">

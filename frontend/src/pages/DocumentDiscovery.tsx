@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import type { DiscoveryCompanyResult, DiscoveryScheduleConfig, DocumentEvent } from "../types";
+import { Button, Field, StateBlock } from "../ui";
 
 interface Props {
   pendingUniverse?: { path: string; count: number } | null;
@@ -89,14 +90,14 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
             setCompanyCount(count);
           }}
         />
-        <button onClick={runNow} disabled={busy || !universePath}>
+        <Button onClick={runNow} disabled={busy || !universePath}>
           Search for documents across {companyCount || "..."} companies
-        </button>
-        {error && <p className="error-text">{error}</p>}
+        </Button>
+        {error && <StateBlock kind="error" message={error} />}
         {runId && <RunProgress runId={runId} runType="extraction" />}
         {runId && (
           <>
-            <button onClick={refreshResults}>Refresh results</button>
+            <Button onClick={refreshResults}>Refresh results</Button>
             {results.length > 0 && (
               <div className="table-wrap">
                 <table className="data-table">
@@ -146,29 +147,31 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
             />
             Enabled
           </label>
-          <label className="field-label">Interval (hours)</label>
-          <input
-            type="number"
-            min={1}
-            value={schedule.interval_hours}
-            onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
-          />
-          <label className="field-label">Universe path (server-side, from an upload above)</label>
-          <input
-            value={schedule.universe_path ?? ""}
-            onChange={(e) => setSchedule({ ...schedule, universe_path: e.target.value })}
-            placeholder={universePath ?? "runs/_universes/your_file.csv"}
-          />
-          <button onClick={saveSchedule} disabled={busy}>
+          <Field label="Interval (hours)">
+            <input
+              type="number"
+              min={1}
+              value={schedule.interval_hours}
+              onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Universe path (server-side, from an upload above)">
+            <input
+              value={schedule.universe_path ?? ""}
+              onChange={(e) => setSchedule({ ...schedule, universe_path: e.target.value })}
+              placeholder={universePath ?? "runs/_universes/your_file.csv"}
+            />
+          </Field>
+          <Button onClick={saveSchedule} disabled={busy}>
             Save schedule
-          </button>
+          </Button>
           {schedule.last_run_id && <p className="muted">Last scheduled run: {schedule.last_run_id}</p>}
         </section>
       )}
 
       <section className="card">
         <h3>New document feed</h3>
-        <button onClick={refreshEvents}>Refresh</button>
+        <Button onClick={refreshEvents}>Refresh</Button>
         <div className="table-wrap">
           <table className="data-table">
             <thead>

@@ -4,6 +4,7 @@ import { usePortfolioPane } from "../context/usePortfolioPane";
 import { PortfolioFilterPicker } from "./PortfolioFilterPicker";
 import { DateSelector } from "./DateSelector";
 import type { DemoSeedSummary } from "../types";
+import { Button, StateBlock } from "../ui";
 
 /** The persistent portfolio/group + as-of-date selector (spec §9): not a
  * sub-tab itself, rendered once above the sub-nav, and read by every
@@ -34,10 +35,10 @@ export function PersistentSelectionPane() {
       {portfolios.length === 0 ? (
         <>
           <p className="help-text">No portfolios yet. Seed the built-in illustrative demo dataset to get started.</p>
-          <button onClick={seedDemo} disabled={seeding}>
+          <Button onClick={seedDemo} disabled={seeding}>
             {seeding ? "Seeding..." : "Seed demo dataset"}
-          </button>
-          {seedError && <p className="error-text">{seedError}</p>}
+          </Button>
+          {seedError && <StateBlock kind="error" message={seedError} />}
           {seedSummary && (
             <p className="status-text">
               Seeded {seedSummary.company_count} companies, {seedSummary.portfolio_count} portfolios,{" "}
@@ -64,7 +65,7 @@ export function PersistentSelectionPane() {
                 ))}
               </select>
               <input type="text" placeholder="Group name" value={groupName} onChange={(e) => setGroupName(e.target.value)} />
-              <button
+              <Button
                 onClick={() => {
                   saveCurrentAsGroup(groupName);
                   setGroupName("");
@@ -72,7 +73,7 @@ export function PersistentSelectionPane() {
                 disabled={!groupName.trim()}
               >
                 Save selection as group
-              </button>
+              </Button>
             </div>
             {groups.length > 0 && (
               <p className="muted">
@@ -80,9 +81,9 @@ export function PersistentSelectionPane() {
                 {groups.map((g) => (
                   <span key={g.name}>
                     {g.name}{" "}
-                    <button className="link-button" onClick={() => deleteGroup(g.name)}>
+                    <Button variant="ghost" onClick={() => deleteGroup(g.name)}>
                       remove
-                    </button>{" "}
+                    </Button>{" "}
                   </span>
                 ))}
               </p>

@@ -4,6 +4,7 @@ import { usePortfolioPane } from "../../context/usePortfolioPane";
 import { AggregationView, TrendView } from "../../components/ResultView";
 import { PivotTable } from "../../components/PivotTable";
 import { AGGREGATION_DIMENSIONS, type AggregationMetric, type AggregationResult, type PivotResult, type TrendPoint } from "../../types";
+import { Button, Field, StateBlock } from "../../ui";
 
 const ASSET_CLASSES = ["", "equity", "corporate_bond", "government_bond", "fund", "etf", "derivative", "cash", "other"];
 
@@ -18,15 +19,16 @@ function DataPointFieldSelect({
 }) {
   return (
     <>
-      <label className="field-label">Data point field</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">-- select a field --</option>
-        {(schema?.fields ?? []).map((f) => (
-          <option key={f.field_id} value={f.field_id}>
-            {f.name} ({f.unit ?? f.data_type})
-          </option>
-        ))}
-      </select>
+      <Field label="Data point field">
+        <select value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="">-- select a field --</option>
+          {(schema?.fields ?? []).map((f) => (
+            <option key={f.field_id} value={f.field_id}>
+              {f.name} ({f.unit ?? f.data_type})
+            </option>
+          ))}
+        </select>
+      </Field>
     </>
   );
 }
@@ -102,45 +104,49 @@ function SingleDimension() {
 
   return (
     <div>
-      <label className="field-label">Group by</label>
-      <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
-        {AGGREGATION_DIMENSIONS.map((d) => (
-          <option key={d} value={d}>
-            {d}
-          </option>
-        ))}
-      </select>
+      <Field label="Group by">
+        <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
+          {AGGREGATION_DIMENSIONS.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      </Field>
 
-      <label className="field-label">Metric</label>
-      <select value={metric} onChange={(e) => setMetric(e.target.value as AggregationMetric)}>
-        <option value="market_value_sum">Market value sum (EUR)</option>
-        <option value="weighted_avg_datapoint">Weighted-average data point</option>
-        <option value="count">Holding count</option>
-      </select>
+      <Field label="Metric">
+        <select value={metric} onChange={(e) => setMetric(e.target.value as AggregationMetric)}>
+          <option value="market_value_sum">Market value sum (EUR)</option>
+          <option value="weighted_avg_datapoint">Weighted-average data point</option>
+          <option value="count">Holding count</option>
+        </select>
+      </Field>
 
       {metric === "weighted_avg_datapoint" && <DataPointFieldSelect schema={climateSchema} value={fieldId} onChange={setFieldId} />}
 
       <div className="inline-fields">
         <div>
-          <label className="field-label">Issuer (company_id)</label>
-          <input type="text" placeholder="e.g. bmw" value={companyId} onChange={(e) => setCompanyId(e.target.value)} />
+          <Field label="Issuer (company_id)">
+            <input type="text" placeholder="e.g. bmw" value={companyId} onChange={(e) => setCompanyId(e.target.value)} />
+          </Field>
         </div>
         <div>
-          <label className="field-label">Asset class</label>
-          <select value={assetClass} onChange={(e) => setAssetClass(e.target.value)}>
-            {ASSET_CLASSES.map((a) => (
-              <option key={a} value={a}>
-                {a || "(any)"}
-              </option>
-            ))}
-          </select>
+          <Field label="Asset class">
+            <select value={assetClass} onChange={(e) => setAssetClass(e.target.value)}>
+              {ASSET_CLASSES.map((a) => (
+                <option key={a} value={a}>
+                  {a || "(any)"}
+                </option>
+              ))}
+            </select>
+          </Field>
         </div>
       </div>
 
-      <button onClick={run} disabled={running}>
+      <Button onClick={run} disabled={running}>
         {running ? "Running..." : "Run query"}
-      </button>
-      {error && <p className="error-text">{error}</p>}
+      </Button>
+      {error && <StateBlock kind="error" message={error} />}
       {result && (
         <div className="inline-block">
           <AggregationView result={result} />
@@ -205,32 +211,35 @@ function CrossTab() {
       )}
       <div className="inline-fields">
         <div>
-          <label className="field-label">Rows</label>
-          <select value={rowDim} onChange={(e) => setRowDim(e.target.value)}>
-            {AGGREGATION_DIMENSIONS.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
+          <Field label="Rows">
+            <select value={rowDim} onChange={(e) => setRowDim(e.target.value)}>
+              {AGGREGATION_DIMENSIONS.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </Field>
         </div>
         <div>
-          <label className="field-label">Columns</label>
-          <select value={colDim} onChange={(e) => setColDim(e.target.value)}>
-            {AGGREGATION_DIMENSIONS.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
+          <Field label="Columns">
+            <select value={colDim} onChange={(e) => setColDim(e.target.value)}>
+              {AGGREGATION_DIMENSIONS.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </Field>
         </div>
         <div>
-          <label className="field-label">Metric</label>
-          <select value={metric} onChange={(e) => setMetric(e.target.value as AggregationMetric)}>
-            <option value="market_value_sum">Market value sum (EUR)</option>
-            <option value="weighted_avg_datapoint">Weighted-average data point</option>
-            <option value="count">Holding count</option>
-          </select>
+          <Field label="Metric">
+            <select value={metric} onChange={(e) => setMetric(e.target.value as AggregationMetric)}>
+              <option value="market_value_sum">Market value sum (EUR)</option>
+              <option value="weighted_avg_datapoint">Weighted-average data point</option>
+              <option value="count">Holding count</option>
+            </select>
+          </Field>
         </div>
       </div>
 
@@ -238,25 +247,27 @@ function CrossTab() {
 
       <div className="inline-fields">
         <div>
-          <label className="field-label">Issuer (company_id)</label>
-          <input type="text" placeholder="e.g. bmw" value={companyId} onChange={(e) => setCompanyId(e.target.value)} />
+          <Field label="Issuer (company_id)">
+            <input type="text" placeholder="e.g. bmw" value={companyId} onChange={(e) => setCompanyId(e.target.value)} />
+          </Field>
         </div>
         <div>
-          <label className="field-label">Asset class</label>
-          <select value={assetClass} onChange={(e) => setAssetClass(e.target.value)}>
-            {ASSET_CLASSES.map((a) => (
-              <option key={a} value={a}>
-                {a || "(any)"}
-              </option>
-            ))}
-          </select>
+          <Field label="Asset class">
+            <select value={assetClass} onChange={(e) => setAssetClass(e.target.value)}>
+              {ASSET_CLASSES.map((a) => (
+                <option key={a} value={a}>
+                  {a || "(any)"}
+                </option>
+              ))}
+            </select>
+          </Field>
         </div>
       </div>
 
-      <button onClick={run} disabled={running || trendModeActive}>
+      <Button onClick={run} disabled={running || trendModeActive}>
         {running ? "Running..." : "Run pivot"}
-      </button>
-      {error && <p className="error-text">{error}</p>}
+      </Button>
+      {error && <StateBlock kind="error" message={error} />}
       {result && (
         <div className="inline-block">
           <PivotTable result={result} />

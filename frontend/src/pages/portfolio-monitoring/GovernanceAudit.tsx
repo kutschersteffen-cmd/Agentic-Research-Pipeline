@@ -9,6 +9,7 @@ import type {
   RiskCategoryOwner,
   SecurityResolution,
 } from "../../types";
+import { Button, StateBlock } from "../../ui";
 
 const SUGGESTED_CATEGORIES = ["entity_resolution", "climate_conflict", "threshold_breach", "news_controversy"];
 const POLICY_SETTINGS: { id: PolicySettingName; label: string }[] = [
@@ -179,9 +180,9 @@ export function GovernanceAudit() {
           </select>
           <input type="number" step="any" placeholder="new value" value={policyNewValue} onChange={(e) => setPolicyNewValue(e.target.value)} />
           <input placeholder="reason" value={policyReason} onChange={(e) => setPolicyReason(e.target.value)} />
-          <button onClick={submitPolicyChange} disabled={!policyNewValue}>
+          <Button onClick={submitPolicyChange} disabled={!policyNewValue}>
             Change setting
-          </button>
+          </Button>
         </div>
         {policyHistory.length > 0 && (
           <div className="table-wrap">
@@ -235,7 +236,7 @@ export function GovernanceAudit() {
                       value={ownerInputs[cat] ?? ""}
                       onChange={(e) => setOwnerInputs((prev) => ({ ...prev, [cat]: e.target.value }))}
                     />
-                    <button onClick={() => assignOwner(cat)}>Assign</button>
+                    <Button onClick={() => assignOwner(cat)}>Assign</Button>
                   </td>
                 </tr>
               ))}
@@ -253,7 +254,7 @@ export function GovernanceAudit() {
         </button>
         <input placeholder="Decided by (required to act on an item)" value={decidedBy} onChange={(e) => setDecidedBy(e.target.value)} />
       </div>
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       <section className="card">
         <h3>
@@ -288,20 +289,20 @@ export function GovernanceAudit() {
                     <td>{r.method}</td>
                     <td>{decision ? `${decision.decision} by ${decision.decided_by}` : <span className="muted">none</span>}</td>
                     <td className="toolbar">
-                      <button className="link-button" onClick={() => decide("entity_resolution", r.security_id, "accept")}>
+                      <Button variant="ghost" onClick={() => decide("entity_resolution", r.security_id, "accept")}>
                         Accept
-                      </button>
+                      </Button>
                       <input
                         placeholder="correct company_id"
                         value={overrideInputs[r.security_id] ?? ""}
                         onChange={(e) => setOverrideInputs((prev) => ({ ...prev, [r.security_id]: e.target.value }))}
                       />
-                      <button className="link-button" onClick={() => decide("entity_resolution", r.security_id, "override")}>
+                      <Button variant="ghost" onClick={() => decide("entity_resolution", r.security_id, "override")}>
                         Override
-                      </button>
-                      <button className="link-button" onClick={() => decide("entity_resolution", r.security_id, "reject")}>
+                      </Button>
+                      <Button variant="ghost" onClick={() => decide("entity_resolution", r.security_id, "reject")}>
                         Reject
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 );
@@ -351,9 +352,9 @@ export function GovernanceAudit() {
                     <td>{c.conflicting_source_label}</td>
                     <td>{decision ? `${decision.decision} by ${decision.decided_by}` : <span className="muted">none</span>}</td>
                     <td className="toolbar">
-                      <button className="link-button" onClick={() => decide("climate_conflict", itemKey, "accept")}>
+                      <Button variant="ghost" onClick={() => decide("climate_conflict", itemKey, "accept")}>
                         Accept
-                      </button>
+                      </Button>
                       <input
                         type="number"
                         step="any"
@@ -361,12 +362,12 @@ export function GovernanceAudit() {
                         value={overrideInputs[itemKey] ?? ""}
                         onChange={(e) => setOverrideInputs((prev) => ({ ...prev, [itemKey]: e.target.value }))}
                       />
-                      <button className="link-button" onClick={() => decide("climate_conflict", itemKey, "override")}>
+                      <Button variant="ghost" onClick={() => decide("climate_conflict", itemKey, "override")}>
                         Override
-                      </button>
-                      <button className="link-button" onClick={() => decide("climate_conflict", itemKey, "reject")}>
+                      </Button>
+                      <Button variant="ghost" onClick={() => decide("climate_conflict", itemKey, "reject")}>
                         Reject
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 );

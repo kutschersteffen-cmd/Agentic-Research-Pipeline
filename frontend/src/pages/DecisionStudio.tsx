@@ -17,6 +17,7 @@ import type {
   MechanismConfig,
   AuditEntry,
 } from "../types";
+import { Button, StateBlock } from "../ui";
 
 const SUB_TABS = [
   { id: "data", label: "1 · Data" },
@@ -273,7 +274,7 @@ export function DecisionStudio() {
       </nav>
 
       {status && <p className="status-text">{status}</p>}
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       {dataset && (
         <div className="toolbar decision-context">
@@ -287,9 +288,9 @@ export function DecisionStudio() {
             </span>
           )}
           {!config && (
-            <button className="link-button" onClick={onDerive}>
+            <Button variant="ghost" onClick={onDerive}>
               Derive a mechanism
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -325,9 +326,9 @@ export function DecisionStudio() {
                 ))}
               </select>
             )}
-            <button className="link-button" onClick={onFromSource}>
+            <Button variant="ghost" onClick={onFromSource}>
               Build table
-            </button>
+            </Button>
           </div>
           <p className="help-text">
             One row per {SOURCES.find((s) => s.id === source)?.entity}. Nothing in the engine assumes an entity is a
@@ -430,9 +431,9 @@ export function DecisionStudio() {
           <div className="card">
             <div className="toolbar">
               <h3>Ranked outcome</h3>
-              <button className="link-button" onClick={onExport}>
+              <Button variant="ghost" onClick={onExport}>
                 Export CSV
-              </button>
+              </Button>
             </div>
             <DecisionResultsTable result={result} config={config} orderBy={orderBy} onOrderBy={setOrderBy} onExplain={onExplain} />
           </div>
@@ -441,9 +442,9 @@ export function DecisionStudio() {
             <div className="card">
               <div className="toolbar">
                 <h3>How much do the weights matter — {sensitivity.name}</h3>
-                <button className="link-button" onClick={() => setSensitivity(null)}>
+                <Button variant="ghost" onClick={() => setSensitivity(null)}>
                   Close
-                </button>
+                </Button>
               </div>
               <p className="help-text">
                 {sensitivity.min_delta_pct == null
@@ -495,14 +496,14 @@ export function DecisionStudio() {
                   </option>
                 ))}
             </select>
-            <button className="link-button" onClick={onCompare} disabled={!compareWith}>
+            <Button variant="ghost" onClick={onCompare} disabled={!compareWith}>
               Compare
-            </button>
+            </Button>
           </div>
 
           {comparison && (
             <>
-              {!comparison.comparable && <p className="error-text">{comparison.incomparable_reason}</p>}
+              {!comparison.comparable && <StateBlock kind="error" message={comparison.incomparable_reason} />}
               {comparison.caveat && <p className="decision-check-banner">{comparison.caveat}</p>}
               <p>
                 {comparison.label_before} → {comparison.label_after}: <strong>{comparison.improved}</strong> improved,{" "}
@@ -553,12 +554,12 @@ export function DecisionStudio() {
           <div className="card">
             <div className="toolbar">
               <h3>Every automated choice, with the basis for it</h3>
-              <button className="link-button" onClick={onSave}>
+              <Button variant="ghost" onClick={onSave}>
                 Save as new version
-              </button>
-              <button className="link-button" onClick={onRatify} disabled={config.ratified}>
+              </Button>
+              <Button variant="ghost" onClick={onRatify} disabled={config.ratified}>
                 {config.ratified ? "Ratified" : "Ratify this version"}
-              </button>
+              </Button>
             </div>
             <p className="help-text">
               A ratified version is never overwritten — later edits become a new version, so the rules a past decision

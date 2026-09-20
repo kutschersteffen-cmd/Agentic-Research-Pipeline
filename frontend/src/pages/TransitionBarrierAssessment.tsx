@@ -11,6 +11,7 @@ import type {
   BarrierRefreshCoverage,
   BarrierStalenessReport,
 } from "../types";
+import { Button, StateBlock } from "../ui";
 
 const PILLARS: BarrierPillar[] = ["Technology", "Regulation", "Demand & Economics"];
 
@@ -33,15 +34,14 @@ function RatingCell({ cell, onClick }: { cell: BarrierMatrixCell | undefined; on
   if (!cell) return <td className="muted">--</td>;
   return (
     <td>
-      <button
+      <Button variant="ghost"
         type="button"
-        className="link-button"
         onClick={onClick}
         title={`${RATING_LABEL[cell.rating]} -- confidence ${cell.confidence}${cell.stale ? " -- STALE" : ""}`}
       >
         <span className={RATING_CLASS[cell.rating]}>{cell.rating}</span>
         {cell.stale && <span className="badge badge-neutral" title={`Last verified ${cell.last_verified}`}>stale</span>}
-      </button>
+      </Button>
     </td>
   );
 }
@@ -54,9 +54,9 @@ function CriterionDetail({ detail, onClose }: { detail: BarrierCriterionDetail; 
         <h3>
           {criterion.code} -- {criterion.criterion}
         </h3>
-        <button type="button" onClick={onClose}>
+        <Button type="button" onClick={onClose}>
           Close
-        </button>
+        </Button>
       </div>
       <p className="muted">
         {criterion.sector} / {criterion.category}
@@ -191,8 +191,8 @@ export function TransitionBarrierAssessment() {
     }
   }
 
-  if (error) return <p className="error-text">{error}</p>;
-  if (!matrix) return <p className="muted">Loading the transition barrier matrix...</p>;
+  if (error) return <StateBlock kind="error" message={error} />;
+  if (!matrix) return <StateBlock kind="loading" message="Loading the transition barrier matrix..." />;
 
   const dist = matrix.distribution.overall;
 
@@ -275,9 +275,9 @@ export function TransitionBarrierAssessment() {
             {visibleCriteria.map((c) => (
               <tr key={c.code}>
                 <td>
-                  <button type="button" className="link-button" onClick={() => openCriterion(c.code)}>
+                  <Button variant="ghost" type="button" onClick={() => openCriterion(c.code)}>
                     {c.code}
-                  </button>
+                  </Button>
                 </td>
                 <td>{c.sector}</td>
                 <td>{c.category}</td>
@@ -296,9 +296,9 @@ export function TransitionBarrierAssessment() {
       <div className="card">
         <div className="section-heading">
           <h3>Source refresh</h3>
-          <button type="button" onClick={startRefresh}>
+          <Button type="button" onClick={startRefresh}>
             Re-check legal sources
-          </button>
+          </Button>
         </div>
         {coverage && (
           <p className="muted">
@@ -310,7 +310,7 @@ export function TransitionBarrierAssessment() {
           A refresh never rewrites a rating. Anything that looks like a rating change is queued for human review; only
           evidence text and the last-verified date may ever be refreshed automatically.
         </p>
-        {refreshError && <p className="error-text">{refreshError}</p>}
+        {refreshError && <StateBlock kind="error" message={refreshError} />}
         {refreshRunId && <RunProgress runId={refreshRunId} runType="transition_barrier_refresh" />}
       </div>
     </div>

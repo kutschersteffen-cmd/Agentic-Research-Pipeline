@@ -6,6 +6,7 @@ import { ExtractionResultsTable, FinancialsResultsTable } from "../components/Ex
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { BarChart } from "../components/BarChart";
 import type { CompanyFinancialsRecord, DataPointSchema, ExtractionRecord, FieldDefinition, ReviewDecision } from "../types";
+import { Button, Field, StateBlock } from "../ui";
 
 const DEFAULT_CRITERIA =
   "Green capex: total green/sustainable capital expenditure in USD/EUR millions for the most recent fiscal " +
@@ -167,11 +168,12 @@ export function Extraction({ pendingUniverse }: Props = {}) {
       {mode === "custom" && (
         <section className="card">
           <h3>1. Describe what to extract</h3>
-          <label className="field-label">Research request</label>
-          <textarea rows={2} value={criteria} onChange={(e) => setCriteria(e.target.value)} />
-          <button onClick={draft} disabled={busy}>
+          <Field label="Research request">
+            <textarea rows={2} value={criteria} onChange={(e) => setCriteria(e.target.value)} />
+          </Field>
+          <Button onClick={draft} disabled={busy}>
             Draft extraction schema
-          </button>
+          </Button>
           <p className="help-text">Or skip this and build a schema entirely by hand before starting a run.</p>
         </section>
       )}
@@ -182,15 +184,17 @@ export function Extraction({ pendingUniverse }: Props = {}) {
           {schema.fields.map((f, idx) => (
             <div className="activity-editor" key={f.field_id}>
               <input value={f.name} onChange={(e) => updateField(idx, { name: e.target.value })} />
-              <label className="field-label">Description</label>
-              <textarea rows={2} value={f.description} onChange={(e) => updateField(idx, { description: e.target.value })} />
-              <label className="field-label">Extraction instructions</label>
-              <textarea
-                rows={3}
-                value={f.extraction_instructions}
-                onChange={(e) => updateField(idx, { extraction_instructions: e.target.value })}
-              />
-              <label className="field-label">Data type / unit</label>
+              <Field label="Description">
+                <textarea rows={2} value={f.description} onChange={(e) => updateField(idx, { description: e.target.value })} />
+              </Field>
+              <Field label="Extraction instructions">
+                <textarea
+                  rows={3}
+                  value={f.extraction_instructions}
+                  onChange={(e) => updateField(idx, { extraction_instructions: e.target.value })}
+                />
+              </Field>
+              <span className="field-label">Data type / unit</span>
               <div className="inline-fields">
                 <span>{f.data_type}</span>
                 <input
@@ -199,11 +203,12 @@ export function Extraction({ pendingUniverse }: Props = {}) {
                   onChange={(e) => updateField(idx, { unit: e.target.value })}
                 />
               </div>
-              <label className="field-label">Seed keywords (comma-separated)</label>
-              <input
-                value={f.seed_keywords.join(", ")}
-                onChange={(e) => updateField(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
-              />
+              <Field label="Seed keywords (comma-separated)">
+                <input
+                  value={f.seed_keywords.join(", ")}
+                  onChange={(e) => updateField(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+                />
+              </Field>
             </div>
           ))}
         </section>
@@ -233,34 +238,28 @@ export function Extraction({ pendingUniverse }: Props = {}) {
               setCompanyCount(count);
             }}
           />
-          <button onClick={startRun} disabled={busy || !universePath}>
+          <Button onClick={startRun} disabled={busy || !universePath}>
             {mode === "custom"
               ? `Extract across ${companyCount || "..."} companies`
               : `Extract financials across ${companyCount || "..."} companies`}
-          </button>
+          </Button>
         </section>
       )}
 
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       {runId && (
         <section className="card">
           <h3>{universeStepNumber + 1}. Run progress</h3>
           <RunProgress runId={runId} runType={mode === "custom" ? "extraction" : "financials"} />
           <div className="toolbar">
-            <button onClick={refreshResults}>Refresh results</button>
+            <Button onClick={refreshResults}>Refresh results</Button>
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
               Export CSV
             </a>
-            <label className="field-label" style={{ marginLeft: "auto" }}>
-              Reviewing as
-            </label>
-            <input
-              placeholder="your name"
-              value={reviewer}
-              onChange={(e) => setReviewer(e.target.value)}
-              style={{ maxWidth: 160 }}
-            />
+            <Field label="Reviewing as" className="field-inline field-push">
+              <input placeholder="your name" value={reviewer} onChange={(e) => setReviewer(e.target.value)} />
+            </Field>
           </div>
 
           {mode === "financials" && financialsResults.length > 0 && <BatchSpendChart results={financialsResults} />}

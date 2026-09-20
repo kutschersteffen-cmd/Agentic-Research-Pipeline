@@ -5,6 +5,7 @@ import { ReviewControls } from "./ReviewControls";
 import { CitationList } from "./CitationList";
 import type { ActiveSource } from "./SourcePanel";
 import type { BusinessSegment, CompanyFinancialsRecord, ExtractedField, ExtractionRecord, ReviewDecision, SpendSummary } from "../types";
+import { StateBlock } from "../ui";
 
 // Shared between Extraction.tsx (a run just started in this browser session)
 // and DataLibrary.tsx (any past run, picked by run_id) -- both render the
@@ -234,7 +235,7 @@ export function FinancialsResultsTable({
                 <tr>
                   <td colSpan={6} className="detail-cell">
                     <h4>Business Segments</h4>
-                    {r.segments.length === 0 && <p className="muted">No segment reporting evidence found.</p>}
+                    {r.segments.length === 0 && <StateBlock kind="empty" message="No segment reporting evidence found." />}
                     {r.segments.map((s, si) => (
                       <SegmentDetail key={si} segment={s} onOpenSource={onOpenSource} />
                     ))}

@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import type { IdentityResolutionResult } from "../types";
+import { Button, StateBlock } from "../ui";
 
 interface Props {
   onSendToDiscovery?: (path: string, count: number) => void;
@@ -81,14 +82,14 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
             setCompanyCount(count);
           }}
         />
-        <button onClick={runNow} disabled={busy || !universePath}>
+        <Button onClick={runNow} disabled={busy || !universePath}>
           Resolve identity for {companyCount || "..."} companies
-        </button>
-        {error && <p className="error-text">{error}</p>}
+        </Button>
+        {error && <StateBlock kind="error" message={error} />}
         {runId && <RunProgress runId={runId} runType="identity" />}
         {runId && (
           <>
-            <button onClick={refreshResults}>Refresh results</button>
+            <Button onClick={refreshResults}>Refresh results</Button>
             {results.length > 0 && (
               <div className="table-wrap">
                 <table className="data-table">
@@ -126,13 +127,13 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
               </div>
             )}
             <div className="toolbar">
-              <button onClick={sendToDiscovery} disabled={sendBusy}>
+              <Button onClick={sendToDiscovery} disabled={sendBusy}>
                 Send resolved companies to Document Discovery
-              </button>
+              </Button>
               {sentUniverse && (
-                <button onClick={() => onSendToDiscovery?.(sentUniverse.path, sentUniverse.count)}>
+                <Button onClick={() => onSendToDiscovery?.(sentUniverse.path, sentUniverse.count)}>
                   Go to Document Discovery &rarr;
-                </button>
+                </Button>
               )}
             </div>
             {sendStatus && <p className="status-text">{sendStatus}</p>}

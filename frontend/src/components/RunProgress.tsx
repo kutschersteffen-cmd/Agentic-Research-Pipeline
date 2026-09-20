@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { RunManifest } from "../types";
+import { Button, StateBlock } from "../ui";
 
 const RESUMABLE_STATUSES = new Set(["failed", "partially_completed", "cancelled"]);
 
@@ -105,19 +106,19 @@ export function RunProgress({
       {(canCancel || canResume) && (
         <div className="toolbar">
           {canCancel && (
-            <button onClick={cancelRun} disabled={actionBusy}>
+            <Button onClick={cancelRun} disabled={actionBusy}>
               Cancel run
-            </button>
+            </Button>
           )}
           {canResume && (
-            <button onClick={resumeRun} disabled={actionBusy}>
+            <Button onClick={resumeRun} disabled={actionBusy}>
               Resume run
-            </button>
+            </Button>
           )}
         </div>
       )}
-      {actionError && <p className="error-text">{actionError}</p>}
-      {manifest.error && <p className="error-text">{manifest.error}</p>}
+      {actionError && <StateBlock kind="error" message={actionError} />}
+      {manifest.error && <StateBlock kind="error" message={manifest.error} />}
     </div>
   );
 }

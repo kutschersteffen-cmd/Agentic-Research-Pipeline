@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { categoricalColor } from "../lib/palette";
+import { StateBlock } from "../ui";
 
 export interface LineSeries {
   label: string;
@@ -54,7 +55,7 @@ export function LineChart({
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   if (dates.length === 0 || series.length === 0) {
-    return <p className="muted">No data to chart.</p>;
+    return <StateBlock kind="empty" message="No data to chart." />;
   }
 
   const width = 760;

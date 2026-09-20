@@ -1,4 +1,5 @@
 import { SEQUENTIAL_BLUE } from "../lib/palette";
+import { StateBlock } from "../ui";
 
 export interface BarDatum {
   label: string;
@@ -29,7 +30,7 @@ export function BarChart({
   valueFormatter?: (v: number) => string;
 }) {
   if (data.length === 0) {
-    return <p className="muted">No data to chart.</p>;
+    return <StateBlock kind="empty" message="No data to chart." />;
   }
 
   const width = 760;

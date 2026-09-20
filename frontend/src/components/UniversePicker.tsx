@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api/client";
+import { Field } from "../ui";
 
 interface Props {
   onResolved: (universePath: string, companyCount: number) => void;
@@ -31,8 +32,9 @@ export function UniversePicker({ onResolved }: Props) {
 
   return (
     <div className="universe-picker">
-      <label className="field-label">Company universe (CSV or JSON)</label>
-      <input type="file" accept=".csv,.json" onChange={onFile} disabled={busy} />
+      <Field label="Company universe (CSV or JSON)">
+        <input type="file" accept=".csv,.json" onChange={onFile} disabled={busy} />
+      </Field>
       <p className="help-text">
         Columns: company_id, name, ticker, website, cik, country, sector (company_id + name required). Supply
         `website`/`cik` when known for the most precise document discovery/EDGAR lookup.

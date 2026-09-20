@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { EngagementRecord, ReviewableRunKind, RunManifest } from "../types";
+import { Button, StateBlock } from "../ui";
 
 const ACTIVE_STATUSES = new Set(["running", "pending"]);
 const RUN_TYPE_LABEL: Record<string, string> = {
@@ -91,7 +92,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
         discovery, proxy voting) and the stewardship module's open engagement issues. Pipeline runs poll every 3s
         while this page is open.
       </p>
-      {loadError && <p className="error-text">Failed to refresh runs: {loadError}</p>}
+      {loadError && <StateBlock kind="error" message={<>Failed to refresh runs: {loadError}</>} />}
 
       <section className="card">
         <div className="dashboard-grid">
@@ -146,9 +147,9 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                   <span>{r.review_count} flagged</span>
                   <span>${r.estimated_cost_usd.toFixed(2)}</span>
                   {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && onOpenReview && (
-                    <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
+                    <Button variant="ghost" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
                       Review {r.review_count} flagged &rarr;
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -162,7 +163,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
           <h3>Finished runs</h3>
           <span className="muted">most recent 25</span>
         </div>
-        {finished.length === 0 && <p className="muted">No finished runs yet.</p>}
+        {finished.length === 0 && <StateBlock kind="empty" message="No finished runs yet." />}
         {finished.length > 0 && (
           <div className="table-wrap">
             <table className="data-table">
@@ -188,9 +189,9 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                     <td>{new Date(r.updated_at).toLocaleString()}</td>
                     <td>
                       {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && onOpenReview && (
-                        <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
+                        <Button variant="ghost" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
                           Review
-                        </button>
+                        </Button>
                       )}
                     </td>
                   </tr>
@@ -204,11 +205,11 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
       <section className="card">
         <div className="section-heading">
           <h3>Open engagement issues</h3>
-          <button className="link-button" onClick={() => onNavigate("engagement")}>
+          <Button variant="ghost" onClick={() => onNavigate("engagement")}>
             Open Engagement &rarr;
-          </button>
+          </Button>
         </div>
-        {openIssues.length === 0 && <p className="muted">No open issues.</p>}
+        {openIssues.length === 0 && <StateBlock kind="empty" message="No open issues." />}
         {openIssues.length > 0 && (
           <div className="table-wrap">
             <table className="data-table">
@@ -243,9 +244,9 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
         <section className="card">
           <div className="section-heading">
             <h3>Proxy voting runs</h3>
-            <button className="link-button" onClick={() => onNavigate("voting")}>
+            <Button variant="ghost" onClick={() => onNavigate("voting")}>
               Open Voting &rarr;
-            </button>
+            </Button>
           </div>
           <div className="table-wrap">
             <table className="data-table">

@@ -1,4 +1,5 @@
 import { usePortfolioPane } from "../context/usePortfolioPane";
+import { Field } from "../ui";
 
 /** Latest / as-of-date / trend-range control, reading and writing the
  * shared pane context directly -- Section 2's point-in-time versioning
@@ -9,7 +10,7 @@ export function DateSelector() {
 
   return (
     <div>
-      <label className="field-label">As of</label>
+      <span className="field-label">As of</span>
       <div className="view-toggle">
         <button className={dateMode === "latest" ? "active" : ""} onClick={() => setDateMode("latest")}>
           Latest
@@ -27,12 +28,14 @@ export function DateSelector() {
       {dateMode === "trend" && (
         <div className="inline-fields">
           <div>
-            <label className="field-label">From</label>
-            <input type="text" placeholder="YYYY-MM-DD" value={trendFrom} onChange={(e) => setTrendFrom(e.target.value)} />
+            <Field label="From">
+              <input type="text" placeholder="YYYY-MM-DD" value={trendFrom} onChange={(e) => setTrendFrom(e.target.value)} />
+            </Field>
           </div>
           <div>
-            <label className="field-label">To</label>
-            <input type="text" placeholder="YYYY-MM-DD" value={trendTo} onChange={(e) => setTrendTo(e.target.value)} />
+            <Field label="To">
+              <input type="text" placeholder="YYYY-MM-DD" value={trendTo} onChange={(e) => setTrendTo(e.target.value)} />
+            </Field>
           </div>
         </div>
       )}

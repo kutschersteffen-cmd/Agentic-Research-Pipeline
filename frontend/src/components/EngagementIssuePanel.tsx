@@ -11,6 +11,7 @@ import type {
   OutreachLetterDraft,
   ResearchDossier,
 } from "../types";
+import { Button, Field, StateBlock } from "../ui";
 
 const ESCALATION_STAGES: EscalationStage[] = [
   "private_engagement",
@@ -209,9 +210,9 @@ export function EngagementIssuePanel({
         <h3>
           {record.name} &middot; {issue.theme}
         </h3>
-        <button className="link-button" onClick={onClose}>
+        <Button variant="ghost" onClick={onClose}>
           Close
-        </button>
+        </Button>
       </div>
 
       <div className="chip-row">
@@ -231,9 +232,10 @@ export function EngagementIssuePanel({
         </p>
       )}
 
-      <label className="field-label">Acting as (used for all sign-offs below)</label>
-      <input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="your name / handle" />
-      {error && <p className="error-text">{error}</p>}
+      <Field label="Acting as (used for all sign-offs below)">
+        <input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="your name / handle" />
+      </Field>
+      {error && <StateBlock kind="error" message={error} />}
 
       <div className="panel-section">
         <h4>Escalation-lever decision</h4>
@@ -249,9 +251,9 @@ export function EngagementIssuePanel({
               </option>
             ))}
           </select>
-          <button onClick={escalate} disabled={busy || !actor}>
+          <Button onClick={escalate} disabled={busy || !actor}>
             Set escalation stage
-          </button>
+          </Button>
         </div>
         <textarea rows={1} placeholder="Reason (optional)" value={escalateReason} onChange={(e) => setEscalateReason(e.target.value)} />
       </div>
@@ -276,7 +278,7 @@ export function EngagementIssuePanel({
 
       <div className="panel-section">
         <h4>Correspondence</h4>
-        {issue.correspondence.length === 0 && <p className="muted">None logged yet.</p>}
+        {issue.correspondence.length === 0 && <StateBlock kind="empty" message="None logged yet." />}
         <ul className="timeline">
           {issue.correspondence.map((c) => (
             <li key={c.entry_id}>
@@ -291,7 +293,7 @@ export function EngagementIssuePanel({
 
       <div className="panel-section">
         <h4>Commitments</h4>
-        {issue.commitments.length === 0 && <p className="muted">None logged yet.</p>}
+        {issue.commitments.length === 0 && <StateBlock kind="empty" message="None logged yet." />}
         {issue.commitments.map((c) => (
           <div className="activity-row" key={c.commitment_id}>
             <div className="activity-main">
@@ -304,9 +306,9 @@ export function EngagementIssuePanel({
               </div>
             </div>
             {c.status === "open" && (
-              <button onClick={() => verifyCommitment(c.commitment_id)} disabled={busy || !actor}>
+              <Button onClick={() => verifyCommitment(c.commitment_id)} disabled={busy || !actor}>
                 Verify
-              </button>
+              </Button>
             )}
           </div>
         ))}
@@ -314,9 +316,9 @@ export function EngagementIssuePanel({
 
       <div className="panel-section">
         <h4>Research Agent</h4>
-        <button onClick={draftDossier} disabled={busy}>
+        <Button onClick={draftDossier} disabled={busy}>
           {dossier ? "Redraft dossier" : "Draft dossier"}
-        </button>
+        </Button>
         {dossier && (
           <div className="review-item">
             {dossier.needs_review && <div className="banner banner-warning">Flagged for review (low confidence and/or ungrounded citation).</div>}
@@ -339,17 +341,19 @@ export function EngagementIssuePanel({
         {!dossier && <p className="help-text">Draft a dossier first -- the letter/talking points reuse its grounded citations.</p>}
         {dossier && (
           <>
-            <label className="field-label">Recipient</label>
-            <input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="e.g. Investor Relations" />
-            <label className="field-label">House style notes (optional)</label>
-            <textarea rows={2} value={houseStyle} onChange={(e) => setHouseStyle(e.target.value)} />
+            <Field label="Recipient">
+              <input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="e.g. Investor Relations" />
+            </Field>
+            <Field label="House style notes (optional)">
+              <textarea rows={2} value={houseStyle} onChange={(e) => setHouseStyle(e.target.value)} />
+            </Field>
             <div className="toolbar">
-              <button onClick={draftLetter} disabled={busy || !recipient}>
+              <Button onClick={draftLetter} disabled={busy || !recipient}>
                 Draft outreach letter
-              </button>
-              <button onClick={draftPoints} disabled={busy}>
+              </Button>
+              <Button onClick={draftPoints} disabled={busy}>
                 Draft talking points
-              </button>
+              </Button>
             </div>
             {letter && (
               <div className="review-item">
@@ -358,9 +362,9 @@ export function EngagementIssuePanel({
                 </p>
                 <p style={{ whiteSpace: "pre-wrap" }}>{letter.body}</p>
                 <div className="toolbar">
-                  <button onClick={logSent} disabled={busy || !actor}>
+                  <Button onClick={logSent} disabled={busy || !actor}>
                     Log outreach sent (human-authorized)
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -390,11 +394,12 @@ export function EngagementIssuePanel({
 
       <div className="panel-section">
         <h4>Post-meeting summary &amp; validation</h4>
-        <label className="field-label">Meeting notes or transcript</label>
-        <textarea rows={4} value={notesOrTranscript} onChange={(e) => setNotesOrTranscript(e.target.value)} placeholder="Paste raw notes or a transcript..." />
-        <button onClick={draftSummary} disabled={busy || !notesOrTranscript.trim()}>
+        <Field label="Meeting notes or transcript">
+          <textarea rows={4} value={notesOrTranscript} onChange={(e) => setNotesOrTranscript(e.target.value)} placeholder="Paste raw notes or a transcript..." />
+        </Field>
+        <Button onClick={draftSummary} disabled={busy || !notesOrTranscript.trim()}>
           Draft summary
-        </button>
+        </Button>
         {meetingSummary && (
           <div className="review-item">
             <p>{meetingSummary.summary}</p>
@@ -418,16 +423,16 @@ export function EngagementIssuePanel({
                 </ul>
               </>
             )}
-            <button onClick={validateAndLogSummary} disabled={busy || !actor}>
+            <Button onClick={validateAndLogSummary} disabled={busy || !actor}>
               Validate &amp; log (human checkpoint)
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
       <div className="panel-section">
         <h4>Contacts</h4>
-        {record.contacts.length === 0 && <p className="muted">None on file.</p>}
+        {record.contacts.length === 0 && <StateBlock kind="empty" message="None on file." />}
         <ul className="timeline">
           {record.contacts.map((c) => (
             <li key={c.contact_id}>
@@ -440,9 +445,9 @@ export function EngagementIssuePanel({
           <input placeholder="Name" value={newContactName} onChange={(e) => setNewContactName(e.target.value)} />
           <input placeholder="Role" value={newContactRole} onChange={(e) => setNewContactRole(e.target.value)} />
           <input placeholder="Email (optional)" value={newContactEmail} onChange={(e) => setNewContactEmail(e.target.value)} />
-          <button onClick={addContact} disabled={busy || !newContactName.trim()}>
+          <Button onClick={addContact} disabled={busy || !newContactName.trim()}>
             Add contact
-          </button>
+          </Button>
         </div>
       </div>
     </section>

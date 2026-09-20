@@ -10,6 +10,7 @@ import type {
   TaxonomyResearcherScheduleConfig,
   TaxonomyResearchFinding,
 } from "../types";
+import { Button, Field, StateBlock } from "../ui";
 
 const SUB_TABS = [
   { id: "taxonomyResearcher", label: "Taxonomy Researcher" },
@@ -117,7 +118,7 @@ function TaxonomyResearcherPanel() {
         DRAFT version when genuinely new activities surface. Never ratifies -- review any proposal below in
         the Taxonomy Library before it's used by a run.
       </p>
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       {schedule && (
         <section className="card">
@@ -130,13 +131,14 @@ function TaxonomyResearcherPanel() {
             />
             Enabled
           </label>
-          <label className="field-label">Interval (hours)</label>
-          <input
-            type="number"
-            min={1}
-            value={schedule.interval_hours}
-            onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
-          />
+          <Field label="Interval (hours)">
+            <input
+              type="number"
+              min={1}
+              value={schedule.interval_hours}
+              onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
+            />
+          </Field>
           <label className="checkbox-label">
             <input type="checkbox" checked={scopeAll} onChange={(e) => setScopeAll(e.target.checked)} />
             Scan all ratified taxonomies
@@ -156,27 +158,27 @@ function TaxonomyResearcherPanel() {
                   </label>
                 ))}
               {taxonomies.filter((t) => t.status === "ratified").length === 0 && (
-                <p className="muted">No ratified taxonomies yet.</p>
+                <StateBlock kind="empty" message="No ratified taxonomies yet." />
               )}
             </div>
           )}
-          <button onClick={saveSchedule} disabled={busy}>
+          <Button onClick={saveSchedule} disabled={busy}>
             Save schedule
-          </button>
+          </Button>
           {schedule.last_run_id && <p className="muted">Last scheduled run: {schedule.last_run_id}</p>}
         </section>
       )}
 
       <section className="card">
         <h3>Run now</h3>
-        <button onClick={runNow} disabled={busy}>
+        <Button onClick={runNow} disabled={busy}>
           Scan now
-        </button>
+        </Button>
         {runId && (
           <>
             <RunProgress runId={runId} runType="taxonomy_research" />
             <div className="toolbar">
-              <button onClick={refreshResults}>Refresh results</button>
+              <Button onClick={refreshResults}>Refresh results</Button>
             </div>
           </>
         )}
@@ -210,7 +212,7 @@ function TaxonomyResearcherPanel() {
 
       <section className="card">
         <h3>Past runs</h3>
-        {pastRuns.length === 0 && <p className="muted">No taxonomy research runs yet.</p>}
+        {pastRuns.length === 0 && <StateBlock kind="empty" message="No taxonomy research runs yet." />}
         {pastRuns.length > 0 && (
           <div className="table-wrap">
             <table className="data-table">
@@ -305,7 +307,7 @@ function CalibrationPanel() {
         currently-fetchable documents include one fetched after that verdict was generated. A flag is not a
         claim the verdict is wrong -- it never re-runs classification or edits a match itself.
       </p>
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       {schedule && (
         <section className="card">
@@ -318,30 +320,31 @@ function CalibrationPanel() {
             />
             Enabled
           </label>
-          <label className="field-label">Interval (hours)</label>
-          <input
-            type="number"
-            min={1}
-            value={schedule.interval_hours}
-            onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
-          />
-          <button onClick={saveSchedule} disabled={busy}>
+          <Field label="Interval (hours)">
+            <input
+              type="number"
+              min={1}
+              value={schedule.interval_hours}
+              onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
+            />
+          </Field>
+          <Button onClick={saveSchedule} disabled={busy}>
             Save schedule
-          </button>
+          </Button>
           {schedule.last_run_id && <p className="muted">Last scheduled run: {schedule.last_run_id}</p>}
         </section>
       )}
 
       <section className="card">
         <h3>Run now</h3>
-        <button onClick={runNow} disabled={busy}>
+        <Button onClick={runNow} disabled={busy}>
           Check now
-        </button>
+        </Button>
         {runId && (
           <>
             <RunProgress runId={runId} runType="calibration" />
             <div className="toolbar">
-              <button onClick={refreshResults}>Refresh results</button>
+              <Button onClick={refreshResults}>Refresh results</Button>
             </div>
           </>
         )}
@@ -381,7 +384,7 @@ function CalibrationPanel() {
 
       <section className="card">
         <h3>Past runs</h3>
-        {pastRuns.length === 0 && <p className="muted">No calibration runs yet.</p>}
+        {pastRuns.length === 0 && <StateBlock kind="empty" message="No calibration runs yet." />}
         {pastRuns.length > 0 && (
           <div className="table-wrap">
             <table className="data-table">

@@ -9,6 +9,7 @@ import type {
   SpecReviewState,
   StrategySpec,
 } from "../types";
+import { Button, Field, StateBlock } from "../ui";
 
 // ---- helpers ----------------------------------------------------------------
 
@@ -130,20 +131,20 @@ function ProposeStage({
         before anything runs.
       </p>
 
-      <label className="field-label">Search a topic (optional)</label>
+      <span className="field-label">Search a topic (optional)</span>
       <div className="toolbar">
         <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. momentum anomaly" />
-        <button onClick={discover} disabled={busy || !topic.trim()}>
+        <Button onClick={discover} disabled={busy || !topic.trim()}>
           Search
-        </button>
+        </Button>
       </div>
 
-      <label className="field-label">...or resume a spec draft you started earlier</label>
+      <span className="field-label">...or resume a spec draft you started earlier</span>
       <div className="toolbar">
         <input value={resumeId} onChange={(e) => setResumeId(e.target.value)} placeholder="spec draft run ID" />
-        <button onClick={resumeDraft} disabled={busy || !resumeId.trim()}>
+        <Button onClick={resumeDraft} disabled={busy || !resumeId.trim()}>
           Resume
-        </button>
+        </Button>
       </div>
 
       {candidates.length > 0 && (
@@ -158,27 +159,29 @@ function ProposeStage({
                 <a href={c.url} target="_blank" rel="noreferrer">
                   View source
                 </a>
-                <button onClick={() => selectCandidate(c)}>Use this paper</button>
+                <Button onClick={() => selectCandidate(c)}>Use this paper</Button>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      <label className="field-label">Paper citation</label>
-      <input value={paperCitation} onChange={(e) => setPaperCitation(e.target.value)} placeholder="Author (Year), Journal Vol(Issue)" />
+      <Field label="Paper citation">
+        <input value={paperCitation} onChange={(e) => setPaperCitation(e.target.value)} placeholder="Author (Year), Journal Vol(Issue)" />
+      </Field>
 
-      <label className="field-label">Paper text, or describe your own methodology</label>
-      <textarea
-        rows={8}
-        value={paperText}
-        onChange={(e) => setPaperText(e.target.value)}
-        placeholder="Paste the paper's methodology/results text, or write your own strategy description in plain English (e.g. 'Rank stocks by 6-month prior return, buy the top decile, short the bottom decile, hold for 3 months, rebalance monthly.')"
-      />
-      <button onClick={draftSpec} disabled={busy || !paperCitation.trim() || !paperText.trim()}>
+      <Field label="Paper text, or describe your own methodology">
+        <textarea
+          rows={8}
+          value={paperText}
+          onChange={(e) => setPaperText(e.target.value)}
+          placeholder="Paste the paper's methodology/results text, or write your own strategy description in plain English (e.g. 'Rank stocks by 6-month prior return, buy the top decile, short the bottom decile, hold for 3 months, rebalance monthly.')"
+        />
+      </Field>
+      <Button onClick={draftSpec} disabled={busy || !paperCitation.trim() || !paperText.trim()}>
         Draft spec sheet
-      </button>
-      {error && <p className="error-text">{error}</p>}
+      </Button>
+      {error && <StateBlock kind="error" message={error} />}
     </section>
   );
 }
@@ -265,7 +268,7 @@ function ReviewStage({
         {!spec.grounded && " Any manually edited or instruction-revised field is no longer grounded against source text -- review it carefully before approving."}
       </p>
 
-      <label className="field-label">Give an instruction in natural language</label>
+      <span className="field-label">Give an instruction in natural language</span>
       <div className="toolbar">
         <input
           value={instruction}
@@ -273,22 +276,23 @@ function ReviewStage({
           placeholder="e.g. switch to quarterly rebalancing"
           style={{ flex: 1 }}
         />
-        <button onClick={reviseWithInstruction} disabled={busy || !instruction.trim()}>
+        <Button onClick={reviseWithInstruction} disabled={busy || !instruction.trim()}>
           Apply instruction
-        </button>
+        </Button>
       </div>
 
-      <label className="field-label">Or edit the spec sheet directly</label>
-      <textarea rows={16} className="review-json-edit" value={jsonDraft} onChange={(e) => setJsonDraft(e.target.value)} />
+      <Field label="Or edit the spec sheet directly">
+        <textarea rows={16} className="review-json-edit" value={jsonDraft} onChange={(e) => setJsonDraft(e.target.value)} />
+      </Field>
       <div className="toolbar">
-        <button onClick={saveDirectEdit} disabled={busy}>
+        <Button onClick={saveDirectEdit} disabled={busy}>
           Save direct edit
-        </button>
-        <button onClick={approve} disabled={busy} style={{ marginLeft: "auto" }}>
+        </Button>
+        <Button onClick={approve} disabled={busy} style={{ marginLeft: "auto" }}>
           Approve spec
-        </button>
+        </Button>
       </div>
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       {state.history.length > 0 && (
         <>
@@ -404,17 +408,20 @@ function BacktestStage({ specRunId, spec }: { specRunId: string; spec: StrategyS
     <section className="card">
       <h3>3. Run the backtest &amp; review results</h3>
 
-      <label className="field-label">Tickers (comma or newline separated)</label>
-      <textarea rows={3} value={tickers} onChange={(e) => setTickers(e.target.value)} placeholder="AAPL, MSFT, ..." />
+      <Field label="Tickers (comma or newline separated)">
+        <textarea rows={3} value={tickers} onChange={(e) => setTickers(e.target.value)} placeholder="AAPL, MSFT, ..." />
+      </Field>
 
-      <label className="field-label">Price panel CSV (date column + one column per ticker)</label>
-      <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && uploadPrices(e.target.files[0])} />
+      <Field label="Price panel CSV (date column + one column per ticker)">
+        <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && uploadPrices(e.target.files[0])} />
+      </Field>
       {pricesRef && <p className="muted">Uploaded.</p>}
 
       {spec.characteristic_name && (
         <>
-          <label className="field-label">{spec.characteristic_name} characteristics CSV</label>
-          <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && uploadCharacteristics(e.target.files[0])} />
+          <Field label={<>{spec.characteristic_name} characteristics CSV</>}>
+            <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && uploadCharacteristics(e.target.files[0])} />
+          </Field>
           {characteristicsRef && <p className="muted">Uploaded.</p>}
         </>
       )}
@@ -424,10 +431,10 @@ function BacktestStage({ specRunId, spec }: { specRunId: string; spec: StrategyS
         <input value={oosStart} onChange={(e) => setOosStart(e.target.value)} placeholder="Out-of-sample start (optional)" />
         <input value={oosEnd} onChange={(e) => setOosEnd(e.target.value)} placeholder="Out-of-sample end (optional)" />
       </div>
-      <button onClick={runBacktest} disabled={busy || !pricesRef || tickerList.length === 0}>
+      <Button onClick={runBacktest} disabled={busy || !pricesRef || tickerList.length === 0}>
         Run backtest
-      </button>
-      {error && <p className="error-text">{error}</p>}
+      </Button>
+      {error && <StateBlock kind="error" message={error} />}
 
       {detail && <ResultsView detail={detail} busy={busy} onRunSanityCheck={runSanityCheck} onRunRegimeReport={runRegimeReport} />}
     </section>
@@ -531,9 +538,9 @@ function ResultsView({
 
       <div className="section-heading">
         <h4>Sanity check</h4>
-        <button onClick={onRunSanityCheck} disabled={busy}>
+        <Button onClick={onRunSanityCheck} disabled={busy}>
           {detail.sanity_check ? "Re-run sanity check" : "Run sanity check"}
-        </button>
+        </Button>
       </div>
       {detail.sanity_check ? (
         <div>
@@ -555,9 +562,9 @@ function ResultsView({
 
       <div className="section-heading">
         <h4>Regime breakdown</h4>
-        <button onClick={onRunRegimeReport} disabled={busy}>
+        <Button onClick={onRunRegimeReport} disabled={busy}>
           {detail.regime_report ? "Re-run regime report" : "Run regime report"}
-        </button>
+        </Button>
       </div>
       {detail.regime_report ? (
         detail.regime_report.buckets.length > 0 ? (

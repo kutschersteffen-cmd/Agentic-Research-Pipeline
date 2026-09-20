@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { ReviewableRunKind, RunManifest } from "../types";
+import { Button, Field } from "../ui";
 
 const REVIEWABLE_KINDS = new Set<ReviewableRunKind>(["theme", "extraction", "financials", "identity"]);
 
@@ -32,18 +33,19 @@ export function RunHistory({ onOpenReview }: Props = {}) {
     <div className="page">
       <h2>Run History</h2>
       <section className="card">
-        <label className="field-label">Filter by type</label>
-        <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-          <option value="">All</option>
-          <option value="theme">Thematic universe</option>
-          <option value="extraction">Extraction</option>
-          <option value="financials">Company financials</option>
-          <option value="discovery">Discovery</option>
-          <option value="taxonomy_research">Taxonomy Researcher</option>
-          <option value="calibration">Calibration</option>
-          <option value="emerging_themes">Emerging themes</option>
-        </select>
-        <button onClick={load}>Refresh</button>
+        <Field label="Filter by type">
+          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+            <option value="">All</option>
+            <option value="theme">Thematic universe</option>
+            <option value="extraction">Extraction</option>
+            <option value="financials">Company financials</option>
+            <option value="discovery">Discovery</option>
+            <option value="taxonomy_research">Taxonomy Researcher</option>
+            <option value="calibration">Calibration</option>
+            <option value="emerging_themes">Emerging themes</option>
+          </select>
+        </Field>
+        <Button onClick={load}>Refresh</Button>
         <p className="muted">Total estimated spend across {runs.length} runs: ${totalCost.toFixed(2)}</p>
       </section>
 
@@ -81,9 +83,9 @@ export function RunHistory({ onOpenReview }: Props = {}) {
                       {r.review_count > 0 && isReviewable(runType) && onOpenReview && (
                         <>
                           {" "}
-                          <button className="link-button" onClick={() => onOpenReview(runType, r.run_id)}>
+                          <Button variant="ghost" onClick={() => onOpenReview(runType, r.run_id)}>
                             Review
-                          </button>
+                          </Button>
                         </>
                       )}
                     </td>

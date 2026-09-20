@@ -10,6 +10,7 @@ import type {
   SelectionRule,
   TiltRule,
 } from "../types";
+import { Button, Field, StateBlock } from "../ui";
 
 /**
  * Compose an index methodology out of named rules, save it as a versioned
@@ -96,8 +97,7 @@ function NumberField({
   placeholder?: string;
 }) {
   return (
-    <label className="field-label" style={{ flex: 1 }}>
-      {label}
+    <Field label={<>{label}</>}>
       <input
         type="number"
         step={step}
@@ -105,7 +105,7 @@ function NumberField({
         value={value === null || value === undefined ? "" : value}
         onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
       />
-    </label>
+    </Field>
   );
 }
 
@@ -123,8 +123,7 @@ function SelectField({
   allowEmpty?: boolean;
 }) {
   return (
-    <label className="field-label" style={{ flex: 1 }}>
-      {label}
+    <Field label={<>{label}</>}>
       <select value={value ?? ""} onChange={(e) => onChange(e.target.value)}>
         {allowEmpty && <option value="">--</option>}
         {options.map((o) => (
@@ -133,7 +132,7 @@ function SelectField({
           </option>
         ))}
       </select>
-    </label>
+    </Field>
   );
 }
 
@@ -165,20 +164,19 @@ function RuleShell({
         <label className="checkbox-label" style={{ margin: 0 }}>
           <input type="checkbox" checked={enabled} onChange={onToggle} /> on
         </label>
-        <button className="link-button" onClick={onMoveUp} disabled={!onMoveUp} title="Move earlier">
+        <Button variant="ghost" onClick={onMoveUp} disabled={!onMoveUp} title="Move earlier">
           ↑
-        </button>
-        <button className="link-button" onClick={onMoveDown} disabled={!onMoveDown} title="Move later">
+        </Button>
+        <Button variant="ghost" onClick={onMoveDown} disabled={!onMoveDown} title="Move later">
           ↓
-        </button>
-        <button className="link-button" onClick={onRemove} title="Remove rule">
+        </Button>
+        <Button variant="ghost" onClick={onRemove} title="Remove rule">
           remove
-        </button>
+        </Button>
       </div>
-      <label className="field-label">
-        Label (shown on the committee pack)
+      <Field label="Label (shown on the committee pack)">
         <input type="text" value={label} onChange={(e) => onLabel(e.target.value)} placeholder="optional" />
-      </label>
+      </Field>
       {children}
     </div>
   );
@@ -279,7 +277,7 @@ export function IndexBuilder() {
         ))}
       </nav>
 
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
       {status && <p className="status-text">{status}</p>}
 
       {sub === "compose" && (
@@ -311,23 +309,21 @@ export function IndexBuilder() {
           <div className="card">
             <h3>Run a review</h3>
             <div className="inline-fields">
-              <label className="field-label" style={{ flex: 1 }}>
-                Index id
+              <Field label="Index id">
                 <input type="text" value={indexId} onChange={(e) => setIndexId(e.target.value)} />
-              </label>
-              <label className="field-label" style={{ flex: 1 }}>
-                Review date
+              </Field>
+              <Field label="Review date">
                 <input type="date" value={reviewDate} onChange={(e) => setReviewDate(e.target.value)} />
-              </label>
+              </Field>
             </div>
             <p className="help-text">
               A saved review chains state into the next one: the decarbonisation base, the shortfall carried forward, and
               the incumbents a selection buffer needs. A preview writes nothing.
             </p>
             <div className="toolbar">
-              <button onClick={() => runReview(false)} disabled={busy}>
+              <Button onClick={() => runReview(false)} disabled={busy}>
                 {busy ? "Running..." : "Preview"}
-              </button>
+              </Button>
               <button onClick={() => runReview(true)} disabled={busy} className="nav-tab">
                 Run &amp; save
               </button>
@@ -410,7 +406,7 @@ function ScreensCard({
         ))}
       </div>
 
-      {spec.screens.length === 0 && <p className="muted">No screens. Every company in the parent universe is eligible.</p>}
+      {spec.screens.length === 0 && <StateBlock kind="empty" message="No screens. Every company in the parent universe is eligible." />}
 
       {spec.screens.map((screen, i) => (
         <RuleShell
@@ -458,22 +454,20 @@ function ScreensCard({
           )}
           {screen.type === "category_screen" && (
             <div className="inline-fields">
-              <label className="field-label" style={{ flex: 1 }}>
-                Allow only (comma separated)
+              <Field label="Allow only (comma separated)">
                 <input
                   type="text"
                   value={(screen.allow ?? []).join(", ")}
                   onChange={(e) => update(i, { allow: e.target.value.split(",").map((v) => v.trim()).filter(Boolean) } as Partial<ScreenRule>)}
                 />
-              </label>
-              <label className="field-label" style={{ flex: 1 }}>
-                Deny (comma separated)
+              </Field>
+              <Field label="Deny (comma separated)">
                 <input
                   type="text"
                   value={(screen.deny ?? []).join(", ")}
                   onChange={(e) => update(i, { deny: e.target.value.split(",").map((v) => v.trim()).filter(Boolean) } as Partial<ScreenRule>)}
                 />
-              </label>
+              </Field>
             </div>
           )}
           <p className="muted">
@@ -648,7 +642,7 @@ function TiltsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setSpec:
         </button>
       </div>
 
-      {spec.tilts.length === 0 && <p className="muted">No tilts. Constituents keep their base weight.</p>}
+      {spec.tilts.length === 0 && <StateBlock kind="empty" message="No tilts. Constituents keep their base weight." />}
 
       {spec.tilts.map((tilt, i) => (
         <RuleShell
@@ -688,8 +682,7 @@ function TiltsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setSpec:
           ) : (
             <>
               <SelectField label="Category field" value={tilt.field} options={fields.categories} onChange={(field) => update(i, { field })} />
-              <label className="field-label">
-                Multipliers, one &quot;value = factor&quot; per line
+              <Field label="Multipliers, one &quot;value = factor&quot; per line">
                 <textarea
                   rows={4}
                   value={Object.entries(tilt.multipliers ?? {}).map(([k, v]) => `${k} = ${v}`).join("\n")}
@@ -703,7 +696,7 @@ function TiltsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setSpec:
                     update(i, { multipliers });
                   }}
                 />
-              </label>
+              </Field>
               <NumberField label="Default multiplier" value={tilt.default_multiplier} onChange={(v) => update(i, { default_multiplier: v ?? 1 })} step="0.05" />
             </>
           )}
@@ -781,7 +774,7 @@ function ConstraintsCard({
         UCITS 5/10/40 — no issuer above 10%, and issuers above 5% summing to at most 40%
       </label>
 
-      <label className="field-label">Group caps</label>
+      <span className="field-label">Group caps</span>
       {c.group_caps.map((cap, i) => (
         <div className="inline-fields" key={i}>
           <SelectField
@@ -796,9 +789,9 @@ function ConstraintsCard({
             step="0.01"
             onChange={(max_weight) => update({ group_caps: c.group_caps.map((g, idx) => (idx === i ? { ...g, max_weight: max_weight ?? 0.4 } : g)) })}
           />
-          <button className="link-button" onClick={() => update({ group_caps: c.group_caps.filter((_, idx) => idx !== i) })}>
+          <Button variant="ghost" onClick={() => update({ group_caps: c.group_caps.filter((_, idx) => idx !== i) })}>
             remove
-          </button>
+          </Button>
         </div>
       ))}
       <button className="nav-tab" onClick={() => update({ group_caps: [...c.group_caps, { dimension: fields.categories[0] ?? "sector", max_weight: 0.4 }] })}>
@@ -962,8 +955,7 @@ function ConstraintsCard({
                 />
               </div>
               {solver.risk_model.source === "factor" && (
-                <label className="field-label">
-                  Factor fields (comma separated) — numeric fields are standardised, categorical ones become dummies
+                <Field label="Factor fields (comma separated) — numeric fields are standardised, categorical ones become dummies">
                   <input
                     type="text"
                     value={solver.risk_model.factor_fields.join(", ")}
@@ -976,7 +968,7 @@ function ConstraintsCard({
                       })
                     }
                   />
-                </label>
+                </Field>
               )}
               <p className="muted">
                 {solver.risk_model.source === "supplied"
@@ -1024,10 +1016,9 @@ function TrajectoryCard({ spec, setSpec, fields }: { spec: ConstructionSpec; set
             />
           </div>
           <div className="inline-fields">
-            <label className="field-label" style={{ flex: 1 }}>
-              Base date
+            <Field label="Base date">
               <input type="date" value={t.base_date ?? ""} onChange={(e) => update({ base_date: e.target.value || null })} />
-            </label>
+            </Field>
           </div>
           <label className="checkbox-label">
             <input type="checkbox" checked={t.compensate_missed_targets} onChange={(e) => update({ compensate_missed_targets: e.target.checked })} />
@@ -1121,29 +1112,25 @@ function CalibrationsTab({
           otherwise today&apos;s parameters would silently rewrite past reviews.
         </p>
         <div className="inline-fields">
-          <label className="field-label" style={{ flex: 2 }}>
-            Name
+          <Field label="Name" className="field-grow">
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="DWS Electrification PAB" />
-          </label>
-          <label className="field-label" style={{ flex: 1 }}>
-            Effective from
+          </Field>
+          <Field label="Effective from">
             <input type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
-          </label>
+          </Field>
         </div>
         <div className="inline-fields">
-          <label className="field-label" style={{ flex: 2 }}>
-            Notes
+          <Field label="Notes" className="field-grow">
             <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="what changed and why" />
-          </label>
-          <label className="field-label" style={{ flex: 1 }}>
-            Approved by
+          </Field>
+          <Field label="Approved by">
             <input type="text" value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} placeholder="IC-2026-06-11" />
-          </label>
+          </Field>
         </div>
         <div className="toolbar">
-          <button onClick={() => save(false)} disabled={!name.trim()}>
+          <Button onClick={() => save(false)} disabled={!name.trim()}>
             Save as new calibration
-          </button>
+          </Button>
           <button className="nav-tab" onClick={() => save(true)} disabled={!loaded}>
             {loaded ? `Save as v${loaded.version + 1} of ${loaded.name}` : "Save as new version"}
           </button>
@@ -1176,9 +1163,9 @@ function CalibrationsTab({
                   </td>
                   <td>{c.notes}</td>
                   <td>
-                    <button className="link-button" onClick={() => load(c.calibration_id)}>
+                    <Button variant="ghost" onClick={() => load(c.calibration_id)}>
                       load
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -1210,9 +1197,9 @@ function CalibrationsTab({
                   <td>{v.approved_by.join(", ") || "--"}</td>
                   <td>{v.notes}</td>
                   <td>
-                    <button className="link-button" onClick={() => load(v.calibration_id, v.version)}>
+                    <Button variant="ghost" onClick={() => load(v.calibration_id, v.version)}>
                       load
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -1375,9 +1362,9 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
           </tbody>
         </table>
         {sorted.length > 25 && (
-          <button className="link-button" onClick={() => setShowAll(!showAll)}>
+          <Button variant="ghost" onClick={() => setShowAll(!showAll)}>
             {showAll ? "show top 25" : `show all ${sorted.length}`}
-          </button>
+          </Button>
         )}
       </div>
     </>

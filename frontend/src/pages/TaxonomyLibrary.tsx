@@ -14,6 +14,7 @@ import type {
   TaxonomyRef,
   ThemeDefinition,
 } from "../types";
+import { Button, Field, StateBlock } from "../ui";
 
 const METHOD_LABELS: Record<DerivationMethod, string> = {
   llm_draft: "LLM draft (freeform)",
@@ -191,12 +192,13 @@ function LibraryView({
                     <td colSpan={6} className="detail-cell">
                       <p className="muted">{t.source_notes}</p>
                       <ActivityEditorTable activities={activities} onChange={setActivities} />
-                      <label className="field-label">Version notes</label>
-                      <input value={notes} onChange={(e) => setNotes(e.target.value)} />
+                      <Field label="Version notes">
+                        <input value={notes} onChange={(e) => setNotes(e.target.value)} />
+                      </Field>
                       <div className="toolbar">
-                        <button onClick={() => saveVersion(t)} disabled={busy}>
+                        <Button onClick={() => saveVersion(t)} disabled={busy}>
                           Save as new version
-                        </button>
+                        </Button>
                       </div>
                       {t.status === "draft" && (
                         <div className="toolbar">
@@ -205,9 +207,9 @@ function LibraryView({
                             value={ratifiedBy}
                             onChange={(e) => setRatifiedBy(e.target.value)}
                           />
-                          <button onClick={() => ratify(t)} disabled={busy || !ratifiedBy}>
+                          <Button onClick={() => ratify(t)} disabled={busy || !ratifiedBy}>
                             Ratify v{t.version}
-                          </button>
+                          </Button>
                         </div>
                       )}
                       <div className="toolbar">
@@ -219,16 +221,16 @@ function LibraryView({
                           <input type="checkbox" checked={useSampleStandards} onChange={(e) => setUseSampleStandards(e.target.checked)} />
                           sample NACE/NAICS/SIC/GICS reference data
                         </label>
-                        <button onClick={() => mapStandards(t)} disabled={busy}>
+                        <Button onClick={() => mapStandards(t)} disabled={busy}>
                           Map to NACE / NAICS / SIC / GICS
-                        </button>
+                        </Button>
                         <a href={api.standardsCsvUrl(t.taxonomy_id)} target="_blank" rel="noreferrer">
                           Export standards CSV
                         </a>
                       </div>
                       {onUseInTheme && (
                         <div className="toolbar">
-                          <button onClick={() => onUseInTheme(t.taxonomy_id)}>Use in Thematic Universe &rarr;</button>
+                          <Button onClick={() => onUseInTheme(t.taxonomy_id)}>Use in Thematic Universe &rarr;</Button>
                         </div>
                       )}
                       <p className="help-text">
@@ -239,7 +241,7 @@ function LibraryView({
                         fine for testing this pipeline, not for citing. Supply a verified ARP_GICS_REFERENCE_PATH
                         before relying on sub-industry-level GICS output.
                       </p>
-                      {error && <p className="error-text">{error}</p>}
+                      {error && <StateBlock kind="error" message={error} />}
                     </td>
                   </tr>
                 )}
@@ -358,18 +360,21 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
     <>
       <section className="card">
         <h3>1. Method &amp; theme</h3>
-        <label className="field-label">Derivation method</label>
-        <select value={method} onChange={(e) => setMethod(e.target.value as DerivationMethod)}>
-          {CREATABLE_METHODS.map((m) => (
-            <option key={m} value={m}>
-              {METHOD_LABELS[m]}
-            </option>
-          ))}
-        </select>
-        <label className="field-label">Theme name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} />
-        <label className="field-label">Description</label>
-        <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <Field label="Derivation method">
+          <select value={method} onChange={(e) => setMethod(e.target.value as DerivationMethod)}>
+            {CREATABLE_METHODS.map((m) => (
+              <option key={m} value={m}>
+                {METHOD_LABELS[m]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Theme name">
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field label="Description">
+          <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+        </Field>
 
         {method === "industry_anchored" && (
           <label className="checkbox-label">
@@ -380,17 +385,18 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
 
         {method === "authority_source" && (
           <div className="inline-block">
-            <button onClick={discoverAuthoritySources} disabled={busy || !name}>
+            <Button onClick={discoverAuthoritySources} disabled={busy || !name}>
               Discover authority sources
-            </button>
+            </Button>
             <SourceDiscoveryPanel candidates={authorityCandidates} selected={selectedAuthority} onToggle={toggleAuthority} />
           </div>
         )}
 
         {method === "etf_index_holdings" && (
           <>
-            <label className="field-label">Fund/index holdings export (CSV)</label>
-            <input type="file" accept=".csv" onChange={onHoldingsFile} />
+            <Field label="Fund/index holdings export (CSV)">
+              <input type="file" accept=".csv" onChange={onHoldingsFile} />
+            </Field>
             {holdingsStatus && <p className="status-text">{holdingsStatus}</p>}
           </>
         )}
@@ -400,8 +406,9 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
             <UniversePicker onResolved={(path) => setUniversePath(path)} />
             {method === "empirical" && (
               <>
-                <label className="field-label">Sample size</label>
-                <input type="number" value={sampleSize} onChange={(e) => setSampleSize(Number(e.target.value))} />
+                <Field label="Sample size">
+                  <input type="number" value={sampleSize} onChange={(e) => setSampleSize(Number(e.target.value))} />
+                </Field>
               </>
             )}
             {method === "news_transcript_mining" && (
@@ -413,10 +420,10 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
           </>
         )}
 
-        <button onClick={draftTaxonomy} disabled={busy || !name}>
+        <Button onClick={draftTaxonomy} disabled={busy || !name}>
           Draft &amp; save taxonomy
-        </button>
-        {error && <p className="error-text">{error}</p>}
+        </Button>
+        {error && <StateBlock kind="error" message={error} />}
       </section>
 
       {draft && (
@@ -426,9 +433,9 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
             {draft.name} v{draft.version} -- {draft.source_notes}
           </p>
           <ActivityEditorTable activities={draftActivities} onChange={setDraftActivities} />
-          <button onClick={saveDraftEdits} disabled={busy}>
+          <Button onClick={saveDraftEdits} disabled={busy}>
             Save adjustments as new version
-          </button>
+          </Button>
         </section>
       )}
     </>
@@ -538,9 +545,9 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
           ))}
         </select>
       </div>
-      <button onClick={compare} disabled={busy || !idA || !idB || idA === idB}>
+      <Button onClick={compare} disabled={busy || !idA || !idB || idA === idB}>
         Compare
-      </button>
+      </Button>
 
       {comparison && (
         <div className="detail-cell">
@@ -565,22 +572,24 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
       )}
 
       <h3>Merge into a new taxonomy</h3>
-      <label className="field-label">Merged taxonomy name</label>
-      <input value={mergeName} onChange={(e) => setMergeName(e.target.value)} />
-      <label className="field-label">Description</label>
-      <input value={mergeDescription} onChange={(e) => setMergeDescription(e.target.value)} />
-      <button onClick={merge} disabled={busy || !idA || !idB || idA === idB || !mergeName}>
+      <Field label="Merged taxonomy name">
+        <input value={mergeName} onChange={(e) => setMergeName(e.target.value)} />
+      </Field>
+      <Field label="Description">
+        <input value={mergeDescription} onChange={(e) => setMergeDescription(e.target.value)} />
+      </Field>
+      <Button onClick={merge} disabled={busy || !idA || !idB || idA === idB || !mergeName}>
         Draft merge
-      </button>
-      {error && <p className="error-text">{error}</p>}
+      </Button>
+      {error && <StateBlock kind="error" message={error} />}
 
       {mergeDraft && (
         <div className="detail-cell">
           <p className="muted">{mergeDraft.source_notes}</p>
           <ActivityEditorTable activities={mergeActivities} onChange={setMergeActivities} />
-          <button onClick={saveMerge} disabled={busy}>
+          <Button onClick={saveMerge} disabled={busy}>
             Save merged taxonomy
-          </button>
+          </Button>
         </div>
       )}
     </section>
@@ -638,11 +647,12 @@ function UniverseBuilderView() {
     <>
       <section className="card">
         <h3>1. Find sector/index funds (tool-assisted)</h3>
-        <label className="field-label">Sector or index name</label>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. S&amp;P 500, US technology sector" />
-        <button onClick={search} disabled={busy || !query}>
+        <Field label="Sector or index name">
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. S&amp;P 500, US technology sector" />
+        </Field>
+        <Button onClick={search} disabled={busy || !query}>
           Search
-        </button>
+        </Button>
         <SourceDiscoveryPanel candidates={funds} selected={selected} onToggle={toggle} />
         <p className="help-text">
           Fund-provider export formats aren't standardized and several finance domains are unreachable for automated
@@ -654,7 +664,7 @@ function UniverseBuilderView() {
       <section className="card">
         <h3>2. Build a company universe from a holdings export</h3>
         <input type="file" accept=".csv" onChange={onHoldingsFile} disabled={busy} />
-        {error && <p className="error-text">{error}</p>}
+        {error && <StateBlock kind="error" message={error} />}
         {result && (
           <>
             <p className="status-text">
@@ -772,14 +782,14 @@ function OverlapView() {
                     <td>{f.name}</td>
                     <td>{f.file.name}</td>
                     <td>
-                      <button className="link-button" onClick={() => inspect(f)}>
+                      <Button variant="ghost" onClick={() => inspect(f)}>
                         Inspect holdings
-                      </button>
+                      </Button>
                     </td>
                     <td>
-                      <button className="link-button" onClick={() => removeFund(idx)}>
+                      <Button variant="ghost" onClick={() => removeFund(idx)}>
                         Remove
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -787,10 +797,10 @@ function OverlapView() {
             </table>
           </div>
         )}
-        <button onClick={compute} disabled={busy || funds.length < 2}>
+        <Button onClick={compute} disabled={busy || funds.length < 2}>
           Compute holdings overlap
-        </button>
-        {error && <p className="error-text">{error}</p>}
+        </Button>
+        {error && <StateBlock kind="error" message={error} />}
         {inspecting && (
           <InspectorModal title={`${inspecting.name} holdings (raw)`} text={inspecting.text} onClose={() => setInspecting(null)} />
         )}

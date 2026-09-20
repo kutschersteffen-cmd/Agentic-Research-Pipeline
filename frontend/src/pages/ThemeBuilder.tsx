@@ -6,6 +6,7 @@ import { ConfidenceBadge, VerdictBadge } from "../components/ConfidenceBadge";
 import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import type { ActivityCatalogueMapping, ActivityDefinition, CompanyMatch, Taxonomy, ThemeDefinition } from "../types";
+import { Button, Field, StateBlock } from "../ui";
 
 const EXPOSURE_RANK: Record<string, number> = { pure_play: 3, significant: 2, minor: 1, none: 0 };
 
@@ -223,29 +224,33 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
 
       <section className="card">
         <h3>1. Define the theme</h3>
-        <label className="field-label">Macro theme name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} />
-        <label className="field-label">Description</label>
-        <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
-        <button onClick={decompose} disabled={busy}>
+        <Field label="Macro theme name">
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field label="Description">
+          <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+        </Field>
+        <Button onClick={decompose} disabled={busy}>
           Decompose into activities
-        </button>
+        </Button>
 
         <p className="help-text" style={{ marginTop: 16 }}>
           Or load an existing, versioned taxonomy from the Taxonomy Library instead of drafting a new one:
         </p>
         <div className="inline-fields">
-          <select value={selectedTaxonomyId} onChange={(e) => setSelectedTaxonomyId(e.target.value)}>
-            <option value="">Select a saved taxonomy...</option>
-            {taxonomies.map((t) => (
-              <option key={t.taxonomy_id} value={t.taxonomy_id}>
-                {t.name} (v{t.version}, {t.status})
-              </option>
-            ))}
-          </select>
-          <button onClick={loadFromTaxonomy} disabled={!selectedTaxonomyId}>
+          <Field label="Saved taxonomy">
+            <select value={selectedTaxonomyId} onChange={(e) => setSelectedTaxonomyId(e.target.value)}>
+              <option value="">Select a saved taxonomy...</option>
+              {taxonomies.map((t) => (
+                <option key={t.taxonomy_id} value={t.taxonomy_id}>
+                  {t.name} (v{t.version}, {t.status})
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Button onClick={loadFromTaxonomy} disabled={!selectedTaxonomyId}>
             Load
-          </button>
+          </Button>
         </div>
         {loadedTaxonomy && (
           <p className="status-text">
@@ -262,26 +267,29 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
           {theme.activities.map((a, idx) => (
             <div className="activity-editor" key={a.activity_id}>
               <input value={a.name} onChange={(e) => updateActivity(idx, { name: e.target.value })} />
-              <label className="field-label">In scope</label>
-              <textarea
-                rows={2}
-                value={a.in_scope_description}
-                onChange={(e) => updateActivity(idx, { in_scope_description: e.target.value })}
-              />
-              <label className="field-label">Out of scope</label>
-              <textarea
-                rows={2}
-                value={a.out_of_scope_description}
-                onChange={(e) => updateActivity(idx, { out_of_scope_description: e.target.value })}
-              />
-              <label className="field-label">Seed keywords (comma-separated)</label>
-              <input
-                value={a.seed_keywords.join(", ")}
-                onChange={(e) => updateActivity(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
-              />
-              <button className="link-button" onClick={() => removeActivity(idx)}>
+              <Field label="In scope">
+                <textarea
+                  rows={2}
+                  value={a.in_scope_description}
+                  onChange={(e) => updateActivity(idx, { in_scope_description: e.target.value })}
+                />
+              </Field>
+              <Field label="Out of scope">
+                <textarea
+                  rows={2}
+                  value={a.out_of_scope_description}
+                  onChange={(e) => updateActivity(idx, { out_of_scope_description: e.target.value })}
+                />
+              </Field>
+              <Field label="Seed keywords (comma-separated)">
+                <input
+                  value={a.seed_keywords.join(", ")}
+                  onChange={(e) => updateActivity(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+                />
+              </Field>
+              <Button variant="ghost" onClick={() => removeActivity(idx)}>
                 Remove activity
-              </button>
+              </Button>
             </div>
           ))}
         </section>
@@ -317,9 +325,9 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
             <p className="help-text">Load a saved taxonomy above first -- mapping suggestion needs a taxonomy_id to reference.</p>
           )}
           {cataloguePath && loadedTaxonomy && (
-            <button onClick={suggestMapping} disabled={mappingBusy}>
+            <Button onClick={suggestMapping} disabled={mappingBusy}>
               Suggest activity -&gt; catalogue-label mapping
-            </button>
+            </Button>
           )}
           {catalogueMappings.length > 0 && (
             <div className="table-wrap">
@@ -348,20 +356,20 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
             </div>
           )}
 
-          <button onClick={startRun} disabled={busy || !universePath}>
+          <Button onClick={startRun} disabled={busy || !universePath}>
             Run screen against {companyCount || "..."} companies
-          </button>
+          </Button>
         </section>
       )}
 
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       {runId && (
         <section className="card">
           <h3>4. Run progress</h3>
           <RunProgress runId={runId} />
           <div className="toolbar">
-            <button onClick={refreshResults}>Refresh results</button>
+            <Button onClick={refreshResults}>Refresh results</Button>
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
               Export CSV
             </a>
@@ -398,13 +406,13 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
                 Showing {filteredResults.length} of {results.length} results.
               </p>
               <div className="toolbar">
-                <button onClick={sendToExtraction} disabled={sendBusy || filteredResults.length === 0}>
+                <Button onClick={sendToExtraction} disabled={sendBusy || filteredResults.length === 0}>
                   Save {new Set(filteredResults.map((m) => m.company_id)).size} companies as a universe
-                </button>
+                </Button>
                 {sentUniverse && (
-                  <button onClick={() => onSendToExtraction?.(sentUniverse.path, sentUniverse.count)}>
+                  <Button onClick={() => onSendToExtraction?.(sentUniverse.path, sentUniverse.count)}>
                     Go to Extraction Engine &rarr;
-                  </button>
+                  </Button>
                 )}
               </div>
               {sendStatus && <p className="status-text">{sendStatus}</p>}

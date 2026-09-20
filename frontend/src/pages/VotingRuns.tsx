@@ -4,6 +4,7 @@ import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import { api } from "../api/client";
 import type { RunManifest } from "../types";
+import { Button, StateBlock } from "../ui";
 
 export function VotingRuns() {
   const [universePath, setUniversePath] = useState<string | null>(null);
@@ -60,20 +61,20 @@ export function VotingRuns() {
             {companyCount} companies loaded from {universePath}
           </p>
         )}
-        <button onClick={startRun} disabled={starting || !universePath}>
+        <Button onClick={startRun} disabled={starting || !universePath}>
           Run proposal analysis &amp; policy application
-        </button>
-        {error && <p className="error-text">{error}</p>}
+        </Button>
+        {error && <StateBlock kind="error" message={error} />}
       </section>
 
       <section className="card">
         <div className="section-heading">
           <h3>Runs</h3>
-          <button className="link-button" onClick={loadRuns}>
+          <Button variant="ghost" onClick={loadRuns}>
             Refresh
-          </button>
+          </Button>
         </div>
-        {runs.length === 0 && <p className="muted">No voting runs yet.</p>}
+        {runs.length === 0 && <StateBlock kind="empty" message="No voting runs yet." />}
         {runs.length > 0 && (
           <div className="table-wrap">
             <table className="data-table">
@@ -100,9 +101,9 @@ export function VotingRuns() {
                     <td>{r.review_count}</td>
                     <td>{new Date(r.created_at).toLocaleString()}</td>
                     <td>
-                      <button className="link-button" onClick={(e) => { e.stopPropagation(); setSelectedRunId(r.run_id); }}>
+                      <Button variant="ghost" onClick={(e) => { e.stopPropagation(); setSelectedRunId(r.run_id); }}>
                         Open
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
