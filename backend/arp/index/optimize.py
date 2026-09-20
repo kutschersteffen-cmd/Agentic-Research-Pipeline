@@ -324,7 +324,7 @@ def _solve_once(
     benchmark: dict[str, float] | None = None,
     tracking_error_budget: float | None = None,
     score: np.ndarray | None = None,
-    integer: "IntegerSpec | None" = None,
+    integer: IntegerSpec | None = None,
 ) -> tuple[np.ndarray | None, str, float | None]:
     import cvxpy as cp
 
@@ -498,10 +498,10 @@ def project(
             return None, str(exc), None
         if raw is None:
             return None, status, None
-        solution = {name: round(float(value), SOLUTION_DECIMALS) for name, value in zip(names, raw)}
+        solution = {name: round(float(value), SOLUTION_DECIMALS) for name, value in zip(names, raw, strict=True)}
         # Rounding can nudge a name a hair over its cap; clamp, then push the
         # residual back through the free names so the vector still sums to 1.
-        upper_by_name = {name: float(u) for name, u in zip(names, upper)}
+        upper_by_name = {name: float(u) for name, u in zip(names, upper, strict=True)}
         for name in names:
             solution[name] = min(max(solution[name], 0.0), upper_by_name[name])
         residual = 1.0 - fsum(solution[n] for n in names)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from arp.schemas.common import CompanyRef
-from arp.schemas.portfolio import AggregationRow, AggregationResult, Holding, PivotCell, PivotResult, SecurityRef, TrendPoint
+from arp.schemas.portfolio import AggregationResult, AggregationRow, Holding, PivotCell, PivotResult, SecurityRef, TrendPoint
 
 DIMENSIONS = ("portfolio_id", "asset_class", "company_id", "company_name", "sector", "country", "currency")
 """Built-in grouping/filter dimensions. Each is a pure lookup on the joined
@@ -47,10 +47,7 @@ def _passes_filter(
 ) -> bool:
     if portfolio_filter and holding.portfolio_id not in portfolio_filter:
         return False
-    for key, value in security_filter.items():
-        if _dimension_value(holding, securities, companies, key) != value:
-            return False
-    return True
+    return all(_dimension_value(holding, securities, companies, key) == value for key, value in security_filter.items())
 
 
 def _group_metric(

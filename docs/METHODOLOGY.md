@@ -130,6 +130,19 @@ cap; and per-company output of a walk/talk-annotated verdict grid plus the
 disclosed-count-out-of-64 metric the paper uses as its core
 disclosure-completeness score.
 
+### The sector-level counterpart
+
+This assessment scores a *company's* credibility. The companion **Transition
+Barrier Assessment** (`backend/arp/transition_barrier/`) scores whether the
+transition is feasible in that company's sector and region at all -- a 105-cell
+matrix of 35 criteria x EU/US/China, rated H/M/L against explicit rubrics and
+backed by 86 verified sources. Read together they separate ambition from
+headroom: a weak transition plan in a sector where barriers are rated `L` is a
+different case from the same plan where they are rated `H`. Its methodology,
+operating rules and the full criteria and source lists are documented
+separately in
+[`docs/TRANSITION_BARRIER_ASSESSMENT.md`](TRANSITION_BARRIER_ASSESSMENT.md).
+
 ## The precision controls, concretely
 
 1. **Programmatic grounding, not LLM self-report** (`backend/arp/grounding.py`).
@@ -143,6 +156,19 @@ disclosure-completeness score.
    real character offset in the source text (never asked of the model),
    so a "view source" link only ever appears for a location that was
    actually checked, and always points at the right page.
+
+   The numeric counterpart applies to generated BI commentary
+   (`backend/arp/portfolio/genbi/narrator.py::check_grounding`): a
+   dashboard's prose may only state figures and dates the deterministic
+   aggregation engine actually computed, and that is checked token by
+   token against the computed facts rather than asked of the model. A
+   figure that is arithmetically derivable from two computed ones but was
+   itself never computed counts as ungrounded. Checking is per sentence:
+   the sentence carrying an unsupported figure is dropped and the rest of
+   the draft kept, with the dropped sentences and offending tokens
+   reported; only when no sentence survives do the computed facts replace
+   the prose entirely. Honest rescaling of a real figure ("EUR 1.23 million" for
+   1,234,567, within 1%) is the only latitude allowed.
 
 2. **Adversarial verification, not single-pass judgment.**
    - Thematic matching: Advocate argues for inclusion, Opposing
@@ -223,6 +249,69 @@ disclosure-completeness score.
    the LLM pipeline, since XBRL tagging isn't standardized enough across
    filers for those.
 
+## Turning numbers into a decision: the scoring layer's controls
+
+Every pillar above ends in a table of per-company numbers. The Decision
+Mechanism (`backend/arp/decision/`, full design in
+[`DECISION_MECHANISM.md`](DECISION_MECHANISM.md)) turns one into a tiered
+decision, deterministically and with no LLM anywhere in the computation.
+Its controls, and what each one catches:
+
+1. **Direction inference is flagged, never silent.** Higher-is-better vs.
+   lower-is-better is guessed from the column name; an ambiguous or absent
+   match marks itself for review. *Catches an inverted ranking* — the
+   failure mode that looks completely normal on screen, since every number
+   is still well-formed and every company still has a rank.
+2. **Correlated criteria are clustered before weighting** (complete-linkage
+   Spearman). *Catches a theme measured seven ways outweighing one measured
+   once by 7:1* — which is what an unadjusted per-criterion weighting does
+   to any real disclosure dataset, where indicators of the same thing
+   arrive in bundles.
+3. **Peer-cohort normalisation.** Criteria are ranked within a sector or
+   region rather than across the whole table. *Catches a utility and a
+   software company being scored on the same emissions-intensity
+   percentile*, where the resulting number describes the sector, not the
+   company's effort. Cohorts below a floor fall back to the whole table,
+   because a rank over three peers is noise dressed as a score.
+4. **Gates resolve before the average.** *Catches a knockout being diluted
+   into a deduction* — under a single weighted mean, a severe controversy
+   is worth a few points and a strong score elsewhere pays for it.
+5. **Sufficiency precedes scoring.** *Catches a company ranked first on a
+   third of the criteria*, which is otherwise indistinguishable from a
+   company that genuinely leads.
+6. **Missing data is re-weighted, not imputed, by default.** *Catches an
+   invented value entering a published ranking.* The alternatives (neutral
+   50, peer mean, penalise) remain available but are policy choices, and
+   the audit log names whichever was taken.
+7. **Grounded coverage, where the source supplies confidence.** The
+   sufficiency gate can key off the share of weight backed by an
+   independently *verified* value rather than a merely present one.
+   *Catches a score resting on extractions the verifier could not ground* —
+   the natural extension of this codebase's grounding check into the
+   decision layer, since present and verified are different claims.
+8. **Rank stability across four specifications.** Each entity carries the
+   best and worst rank it holds under the framework's own weights, equal
+   weights, entropy weights and the contrasting normalisation. *Catches a
+   ranking that only holds under one arbitrary weighting choice.*
+9. **The dimension floor applies only to dimensions with two or more
+   criteria.** *Catches a single binary answer demoting a company on its
+   own.*
+10. **Tipping-point sensitivity.** How far a dimension's weight must move
+    before an entity changes tier. *Catches a tier that is an artefact of
+    the weights* rather than of the company, and answers it with a number
+    instead of an assurance.
+11. **Versioned, ratifiable frameworks with a two-origin audit log.** Every
+    automated choice is recorded with its basis, and every human edit is
+    diffed against the version it was made on. *Catches the question nobody
+    can otherwise answer six months later*: which of these rules came from
+    the data, and which did we choose?
+
+One limitation is stated rather than worked around: a percentile-scored
+snapshot measures position in the field, so it cannot show absolute
+improvement between two periods. Comparing two such snapshots returns that
+caveat with the result, and period-on-period work should use min–max or
+z-score with pinned cut-points.
+
 ## The indirect (input-output) exposure tier
 
 Disabled by default; enabling it requires an industry x industry
@@ -275,6 +364,40 @@ against the model's fixed, closed industry list otherwise). Both reject a
 code the model doesn't actually contain rather than silently coercing it,
 since a wrong industry code would corrupt every exposure number computed
 from it.
+
+**EXIOBASE, as an alternative source.** `exiobase_loader.py` is a sibling
+loader for [EXIOBASE](https://www.exiobase.eu/) data, sourcing the same
+`ICIOData` shape the Leontief math above needs zero changes to consume.
+Unlike OECD ICIO's release, EXIOBASE realistically arrives as a long-format
+table — one row per (supplier industry, user industry, region) flow — so
+`exiobase_loader.py` groups rows by industry-code pair and sums `value`,
+collapsing region detail the same way the ICIO loader already collapses
+countries. Required columns: `supplier_isic_code,user_isic_code,value` (any
+others, e.g. region, are permitted and summed over). **This loader does not
+attempt an EXIOBASE-category-to-ISIC crosswalk** — EXIOBASE's native
+categories are NACE/CPA-based, not ISIC-based, so a real deployment must
+supply already-ISIC-mapped data via `ARP_EXIOBASE_FLOWS_PATH`/
+`ARP_EXIOBASE_INDUSTRIES_PATH`. A run is backed by at most one input-output
+source at a time — `factory.py::resolve_indirect_exposure_model` is the
+single entry point that picks ICIO first, then EXIOBASE, unless a caller
+explicitly requests one via `use_sample_icio`/`use_sample_exiobase` (opt-in
+flags are mutually exclusive; requesting both raises). A bundled
+illustrative EXIOBASE-shaped sample ships alongside the ICIO one — see
+`sample_data/README.md` for exactly how it relates to (and is a correctness
+proof against) the ICIO sample, not a claim about real EXIOBASE data.
+
+**Criticality overlay.** `criticality.py` bundles a small, hand-curated
+subset of commodities from the current USGS 2025 List of Critical Minerals
+(Federal Register 2025-19813) with IEA's clean-energy-transitions framing
+corroborating relevance, and flags any activity or exposure result whose
+ISIC code touches one of them: `ActivityDefinition.criticality_flag` (via
+`apply_criticality_overlay`, run as an explicit step immediately after
+`classify_theme_core_sectors`) and `IndirectExposureResult.critical_input`
+(computed directly inside `compute_indirect_exposure`). The ISIC-code
+association for each commodity is this codebase's own categorization, not
+a crosswalk USGS or IEA themselves publish — treat the flag as a coarse,
+industry-division-level "plausibly touches a critical-mineral supply
+chain" signal, not a precise per-commodity certification.
 
 ## Revenue/CapEx-based exposure resolution
 
@@ -352,6 +475,239 @@ CLI: `arp revenue-catalogue suggest-mapping <taxonomy_ref> <catalogue.csv>
 --catalogue-mapping mapping.json`. API: `POST /api/revenue-catalogue/
 suggest-mapping`, then `revenue_catalogue_path`/`catalogue_mapping` on
 `POST /api/themes/runs`.
+
+## R&D-spend + news-mention exposure (Method C) for pre-revenue activities
+
+Off by default (`--enable-rd-exposure` / `enable_rd_exposure`); a
+supplementary signal for activities whose `lifecycle_stage` is `ideation`
+or `innovation` (`arp/schemas/thematic.py`) -- the revenue-percentage
+scoring above doesn't apply to an activity with no meaningful revenue yet.
+`arp/research/rd_exposure/resolver.py::resolve_company_activity_rd_exposure`
+returns `None` entirely, zero LLM cost, for any activity not at one of
+those two stages -- it does not attempt R&D-spend or news scoring for a
+`commercialization`/`mature` activity, which the revenue-percentage tier
+already handles.
+
+Two independent sub-signals, both `MetricExposure` (the same 0-1
+value/source/confidence shape `RevenueExposureResult` uses):
+
+- **`rd_intensity`** -- an R&D-spend-intensity extraction over the same
+  disclosures already gathered for evidence-gathering, using the same
+  Extractor -> Verifier -> grounding engine `resolve_from_extraction` uses
+  for revenue/capex. Companies rarely disclose R&D spend broken out per
+  thematic activity, so the extraction instructions accept a company-wide
+  R&D-as-%-of-revenue figure *only* when it's accompanied by explicit
+  commentary tying R&D effort to this specific activity (a named program,
+  product line, or research focus area) -- noted as company-wide, not
+  activity-specific, in the result's `notes`. Gated by the same
+  `is_sector_relevant` cost-control check the revenue resolver uses.
+- **`news_mentions`** -- a web-search-based recent-momentum signal:
+  `resolve_news_mentions` searches `"{company} {activity}"` via the same
+  no-API-key `WebSearchClient`/`DuckDuckGoSearchClient` used elsewhere for
+  authority-source and thematic-fund discovery, then
+  `rd_exposure/news_scoring.py::score_news_mentions` classifies each
+  result's genuine relevance (conservatively -- keyword co-occurrence
+  alone isn't enough) and reports the fraction judged relevant. `None`
+  search client, an empty result set, or a failed search all degrade to
+  `source="unresolved"` rather than failing the company x activity match.
+
+**`rd_exposure` never short-circuits the qualitative debate** the way a
+resolved revenue number does (see the indirect/revenue-exposure tiers
+above) -- it's explicitly a supplementary signal, computed alongside
+whichever branch (hard-number finalize, no-evidence finalize, or the full
+Advocate/Opposing/Adjudicator debate) ultimately produces the match, and
+attached to `CompanyMatch.rd_exposure` regardless. Consistent with this
+codebase's "track signals separately, don't blend into one score" design:
+`RDExposureResult` is not banded into an `ExposureEstimate` at all.
+
+Explicitly excluded from Method C, per project direction: patent/CPC-IPC-
+based scoring. Only R&D-spend intensity and news-mention frequency.
+
+CLI: `arp theme run --taxonomy <ref> --universe <csv>
+--enable-rd-exposure`. API: `enable_rd_exposure` on `POST
+/api/themes/runs`.
+
+## Cross-method arbitration
+
+Always on, no opt-in flag -- unlike the tiers above, `arp/research/arbitration.py::
+compute_arbitration` is a pure function over signals that are already computed
+(no LLM call, no extra cost), so every `CompanyMatch` carries an `arbitration`
+result. It is explicitly an **additional, clearly-labeled ranking score layered
+on top of** `exposure_estimate`/`revenue_exposure`/`indirect_exposure`/
+`rd_exposure` -- consistent with this codebase's "two directions tracked
+separately... because they answer different portfolio questions" design (see
+the indirect-exposure tier above): arbitration never overwrites or blends
+into those fields, it only adds a new one alongside them.
+
+Whichever of the following signals were actually computed for a given match
+are converted to a 0-1 scalar and combined into a weighted average
+(`composite_score`), weighted by evidence quality:
+
+| Signal | Weight (default) |
+|---|---|
+| Revenue -- catalogue (deterministic) | 1.0 |
+| Revenue -- extracted (grounded LLM) | 0.8 |
+| Qualitative debate (`exposure_estimate`) | 0.6 |
+| R&D intensity (Method C, extracted) | 0.5 |
+| Indirect (sector-level I-O) | 0.3 |
+| News mentions (Method C) | 0.2 |
+
+One subtlety: when `_finalize_from_revenue` short-circuits the debate (a hard
+revenue number resolved it), `exposure_estimate` is itself `band_exposure
+(revenue.value_pct)` -- literally derived from the revenue signal already
+being counted. Including it a second time as an independent "qualitative"
+contribution would be exactly the "silently averaging away disagreement"
+anti-pattern this project rejects, so that branch passes
+`qualitative_estimate=None` to `compute_arbitration`; only the two branches
+where the debate produced (or explicitly declined to produce, for lack of
+evidence) its own independent judgment include it.
+
+**Disagreement** (`methods_disagree`) is flagged, not averaged away, when
+included signals span more than `arbitration_disagreement_threshold` (default
+0.4). **Mid-band routing** (`mid_band`) flags a composite score landing in
+`[arbitration_mid_band_low, arbitration_mid_band_high]` (default 0.3-0.7) --
+the original spec's "confidence banding" ask. Either sets
+`flagged_for_review=True`, which the existing `execute_theme_run` review-queue
+callback already routes on -- no separate wiring needed.
+
+The weight and threshold defaults above are **documented starting points,
+not empirically tuned against a labeled eval set** -- building one requires
+real company disclosure data this project doesn't have access to yet. Tuning
+`arbitration_weight_*`/`arbitration_disagreement_threshold`/
+`arbitration_mid_band_*` against real run outcomes is expected follow-up
+work, same caveat as the criticality-overlay ISIC mapping and the EXIOBASE
+sample's correctness-only convergence above.
+
+## Output layer: ranked results, tags, diffing, export
+
+**Ranked list.** `GET /api/runs/{run_id}/results` (`arp runs results <run_id>` on the CLI)
+returns every `CompanyMatch` for a theme run sorted by `arbitration.composite_score`
+descending (`arp/research/pipeline.py::rank_theme_matches`) -- the same ranking is
+applied to both export formats below. `arp/research/pipeline.py::load_theme_run_matches`
+is the one place `results.jsonl`'s per-company `{"company_matches": [...]}` rows get
+flattened into a plain `list[CompanyMatch]`; every consumer (the results endpoint, both
+exports, results-diff) shares it rather than re-parsing the JSONL independently.
+
+**Lifecycle-stage classification.** `arp/research/lifecycle_classifier.py::
+classify_theme_lifecycle_stages` populates `ActivityDefinition.lifecycle_stage`
+(ideation/innovation/commercialization/mature) via one LLM call per activity missing a
+stage, mirroring `core_sectors.py::classify_theme_core_sectors`'s "skip if hand-supplied,
+classify once per theme not per company" pattern exactly. Independent of
+`classify-sectors` (ISIC industry vs. technology maturity are different questions) --
+run both if a theme needs both the indirect-exposure tier and Method C. CLI: `arp theme
+classify-lifecycle --theme <file> --out <file>`.
+
+**Company-role tagging.** `arp/research/company_role.py::derive_company_role` is a
+deterministic rules layer (no LLM call) populating `CompanyMatch.company_role`
+(`pure_player`/`diversified`/`innovator`), called at match_graph.py's three finalize
+sites the same way `compute_arbitration` is. `None` unless `verdict == INCLUDE` -- the
+tag describes a company's role *within* the theme, meaningless for an excluded or
+uncertain match. `pure_player` when `exposure_estimate == PURE_PLAY` or the revenue
+percentage clears `revenue_exposure_pure_play_threshold`; `innovator` when Method C
+resolved an R&D-intensity or news-mentions signal while revenue exposure stays at or
+below `revenue_exposure_minor_threshold` (a real momentum signal, but not yet a
+revenue-scale business); `diversified` otherwise.
+
+**Results diff.** `GET /api/runs/{run_id_a}/diff/{run_id_b}` (`arp runs diff <a> <b>`)
+deterministically diffs two theme runs' results, keyed by
+`"{company_id}:{activity_id}"` -- an exact key, so unlike `taxonomy_sources/
+compare.py`'s fuzzy LLM-matched activity-id pairs, `arp/research/results_diff.py::
+diff_theme_results` needs no LLM call at all: added/dropped keys are plain set
+differences, and shared keys are compared directly for a verdict change or a confidence
+move past `confidence_delta_threshold` (default 0.1).
+
+**Export completeness.** `GET /api/runs/{run_id}/export.csv`'s `theme` branch now
+carries every exposure signal (revenue/indirect/rd/arbitration/company_role), ranked,
+with citations JSON-encoded into one cell (`json.dumps`, chosen over a joined/truncated
+string to avoid CSV-escaping problems with embedded quotes). `GET /api/runs/{run_id}/
+export.xlsx` (theme runs only) is new: a "Matches" sheet with the same fields minus the
+JSON cell, plus a separate "Citations" sheet (one row per citation, keyed back to its
+match by company_id/activity_id) -- Excel affords a clean multi-sheet citations table
+the flat CSV format doesn't.
+
+## Standing background agents: Taxonomy Researcher and Calibration Agent
+
+Every pipeline described above runs on demand -- a user (or the CLI/scheduler) triggers a
+theme run, a taxonomy derivation, a discovery scan. Two agents instead run continuously in
+the background, cloned from `arp/discovery/scheduler.py::DiscoveryScheduler`'s shape (an
+unstarted `AsyncIOScheduler` constructed in `__init__`, config persisted as JSON, `_apply`
+idempotently removing-then-re-adding a fixed-id interval job only when `enabled`, the
+scheduled callback wrapped in `try/except Exception` + `logger.exception` so one failed run
+never kills the job loop) rather than a new shared base class -- there was exactly one
+proven ~90-line pattern to clone twice, not yet a third caller to justify abstracting it.
+`main.py`'s lifespan always starts both scheduler singletons; the `*_schedule_enabled`
+setting only gates whether a job actually gets registered on the already-running scheduler
+-- the same two-gate model `DiscoveryScheduler` already used.
+
+Both agents follow the same three-function split every other pipeline in this codebase
+uses (`create_X_run` writes the run manifest synchronously so an API caller gets a real
+`run_id` back immediately; `execute_X_run` does the actual, potentially slow, work against
+that already-created run; `run_X` is a blocking create+execute convenience wrapper for the
+CLI and the scheduler) -- required so `POST /api/{agent}/runs` can return a `run_id`
+synchronously while the real work runs via `asyncio.create_task`, exactly like
+`discovery/pipeline.py`'s manual-trigger endpoint. Both get the same REST surface:
+`POST /api/{agent}/runs`, `GET /api/{agent}/runs/{run_id}`, `GET
+/api/{agent}/runs/{run_id}/results`, `GET`/`PUT /api/{agent}/schedule`; and the same CLI
+shape: `arp {agent} run`, `arp {agent} schedule --interval-hours ... --enable/--no-enable`.
+Both also get a frontend panel under a single **Background Agents** tab
+(`frontend/src/pages/BackgroundAgents.tsx`, two page-local sub-tabs mirroring
+`TaxonomyLibrary.tsx`'s own sub-tab pattern) -- a schedule editor cloned from
+`DocumentDiscovery.tsx`'s existing schedule-editor UI, a "run now" trigger wired to
+`RunProgress`, and a results table per agent. Findings/flags are rendered read-only, not
+routed through `ReviewQueue.tsx` -- neither a `TaxonomyResearchFinding` nor a `DriftFlag` is
+an approve/reject decision, so they don't fit that page's dispatch-table pattern.
+
+**Taxonomy Researcher** (`arp/agents/taxonomy_researcher.py`) periodically re-scans every
+*ratified* taxonomy's activity space for authority sources published or discovered since it
+was last derived. `research_taxonomy` reuses the existing authority-source pipeline
+wholesale -- `taxonomy_sources/discovery.py::discover_authority_sources`/
+`rank_authority_sources`, `taxonomy_sources/authority.py::
+build_theme_from_authority_sources`, `taxonomy_sources/compare.py::merge_taxonomies` -- all
+already-tested, Phase-0-era code; the only new logic is orchestrating them on a schedule and
+a coarse name-based diff (`name.strip().lower()` set difference) to report which
+merged-output activities are worth surfacing as "new" in a `TaxonomyResearchFinding`. That
+diff is deliberately coarse and documented as such: `merge_taxonomies`'s own LLM step does
+the real semantic dedup/MECE work, this just labels its output for the finding. A taxonomy
+below `taxonomy_researcher_min_authority_score` on every candidate source, or with nothing
+new after merging, is reported as `proposed=False` with a plain-English reason and no store
+write at all.
+
+Critically, `TaxonomyStore.new_version()` always writes `DRAFT` status unconditionally --
+this was true before the agent existed and needed no new gating to preserve. So the "never
+auto-apply" contract the taxonomy library already enforces for every other write path
+(`POST /api/taxonomies/{id}/ratify` is the only way a version becomes `RATIFIED`) covers the
+agent automatically: it can call `new_version()` freely, and a human still has to review and
+ratify separately before any run can use the new activities under a `require_ratified_
+taxonomy` gate. Default schedule is weekly (`taxonomy_researcher_schedule_interval_hours`
+default 168) -- taxonomies don't drift as fast as company disclosures do.
+
+**Calibration Agent** (`arp/agents/calibration_agent.py`) flags theme-run verdicts that may
+be stale, not verdicts that are wrong. `check_company_staleness` is a pure timestamp
+comparison, no LLM call: for each `CompanyMatch` in a completed theme run, it fetches the
+company's current documents via the same `DocumentSourceRegistry` the theme pipeline itself
+uses, and flags the match if any document's `fetched_at` postdates the match's own
+`generated_at`. That is the one signal actually available -- `SourceDocument` has no
+separate `published_at`/filing-date field, only ingestion time -- so this flags "we fetched
+something new since this verdict was generated," not "something new was published since
+then." Worth restating plainly: if ingestion lags real filing dates significantly, this
+under-flags; there was no cheaper way to close that gap without inventing new
+ingestion-metadata plumbing, and doing so was out of scope for a v1 staleness check. A
+richer alternative -- LLM-based contradiction detection between an old verdict's rationale
+and new disclosure content -- was considered and deliberately not built: it would need a
+labeled set of true contradictions to validate precision/recall against, which this
+environment has no access to, the same class of problem Phase D's arbitration weights ran
+into (see above) but here avoided entirely by scoping down to a signal that needs no tuning
+rather than shipping an unvalidated classifier.
+
+Findings are the human-facing review surface themselves -- `GET
+/api/calibration/runs/{run_id}/results` returns every `DriftFlag` (old verdict, old
+confidence, when it was generated, when the newer document arrived) directly. There is no
+additional `review_queue.py` integration: that queue is scoped per-run and would just
+duplicate what a calibration run's own results already provide. Scanning is scoped to
+completed **theme** runs only for v1 (the same scope `load_theme_run_matches` already uses
+for ranking/export/diff) -- a `DriftFlag` never re-runs classification or edits a prior
+verdict itself; re-running is always a separate, human-triggered theme run. Default
+schedule is daily (`calibration_agent_schedule_interval_hours` default 24).
 
 ## The taxonomy library: defining and deriving activities
 
@@ -616,8 +972,38 @@ store -- run manifests, review queues, engagement/voting audit trails --
 stays file-based JSONL regardless of whether Postgres is configured: an
 append-only file is simpler to keep fully auditable than a table with
 `UPDATE`s, and none of those stores have the multi-way join access pattern
-that would justify a relational engine's added operational cost. `arp db
-init-postgres` creates the `vector` extension and every table, idempotently.
+that would justify a relational engine's added operational cost.
+
+Three properties make that opt-in safe to exercise, each enforced by tests
+rather than asserted in prose (see
+[`docs/DATABASE_STORAGE_REVIEW.md`](DATABASE_STORAGE_REVIEW.md) for the
+review that established them):
+
+- **The two portfolio backends answer identically.** Holdings resolution is
+  "each portfolio's most recent snapshot on or before the requested date"
+  in both -- portfolios are pulled on independent schedules, so the
+  requested date usually is not a date every portfolio has.
+  `backend/tests/test_portfolio_store_parity.py` runs one set of
+  assertions against both stores, including their public surfaces, so a
+  divergence fails a test instead of silently changing a number.
+- **The SQL aggregation is the one that actually runs.**
+  `arp/portfolio/analytics.py::execute` routes a `market_value_sum` query
+  through `PostgresPortfolioStore.aggregate_holdings_by` when the
+  configured store offers it, and
+  `backend/tests/test_analytics_sql_parity.py` holds it to the same
+  numbers, groups and counts as the in-Python path.
+- **A projection's `company_id` carries no foreign key to `companies`.**
+  That table is populated only by the dual-write portfolio store, whereas a
+  run's companies come from the user-supplied universe file -- so an FK
+  there rejects every legitimate row while the best-effort sync hooks
+  swallow the violation. See `postgres_models.py`'s module docstring.
+
+`arp db init-postgres` creates the `vector` extension and every table, adds
+any column an earlier version's database is missing, and applies any
+recorded schema step, idempotently -- so it is run after a codebase
+upgrade, not only once per fresh database. `arp db check-postgres` reports
+whether a database is current without modifying it
+(`backend/arp/storage/postgres_schema.py`).
 
 ## What's deliberately out of scope
 

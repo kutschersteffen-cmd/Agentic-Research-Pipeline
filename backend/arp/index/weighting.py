@@ -39,10 +39,8 @@ def base_weights(candidates: list[IndexCandidate], scheme: BaseWeighting) -> dic
             metric = metric_value(candidate, scheme.field or "")
             if metric is None:
                 raise ValueError(f"base weighting '{scheme.scheme}' needs field {scheme.field!r} on {candidate.company_id!r}")
-            if scheme.scheme == "metric":
-                value = max(metric, 0.0)
-            else:  # inverse_metric -- the floor stops a near-zero value dominating the index
-                value = candidate.float_mcap / max(metric, scheme.floor)
+            # inverse_metric's floor stops a near-zero value dominating the index.
+            value = max(metric, 0.0) if scheme.scheme == "metric" else candidate.float_mcap / max(metric, scheme.floor)
         raw[candidate.company_id] = value
     if fsum(raw[k] for k in sorted(raw)) <= 0:
         raise ValueError(f"base weighting '{scheme.scheme}' produced no positive weight")

@@ -1,7 +1,13 @@
 from collections import Counter
 from pathlib import Path
 
-from arp.research.standards_mapping.gics import GicsReferenceEntry, _GicsSelection, _GicsSelectionList, classify_gics, load_gics_reference
+from arp.research.standards_mapping.gics import (
+    GicsReferenceEntry,
+    _GicsSelection,
+    _GicsSelectionList,
+    classify_gics,
+    load_gics_reference,
+)
 from arp.schemas.thematic import ActivityDefinition
 
 _SAMPLE_PATH = Path(__file__).parent.parent / "arp/research/standards_mapping/sample_data/gics_reference_sample.csv"

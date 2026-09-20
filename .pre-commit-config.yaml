@@ -1,0 +1,14 @@
+# Corporate Readiness Plan, Phase 0 (see docs/CORPORATE_READINESS_PLAN.md).
+#
+# Setup (one-time per clone):
+#   pip install pre-commit   # or: pip install -e "backend[dev]"
+#   pre-commit install
+#
+# After that, every commit is scanned for secrets before it's made. The
+# same gitleaks check also runs in CI (.github/workflows/ci.yml) so a
+# contributor who hasn't run `pre-commit install` locally is still caught.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks

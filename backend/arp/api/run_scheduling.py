@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 from arp.api.deps import get_llm_client, get_verifier_llm_client
 from arp.llm.base import LLMClient

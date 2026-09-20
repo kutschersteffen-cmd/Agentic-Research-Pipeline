@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
-from typing import Callable
 from math import exp, fsum
 
 from arp.index.fields import EPS, metric_value, resolve_missing

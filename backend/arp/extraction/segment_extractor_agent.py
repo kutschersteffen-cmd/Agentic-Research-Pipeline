@@ -71,13 +71,3 @@ class SegmentDraft(BaseModel):
     currency: str | None = None
     fiscal_period: str | None = None
     conflicting_sources: bool = False
-
-
-class SegmentExtractionDraft(BaseModel):
-    """Segment-only slice of a combined extractor draft -- kept as its own
-    model so the segment aggregation logic (grounding, review-flagging) can
-    be reused unchanged by wrapping a section of the combined draft in this
-    shape. See arp/extraction/financials_aggregator.py."""
-
-    segments: list[SegmentDraft] = Field(default_factory=list)
-    confidence: float = Field(ge=0.0, le=1.0)

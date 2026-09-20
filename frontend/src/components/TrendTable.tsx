@@ -17,27 +17,29 @@ export function TrendTable({ trend }: { trend: TrendPoint[] }) {
 
   return (
     <div className="inline-block">
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Group</th>
-            {dates.map((d) => (
-              <th key={d}>{d}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {groupValues.map((gv) => (
-            <tr key={gv}>
-              <td>{gv}</td>
-              {dates.map((d) => {
-                const v = valueAt(gv, d);
-                return <td key={d}>{v != null ? v.toLocaleString(undefined, { maximumFractionDigits: weighted ? 2 : 0 }) : "--"}</td>;
-              })}
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Group</th>
+              {dates.map((d) => (
+                <th key={d}>{d}</th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {groupValues.map((gv) => (
+              <tr key={gv}>
+                <td>{gv}</td>
+                {dates.map((d) => {
+                  const v = valueAt(gv, d);
+                  return <td key={d}>{v != null ? v.toLocaleString(undefined, { maximumFractionDigits: weighted ? 2 : 0 }) : "--"}</td>;
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

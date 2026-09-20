@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from arp.api.deps import get_index_store
+from arp.index.calc import level_series
 from arp.index.fields import DataQualityBlock, available_fields
 from arp.index.mock_data import demo_price_panel, demo_risk_model, demo_universe
-from arp.index.calc import level_series
 from arp.index.pipeline import run_review
 from arp.index.presets import PRESETS, SCREEN_BUNDLES, build_preset, rule_catalogue
 from arp.schemas.index import (

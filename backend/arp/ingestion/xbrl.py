@@ -91,6 +91,30 @@ class CompanyXbrlFacts(BaseModel):
     fetched_at: str = Field(default_factory=now_iso)
 
 
+class XbrlFactTrend(BaseModel):
+    """Two consecutive annual figures for one tag and the resulting
+    year-over-year change -- additive to `XbrlFact` (roadmap P3's
+    structured-financials cross-check for the Emerging Themes Scanner),
+    not a replacement: `fetch_capex_rnd_revenue` above still answers "what
+    is this company's latest figure", this answers "did it move".
+    """
+
+    tag: str
+    latest: XbrlFact
+    prior: XbrlFact
+    pct_change: float | None = Field(
+        default=None, description="(latest.value - prior.value) / abs(prior.value); None when prior.value is 0."
+    )
+
+
+class CompanyXbrlTrend(BaseModel):
+    company_id: str
+    cik: str
+    capex: XbrlFactTrend | None = None
+    rnd: XbrlFactTrend | None = None
+    fetched_at: str = Field(default_factory=now_iso)
+
+
 class XbrlFactSource:
     """Resolves CapEx/R&D/Revenue totals for EDGAR filers directly from
     SEC's structured XBRL companyfacts API
@@ -149,38 +173,90 @@ class XbrlFactSource:
             logger.warning("Could not write XBRL companyfacts cache for CIK %s", cik10)
         return data
 
+    @staticmethod
+    def _fact_from_row(tag: str, unit_name: str | None, row: dict) -> XbrlFact:
+        return XbrlFact(
+            tag=tag,
+            value=float(row["val"]),
+            unit=unit_name or "USD",
+            fiscal_year=row.get("fy"),
+            fiscal_period=row.get("fp"),
+            form=row.get("form", ""),
+            filed=row.get("filed"),
+            accession=row.get("accn"),
+            period_start=row.get("start"),
+            period_end=row.get("end"),
+        )
+
+    @staticmethod
+    def _annual_candidates(entry: dict) -> tuple[str | None, list[dict]]:
+        """The unit name and every row worth considering for one tag's
+        entry -- annual (10-K, full fiscal year) rows if any exist,
+        otherwise every valued row -- shared by both `_best_annual_fact`
+        (one row) and `_best_two_annual_facts` (roadmap P3, two rows)."""
+        units = entry.get("units", {})
+        unit_name, rows = next(iter(units.items()), (None, []))
+        if not rows:
+            return unit_name, []
+        annual_rows = [r for r in rows if r.get("form") in _ANNUAL_FORMS and r.get("fp") == "FY" and r.get("val") is not None]
+        return unit_name, annual_rows or [r for r in rows if r.get("val") is not None]
+
     def _best_annual_fact(self, facts_json: dict, tags: list[str]) -> XbrlFact | None:
         us_gaap = facts_json.get("facts", {}).get("us-gaap", {})
         for tag in tags:
             entry = us_gaap.get(tag)
             if not entry:
                 continue
-            units = entry.get("units", {})
-            unit_name, rows = next(iter(units.items()), (None, []))
-            if not rows:
+            unit_name, candidates = self._annual_candidates(entry)
+            if not candidates:
                 continue
             # Most recent annual (10-K, full fiscal year) figure by period
             # end date -- a company's own latest audited annual figure,
             # not a duplicate seen across multiple quarterly filings that
             # happen to also report the trailing annual number.
-            annual_rows = [r for r in rows if r.get("form") in _ANNUAL_FORMS and r.get("fp") == "FY" and r.get("val") is not None]
-            candidates = annual_rows or [r for r in rows if r.get("val") is not None]
+            best = max(candidates, key=lambda r: (r.get("end") or "", r.get("filed") or ""))
+            return self._fact_from_row(tag, unit_name, best)
+        return None
+
+    def _best_two_annual_facts(self, facts_json: dict, tags: list[str]) -> tuple[XbrlFact, XbrlFact] | None:
+        """Roadmap P3: the two most recent *distinct-period* annual facts
+        for the first tag that has at least two, for a genuine
+        year-over-year comparison -- de-duped by period_end because a
+        quarterly filing sometimes re-reports the same trailing annual
+        figure, which would otherwise look like a second data point for
+        the same fiscal year."""
+        us_gaap = facts_json.get("facts", {}).get("us-gaap", {})
+        for tag in tags:
+            entry = us_gaap.get(tag)
+            if not entry:
+                continue
+            unit_name, candidates = self._annual_candidates(entry)
             if not candidates:
                 continue
-            best = max(candidates, key=lambda r: (r.get("end") or "", r.get("filed") or ""))
-            return XbrlFact(
-                tag=tag,
-                value=float(best["val"]),
-                unit=unit_name or "USD",
-                fiscal_year=best.get("fy"),
-                fiscal_period=best.get("fp"),
-                form=best.get("form", ""),
-                filed=best.get("filed"),
-                accession=best.get("accn"),
-                period_start=best.get("start"),
-                period_end=best.get("end"),
-            )
+            ranked = sorted(candidates, key=lambda r: (r.get("end") or "", r.get("filed") or ""), reverse=True)
+            distinct: list[dict] = []
+            seen_ends: set[str] = set()
+            for row in ranked:
+                end = row.get("end") or ""
+                if end in seen_ends:
+                    continue
+                seen_ends.add(end)
+                distinct.append(row)
+                if len(distinct) == 2:
+                    break
+            if len(distinct) < 2:
+                continue
+            latest_row, prior_row = distinct
+            return self._fact_from_row(tag, unit_name, latest_row), self._fact_from_row(tag, unit_name, prior_row)
         return None
+
+    def _fact_trend(self, facts_json: dict, tags: list[str]) -> XbrlFactTrend | None:
+        pair = self._best_two_annual_facts(facts_json, tags)
+        if pair is None:
+            return None
+        latest, prior = pair
+        pct_change = (latest.value - prior.value) / abs(prior.value) if prior.value != 0 else None
+        return XbrlFactTrend(tag=latest.tag, latest=latest, prior=prior, pct_change=pct_change)
 
     async def fetch_capex_rnd_revenue(self, company_id: str, cik: str) -> CompanyXbrlFacts | None:
         facts_json = await self.fetch_company_facts(cik)
@@ -192,4 +268,23 @@ class XbrlFactSource:
             capex=self._best_annual_fact(facts_json, _CAPEX_TAGS),
             rnd=self._best_annual_fact(facts_json, _RND_TAGS),
             revenue=self._best_annual_fact(facts_json, _REVENUE_TAGS),
+        )
+
+    async def fetch_capex_rnd_trend(self, company_id: str, cik: str) -> CompanyXbrlTrend | None:
+        """Roadmap P3's structured-financials cross-check: year-over-year
+        CapEx/R&D movement, for an "action evidence" signal that doesn't
+        need an LLM call. Returns `None` only when the company has no
+        XBRL facts at all (a non-filer); a company with only one annual
+        data point for a tag (too new a filer, or a tag it just started
+        reporting) simply gets `None` for that specific metric, same
+        graceful-degradation discipline as `fetch_capex_rnd_revenue`.
+        """
+        facts_json = await self.fetch_company_facts(cik)
+        if facts_json is None:
+            return None
+        return CompanyXbrlTrend(
+            company_id=company_id,
+            cik=cik,
+            capex=self._fact_trend(facts_json, _CAPEX_TAGS),
+            rnd=self._fact_trend(facts_json, _RND_TAGS),
         )

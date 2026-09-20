@@ -282,7 +282,7 @@ def test_every_estimator_produces_a_usable_covariance():
         assert covariance.shape == (len(universe), len(universe))
         # Annualised volatilities in a plausible equity range, and symmetric.
         volatility = [covariance[i, i] ** 0.5 for i in range(len(universe))]
-        assert 0.02 < min(volatility) and max(volatility) < 2.0
+        assert min(volatility) > 0.02 and max(volatility) < 2.0
         assert abs(covariance - covariance.T).max() < 1e-12
 
 

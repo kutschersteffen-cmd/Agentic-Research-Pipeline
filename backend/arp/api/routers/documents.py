@@ -6,9 +6,10 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
-from arp.api.deps import settings_dep
+from arp.api.deps import get_document_content_store, settings_dep
 from arp.config import Settings
 from arp.schemas.common import DocType
+from arp.storage.document_store import DocumentContentStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_filename, safe_id
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -67,6 +68,48 @@ def get_document_raw(
         media_type=media_type or "application/octet-stream",
         headers={"Content-Disposition": f'inline; filename="{path.name}"'},
     )
+
+
+def _enrich_cached_rows(rows: list[dict], store: DocumentContentStore) -> list[dict]:
+    """Joins a page of parsed_content rows to their documents-registry row
+    (company_id/doc_type/title/filename) via the shared content_key -- a
+    cached row has no company/doc_type identity of its own. A row with no
+    registry match (content cached before its document was registered)
+    keeps those fields as None rather than being dropped."""
+    refs = store.list_documents_by_content_keys([row["content_key"] for row in rows])
+    enriched = []
+    for row in rows:
+        ref = refs.get(row["content_key"])
+        enriched.append(
+            {
+                **row,
+                "company_id": ref.company_id if ref else None,
+                "doc_type": ref.doc_type if ref else None,
+                "title": ref.title if ref else None,
+                "filename": Path(ref.local_path).name if ref and ref.local_path else None,
+            }
+        )
+    return enriched
+
+
+@router.get("/cache")
+def list_cached_documents(
+    offset: int = 0, limit: int = 50, store: DocumentContentStore = Depends(get_document_content_store)
+) -> dict:
+    """Browses every parsed document text this instance has cached --
+    across all runs and companies, not just the most recent one -- for the
+    "view stored extractions" data library."""
+    rows, total = store.list_cached_content(offset, limit)
+    return {"total": total, "documents": _enrich_cached_rows(rows, store)}
+
+
+@router.get("/cache/{row_id}")
+def get_cached_document_text(row_id: int, store: DocumentContentStore = Depends(get_document_content_store)) -> dict:
+    content = store.get_cached_text(row_id)
+    if content is None:
+        raise HTTPException(404, "Cached document not found")
+    enriched = _enrich_cached_rows([{"content_key": content.content_key}], store)[0]
+    return {**enriched, "full_text": content.full_text, "page_breaks": content.page_breaks, "text_sha256": content.text_sha256}
 
 
 @router.get("/{company_id}")

@@ -21,11 +21,9 @@ def _keep_metric(rule: MetricThresholdScreen, candidate: IndexCandidate) -> bool
     value = metric_value(candidate, rule.field)
     if value is None:
         return resolve_missing(rule.missing, rule_label=_label(rule), field=rule.field, company_id=candidate.company_id)
-    if rule.min_value is not None and value < rule.min_value - EPS:
-        return False
-    if rule.max_value is not None and value > rule.max_value + EPS:
-        return False
-    return True
+    below = rule.min_value is not None and value < rule.min_value - EPS
+    above = rule.max_value is not None and value > rule.max_value + EPS
+    return not (below or above)
 
 
 def _keep_flag(rule: FlagExclusionScreen, candidate: IndexCandidate) -> bool:
@@ -39,11 +37,9 @@ def _keep_category(rule: CategoryScreen, candidate: IndexCandidate) -> bool:
     value = category_value(candidate, rule.field)
     if value is None:
         return resolve_missing(rule.missing, rule_label=_label(rule), field=rule.field, company_id=candidate.company_id)
-    if rule.deny and value in rule.deny:
-        return False
-    if rule.allow and value not in rule.allow:
-        return False
-    return True
+    denied = bool(rule.deny) and value in rule.deny
+    outside_allow_list = bool(rule.allow) and value not in rule.allow
+    return not (denied or outside_allow_list)
 
 
 _KEEP = {

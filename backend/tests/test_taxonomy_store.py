@@ -2,7 +2,7 @@ import pytest
 
 from arp.schemas.taxonomy import DerivationMethod, TaxonomyStatus
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
-from arp.storage.taxonomy_store import TaxonomyStore
+from arp.storage.taxonomy_store import TaxonomyStore, ensure_taxonomy_usable_for_run
 
 
 def _theme(name="Electrification") -> ThemeDefinition:
@@ -89,3 +89,25 @@ def test_ratify_unknown_version_raises(tmp_path):
 def test_get_missing_taxonomy_returns_none(tmp_path):
     store = TaxonomyStore(tmp_path)
     assert store.get("tax_nope") is None
+
+
+def test_ensure_taxonomy_usable_for_run_soft_by_default(tmp_path):
+    """When require_ratified is False, a DRAFT taxonomy is usable -- this is
+    today's behavior and must not change unless the setting is turned on."""
+    store = TaxonomyStore(tmp_path)
+    draft = store.create("Electrification", _theme(), DerivationMethod.LLM_DRAFT)
+    ensure_taxonomy_usable_for_run(draft, require_ratified=False)  # does not raise
+
+
+def test_ensure_taxonomy_usable_for_run_blocks_draft_when_required(tmp_path):
+    store = TaxonomyStore(tmp_path)
+    draft = store.create("Electrification", _theme(), DerivationMethod.LLM_DRAFT)
+    with pytest.raises(ValueError, match="draft"):
+        ensure_taxonomy_usable_for_run(draft, require_ratified=True)
+
+
+def test_ensure_taxonomy_usable_for_run_allows_ratified_when_required(tmp_path):
+    store = TaxonomyStore(tmp_path)
+    taxonomy = store.create("Electrification", _theme(), DerivationMethod.LLM_DRAFT)
+    ratified = store.ratify(taxonomy.taxonomy_id, taxonomy.version, "jane.analyst")
+    ensure_taxonomy_usable_for_run(ratified, require_ratified=True)  # does not raise

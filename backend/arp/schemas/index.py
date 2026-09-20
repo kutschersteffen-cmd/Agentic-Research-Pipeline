@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -107,7 +107,7 @@ class MetricThresholdScreen(_Rule):
     missing: MissingPolicy = "block"
 
     @model_validator(mode="after")
-    def _at_least_one_bound(self) -> "MetricThresholdScreen":
+    def _at_least_one_bound(self) -> MetricThresholdScreen:
         if self.min_value is None and self.max_value is None:
             raise ValueError("metric_threshold needs at least one of min_value / max_value")
         if self.min_value is not None and self.max_value is not None and self.min_value > self.max_value:
@@ -137,14 +137,14 @@ class CategoryScreen(_Rule):
     missing: MissingPolicy = "block"
 
     @model_validator(mode="after")
-    def _at_least_one_list(self) -> "CategoryScreen":
+    def _at_least_one_list(self) -> CategoryScreen:
         if not self.allow and not self.deny:
             raise ValueError("category_screen needs a non-empty allow or deny list")
         return self
 
 
 ScreenRule = Annotated[
-    Union[MetricThresholdScreen, FlagExclusionScreen, CategoryScreen],
+    MetricThresholdScreen | FlagExclusionScreen | CategoryScreen,
     Field(discriminator="type"),
 ]
 
@@ -217,7 +217,7 @@ class TopN(_Rule):
 
 
 SelectionRule = Annotated[
-    Union[SelectAll, BestInClassCoverage, AbsoluteThreshold, TopN],
+    SelectAll | BestInClassCoverage | AbsoluteThreshold | TopN,
     Field(discriminator="type"),
 ]
 
@@ -235,7 +235,7 @@ class BaseWeighting(BaseModel):
     floor: float = Field(default=1e-9, gt=0, description="Applied to the metric before inversion, so a near-zero value cannot dominate.")
 
     @model_validator(mode="after")
-    def _field_required(self) -> "BaseWeighting":
+    def _field_required(self) -> BaseWeighting:
         if self.scheme in ("metric", "inverse_metric") and not self.field:
             raise ValueError(f"BaseWeighting.scheme='{self.scheme}' requires `field`")
         return self
@@ -264,7 +264,7 @@ class MetricTilt(_Rule):
     missing: MissingPolicy = "block"
 
     @model_validator(mode="after")
-    def _bounds_ordered(self) -> "MetricTilt":
+    def _bounds_ordered(self) -> MetricTilt:
         if self.floor > self.ceiling:
             raise ValueError("MetricTilt: floor must not exceed ceiling")
         return self
@@ -282,14 +282,14 @@ class BucketTilt(_Rule):
     missing: MissingPolicy = "pass"
 
     @model_validator(mode="after")
-    def _positive_multipliers(self) -> "BucketTilt":
+    def _positive_multipliers(self) -> BucketTilt:
         for key, value in self.multipliers.items():
             if value <= 0:
                 raise ValueError(f"BucketTilt multiplier for {key!r} must be > 0")
         return self
 
 
-TiltRule = Annotated[Union[MetricTilt, BucketTilt], Field(discriminator="type")]
+TiltRule = Annotated[MetricTilt | BucketTilt, Field(discriminator="type")]
 
 
 # --------------------------------------------------------------------------
@@ -419,7 +419,7 @@ class ConstraintSolver(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _coherent(self) -> "ConstraintSolver":
+    def _coherent(self) -> ConstraintSolver:
         if self.method == "max_score" and not self.score_field:
             raise ValueError("method='max_score' requires score_field")
         if self.method == "max_score" and self.tracking_error_budget is None:

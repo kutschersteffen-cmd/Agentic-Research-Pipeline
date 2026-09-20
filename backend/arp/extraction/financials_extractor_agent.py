@@ -6,9 +6,9 @@ from arp.extraction.extractor_agent import format_evidence
 from arp.extraction.segment_extractor_agent import SEGMENT_GUIDANCE, SegmentDraft
 from arp.extraction.spend_extractor_agent import (
     SPEND_RULES,
+    TOPIC_GUIDANCE,
     AmountMetricDraft,
     SpendCategoryDraft,
-    TOPIC_GUIDANCE,
 )
 from arp.llm.base import LLMClient, LLMUsage
 from arp.schemas.common import Citation, DocumentChunk

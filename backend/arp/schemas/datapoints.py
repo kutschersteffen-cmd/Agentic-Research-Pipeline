@@ -4,7 +4,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from arp.schemas.common import Citation, DocType, ProvenanceInfo, now_iso, new_id
+from arp.schemas.common import Citation, DocType, ProvenanceInfo, new_id, now_iso
 
 
 class FieldDataType(StrEnum):

@@ -4,7 +4,8 @@ from collections import defaultdict
 from math import fsum
 
 from arp.index.fields import EPS
-from arp.index.optimize import LinearConstraint, available as optimizer_available, project, uses_integers
+from arp.index.optimize import LinearConstraint, project, uses_integers
+from arp.index.optimize import available as optimizer_available
 from arp.index.risk import RiskModel
 from arp.index.weighting import normalise
 from arp.schemas.index import ConstraintSet, IndexCandidate, StageTrace

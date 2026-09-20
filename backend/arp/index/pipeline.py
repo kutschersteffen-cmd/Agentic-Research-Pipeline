@@ -4,8 +4,8 @@ from math import fsum
 
 from arp.index.calc import divisor_for_level, drifted_weights, index_shares, market_cap, one_way_turnover
 from arp.index.capping import apply_constraints
-from arp.index.optimize import uses_integers
 from arp.index.fields import metric_value
+from arp.index.optimize import uses_integers
 from arp.index.risk import RiskModel
 from arp.index.screens import apply_screens
 from arp.index.selection import apply_selection
@@ -144,18 +144,13 @@ def run_review(
 
     previous_level = prior_state.index_level if prior_state and prior_state.index_level else spec.calendar.base_level
     previous_divisor = prior_state.divisor if prior_state and prior_state.divisor else None
-    if previous_divisor:
-        # A continuing index is reconstituted at its current capitalisation,
-        # `level x divisor`, which is what keeps the level continuous across
-        # the rebalance.
-        target_market_cap = previous_level * previous_divisor
-    else:
-        # Inception: capitalise the index at the real aggregate float market
-        # cap of its constituents and derive the divisor from the base level.
-        # Using the bare base level instead would make index shares a few
-        # hundredths of a share -- arithmetically valid, but unusable for
-        # anyone replicating the index.
-        target_market_cap = fsum(c.float_mcap for c in selected)
+    # A continuing index is reconstituted at its current capitalisation,
+    # `level x divisor`, which is what keeps the level continuous across the
+    # rebalance. At inception there is no divisor yet, so it is capitalised at
+    # the real aggregate float market cap of its constituents instead: using
+    # the bare base level would make index shares a few hundredths of a share,
+    # arithmetically valid and unusable for anyone replicating the index.
+    target_market_cap = previous_level * previous_divisor if previous_divisor else fsum(c.float_mcap for c in selected)
     shares = index_shares(weights, selected, index_market_cap=target_market_cap, rounding=spec.rounding)
     realised_market_cap = market_cap(shares, selected)
     # The divisor is derived from the ROUNDED shares, so the published
