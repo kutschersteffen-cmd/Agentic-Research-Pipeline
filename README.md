@@ -129,7 +129,11 @@ for how MSCI, ISS STOXX and Solactive construct their ESG, thematic and EU
 PAB/CTB indices, with a catalogue of the construction approaches —
 screening and selection rules, simple tilt rules, optimisation
 formulations, and the path-dependent ones — and the engineering cost of
-each.
+each. [`docs/OPTIMIZATION_TOOLING.md`](docs/OPTIMIZATION_TOOLING.md)
+surveys the modeling layers, open-source and commercial solvers, portfolio
+libraries and vendor index optimisers — which problem class each
+methodology feature generates, what determinism costs once a solver is in
+the loop, and a staged recommendation.
 
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the research this is
 built on and exactly what each precision control catches, and

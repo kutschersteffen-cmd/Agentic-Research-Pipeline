@@ -357,6 +357,13 @@ single uniform cap, and produces identical output on every machine. The
 draft's own risk column ("capping algorithm doesn't converge or breaches
 its own cap") is largely a solver risk that this design removes.
 
+[`OPTIMIZATION_TOOLING.md`](OPTIMIZATION_TOOLING.md) surveys what is
+available if that day comes, and makes the point that matters for scoping:
+every constraint an EU PAB or CTB imposes is linear in the weights, so the
+regulated core is a QP at worst. The one methodology feature that forces a
+mixed-integer programme — and therefore a commercial solver — is a
+*minimum weight if held*, which is a disjunction rather than a bound.
+
 Where the convex solver *is* genuinely needed — factor-tilt optimisation,
 tracking-error-constrained weighting, multi-constraint problems with an
 objective — it becomes an opt-in extra with:
