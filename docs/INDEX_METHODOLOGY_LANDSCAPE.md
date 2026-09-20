@@ -410,6 +410,11 @@ discover them after the fact and correct with caps, not constraints.
 | C5 | **Infeasibility relaxation ladder** | A defined order in which constraints are loosened when no solution exists — MSCI alternately relaxes one-way turnover and active sector weight | MSCI PAB | **This is methodology, not error handling.** See §7 |
 | C6 | **Risk model choice** | Barra (MSCI) vs Axioma (STOXX) vs none (Solactive C3) | — | Determines licence cost, and whether "byte-identical" is even attainable |
 
+See [`OPTIMIZATION_TOOLING.md`](OPTIMIZATION_TOOLING.md) for the modeling
+layers and solvers that implement this family, which problem class each
+constraint actually generates, and the staged recommendation for adopting
+one.
+
 **Property of the whole C family:** tracking error becomes an *input* you
 control rather than an output you observe — which is the entire reason
 providers pay for it. The costs are a licensed risk model, solver-version
