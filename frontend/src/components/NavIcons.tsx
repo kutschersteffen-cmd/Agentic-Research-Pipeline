@@ -104,6 +104,15 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <path d="M8.5 20h7" />
     </svg>
   ),
+  index: (
+    <svg {...ICON_PROPS}>
+      <path d="M3 20h18" />
+      <rect x="4.5" y="13" width="3.5" height="4" rx="0.6" />
+      <rect x="10.25" y="10" width="3.5" height="7" rx="0.6" />
+      <rect x="16" y="14.5" width="3.5" height="2.5" rx="0.6" />
+      <path d="M4 8.5 L9 5.5 L13.5 7.5 L20 3.5" />
+    </svg>
+  ),
   review: (
     <svg {...ICON_PROPS}>
       <path d="M9 6h11" />
