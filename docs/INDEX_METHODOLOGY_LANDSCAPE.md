@@ -3,9 +3,24 @@
 Status: **research input for `docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md`** -- and
 now partly implemented. The catalogue in section 6 is the menu the rule
 engine in `backend/arp/index/` offers: families A (screening and selection),
-B (closed-form tilts), D (path-dependent) and C3 (the risk-model-free
-optimisation) are built; C1, C2 and C6 -- anything needing a licensed factor
-risk model -- are not, and section 7.2 explains why that is the right order.
+B (closed-form tilts) and D (path-dependent) are built. **No family C
+formulation is built, and no optimiser of any kind is deployed** -- the
+engine imports no solver, no risk model and no covariance matrix.
+
+What meets the decarbonisation target instead is *exponential (entropy)
+tilting*: `w_i ∝ w_i^base · exp(-lambda · x_i)` is the analytic
+minimum-relative-entropy reweighting subject to a linear constraint on the
+weighted average, so only the multiplier `lambda` is found numerically, by
+bisection. It is adjacent to C3 in spirit -- risk-model-free,
+distortion-minimising, reproducible -- but it is a different objective from
+Solactive's least-squares programme and is not solved as a quadratic
+programme over the weight vector. With the cap projection composed inside
+the search it carries **no optimality certificate**: it provably reaches the
+target and respects every cap, but it is not the minimum-distortion point of
+the feasible set. Where a genuine optimality guarantee or a tracking-error
+*budget* is required, that is family C and remains unbuilt -- section 7.2
+explains why that ordering is deliberate rather than a shortcut.
+
 The rest of this document remains research.
 
 It exists to answer the plan's open decision #3 — single index
@@ -478,10 +493,12 @@ phases without moving them:
    opt-in, still pinned, still determinism-tested per the plan's §7.1.
 
 Note that steps 1–5 cover **every family in this document except the optimised
-ones** — including full EU PAB/CTB compliance via the Solactive-style C3
-formulation, which is a plain QP needing no risk model. That is a materially
-cheaper route to a compliant climate index than the MSCI/STOXX route, and it is
-the one to take unless a tracking-error *guarantee* is a client requirement.
+ones** — including full EU PAB/CTB compliance, reachable either by the
+Solactive-style C3 quadratic programme or, as the engine actually does it, by
+an entropy tilt whose multiplier is found by bisection. Both are materially
+cheaper than the MSCI/STOXX route, and either is the one to take unless a
+tracking-error *guarantee* or a provable optimum is a client requirement —
+that requirement, and only that, is what buys family C.
 
 ### 7.3 The relaxation ladder is methodology
 

@@ -107,9 +107,14 @@ precision at scale (designed for up to ~4,000 companies per run).
    today's parameters cannot silently rewrite a past review. Every stage
    emits a trace line, so the construction funnel a committee reviews and
    the audit trail are the same object. Backend + CLI + API + a
-   rule-composer UI (`Index Construction` tab); the trajectory solve is the
-   risk-model-free route to PAB/CTB compliance (minimise weight distortion
-   subject to the intensity target) rather than a licensed optimiser. What
+   rule-composer UI (`Index Construction` tab). **No optimiser is deployed** —
+   no solver library, no risk model, no covariance matrix: the capping
+   waterfall is a fixed-point iteration and the decarbonisation target is
+   met by an entropy tilt whose single multiplier is found by bisection,
+   which is what keeps the whole engine byte-identical across machines. That
+   reaches PAB/CTB compliance without a licensed optimiser, but carries no
+   optimality certificate and offers no tracking-error budget — those need
+   the risk-model optimisation that is deliberately not built. What
    is *not* built yet: the bitemporal point-in-time store, real vendor
    feeds, corporate actions, FX and withholding tax, total-return variants,
    the backtester, and the governance workflow — see the plan for the full
