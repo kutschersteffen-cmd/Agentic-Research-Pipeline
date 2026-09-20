@@ -1,0 +1,73 @@
+/* The application shell: sidebar, primary nav, content column. */
+
+.app-shell { display: flex; min-height: 100vh; align-items: stretch; }
+
+.app-sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-5) var(--sp-4);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.app-sidebar-brand { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-1) var(--sp-2) var(--sp-5); }
+.app-sidebar-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.app-sidebar-wordmark { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-300); letter-spacing: -0.01em; }
+
+.app-nav { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+.nav-group { display: flex; flex-direction: column; gap: var(--sp-05); }
+.nav-group-label {
+  font-size: var(--fs-25);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 var(--sp-3) var(--sp-1);
+}
+
+.nav-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  border-radius: var(--r-md);
+  color: var(--ink-nav);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-100);
+  font-weight: 500;
+  text-align: left;
+}
+.nav-tab-icon { display: flex; flex-shrink: 0; }
+.nav-tab-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-tab:hover { background: var(--panel-border); }
+.nav-tab.active { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.nav-tab.active:hover { background: var(--accent); }
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  padding: var(--sp-6) var(--sp-6) calc(var(--sp-7) + var(--sp-6));
+  overflow-x: hidden;
+}
+
+.page { max-width: var(--page-max); }
+.page h2 { margin-top: 0; }

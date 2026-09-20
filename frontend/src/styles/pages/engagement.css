@@ -1,0 +1,25 @@
+/* Engagement dashboard: escalation stages, issues, proposals. */
+
+.stage-pill {
+  padding: var(--sp-05) var(--sp-2);
+  border-radius: var(--r-full);
+  font-size: var(--fs-50);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  white-space: nowrap;
+}
+.stage-pill.escalation-low { border-color: var(--panel-border); color: var(--muted); }
+.stage-pill.escalation-mid { border-color: var(--mid); color: var(--mid); }
+.stage-pill.escalation-high { border-color: var(--low); color: var(--low); }
+
+.issue-row { cursor: pointer; }
+.issue-row:hover { background: var(--well); }
+
+.proposal-card { border: 1px solid var(--panel-border); border-radius: var(--r-md); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-3); }
+.proposal-card .proposal-header { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
+.proposal-text { font-size: var(--fs-200); color: var(--text); margin: var(--sp-2) 0; }
+.recommendation-line { font-size: var(--fs-200); margin: var(--sp-2) 0; }
+
+.standards-mapping { display: flex; flex-direction: column; gap: var(--sp-1); margin: var(--sp-2) 0; font-size: var(--fs-200); }
+.standards-chip { color: var(--muted); }
+.standards-chip strong { color: inherit; margin-right: var(--sp-1); }

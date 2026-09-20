@@ -1,0 +1,83 @@
+/* Review queue, split-screen source review, and report preview. */
+
+.review-item { border: 1px solid var(--panel-border); border-radius: var(--r-md); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-3); }
+.review-json {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--well);
+  padding: var(--sp-3);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-50);
+  max-height: 260px;
+  overflow: auto;
+}
+.review-json-edit { font-family: var(--font-mono); font-size: var(--fs-50); }
+.review-controls { margin-top: var(--sp-2); padding: var(--sp-2); background: var(--well); border-radius: var(--r-sm); }
+.review-controls textarea { width: 100%; margin-top: var(--sp-2); }
+.review-history { list-style: none; padding: 0; margin: var(--sp-2) 0 0; font-size: var(--fs-100); }
+.review-history li { padding: var(--sp-1) 0; border-top: 1px solid var(--panel-border); }
+.field-detail { border-top: 1px solid var(--panel-border); padding: var(--sp-2) 0; }
+.citation-list { margin: var(--sp-1) 0; padding-left: var(--sp-5); }
+
+/* --- Split-screen review (extracted value left, source document right) --- */
+
+.split-review { display: flex; align-items: flex-start; gap: var(--sp-4); }
+.split-review-main { flex: 1 1 auto; min-width: 0; }
+
+.source-panel {
+  flex: 0 0 min(46%, 560px);
+  position: sticky;
+  top: var(--sp-3);
+  height: calc(100vh - var(--sp-5));
+  max-height: 900px;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-lg);
+  padding: var(--sp-3);
+}
+.source-panel-empty { align-items: center; justify-content: center; text-align: center; color: var(--muted); }
+.source-panel-header { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-2); }
+.source-panel-header h4 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-panel-quote {
+  font-size: var(--fs-100);
+  color: var(--muted);
+  font-style: italic;
+  margin: var(--sp-2) 0;
+  padding: var(--sp-2);
+  background: var(--well);
+  border-radius: var(--r-sm);
+}
+.source-panel-iframe { flex: 1; border: none; background: var(--input-bg); border-radius: var(--r-sm); margin-top: var(--sp-2); }
+
+@media (max-width: 900px) {
+  /* Below this width there isn't room for two columns -- the source
+     panel drops beneath the results instead of squeezing both unreadably
+     narrow; still docked/inline rather than a modal, just stacked. */
+  .split-review { flex-direction: column; }
+  .source-panel { position: static; width: 100%; flex-basis: auto; height: 60vh; }
+}
+
+/* --- Report preview (thumbnail dock + enlarge modal) --- */
+
+.preview-thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--sp-3);
+  overflow-y: auto;
+  padding-top: var(--sp-2);
+}
+.preview-thumb {
+  background: var(--well);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.preview-thumb:hover { border-color: var(--accent); }
+.preview-thumb img { width: 100%; border-radius: var(--r-xs); display: block; background: var(--input-bg); }
+.preview-thumb span { font-size: var(--fs-50); color: var(--muted); }
