@@ -6,6 +6,7 @@ from math import exp, fsum
 
 from arp.index.fields import EPS, metric_value, resolve_missing
 from arp.index.optimize import LinearConstraint
+from arp.index.risk import RiskModel
 from arp.index.weighting import normalise, weighted_average
 from arp.schemas.index import (
     ConstraintSet,
@@ -187,6 +188,8 @@ def apply_trajectory(
     universe_candidates: list[IndexCandidate],
     prior_state: IndexState | None,
     projection_base: dict[str, float] | None = None,
+    risk_model: RiskModel | None = None,
+    benchmark: dict[str, float] | None = None,
 ) -> tuple[dict[str, float], IndexState, StageTrace, list[str]]:
     """Applies the path-dependent layer and returns the state the next
     review needs."""
@@ -238,7 +241,7 @@ def apply_trajectory(
     method = constraints.solver.method
     solved_by_projection = False
     if target is not None and values:
-        if method == "least_squares":
+        if method != "waterfall":
             # The target is linear in the weights. `avg over covered <= tau`
             # is `sum_covered w_i (x_i - tau) <= 0`, so it goes straight into
             # the same programme as the caps and binds simultaneously with
@@ -258,22 +261,26 @@ def apply_trajectory(
                         rhs=0.0,
                     )
                 ],
+                risk_model=risk_model,
+                benchmark=benchmark,
             )
             exceptions.extend(notes)
             iterations = 1
             solved_by_projection = (weighted_average(current, values) or 0.0) <= target + _tolerance_for(target, rule.tolerance)
             if not solved_by_projection:
                 exceptions.append(
-                    "the least-squares projection did not deliver the decarbonisation target; "
+                    f"the '{method}' programme did not deliver the decarbonisation target; "
                     "falling back to the deterministic tilt search"
                 )
                 current = dict(weights)
 
-        if method != "least_squares" or not solved_by_projection:
+        if method == "waterfall" or not solved_by_projection:
             constraint_notes: list[str] = []
 
             def project(candidate_weights: dict[str, float]) -> dict[str, float]:
-                projected, _trace, notes = apply_constraints(candidate_weights, candidates, constraints)
+                projected, _trace, notes = apply_constraints(
+                    candidate_weights, candidates, constraints, risk_model=risk_model, benchmark=benchmark
+                )
                 constraint_notes.extend(notes)
                 return projected
 

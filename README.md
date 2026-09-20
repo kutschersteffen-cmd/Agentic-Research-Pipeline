@@ -116,12 +116,17 @@ precision at scale (designed for up to ~4,000 companies per run).
    (`pip install -e ".[optimize]"`), which solves every constraint plus the
    intensity target as one convex programme — the closest feasible portfolio
    to what the rules asked for, in a single solve rather than a tilt search.
+   Or into a **tracking-error budget** — minimising ex-ante TE, or
+   maximising a score subject to a TE ceiling — on a risk model estimated
+   from a returns panel (sample, Ledoit-Wolf shrinkage, or a
+   cross-sectional factor model) or handed in from a vendor file, so the
+   licence stays a data-sourcing decision rather than an engineering one.
    Every constraint is re-checked in plain Python afterwards, so a solver's
    own "optimal" status is never taken as proof, and a failed solve or a
-   failed check falls back to the waterfall with the reason recorded. Still
-   not built: a tracking-error budget or anything else needing a covariance
-   matrix, and the mixed-integer constraints (minimum weight *if held*, a
-   fixed constituent count). What
+   failed check falls back to the waterfall with the reason recorded —
+   including, when a budget is unreachable, the minimum tracking error that
+   actually is. Still not built: the mixed-integer constraints (minimum
+   weight *if held*, a fixed constituent count). What
    is *not* built yet: the bitemporal point-in-time store, real vendor
    feeds, corporate actions, FX and withholding tax, total-return variants,
    the backtester, and the governance workflow — see the plan for the full
@@ -332,8 +337,11 @@ arp index run --index-id dws_pab --review-date 2026-03-31 --calibration-id <cal_
 arp index run --index-id dws_pab --review-date 2027-03-31 --calibration-id <cal_id>   # ratchets: the 7% trajectory takes over
 arp index calibration-history <cal_id>                       # every version and the window it governs
 
-# Optional: the least-squares constraint projection (pip install -e ".[optimize]")
+# Optional: the convex path (pip install -e ".[optimize]")
 arp index preview --preset eu_pab --review-date 2026-03-31 --solver-method least_squares --show trace
+arp index preview --preset eu_pab --review-date 2026-03-31 --solver-method min_tracking_error
+arp index preview --preset eu_pab --review-date 2026-03-31 --solver-method max_score \
+    --score-field esg_score --tracking-error-budget 0.05
 ```
 
 Every `arp index` command runs against a built-in, deterministic demo

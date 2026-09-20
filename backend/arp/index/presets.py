@@ -338,7 +338,31 @@ def rule_catalogue() -> dict:
                 {"name": "solver", "kind": "enum", "options": ["CLARABEL", "OSQP", "SCS"], "default": "CLARABEL", "help": "Pinned per calibration: a solver swap can move the last digits, so it is a methodology change."},
                 {"name": "verify_tolerance", "kind": "number", "default": 1e-7, "help": "Every constraint is re-checked in plain Python at this tolerance; the solver's own status is never taken as proof."},
                 {"name": "fallback_to_waterfall", "kind": "boolean", "default": True},
+                {
+                    "name": "tracking_error_budget",
+                    "kind": "fraction",
+                    "default": None,
+                    "help": "Annualised ex-ante tracking error ceiling versus the benchmark, e.g. 0.015 for 1.5%. Needs a risk model. Where it conflicts with a decarbonisation target, the budget binds and the shortfall is carried.",
+                },
+                {"name": "score_field", "kind": "metric_field", "default": None, "help": "method='max_score' only: the field whose index-weighted value is maximised."},
+                {"name": "min_risk_coverage", "kind": "fraction", "default": 0.98, "help": "Minimum share of index weight the risk model must cover before a budget is trusted."},
             ],
+            "methods": [
+                {"name": "waterfall", "label": "Deterministic waterfall", "needs_solver": False, "needs_risk_model": False},
+                {"name": "least_squares", "label": "Least-squares projection", "needs_solver": True, "needs_risk_model": False},
+                {"name": "min_tracking_error", "label": "Minimum tracking error", "needs_solver": True, "needs_risk_model": True},
+                {"name": "max_score", "label": "Maximise a score under a TE budget", "needs_solver": True, "needs_risk_model": True},
+            ],
+            "risk_model": {
+                "help": "The covariance behind a tracking-error budget. The estimators need only a returns panel; 'supplied' is the licensed path, where a vendor factor model is handed to the engine directly.",
+                "params": [
+                    {"name": "source", "kind": "enum", "options": ["ledoit_wolf", "sample", "factor", "supplied"], "default": "ledoit_wolf"},
+                    {"name": "lookback_periods", "kind": "integer", "default": 260},
+                    {"name": "min_observations", "kind": "integer", "default": 60},
+                    {"name": "periods_per_year", "kind": "number", "default": 252.0, "help": "252 daily, 52 weekly, 12 monthly."},
+                    {"name": "factor_fields", "kind": "field_list", "default": [], "help": "source='factor' only."},
+                ],
+            },
             "available": _optimizer_available(),
         },
         "trajectory": {

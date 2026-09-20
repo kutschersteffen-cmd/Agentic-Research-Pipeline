@@ -38,7 +38,16 @@ const EMPTY_SPEC: ConstructionSpec = {
     ucits_5_10_40: false,
     single_name_cap: null,
     min_weight: null,
-    solver: { method: "waterfall", solver: "CLARABEL", verify_tolerance: 1e-7, fallback_to_waterfall: true },
+    solver: {
+      method: "waterfall",
+      solver: "CLARABEL",
+      verify_tolerance: 1e-7,
+      fallback_to_waterfall: true,
+      tracking_error_budget: null,
+      score_field: null,
+      min_risk_coverage: 0.98,
+      risk_model: { source: "ledoit_wolf", lookback_periods: 260, min_observations: 60, periods_per_year: 252, factor_fields: [] },
+    },
   },
   trajectory: {
     enabled: false,
@@ -220,6 +229,11 @@ export function IndexBuilder() {
   }
 
   async function runReview(persist: boolean) {
+    if (spec.constraints.solver?.method === "max_score" && !spec.constraints.solver.score_field) {
+      setError("Choose the field to maximise under 5 · Constraints before running a max_score methodology.");
+      setSub("compose");
+      return;
+    }
     setBusy(true);
     setError(null);
     setStatus(null);
@@ -706,7 +720,8 @@ function ConstraintsCard({
   optimizerAvailable: boolean | null;
 }) {
   const c = spec.constraints;
-  const solver = c.solver ?? { method: "waterfall", solver: "CLARABEL", verify_tolerance: 1e-7, fallback_to_waterfall: true };
+  const solver = c.solver ?? EMPTY_SPEC.constraints.solver;
+  const needsRiskModel = solver.method === "min_tracking_error" || solver.method === "max_score" || solver.tracking_error_budget != null;
   function update(patch: Partial<ConstructionSpec["constraints"]>) {
     setSpec({ ...spec, constraints: { ...c, ...patch } });
   }
@@ -763,12 +778,27 @@ function ConstraintsCard({
       </p>
       <div className="inline-fields">
         <SelectField
-          label="Method"
+          label="Objective"
           value={solver.method}
-          options={["waterfall", "least_squares"]}
-          onChange={(method) => setSolver({ method: method as ConstraintSolver["method"] })}
+          options={["waterfall", "least_squares", "min_tracking_error", "max_score"]}
+          onChange={(value) => {
+            // Fill the fields the chosen objective requires. A picker that
+            // shows a default it never writes into the spec produces a
+            // request the server rejects, with nothing on screen explaining
+            // why -- so the defaults are committed here, not just displayed.
+            const method = value as ConstraintSolver["method"];
+            const patch: Partial<ConstraintSolver> = { method };
+            if (method === "max_score" && solver.tracking_error_budget == null) {
+              // A budget is required and 2% is a visible, editable starting
+              // point. The score field is deliberately *not* defaulted:
+              // whichever metric happens to sort first is not a methodology,
+              // and silently maximising it would be obeyed exactly.
+              patch.tracking_error_budget = 0.02;
+            }
+            setSolver(patch);
+          }}
         />
-        {solver.method === "least_squares" && (
+        {solver.method !== "waterfall" && (
           <SelectField
             label="Solver (pinned)"
             value={solver.solver}
@@ -777,7 +807,7 @@ function ConstraintsCard({
           />
         )}
       </div>
-      {solver.method === "least_squares" && (
+      {solver.method !== "waterfall" && (
         <>
           {optimizerAvailable === false && (
             <p className="error-text">
@@ -797,6 +827,81 @@ function ConstraintsCard({
             A solver swap can move the last digits, so it is stored with the calibration and changes its config hash —
             the same treatment any other methodology parameter gets.
           </p>
+
+          <h4>Tracking error</h4>
+          <p className="help-text">
+            An ex-ante budget turns tracking error from something you measure afterwards into something you constrain.
+            It needs a risk model. Note that the least-squares projection minimises distance in <em>weight</em> space,
+            which is not the same as distance in <em>risk</em> space — only <code>min_tracking_error</code> minimises the
+            latter. Where a budget and a decarbonisation target cannot both hold, the budget binds and the shortfall is
+            carried forward.
+          </p>
+          <div className="inline-fields">
+            <NumberField
+              label="Annualised TE budget (0-1)"
+              value={solver.tracking_error_budget}
+              step="0.0025"
+              placeholder="none"
+              onChange={(tracking_error_budget) => setSolver({ tracking_error_budget })}
+            />
+            {solver.method === "max_score" && (
+              <SelectField
+                label="Score to maximise"
+                value={solver.score_field ?? ""}
+                options={fields.metrics}
+                allowEmpty
+                onChange={(score_field) => setSolver({ score_field: score_field || null })}
+              />
+            )}
+          </div>
+          {needsRiskModel && (
+            <>
+              <div className="inline-fields">
+                <SelectField
+                  label="Risk model"
+                  value={solver.risk_model.source}
+                  options={["ledoit_wolf", "sample", "factor", "supplied"]}
+                  onChange={(source) =>
+                    setSolver({ risk_model: { ...solver.risk_model, source: source as ConstraintSolver["risk_model"]["source"] } })
+                  }
+                />
+                <NumberField
+                  label="Lookback periods"
+                  value={solver.risk_model.lookback_periods}
+                  step="10"
+                  onChange={(v) => setSolver({ risk_model: { ...solver.risk_model, lookback_periods: v ?? 260 } })}
+                />
+                <NumberField
+                  label="Periods per year"
+                  value={solver.risk_model.periods_per_year}
+                  step="1"
+                  onChange={(v) => setSolver({ risk_model: { ...solver.risk_model, periods_per_year: v ?? 252 } })}
+                />
+              </div>
+              {solver.risk_model.source === "factor" && (
+                <label className="field-label">
+                  Factor fields (comma separated) — numeric fields are standardised, categorical ones become dummies
+                  <input
+                    type="text"
+                    value={solver.risk_model.factor_fields.join(", ")}
+                    onChange={(e) =>
+                      setSolver({
+                        risk_model: {
+                          ...solver.risk_model,
+                          factor_fields: e.target.value.split(",").map((v) => v.trim()).filter(Boolean),
+                        },
+                      })
+                    }
+                  />
+                </label>
+              )}
+              <p className="muted">
+                {solver.risk_model.source === "supplied"
+                  ? "The licensed path: a vendor factor model is handed to the engine directly. Estimated models need only a returns panel."
+                  : "Estimated from a returns panel. Without one supplied, the server falls back to its synthetic demo panel — illustrative only, it describes nothing real."}
+              </p>
+            </>
+          )}
         </>
       )}
     </div>
@@ -1073,6 +1178,12 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
             <span className="stat-value">{d.one_way_turnover === null || d.one_way_turnover === undefined ? "--" : pct(d.one_way_turnover)}</span>
             <span className="stat-label">one-way turnover</span>
           </div>
+          {d.tracking_error !== null && d.tracking_error !== undefined && (
+            <div className="stat-tile">
+              <span className="stat-value">{pct(d.tracking_error)}</span>
+              <span className="stat-label">ex-ante tracking error</span>
+            </div>
+          )}
         </div>
 
         {result.exceptions.length > 0 && (

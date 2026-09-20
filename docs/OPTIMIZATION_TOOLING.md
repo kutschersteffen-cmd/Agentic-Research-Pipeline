@@ -1,13 +1,15 @@
 # Optimization Tooling — What Exists, and What This Engine Would Actually Use
 
-Status: **survey, recommendation, and §9 Stage 1 is now built.** The index
-engine carries an optional least-squares projection
-(`backend/arp/index/optimize.py`, the `optimize` extra) selected per
-calibration via `ConstraintSet.solver.method='least_squares'`; the
-deterministic waterfall remains the default and the fallback. Stages 2 and 3
-— anything needing a covariance matrix or integer variables — are not built.
-The rest of this document is what to reach for if a methodology needs more
-than that, and — more usefully — how to tell whether it does.
+Status: **survey, recommendation, and §9 Stages 1 and 2 are now built.** The
+index engine carries an optional convex path
+(`backend/arp/index/optimize.py` and `risk.py`, the `optimize` extra)
+selected per calibration via `ConstraintSet.solver.method`: a least-squares
+projection, a minimum-tracking-error objective, and score maximisation under
+a tracking-error budget, with three risk-model estimators and a slot for a
+supplied vendor factor model. The deterministic waterfall remains the
+default and the fallback. Stage 3 — integer variables — is not built. The
+rest of this document is what to reach for if a methodology needs more than
+that, and — more usefully — how to tell whether it does.
 
 The short version: the question is not "which optimiser is best". It is
 **"which problem class does the methodology generate?"** That answer picks
@@ -250,11 +252,45 @@ but the cross-machine guarantee the waterfall gives for free now depends on
 the pinned-version discipline in §8. That is the trade, and it is why the
 waterfall stayed the default.
 
-**Stage 2 — a tracking-error budget (weeks, plus a licence).** The
-formulation is easy (SOCP; Clarabel or MOSEK handles it). The hard part is
-**Σ** — a factor covariance matrix, which is a data licence and a modelling
-commitment, not a solver choice. Decide the risk model first; the solver
-follows in an afternoon.
+**Stage 2 — a tracking-error budget. ✅ Built.** The prediction held exactly:
+the formulation was an afternoon and **Σ** was the work. What shipped:
+
+- `arp/index/risk.py` — a `RiskModel` interface carrying either a dense
+  covariance or a factor form, with three estimators (sample, Ledoit-Wolf
+  shrinkage toward a scaled identity, and a cross-sectional Barra-shaped
+  factor model) plus `supplied_factor_model()` for a vendor file. Nothing
+  downstream distinguishes them, so **the licence stayed a data-sourcing
+  decision**, which was the point of putting it behind an interface.
+- Two new objectives — `min_tracking_error` and `max_score` — alongside a
+  `tracking_error_budget` that applies as a constraint to any of them.
+
+Four things the implementation settled that the survey could not:
+
+1. **Closest weights are not lowest risk.** The least-squares projection
+   minimises distance in *weight* space; tracking error is distance in
+   *risk* space. On the demo universe the projection lands at 2.61% TE
+   while the sequential waterfall lands at 2.46% — the "better" optimiser
+   is worse on the metric it was never optimising. There is a test named
+   after this, because it is exactly the assumption a reader brings.
+2. **Active risk spans the index-benchmark union, not the index.** A
+   benchmark constituent the index excludes is a full active underweight.
+   Measuring over the index's own names would silently drop precisely the
+   positions a screening policy creates.
+3. **Precedence has to be decided, not discovered.** A tracking-error
+   budget and a decarbonisation target can conflict. The engine treats the
+   risk limit as the harder of the two: the budget binds, the target is
+   recorded as missed, and the shortfall carries forward under the
+   compensation rule.
+4. **Infeasibility needs the same frontier diagnosis as the trajectory.**
+   When a budget cannot be met the engine solves for the minimum achievable
+   tracking error and reports it — "the lowest tracking error reachable
+   under these constraints is 2.4567% against a budget of 2.0000%" — rather
+   than leaving "infeasible" as the whole answer.
+
+Tolerance note carried over from Stage 1: Clarabel at 1e-12 returns
+"solution may be inaccurate" on a second-order cone problem without
+improving the answer. 1e-10 — still two orders tighter than default — is
+the setting.
 
 **Stage 3 — semi-continuous or cardinality constraints (only if needed).**
 This is the MIQP step and the only one that needs a commercial solver, with
@@ -299,6 +335,7 @@ purchased or pinned.
 
 | Claim | Confidence |
 |---|---|
+| Stage 1 and Stage 2 behaviour described above | High — measured in this repo, with tests |
 | Problem-class mapping in §2, and semi-continuous ⇒ MIQP | High — this is formulation, not a product fact |
 | cvxpy default moved ECOS → Clarabel (1.5), ECOS dropped as a dependency (1.6), still callable | High |
 | HiGHS solves convex QP but has no native MIQP | Medium-high |

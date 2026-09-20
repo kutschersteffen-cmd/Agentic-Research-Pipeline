@@ -6,11 +6,13 @@ store described in sections 6, 7 and 15 now exist: `backend/arp/index/`
 path-dependent trajectory, index shares and divisor), `backend/arp/storage/index_store.py`
 (versioned, effective-dated calibrations), `backend/arp/api/routers/index.py`,
 `arp index --help`, and a rule-composer UI on the `Index Construction` tab.
-An optional least-squares constraint projection (`arp/index/optimize.py`,
-the `optimize` extra) implements Stage 1 of
-[`OPTIMIZATION_TOOLING.md`](OPTIMIZATION_TOOLING.md) section 9, chosen per
-calibration, with the deterministic waterfall as both the default and the
-fallback.
+An optional convex path (`arp/index/optimize.py` and `risk.py`, the
+`optimize` extra) implements Stages 1 and 2 of
+[`OPTIMIZATION_TOOLING.md`](OPTIMIZATION_TOOLING.md) section 9 — a
+least-squares projection, minimum tracking error, and score maximisation
+under a tracking-error budget, on an estimated or supplied risk model —
+chosen per calibration, with the deterministic waterfall as both the default
+and the fallback.
 Phases 1, 3, 5, 6 and 7 are not built: no bitemporal store, no vendor feeds,
 no corporate actions, no FX or withholding tax, no total-return variants, no
 backtester, no governance workflow, and no file distribution. The rest of

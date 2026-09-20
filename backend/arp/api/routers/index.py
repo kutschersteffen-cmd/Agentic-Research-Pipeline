@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 from arp.api.deps import get_index_store
 from arp.index.fields import DataQualityBlock, available_fields
-from arp.index.mock_data import demo_price_panel, demo_universe
+from arp.index.mock_data import demo_price_panel, demo_risk_model, demo_universe
 from arp.index.calc import level_series
 from arp.index.pipeline import run_review
 from arp.index.presets import PRESETS, SCREEN_BUNDLES, build_preset, rule_catalogue
@@ -158,6 +158,10 @@ class RunRequest(BaseModel):
     candidates: list[IndexCandidate] | None = Field(default=None, description="Omit to use the built-in demo universe.")
     persist: bool = Field(default=False, description="False previews without writing anything.")
     use_prior_state: bool = Field(default=True, description="Chain from the most recent stored review before this date.")
+    returns_panel: dict[str, dict[str, float]] | None = Field(
+        default=None,
+        description="{period: {company_id: return}} used to estimate the risk model. Omit to use the built-in demo panel.",
+    )
 
 
 def _resolve_spec(req: RunRequest, store: IndexStore) -> tuple[ConstructionSpec, str | None, int | None]:
@@ -179,15 +183,32 @@ def _resolve_spec(req: RunRequest, store: IndexStore) -> tuple[ConstructionSpec,
 def run(req: RunRequest, store: IndexStore = Depends(get_index_store)) -> ReviewResult:
     spec, calibration_id, version = _resolve_spec(req, store)
     prior_state = store.latest_state_before(req.index_id, req.review_date) if req.use_prior_state else None
+
+    universe = _universe(req.candidates)
+    settings = spec.constraints.solver
+    risk_model = None
+    if settings.method in ("min_tracking_error", "max_score") or settings.tracking_error_budget is not None:
+        from arp.index.risk import RiskModelError, build_risk_model
+
+        try:
+            risk_model = (
+                build_risk_model(settings.risk_model, universe, req.returns_panel)
+                if req.returns_panel
+                else demo_risk_model(universe, settings.risk_model)
+            )
+        except RiskModelError as exc:
+            raise HTTPException(422, f"Risk model: {exc}") from exc
+
     try:
         result = run_review(
             spec,
-            _universe(req.candidates),
+            universe,
             index_id=req.index_id,
             review_date=req.review_date,
             prior_state=prior_state,
             calibration_id=calibration_id,
             calibration_version=version,
+            risk_model=risk_model,
         )
     except DataQualityBlock as exc:
         # The "fail loud" path: a missing value stopped the run rather than

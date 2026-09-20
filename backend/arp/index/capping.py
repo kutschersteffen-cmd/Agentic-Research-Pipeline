@@ -5,6 +5,7 @@ from math import fsum
 
 from arp.index.fields import EPS
 from arp.index.optimize import LinearConstraint, available as optimizer_available, project
+from arp.index.risk import RiskModel
 from arp.index.weighting import normalise
 from arp.schemas.index import ConstraintSet, IndexCandidate, StageTrace
 
@@ -150,6 +151,8 @@ def apply_constraints(
     constraints: ConstraintSet,
     *,
     extra_linear: list[LinearConstraint] | None = None,
+    risk_model: RiskModel | None = None,
+    benchmark: dict[str, float] | None = None,
 ) -> tuple[dict[str, float], StageTrace, list[str]]:
     """Satisfies the constraint set, by whichever method the calibration picks.
 
@@ -174,9 +177,9 @@ def apply_constraints(
     exceptions: list[str] = []
     iterations = 0
     extra_linear = list(extra_linear or [])
-    if extra_linear and constraints.solver.method != "least_squares":
+    if extra_linear and constraints.solver.method == "waterfall":
         raise ValueError(
-            "extra_linear constraints require solver.method='least_squares'; "
+            "extra_linear constraints require a convex solver method; "
             "the waterfall cannot express them and must not silently ignore them"
         )
 
@@ -188,22 +191,26 @@ def apply_constraints(
             exceptions.append(f"min_weight={constraints.min_weight:.4%} dropped {len(current) - len(kept)} constituent(s)")
         current = normalise(kept)
 
-    if constraints.solver.method == "least_squares":
-        projected, solver_exceptions = _least_squares(current, candidates, constraints, extra_linear)
+    if constraints.solver.method != "waterfall":
+        projected, solver_exceptions, info = _least_squares(
+            current, candidates, constraints, extra_linear, risk_model, benchmark
+        )
         exceptions.extend(solver_exceptions)
         if projected is not None:
             trace = StageTrace(
                 stage="constraints",
-                rule_type="least_squares_projection",
-                label="constraints (least-squares projection)",
+                rule_type="convex_projection",
+                label=f"constraints ({_OBJECTIVE_LABELS[constraints.solver.method]})",
                 candidates_in=len(weights),
                 candidates_out=len(projected),
                 detail={
+                    "objective": constraints.solver.method,
                     "solver": constraints.solver.solver,
                     "max_weight": round(max(projected.values(), default=0.0), 6),
                     "single_name_cap": constraints.single_name_cap if constraints.single_name_cap is not None else "none",
                     "ucits_5_10_40": "on" if constraints.ucits_5_10_40 else "off",
                     "extra_linear": len(extra_linear),
+                    **info,
                 },
             )
             return projected, trace, exceptions
@@ -263,32 +270,88 @@ def apply_constraints(
     return current, trace, exceptions
 
 
+_OBJECTIVE_LABELS = {
+    "least_squares": "least-squares projection",
+    "min_tracking_error": "minimum tracking error",
+    "max_score": "score maximisation under a tracking-error budget",
+}
+
+
 def _least_squares(
     weights: dict[str, float],
     candidates: list[IndexCandidate],
     constraints: ConstraintSet,
     extra_linear: list[LinearConstraint],
-) -> tuple[dict[str, float] | None, list[str]]:
-    """Runs the projection and decides whether its answer is usable.
+    risk_model: RiskModel | None,
+    benchmark: dict[str, float] | None,
+) -> tuple[dict[str, float] | None, list[str], dict]:
+    """Runs the convex programme and decides whether its answer is usable.
 
-    Returns (weights, exceptions). A None result means the caller should
-    fall back; the exceptions say why, in the same register as every other
-    relaxation the engine records.
+    Returns (weights, exceptions, trace detail). A None result means the
+    caller should fall back; the exceptions say why, in the same register as
+    every other relaxation the engine records.
     """
     exceptions: list[str] = []
+    settings = constraints.solver
+    label = _OBJECTIVE_LABELS[settings.method]
     if not optimizer_available():
         exceptions.append(
-            "solver.method='least_squares' but cvxpy is not installed; "
+            f"solver.method='{settings.method}' but cvxpy is not installed; "
             'fell back to the deterministic waterfall (pip install -e ".[optimize]")'
         )
-        return None, exceptions
+        return None, exceptions, {}
 
-    result = project(weights, candidates, constraints, extra_linear=extra_linear)
+    needs_risk = settings.method in ("min_tracking_error", "max_score") or settings.tracking_error_budget is not None
+    if needs_risk and risk_model is None:
+        exceptions.append(
+            f"solver.method='{settings.method}' needs a risk model and none was supplied; "
+            "fell back to the deterministic waterfall"
+        )
+        return None, exceptions, {}
+
+    if risk_model is not None and settings.tracking_error_budget is not None:
+        coverage = risk_model.coverage_of(weights)
+        if coverage < settings.min_risk_coverage:
+            # A budget measured over part of the index is an understatement
+            # wearing the costume of a control. Refuse it rather than publish
+            # a number nobody can rely on.
+            exceptions.append(
+                f"the risk model covers {coverage:.2%} of index weight, below the required "
+                f"{settings.min_risk_coverage:.2%}; the tracking-error budget was not applied and the "
+                "review fell back to the deterministic waterfall"
+            )
+            return None, exceptions, {}
+
+    result = project(weights, candidates, constraints, extra_linear=extra_linear, risk_model=risk_model, benchmark=benchmark)
     if result.weights is not None:
-        return result.weights, exceptions
+        info: dict = {}
+        if result.tracking_error is not None:
+            info["tracking_error"] = round(result.tracking_error, 8)
+        if settings.tracking_error_budget is not None:
+            info["te_budget"] = settings.tracking_error_budget
+        if risk_model is not None:
+            info["risk_model"] = f"{risk_model.source}/{len(risk_model.names)}n"
+        return result.weights, exceptions, info
 
     detail = f"{result.status}" + (f" -- {'; '.join(result.violations[:3])}" if result.violations else "")
-    if not constraints.solver.fallback_to_waterfall:
-        raise ValueError(f"least-squares projection failed and fallback is disabled: {detail}")
-    exceptions.append(f"least-squares projection did not produce a usable solution ({detail}); fell back to the waterfall")
-    return None, exceptions
+
+    if "infeasible" in result.status and settings.tracking_error_budget is not None and risk_model is not None:
+        # Same principle as the decarbonisation frontier: when a budget cannot
+        # be met, say what the lowest achievable tracking error actually is
+        # under this constraint set, rather than leaving "infeasible" as the
+        # whole answer. Solving for it is one extra convex programme.
+        probe = constraints.model_copy(
+            update={"solver": settings.model_copy(update={"method": "min_tracking_error", "tracking_error_budget": None})}
+        )
+        floor = project(weights, candidates, probe, extra_linear=extra_linear, risk_model=risk_model, benchmark=benchmark)
+        if floor.tracking_error is not None:
+            detail += (
+                f"; the lowest tracking error reachable under these constraints is {floor.tracking_error:.4%} "
+                f"against a budget of {settings.tracking_error_budget:.4%} -- widen the budget, loosen the caps, "
+                "or relax the other constraints"
+            )
+
+    if not settings.fallback_to_waterfall:
+        raise ValueError(f"{label} failed and fallback is disabled: {detail}")
+    exceptions.append(f"{label} did not produce a usable solution ({detail}); fell back to the waterfall")
+    return None, exceptions, {}

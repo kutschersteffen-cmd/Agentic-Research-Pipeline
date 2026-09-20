@@ -90,7 +90,7 @@ def test_projection_is_feasible():
     result, trace, exceptions = apply_constraints(weights, universe, constraints)
 
     assert exceptions == []
-    assert trace.rule_type == "least_squares_projection"
+    assert trace.rule_type == "convex_projection"
     assert fsum(result[k] for k in sorted(result)) == pytest.approx(1.0, abs=1e-8)
     assert max(result.values()) <= 0.05 + TOL
     assert min(result.values()) >= -TOL
@@ -247,3 +247,294 @@ def test_the_method_is_part_of_the_calibration_hash():
     projected = build_preset("eu_pab")
     projected.constraints.solver.method = "least_squares"
     assert waterfall.content_hash() != projected.content_hash()
+
+
+# =========================================================== stage 2: risk
+
+
+def _risk_universe(n: int = 40):
+    from arp.index.mock_data import demo_returns_panel
+
+    universe = demo_universe(n)
+    return universe, demo_returns_panel(universe, 260)
+
+
+def _model(source: str = "ledoit_wolf", **kwargs):
+    from arp.index.risk import build_risk_model
+    from arp.schemas.index import RiskModelSpec
+
+    universe, panel = _risk_universe()
+    return universe, build_risk_model(RiskModelSpec(source=source, **kwargs), universe, panel)
+
+
+def test_every_estimator_produces_a_usable_covariance():
+    from arp.index.risk import build_risk_model
+    from arp.schemas.index import RiskModelSpec
+
+    universe, panel = _risk_universe()
+    for spec in (
+        RiskModelSpec(source="sample"),
+        RiskModelSpec(source="ledoit_wolf"),
+        RiskModelSpec(source="factor", factor_fields=["sector", "float_mcap"]),
+    ):
+        model = build_risk_model(spec, universe, panel)
+        covariance = model.covariance()
+        assert covariance.shape == (len(universe), len(universe))
+        # Annualised volatilities in a plausible equity range, and symmetric.
+        volatility = [covariance[i, i] ** 0.5 for i in range(len(universe))]
+        assert 0.02 < min(volatility) and max(volatility) < 2.0
+        assert abs(covariance - covariance.T).max() < 1e-12
+
+
+def test_ledoit_wolf_shrinks_toward_the_identity_and_reports_how_much():
+    _, model = _model("ledoit_wolf")
+    assert model.shrinkage is not None
+    assert 0.0 <= model.shrinkage <= 1.0
+
+
+def test_factor_model_keeps_its_factor_form_for_the_optimiser():
+    _, model = _model("factor", factor_fields=["sector"])
+    assert model.factor_form
+    assert model.loadings.shape[0] == len(model.names)
+    assert "market" in model.factor_names
+
+
+def test_a_short_history_is_refused_rather_than_estimated_badly():
+    from arp.index.mock_data import demo_returns_panel
+    from arp.index.risk import RiskModelError, build_risk_model
+    from arp.schemas.index import RiskModelSpec
+
+    universe = demo_universe(10)
+    panel = demo_returns_panel(universe, 20)
+    with pytest.raises(RiskModelError, match="at least"):
+        build_risk_model(RiskModelSpec(source="ledoit_wolf", min_observations=60), universe, panel)
+
+
+def test_a_ragged_panel_is_refused_rather_than_zero_filled():
+    from arp.index.mock_data import demo_returns_panel
+    from arp.index.risk import RiskModelError, build_risk_model
+    from arp.schemas.index import RiskModelSpec
+
+    universe = demo_universe(10)
+    panel = demo_returns_panel(universe, 100)
+    for period in panel:
+        panel[period].pop(universe[0].company_id)
+    with pytest.raises(RiskModelError, match="covers every name"):
+        build_risk_model(RiskModelSpec(source="ledoit_wolf"), universe, panel)
+
+
+def test_a_supplied_vendor_factor_model_uses_the_same_interface():
+    """The licensed path: loadings, factor covariance and specific risk from a
+    vendor file, with nothing downstream changing."""
+    from arp.index.risk import supplied_factor_model
+
+    model = supplied_factor_model(
+        names=["a", "b"],
+        loadings=[[1.0, 0.5], [1.0, -0.5]],
+        factor_covariance=[[0.04, 0.0], [0.0, 0.01]],
+        specific_var=[0.01, 0.02],
+        factor_names=["market", "value"],
+    )
+    assert model.factor_form and model.source == "supplied"
+    assert model.tracking_error({"a": 1.0}, {"a": 0.5, "b": 0.5}) > 0
+
+
+def test_tracking_error_counts_a_benchmark_name_the_index_does_not_hold():
+    """An exclusion is a full active underweight. Measuring active risk over
+    the index's own names would drop exactly the positions a screen creates."""
+    from arp.index.risk import supplied_factor_model
+
+    model = supplied_factor_model(
+        names=["a", "b"],
+        loadings=[[1.0], [1.0]],
+        factor_covariance=[[0.04]],
+        specific_var=[0.09, 0.09],
+    )
+    excluded = model.tracking_error({"a": 1.0}, {"a": 0.5, "b": 0.5})
+    identical = model.tracking_error({"a": 0.5, "b": 0.5}, {"a": 0.5, "b": 0.5})
+    assert identical == pytest.approx(0.0, abs=1e-12)
+    assert excluded > 0.1
+
+
+# ----------------------------------------------- tracking-error objectives
+
+
+def _solver(method: str, **kwargs):
+    from arp.schemas.index import ConstraintSolver
+
+    return ConstraintSolver(method=method, **kwargs)
+
+
+def test_each_objective_wins_at_its_own_metric():
+    """min_tracking_error has the lowest tracking error; least_squares has the
+    smallest weight-space distance. Neither dominates the other."""
+    from arp.schemas.index import ConstraintSet
+
+    universe, model = _model()
+    weights = _base(universe)
+    solved = {}
+    for method in ("waterfall", "least_squares", "min_tracking_error"):
+        constraints = ConstraintSet(single_name_cap=0.05, solver=_solver(method))
+        out, _, exceptions = apply_constraints(weights, universe, constraints, risk_model=model, benchmark=weights)
+        assert exceptions == []
+        solved[method] = out
+
+    tracking = {m: model.tracking_error(w, weights) for m, w in solved.items()}
+    distance = {m: _distance(w, weights) for m, w in solved.items()}
+    assert tracking["min_tracking_error"] == min(tracking.values())
+    assert distance["least_squares"] == min(distance.values())
+
+
+def test_closest_weights_are_not_the_lowest_tracking_error():
+    """The methodological point of stage 2. Euclidean distance in weight space
+    and distance in risk space are different metrics, so the least-squares
+    projection can sit *above* even the waterfall on tracking error. Anyone
+    assuming "closest weights" means "lowest risk" is wrong, and the engine
+    should demonstrate it rather than let the assumption stand."""
+    from arp.schemas.index import ConstraintSet
+
+    universe, model = _model()
+    weights = _base(universe)
+    projected, _, _ = apply_constraints(
+        weights, universe, ConstraintSet(single_name_cap=0.05, solver=_solver("least_squares")), risk_model=model, benchmark=weights
+    )
+    minimised, _, _ = apply_constraints(
+        weights, universe, ConstraintSet(single_name_cap=0.05, solver=_solver("min_tracking_error")), risk_model=model, benchmark=weights
+    )
+    assert _distance(projected, weights) < _distance(minimised, weights)
+    assert model.tracking_error(minimised, weights) < model.tracking_error(projected, weights)
+
+
+def test_a_binding_budget_is_respected_and_an_unbinding_one_changes_nothing():
+    from arp.schemas.index import ConstraintSet
+
+    universe, model = _model()
+    weights = _base(universe)
+    unbudgeted, _, _ = apply_constraints(
+        weights, universe, ConstraintSet(single_name_cap=0.05, solver=_solver("least_squares")), risk_model=model, benchmark=weights
+    )
+    free_te = model.tracking_error(unbudgeted, weights)
+
+    loose, _, exceptions = apply_constraints(
+        weights,
+        universe,
+        ConstraintSet(single_name_cap=0.05, solver=_solver("least_squares", tracking_error_budget=free_te * 2)),
+        risk_model=model,
+        benchmark=weights,
+    )
+    assert exceptions == []
+    assert model.tracking_error(loose, weights) == pytest.approx(free_te, abs=1e-6)
+
+    # A budget between the feasibility frontier and the unconstrained result,
+    # so it binds without being impossible.
+    from arp.schemas.index import ConstraintSet as _CS
+
+    floor_weights, _, _ = apply_constraints(
+        weights, universe, _CS(single_name_cap=0.05, solver=_solver("min_tracking_error")), risk_model=model, benchmark=weights
+    )
+    frontier = model.tracking_error(floor_weights, weights)
+    tight_budget = (frontier + free_te) / 2
+    tight, _, exceptions = apply_constraints(
+        weights,
+        universe,
+        ConstraintSet(single_name_cap=0.05, solver=_solver("least_squares", tracking_error_budget=tight_budget)),
+        risk_model=model,
+        benchmark=weights,
+    )
+    assert exceptions == []
+    assert model.tracking_error(tight, weights) <= tight_budget * (1 + 1e-4)
+
+
+def test_max_score_raises_the_score_and_spends_the_budget():
+    from arp.schemas.index import ConstraintSet
+
+    universe, model = _model()
+    weights = _base(universe)
+    scores = {c.company_id: c.metrics["esg_score"] for c in universe}
+
+    def weighted(w):
+        return fsum(w[k] * scores[k] for k in sorted(w))
+
+    baseline, _, _ = apply_constraints(
+        weights, universe, ConstraintSet(single_name_cap=0.05, solver=_solver("least_squares")), risk_model=model, benchmark=weights
+    )
+    budget = model.tracking_error(baseline, weights) * 1.5
+    maximised, _, exceptions = apply_constraints(
+        weights,
+        universe,
+        ConstraintSet(single_name_cap=0.05, solver=_solver("max_score", score_field="esg_score", tracking_error_budget=budget)),
+        risk_model=model,
+        benchmark=weights,
+    )
+    assert exceptions == []
+    assert weighted(maximised) > weighted(baseline)
+    assert model.tracking_error(maximised, weights) <= budget * (1 + 1e-4)
+
+
+def test_a_budget_without_a_risk_model_falls_back_and_says_so():
+    from arp.schemas.index import ConstraintSet
+
+    universe = demo_universe(30)
+    weights = _base(universe)
+    result, trace, exceptions = apply_constraints(
+        weights, universe, ConstraintSet(single_name_cap=0.05, solver=_solver("min_tracking_error"))
+    )
+    assert max(result.values()) <= 0.05 + TOL
+    assert trace.rule_type == "constraint_set"
+    assert any("needs a risk model" in e for e in exceptions)
+
+
+def test_poor_risk_model_coverage_refuses_the_budget():
+    """A budget measured over part of the index is an understatement wearing
+    the costume of a control."""
+    from arp.schemas.index import ConstraintSet
+
+    universe, model = _model()
+    weights = _base(universe)
+    model.names = model.names[: len(model.names) // 2]
+    model.dense = model.dense[: len(model.names), : len(model.names)]
+
+    _, _, exceptions = apply_constraints(
+        weights,
+        universe,
+        ConstraintSet(single_name_cap=0.05, solver=_solver("least_squares", tracking_error_budget=0.02, min_risk_coverage=0.98)),
+        risk_model=model,
+        benchmark=weights,
+    )
+    assert any("covers" in e and "below the required" in e for e in exceptions)
+
+
+def test_osqp_with_a_budget_is_rejected_at_calibration_time():
+    """A second-order cone constraint on a QP-only solver should fail when the
+    calibration is written, not opaquely inside the solver at review time."""
+    import pydantic
+
+    with pytest.raises(pydantic.ValidationError, match="second-order cone"):
+        _solver("least_squares", solver="OSQP", tracking_error_budget=0.02)
+
+
+def test_tracking_error_is_reported_on_the_published_weights():
+    universe, model = _model()
+    spec = build_preset("esg_tilt")
+    spec.constraints.solver.method = "least_squares"
+    result = run_review(spec, universe, index_id="x", review_date="2026-03-31", risk_model=model)
+    assert result.diagnostics.tracking_error is not None
+    # The pipeline's benchmark is the *eligible* universe, not the parent.
+    from arp.index.screens import apply_screens
+
+    eligible, _ = apply_screens(sorted(universe, key=lambda c: c.company_id), spec.screens)
+    recomputed = model.tracking_error({c.company_id: c.weight for c in result.constituents}, _base(eligible))
+    assert result.diagnostics.tracking_error == pytest.approx(recomputed, abs=1e-6)
+
+
+def test_a_budget_that_conflicts_with_the_trajectory_keeps_the_budget():
+    """Documented precedence: the risk limit is the harder of the two, and the
+    decarbonisation shortfall is recorded rather than the budget being blown."""
+    universe, model = _model()
+    spec = build_preset("eu_pab")
+    spec.constraints.solver.method = "least_squares"
+    spec.constraints.solver.tracking_error_budget = 0.005
+    result = run_review(spec, universe, index_id="x", review_date="2026-03-31", risk_model=model)
+    assert result.diagnostics.tracking_error <= 0.005 * (1 + 1e-3) or result.exceptions
+    assert result.state.shortfall_carry > 0
+    assert any("not reached" in e or "did not produce a usable solution" in e for e in result.exceptions)

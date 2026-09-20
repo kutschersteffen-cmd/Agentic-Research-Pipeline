@@ -3,11 +3,13 @@
 Status: **research input for `docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md`** -- and
 now partly implemented. The catalogue in section 6 is the menu the rule
 engine in `backend/arp/index/` offers: families A (screening and selection),
-B (closed-form tilts) and D (path-dependent) are built, and **C3 -- the
-risk-model-free least-squares projection -- is now built too**, as an opt-in
-path (`arp/index/optimize.py`, the `optimize` extra) selected per
-calibration. C1, C2 and C6, which need a licensed factor covariance matrix,
-are not.
+B (closed-form tilts) and D (path-dependent) are built, and so is **all of
+family C bar the licence**: C3 (the least-squares projection), C1 (score
+maximisation under a tracking-error budget), C2 (minimum tracking error) and
+C4's constraint vocabulary, as an opt-in path (`arp/index/optimize.py` and
+`risk.py`, the `optimize` extra) selected per calibration. C6 -- the risk
+model itself -- ships as three estimators rather than a licensed factor
+model, with `supplied_factor_model()` as the slot a vendor file drops into.
 
 The **default path still deploys no solver at all**, and meets the
 decarbonisation target by *exponential (entropy) tilting*: `w_i ∝ w_i^base · exp(-lambda · x_i)` is the analytic

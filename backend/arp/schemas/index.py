@@ -303,6 +303,25 @@ class GroupCap(BaseModel):
     label: str = ""
 
 
+class RiskModelSpec(BaseModel):
+    """How the covariance behind a tracking-error budget is obtained.
+
+    The estimators need only a returns panel; `supplied` is the licensed
+    path, where a vendor factor model is handed to the engine directly.
+    Nothing downstream distinguishes them, so the licence is a
+    data-sourcing decision rather than an engineering one.
+    """
+
+    source: Literal["ledoit_wolf", "sample", "factor", "supplied"] = "ledoit_wolf"
+    lookback_periods: int = Field(default=260, gt=0, description="Most recent periods used; earlier ones are dropped.")
+    min_observations: int = Field(default=60, gt=1, description="Below this the model is refused rather than estimated badly.")
+    periods_per_year: float = Field(default=252.0, gt=0, description="Annualisation factor: 252 for daily, 52 weekly, 12 monthly.")
+    factor_fields: list[str] = Field(
+        default_factory=list,
+        description="source='factor' only. Numeric fields are standardised cross-sectionally; categorical fields become dummies.",
+    )
+
+
 class ConstraintSolver(BaseModel):
     """How the constraint set is satisfied.
 
@@ -317,9 +336,16 @@ class ConstraintSolver(BaseModel):
     feasible portfolio to what the methodology asked for. It needs the
     optional `optimize` extra, and the solver choice is part of the
     calibration precisely because it can move the last digits.
+
+    `min_tracking_error` minimises ex-ante tracking error against the
+    benchmark subject to the same constraints, and `max_score` maximises an
+    index-weighted score subject to a tracking-error budget. Both need a
+    risk model as well as the solver -- which is a data licence or an
+    estimator, and the reason they sit behind `tracking_error_budget` and
+    `risk_model` rather than being the default.
     """
 
-    method: Literal["waterfall", "least_squares"] = "waterfall"
+    method: Literal["waterfall", "least_squares", "min_tracking_error", "max_score"] = "waterfall"
     solver: Literal["CLARABEL", "OSQP", "SCS"] = Field(
         default="CLARABEL", description="Pinned per calibration: a solver swap is a methodology change, not an implementation detail."
     )
@@ -332,6 +358,49 @@ class ConstraintSolver(BaseModel):
         default=True,
         description="On solver failure or a failed verification, fall back to the waterfall and record an exception rather than failing the review.",
     )
+    tracking_error_budget: float | None = Field(
+        default=None,
+        gt=0.0,
+        description=(
+            "PRECEDENCE: where a tracking-error budget and a decarbonisation target cannot both hold, the budget "
+            "binds and the target is recorded as missed with its shortfall carried forward. A risk limit is treated "
+            "as the harder of the two; a methodology that wants the opposite must widen the budget explicitly. "
+            "Annualised ex-ante tracking error ceiling versus the benchmark, e.g. 0.015 for 1.5%. Needs a risk model. "
+            "Applies as a constraint to every method except min_tracking_error, which minimises it instead."
+        ),
+    )
+    score_field: str | None = Field(
+        default=None, description="method='max_score' only: the numeric field whose index-weighted value is maximised."
+    )
+    risk_model: RiskModelSpec = Field(default_factory=RiskModelSpec)
+    min_risk_coverage: float = Field(
+        default=0.98,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Minimum share of index weight the risk model must cover before a tracking-error budget is trusted. "
+            "Below it the budget is an understatement dressed up as a control, so the review says so."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _coherent(self) -> "ConstraintSolver":
+        if self.method == "max_score" and not self.score_field:
+            raise ValueError("method='max_score' requires score_field")
+        if self.method == "max_score" and self.tracking_error_budget is None:
+            raise ValueError("method='max_score' requires tracking_error_budget -- an unbounded maximisation is not an index")
+        if self.tracking_error_budget is not None and self.solver == "OSQP":
+            # A tracking-error ceiling is a second-order cone constraint and
+            # OSQP solves quadratic programmes with linear constraints only.
+            # Caught here so a calibration cannot be saved in a state that
+            # would fail opaquely inside the solver at review time.
+            raise ValueError(
+                "solver='OSQP' cannot express a tracking-error budget (a second-order cone constraint); "
+                "use CLARABEL or SCS"
+            )
+        if self.method in ("min_tracking_error", "max_score") and self.tracking_error_budget is None and self.method == "min_tracking_error":
+            pass  # minimising TE needs no budget
+        return self
 
 
 class ConstraintSet(BaseModel):
@@ -528,6 +597,9 @@ class ReviewDiagnostics(BaseModel):
     one_way_turnover: float | None = Field(default=None, description="Half the sum of absolute weight changes vs. the previous review.")
     capping_iterations: int = 0
     trajectory_iterations: int = 0
+    tracking_error: float | None = Field(
+        default=None, description="Annualised ex-ante tracking error versus the benchmark, when a risk model was supplied."
+    )
 
 
 class ReviewResult(BaseModel):

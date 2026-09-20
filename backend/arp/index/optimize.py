@@ -14,6 +14,14 @@ as one convex programme, so every constraint binds simultaneously and the
 result is the *closest* feasible portfolio to what the methodology asked
 for, not merely a feasible one.
 
+With a risk model supplied, two further objectives become available:
+minimising ex-ante tracking error against the benchmark, and maximising an
+index-weighted score subject to a tracking-error budget. Tracking error
+enters as `sum_squares` of a factorised covariance rather than a quadratic
+form, which keeps the problem provably convex even when an estimated
+covariance is a hair non-PSD, and -- in factor form -- costs K + N terms
+rather than N**2.
+
 Three deliberate properties:
 
 - **The objective is strictly convex**, so the optimum is unique. There is
@@ -39,6 +47,7 @@ from math import fsum
 
 import numpy as np
 
+from arp.index.risk import RiskModel
 from arp.schemas.index import ConstraintSet, IndexCandidate
 
 # Solver output below this magnitude is numerical noise, not a weight.
@@ -72,6 +81,7 @@ class ProjectionResult:
     solver_version: str = ""
     iterations: int = 0
     violations: list[str] = field(default_factory=list)
+    tracking_error: float | None = None
 
 
 def available() -> bool:
@@ -91,7 +101,10 @@ def _solver_options(solver: str) -> dict:
     and reordering moves the last digits.
     """
     if solver == "CLARABEL":
-        return {"tol_gap_abs": 1e-12, "tol_gap_rel": 1e-12, "tol_feas": 1e-12, "max_iter": 500}
+        # Roughly two orders tighter than Clarabel's defaults. 1e-12 was
+        # tried and is counter-productive: on a second-order cone problem it
+        # returns "solution may be inaccurate" without improving the answer.
+        return {"tol_gap_abs": 1e-10, "tol_gap_rel": 1e-10, "tol_feas": 1e-10, "max_iter": 1000}
     if solver == "OSQP":
         return {"eps_abs": 1e-10, "eps_rel": 1e-10, "max_iter": 100_000, "polish": True, "polish_refine_iter": 10}
     if solver == "SCS":
@@ -106,6 +119,10 @@ def _verify(
     group_caps: list[tuple[str, list[str], float]],
     extra_linear: list[LinearConstraint],
     tolerance: float,
+    *,
+    risk_model: RiskModel | None = None,
+    benchmark: dict[str, float] | None = None,
+    tracking_error_budget: float | None = None,
 ) -> list[str]:
     """Re-checks every constraint in plain Python.
 
@@ -136,6 +153,12 @@ def _verify(
         scale = max(1.0, max((abs(c) for c in constraint.coefficients.values()), default=1.0))
         if value > constraint.rhs + tolerance * scale:
             violations.append(f"{constraint.label}: {value:.12f} > {constraint.rhs:.12f} (tolerance {tolerance * scale:.3e})")
+    if risk_model is not None and benchmark is not None and tracking_error_budget is not None:
+        # Recomputed from the covariance directly, not read back off the
+        # solver: a budget nobody re-derived is not a control.
+        realised = risk_model.tracking_error(weights, benchmark)
+        if realised > tracking_error_budget * (1.0 + 1e-4) + tolerance:
+            violations.append(f"tracking error {realised:.8f} exceeds the budget {tracking_error_budget:.8f}")
     return violations
 
 
@@ -151,6 +174,64 @@ def _group_rows(candidates: list[IndexCandidate], names: list[str], constraints:
     return rows
 
 
+def _active_risk_expression(risk_model: RiskModel, names: list[str], w, benchmark_weights: dict[str, float]):
+    """A cvxpy expression whose 2-norm is annualised tracking error.
+
+    The active vector spans the *union* of the index and the benchmark, not
+    just the index: a benchmark constituent the index does not hold is a
+    full active underweight and carries risk. Computing it over the index's
+    own names alone would silently drop exactly the positions an exclusion
+    policy creates, understating tracking error by the most interesting part.
+
+    Built from a factorisation rather than `quad_form`, for two reasons: an
+    estimated covariance that is a hair non-PSD cannot then fail a
+    convexity check, and in factor form the expression has K + N terms
+    instead of N**2, which is what makes the problem tractable at index
+    scale.
+    """
+    import cvxpy as cp
+
+    index_of = risk_model.index_of()
+    benchmark_names = [n for n, weight in benchmark_weights.items() if abs(weight) > 0.0]
+    union = sorted(set(names) | set(benchmark_names))
+    missing = [n for n in union if n not in index_of]
+    if missing:
+        raise RiskModelCoverageError(missing)
+
+    rows = [index_of[n] for n in union]
+    position = {name: i for i, name in enumerate(union)}
+
+    # active = S w - b, where S places each index weight at its row in the union.
+    selector = np.zeros((len(union), len(names)))
+    for column, name in enumerate(names):
+        selector[position[name], column] = 1.0
+    benchmark_vector = np.array([benchmark_weights.get(n, 0.0) for n in union], dtype=float)
+    active = selector @ w - benchmark_vector
+
+    if risk_model.factor_form:
+        loadings = risk_model.loadings[rows, :]
+        factor_covariance = risk_model.factor_covariance
+        eigenvalues, eigenvectors = np.linalg.eigh((factor_covariance + factor_covariance.T) / 2.0)
+        factor_root = (eigenvectors * np.sqrt(np.clip(eigenvalues, 0.0, None))).T
+        specific_root = np.sqrt(np.clip(risk_model.specific_var[rows], 0.0, None))
+        return cp.hstack([factor_root @ (loadings.T @ active), cp.multiply(specific_root, active)])
+
+    covariance = risk_model.covariance()[np.ix_(rows, rows)]
+    eigenvalues, eigenvectors = np.linalg.eigh((covariance + covariance.T) / 2.0)
+    root = (eigenvectors * np.sqrt(np.clip(eigenvalues, 0.0, None))).T
+    return root @ active
+
+
+class RiskModelCoverageError(ValueError):
+    def __init__(self, missing: list[str]) -> None:
+        shown = ", ".join(missing[:5])
+        super().__init__(
+            f"the risk model does not cover {len(missing)} constituent(s) ({shown}...); "
+            "a tracking-error budget computed over a partial universe understates risk"
+        )
+        self.missing = missing
+
+
 def _solve_once(
     names: list[str],
     base: np.ndarray,
@@ -158,6 +239,12 @@ def _solve_once(
     group_rows: list[tuple[str, list[str], float]],
     extra_linear: list[LinearConstraint],
     solver: str,
+    *,
+    objective: str = "least_squares",
+    risk_model: RiskModel | None = None,
+    benchmark: dict[str, float] | None = None,
+    tracking_error_budget: float | None = None,
+    score: np.ndarray | None = None,
 ) -> tuple[np.ndarray | None, str, float | None]:
     import cvxpy as cp
 
@@ -176,7 +263,27 @@ def _solve_once(
                 row[index_of[name]] = coefficient
         conditions.append(row @ w <= constraint.rhs)
 
-    problem = cp.Problem(cp.Minimize(cp.sum_squares(w - base)), conditions)
+    risk_expression = None
+    if risk_model is not None and benchmark is not None:
+        risk_expression = _active_risk_expression(risk_model, names, w, benchmark)
+        if tracking_error_budget is not None:
+            # A second-order cone constraint. OSQP cannot express one, which
+            # the calibration validator rejects up front rather than letting
+            # the solver fail opaquely here.
+            conditions.append(cp.norm(risk_expression, 2) <= tracking_error_budget)
+
+    if objective == "min_tracking_error":
+        if risk_expression is None:
+            return None, "min_tracking_error needs a risk model and a benchmark", None
+        goal = cp.Minimize(cp.sum_squares(risk_expression))
+    elif objective == "max_score":
+        if score is None:
+            return None, "max_score needs a score vector", None
+        goal = cp.Maximize(score @ w)
+    else:
+        goal = cp.Minimize(cp.sum_squares(w - base))
+
+    problem = cp.Problem(goal, conditions)
     try:
         problem.solve(solver=solver, **_solver_options(solver))
     except Exception as exc:  # cvxpy raises a variety of solver-specific errors
@@ -192,6 +299,8 @@ def project(
     constraints: ConstraintSet,
     *,
     extra_linear: list[LinearConstraint] | None = None,
+    risk_model: RiskModel | None = None,
+    benchmark: dict[str, float] | None = None,
 ) -> ProjectionResult:
     """Closest feasible weight vector to `weights`, or a result carrying why not.
 
@@ -214,12 +323,46 @@ def project(
     base = base / base.sum()
     cap = constraints.single_name_cap if constraints.single_name_cap is not None else 1.0
     group_rows = _group_rows(candidates, names, constraints)
-    solver = constraints.solver.solver
-    tolerance = constraints.solver.verify_tolerance
+    settings = constraints.solver
+    solver = settings.solver
+    tolerance = settings.verify_tolerance
+    objective = settings.method if settings.method in ("min_tracking_error", "max_score") else "least_squares"
+    budget = settings.tracking_error_budget
+
+    needs_risk = objective in ("min_tracking_error", "max_score") or budget is not None
+    if needs_risk and risk_model is None:
+        return ProjectionResult(weights=None, status="risk_model_required", solver=solver)
+
+    benchmark_weights = benchmark if benchmark is not None else weights
+
+    score_vector = None
+    if objective == "max_score":
+        from arp.index.fields import metric_value
+
+        by_id = {c.company_id: c for c in candidates}
+        raw = [metric_value(by_id[n], settings.score_field or "") for n in names]
+        if any(v is None for v in raw):
+            return ProjectionResult(weights=None, status=f"score_field {settings.score_field!r} is missing for some constituents", solver=solver)
+        score_vector = np.array(raw, dtype=float)
 
     def attempt(uniform_cap: float) -> tuple[dict[str, float] | None, str, float | None]:
         upper = np.full(len(names), min(cap, uniform_cap))
-        raw, status, objective = _solve_once(names, base, upper, group_rows, extra_linear, solver)
+        try:
+            raw, status, value = _solve_once(
+                names,
+                base,
+                upper,
+                group_rows,
+                extra_linear,
+                solver,
+                objective=objective,
+                risk_model=risk_model,
+                benchmark=benchmark_weights if risk_model is not None else None,
+                tracking_error_budget=budget,
+                score=score_vector,
+            )
+        except RiskModelCoverageError as exc:
+            return None, str(exc), None
         if raw is None:
             return None, status, None
         solution = {name: round(float(value), SOLUTION_DECIMALS) for name, value in zip(names, raw)}
@@ -235,9 +378,9 @@ def project(
             for name in free:
                 share = solution[name] / free_total if free_total > _ROUND_TOL else 1.0 / len(free)
                 solution[name] = round(min(solution[name] + residual * share, upper_by_name[name]), SOLUTION_DECIMALS)
-        return solution, status, objective
+        return solution, status, value
 
-    solution, status, objective = attempt(1.0)
+    solution, status, value = attempt(1.0)
     iterations = 1
 
     if solution is not None and constraints.ucits_5_10_40:
@@ -252,10 +395,10 @@ def project(
             low, high, best = 0.05, min(cap, 0.10), None
             for _ in range(20):
                 mid = (low + high) / 2.0
-                trial, trial_status, trial_objective = attempt(mid)
+                trial, trial_status, trial_value = attempt(mid)
                 iterations += 1
                 if trial is not None and aggregate(trial) <= 0.40 + tolerance:
-                    best, status, objective, low = trial, trial_status, trial_objective, mid
+                    best, status, value, low = trial, trial_status, trial_value, mid
                 else:
                     high = mid
             solution = best if best is not None else solution
@@ -264,7 +407,17 @@ def project(
         return ProjectionResult(weights=None, status=status, solver=solver, iterations=iterations)
 
     upper_by_name = {n: min(cap, 1.0) for n in names}
-    violations = _verify(solution, names, upper_by_name, group_rows, extra_linear, tolerance)
+    violations = _verify(
+        solution,
+        names,
+        upper_by_name,
+        group_rows,
+        extra_linear,
+        tolerance,
+        risk_model=risk_model,
+        benchmark=benchmark_weights if risk_model is not None else None,
+        tracking_error_budget=budget,
+    )
     if violations:
         return ProjectionResult(
             weights=None,
@@ -276,8 +429,9 @@ def project(
     return ProjectionResult(
         weights=solution,
         status=status,
-        objective=objective,
+        objective=value,
         solver=solver,
         solver_version=cp.__version__,
         iterations=iterations,
+        tracking_error=risk_model.tracking_error(solution, benchmark_weights) if risk_model is not None else None,
     )

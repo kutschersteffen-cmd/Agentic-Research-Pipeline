@@ -982,11 +982,23 @@ export interface GroupCap {
   label?: string;
 }
 
+export interface RiskModelSpec {
+  source: "ledoit_wolf" | "sample" | "factor" | "supplied";
+  lookback_periods: number;
+  min_observations: number;
+  periods_per_year: number;
+  factor_fields: string[];
+}
+
 export interface ConstraintSolver {
-  method: "waterfall" | "least_squares";
+  method: "waterfall" | "least_squares" | "min_tracking_error" | "max_score";
   solver: "CLARABEL" | "OSQP" | "SCS";
   verify_tolerance: number;
   fallback_to_waterfall: boolean;
+  tracking_error_budget?: number | null;
+  score_field?: string | null;
+  min_risk_coverage: number;
+  risk_model: RiskModelSpec;
 }
 
 export interface ConstraintSet {
@@ -1086,6 +1098,7 @@ export interface ReviewDiagnostics {
   one_way_turnover?: number | null;
   capping_iterations: number;
   trajectory_iterations: number;
+  tracking_error?: number | null;
 }
 
 export interface IndexReviewResult {
@@ -1130,7 +1143,13 @@ export interface IndexCatalogue {
   base_weighting: { scheme: string; label: string; needs_field: boolean }[];
   tilts: RuleTypeSpec[];
   constraints: RuleParamSpec[];
-  constraint_solver: { help: string; params: RuleParamSpec[]; available: boolean };
+  constraint_solver: {
+    help: string;
+    params: RuleParamSpec[];
+    available: boolean;
+    methods: { name: string; label: string; needs_solver: boolean; needs_risk_model: boolean }[];
+    risk_model: { help: string; params: RuleParamSpec[] };
+  };
   trajectory: { help: string; params: RuleParamSpec[] };
   presets: { name: string; label: string; description: string }[];
   screen_bundles: { name: string; label: string; description: string }[];

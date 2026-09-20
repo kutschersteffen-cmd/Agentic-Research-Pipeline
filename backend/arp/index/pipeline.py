@@ -5,6 +5,7 @@ from math import fsum
 from arp.index.calc import divisor_for_level, index_shares, market_cap, one_way_turnover
 from arp.index.capping import apply_constraints
 from arp.index.fields import metric_value
+from arp.index.risk import RiskModel
 from arp.index.screens import apply_screens
 from arp.index.selection import apply_selection
 from arp.index.trajectory import apply_trajectory
@@ -36,12 +37,15 @@ def run_review(
     prior_state: IndexState | None = None,
     calibration_id: str | None = None,
     calibration_version: int | None = None,
+    risk_model: RiskModel | None = None,
 ) -> ReviewResult:
     """Runs one index review end to end, deterministically.
 
     `f(data, spec, prior_state)` -- the third argument is what a
     path-dependent methodology needs and what a pure screening or tilting
-    one ignores. Every stage appends a trace line, so the funnel a committee
+    one ignores. `risk_model` is the fourth, needed only by a methodology
+    with a tracking-error budget; its absence is recorded as an exception
+    rather than silently dropping the budget. Every stage appends a trace line, so the funnel a committee
     reviews and the audit trail a regulator asks for are the same object.
     """
     universe = sorted(candidates, key=lambda c: c.company_id)
@@ -93,7 +97,15 @@ def run_review(
     # already-constrained intermediate.
     methodology_target = dict(weights)
 
-    weights, constraint_trace, constraint_exceptions = apply_constraints(weights, selected, spec.constraints)
+    # The tracking-error benchmark is the eligible universe on the
+    # methodology's own base weighting -- the portfolio the index is an
+    # opinionated version of. Names screened out of the index are still in
+    # it, and carry active risk as full underweights.
+    benchmark_weights = base_weights(eligible, spec.base_weighting)
+
+    weights, constraint_trace, constraint_exceptions = apply_constraints(
+        weights, selected, spec.constraints, risk_model=risk_model, benchmark=benchmark_weights
+    )
     traces.append(constraint_trace)
     exceptions.extend(constraint_exceptions)
 
@@ -110,6 +122,8 @@ def run_review(
             universe_candidates=eligible,
             prior_state=prior_state,
             projection_base=methodology_target,
+            risk_model=risk_model,
+            benchmark=benchmark_weights,
         )
         traces.append(trajectory_trace)
         exceptions.extend(trajectory_exceptions)
@@ -158,7 +172,7 @@ def run_review(
     ]
 
     metric_fields = _all_metric_fields(selected)
-    universe_weights = base_weights(eligible, spec.base_weighting)
+    universe_weights = benchmark_weights
     weighted_metrics: dict[str, float] = {}
     universe_metrics: dict[str, float] = {}
     for field in metric_fields:
@@ -198,6 +212,10 @@ def run_review(
         max_weight=round(max(weights.values()), 6),
         one_way_turnover=round(turnover, 6) if turnover is not None else None,
         capping_iterations=int(constraint_trace.detail.get("iterations", 0) or 0),
+        # Measured on the published weights, against the benchmark, from the
+        # covariance directly. Reading it off the constraint stage would
+        # report a number the trajectory has since moved.
+        tracking_error=round(risk_model.tracking_error(weights, benchmark_weights), 8) if risk_model is not None else None,
         trajectory_iterations=trajectory_iterations,
     )
 

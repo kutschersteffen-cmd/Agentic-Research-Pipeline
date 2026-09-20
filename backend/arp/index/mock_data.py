@@ -112,3 +112,48 @@ def demo_price_panel(candidates: list[IndexCandidate], dates: list[str]) -> dict
             prices[candidate.company_id] = round(candidate.price * (1.0 + drift) ** step * (1.0 + wobble), 4)
         panel[as_of] = prices
     return panel
+
+
+def demo_returns_panel(candidates: list[IndexCandidate], periods: int = 260) -> dict[str, dict[str, float]]:
+    """A reproducible daily return panel with genuine factor structure.
+
+    A price path built from independent wobbles produces a near-diagonal
+    covariance, against which a tracking-error budget never binds and so
+    proves nothing. This panel instead layers a market factor, a sector
+    factor and an idiosyncratic term -- so names in the same sector
+    co-move, excluding a sector costs real active risk, and the budget
+    behaves the way it would on real data.
+
+    Every draw comes from a SHA-256 of the company id and period, so the
+    panel is byte-identical on every machine, exactly like the universe.
+    """
+    sectors = sorted({c.sector or "unclassified" for c in candidates})
+    panel: dict[str, dict[str, float]] = {}
+    for step in range(periods):
+        as_of = f"p{step:04d}"
+        market = (_draws(f"market:{step}")[0] - 0.5) * 0.02
+        sector_shocks = {s: (_draws(f"sector:{s}:{step}")[0] - 0.5) * 0.02 for s in sectors}
+        row: dict[str, float] = {}
+        for candidate in candidates:
+            d = _draws(f"{candidate.company_id}:ret:{step}")
+            beta = 0.6 + 1.0 * _draws(candidate.company_id)[3]
+            idiosyncratic = (d[0] - 0.5) * 0.03
+            row[candidate.company_id] = round(
+                beta * market + 0.7 * sector_shocks[candidate.sector or "unclassified"] + idiosyncratic, 8
+            )
+        panel[as_of] = row
+    return panel
+
+
+def demo_risk_model(candidates: list[IndexCandidate] | None = None, spec=None):
+    """A risk model estimated from the demo returns panel.
+
+    Lets the tracking-error objectives be exercised before any returns feed
+    or vendor factor model exists. It is illustrative only -- the panel is
+    synthetic, so the covariance describes nothing real.
+    """
+    from arp.index.risk import build_risk_model
+    from arp.schemas.index import RiskModelSpec
+
+    universe = candidates if candidates is not None else demo_universe()
+    return build_risk_model(spec or RiskModelSpec(source="ledoit_wolf"), universe, demo_returns_panel(universe, 260))
