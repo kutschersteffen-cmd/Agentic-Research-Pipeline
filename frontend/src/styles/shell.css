@@ -111,6 +111,28 @@
 .nav-tab.active { background: var(--accent); color: var(--on-accent); font-weight: 600; }
 .nav-tab.active:hover { background: var(--accent); }
 
+/* Display preferences sit at the foot of the sidebar: rarely touched, but
+   always in the same place, and they survive the rail and the drawer. */
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.sidebar-control {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  color: var(--muted);
+  font-size: var(--fs-100);
+  text-align: left;
+}
+.sidebar-control:hover { background: var(--panel-border); color: var(--text); }
+.sidebar-control[aria-pressed="true"] { color: var(--accent); }
+
 .app-main {
   flex: 1;
   min-width: 0;
@@ -143,8 +165,10 @@
 .app-shell[data-sidebar="rail"] .nav-group-label,
 .app-shell[data-sidebar="rail"] .app-sidebar-wordmark,
 .app-shell[data-sidebar="rail"] .palette-trigger-label,
-.app-shell[data-sidebar="rail"] .palette-trigger-key { display: none; }
+.app-shell[data-sidebar="rail"] .palette-trigger-key,
+.app-shell[data-sidebar="rail"] .sidebar-control-label { display: none; }
 .app-shell[data-sidebar="rail"] .nav-tab,
+.app-shell[data-sidebar="rail"] .sidebar-control,
 .app-shell[data-sidebar="rail"] .palette-trigger { justify-content: center; }
 .app-shell[data-sidebar="rail"] .app-sidebar { padding-left: var(--sp-2); padding-right: var(--sp-2); }
 .app-shell[data-sidebar="rail"] .app-sidebar-brand { padding-left: 0; padding-right: 0; justify-content: center; }
@@ -154,8 +178,9 @@
 
 @media (max-width: 1200px) {
   .app-shell { --sidebar-w: 64px; }
-  .nav-tab-label, .nav-group-label, .app-sidebar-wordmark, .palette-trigger-label, .palette-trigger-key { display: none; }
-  .nav-tab, .palette-trigger { justify-content: center; }
+  .nav-tab-label, .nav-group-label, .app-sidebar-wordmark, .palette-trigger-label, .palette-trigger-key,
+  .sidebar-control-label { display: none; }
+  .nav-tab, .palette-trigger, .sidebar-control { justify-content: center; }
   .app-sidebar { padding-left: var(--sp-2); padding-right: var(--sp-2); }
   .app-sidebar-brand { justify-content: center; padding-left: 0; padding-right: 0; }
   .sidebar-toggle { display: none; }
@@ -179,8 +204,9 @@
   .app-shell .nav-tab-label,
   .app-shell .nav-group-label,
   .app-shell .app-sidebar-wordmark,
+  .app-shell .sidebar-control-label,
   .app-shell .palette-trigger-label { display: revert; }
-  .app-shell .nav-tab, .app-shell .palette-trigger { justify-content: flex-start; }
+  .app-shell .nav-tab, .app-shell .palette-trigger, .app-shell .sidebar-control { justify-content: flex-start; }
   .app-shell .app-sidebar-brand { justify-content: flex-start; }
   .app-shell .nav-group + .nav-group { border-top: none; padding-top: 0; }
   .app-topbar { display: flex; }

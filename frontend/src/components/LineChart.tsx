@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { categoricalColor } from "../lib/palette";
+import { useChartPalette } from "../lib/palette";
 import { StateBlock } from "../ui";
 
 export interface LineSeries {
@@ -52,6 +52,7 @@ export function LineChart({
   series: LineSeries[];
   valueFormatter?: (v: number) => string;
 }) {
+  const { categoricalColor } = useChartPalette();
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   if (dates.length === 0 || series.length === 0) {

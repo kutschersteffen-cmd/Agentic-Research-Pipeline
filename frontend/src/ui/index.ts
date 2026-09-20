@@ -1,4 +1,6 @@
 export { Button } from "./Button";
+export { DataTable } from "./DataTable";
+export type { Column } from "./DataTable";
 export { Dialog } from "./Dialog";
 export { Field } from "./Field";
 export { FilterBar } from "./FilterBar";

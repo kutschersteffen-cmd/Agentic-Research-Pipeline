@@ -25,6 +25,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { DEFAULT_TAB, NAV_GROUPS, TABS, isTabId } from "./nav";
 import { href, navigate, useRoute } from "./router";
+import { useDensity, useTheme, type ThemeChoice } from "./theme";
 import type { ReviewableRunKind } from "./types";
 
 const SIDEBAR_KEY = "arp:sidebar-collapsed";
@@ -33,6 +34,9 @@ const SIDEBAR_KEY = "arp:sidebar-collapsed";
 // trusted: an unknown review kind is dropped rather than handed to a page
 // that would index a lookup table with it.
 const REVIEW_KINDS: ReviewableRunKind[] = ["theme", "extraction", "financials", "identity"];
+
+const THEME_ORDER: ThemeChoice[] = ["system", "light", "dark"];
+const THEME_LABEL: Record<ThemeChoice, string> = { system: "System theme", light: "Light", dark: "Dark" };
 
 function readCollapsed(): boolean {
   try {
@@ -48,6 +52,9 @@ function App() {
   const active = isTabId(route.tab) ? route.tab : DEFAULT_TAB;
 
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const { choice: themeChoice, setTheme } = useTheme();
+  const { density, setDensity } = useDensity();
+  const nextTheme = THEME_ORDER[(THEME_ORDER.indexOf(themeChoice) + 1) % THEME_ORDER.length];
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -176,6 +183,29 @@ function App() {
               </div>
             ))}
           </nav>
+          <div className="sidebar-footer">
+            <button
+              type="button"
+              className="sidebar-control"
+              onClick={() => setTheme(nextTheme)}
+              title={`${THEME_LABEL[themeChoice]} — switch to ${THEME_LABEL[nextTheme].toLowerCase()}`}
+              aria-label={`Theme: ${THEME_LABEL[themeChoice]}. Switch to ${THEME_LABEL[nextTheme].toLowerCase()}.`}
+            >
+              {CHROME_ICONS[themeChoice]}
+              <span className="sidebar-control-label">{THEME_LABEL[themeChoice]}</span>
+            </button>
+            <button
+              type="button"
+              className="sidebar-control"
+              onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}
+              aria-pressed={density === "compact"}
+              title={density === "compact" ? "Compact rows — switch to comfortable" : "Comfortable rows — switch to compact"}
+              aria-label={`Table rows: ${density}. Switch to ${density === "compact" ? "comfortable" : "compact"}.`}
+            >
+              {CHROME_ICONS.density}
+              <span className="sidebar-control-label">{density === "compact" ? "Compact rows" : "Comfortable rows"}</span>
+            </button>
+          </div>
         </aside>
         <main className="app-main" id="main" tabIndex={-1}>
           <header className="app-topbar">

@@ -82,7 +82,7 @@ Semantic surface tokens (`--bg`, `--panel`, `--panel-border`, `--well`, `--text`
 `--muted`, `--accent`, `--high/--mid/--low`) keep their current names, so no component
 has to change when dark mode lands.
 
-**Dark mode** (Phase 4) redefines only the surface tokens:
+**Dark mode** (landed in phase 4) redefines only the surface tokens:
 
 ```css
 @media (prefers-color-scheme: dark) {
@@ -91,10 +91,11 @@ has to change when dark mode lands.
 :root[data-theme="dark"] { /* same block, explicit opt-in */ }
 ```
 
-`SEQUENTIAL_BLUE` is already mode-invariant. `CATEGORICAL` must be re-run through
-`scripts/validate_palette.js` against the dark panel colour before dark mode ships —
-if a slot fails the CVD or lightness gate, add a dark-surface variant rather than
-shipping an unvalidated palette.
+Both palettes had to be re-run against the dark panel colour before dark mode
+shipped. `SEQUENTIAL_BLUE` was *not* mode-invariant despite the comment claiming
+so — it failed the ordinal light-end gate on both surfaces — and the categorical
+set fails the dark lightness band, so dark carries its own re-stepped four. See
+"What phase 4 actually changed" and the provenance block in `lib/palette.ts`.
 
 ### 3.2 Stylesheet architecture — cascade layers
 
@@ -208,8 +209,8 @@ Each phase ships independently and leaves the app working.
 | 1 | `ui/` primitives; retire the global `button` selector; migrate `Button`, `Field`, `StateBlock` app-wide | 1.5 d | Medium | Button hierarchy appears; forms become labelled | **Landed** |
 | 2 | Routing, command palette, responsive sidebar, a11y baseline | 1.5 d | Medium | Deep links and back button work | **Landed** |
 | 3 | Apply the three templates, starting with Extraction, Monitoring, Run History, Search | 2 d | Medium | The app reads as one product | **Landed** |
-| 4 | `DataTable` upgrades, dark mode + palette re-validation | 1.5 d | Low | Density and mode choice | Next |
-| 5 | Guardrails: stylelint scale enforcement, a CI grep for raw hex / inline `style={{` in `.tsx`, an axe pass on the five busiest pages | 0.5 d | Low | None — keeps the system from drifting | |
+| 4 | `DataTable` upgrades, dark mode + palette re-validation | 1.5 d | Low | Density and mode choice | **Landed** |
+| 5 | Guardrails: stylelint scale enforcement, a CI grep for raw hex / inline `style={{` in `.tsx`, an axe pass on the five busiest pages | 0.5 d | Low | None — keeps the system from drifting | Next |
 
 Phases 0 and 1 are worth doing even if nothing else is: they are where the
 twenty-one-separate-tools feeling actually comes from.
@@ -240,6 +241,48 @@ twenty-one-separate-tools feeling actually comes from.
   headless pass over 9 screens: no page errors, 13 of 13 form controls on the
   form-heavy screens carry an accessible name, and the focus ring resolves on the
   first tab stop.
+
+### What phase 4 actually changed
+
+- **Dark mode**, declared the way the plan specified: the dark values live once
+  as `--dark-*` tokens and are mapped onto the real token names by two scopes —
+  `@media (prefers-color-scheme: dark)` guarded with `:not([data-theme="light"])`,
+  and `:root[data-theme="dark"]`. Following the OS leaves no stamp on the
+  document, so there is no flash of the wrong theme before JavaScript runs, and
+  an explicit choice wins either way. The toggle cycles system → light → dark and
+  persists.
+- **The palette was re-validated, not eyeballed**, with the dataviz skill's
+  validator against this app's *actual* surfaces. That turned up three things the
+  file's own comments had wrong:
+  1. The recorded light surface was `#fcfcfb`, a colour the app does not use. Its
+     real chart surface is `--panel` = `#f3f5f8`.
+  2. "This ramp is mode-invariant" was false. The 7-step sequential ramp failed
+     the ordinal light-end gate on **both** surfaces — its end step sat at 1.21:1
+     on light and 1.54:1 on dark against a 2:1 floor, which is why a low-magnitude
+     pivot cell or tier band was almost invisible. Both ramps are re-stepped to
+     six steps per mode and now pass.
+  3. Flipping the light categorical set onto dark fails the lightness band
+     (orange 0.671, yellow 0.764, outside 0.48–0.67), so dark carries its own
+     four steps — the same hues, re-stepped, passing every gate on `#121417`.
+  Charts read their colours through `useChartPalette()`, so switching theme
+  repaints them; the commands and results are recorded in `lib/palette.ts`.
+- **`DataTable`**: sticky header, sortable columns (`aria-sort`, a real button in
+  the header), right-aligned tabular numerals, row-click, and a row cap with a
+  "show all" rather than virtualization — several tables in this app expand a row
+  into a detail panel, which makes windowing by row index wrong, and a cap keeps
+  every rendered row real for find-in-page and screen readers. Run History is
+  migrated to it.
+- **Density is one setting for all ~60 tables**, not a control on each: a
+  `data-density` stamp on the document, persisted, toggled from the sidebar. Every
+  existing table inherits it, including the ones still written as raw `<table>`.
+  The sticky header likewise applies to all of them through `.data-table`.
+- Verified against the built app with a stub API so the tables had real rows: 15
+  checks across dark mode (OS preference honoured, no stamp while following it,
+  explicit choice wins and survives a reload), the table (sticky, tabular
+  figures, sort both directions with `aria-sort`, density 8px → 4px and
+  persisted) and the charts (legend swatches read the validated light set in
+  light and the dark set in dark). Both chart modes were rendered and looked at,
+  per the skill's last step.
 
 ### What phase 3 actually changed
 
@@ -350,5 +393,5 @@ The plan is done when:
 5. An axe scan of Dashboard, Extraction, Review Queue, Search and Index Builder reports
    no serious or critical issues; each is fully operable by keyboard.
 6. Adding a new page means composing `PageHeader + Tabs + Card + DataTable` — and a
-   reviewer can tell at a glance if it did not. *Everything but `DataTable` exists;
-   phase 4 builds it.*
+   reviewer can tell at a glance if it did not. **Met** — every primitive in the
+   table above now exists except `Toast`, which no page has yet needed.

@@ -1,4 +1,4 @@
-import { SEQUENTIAL_BLUE } from "../lib/palette";
+import { useChartPalette } from "../lib/palette";
 import { StateBlock } from "../ui";
 
 export interface BarDatum {
@@ -29,6 +29,8 @@ export function BarChart({
   data: BarDatum[];
   valueFormatter?: (v: number) => string;
 }) {
+  const { sequential } = useChartPalette();
+
   if (data.length === 0) {
     return <StateBlock kind="empty" message="No data to chart." />;
   }
@@ -41,7 +43,7 @@ export function BarChart({
   const barHeight = 18;
   const height = data.length * rowHeight + 8;
   const maxValue = Math.max(...data.map((d) => Math.abs(d.value)), 1);
-  const fill = SEQUENTIAL_BLUE[3];
+  const fill = sequential[3];
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" role="img" aria-label="Bar chart">

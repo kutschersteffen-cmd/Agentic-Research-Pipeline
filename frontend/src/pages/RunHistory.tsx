@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { api } from "../api/client";
 import type { ReviewableRunKind, RunManifest } from "../types";
-import { Button, Field, FilterBar, PageHeader, StateBlock } from "../ui";
+import { Button, DataTable, Field, FilterBar, PageHeader, StateBlock } from "../ui";
 import { useParam } from "../router";
 
 const REVIEWABLE_KINDS = new Set<ReviewableRunKind>(["theme", "extraction", "financials", "identity"]);
@@ -103,57 +103,67 @@ export function RunHistory({ onOpenReview }: Props = {}) {
       {error && <StateBlock kind="error" message={error} onRetry={load} />}
 
       <section className="card">
-        {visible.length === 0 && !error && (
-          <StateBlock
-            kind="empty"
-            message={activeFilters.length > 0 ? "No runs match these filters." : "No runs recorded yet."}
-          />
-        )}
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Run ID</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Progress</th>
-                <th>Flagged</th>
-                <th>Cost</th>
-                <th>Created</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((r) => {
-                const runType = r.run_type;
-                return (
-                  <tr key={r.run_id}>
-                    <td>{r.run_id}</td>
-                    <td>{runType}</td>
-                    <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                    <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
-                    <td>{r.review_count}</td>
-                    <td>${r.estimated_cost_usd.toFixed(2)}</td>
-                    <td>{new Date(r.created_at).toLocaleString()}</td>
-                    <td>
-                      <a href={api.exportRunCsvUrl(r.run_id)} target="_blank" rel="noreferrer">
-                        CSV
-                      </a>
-                      {r.review_count > 0 && isReviewable(runType) && onOpenReview && (
-                        <>
-                          {" "}
-                          <Button variant="ghost" onClick={() => onOpenReview(runType, r.run_id)}>
-                            Review
-                          </Button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          label="Runs"
+          rows={visible}
+          getKey={(r) => r.run_id}
+          empty={
+            <StateBlock
+              kind="empty"
+              message={activeFilters.length > 0 ? "No runs match these filters." : "No runs recorded yet."}
+            />
+          }
+          columns={[
+            { id: "run_id", header: "Run ID", sortValue: (r) => r.run_id, render: (r) => r.run_id },
+            { id: "type", header: "Type", sortValue: (r) => r.run_type, render: (r) => r.run_type },
+            {
+              id: "status",
+              header: "Status",
+              sortValue: (r) => r.status,
+              render: (r) => <span className={`status-pill status-${r.status}`}>{r.status}</span>,
+            },
+            {
+              id: "progress",
+              header: "Progress",
+              align: "right",
+              sortValue: (r) => (r.company_count ? r.completed_count / r.company_count : 0),
+              render: (r) => `${r.completed_count}/${r.company_count} (${r.failed_count} failed)`,
+            },
+            { id: "flagged", header: "Flagged", align: "right", sortValue: (r) => r.review_count, render: (r) => r.review_count },
+            {
+              id: "cost",
+              header: "Cost",
+              align: "right",
+              sortValue: (r) => r.estimated_cost_usd,
+              render: (r) => `$${r.estimated_cost_usd.toFixed(2)}`,
+            },
+            {
+              id: "created",
+              header: "Created",
+              sortValue: (r) => r.created_at,
+              render: (r) => new Date(r.created_at).toLocaleString(),
+            },
+            {
+              id: "actions",
+              header: "",
+              render: (r) => (
+                <>
+                  <a href={api.exportRunCsvUrl(r.run_id)} target="_blank" rel="noreferrer">
+                    CSV
+                  </a>
+                  {r.review_count > 0 && isReviewable(r.run_type) && onOpenReview && (
+                    <>
+                      {" "}
+                      <Button variant="ghost" onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
+                        Review
+                      </Button>
+                    </>
+                  )}
+                </>
+              ),
+            },
+          ]}
+        />
       </section>
     </div>
   );

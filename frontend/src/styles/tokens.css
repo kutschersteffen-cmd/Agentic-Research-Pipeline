@@ -86,4 +86,82 @@
   --page-max: 1200px;
 
   color-scheme: light;
+
+  /* --- Dark values ------------------------------------------------------
+     Defined once here (unused in light mode) and mapped onto the real token
+     names by the two scopes below, so a dark colour is edited in one place
+     even though the mapping has to be written twice. */
+  --dark-bg: oklch(15% 0.006 260);
+  --dark-panel: oklch(19% 0.008 260);
+  --dark-panel-border: oklch(30% 0.008 260);
+  --dark-well: oklch(24% 0.008 260);
+  --dark-input-bg: oklch(22% 0.008 260);
+  --dark-text: oklch(96% 0.002 260);
+  --dark-muted: oklch(72% 0.005 260);
+  --dark-ink-nav: oklch(86% 0.005 260);
+  --dark-on-accent: oklch(15% 0.01 290);
+  --dark-overlay: oklch(8% 0 0 / 0.7);
+  --dark-accent: oklch(72% 0.15 290);
+  --dark-accent-ink: oklch(80% 0.15 290);
+  --dark-accent-tint: oklch(72% 0.15 290 / 0.22);
+  /* Status hues lifted into the dark band; every one clears 6:1 on
+     --dark-panel (checked, not eyeballed -- see lib/palette.ts). */
+  --dark-high: oklch(76% 0.16 150);
+  --dark-mid: oklch(80% 0.13 80);
+  --dark-low: oklch(70% 0.16 25);
+  --dark-neutral: oklch(68% 0.02 260);
+  --dark-shadow-1: 0 1px 2px oklch(0% 0 0 / 0.5);
+  --dark-shadow-2: 0 8px 24px oklch(0% 0 0 / 0.6);
+}
+
+/* The OS setting, unless the viewer has explicitly stamped this app light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: var(--dark-bg);
+    --panel: var(--dark-panel);
+    --panel-border: var(--dark-panel-border);
+    --well: var(--dark-well);
+    --input-bg: var(--dark-input-bg);
+    --text: var(--dark-text);
+    --muted: var(--dark-muted);
+    --ink-nav: var(--dark-ink-nav);
+    --on-accent: var(--dark-on-accent);
+    --overlay: var(--dark-overlay);
+    --sidebar-bg: var(--dark-panel);
+    --accent: var(--dark-accent);
+    --accent-ink: var(--dark-accent-ink);
+    --accent-tint: var(--dark-accent-tint);
+    --high: var(--dark-high);
+    --mid: var(--dark-mid);
+    --low: var(--dark-low);
+    --neutral: var(--dark-neutral);
+    --shadow-1: var(--dark-shadow-1);
+    --shadow-2: var(--dark-shadow-2);
+    color-scheme: dark;
+  }
+}
+
+/* The viewer's own choice, which wins over the OS either way. */
+:root[data-theme="dark"] {
+  --bg: var(--dark-bg);
+  --panel: var(--dark-panel);
+  --panel-border: var(--dark-panel-border);
+  --well: var(--dark-well);
+  --input-bg: var(--dark-input-bg);
+  --text: var(--dark-text);
+  --muted: var(--dark-muted);
+  --ink-nav: var(--dark-ink-nav);
+  --on-accent: var(--dark-on-accent);
+  --overlay: var(--dark-overlay);
+  --sidebar-bg: var(--dark-panel);
+  --accent: var(--dark-accent);
+  --accent-ink: var(--dark-accent-ink);
+  --accent-tint: var(--dark-accent-tint);
+  --high: var(--dark-high);
+  --mid: var(--dark-mid);
+  --low: var(--dark-low);
+  --neutral: var(--dark-neutral);
+  --shadow-1: var(--dark-shadow-1);
+  --shadow-2: var(--dark-shadow-2);
+  color-scheme: dark;
 }
