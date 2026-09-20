@@ -87,6 +87,11 @@ def run_review(
 
     weights, tilt_multipliers, tilt_traces = apply_tilts(weights, selected, spec.tilts)
     traces.extend(tilt_traces)
+    # What the methodology asked for, before any constraint touched it. The
+    # least-squares path projects from here so the result is the closest
+    # feasible portfolio to the rules' own target, not to an
+    # already-constrained intermediate.
+    methodology_target = dict(weights)
 
     weights, constraint_trace, constraint_exceptions = apply_constraints(weights, selected, spec.constraints)
     traces.append(constraint_trace)
@@ -104,6 +109,7 @@ def run_review(
             review_date=review_date,
             universe_candidates=eligible,
             prior_state=prior_state,
+            projection_base=methodology_target,
         )
         traces.append(trajectory_trace)
         exceptions.extend(trajectory_exceptions)
@@ -194,6 +200,13 @@ def run_review(
         capping_iterations=int(constraint_trace.detail.get("iterations", 0) or 0),
         trajectory_iterations=trajectory_iterations,
     )
+
+    # The constraint set is applied once here and, when a trajectory is
+    # enabled, again inside it with the intensity target added. Keeping both
+    # passes is deliberate -- the standalone one is the safety net for a
+    # trajectory that has no target yet -- but a condition that trips in both
+    # should be reported once, not twice, on the committee pack.
+    exceptions = list(dict.fromkeys(exceptions))
 
     return ReviewResult(
         index_id=index_id,

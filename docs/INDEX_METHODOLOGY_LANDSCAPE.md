@@ -3,12 +3,14 @@
 Status: **research input for `docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md`** -- and
 now partly implemented. The catalogue in section 6 is the menu the rule
 engine in `backend/arp/index/` offers: families A (screening and selection),
-B (closed-form tilts) and D (path-dependent) are built. **No family C
-formulation is built, and no optimiser of any kind is deployed** -- the
-engine imports no solver, no risk model and no covariance matrix.
+B (closed-form tilts) and D (path-dependent) are built, and **C3 -- the
+risk-model-free least-squares projection -- is now built too**, as an opt-in
+path (`arp/index/optimize.py`, the `optimize` extra) selected per
+calibration. C1, C2 and C6, which need a licensed factor covariance matrix,
+are not.
 
-What meets the decarbonisation target instead is *exponential (entropy)
-tilting*: `w_i ∝ w_i^base · exp(-lambda · x_i)` is the analytic
+The **default path still deploys no solver at all**, and meets the
+decarbonisation target by *exponential (entropy) tilting*: `w_i ∝ w_i^base · exp(-lambda · x_i)` is the analytic
 minimum-relative-entropy reweighting subject to a linear constraint on the
 weighted average, so only the multiplier `lambda` is found numerically, by
 bisection. It is adjacent to C3 in spirit -- risk-model-free,
@@ -17,9 +19,11 @@ Solactive's least-squares programme and is not solved as a quadratic
 programme over the weight vector. With the cap projection composed inside
 the search it carries **no optimality certificate**: it provably reaches the
 target and respects every cap, but it is not the minimum-distortion point of
-the feasible set. Where a genuine optimality guarantee or a tracking-error
-*budget* is required, that is family C and remains unbuilt -- section 7.2
-explains why that ordering is deliberate rather than a shortcut.
+the feasible set. That certificate is exactly what the C3 path now adds, at
+the cost of an optional dependency and of the cross-machine reproducibility
+the tilt gets for free. A tracking-error *budget* still needs C1/C2 and a
+covariance matrix, and remains unbuilt -- section 7.2 explains why that
+ordering is deliberate rather than a shortcut.
 
 The rest of this document remains research.
 

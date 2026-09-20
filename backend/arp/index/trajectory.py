@@ -5,6 +5,7 @@ from typing import Callable
 from math import exp, fsum
 
 from arp.index.fields import EPS, metric_value, resolve_missing
+from arp.index.optimize import LinearConstraint
 from arp.index.weighting import normalise, weighted_average
 from arp.schemas.index import (
     ConstraintSet,
@@ -185,6 +186,7 @@ def apply_trajectory(
     review_date: str,
     universe_candidates: list[IndexCandidate],
     prior_state: IndexState | None,
+    projection_base: dict[str, float] | None = None,
 ) -> tuple[dict[str, float], IndexState, StageTrace, list[str]]:
     """Applies the path-dependent layer and returns the state the next
     review needs."""
@@ -233,21 +235,56 @@ def apply_trajectory(
     )
 
     iterations = 0
+    method = constraints.solver.method
+    solved_by_projection = False
     if target is not None and values:
-        constraint_notes: list[str] = []
+        if method == "least_squares":
+            # The target is linear in the weights. `avg over covered <= tau`
+            # is `sum_covered w_i (x_i - tau) <= 0`, so it goes straight into
+            # the same programme as the caps and binds simultaneously with
+            # them -- no tilt, no bisection, one solve. The projection starts
+            # from the methodology's own target weights (pre-constraint)
+            # rather than from the already-capped vector, so the answer is
+            # the closest feasible portfolio to what the rules asked for.
+            base = projection_base or current
+            current, _trace, notes = apply_constraints(
+                base,
+                candidates,
+                constraints,
+                extra_linear=[
+                    LinearConstraint(
+                        label=f"{rule.metric_field} <= {target:.6f}",
+                        coefficients={k: v - target for k, v in values.items()},
+                        rhs=0.0,
+                    )
+                ],
+            )
+            exceptions.extend(notes)
+            iterations = 1
+            solved_by_projection = (weighted_average(current, values) or 0.0) <= target + _tolerance_for(target, rule.tolerance)
+            if not solved_by_projection:
+                exceptions.append(
+                    "the least-squares projection did not deliver the decarbonisation target; "
+                    "falling back to the deterministic tilt search"
+                )
+                current = dict(weights)
 
-        def project(candidate_weights: dict[str, float]) -> dict[str, float]:
-            projected, _trace, notes = apply_constraints(candidate_weights, candidates, constraints)
-            constraint_notes.extend(notes)
-            return projected
+        if method != "least_squares" or not solved_by_projection:
+            constraint_notes: list[str] = []
 
-        current, _strength, iterations = solve_intensity_tilt(
-            current, values, target, max_strength=rule.max_tilt_strength, tolerance=rule.tolerance, project=project
-        )
-        # Deduplicate: the projection runs once per bisection step, so an
-        # infeasible cap would otherwise be reported ~100 times.
-        for note in dict.fromkeys(constraint_notes):
-            exceptions.append(note)
+            def project(candidate_weights: dict[str, float]) -> dict[str, float]:
+                projected, _trace, notes = apply_constraints(candidate_weights, candidates, constraints)
+                constraint_notes.extend(notes)
+                return projected
+
+            current, _strength, iterations = solve_intensity_tilt(
+                current, values, target, max_strength=rule.max_tilt_strength, tolerance=rule.tolerance, project=project
+            )
+            # Deduplicate: the projection runs once per bisection step, so an
+            # infeasible cap would otherwise be reported ~100 times.
+            for note in dict.fromkeys(constraint_notes):
+                exceptions.append(note)
+
         if (weighted_average(current, values) or 0.0) > target + _tolerance_for(target, rule.tolerance):
             floor_value = minimum_achievable(values, constraints.single_name_cap)
             reason = (
@@ -300,6 +337,7 @@ def apply_trajectory(
             "universe": round(universe_value, 6) if universe_value is not None else "",
             "shortfall_carried": round(new_shortfall, 6),
             "min_achievable": round(minimum_achievable(values, constraints.single_name_cap) or 0.0, 6),
+            "method": method,
             "iterations": iterations,
         },
     )

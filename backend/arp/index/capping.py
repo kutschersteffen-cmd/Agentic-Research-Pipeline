@@ -4,6 +4,7 @@ from collections import defaultdict
 from math import fsum
 
 from arp.index.fields import EPS
+from arp.index.optimize import LinearConstraint, available as optimizer_available, project
 from arp.index.weighting import normalise
 from arp.schemas.index import ConstraintSet, IndexCandidate, StageTrace
 
@@ -144,19 +145,40 @@ def _ucits_cap(weights: dict[str, float], max_iterations: int) -> tuple[dict[str
 
 
 def apply_constraints(
-    weights: dict[str, float], candidates: list[IndexCandidate], constraints: ConstraintSet
+    weights: dict[str, float],
+    candidates: list[IndexCandidate],
+    constraints: ConstraintSet,
+    *,
+    extra_linear: list[LinearConstraint] | None = None,
 ) -> tuple[dict[str, float], StageTrace, list[str]]:
-    """Applies min-weight pruning, the single-name cap, group caps and
-    UCITS 5/10/40, looping until the whole set is simultaneously satisfied.
+    """Satisfies the constraint set, by whichever method the calibration picks.
 
-    The loop matters: capping every name to 8% can still leave the 5/10/40
-    aggregate breached, and scaling a sector down can push a single name
-    back over its cap. Each pass is deterministic, so the loop is too.
+    `waterfall` (the default) applies min-weight pruning, the single-name
+    cap, group caps and UCITS 5/10/40 in sequence, looping until all hold
+    simultaneously. The loop matters: capping every name to 8% can still
+    leave the 5/10/40 aggregate breached, and scaling a sector down can push
+    a single name back over its cap. Each pass is deterministic, so the loop
+    is too.
+
+    `least_squares` hands the same constraints to a convex programme that
+    binds them simultaneously and returns the closest feasible portfolio.
+
+    `extra_linear` carries constraints the sequential method cannot express
+    -- today, the decarbonisation target. Passing one under the waterfall
+    method is a programming error rather than a silent no-op, because
+    dropping a methodology constraint is exactly the kind of failure that
+    produces a plausible, wrong index.
     """
     by_id = {c.company_id: c for c in candidates}
     current = normalise({k: v for k, v in weights.items() if k in by_id})
     exceptions: list[str] = []
     iterations = 0
+    extra_linear = list(extra_linear or [])
+    if extra_linear and constraints.solver.method != "least_squares":
+        raise ValueError(
+            "extra_linear constraints require solver.method='least_squares'; "
+            "the waterfall cannot express them and must not silently ignore them"
+        )
 
     if constraints.min_weight:
         kept = {k: v for k, v in current.items() if v >= constraints.min_weight}
@@ -165,6 +187,35 @@ def apply_constraints(
         if len(kept) < len(current):
             exceptions.append(f"min_weight={constraints.min_weight:.4%} dropped {len(current) - len(kept)} constituent(s)")
         current = normalise(kept)
+
+    if constraints.solver.method == "least_squares":
+        projected, solver_exceptions = _least_squares(current, candidates, constraints, extra_linear)
+        exceptions.extend(solver_exceptions)
+        if projected is not None:
+            trace = StageTrace(
+                stage="constraints",
+                rule_type="least_squares_projection",
+                label="constraints (least-squares projection)",
+                candidates_in=len(weights),
+                candidates_out=len(projected),
+                detail={
+                    "solver": constraints.solver.solver,
+                    "max_weight": round(max(projected.values(), default=0.0), 6),
+                    "single_name_cap": constraints.single_name_cap if constraints.single_name_cap is not None else "none",
+                    "ucits_5_10_40": "on" if constraints.ucits_5_10_40 else "off",
+                    "extra_linear": len(extra_linear),
+                },
+            )
+            return projected, trace, exceptions
+        # Fell through: _least_squares already recorded why. Continue into
+        # the waterfall, which cannot honour extra_linear -- the caller is
+        # told so rather than being handed a quietly weaker index.
+        if extra_linear:
+            exceptions.append(
+                "the waterfall cannot express "
+                + ", ".join(c.label for c in extra_linear)
+                + "; not applied in this pass"
+            )
 
     for _ in range(constraints.max_iterations):
         before = dict(current)
@@ -210,3 +261,34 @@ def apply_constraints(
         },
     )
     return current, trace, exceptions
+
+
+def _least_squares(
+    weights: dict[str, float],
+    candidates: list[IndexCandidate],
+    constraints: ConstraintSet,
+    extra_linear: list[LinearConstraint],
+) -> tuple[dict[str, float] | None, list[str]]:
+    """Runs the projection and decides whether its answer is usable.
+
+    Returns (weights, exceptions). A None result means the caller should
+    fall back; the exceptions say why, in the same register as every other
+    relaxation the engine records.
+    """
+    exceptions: list[str] = []
+    if not optimizer_available():
+        exceptions.append(
+            "solver.method='least_squares' but cvxpy is not installed; "
+            'fell back to the deterministic waterfall (pip install -e ".[optimize]")'
+        )
+        return None, exceptions
+
+    result = project(weights, candidates, constraints, extra_linear=extra_linear)
+    if result.weights is not None:
+        return result.weights, exceptions
+
+    detail = f"{result.status}" + (f" -- {'; '.join(result.violations[:3])}" if result.violations else "")
+    if not constraints.solver.fallback_to_waterfall:
+        raise ValueError(f"least-squares projection failed and fallback is disabled: {detail}")
+    exceptions.append(f"least-squares projection did not produce a usable solution ({detail}); fell back to the waterfall")
+    return None, exceptions

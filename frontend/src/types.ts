@@ -982,12 +982,20 @@ export interface GroupCap {
   label?: string;
 }
 
+export interface ConstraintSolver {
+  method: "waterfall" | "least_squares";
+  solver: "CLARABEL" | "OSQP" | "SCS";
+  verify_tolerance: number;
+  fallback_to_waterfall: boolean;
+}
+
 export interface ConstraintSet {
   single_name_cap?: number | null;
   group_caps: GroupCap[];
   ucits_5_10_40: boolean;
   min_weight?: number | null;
   max_iterations?: number;
+  solver: ConstraintSolver;
 }
 
 export interface DecarbonisationTrajectory {
@@ -1122,6 +1130,7 @@ export interface IndexCatalogue {
   base_weighting: { scheme: string; label: string; needs_field: boolean }[];
   tilts: RuleTypeSpec[];
   constraints: RuleParamSpec[];
+  constraint_solver: { help: string; params: RuleParamSpec[]; available: boolean };
   trajectory: { help: string; params: RuleParamSpec[] };
   presets: { name: string; label: string; description: string }[];
   screen_bundles: { name: string; label: string; description: string }[];

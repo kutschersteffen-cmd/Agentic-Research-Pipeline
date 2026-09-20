@@ -1,10 +1,13 @@
 # Optimization Tooling — What Exists, and What This Engine Would Actually Use
 
-Status: **survey and recommendation.** Nothing here is installed. The index
-engine in `backend/arp/index/` deploys no solver, no risk model and no
-covariance matrix (see `INDEX_METHODOLOGY_LANDSCAPE.md` §6 C and the plan's
-§7.1). This document is what to reach for *if* a methodology needs more than
-the deterministic path, and — more usefully — how to tell whether it does.
+Status: **survey, recommendation, and §9 Stage 1 is now built.** The index
+engine carries an optional least-squares projection
+(`backend/arp/index/optimize.py`, the `optimize` extra) selected per
+calibration via `ConstraintSet.solver.method='least_squares'`; the
+deterministic waterfall remains the default and the fallback. Stages 2 and 3
+— anything needing a covariance matrix or integer variables — are not built.
+The rest of this document is what to reach for if a methodology needs more
+than that, and — more usefully — how to tell whether it does.
 
 The short version: the question is not "which optimiser is best". It is
 **"which problem class does the methodology generate?"** That answer picks
@@ -211,10 +214,10 @@ the next.
 respects every cap, and is byte-identical everywhere. No solver is
 justified by anything currently in scope.
 
-**Stage 1 — a true least-squares projection (~1 week).** Add cvxpy with
-open-source backends behind a new `weighting/optimize.py`, implementing
-`min ‖w − b‖²` subject to the existing `ConstraintSet` plus the intensity
-target. What it buys over the current path:
+**Stage 1 — a true least-squares projection. ✅ Built.** cvxpy behind
+`arp/index/optimize.py`, implementing `min ‖w − b‖²` subject to the existing
+`ConstraintSet` plus the intensity target. What it bought over the
+deterministic path:
 
 - a provable optimum for a stated objective, rather than a defensible
   heuristic;
@@ -223,10 +226,29 @@ target. What it buys over the current path:
 - one formulation that covers group caps, factor neutrality and ratio floors
   without another bespoke pass.
 
-Ship it as an opt-in `[optimize]` extra with the §8 controls, chosen per
-calibration, with the deterministic path staying the default. Both paths
-run on the same inputs, so the calibration records which one produced the
-index.
+Shipped as an opt-in `[optimize]` extra with the §8 controls, chosen per
+calibration, with the deterministic path staying the default and the
+fallback. Both paths run on the same inputs, and the method is part of the
+calibration's config hash, so two indices that differ only by constraint
+method cannot share an identity.
+
+*What the implementation confirmed.* Two things only showed up once it ran.
+First, the verification tolerance has to scale with each constraint's
+coefficient magnitude: a GHG-intensity constraint carries coefficients in
+the hundreds, so an absolute tolerance calibrated for weights rejects
+solutions correct to twelve significant figures. Second, the decarbonisation
+target being linear is not a technicality — `avg ≤ τ` over the covered
+subset is `Σ w(x − τ) ≤ 0`, so it enters the same programme as the caps and
+the whole tilt-then-project composition disappears: **one solve, no
+bisection**, which is visible in the trace as `iterations=1` against the
+tilt search's ~20.
+
+*What it did not buy.* Byte-identical output across machines is still not
+guaranteed with a solver in the loop — repeat-solve determinism is tested
+in-process and solutions are rounded at 1e-9 to absorb BLAS-level variation,
+but the cross-machine guarantee the waterfall gives for free now depends on
+the pinned-version discipline in §8. That is the trade, and it is why the
+waterfall stayed the default.
 
 **Stage 2 — a tracking-error budget (weeks, plus a licence).** The
 formulation is easy (SOCP; Clarabel or MOSEK handles it). The hard part is

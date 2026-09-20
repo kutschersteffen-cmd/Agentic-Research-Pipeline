@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import type {
+  ConstraintSolver,
   ConstructionSpec,
   IndexCalibration,
   IndexCatalogue,
@@ -32,7 +33,13 @@ const EMPTY_SPEC: ConstructionSpec = {
   selection: { type: "select_all" },
   base_weighting: { scheme: "free_float_mcap" },
   tilts: [],
-  constraints: { group_caps: [], ucits_5_10_40: false, single_name_cap: null, min_weight: null },
+  constraints: {
+    group_caps: [],
+    ucits_5_10_40: false,
+    single_name_cap: null,
+    min_weight: null,
+    solver: { method: "waterfall", solver: "CLARABEL", verify_tolerance: 1e-7, fallback_to_waterfall: true },
+  },
   trajectory: {
     enabled: false,
     metric_field: "ghg_intensity",
@@ -277,7 +284,7 @@ export function IndexBuilder() {
           <SelectionCard spec={spec} setSpec={setSpec} fields={fields} />
           <WeightingCard spec={spec} setSpec={setSpec} fields={fields} />
           <TiltsCard spec={spec} setSpec={setSpec} fields={fields} />
-          <ConstraintsCard spec={spec} setSpec={setSpec} fields={fields} />
+          <ConstraintsCard spec={spec} setSpec={setSpec} fields={fields} optimizerAvailable={catalogue?.constraint_solver?.available ?? null} />
           <TrajectoryCard spec={spec} setSpec={setSpec} fields={fields} />
 
           <div className="card">
@@ -687,10 +694,24 @@ function TiltsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setSpec:
 
 // --------------------------------------------------------- constraints
 
-function ConstraintsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setSpec: (s: ConstructionSpec) => void; fields: IndexCatalogue["fields"] }) {
+function ConstraintsCard({
+  spec,
+  setSpec,
+  fields,
+  optimizerAvailable,
+}: {
+  spec: ConstructionSpec;
+  setSpec: (s: ConstructionSpec) => void;
+  fields: IndexCatalogue["fields"];
+  optimizerAvailable: boolean | null;
+}) {
   const c = spec.constraints;
+  const solver = c.solver ?? { method: "waterfall", solver: "CLARABEL", verify_tolerance: 1e-7, fallback_to_waterfall: true };
   function update(patch: Partial<ConstructionSpec["constraints"]>) {
     setSpec({ ...spec, constraints: { ...c, ...patch } });
+  }
+  function setSolver(patch: Partial<ConstraintSolver>) {
+    setSpec({ ...spec, constraints: { ...c, solver: { ...solver, ...patch } } });
   }
   return (
     <div className="card">
@@ -731,6 +752,53 @@ function ConstraintsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; se
       <button className="nav-tab" onClick={() => update({ group_caps: [...c.group_caps, { dimension: fields.categories[0] ?? "sector", max_weight: 0.4 }] })}>
         + Group cap
       </button>
+
+      <h4>How the constraints are satisfied</h4>
+      <p className="help-text">
+        The <strong>waterfall</strong> needs nothing installed and is byte-identical everywhere, but applies the
+        constraints in sequence. The <strong>least-squares projection</strong> solves them simultaneously and returns the
+        closest feasible portfolio to what the rules asked for — and takes the decarbonisation target in the same solve,
+        so no tilt search is needed. Whichever is chosen, every constraint is re-checked here afterwards; a solver&apos;s
+        own &quot;optimal&quot; status is never taken as proof.
+      </p>
+      <div className="inline-fields">
+        <SelectField
+          label="Method"
+          value={solver.method}
+          options={["waterfall", "least_squares"]}
+          onChange={(method) => setSolver({ method: method as ConstraintSolver["method"] })}
+        />
+        {solver.method === "least_squares" && (
+          <SelectField
+            label="Solver (pinned)"
+            value={solver.solver}
+            options={["CLARABEL", "OSQP", "SCS"]}
+            onChange={(name) => setSolver({ solver: name as ConstraintSolver["solver"] })}
+          />
+        )}
+      </div>
+      {solver.method === "least_squares" && (
+        <>
+          {optimizerAvailable === false && (
+            <p className="error-text">
+              cvxpy is not installed on the server, so this calibration will fall back to the waterfall and record why.
+              Install it with <code>pip install -e &quot;.[optimize]&quot;</code>.
+            </p>
+          )}
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={solver.fallback_to_waterfall}
+              onChange={(e) => setSolver({ fallback_to_waterfall: e.target.checked })}
+            />
+            Fall back to the waterfall if the solve fails or fails verification
+          </label>
+          <p className="muted">
+            A solver swap can move the last digits, so it is stored with the calibration and changes its config hash —
+            the same treatment any other methodology parameter gets.
+          </p>
+        </>
+      )}
     </div>
   );
 }

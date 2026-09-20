@@ -303,15 +303,47 @@ class GroupCap(BaseModel):
     label: str = ""
 
 
+class ConstraintSolver(BaseModel):
+    """How the constraint set is satisfied.
+
+    `waterfall` is the default and needs nothing installed: pin every
+    breach at its cap, redistribute pro-rata, repeat. It is byte-identical
+    everywhere and satisfies the constraints, but applies them in sequence
+    and makes no claim about how far it moves the weights to do so.
+
+    `least_squares` solves `min ||w - b||^2` over the whole constraint set
+    as one convex programme (see `arp/index/optimize.py`), so every
+    constraint binds simultaneously and the result is the *closest*
+    feasible portfolio to what the methodology asked for. It needs the
+    optional `optimize` extra, and the solver choice is part of the
+    calibration precisely because it can move the last digits.
+    """
+
+    method: Literal["waterfall", "least_squares"] = "waterfall"
+    solver: Literal["CLARABEL", "OSQP", "SCS"] = Field(
+        default="CLARABEL", description="Pinned per calibration: a solver swap is a methodology change, not an implementation detail."
+    )
+    verify_tolerance: float = Field(
+        default=1e-7,
+        gt=0.0,
+        description="Every constraint is re-checked in plain Python at this tolerance after the solve; a solver's own 'optimal' status is never taken as proof.",
+    )
+    fallback_to_waterfall: bool = Field(
+        default=True,
+        description="On solver failure or a failed verification, fall back to the waterfall and record an exception rather than failing the review.",
+    )
+
+
 class ConstraintSet(BaseModel):
-    """Applied by a deterministic waterfall, never a solver -- see
-    `arp/index/capping.py`."""
+    """Satisfied by the deterministic waterfall by default; optionally by a
+    least-squares projection -- see `solver` and `arp/index/capping.py`."""
 
     single_name_cap: float | None = Field(default=None, gt=0.0, le=1.0)
     group_caps: list[GroupCap] = Field(default_factory=list)
     ucits_5_10_40: bool = Field(default=False, description="No issuer above 10%, and issuers above 5% summing to at most 40%.")
     min_weight: float | None = Field(default=None, ge=0.0, lt=1.0, description="Constituents below this are dropped and their weight redistributed.")
     max_iterations: int = Field(default=200, gt=0)
+    solver: ConstraintSolver = Field(default_factory=ConstraintSolver)
 
 
 # --------------------------------------------------------------------------

@@ -107,14 +107,21 @@ precision at scale (designed for up to ~4,000 companies per run).
    today's parameters cannot silently rewrite a past review. Every stage
    emits a trace line, so the construction funnel a committee reviews and
    the audit trail are the same object. Backend + CLI + API + a
-   rule-composer UI (`Index Construction` tab). **No optimiser is deployed** —
-   no solver library, no risk model, no covariance matrix: the capping
+   rule-composer UI (`Index Construction` tab). **The default path deploys no
+   solver** — no library, no risk model, no covariance matrix: the capping
    waterfall is a fixed-point iteration and the decarbonisation target is
    met by an entropy tilt whose single multiplier is found by bisection,
-   which is what keeps the whole engine byte-identical across machines. That
-   reaches PAB/CTB compliance without a licensed optimiser, but carries no
-   optimality certificate and offers no tracking-error budget — those need
-   the risk-model optimisation that is deliberately not built. What
+   which keeps the whole engine byte-identical across machines. A
+   calibration can opt into a **least-squares projection** instead
+   (`pip install -e ".[optimize]"`), which solves every constraint plus the
+   intensity target as one convex programme — the closest feasible portfolio
+   to what the rules asked for, in a single solve rather than a tilt search.
+   Every constraint is re-checked in plain Python afterwards, so a solver's
+   own "optimal" status is never taken as proof, and a failed solve or a
+   failed check falls back to the waterfall with the reason recorded. Still
+   not built: a tracking-error budget or anything else needing a covariance
+   matrix, and the mixed-integer constraints (minimum weight *if held*, a
+   fixed constituent count). What
    is *not* built yet: the bitemporal point-in-time store, real vendor
    feeds, corporate actions, FX and withholding tax, total-return variants,
    the backtester, and the governance workflow — see the plan for the full
@@ -324,6 +331,9 @@ arp index calibration-list
 arp index run --index-id dws_pab --review-date 2026-03-31 --calibration-id <cal_id>
 arp index run --index-id dws_pab --review-date 2027-03-31 --calibration-id <cal_id>   # ratchets: the 7% trajectory takes over
 arp index calibration-history <cal_id>                       # every version and the window it governs
+
+# Optional: the least-squares constraint projection (pip install -e ".[optimize]")
+arp index preview --preset eu_pab --review-date 2026-03-31 --solver-method least_squares --show trace
 ```
 
 Every `arp index` command runs against a built-in, deterministic demo

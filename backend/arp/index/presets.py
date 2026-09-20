@@ -205,6 +205,12 @@ SCREEN_BUNDLES: dict[str, Callable[[], list[ScreenRule]]] = {
 }
 
 
+def _optimizer_available() -> bool:
+    from arp.index.optimize import available
+
+    return available()
+
+
 def rule_catalogue() -> dict:
     """Machine-readable description of every rule type, its parameters and
     defaults -- the single source the UI builds its pickers from, so a new
@@ -319,6 +325,22 @@ def rule_catalogue() -> dict:
             {"name": "ucits_5_10_40", "kind": "boolean", "help": "No issuer above 10%, and issuers above 5% summing to at most 40%."},
             {"name": "min_weight", "kind": "fraction", "help": "Constituents below this are dropped and their weight redistributed."},
         ],
+        "constraint_solver": {
+            "help": (
+                "How the constraint set is satisfied. The waterfall needs nothing installed and is byte-identical "
+                "everywhere, but applies the constraints in sequence. The least-squares projection solves them "
+                "simultaneously and returns the closest feasible portfolio to what the rules asked for; it needs the "
+                "optional `optimize` extra and falls back to the waterfall, with an exception recorded, if the solver "
+                "fails or its answer does not pass our own constraint check."
+            ),
+            "params": [
+                {"name": "method", "kind": "enum", "options": ["waterfall", "least_squares"], "default": "waterfall"},
+                {"name": "solver", "kind": "enum", "options": ["CLARABEL", "OSQP", "SCS"], "default": "CLARABEL", "help": "Pinned per calibration: a solver swap can move the last digits, so it is a methodology change."},
+                {"name": "verify_tolerance", "kind": "number", "default": 1e-7, "help": "Every constraint is re-checked in plain Python at this tolerance; the solver's own status is never taken as proof."},
+                {"name": "fallback_to_waterfall", "kind": "boolean", "default": True},
+            ],
+            "available": _optimizer_available(),
+        },
         "trajectory": {
             "help": "The path-dependent layer. Two reductions bind at once: the trajectory decays geometrically from a fixed base, the universe-relative floor moves with the investable universe. Whichever is tighter binds, and the engine records which.",
             "params": [

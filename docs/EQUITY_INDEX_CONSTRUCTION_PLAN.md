@@ -6,6 +6,11 @@ store described in sections 6, 7 and 15 now exist: `backend/arp/index/`
 path-dependent trajectory, index shares and divisor), `backend/arp/storage/index_store.py`
 (versioned, effective-dated calibrations), `backend/arp/api/routers/index.py`,
 `arp index --help`, and a rule-composer UI on the `Index Construction` tab.
+An optional least-squares constraint projection (`arp/index/optimize.py`,
+the `optimize` extra) implements Stage 1 of
+[`OPTIMIZATION_TOOLING.md`](OPTIMIZATION_TOOLING.md) section 9, chosen per
+calibration, with the deterministic waterfall as both the default and the
+fallback.
 Phases 1, 3, 5, 6 and 7 are not built: no bitemporal store, no vendor feeds,
 no corporate actions, no FX or withholding tax, no total-return variants, no
 backtester, no governance workflow, and no file distribution. The rest of
@@ -363,6 +368,15 @@ every constraint an EU PAB or CTB imposes is linear in the weights, so the
 regulated core is a QP at worst. The one methodology feature that forces a
 mixed-integer programme — and therefore a commercial solver — is a
 *minimum weight if held*, which is a disjunction rather than a bound.
+
+The least-squares projection now built is the shape this section
+anticipated, and it carries every control listed below: the solver is pinned
+per calibration and part of its config hash, tolerances are explicit, every
+constraint is re-verified independently of the solver's status, a repeat-solve
+test asserts determinism, and failure falls back to the deterministic path
+with an exception recorded rather than relaxing anything silently. What it
+does *not* restore is cross-machine byte-identity, which is why it is opt-in
+and the waterfall remains the default.
 
 Where the convex solver *is* genuinely needed — factor-tilt optimisation,
 tracking-error-constrained weighting, multi-constraint problems with an
