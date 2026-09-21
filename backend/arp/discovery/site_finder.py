@@ -63,24 +63,15 @@ def _unwrap_ddg_redirect(href: str) -> str | None:
 _IR_HINTS = ("investor", "ir.", "/investors", "shareholder")
 
 
-async def resolve_company_homepage(
-    company_name: str, search_client: WebSearchClient, prefer_investor_relations: bool = True
-) -> str | None:
+async def resolve_company_homepage(company_name: str, search_client: WebSearchClient) -> str | None:
     """Resolve a plausible corporate/IR homepage URL for a company by name.
 
     Only used when the company universe doesn't already supply a website.
     """
-    queries = (
-        [f"{company_name} investor relations"] if prefer_investor_relations else []
-    ) + [f"{company_name} official website"]
-    for query in queries:
+    for query in (f"{company_name} investor relations", f"{company_name} official website"):
         results = await search_client.search(query, max_results=5)
         if not results:
             continue
-        if prefer_investor_relations:
-            ir_hit = next((r for r in results if any(h in r.url.lower() for h in _IR_HINTS)), None)
-            if ir_hit:
-                return ir_hit.url
-        if results:
-            return results[0].url
+        ir_hit = next((r for r in results if any(h in r.url.lower() for h in _IR_HINTS)), None)
+        return ir_hit.url if ir_hit else results[0].url
     return None

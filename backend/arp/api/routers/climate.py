@@ -6,18 +6,11 @@ from arp.api.deps import get_portfolio_store
 from arp.portfolio import analytics
 from arp.portfolio.climate import metrics as climate_metrics
 from arp.portfolio.climate.schemas import build_climate_schema
-from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema
-from arp.schemas.portfolio import AggregationResult, PivotResult, PivotSpec, SecurityRef, TrendPoint
-from arp.storage.portfolio_store import PortfolioStore
+from arp.schemas.portfolio import AggregationResult, PivotResult, PivotSpec, TrendPoint
+from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
 
 router = APIRouter(prefix="/api/climate", tags=["climate"])
-
-
-def _directories(store: PortfolioStore) -> tuple[dict[str, SecurityRef], dict[str, CompanyRef]]:
-    securities = {s.security_id: s for s in store.list_securities()}
-    companies = {c.company_id: c for c in store.list_companies()}
-    return securities, companies
 
 
 def _resolve_as_of(store: PortfolioStore, as_of: str | None) -> str:
@@ -41,7 +34,7 @@ def waci(
     portfolio_id: list[str] | None = Query(default=None),
     store: PortfolioStore = Depends(get_portfolio_store),
 ) -> AggregationResult:
-    securities, companies = _directories(store)
+    securities, companies = portfolio_directories(store)
     resolved_as_of = _resolve_as_of(store, as_of)
     holdings = store.load_holdings_as_of(resolved_as_of, portfolio_id)
     return climate_metrics.compute_waci(
@@ -55,7 +48,7 @@ def waci_trend(
     portfolio_id: list[str] | None = Query(default=None),
     store: PortfolioStore = Depends(get_portfolio_store),
 ) -> list[TrendPoint]:
-    securities, companies = _directories(store)
+    securities, companies = portfolio_directories(store)
     holdings_by_date = {d: store.load_holdings_as_of(d, portfolio_id) for d in store.all_snapshot_dates()}
     return climate_metrics.compute_waci_trend(store, holdings_by_date, securities, companies, group_by=group_by, portfolio_filter=portfolio_id)
 
@@ -66,7 +59,7 @@ def financed_emissions(
     portfolio_id: list[str] | None = Query(default=None),
     store: PortfolioStore = Depends(get_portfolio_store),
 ) -> dict:
-    securities, _companies = _directories(store)
+    securities, _companies = portfolio_directories(store)
     resolved_as_of = _resolve_as_of(store, as_of)
     holdings = store.load_holdings_as_of(resolved_as_of, portfolio_id)
     return climate_metrics.compute_financed_emissions(
@@ -76,7 +69,7 @@ def financed_emissions(
 
 @router.get("/coverage/{field_id}")
 def coverage(field_id: str, as_of: str | None = None, store: PortfolioStore = Depends(get_portfolio_store)) -> dict:
-    securities, _companies = _directories(store)
+    securities, _companies = portfolio_directories(store)
     return climate_metrics.coverage_report(store, securities, field_id, as_of)
 
 
@@ -102,7 +95,7 @@ def climate_pivot(
         data_point_field_id=field_id,
         as_of=as_of,
     )
-    securities, companies = _directories(store)
+    securities, companies = portfolio_directories(store)
     try:
         return analytics.execute_pivot(spec, store, securities, companies)
     except ValueError as exc:

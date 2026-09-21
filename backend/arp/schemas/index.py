@@ -433,8 +433,6 @@ class ConstraintSolver(BaseModel):
                 "solver='OSQP' cannot express a tracking-error budget (a second-order cone constraint); "
                 "use CLARABEL or SCS"
             )
-        if self.method in ("min_tracking_error", "max_score") and self.tracking_error_budget is None and self.method == "min_tracking_error":
-            pass  # minimising TE needs no budget
         return self
 
 

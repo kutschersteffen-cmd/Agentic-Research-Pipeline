@@ -360,3 +360,14 @@ class PortfolioStore:
 
     def list_governance_events(self) -> list[dict]:
         return self._read_jsonl(self.governance_events_path())
+
+
+def portfolio_directories(store: PortfolioStore) -> tuple[dict[str, SecurityRef], dict[str, CompanyRef]]:
+    """The (securities, companies) id -> reference lookups every caller
+    that resolves holdings needs. One definition so a future filter,
+    cache, or unresolved-company_id fallback lands everywhere at once
+    rather than in whichever call site the author happened to open.
+    """
+    securities = {s.security_id: s for s in store.list_securities()}
+    companies = {c.company_id: c for c in store.list_companies()}
+    return securities, companies

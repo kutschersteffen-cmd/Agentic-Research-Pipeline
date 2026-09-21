@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from langgraph.graph import END, StateGraph
-
 from arp.config import Settings
+from arp.extraction.graph_shape import build_extract_verify_graph
 from arp.extraction.tnfd_aggregator import build_tnfd_record
 from arp.extraction.tnfd_extractor_agent import TNFD_DOC_TYPES, TNFD_KEYWORDS, TNFDExtractionDraft, extract_tnfd
 from arp.extraction.tnfd_verifier_agent import TNFDVerifierOutput, verify_tnfd
@@ -130,26 +129,15 @@ async def _aggregate(state: TNFDState) -> dict:
     return {"record": record}
 
 
-def _build_graph():
-    graph = StateGraph(TNFDState)
-    graph.add_node("gather_evidence", _gather_evidence)
-    graph.add_node("finalize_no_evidence", _finalize_no_evidence)
-    graph.add_node("extract", _extract)
-    graph.add_node("verify", _verify)
-    graph.add_node("aggregate", _aggregate)
-
-    graph.set_entry_point("gather_evidence")
-    graph.add_conditional_edges(
-        "gather_evidence", _route_after_evidence, {"extract": "extract", "finalize_no_evidence": "finalize_no_evidence"}
-    )
-    graph.add_edge("finalize_no_evidence", END)
-    graph.add_edge("extract", "verify")
-    graph.add_edge("verify", "aggregate")
-    graph.add_edge("aggregate", END)
-    return graph.compile()
-
-
-_COMPILED_GRAPH = _build_graph()
+_COMPILED_GRAPH = build_extract_verify_graph(
+    TNFDState,
+    gather_evidence=_gather_evidence,
+    route_after_evidence=_route_after_evidence,
+    finalize_no_evidence=_finalize_no_evidence,
+    extract=_extract,
+    verify=_verify,
+    aggregate=_aggregate,
+)
 
 
 async def extract_company_tnfd(

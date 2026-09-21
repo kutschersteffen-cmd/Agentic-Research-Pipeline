@@ -9,6 +9,7 @@ from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 from arp.ingestion.base import DocumentSource
+from arp.ingestion.html_text import extract_html_text
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
@@ -90,15 +91,7 @@ def _extract_pdf_text(path: Path) -> tuple[str, list[int]]:
 
 
 def _extract_html_text(path: Path) -> str:
-    import trafilatura
-
-    raw = path.read_text(errors="ignore")
-    extracted = trafilatura.extract(raw, favor_recall=True)
-    if extracted:
-        return extracted
-    from bs4 import BeautifulSoup
-
-    return BeautifulSoup(raw, "lxml").get_text("\n")
+    return extract_html_text(path.read_text(errors="ignore"))
 
 
 def _extract_xlsx_text(path: Path) -> str:

@@ -208,8 +208,6 @@ async def create_taxonomy(
             raise HTTPException(422, str(exc)) from exc
 
     elif method == DerivationMethod.ETF_INDEX_HOLDINGS:
-        if not req.holdings_path:
-            raise HTTPException(400, "Provide holdings_path (upload via POST /api/universe/upload, then pass its path).")
         try:
             theme, notes, _usage = await build_theme_from_holdings(req.name, req.description, Path(req.holdings_path), llm)
         except ValueError as exc:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from arp.schemas.reporting import TemplateStyleProfile
+from arp.schemas.reporting import LayoutInstructions, ReportPlan, ReportSection, TemplateStyleProfile
 
 # Validated, CVD-safe categorical palette in fixed slot order -- never
 # cycled or reordered (see the dataviz skill's references/palette.md).
@@ -76,3 +76,16 @@ def theme_from_template(style: TemplateStyleProfile | None) -> DesignTheme:
 def categorical_color(theme: DesignTheme, index: int) -> str:
     palette = theme.categorical or CATEGORICAL_PALETTE
     return palette[index % len(palette)]
+
+
+def ordered_sections(plan: ReportPlan, layout: LayoutInstructions) -> list[ReportSection]:
+    """Section order shared by the pptx, docx and pdf renderers: appendix
+    sections sink to the end when the layout asks for an appendix, and the
+    plan's own order stands otherwise. One rule, so the three renderings of
+    a single ReportPlan cannot disagree about where the appendix goes.
+    """
+    if not layout.include_appendix:
+        return list(plan.sections)
+    main = [s for s in plan.sections if not s.appendix]
+    appendix = [s for s in plan.sections if s.appendix]
+    return main + appendix
