@@ -612,10 +612,12 @@ API-dependent pieces:
 
 ## 11. Phased roadmap
 
-- **Phase 0 — Foundations** ✅ *(built, mock connector)*: `schemas/portfolio.py`,
-  `PortfolioSource` connector interface + `MockCustodianSource` standing in
-  for the real custodian API, entity resolution + review queue,
-  append-only `portfolios/` snapshot store (`storage/portfolio_store.py`).
+- **Phase 0 — Foundations** ✅ *(built)*: `schemas/portfolio.py`, entity
+  resolution + review queue, append-only `portfolios/` snapshot store
+  (`storage/portfolio_store.py`). Holdings are seeded through
+  `portfolio/mock_data.py::generate_demo_dataset`; the `PortfolioSource`
+  connector interface sketched in §7 is not built yet — an earlier
+  unreferenced stub of it was removed rather than left to rot.
 - **Phase 1 — Aggregation & direct answers** ✅ *(built)*: deterministic
   aggregation engine (`portfolio/aggregation.py`) incl. `as_of`/`date_range`,
   built-in dimensions, API + CLI for grouped market-value queries. This
