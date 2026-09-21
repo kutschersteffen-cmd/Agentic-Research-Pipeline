@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import asyncio
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -11,13 +9,14 @@ from arp.agents.taxonomy_researcher import (
     execute_taxonomy_research_run,
 )
 from arp.api.deps import (
-    get_llm_client,
     get_taxonomy_researcher_scheduler,
     get_taxonomy_store,
     get_web_search_client,
     settings_dep,
 )
+from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
+from arp.llm.base import LLMClient
 from arp.schemas.taxonomy_researcher import TaxonomyResearcherScheduleConfig
 from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.run_store import RunStore
@@ -45,17 +44,24 @@ async def start_taxonomy_research_run(
     `taxonomy_ids`, if given). Uses the exact same pipeline the automatic
     schedule uses. Only ever writes new DRAFT taxonomy versions --
     ratification stays a separate, human-only step."""
-    run_id = create_taxonomy_research_run(taxonomy_store, run_store, req.taxonomy_ids, "manual")
-    llm = get_llm_client()
     search_client = get_web_search_client()
 
-    async def _background() -> None:
+    async def _run(run_id: str, llm: LLMClient, _verifier_llm: LLMClient) -> None:
         await execute_taxonomy_research_run(
             run_id, llm=llm, search_client=search_client, settings=settings,
             taxonomy_store=taxonomy_store, run_store=run_store, taxonomy_ids=req.taxonomy_ids,
         )
 
-    asyncio.create_task(_background())
+    # Through the shared helper rather than a hand-rolled create_task: it
+    # resolves the LLM clients before create_fn runs, so an unconfigured key
+    # 503s instead of leaving a "running" manifest that nothing will ever
+    # finish. This endpoint has no separate verifier role, so _run ignores
+    # the second client. Resolving the search client first is the same
+    # fail-fast for its own construction.
+    run_id = schedule_llm_run(
+        create_fn=lambda: create_taxonomy_research_run(taxonomy_store, run_store, req.taxonomy_ids, "manual"),
+        run=_run,
+    )
     return {"run_id": run_id}
 
 

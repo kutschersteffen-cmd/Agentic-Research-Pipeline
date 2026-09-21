@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from arp.extraction.financials_extractor_agent import SpendSectionDraft
 from arp.extraction.spend_extractor_agent import AmountMetricDraft, SpendCategoryDraft
-from arp.grounding import ground_citations
+from arp.grounding import ground_claim
 from arp.schemas.common import SourceDocument
 from arp.schemas.spend import AmountMetric, SpendCategory, SpendExtractionRecord, SpendTopic
 
@@ -10,8 +10,9 @@ from arp.schemas.spend import AmountMetric, SpendCategory, SpendExtractionRecord
 def _build_metric(
     draft_metric: AmountMetricDraft, documents_by_id: dict[str, SourceDocument], fuzzy_threshold: float
 ) -> AmountMetric:
-    citations = ground_citations(draft_metric.citations, documents_by_id, fuzzy_threshold)
-    grounded = all(c.grounded for c in citations) if citations else (draft_metric.value is None)
+    citations, grounded = ground_claim(
+        draft_metric.citations, documents_by_id, fuzzy_threshold, claim_is_empty=draft_metric.value is None
+    )
     return AmountMetric(
         value=draft_metric.value, raw_value_text=draft_metric.raw_value_text, citations=citations, grounded=grounded
     )
@@ -23,11 +24,11 @@ def _build_category(
     fuzzy_threshold: float,
     category_confidence: float,
 ) -> SpendCategory:
-    description_citations = ground_citations(draft_category.description_citations, documents_by_id, fuzzy_threshold)
-    # A real description with zero citations is not grounded -- only the
-    # absence of a description at all is trivially "nothing to ground".
-    description_grounded = (
-        all(c.grounded for c in description_citations) if description_citations else (draft_category.description is None)
+    description_citations, description_grounded = ground_claim(
+        draft_category.description_citations,
+        documents_by_id,
+        fuzzy_threshold,
+        claim_is_empty=draft_category.description is None,
     )
     amount = _build_metric(draft_category.amount, documents_by_id, fuzzy_threshold)
     return SpendCategory(
@@ -102,10 +103,9 @@ def build_spend_record(
     final_confidence = min(draft_confidence, verifier_confidence)
 
     total = _build_metric(total_draft, documents_by_id, fuzzy_threshold)
-    description_citations = ground_citations(description_citations_draft, documents_by_id, fuzzy_threshold)
-    # A real description with zero citations is not grounded -- only the
-    # absence of a description at all is trivially "nothing to ground".
-    description_grounded = all(c.grounded for c in description_citations) if description_citations else (description is None)
+    description_citations, description_grounded = ground_claim(
+        description_citations_draft, documents_by_id, fuzzy_threshold, claim_is_empty=description is None
+    )
     categories = [
         _build_category(c, documents_by_id, fuzzy_threshold, final_confidence) for c in categories_draft
     ]

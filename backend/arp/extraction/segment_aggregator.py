@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from arp.extraction.segment_extractor_agent import SegmentDraft, SegmentMetricDraft
-from arp.grounding import ground_citations
+from arp.grounding import ground_claim
 from arp.schemas.common import SourceDocument
 from arp.schemas.segments import BusinessSegment, SegmentMetric
 
@@ -9,8 +9,9 @@ from arp.schemas.segments import BusinessSegment, SegmentMetric
 def _build_metric(
     draft_metric: SegmentMetricDraft, documents_by_id: dict[str, SourceDocument], fuzzy_threshold: float
 ) -> SegmentMetric:
-    citations = ground_citations(draft_metric.citations, documents_by_id, fuzzy_threshold)
-    grounded = all(c.grounded for c in citations) if citations else (draft_metric.value is None)
+    citations, grounded = ground_claim(
+        draft_metric.citations, documents_by_id, fuzzy_threshold, claim_is_empty=draft_metric.value is None
+    )
     return SegmentMetric(
         value=draft_metric.value, raw_value_text=draft_metric.raw_value_text, citations=citations, grounded=grounded
     )
@@ -44,8 +45,12 @@ def build_segments(
 
     built_segments: list[BusinessSegment] = []
     for seg_draft in source_segments:
-        description_citations = ground_citations(seg_draft.description_citations, documents_by_id, fuzzy_threshold)
-        description_grounded = all(c.grounded for c in description_citations) if description_citations else True
+        description_citations, description_grounded = ground_claim(
+            seg_draft.description_citations,
+            documents_by_id,
+            fuzzy_threshold,
+            claim_is_empty=seg_draft.description is None,
+        )
         revenue = _build_metric(seg_draft.revenue, documents_by_id, fuzzy_threshold)
         income = _build_metric(seg_draft.income, documents_by_id, fuzzy_threshold)
         assets = _build_metric(seg_draft.assets, documents_by_id, fuzzy_threshold)
