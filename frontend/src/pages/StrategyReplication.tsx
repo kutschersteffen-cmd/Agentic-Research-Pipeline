@@ -189,12 +189,10 @@ function ReviewStage({
   specRunId,
   state,
   onRefresh,
-  onApproved,
 }: {
   specRunId: string;
   state: SpecReviewState;
   onRefresh: (state: SpecReviewState) => void;
-  onApproved: () => void;
 }) {
   const [jsonDraft, setJsonDraft] = useState(() => JSON.stringify(state.spec, null, 2));
   const [instruction, setInstruction] = useState("");
@@ -242,7 +240,6 @@ function ReviewStage({
     try {
       await api.approveSpecDraft(specRunId);
       await refresh();
-      onApproved();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -584,17 +581,10 @@ function ResultsView({
 // ---- Page --------------------------------------------------------------------
 
 export function StrategyReplication() {
-  const [specRunId, setSpecRunId] = useState<string | null>(null);
   const [specState, setSpecState] = useState<SpecReviewState | null>(null);
 
   function onSpecCreated(id: string, spec: StrategySpec) {
-    setSpecRunId(id);
     setSpecState({ spec_run_id: id, spec, approved: false, history: [] });
-  }
-
-  function onSpecLoaded(state: SpecReviewState) {
-    setSpecRunId(state.spec_run_id);
-    setSpecState(state);
   }
 
   return (
@@ -606,18 +596,17 @@ export function StrategyReplication() {
         spec.
       </p>
 
-      <ProposeStage onSpecCreated={onSpecCreated} onSpecLoaded={onSpecLoaded} />
+      <ProposeStage onSpecCreated={onSpecCreated} onSpecLoaded={setSpecState} />
 
       {specState && (
         <ReviewStage
-          specRunId={specRunId as string}
+          specRunId={specState.spec_run_id}
           state={specState}
           onRefresh={setSpecState}
-          onApproved={() => {}}
         />
       )}
 
-      {specState?.approved && <BacktestStage specRunId={specRunId as string} spec={specState.spec} />}
+      {specState?.approved && <BacktestStage specRunId={specState.spec_run_id} spec={specState.spec} />}
     </div>
   );
 }

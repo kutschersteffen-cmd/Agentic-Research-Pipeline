@@ -1,4 +1,4 @@
-import type { CompanyBallot, ResearchDossier, StewardshipReport, TriggerEvent, VoteRecord, VoteReviewDecision } from "../types";
+import type { CompanyBallot, ResearchDossier, TriggerEvent, VoteRecord, VoteReviewDecision } from "../types";
 import type {
   AggregationResult,
   DatasetSummary,
@@ -13,7 +13,6 @@ import type {
   ConstructionSpec,
   IndexCalibration,
   IndexCatalogue,
-  IndexLevelPoint,
   IndexReviewResult,
   AnalyticRequest,
   CompanyRef,
@@ -47,12 +46,9 @@ import type {
 import type { QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, TemplateStyleProfile } from "../types";
 import type { PaperCandidate, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
 import type {
-  BarrierCriterion,
   BarrierCriterionDetail,
   BarrierMatrix,
   BarrierRefreshCoverage,
-  BarrierRegistrySource,
-  BarrierScore,
   BarrierStalenessReport,
 } from "../types";
 
@@ -157,7 +153,6 @@ export const api = {
     request<{ total: number; results: TransitionPlanAssessmentRecord[] }>(
       `/api/transition-plan/runs/${runId}/results?offset=${offset}&limit=${limit}`,
     ),
-  getTransitionPlanReviewQueue: (runId: string) => request(`/api/transition-plan/runs/${runId}/review-queue`),
   submitTransitionPlanReview: (runId: string, body: unknown) =>
     request(`/api/transition-plan/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
   getTransitionPlanReviewDecisions: (runId: string) => request(`/api/transition-plan/runs/${runId}/review-decisions`),
@@ -166,30 +161,14 @@ export const api = {
 
   // Transition Barrier Assessment (105-cell sector x region feasibility matrix)
   getBarrierMatrix: () => request<BarrierMatrix>("/api/transition-barrier/matrix"),
-  getBarrierCriteria: () => request<BarrierCriterion[]>("/api/transition-barrier/criteria"),
   getBarrierCriterionDetail: (code: string) =>
     request<BarrierCriterionDetail>(`/api/transition-barrier/criteria/${encodeURIComponent(code)}`),
-  getBarrierScores: (params: { sector?: string; region?: string; pillar?: string; rating?: string } = {}) =>
-    request<BarrierScore[]>(`/api/transition-barrier/scores${buildQuery(params)}`),
-  getBarrierSources: () => request<BarrierRegistrySource[]>("/api/transition-barrier/sources"),
   getBarrierStaleness: () => request<BarrierStalenessReport>("/api/transition-barrier/staleness"),
   getBarrierRefreshCoverage: () => request<BarrierRefreshCoverage>("/api/transition-barrier/refresh/coverage"),
   startBarrierRefreshRun: () =>
     request<{ run_id: string; source_count: number }>("/api/transition-barrier/refresh/runs", { method: "POST" }),
-  getBarrierRefreshReviewQueue: (runId: string) => request(`/api/transition-barrier/refresh/runs/${runId}/review-queue`),
-  submitBarrierRefreshReview: (runId: string, body: unknown) =>
-    request(`/api/transition-barrier/refresh/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
-  getBarrierRefreshReviewHistory: (runId: string, itemKey: string) =>
-    request(`/api/transition-barrier/refresh/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
 
   // Documents
-  uploadDocument: (companyId: string, docType: string, file: File) => {
-    const form = new FormData();
-    form.append("company_id", companyId);
-    form.append("doc_type", docType);
-    form.append("file", file);
-    return request("/api/documents/upload", { method: "POST", headers: {}, body: form });
-  },
   listDocuments: (companyId: string) => request(`/api/documents/${companyId}`),
   documentRawUrl: (companyId: string, docType: string, filename: string) =>
     `${API_BASE}/api/documents/${encodeURIComponent(companyId)}/${encodeURIComponent(docType)}/${encodeURIComponent(filename)}/raw`,
@@ -209,7 +188,6 @@ export const api = {
   // Taxonomy Researcher (standing agent)
   startTaxonomyResearcherRun: (body: unknown) =>
     request<{ run_id: string }>("/api/taxonomy-researcher/runs", { method: "POST", body: JSON.stringify(body) }),
-  getTaxonomyResearcherRun: (runId: string) => request(`/api/taxonomy-researcher/runs/${runId}`),
   getTaxonomyResearcherResults: (runId: string, offset = 0, limit = 200) =>
     request(`/api/taxonomy-researcher/runs/${runId}/results?offset=${offset}&limit=${limit}`),
   getTaxonomyResearcherSchedule: () => request("/api/taxonomy-researcher/schedule"),
@@ -218,7 +196,6 @@ export const api = {
 
   // Calibration Agent (standing agent)
   startCalibrationRun: () => request<{ run_id: string }>("/api/calibration/runs", { method: "POST" }),
-  getCalibrationRun: (runId: string) => request(`/api/calibration/runs/${runId}`),
   getCalibrationResults: (runId: string, offset = 0, limit = 200) =>
     request(`/api/calibration/runs/${runId}/results?offset=${offset}&limit=${limit}`),
   getCalibrationSchedule: () => request("/api/calibration/schedule"),
@@ -231,7 +208,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  getEmergingThemesRun: (runId: string) => request(`/api/emerging-themes/runs/${encodeURIComponent(runId)}`),
   getEmergingThemesCandidates: (runId: string) =>
     request<{ total: number; candidates: EmergingThemeCandidate[] }>(
       `/api/emerging-themes/runs/${encodeURIComponent(runId)}/candidates`,
@@ -261,7 +237,6 @@ export const api = {
   // Identity resolution (agentic name -> website/CIK, ahead of discovery)
   startIdentityRun: (body: unknown) =>
     request<{ run_id: string; company_count: number }>("/api/identity/runs", { method: "POST", body: JSON.stringify(body) }),
-  getIdentityRun: (runId: string) => request(`/api/identity/runs/${runId}`),
   getIdentityResults: (runId: string, offset = 0, limit = 500) =>
     request(`/api/identity/runs/${runId}/results?offset=${offset}&limit=${limit}`),
   getIdentityReviewQueue: (runId: string) => request(`/api/identity/runs/${runId}/review-queue`),
@@ -273,7 +248,6 @@ export const api = {
   // Runs (generic)
   listRuns: (runType?: string) => request(`/api/runs${runType ? `?run_type=${runType}` : ""}`),
   getRun: (runId: string) => request(`/api/runs/${runId}`),
-  getRunErrors: (runId: string) => request(`/api/runs/${runId}/errors`),
   exportRunCsvUrl: (runId: string) => `${API_BASE}/api/runs/${runId}/export.csv`,
   cancelRun: (runId: string) => request(`/api/runs/${runId}/cancel`, { method: "POST" }),
   resumeThemeRun: (runId: string) => request(`/api/themes/runs/${runId}/resume`, { method: "POST" }),
@@ -295,9 +269,6 @@ export const api = {
   inspectSourceUrl: (url: string) => `${API_BASE}/api/taxonomies/sources/inspect?url=${encodeURIComponent(url)}`,
   createTaxonomy: (body: unknown) => request("/api/taxonomies", { method: "POST", body: JSON.stringify(body) }),
   listTaxonomies: () => request<{ taxonomies: unknown[] }>("/api/taxonomies"),
-  getTaxonomy: (taxonomyId: string, version?: number) =>
-    request(`/api/taxonomies/${taxonomyId}${version ? `?version=${version}` : ""}`),
-  listTaxonomyVersions: (taxonomyId: string) => request<{ versions: unknown[] }>(`/api/taxonomies/${taxonomyId}/versions`),
   newTaxonomyVersion: (taxonomyId: string, body: unknown) =>
     request(`/api/taxonomies/${taxonomyId}/versions`, { method: "POST", body: JSON.stringify(body) }),
   ratifyTaxonomy: (taxonomyId: string, body: unknown) =>
@@ -337,8 +308,6 @@ export const api = {
   createEngagementRecord: (body: { company_id: string; name: string; sector?: string | null }) =>
     request("/api/engagement/records", { method: "POST", body: JSON.stringify(body) }),
   getEngagementRecord: (companyId: string) => request(`/api/engagement/records/${encodeURIComponent(companyId)}`),
-  getEngagementRecordEvents: (companyId: string) =>
-    request<{ events: Record<string, unknown>[] }>(`/api/engagement/records/${encodeURIComponent(companyId)}/events`),
   addEngagementContact: (companyId: string, body: unknown) =>
     request(`/api/engagement/records/${encodeURIComponent(companyId)}/contacts`, { method: "POST", body: JSON.stringify(body) }),
   openEngagementIssue: (companyId: string, name: string, body: { theme: string; severity?: string; source_detail?: string; sector?: string | null }) =>
@@ -394,23 +363,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  getStewardshipReport: (periodLabel: string, runId?: string) =>
-    request<StewardshipReport>(
-      `/api/engagement/report?period_label=${encodeURIComponent(periodLabel)}${runId ? `&run_id=${encodeURIComponent(runId)}` : ""}`,
-    ),
 
   // Voting (proxy)
   startVotingRun: (body: { companies?: unknown[]; universe_path?: string; meeting_dates?: Record<string, string> }) =>
     request<{ run_id: string; company_count: number }>("/api/voting/runs", { method: "POST", body: JSON.stringify(body) }),
-  getVotingRun: (runId: string) => request(`/api/voting/runs/${runId}`),
   getVotingBallots: (runId: string) => request<{ ballots: CompanyBallot[] }>(`/api/voting/runs/${runId}/ballots`),
   getVotingReviewQueue: (runId: string) =>
     request<{ pending: Record<string, unknown>[]; decided: { item: Record<string, unknown>; decision: VoteReviewDecision }[] }>(
       `/api/voting/runs/${runId}/review-queue`,
-    ),
-  getVotingReviewHistory: (runId: string, itemKey: string) =>
-    request<{ item_key: string; history: VoteReviewDecision[] }>(
-      `/api/voting/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`,
     ),
   submitVotingReview: (
     runId: string,
@@ -429,8 +389,6 @@ export const api = {
   runPortfolioPivot: (body: PivotRequest) => request<PivotResult>("/api/portfolio/pivot", { method: "POST", body: JSON.stringify(body) }),
   askPortfolio: (question: string) => request<QAAnswer>("/api/portfolio/ask", { method: "POST", body: JSON.stringify({ question }) }),
   listPortfolioNews: (companyId?: string) => request<NewsItem[]>(`/api/portfolio/news${buildQuery({ company_id: companyId })}`),
-  classifyPortfolioNews: () =>
-    request<{ classified: number; flags_created: number }>("/api/portfolio/news/classify", { method: "POST" }),
   listNewsFlags: (companyId?: string) => request<NewsRiskFlag[]>(`/api/portfolio/news/flags${buildQuery({ company_id: companyId })}`),
   listMonitoringRules: () => request<AlertRule[]>("/api/portfolio/monitoring/rules"),
   createMonitoringRule: (rule: Omit<AlertRule, "rule_id" | "created_at">) =>
@@ -490,8 +448,6 @@ export const api = {
     request<FinancedEmissionsResult>(`/api/climate/financed-emissions${buildQuery(params)}`),
   getClimateCoverage: (fieldId: string, asOf?: string) =>
     request<CoverageBySource>(`/api/climate/coverage/${fieldId}${buildQuery({ as_of: asOf })}`),
-  getClimatePivot: (fieldId: string, params: { row_dim?: string; col_dim?: string; as_of?: string; portfolio_id?: string[] }) =>
-    request<PivotResult>(`/api/climate/pivot/${fieldId}${buildQuery(params)}`),
 
   // Presentation & Reporting Tool
   uploadReportTemplate: (file: File) => {
@@ -587,9 +543,6 @@ export const api = {
       { method: "POST" }
     ),
 
-  // Decision Mechanism -- scoring, ranking and tiering. Every number on
-  // this surface is computed by the backend engine: nothing here recomputes
-  // a score locally, so what a reviewer sees is exactly what the audit
   // trail records.
   uploadDecisionDataset: (file: File) => {
     const form = new FormData();
@@ -599,15 +552,10 @@ export const api = {
   decisionDatasetFromSource: (body: { source: string; run_id?: string; run_ids?: string[]; as_of?: string; portfolio_ids?: string[]; region?: string; sectors?: string[] }) =>
     request<DatasetSummary>("/api/decision/datasets/from-source", { method: "POST", body: JSON.stringify(body) }),
   listDecisionDatasets: () => request<DatasetSummary[]>("/api/decision/datasets"),
-  getDecisionDataset: (datasetId: string) => request<DatasetSummary>(`/api/decision/datasets/${datasetId}`),
   deriveMechanism: (body: { dataset_id: string; name?: string; cluster_threshold?: number; save?: boolean }) =>
     request<MechanismEnvelope>("/api/decision/mechanisms/derive", { method: "POST", body: JSON.stringify(body) }),
   saveMechanism: (body: { config: MechanismConfig; base_version?: number | null; by?: string | null }) =>
     request<MechanismEnvelope>("/api/decision/mechanisms", { method: "POST", body: JSON.stringify(body) }),
-  listMechanisms: () => request<MechanismConfig[]>("/api/decision/mechanisms"),
-  getMechanism: (frameworkId: string, version?: number) =>
-    request<MechanismEnvelope>(`/api/decision/mechanisms/${frameworkId}${buildQuery({ version: version ? String(version) : undefined })}`),
-  listMechanismVersions: (frameworkId: string) => request<number[]>(`/api/decision/mechanisms/${frameworkId}/versions`),
   ratifyMechanism: (frameworkId: string, version?: number) =>
     request<MechanismConfig>(`/api/decision/mechanisms/${frameworkId}/ratify${buildQuery({ version: version ? String(version) : undefined })}`, {
       method: "POST",
@@ -643,7 +591,4 @@ export const api = {
     persist?: boolean;
     use_prior_state?: boolean;
   }) => request<IndexReviewResult>("/api/index/run", { method: "POST", body: JSON.stringify(body) }),
-  listIndexReviews: (indexId: string) => request<{ index_id: string; review_dates: string[] }>(`/api/index/${indexId}/reviews`),
-  getIndexLevels: (indexId: string, reviewDate: string) =>
-    request<IndexLevelPoint[]>(`/api/index/${indexId}/levels/${reviewDate}`),
 };

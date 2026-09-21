@@ -54,6 +54,15 @@ class LeontiefModel:
         """
         return [(code, self.labels.get(code, "")) for code in self.codes]
 
+    def industry_prompt_list(self) -> str:
+        """The same reference list rendered as the "code: label" block the
+        classification prompts tell the model to pick from. Lives here, with
+        codes and labels, because core_sectors.py and company_mapper.py each
+        had their own character-identical copy -- two agents classifying
+        against the same closed list must see it rendered the same way.
+        """
+        return "\n".join(f"{code}: {label}" for code, label in self.industry_reference_list())
+
 
 def build_model(icio: ICIOData, edition_label: str) -> LeontiefModel:
     a = compute_technical_coefficients(icio)

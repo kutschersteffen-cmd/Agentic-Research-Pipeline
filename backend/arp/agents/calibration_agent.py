@@ -15,6 +15,7 @@ from arp.research.pipeline import load_theme_run_matches
 from arp.schemas.calibration import CalibrationScheduleConfig, DriftFlag
 from arp.schemas.common import CompanyRef, JobStatus
 from arp.schemas.thematic import CompanyMatch
+from arp.storage.atomic_io import atomic_write_text
 from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
@@ -141,7 +142,7 @@ class CalibrationAgentScheduler:
 
     def save_config(self, config: CalibrationScheduleConfig) -> None:
         self._config_path.parent.mkdir(parents=True, exist_ok=True)
-        self._config_path.write_text(config.model_dump_json(indent=2))
+        atomic_write_text(self._config_path, config.model_dump_json(indent=2))
         self._apply(config)
 
     def start(self) -> None:
@@ -169,6 +170,6 @@ class CalibrationAgentScheduler:
         try:
             run_id = await run_calibration_pass(registry=self.registry, run_store=self.run_store, triggered_by="schedule")
             config.last_run_id = run_id
-            self._config_path.write_text(config.model_dump_json(indent=2))
+            atomic_write_text(self._config_path, config.model_dump_json(indent=2))
         except Exception:  # noqa: BLE001 - a scheduled run failing must not kill the scheduler
             logger.exception("Scheduled calibration run failed")

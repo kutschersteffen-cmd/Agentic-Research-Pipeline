@@ -10,6 +10,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from arp.config import Settings
 from arp.portfolio.monitoring.evaluator import evaluate_news_triggers, evaluate_threshold_rules
 from arp.schemas.portfolio_monitoring import PortfolioMonitoringScheduleConfig
+from arp.storage.atomic_io import atomic_write_text
 from arp.storage.portfolio_store import PortfolioStore
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ class PortfolioMonitoringScheduler:
 
     def save_config(self, config: PortfolioMonitoringScheduleConfig) -> None:
         self._config_path.parent.mkdir(parents=True, exist_ok=True)
-        self._config_path.write_text(config.model_dump_json(indent=2))
+        atomic_write_text(self._config_path, config.model_dump_json(indent=2))
         self._apply(config)
 
     def start(self) -> None:
@@ -73,6 +74,6 @@ class PortfolioMonitoringScheduler:
             evaluate_threshold_rules(self.store)
             evaluate_news_triggers(self.store, min_severity=config.news_min_severity)
             config.last_run_at = datetime.now(UTC).isoformat()
-            self._config_path.write_text(config.model_dump_json(indent=2))
+            atomic_write_text(self._config_path, config.model_dump_json(indent=2))
         except Exception:  # noqa: BLE001 - a scheduled run failing must not kill the scheduler
             logger.exception("Scheduled portfolio monitoring evaluation failed")

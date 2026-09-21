@@ -19,10 +19,6 @@ class _CompanyIndustryClassification(BaseModel):
     rationale: str
 
 
-def _format_industry_list(model: LeontiefModel) -> str:
-    return "\n".join(f"{code}: {model.labels.get(code, '')}" for code in model.codes)
-
-
 async def resolve_company_isic(
     company: CompanyRef, model: LeontiefModel, llm: LLMClient
 ) -> tuple[str | None, LLMUsage]:
@@ -42,7 +38,7 @@ async def resolve_company_isic(
         f"Company: {company.name}\n"
         f"Sector (if known): {company.sector or 'unknown'}\n"
         f"Country: {company.country or 'unknown'}\n\n"
-        f"Available ISIC Rev.4 industries:\n{_format_industry_list(model)}"
+        f"Available ISIC Rev.4 industries:\n{model.industry_prompt_list()}"
     )
     draft, usage = await llm.complete_structured(
         system=_SYSTEM_PROMPT, prompt=prompt, output_model=_CompanyIndustryClassification

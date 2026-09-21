@@ -10,6 +10,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from arp.config import Settings
 from arp.discovery.pipeline import run_discovery
 from arp.schemas.discovery import DiscoveryScheduleConfig
+from arp.storage.atomic_io import atomic_write_text
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
@@ -50,7 +51,7 @@ class DiscoveryScheduler:
 
     def save_config(self, config: DiscoveryScheduleConfig) -> None:
         self._config_path.parent.mkdir(parents=True, exist_ok=True)
-        self._config_path.write_text(config.model_dump_json(indent=2))
+        atomic_write_text(self._config_path, config.model_dump_json(indent=2))
         self._apply(config)
 
     def start(self) -> None:
@@ -88,6 +89,6 @@ class DiscoveryScheduler:
                 triggered_by="schedule",
             )
             config.last_run_id = run_id
-            self._config_path.write_text(config.model_dump_json(indent=2))
+            atomic_write_text(self._config_path, config.model_dump_json(indent=2))
         except Exception:  # noqa: BLE001 - a scheduled run failing must not kill the scheduler
             logger.exception("Scheduled discovery run failed")

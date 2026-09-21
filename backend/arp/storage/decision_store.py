@@ -6,6 +6,7 @@ from pathlib import Path
 from arp.decision.dataset import Dataset
 from arp.schemas.common import now_iso
 from arp.schemas.decision import AuditEntry, MechanismConfig
+from arp.storage.atomic_io import atomic_write_text
 from arp.storage.safe_path import safe_id
 
 
@@ -44,8 +45,8 @@ class DecisionStore:
         return self._dir(framework_id) / f"v{int(version)}.audit.json"
 
     def _write(self, config: MechanismConfig) -> None:
-        self._version_path(config.framework_id, config.version).write_text(config.model_dump_json(indent=2))
-        self._latest_pointer_path(config.framework_id).write_text(json.dumps({"latest_version": config.version}))
+        atomic_write_text(self._version_path(config.framework_id, config.version), config.model_dump_json(indent=2))
+        atomic_write_text(self._latest_pointer_path(config.framework_id), json.dumps({"latest_version": config.version}))
 
     def save(self, config: MechanismConfig, audit: list[AuditEntry] | None = None) -> MechanismConfig:
         """Writes a framework version. Refuses to overwrite a ratified
@@ -78,7 +79,7 @@ class DecisionStore:
         """The derivation and edit trail travels with the version it
         describes -- a framework whose reasoning lives somewhere else is a
         set of numbers nobody can defend."""
-        self._audit_path(framework_id, version).write_text(
+        atomic_write_text(self._audit_path(framework_id, version),
             json.dumps([json.loads(entry.model_dump_json()) for entry in audit], indent=2)
         )
 
@@ -142,7 +143,7 @@ class DecisionStore:
         return d / f"{safe_id(dataset_id, label='dataset_id')}.json"
 
     def save_dataset(self, dataset: Dataset) -> Dataset:
-        self.dataset_path(dataset.dataset_id).write_text(dataset.model_dump_json())
+        atomic_write_text(self.dataset_path(dataset.dataset_id), dataset.model_dump_json())
         return dataset
 
     def get_dataset(self, dataset_id: str) -> Dataset | None:

@@ -632,7 +632,6 @@ class IndexState(BaseModel):
     prior_weights: dict[str, float] = Field(
         default_factory=dict, description="Target weights set at this review, before any price drift."
     )
-    prior_members: list[str] = Field(default_factory=list)
     prior_index_shares: dict[str, float] = Field(
         default_factory=dict,
         description=(

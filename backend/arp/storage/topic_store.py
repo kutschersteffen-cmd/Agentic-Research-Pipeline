@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 
 from arp.schemas.emerging_themes import EmergingThemeCandidate, LineageEvent, TopicCluster
+from arp.storage.atomic_io import atomic_write_text
+from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.safe_path import safe_id
 
 
@@ -38,7 +40,7 @@ class TopicStateStore:
     def save_period(self, period: str, clusters: list[TopicCluster]) -> None:
         path = self._period_path(period)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps([c.model_dump(mode="json") for c in clusters], indent=2))
+        atomic_write_text(path, json.dumps([c.model_dump(mode="json") for c in clusters], indent=2))
 
     def load_period(self, period: str) -> list[TopicCluster] | None:
         path = self._period_path(period)
@@ -71,19 +73,12 @@ class TopicStateStore:
         being scored (the current period's own events are passed in
         directly by the caller, since they haven't been saved yet at
         scoring time)."""
-        path = self._lineage_path(period)
-        if not path.exists():
-            return []
         events = []
-        with path.open() as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    events.append(LineageEvent.model_validate(json.loads(line)))
-                except (json.JSONDecodeError, ValueError):
-                    continue
+        for row in read_jsonl(self._lineage_path(period)):
+            try:
+                events.append(LineageEvent.model_validate(row))
+            except ValueError:  # a decodable row that is not a LineageEvent
+                continue
         return events
 
     def load_recent_periods(self, before: str, n: int) -> list[list[TopicCluster]]:
@@ -94,23 +89,13 @@ class TopicStateStore:
         return [self.load_period(p) or [] for p in periods]
 
     def append_candidate(self, candidate: EmergingThemeCandidate) -> None:
-        path = self.candidates_path()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a") as f:
-            f.write(json.dumps(candidate.model_dump(mode="json")) + "\n")
+        append_jsonl(self.candidates_path(), candidate.model_dump(mode="json"))
 
     def list_candidates(self) -> list[EmergingThemeCandidate]:
-        path = self.candidates_path()
-        if not path.exists():
-            return []
         candidates = []
-        with path.open() as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    candidates.append(EmergingThemeCandidate.model_validate(json.loads(line)))
-                except (json.JSONDecodeError, ValueError):
-                    continue
+        for row in read_jsonl(self.candidates_path()):
+            try:
+                candidates.append(EmergingThemeCandidate.model_validate(row))
+            except ValueError:  # a decodable row that is not a candidate
+                continue
         return candidates

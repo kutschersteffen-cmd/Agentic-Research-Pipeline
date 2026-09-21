@@ -18,6 +18,7 @@ from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
 from arp.schemas.emerging_themes import EmergingThemesScheduleConfig
+from arp.storage.atomic_io import atomic_write_text
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
 from arp.storage.topic_store import TopicStateStore
@@ -72,7 +73,7 @@ class EmergingThemesScheduler:
 
     def save_config(self, config: EmergingThemesScheduleConfig) -> None:
         self._config_path.parent.mkdir(parents=True, exist_ok=True)
-        self._config_path.write_text(config.model_dump_json(indent=2))
+        atomic_write_text(self._config_path, config.model_dump_json(indent=2))
         self._apply(config)
 
     def start(self) -> None:
@@ -128,6 +129,6 @@ class EmergingThemesScheduler:
                 xbrl_source=self._xbrl_source() if self.settings.xbrl_facts_enabled else None,
             )
             config.last_run_id = run_id
-            self._config_path.write_text(config.model_dump_json(indent=2))
+            atomic_write_text(self._config_path, config.model_dump_json(indent=2))
         except Exception:  # noqa: BLE001 - a scheduled run failing must not kill the scheduler
             logger.exception("Scheduled emerging themes run failed")

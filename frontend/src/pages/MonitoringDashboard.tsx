@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { EngagementRecord, ReviewableRunKind, RunManifest } from "../types";
 
@@ -69,19 +69,38 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const active = runs.filter((r) => ACTIVE_STATUSES.has(r.status));
-  const finished = runs
-    .filter((r) => !ACTIVE_STATUSES.has(r.status))
-    .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
-    .slice(0, 25);
+  // Runs are replaced every 3s by the poll above, so these derive from `runs`;
+  // the issue lists derive from `records`, which loads once at mount -- without
+  // the memo they were rescanned on every tick for a result that never changed.
+  const active = useMemo(() => runs.filter((r) => ACTIVE_STATUSES.has(r.status)), [runs]);
+  const finished = useMemo(
+    () =>
+      runs
+        .filter((r) => !ACTIVE_STATUSES.has(r.status))
+        .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
+        .slice(0, 25),
+    [runs],
+  );
 
-  const allIssues = records.flatMap((r) => r.issues.map((issue) => ({ record: r, issue })));
-  const openIssues = allIssues.filter((x) => x.issue.status === "open" || x.issue.status === "stalled");
-  const stalledIssues = allIssues.filter((x) => x.issue.status === "stalled");
-  const escalatedIssues = allIssues.filter((x) => x.issue.escalation_stage !== "private_engagement" && x.issue.status !== "resolved" && x.issue.status !== "closed");
+  const allIssues = useMemo(
+    () => records.flatMap((r) => r.issues.map((issue) => ({ record: r, issue }))),
+    [records],
+  );
+  const openIssues = useMemo(
+    () => allIssues.filter((x) => x.issue.status === "open" || x.issue.status === "stalled"),
+    [allIssues],
+  );
+  const stalledIssues = useMemo(() => allIssues.filter((x) => x.issue.status === "stalled"), [allIssues]);
+  const escalatedIssues = useMemo(
+    () =>
+      allIssues.filter(
+        (x) => x.issue.escalation_stage !== "private_engagement" && x.issue.status !== "resolved" && x.issue.status !== "closed",
+      ),
+    [allIssues],
+  );
 
-  const votingRuns = runs.filter((r) => r.run_type === "proxy_voting");
-  const pendingVoteReviews = votingRuns.reduce((sum, r) => sum + r.review_count, 0);
+  const votingRuns = useMemo(() => runs.filter((r) => r.run_type === "proxy_voting"), [runs]);
+  const pendingVoteReviews = useMemo(() => votingRuns.reduce((sum, r) => sum + r.review_count, 0), [votingRuns]);
 
   return (
     <div className="page">
