@@ -19,17 +19,11 @@ from arp.schemas.governance import (
     PolicySettingName,
     RiskCategoryOwner,
 )
-from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotResult, PivotSpec, Portfolio, SecurityRef, TrendPoint
+from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotResult, PivotSpec, Portfolio, TrendPoint
 from arp.schemas.portfolio_monitoring import Alert, AlertRule, AlertStatus, AlertTransition
-from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
-
-
-def _directories(store: PortfolioStore) -> tuple[dict[str, SecurityRef], dict[str, CompanyRef]]:
-    securities = {s.security_id: s for s in store.list_securities()}
-    companies = {c.company_id: c for c in store.list_companies()}
-    return securities, companies
 
 
 @router.post("/demo/seed")
@@ -106,7 +100,7 @@ def run_aggregation(
         as_of=req.as_of,
         date_range=req.date_range,
     )
-    securities, companies = _directories(store)
+    securities, companies = portfolio_directories(store)
     try:
         result = analytics.execute(spec, store, securities, companies)
     except ValueError as exc:
@@ -142,7 +136,7 @@ def run_pivot(req: PivotRequest, store: PortfolioStore = Depends(get_portfolio_s
         data_point_field_id=req.data_point_field_id,
         as_of=req.as_of,
     )
-    securities, companies = _directories(store)
+    securities, companies = portfolio_directories(store)
     try:
         return analytics.execute_pivot(spec, store, securities, companies)
     except ValueError as exc:
@@ -161,7 +155,7 @@ def run_saved_analytic(
     spec = analytics.get_analytic(store, analytic_id)
     if spec is None:
         raise HTTPException(404, f"Unknown analytic_id: {analytic_id}")
-    securities, companies = _directories(store)
+    securities, companies = portfolio_directories(store)
     return analytics.execute(spec, store, securities, companies)
 
 
@@ -178,7 +172,7 @@ async def ask(
     """Answers a plain-language portfolio question. The LLM only drafts the
     query (see qa_agent.py); the returned `result`/`spec` always show the
     real, deterministically computed figures behind `answer_text`."""
-    securities, companies = _directories(store)
+    securities, companies = portfolio_directories(store)
     answer, _usage = await qa_agent.answer_question(req.question, llm, store, securities, companies)
     return answer
 

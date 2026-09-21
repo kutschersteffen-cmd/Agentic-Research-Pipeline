@@ -421,9 +421,10 @@ must stay zero-LLM and fast.
 
 ### 6b. News-derived risk signals (decision 4)
 
-A new connector type, `NewsSource` (`backend/arp/portfolio/news/source.py`),
-mirrors `DocumentSource`/`DocumentSourceRegistry` exactly (`fetch(company,
-since) -> list[NewsItem]`) rather than inventing a new ingestion shape.
+A news connector mirrors `DocumentSource`/`DocumentSourceRegistry`
+(`fetch(company, since) -> list[NewsItem]`) rather than inventing a new
+ingestion shape. Only `backend/arp/portfolio/news/mock_source.py` implements
+that shape today; a shared ABC waits for a second implementation.
 Company-specific articles are resolved to `company_id` the same way
 securities are (§2), then an LLM classification pass (Advocate/Adjudicator
 is overkill here; a single schema-constrained classification call per
@@ -600,7 +601,7 @@ API-dependent pieces:
    still has to fall back to extraction.
 3. **News feed**: which vendor/API, how articles are already tagged to a
    company (ticker/ISIN/name — determines how much entity-resolution work
-   `news/source.py` needs to do), and expected volume (affects the
+   the news connector needs to do), and expected volume (affects the
    classification pass's batching/cost).
 4. **Snapshot retention/backfill**: how far back does historical tracking
    need to go at launch — start the time series from day one only, or
@@ -612,10 +613,12 @@ API-dependent pieces:
 
 ## 11. Phased roadmap
 
-- **Phase 0 — Foundations** ✅ *(built, mock connector)*: `schemas/portfolio.py`,
-  `PortfolioSource` connector interface + `MockCustodianSource` standing in
-  for the real custodian API, entity resolution + review queue,
-  append-only `portfolios/` snapshot store (`storage/portfolio_store.py`).
+- **Phase 0 — Foundations** ✅ *(built)*: `schemas/portfolio.py`, entity
+  resolution + review queue, append-only `portfolios/` snapshot store
+  (`storage/portfolio_store.py`). Holdings are seeded through
+  `portfolio/mock_data.py::generate_demo_dataset`; the `PortfolioSource`
+  connector interface sketched in §7 is not built yet — an earlier
+  unreferenced stub of it was removed rather than left to rot.
 - **Phase 1 — Aggregation & direct answers** ✅ *(built)*: deterministic
   aggregation engine (`portfolio/aggregation.py`) incl. `as_of`/`date_range`,
   built-in dimensions, API + CLI for grouped market-value queries. This

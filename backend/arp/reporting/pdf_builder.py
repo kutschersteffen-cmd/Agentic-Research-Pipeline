@@ -19,7 +19,7 @@ from reportlab.platypus import (
 )
 
 from arp.reporting import chart_builder
-from arp.reporting.design import DesignTheme
+from arp.reporting.design import DesignTheme, ordered_sections
 from arp.schemas.reporting import LayoutInstructions, QuantitativeDataset, ReportPlan, ReportSection, SectionLayoutHint
 
 _IMAGE_WIDTH_IN = 6.0
@@ -43,14 +43,6 @@ def _build_styles(theme: DesignTheme) -> dict[str, ParagraphStyle]:
         "Heading2": ParagraphStyle("ArpH2", parent=_BASE_STYLES["Heading2"], textColor=_hex(theme.ink_primary)),
         "Caption": ParagraphStyle("ArpCaption", parent=_BASE_STYLES["Italic"], fontSize=9, textColor=_hex(theme.ink_muted)),
     }
-
-
-def _ordered_sections(plan: ReportPlan, layout: LayoutInstructions) -> list[ReportSection]:
-    if not layout.include_appendix:
-        return list(plan.sections)
-    main = [s for s in plan.sections if not s.appendix]
-    appendix = [s for s in plan.sections if s.appendix]
-    return main + appendix
 
 
 def _narrative_flowables(section: ReportSection, styles: dict) -> list:
@@ -124,7 +116,7 @@ def build_pdf(
 
     with tempfile.TemporaryDirectory(prefix="arp_report_chart_") as tmp:
         tmp_dir = Path(tmp)
-        sections = _ordered_sections(plan, layout)
+        sections = ordered_sections(plan, layout)
         appendix_started = False
         for section in sections:
             if layout.include_appendix and section.appendix and not appendix_started:

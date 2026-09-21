@@ -14,6 +14,7 @@ from pathlib import Path
 import httpx
 
 from arp.ingestion.base import DocumentSource
+from arp.ingestion.html_text import extract_html_text
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.schemas.discovery import EdgarNameMatch
@@ -31,7 +32,7 @@ _FORM_TO_DOCTYPE = {
     "DEF 14A": DocType.PROXY_DEF14A,
 }
 
-# Bump whenever _extract_html_text_from_string's logic changes.
+# Bump whenever ingestion/html_text.py::extract_html_text's logic changes.
 _EDGAR_PARSER_LOGIC_VERSION = 1
 
 
@@ -346,16 +347,6 @@ class EdgarDocumentSource(DocumentSource):
             return None, None
         raw_bytes = resp.content
         if url.lower().endswith((".htm", ".html")):
-            return _extract_html_text_from_string(resp.text), raw_bytes
+            return extract_html_text(resp.text), raw_bytes
         return resp.text, raw_bytes
 
-
-def _extract_html_text_from_string(raw_html: str) -> str:
-    import trafilatura
-
-    extracted = trafilatura.extract(raw_html, favor_recall=True)
-    if extracted:
-        return extracted
-    from bs4 import BeautifulSoup
-
-    return BeautifulSoup(raw_html, "lxml").get_text("\n")

@@ -24,7 +24,6 @@ class Settings(BaseSettings):
         "Adjudicator debate's differing prompts don't fix, because the underlying weights are identical. "
         "Set equal to llm_model to opt back into the old single-model behavior.",
     )
-    llm_max_retries: int = Field(default=5)
     llm_cache_enabled: bool = Field(default=True)
     llm_prompt_cache_enabled: bool = Field(
         default=True,

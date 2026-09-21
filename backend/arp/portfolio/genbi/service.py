@@ -6,13 +6,7 @@ from arp.portfolio.climate.schemas import build_climate_schema
 from arp.portfolio.genbi import narrator, observations, planner
 from arp.portfolio.genbi.executor import execute_panel
 from arp.portfolio.genbi.schemas import DashboardSpec, GeneratedDashboard, Narrative
-from arp.schemas.common import CompanyRef
-from arp.schemas.portfolio import SecurityRef
-from arp.storage.portfolio_store import PortfolioStore
-
-
-def _directories(store: PortfolioStore) -> tuple[dict[str, SecurityRef], dict[str, CompanyRef]]:
-    return {s.security_id: s for s in store.list_securities()}, {c.company_id: c for c in store.list_companies()}
+from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
 
 
 def save_dashboard(store: PortfolioStore, spec: DashboardSpec) -> None:
@@ -45,7 +39,7 @@ def run_dashboard(
     `as_of` overrides the panels' own snapshot dates so a whole dashboard
     can be re-pointed at one date in a single call.
     """
-    securities, companies = _directories(store)
+    securities, companies = portfolio_directories(store)
     panels = []
     warnings: list[str] = []
     for panel in spec.panels:
@@ -95,7 +89,7 @@ async def generate_dashboard(
     persists is the plan, not the prose -- so the dashboard can be re-run
     later with `run_dashboard`, with no model in the loop at all.
     """
-    securities, _companies = _directories(store)
+    securities, _companies = portfolio_directories(store)
     ctx = planner.build_context(
         portfolios=store.list_portfolios(),
         companies=store.list_companies(),

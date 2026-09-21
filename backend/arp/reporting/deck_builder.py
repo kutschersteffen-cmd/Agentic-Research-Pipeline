@@ -11,7 +11,7 @@ from pptx.oxml.ns import qn
 from pptx.util import Emu, Inches, Pt
 
 from arp.reporting import chart_builder
-from arp.reporting.design import DesignTheme, theme_from_template
+from arp.reporting.design import DesignTheme, ordered_sections, theme_from_template
 from arp.schemas.reporting import (
     ContentItem,
     LayoutInstructions,
@@ -298,14 +298,6 @@ def _add_table(slide, table_spec, datasets: list[QuantitativeDataset], left, top
         note.text_frame.paragraphs[0].font.color.rgb = _rgb(theme.ink_muted)
 
 
-def _ordered_sections(plan: ReportPlan, layout: LayoutInstructions) -> list[ReportSection]:
-    if not layout.include_appendix:
-        return list(plan.sections)
-    main = [s for s in plan.sections if not s.appendix]
-    appendix = [s for s in plan.sections if s.appendix]
-    return main + appendix
-
-
 def build_deck(
     plan: ReportPlan,
     datasets: list[QuantitativeDataset],
@@ -336,7 +328,7 @@ def build_deck(
 
     with tempfile.TemporaryDirectory(prefix="arp_chart_") as tmp:
         tmp_dir = Path(tmp)
-        sections = _ordered_sections(plan, layout)
+        sections = ordered_sections(plan, layout)
         appendix_started = False
 
         if layout.include_title_slide:

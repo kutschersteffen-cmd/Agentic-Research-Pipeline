@@ -8,6 +8,7 @@ from pathlib import Path
 
 import httpx
 
+from arp.ingestion.html_text import extract_html_text
 from arp.net_safety import UnsafeURLError, assert_safe_fetch_target, ssrf_guard_request_hook
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ async def fetch_source_text(url: str, user_agent: str, timeout: float = 20.0) ->
     if content_type == "application/pdf" or url.lower().endswith(".pdf"):
         text = _extract_pdf_text(resp.content)
     else:
-        text = _extract_html_text(resp.text)
+        text = extract_html_text(resp.text)
     if not text:
         return None
     return text[:_MAX_CHARS]
@@ -98,17 +99,6 @@ async def fetch_source_original(url: str, user_agent: str, cache_dir: Path, time
     content_path.write_bytes(resp.content)
     meta_path.write_text(json.dumps({"content_type": content_type, "url": url}))
     return resp.content, content_type
-
-
-def _extract_html_text(raw_html: str) -> str | None:
-    import trafilatura
-
-    extracted = trafilatura.extract(raw_html, favor_recall=True)
-    if extracted:
-        return extracted
-    from bs4 import BeautifulSoup
-
-    return BeautifulSoup(raw_html, "lxml").get_text("\n")
 
 
 def _extract_pdf_text(content: bytes) -> str | None:

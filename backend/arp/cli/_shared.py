@@ -8,12 +8,10 @@ from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.ingestion.xbrl import XbrlFactSource
-from arp.schemas.common import CompanyRef
-from arp.schemas.portfolio import SecurityRef
 from arp.schemas.taxonomy import TaxonomyRef
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
-from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.portfolio_store import portfolio_directories
 from arp.storage.portfolio_store_factory import build_portfolio_store
 from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.reporting_store import ReportingStore
@@ -118,7 +116,4 @@ def _portfolio_store():
 
 
 
-def _portfolio_directories(store: PortfolioStore) -> tuple[dict[str, SecurityRef], dict[str, CompanyRef]]:
-    securities = {s.security_id: s for s in store.list_securities()}
-    companies = {c.company_id: c for c in store.list_companies()}
-    return securities, companies
+_portfolio_directories = portfolio_directories
