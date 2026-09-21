@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from arp.portfolio.news.source import NewsSource
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import NewsItem
 
@@ -62,12 +61,16 @@ _ARTICLES: dict[str, list[tuple[str, str, str, str]]] = {
 }
 
 
-class MockNewsSource(NewsSource):
+class MockNewsSource:
     """Stands in for a real news vendor/API (decision 4's news feed
     requirement). Company-specific articles are already tagged to a
     `company_id` here -- a real connector would need its own entity
     resolution step first, matching how `entity_resolution.py` handles
     securities.
+
+    A real vendor connector is expected to match this
+    `fetch(company, since) -> NewsItem[]` shape; there is no ABC for it
+    until a second implementation actually exists to share one.
     """
 
     name = "mock_news"
