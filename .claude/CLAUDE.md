@@ -29,13 +29,32 @@ fails with `Plugin "ponytail" not found in marketplace "ponytail"` — which rea
 plugin were missing, when really the marketplace was never cloned. `claude plugin marketplace
 list` printing `No marketplaces configured` confirms that case.
 
+A `SessionStart` hook (`.claude/hooks/install-plugins.sh`, wired up in `settings.json`) now
+runs those four commands for you. It is idempotent — it skips anything already installed and
+prints nothing — and it always exits 0, so a failure never blocks session start. It exists
+mainly for cloud sessions (claude.ai/code and the mobile **Code** tab), which get a fresh
+container every time and cannot run `/plugin` at all. Running the commands by hand is still
+fine, and still the faster path on a local machine.
+
 Hooks load at session start, so start a new session after installing before expecting
-ponytail to take effect.
+ponytail to take effect. That applies to the hook too: it installs the plugins during startup,
+after the plugin registry has already been read, so the skills it fetches become selectable in
+the *following* session. For cloud sessions each new session is a fresh container, which means
+the first one after a container boot pays the install and the skills are live from then on. To
+have them ready in the very first session instead, run the same four commands from the cloud
+environment's setup script, which runs before the session starts.
 
 - **ponytail** — "lazy senior dev mode". Its hooks run on `SessionStart`, `SubagentStart`
   and `UserPromptSubmit`, and require `node` on `PATH`.
 - **ui-ux-pro-max** — UI/UX design intelligence (styles, palettes, typography, charts,
   per-stack guidelines). Skills only, no hooks; its scripts run on demand and need `python3`.
+
+## Invoking skills
+
+The `/` autocomplete menu is a terminal-only feature. In cloud sessions — claude.ai/code and
+the mobile **Code** tab — the composer is a plain chat box with no picker, so type the skill
+name (`/graphify`) and send it, or just describe what you want and let the description trigger
+it. Plugin skills are namespaced: `/ponytail:ponytail-review`, `/ui-ux-pro-max:design`.
 
 # graphify
 - **graphify** (`.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`
