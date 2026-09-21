@@ -6,6 +6,8 @@ import { ExtractionResultsTable, FinancialsResultsTable } from "../components/Ex
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { BarChart } from "../components/BarChart";
 import type { CompanyFinancialsRecord, DataPointSchema, ExtractionRecord, FieldDefinition, ReviewDecision } from "../types";
+import { Button, Field, PageHeader, StateBlock, StepCard, Steps } from "../ui";
+import type { Step } from "../ui";
 
 const DEFAULT_CRITERIA =
   "Green capex: total green/sustainable capital expenditure in USD/EUR millions for the most recent fiscal " +
@@ -35,7 +37,7 @@ function BatchSpendChart({ results }: { results: CompanyFinancialsRecord[] }) {
 
   return (
     <section className="card">
-      <h3>Batch overview ({results.length} companies)</h3>
+      <h2>Batch overview ({results.length} companies)</h2>
       <div className="view-toggle">
         <button className={metric === "capex" ? "active" : ""} onClick={() => setMetric("capex")}>
           CapEx
@@ -129,31 +131,53 @@ export function Extraction({ pendingUniverse }: Props = {}) {
   }
 
   async function refreshResults() {
-    if (!runId) return;
-    if (mode === "custom") {
-      const res = (await api.getExtractionResults(runId)) as { results: ExtractionRecord[] };
-      setExtractionResults(res.results);
-      const decisionsRes = (await api.getExtractionReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
-      setExtractionReviewDecisions(decisionsRes.decisions);
-    } else {
-      const res = (await api.getFinancialsResults(runId)) as { results: CompanyFinancialsRecord[] };
-      setFinancialsResults(res.results);
-      const decisionsRes = (await api.getFinancialsReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
-      setFinancialsReviewDecisions(decisionsRes.decisions);
+    try {
+      if (!runId) return;
+      if (mode === "custom") {
+        const res = (await api.getExtractionResults(runId)) as { results: ExtractionRecord[] };
+        setExtractionResults(res.results);
+        const decisionsRes = (await api.getExtractionReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
+        setExtractionReviewDecisions(decisionsRes.decisions);
+      } else {
+        const res = (await api.getFinancialsResults(runId)) as { results: CompanyFinancialsRecord[] };
+        setFinancialsResults(res.results);
+        const decisionsRes = (await api.getFinancialsReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
+        setFinancialsReviewDecisions(decisionsRes.decisions);
+      }
+    } catch (err) {
+      setError((err as Error).message);
     }
   }
 
   const universeStepNumber = mode === "custom" ? 3 : 1;
   const readyForUniverseStep = mode === "financials" || (mode === "custom" && schema != null);
 
+  // The page's spine: what this run needs, in order, and where it has got
+  // to. Without it the analyst infers the sequence from which cards happen
+  // to be on screen.
+  const steps: Step[] = [
+    ...(mode === "custom"
+      ? ([
+          { id: "describe", label: "Describe", state: schema ? "done" : "current" },
+          { id: "fields", label: "Review fields", state: !schema ? "todo" : runId ? "done" : "current" },
+        ] as Step[])
+      : []),
+    { id: "universe", label: "Company universe", state: !readyForUniverseStep ? "todo" : runId ? "done" : "current" },
+    { id: "run", label: "Run & review", state: runId ? "current" : "todo" },
+  ];
+
   return (
     <div className="page">
-      <h2>Extraction</h2>
-      <p className="help-text">
-        Extract data from company disclosures with an independent verifier pass and a hard programmatic grounding
-        check on every citation. Either draft a custom schema for any research question (e.g. "green capex"), or run
-        the built-in combined pass for business segments, CapEx, and R&amp;D.
-      </p>
+      <PageHeader
+        title="Extraction"
+        description={
+          <>
+            Extract data from company disclosures with an independent verifier pass and a hard programmatic grounding
+            check on every citation. Either draft a custom schema for any research question (e.g. "green capex"), or run
+            the built-in combined pass for business segments, CapEx, and R&amp;D.
+          </>
+        }
+      />
 
       <div className="view-toggle">
         <button className={mode === "custom" ? "active" : ""} onClick={() => switchMode("custom")}>
@@ -164,33 +188,41 @@ export function Extraction({ pendingUniverse }: Props = {}) {
         </button>
       </div>
 
+      <Steps steps={steps} label="Extraction run" />
+
       {mode === "custom" && (
-        <section className="card">
-          <h3>1. Describe what to extract</h3>
-          <label className="field-label">Research request</label>
-          <textarea rows={2} value={criteria} onChange={(e) => setCriteria(e.target.value)} />
-          <button onClick={draft} disabled={busy}>
+        <StepCard step={1} title="Describe what to extract" state={schema ? "done" : "current"}>
+          <Field label="Research request">
+            <textarea rows={2} value={criteria} onChange={(e) => setCriteria(e.target.value)} />
+          </Field>
+          <Button onClick={draft} disabled={busy}>
             Draft extraction schema
-          </button>
+          </Button>
           <p className="help-text">Or skip this and build a schema entirely by hand before starting a run.</p>
-        </section>
+        </StepCard>
       )}
 
       {mode === "custom" && schema && (
-        <section className="card">
-          <h3>2. Review &amp; edit fields</h3>
+        <StepCard
+          step={2}
+          title="Review & edit fields"
+          state={runId ? "done" : "current"}
+          summary={`${schema.fields.length} field${schema.fields.length === 1 ? "" : "s"}`}
+        >
           {schema.fields.map((f, idx) => (
             <div className="activity-editor" key={f.field_id}>
               <input value={f.name} onChange={(e) => updateField(idx, { name: e.target.value })} />
-              <label className="field-label">Description</label>
-              <textarea rows={2} value={f.description} onChange={(e) => updateField(idx, { description: e.target.value })} />
-              <label className="field-label">Extraction instructions</label>
-              <textarea
-                rows={3}
-                value={f.extraction_instructions}
-                onChange={(e) => updateField(idx, { extraction_instructions: e.target.value })}
-              />
-              <label className="field-label">Data type / unit</label>
+              <Field label="Description">
+                <textarea rows={2} value={f.description} onChange={(e) => updateField(idx, { description: e.target.value })} />
+              </Field>
+              <Field label="Extraction instructions">
+                <textarea
+                  rows={3}
+                  value={f.extraction_instructions}
+                  onChange={(e) => updateField(idx, { extraction_instructions: e.target.value })}
+                />
+              </Field>
+              <span className="field-label">Data type / unit</span>
               <div className="inline-fields">
                 <span>{f.data_type}</span>
                 <input
@@ -199,14 +231,15 @@ export function Extraction({ pendingUniverse }: Props = {}) {
                   onChange={(e) => updateField(idx, { unit: e.target.value })}
                 />
               </div>
-              <label className="field-label">Seed keywords (comma-separated)</label>
-              <input
-                value={f.seed_keywords.join(", ")}
-                onChange={(e) => updateField(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
-              />
+              <Field label="Seed keywords (comma-separated)">
+                <input
+                  value={f.seed_keywords.join(", ")}
+                  onChange={(e) => updateField(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+                />
+              </Field>
             </div>
           ))}
-        </section>
+        </StepCard>
       )}
 
       {mode === "financials" && (
@@ -219,8 +252,12 @@ export function Extraction({ pendingUniverse }: Props = {}) {
       )}
 
       {readyForUniverseStep && (
-        <section className="card">
-          <h3>{universeStepNumber}. Choose the company universe</h3>
+        <StepCard
+          step={universeStepNumber}
+          title="Choose the company universe"
+          state={runId ? "done" : "current"}
+          summary={universePath ? `${companyCount || "?"} companies` : undefined}
+        >
           {pendingUniverse && universePath === pendingUniverse.path && (
             <p className="status-text">
               Using {pendingUniverse.count} companies sent from a Thematic Universe screen. Upload a different
@@ -233,34 +270,31 @@ export function Extraction({ pendingUniverse }: Props = {}) {
               setCompanyCount(count);
             }}
           />
-          <button onClick={startRun} disabled={busy || !universePath}>
+          <Button onClick={startRun} disabled={busy || !universePath}>
             {mode === "custom"
               ? `Extract across ${companyCount || "..."} companies`
               : `Extract financials across ${companyCount || "..."} companies`}
-          </button>
-        </section>
+          </Button>
+        </StepCard>
       )}
 
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       {runId && (
-        <section className="card">
-          <h3>{universeStepNumber + 1}. Run progress</h3>
-          <RunProgress runId={runId} runType={mode === "custom" ? "extraction" : "financials"} />
+        <StepCard step={universeStepNumber + 1} title="Run progress">
+          {/* Sticky: a run takes minutes and its results run long, so progress
+              stays in view instead of scrolling away above the table. */}
+          <div className="run-strip">
+            <RunProgress runId={runId} runType={mode === "custom" ? "extraction" : "financials"} />
+          </div>
           <div className="toolbar">
-            <button onClick={refreshResults}>Refresh results</button>
+            <Button onClick={refreshResults}>Refresh results</Button>
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
               Export CSV
             </a>
-            <label className="field-label" style={{ marginLeft: "auto" }}>
-              Reviewing as
-            </label>
-            <input
-              placeholder="your name"
-              value={reviewer}
-              onChange={(e) => setReviewer(e.target.value)}
-              style={{ maxWidth: 160 }}
-            />
+            <Field label="Reviewing as" className="field-inline field-push">
+              <input placeholder="your name" value={reviewer} onChange={(e) => setReviewer(e.target.value)} />
+            </Field>
           </div>
 
           {mode === "financials" && financialsResults.length > 0 && <BatchSpendChart results={financialsResults} />}
@@ -297,7 +331,7 @@ export function Extraction({ pendingUniverse }: Props = {}) {
               <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
             </div>
           )}
-        </section>
+        </StepCard>
       )}
     </div>
   );

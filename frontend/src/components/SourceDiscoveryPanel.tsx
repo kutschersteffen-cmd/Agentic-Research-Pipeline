@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../api/client";
 import { InspectorModal } from "./InspectorModal";
 import type { SourceCandidate } from "../types";
+import { Button } from "../ui";
 
 interface Props {
   candidates: SourceCandidate[];
@@ -36,9 +37,9 @@ export function SourceDiscoveryPanel({ candidates, selected, onToggle }: Props) 
           <p className="muted">{c.url}</p>
           {c.authority_reasoning && <p className="help-text">{c.authority_reasoning}</p>}
           {!c.authority_reasoning && c.snippet && <p className="help-text">{c.snippet}</p>}
-          <button className="link-button" onClick={() => setInspecting(c)}>
+          <Button variant="ghost" onClick={() => setInspecting(c)}>
             Inspect source
-          </button>
+          </Button>
         </div>
       ))}
       {inspecting && (

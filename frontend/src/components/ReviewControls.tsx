@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../api/client";
 import type { ReviewDecision } from "../types";
+import { Button, StateBlock } from "../ui";
 
 function decisionBadgeClass(decision: string): string {
   if (decision === "approve") return "badge badge-high";
@@ -82,16 +83,16 @@ export function ReviewControls({
         </span>
       )}
       <div className="toolbar">
-        <button onClick={() => submit("approve")} disabled={busy}>
+        <Button onClick={() => submit("approve")} disabled={busy}>
           Mark reviewed
-        </button>
-        <button onClick={() => setShowOverrideInput((s) => !s)} disabled={busy}>
+        </Button>
+        <Button onClick={() => setShowOverrideInput((s) => !s)} disabled={busy}>
           Override
-        </button>
-        <button onClick={() => submit("reject")} disabled={busy}>
+        </Button>
+        <Button onClick={() => submit("reject")} disabled={busy}>
           Reject
-        </button>
-        <button onClick={loadHistory}>History{current ? "" : " (0)"}</button>
+        </Button>
+        <Button onClick={loadHistory}>History{current ? "" : " (0)"}</Button>
       </div>
       {showOverrideInput && (
         <div className="inline-fields">
@@ -100,9 +101,9 @@ export function ReviewControls({
             value={overrideValue}
             onChange={(e) => setOverrideValue(e.target.value)}
           />
-          <button onClick={() => submit("edit")} disabled={busy || !overrideValue}>
+          <Button onClick={() => submit("edit")} disabled={busy || !overrideValue}>
             Submit override
-          </button>
+          </Button>
         </div>
       )}
       <textarea
@@ -111,7 +112,7 @@ export function ReviewControls({
         value={comment}
         onChange={(e) => setComment(e.target.value)}
       />
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
       {history !== null && (
         <ul className="review-history">
           {history.length === 0 && <li className="muted">No decisions yet.</li>}

@@ -13,33 +13,36 @@ import type {
   ReviewDecision,
   RunManifest,
 } from "../types";
-
-const SUB_TABS = [
-  { id: "results", label: "Run results" },
-  { id: "by_company", label: "By company" },
-  { id: "parsed", label: "Parsed documents" },
-] as const;
+import { DATA_LIBRARY_TABS as SUB_TABS } from "../nav";
+import { useSubTab } from "../router";
+import { Button, Field, PageHeader, StateBlock, TabPanel, Tabs } from "../ui";
 
 export function DataLibrary() {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("results");
+  const [sub, setSub] = useSubTab(SUB_TABS, "results");
 
   return (
     <div className="page">
-      <h2>Data Library</h2>
-      <p className="help-text">
-        Browse everything already stored: results from any past extraction or financials run, and every parsed
-        document text this instance has cached -- across all companies and runs, not just the last one you looked at.
-      </p>
-      <nav className="sub-nav">
-        {SUB_TABS.map((t) => (
-          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} onClick={() => setSub(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </nav>
-      {sub === "results" && <RunResultsView />}
-      {sub === "by_company" && <CompanyResultsView />}
-      {sub === "parsed" && <ParsedDocumentsView />}
+      <PageHeader
+        title="Data Library"
+        description={
+          <>
+            Browse everything already stored: results from any past extraction or financials run, and every parsed
+            document text this instance has cached -- across all companies and runs, not just the last one you looked at.
+          </>
+        }
+      />
+      <Tabs
+        id="library"
+        tabs={SUB_TABS}
+        active={sub}
+        onChange={(id) => setSub(id as typeof sub)}
+        label="Data library view"
+      />
+      <TabPanel id="library" active={sub}>
+        {sub === "results" && <RunResultsView />}
+        {sub === "by_company" && <CompanyResultsView />}
+        {sub === "parsed" && <ParsedDocumentsView />}
+      </TabPanel>
     </div>
   );
 }
@@ -65,11 +68,16 @@ function RunResultsView() {
 
   useEffect(() => {
     (async () => {
-      const res = (await api.listRuns(kind)) as { runs: RunManifest[] };
-      setRuns(res.runs);
-      setRunId("");
-      setExpanded(null);
-      setActiveSource(null);
+      try {
+        const res = (await api.listRuns(kind)) as { runs: RunManifest[] };
+        setRuns(res.runs);
+        setRunId("");
+        setExpanded(null);
+        setActiveSource(null);
+        setError(null);
+      } catch (err) {
+        setError((err as Error).message);
+      }
     })();
   }, [kind]);
 
@@ -97,45 +105,41 @@ function RunResultsView() {
   return (
     <div>
       <section className="card">
-        <label className="field-label">Run type</label>
-        <select value={kind} onChange={(e) => setKind(e.target.value as RunKind)}>
-          <option value="extraction">Data-point extraction</option>
-          <option value="financials">Company financials</option>
-        </select>
-        <label className="field-label">Run</label>
-        <select
-          value={runId}
-          onChange={(e) => {
-            setRunId(e.target.value);
-            loadResults(e.target.value);
-          }}
-        >
-          <option value="">Select a run...</option>
-          {runs.map((r) => (
-            <option key={r.run_id} value={r.run_id}>
-              {r.run_id} -- {new Date(r.created_at).toLocaleString()} ({r.completed_count}/{r.company_count} companies)
-            </option>
-          ))}
-        </select>
-        {runs.length === 0 && <p className="muted">No {kind} runs recorded yet.</p>}
+        <Field label="Run type">
+          <select value={kind} onChange={(e) => setKind(e.target.value as RunKind)}>
+            <option value="extraction">Data-point extraction</option>
+            <option value="financials">Company financials</option>
+          </select>
+        </Field>
+        <Field label="Run">
+          <select
+            value={runId}
+            onChange={(e) => {
+              setRunId(e.target.value);
+              loadResults(e.target.value);
+            }}
+          >
+            <option value="">Select a run...</option>
+            {runs.map((r) => (
+              <option key={r.run_id} value={r.run_id}>
+                {r.run_id} -- {new Date(r.created_at).toLocaleString()} ({r.completed_count}/{r.company_count} companies)
+              </option>
+            ))}
+          </select>
+        </Field>
+        {runs.length === 0 && <StateBlock kind="empty" message={<>No {kind} runs recorded yet.</>} />}
         {runId && (
           <div className="toolbar">
-            <button onClick={() => loadResults()}>Refresh</button>
+            <Button onClick={() => loadResults()}>Refresh</Button>
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
               Export CSV
             </a>
-            <label className="field-label" style={{ marginLeft: "auto" }}>
-              Reviewing as
-            </label>
-            <input
-              placeholder="your name"
-              value={reviewer}
-              onChange={(e) => setReviewer(e.target.value)}
-              style={{ maxWidth: 160 }}
-            />
+            <Field label="Reviewing as" className="field-inline field-push">
+              <input placeholder="your name" value={reviewer} onChange={(e) => setReviewer(e.target.value)} />
+            </Field>
           </div>
         )}
-        {error && <p className="error-text">{error}</p>}
+        {error && <StateBlock kind="error" message={error} />}
       </section>
 
       {runId && ((kind === "extraction" && extractionResults.length > 0) || (kind === "financials" && financialsResults.length > 0)) && (
@@ -190,13 +194,18 @@ function CompanyResultsView() {
 
   useEffect(() => {
     (async () => {
-      const res = (await api.listKnownCompanies(kind)) as { companies: CompanyDirectoryEntry[] };
-      setCompanies(res.companies);
-      setCompanyId("");
-      setExtractionRecords([]);
-      setFinancialsRecords([]);
-      setDocuments([]);
-      setActiveSource(null);
+      try {
+        const res = (await api.listKnownCompanies(kind)) as { companies: CompanyDirectoryEntry[] };
+        setCompanies(res.companies);
+        setCompanyId("");
+        setExtractionRecords([]);
+        setFinancialsRecords([]);
+        setDocuments([]);
+        setActiveSource(null);
+        setError(null);
+      } catch (err) {
+        setError((err as Error).message);
+      }
     })();
   }, [kind]);
 
@@ -221,33 +230,35 @@ function CompanyResultsView() {
   return (
     <div>
       <section className="card">
-        <label className="field-label">Run type</label>
-        <select value={kind} onChange={(e) => setKind(e.target.value as RunKind)}>
-          <option value="extraction">Data-point extraction</option>
-          <option value="financials">Company financials</option>
-        </select>
-        <label className="field-label">Company</label>
-        <select
-          value={companyId}
-          onChange={(e) => {
-            setCompanyId(e.target.value);
-            load(e.target.value);
-          }}
-        >
-          <option value="">Select a company...</option>
-          {companies.map((c) => (
-            <option key={c.company_id} value={c.company_id}>
-              {c.name ?? c.company_id}{c.ticker ? ` (${c.ticker})` : ""} -- {c.company_id}
-            </option>
-          ))}
-        </select>
-        {companies.length === 0 && <p className="muted">No {kind} results recorded for any company yet.</p>}
-        {error && <p className="error-text">{error}</p>}
+        <Field label="Run type">
+          <select value={kind} onChange={(e) => setKind(e.target.value as RunKind)}>
+            <option value="extraction">Data-point extraction</option>
+            <option value="financials">Company financials</option>
+          </select>
+        </Field>
+        <Field label="Company">
+          <select
+            value={companyId}
+            onChange={(e) => {
+              setCompanyId(e.target.value);
+              load(e.target.value);
+            }}
+          >
+            <option value="">Select a company...</option>
+            {companies.map((c) => (
+              <option key={c.company_id} value={c.company_id}>
+                {c.name ?? c.company_id}{c.ticker ? ` (${c.ticker})` : ""} -- {c.company_id}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {companies.length === 0 && <StateBlock kind="empty" message={<>No {kind} results recorded for any company yet.</>} />}
+        {error && <StateBlock kind="error" message={error} />}
       </section>
 
       {companyId && documents.length > 0 && (
         <section className="card">
-          <h3>Source documents on file</h3>
+          <h2>Source documents on file</h2>
           <div className="table-wrap">
             <table className="data-table">
               <thead>
@@ -276,7 +287,7 @@ function CompanyResultsView() {
       )}
 
       {companyId && kind === "extraction" && extractionRecords.length === 0 && (
-        <p className="muted">No extraction results recorded for this company yet.</p>
+        <StateBlock kind="empty" message="No extraction results recorded for this company yet." />
       )}
       {companyId && (extractionRecords.length > 0 || financialsRecords.length > 0) && (
         <div className="split-review">
@@ -284,7 +295,7 @@ function CompanyResultsView() {
             {kind === "extraction" &&
               extractionRecords.map((r) => (
                 <section className="card" key={r.run_id}>
-                  <h3>Run {r.run_id} -- {new Date(r.generated_at).toLocaleString()}</h3>
+                  <h2>Run {r.run_id} -- {new Date(r.generated_at).toLocaleString()}</h2>
                   <p>
                     <ConfidenceBadge value={r.overall_confidence} /> {r.needs_review && <span className="badge badge-low">needs review</span>}
                   </p>
@@ -297,18 +308,18 @@ function CompanyResultsView() {
             {kind === "financials" &&
               financialsRecords.map((r) => (
                 <section className="card" key={r.run_id}>
-                  <h3>Run {r.run_id} -- {new Date(r.generated_at).toLocaleString()}</h3>
+                  <h2>Run {r.run_id} -- {new Date(r.generated_at).toLocaleString()}</h2>
                   <p>
                     <ConfidenceBadge value={r.overall_confidence} /> {r.needs_review && <span className="badge badge-low">needs review</span>}
                   </p>
-                  <h4>Business Segments</h4>
-                  {r.segments.length === 0 && <p className="muted">No segment reporting evidence found.</p>}
+                  <h3>Business Segments</h3>
+                  {r.segments.length === 0 && <StateBlock kind="empty" message="No segment reporting evidence found." />}
                   {r.segments.map((s, si) => (
                     <SegmentDetail key={si} segment={s} onOpenSource={setActiveSource} />
                   ))}
-                  <h4>CapEx</h4>
+                  <h3>CapEx</h3>
                   <SpendDetail label="CapEx" spend={r.capex} onOpenSource={setActiveSource} />
-                  <h4>R&amp;D</h4>
+                  <h3>R&amp;D</h3>
                   <SpendDetail label="R&D" spend={r.rnd} onOpenSource={setActiveSource} />
                 </section>
               ))}
@@ -318,7 +329,7 @@ function CompanyResultsView() {
       )}
 
       {companyId && kind === "financials" && financialsRecords.length === 0 && (
-        <p className="muted">No financials results recorded for this company yet.</p>
+        <StateBlock kind="empty" message="No financials results recorded for this company yet." />
       )}
     </div>
   );
@@ -355,15 +366,19 @@ function ParsedDocumentsView() {
   }, [offset]);
 
   async function toggleExpand(row: CachedDocumentRow) {
-    if (expandedId === row.id) {
-      setExpandedId(null);
+    try {
+      if (expandedId === row.id) {
+        setExpandedId(null);
+        setDetail(null);
+        return;
+      }
+      setExpandedId(row.id);
       setDetail(null);
-      return;
+      const res = (await api.getCachedDocumentText(row.id)) as CachedDocumentDetail;
+      setDetail(res);
+    } catch (err) {
+      setError((err as Error).message);
     }
-    setExpandedId(row.id);
-    setDetail(null);
-    const res = (await api.getCachedDocumentText(row.id)) as CachedDocumentDetail;
-    setDetail(res);
   }
 
   return (
@@ -372,7 +387,7 @@ function ParsedDocumentsView() {
         <p className="muted">
           {total} parsed document{total === 1 ? "" : "s"} cached
         </p>
-        {error && <p className="error-text">{error}</p>}
+        {error && <StateBlock kind="error" message={error} />}
       </section>
 
       <section className="card">
@@ -416,9 +431,9 @@ function ParsedDocumentsView() {
                           <p className="muted">Source document not separately registered -- showing cached text only.</p>
                         )}
                         {detail === null ? (
-                          <p className="muted">Loading...</p>
+                          <StateBlock kind="loading" />
                         ) : (
-                          <pre className="review-json" style={{ maxHeight: 400, overflow: "auto" }}>
+                          <pre className="review-json scroll-box">
                             {detail.full_text}
                           </pre>
                         )}
@@ -430,17 +445,17 @@ function ParsedDocumentsView() {
             </tbody>
           </table>
         </div>
-        {rows.length === 0 && <p className="muted">No cached documents yet.</p>}
+        {rows.length === 0 && <StateBlock kind="empty" message="No cached documents yet." />}
         <div className="toolbar">
-          <button onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))} disabled={offset === 0}>
+          <Button onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))} disabled={offset === 0}>
             Prev
-          </button>
+          </Button>
           <span className="muted">
             {offset + 1}-{Math.min(offset + PAGE_SIZE, total)} of {total}
           </span>
-          <button onClick={() => setOffset(offset + PAGE_SIZE)} disabled={offset + PAGE_SIZE >= total}>
+          <Button onClick={() => setOffset(offset + PAGE_SIZE)} disabled={offset + PAGE_SIZE >= total}>
             Next
-          </button>
+          </Button>
         </div>
       </section>
     </div>

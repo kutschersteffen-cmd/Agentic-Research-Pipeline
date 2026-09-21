@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { SearchHit, SearchResultType } from "../types";
+import { FilterBar, Field, PageHeader, StateBlock } from "../ui";
 
 const ALL_TYPES: { id: SearchResultType; label: string }[] = [
   { id: "document", label: "Documents" },
@@ -52,32 +53,48 @@ export function Search() {
 
   return (
     <div className="page">
-      <h2>Search</h2>
-      <section className="card">
-        <label className="field-label">Query</label>
-        <input
-          type="text"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search companies, documents, taxonomy..."
-        />
-        {ALL_TYPES.map((t) => (
-          <label key={t.id} style={{ marginLeft: "1rem" }}>
-            <input type="checkbox" checked={types.includes(t.id)} onChange={() => toggleType(t.id)} />
-            {" " + t.label}
-          </label>
-        ))}
-      </section>
+      <PageHeader
+        title="Search"
+        description="Full-text search across cached documents, the company directory and taxonomy activities. Needs OpenSearch configured on the server."
+      />
+      <FilterBar
+        active={types.length < ALL_TYPES.length ? types.map((id) => ({
+          id,
+          label: ALL_TYPES.find((t) => t.id === id)?.label ?? id,
+          onClear: () => toggleType(id),
+        })) : []}
+        onClearAll={() => setTypes(ALL_TYPES.map((t) => t.id))}
+        summary={q.trim() && !loading ? `${hits.length} result${hits.length === 1 ? "" : "s"} for "${q.trim()}"` : null}
+      >
+        <Field label="Query">
+          <input
+            type="text"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search companies, documents, taxonomy..."
+          />
+        </Field>
+        <div className="chip-row" role="group" aria-label="Result types">
+          {ALL_TYPES.map((t) => (
+            <label key={t.id} className="checkbox-label">
+              <input type="checkbox" checked={types.includes(t.id)} onChange={() => toggleType(t.id)} />
+              {t.label}
+            </label>
+          ))}
+        </div>
+      </FilterBar>
 
       <section className="card">
         {notConfigured && (
-          <p className="muted">
-            Search is not enabled on this server -- an administrator needs to set ARP_OPENSEARCH_URL to turn it on.
-          </p>
+          <StateBlock
+            kind="empty"
+            title="Search is not enabled on this server"
+            message="An administrator needs to set ARP_OPENSEARCH_URL to turn it on."
+          />
         )}
-        {error && <p className="error">{error}</p>}
-        {loading && <p className="muted">Searching...</p>}
-        {!loading && !notConfigured && !error && q.trim() && hits.length === 0 && <p className="muted">No results.</p>}
+        {error && <StateBlock kind="error" message={error} onRetry={load} />}
+        {loading && <StateBlock kind="loading" message="Searching..." />}
+        {!loading && !notConfigured && !error && q.trim() && hits.length === 0 && <StateBlock kind="empty" message="No results." />}
         {hits.length > 0 && (
           <div className="table-wrap">
             <table className="data-table">
@@ -86,7 +103,7 @@ export function Search() {
                   <th>Type</th>
                   <th>Title</th>
                   <th>Snippet</th>
-                  <th></th>
+                  <th><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>

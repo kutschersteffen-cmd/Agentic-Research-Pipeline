@@ -1,0 +1,33 @@
+/* Decision Studio: dimensions, gates, audit trail. */
+
+.decision-context { border-bottom: 1px solid var(--panel-border); padding-bottom: var(--sp-2); flex-wrap: wrap; }
+
+.decision-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--sp-3); }
+
+.decision-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.decision-kpis .card { margin-bottom: 0; }
+.decision-kpis h2 { margin: var(--sp-05) 0; }
+.decision-kpi-value { font-size: var(--fs-500); margin: var(--sp-1) 0 0; font-variant-numeric: tabular-nums; }
+
+/* A guess this layer is not confident in is surfaced, never quietly
+   applied -- a wrong direction inverts a ranking and looks entirely
+   normal on screen. */
+.decision-check-banner {
+  border-left: 3px solid var(--mid);
+  background: var(--well);
+  padding: var(--sp-2) var(--sp-3);
+  margin: var(--sp-3) 0;
+  font-size: var(--fs-200);
+}
+
+.audit-needs-check td { background: var(--mid-wash); }
+.audit-stage { margin-bottom: var(--sp-4); }
+.audit-stage h3 { margin: 0 0 var(--sp-2); color: var(--muted); }
+
+.decision-dimension { border: 1px solid var(--panel-border); border-radius: var(--r-md); padding: var(--sp-3); margin-bottom: var(--sp-3); }
+.decision-dimension-head { display: flex; gap: var(--sp-3); align-items: center; flex-wrap: wrap; margin-bottom: var(--sp-2); }
+.decision-dimension-head input[type="text"], .decision-dimension-head > input { font-weight: 600; }
+
+.decision-gate { margin-bottom: var(--sp-2); flex-wrap: wrap; }
+.decision-tree-steps { margin: 0; padding-left: var(--sp-5); font-size: var(--fs-200); line-height: 1.7; }
+.decision-dims { display: flex; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-2); }

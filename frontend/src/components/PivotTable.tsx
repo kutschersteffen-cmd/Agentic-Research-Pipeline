@@ -1,5 +1,5 @@
 import type { PivotResult } from "../types";
-import { sequentialFill, textColorForFill } from "../lib/palette";
+import { textColorForFill, useChartPalette } from "../lib/palette";
 
 function cellValue(result: PivotResult, rowValue: string, colValue: string) {
   return result.cells.find((c) => c.row_value === rowValue && c.col_value === colValue) ?? null;
@@ -19,6 +19,7 @@ function metricValue(result: PivotResult, cell: ReturnType<typeof cellValue>): n
  * also printed as text (the table view itself), so the color is a
  * secondary read, not the only one. */
 export function PivotTable({ result }: { result: PivotResult }) {
+  const { sequentialFill } = useChartPalette();
   const values = result.cells.map((c) => metricValue(result, c)).filter((v): v is number => v != null);
   const min = values.length ? Math.min(...values, 0) : 0;
   const max = values.length ? Math.max(...values) : 1;

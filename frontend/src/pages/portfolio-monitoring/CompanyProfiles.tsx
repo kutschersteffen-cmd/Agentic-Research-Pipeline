@@ -3,6 +3,7 @@ import { api } from "../../api/client";
 import { usePortfolioPane } from "../../context/usePortfolioPane";
 import { GroundedBadge } from "../../components/ConfidenceBadge";
 import type { CompanyRef, NewsItem, NewsRiskFlag } from "../../types";
+import { Field, StateBlock } from "../../ui";
 
 const SEVERITY_CLASS: Record<string, string> = { high: "badge badge-low", medium: "badge badge-mid", low: "badge badge-neutral" };
 
@@ -78,32 +79,34 @@ export function CompanyProfiles() {
 
   return (
     <section className="card">
-      <h3>Company Profiles</h3>
+      <h2>Company Profiles</h2>
       <p className="help-text">
         Reached by picking an issuer directly, or by filtering to one <code>company_id</code> in Pivot Explorer. No
         engagement/voting history is shown -- this repo has no Engagement Record Store to draw from (see{" "}
         <code>docs/SPEC_GAP_ANALYSIS.md</code>). Climate figures reflect what's recorded against holdings in this
         issuer within the current pane selection; an issuer not currently held may show no data for that reason.
       </p>
-      <label className="field-label">Filter issuers</label>
-      <input type="text" placeholder="Search by name or ID..." value={filter} onChange={(e) => setFilter(e.target.value)} />
-      <label className="field-label">Issuer</label>
-      <select value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
-        <option value="">-- select an issuer --</option>
-        {filteredCompanies.map((c) => (
-          <option key={c.company_id} value={c.company_id}>
-            {c.name} ({c.company_id})
-          </option>
-        ))}
-      </select>
+      <Field label="Filter issuers">
+        <input type="text" placeholder="Search by name or ID..." value={filter} onChange={(e) => setFilter(e.target.value)} />
+      </Field>
+      <Field label="Issuer">
+        <select value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
+          <option value="">-- select an issuer --</option>
+          {filteredCompanies.map((c) => (
+            <option key={c.company_id} value={c.company_id}>
+              {c.name} ({c.company_id})
+            </option>
+          ))}
+        </select>
+      </Field>
 
-      {loading && <p className="muted">Loading profile...</p>}
-      {error && <p className="error-text">{error}</p>}
+      {loading && <StateBlock kind="loading" message="Loading profile..." />}
+      {error && <StateBlock kind="error" message={error} />}
 
       {selected && !loading && (
         <>
-          <div className="card" style={{ marginTop: 16 }}>
-            <h4>{selected.name}</h4>
+          <div className="card mt-4">
+            <h3>{selected.name}</h3>
             <p className="muted">
               {selected.company_id}
               {selected.sector ? ` -- ${selected.sector}` : ""}
@@ -125,7 +128,7 @@ export function CompanyProfiles() {
           </div>
 
           <div className="card">
-            <h4>News ({news.length})</h4>
+            <h3>News ({news.length})</h3>
             <div className="table-wrap">
               <table className="data-table">
                 <thead>
@@ -154,7 +157,7 @@ export function CompanyProfiles() {
           </div>
 
           <div className="card">
-            <h4>Risk flags ({flags.length})</h4>
+            <h3>Risk flags ({flags.length})</h3>
             {flags.map((f) => (
               <div key={f.flag_id} className="review-item">
                 <div className="run-progress-header">
@@ -165,7 +168,7 @@ export function CompanyProfiles() {
                 <p className="muted">"{f.quote}"</p>
               </div>
             ))}
-            {flags.length === 0 && <p className="muted">No risk flags for this issuer.</p>}
+            {flags.length === 0 && <StateBlock kind="empty" message="No risk flags for this issuer." />}
           </div>
         </>
       )}

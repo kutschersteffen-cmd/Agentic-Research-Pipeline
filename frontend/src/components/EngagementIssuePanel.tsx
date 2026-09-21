@@ -11,6 +11,7 @@ import type {
   OutreachLetterDraft,
   ResearchDossier,
 } from "../types";
+import { Button, Field, StateBlock } from "../ui";
 
 const ESCALATION_STAGES: EscalationStage[] = [
   "private_engagement",
@@ -85,9 +86,13 @@ export function EngagementIssuePanel({
   }
 
   async function refreshRecord() {
-    const updated = (await api.getEngagementRecord(record.company_id)) as EngagementRecord;
-    onUpdated(updated);
-    return updated;
+    try {
+      const updated = (await api.getEngagementRecord(record.company_id)) as EngagementRecord;
+      onUpdated(updated);
+      return updated;
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function run<T>(fn: () => Promise<T>): Promise<T | undefined> {
@@ -104,114 +109,150 @@ export function EngagementIssuePanel({
   }
 
   async function escalate() {
-    await run(async () => {
-      await api.escalateEngagementIssue(record.company_id, issue.issue_id, {
-        stage: escalateStage,
-        decided_by: actor || "unknown",
-        reason: escalateReason,
+    try {
+      await run(async () => {
+        await api.escalateEngagementIssue(record.company_id, issue.issue_id, {
+          stage: escalateStage,
+          decided_by: actor || "unknown",
+          reason: escalateReason,
+        });
+        await refreshRecord();
+        await loadNextAction();
+        setEscalateReason("");
       });
-      await refreshRecord();
-      await loadNextAction();
-      setEscalateReason("");
-    });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function draftDossier() {
-    await run(async () => {
-      const res = await api.draftDossier(record.company_id, issue.issue_id, { company_id: record.company_id, name: record.name });
-      setDossier(res.dossier);
-      setRecipient(res.dossier.recommended_contacts[0] ?? "");
-    });
+    try {
+      await run(async () => {
+        const res = await api.draftDossier(record.company_id, issue.issue_id, { company_id: record.company_id, name: record.name });
+        setDossier(res.dossier);
+        setRecipient(res.dossier.recommended_contacts[0] ?? "");
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function draftLetter() {
-    if (!dossier) return;
-    await run(async () => {
-      const res = (await api.draftOutreachLetter(record.company_id, issue.issue_id, {
-        company_name: record.name,
-        recipient,
-        dossier,
-        house_style_notes: houseStyle,
-      })) as OutreachLetterDraft;
-      setLetter(res);
-    });
+    try {
+      if (!dossier) return;
+      await run(async () => {
+        const res = (await api.draftOutreachLetter(record.company_id, issue.issue_id, {
+          company_name: record.name,
+          recipient,
+          dossier,
+          house_style_notes: houseStyle,
+        })) as OutreachLetterDraft;
+        setLetter(res);
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function draftPoints() {
-    if (!dossier) return;
-    await run(async () => {
-      const res = (await api.draftTalkingPoints(record.company_id, issue.issue_id, { company_name: record.name, dossier })) as MeetingTalkingPoints;
-      setTalkingPoints(res);
-    });
+    try {
+      if (!dossier) return;
+      await run(async () => {
+        const res = (await api.draftTalkingPoints(record.company_id, issue.issue_id, { company_name: record.name, dossier })) as MeetingTalkingPoints;
+        setTalkingPoints(res);
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function logSent() {
-    if (!letter) return;
-    await run(async () => {
-      await api.logOutreachSent(record.company_id, issue.issue_id, {
-        summary: `${letter.subject} -- sent to ${letter.recommended_recipient}`,
-        sent_by: actor || "unknown",
+    try {
+      if (!letter) return;
+      await run(async () => {
+        await api.logOutreachSent(record.company_id, issue.issue_id, {
+          summary: `${letter.subject} -- sent to ${letter.recommended_recipient}`,
+          sent_by: actor || "unknown",
+        });
+        await refreshRecord();
+        await loadNextAction();
       });
-      await refreshRecord();
-      await loadNextAction();
-    });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function draftSummary() {
-    if (!notesOrTranscript.trim()) return;
-    await run(async () => {
-      const res = (await api.draftMeetingSummary(record.company_id, issue.issue_id, {
-        company_name: record.name,
-        notes_or_transcript: notesOrTranscript,
-      })) as MeetingSummaryDraft;
-      setMeetingSummary(res);
-    });
+    try {
+      if (!notesOrTranscript.trim()) return;
+      await run(async () => {
+        const res = (await api.draftMeetingSummary(record.company_id, issue.issue_id, {
+          company_name: record.name,
+          notes_or_transcript: notesOrTranscript,
+        })) as MeetingSummaryDraft;
+        setMeetingSummary(res);
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function validateAndLogSummary() {
-    if (!meetingSummary) return;
-    await run(async () => {
-      await api.logMeetingSummaryValidated(record.company_id, issue.issue_id, {
-        summary: meetingSummary.summary,
-        commitments: meetingSummary.commitments_identified,
-        validated_by: actor || "unknown",
+    try {
+      if (!meetingSummary) return;
+      await run(async () => {
+        await api.logMeetingSummaryValidated(record.company_id, issue.issue_id, {
+          summary: meetingSummary.summary,
+          commitments: meetingSummary.commitments_identified,
+          validated_by: actor || "unknown",
+        });
+        await refreshRecord();
+        await loadNextAction();
+        setMeetingSummary(null);
+        setNotesOrTranscript("");
       });
-      await refreshRecord();
-      await loadNextAction();
-      setMeetingSummary(null);
-      setNotesOrTranscript("");
-    });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function verifyCommitment(commitmentId: string) {
-    await run(async () => {
-      await api.verifyCommitment(record.company_id, issue.issue_id, { commitment_id: commitmentId, verified_by: actor || "unknown" });
-      await refreshRecord();
-      await loadNextAction();
-    });
+    try {
+      await run(async () => {
+        await api.verifyCommitment(record.company_id, issue.issue_id, { commitment_id: commitmentId, verified_by: actor || "unknown" });
+        await refreshRecord();
+        await loadNextAction();
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function addContact() {
-    if (!newContactName.trim()) return;
-    await run(async () => {
-      const body: Partial<Contact> = { name: newContactName, role: newContactRole, email: newContactEmail || null };
-      await api.addEngagementContact(record.company_id, body);
-      await refreshRecord();
-      setNewContactName("");
-      setNewContactRole("");
-      setNewContactEmail("");
-    });
+    try {
+      if (!newContactName.trim()) return;
+      await run(async () => {
+        const body: Partial<Contact> = { name: newContactName, role: newContactRole, email: newContactEmail || null };
+        await api.addEngagementContact(record.company_id, body);
+        await refreshRecord();
+        setNewContactName("");
+        setNewContactRole("");
+        setNewContactEmail("");
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   return (
     <section className="card">
       <div className="section-heading">
-        <h3>
+        <h2>
           {record.name} &middot; {issue.theme}
-        </h3>
-        <button className="link-button" onClick={onClose}>
+        </h2>
+        <Button variant="ghost" onClick={onClose}>
           Close
-        </button>
+        </Button>
       </div>
 
       <div className="chip-row">
@@ -231,12 +272,13 @@ export function EngagementIssuePanel({
         </p>
       )}
 
-      <label className="field-label">Acting as (used for all sign-offs below)</label>
-      <input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="your name / handle" />
-      {error && <p className="error-text">{error}</p>}
+      <Field label="Acting as (used for all sign-offs below)">
+        <input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="your name / handle" />
+      </Field>
+      {error && <StateBlock kind="error" message={error} />}
 
       <div className="panel-section">
-        <h4>Escalation-lever decision</h4>
+        <h3>Escalation-lever decision</h3>
         <p className="help-text">
           The one non-negotiable human checkpoint for escalation -- this is the only way an issue's escalation stage
           moves.
@@ -249,15 +291,15 @@ export function EngagementIssuePanel({
               </option>
             ))}
           </select>
-          <button onClick={escalate} disabled={busy || !actor}>
+          <Button onClick={escalate} disabled={busy || !actor}>
             Set escalation stage
-          </button>
+          </Button>
         </div>
         <textarea rows={1} placeholder="Reason (optional)" value={escalateReason} onChange={(e) => setEscalateReason(e.target.value)} />
       </div>
 
       <div className="panel-section">
-        <h4>Milestone &amp; escalation history</h4>
+        <h3>Milestone &amp; escalation history</h3>
         <ul className="timeline">
           {[...issue.milestone_history.map((t) => ({ label: `Milestone -> ${fmt(t.stage)}`, at: t.changed_at, note: t.reason })), ...issue.escalation_history.map((t) => ({ label: `Escalated -> ${fmt(t.stage)}`, at: t.changed_at, note: `${t.decided_by}${t.reason ? `: ${t.reason}` : ""}` }))]
             .sort((a, b) => (a.at < b.at ? -1 : 1))
@@ -275,8 +317,8 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Correspondence</h4>
-        {issue.correspondence.length === 0 && <p className="muted">None logged yet.</p>}
+        <h3>Correspondence</h3>
+        {issue.correspondence.length === 0 && <StateBlock kind="empty" message="None logged yet." />}
         <ul className="timeline">
           {issue.correspondence.map((c) => (
             <li key={c.entry_id}>
@@ -290,8 +332,8 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Commitments</h4>
-        {issue.commitments.length === 0 && <p className="muted">None logged yet.</p>}
+        <h3>Commitments</h3>
+        {issue.commitments.length === 0 && <StateBlock kind="empty" message="None logged yet." />}
         {issue.commitments.map((c) => (
           <div className="activity-row" key={c.commitment_id}>
             <div className="activity-main">
@@ -304,19 +346,19 @@ export function EngagementIssuePanel({
               </div>
             </div>
             {c.status === "open" && (
-              <button onClick={() => verifyCommitment(c.commitment_id)} disabled={busy || !actor}>
+              <Button onClick={() => verifyCommitment(c.commitment_id)} disabled={busy || !actor}>
                 Verify
-              </button>
+              </Button>
             )}
           </div>
         ))}
       </div>
 
       <div className="panel-section">
-        <h4>Research Agent</h4>
-        <button onClick={draftDossier} disabled={busy}>
+        <h3>Research Agent</h3>
+        <Button onClick={draftDossier} disabled={busy}>
           {dossier ? "Redraft dossier" : "Draft dossier"}
-        </button>
+        </Button>
         {dossier && (
           <div className="review-item">
             {dossier.needs_review && <div className="banner banner-warning">Flagged for review (low confidence and/or ungrounded citation).</div>}
@@ -335,32 +377,34 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Drafting Agent</h4>
+        <h3>Drafting Agent</h3>
         {!dossier && <p className="help-text">Draft a dossier first -- the letter/talking points reuse its grounded citations.</p>}
         {dossier && (
           <>
-            <label className="field-label">Recipient</label>
-            <input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="e.g. Investor Relations" />
-            <label className="field-label">House style notes (optional)</label>
-            <textarea rows={2} value={houseStyle} onChange={(e) => setHouseStyle(e.target.value)} />
+            <Field label="Recipient">
+              <input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="e.g. Investor Relations" />
+            </Field>
+            <Field label="House style notes (optional)">
+              <textarea rows={2} value={houseStyle} onChange={(e) => setHouseStyle(e.target.value)} />
+            </Field>
             <div className="toolbar">
-              <button onClick={draftLetter} disabled={busy || !recipient}>
+              <Button onClick={draftLetter} disabled={busy || !recipient}>
                 Draft outreach letter
-              </button>
-              <button onClick={draftPoints} disabled={busy}>
+              </Button>
+              <Button onClick={draftPoints} disabled={busy}>
                 Draft talking points
-              </button>
+              </Button>
             </div>
             {letter && (
               <div className="review-item">
                 <p>
                   <strong>{letter.subject}</strong> &rarr; {letter.recommended_recipient}
                 </p>
-                <p style={{ whiteSpace: "pre-wrap" }}>{letter.body}</p>
+                <p className="prewrap">{letter.body}</p>
                 <div className="toolbar">
-                  <button onClick={logSent} disabled={busy || !actor}>
+                  <Button onClick={logSent} disabled={busy || !actor}>
                     Log outreach sent (human-authorized)
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -389,12 +433,13 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Post-meeting summary &amp; validation</h4>
-        <label className="field-label">Meeting notes or transcript</label>
-        <textarea rows={4} value={notesOrTranscript} onChange={(e) => setNotesOrTranscript(e.target.value)} placeholder="Paste raw notes or a transcript..." />
-        <button onClick={draftSummary} disabled={busy || !notesOrTranscript.trim()}>
+        <h3>Post-meeting summary &amp; validation</h3>
+        <Field label="Meeting notes or transcript">
+          <textarea rows={4} value={notesOrTranscript} onChange={(e) => setNotesOrTranscript(e.target.value)} placeholder="Paste raw notes or a transcript..." />
+        </Field>
+        <Button onClick={draftSummary} disabled={busy || !notesOrTranscript.trim()}>
           Draft summary
-        </button>
+        </Button>
         {meetingSummary && (
           <div className="review-item">
             <p>{meetingSummary.summary}</p>
@@ -418,16 +463,16 @@ export function EngagementIssuePanel({
                 </ul>
               </>
             )}
-            <button onClick={validateAndLogSummary} disabled={busy || !actor}>
+            <Button onClick={validateAndLogSummary} disabled={busy || !actor}>
               Validate &amp; log (human checkpoint)
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
       <div className="panel-section">
-        <h4>Contacts</h4>
-        {record.contacts.length === 0 && <p className="muted">None on file.</p>}
+        <h3>Contacts</h3>
+        {record.contacts.length === 0 && <StateBlock kind="empty" message="None on file." />}
         <ul className="timeline">
           {record.contacts.map((c) => (
             <li key={c.contact_id}>
@@ -440,9 +485,9 @@ export function EngagementIssuePanel({
           <input placeholder="Name" value={newContactName} onChange={(e) => setNewContactName(e.target.value)} />
           <input placeholder="Role" value={newContactRole} onChange={(e) => setNewContactRole(e.target.value)} />
           <input placeholder="Email (optional)" value={newContactEmail} onChange={(e) => setNewContactEmail(e.target.value)} />
-          <button onClick={addContact} disabled={busy || !newContactName.trim()}>
+          <Button onClick={addContact} disabled={busy || !newContactName.trim()}>
             Add contact
-          </button>
+          </Button>
         </div>
       </div>
     </section>

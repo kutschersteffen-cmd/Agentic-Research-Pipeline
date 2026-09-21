@@ -8,6 +8,7 @@ import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { BarChart } from "../components/BarChart";
 import type { IndicatorAssessment, IndicatorCategory, ReviewDecision, TransitionPlanAssessmentRecord, TransitionPlanIndicatorDef } from "../types";
+import { Button, Field, PageHeader, StateBlock } from "../ui";
 
 interface Props {
   pendingUniverse?: { path: string; count: number } | null;
@@ -86,7 +87,7 @@ function IndicatorTable({
         if (rows.length === 0) return null;
         return (
           <div key={cat}>
-            <h4>{CATEGORY_LABELS[cat]}</h4>
+            <h3>{CATEGORY_LABELS[cat]}</h3>
             <div className="table-wrap">
               <table className="data-table">
                 <thead>
@@ -156,7 +157,7 @@ function BatchOverview({ results }: { results: TransitionPlanAssessmentRecord[] 
 
   return (
     <section className="card">
-      <h3>Batch overview ({results.length} companies)</h3>
+      <h2>Batch overview ({results.length} companies)</h2>
       <div className="stat-tile-grid">
         <div className="stat-tile">
           <div className="stat-value">{walkTotal > 0 ? `${Math.round((walkDisclosed / walkTotal) * 100)}%` : "—"}</div>
@@ -188,7 +189,7 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
 
   useEffect(() => {
-    api.getTransitionPlanIndicators().then(setIndicators).catch(() => {});
+    api.getTransitionPlanIndicators().then(setIndicators).catch((err: Error) => setError(err.message));
   }, []);
 
   async function startRun() {
@@ -207,29 +208,37 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
   }
 
   async function refreshResults() {
-    if (!runId) return;
-    const res = await api.getTransitionPlanResults(runId);
-    setResults(res.results);
-    const decisionsRes = (await api.getTransitionPlanReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
-    setReviewDecisions(decisionsRes.decisions);
+    try {
+      if (!runId) return;
+      const res = await api.getTransitionPlanResults(runId);
+      setResults(res.results);
+      const decisionsRes = (await api.getTransitionPlanReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
+      setReviewDecisions(decisionsRes.decisions);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   return (
     <div className="page">
-      <h2>Transition Plan Assessment</h2>
-      <p className="help-text">
-        Assesses each company's climate transition disclosures against the 64 indicators from Colesanti Senni,
-        Schimanski, Bingler, Ni &amp; Leippold (2024), <em>"Using AI to assess corporate climate transition
-        disclosures"</em> (Environmental Research Communications). Each indicator gets a grounded RAG verdict --
-        disclosed (YES), not disclosed (NO), or not applicable (NA) -- with a critical, greenwashing-aware
-        explanation and citations independently verified against the source document (never LLM-self-reported).
-        Indicators are classified as "talk" (future targets / general management approach) or "walk" (concrete,
-        already-verifiable activity), mirroring the paper's headline finding that companies over-disclose talk and
-        under-disclose walk.
-      </p>
-      <button className="link-button" onClick={() => setShowMethodology((s) => !s)}>
+      <PageHeader
+        title="Transition Plan Assessment"
+        description={
+          <>
+            Assesses each company's climate transition disclosures against the 64 indicators from Colesanti Senni,
+            Schimanski, Bingler, Ni &amp; Leippold (2024), <em>"Using AI to assess corporate climate transition
+            disclosures"</em> (Environmental Research Communications). Each indicator gets a grounded RAG verdict --
+            disclosed (YES), not disclosed (NO), or not applicable (NA) -- with a critical, greenwashing-aware
+            explanation and citations independently verified against the source document (never LLM-self-reported).
+            Indicators are classified as "talk" (future targets / general management approach) or "walk" (concrete,
+            already-verifiable activity), mirroring the paper's headline finding that companies over-disclose talk and
+            under-disclose walk.
+          </>
+        }
+      />
+      <Button variant="ghost" onClick={() => setShowMethodology((s) => !s)}>
         {showMethodology ? "Hide" : "Show"} the 64 indicators
-      </button>
+      </Button>
       {showMethodology && (
         <div className="table-wrap">
           <table className="data-table">
@@ -256,7 +265,7 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
       )}
 
       <section className="card">
-        <h3>1. Choose the company universe</h3>
+        <h2>1. Choose the company universe</h2>
         {pendingUniverse && universePath === pendingUniverse.path && (
           <p className="status-text">
             Using {pendingUniverse.count} companies sent from another screen. Upload a different universe below to
@@ -269,26 +278,25 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
             setCompanyCount(count);
           }}
         />
-        <button onClick={startRun} disabled={busy || !universePath}>
+        <Button onClick={startRun} disabled={busy || !universePath}>
           Assess transition plans across {companyCount || "..."} companies
-        </button>
+        </Button>
       </section>
 
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       {runId && (
         <section className="card">
-          <h3>2. Run progress</h3>
+          <h2>2. Run progress</h2>
           <RunProgress runId={runId} runType="transition_plan" />
           <div className="toolbar">
-            <button onClick={refreshResults}>Refresh results</button>
+            <Button onClick={refreshResults}>Refresh results</Button>
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
               Export CSV
             </a>
-            <label className="field-label" style={{ marginLeft: "auto" }}>
-              Reviewing as
-            </label>
-            <input placeholder="your name" value={reviewer} onChange={(e) => setReviewer(e.target.value)} style={{ maxWidth: 160 }} />
+            <Field label="Reviewing as" className="field-inline field-push">
+              <input placeholder="your name" value={reviewer} onChange={(e) => setReviewer(e.target.value)} />
+            </Field>
           </div>
           {results.length > 0 && <BatchOverview results={results} />}
           {results.length > 0 && (

@@ -4,6 +4,7 @@ import { ConfidenceBadge, VerdictBadge } from "../components/ConfidenceBadge";
 import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import type { Citation, ReviewableRunKind, RunManifest } from "../types";
+import { Button, Field, PageHeader, StateBlock } from "../ui";
 
 const REVIEW_KIND_LABEL: Record<ReviewableRunKind, string> = {
   theme: "Thematic universe",
@@ -67,7 +68,7 @@ function ReviewItemFields({ item, onOpenSource }: { item: Record<string, unknown
       )}
       {hasRest && (
         <details className="inline-block">
-          <summary className="muted" style={{ cursor: "pointer" }}>
+          <summary className="muted clickable-row">
             Full record
           </summary>
           <pre className="review-json">{JSON.stringify(rest, null, 2)}</pre>
@@ -105,7 +106,10 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
     api
       .listRuns(kind)
       .then((res) => setRuns((res as { runs: RunManifest[] }).runs))
-      .catch(() => setRuns([]));
+      .catch((err: Error) => {
+        setRuns([]);
+        setError(err.message);
+      });
   }, [kind]);
 
   // A run clicked from Run History's "Review" link arrives here -- load its
@@ -128,70 +132,76 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Review Queue</h2>
-      <p className="help-text">
-        Every low-confidence verdict, ungrounded citation, or "uncertain" call lands here instead of the trusted
-        output. Nothing flagged is included in exports until a human approves it.
-      </p>
+      <PageHeader
+        title="Review Queue"
+        description={
+          <>
+            Every low-confidence verdict, ungrounded citation, or "uncertain" call lands here instead of the trusted
+            output. Nothing flagged is included in exports until a human approves it.
+          </>
+        }
+      />
 
       <section className="card">
-        <label className="field-label">Run type</label>
-        <select
-          value={kind}
-          onChange={(e) => {
-            setKind(e.target.value as ReviewableRunKind);
-            setRunId("");
-            setPending([]);
-          }}
-        >
-          {(Object.keys(REVIEW_KIND_LABEL) as ReviewableRunKind[]).map((k) => (
-            <option key={k} value={k}>
-              {REVIEW_KIND_LABEL[k]}
-            </option>
-          ))}
-        </select>
+        <Field label="Run type">
+          <select
+            value={kind}
+            onChange={(e) => {
+              setKind(e.target.value as ReviewableRunKind);
+              setRunId("");
+              setPending([]);
+            }}
+          >
+            {(Object.keys(REVIEW_KIND_LABEL) as ReviewableRunKind[]).map((k) => (
+              <option key={k} value={k}>
+                {REVIEW_KIND_LABEL[k]}
+              </option>
+            ))}
+          </select>
+        </Field>
 
-        <label className="field-label">Run</label>
-        <select value={runId} onChange={(e) => setRunId(e.target.value)}>
-          <option value="">-- select a run --</option>
-          {runsWithFlags.length > 0 && (
-            <optgroup label="Has flagged items">
-              {runsWithFlags.map((r) => (
+        <Field label="Run">
+          <select value={runId} onChange={(e) => setRunId(e.target.value)}>
+            <option value="">-- select a run --</option>
+            {runsWithFlags.length > 0 && (
+              <optgroup label="Has flagged items">
+                {runsWithFlags.map((r) => (
+                  <option key={r.run_id} value={r.run_id}>
+                    {r.run_id} -- {r.review_count} flagged ({r.status})
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label="All runs">
+              {runs.map((r) => (
                 <option key={r.run_id} value={r.run_id}>
                   {r.run_id} -- {r.review_count} flagged ({r.status})
                 </option>
               ))}
             </optgroup>
-          )}
-          <optgroup label="All runs">
-            {runs.map((r) => (
-              <option key={r.run_id} value={r.run_id}>
-                {r.run_id} -- {r.review_count} flagged ({r.status})
-              </option>
-            ))}
-          </optgroup>
-        </select>
-        {runs.length === 0 && <p className="muted">No {REVIEW_KIND_LABEL[kind].toLowerCase()} runs found.</p>}
+          </select>
+        </Field>
+        {runs.length === 0 && <StateBlock kind="empty" message={<>No {REVIEW_KIND_LABEL[kind].toLowerCase()} runs found.</>} />}
 
-        <button onClick={() => load()} disabled={busy || !runId}>
+        <Button onClick={() => load()} disabled={busy || !runId}>
           Load pending items
-        </button>
-        {error && <p className="error-text">{error}</p>}
+        </Button>
+        {error && <StateBlock kind="error" message={error} />}
       </section>
 
       {pending.length > 0 && (
         <div className="split-review">
           <div className="split-review-main">
             <section className="card">
-              <h3>{pending.length} pending</h3>
+              <h2>{pending.length} pending</h2>
               {pending.map((item) => (
                 <div className="review-item" key={item.item_key as string}>
                   <ReviewItemFields item={item} onOpenSource={setActiveSource} />
                   <div className="toolbar">
-                    <button onClick={() => decide(item.item_key as string, "approve")}>Approve</button>
-                    <button onClick={() => decide(item.item_key as string, "reject")} className="danger">
+                    <Button onClick={() => decide(item.item_key as string, "approve")}>Approve</Button>
+                    <Button variant="danger" onClick={() => decide(item.item_key as string, "reject")}>
                       Reject
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}

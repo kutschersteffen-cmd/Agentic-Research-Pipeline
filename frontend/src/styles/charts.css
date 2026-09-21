@@ -1,0 +1,54 @@
+/* Chart chrome. Mark colors come from lib/palette.ts -- never from CSS. */
+
+.chart-svg { width: 100%; height: auto; overflow: visible; font-family: inherit; }
+.chart-axis-label { fill: var(--muted); font-size: var(--fs-25); }
+.chart-value-label { fill: var(--text); font-size: var(--fs-25); }
+.chart-end-label { fill: var(--text); font-size: var(--fs-25); }
+.chart-axis-line { stroke: var(--panel-border); stroke-width: 1; }
+.chart-gridline { stroke: var(--panel-border); stroke-width: 1; }
+.chart-crosshair { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+
+/* Recessive: the cut-point rule marks where a band starts, it is not the
+   data. */
+.chart-cut-halo { stroke: var(--panel); stroke-width: 3; }
+.chart-cut-line { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+
+.chart-wrap { position: relative; }
+
+/* One legend rule. This was previously declared twice, 80 lines apart, with
+   the two declarations merging into a style no single rule described. */
+.chart-legend {
+  display: flex;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  margin: var(--sp-2) 0;
+  font-size: var(--fs-100);
+  color: var(--muted);
+}
+.chart-legend-item { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.chart-legend-swatch { width: 10px; height: 10px; border-radius: var(--r-xs); flex-shrink: 0; display: inline-block; }
+
+.chart-tooltip {
+  position: absolute;
+  top: var(--sp-2);
+  transform: translateX(-50%);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-50);
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: var(--shadow-2);
+  z-index: 5;
+}
+.chart-tooltip-date { color: var(--muted); margin-bottom: var(--sp-1); }
+.chart-tooltip-row { display: flex; align-items: center; gap: var(--sp-2); }
+.chart-tooltip-value { font-weight: 600; }
+
+.pivot-table-wrap { overflow-x: auto; }
+.pivot-table { border-collapse: collapse; font-size: var(--fs-100); margin-top: var(--sp-3); }
+.pivot-table th, .pivot-table td { padding: var(--sp-2) var(--sp-3); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pivot-table th { color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--panel-border); }
+.pivot-table th:first-child, .pivot-table td:first-child { text-align: left; color: var(--muted); border-right: 1px solid var(--panel-border); }
+.pivot-cell-empty { color: var(--muted); }

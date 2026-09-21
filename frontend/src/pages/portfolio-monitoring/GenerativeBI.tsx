@@ -4,6 +4,7 @@ import { usePortfolioPane } from "../../context/usePortfolioPane";
 import { AggregationView, TrendView } from "../../components/ResultView";
 import { PivotTable } from "../../components/PivotTable";
 import type { DashboardSpec, GeneratedDashboard, Narrative, PanelResult } from "../../types";
+import { Button, StateBlock } from "../../ui";
 
 const EXAMPLE_BRIEFS = [
   "Give me a climate risk overview of the sustainable leaders fund",
@@ -84,7 +85,7 @@ function PanelCard({ panel, narrative }: { panel: PanelResult; narrative?: Narra
 
   return (
     <section className="card">
-      <h4>{panel.panel.title}</h4>
+      <h3>{panel.panel.title}</h3>
       {panel.panel.question && <p className="help-text">{panel.panel.question}</p>}
       {panel.error ? (
         <div className="banner banner-danger">This panel could not be computed: {panel.error}</div>
@@ -141,7 +142,7 @@ function DashboardView({
   return (
     <>
       <section className="card">
-        <h3>{dashboard.spec.title}</h3>
+        <h2>{dashboard.spec.title}</h2>
         {dashboard.spec.goal && <p className="help-text">{dashboard.spec.goal}</p>}
         <NarrativeBlock narrative={dashboard.headline} />
         <div className="chip-row">
@@ -151,9 +152,9 @@ function DashboardView({
         </div>
         <div className="toolbar">
           {onSave && (
-            <button onClick={onSave} disabled={saving}>
+            <Button onClick={onSave} disabled={saving}>
               {saving ? "Saving..." : "Save dashboard"}
-            </button>
+            </Button>
           )}
           {onRerun && (
             <>
@@ -165,7 +166,7 @@ function DashboardView({
                   </option>
                 ))}
               </select>
-              <button onClick={() => onRerun(asOf)}>Re-run (no LLM)</button>
+              <Button onClick={() => onRerun(asOf)}>Re-run (no LLM)</Button>
             </>
           )}
         </div>
@@ -274,7 +275,7 @@ export function GenerativeBI() {
   return (
     <>
       <section className="card">
-        <h3>Describe the dashboard you want</h3>
+        <h2>Describe the dashboard you want</h2>
         <p className="help-text">
           The model plans the panels and writes the commentary; it never produces a number. Every figure comes from the same
           deterministic engine the Explore and Pivot tabs use, and every figure in the commentary is matched back to a computed
@@ -294,13 +295,12 @@ export function GenerativeBI() {
           Write commentary (uncheck for panels and computed facts only -- one LLM call instead of two)
         </label>
         <div className="toolbar">
-          <button onClick={() => generate(brief)} disabled={busy || !brief.trim()}>
+          <Button onClick={() => generate(brief)} disabled={busy || !brief.trim()}>
             {busy ? "Generating..." : "Generate dashboard"}
-          </button>
+          </Button>
           {EXAMPLE_BRIEFS.map((b) => (
-            <button
+            <Button variant="ghost"
               key={b}
-              className="link-button"
               disabled={busy}
               onClick={() => {
                 setBrief(b);
@@ -308,15 +308,15 @@ export function GenerativeBI() {
               }}
             >
               {b}
-            </button>
+            </Button>
           ))}
         </div>
-        {error && <p className="error-text">{error}</p>}
+        {error && <StateBlock kind="error" message={error} />}
       </section>
 
       {saved.length > 0 && (
         <section className="card">
-          <h3>Saved dashboards ({saved.length})</h3>
+          <h2>Saved dashboards ({saved.length})</h2>
           <p className="help-text">
             A saved dashboard is a re-runnable definition, not a stored answer: re-running recomputes every panel from current
             holdings with no LLM call at all, so a recurring report can't drift between runs except through the data.
@@ -337,9 +337,9 @@ export function GenerativeBI() {
                   <td>{spec.panels.length}</td>
                   <td>{spec.created_at.slice(0, 10)}</td>
                   <td>
-                    <button className="link-button" disabled={busy} onClick={() => rerun(spec.dashboard_id, "")}>
+                    <Button variant="ghost" disabled={busy} onClick={() => rerun(spec.dashboard_id, "")}>
                       Re-run
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}

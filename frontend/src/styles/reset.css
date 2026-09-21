@@ -1,0 +1,39 @@
+/* Element-level normalization only -- no product styling lives here. */
+
+* { box-sizing: border-box; }
+
+body { margin: 0; }
+
+/* Controls inherit typography rather than the UA's. A bare <button> is an
+   unstyled control: every visual button goes through .btn (ui/Button.tsx)
+   or a named component class such as .nav-tab. Nothing is painted by the
+   bare element selector, which is what previously made every button in the
+   app look like a primary action. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+button:disabled { cursor: not-allowed; opacity: 0.5; }
+
+img, svg { vertical-align: middle; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

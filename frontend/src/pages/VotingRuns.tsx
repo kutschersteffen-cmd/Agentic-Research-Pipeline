@@ -4,6 +4,7 @@ import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import { api } from "../api/client";
 import type { RunManifest } from "../types";
+import { Button, PageHeader, StateBlock } from "../ui";
 
 export function VotingRuns() {
   const [universePath, setUniversePath] = useState<string | null>(null);
@@ -15,8 +16,12 @@ export function VotingRuns() {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
 
   async function loadRuns() {
-    const res = (await api.listRuns("proxy_voting")) as { runs: RunManifest[] };
-    setRuns(res.runs);
+    try {
+      const res = (await api.listRuns("proxy_voting")) as { runs: RunManifest[] };
+      setRuns(res.runs);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   useEffect(() => {
@@ -40,15 +45,19 @@ export function VotingRuns() {
 
   return (
     <div className="page">
-      <h2>Proxy Voting</h2>
-      <p className="help-text">
-        Proposal Analysis Agent extracts each company's ballot from its proxy statement; the Policy Application Agent
-        recommends a vote (a deterministic house rule, or an LLM judgment call) and cross-checks it against open
-        engagement issues. Every proposal requires an explicit human decision before it can be cast.
-      </p>
+      <PageHeader
+        title="Proxy Voting"
+        description={
+          <>
+            Proposal Analysis Agent extracts each company's ballot from its proxy statement; the Policy Application Agent
+            recommends a vote (a deterministic house rule, or an LLM judgment call) and cross-checks it against open
+            engagement issues. Every proposal requires an explicit human decision before it can be cast.
+          </>
+        }
+      />
 
       <section className="card">
-        <h3>Start a voting run</h3>
+        <h2>Start a voting run</h2>
         <UniversePicker
           onResolved={(path, count) => {
             setUniversePath(path);
@@ -60,20 +69,20 @@ export function VotingRuns() {
             {companyCount} companies loaded from {universePath}
           </p>
         )}
-        <button onClick={startRun} disabled={starting || !universePath}>
+        <Button onClick={startRun} disabled={starting || !universePath}>
           Run proposal analysis &amp; policy application
-        </button>
-        {error && <p className="error-text">{error}</p>}
+        </Button>
+        {error && <StateBlock kind="error" message={error} />}
       </section>
 
       <section className="card">
         <div className="section-heading">
-          <h3>Runs</h3>
-          <button className="link-button" onClick={loadRuns}>
+          <h2>Runs</h2>
+          <Button variant="ghost" onClick={loadRuns}>
             Refresh
-          </button>
+          </Button>
         </div>
-        {runs.length === 0 && <p className="muted">No voting runs yet.</p>}
+        {runs.length === 0 && <StateBlock kind="empty" message="No voting runs yet." />}
         {runs.length > 0 && (
           <div className="table-wrap">
             <table className="data-table">
@@ -84,7 +93,7 @@ export function VotingRuns() {
                   <th>Progress</th>
                   <th>Awaiting decision</th>
                   <th>Created</th>
-                  <th></th>
+                  <th><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -100,9 +109,9 @@ export function VotingRuns() {
                     <td>{r.review_count}</td>
                     <td>{new Date(r.created_at).toLocaleString()}</td>
                     <td>
-                      <button className="link-button" onClick={(e) => { e.stopPropagation(); setSelectedRunId(r.run_id); }}>
+                      <Button variant="ghost" onClick={(e) => { e.stopPropagation(); setSelectedRunId(r.run_id); }}>
                         Open
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}

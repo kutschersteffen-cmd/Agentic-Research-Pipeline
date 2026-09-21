@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { EngagementRecord, ReviewableRunKind, RunManifest } from "../types";
+import { Button, PageHeader, StatTile, StateBlock } from "../ui";
+import { href } from "../router";
 
 const ACTIVE_STATUSES = new Set(["running", "pending"]);
 const RUN_TYPE_LABEL: Record<string, string> = {
@@ -85,46 +87,64 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
 
   return (
     <div className="page">
-      <h2>Monitoring Dashboard</h2>
-      <p className="help-text">
-        A live view across everything the system is doing: batch pipeline runs (thematic universe, extraction,
-        discovery, proxy voting) and the stewardship module's open engagement issues. Pipeline runs poll every 3s
-        while this page is open.
-      </p>
-      {loadError && <p className="error-text">Failed to refresh runs: {loadError}</p>}
+      <PageHeader
+        title="Monitoring Dashboard"
+        description={
+          <>
+            A live view across everything the system is doing: batch pipeline runs (thematic universe, extraction,
+            discovery, proxy voting) and the stewardship module's open engagement issues. Pipeline runs poll every 3s
+            while this page is open.
+          </>
+        }
+      />
+      {loadError && <StateBlock kind="error" message={<>Failed to refresh runs: {loadError}</>} />}
 
       <section className="card">
         <div className="dashboard-grid">
-          <div className="stat-tile">
-            <span className="stat-value" style={{ color: "var(--accent)" }}>{active.length}</span>
-            <span className="stat-label">Currently executing</span>
-          </div>
-          <div className="stat-tile">
-            <span className="stat-value">{finished.length}</span>
-            <span className="stat-label">Finished runs (recent)</span>
-          </div>
-          <div className="stat-tile">
-            <span className="stat-value">{openIssues.length}</span>
-            <span className="stat-label">Open engagement issues</span>
-          </div>
-          <div className="stat-tile">
-            <span className="stat-value" style={stalledIssues.length > 0 ? { color: "var(--mid)" } : undefined}>{stalledIssues.length}</span>
-            <span className="stat-label">Stalled (SLA breach)</span>
-          </div>
-          <div className="stat-tile">
-            <span className="stat-value" style={escalatedIssues.length > 0 ? { color: "var(--low)" } : undefined}>{escalatedIssues.length}</span>
-            <span className="stat-label">Escalated beyond private engagement</span>
-          </div>
-          <div className="stat-tile">
-            <span className="stat-value">{pendingVoteReviews}</span>
-            <span className="stat-label">Ballot items awaiting decision</span>
-          </div>
+          <StatTile
+            label="Currently executing"
+            value={active.length}
+            tone="accent"
+            hint="running or pending"
+            href={href("history", { params: { status: "running" } })}
+          />
+          <StatTile
+            label="Finished runs"
+            value={finished.length}
+            hint="most recent 25"
+            href={href("history")}
+          />
+          <StatTile
+            label="Open engagement issues"
+            value={openIssues.length}
+            hint={`of ${allIssues.length} logged`}
+            href={href("engagement")}
+          />
+          <StatTile
+            label="Stalled (SLA breach)"
+            value={stalledIssues.length}
+            tone={stalledIssues.length > 0 ? "warn" : "default"}
+            hint="past their response window"
+            href={href("engagement")}
+          />
+          <StatTile
+            label="Escalated beyond private engagement"
+            value={escalatedIssues.length}
+            hint="still open"
+            href={href("engagement")}
+          />
+          <StatTile
+            label="Ballot items awaiting decision"
+            value={pendingVoteReviews}
+            hint="across all voting runs"
+            href={href("voting")}
+          />
         </div>
       </section>
 
       <section className="card">
         <div className="section-heading">
-          <h3>Currently executing</h3>
+          <h2>Currently executing</h2>
         </div>
         {active.length === 0 && <p className="muted">Nothing running right now.</p>}
         {active.map((r) => {
@@ -146,9 +166,9 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                   <span>{r.review_count} flagged</span>
                   <span>${r.estimated_cost_usd.toFixed(2)}</span>
                   {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && onOpenReview && (
-                    <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
+                    <Button variant="ghost" className="mt-0" onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
                       Review {r.review_count} flagged &rarr;
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -159,10 +179,10 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
 
       <section className="card">
         <div className="section-heading">
-          <h3>Finished runs</h3>
+          <h2>Finished runs</h2>
           <span className="muted">most recent 25</span>
         </div>
-        {finished.length === 0 && <p className="muted">No finished runs yet.</p>}
+        {finished.length === 0 && <StateBlock kind="empty" message="No finished runs yet." />}
         {finished.length > 0 && (
           <div className="table-wrap">
             <table className="data-table">
@@ -174,7 +194,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                   <th>Progress</th>
                   <th>Flagged</th>
                   <th>Finished</th>
-                  <th></th>
+                  <th><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -188,9 +208,9 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                     <td>{new Date(r.updated_at).toLocaleString()}</td>
                     <td>
                       {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && onOpenReview && (
-                        <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
+                        <Button variant="ghost" className="mt-0" onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
                           Review
-                        </button>
+                        </Button>
                       )}
                     </td>
                   </tr>
@@ -203,12 +223,12 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
 
       <section className="card">
         <div className="section-heading">
-          <h3>Open engagement issues</h3>
-          <button className="link-button" onClick={() => onNavigate("engagement")}>
+          <h2>Open engagement issues</h2>
+          <Button variant="ghost" onClick={() => onNavigate("engagement")}>
             Open Engagement &rarr;
-          </button>
+          </Button>
         </div>
-        {openIssues.length === 0 && <p className="muted">No open issues.</p>}
+        {openIssues.length === 0 && <StateBlock kind="empty" message="No open issues." />}
         {openIssues.length > 0 && (
           <div className="table-wrap">
             <table className="data-table">
@@ -242,10 +262,10 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
       {votingRuns.length > 0 && (
         <section className="card">
           <div className="section-heading">
-            <h3>Proxy voting runs</h3>
-            <button className="link-button" onClick={() => onNavigate("voting")}>
+            <h2>Proxy voting runs</h2>
+            <Button variant="ghost" onClick={() => onNavigate("voting")}>
               Open Voting &rarr;
-            </button>
+            </Button>
           </div>
           <div className="table-wrap">
             <table className="data-table">

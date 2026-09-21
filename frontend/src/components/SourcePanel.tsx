@@ -1,3 +1,5 @@
+
+import { Button } from "../ui";
 export interface ActiveSource {
   title: string;
   src: string;
@@ -28,10 +30,10 @@ export function SourcePanel({ source, onClose }: Props) {
   return (
     <div className="source-panel">
       <div className="source-panel-header">
-        <h4 title={source.title}>{source.title}</h4>
-        <button className="link-button" onClick={onClose}>
+        <h3 title={source.title}>{source.title}</h3>
+        <Button variant="ghost" onClick={onClose}>
           Close
-        </button>
+        </Button>
       </div>
       {source.quote && <p className="source-panel-quote">"{source.quote}"</p>}
       <iframe className="source-panel-iframe" src={source.src} title={source.title} />

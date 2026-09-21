@@ -1,12 +1,16 @@
-import { SEQUENTIAL_BLUE } from "../lib/palette";
+import { useChartPalette } from "../lib/palette";
 import type { HistogramBin, TierDefinition } from "../types";
 
-/** Tier bands are ordinal (Tier 1 is best), so they take one hue light ->
- * dark from the app's validated sequential ramp -- never a categorical
- * rainbow. Identity is never carried by color alone: the cut-points are
- * drawn and labelled on the axis, a legend names every band, and the
- * ranked table below the chart is the table view. */
-const BAND_FILLS = [SEQUENTIAL_BLUE[5], SEQUENTIAL_BLUE[4], SEQUENTIAL_BLUE[3], SEQUENTIAL_BLUE[2]];
+/** Tier bands are ordinal (Tier 1 is best), so they take one hue from the
+ * app's validated sequential ramp -- never a categorical rainbow. Tier 1
+ * gets the step furthest from the chart surface, which is the darkest step
+ * on light and the lightest on dark; the ramps are ordered from the surface
+ * upward in both modes, so the same indices do the right thing either way.
+ * Identity is never carried by color alone: the cut-points are drawn and
+ * labelled on the axis, a legend names every band, and the ranked table
+ * below the chart is the table view. */
+/** Highest-contrast band first (Tier 1 is best), stepped down the ramp. */
+const bandFills = (ramp: readonly string[]) => [ramp[5], ramp[4], ramp[3], ramp[2]];
 
 function bandFor(score: number, cuts: number[]): number {
   for (let i = 0; i < cuts.length; i += 1) {
@@ -28,6 +32,9 @@ export function ScoreDistribution({
   cuts: number[];
   tiers: TierDefinition[];
 }) {
+  const { sequential } = useChartPalette();
+  const BAND_FILLS = bandFills(sequential);
+
   if (bins.length === 0) return <p className="muted">Nothing scored yet, so there is no distribution to show.</p>;
 
   const width = 760;

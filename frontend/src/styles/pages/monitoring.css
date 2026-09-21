@@ -1,0 +1,19 @@
+/* Monitoring dashboard and the persistent portfolio selection pane. */
+
+/* A wrapped two-line label must not drop its number below the others. */
+.dashboard-grid .stat-label { min-height: 2.4em; }
+.dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-2); }
+
+.activity-row { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) 0; border-bottom: 1px solid var(--panel-border); }
+.activity-row:last-child { border-bottom: none; }
+.activity-row .activity-main { flex: 1; min-width: 0; }
+.activity-row .progress-bar { margin: var(--sp-2) 0 0; }
+.activity-meta { color: var(--muted); font-size: var(--fs-50); display: flex; gap: var(--sp-3); flex-wrap: wrap; margin-top: var(--sp-05); }
+
+.run-progress-header { display: flex; justify-content: space-between; align-items: center; }
+.run-progress-stats { display: flex; gap: var(--sp-4); flex-wrap: wrap; color: var(--muted); font-size: var(--fs-100); }
+
+.selection-pane { margin-bottom: var(--sp-5); }
+.pane-grid { display: grid; grid-template-columns: 2fr 1fr; gap: var(--sp-5); }
+@media (max-width: 760px) { .pane-grid { grid-template-columns: 1fr; } }
+.selection-summary { color: var(--muted); font-size: var(--fs-200); margin: 0 0 var(--sp-4); }

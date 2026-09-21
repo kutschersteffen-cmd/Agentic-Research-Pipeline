@@ -10,6 +10,9 @@ import type {
   SelectionRule,
   TiltRule,
 } from "../types";
+import { INDEX_BUILDER_TABS as SUB_TABS } from "../nav";
+import { useSubTab } from "../router";
+import { Button, Field, PageHeader, StateBlock, TabPanel, Tabs } from "../ui";
 
 /**
  * Compose an index methodology out of named rules, save it as a versioned
@@ -20,12 +23,6 @@ import type {
  * `docs/INDEX_METHODOLOGY_LANDSCAPE.md` for where each rule type comes from
  * and `docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md` for the wider design.
  */
-
-const SUB_TABS = [
-  { id: "compose", label: "Compose" },
-  { id: "calibrations", label: "Calibrations" },
-  { id: "result", label: "Result" },
-] as const;
 
 const EMPTY_SPEC: ConstructionSpec = {
   index_currency: "EUR",
@@ -96,8 +93,7 @@ function NumberField({
   placeholder?: string;
 }) {
   return (
-    <label className="field-label" style={{ flex: 1 }}>
-      {label}
+    <Field label={<>{label}</>}>
       <input
         type="number"
         step={step}
@@ -105,7 +101,7 @@ function NumberField({
         value={value === null || value === undefined ? "" : value}
         onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
       />
-    </label>
+    </Field>
   );
 }
 
@@ -123,8 +119,7 @@ function SelectField({
   allowEmpty?: boolean;
 }) {
   return (
-    <label className="field-label" style={{ flex: 1 }}>
-      {label}
+    <Field label={<>{label}</>}>
       <select value={value ?? ""} onChange={(e) => onChange(e.target.value)}>
         {allowEmpty && <option value="">--</option>}
         {options.map((o) => (
@@ -133,7 +128,7 @@ function SelectField({
           </option>
         ))}
       </select>
-    </label>
+    </Field>
   );
 }
 
@@ -159,33 +154,32 @@ function RuleShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="activity-editor" style={enabled ? undefined : { opacity: 0.55 }}>
-      <div className="toolbar" style={{ marginTop: 0 }}>
-        <strong style={{ flex: 1 }}>{title}</strong>
-        <label className="checkbox-label" style={{ margin: 0 }}>
+    <div className={enabled ? "activity-editor" : "activity-editor dimmed"}>
+      <div className="toolbar mt-0">
+        <strong className="grow">{title}</strong>
+        <label className="checkbox-label m-0">
           <input type="checkbox" checked={enabled} onChange={onToggle} /> on
         </label>
-        <button className="link-button" onClick={onMoveUp} disabled={!onMoveUp} title="Move earlier">
+        <Button variant="ghost" onClick={onMoveUp} disabled={!onMoveUp} title="Move earlier">
           ↑
-        </button>
-        <button className="link-button" onClick={onMoveDown} disabled={!onMoveDown} title="Move later">
+        </Button>
+        <Button variant="ghost" onClick={onMoveDown} disabled={!onMoveDown} title="Move later">
           ↓
-        </button>
-        <button className="link-button" onClick={onRemove} title="Remove rule">
+        </Button>
+        <Button variant="ghost" onClick={onRemove} title="Remove rule">
           remove
-        </button>
+        </Button>
       </div>
-      <label className="field-label">
-        Label (shown on the committee pack)
+      <Field label="Label (shown on the committee pack)">
         <input type="text" value={label} onChange={(e) => onLabel(e.target.value)} placeholder="optional" />
-      </label>
+      </Field>
       {children}
     </div>
   );
 }
 
 export function IndexBuilder() {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("compose");
+  const [sub, setSub] = useSubTab(SUB_TABS, "compose");
   const [catalogue, setCatalogue] = useState<IndexCatalogue | null>(null);
   const [spec, setSpec] = useState<ConstructionSpec>(EMPTY_SPEC);
   const [calibrations, setCalibrations] = useState<IndexCalibration[]>([]);
@@ -264,92 +258,96 @@ export function IndexBuilder() {
 
   return (
     <div className="page">
-      <h2>Index Construction</h2>
-      <p className="help-text">
-        Compose screens, a selection rule, weighting, tilts, constraints and the path-dependent decarbonisation layer into
-        one methodology, save it as a versioned calibration, and run a review. Everything here is deterministic and
-        zero-LLM. See <code>docs/INDEX_METHODOLOGY_LANDSCAPE.md</code> for where each rule type comes from.
-      </p>
+      <PageHeader
+        title="Index Construction"
+        description={
+          <>
+            Compose screens, a selection rule, weighting, tilts, constraints and the path-dependent decarbonisation layer into
+            one methodology, save it as a versioned calibration, and run a review. Everything here is deterministic and
+            zero-LLM. See <code>docs/INDEX_METHODOLOGY_LANDSCAPE.md</code> for where each rule type comes from.
+          </>
+        }
+      />
 
-      <nav className="sub-nav">
-        {SUB_TABS.map((t) => (
-          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} onClick={() => setSub(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </nav>
+      <Tabs
+        id="index"
+        tabs={SUB_TABS}
+        active={sub}
+        onChange={(id) => setSub(id as typeof sub)}
+        label="Index construction step"
+      />
 
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
       {status && <p className="status-text">{status}</p>}
 
-      {sub === "compose" && (
-        <>
-          <div className="card">
-            <h3>Start from a preset</h3>
-            <p className="help-text">
-              A preset expands into the ordinary rules below -- nothing is hidden, and every rule stays editable.
-            </p>
-            <div className="toolbar" style={{ flexWrap: "wrap" }}>
-              {(catalogue?.presets ?? []).map((p) => (
-                <button key={p.name} className="nav-tab" title={p.description} onClick={() => loadPreset(p.name)}>
-                  {p.label}
-                </button>
-              ))}
-              <button className="nav-tab" onClick={() => { setSpec(EMPTY_SPEC); setLoaded(null); setStatus("Started from an empty methodology."); }}>
-                Empty
-              </button>
+      <TabPanel id="index" active={sub}>
+        {sub === "compose" && (
+          <>
+            <div className="card">
+              <h2>Start from a preset</h2>
+              <p className="help-text">
+                A preset expands into the ordinary rules below -- nothing is hidden, and every rule stays editable.
+              </p>
+              <div className="toolbar">
+                {(catalogue?.presets ?? []).map((p) => (
+                  <Button variant="secondary" size="sm" key={p.name} title={p.description} onClick={() => loadPreset(p.name)}>
+                    {p.label}
+                  </Button>
+                ))}
+                <Button variant="secondary" size="sm" onClick={() => { setSpec(EMPTY_SPEC); setLoaded(null); setStatus("Started from an empty methodology."); }}>
+                  Empty
+                </Button>
+              </div>
             </div>
-          </div>
 
-          <ScreensCard spec={spec} setSpec={setSpec} catalogue={catalogue} fields={fields} onAddBundle={addBundle} />
-          <SelectionCard spec={spec} setSpec={setSpec} fields={fields} />
-          <WeightingCard spec={spec} setSpec={setSpec} fields={fields} />
-          <TiltsCard spec={spec} setSpec={setSpec} fields={fields} />
-          <ConstraintsCard spec={spec} setSpec={setSpec} fields={fields} optimizerAvailable={catalogue?.constraint_solver?.available ?? null} integerAvailable={catalogue?.constraint_solver?.integer_available ?? null} />
-          <TrajectoryCard spec={spec} setSpec={setSpec} fields={fields} />
+            <ScreensCard spec={spec} setSpec={setSpec} catalogue={catalogue} fields={fields} onAddBundle={addBundle} />
+            <SelectionCard spec={spec} setSpec={setSpec} fields={fields} />
+            <WeightingCard spec={spec} setSpec={setSpec} fields={fields} />
+            <TiltsCard spec={spec} setSpec={setSpec} fields={fields} />
+            <ConstraintsCard spec={spec} setSpec={setSpec} fields={fields} optimizerAvailable={catalogue?.constraint_solver?.available ?? null} integerAvailable={catalogue?.constraint_solver?.integer_available ?? null} />
+            <TrajectoryCard spec={spec} setSpec={setSpec} fields={fields} />
 
-          <div className="card">
-            <h3>Run a review</h3>
-            <div className="inline-fields">
-              <label className="field-label" style={{ flex: 1 }}>
-                Index id
-                <input type="text" value={indexId} onChange={(e) => setIndexId(e.target.value)} />
-              </label>
-              <label className="field-label" style={{ flex: 1 }}>
-                Review date
-                <input type="date" value={reviewDate} onChange={(e) => setReviewDate(e.target.value)} />
-              </label>
+            <div className="card">
+              <h2>Run a review</h2>
+              <div className="inline-fields">
+                <Field label="Index id">
+                  <input type="text" value={indexId} onChange={(e) => setIndexId(e.target.value)} />
+                </Field>
+                <Field label="Review date">
+                  <input type="date" value={reviewDate} onChange={(e) => setReviewDate(e.target.value)} />
+                </Field>
+              </div>
+              <p className="help-text">
+                A saved review chains state into the next one: the decarbonisation base, the shortfall carried forward, and
+                the incumbents a selection buffer needs. A preview writes nothing.
+              </p>
+              <div className="toolbar">
+                <Button onClick={() => runReview(false)} disabled={busy}>
+                  {busy ? "Running..." : "Preview"}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => runReview(true)} disabled={busy}>
+                  Run &amp; save
+                </Button>
+              </div>
             </div>
-            <p className="help-text">
-              A saved review chains state into the next one: the decarbonisation base, the shortfall carried forward, and
-              the incumbents a selection buffer needs. A preview writes nothing.
-            </p>
-            <div className="toolbar">
-              <button onClick={() => runReview(false)} disabled={busy}>
-                {busy ? "Running..." : "Preview"}
-              </button>
-              <button onClick={() => runReview(true)} disabled={busy} className="nav-tab">
-                Run &amp; save
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
 
-      {sub === "calibrations" && (
-        <CalibrationsTab
-          spec={spec}
-          setSpec={setSpec}
-          calibrations={calibrations}
-          loaded={loaded}
-          setLoaded={setLoaded}
-          refresh={refreshCalibrations}
-          setError={setError}
-          setStatus={setStatus}
-        />
-      )}
+        {sub === "calibrations" && (
+          <CalibrationsTab
+            spec={spec}
+            setSpec={setSpec}
+            calibrations={calibrations}
+            loaded={loaded}
+            setLoaded={setLoaded}
+            refresh={refreshCalibrations}
+            setError={setError}
+            setStatus={setStatus}
+          />
+        )}
 
-      {sub === "result" && <ResultTab result={result} indexId={indexId} />}
+        {sub === "result" && <ResultTab result={result} indexId={indexId} />}
+      </TabPanel>
     </div>
   );
 }
@@ -392,25 +390,25 @@ function ScreensCard({
 
   return (
     <div className="card">
-      <h3>1 · Screens</h3>
+      <h2>1 · Screens</h2>
       <p className="help-text">
         Applied in order. Order is part of the methodology: screens do not commute once a later one is rank-based, and the
         funnel a committee reviews depends on the order they ran in.
       </p>
-      <div className="toolbar" style={{ flexWrap: "wrap" }}>
+      <div className="toolbar">
         {(catalogue?.screens ?? []).map((s) => (
-          <button key={s.type} className="nav-tab" title={s.help} onClick={() => add(s.type as ScreenRule["type"])}>
+          <Button variant="secondary" size="sm" key={s.type} title={s.help} onClick={() => add(s.type as ScreenRule["type"])}>
             + {s.label}
-          </button>
+          </Button>
         ))}
         {(catalogue?.screen_bundles ?? []).map((b) => (
-          <button key={b.name} className="nav-tab" title={b.description} onClick={() => onAddBundle(b.name)}>
+          <Button variant="secondary" size="sm" key={b.name} title={b.description} onClick={() => onAddBundle(b.name)}>
             + {b.label}
-          </button>
+          </Button>
         ))}
       </div>
 
-      {spec.screens.length === 0 && <p className="muted">No screens. Every company in the parent universe is eligible.</p>}
+      {spec.screens.length === 0 && <StateBlock kind="empty" message="No screens. Every company in the parent universe is eligible." />}
 
       {spec.screens.map((screen, i) => (
         <RuleShell
@@ -458,22 +456,20 @@ function ScreensCard({
           )}
           {screen.type === "category_screen" && (
             <div className="inline-fields">
-              <label className="field-label" style={{ flex: 1 }}>
-                Allow only (comma separated)
+              <Field label="Allow only (comma separated)">
                 <input
                   type="text"
                   value={(screen.allow ?? []).join(", ")}
                   onChange={(e) => update(i, { allow: e.target.value.split(",").map((v) => v.trim()).filter(Boolean) } as Partial<ScreenRule>)}
                 />
-              </label>
-              <label className="field-label" style={{ flex: 1 }}>
-                Deny (comma separated)
+              </Field>
+              <Field label="Deny (comma separated)">
                 <input
                   type="text"
                   value={(screen.deny ?? []).join(", ")}
                   onChange={(e) => update(i, { deny: e.target.value.split(",").map((v) => v.trim()).filter(Boolean) } as Partial<ScreenRule>)}
                 />
-              </label>
+              </Field>
             </div>
           )}
           <p className="muted">
@@ -517,7 +513,7 @@ function SelectionCard({
 
   return (
     <div className="card">
-      <h3>2 · Selection</h3>
+      <h2>2 · Selection</h2>
       <p className="help-text">
         Who is in the index. One rule covers the published variants: a coverage target by market cap or by count, an
         absolute bar, or a fixed-size list.
@@ -591,7 +587,7 @@ function WeightingCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setS
   const needsField = spec.base_weighting.scheme === "metric" || spec.base_weighting.scheme === "inverse_metric";
   return (
     <div className="card">
-      <h3>3 · Base weighting</h3>
+      <h2>3 · Base weighting</h2>
       <div className="inline-fields">
         <SelectField
           label="Scheme"
@@ -634,21 +630,21 @@ function TiltsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setSpec:
 
   return (
     <div className="card">
-      <h3>4 · Tilts</h3>
+      <h2>4 · Tilts</h2>
       <p className="help-text">
         Applied in order, multiplicatively, onto the base weight. Floor and ceiling are mandatory: an unbounded tilt
         silently becomes an exclusion, which is a methodology change nobody approved.
       </p>
       <div className="toolbar">
-        <button className="nav-tab" onClick={() => add("metric_tilt")}>
+        <Button variant="secondary" size="sm" onClick={() => add("metric_tilt")}>
           + Metric tilt
-        </button>
-        <button className="nav-tab" onClick={() => add("bucket_tilt")}>
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => add("bucket_tilt")}>
           + Category multiplier table
-        </button>
+        </Button>
       </div>
 
-      {spec.tilts.length === 0 && <p className="muted">No tilts. Constituents keep their base weight.</p>}
+      {spec.tilts.length === 0 && <StateBlock kind="empty" message="No tilts. Constituents keep their base weight." />}
 
       {spec.tilts.map((tilt, i) => (
         <RuleShell
@@ -688,8 +684,7 @@ function TiltsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setSpec:
           ) : (
             <>
               <SelectField label="Category field" value={tilt.field} options={fields.categories} onChange={(field) => update(i, { field })} />
-              <label className="field-label">
-                Multipliers, one &quot;value = factor&quot; per line
+              <Field label="Multipliers, one &quot;value = factor&quot; per line">
                 <textarea
                   rows={4}
                   value={Object.entries(tilt.multipliers ?? {}).map(([k, v]) => `${k} = ${v}`).join("\n")}
@@ -703,7 +698,7 @@ function TiltsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setSpec:
                     update(i, { multipliers });
                   }}
                 />
-              </label>
+              </Field>
               <NumberField label="Default multiplier" value={tilt.default_multiplier} onChange={(v) => update(i, { default_multiplier: v ?? 1 })} step="0.05" />
             </>
           )}
@@ -740,7 +735,7 @@ function ConstraintsCard({
   }
   return (
     <div className="card">
-      <h3>5 · Constraints</h3>
+      <h2>5 · Constraints</h2>
       <p className="help-text">
         Applied by a deterministic waterfall, not a solver: pin every breach at its cap, redistribute pro-rata, repeat
         until no name breaches and the weights sum to one.
@@ -781,7 +776,7 @@ function ConstraintsCard({
         UCITS 5/10/40 — no issuer above 10%, and issuers above 5% summing to at most 40%
       </label>
 
-      <label className="field-label">Group caps</label>
+      <span className="field-label">Group caps</span>
       {c.group_caps.map((cap, i) => (
         <div className="inline-fields" key={i}>
           <SelectField
@@ -796,14 +791,14 @@ function ConstraintsCard({
             step="0.01"
             onChange={(max_weight) => update({ group_caps: c.group_caps.map((g, idx) => (idx === i ? { ...g, max_weight: max_weight ?? 0.4 } : g)) })}
           />
-          <button className="link-button" onClick={() => update({ group_caps: c.group_caps.filter((_, idx) => idx !== i) })}>
+          <Button variant="ghost" onClick={() => update({ group_caps: c.group_caps.filter((_, idx) => idx !== i) })}>
             remove
-          </button>
+          </Button>
         </div>
       ))}
-      <button className="nav-tab" onClick={() => update({ group_caps: [...c.group_caps, { dimension: fields.categories[0] ?? "sector", max_weight: 0.4 }] })}>
+      <Button variant="secondary" size="sm" onClick={() => update({ group_caps: [...c.group_caps, { dimension: fields.categories[0] ?? "sector", max_weight: 0.4 }] })}>
         + Group cap
-      </button>
+      </Button>
 
       {usesIntegers && solver.method === "waterfall" && (
         <p className="error-text">
@@ -811,7 +806,7 @@ function ConstraintsCard({
           solver-backed objective below, or drop the constraint.
         </p>
       )}
-      <h4>How the constraints are satisfied</h4>
+      <h3>How the constraints are satisfied</h3>
       <p className="help-text">
         The <strong>waterfall</strong> needs nothing installed and is byte-identical everywhere, but applies the
         constraints in sequence. The <strong>least-squares projection</strong> solves them simultaneously and returns the
@@ -873,9 +868,9 @@ function ConstraintsCard({
 
           {usesIntegers && (
             <>
-              <h4>
+              <h3>
                 Mixed-integer solve <span className="badge badge-neutral">cardinality / floor</span>
-              </h4>
+              </h3>
               <p className="help-text">
                 Cardinality limits and an enforced minimum weight are disjunctions, not bounds, so they need a binary per
                 name. Reproducibility is weaker here than anywhere else in the engine: branch-and-bound has no
@@ -911,7 +906,7 @@ function ConstraintsCard({
             </>
           )}
 
-          <h4>Tracking error</h4>
+          <h3>Tracking error</h3>
           <p className="help-text">
             An ex-ante budget turns tracking error from something you measure afterwards into something you constrain.
             It needs a risk model. Note that the least-squares projection minimises distance in <em>weight</em> space,
@@ -962,8 +957,7 @@ function ConstraintsCard({
                 />
               </div>
               {solver.risk_model.source === "factor" && (
-                <label className="field-label">
-                  Factor fields (comma separated) — numeric fields are standardised, categorical ones become dummies
+                <Field label="Factor fields (comma separated) — numeric fields are standardised, categorical ones become dummies">
                   <input
                     type="text"
                     value={solver.risk_model.factor_fields.join(", ")}
@@ -976,7 +970,7 @@ function ConstraintsCard({
                       })
                     }
                   />
-                </label>
+                </Field>
               )}
               <p className="muted">
                 {solver.risk_model.source === "supplied"
@@ -1000,7 +994,7 @@ function TrajectoryCard({ spec, setSpec, fields }: { spec: ConstructionSpec; set
   }
   return (
     <div className="card">
-      <h3>6 · Decarbonisation trajectory <span className="badge badge-neutral">path dependent</span></h3>
+      <h2>6 · Decarbonisation trajectory <span className="badge badge-neutral">path dependent</span></h2>
       <p className="help-text">
         The only layer whose result depends on prior reviews. Two reductions bind at once: the trajectory decays
         geometrically from a fixed base, while the universe-relative floor moves with the investable universe. The engine
@@ -1024,10 +1018,9 @@ function TrajectoryCard({ spec, setSpec, fields }: { spec: ConstructionSpec; set
             />
           </div>
           <div className="inline-fields">
-            <label className="field-label" style={{ flex: 1 }}>
-              Base date
+            <Field label="Base date">
               <input type="date" value={t.base_date ?? ""} onChange={(e) => update({ base_date: e.target.value || null })} />
-            </label>
+            </Field>
           </div>
           <label className="checkbox-label">
             <input type="checkbox" checked={t.compensate_missed_targets} onChange={(e) => update({ compensate_missed_targets: e.target.checked })} />
@@ -1114,44 +1107,40 @@ function CalibrationsTab({
   return (
     <>
       <div className="card">
-        <h3>Save the current methodology</h3>
+        <h2>Save the current methodology</h2>
         <p className="help-text">
           A calibration is the whole composition above, versioned and effective-dated. Versions are append-only and
           forward-only, and a review resolves the version <em>in force on its review date</em> rather than the latest one —
           otherwise today&apos;s parameters would silently rewrite past reviews.
         </p>
         <div className="inline-fields">
-          <label className="field-label" style={{ flex: 2 }}>
-            Name
+          <Field label="Name" className="field-grow">
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="DWS Electrification PAB" />
-          </label>
-          <label className="field-label" style={{ flex: 1 }}>
-            Effective from
+          </Field>
+          <Field label="Effective from">
             <input type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
-          </label>
+          </Field>
         </div>
         <div className="inline-fields">
-          <label className="field-label" style={{ flex: 2 }}>
-            Notes
+          <Field label="Notes" className="field-grow">
             <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="what changed and why" />
-          </label>
-          <label className="field-label" style={{ flex: 1 }}>
-            Approved by
+          </Field>
+          <Field label="Approved by">
             <input type="text" value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} placeholder="IC-2026-06-11" />
-          </label>
+          </Field>
         </div>
         <div className="toolbar">
-          <button onClick={() => save(false)} disabled={!name.trim()}>
+          <Button onClick={() => save(false)} disabled={!name.trim()}>
             Save as new calibration
-          </button>
-          <button className="nav-tab" onClick={() => save(true)} disabled={!loaded}>
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => save(true)} disabled={!loaded}>
             {loaded ? `Save as v${loaded.version + 1} of ${loaded.name}` : "Save as new version"}
-          </button>
+          </Button>
         </div>
       </div>
 
       <div className="card">
-        <h3>Saved calibrations</h3>
+        <h2>Saved calibrations</h2>
         {calibrations.length === 0 && <p className="muted">Nothing saved yet.</p>}
         {calibrations.length > 0 && (
           <table className="data-table">
@@ -1176,9 +1165,9 @@ function CalibrationsTab({
                   </td>
                   <td>{c.notes}</td>
                   <td>
-                    <button className="link-button" onClick={() => load(c.calibration_id)}>
+                    <Button variant="ghost" onClick={() => load(c.calibration_id)}>
                       load
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -1189,7 +1178,7 @@ function CalibrationsTab({
 
       {loaded && versions.length > 0 && (
         <div className="card">
-          <h3>Version history — {loaded.name}</h3>
+          <h2>Version history — {loaded.name}</h2>
           <table className="data-table">
             <thead>
               <tr>
@@ -1210,9 +1199,9 @@ function CalibrationsTab({
                   <td>{v.approved_by.join(", ") || "--"}</td>
                   <td>{v.notes}</td>
                   <td>
-                    <button className="link-button" onClick={() => load(v.calibration_id, v.version)}>
+                    <Button variant="ghost" onClick={() => load(v.calibration_id, v.version)}>
                       load
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -1237,9 +1226,9 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
   return (
     <>
       <div className="card">
-        <h3>
+        <h2>
           {indexId} @ {result.review_date}
-        </h3>
+        </h2>
         <p className="muted">
           config <code>{result.config_hash.slice(0, 12)}</code>
           {result.calibration_id ? ` · calibration ${result.calibration_id} v${result.calibration_version}` : " · ad-hoc spec"}
@@ -1271,7 +1260,7 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
 
         {result.exceptions.length > 0 && (
           <>
-            <h4>Exceptions</h4>
+            <h3>Exceptions</h3>
             <p className="help-text">Every relaxation and data-quality override applied, in order. These belong on the committee pack.</p>
             <ul>
               {result.exceptions.map((e, i) => (
@@ -1285,7 +1274,7 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
       </div>
 
       <div className="card">
-        <h3>Construction funnel</h3>
+        <h2>Construction funnel</h2>
         <table className="data-table">
           <thead>
             <tr>
@@ -1315,7 +1304,7 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
       </div>
 
       <div className="card">
-        <h3>Index vs. universe</h3>
+        <h2>Index vs. universe</h2>
         <table className="data-table">
           <thead>
             <tr>
@@ -1349,7 +1338,7 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
       </div>
 
       <div className="card">
-        <h3>Constituents</h3>
+        <h2>Constituents</h2>
         <table className="data-table">
           <thead>
             <tr>
@@ -1375,9 +1364,9 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
           </tbody>
         </table>
         {sorted.length > 25 && (
-          <button className="link-button" onClick={() => setShowAll(!showAll)}>
+          <Button variant="ghost" onClick={() => setShowAll(!showAll)}>
             {showAll ? "show top 25" : `show all ${sorted.length}`}
-          </button>
+          </Button>
         )}
       </div>
     </>

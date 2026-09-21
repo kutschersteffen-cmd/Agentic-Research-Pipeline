@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import type { DiscoveryCompanyResult, DiscoveryScheduleConfig, DocumentEvent } from "../types";
+import { Button, Field, PageHeader, StateBlock } from "../ui";
 
 interface Props {
   pendingUniverse?: { path: string; count: number } | null;
@@ -20,21 +21,29 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
   const [events, setEvents] = useState<DocumentEvent[]>([]);
 
   useEffect(() => {
-    api.getDiscoverySchedule().then((s) => setSchedule(s as DiscoveryScheduleConfig));
+    api.getDiscoverySchedule().then((s) => setSchedule(s as DiscoveryScheduleConfig)).catch((err: Error) => setError(err.message));
     refreshEvents();
     const timer = window.setInterval(refreshEvents, 10000);
     return () => window.clearInterval(timer);
   }, []);
 
   async function refreshEvents() {
-    const res = (await api.getDiscoveryEvents()) as { events: DocumentEvent[] };
-    setEvents(res.events.slice().reverse());
+    try {
+      const res = (await api.getDiscoveryEvents()) as { events: DocumentEvent[] };
+      setEvents(res.events.slice().reverse());
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function refreshResults() {
-    if (!runId) return;
-    const res = (await api.getDiscoveryResults(runId)) as { results: DiscoveryCompanyResult[] };
-    setResults(res.results);
+    try {
+      if (!runId) return;
+      const res = (await api.getDiscoveryResults(runId)) as { results: DiscoveryCompanyResult[] };
+      setResults(res.results);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function runNow() {
@@ -67,16 +76,20 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Document Discovery</h2>
-      <p className="help-text">
-        Finds each company's investor-relations site, crawls it (bounded, robots.txt-respecting, same-domain only)
-        for annual reports / sustainability reports / proxy statements / transcripts, downloads new or changed
-        documents into the local store, and raises an event the moment something new appears -- run manually or on
-        an automatic schedule.
-      </p>
+      <PageHeader
+        title="Document Discovery"
+        description={
+          <>
+            Finds each company's investor-relations site, crawls it (bounded, robots.txt-respecting, same-domain only)
+            for annual reports / sustainability reports / proxy statements / transcripts, downloads new or changed
+            documents into the local store, and raises an event the moment something new appears -- run manually or on
+            an automatic schedule.
+          </>
+        }
+      />
 
       <section className="card">
-        <h3>Run now (manual)</h3>
+        <h2>Run now (manual)</h2>
         {pendingUniverse && universePath === pendingUniverse.path && (
           <p className="status-text">
             Using {pendingUniverse.count} companies sent from Identity Resolution. Upload a different universe below
@@ -89,14 +102,14 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
             setCompanyCount(count);
           }}
         />
-        <button onClick={runNow} disabled={busy || !universePath}>
+        <Button onClick={runNow} disabled={busy || !universePath}>
           Search for documents across {companyCount || "..."} companies
-        </button>
-        {error && <p className="error-text">{error}</p>}
+        </Button>
+        {error && <StateBlock kind="error" message={error} />}
         {runId && <RunProgress runId={runId} runType="extraction" />}
         {runId && (
           <>
-            <button onClick={refreshResults}>Refresh results</button>
+            <Button onClick={refreshResults}>Refresh results</Button>
             {results.length > 0 && (
               <div className="table-wrap">
                 <table className="data-table">
@@ -137,7 +150,7 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
 
       {schedule && (
         <section className="card">
-          <h3>Automatic schedule</h3>
+          <h2>Automatic schedule</h2>
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -146,29 +159,31 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
             />
             Enabled
           </label>
-          <label className="field-label">Interval (hours)</label>
-          <input
-            type="number"
-            min={1}
-            value={schedule.interval_hours}
-            onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
-          />
-          <label className="field-label">Universe path (server-side, from an upload above)</label>
-          <input
-            value={schedule.universe_path ?? ""}
-            onChange={(e) => setSchedule({ ...schedule, universe_path: e.target.value })}
-            placeholder={universePath ?? "runs/_universes/your_file.csv"}
-          />
-          <button onClick={saveSchedule} disabled={busy}>
+          <Field label="Interval (hours)">
+            <input
+              type="number"
+              min={1}
+              value={schedule.interval_hours}
+              onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Universe path (server-side, from an upload above)">
+            <input
+              value={schedule.universe_path ?? ""}
+              onChange={(e) => setSchedule({ ...schedule, universe_path: e.target.value })}
+              placeholder={universePath ?? "runs/_universes/your_file.csv"}
+            />
+          </Field>
+          <Button onClick={saveSchedule} disabled={busy}>
             Save schedule
-          </button>
+          </Button>
           {schedule.last_run_id && <p className="muted">Last scheduled run: {schedule.last_run_id}</p>}
         </section>
       )}
 
       <section className="card">
-        <h3>New document feed</h3>
-        <button onClick={refreshEvents}>Refresh</button>
+        <h2>New document feed</h2>
+        <Button onClick={refreshEvents}>Refresh</Button>
         <div className="table-wrap">
           <table className="data-table">
             <thead>

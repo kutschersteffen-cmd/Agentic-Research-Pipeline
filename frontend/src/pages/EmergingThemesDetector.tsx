@@ -5,6 +5,7 @@ import { UniversePicker } from "../components/UniversePicker";
 import { CandidateStatusBadge, ConfidenceBadge } from "../components/ConfidenceBadge";
 import { MentionCitationList } from "../components/MentionCitationList";
 import type { EmergingThemeCandidate, EmergingThemesScheduleConfig, RunManifest } from "../types";
+import { Button, Field, PageHeader, StateBlock } from "../ui";
 
 interface Props {
   onNavigate?: (tab: "taxonomy" | "theme") => void;
@@ -28,18 +29,26 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
   useEffect(() => {
     refreshRecentRuns();
-    api.getEmergingThemesSchedule().then((s) => setSchedule(s));
+    api.getEmergingThemesSchedule().then((s) => setSchedule(s)).catch((err: Error) => setError(err.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function refreshRecentRuns() {
-    const res = (await api.listRuns("emerging_themes")) as { runs: RunManifest[] };
-    setRecentRuns(res.runs);
+    try {
+      const res = (await api.listRuns("emerging_themes")) as { runs: RunManifest[] };
+      setRecentRuns(res.runs);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function refreshCandidates(id: string) {
-    const res = await api.getEmergingThemesCandidates(id);
-    setCandidates(res.candidates);
+    try {
+      const res = await api.getEmergingThemesCandidates(id);
+      setCandidates(res.candidates);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function runNow() {
@@ -143,34 +152,38 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Emerging Themes Detector</h2>
-      <p className="help-text">
-        "Tool 0" of the research stack: watches public news, filings, and regulatory flow across a universe for
-        topics nobody has named yet -- clusters mentions with period-over-period lineage tracking, and proposes a
-        candidate theme only when it's genuinely new (no lineage back to a prior period), backed by at least two
-        independent sources. No candidate reaches the Taxonomy Library without an explicit promote below.
-      </p>
+      <PageHeader
+        title="Emerging Themes Detector"
+        description={
+          <>
+            "Tool 0" of the research stack: watches public news, filings, and regulatory flow across a universe for
+            topics nobody has named yet -- clusters mentions with period-over-period lineage tracking, and proposes a
+            candidate theme only when it's genuinely new (no lineage back to a prior period), backed by at least two
+            independent sources. No candidate reaches the Taxonomy Library without an explicit promote below.
+          </>
+        }
+      />
 
       <section className="card">
-        <h3>Run a scan now</h3>
+        <h2>Run a scan now</h2>
         <UniversePicker
           onResolved={(path, count) => {
             setUniversePath(path);
             setCompanyCount(count);
           }}
         />
-        <button onClick={runNow} disabled={busy || !universePath}>
+        <Button onClick={runNow} disabled={busy || !universePath}>
           Scan for emerging themes across {companyCount || "..."} companies
-        </button>
-        {error && <p className="error-text">{error}</p>}
+        </Button>
+        {error && <StateBlock kind="error" message={error} />}
         {runId && <RunProgress runId={runId} runType="emerging_themes" />}
       </section>
 
       <section className="card">
-        <h3>Recent scans</h3>
-        <button onClick={refreshRecentRuns}>Refresh</button>
+        <h2>Recent scans</h2>
+        <Button onClick={refreshRecentRuns}>Refresh</Button>
         {recentRuns.length === 0 ? (
-          <p className="muted">No scans yet -- run one above, or enable the automatic schedule below.</p>
+          <StateBlock kind="empty" message="No scans yet -- run one above, or enable the automatic schedule below." />
         ) : (
           <table className="data-table">
             <thead>
@@ -179,7 +192,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                 <th>Status</th>
                 <th>Awaiting review</th>
                 <th>Created</th>
-                <th></th>
+                <th><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -190,7 +203,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                   <td>{r.review_count}</td>
                   <td>{new Date(r.created_at).toLocaleString()}</td>
                   <td>
-                    <button onClick={(e) => { e.stopPropagation(); selectRun(r.run_id); }}>View candidates</button>
+                    <Button onClick={(e) => { e.stopPropagation(); selectRun(r.run_id); }}>View candidates</Button>
                   </td>
                 </tr>
               ))}
@@ -201,10 +214,10 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
       {selectedRunId && (
         <section className="card">
-          <h3>Candidates -- {selectedRunId}</h3>
-          <button onClick={() => refreshCandidates(selectedRunId)}>Refresh candidates</button>
+          <h2>Candidates -- {selectedRunId}</h2>
+          <Button onClick={() => refreshCandidates(selectedRunId)}>Refresh candidates</Button>
           {candidates.length === 0 ? (
-            <p className="muted">No candidates for this run (nothing survived the independent-source-minimum and lineage-birth filters).</p>
+            <StateBlock kind="empty" message="No candidates for this run (nothing survived the independent-source-minimum and lineage-birth filters)." />
           ) : (
             <table className="data-table">
               <thead>
@@ -305,15 +318,15 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                                 value={taxonomyIdInputs[c.theme_id] ?? ""}
                                 onChange={(e) => setTaxonomyIdInputs({ ...taxonomyIdInputs, [c.theme_id]: e.target.value })}
                               />
-                              <button onClick={() => promote(c)} disabled={busy || !(reasonInputs[c.theme_id] ?? "").trim()}>
+                              <Button onClick={() => promote(c)} disabled={busy || !(reasonInputs[c.theme_id] ?? "").trim()}>
                                 Promote
-                              </button>
-                              <button onClick={() => reject(c)} disabled={busy || !(reasonInputs[c.theme_id] ?? "").trim()} className="danger">
+                              </Button>
+                              <Button variant="danger" onClick={() => reject(c)} disabled={busy || !(reasonInputs[c.theme_id] ?? "").trim()}>
                                 Reject
-                              </button>
-                              <button onClick={() => disconfirm(c)} disabled={busy || !(reasonInputs[c.theme_id] ?? "").trim()} className="danger">
+                              </Button>
+                              <Button variant="danger" onClick={() => disconfirm(c)} disabled={busy || !(reasonInputs[c.theme_id] ?? "").trim()}>
                                 Disconfirm
-                              </button>
+                              </Button>
                             </div>
                           )}
                           {c.status === "promoted" && (
@@ -321,13 +334,13 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                               Promoted &rarr; taxonomy {c.promoted_to_taxonomy_id} v{c.promoted_to_taxonomy_version}
                               {c.decision_reason && <> -- "{c.decision_reason}"</>}.{" "}
                               {onNavigate && (
-                                <button className="link-button" onClick={() => onNavigate("taxonomy")}>
+                                <Button variant="ghost" onClick={() => onNavigate("taxonomy")}>
                                   View in Taxonomy Library
-                                </button>
+                                </Button>
                               )}{" "}
-                              <button onClick={() => runCompanyExposure(c)} disabled={busy} title="Runs the full Revenue/Capex/Demand/Enablement exposure pipeline (Tool 1) against this taxonomy.">
+                              <Button onClick={() => runCompanyExposure(c)} disabled={busy} title="Runs the full Revenue/Capex/Demand/Enablement exposure pipeline (Tool 1) against this taxonomy.">
                                 Run company exposure
-                              </button>
+                              </Button>
                             </p>
                           )}
                           {c.status === "rejected" && c.decision_reason && (
@@ -349,7 +362,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
       {schedule && (
         <section className="card">
-          <h3>Automatic schedule</h3>
+          <h2>Automatic schedule</h2>
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -358,22 +371,24 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
             />
             Enabled
           </label>
-          <label className="field-label">Interval (hours)</label>
-          <input
-            type="number"
-            min={1}
-            value={schedule.interval_hours}
-            onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
-          />
-          <label className="field-label">Universe path (server-side, from an upload above)</label>
-          <input
-            value={schedule.universe_path ?? ""}
-            onChange={(e) => setSchedule({ ...schedule, universe_path: e.target.value })}
-            placeholder={universePath ?? "runs/_universes/your_file.csv"}
-          />
-          <button onClick={saveSchedule} disabled={busy}>
+          <Field label="Interval (hours)">
+            <input
+              type="number"
+              min={1}
+              value={schedule.interval_hours}
+              onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Universe path (server-side, from an upload above)">
+            <input
+              value={schedule.universe_path ?? ""}
+              onChange={(e) => setSchedule({ ...schedule, universe_path: e.target.value })}
+              placeholder={universePath ?? "runs/_universes/your_file.csv"}
+            />
+          </Field>
+          <Button onClick={saveSchedule} disabled={busy}>
             Save schedule
-          </button>
+          </Button>
           {schedule.last_run_id && <p className="muted">Last scheduled run: {schedule.last_run_id}</p>}
         </section>
       )}

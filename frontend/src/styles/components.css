@@ -1,0 +1,542 @@
+/* Reusable UI. A page composes these; it does not restyle them. */
+
+/* --- Button (ui/Button.tsx) -------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-200);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.btn[data-size="sm"] { padding: var(--sp-1) var(--sp-3); font-size: var(--fs-100); }
+.btn[data-icon-only="true"] { padding: var(--sp-2); }
+
+.btn[data-variant="primary"] { background: var(--accent); color: var(--on-accent); }
+.btn[data-variant="primary"]:hover:not(:disabled) { background: var(--accent-ink); }
+
+.btn[data-variant="secondary"] { background: var(--input-bg); color: var(--text); border-color: var(--panel-border); }
+.btn[data-variant="secondary"]:hover:not(:disabled) { background: var(--well); }
+
+/* The old .link-button: a text action, so it carries no horizontal padding
+   and sits on the text baseline of whatever it is placed in. */
+.btn[data-variant="ghost"] { background: transparent; color: var(--accent); padding: var(--sp-1) 0; }
+.btn[data-variant="ghost"][data-size="sm"] { padding: 0; }
+.btn[data-variant="ghost"]:hover:not(:disabled) { color: var(--accent-ink); text-decoration: underline; }
+
+.btn[data-variant="danger"] { background: var(--low); color: var(--on-accent); }
+.btn[data-variant="danger"]:hover:not(:disabled) { filter: brightness(0.92); }
+
+.btn-spinner {
+  width: 0.9em;
+  height: 0.9em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--r-full);
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* A row of actions. New code uses this instead of leaning on a button's
+   own margin. */
+.btn-row { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-3); }
+
+/* Transitional: pages still drop a button straight into flow and used to
+   get their vertical air from the global `button { margin-top: 12px }`.
+   Scoped to block-level children so toolbars, table cells and flex rows
+   stay tight. Goes away when the page templates land (Phase 3). */
+.card > .btn,
+.page > .btn,
+.activity-editor > .btn,
+.decision-dimension > .btn,
+.review-item > .btn { margin-top: var(--sp-3); }
+
+/* --- Field (ui/Field.tsx) ---------------------------------------------- */
+
+.field { display: block; margin-top: var(--sp-3); }
+.field-label {
+  display: block;
+  font-size: var(--fs-100);
+  color: var(--muted);
+  margin-bottom: var(--sp-1);
+}
+.field-hint { font-size: var(--fs-50); color: var(--muted); margin: var(--sp-1) 0 0; }
+.field-error { font-size: var(--fs-50); color: var(--low); margin: var(--sp-1) 0 0; }
+.field-row { display: flex; gap: var(--sp-2); align-items: flex-end; }
+.field-row .field, .inline-fields > .field { flex: 1; min-width: 0; }
+.field-grow { flex: 2; }
+
+/* A field sitting in a toolbar: label and control on one line. */
+.field-inline { display: flex; align-items: center; gap: var(--sp-2); margin-top: 0; }
+.field-inline .field-label { margin-bottom: 0; white-space: nowrap; }
+.field-inline input { max-width: 160px; }
+.field-push { margin-left: auto; }
+
+/* A caption over a group of controls (a toggle row, a checkbox list, a
+   table of inputs) -- it labels the group, so it is not a <label>. */
+span.field-label { display: block; }
+
+.checkbox-label { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-200); margin: var(--sp-3) 0; }
+/* A control row: everything sits on the controls' baseline, so a button
+   beside a labelled field lines up with the field, not with its label. */
+.inline-fields { display: flex; gap: var(--sp-2); align-items: flex-end; }
+.inline-fields > .btn { margin-bottom: 0; }
+
+/* --- StateBlock (ui/StateBlock.tsx) ------------------------------------ */
+
+.state-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font-size: var(--fs-200);
+  border-radius: var(--r-md);
+}
+.state-block[data-kind="loading"] { color: var(--muted); }
+.state-block[data-kind="loading"] .state-block-message { display: flex; align-items: center; gap: var(--sp-2); }
+.state-block[data-kind="empty"] { color: var(--muted); }
+/* An empty state earns a frame only when it says what is missing and what
+   to do about it; a bare "none yet" stays a quiet line. */
+.state-block[data-kind="empty"][data-full="true"] {
+  border: 1px dashed var(--panel-border);
+  padding: var(--sp-5);
+  text-align: center;
+  align-items: center;
+}
+.state-block[data-kind="error"] {
+  border: 1px solid var(--low);
+  background: var(--low-wash);
+  color: var(--low);
+  padding: var(--sp-3);
+  align-items: flex-start;
+}
+.state-block-title { font-weight: 600; }
+.state-block-message { margin: 0; }
+.state-block[data-kind="error"] .btn[data-variant="ghost"] { color: var(--low); }
+
+.skeleton-stack { display: flex; flex-direction: column; gap: var(--sp-2); }
+.skeleton {
+  height: 0.9rem;
+  border-radius: var(--r-sm);
+  background: linear-gradient(90deg, var(--well) 25%, var(--panel-border) 50%, var(--well) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer { to { background-position: -200% 0; } }
+
+/* --- Page header (ui/PageHeader.tsx) ------------------------------------ */
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+.page-header-text { min-width: 0; }
+.page-header h1 { margin: 0 0 var(--sp-2); }
+.page-header-description { margin: 0; color: var(--muted); font-size: var(--fs-200); max-width: 80ch; }
+.page-header-actions { display: flex; gap: var(--sp-2); flex-shrink: 0; }
+.page-header-actions .btn { margin-top: 0; }
+
+/* --- Workflow steps (ui/Steps.tsx) --------------------------------------- */
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-5);
+  list-style: none;
+  margin: 0 0 var(--sp-4);
+  padding: 0 0 var(--sp-3);
+  border-bottom: 1px solid var(--panel-border);
+}
+.step { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-200); color: var(--muted); }
+.step[data-state="current"] { color: var(--text); font-weight: 600; }
+.step[data-state="done"] { color: var(--muted); }
+
+.step-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: var(--r-full);
+  border: 1px solid var(--panel-border);
+  font-size: var(--fs-50);
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--panel);
+}
+.step[data-state="current"] .step-marker { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.step[data-state="done"] .step-marker { border-color: var(--high); color: var(--high); }
+
+.step-label { white-space: nowrap; }
+.step-card-head { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.step-card-head h2 { margin: 0; }
+.step-card[data-state="done"] .step-marker { border-color: var(--high); color: var(--high); }
+.step-card-summary { margin-left: auto; color: var(--muted); font-size: var(--fs-100); }
+.step-card-head .btn { margin-top: 0; }
+/* A collapsed step is a line, not a card with a hole in it. */
+.step-card[data-open="false"] { padding-top: var(--sp-3); padding-bottom: var(--sp-3); }
+.step-card[data-open="false"] .step-card-head { margin-bottom: 0; }
+
+/* --- Filter bar (ui/FilterBar.tsx) --------------------------------------- */
+
+/* The bar itself is a card; this only names it for the rules below. */
+.filter-bar { container-type: inline-size; }
+.filter-bar-controls { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: flex-end; }
+.filter-bar-controls .field { margin-top: 0; min-width: 180px; }
+.filter-bar-controls .btn { margin-top: 0; }
+.filter-bar-summary { margin: var(--sp-3) 0 0; color: var(--muted); font-size: var(--fs-100); }
+.filter-chip { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--text); }
+.filter-chip-clear { color: var(--muted); font-size: var(--fs-200); line-height: 1; padding: 0 var(--sp-05); }
+.filter-chip-clear:hover { color: var(--low); }
+
+/* --- Sticky run strip ----------------------------------------------------
+   A run takes minutes and its results are long; progress that scrolls away
+   is progress the analyst has to hunt for. */
+
+.run-strip {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--panel);
+  border-bottom: 1px solid var(--panel-border);
+  padding: var(--sp-3) 0;
+  margin-bottom: var(--sp-3);
+}
+
+/* --- Card and section -------------------------------------------------- */
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-lg);
+  padding: var(--sp-4) var(--sp-5);
+  margin-bottom: var(--sp-4);
+}
+.card h2 { margin-top: 0; }
+
+.section-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-1); }
+.section-heading h2 { margin: 0; }
+
+.panel-section { border-top: 1px solid var(--panel-border); padding-top: var(--sp-4); margin-top: var(--sp-4); }
+.panel-section h3 { margin: 0 0 var(--sp-2); }
+
+.toolbar { display: flex; gap: var(--sp-3); align-items: center; flex-wrap: wrap; margin: var(--sp-3) 0; }
+
+.stub-panel { border: 1px dashed var(--panel-border); border-radius: var(--r-md); padding: var(--sp-5); text-align: center; color: var(--muted); }
+.stub-panel h2 { color: var(--text); margin-top: 0; }
+
+.activity-editor { border: 1px solid var(--panel-border); border-radius: var(--r-md); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-3); }
+
+.source-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--sp-3); margin-top: var(--sp-3); }
+.source-card { border: 1px solid var(--panel-border); border-radius: var(--r-md); padding: var(--sp-3); }
+.source-card.selected { border-color: var(--accent); }
+
+/* --- Tables ------------------------------------------------------------
+   Every .data-table is wrapped in .table-wrap so a wide table scrolls
+   horizontally on its own instead of forcing the whole page to scroll --
+   the table keeps natural column widths (no squished/wrapped cells)
+   regardless of viewport width. */
+
+/* The wrap is the table's viewport: it scrolls in both directions, and the
+   max-height only engages once a table is long enough to need it, which is
+   what lets the header stick to something. */
+.table-wrap { overflow: auto; max-height: 70vh; }
+
+.data-table { width: 100%; border-collapse: collapse; margin-top: var(--sp-3); font-size: var(--fs-200); }
+.data-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 500;
+  padding: var(--sp-2);
+  /* Sticky: scrolling 300 rows should never cost you the column names.
+     The rule is an inset shadow rather than a border because a border on a
+     sticky cell detaches from it as the cell scrolls. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+  box-shadow: inset 0 -1px 0 var(--panel-border);
+}
+.data-table th.numeric { text-align: right; }
+
+/* A sortable header is a button, not a click handler on a cell. */
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  color: inherit;
+  font: inherit;
+}
+.th-sort:hover { color: var(--text); }
+.th-sort-marker { color: var(--muted); font-size: var(--fs-50); }
+th[aria-sort] .th-sort { color: var(--text); font-weight: 600; }
+
+.table-more { color: var(--muted); font-size: var(--fs-100); margin: var(--sp-2) 0 0; }
+.data-table td { padding: var(--sp-2); border-bottom: 1px solid var(--panel-border); vertical-align: top; }
+
+/* One density setting for every table in the app, rather than a control on
+   each one. Compact is for reading 200 rows; comfortable is the default. */
+:root[data-density="compact"] .data-table { font-size: var(--fs-100); }
+:root[data-density="compact"] .data-table th,
+:root[data-density="compact"] .data-table td { padding: var(--sp-1) var(--sp-2); }
+:root[data-density="compact"] .pivot-table th,
+:root[data-density="compact"] .pivot-table td { padding: var(--sp-1) var(--sp-2); }
+.data-table td.numeric, .data-table th.numeric { text-align: right; font-variant-numeric: tabular-nums; }
+.clickable-row { cursor: pointer; }
+.clickable-row:hover { background: var(--well); }
+.detail-cell { background: var(--well); }
+
+/* --- Status vocabulary -------------------------------------------------- */
+
+.badge {
+  display: inline-block;
+  padding: var(--sp-05) var(--sp-2);
+  border-radius: var(--r-full);
+  font-size: var(--fs-50);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+.badge-high { background: var(--high); }
+.badge-mid { background: var(--mid); }
+.badge-low { background: var(--low); }
+.badge-neutral { background: var(--neutral); }
+
+/* Status carries a glyph as well as a colour: these pills are otherwise
+   identical shapes distinguished only by hue, which fails for the ~8% of
+   men with a red/green deficiency and in any greyscale print of a run
+   report. */
+.status-pill::before { margin-right: var(--sp-1); }
+.status-running::before { content: "◐"; }
+.status-completed::before { content: "✓"; }
+.status-partially_completed::before { content: "◑"; }
+.status-failed::before { content: "✕"; }
+.status-pending::before { content: "○"; }
+.status-cancelled::before { content: "—"; }
+
+.status-pill {
+  padding: var(--sp-05) var(--sp-2);
+  border-radius: var(--r-full);
+  font-size: var(--fs-50);
+  border: 1px solid var(--panel-border);
+}
+.status-running { color: var(--accent); border-color: var(--accent); }
+.status-completed { color: var(--high); border-color: var(--high); }
+.status-partially_completed { color: var(--mid); border-color: var(--mid); }
+.status-failed { color: var(--low); border-color: var(--low); }
+.status-pending { color: var(--muted); }
+.status-cancelled { color: var(--mid); border-color: var(--mid); }
+
+.chip-row { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin: var(--sp-2) 0; }
+.chip {
+  background: var(--well);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-full);
+  padding: var(--sp-05) var(--sp-3);
+  font-size: var(--fs-50);
+  color: var(--muted);
+}
+
+.banner { border-radius: var(--r-md); padding: var(--sp-3) var(--sp-4); margin: var(--sp-3) 0; font-size: var(--fs-200); }
+.banner-warning { background: var(--mid-wash); border: 1px solid var(--mid); color: var(--mid); }
+.banner-danger { background: var(--low-wash); border: 1px solid var(--low); color: var(--low); }
+
+/* --- Progress and stats -------------------------------------------------- */
+
+.progress-bar { background: var(--well); border-radius: var(--r-full); height: var(--sp-2); overflow: hidden; margin: var(--sp-2) 0; }
+.progress-bar-fill { background: var(--accent); height: 100%; transition: width 0.4s ease; }
+
+.stat-tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--sp-3); margin: var(--sp-3) 0; }
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-lg);
+  padding: var(--sp-3) var(--sp-4);
+  text-decoration: none;
+  color: inherit;
+}
+/* A tile that links somewhere says so on hover; one that does not stays flat
+   rather than pretending to be clickable. */
+a.stat-tile:hover { border-color: var(--accent); }
+a.stat-tile:hover .stat-value { color: var(--accent); }
+.stat-tile .stat-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-400);
+  font-weight: 500;
+  display: block;
+  line-height: var(--lh-tight);
+}
+.stat-tile[data-tone="accent"] .stat-value { color: var(--accent); }
+.stat-tile[data-tone="warn"] .stat-value { color: var(--mid); }
+.stat-tile .stat-label { color: var(--muted); font-size: var(--fs-50); }
+.stat-tile .stat-hint { color: var(--muted); font-size: var(--fs-50); }
+
+.coverage-bar-row { display: flex; align-items: center; gap: var(--sp-3); margin: var(--sp-2) 0; font-size: var(--fs-200); }
+.coverage-bar-label { width: 110px; flex-shrink: 0; color: var(--muted); }
+.coverage-bar-track { flex: 1; background: var(--well); border-radius: var(--r-full); height: 10px; overflow: hidden; }
+.coverage-bar-fill { display: block; background: var(--accent); height: 100%; }
+.coverage-bar-count { width: 40px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+.timeline { list-style: none; padding: 0; margin: var(--sp-2) 0 0; font-size: var(--fs-200); }
+.timeline li { padding: var(--sp-2) 0 var(--sp-2) var(--sp-4); border-left: 2px solid var(--panel-border); position: relative; }
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: var(--sp-3);
+  width: var(--sp-2);
+  height: var(--sp-2);
+  border-radius: var(--r-full);
+  background: var(--accent);
+}
+.timeline .timeline-meta { color: var(--muted); font-size: var(--fs-50); }
+
+/* --- Tabs and toggles ---------------------------------------------------- */
+
+/* Tabs switch views inside a page; the sidebar moves between pages. They
+   are deliberately unalike -- an underline here, a filled pill there --
+   because a filled pill in the content column reads as the page's own
+   primary action. */
+.tabs {
+  display: flex;
+  gap: var(--sp-5);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--panel-border);
+  margin-bottom: var(--sp-4);
+}
+.tab {
+  padding: var(--sp-2) 0;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: var(--fs-200);
+  font-weight: 500;
+}
+.tab:hover:not(:disabled) { color: var(--text); }
+.tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.tab:disabled { opacity: 0.45; }
+
+.view-toggle { display: flex; gap: 0; margin: var(--sp-3) 0; }
+.view-toggle button {
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  color: var(--muted);
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-100);
+}
+.view-toggle button:first-child { border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.view-toggle button + button { border-left: none; }
+.view-toggle button:last-child { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.view-toggle button.active { background: var(--panel); color: var(--text); border-color: var(--accent); }
+
+/* --- Dialog (ui/Dialog.tsx) ---------------------------------------------- */
+
+.dialog {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: min(900px, 92vw);
+  width: 100%;
+  max-height: 88vh;
+  overflow: visible;
+}
+.dialog::backdrop { background: var(--overlay); }
+.dialog-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  max-height: 88vh;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+  padding: var(--sp-4);
+}
+.dialog-header { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); }
+.dialog-header h3 { margin: 0; }
+.dialog-footer { display: flex; gap: var(--sp-2); align-items: center; }
+.dialog-panel .modal-iframe,
+.dialog-panel .modal-image,
+.dialog-panel .modal-text { margin-top: 0; min-height: 0; }
+
+/* --- Media inside a dialog ---------------------------------------------- */
+
+.modal-iframe { flex: 1; border: none; background: var(--input-bg); border-radius: var(--r-sm); height: 70vh; }
+.modal-image { width: 100%; object-fit: contain; background: var(--well); border-radius: var(--r-sm); max-height: 70vh; }
+.modal-text {
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--well);
+  padding: var(--sp-3);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-100);
+  max-height: 70vh;
+}
+
+/* --- Text utilities ------------------------------------------------------ */
+
+.help-text { color: var(--muted); font-size: var(--fs-200); }
+.muted { color: var(--muted); font-size: var(--fs-200); }
+.status-text { font-size: var(--fs-200); color: var(--accent); }
+.answer-text { white-space: pre-wrap; background: var(--well); padding: var(--sp-3); border-radius: var(--r-sm); font-size: var(--fs-200); }
+.inline-block { margin-top: var(--sp-3); }
+
+/* --- Command palette (components/CommandPalette.tsx) --------------------- */
+
+.palette-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12vh var(--sp-4) var(--sp-4);
+  z-index: 150;
+}
+.palette {
+  width: min(560px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+}
+.palette-input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--panel-border);
+  border-radius: 0;
+  background: var(--panel);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-300);
+}
+.palette-input:focus-visible { box-shadow: none; border-color: var(--panel-border); }
+.palette-results { list-style: none; margin: 0; padding: var(--sp-1); max-height: 46vh; overflow-y: auto; }
+.palette-option {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-size: var(--fs-200);
+}
+.palette-option.active { background: var(--accent); color: var(--on-accent); }
+.palette-option-label { flex: 1; }
+.palette-option-context { font-size: var(--fs-50); color: var(--muted); }
+.palette-option.active .palette-option-context { color: var(--on-accent); opacity: 0.8; }
+.palette-empty { padding: var(--sp-3); color: var(--muted); font-size: var(--fs-200); }

@@ -1,6 +1,7 @@
 import { api } from "../api/client";
 import type { Citation } from "../types";
 import type { ActiveSource } from "./SourcePanel";
+import { Button } from "../ui";
 
 interface Props {
   citations: Citation[];
@@ -22,9 +23,8 @@ export function CitationList({ citations, onOpenSource }: Props) {
           {c.grounded && c.company_id && c.source_filename && (
             <>
               {" "}
-              <button
+              <Button variant="ghost"
                 type="button"
-                className="link-button"
                 onClick={() =>
                   onOpenSource({
                     title: `${c.source_filename}${c.page ? ` — p. ${c.page}` : c.sheet ? ` — ${c.sheet}` : ""}`,
@@ -34,7 +34,7 @@ export function CitationList({ citations, onOpenSource }: Props) {
                 }
               >
                 view source{c.page ? ` (p. ${c.page})` : c.sheet ? ` (${c.sheet})` : ""}
-              </button>
+              </Button>
             </>
           )}
         </li>

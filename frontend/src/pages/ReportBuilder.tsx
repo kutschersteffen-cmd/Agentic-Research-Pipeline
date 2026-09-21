@@ -14,6 +14,7 @@ import type {
   Tone,
 } from "../types";
 import { CHART_TYPES } from "../types";
+import { Button, Dialog, Field, PageHeader, StateBlock } from "../ui";
 
 const AUDIENCE_LEVELS: AudienceLevel[] = ["executive", "technical", "general"];
 const TONES: Tone[] = ["formal", "conversational", "persuasive", "neutral_analytical"];
@@ -65,7 +66,7 @@ export function ReportBuilder() {
 
   useEffect(() => {
     refreshReports();
-    api.listReportTemplates().then((r) => setTemplates(r.templates)).catch(() => undefined);
+    api.listReportTemplates().then((r) => setTemplates(r.templates)).catch((err: Error) => setError(err.message));
   }, []);
 
   async function refreshReports() {
@@ -228,38 +229,46 @@ export function ReportBuilder() {
   return (
     <div className={previewReportId ? "page split-review" : "page"} style={previewReportId ? { maxWidth: 1560 } : undefined}>
     <div className={previewReportId ? "split-review-main" : undefined}>
-      <h2>Presentation &amp; Reporting Tool</h2>
-      <p className="help-text">
-        Drafts a structured content plan from your qualitative notes and quantitative data -- matched to the
-        audience and layout instructions below, and to an ingested template's style if one is supplied -- then
-        deterministically renders it to pptx/docx/pdf. Review and edit the plan (reorder sections, swap a chart
-        type, tweak text) before rendering the final file.
-      </p>
+      <PageHeader
+        title="Presentation & Reporting Tool"
+        description={
+          <>
+            Drafts a structured content plan from your qualitative notes and quantitative data -- matched to the
+            audience and layout instructions below, and to an ingested template's style if one is supplied -- then
+            deterministically renders it to pptx/docx/pdf. Review and edit the plan (reorder sections, swap a chart
+            type, tweak text) before rendering the final file.
+          </>
+        }
+      />
 
       <section className="card">
-        <h3>1. Content</h3>
-        <label className="field-label">Title</label>
-        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Electrification Thematic Review" />
-        <label className="field-label">Qualitative notes / findings</label>
-        <textarea rows={6} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Paste analysis, findings, talking points..." />
+        <h2>1. Content</h2>
+        <Field label="Title">
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Electrification Thematic Review" />
+        </Field>
+        <Field label="Qualitative notes / findings">
+          <textarea rows={6} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Paste analysis, findings, talking points..." />
+        </Field>
 
-        <label className="field-label">Quantitative datasets (CSV/XLSX)</label>
-        <input type="file" accept=".csv,.xlsx,.xlsm" onChange={(e) => e.target.files?.[0] && handleDatasetUpload(e.target.files[0])} />
+        <Field label="Quantitative datasets (CSV/XLSX)">
+          <input type="file" accept=".csv,.xlsx,.xlsm" onChange={(e) => e.target.files?.[0] && handleDatasetUpload(e.target.files[0])} />
+        </Field>
         {datasets.length > 0 && (
           <div className="chip-row">
             {datasets.map((ds, i) => (
               <span className="chip" key={ds.dataset_id}>
                 {ds.name} ({ds.rows.length} rows)
-                <button className="link-button" style={{ marginLeft: 6 }} onClick={() => setDatasets(datasets.filter((_, j) => j !== i))}>
+                <Button variant="ghost" className="ml-2" onClick={() => setDatasets(datasets.filter((_, j) => j !== i))}>
                   &times;
-                </button>
+                </Button>
               </span>
             ))}
           </div>
         )}
 
-        <label className="field-label">Template (optional -- ingest a .pptx to match its house style)</label>
-        <input type="file" accept=".pptx" onChange={(e) => e.target.files?.[0] && handleTemplateUpload(e.target.files[0])} />
+        <Field label="Template (optional -- ingest a .pptx to match its house style)">
+          <input type="file" accept=".pptx" onChange={(e) => e.target.files?.[0] && handleTemplateUpload(e.target.files[0])} />
+        </Field>
         {templates.length > 0 && (
           <select value={template?.template_id ?? ""} onChange={(e) => setTemplate(templates.find((t) => t.template_id === e.target.value) ?? null)}>
             <option value="">(no template)</option>
@@ -278,46 +287,53 @@ export function ReportBuilder() {
       </section>
 
       <section className="card">
-        <h3>2. Audience &amp; layout</h3>
+        <h2>2. Audience &amp; layout</h2>
         <div className="inline-fields">
           <div>
-            <label className="field-label">Audience level</label>
-            <select value={audienceLevel} onChange={(e) => setAudienceLevel(e.target.value as AudienceLevel)}>
-              {AUDIENCE_LEVELS.map((l) => (
-                <option key={l} value={l}>{l}</option>
-              ))}
-            </select>
+            <Field label="Audience level">
+              <select value={audienceLevel} onChange={(e) => setAudienceLevel(e.target.value as AudienceLevel)}>
+                {AUDIENCE_LEVELS.map((l) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+            </Field>
           </div>
           <div>
-            <label className="field-label">Tone</label>
-            <select value={tone} onChange={(e) => setTone(e.target.value as Tone)}>
-              {TONES.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+            <Field label="Tone">
+              <select value={tone} onChange={(e) => setTone(e.target.value as Tone)}>
+                {TONES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </Field>
           </div>
           <div>
-            <label className="field-label">Output format</label>
-            <select value={outputFormat} onChange={(e) => setOutputFormat(e.target.value as OutputFormat)}>
-              {OUTPUT_FORMATS.map((f) => (
-                <option key={f} value={f}>{f}</option>
-              ))}
-            </select>
+            <Field label="Output format">
+              <select value={outputFormat} onChange={(e) => setOutputFormat(e.target.value as OutputFormat)}>
+                {OUTPUT_FORMATS.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </Field>
           </div>
         </div>
-        <label className="field-label">Audience description</label>
-        <input type="text" value={audienceDescription} onChange={(e) => setAudienceDescription(e.target.value)} placeholder="Investment committee, 20 minutes, wants the recommendation up front" />
-        <label className="field-label">Focus areas (comma-separated)</label>
-        <input type="text" value={focusAreas} onChange={(e) => setFocusAreas(e.target.value)} placeholder="risk, valuation, ESG" />
+        <Field label="Audience description">
+          <input type="text" value={audienceDescription} onChange={(e) => setAudienceDescription(e.target.value)} placeholder="Investment committee, 20 minutes, wants the recommendation up front" />
+        </Field>
+        <Field label="Focus areas (comma-separated)">
+          <input type="text" value={focusAreas} onChange={(e) => setFocusAreas(e.target.value)} placeholder="risk, valuation, ESG" />
+        </Field>
 
         <div className="inline-fields">
           <div>
-            <label className="field-label">Target length (slides/sections)</label>
-            <input type="number" value={targetLength} onChange={(e) => setTargetLength(e.target.value)} placeholder="planner's choice" />
+            <Field label="Target length (slides/sections)">
+              <input type="number" value={targetLength} onChange={(e) => setTargetLength(e.target.value)} placeholder="planner's choice" />
+            </Field>
           </div>
           <div>
-            <label className="field-label">Max bullets per slide</label>
-            <input type="number" value={maxBullets} onChange={(e) => setMaxBullets(Number(e.target.value))} />
+            <Field label="Max bullets per slide">
+              <input type="number" value={maxBullets} onChange={(e) => setMaxBullets(Number(e.target.value))} />
+            </Field>
           </div>
         </div>
         <label className="checkbox-label">
@@ -329,24 +345,27 @@ export function ReportBuilder() {
         <label className="checkbox-label">
           <input type="checkbox" checked={includeAppendix} onChange={(e) => setIncludeAppendix(e.target.checked)} /> Route detailed material to an appendix
         </label>
-        <label className="field-label">Other layout/style instructions</label>
-        <textarea rows={2} value={freeInstructions} onChange={(e) => setFreeInstructions(e.target.value)} placeholder="lead with the risk section, one chart per slide max..." />
+        <Field label="Other layout/style instructions">
+          <textarea rows={2} value={freeInstructions} onChange={(e) => setFreeInstructions(e.target.value)} placeholder="lead with the risk section, one chart per slide max..." />
+        </Field>
 
-        <button onClick={draftPlan} disabled={busy}>Draft content plan</button>
-        {error && <p className="error-text">{error}</p>}
+        <Button onClick={draftPlan} disabled={busy}>Draft content plan</Button>
+        {error && <StateBlock kind="error" message={error} />}
       </section>
 
       {manifest && plan && (
         <section className="card">
           <div className="section-heading">
-            <h3>3. Review &amp; render</h3>
+            <h2>3. Review &amp; render</h2>
             <span className={`status-pill status-${manifest.status}`}>{manifest.status}</span>
           </div>
 
-          <label className="field-label">Deck/report title</label>
-          <input type="text" value={plan.title} onChange={(e) => setPlan({ ...plan, title: e.target.value })} />
-          <label className="field-label">Subtitle</label>
-          <input type="text" value={plan.subtitle} onChange={(e) => setPlan({ ...plan, subtitle: e.target.value })} />
+          <Field label="Deck/report title">
+            <input type="text" value={plan.title} onChange={(e) => setPlan({ ...plan, title: e.target.value })} />
+          </Field>
+          <Field label="Subtitle">
+            <input type="text" value={plan.subtitle} onChange={(e) => setPlan({ ...plan, subtitle: e.target.value })} />
+          </Field>
 
           {plan.sections.map((section, i) => (
             <div className="review-item" key={i}>
@@ -360,12 +379,13 @@ export function ReportBuilder() {
               </div>
               {section.layout_hint !== "section_header" && (
                 <>
-                  <label className="field-label">Narrative (one point per line)</label>
-                  <textarea
-                    rows={3}
-                    value={narrativeToText(section.narrative)}
-                    onChange={(e) => updateSection(i, { narrative: textToNarrative(e.target.value) })}
-                  />
+                  <Field label="Narrative (one point per line)">
+                    <textarea
+                      rows={3}
+                      value={narrativeToText(section.narrative)}
+                      onChange={(e) => updateSection(i, { narrative: textToNarrative(e.target.value) })}
+                    />
+                  </Field>
                   {section.chart && (
                     <div className="inline-fields">
                       <span className="chip">Chart on dataset {section.chart.dataset_id}</span>
@@ -386,34 +406,34 @@ export function ReportBuilder() {
                 <label className="checkbox-label">
                   <input type="checkbox" checked={section.appendix} onChange={(e) => updateSection(i, { appendix: e.target.checked })} /> Appendix
                 </label>
-                <button className="link-button" onClick={() => moveSection(i, -1)} disabled={i === 0}>&uarr; up</button>
-                <button className="link-button" onClick={() => moveSection(i, 1)} disabled={i === plan.sections.length - 1}>&darr; down</button>
-                <button className="danger" onClick={() => removeSection(i)}>Remove</button>
+                <Button variant="ghost" onClick={() => moveSection(i, -1)} disabled={i === 0}>&uarr; up</Button>
+                <Button variant="ghost" onClick={() => moveSection(i, 1)} disabled={i === plan.sections.length - 1}>&darr; down</Button>
+                <Button variant="danger" onClick={() => removeSection(i)}>Remove</Button>
               </div>
             </div>
           ))}
 
           <div className="toolbar">
-            <button onClick={savePlan} disabled={busy}>Save plan changes</button>
-            <button onClick={render} disabled={busy}>Render {manifest.output_format}</button>
+            <Button onClick={savePlan} disabled={busy}>Save plan changes</Button>
+            <Button onClick={render} disabled={busy}>Render {manifest.output_format}</Button>
             {manifest.status === "completed" && (
               <>
-                <button className="link-button" onClick={() => openPreview(manifest.report_id, plan.title || manifest.title)}>
+                <Button variant="ghost" onClick={() => openPreview(manifest.report_id, plan.title || manifest.title)}>
                   Preview
-                </button>
+                </Button>
                 <a href={api.reportDownloadUrl(manifest.report_id)} target="_blank" rel="noreferrer">
                   Download {manifest.output_format}
                 </a>
               </>
             )}
           </div>
-          {manifest.error && <p className="error-text">{manifest.error}</p>}
+          {manifest.error && <StateBlock kind="error" message={manifest.error} />}
         </section>
       )}
 
       <section className="card">
-        <h3>Previous reports</h3>
-        {reports.length === 0 && <p className="muted">No reports generated yet.</p>}
+        <h2>Previous reports</h2>
+        {reports.length === 0 && <StateBlock kind="empty" message="No reports generated yet." />}
         {reports.length > 0 && (
           <div className="table-wrap">
             <table className="data-table">
@@ -423,7 +443,7 @@ export function ReportBuilder() {
                   <th>Format</th>
                   <th>Status</th>
                   <th>Created</th>
-                  <th></th>
+                  <th><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -436,16 +456,15 @@ export function ReportBuilder() {
                     <td>
                       {r.status === "completed" && (
                         <>
-                          <button
-                            className="link-button"
-                            style={{ marginRight: 10 }}
+                          <Button variant="ghost"
+                            className="mr-3"
                             onClick={(e) => {
                               e.stopPropagation();
                               openPreview(r.report_id, r.title);
                             }}
                           >
                             Preview
-                          </button>
+                          </Button>
                           <a href={api.reportDownloadUrl(r.report_id)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
                             Download
                           </a>
@@ -464,12 +483,12 @@ export function ReportBuilder() {
     {previewReportId && (
       <aside className="source-panel">
         <div className="source-panel-header">
-          <h4>Preview -- {previewTitle}</h4>
-          <button className="link-button" onClick={closePreview}>Close</button>
+          <h3>Preview -- {previewTitle}</h3>
+          <Button variant="ghost" onClick={closePreview}>Close</Button>
         </div>
-        {previewLoading && <p className="muted">Rendering preview...</p>}
-        {previewError && <p className="error-text">{previewError}</p>}
-        {!previewLoading && !previewError && previewPageCount === 0 && <p className="muted">No pages to show.</p>}
+        {previewLoading && <StateBlock kind="loading" message="Rendering preview..." />}
+        {previewError && <StateBlock kind="error" message={previewError} />}
+        {!previewLoading && !previewError && previewPageCount === 0 && <StateBlock kind="empty" message="No pages to show." />}
         {!previewLoading && !previewError && previewPageCount > 0 && (
           <div className="preview-thumb-grid">
             {Array.from({ length: previewPageCount }, (_, i) => i + 1).map((p) => (
@@ -484,23 +503,26 @@ export function ReportBuilder() {
     )}
 
     {enlargedPage && previewReportId && (
-      <div className="modal-overlay" onClick={() => setEnlargedPage(null)}>
-        <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
-            <h4>{previewTitle} -- page {enlargedPage} / {previewPageCount}</h4>
-            <button className="link-button" onClick={() => setEnlargedPage(null)}>Close</button>
-          </div>
-          <img className="modal-image" src={api.reportPreviewPageUrl(previewReportId, enlargedPage)} alt={`Page ${enlargedPage}`} />
-          <div className="toolbar">
-            <button onClick={() => setEnlargedPage((p) => Math.max(1, (p ?? 1) - 1))} disabled={enlargedPage <= 1}>
+      <Dialog
+        title={`${previewTitle} -- page ${enlargedPage} / ${previewPageCount}`}
+        onClose={() => setEnlargedPage(null)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEnlargedPage((p) => Math.max(1, (p ?? 1) - 1))} disabled={enlargedPage <= 1}>
               &larr; Prev
-            </button>
-            <button onClick={() => setEnlargedPage((p) => Math.min(previewPageCount, (p ?? 1) + 1))} disabled={enlargedPage >= previewPageCount}>
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setEnlargedPage((p) => Math.min(previewPageCount, (p ?? 1) + 1))}
+              disabled={enlargedPage >= previewPageCount}
+            >
               Next &rarr;
-            </button>
-          </div>
-        </div>
-      </div>
+            </Button>
+          </>
+        }
+      >
+        <img className="modal-image" src={api.reportPreviewPageUrl(previewReportId, enlargedPage)} alt={`Page ${enlargedPage}`} />
+      </Dialog>
     )}
     </div>
   );

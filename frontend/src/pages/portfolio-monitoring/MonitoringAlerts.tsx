@@ -3,6 +3,7 @@ import { api } from "../../api/client";
 import { usePortfolioPane } from "../../context/usePortfolioPane";
 import { PortfolioFilterPicker } from "../../components/PortfolioFilterPicker";
 import type { Alert, AlertComparator, AlertRule, AlertRuleType, AlertStatus } from "../../types";
+import { Button, StateBlock } from "../../ui";
 
 const RULE_TYPES: { id: AlertRuleType; label: string }[] = [
   { id: "field_threshold", label: "Company field threshold" },
@@ -136,7 +137,7 @@ export function MonitoringAlerts() {
   return (
     <>
       <section className="card">
-        <h3>Add a monitoring rule</h3>
+        <h2>Add a monitoring rule</h2>
         <p className="help-text">
           Threshold-based breach monitoring over the same deterministic engine Pivot Explorer uses -- no new data
           model. Factor/PAI/benchmark-relative rules aren't available yet (see{" "}
@@ -174,9 +175,9 @@ export function MonitoringAlerts() {
             value={thresholdValue}
             onChange={(e) => setThresholdValue(e.target.value)}
           />
-          <button onClick={createRule} disabled={creating || !name.trim() || !thresholdValue}>
+          <Button onClick={createRule} disabled={creating || !name.trim() || !thresholdValue}>
             {creating ? "Adding..." : "Add rule"}
-          </button>
+          </Button>
         </div>
         {ruleType !== "field_threshold" && (
           <PortfolioFilterPicker portfolios={portfolios} selected={scopePortfolioIds} onChange={setScopePortfolioIds} />
@@ -184,7 +185,7 @@ export function MonitoringAlerts() {
       </section>
 
       <section className="card">
-        <h3>Rules ({rules.length})</h3>
+        <h2>Rules ({rules.length})</h2>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -222,19 +223,27 @@ export function MonitoringAlerts() {
       </section>
 
       <section className="card">
-        <h3>Alerts ({visibleAlerts.length})</h3>
+        <h2>Alerts ({visibleAlerts.length})</h2>
         <div className="toolbar">
-          {STATUS_FILTERS.map((s) => (
-            <button key={s} className={s === statusFilter ? "nav-tab active" : "nav-tab"} onClick={() => setStatusFilter(s)}>
-              {s.replace("_", " ")}
-            </button>
-          ))}
-          <button onClick={evaluateNow} disabled={evaluating}>
+          <div className="view-toggle" role="group" aria-label="Filter alerts by status">
+            {STATUS_FILTERS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={s === statusFilter ? "active" : ""}
+                aria-pressed={s === statusFilter}
+                onClick={() => setStatusFilter(s)}
+              >
+                {s.replace("_", " ")}
+              </button>
+            ))}
+          </div>
+          <Button onClick={evaluateNow} disabled={evaluating}>
             {evaluating ? "Evaluating..." : "Evaluate now"}
-          </button>
+          </Button>
           <input placeholder="Decided by (required to act on an alert)" value={decidedBy} onChange={(e) => setDecidedBy(e.target.value)} />
         </div>
-        {error && <p className="error-text">{error}</p>}
+        {error && <StateBlock kind="error" message={error} />}
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -265,24 +274,24 @@ export function MonitoringAlerts() {
                   <td>{a.rationale}</td>
                   <td className="toolbar">
                     {!TERMINAL_STATUSES.includes(a.status) && a.status !== "acknowledged" && (
-                      <button className="link-button" onClick={() => transition(a, "acknowledged")}>
+                      <Button variant="ghost" onClick={() => transition(a, "acknowledged")}>
                         Ack
-                      </button>
+                      </Button>
                     )}
                     {!TERMINAL_STATUSES.includes(a.status) && a.status !== "escalated" && (
-                      <button className="link-button" onClick={() => transition(a, "escalated")}>
+                      <Button variant="ghost" onClick={() => transition(a, "escalated")}>
                         Escalate
-                      </button>
+                      </Button>
                     )}
                     {a.status !== "resolved" && (
-                      <button className="link-button" onClick={() => transition(a, "resolved")}>
+                      <Button variant="ghost" onClick={() => transition(a, "resolved")}>
                         Resolve
-                      </button>
+                      </Button>
                     )}
                     {a.status !== "false_positive" && (
-                      <button className="link-button" onClick={() => transition(a, "false_positive")}>
+                      <Button variant="ghost" onClick={() => transition(a, "false_positive")}>
                         False positive
-                      </button>
+                      </Button>
                     )}
                   </td>
                 </tr>

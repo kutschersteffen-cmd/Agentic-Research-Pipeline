@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { CompanyBallot, VoteRecord, VotePosition, VoteReviewDecision } from "../types";
+import { Button, StateBlock } from "../ui";
 
 const VOTE_POSITIONS: VotePosition[] = ["for", "against", "abstain", "withhold"];
 
@@ -127,10 +128,10 @@ function ProposalReview({
             />
           )}
           <textarea rows={1} placeholder="Comment (optional)" value={comment} onChange={(e) => setComment(e.target.value)} />
-          <button onClick={submit} disabled={busy}>
+          <Button onClick={submit} disabled={busy}>
             Record decision
-          </button>
-          {error && <p className="error-text">{error}</p>}
+          </Button>
+          {error && <StateBlock kind="error" message={error} />}
         </>
       )}
     </div>
@@ -194,10 +195,10 @@ export function BallotReview({ runId }: { runId: string }) {
   return (
     <section className="card">
       <div className="section-heading">
-        <h3>Ballots for {runId}</h3>
-        <button className="link-button" onClick={load}>
+        <h2>Ballots for {runId}</h2>
+        <Button variant="ghost" onClick={load}>
           Refresh
-        </button>
+        </Button>
       </div>
       <p className="help-text">
         Every proposal requires an explicit human decision, regardless of confidence -- there is no auto-approve
@@ -206,18 +207,18 @@ export function BallotReview({ runId }: { runId: string }) {
       <p className="muted">
         {totalProposals} proposal(s) across {ballots.length} compan{ballots.length === 1 ? "y" : "ies"} &middot; {totalCast} cast
       </p>
-      <button onClick={castApproved} disabled={busy}>
+      <Button onClick={castApproved} disabled={busy}>
         Cast approved votes
-      </button>
+      </Button>
       {castResult && <p className="status-text">{castResult}</p>}
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       {ballots.map((ballot) => (
         <div key={ballot.company_id} className="panel-section">
-          <h4>
+          <h3>
             {ballot.name} <span className="muted">({ballot.company_id})</span>
-          </h4>
-          {ballot.votes.length === 0 && <p className="muted">No proposals found (no proxy statement available yet).</p>}
+          </h3>
+          {ballot.votes.length === 0 && <StateBlock kind="empty" message="No proposals found (no proxy statement available yet)." />}
           {ballot.votes.map((vote) => (
             <ProposalReview
               key={vote.vote_record_id}

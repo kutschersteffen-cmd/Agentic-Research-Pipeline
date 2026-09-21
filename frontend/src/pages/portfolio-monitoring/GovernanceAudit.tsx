@@ -9,6 +9,7 @@ import type {
   RiskCategoryOwner,
   SecurityResolution,
 } from "../../types";
+import { Button, StateBlock } from "../../ui";
 
 const SUGGESTED_CATEGORIES = ["entity_resolution", "climate_conflict", "threshold_breach", "news_controversy"];
 const POLICY_SETTINGS: { id: PolicySettingName; label: string }[] = [
@@ -143,7 +144,7 @@ export function GovernanceAudit() {
   return (
     <>
       <section className="card">
-        <h3>Methodology</h3>
+        <h2>Methodology</h2>
         <p className="help-text">
           Live-configurable governance settings -- the current value and full change history are both derived from
           the same append-only event log, never a separate mutable snapshot. Changing a setting only affects future
@@ -179,9 +180,9 @@ export function GovernanceAudit() {
           </select>
           <input type="number" step="any" placeholder="new value" value={policyNewValue} onChange={(e) => setPolicyNewValue(e.target.value)} />
           <input placeholder="reason" value={policyReason} onChange={(e) => setPolicyReason(e.target.value)} />
-          <button onClick={submitPolicyChange} disabled={!policyNewValue}>
+          <Button onClick={submitPolicyChange} disabled={!policyNewValue}>
             Change setting
-          </button>
+          </Button>
         </div>
         {policyHistory.length > 0 && (
           <div className="table-wrap">
@@ -214,7 +215,7 @@ export function GovernanceAudit() {
       </section>
 
       <section className="card">
-        <h3>Risk category ownership</h3>
+        <h2>Risk category ownership</h2>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -235,7 +236,7 @@ export function GovernanceAudit() {
                       value={ownerInputs[cat] ?? ""}
                       onChange={(e) => setOwnerInputs((prev) => ({ ...prev, [cat]: e.target.value }))}
                     />
-                    <button onClick={() => assignOwner(cat)}>Assign</button>
+                    <Button onClick={() => assignOwner(cat)}>Assign</Button>
                   </td>
                 </tr>
               ))}
@@ -245,20 +246,22 @@ export function GovernanceAudit() {
       </section>
 
       <div className="toolbar">
-        <button className={view === "pending" ? "nav-tab active" : "nav-tab"} onClick={() => setView("pending")}>
-          pending
-        </button>
-        <button className={view === "all" ? "nav-tab active" : "nav-tab"} onClick={() => setView("all")}>
-          all
-        </button>
+        <div className="view-toggle" role="group" aria-label="Which decisions to show">
+          <button type="button" className={view === "pending" ? "active" : ""} aria-pressed={view === "pending"} onClick={() => setView("pending")}>
+            pending
+          </button>
+          <button type="button" className={view === "all" ? "active" : ""} aria-pressed={view === "all"} onClick={() => setView("all")}>
+            all
+          </button>
+        </div>
         <input placeholder="Decided by (required to act on an item)" value={decidedBy} onChange={(e) => setDecidedBy(e.target.value)} />
       </div>
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       <section className="card">
-        <h3>
+        <h2>
           Entity-resolution review queue ({resolutionRows.length})
-        </h3>
+        </h2>
         <p className="help-text">
           Securities whose issuer match fell below the confidence threshold -- never auto-matched, always surfaced
           here instead (see <code>entity_resolution.py</code>).
@@ -288,20 +291,20 @@ export function GovernanceAudit() {
                     <td>{r.method}</td>
                     <td>{decision ? `${decision.decision} by ${decision.decided_by}` : <span className="muted">none</span>}</td>
                     <td className="toolbar">
-                      <button className="link-button" onClick={() => decide("entity_resolution", r.security_id, "accept")}>
+                      <Button variant="ghost" onClick={() => decide("entity_resolution", r.security_id, "accept")}>
                         Accept
-                      </button>
+                      </Button>
                       <input
                         placeholder="correct company_id"
                         value={overrideInputs[r.security_id] ?? ""}
                         onChange={(e) => setOverrideInputs((prev) => ({ ...prev, [r.security_id]: e.target.value }))}
                       />
-                      <button className="link-button" onClick={() => decide("entity_resolution", r.security_id, "override")}>
+                      <Button variant="ghost" onClick={() => decide("entity_resolution", r.security_id, "override")}>
                         Override
-                      </button>
-                      <button className="link-button" onClick={() => decide("entity_resolution", r.security_id, "reject")}>
+                      </Button>
+                      <Button variant="ghost" onClick={() => decide("entity_resolution", r.security_id, "reject")}>
                         Reject
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 );
@@ -319,7 +322,7 @@ export function GovernanceAudit() {
       </section>
 
       <section className="card">
-        <h3>Climate data conflicts ({conflictRows.length})</h3>
+        <h2>Climate data conflicts ({conflictRows.length})</h2>
         <p className="help-text">
           Values where the internal ESG API disagreed with an independent extraction from company disclosures beyond
           tolerance. The internal-API value is still the one used for computation, but it's flagged rather than
@@ -351,9 +354,9 @@ export function GovernanceAudit() {
                     <td>{c.conflicting_source_label}</td>
                     <td>{decision ? `${decision.decision} by ${decision.decided_by}` : <span className="muted">none</span>}</td>
                     <td className="toolbar">
-                      <button className="link-button" onClick={() => decide("climate_conflict", itemKey, "accept")}>
+                      <Button variant="ghost" onClick={() => decide("climate_conflict", itemKey, "accept")}>
                         Accept
-                      </button>
+                      </Button>
                       <input
                         type="number"
                         step="any"
@@ -361,12 +364,12 @@ export function GovernanceAudit() {
                         value={overrideInputs[itemKey] ?? ""}
                         onChange={(e) => setOverrideInputs((prev) => ({ ...prev, [itemKey]: e.target.value }))}
                       />
-                      <button className="link-button" onClick={() => decide("climate_conflict", itemKey, "override")}>
+                      <Button variant="ghost" onClick={() => decide("climate_conflict", itemKey, "override")}>
                         Override
-                      </button>
-                      <button className="link-button" onClick={() => decide("climate_conflict", itemKey, "reject")}>
+                      </Button>
+                      <Button variant="ghost" onClick={() => decide("climate_conflict", itemKey, "reject")}>
                         Reject
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 );

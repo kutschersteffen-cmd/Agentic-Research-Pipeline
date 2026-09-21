@@ -1,5 +1,6 @@
 import { GroundedBadge } from "./ConfidenceBadge";
 import type { ActivityDefinition, ActivityStandardsMapping } from "../types";
+import { Button, Field } from "../ui";
 
 function CodeList({ label, codes }: { label: string; codes: { code: string; label: string }[] }) {
   if (codes.length === 0) return null;
@@ -61,28 +62,31 @@ export function ActivityEditorTable({ activities, onChange }: Props) {
       {activities.map((a, idx) => (
         <div className="activity-editor" key={a.activity_id}>
           <input value={a.name} onChange={(e) => update(idx, { name: e.target.value })} />
-          <label className="field-label">In scope</label>
-          <textarea rows={2} value={a.in_scope_description} onChange={(e) => update(idx, { in_scope_description: e.target.value })} />
-          <label className="field-label">Out of scope</label>
-          <textarea
-            rows={2}
-            value={a.out_of_scope_description}
-            onChange={(e) => update(idx, { out_of_scope_description: e.target.value })}
-          />
-          <label className="field-label">Seed keywords (comma-separated)</label>
-          <input
-            value={a.seed_keywords.join(", ")}
-            onChange={(e) => update(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
-          />
+          <Field label="In scope">
+            <textarea rows={2} value={a.in_scope_description} onChange={(e) => update(idx, { in_scope_description: e.target.value })} />
+          </Field>
+          <Field label="Out of scope">
+            <textarea
+              rows={2}
+              value={a.out_of_scope_description}
+              onChange={(e) => update(idx, { out_of_scope_description: e.target.value })}
+            />
+          </Field>
+          <Field label="Seed keywords (comma-separated)">
+            <input
+              value={a.seed_keywords.join(", ")}
+              onChange={(e) => update(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+            />
+          </Field>
           {a.source_citation && (
             <p className="muted">
               <GroundedBadge grounded={a.source_citation.grounded} /> source: "{a.source_citation.quote}"
             </p>
           )}
           {a.standards_mapping && <StandardsMappingDisplay mapping={a.standards_mapping} />}
-          <button className="link-button" onClick={() => remove(idx)}>
+          <Button variant="ghost" onClick={() => remove(idx)}>
             Remove activity
-          </button>
+          </Button>
         </div>
       ))}
     </>

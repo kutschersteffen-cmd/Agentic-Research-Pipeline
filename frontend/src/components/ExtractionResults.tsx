@@ -5,6 +5,7 @@ import { ReviewControls } from "./ReviewControls";
 import { CitationList } from "./CitationList";
 import type { ActiveSource } from "./SourcePanel";
 import type { BusinessSegment, CompanyFinancialsRecord, ExtractedField, ExtractionRecord, ReviewDecision, SpendSummary } from "../types";
+import { StateBlock } from "../ui";
 
 // Shared between Extraction.tsx (a run just started in this browser session)
 // and DataLibrary.tsx (any past run, picked by run_id) -- both render the
@@ -32,7 +33,7 @@ export function SegmentDetail({ segment, onOpenSource }: { segment: BusinessSegm
           <tbody>
             {(["revenue", "income", "assets"] as const).map((metric) => (
               <tr key={metric}>
-                <td style={{ textTransform: "capitalize" }}>{metric}</td>
+                <td className="capitalize">{metric}</td>
                 <td>
                   {fmtAmount(segment[metric].value)}
                   {segment[metric].raw_value_text && <span className="muted"> ({segment[metric].raw_value_text})</span>}
@@ -46,7 +47,7 @@ export function SegmentDetail({ segment, onOpenSource }: { segment: BusinessSegm
       {(["revenue", "income", "assets"] as const).map((metric) =>
         segment[metric].citations.length > 0 ? (
           <div key={metric}>
-            <span className="muted" style={{ textTransform: "capitalize" }}>{metric} citations:</span>
+            <span className="muted capitalize">{metric} citations:</span>
             <CitationList citations={segment[metric].citations} onOpenSource={onOpenSource} />
           </div>
         ) : null
@@ -233,17 +234,17 @@ export function FinancialsResultsTable({
               {expanded === r.company_id && (
                 <tr>
                   <td colSpan={6} className="detail-cell">
-                    <h4>Business Segments</h4>
-                    {r.segments.length === 0 && <p className="muted">No segment reporting evidence found.</p>}
+                    <h3>Business Segments</h3>
+                    {r.segments.length === 0 && <StateBlock kind="empty" message="No segment reporting evidence found." />}
                     {r.segments.map((s, si) => (
                       <SegmentDetail key={si} segment={s} onOpenSource={onOpenSource} />
                     ))}
                     {r.segments_verifier_notes && <p className="muted">{r.segments_verifier_notes}</p>}
 
-                    <h4>CapEx</h4>
+                    <h3>CapEx</h3>
                     <SpendDetail label="CapEx" spend={r.capex} onOpenSource={onOpenSource} />
 
-                    <h4>R&amp;D</h4>
+                    <h3>R&amp;D</h3>
                     <SpendDetail label="R&D" spend={r.rnd} onOpenSource={onOpenSource} />
 
                     <ReviewControls

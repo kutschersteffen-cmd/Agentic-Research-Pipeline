@@ -1,4 +1,5 @@
 import type { ColumnProfile, MechanismConfig, MissingPolicy, NormMethod, WeightPreset } from "../types";
+import { Field } from "../ui";
 
 const NORMS: { value: NormMethod; label: string; note: string }[] = [
   { value: "percentile", label: "Percentile rank", note: "Unaffected by outliers and by the units each indicator is reported in. Measures position in the field, so it cannot show absolute improvement between two snapshots." },
@@ -45,7 +46,7 @@ export function MechanismEditor({
     <div>
       <div className="decision-grid">
         <div className="card">
-          <h3>Normalisation</h3>
+          <h2>Normalisation</h2>
           <select value={config.norm} onChange={(e) => set({ norm: e.target.value as NormMethod })}>
             {NORMS.map((n) => (
               <option key={n.value} value={n.value}>
@@ -54,12 +55,10 @@ export function MechanismEditor({
             ))}
           </select>
           <p className="help-text">{note(NORMS, config.norm)}</p>
-          <label className="field-label">
-            Winsorise tails (%)
+          <Field label="Winsorise tails (%)">
             <input type="number" min={0} max={20} value={config.winsor_pct} onChange={(e) => set({ winsor_pct: Number(e.target.value) })} />
-          </label>
-          <label className="field-label">
-            Peer cohort — normalise within
+          </Field>
+          <Field label="Peer cohort — normalise within">
             <select value={config.normalise_within ?? ""} onChange={(e) => set({ normalise_within: e.target.value || null })}>
               <option value="">(whole table)</option>
               {categorical.map((p) => (
@@ -68,7 +67,7 @@ export function MechanismEditor({
                 </option>
               ))}
             </select>
-          </label>
+          </Field>
           <p className="help-text">
             An intensity percentile computed across utilities and software companies together is close to meaningless.
             Cohorts with fewer than {config.min_cohort_size} rows fall back to the whole table, because a rank over three
@@ -77,7 +76,7 @@ export function MechanismEditor({
         </div>
 
         <div className="card">
-          <h3>Missing values</h3>
+          <h2>Missing values</h2>
           <select value={config.missing} onChange={(e) => set({ missing: e.target.value as MissingPolicy })}>
             {MISSING.map((m) => (
               <option key={m.value} value={m.value}>
@@ -86,10 +85,9 @@ export function MechanismEditor({
             ))}
           </select>
           <p className="help-text">{note(MISSING, config.missing)}</p>
-          <label className="field-label">
-            Minimum weight covered (%)
+          <Field label="Minimum weight covered (%)">
             <input type="number" min={0} max={100} step={5} value={config.min_coverage_pct} onChange={(e) => set({ min_coverage_pct: Number(e.target.value) })} />
-          </label>
+          </Field>
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -106,7 +104,7 @@ export function MechanismEditor({
         </div>
 
         <div className="card">
-          <h3>Weighting</h3>
+          <h2>Weighting</h2>
           <select value={config.weighting} onChange={(e) => set({ weighting: e.target.value as WeightPreset })}>
             {WEIGHTS.map((w) => (
               <option key={w.value} value={w.value}>
@@ -115,8 +113,7 @@ export function MechanismEditor({
             ))}
           </select>
           <p className="help-text">{note(WEIGHTS, config.weighting)}</p>
-          <label className="field-label">
-            Grouping threshold (rank correlation)
+          <Field label="Grouping threshold (rank correlation)">
             <input
               type="number"
               min={0}
@@ -125,7 +122,7 @@ export function MechanismEditor({
               value={config.cluster_threshold}
               onChange={(e) => set({ cluster_threshold: Number(e.target.value) })}
             />
-          </label>
+          </Field>
           <p className="help-text">
             Re-derive to regroup. Two frameworks built at different thresholds are not directly comparable, and the audit
             log says so.
@@ -134,7 +131,7 @@ export function MechanismEditor({
       </div>
 
       <div className="card">
-        <h3>Dimensions &amp; criteria</h3>
+        <h2>Dimensions &amp; criteria</h2>
         <p className="help-text">
           Weights are relative and normalised to 100% behind the scenes. Park a criterion at weight 0 to keep it visible
           without letting it count. The effective column is what each criterion actually contributes once its dimension's

@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import type { IdentityResolutionResult } from "../types";
+import { Button, PageHeader, StateBlock } from "../ui";
 
 interface Props {
   onSendToDiscovery?: (path: string, count: number) => void;
@@ -20,9 +21,13 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
   const [sentUniverse, setSentUniverse] = useState<{ path: string; count: number } | null>(null);
 
   async function refreshResults() {
-    if (!runId) return;
-    const res = (await api.getIdentityResults(runId)) as { results: IdentityResolutionResult[] };
-    setResults(res.results);
+    try {
+      if (!runId) return;
+      const res = (await api.getIdentityResults(runId)) as { results: IdentityResolutionResult[] };
+      setResults(res.results);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function runNow() {
@@ -64,31 +69,35 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Company Identity Resolution</h2>
-      <p className="help-text">
-        Resolves a list of bare company names to a real, verified website/CIK before any document discovery runs --
-        a deterministic EDGAR lookup resolves the clean case for free, and only genuine ambiguity escalates to a
-        single adjudicating LLM call. Nothing ambiguous is ever guessed: it's queued in the Review Queue tab for a
-        human to approve, edit, or reject. This is a one-time cost per company -- run it once, then reuse the
-        resulting universe for every future Document Discovery run.
-      </p>
+      <PageHeader
+        title="Company Identity Resolution"
+        description={
+          <>
+            Resolves a list of bare company names to a real, verified website/CIK before any document discovery runs --
+            a deterministic EDGAR lookup resolves the clean case for free, and only genuine ambiguity escalates to a
+            single adjudicating LLM call. Nothing ambiguous is ever guessed: it's queued in the Review Queue tab for a
+            human to approve, edit, or reject. This is a one-time cost per company -- run it once, then reuse the
+            resulting universe for every future Document Discovery run.
+          </>
+        }
+      />
 
       <section className="card">
-        <h3>Resolve identity</h3>
+        <h2>Resolve identity</h2>
         <UniversePicker
           onResolved={(path, count) => {
             setUniversePath(path);
             setCompanyCount(count);
           }}
         />
-        <button onClick={runNow} disabled={busy || !universePath}>
+        <Button onClick={runNow} disabled={busy || !universePath}>
           Resolve identity for {companyCount || "..."} companies
-        </button>
-        {error && <p className="error-text">{error}</p>}
+        </Button>
+        {error && <StateBlock kind="error" message={error} />}
         {runId && <RunProgress runId={runId} runType="identity" />}
         {runId && (
           <>
-            <button onClick={refreshResults}>Refresh results</button>
+            <Button onClick={refreshResults}>Refresh results</Button>
             {results.length > 0 && (
               <div className="table-wrap">
                 <table className="data-table">
@@ -126,13 +135,13 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
               </div>
             )}
             <div className="toolbar">
-              <button onClick={sendToDiscovery} disabled={sendBusy}>
+              <Button onClick={sendToDiscovery} disabled={sendBusy}>
                 Send resolved companies to Document Discovery
-              </button>
+              </Button>
               {sentUniverse && (
-                <button onClick={() => onSendToDiscovery?.(sentUniverse.path, sentUniverse.count)}>
+                <Button onClick={() => onSendToDiscovery?.(sentUniverse.path, sentUniverse.count)}>
                   Go to Document Discovery &rarr;
-                </button>
+                </Button>
               )}
             </div>
             {sendStatus && <p className="status-text">{sendStatus}</p>}

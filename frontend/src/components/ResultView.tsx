@@ -4,6 +4,7 @@ import { AggregationResultTable } from "./AggregationResultTable";
 import { BarChart } from "./BarChart";
 import { LineChart, type LineSeries } from "./LineChart";
 import { TrendTable } from "./TrendTable";
+import { StateBlock } from "../ui";
 
 function formatterFor(result: AggregationResult, unit?: string) {
   if (result.metric === "weighted_avg_datapoint") {
@@ -43,7 +44,7 @@ export function AggregationView({ result, unit }: { result: AggregationResult; u
  * pivoted table shows. */
 export function TrendView({ trend, unit }: { trend: TrendPoint[]; unit?: string }) {
   const [view, setView] = useState<"table" | "chart">("table");
-  if (trend.length === 0) return <p className="muted">No snapshots available.</p>;
+  if (trend.length === 0) return <StateBlock kind="empty" message="No snapshots available." />;
 
   const dates = trend.map((t) => t.as_of);
   const weighted = trend[0].result.metric === "weighted_avg_datapoint";

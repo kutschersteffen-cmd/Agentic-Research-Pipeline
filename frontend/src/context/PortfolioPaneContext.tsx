@@ -25,6 +25,7 @@ function saveGroupsToStorage(groups: PortfolioGroup[]) {
 export function PortfolioPaneProvider({ children }: { children: ReactNode }) {
   const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
   const [climateSchema, setClimateSchema] = useState<DataPointSchema | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedPortfolioIds, setSelectedPortfolioIds] = useState<string[]>([]);
   const [groups, setGroups] = useState<PortfolioGroup[]>(() => loadGroupsFromStorage());
   const [dateMode, setDateMode] = useState<DateMode>("latest");
@@ -35,14 +36,21 @@ export function PortfolioPaneProvider({ children }: { children: ReactNode }) {
   const refreshPortfolios = useCallback(async () => {
     try {
       setPortfolios(await api.listPortfolios());
-    } catch {
+    } catch (err) {
       setPortfolios([]);
+      setLoadError((err as Error).message);
     }
   }, []);
 
   useEffect(() => {
     refreshPortfolios();
-    api.getClimateSchema().then(setClimateSchema).catch(() => setClimateSchema(null));
+    api
+      .getClimateSchema()
+      .then(setClimateSchema)
+      .catch((err: Error) => {
+        setClimateSchema(null);
+        setLoadError(err.message);
+      });
   }, [refreshPortfolios]);
 
   const saveCurrentAsGroup = useCallback(
@@ -94,6 +102,7 @@ export function PortfolioPaneProvider({ children }: { children: ReactNode }) {
     portfolios,
     refreshPortfolios,
     climateSchema,
+    loadError,
     selectedPortfolioIds,
     setSelectedPortfolioIds,
     groups,

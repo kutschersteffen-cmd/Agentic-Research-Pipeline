@@ -210,4 +210,5 @@ Re-run `arp db init-postgres` after upgrading, not only on a fresh database.
 | [`DECISION_MECHANISM.md`](docs/DECISION_MECHANISM.md) | The scoring/ranking/tiering engine: every control, what it catches, and its known limits |
 | [`TRANSITION_BARRIER_ASSESSMENT.md`](docs/TRANSITION_BARRIER_ASSESSMENT.md) | The 35 criteria and their source lists |
 | [`EMERGING_THEMES_VOCABULARY.md`](docs/EMERGING_THEMES_VOCABULARY.md) | How each scored dimension maps to the research vocabulary |
+| [`UI_DESIGN_IMPROVEMENT_PLAN.md`](docs/UI_DESIGN_IMPROVEMENT_PLAN.md) | Frontend design system, page templates and the phased plan to apply them |
 | [`THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md`](docs/THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md), [`GENBI_LANDSCAPE_REVIEW.md`](docs/GENBI_LANDSCAPE_REVIEW.md), [`DATABASE_STORAGE_REVIEW.md`](docs/DATABASE_STORAGE_REVIEW.md), [`SPEC_GAP_ANALYSIS.md`](docs/SPEC_GAP_ANALYSIS.md) | Architecture reviews and gap analyses |

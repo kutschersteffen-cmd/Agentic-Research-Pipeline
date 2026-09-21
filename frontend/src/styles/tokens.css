@@ -1,0 +1,168 @@
+/* Design tokens -- the only file in the app allowed to hold a raw color,
+   font size, radius or shadow value. Everything else references these.
+
+   Type: the app previously carried 15 distinct font sizes (0.68 / 0.74 /
+   0.76 / 0.78 / 0.8 / 0.82 / 0.85 / 0.88 / 0.9 / 0.95 / 1.4 / 1.5rem plus
+   11 / 13 / 15px). They are snapped onto the 7 steps below, so a handful of
+   sizes move by 1-2px; nothing moves by more than that.
+   Space: a 4px grid; off-grid values (6 / 9 / 10 / 14 / 18 / 22px) snap to
+   the nearest step. --sp-05 exists only for pill-height padding.
+   Radius: 4 steps plus the pill; 2 and 4px snap to --r-xs, 10px to --r-lg. */
+
+:root {
+  /* --- Surfaces and ink ------------------------------------------------ */
+  --bg: oklch(99% 0.002 260);
+  --panel: oklch(97% 0.004 260);
+  --panel-border: oklch(91% 0.004 260);
+  --well: oklch(95% 0.004 260);
+  --input-bg: oklch(100% 0 0);
+  --text: oklch(13% 0 0);
+  --muted: oklch(44% 0.005 260);
+  --ink-nav: oklch(35% 0.005 260);
+  --on-accent: oklch(100% 0 0);
+  --overlay: oklch(13% 0 0 / 0.6);
+  --sidebar-bg: oklch(97% 0.004 260);
+
+  /* --- Accent ---------------------------------------------------------- */
+  --accent: oklch(52% 0.19 290);
+  --accent-ink: oklch(45% 0.19 290);
+  --accent-tint: oklch(52% 0.19 290 / 0.12);
+
+  /* --- Status ----------------------------------------------------------
+     high/mid/low/neutral are status semantics (run status, escalation
+     stage, badges), not chart marks -- chart marks come from
+     lib/palette.ts, never from here. They render as 12px text, so each is
+     stepped to clear 4.5:1 against the darkest surface it can sit on
+     (--well), which the previous values did not: an axe pass measured the
+     old --high at 4.06:1 on --panel, --mid at 3.32 and --neutral at 4.43.
+     Worst-surface ratios now: high 4.79, mid 4.60, low 5.21, neutral 5.15. */
+  --high: oklch(50% 0.15 150);
+  --mid: oklch(53% 0.13 80);
+  --low: oklch(52% 0.17 25);
+  --neutral: oklch(50% 0.02 260);
+  --high-wash: color-mix(in srgb, var(--high) 10%, transparent);
+  --mid-wash: color-mix(in srgb, var(--mid) 12%, transparent);
+  --low-wash: color-mix(in srgb, var(--low) 12%, transparent);
+
+  /* --- Type ------------------------------------------------------------ */
+  --font-body: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Space Grotesk", -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+  --fs-25: 0.6875rem;  /* 11px -- chart tick labels, uppercase nav groups */
+  --fs-50: 0.75rem;    /* 12px -- badges, pills, table meta, tooltips */
+  --fs-100: 0.8125rem; /* 13px -- secondary text, sidebar items, legends */
+  --fs-200: 0.875rem;  /* 14px -- body, table cells, form controls */
+  --fs-300: 1rem;      /* 16px -- card titles */
+  --fs-400: 1.25rem;   /* 20px -- stat values, section titles */
+  --fs-500: 1.5rem;    /* 24px -- page titles, KPI values */
+  --lh-tight: 1.25;
+  --lh-body: 1.55;
+
+  /* --- Space ----------------------------------------------------------- */
+  --sp-05: 2px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  /* --- Radius ---------------------------------------------------------- */
+  --r-xs: 3px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-full: 999px;
+
+  /* --- Elevation and focus --------------------------------------------- */
+  --shadow-1: 0 1px 2px oklch(13% 0 0 / 0.06);
+  --shadow-2: 0 8px 24px oklch(13% 0 0 / 0.14);
+  /* One ring for every interactive element: an inner gap in the page
+     background so the ring reads on filled controls too. */
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+
+  /* --- Layout ---------------------------------------------------------- */
+  --sidebar-w: 232px;
+  --page-max: 1200px;
+
+  color-scheme: light;
+
+  /* --- Dark values ------------------------------------------------------
+     Defined once here (unused in light mode) and mapped onto the real token
+     names by the two scopes below, so a dark colour is edited in one place
+     even though the mapping has to be written twice. */
+  --dark-bg: oklch(15% 0.006 260);
+  --dark-panel: oklch(19% 0.008 260);
+  --dark-panel-border: oklch(30% 0.008 260);
+  --dark-well: oklch(24% 0.008 260);
+  --dark-input-bg: oklch(22% 0.008 260);
+  --dark-text: oklch(96% 0.002 260);
+  --dark-muted: oklch(72% 0.005 260);
+  --dark-ink-nav: oklch(86% 0.005 260);
+  --dark-on-accent: oklch(15% 0.01 290);
+  --dark-overlay: oklch(8% 0 0 / 0.7);
+  --dark-accent: oklch(72% 0.15 290);
+  --dark-accent-ink: oklch(80% 0.15 290);
+  --dark-accent-tint: oklch(72% 0.15 290 / 0.22);
+  /* Status hues lifted into the dark band; every one clears 6:1 on
+     --dark-panel (checked, not eyeballed -- see lib/palette.ts). */
+  --dark-high: oklch(76% 0.16 150);
+  --dark-mid: oklch(80% 0.13 80);
+  --dark-low: oklch(70% 0.16 25);
+  --dark-neutral: oklch(68% 0.02 260);
+  --dark-shadow-1: 0 1px 2px oklch(0% 0 0 / 0.5);
+  --dark-shadow-2: 0 8px 24px oklch(0% 0 0 / 0.6);
+}
+
+/* The OS setting, unless the viewer has explicitly stamped this app light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: var(--dark-bg);
+    --panel: var(--dark-panel);
+    --panel-border: var(--dark-panel-border);
+    --well: var(--dark-well);
+    --input-bg: var(--dark-input-bg);
+    --text: var(--dark-text);
+    --muted: var(--dark-muted);
+    --ink-nav: var(--dark-ink-nav);
+    --on-accent: var(--dark-on-accent);
+    --overlay: var(--dark-overlay);
+    --sidebar-bg: var(--dark-panel);
+    --accent: var(--dark-accent);
+    --accent-ink: var(--dark-accent-ink);
+    --accent-tint: var(--dark-accent-tint);
+    --high: var(--dark-high);
+    --mid: var(--dark-mid);
+    --low: var(--dark-low);
+    --neutral: var(--dark-neutral);
+    --shadow-1: var(--dark-shadow-1);
+    --shadow-2: var(--dark-shadow-2);
+    color-scheme: dark;
+  }
+}
+
+/* The viewer's own choice, which wins over the OS either way. */
+:root[data-theme="dark"] {
+  --bg: var(--dark-bg);
+  --panel: var(--dark-panel);
+  --panel-border: var(--dark-panel-border);
+  --well: var(--dark-well);
+  --input-bg: var(--dark-input-bg);
+  --text: var(--dark-text);
+  --muted: var(--dark-muted);
+  --ink-nav: var(--dark-ink-nav);
+  --on-accent: var(--dark-on-accent);
+  --overlay: var(--dark-overlay);
+  --sidebar-bg: var(--dark-panel);
+  --accent: var(--dark-accent);
+  --accent-ink: var(--dark-accent-ink);
+  --accent-tint: var(--dark-accent-tint);
+  --high: var(--dark-high);
+  --mid: var(--dark-mid);
+  --low: var(--dark-low);
+  --neutral: var(--dark-neutral);
+  --shadow-1: var(--dark-shadow-1);
+  --shadow-2: var(--dark-shadow-2);
+  color-scheme: dark;
+}

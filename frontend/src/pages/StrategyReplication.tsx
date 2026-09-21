@@ -9,6 +9,7 @@ import type {
   SpecReviewState,
   StrategySpec,
 } from "../types";
+import { Button, Field, PageHeader, StateBlock } from "../ui";
 
 // ---- helpers ----------------------------------------------------------------
 
@@ -123,31 +124,31 @@ function ProposeStage({
 
   return (
     <section className="card">
-      <h3>1. Propose a strategy</h3>
+      <h2>1. Propose a strategy</h2>
       <p className="help-text">
         Search for candidate "outperformance" papers on a topic, or skip straight to describing your own methodology
         in plain English below -- both ways feed the same drafting step, which produces a spec sheet you review
         before anything runs.
       </p>
 
-      <label className="field-label">Search a topic (optional)</label>
+      <span className="field-label">Search a topic (optional)</span>
       <div className="toolbar">
         <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. momentum anomaly" />
-        <button onClick={discover} disabled={busy || !topic.trim()}>
+        <Button onClick={discover} disabled={busy || !topic.trim()}>
           Search
-        </button>
+        </Button>
       </div>
 
-      <label className="field-label">...or resume a spec draft you started earlier</label>
+      <span className="field-label">...or resume a spec draft you started earlier</span>
       <div className="toolbar">
         <input value={resumeId} onChange={(e) => setResumeId(e.target.value)} placeholder="spec draft run ID" />
-        <button onClick={resumeDraft} disabled={busy || !resumeId.trim()}>
+        <Button onClick={resumeDraft} disabled={busy || !resumeId.trim()}>
           Resume
-        </button>
+        </Button>
       </div>
 
       {candidates.length > 0 && (
-        <div className="review-item-list">
+        <div>
           {candidates.map((c) => (
             <div className="review-item" key={c.candidate_id}>
               <strong>{c.title}</strong>{" "}
@@ -158,27 +159,29 @@ function ProposeStage({
                 <a href={c.url} target="_blank" rel="noreferrer">
                   View source
                 </a>
-                <button onClick={() => selectCandidate(c)}>Use this paper</button>
+                <Button onClick={() => selectCandidate(c)}>Use this paper</Button>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      <label className="field-label">Paper citation</label>
-      <input value={paperCitation} onChange={(e) => setPaperCitation(e.target.value)} placeholder="Author (Year), Journal Vol(Issue)" />
+      <Field label="Paper citation">
+        <input value={paperCitation} onChange={(e) => setPaperCitation(e.target.value)} placeholder="Author (Year), Journal Vol(Issue)" />
+      </Field>
 
-      <label className="field-label">Paper text, or describe your own methodology</label>
-      <textarea
-        rows={8}
-        value={paperText}
-        onChange={(e) => setPaperText(e.target.value)}
-        placeholder="Paste the paper's methodology/results text, or write your own strategy description in plain English (e.g. 'Rank stocks by 6-month prior return, buy the top decile, short the bottom decile, hold for 3 months, rebalance monthly.')"
-      />
-      <button onClick={draftSpec} disabled={busy || !paperCitation.trim() || !paperText.trim()}>
+      <Field label="Paper text, or describe your own methodology">
+        <textarea
+          rows={8}
+          value={paperText}
+          onChange={(e) => setPaperText(e.target.value)}
+          placeholder="Paste the paper's methodology/results text, or write your own strategy description in plain English (e.g. 'Rank stocks by 6-month prior return, buy the top decile, short the bottom decile, hold for 3 months, rebalance monthly.')"
+        />
+      </Field>
+      <Button onClick={draftSpec} disabled={busy || !paperCitation.trim() || !paperText.trim()}>
         Draft spec sheet
-      </button>
-      {error && <p className="error-text">{error}</p>}
+      </Button>
+      {error && <StateBlock kind="error" message={error} />}
     </section>
   );
 }
@@ -202,9 +205,13 @@ function ReviewStage({
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
-    const fresh = await api.getSpecDraft(specRunId);
-    onRefresh(fresh);
-    setJsonDraft(JSON.stringify(fresh.spec, null, 2));
+    try {
+      const fresh = await api.getSpecDraft(specRunId);
+      onRefresh(fresh);
+      setJsonDraft(JSON.stringify(fresh.spec, null, 2));
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function saveDirectEdit() {
@@ -255,7 +262,7 @@ function ReviewStage({
   return (
     <section className="card">
       <div className="section-heading">
-        <h3>2. Review the spec sheet</h3>
+        <h2>2. Review the spec sheet</h2>
         {state.approved ? <span className="badge badge-high">Approved</span> : <span className="badge badge-mid">Needs approval</span>}
       </div>
       <p className="help-text">
@@ -265,34 +272,35 @@ function ReviewStage({
         {!spec.grounded && " Any manually edited or instruction-revised field is no longer grounded against source text -- review it carefully before approving."}
       </p>
 
-      <label className="field-label">Give an instruction in natural language</label>
+      <span className="field-label">Give an instruction in natural language</span>
       <div className="toolbar">
         <input
           value={instruction}
           onChange={(e) => setInstruction(e.target.value)}
           placeholder="e.g. switch to quarterly rebalancing"
-          style={{ flex: 1 }}
+          className="grow"
         />
-        <button onClick={reviseWithInstruction} disabled={busy || !instruction.trim()}>
+        <Button onClick={reviseWithInstruction} disabled={busy || !instruction.trim()}>
           Apply instruction
-        </button>
+        </Button>
       </div>
 
-      <label className="field-label">Or edit the spec sheet directly</label>
-      <textarea rows={16} className="review-json-edit" value={jsonDraft} onChange={(e) => setJsonDraft(e.target.value)} />
+      <Field label="Or edit the spec sheet directly">
+        <textarea rows={16} className="review-json-edit" value={jsonDraft} onChange={(e) => setJsonDraft(e.target.value)} />
+      </Field>
       <div className="toolbar">
-        <button onClick={saveDirectEdit} disabled={busy}>
+        <Button onClick={saveDirectEdit} disabled={busy}>
           Save direct edit
-        </button>
-        <button onClick={approve} disabled={busy} style={{ marginLeft: "auto" }}>
+        </Button>
+        <Button onClick={approve} disabled={busy} className="push">
           Approve spec
-        </button>
+        </Button>
       </div>
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       {state.history.length > 0 && (
         <>
-          <h4>Revision history</h4>
+          <h3>Revision history</h3>
           <table className="data-table">
             <thead>
               <tr>
@@ -334,14 +342,22 @@ function BacktestStage({ specRunId, spec }: { specRunId: string; spec: StrategyS
   const tickerList = tickers.split(/[\s,]+/).map((t) => t.trim()).filter(Boolean);
 
   async function uploadPrices(file: File) {
-    const res = await api.uploadPriceDataset(specRunId, file);
-    setPricesRef(res.ref);
+    try {
+      const res = await api.uploadPriceDataset(specRunId, file);
+      setPricesRef(res.ref);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function uploadCharacteristics(file: File) {
-    if (!spec.characteristic_name) return;
-    const res = await api.uploadCharacteristicsDataset(specRunId, spec.characteristic_name, file);
-    setCharacteristicsRef(res.ref);
+    try {
+      if (!spec.characteristic_name) return;
+      const res = await api.uploadCharacteristicsDataset(specRunId, spec.characteristic_name, file);
+      setCharacteristicsRef(res.ref);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function runBacktest() {
@@ -368,8 +384,12 @@ function BacktestStage({ specRunId, spec }: { specRunId: string; spec: StrategyS
   }
 
   async function refreshDetail() {
-    if (!runId) return;
-    setDetail(await api.getReplicationRunDetail(runId));
+    try {
+      if (!runId) return;
+      setDetail(await api.getReplicationRunDetail(runId));
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function runSanityCheck() {
@@ -402,19 +422,22 @@ function BacktestStage({ specRunId, spec }: { specRunId: string; spec: StrategyS
 
   return (
     <section className="card">
-      <h3>3. Run the backtest &amp; review results</h3>
+      <h2>3. Run the backtest &amp; review results</h2>
 
-      <label className="field-label">Tickers (comma or newline separated)</label>
-      <textarea rows={3} value={tickers} onChange={(e) => setTickers(e.target.value)} placeholder="AAPL, MSFT, ..." />
+      <Field label="Tickers (comma or newline separated)">
+        <textarea rows={3} value={tickers} onChange={(e) => setTickers(e.target.value)} placeholder="AAPL, MSFT, ..." />
+      </Field>
 
-      <label className="field-label">Price panel CSV (date column + one column per ticker)</label>
-      <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && uploadPrices(e.target.files[0])} />
+      <Field label="Price panel CSV (date column + one column per ticker)">
+        <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && uploadPrices(e.target.files[0])} />
+      </Field>
       {pricesRef && <p className="muted">Uploaded.</p>}
 
       {spec.characteristic_name && (
         <>
-          <label className="field-label">{spec.characteristic_name} characteristics CSV</label>
-          <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && uploadCharacteristics(e.target.files[0])} />
+          <Field label={<>{spec.characteristic_name} characteristics CSV</>}>
+            <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && uploadCharacteristics(e.target.files[0])} />
+          </Field>
           {characteristicsRef && <p className="muted">Uploaded.</p>}
         </>
       )}
@@ -424,10 +447,10 @@ function BacktestStage({ specRunId, spec }: { specRunId: string; spec: StrategyS
         <input value={oosStart} onChange={(e) => setOosStart(e.target.value)} placeholder="Out-of-sample start (optional)" />
         <input value={oosEnd} onChange={(e) => setOosEnd(e.target.value)} placeholder="Out-of-sample end (optional)" />
       </div>
-      <button onClick={runBacktest} disabled={busy || !pricesRef || tickerList.length === 0}>
+      <Button onClick={runBacktest} disabled={busy || !pricesRef || tickerList.length === 0}>
         Run backtest
-      </button>
-      {error && <p className="error-text">{error}</p>}
+      </Button>
+      {error && <StateBlock kind="error" message={error} />}
 
       {detail && <ResultsView detail={detail} busy={busy} onRunSanityCheck={runSanityCheck} onRunRegimeReport={runRegimeReport} />}
     </section>
@@ -491,17 +514,17 @@ function ResultsView({
       </div>
       <p className="muted">{detail.comparison.verdict_notes}</p>
 
-      <h4>Equity curve (in-sample, display index = 100)</h4>
+      <h3>Equity curve (in-sample, display index = 100)</h3>
       <LineChart dates={dates} series={equitySeries} />
 
-      <h4>Drawdown depth (long-short, 0 = at a new high)</h4>
+      <h3>Drawdown depth (long-short, 0 = at a new high)</h3>
       <LineChart dates={dates} series={drawdownData} valueFormatter={(v) => `${v.toFixed(1)}%`} />
 
-      <h4>Reported vs. measured (long-short)</h4>
+      <h3>Reported vs. measured (long-short)</h3>
       <table className="data-table">
         <thead>
           <tr>
-            <th></th>
+            <th><span className="sr-only">Actions</span></th>
             <th>Paper reported</th>
             <th>Replication (in-sample)</th>
             {detail.out_of_sample && <th>Replication (out-of-sample)</th>}
@@ -530,10 +553,10 @@ function ResultsView({
       </table>
 
       <div className="section-heading">
-        <h4>Sanity check</h4>
-        <button onClick={onRunSanityCheck} disabled={busy}>
+        <h3>Sanity check</h3>
+        <Button onClick={onRunSanityCheck} disabled={busy}>
           {detail.sanity_check ? "Re-run sanity check" : "Run sanity check"}
-        </button>
+        </Button>
       </div>
       {detail.sanity_check ? (
         <div>
@@ -554,10 +577,10 @@ function ResultsView({
       )}
 
       <div className="section-heading">
-        <h4>Regime breakdown</h4>
-        <button onClick={onRunRegimeReport} disabled={busy}>
+        <h3>Regime breakdown</h3>
+        <Button onClick={onRunRegimeReport} disabled={busy}>
           {detail.regime_report ? "Re-run regime report" : "Run regime report"}
-        </button>
+        </Button>
       </div>
       {detail.regime_report ? (
         detail.regime_report.buckets.length > 0 ? (
@@ -599,12 +622,16 @@ export function StrategyReplication() {
 
   return (
     <div className="page">
-      <h2>Investment Strategy Replication</h2>
-      <p className="help-text">
-        Propose a strategy (from a paper or your own description), review and approve the spec sheet it produces,
-        then backtest it and analyze the results -- nothing runs against real data until you explicitly approve the
-        spec.
-      </p>
+      <PageHeader
+        title="Investment Strategy Replication"
+        description={
+          <>
+            Propose a strategy (from a paper or your own description), review and approve the spec sheet it produces,
+            then backtest it and analyze the results -- nothing runs against real data until you explicitly approve the
+            spec.
+          </>
+        }
+      />
 
       <ProposeStage onSpecCreated={onSpecCreated} onSpecLoaded={onSpecLoaded} />
 

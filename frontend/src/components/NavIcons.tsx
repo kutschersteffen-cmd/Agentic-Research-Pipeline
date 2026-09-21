@@ -11,8 +11,66 @@ const ICON_PROPS = {
   strokeLinejoin: "round" as const,
 };
 
+// Chrome icons that belong to the shell rather than to a destination.
+export const CHROME_ICONS = {
+  menu: (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  ),
+  collapse: (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
+  ),
+  expand: (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  ),
+  search: (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <line x1="16.5" y1="16.5" x2="21" y2="21" />
+    </svg>
+  ),
+  light: (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <circle cx="12" cy="12" r="4" />
+      <line x1="12" y1="2" x2="12" y2="5" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+      <line x1="2" y1="12" x2="5" y2="12" />
+      <line x1="19" y1="12" x2="22" y2="12" />
+      <line x1="5" y1="5" x2="7" y2="7" />
+      <line x1="17" y1="17" x2="19" y2="19" />
+      <line x1="19" y1="5" x2="17" y2="7" />
+      <line x1="7" y1="17" x2="5" y2="19" />
+    </svg>
+  ),
+  dark: (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a7.5 7.5 0 1 0 10.5 10.5Z" />
+    </svg>
+  ),
+  system: (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <rect x="3" y="4" width="18" height="12" rx="1.5" />
+      <line x1="8" y1="20" x2="16" y2="20" />
+    </svg>
+  ),
+  density: (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <line x1="4" y1="7" x2="20" y2="7" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="17" x2="20" y2="17" />
+    </svg>
+  ),
+};
+
 // One consistent stroke-icon set for the sidebar nav, keyed by tab id (see
-// App.tsx's TABS). Kept as inline SVG (not a font/emoji) so it recolors
+// nav.ts's TABS). Kept as inline SVG (not a font/emoji) so it recolors
 // with currentColor and stays crisp at any zoom.
 export const NAV_ICONS: Record<string, ReactElement> = {
   dashboard: (

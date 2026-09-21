@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react";
 import type { DecisionResult, EntityDecision, MechanismConfig } from "../types";
+import { Button } from "../ui";
 
 function tierClass(tier?: number | null): string {
   if (tier === 1) return "badge badge-high";
@@ -107,9 +108,9 @@ export function DecisionResultsTable({
                   <td className="detail-cell" colSpan={7}>
                     <div className="toolbar">
                       <strong>What moved this score</strong>
-                      <button className="link-button" onClick={() => onExplain(entity)}>
+                      <Button variant="ghost" onClick={() => onExplain(entity)}>
                         How much do the weights matter?
-                      </button>
+                      </Button>
                     </div>
                     <div className="decision-dims">
                       {Object.entries(entity.dimension_scores).map(([id, value]) => (

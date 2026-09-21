@@ -1,4 +1,5 @@
 import type { PortfolioSummary } from "../types";
+import { StateBlock } from "../ui";
 
 export function PortfolioFilterPicker({
   portfolios,
@@ -14,12 +15,12 @@ export function PortfolioFilterPicker({
   }
 
   if (portfolios.length === 0) {
-    return <p className="muted">No portfolios yet.</p>;
+    return <StateBlock kind="empty" message="No portfolios yet." />;
   }
 
   return (
     <div>
-      <label className="field-label">Portfolios (none selected = all)</label>
+      <span className="field-label">Portfolios (none selected = all)</span>
       {portfolios.map((p) => (
         <label key={p.portfolio_id} className="checkbox-label">
           <input type="checkbox" checked={selected.includes(p.portfolio_id)} onChange={() => toggle(p.portfolio_id)} />

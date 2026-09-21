@@ -10,32 +10,36 @@ import type {
   TaxonomyResearcherScheduleConfig,
   TaxonomyResearchFinding,
 } from "../types";
-
-const SUB_TABS = [
-  { id: "taxonomyResearcher", label: "Taxonomy Researcher" },
-  { id: "calibration", label: "Calibration Agent" },
-] as const;
+import { BACKGROUND_AGENT_TABS as SUB_TABS } from "../nav";
+import { useSubTab } from "../router";
+import { Button, Field, PageHeader, StateBlock, TabPanel, Tabs } from "../ui";
 
 export function BackgroundAgents() {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("taxonomyResearcher");
+  const [sub, setSub] = useSubTab(SUB_TABS, "taxonomyResearcher");
 
   return (
     <div className="page">
-      <h2>Background Agents</h2>
-      <p className="help-text">
-        Two standing agents run continuously rather than on demand. Both only ever propose or flag --
-        neither one auto-applies a change: a Taxonomy Researcher proposal still needs a human to ratify it,
-        and a Calibration Agent drift flag still needs a human to decide whether to re-run classification.
-      </p>
-      <nav className="sub-nav">
-        {SUB_TABS.map((t) => (
-          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} onClick={() => setSub(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </nav>
-      {sub === "taxonomyResearcher" && <TaxonomyResearcherPanel />}
-      {sub === "calibration" && <CalibrationPanel />}
+      <PageHeader
+        title="Background Agents"
+        description={
+          <>
+            Two standing agents run continuously rather than on demand. Both only ever propose or flag --
+            neither one auto-applies a change: a Taxonomy Researcher proposal still needs a human to ratify it,
+            and a Calibration Agent drift flag still needs a human to decide whether to re-run classification.
+          </>
+        }
+      />
+      <Tabs
+        id="backgroundAgents"
+        tabs={SUB_TABS}
+        active={sub}
+        onChange={(id) => setSub(id as typeof sub)}
+        label="Background agent"
+      />
+      <TabPanel id="backgroundAgents" active={sub}>
+        {sub === "taxonomyResearcher" && <TaxonomyResearcherPanel />}
+        {sub === "calibration" && <CalibrationPanel />}
+      </TabPanel>
     </div>
   );
 }
@@ -57,14 +61,18 @@ function TaxonomyResearcherPanel() {
   }, []);
 
   async function refresh() {
-    const s = (await api.getTaxonomyResearcherSchedule()) as TaxonomyResearcherScheduleConfig;
-    setSchedule(s);
-    setScopeAll(s.taxonomy_ids == null);
-    setSelectedIds(s.taxonomy_ids ?? []);
-    const t = (await api.listTaxonomies()) as { taxonomies: Taxonomy[] };
-    setTaxonomies(t.taxonomies);
-    const r = (await api.listRuns("taxonomy_research")) as { runs: RunManifest[] };
-    setPastRuns(r.runs);
+    try {
+      const s = (await api.getTaxonomyResearcherSchedule()) as TaxonomyResearcherScheduleConfig;
+      setSchedule(s);
+      setScopeAll(s.taxonomy_ids == null);
+      setSelectedIds(s.taxonomy_ids ?? []);
+      const t = (await api.listTaxonomies()) as { taxonomies: Taxonomy[] };
+      setTaxonomies(t.taxonomies);
+      const r = (await api.listRuns("taxonomy_research")) as { runs: RunManifest[] };
+      setPastRuns(r.runs);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function saveSchedule() {
@@ -99,11 +107,15 @@ function TaxonomyResearcherPanel() {
   }
 
   async function refreshResults() {
-    if (!runId) return;
-    const res = (await api.getTaxonomyResearcherResults(runId)) as { results: TaxonomyResearchFinding[] };
-    setResults(res.results);
-    const r = (await api.listRuns("taxonomy_research")) as { runs: RunManifest[] };
-    setPastRuns(r.runs);
+    try {
+      if (!runId) return;
+      const res = (await api.getTaxonomyResearcherResults(runId)) as { results: TaxonomyResearchFinding[] };
+      setResults(res.results);
+      const r = (await api.listRuns("taxonomy_research")) as { runs: RunManifest[] };
+      setPastRuns(r.runs);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   function toggleId(id: string) {
@@ -117,11 +129,11 @@ function TaxonomyResearcherPanel() {
         DRAFT version when genuinely new activities surface. Never ratifies -- review any proposal below in
         the Taxonomy Library before it's used by a run.
       </p>
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       {schedule && (
         <section className="card">
-          <h3>Automatic schedule</h3>
+          <h2>Automatic schedule</h2>
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -130,13 +142,14 @@ function TaxonomyResearcherPanel() {
             />
             Enabled
           </label>
-          <label className="field-label">Interval (hours)</label>
-          <input
-            type="number"
-            min={1}
-            value={schedule.interval_hours}
-            onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
-          />
+          <Field label="Interval (hours)">
+            <input
+              type="number"
+              min={1}
+              value={schedule.interval_hours}
+              onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
+            />
+          </Field>
           <label className="checkbox-label">
             <input type="checkbox" checked={scopeAll} onChange={(e) => setScopeAll(e.target.checked)} />
             Scan all ratified taxonomies
@@ -156,27 +169,27 @@ function TaxonomyResearcherPanel() {
                   </label>
                 ))}
               {taxonomies.filter((t) => t.status === "ratified").length === 0 && (
-                <p className="muted">No ratified taxonomies yet.</p>
+                <StateBlock kind="empty" message="No ratified taxonomies yet." />
               )}
             </div>
           )}
-          <button onClick={saveSchedule} disabled={busy}>
+          <Button onClick={saveSchedule} disabled={busy}>
             Save schedule
-          </button>
+          </Button>
           {schedule.last_run_id && <p className="muted">Last scheduled run: {schedule.last_run_id}</p>}
         </section>
       )}
 
       <section className="card">
-        <h3>Run now</h3>
-        <button onClick={runNow} disabled={busy}>
+        <h2>Run now</h2>
+        <Button onClick={runNow} disabled={busy}>
           Scan now
-        </button>
+        </Button>
         {runId && (
           <>
             <RunProgress runId={runId} runType="taxonomy_research" />
             <div className="toolbar">
-              <button onClick={refreshResults}>Refresh results</button>
+              <Button onClick={refreshResults}>Refresh results</Button>
             </div>
           </>
         )}
@@ -209,8 +222,8 @@ function TaxonomyResearcherPanel() {
       </section>
 
       <section className="card">
-        <h3>Past runs</h3>
-        {pastRuns.length === 0 && <p className="muted">No taxonomy research runs yet.</p>}
+        <h2>Past runs</h2>
+        {pastRuns.length === 0 && <StateBlock kind="empty" message="No taxonomy research runs yet." />}
         {pastRuns.length > 0 && (
           <div className="table-wrap">
             <table className="data-table">
@@ -256,10 +269,14 @@ function CalibrationPanel() {
   }, []);
 
   async function refresh() {
-    const s = (await api.getCalibrationSchedule()) as CalibrationScheduleConfig;
-    setSchedule(s);
-    const r = (await api.listRuns("calibration")) as { runs: RunManifest[] };
-    setPastRuns(r.runs);
+    try {
+      const s = (await api.getCalibrationSchedule()) as CalibrationScheduleConfig;
+      setSchedule(s);
+      const r = (await api.listRuns("calibration")) as { runs: RunManifest[] };
+      setPastRuns(r.runs);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   async function saveSchedule() {
@@ -291,11 +308,15 @@ function CalibrationPanel() {
   }
 
   async function refreshResults() {
-    if (!runId) return;
-    const res = (await api.getCalibrationResults(runId)) as { results: DriftFlag[] };
-    setResults(res.results);
-    const r = (await api.listRuns("calibration")) as { runs: RunManifest[] };
-    setPastRuns(r.runs);
+    try {
+      if (!runId) return;
+      const res = (await api.getCalibrationResults(runId)) as { results: DriftFlag[] };
+      setResults(res.results);
+      const r = (await api.listRuns("calibration")) as { runs: RunManifest[] };
+      setPastRuns(r.runs);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   return (
@@ -305,11 +326,11 @@ function CalibrationPanel() {
         currently-fetchable documents include one fetched after that verdict was generated. A flag is not a
         claim the verdict is wrong -- it never re-runs classification or edits a match itself.
       </p>
-      {error && <p className="error-text">{error}</p>}
+      {error && <StateBlock kind="error" message={error} />}
 
       {schedule && (
         <section className="card">
-          <h3>Automatic schedule</h3>
+          <h2>Automatic schedule</h2>
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -318,30 +339,31 @@ function CalibrationPanel() {
             />
             Enabled
           </label>
-          <label className="field-label">Interval (hours)</label>
-          <input
-            type="number"
-            min={1}
-            value={schedule.interval_hours}
-            onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
-          />
-          <button onClick={saveSchedule} disabled={busy}>
+          <Field label="Interval (hours)">
+            <input
+              type="number"
+              min={1}
+              value={schedule.interval_hours}
+              onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
+            />
+          </Field>
+          <Button onClick={saveSchedule} disabled={busy}>
             Save schedule
-          </button>
+          </Button>
           {schedule.last_run_id && <p className="muted">Last scheduled run: {schedule.last_run_id}</p>}
         </section>
       )}
 
       <section className="card">
-        <h3>Run now</h3>
-        <button onClick={runNow} disabled={busy}>
+        <h2>Run now</h2>
+        <Button onClick={runNow} disabled={busy}>
           Check now
-        </button>
+        </Button>
         {runId && (
           <>
             <RunProgress runId={runId} runType="calibration" />
             <div className="toolbar">
-              <button onClick={refreshResults}>Refresh results</button>
+              <Button onClick={refreshResults}>Refresh results</Button>
             </div>
           </>
         )}
@@ -380,8 +402,8 @@ function CalibrationPanel() {
       </section>
 
       <section className="card">
-        <h3>Past runs</h3>
-        {pastRuns.length === 0 && <p className="muted">No calibration runs yet.</p>}
+        <h2>Past runs</h2>
+        {pastRuns.length === 0 && <StateBlock kind="empty" message="No calibration runs yet." />}
         {pastRuns.length > 0 && (
           <div className="table-wrap">
             <table className="data-table">

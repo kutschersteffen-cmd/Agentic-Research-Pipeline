@@ -14,6 +14,9 @@ import type {
   TaxonomyRef,
   ThemeDefinition,
 } from "../types";
+import { TAXONOMY_TABS as SUB_TABS } from "../nav";
+import { useSubTab } from "../router";
+import { Button, Field, PageHeader, StateBlock, TabPanel, Tabs } from "../ui";
 
 const METHOD_LABELS: Record<DerivationMethod, string> = {
   llm_draft: "LLM draft (freeform)",
@@ -36,25 +39,23 @@ const CREATABLE_METHODS: DerivationMethod[] = [
   "empirical",
 ];
 
-const SUB_TABS = [
-  { id: "library", label: "Library" },
-  { id: "new", label: "New taxonomy" },
-  { id: "compare", label: "Compare & merge" },
-  { id: "universe", label: "Universe builder" },
-  { id: "overlap", label: "ETF holdings overlap" },
-] as const;
-
 interface Props {
   onUseInTheme?: (taxonomyId: string) => void;
 }
 
 export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("library");
+  const [sub, setSub] = useSubTab(SUB_TABS, "library");
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   async function refreshLibrary() {
-    const res = (await api.listTaxonomies()) as { taxonomies: Taxonomy[] };
-    setTaxonomies(res.taxonomies);
+    try {
+      const res = (await api.listTaxonomies()) as { taxonomies: Taxonomy[] };
+      setTaxonomies(res.taxonomies);
+      setError(null);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   useEffect(() => {
@@ -63,24 +64,32 @@ export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Taxonomy Library</h2>
-      <p className="help-text">
-        Reusable, versioned thematic taxonomies with provenance -- draft one from an authoritative source, an
-        existing ETF/index's holdings, news &amp; transcripts, or the Extraction Engine's own readings, then review,
-        edit, ratify, compare and merge.
-      </p>
-      <nav className="sub-nav">
-        {SUB_TABS.map((t) => (
-          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} onClick={() => setSub(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </nav>
-      {sub === "library" && <LibraryView taxonomies={taxonomies} onChange={refreshLibrary} onUseInTheme={onUseInTheme} />}
-      {sub === "new" && <NewTaxonomyWizard onCreated={refreshLibrary} />}
-      {sub === "compare" && <CompareMergeView taxonomies={taxonomies} onSaved={refreshLibrary} />}
-      {sub === "universe" && <UniverseBuilderView />}
-      {sub === "overlap" && <OverlapView />}
+      <PageHeader
+        title="Taxonomy Library"
+        description={
+          <>
+            Reusable, versioned thematic taxonomies with provenance -- draft one from an authoritative source, an
+            existing ETF/index's holdings, news &amp; transcripts, or the Extraction Engine's own readings, then review,
+            edit, ratify, compare and merge.
+          </>
+        }
+      />
+      {error && <StateBlock kind="error" message={error} onRetry={refreshLibrary} />}
+
+      <Tabs
+        id="taxonomy"
+        tabs={SUB_TABS}
+        active={sub}
+        onChange={(id) => setSub(id as typeof sub)}
+        label="Taxonomy library view"
+      />
+      <TabPanel id="taxonomy" active={sub}>
+        {sub === "library" && <LibraryView taxonomies={taxonomies} onChange={refreshLibrary} onUseInTheme={onUseInTheme} />}
+        {sub === "new" && <NewTaxonomyWizard onCreated={refreshLibrary} />}
+        {sub === "compare" && <CompareMergeView taxonomies={taxonomies} onSaved={refreshLibrary} />}
+        {sub === "universe" && <UniverseBuilderView />}
+        {sub === "overlap" && <OverlapView />}
+      </TabPanel>
     </div>
   );
 }
@@ -170,7 +179,7 @@ function LibraryView({
               <th>Version</th>
               <th>Status</th>
               <th>Activities</th>
-              <th></th>
+              <th><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -191,12 +200,13 @@ function LibraryView({
                     <td colSpan={6} className="detail-cell">
                       <p className="muted">{t.source_notes}</p>
                       <ActivityEditorTable activities={activities} onChange={setActivities} />
-                      <label className="field-label">Version notes</label>
-                      <input value={notes} onChange={(e) => setNotes(e.target.value)} />
+                      <Field label="Version notes">
+                        <input value={notes} onChange={(e) => setNotes(e.target.value)} />
+                      </Field>
                       <div className="toolbar">
-                        <button onClick={() => saveVersion(t)} disabled={busy}>
+                        <Button onClick={() => saveVersion(t)} disabled={busy}>
                           Save as new version
-                        </button>
+                        </Button>
                       </div>
                       {t.status === "draft" && (
                         <div className="toolbar">
@@ -205,9 +215,9 @@ function LibraryView({
                             value={ratifiedBy}
                             onChange={(e) => setRatifiedBy(e.target.value)}
                           />
-                          <button onClick={() => ratify(t)} disabled={busy || !ratifiedBy}>
+                          <Button onClick={() => ratify(t)} disabled={busy || !ratifiedBy}>
                             Ratify v{t.version}
-                          </button>
+                          </Button>
                         </div>
                       )}
                       <div className="toolbar">
@@ -219,16 +229,16 @@ function LibraryView({
                           <input type="checkbox" checked={useSampleStandards} onChange={(e) => setUseSampleStandards(e.target.checked)} />
                           sample NACE/NAICS/SIC/GICS reference data
                         </label>
-                        <button onClick={() => mapStandards(t)} disabled={busy}>
+                        <Button onClick={() => mapStandards(t)} disabled={busy}>
                           Map to NACE / NAICS / SIC / GICS
-                        </button>
+                        </Button>
                         <a href={api.standardsCsvUrl(t.taxonomy_id)} target="_blank" rel="noreferrer">
                           Export standards CSV
                         </a>
                       </div>
                       {onUseInTheme && (
                         <div className="toolbar">
-                          <button onClick={() => onUseInTheme(t.taxonomy_id)}>Use in Thematic Universe &rarr;</button>
+                          <Button onClick={() => onUseInTheme(t.taxonomy_id)}>Use in Thematic Universe &rarr;</Button>
                         </div>
                       )}
                       <p className="help-text">
@@ -239,7 +249,7 @@ function LibraryView({
                         fine for testing this pipeline, not for citing. Supply a verified ARP_GICS_REFERENCE_PATH
                         before relying on sub-industry-level GICS output.
                       </p>
-                      {error && <p className="error-text">{error}</p>}
+                      {error && <StateBlock kind="error" message={error} />}
                     </td>
                   </tr>
                 )}
@@ -357,19 +367,22 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
   return (
     <>
       <section className="card">
-        <h3>1. Method &amp; theme</h3>
-        <label className="field-label">Derivation method</label>
-        <select value={method} onChange={(e) => setMethod(e.target.value as DerivationMethod)}>
-          {CREATABLE_METHODS.map((m) => (
-            <option key={m} value={m}>
-              {METHOD_LABELS[m]}
-            </option>
-          ))}
-        </select>
-        <label className="field-label">Theme name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} />
-        <label className="field-label">Description</label>
-        <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <h2>1. Method &amp; theme</h2>
+        <Field label="Derivation method">
+          <select value={method} onChange={(e) => setMethod(e.target.value as DerivationMethod)}>
+            {CREATABLE_METHODS.map((m) => (
+              <option key={m} value={m}>
+                {METHOD_LABELS[m]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Theme name">
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field label="Description">
+          <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+        </Field>
 
         {method === "industry_anchored" && (
           <label className="checkbox-label">
@@ -380,17 +393,18 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
 
         {method === "authority_source" && (
           <div className="inline-block">
-            <button onClick={discoverAuthoritySources} disabled={busy || !name}>
+            <Button onClick={discoverAuthoritySources} disabled={busy || !name}>
               Discover authority sources
-            </button>
+            </Button>
             <SourceDiscoveryPanel candidates={authorityCandidates} selected={selectedAuthority} onToggle={toggleAuthority} />
           </div>
         )}
 
         {method === "etf_index_holdings" && (
           <>
-            <label className="field-label">Fund/index holdings export (CSV)</label>
-            <input type="file" accept=".csv" onChange={onHoldingsFile} />
+            <Field label="Fund/index holdings export (CSV)">
+              <input type="file" accept=".csv" onChange={onHoldingsFile} />
+            </Field>
             {holdingsStatus && <p className="status-text">{holdingsStatus}</p>}
           </>
         )}
@@ -400,8 +414,9 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
             <UniversePicker onResolved={(path) => setUniversePath(path)} />
             {method === "empirical" && (
               <>
-                <label className="field-label">Sample size</label>
-                <input type="number" value={sampleSize} onChange={(e) => setSampleSize(Number(e.target.value))} />
+                <Field label="Sample size">
+                  <input type="number" value={sampleSize} onChange={(e) => setSampleSize(Number(e.target.value))} />
+                </Field>
               </>
             )}
             {method === "news_transcript_mining" && (
@@ -413,22 +428,22 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
           </>
         )}
 
-        <button onClick={draftTaxonomy} disabled={busy || !name}>
+        <Button onClick={draftTaxonomy} disabled={busy || !name}>
           Draft &amp; save taxonomy
-        </button>
-        {error && <p className="error-text">{error}</p>}
+        </Button>
+        {error && <StateBlock kind="error" message={error} />}
       </section>
 
       {draft && (
         <section className="card">
-          <h3>2. Review &amp; adjust the drafted taxonomy</h3>
+          <h2>2. Review &amp; adjust the drafted taxonomy</h2>
           <p className="muted">
             {draft.name} v{draft.version} -- {draft.source_notes}
           </p>
           <ActivityEditorTable activities={draftActivities} onChange={setDraftActivities} />
-          <button onClick={saveDraftEdits} disabled={busy}>
+          <Button onClick={saveDraftEdits} disabled={busy}>
             Save adjustments as new version
-          </button>
+          </Button>
         </section>
       )}
     </>
@@ -519,7 +534,7 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
 
   return (
     <section className="card">
-      <h3>Compare two taxonomies</h3>
+      <h2>Compare two taxonomies</h2>
       <div className="inline-fields">
         <select value={idA} onChange={(e) => setIdA(e.target.value)}>
           <option value="">Taxonomy A</option>
@@ -538,9 +553,9 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
           ))}
         </select>
       </div>
-      <button onClick={compare} disabled={busy || !idA || !idB || idA === idB}>
+      <Button onClick={compare} disabled={busy || !idA || !idB || idA === idB}>
         Compare
-      </button>
+      </Button>
 
       {comparison && (
         <div className="detail-cell">
@@ -564,23 +579,25 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
         </div>
       )}
 
-      <h3>Merge into a new taxonomy</h3>
-      <label className="field-label">Merged taxonomy name</label>
-      <input value={mergeName} onChange={(e) => setMergeName(e.target.value)} />
-      <label className="field-label">Description</label>
-      <input value={mergeDescription} onChange={(e) => setMergeDescription(e.target.value)} />
-      <button onClick={merge} disabled={busy || !idA || !idB || idA === idB || !mergeName}>
+      <h2>Merge into a new taxonomy</h2>
+      <Field label="Merged taxonomy name">
+        <input value={mergeName} onChange={(e) => setMergeName(e.target.value)} />
+      </Field>
+      <Field label="Description">
+        <input value={mergeDescription} onChange={(e) => setMergeDescription(e.target.value)} />
+      </Field>
+      <Button onClick={merge} disabled={busy || !idA || !idB || idA === idB || !mergeName}>
         Draft merge
-      </button>
-      {error && <p className="error-text">{error}</p>}
+      </Button>
+      {error && <StateBlock kind="error" message={error} />}
 
       {mergeDraft && (
         <div className="detail-cell">
           <p className="muted">{mergeDraft.source_notes}</p>
           <ActivityEditorTable activities={mergeActivities} onChange={setMergeActivities} />
-          <button onClick={saveMerge} disabled={busy}>
+          <Button onClick={saveMerge} disabled={busy}>
             Save merged taxonomy
-          </button>
+          </Button>
         </div>
       )}
     </section>
@@ -637,12 +654,13 @@ function UniverseBuilderView() {
   return (
     <>
       <section className="card">
-        <h3>1. Find sector/index funds (tool-assisted)</h3>
-        <label className="field-label">Sector or index name</label>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. S&amp;P 500, US technology sector" />
-        <button onClick={search} disabled={busy || !query}>
+        <h2>1. Find sector/index funds (tool-assisted)</h2>
+        <Field label="Sector or index name">
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. S&amp;P 500, US technology sector" />
+        </Field>
+        <Button onClick={search} disabled={busy || !query}>
           Search
-        </button>
+        </Button>
         <SourceDiscoveryPanel candidates={funds} selected={selected} onToggle={toggle} />
         <p className="help-text">
           Fund-provider export formats aren't standardized and several finance domains are unreachable for automated
@@ -652,9 +670,9 @@ function UniverseBuilderView() {
       </section>
 
       <section className="card">
-        <h3>2. Build a company universe from a holdings export</h3>
+        <h2>2. Build a company universe from a holdings export</h2>
         <input type="file" accept=".csv" onChange={onHoldingsFile} disabled={busy} />
-        {error && <p className="error-text">{error}</p>}
+        {error && <StateBlock kind="error" message={error} />}
         {result && (
           <>
             <p className="status-text">
@@ -750,7 +768,7 @@ function OverlapView() {
   return (
     <>
       <section className="card">
-        <h3>1. Select ETFs/indices to compare</h3>
+        <h2>1. Select ETFs/indices to compare</h2>
         <div className="inline-fields">
           <input placeholder="Fund display name" value={fundName} onChange={(e) => setFundName(e.target.value)} />
           <input type="file" accept=".csv" onChange={addFund} disabled={busy || !fundName} />
@@ -762,8 +780,8 @@ function OverlapView() {
                 <tr>
                   <th>Fund</th>
                   <th>File</th>
-                  <th></th>
-                  <th></th>
+                  <th><span className="sr-only">Actions</span></th>
+                  <th><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -772,14 +790,14 @@ function OverlapView() {
                     <td>{f.name}</td>
                     <td>{f.file.name}</td>
                     <td>
-                      <button className="link-button" onClick={() => inspect(f)}>
+                      <Button variant="ghost" onClick={() => inspect(f)}>
                         Inspect holdings
-                      </button>
+                      </Button>
                     </td>
                     <td>
-                      <button className="link-button" onClick={() => removeFund(idx)}>
+                      <Button variant="ghost" onClick={() => removeFund(idx)}>
                         Remove
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -787,10 +805,10 @@ function OverlapView() {
             </table>
           </div>
         )}
-        <button onClick={compute} disabled={busy || funds.length < 2}>
+        <Button onClick={compute} disabled={busy || funds.length < 2}>
           Compute holdings overlap
-        </button>
-        {error && <p className="error-text">{error}</p>}
+        </Button>
+        {error && <StateBlock kind="error" message={error} />}
         {inspecting && (
           <InspectorModal title={`${inspecting.name} holdings (raw)`} text={inspecting.text} onClose={() => setInspecting(null)} />
         )}
@@ -798,7 +816,7 @@ function OverlapView() {
 
       {result && (
         <section className="card">
-          <h3>2. Overlap</h3>
+          <h2>2. Overlap</h2>
           <p>
             <strong>Core holdings (in every fund):</strong> {result.core_tickers.join(", ") || "none"}
           </p>
@@ -824,7 +842,7 @@ function OverlapView() {
             </table>
           </div>
 
-          <h4>Holdings inspection</h4>
+          <h3>Holdings inspection</h3>
           <div className="table-wrap">
             <table className="data-table">
               <thead>
