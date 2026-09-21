@@ -12,14 +12,25 @@ Branch off `main` when starting work. If a branch was created from anything else
 
 ## Plugins
 
-`.claude/settings.json` registers two marketplaces and enables a plugin from each.
-Committed `enabledPlugins` entries do **not** auto-install a plugin from an external source,
-so each collaborator has to run both installs once themselves:
+`.claude/settings.json` declares two marketplaces and enables a plugin from each. Neither
+entry does any fetching: `extraKnownMarketplaces` only *declares* a marketplace, and
+`enabledPlugins` only flips a plugin on once it is installed. So each collaborator has to
+register both marketplaces and run both installs once themselves:
 
 ```
+claude plugin marketplace add DietrichGebert/ponytail
+claude plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill
 claude plugin install ponytail@ponytail
 claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill
 ```
+
+The `marketplace add` lines are the step that is easy to miss. Skip them and the install
+fails with `Plugin "ponytail" not found in marketplace "ponytail"` — which reads as if the
+plugin were missing, when really the marketplace was never cloned. `claude plugin marketplace
+list` printing `No marketplaces configured` confirms that case.
+
+Hooks load at session start, so start a new session after installing before expecting
+ponytail to take effect.
 
 - **ponytail** — "lazy senior dev mode". Its hooks run on `SessionStart`, `SubagentStart`
   and `UserPromptSubmit`, and require `node` on `PATH`.
