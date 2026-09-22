@@ -16,5 +16,20 @@
   "enabledPlugins": {
     "ponytail@ponytail": true,
     "ui-ux-pro-max@ui-ux-pro-max-skill": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/install-plugins.sh\"",
+            "timeout": 120,
+            "statusMessage": "Installing enabled plugins"
+          }
+        ]
+      }
+    ]
   }
 }

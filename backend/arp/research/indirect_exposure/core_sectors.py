@@ -25,10 +25,6 @@ class _CoreSectorSelection(BaseModel):
     rationale: str
 
 
-def _format_industry_list(model: LeontiefModel) -> str:
-    return "\n".join(f"{code}: {model.labels.get(code, '')}" for code in model.codes)
-
-
 async def classify_core_sectors(
     activity: ActivityDefinition, model: LeontiefModel, llm: LLMClient
 ) -> tuple[list[str], LLMUsage]:
@@ -48,7 +44,7 @@ async def classify_core_sectors(
         f"Activity: {activity.name}\n"
         f"In scope: {activity.in_scope_description}\n"
         f"Out of scope: {activity.out_of_scope_description}\n\n"
-        f"Available ISIC Rev.4 industries:\n{_format_industry_list(model)}"
+        f"Available ISIC Rev.4 industries:\n{model.industry_prompt_list()}"
     )
     draft, usage = await llm.complete_structured(system=_SYSTEM_PROMPT, prompt=prompt, output_model=_CoreSectorSelection)
     known = set(model.codes)

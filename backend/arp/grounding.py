@@ -94,6 +94,34 @@ def _sheet_for_offset(full_text: str, offset: int) -> str | None:
     return name
 
 
+def ground_claim(
+    citations: list[Citation],
+    documents_by_id: dict[str, SourceDocument],
+    fuzzy_threshold: float = 0.92,
+    *,
+    claim_is_empty: bool,
+) -> tuple[list[Citation], bool]:
+    """`ground_citations` plus the per-claim roll-up: the citations with
+    `.grounded` resolved, and whether the claim they support is grounded
+    as a whole.
+
+    The roll-up rule, stated once here because every aggregator used to
+    re-derive it and they had already diverged: a claim is grounded when
+    every citation grounds, and a claim with NO citations is grounded only
+    if the claim is itself empty -- there is nothing to ground. A real
+    claim with zero citations is exactly the model asserting something it
+    never sourced, which is what this module exists to catch, so it is
+    ungrounded and its record needs review.
+
+    Callers pass what "empty" means for their claim: `value is None` for a
+    numeric metric, `description is None` for a prose description.
+    """
+    grounded_citations = ground_citations(citations, documents_by_id, fuzzy_threshold)
+    if not grounded_citations:
+        return grounded_citations, claim_is_empty
+    return grounded_citations, all(c.grounded for c in grounded_citations)
+
+
 def ground_citations(
     citations: list[Citation], documents_by_id: dict[str, SourceDocument], fuzzy_threshold: float = 0.92
 ) -> list[Citation]:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from arp.ingestion.base import DocumentSource
@@ -15,13 +16,21 @@ class DocumentSourceRegistry:
         self.sources = sources
 
     async def fetch_all(self, company: CompanyRef, doc_types: list[DocType] | None = None) -> list[SourceDocument]:
+        """The sources are independent network fetches, so they run concurrently:
+        this is the first await of both _extract_company and _match_company, so
+        every company used to pay the sum of source latencies rather than the max.
+        Results are still walked in source order, keeping the dedup deterministic,
+        and return_exceptions preserves the per-source failure isolation below.
+        """
+        fetched = await asyncio.gather(
+            *(source.fetch(company, doc_types) for source in self.sources),
+            return_exceptions=True,
+        )
         seen_hashes: set[str] = set()
         results: list[SourceDocument] = []
-        for source in self.sources:
-            try:
-                docs = await source.fetch(company, doc_types)
-            except Exception as exc:  # noqa: BLE001 - one source failing shouldn't block the others
-                logger.warning("Document source %s failed for %s: %s", source.name, company.company_id, exc)
+        for source, docs in zip(self.sources, fetched, strict=True):
+            if isinstance(docs, BaseException):  # one source failing shouldn't block the others
+                logger.warning("Document source %s failed for %s: %s", source.name, company.company_id, docs)
                 continue
             for doc in docs:
                 if doc.sha256 and doc.sha256 in seen_hashes:

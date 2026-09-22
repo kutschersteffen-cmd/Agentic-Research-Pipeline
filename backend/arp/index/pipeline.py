@@ -70,7 +70,7 @@ def run_review(
     if not eligible:
         raise ValueError("every company was screened out -- no eligible universe remains")
 
-    incumbents = set(prior_state.prior_members) if prior_state else set()
+    incumbents = set(prior_state.prior_weights) if prior_state else set()
     selected, selection_trace, selection_exceptions = apply_selection(eligible, spec.selection, incumbents)
     traces.append(selection_trace)
     exceptions.extend(selection_exceptions)
@@ -223,7 +223,6 @@ def run_review(
             "divisor": divisor,
             "index_level": previous_level,
             "prior_weights": weights,
-            "prior_members": sorted(weights),
             "prior_index_shares": shares,
             "prior_prices": {c.company_id: c.price * c.fx_rate for c in selected if c.company_id in weights},
         }

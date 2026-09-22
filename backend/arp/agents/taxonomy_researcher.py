@@ -18,6 +18,7 @@ from arp.research.taxonomy_sources.discovery import discover_authority_sources, 
 from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyStatus
 from arp.schemas.taxonomy_researcher import TaxonomyResearcherScheduleConfig, TaxonomyResearchFinding
 from arp.schemas.thematic import ThemeDefinition
+from arp.storage.atomic_io import atomic_write_text
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 
@@ -210,7 +211,7 @@ class TaxonomyResearcherScheduler:
 
     def save_config(self, config: TaxonomyResearcherScheduleConfig) -> None:
         self._config_path.parent.mkdir(parents=True, exist_ok=True)
-        self._config_path.write_text(config.model_dump_json(indent=2))
+        atomic_write_text(self._config_path, config.model_dump_json(indent=2))
         self._apply(config)
 
     def start(self) -> None:
@@ -242,6 +243,6 @@ class TaxonomyResearcherScheduler:
                 taxonomy_ids=config.taxonomy_ids, triggered_by="schedule",
             )
             config.last_run_id = run_id
-            self._config_path.write_text(config.model_dump_json(indent=2))
+            atomic_write_text(self._config_path, config.model_dump_json(indent=2))
         except Exception:  # noqa: BLE001 - a scheduled run failing must not kill the scheduler
             logger.exception("Scheduled taxonomy research run failed")

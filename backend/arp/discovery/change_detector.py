@@ -8,6 +8,7 @@ import httpx
 
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import DiscoveredDocument, DocumentEvent, DocumentEventType
+from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.safe_path import safe_id
 
 logger = logging.getLogger(__name__)
@@ -75,9 +76,7 @@ class ChangeDetector:
         return events
 
     def _append_global_event(self, event: DocumentEvent) -> None:
-        self.global_events_path.parent.mkdir(parents=True, exist_ok=True)
-        with self.global_events_path.open("a") as f:
-            f.write(event.model_dump_json() + "\n")
+        append_jsonl(self.global_events_path, event.model_dump(mode="json"))
 
     async def _notify_webhook(self, event: DocumentEvent) -> None:
         if not self.webhook_url:
@@ -92,17 +91,5 @@ class ChangeDetector:
     def read_recent_events(global_events_path: Path, since: str | None = None, limit: int = 200) -> list[dict]:
         if not global_events_path.exists():
             return []
-        rows: list[dict] = []
-        with global_events_path.open() as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    row = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if since and row.get("created_at", "") <= since:
-                    continue
-                rows.append(row)
+        rows = [row for row in read_jsonl(global_events_path) if not (since and row.get("created_at", "") <= since)]
         return rows[-limit:]

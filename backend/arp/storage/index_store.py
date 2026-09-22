@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from arp.schemas.index import ConstructionSpec, IndexCalibration, IndexState, ReviewResult
+from arp.storage.atomic_io import atomic_write_text
 from arp.storage.safe_path import safe_id
 
 
@@ -99,10 +100,10 @@ class IndexStore:
 
     def _write_calibration(self, calibration: IndexCalibration) -> None:
         directory = self._calibration_dir(calibration.calibration_id)
-        (directory / f"v{calibration.version}.json").write_text(calibration.model_dump_json(indent=2))
+        atomic_write_text(directory / f"v{calibration.version}.json", calibration.model_dump_json(indent=2))
         latest = self._latest(calibration.calibration_id)
         if latest is None or calibration.version >= latest:
-            (directory / "latest.json").write_text(
+            atomic_write_text(directory / "latest.json",
                 json.dumps({"latest_version": calibration.version, "name": calibration.name}, indent=2)
             )
 
@@ -170,8 +171,8 @@ class IndexStore:
 
     def save_review(self, result: ReviewResult) -> None:
         review_date = safe_id(result.review_date, label="review_date")
-        (self._index_dir(result.index_id, "reviews") / f"{review_date}.json").write_text(result.model_dump_json(indent=2))
-        (self._index_dir(result.index_id, "state") / f"{review_date}.json").write_text(result.state.model_dump_json(indent=2))
+        atomic_write_text(self._index_dir(result.index_id, "reviews") / f"{review_date}.json", result.model_dump_json(indent=2))
+        atomic_write_text(self._index_dir(result.index_id, "state") / f"{review_date}.json", result.state.model_dump_json(indent=2))
 
     def get_review(self, index_id: str, review_date: str) -> ReviewResult | None:
         path = self._index_dir(index_id, "reviews") / f"{safe_id(review_date, label='review_date')}.json"
