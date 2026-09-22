@@ -1,90 +1,55 @@
+"""CLI-side names for the store and document-source builders.
+
+Every one of these was a hand-written copy of the matching `get_*` in
+`arp/api/deps.py`, so the same ten constructions lived in two places and
+had to be kept in step by hand. They are now aliases of those builders --
+which is what this module already did for `portfolio_directories`.
+
+`api/deps.py` imports no FastAPI, only `lru_cache` and `arp.*`, so the
+dependency direction costs the CLI nothing; the `Depends()` wiring lives
+in the routers, not in the builders. The CLI also picks up their
+`@lru_cache`, which for a one-shot process means each store is built once
+instead of once per call site.
+
+The `_`-prefixed names are kept because twelve `arp/cli/*.py` modules
+import them by those names.
+"""
+
 from __future__ import annotations
 
 import typer
 
-from arp.config import get_settings
-from arp.ingestion.edgar import EdgarDocumentSource
-from arp.ingestion.indexing_config import IndexingConfig
-from arp.ingestion.local_files import LocalFileDocumentSource
-from arp.ingestion.registry import DocumentSourceRegistry
-from arp.ingestion.xbrl import XbrlFactSource
+from arp.api.deps import (
+    get_ballot_platform,
+    get_document_content_store,
+    get_engagement_store,
+    get_portfolio_store,
+    get_registry,
+    get_reporting_store,
+    get_run_store,
+    get_taxonomy_store,
+    get_topic_store,
+    get_xbrl_source,
+)
 from arp.schemas.taxonomy import TaxonomyRef
-from arp.storage.document_store import DocumentContentStore
-from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store import portfolio_directories
-from arp.storage.portfolio_store_factory import build_portfolio_store
-from arp.storage.postgres_projection_config import ProjectionConfig
-from arp.storage.reporting_store import ReportingStore
-from arp.storage.run_store import RunStore
-from arp.storage.taxonomy_store import TaxonomyStore
-from arp.storage.topic_store import TopicStateStore
-from arp.voting.ballot_casting import ManualInstructionBallotPlatform
 
+_ballot_platform = get_ballot_platform
+_document_content_store = get_document_content_store
+_engagement_store = get_engagement_store
+_portfolio_directories = portfolio_directories
+_portfolio_store = get_portfolio_store
+_registry = get_registry
+_reporting_store = get_reporting_store
+_run_store = get_run_store
+_taxonomy_store = get_taxonomy_store
+_topic_store = get_topic_store
 
-def _engagement_store() -> EngagementStore:
-    settings = get_settings()
-    return EngagementStore(settings.engagements_dir, projection_config=ProjectionConfig.from_settings(settings))
-
-
-
-def _reporting_store() -> ReportingStore:
-    settings = get_settings()
-    return ReportingStore(settings.reports_dir, settings.report_templates_dir)
-
-
-
-def _ballot_platform() -> ManualInstructionBallotPlatform:
-    return ManualInstructionBallotPlatform(get_settings().ballots_dir)
-
-
-
-def _document_content_store() -> DocumentContentStore:
-    settings = get_settings()
-    return DocumentContentStore(settings.document_store_dir, enabled=settings.document_cache_enabled)
-
-
-
-def _registry() -> DocumentSourceRegistry:
-    settings = get_settings()
-    indexing_config = IndexingConfig.from_settings(settings)
-    return DocumentSourceRegistry(
-        [
-            LocalFileDocumentSource(
-                settings.documents_dir,
-                content_store=_document_content_store(),
-                max_concurrent_parses=settings.max_concurrent_parses,
-                indexing_config=indexing_config,
-            ),
-            EdgarDocumentSource(
-                settings.edgar_user_agent,
-                settings.cache_dir,
-                content_store=_document_content_store(),
-                submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
-                indexing_config=indexing_config,
-            ),
-        ]
-    )
-
-
-
-def _xbrl_source() -> XbrlFactSource:
-    settings = get_settings()
-    edgar = EdgarDocumentSource(
-        settings.edgar_user_agent, settings.cache_dir, content_store=_document_content_store(),
-        submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
-    )
-    return XbrlFactSource(edgar, settings.cache_dir, ttl_hours=settings.xbrl_facts_ttl_hours)
-
-
-
-def _run_store() -> RunStore:
-    settings = get_settings()
-    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
-
-
-
-def _taxonomy_store() -> TaxonomyStore:
-    return TaxonomyStore(get_settings().taxonomies_dir)
+# Composes on deps.get_edgar_source()'s single EdgarDocumentSource, the way
+# the API does, rather than building a throwaway one: the CLI copy used to
+# construct its own, so `arp extraction`/`arp emerging-themes` each paid a
+# separate CIK ticker-map fetch that the API instance had already cached.
+_xbrl_source = get_xbrl_source
 
 
 def _parse_taxonomy_ref(ref: str) -> TaxonomyRef:
@@ -103,17 +68,3 @@ def _resolve_taxonomy_ref_or_exit(ref_str: str):
         typer.echo(f"Taxonomy not found: {ref_str}", err=True)
         raise typer.Exit(1)
     return taxonomy
-
-
-
-def _topic_store() -> TopicStateStore:
-    return TopicStateStore(get_settings().emerging_themes_state_dir / "topics")
-
-
-
-def _portfolio_store():
-    return build_portfolio_store(get_settings())
-
-
-
-_portfolio_directories = portfolio_directories
