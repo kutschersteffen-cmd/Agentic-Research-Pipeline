@@ -1,26 +1,20 @@
 from __future__ import annotations
 
-import json
 import logging
 from collections import defaultdict
-from datetime import UTC, datetime, timedelta
-from pathlib import Path
-
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from arp.config import Settings
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.orchestration.interval_scheduler import IntervalScheduler
 from arp.orchestration.job_manager import JobManager
 from arp.research.pipeline import load_theme_run_matches
 from arp.schemas.calibration import CalibrationScheduleConfig, DriftFlag
 from arp.schemas.common import CompanyRef, JobStatus
 from arp.schemas.thematic import CompanyMatch
-from arp.storage.atomic_io import atomic_write_text
 from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
 
-_JOB_ID = "calibration-agent-schedule"
 _COMPLETED_STATUSES = (JobStatus.COMPLETED, JobStatus.PARTIALLY_COMPLETED)
 
 
@@ -116,60 +110,26 @@ async def run_calibration_pass(
     return await execute_calibration_run(run_id, registry=registry, run_store=run_store)
 
 
-class CalibrationAgentScheduler:
-    """Clone of arp.discovery.scheduler.DiscoveryScheduler's shape -- see
-    its docstring for the full rationale. Config persisted to
-    <calibration_agent_state_dir>/schedule.json.
-    """
+class CalibrationAgentScheduler(IntervalScheduler):
+    """Scheduled calibration pass; config in
+    `<calibration_agent_state_dir>/schedule.json`."""
+
+    config_cls = CalibrationScheduleConfig
+    job_id = "calibration-agent-schedule"
 
     def __init__(self, settings: Settings, run_store: RunStore, registry: DocumentSourceRegistry) -> None:
+        super().__init__(settings.calibration_agent_state_dir)
         self.settings = settings
         self.run_store = run_store
         self.registry = registry
-        self._scheduler = AsyncIOScheduler()
-        self._config_path: Path = settings.calibration_agent_state_dir / "schedule.json"
 
-    def load_config(self) -> CalibrationScheduleConfig:
-        if self._config_path.exists():
-            try:
-                return CalibrationScheduleConfig.model_validate_json(self._config_path.read_text())
-            except (json.JSONDecodeError, ValueError):
-                pass
+    def _default_config(self) -> CalibrationScheduleConfig:
         return CalibrationScheduleConfig(
             enabled=self.settings.calibration_agent_schedule_enabled,
             interval_hours=self.settings.calibration_agent_schedule_interval_hours,
         )
 
-    def save_config(self, config: CalibrationScheduleConfig) -> None:
-        self._config_path.parent.mkdir(parents=True, exist_ok=True)
-        atomic_write_text(self._config_path, config.model_dump_json(indent=2))
-        self._apply(config)
-
-    def start(self) -> None:
-        self._scheduler.start()
-        self._apply(self.load_config())
-
-    def shutdown(self) -> None:
-        if self._scheduler.running:
-            self._scheduler.shutdown(wait=False)
-
-    def _apply(self, config: CalibrationScheduleConfig) -> None:
-        if self._scheduler.get_job(_JOB_ID):
-            self._scheduler.remove_job(_JOB_ID)
-        if not config.enabled:
-            return
-        self._scheduler.add_job(
-            self._run_scheduled, "interval", hours=config.interval_hours, id=_JOB_ID,
-            next_run_time=datetime.now(UTC) + timedelta(seconds=5),
+    async def _run(self, config: CalibrationScheduleConfig) -> None:
+        config.last_run_id = await run_calibration_pass(
+            registry=self.registry, run_store=self.run_store, triggered_by="schedule"
         )
-
-    async def _run_scheduled(self) -> None:
-        config = self.load_config()
-        if not config.enabled:
-            return
-        try:
-            run_id = await run_calibration_pass(registry=self.registry, run_store=self.run_store, triggered_by="schedule")
-            config.last_run_id = run_id
-            atomic_write_text(self._config_path, config.model_dump_json(indent=2))
-        except Exception:  # noqa: BLE001 - a scheduled run failing must not kill the scheduler
-            logger.exception("Scheduled calibration run failed")

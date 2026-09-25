@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-import json
-import logging
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
-from pathlib import Path
-
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from arp.config import Settings
 from arp.emerging_themes.ingestion.base import MentionSource
@@ -17,16 +11,12 @@ from arp.emerging_themes.pipeline import run_emerging_themes
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
+from arp.orchestration.interval_scheduler import IntervalScheduler
 from arp.schemas.emerging_themes import EmergingThemesScheduleConfig
-from arp.storage.atomic_io import atomic_write_text
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
 from arp.storage.topic_store import TopicStateStore
 from arp.universe import load_company_universe
-
-logger = logging.getLogger(__name__)
-
-_JOB_ID = "emerging-themes-schedule"
 
 
 def default_sources(settings: Settings) -> list[MentionSource]:
@@ -39,58 +29,41 @@ def default_sources(settings: Settings) -> list[MentionSource]:
     ]
 
 
-class EmergingThemesScheduler:
-    """Clone of `discovery/scheduler.py::DiscoveryScheduler`'s shape (see
-    its docstring for the full rationale) -- config persisted to
-    `<emerging_themes_state_dir>/schedule.json`, survives restarts; manual
-    trigger and scheduled firing share the exact same
-    `run_emerging_themes` entry point.
+class EmergingThemesScheduler(IntervalScheduler):
+    """Scheduled emerging-themes run; config in
+    `<emerging_themes_state_dir>/schedule.json`. Manual trigger and
+    scheduled firing share the same `run_emerging_themes` entry point.
     """
+
+    config_cls = EmergingThemesScheduleConfig
+    job_id = "emerging-themes-schedule"
 
     def __init__(
         self, settings: Settings, run_store: RunStore, topic_store: TopicStateStore, llm_factory: Callable[[], LLMClient]
     ) -> None:
+        super().__init__(settings.emerging_themes_state_dir)
         self.settings = settings
         self.run_store = run_store
         self.topic_store = topic_store
         self._llm_factory = llm_factory  # zero-arg callable -- deferred so a missing API key only errors when a run actually fires
-        self._scheduler = AsyncIOScheduler()
-        self._config_path: Path = settings.emerging_themes_state_dir / "schedule.json"
 
-    def load_config(self) -> EmergingThemesScheduleConfig:
-        if self._config_path.exists():
-            try:
-                return EmergingThemesScheduleConfig.model_validate_json(self._config_path.read_text())
-            except (json.JSONDecodeError, ValueError):
-                pass
+    def _default_config(self) -> EmergingThemesScheduleConfig:
+        s = self.settings
         return EmergingThemesScheduleConfig(
-            enabled=self.settings.emerging_themes_schedule_enabled,
-            interval_hours=self.settings.emerging_themes_schedule_interval_hours,
-            universe_path=str(self.settings.emerging_themes_schedule_universe_path)
-            if self.settings.emerging_themes_schedule_universe_path
-            else None,
+            enabled=s.emerging_themes_schedule_enabled,
+            interval_hours=s.emerging_themes_schedule_interval_hours,
+            universe_path=str(s.emerging_themes_schedule_universe_path) if s.emerging_themes_schedule_universe_path else None,
         )
 
-    def save_config(self, config: EmergingThemesScheduleConfig) -> None:
-        self._config_path.parent.mkdir(parents=True, exist_ok=True)
-        atomic_write_text(self._config_path, config.model_dump_json(indent=2))
-        self._apply(config)
-
-    def start(self) -> None:
-        self._scheduler.start()
-        self._apply(self.load_config())
-
-    def shutdown(self) -> None:
-        if self._scheduler.running:
-            self._scheduler.shutdown(wait=False)
+    def _ready(self, config: EmergingThemesScheduleConfig) -> bool:
+        return config.enabled and bool(config.universe_path)
 
     def _xbrl_source(self) -> XbrlFactSource:
         """Roadmap P3.2's structured-financials cross-check, gated by
-        settings.xbrl_facts_enabled in `_run_scheduled` below. Built the
-        same way `api/deps.py::get_xbrl_source`/`cli.py::_xbrl_source` do
-        -- this scheduler has no access to either, so it constructs its
-        own EdgarDocumentSource/XbrlFactSource instance rather than
-        sharing one."""
+        settings.xbrl_facts_enabled in `_run` below. Built the same way
+        `api/deps.py::get_xbrl_source`/`cli.py::_xbrl_source` do -- this
+        scheduler has no access to either, so it constructs its own
+        EdgarDocumentSource/XbrlFactSource instance rather than sharing one."""
         edgar = EdgarDocumentSource(
             self.settings.edgar_user_agent,
             self.settings.cache_dir,
@@ -99,36 +72,14 @@ class EmergingThemesScheduler:
         )
         return XbrlFactSource(edgar, self.settings.cache_dir, ttl_hours=self.settings.xbrl_facts_ttl_hours)
 
-    def _apply(self, config: EmergingThemesScheduleConfig) -> None:
-        if self._scheduler.get_job(_JOB_ID):
-            self._scheduler.remove_job(_JOB_ID)
-        if not config.enabled or not config.universe_path:
-            return
-        self._scheduler.add_job(
-            self._run_scheduled,
-            "interval",
-            hours=config.interval_hours,
-            id=_JOB_ID,
-            next_run_time=datetime.now(UTC) + timedelta(seconds=5),
+    async def _run(self, config: EmergingThemesScheduleConfig) -> None:
+        config.last_run_id = await run_emerging_themes(
+            load_company_universe(config.universe_path),
+            llm=self._llm_factory(),
+            sources=default_sources(self.settings),
+            settings=self.settings,
+            run_store=self.run_store,
+            topic_store=self.topic_store,
+            triggered_by="schedule",
+            xbrl_source=self._xbrl_source() if self.settings.xbrl_facts_enabled else None,
         )
-
-    async def _run_scheduled(self) -> None:
-        config = self.load_config()
-        if not config.enabled or not config.universe_path:
-            return
-        try:
-            companies = load_company_universe(config.universe_path)
-            run_id = await run_emerging_themes(
-                companies,
-                llm=self._llm_factory(),
-                sources=default_sources(self.settings),
-                settings=self.settings,
-                run_store=self.run_store,
-                topic_store=self.topic_store,
-                triggered_by="schedule",
-                xbrl_source=self._xbrl_source() if self.settings.xbrl_facts_enabled else None,
-            )
-            config.last_run_id = run_id
-            atomic_write_text(self._config_path, config.model_dump_json(indent=2))
-        except Exception:  # noqa: BLE001 - a scheduled run failing must not kill the scheduler
-            logger.exception("Scheduled emerging themes run failed")
