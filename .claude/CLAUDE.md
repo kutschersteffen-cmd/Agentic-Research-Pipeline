@@ -54,6 +54,26 @@ environment's setup script, which runs before the session starts.
   polish`, `audit`, `critique`, …) plus anti-pattern detection. Its hooks run on `SessionStart`,
   `PostToolUse` (Edit/Write) and `Stop`.
 
+`settings.json` also enables three more plugins that the `SessionStart` hook does **not**
+install yet, so install them by hand once (or add them to the hook / cloud setup script):
+
+```
+claude plugin marketplace add ayghri/i-have-adhd
+claude plugin marketplace add forrestchang/andrej-karpathy-skills
+claude plugin marketplace add blader/humanizer
+claude plugin install i-have-adhd@i-have-adhd
+claude plugin install andrej-karpathy-skills@karpathy-skills
+claude plugin install humanizer@humanizer
+```
+
+- **i-have-adhd** — ADHD-friendly output: next action first, numbered steps, no tangents.
+  `/i-have-adhd`. Ships an opt-in `SessionStart` hook for always-on mode
+  (`touch ~/.claude/.i-have-adhd-always`).
+- **andrej-karpathy-skills** — the `karpathy-guidelines` skill: think before coding, simplicity
+  first, surgical changes, goal-driven execution. Skill only.
+- **humanizer** — rewrites AI-sounding text so it reads naturally. `/humanizer:humanizer`.
+  Skill only.
+
 ## Invoking skills
 
 The `/` autocomplete menu is a terminal-only feature. In cloud sessions — claude.ai/code and
