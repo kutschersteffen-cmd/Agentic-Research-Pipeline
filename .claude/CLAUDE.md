@@ -12,10 +12,10 @@ Branch off `main` when starting work. If a branch was created from anything else
 
 ## Plugins
 
-`.claude/settings.json` declares three marketplaces and enables a plugin from each. Neither
+`.claude/settings.json` declares six marketplaces and enables a plugin from each. Neither
 entry does any fetching: `extraKnownMarketplaces` only *declares* a marketplace, and
 `enabledPlugins` only flips a plugin on once it is installed. So each collaborator has to
-register all three marketplaces and run all three installs once themselves:
+register every marketplace and run every install once themselves:
 
 ```
 claude plugin marketplace add DietrichGebert/ponytail
@@ -54,8 +54,7 @@ environment's setup script, which runs before the session starts.
   polish`, `audit`, `critique`, …) plus anti-pattern detection. Its hooks run on `SessionStart`,
   `PostToolUse` (Edit/Write) and `Stop`.
 
-`settings.json` also enables three more plugins that the `SessionStart` hook does **not**
-install yet, so install them by hand once (or add them to the hook / cloud setup script):
+`settings.json` also enables three more plugins, which the same hook installs. By hand:
 
 ```
 claude plugin marketplace add ayghri/i-have-adhd
