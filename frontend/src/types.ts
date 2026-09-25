@@ -454,11 +454,6 @@ export interface DriftFlag {
   reason: string;
 }
 
-export interface ReviewQueueResponse {
-  pending: Record<string, unknown>[];
-  decided: { item: Record<string, unknown>; decision: Record<string, unknown> }[];
-}
-
 // --- Taxonomy library ---
 
 export type DerivationMethod =
@@ -516,18 +511,6 @@ export interface SourceCandidate {
   authority_score?: number | null;
   authority_reasoning?: string | null;
   discovered_at: string;
-}
-
-export interface DiscoverSourcesResponse {
-  authority_sources: SourceCandidate[];
-  thematic_funds: SourceCandidate[];
-}
-
-export interface HoldingRow {
-  ticker: string;
-  name?: string | null;
-  weight?: number | null;
-  sector?: string | null;
 }
 
 export interface HoldingsOverlapResult {
@@ -766,44 +749,6 @@ export interface MeetingSummaryDraft {
   follow_up_actions: string[];
 }
 
-export interface EngagementStats {
-  total_issues: number;
-  open_issues: number;
-  stalled_issues: number;
-  resolved_issues: number;
-  closed_issues: number;
-  by_milestone_stage: Record<string, number>;
-  by_escalation_stage: Record<string, number>;
-  commitments_open: number;
-  commitments_verified: number;
-  commitments_missed: number;
-}
-
-export interface VoteStats {
-  total_votes: number;
-  cast_votes: number;
-  by_position: Record<string, number>;
-  overrides: number;
-  alignment_flags_total: number;
-  alignment_flags_cast: number;
-}
-
-export interface EscalationLinkedVote {
-  company_id: string;
-  issue_id: string;
-  escalation_stage: string;
-  vote_record_id: string;
-  proposal_id: string;
-  vote: string;
-}
-
-export interface StewardshipReport {
-  period_label: string;
-  engagement_stats: EngagementStats;
-  vote_stats: VoteStats;
-  escalation_linked_votes: EscalationLinkedVote[];
-}
-
 // --- Voting (proxy) ---
 
 export type ProposalType =
@@ -888,7 +833,6 @@ export interface VoteReviewDecision {
 
 // --- Portfolio risk & exposure monitoring ---
 
-export type AssetClass = "equity" | "corporate_bond" | "government_bond" | "fund" | "etf" | "derivative" | "cash" | "other";
 export type AggregationMetric = "market_value_sum" | "weighted_avg_datapoint" | "count";
 
 export const AGGREGATION_DIMENSIONS = ["portfolio_id", "asset_class", "company_id", "company_name", "sector", "country", "currency"] as const;
@@ -2188,12 +2132,4 @@ export interface IndexCatalogue {
   presets: { name: string; label: string; description: string }[];
   screen_bundles: { name: string; label: string; description: string }[];
   fields: IndexFieldInventory;
-}
-
-export interface IndexLevelPoint {
-  date: string;
-  level: number;
-  divisor: number;
-  market_cap: number;
-  constituents_priced: number;
 }

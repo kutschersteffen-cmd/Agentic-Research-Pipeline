@@ -78,11 +78,8 @@ class ParsedContentCache:
 
     @staticmethod
     def _hash_file_bytes(path: Path) -> str:
-        h = hashlib.sha256()
         with path.open("rb") as f:
-            for chunk in iter(lambda: f.read(1024 * 1024), b""):
-                h.update(chunk)
-        return h.hexdigest()
+            return hashlib.file_digest(f, "sha256").hexdigest()
 
     def content_key_for_file(self, path: Path) -> str:
         """Stable content identity for a local file: a sha256 of the file
