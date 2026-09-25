@@ -12,16 +12,18 @@ Branch off `main` when starting work. If a branch was created from anything else
 
 ## Plugins
 
-`.claude/settings.json` declares two marketplaces and enables a plugin from each. Neither
+`.claude/settings.json` declares three marketplaces and enables a plugin from each. Neither
 entry does any fetching: `extraKnownMarketplaces` only *declares* a marketplace, and
 `enabledPlugins` only flips a plugin on once it is installed. So each collaborator has to
-register both marketplaces and run both installs once themselves:
+register all three marketplaces and run all three installs once themselves:
 
 ```
 claude plugin marketplace add DietrichGebert/ponytail
 claude plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill
+claude plugin marketplace add pbakaus/impeccable
 claude plugin install ponytail@ponytail
 claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill
+claude plugin install impeccable@impeccable
 ```
 
 The `marketplace add` lines are the step that is easy to miss. Skip them and the install
@@ -30,7 +32,7 @@ plugin were missing, when really the marketplace was never cloned. `claude plugi
 list` printing `No marketplaces configured` confirms that case.
 
 A `SessionStart` hook (`.claude/hooks/install-plugins.sh`, wired up in `settings.json`) now
-runs those four commands for you. It is idempotent — it skips anything already installed and
+runs those commands for you. It is idempotent — it skips anything already installed and
 prints nothing — and it always exits 0, so a failure never blocks session start. It exists
 mainly for cloud sessions (claude.ai/code and the mobile **Code** tab), which get a fresh
 container every time and cannot run `/plugin` at all. Running the commands by hand is still
@@ -41,13 +43,16 @@ ponytail to take effect. That applies to the hook too: it installs the plugins d
 after the plugin registry has already been read, so the skills it fetches become selectable in
 the *following* session. For cloud sessions each new session is a fresh container, which means
 the first one after a container boot pays the install and the skills are live from then on. To
-have them ready in the very first session instead, run the same four commands from the cloud
+have them ready in the very first session instead, run the same commands from the cloud
 environment's setup script, which runs before the session starts.
 
 - **ponytail** — "lazy senior dev mode". Its hooks run on `SessionStart`, `SubagentStart`
   and `UserPromptSubmit`, and require `node` on `PATH`.
 - **ui-ux-pro-max** — UI/UX design intelligence (styles, palettes, typography, charts,
   per-stack guidelines). Skills only, no hooks; its scripts run on demand and need `python3`.
+- **impeccable** — frontend design fluency: one skill with sub-commands (`/impeccable:impeccable
+  polish`, `audit`, `critique`, …) plus anti-pattern detection. Its hooks run on `SessionStart`,
+  `PostToolUse` (Edit/Write) and `Stop`.
 
 ## Invoking skills
 
