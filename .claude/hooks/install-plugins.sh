@@ -30,9 +30,10 @@ install_plugin() {
 
 add_marketplace DietrichGebert/ponytail
 add_marketplace nextlevelbuilder/ui-ux-pro-max-skill
+add_marketplace obra/superpowers-marketplace
 
 installed=()
-for spec in ponytail@ponytail ui-ux-pro-max@ui-ux-pro-max-skill; do
+for spec in ponytail@ponytail ui-ux-pro-max@ui-ux-pro-max-skill superpowers@superpowers-marketplace; do
   name=$(install_plugin "$spec") && [ -n "$name" ] && installed+=("$name")
 done
 
