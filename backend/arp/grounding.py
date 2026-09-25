@@ -138,7 +138,10 @@ def ground_citations(
     for c in citations:
         doc = documents_by_id.get(c.doc_id)
         ok, offset = _find_match(c.quote, doc.full_text, fuzzy_threshold) if doc else (False, None)
-        update: dict = {"grounded": ok}
+        # Location fields start cleared, not inherited: Citation is also the
+        # LLM-facing draft schema, so the model can fill them itself, and an
+        # ungrounded citation must not keep a self-reported page/filename.
+        update: dict = {"grounded": ok, "page": None, "sheet": None, "company_id": None, "source_filename": None}
         if ok and doc and offset is not None:
             update["company_id"] = doc.company_id
             update["source_filename"] = Path(doc.local_path).name if doc.local_path else None
