@@ -125,17 +125,6 @@ class RegistrySource(BaseModel):
     url: str | None = None
 
 
-class MatrixCell(BaseModel):
-    """A single sector x pillar x region cell, joined for display."""
-
-    code: str
-    region: Region
-    rating: Rating
-    confidence: Confidence
-    stale: bool
-    staleness_days: int
-
-
 class StalenessReport(BaseModel):
     threshold_days: int
     as_of: str = Field(default_factory=now_iso)

@@ -5,7 +5,6 @@ from functools import lru_cache
 from pathlib import Path
 
 from arp.schemas.transition_barrier import (
-    AccessPattern,
     BarrierCriterion,
     BarrierScore,
     Pillar,
@@ -67,11 +66,6 @@ def sources_for_criterion(code: str) -> list[RegistrySource]:
     only to return the deduplicated record for each.
     """
     return [s for s in load_source_registry() if code in s.used_by_criteria]
-
-
-def sources_by_access_pattern(pattern: AccessPattern) -> list[RegistrySource]:
-    """Used by the refresh router to pick the sources it can actually automate."""
-    return [s for s in load_source_registry() if s.access_pattern is pattern]
 
 
 def filter_scores(

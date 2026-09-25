@@ -7,15 +7,6 @@ if TYPE_CHECKING:
     from sqlalchemy import Engine
 
 
-class PostgresNotConfigured(RuntimeError):
-    def __init__(self) -> None:
-        super().__init__(
-            "Settings.postgres_dsn is not set. The Postgres/pgvector store is entirely opt-in -- "
-            "set ARP_POSTGRES_DSN (e.g. postgresql+psycopg://user:pass@host:5432/arp) to enable it. "
-            "The file-based stores work with no configuration at all and are unaffected either way."
-        )
-
-
 class PostgresExtraNotInstalled(RuntimeError):
     def __init__(self, exc: Exception) -> None:
         super().__init__(

@@ -96,8 +96,7 @@ are mostly right:
   passing `check_same_thread=False` and hoping. WAL + `busy_timeout` +
   the NFS caveat are all noted.
 - **Optionality is real.** `postgres.py` imports SQLAlchemy lazily and
-  raises a genuinely helpful error (`PostgresExtraNotInstalled`,
-  `PostgresNotConfigured`) rather than an `ImportError`; `get_engine` is
+  raises a genuinely helpful error (`PostgresExtraNotInstalled`) rather than an `ImportError`; `get_engine` is
   `lru_cache`d per DSN, which is the documented SQLAlchemy pattern. A
   deployment that never sets `ARP_POSTGRES_DSN` never pays for any of it.
 

@@ -221,10 +221,3 @@ class CompanyMatch(BaseModel):
     )
     flagged_for_review: bool = False
     generated_at: str = Field(default_factory=now_iso)
-
-
-class ThematicUniverseResult(BaseModel):
-    run_id: str
-    theme: ThemeDefinition
-    matches: list[CompanyMatch] = Field(default_factory=list)
-    generated_at: str = Field(default_factory=now_iso)

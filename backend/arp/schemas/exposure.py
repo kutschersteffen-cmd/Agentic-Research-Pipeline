@@ -5,14 +5,6 @@ from pydantic import BaseModel, Field
 from arp.schemas.common import now_iso
 
 
-class IndustryNode(BaseModel):
-    """One industry in the input-output model."""
-
-    isic_code: str
-    label: str
-    total_output: float = Field(description="Gross total output, denominator for technical coefficients.")
-
-
 class IndirectExposureResult(BaseModel):
     """A company's structural (supply-chain) exposure to a theme's core
     industries, computed via Leontief input-output propagation -- entirely

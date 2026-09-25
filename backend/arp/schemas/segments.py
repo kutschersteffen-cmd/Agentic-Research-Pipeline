@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from arp.schemas.common import Citation, now_iso
+from arp.schemas.common import Citation
 
 
 class SegmentMetric(BaseModel):
@@ -30,14 +30,3 @@ class BusinessSegment(BaseModel):
     grounded: bool = Field(default=False, description="True only if every citation across name/description/revenue/income/assets grounded.")
     verifier_notes: str | None = None
     conflicting_sources: bool = False
-
-
-class SegmentExtractionRecord(BaseModel):
-    company_id: str
-    ticker: str | None = None
-    name: str
-    run_id: str
-    segments: list[BusinessSegment] = Field(default_factory=list)
-    overall_confidence: float = Field(ge=0.0, le=1.0, default=0.0)
-    needs_review: bool = False
-    generated_at: str = Field(default_factory=now_iso)

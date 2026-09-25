@@ -14,15 +14,6 @@ if TYPE_CHECKING:
     from botocore.client import BaseClient
 
 
-class ObjectStoreNotConfigured(RuntimeError):
-    def __init__(self) -> None:
-        super().__init__(
-            "Settings.object_store_endpoint_url is not set -- the immutable source-document object store is "
-            "entirely opt-in. Set ARP_OBJECT_STORE_ENDPOINT_URL (e.g. http://localhost:9000 for local MinIO) to "
-            "enable it. Documents stay in the local documents_dir either way, exactly as today."
-        )
-
-
 class ObjectStoreExtraNotInstalled(RuntimeError):
     def __init__(self, exc: Exception) -> None:
         super().__init__(
