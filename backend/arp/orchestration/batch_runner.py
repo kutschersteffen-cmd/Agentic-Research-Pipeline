@@ -4,7 +4,13 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import TypeVar
+from typing import Protocol, TypeVar
+
+from arp.llm.base import LLMUsage
+from arp.orchestration.job_manager import JobManager
+from arp.orchestration.review_queue import queue_for_review
+from arp.schemas.common import CompanyRef
+from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
 
@@ -102,3 +108,62 @@ async def run_batch(
             on_success(item, result)
 
     await asyncio.gather(*(_run_one(item) for item in items))
+
+
+class _HasUsage(Protocol):
+    usage: LLMUsage
+
+
+UsageResultT = TypeVar("UsageResultT", bound=_HasUsage)
+
+
+async def run_company_batch(
+    run_id: str,
+    companies: list[CompanyRef],
+    *,
+    run_store: RunStore,
+    worker: Callable[[CompanyRef], Awaitable[UsageResultT]],
+    result_to_json: Callable[[UsageResultT], dict],
+    review_items: Callable[[CompanyRef, UsageResultT], list[tuple[str, dict]]],
+    cost_usd: Callable[[UsageResultT], float],
+    concurrency: int,
+) -> None:
+    """The per-company LLM run every pipeline shares: `run_batch` over the
+    universe, keyed by company_id, checkpointed into the run's results and
+    errors files, cancellable via the manifest's cancel_requested flag.
+    Each success queues `review_items(company, result)` for human sign-off
+    and records completed/review/token/cost progress; each failure records
+    failed_delta. Finishes the run when the batch is done.
+    """
+    job_manager = JobManager(run_store)
+
+    def _on_success(company: CompanyRef, result: UsageResultT) -> None:
+        items = review_items(company, result)
+        for key, payload in items:
+            queue_for_review(run_store, run_id, key, payload)
+        job_manager.record_progress(
+            run_id,
+            completed_delta=1,
+            review_delta=len(items),
+            input_tokens_delta=result.usage.input_tokens,
+            output_tokens_delta=result.usage.output_tokens,
+            cost_delta_usd=cost_usd(result),
+        )
+
+    def _cancel_check() -> bool:
+        current = run_store.load_manifest(run_id)
+        return current is not None and current.cancel_requested
+
+    await run_batch(
+        companies,
+        item_key=lambda c: c.company_id,
+        worker=worker,
+        results_path=run_store.results_path(run_id),
+        errors_path=run_store.errors_path(run_id),
+        concurrency=concurrency,
+        result_to_json=result_to_json,
+        on_success=_on_success,
+        on_error=lambda company, exc: job_manager.record_progress(run_id, failed_delta=1),
+        cancel_check=_cancel_check,
+    )
+    job_manager.finish_run(run_id)

@@ -5,10 +5,10 @@ import logging
 from arp.config import Settings
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
-from arp.orchestration.batch_runner import read_done_keys, run_batch
+from arp.orchestration.batch_runner import read_done_keys, run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
-from arp.orchestration.review_queue import latest_decisions, queue_for_review
+from arp.orchestration.review_queue import latest_decisions
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.voting import CompanyBallot, HumanVoteDecision, VotePosition, VoteRecord
 from arp.storage.engagement_store import EngagementStore
@@ -87,30 +87,7 @@ async def execute_voting_run(
     checkpoint (see docs/ENGAGEMENT_VOTING_ARCHITECTURE.md #6.5). Casting
     itself is a separate step: see cast_approved_votes.
     """
-    job_manager = JobManager(run_store)
     meeting_dates = meeting_dates or {}
-
-    def _on_success(company: CompanyRef, result: CompanyBallotResult) -> None:
-        for vote in result.ballot.votes:
-            queue_for_review(
-                run_store, run_id, _item_key(company.company_id, vote.proposal.proposal_number), vote.model_dump(mode="json")
-            )
-        cost = estimate_cost_usd(settings.llm_model, result.usage)
-        job_manager.record_progress(
-            run_id,
-            completed_delta=1,
-            review_delta=len(result.ballot.votes),
-            input_tokens_delta=result.usage.input_tokens,
-            output_tokens_delta=result.usage.output_tokens,
-            cost_delta_usd=cost,
-        )
-
-    def _on_error(company: CompanyRef, exc: Exception) -> None:
-        job_manager.record_progress(run_id, failed_delta=1)
-
-    def _cancel_check() -> bool:
-        current = run_store.load_manifest(run_id)
-        return current is not None and current.cancel_requested
 
     async def _worker(company: CompanyRef) -> CompanyBallotResult:
         result = await _process_company(
@@ -123,25 +100,23 @@ async def execute_voting_run(
             rules=rules,
             fund_name=fund_name,
         )
-        # Set before result_to_json/on_success run, so both the persisted
+        # Set before result_to_json/review_items run, so both the persisted
         # results.jsonl row and the review-queue entry agree on run_id.
         result.ballot.votes = [v.model_copy(update={"run_id": run_id}) for v in result.ballot.votes]
         return result
 
-    await run_batch(
+    await run_company_batch(
+        run_id,
         companies,
-        item_key=lambda c: c.company_id,
+        run_store=run_store,
         worker=_worker,
-        results_path=run_store.results_path(run_id),
-        errors_path=run_store.errors_path(run_id),
-        concurrency=settings.max_concurrent_llm_calls,
         result_to_json=lambda r: r.ballot.model_dump(mode="json"),
-        on_success=_on_success,
-        on_error=_on_error,
-        cancel_check=_cancel_check,
+        review_items=lambda c, r: [
+            (_item_key(c.company_id, v.proposal.proposal_number), v.model_dump(mode="json")) for v in r.ballot.votes
+        ],
+        cost_usd=lambda r: estimate_cost_usd(settings.llm_model, r.usage),
+        concurrency=settings.max_concurrent_llm_calls,
     )
-
-    job_manager.finish_run(run_id)
     return run_id
 
 
