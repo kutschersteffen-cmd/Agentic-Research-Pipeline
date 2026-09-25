@@ -40,8 +40,8 @@ def fact_candidates(run_type: str, row: dict) -> list[tuple[str, dict]]:
       `{"company_matches": [<CompanyMatch dict>, ...], "_key": company_id}`
       (result_to_json builds this shape; there is no top-level
       company_id on the row itself). Reviewable unit is one match, keyed
-      "{company_id}:{activity_id}" -- matches _on_success's own
-      `queue_for_review(..., f"{company.company_id}:{match.activity_id}", ...)`.
+      "{company_id}:{activity_id}" -- matches the key execute_theme_run's
+      `review_items` queues: `f"{c.company_id}:{m.activity_id}"`.
     - "proxy_voting" (arp/voting/pipeline.py): the row is a CompanyBallot
       dict with a `votes: list[VoteRecord]`. Reviewable unit is one vote,
       keyed "{company_id}:{proposal_number}" -- matches
