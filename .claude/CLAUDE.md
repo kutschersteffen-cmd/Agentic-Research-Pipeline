@@ -12,10 +12,10 @@ Branch off `main` when starting work. If a branch was created from anything else
 
 ## Plugins
 
-`.claude/settings.json` declares three marketplaces and enables a plugin from each. Neither
+`.claude/settings.json` declares six marketplaces and enables a plugin from each. Neither
 entry does any fetching: `extraKnownMarketplaces` only *declares* a marketplace, and
 `enabledPlugins` only flips a plugin on once it is installed. So each collaborator has to
-register all three marketplaces and run all three installs once themselves:
+register every marketplace and run every install once themselves:
 
 ```
 claude plugin marketplace add DietrichGebert/ponytail
@@ -53,6 +53,25 @@ environment's setup script, which runs before the session starts.
 - **impeccable** — frontend design fluency: one skill with sub-commands (`/impeccable:impeccable
   polish`, `audit`, `critique`, …) plus anti-pattern detection. Its hooks run on `SessionStart`,
   `PostToolUse` (Edit/Write) and `Stop`.
+
+`settings.json` also enables three more plugins, which the same hook installs. By hand:
+
+```
+claude plugin marketplace add ayghri/i-have-adhd
+claude plugin marketplace add forrestchang/andrej-karpathy-skills
+claude plugin marketplace add blader/humanizer
+claude plugin install i-have-adhd@i-have-adhd
+claude plugin install andrej-karpathy-skills@karpathy-skills
+claude plugin install humanizer@humanizer
+```
+
+- **i-have-adhd** — ADHD-friendly output: next action first, numbered steps, no tangents.
+  `/i-have-adhd`. Ships an opt-in `SessionStart` hook for always-on mode
+  (`touch ~/.claude/.i-have-adhd-always`).
+- **andrej-karpathy-skills** — the `karpathy-guidelines` skill: think before coding, simplicity
+  first, surgical changes, goal-driven execution. Skill only.
+- **humanizer** — rewrites AI-sounding text so it reads naturally. `/humanizer:humanizer`.
+  Skill only.
 
 ## Invoking skills
 

@@ -17,12 +17,33 @@
         "source": "github",
         "repo": "pbakaus/impeccable"
       }
+    },
+    "i-have-adhd": {
+      "source": {
+        "source": "github",
+        "repo": "ayghri/i-have-adhd"
+      }
+    },
+    "karpathy-skills": {
+      "source": {
+        "source": "github",
+        "repo": "forrestchang/andrej-karpathy-skills"
+      }
+    },
+    "humanizer": {
+      "source": {
+        "source": "github",
+        "repo": "blader/humanizer"
+      }
     }
   },
   "enabledPlugins": {
     "ponytail@ponytail": true,
     "ui-ux-pro-max@ui-ux-pro-max-skill": true,
-    "impeccable@impeccable": true
+    "impeccable@impeccable": true,
+    "i-have-adhd@i-have-adhd": true,
+    "andrej-karpathy-skills@karpathy-skills": true,
+    "humanizer@humanizer": true
   },
   "hooks": {
     "SessionStart": [
