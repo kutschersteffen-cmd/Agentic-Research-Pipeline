@@ -66,8 +66,9 @@ claude plugin install humanizer@humanizer
 ```
 
 - **i-have-adhd** — ADHD-friendly output: next action first, numbered steps, no tangents.
-  `/i-have-adhd`. Ships an opt-in `SessionStart` hook for always-on mode
-  (`touch ~/.claude/.i-have-adhd-always`).
+  `/i-have-adhd`. Always-on here: `install-plugins.sh` creates `~/.claude/.i-have-adhd-always`
+  every session, so the plugin's own `SessionStart` hook loads the full ruleset. Say "stop adhd
+  mode" to turn it off for one session; delete the `touch` line in the hook to opt out for good.
 - **andrej-karpathy-skills** — the `karpathy-guidelines` skill: think before coding, simplicity
   first, surgical changes, goal-driven execution. Skill only.
 - **humanizer** — rewrites AI-sounding text so it reads naturally. `/humanizer:humanizer`.

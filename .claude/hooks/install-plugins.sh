@@ -10,6 +10,10 @@
 
 set -u
 
+# Turn on i-have-adhd's always-on mode. The flag lives outside the repo, so a
+# fresh cloud container loses it; recreate it every session. Delete this line to opt out.
+mkdir -p "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" && touch "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.i-have-adhd-always"
+
 command -v claude >/dev/null 2>&1 || exit 0
 
 add_marketplace() {
