@@ -1,79 +1,34 @@
 from __future__ import annotations
 
-import json
-import logging
-from datetime import UTC, datetime, timedelta
-from pathlib import Path
-
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from datetime import UTC, datetime
 
 from arp.config import Settings
+from arp.orchestration.interval_scheduler import IntervalScheduler
 from arp.portfolio.monitoring.evaluator import evaluate_news_triggers, evaluate_threshold_rules
 from arp.schemas.portfolio_monitoring import PortfolioMonitoringScheduleConfig
-from arp.storage.atomic_io import atomic_write_text
 from arp.storage.portfolio_store import PortfolioStore
 
-logger = logging.getLogger(__name__)
 
-_JOB_ID = "portfolio-monitoring-schedule"
+class PortfolioMonitoringScheduler(IntervalScheduler):
+    """Scheduled threshold + news evaluation; config in
+    `<portfolio_monitoring_state_dir>/schedule.json`."""
 
-
-class PortfolioMonitoringScheduler:
-    """Clone of arp.agents.calibration_agent.CalibrationAgentScheduler's
-    shape (itself a clone of discovery/scheduler.py::DiscoveryScheduler) --
-    see either docstring for the full rationale. Config persisted to
-    <portfolio_monitoring_state_dir>/schedule.json.
-    """
+    config_cls = PortfolioMonitoringScheduleConfig
+    job_id = "portfolio-monitoring-schedule"
 
     def __init__(self, settings: Settings, store: PortfolioStore) -> None:
+        super().__init__(settings.portfolio_monitoring_state_dir)
         self.settings = settings
         self.store = store
-        self._scheduler = AsyncIOScheduler()
-        self._config_path: Path = settings.portfolio_monitoring_state_dir / "schedule.json"
 
-    def load_config(self) -> PortfolioMonitoringScheduleConfig:
-        if self._config_path.exists():
-            try:
-                return PortfolioMonitoringScheduleConfig.model_validate_json(self._config_path.read_text())
-            except (json.JSONDecodeError, ValueError):
-                pass
+    def _default_config(self) -> PortfolioMonitoringScheduleConfig:
         return PortfolioMonitoringScheduleConfig(
             enabled=self.settings.portfolio_monitoring_schedule_enabled,
             interval_hours=self.settings.portfolio_monitoring_schedule_interval_hours,
             news_min_severity=self.settings.portfolio_monitoring_news_min_severity,
         )
 
-    def save_config(self, config: PortfolioMonitoringScheduleConfig) -> None:
-        self._config_path.parent.mkdir(parents=True, exist_ok=True)
-        atomic_write_text(self._config_path, config.model_dump_json(indent=2))
-        self._apply(config)
-
-    def start(self) -> None:
-        self._scheduler.start()
-        self._apply(self.load_config())
-
-    def shutdown(self) -> None:
-        if self._scheduler.running:
-            self._scheduler.shutdown(wait=False)
-
-    def _apply(self, config: PortfolioMonitoringScheduleConfig) -> None:
-        if self._scheduler.get_job(_JOB_ID):
-            self._scheduler.remove_job(_JOB_ID)
-        if not config.enabled:
-            return
-        self._scheduler.add_job(
-            self._run_scheduled, "interval", hours=config.interval_hours, id=_JOB_ID,
-            next_run_time=datetime.now(UTC) + timedelta(seconds=5),
-        )
-
-    async def _run_scheduled(self) -> None:
-        config = self.load_config()
-        if not config.enabled:
-            return
-        try:
-            evaluate_threshold_rules(self.store)
-            evaluate_news_triggers(self.store, min_severity=config.news_min_severity)
-            config.last_run_at = datetime.now(UTC).isoformat()
-            atomic_write_text(self._config_path, config.model_dump_json(indent=2))
-        except Exception:  # noqa: BLE001 - a scheduled run failing must not kill the scheduler
-            logger.exception("Scheduled portfolio monitoring evaluation failed")
+    async def _run(self, config: PortfolioMonitoringScheduleConfig) -> None:
+        evaluate_threshold_rules(self.store)
+        evaluate_news_triggers(self.store, min_severity=config.news_min_severity)
+        config.last_run_at = datetime.now(UTC).isoformat()
