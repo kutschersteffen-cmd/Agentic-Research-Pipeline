@@ -89,6 +89,27 @@ def test_ungrounded_citation_gets_no_location_fields():
     assert result.source_filename is None
 
 
+def test_ungrounded_citation_drops_llm_reported_location_fields():
+    """Citation doubles as the LLM's draft schema, so the model can fill
+    page/sheet/company_id/source_filename itself -- a citation that fails
+    grounding must not keep those self-reported values."""
+    doc = SourceDocument(
+        company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="t",
+        full_text="Nothing about the hallucinated figure here.", page_breaks=[0],
+    )
+    citation = Citation(
+        doc_id=doc.doc_id, doc_type=doc.doc_type, quote="Green capex reached $9 billion",
+        page=42, sheet="Capex", company_id="invented", source_filename="fake.pdf",
+    )
+
+    result = ground_citations([citation], {doc.doc_id: doc})[0]
+    assert result.grounded is False
+    assert result.page is None
+    assert result.sheet is None
+    assert result.company_id is None
+    assert result.source_filename is None
+
+
 def test_grounded_citation_from_non_local_document_has_no_filename():
     """EDGAR-sourced documents have no local_path -- page/company_id still
     resolve, but source_filename stays None (no regression, no broken
