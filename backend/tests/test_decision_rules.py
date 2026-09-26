@@ -269,3 +269,59 @@ def test_renaming_a_tier_is_a_human_audit_entry(sample):
     assert entries["Tier 1"].decision == "Tier 1 (Act now) -> Leaders (Hold and engage)"
     assert entries["Tier 1"].origin == "human"
     assert entries["Tiers"].decision == "4 -> 5 tiers"
+
+
+def test_red_flag_rows_send_any_flagged_entity_to_the_worst_tier():
+    """The shape the Decision tree tab's red-flag picker writes: one row per
+    flag (OR), knock-outs first, the band as catch-all, the flag named in
+    the note. A blank answer is not a flag."""
+    header = ["Company", "Score", "Coal", "Severe Controversy"]
+    rows = [["A", "90", "Yes", "No"], ["B", "80", "", "Yes"], ["C", "70", "No", ""], ["D", "60", "", ""], ["E", "50", "No", "No"]]
+    data = build_dataset("flags", [header, *rows])
+    flag = lambda name: {"id": f"flag_{name}", "name": name, "field": name}  # noqa: E731
+    table = _node(
+        "tiers",
+        "decisionTableNode",
+        hitPolicy="first",
+        inputs=[{"id": "band_in", "name": "Band", "field": "band"}, flag("coal"), flag("severe_controversy")],
+        outputs=[{"id": "tier_out", "name": "Tier", "field": "tier"}, {"id": "note_out", "name": "Note", "field": "note"}],
+        rules=[
+            {
+                "_id": "flag_coal",
+                "band_in": "",
+                "flag_coal": "true",
+                "flag_severe_controversy": "",
+                "tier_out": "4",
+                "note_out": "'Red flag: Coal'",
+            },
+            {
+                "_id": "flag_severe_controversy",
+                "band_in": "",
+                "flag_coal": "",
+                "flag_severe_controversy": "true",
+                "tier_out": "4",
+                "note_out": "'Red flag: Severe Controversy'",
+            },
+            {
+                "_id": "keep_band",
+                "band_in": "",
+                "flag_coal": "",
+                "flag_severe_controversy": "",
+                "tier_out": "band",
+                "note_out": "",
+            },
+        ],
+    )
+    config = MechanismConfig(
+        label_column="Company",
+        dimensions=[Dimension(id="d0", name="Score")],
+        criteria=[Criterion(column="Score", dimension_id="d0")],
+        cut_mode="absolute",
+        pinned_cuts=[75, 50, 25],
+        tier_graph=graph(table),
+    )
+    result = {e.name: e for e in apply_mechanism(data, config).entities}
+    assert result["A"].tier == 4 and "Red flag: Coal" in result["A"].notes
+    assert result["B"].tier == 4 and "Red flag: Severe Controversy" in result["B"].notes
+    assert all(not any(n.startswith("Red flag") for n in result[k].notes) for k in "CDE")
+    assert result["C"].tier < 4, "a blank flag is not a flag"
