@@ -18,6 +18,7 @@ import type {
   AuditEntry,
 } from "../types";
 import { activatable } from "../lib/activatable";
+import { TIER_STARTER } from "../lib/ruleGraphs";
 
 // The canvas pulls in the JDM editor and, on first use, the 14 MB engine:
 // loaded only when the Rules tab opens.
@@ -445,7 +446,36 @@ export function DecisionStudio() {
       )}
 
       {sub === "tree" && dataset && config && (
-        <DecisionTreeEditor config={config} profiles={view?.profiles ?? dataset.profiles} result={result} onChange={setConfig} />
+        <>
+          <DecisionTreeEditor config={config} profiles={view?.profiles ?? dataset.profiles} result={result} onChange={setConfig} />
+          {config.tier_graph ? (
+            <Suspense fallback={<p className="status-text">Loading the rule editor…</p>}>
+              <RuleGraphEditor
+                mode="tiers"
+                graph={config.tier_graph}
+                dataset={dataset}
+                result={result}
+                labelColumn={config.label_column}
+                onChange={(tier_graph) => setConfig({ ...config, tier_graph })}
+              />
+            </Suspense>
+          ) : (
+            <div className="card">
+              <div className="toolbar">
+                <h3>Tier rules</h3>
+                <button className="link-button" onClick={() => setConfig({ ...config, tier_graph: TIER_STARTER })}>
+                  Use tier rules instead of gates
+                </button>
+              </div>
+              <p className="help-text">
+                Decide the final tier with a decision table or formulas instead of the gates and dimension floor above —
+                for example "coal expansion → worst tier", or "never above Tier 3 below 80% coverage". Each entity&apos;s
+                band, score, rank and columns are available. It starts as <code>tier = band</code>, so nothing changes
+                until you add a rule; the gates above stop applying.
+              </p>
+            </div>
+          )}
+        </>
       )}
 
       {sub === "results" && result && config && (

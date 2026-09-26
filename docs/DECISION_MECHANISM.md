@@ -237,6 +237,28 @@ A fixed evaluation order, which is what makes results reproducible:
 `breaks` request with too few distinct scores falls back to quantiles and
 says so rather than claiming natural breaks.
 
+**Tier rules (optional, `rules.py`).** A framework may carry a second
+graph, `tier_graph`, edited in the Decision tree tab. It runs per scored
+entity after step 3 and **replaces steps 2 and 4**: the gates and the
+dimension floor are not applied (the audit log says so if gates remain).
+Each entity arrives with `band` (the tier its score earns from the
+cut-points), `score`, `rank`, `percentile` within its cohort, `coverage`,
+`grounded_coverage`, `dim_<dimension>` scores, `cohort`, `segment`,
+`tier_count` and every column; the graph outputs `tier` (a whole number
+from 1 to the number of tiers), optionally `exclude` (true removes the
+entity from the tiers and the ranking) and `note`. It starts as
+`tier = band`. Sufficiency and cut-points stay in the engine: cut-points
+need the whole distribution, and a rule must not score an entity on a
+fraction of its criteria. Consequences worth knowing:
+
+- An exclusion by tier rules happens after the bands are drawn, so it
+  does not redraw its peers' cut-points (a gate exclusion does).
+- A row the graph cannot evaluate, or whose `tier` is out of range, keeps
+  its band and is flagged. Moving an entity *up* is allowed and flagged.
+- The number of tiers is set in the Decision tree tab; with fixed
+  cut-points it re-spaces them evenly, since a mismatched count would fall
+  back to quantiles.
+
 ### 3i. Rank stability (`stability.py`)
 
 Every entity is scored under four specifications — the framework's own,

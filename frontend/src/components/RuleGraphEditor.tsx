@@ -3,36 +3,11 @@ import { DecisionGraph, JdmConfigProvider, type DecisionGraphType, type Simulati
 import { useEffect, useMemo, useState } from "react";
 import { activatable } from "../lib/activatable";
 import { evaluateGraph, loadZen, zenErrorText, type ZenResponse } from "../lib/zenEngine";
-import type { ColumnRole, DatasetSummary, RuleGraph } from "../types";
+import { STARTER, TIER_STARTER } from "../lib/ruleGraphs";
+import type { ColumnRole, DatasetSummary, DecisionResult, RuleGraph } from "../types";
 
 // Mirrors RULE_NODE_TYPES in backend/arp/schemas/decision.py.
 const ALLOWED_NODES = new Set(["inputNode", "outputNode", "expressionNode", "decisionTableNode", "switchNode"]);
-
-const node = (id: string, type: string, name: string, x: number, content?: object) => ({
-  id,
-  type,
-  name,
-  position: { x, y: 120 },
-  ...(content ? { content } : {}),
-});
-
-const STARTER: RuleGraph = {
-  nodes: [
-    node("input", "inputNode", "Row", 0),
-    node("formulas", "expressionNode", "Formulas", 280, {
-      expressions: [],
-      passThrough: false,
-      inputField: null,
-      outputPath: null,
-      executionMode: "single",
-    }),
-    node("output", "outputNode", "Calculated columns", 620),
-  ],
-  edges: [
-    { id: "input-formulas", sourceId: "input", targetId: "formulas", type: "edge" },
-    { id: "formulas-output", sourceId: "formulas", targetId: "output", type: "edge" },
-  ],
-};
 
 type RowOutcome = { result: Record<string, unknown> } | { error: string };
 
@@ -52,40 +27,57 @@ function flatten(value: Record<string, unknown>, prefix = ""): Record<string, un
   }, {});
 }
 
+/** Tiers mode without the browser engine: what the server decided. */
+function serverTierRow(result: DecisionResult | null, i: number): Record<string, string> | undefined {
+  const entity = result?.entities[i];
+  if (!entity) return undefined;
+  return { tier: entity.tier != null ? String(entity.tier) : "", exclude: entity.status === "excluded" ? "Yes" : "", note: entity.notes.join("; ") };
+}
+
 export default function RuleGraphEditor({
+  mode = "columns",
   graph,
   dataset,
-  calculated,
+  calculated = null,
+  result = null,
   labelColumn,
-  roles,
+  roles = {},
   onChange,
-  onSetRole,
+  onSetRole = () => {},
 }: {
+  /** "columns": calculated columns before scoring (Rules tab). "tiers": the
+   * final tier after scoring (Decision tree tab). */
+  mode?: "columns" | "tiers";
   graph: RuleGraph | null | undefined;
   dataset: DatasetSummary;
-  /** The server's evaluation over every row; null while it is pending. */
-  calculated: DatasetSummary | null;
+  /** Columns mode: the server's evaluation over every row; null while pending. */
+  calculated?: DatasetSummary | null;
+  /** Tiers mode: the latest scored result, which carries the tier inputs. */
+  result?: DecisionResult | null;
   labelColumn: string | null | undefined;
-  roles: Record<string, ColumnRole | undefined>;
+  roles?: Record<string, ColumnRole | undefined>;
   onChange: (next: RuleGraph | null) => void;
-  onSetRole: (column: string, role: ColumnRole) => void;
+  onSetRole?: (column: string, role: ColumnRole) => void;
 }) {
-  const current = graph ?? STARTER;
+  const tiers = mode === "tiers";
+  const current = graph ?? (tiers ? TIER_STARTER : STARTER);
   const [outcomes, setOutcomes] = useState<RowOutcome[]>([]);
   const [trace, setTrace] = useState<Simulation | undefined>();
   const [traceRow, setTraceRow] = useState(0);
   const [engine, setEngine] = useState<"loading" | "ready" | string>("loading");
   const [elapsed, setElapsed] = useState<number | null>(null);
 
-  const inputs = dataset.rule_inputs;
+  const inputs = useMemo(() => (tiers ? (result?.tier_inputs ?? []) : dataset.rule_inputs), [tiers, result, dataset]);
   const labels = dataset.preview.map((row, i) => (labelColumn && row[labelColumn]) || `Row ${i + 1}`);
   const blocked = current.nodes.filter((n) => !ALLOWED_NODES.has(n.type)).map((n) => n.name || n.type);
   const inputKeys = useMemo(() => new Set(inputs[0] ? Object.keys(inputs[0]) : []), [inputs]);
   // Show each column once, by the name an expression most easily uses.
-  const variables = dataset.columns.map((column) => {
+  const columnVariables = dataset.columns.map((column) => {
     const alias = column.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
     return alias && alias !== column && inputKeys.has(alias) ? alias : column;
   });
+  const engineVariables = [...inputKeys].filter((k) => !dataset.columns.some((c) => c === k || columnVariables.includes(k)));
+  const variables = tiers ? [...engineVariables, ...columnVariables] : columnVariables;
 
   useEffect(() => {
     loadZen().then(
@@ -141,23 +133,41 @@ export default function RuleGraphEditor({
   }, [outcomes, inputKeys]);
 
   const live = engine === "ready";
-  const columns = live ? browserColumns : (calculated?.calculated_columns ?? []);
+  const columns = tiers ? ["tier", "exclude", "note"] : live ? browserColumns : (calculated?.calculated_columns ?? []);
   // With no output columns there is no row to show an error in, so the
   // first one is shown on its own -- otherwise a broken graph looks empty.
   const browserError = live ? outcomes.map((o) => ("error" in o ? o.error : null)).find(Boolean) : null;
-  const failures = calculated?.rule_audit.filter((a) => a.needs_check && a.stage === "Rules") ?? [];
+  const failures = tiers
+    ? (result?.audit.filter((a) => a.needs_check && a.stage === "Tier rules") ?? [])
+    : (calculated?.rule_audit.filter((a) => a.needs_check && a.stage === "Rules") ?? []);
 
   return (
     <>
       <div className="card">
-        <h3>Rules: calculated columns before anything is scored</h3>
-        <p className="help-text">
-          Drag an <strong>Expression</strong> box for formulas (<code>capex / revenue * 100</code>) or conditions
-          (<code>coal_expansion_flag and not sbti_validated_target</code>), a <strong>Decision table</strong> where every
-          column of a row must match (AND) and the first matching row wins (OR), or a <strong>Switch</strong> to branch.
-          Each output becomes a column: make it a criterion to score it, or a gate to act on a yes/no. Refer to an
-          earlier output in the same box as <code>$.name</code>.
-        </p>
+        {tiers ? (
+          <>
+            <h3>Tier rules: the final tier, decided after scoring</h3>
+            <p className="help-text">
+              Each entity arrives with its <code>band</code> (the tier its score earns from the cut-points), its{" "}
+              <code>score</code>, <code>rank</code>, <code>percentile</code> within its cohort, <code>coverage</code>,
+              dimension scores (<code>dim_…</code>) and every column. Output <code>tier</code> (1–{result?.tier_summary.length ?? "N"}),
+              and optionally <code>exclude</code> (true removes it from the tiers) and <code>note</code>. In a decision
+              table the first matching row wins, so put knock-outs first and keep the catch-all{" "}
+              <code>tier = band</code> last. These rules replace the gates and the dimension floor above.
+            </p>
+          </>
+        ) : (
+          <>
+            <h3>Rules: calculated columns before anything is scored</h3>
+            <p className="help-text">
+              Drag an <strong>Expression</strong> box for formulas (<code>capex / revenue * 100</code>) or conditions
+              (<code>coal_expansion_flag and not sbti_validated_target</code>), a <strong>Decision table</strong> where
+              every column of a row must match (AND) and the first matching row wins (OR), or a <strong>Switch</strong> to
+              branch. Each output becomes a column: make it a criterion to score it, or a gate to act on a yes/no. Refer
+              to an earlier output in the same box as <code>$.name</code>.
+            </p>
+          </>
+        )}
         <details>
           <summary>Variables you can use ({variables.length})</summary>
           <p className="rule-variables">
@@ -191,7 +201,7 @@ export default function RuleGraphEditor({
           <h3>Live preview</h3>
           {graph && (
             <button className="link-button" onClick={() => onChange(null)}>
-              Remove all rules
+              {tiers ? "Remove tier rules (back to gates)" : "Remove all rules"}
             </button>
           )}
         </div>
@@ -206,19 +216,22 @@ export default function RuleGraphEditor({
             {f.item}: {f.decision} — {f.why}
           </p>
         ))}
-        {columns.length === 0 && browserError ? (
+        {tiers && inputs.length === 0 ? (
+          <p className="muted">Score the table first — tier rules need its results.</p>
+        ) : columns.length === 0 && browserError ? (
           <p className="error-text">Every preview row failed: {browserError}</p>
         ) : columns.length === 0 ? (
-          <p className="muted">No calculated columns yet. Add an expression with a key and a value.</p>
+          <p className="muted">{tiers ? "Score the table first — tier rules need its results." : "No calculated columns yet. Add an expression with a key and a value."}</p>
         ) : (
           <table className="data-table">
             <thead>
               <tr>
                 <th>{labelColumn ?? "Row"}</th>
+                {tiers && <th>band</th>}
                 {columns.map((c) => (
                   <th key={c}>
                     {c}
-                    <span className="rule-roles">
+                    {!tiers && <span className="rule-roles">
                       <button
                         className="link-button"
                         disabled={!calculated?.calculated_columns.includes(c) || roles[c] === "criterion"}
@@ -233,18 +246,19 @@ export default function RuleGraphEditor({
                       >
                         {roles[c] === "gate" ? "gate ✓" : "gate on it"}
                       </button>
-                    </span>
+                    </span>}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {labels.map((label, i) => {
+              {(tiers ? labels.slice(0, inputs.length) : labels).map((label, i) => {
                 const outcome = outcomes[i];
-                const serverRow = calculated?.preview[i];
+                const serverRow = tiers ? serverTierRow(result, i) : calculated?.preview[i];
                 return (
                   <tr key={i} className={i === traceRow ? "clickable-row selected-row" : "clickable-row"} {...activatable(() => setTraceRow(i))}>
                     <td>{label}</td>
+                    {tiers && <td>{cell(inputs[i]?.band)}</td>}
                     {live && outcome && "error" in outcome ? (
                       <td colSpan={columns.length} className="error-text">
                         {outcome.error}

@@ -1749,6 +1749,8 @@ export interface MechanismConfig {
   cluster_threshold: number;
   /** GoRules JSON Decision Model: calculated columns, evaluated per row before scoring. */
   rule_graph?: RuleGraph | null;
+  /** GoRules JSON Decision Model setting the final tier after scoring; replaces gates and the dimension floor. */
+  tier_graph?: RuleGraph | null;
 }
 
 export interface RuleGraph {
@@ -1834,6 +1836,8 @@ export interface DecisionResult {
   excluded_count: number;
   insufficient_count: number;
   audit: AuditEntry[];
+  /** What a tier graph sees for the first rows (band, score, rank, columns…). */
+  tier_inputs: Record<string, unknown>[];
 }
 
 export interface TippingPoint {
