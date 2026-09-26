@@ -4,6 +4,7 @@ import copy
 
 from arp.decision.dataset import Dataset
 from arp.decision.mechanism import apply_mechanism
+from arp.decision.rules import apply_rules
 from arp.schemas.decision import EntitySensitivity, MechanismConfig, TippingPoint
 
 _DEFAULT_STEPS = 13
@@ -38,6 +39,10 @@ def tipping_points(
     is deliberately modest. It is an on-demand analysis, not part of
     scoring.
     """
+    # Rules do not depend on weights: evaluate them once, not once per step.
+    if config.rule_graph:
+        dataset, _ = apply_rules(dataset, config.rule_graph)
+        config = config.model_copy(update={"rule_graph": None})
     baseline = apply_mechanism(dataset, config, with_stability=False)
     wanted = set(entity_keys) if entity_keys else None
     targets = [e for e in baseline.entities if e.status == "scored" and (wanted is None or e.entity_key in wanted)]

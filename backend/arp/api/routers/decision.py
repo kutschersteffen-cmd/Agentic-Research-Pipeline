@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import csv
 import io
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from arp.api.deps import get_decision_store, get_portfolio_store, get_run_store, settings_dep
 from arp.config import Settings
@@ -17,6 +18,7 @@ from arp.decision.mechanism import apply_mechanism, derive_mechanism
 from arp.decision.parsing import load_table
 from arp.decision.profiling import profile_dataset
 from arp.decision.roles import propose_roles
+from arp.decision.rules import apply_rules, rule_inputs
 from arp.decision.sensitivity import tipping_points
 from arp.schemas.decision import (
     AuditEntry,
@@ -26,6 +28,7 @@ from arp.schemas.decision import (
     EntitySensitivity,
     MechanismConfig,
     RoleProposal,
+    check_rule_graph,
 )
 from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
@@ -51,10 +54,18 @@ class DatasetSummary(BaseModel):
     profiles: list[ColumnProfile]
     proposals: list[RoleProposal]
     has_confidence: bool = False
+    rule_inputs: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="The preview rows typed exactly as the rule engine sees them -- what the browser evaluates a "
+        "rule graph against while it is being edited, so its preview and the server's score agree.",
+    )
+    calculated_columns: list[str] = Field(default_factory=list)
+    rule_audit: list[AuditEntry] = Field(default_factory=list)
 
 
-def _summarise(dataset: Dataset) -> DatasetSummary:
+def _summarise(dataset: Dataset, *, base: Dataset | None = None, calculated: list[str] | None = None, rule_audit: list[AuditEntry] | None = None) -> DatasetSummary:
     profiles = profile_dataset(dataset)
+    base = base or dataset
     return DatasetSummary(
         dataset_id=dataset.dataset_id,
         name=dataset.name,
@@ -67,7 +78,17 @@ def _summarise(dataset: Dataset) -> DatasetSummary:
         profiles=[profiles[c] for c in dataset.columns],
         proposals=propose_roles(profiles, dataset.columns),
         has_confidence=bool(dataset.confidence),
+        rule_inputs=rule_inputs(base, rows=base.rows[:_PREVIEW_ROWS]),
+        calculated_columns=calculated or [],
+        rule_audit=rule_audit or [],
     )
+
+
+def _apply(dataset: Dataset, config: MechanismConfig, **kwargs) -> DecisionResult:
+    try:
+        return apply_mechanism(dataset, config, **kwargs)
+    except ValueError as exc:  # a rule graph that does not compile
+        raise HTTPException(400, str(exc)) from exc
 
 
 def _load_dataset(dataset_id: str, store: DecisionStore) -> Dataset:
@@ -189,6 +210,29 @@ def get_dataset(dataset_id: str, store: DecisionStore = Depends(get_decision_sto
     return _summarise(_load_dataset(dataset_id, store))
 
 
+class CalculatedRequest(BaseModel):
+    rule_graph: dict[str, Any]
+
+    @field_validator("rule_graph")
+    @classmethod
+    def _declarative_rules_only(cls, graph: dict[str, Any]) -> dict[str, Any]:
+        return check_rule_graph(graph)
+
+
+@router.post("/datasets/{dataset_id}/calculated", response_model=DatasetSummary)
+def calculated_columns(dataset_id: str, req: CalculatedRequest, store: DecisionStore = Depends(get_decision_store)) -> DatasetSummary:
+    """The table as a rule graph extends it: calculated columns profiled over
+    every row and given role proposals, so they can be made criteria or
+    gates. Evaluated server-side over the whole table; the browser's own
+    evaluation only ever covers the preview rows."""
+    dataset = _load_dataset(dataset_id, store)
+    try:
+        augmented, audit = apply_rules(dataset, req.rule_graph)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return _summarise(augmented, base=dataset, calculated=augmented.columns[len(dataset.columns) :], rule_audit=audit)
+
+
 # --- frameworks ---
 
 
@@ -278,14 +322,14 @@ def score(req: ScoreRequest, store: DecisionStore = Depends(get_decision_store))
     dataset = _load_dataset(req.dataset_id, store)
     config = _resolve_config(req.config, req.framework_id, req.version, store)
     audit = store.get_audit(config.framework_id, config.version) if req.config is None else None
-    return apply_mechanism(dataset, config, derivation_audit=audit)
+    return _apply(dataset, config, derivation_audit=audit)
 
 
 @router.post("/export.csv", response_class=PlainTextResponse)
 def export_csv(req: ScoreRequest, store: DecisionStore = Depends(get_decision_store)) -> PlainTextResponse:
     dataset = _load_dataset(req.dataset_id, store)
     config = _resolve_config(req.config, req.framework_id, req.version, store)
-    result = apply_mechanism(dataset, config)
+    result = _apply(dataset, config)
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(["rank", "name", "segment", "cohort", "score", "tier", "tier_name", "action", "status", "coverage_pct", "grounded_coverage_pct", "rank_min", "rank_max", "size", "leverage", "leverage_rank", "notes"])
@@ -327,7 +371,10 @@ def sensitivity(req: SensitivityRequest, store: DecisionStore = Depends(get_deci
     every score."""
     dataset = _load_dataset(req.dataset_id, store)
     config = _resolve_config(req.config, req.framework_id, req.version, store)
-    return tipping_points(dataset, config, entity_keys=req.entity_keys, steps=req.steps)
+    try:
+        return tipping_points(dataset, config, entity_keys=req.entity_keys, steps=req.steps)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 class CompareRequest(BaseModel):
@@ -347,8 +394,8 @@ def compare(req: CompareRequest, store: DecisionStore = Depends(get_decision_sto
     after = _load_dataset(req.dataset_id_after, store)
     config = _resolve_config(req.config, req.framework_id, req.version, store)
     return compare_results(
-        apply_mechanism(before, config),
-        apply_mechanism(after, config),
+        _apply(before, config),
+        _apply(after, config),
         label_before=before.as_of or before.name,
         label_after=after.as_of or after.name,
     )

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from arp.schemas.common import new_id, now_iso
 
@@ -17,6 +17,26 @@ GateOp = Literal["is", "isnot", "lt", "gt", "eq"]
 GateOutcome = Literal["exclude", "demote", "flag"]
 EntityStatus = Literal["scored", "excluded", "insufficient"]
 AuditOrigin = Literal["derived", "human"]
+RULE_NODE_TYPES = frozenset({"inputNode", "outputNode", "expressionNode", "decisionTableNode", "switchNode"})
+
+
+def check_rule_graph(graph: dict[str, Any] | None) -> dict[str, Any] | None:
+    """A rule graph arrives inline from the UI, so this is a trust boundary.
+    Only declarative nodes are allowed: function nodes run JavaScript and
+    decision nodes load other graphs, and formulas and conditions need
+    neither."""
+    if graph is None:
+        return None
+    nodes = graph.get("nodes")
+    if not isinstance(nodes, list) or not isinstance(graph.get("edges", []), list):
+        raise ValueError("rule_graph must be a JDM graph with `nodes` and `edges` lists.")
+    bad = sorted({str(n.get("type")) if isinstance(n, dict) else "?" for n in nodes if not isinstance(n, dict) or n.get("type") not in RULE_NODE_TYPES})
+    if bad:
+        raise ValueError(
+            f"rule_graph node types not allowed: {', '.join(bad)}. "
+            f"Use {', '.join(sorted(RULE_NODE_TYPES))} -- a framework holds formulas and conditions, not code."
+        )
+    return graph
 
 
 class ColumnStats(BaseModel):
@@ -192,6 +212,25 @@ class MechanismConfig(BaseModel):
         "different thresholds are not directly comparable, which the audit log says explicitly.",
     )
 
+    rule_graph: dict[str, Any] | None = Field(
+        default=None,
+        description="A GoRules JSON Decision Model evaluated once per row before scoring. Every output key that is "
+        "not already a column becomes a calculated column -- a formula (capex / revenue * 100) or an AND/OR "
+        "condition -- which criteria and gates then use like any other column. See arp.decision.rules.",
+    )
+
+    tier_graph: dict[str, Any] | None = Field(
+        default=None,
+        description="A GoRules JSON Decision Model evaluated per scored entity after the score band is drawn. When set "
+        "it replaces the gates and the dimension floor: it sees the entity's band, score, rank, coverage and columns "
+        "and must output `tier` (1..number of tiers), optionally `exclude` and `note`. See arp.decision.rules.",
+    )
+
+    @field_validator("rule_graph", "tier_graph")
+    @classmethod
+    def _declarative_rules_only(cls, graph: dict[str, Any] | None) -> dict[str, Any] | None:
+        return check_rule_graph(graph)
+
 
 class AuditEntry(BaseModel):
     """One line of the derivation trail. `origin` is what lets a reviewer
@@ -283,6 +322,11 @@ class DecisionResult(BaseModel):
     excluded_count: int = 0
     insufficient_count: int = 0
     audit: list[AuditEntry] = Field(default_factory=list)
+    tier_inputs: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="What a tier graph sees for the first rows (band, score, rank, columns...) -- the browser "
+        "evaluates the tier graph against these while it is being edited.",
+    )
 
 
 class TippingPoint(BaseModel):

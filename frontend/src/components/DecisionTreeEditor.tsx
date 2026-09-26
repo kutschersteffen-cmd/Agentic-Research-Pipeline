@@ -22,6 +22,18 @@ export function DecisionTreeEditor({
 }) {
   const set = (patch: Partial<MechanismConfig>) => onChange({ ...config, ...patch });
   const cuts = result?.effective_cuts ?? config.pinned_cuts ?? [];
+  const tierRules = Boolean(config.tier_graph);
+
+  // Existing tiers keep their names and actions. Fixed cut-points must be one
+  // fewer than the tiers or the engine falls back to quantiles, so they are
+  // re-spaced evenly rather than left mismatched.
+  const setTierCount = (count: number) => {
+    if (!Number.isInteger(count) || count < 2 || count > 10) return;
+    const byRank = new Map(config.tiers.map((t) => [t.rank, t]));
+    const tiers = Array.from({ length: count }, (_, i) => byRank.get(i + 1) ?? { rank: i + 1, name: `Tier ${i + 1}`, action: "" });
+    const even = Array.from({ length: count - 1 }, (_, j) => Math.round((1000 * (count - 1 - j)) / count) / 10);
+    set({ tiers, pinned_cuts: config.cut_mode === "absolute" ? even : null });
+  };
 
   const addGate = () => {
     const candidate = profiles.find((p) => !config.gates.some((g) => g.column === p.name));
@@ -46,8 +58,10 @@ export function DecisionTreeEditor({
             {result ? <span className="muted"> {result.insufficient_count} routed here.</span> : null}
           </li>
           <li>
-            <strong>Hard gates</strong> — a knockout is a decision, not a deduction, so it is settled before the average
-            exists.
+            <strong>Hard gates</strong> —{" "}
+            {tierRules
+              ? "replaced by the tier rules below, which can exclude an entity after it is scored."
+              : "a knockout is a decision, not a deduction, so it is settled before the average exists."}
             {result ? <span className="muted"> {result.excluded_count} excluded.</span> : null}
           </li>
           <li>
@@ -55,8 +69,10 @@ export function DecisionTreeEditor({
             {cuts.length > 0 ? <span className="muted"> Cutting at {cuts.map((c) => c.toFixed(1)).join(", ")}.</span> : null}
           </li>
           <li>
-            <strong>Modifiers</strong> — demote-gates and the dimension floor, applied last so they adjust a decision
-            rather than dilute into one.
+            <strong>{tierRules ? "Tier rules" : "Modifiers"}</strong> —{" "}
+            {tierRules
+              ? "your decision graph sets the final tier from the band, score, rank and columns."
+              : "demote-gates and the dimension floor, applied last so they adjust a decision rather than dilute into one."}
           </li>
         </ol>
       </div>
@@ -69,6 +85,7 @@ export function DecisionTreeEditor({
               Add gate
             </button>
           </div>
+          {tierRules && <p className="decision-check-banner">Not applied: the tier rules below decide exclusions and demotions.</p>}
           {config.gates.length === 0 && <p className="muted">No gates. Every entity reaches the score.</p>}
           {config.gates.map((gate) => (
             <div key={gate.id} className="inline-fields decision-gate">
@@ -117,6 +134,10 @@ export function DecisionTreeEditor({
 
         <div className="card">
           <h3>Tier cut-points</h3>
+          <label className="field-label">
+            Number of tiers
+            <input type="number" min={2} max={10} value={config.tiers.length} onChange={(e) => setTierCount(Number(e.target.value))} />
+          </label>
           <select value={config.cut_mode} onChange={(e) => set({ cut_mode: e.target.value as CutMode })}>
             <option value="quantile">Quantiles</option>
             <option value="breaks">Natural breaks</option>
@@ -152,6 +173,7 @@ export function DecisionTreeEditor({
           )}
 
           <h3>Dimension floor</h3>
+          {tierRules && <p className="decision-check-banner">Not applied while tier rules are in use.</p>}
           <label className="checkbox-label">
             <input type="checkbox" checked={config.veto.enabled} onChange={(e) => set({ veto: { ...config.veto, enabled: e.target.checked } })} />
             Demote one tier when any dimension scores below
