@@ -568,12 +568,47 @@ button.link-button:hover:not(:disabled) { background: transparent; color: var(--
 
 /* --- Monitoring dashboard --- */
 
+/* KPI strip: one ruled panel, cells divided by hairlines (the 1px gap shows
+   the border colour through) -- depth from rules, not six nested boxes.
+   A fixed column count so six figures never wrap 5 + 1. */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  margin-bottom: 8px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--panel-border);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  margin: 0 0 var(--s-6);
 }
+.dashboard-grid .stat-tile {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: var(--s-1);
+  border: none;
+  border-radius: 0;
+  padding: var(--s-4);
+}
+.dashboard-grid .stat-value { font-size: var(--text-xl); margin: 0; line-height: 1.1; }
+.dashboard-grid .stat-label { line-height: 1.35; }
+@media (max-width: 1100px) { .dashboard-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.dashboard-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--s-6); align-items: start; }
+.dashboard-columns .section-heading { flex-wrap: wrap; gap: var(--s-1) var(--s-3); }
+.dashboard-columns .section-heading > .link-button { white-space: nowrap; margin-top: 0; }
+.dashboard-columns .data-table td:first-child { white-space: nowrap; }
+@media (min-width: 1180px) {
+  .dashboard-columns { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+}
+
+/* An empty section collapses to its heading and one muted line rather
+   than holding a full-height box open. */
+.card-empty { padding-block: var(--s-3); }
+.card-empty .section-heading { justify-content: flex-start; flex-wrap: wrap; gap: var(--s-1) var(--s-3); margin: 0; }
+.card-empty .section-heading h3 { font-size: var(--text-md); }
+.card-empty .section-heading > .link-button { margin-left: auto; }
 .stat-tile-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
