@@ -12,6 +12,7 @@
   --accent-ink: oklch(32% 0.070 250);
   --accent-tint: oklch(40% 0.070 250 / 0.10);
   --sidebar-bg: oklch(94.5% 0.016 76);
+  --on-accent: oklch(99% 0.009 80); /* text on accent and status fills */
   /* high/mid/low/neutral are status semantics (run status, escalation
      stage, badges) rendered as small text/borders, not chart marks.
      Deepened again when the ground moved to warm cream: at the previous
@@ -104,7 +105,7 @@ body {
   height: 26px;
   border-radius: var(--r-sm);
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   font-family: var(--font-display);
   font-weight: 700;
   font-size: var(--text-sm);
@@ -150,7 +151,7 @@ body {
 .nav-tab-icon { display: flex; flex-shrink: 0; }
 .nav-tab-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nav-tab:hover { background: var(--panel-border); }
-.nav-tab.active { background: var(--accent); color: white; font-weight: 600; }
+.nav-tab.active { background: var(--accent); color: var(--on-accent); font-weight: 600; }
 .nav-tab.active:hover { background: var(--accent); }
 
 .app-main {
@@ -311,12 +312,13 @@ input[type="text"]:focus, input:not([type]):focus, input[type="number"]:focus, i
        .decision-dims, .split-review, .source-panel-header) button {
   margin-top: 0;
 }
+textarea { field-sizing: content; min-height: 3lh; max-height: 20lh; resize: vertical; line-height: 1.45; }
 input[type="file"] { color: var(--muted); }
 input[type="checkbox"] { width: auto; }
 
 button {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border: none;
   border-radius: var(--r-md);
   padding: 9px 16px;
@@ -380,13 +382,13 @@ button.link-button:hover:not(:disabled) { background: transparent; color: var(--
   padding: 2px 8px;
   border-radius: var(--r-pill);
   font-size: var(--text-xs);
-  color: white;
+  color: var(--on-accent);
   font-weight: 600;
 }
 .badge-high { background: var(--high); }
 .badge-mid { background: var(--mid); }
 .badge-low { background: var(--low); }
-.badge-neutral { background: var(--neutral); color: white; }
+.badge-neutral { background: var(--neutral); color: var(--on-accent); }
 
 .status-pill {
   padding: 2px 8px;
@@ -639,7 +641,8 @@ button.link-button:hover:not(:disabled) { background: transparent; color: var(--
 .activity-row:last-child { border-bottom: none; }
 .activity-row .activity-main { flex: 1; min-width: 0; }
 .activity-row .progress-bar { margin: 6px 0 0; }
-.activity-meta { color: var(--muted); font-size: var(--text-xs); display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+.activity-meta { color: var(--muted); font-size: var(--text-xs); display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; margin-top: 2px; }
+.activity-meta .link-button { padding: 0; font-size: inherit; font-weight: 600; }
 
 .section-heading {
   display: flex;
@@ -726,7 +729,29 @@ button.link-button:hover:not(:disabled) { background: transparent; color: var(--
 }
 .view-toggle button:first-child { border-radius: var(--r-sm) 0 0 var(--r-sm); }
 .view-toggle button:last-child { border-radius: 0 var(--r-sm) var(--r-sm) 0; border-left: none; }
-.view-toggle button.active { background: var(--panel); color: var(--text); border-color: var(--accent); }
+.view-toggle button.active { background: var(--panel); color: var(--text); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+/* Page-level section tabs share the view-toggle's outline language; they
+   were filled pills that read as the page's primary action. Separate
+   buttons rather than a joined group so five or six tabs can wrap. */
+.sub-nav { gap: var(--s-1); }
+.sub-nav .nav-tab {
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  padding: 6px 14px;
+}
+.sub-nav .nav-tab:hover { background: var(--well); color: var(--text); }
+.sub-nav .nav-tab.active,
+.sub-nav .nav-tab.active:hover {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+@media (max-width: 760px) {
+  .sub-nav .nav-tab, .view-toggle button { min-height: 44px; }
+}
 
 .chart-svg { width: 100%; height: auto; overflow: visible; font-family: inherit; }
 .chart-axis-label { fill: var(--muted); font-size: var(--text-xs); }
@@ -737,7 +762,7 @@ button.link-button:hover:not(:disabled) { background: transparent; color: var(--
 .chart-crosshair { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
 
 .chart-wrap { position: relative; }
-.chart-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; font-size: var(--text-sm); color: var(--muted); }
+.chart-legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 6px 0 8px; font-size: var(--text-sm); color: var(--muted); }
 .chart-legend-item { display: inline-flex; align-items: center; gap: 6px; }
 .chart-legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
 
@@ -797,8 +822,9 @@ button.link-button:hover:not(:disabled) { background: transparent; color: var(--
    applied -- a wrong direction inverts a ranking and looks entirely
    normal on screen. */
 .decision-check-banner {
-  border-left: 3px solid var(--mid);
-  background: var(--well);
+  border: 1px solid var(--mid);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--mid) 12%, transparent);
   padding: 8px 12px;
   margin: 10px 0;
   font-size: var(--text-sm);
@@ -820,9 +846,6 @@ button.link-button:hover:not(:disabled) { background: transparent; color: var(--
    data. */
 .chart-cut-halo { stroke: var(--panel); stroke-width: 3; }
 .chart-cut-line { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
-.chart-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: var(--text-sm); color: var(--muted); margin-top: 6px; }
-.chart-legend-item { display: inline-flex; align-items: center; gap: 6px; }
-.chart-legend-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 
 /* --- Index Construction: compose step rail -------------------------------- */
 
