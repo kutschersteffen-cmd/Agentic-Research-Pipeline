@@ -258,3 +258,14 @@ def test_editing_tier_rules_is_a_human_audit_entry():
 def test_code_nodes_are_refused_in_tier_rules_too():
     with pytest.raises(ValidationError, match="functionNode"):
         MechanismConfig(tier_graph=graph(_node("js", "functionNode", source="export const handler = () => ({ tier: 1 })")))
+
+
+def test_renaming_a_tier_is_a_human_audit_entry(sample):
+    before, _ = derive_mechanism(sample)
+    after = before.model_copy(deep=True)
+    after.tiers[0].name, after.tiers[0].action = "Leaders", "Hold and engage"
+    after.tiers.append(TierDefinition(rank=5, name="Tier 5"))
+    entries = {e.item: e for e in describe_changes(before, after)}
+    assert entries["Tier 1"].decision == "Tier 1 (Act now) -> Leaders (Hold and engage)"
+    assert entries["Tier 1"].origin == "human"
+    assert entries["Tiers"].decision == "4 -> 5 tiers"
