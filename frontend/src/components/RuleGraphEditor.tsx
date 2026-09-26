@@ -142,6 +142,9 @@ export default function RuleGraphEditor({
 
   const live = engine === "ready";
   const columns = live ? browserColumns : (calculated?.calculated_columns ?? []);
+  // With no output columns there is no row to show an error in, so the
+  // first one is shown on its own -- otherwise a broken graph looks empty.
+  const browserError = live ? outcomes.map((o) => ("error" in o ? o.error : null)).find(Boolean) : null;
   const failures = calculated?.rule_audit.filter((a) => a.needs_check && a.stage === "Rules") ?? [];
 
   return (
@@ -203,7 +206,9 @@ export default function RuleGraphEditor({
             {f.item}: {f.decision} — {f.why}
           </p>
         ))}
-        {columns.length === 0 ? (
+        {columns.length === 0 && browserError ? (
+          <p className="error-text">Every preview row failed: {browserError}</p>
+        ) : columns.length === 0 ? (
           <p className="muted">No calculated columns yet. Add an expression with a key and a value.</p>
         ) : (
           <table className="data-table">

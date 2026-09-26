@@ -85,5 +85,8 @@ export function zenErrorText(error: unknown): string {
 
 export async function evaluateGraph(graph: RuleGraph, context: Record<string, unknown>, trace = false): Promise<ZenResponse> {
   const zen = await loadZen();
-  return zen.createDecision(graph).evaluate(context, { trace });
+  // The editor leaves some fields `undefined`; the engine's bridge turns
+  // those into null and rejects the graph. A JSON round trip drops them,
+  // exactly as sending the graph to the server does.
+  return zen.createDecision(JSON.parse(JSON.stringify(graph))).evaluate(context, { trace });
 }
