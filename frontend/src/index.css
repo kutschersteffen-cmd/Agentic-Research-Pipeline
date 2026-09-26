@@ -409,6 +409,84 @@ button.link-button:hover:not(:disabled) { background: transparent; color: var(--
 .progress-bar-fill { background: var(--accent); height: 100%; transition: width 0.4s ease; }
 
 .run-progress-header { display: flex; justify-content: space-between; align-items: center; }
+.run-stepper {
+  --mark: 22px;
+  list-style: none;
+  margin: var(--s-3) 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.run-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--mark) 1fr;
+  column-gap: var(--s-2);
+  row-gap: var(--s-1);
+  padding-right: var(--s-2);
+  color: var(--muted);
+}
+/* Wide: mark and connector on top, text underneath, so the line never crosses a label. */
+.run-step-label, .run-step-detail { grid-column: 1 / -1; }
+/* Connector to the next step, drawn from this mark's right edge. */
+.run-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: calc(var(--mark) / 2 - 1px);
+  left: calc(var(--mark) + var(--s-1));
+  right: var(--s-1);
+  height: 2px;
+  background: var(--panel-border);
+}
+.run-step-done:not(:last-child)::after { background: var(--high); }
+.run-step-mark {
+  width: var(--mark);
+  height: var(--mark);
+  border-radius: 50%;
+  border: 2px solid var(--panel-border);
+  background: var(--panel);
+  display: grid;
+  place-items: center;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1;
+}
+.run-step-label { font-size: var(--text-sm); font-weight: 600; }
+.run-step-detail { font-size: var(--text-xs); }
+.run-step-done .run-step-mark { border-color: var(--high); background: var(--high); color: var(--on-accent); }
+.run-step-current { color: var(--text); }
+.run-step-current .run-step-mark { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 4px var(--accent-tint); }
+.run-step-error .run-step-mark { border-color: var(--low); background: var(--low); color: var(--on-accent); }
+.run-step-error { color: var(--low); }
+.run-step-stopped .run-step-mark { border-color: var(--mid); color: var(--mid); }
+.run-step-done, .run-step-stopped { color: var(--text); }
+@media (prefers-reduced-motion: no-preference) {
+  .run-step-current .run-step-mark { animation: run-step-pulse 1.8s var(--ease) infinite; }
+}
+@keyframes run-step-pulse { 50% { box-shadow: 0 0 0 7px transparent; } }
+@media (max-width: 560px) {
+  .run-stepper { grid-template-columns: 1fr; row-gap: var(--s-3); }
+  .run-step { row-gap: 0; }
+  .run-step-mark { grid-row: span 2; }
+  .run-step-label, .run-step-detail { grid-column: 2; }
+  .run-step:not(:last-child)::after {
+    top: var(--mark);
+    bottom: calc(-1 * var(--s-3));
+    left: calc(var(--mark) / 2 - 1px);
+    right: auto;
+    width: 2px;
+    height: auto;
+  }
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .run-progress-stats { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: var(--text-sm); }
 
 .review-item { border: 1px solid var(--panel-border); border-radius: var(--r-md); padding: 10px 14px; margin-bottom: 12px; }

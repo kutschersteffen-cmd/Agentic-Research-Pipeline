@@ -4,6 +4,62 @@ import type { RunManifest } from "../types";
 
 const RESUMABLE_STATUSES = new Set(["failed", "partially_completed", "cancelled"]);
 
+type StepState = "done" | "current" | "pending" | "error" | "stopped";
+interface Step {
+  label: string;
+  detail: string;
+  state: StepState;
+}
+
+// Where a run stands in its lifecycle, derived from the manifest alone.
+// ponytail: run-level stages only; per-company agent steps (Advocate/Opposing/
+// Adjudicator, extractor/verifier) need the pipelines to report a stage first.
+function runSteps(m: RunManifest): Step[] {
+  const processed = m.completed_count + m.failed_count;
+  const terminal = !(m.status === "pending" || m.status === "running");
+  const processing: StepState =
+    m.status === "pending" ? "pending"
+    : m.status === "running" ? "current"
+    : m.status === "failed" ? "error"
+    : m.status === "cancelled" ? "stopped"
+    : "done";
+  return [
+    { label: "Queued", detail: m.status === "pending" ? "Waiting to start" : "Started", state: m.status === "pending" ? "current" : "done" },
+    { label: "Processing", detail: `${processed}/${m.company_count} processed`, state: processing },
+    {
+      label: "Finished",
+      detail: terminal ? m.status.replace("_", " ") : "Not yet",
+      state: !terminal ? "pending" : m.status === "failed" ? "error" : m.status === "cancelled" ? "stopped" : "done",
+    },
+    {
+      label: "Human review",
+      detail: m.review_count > 0 ? `${m.review_count} flagged` : terminal ? "Nothing flagged" : "Collecting flags",
+      // Flags stay "current" once the run ends: sign-off happens in the Review Queue,
+      // whose decisions the manifest does not count.
+      state: m.review_count > 0 && terminal ? "current" : terminal ? "done" : "pending",
+    },
+  ];
+}
+
+const STEP_MARK: Record<StepState, string> = { done: "✓", current: "●", pending: "", error: "!", stopped: "■" };
+
+function RunStepper({ steps }: { steps: Step[] }) {
+  return (
+    <ol className="run-stepper" aria-label="Run stage">
+      {steps.map((s) => (
+        <li key={s.label} className={`run-step run-step-${s.state}`} aria-current={s.state === "current" ? "step" : undefined}>
+          <span className="run-step-mark" aria-hidden="true">{STEP_MARK[s.state]}</span>
+          <span className="run-step-label">{s.label}</span>
+          <span className="run-step-detail">
+            <span className="visually-hidden">{s.state}: </span>
+            {s.detail}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export function RunProgress({
   runId,
   pollMs = 2500,
@@ -92,6 +148,7 @@ export function RunProgress({
         <strong>{manifest.run_id}</strong>
         <span className={`status-pill status-${manifest.status}`}>{manifest.status}</span>
       </div>
+      <RunStepper steps={runSteps(manifest)} />
       <div className="progress-bar">
         <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
       </div>
