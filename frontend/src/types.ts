@@ -1678,6 +1678,10 @@ export interface DatasetSummary {
   profiles: ColumnProfile[];
   proposals: RoleProposal[];
   has_confidence: boolean;
+  /** Preview rows typed exactly as the rule engine sees them. */
+  rule_inputs: Record<string, unknown>[];
+  calculated_columns: string[];
+  rule_audit: AuditEntry[];
 }
 
 export interface Dimension {
@@ -1743,6 +1747,13 @@ export interface MechanismConfig {
   size_column?: string | null;
   segment_column?: string | null;
   cluster_threshold: number;
+  /** GoRules JSON Decision Model: calculated columns, evaluated per row before scoring. */
+  rule_graph?: RuleGraph | null;
+}
+
+export interface RuleGraph {
+  nodes: { id: string; type: string; name?: string; content?: unknown; position?: { x: number; y: number } }[];
+  edges: { id: string; sourceId: string; targetId: string; sourceHandle?: string | null; type?: string }[];
 }
 
 export interface AuditEntry {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import { AuditLogView } from "../components/AuditLogView";
 import { ColumnProfileTable } from "../components/ColumnProfileTable";
@@ -19,14 +19,19 @@ import type {
 } from "../types";
 import { activatable } from "../lib/activatable";
 
+// The canvas pulls in the JDM editor and, on first use, the 14 MB engine:
+// loaded only when the Rules tab opens.
+const RuleGraphEditor = lazy(() => import("../components/RuleGraphEditor"));
+
 const SUB_TABS = [
   { id: "data", label: "1 · Data" },
   { id: "profile", label: "2 · Profile" },
-  { id: "mechanism", label: "3 · Mechanism" },
-  { id: "tree", label: "4 · Decision tree" },
-  { id: "results", label: "5 · Results" },
-  { id: "movement", label: "6 · Movement" },
-  { id: "audit", label: "7 · Audit" },
+  { id: "rules", label: "3 · Rules" },
+  { id: "mechanism", label: "4 · Mechanism" },
+  { id: "tree", label: "5 · Decision tree" },
+  { id: "results", label: "6 · Results" },
+  { id: "movement", label: "7 · Movement" },
+  { id: "audit", label: "8 · Audit" },
 ] as const;
 
 // `entity` names what one row of the resulting table actually is. Three of
@@ -47,6 +52,9 @@ export function DecisionStudio() {
   const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("data");
   const [datasets, setDatasets] = useState<DatasetSummary[]>([]);
   const [dataset, setDataset] = useState<DatasetSummary | null>(null);
+  // The table as the framework's rule graph extends it (calculated columns
+  // profiled server-side over every row); null when there are no rules.
+  const [calculated, setCalculated] = useState<DatasetSummary | null>(null);
   const [config, setConfig] = useState<MechanismConfig | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [result, setResult] = useState<DecisionResult | null>(null);
@@ -61,6 +69,7 @@ export function DecisionStudio() {
   const [compareWith, setCompareWith] = useState("");
   const [baseVersion, setBaseVersion] = useState<number | null>(null);
   const scoreTimer = useRef<number | undefined>(undefined);
+  const view = calculated ?? dataset;
 
   const refreshDatasets = useCallback(async () => {
     try {
@@ -107,6 +116,7 @@ export function DecisionStudio() {
 
   function selectDataset(summary: DatasetSummary) {
     setDataset(summary);
+    setCalculated(null);
     setConfig(null);
     setResult(null);
     setAudit([]);
@@ -147,6 +157,29 @@ export function DecisionStudio() {
     return () => window.clearTimeout(scoreTimer.current);
   }, [dataset, config]);
 
+  const ruleGraph = config?.rule_graph;
+  useEffect(() => {
+    if (!dataset || !ruleGraph) {
+      setCalculated(null);
+      return;
+    }
+    const timer = window.setTimeout(async () => {
+      try {
+        setCalculated(await api.calculatedColumns(dataset.dataset_id, ruleGraph));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [dataset, ruleGraph]);
+
+  const roles = useMemo(() => {
+    const out: Record<string, ColumnRole> = {};
+    config?.criteria.forEach((c) => (out[c.column] = "criterion"));
+    config?.gates.forEach((g) => (out[g.column] = "gate"));
+    return out;
+  }, [config]);
+
   function setRole(column: string, role: ColumnRole) {
     if (!config) return;
     const next: MechanismConfig = {
@@ -157,7 +190,7 @@ export function DecisionStudio() {
       size_column: config.size_column === column ? null : config.size_column,
       segment_column: config.segment_column === column ? null : config.segment_column,
     };
-    const proposal = dataset?.proposals.find((p) => p.column === column);
+    const proposal = view?.proposals.find((p) => p.column === column);
     if (role === "criterion") {
       next.criteria = [
         ...next.criteria,
@@ -380,8 +413,8 @@ export function DecisionStudio() {
           )}
           {config ? (
             <ColumnProfileTable
-              profiles={dataset.profiles}
-              proposals={dataset.proposals}
+              profiles={view?.profiles ?? dataset.profiles}
+              proposals={view?.proposals ?? dataset.proposals}
               config={config}
               onSetRole={setRole}
               onSetDirection={setDirection}
@@ -392,12 +425,27 @@ export function DecisionStudio() {
         </div>
       )}
 
+      {sub === "rules" && dataset && config && (
+        <Suspense fallback={<p className="status-text">Loading the rule editor…</p>}>
+          <RuleGraphEditor
+            graph={config.rule_graph}
+            dataset={dataset}
+            calculated={calculated}
+            labelColumn={config.label_column}
+            roles={roles}
+            onChange={(rule_graph) => setConfig({ ...config, rule_graph })}
+            onSetRole={setRole}
+          />
+        </Suspense>
+      )}
+      {sub === "rules" && dataset && !config && <p className="muted">Derive a mechanism first — rules are part of the framework.</p>}
+
       {sub === "mechanism" && dataset && config && (
-        <MechanismEditor config={config} profiles={dataset.profiles} weights={result?.effective_weights ?? {}} onChange={setConfig} />
+        <MechanismEditor config={config} profiles={view?.profiles ?? dataset.profiles} weights={result?.effective_weights ?? {}} onChange={setConfig} />
       )}
 
       {sub === "tree" && dataset && config && (
-        <DecisionTreeEditor config={config} profiles={dataset.profiles} result={result} onChange={setConfig} />
+        <DecisionTreeEditor config={config} profiles={view?.profiles ?? dataset.profiles} result={result} onChange={setConfig} />
       )}
 
       {sub === "results" && result && config && (

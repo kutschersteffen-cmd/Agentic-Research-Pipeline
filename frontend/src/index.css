@@ -912,3 +912,9 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
    stretching one select across the whole card. */
 .ix-compose .inline-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 var(--s-4); }
 .ix-compose .card > .field-label { max-width: 36ch; }
+
+/* Decision Studio rules: the JDM canvas needs a fixed height to lay out in. */
+.rule-canvas { height: min(640px, 75vh); padding: 0; overflow: hidden; }
+.rule-variables { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-2); margin: var(--s-2) 0 0; }
+.rule-roles { display: flex; gap: var(--s-2); font-weight: 400; }
+.selected-row { background: var(--accent-tint); }

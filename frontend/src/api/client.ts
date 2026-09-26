@@ -7,6 +7,7 @@ import type {
   EntitySensitivity,
   MechanismConfig,
   MechanismEnvelope,
+  RuleGraph,
   Alert,
   AlertRule,
   AlertStatus,
@@ -552,6 +553,8 @@ export const api = {
   decisionDatasetFromSource: (body: { source: string; run_id?: string; run_ids?: string[]; as_of?: string; portfolio_ids?: string[]; region?: string; sectors?: string[] }) =>
     request<DatasetSummary>("/api/decision/datasets/from-source", { method: "POST", body: JSON.stringify(body) }),
   listDecisionDatasets: () => request<DatasetSummary[]>("/api/decision/datasets"),
+  calculatedColumns: (datasetId: string, ruleGraph: RuleGraph) =>
+    request<DatasetSummary>(`/api/decision/datasets/${datasetId}/calculated`, { method: "POST", body: JSON.stringify({ rule_graph: ruleGraph }) }),
   deriveMechanism: (body: { dataset_id: string; name?: string; cluster_threshold?: number; save?: boolean }) =>
     request<MechanismEnvelope>("/api/decision/mechanisms/derive", { method: "POST", body: JSON.stringify(body) }),
   saveMechanism: (body: { config: MechanismConfig; base_version?: number | null; by?: string | null }) =>

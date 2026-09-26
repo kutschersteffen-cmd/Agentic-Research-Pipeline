@@ -78,6 +78,51 @@ Applying a framework never mutates it (asserted in the test suite).
 
 ## 3. What the engine does, step by step
 
+### 3·0. Rules: calculated columns (`rules.py`)
+
+A framework may carry a `rule_graph`: a GoRules JSON Decision Model,
+drawn on a drag-and-drop canvas (the JDM editor) and evaluated per row by
+the ZEN engine before anything else in `apply_mechanism` runs. Every
+output key that is not already a column becomes a **calculated column**:
+
+- **Formulas** in an Expression box: `capex / revenue * 100`. Earlier
+  outputs in the same box are `$.name`.
+- **AND/OR conditions**: `coal_expansion_flag and not sbti_validated_target`
+  in an Expression box, or a Decision table (columns AND, rows OR, first
+  hit wins), or a Switch.
+
+A calculated column is profiled, proposed a role and scored like any
+other. A compound gate needs no second gate system: the condition is a
+yes/no column, and an ordinary `is Yes` gate acts on it.
+
+Rows are typed from the profile before evaluation (numbers, booleans,
+blanks as null) and every column is also addressable by its slug
+(`Scope 1 (t)` → `scope_1_t`). Three rules keep the source data in charge:
+
+1. **A rule never overwrites a source column.** Such an output is dropped
+   and logged.
+2. **A row the graph cannot evaluate gets blanks**, not an error: null
+   arithmetic or division by zero leaves that row's calculated values
+   empty for the missing-data policy to handle, and the count plus the
+   first error are logged with `needs_check`.
+3. **Only declarative nodes** (input, output, expression, decision table,
+   switch). Function nodes run JavaScript and decision nodes load other
+   graphs; the schema refuses both, since a framework arrives inline from
+   the UI.
+
+The browser runs the same engine build (ZEN 2.0.2 as threaded WASM,
+`frontend/src/lib/zenEngine.ts`) for a live preview while a rule is being
+edited; the backend pins `zen-engine==2.0.2` in lockstep so the two cannot
+drift. The preview never becomes the score: `POST
+/api/decision/datasets/{id}/calculated` evaluates the whole table
+server-side, and scoring always re-runs the rules. Threaded WASM needs
+`SharedArrayBuffer`, hence the COOP/COEP headers in `vite.config.ts` and
+`nginx.conf`. If those headers are missing, the preview falls back to the
+server's values.
+
+Editing the graph is diffed node by node into a human-origin audit entry;
+dragging a node is not an edit.
+
 ### 3a. Parsing (`parsing.py`)
 
 Delimiter sniffing that picks the delimiter yielding the most *consistent*
@@ -301,10 +346,12 @@ LLM, so none needs `schedule_llm_run`: scoring is synchronous.
 list | show | audit | new-version | ratify` (`arp/cli/decision.py`),
 mirroring `arp taxonomy`.
 
-**UI** — `frontend/src/pages/DecisionStudio.tsx`, seven sub-tabs: Data,
-Profile, Mechanism, Decision tree, Results, Movement, Audit. Every number
-on the page comes back from the engine; nothing is recomputed in the
-browser, so what a reviewer sees is exactly what the audit trail records.
+**UI** — `frontend/src/pages/DecisionStudio.tsx`, eight sub-tabs: Data,
+Profile, Rules, Mechanism, Decision tree, Results, Movement, Audit. Every number
+on the page comes back from the engine, so what a reviewer sees is exactly
+what the audit trail records. The one exception is the Rules tab's live
+preview: it is computed in the browser, by the same engine build, and it is
+never the recorded score (see 3·0).
 
 ---
 
@@ -328,12 +375,13 @@ backend/arp/decision/
   diffing.py       framework diff -> human-origin audit entries
   mechanism.py     derive_mechanism / apply_mechanism
   sources.py       in-repo tables (transition plan, extraction, theme, portfolio)
+  rules.py         rule graph (GoRules JDM) -> calculated columns, via ZEN
   sample_data/example_transition_universe.csv
 backend/arp/schemas/decision.py      every type named in this document
 backend/arp/storage/decision_store.py  versioned frameworks + datasets
 backend/arp/api/routers/decision.py    /api/decision
 backend/arp/cli/decision.py            arp decision ...
-backend/tests/test_decision_*.py       engine, store, analysis, sources, API
+backend/tests/test_decision_*.py       engine, store, analysis, sources, rules, API
 frontend/src/pages/DecisionStudio.tsx
 frontend/src/components/{ColumnProfileTable,MechanismEditor,DecisionTreeEditor,
                          DecisionResultsTable,ScoreDistribution,AuditLogView}.tsx

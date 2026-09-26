@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@gorules/jdm-editor": "1.52.0",
+    "@gorules/zen-engine-wasm32-wasi": "2.0.2",
+    "@napi-rs/wasm-runtime": "^1.2.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
