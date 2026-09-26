@@ -1,3 +1,4 @@
+import { readRedFlags, writeRedFlags } from "../lib/ruleGraphs";
 import type { ColumnProfile, CutMode, DecisionResult, GateOutcome, MechanismConfig } from "../types";
 
 const OUTCOMES: { value: GateOutcome; label: string }[] = [
@@ -27,12 +28,23 @@ export function DecisionTreeEditor({
   // Existing tiers keep their names and actions. Fixed cut-points must be one
   // fewer than the tiers or the engine falls back to quantiles, so they are
   // re-spaced evenly rather than left mismatched.
+  const flags = readRedFlags(config.tier_graph);
+  const worst = Math.max(...config.tiers.map((t) => t.rank));
+  const flagTier = flags?.tier ?? worst;
+  const booleans = profiles.filter((p) => p.type === "boolean");
+  const setFlags = (columns: string[], tier: number) => set({ tier_graph: writeRedFlags(config.tier_graph, columns, tier) });
+
+  const setTier = (rank: number, patch: Partial<MechanismConfig["tiers"][number]>) =>
+    set({ tiers: config.tiers.map((t) => (t.rank === rank ? { ...t, ...patch } : t)) });
+
   const setTierCount = (count: number) => {
     if (!Number.isInteger(count) || count < 2 || count > 10) return;
     const byRank = new Map(config.tiers.map((t) => [t.rank, t]));
     const tiers = Array.from({ length: count }, (_, i) => byRank.get(i + 1) ?? { rank: i + 1, name: `Tier ${i + 1}`, action: "" });
     const even = Array.from({ length: count - 1 }, (_, j) => Math.round((1000 * (count - 1 - j)) / count) / 10);
-    set({ tiers, pinned_cuts: config.cut_mode === "absolute" ? even : null });
+    // Red flags pointing at the worst tier keep pointing at the worst tier.
+    const tier_graph = flags?.columns.length && flags.tier === worst ? writeRedFlags(config.tier_graph, flags.columns, count) : config.tier_graph;
+    set({ tiers, pinned_cuts: config.cut_mode === "absolute" ? even : null, tier_graph });
   };
 
   const addGate = () => {
@@ -75,6 +87,54 @@ export function DecisionTreeEditor({
               : "demote-gates and the dimension floor, applied last so they adjust a decision rather than dilute into one."}
           </li>
         </ol>
+      </div>
+
+      <div className="card">
+        <h3>Red flags</h3>
+        {flags === null ? (
+          <p className="help-text">
+            The tier rules below were built by hand without the standard tier table, so red flags are set there directly.
+          </p>
+        ) : (
+          <>
+            <p className="help-text">
+              Any ticked yes/no column that is <strong>Yes</strong> sends an entity to the chosen tier, whatever its score —
+              one flag is enough. A blank answer does not count. This writes rows into the tier rules below
+              {tierRules ? "" : ", which switches this framework to tier rules: the gates stop applying"}.
+            </p>
+            <label className="field-label inline-block">
+              Send to tier
+              <select value={flagTier} onChange={(e) => setFlags(flags.columns, Number(e.target.value))}>
+                {[...config.tiers]
+                  .sort((a, b) => a.rank - b.rank)
+                  .map((t) => (
+                    <option key={t.rank} value={t.rank}>
+                      {t.rank} · {t.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            {booleans.length === 0 ? (
+              <p className="muted">No yes/no columns in this table. A rule can make one (Rules tab).</p>
+            ) : (
+              <div className="red-flag-list">
+                {booleans.map((p) => (
+                  <label key={p.name} className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={flags.columns.includes(p.name)}
+                      onChange={(e) =>
+                        setFlags(e.target.checked ? [...flags.columns, p.name] : flags.columns.filter((c) => c !== p.name), flagTier)
+                      }
+                    />
+                    {p.name}
+                    {p.stats?.true_share != null && <span className="muted"> · {(p.stats.true_share * 100).toFixed(0)}% Yes</span>}
+                  </label>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <div className="decision-grid">
@@ -138,6 +198,36 @@ export function DecisionTreeEditor({
             Number of tiers
             <input type="number" min={2} max={10} value={config.tiers.length} onChange={(e) => setTierCount(Number(e.target.value))} />
           </label>
+          <table className="data-table decision-tier-names">
+            <thead>
+              <tr>
+                <th>Tier</th>
+                <th>Name</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...config.tiers]
+                .sort((a, b) => a.rank - b.rank)
+                .map((tier) => (
+                  <tr key={tier.rank}>
+                    <td>{tier.rank}</td>
+                    <td>
+                      <input aria-label={`Tier ${tier.rank} name`} value={tier.name} onChange={(e) => setTier(tier.rank, { name: e.target.value })} />
+                    </td>
+                    <td>
+                      <input
+                        aria-label={`Tier ${tier.rank} action`}
+                        value={tier.action}
+                        placeholder="e.g. Engage"
+                        onChange={(e) => setTier(tier.rank, { action: e.target.value })}
+                      />
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+          <p className="help-text">Tier 1 is the best. Names and actions appear in the results, the export and the audit log.</p>
           <select value={config.cut_mode} onChange={(e) => set({ cut_mode: e.target.value as CutMode })}>
             <option value="quantile">Quantiles</option>
             <option value="breaks">Natural breaks</option>

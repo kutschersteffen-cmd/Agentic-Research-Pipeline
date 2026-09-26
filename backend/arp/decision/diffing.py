@@ -66,6 +66,7 @@ def describe_changes(before: MechanismConfig, after: MechanismConfig, *, by: str
     entries.extend(_dimension_changes(before, after, by))
     entries.extend(_gate_changes(before, after, by))
     entries.extend(_rule_changes(before, after, by))
+    entries.extend(_tier_changes(before, after, by))
 
     if before.pinned_cuts != after.pinned_cuts:
         entries.append(
@@ -79,6 +80,35 @@ def describe_changes(before: MechanismConfig, after: MechanismConfig, *, by: str
             )
         )
     return entries
+
+
+def _tier_changes(before: MechanismConfig, after: MechanismConfig, by: str | None) -> list[AuditEntry]:
+    """Tier names and actions are what a decision reads as ("Act now"), so
+    renaming one is recorded like any other rule change."""
+    old = {t.rank: t for t in before.tiers}
+    new = {t.rank: t for t in after.tiers}
+    entries: list[AuditEntry] = []
+    if len(old) != len(new):
+        entries.append(
+            AuditEntry(stage="Edit", item="Tiers", decision=f"{len(old)} -> {len(new)} tiers", why="changed by hand", origin="human", by=by)
+        )
+    for rank in sorted(set(old) & set(new)):
+        if (old[rank].name, old[rank].action) != (new[rank].name, new[rank].action):
+            entries.append(
+                AuditEntry(
+                    stage="Edit",
+                    item=f"Tier {rank}",
+                    decision=f"{_tier_label(old[rank])} -> {_tier_label(new[rank])}",
+                    why="renamed by hand",
+                    origin="human",
+                    by=by,
+                )
+            )
+    return entries
+
+
+def _tier_label(tier) -> str:
+    return f"{tier.name} ({tier.action or 'no action'})"
 
 
 def _rule_changes(before: MechanismConfig, after: MechanismConfig, by: str | None) -> list[AuditEntry]:

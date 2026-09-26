@@ -255,6 +255,12 @@ fraction of its criteria. Consequences worth knowing:
   does not redraw its peers' cut-points (a gate exclusion does).
 - A row the graph cannot evaluate, or whose `tier` is out of range, keeps
   its band and is flagged. Moving an entity *up* is allowed and flagged.
+- **Red flags** (Decision tree tab) is a checkbox shortcut over the same
+  table: each ticked yes/no column becomes one row, placed first, sending
+  a "Yes" to the chosen tier with the note "Red flag: <column>" (one flag
+  is enough; a blank answer is not a flag). The picker reads its state
+  back from the table, so it and the canvas never disagree; flags aimed at
+  the worst tier follow it when the number of tiers changes.
 - The number of tiers is set in the Decision tree tab; with fixed
   cut-points it re-spaces them evenly, since a mismatched count would fall
   back to quantiles.
