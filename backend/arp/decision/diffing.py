@@ -65,6 +65,7 @@ def describe_changes(before: MechanismConfig, after: MechanismConfig, *, by: str
     entries.extend(_criteria_changes(before, after, by))
     entries.extend(_dimension_changes(before, after, by))
     entries.extend(_gate_changes(before, after, by))
+    entries.extend(_rule_changes(before, after, by))
 
     if before.pinned_cuts != after.pinned_cuts:
         entries.append(
@@ -78,6 +79,31 @@ def describe_changes(before: MechanismConfig, after: MechanismConfig, *, by: str
             )
         )
     return entries
+
+
+def _rule_changes(before: MechanismConfig, after: MechanismConfig, by: str | None) -> list[AuditEntry]:
+    """Node-level: which rule boxes were added, removed or edited. Dragging
+    a node on the canvas moves `position` only and is not an edit."""
+
+    def nodes(config: MechanismConfig) -> dict[str, tuple]:
+        graph = config.rule_graph or {}
+        return {
+            str(n.get("id")): (n.get("name") or n.get("type"), n.get("type"), n.get("content"))
+            for n in graph.get("nodes", [])
+        }
+
+    def edges(config: MechanismConfig) -> set[tuple]:
+        return {(e.get("sourceId"), e.get("targetId"), e.get("sourceHandle")) for e in (config.rule_graph or {}).get("edges", [])}
+
+    old, new = nodes(before), nodes(after)
+    changes = [f"added {new[i][0]}" for i in new if i not in old]
+    changes += [f"removed {old[i][0]}" for i in old if i not in new]
+    changes += [f"edited {new[i][0]}" for i in new if i in old and new[i] != old[i]]
+    if edges(before) != edges(after):
+        changes.append("rewired")
+    if not changes:
+        return []
+    return [AuditEntry(stage="Edit", item="Rule graph", decision="; ".join(changes), why="changed by hand", origin="human", by=by)]
 
 
 def _criteria_changes(before: MechanismConfig, after: MechanismConfig, by: str | None) -> list[AuditEntry]:

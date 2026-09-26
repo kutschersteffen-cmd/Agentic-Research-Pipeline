@@ -240,3 +240,62 @@ def test_replication_source_with_no_runs_is_a_clean_400(client):
     response = client.post("/api/decision/datasets/from-source", json={"source": "replication_runs"})
     assert response.status_code == 400
     assert "strategy_replication" in response.json()["detail"]
+
+
+def _ratio_graph() -> dict:
+    return {
+        "nodes": [
+            {"id": "in", "type": "inputNode", "name": "Input", "position": {"x": 0, "y": 0}},
+            {
+                "id": "calc",
+                "type": "expressionNode",
+                "name": "Calc",
+                "position": {"x": 200, "y": 0},
+                "content": {
+                    "expressions": [{"id": "1", "key": "green_capex_x2", "value": "green_capex_share_pct * 2"}],
+                    "passThrough": False,
+                    "inputField": None,
+                    "outputPath": None,
+                    "executionMode": "single",
+                },
+            },
+            {"id": "out", "type": "outputNode", "name": "Output", "position": {"x": 400, "y": 0}},
+        ],
+        "edges": [
+            {"id": "a", "sourceId": "in", "targetId": "calc", "type": "edge"},
+            {"id": "b", "sourceId": "calc", "targetId": "out", "type": "edge"},
+        ],
+    }
+
+
+def test_summary_carries_the_typed_inputs_the_browser_evaluates(client):
+    summary = _upload(client)
+    first = summary["rule_inputs"][0]
+    assert first["Green_Capex_Share_pct"] == 41 and first["green_capex_share_pct"] == 41
+    assert first["Scope3_Reported"] is True
+
+
+def test_calculated_endpoint_profiles_the_new_columns(client):
+    dataset_id = _upload(client)["dataset_id"]
+    response = client.post(f"/api/decision/datasets/{dataset_id}/calculated", json={"rule_graph": _ratio_graph()})
+    assert response.status_code == 200, response.text
+    summary = response.json()
+    assert summary["calculated_columns"] == ["green_capex_x2"]
+    profile = next(p for p in summary["profiles"] if p["name"] == "green_capex_x2")
+    source = next(p for p in summary["profiles"] if p["name"] == "Green_Capex_Share_pct")
+    assert profile["type"] == "numeric" and profile["coverage"] == source["coverage"], "a blank input stays blank"
+    assert "green_capex_x2" not in summary["rule_inputs"][0], "the browser evaluates against source columns only"
+
+
+def test_score_applies_an_inline_rule_graph_and_refuses_code(client):
+    dataset_id = _upload(client)["dataset_id"]
+    config = client.post("/api/decision/mechanisms/derive", json={"dataset_id": dataset_id}).json()["config"]
+    config["rule_graph"] = _ratio_graph()
+    config["criteria"].append({"column": "green_capex_x2", "dimension_id": config["dimensions"][0]["id"]})
+    result = client.post("/api/decision/score", json={"dataset_id": dataset_id, "config": config})
+    assert result.status_code == 200, result.text
+    assert "green_capex_x2" in result.json()["effective_weights"]
+
+    config["rule_graph"]["nodes"][1]["type"] = "functionNode"
+    refused = client.post("/api/decision/score", json={"dataset_id": dataset_id, "config": config})
+    assert refused.status_code == 422

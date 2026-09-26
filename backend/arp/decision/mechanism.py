@@ -6,6 +6,7 @@ from arp.decision.normalise import normalise_column
 from arp.decision.parsing import to_number
 from arp.decision.profiling import numeric_values, profile_dataset
 from arp.decision.roles import has_keyword, load_keywords, pretty, propose_cohort_column, propose_roles
+from arp.decision.rules import apply_rules
 from arp.decision.scoring import compute_scores, ranks_of
 from arp.decision.stability import ALTERNATIVE_PRESETS, alternative_norm, rank_ranges
 from arp.decision.tree import derive_cuts, dimension_scores, gate_hit, tier_for_score, veto_dimensions
@@ -248,9 +249,15 @@ def apply_mechanism(
     The evaluation order is fixed and is the reason results are
     reproducible: sufficiency, then hard gates, then the score band, then
     modifiers. Anything a gate settles never reaches the score.
+
+    A framework's rule graph runs first of all: its calculated columns
+    are part of the table every later step sees.
     """
-    profiles = profile_dataset(dataset)
     audit = list(derivation_audit or [])
+    if config.rule_graph:
+        dataset, rule_audit = apply_rules(dataset, config.rule_graph)
+        audit.extend(rule_audit)
+    profiles = profile_dataset(dataset)
     columns = active_criteria(config, profiles)
     cohorts = _cohort_values(dataset, config)
     n = dataset.row_count

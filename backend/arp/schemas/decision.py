@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from arp.schemas.common import new_id, now_iso
 
@@ -17,6 +17,26 @@ GateOp = Literal["is", "isnot", "lt", "gt", "eq"]
 GateOutcome = Literal["exclude", "demote", "flag"]
 EntityStatus = Literal["scored", "excluded", "insufficient"]
 AuditOrigin = Literal["derived", "human"]
+RULE_NODE_TYPES = frozenset({"inputNode", "outputNode", "expressionNode", "decisionTableNode", "switchNode"})
+
+
+def check_rule_graph(graph: dict[str, Any] | None) -> dict[str, Any] | None:
+    """A rule graph arrives inline from the UI, so this is a trust boundary.
+    Only declarative nodes are allowed: function nodes run JavaScript and
+    decision nodes load other graphs, and formulas and conditions need
+    neither."""
+    if graph is None:
+        return None
+    nodes = graph.get("nodes")
+    if not isinstance(nodes, list) or not isinstance(graph.get("edges", []), list):
+        raise ValueError("rule_graph must be a JDM graph with `nodes` and `edges` lists.")
+    bad = sorted({str(n.get("type")) if isinstance(n, dict) else "?" for n in nodes if not isinstance(n, dict) or n.get("type") not in RULE_NODE_TYPES})
+    if bad:
+        raise ValueError(
+            f"rule_graph node types not allowed: {', '.join(bad)}. "
+            f"Use {', '.join(sorted(RULE_NODE_TYPES))} -- a framework holds formulas and conditions, not code."
+        )
+    return graph
 
 
 class ColumnStats(BaseModel):
@@ -191,6 +211,18 @@ class MechanismConfig(BaseModel):
         "A framework field rather than a constant because it is a judgement call -- but two frameworks with "
         "different thresholds are not directly comparable, which the audit log says explicitly.",
     )
+
+    rule_graph: dict[str, Any] | None = Field(
+        default=None,
+        description="A GoRules JSON Decision Model evaluated once per row before scoring. Every output key that is "
+        "not already a column becomes a calculated column -- a formula (capex / revenue * 100) or an AND/OR "
+        "condition -- which criteria and gates then use like any other column. See arp.decision.rules.",
+    )
+
+    @field_validator("rule_graph")
+    @classmethod
+    def _declarative_rules_only(cls, graph: dict[str, Any] | None) -> dict[str, Any] | None:
+        return check_rule_graph(graph)
 
 
 class AuditEntry(BaseModel):

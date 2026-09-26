@@ -44,6 +44,11 @@ dependencies = [
     "python-docx>=1.1,<2.0",
     "matplotlib>=3.8,<4.0",
     "reportlab>=4.0,<5.0",
+    # Decision Studio rule graphs (arp/decision/rules.py): GoRules ZEN, MIT.
+    # Pinned exactly, in lockstep with frontend/package.json's
+    # @gorules/zen-engine-wasm32-wasi: the browser previews a rule with the
+    # same engine build the server scores it with, so the two cannot drift.
+    "zen-engine==2.0.2",
 ]
 
 [project.optional-dependencies]
