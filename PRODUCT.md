@@ -30,8 +30,11 @@ export until a human approves it.
 
 ## Operating Context
 
-- Mostly **presented to others** (confirmed): screen-shared in stewardship committees, investment
+- Often **presented to others** (confirmed): screen-shared in stewardship committees, investment
   committees and client meetings, as well as worked in directly.
+- **Mixed devices** (confirmed): used on phones, laptops and wide screens. Phone use is real, not
+  an afterthought: checking a run, a stalled issue or a pending vote away from the desk. Wide
+  screens and projectors carry the dense, presented views.
 - The work revolves around disclosures (annual, sustainability and proxy reports), cited evidence,
   review queues, escalation ladders, ballots, versioned taxonomies and effective-dated index
   calibrations.
@@ -66,6 +69,8 @@ None (confirmed): no corporate brand; the product name is "Agentic Research Pipe
 3. Show the uncertainty: guesses, gaps and rank ranges are surfaced, never smoothed away.
 4. Legible in the room: the screen must read when shared, to people who did not drive it.
    (Inferred from "presented to others".)
+5. Same truth at every size: a phone shows fewer things, never a different or less-sourced answer.
+   (Inferred from mixed-device use.)
 
 ## Accessibility & Inclusion
 
