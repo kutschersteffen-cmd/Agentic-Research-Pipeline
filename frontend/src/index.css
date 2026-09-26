@@ -42,6 +42,8 @@
   --s-8: 32px;
   --s-12: 48px;
 
+  --topbar-h: 53px; /* mobile top bar: 44px target + padding + hairline */
+
   /* Three radii, replacing nine. */
   --r-sm: 6px;
   --r-md: 8px;
@@ -155,7 +157,9 @@ body {
   flex: 1;
   min-width: 0;
   padding: var(--s-8) 36px 80px;
-  overflow-x: hidden;
+  /* clip, not hidden: hidden makes this a scroll container, which silently
+     breaks position: sticky for everything inside it. */
+  overflow-x: clip;
 }
 
 .app-topbar, .nav-scrim { display: none; }
@@ -171,6 +175,7 @@ body {
     position: sticky;
     top: 0;
     z-index: 50;
+    height: var(--topbar-h);
     padding: var(--s-1) var(--s-3) var(--s-1) var(--s-1);
     background: var(--sidebar-bg);
     border-bottom: 1px solid var(--panel-border);
@@ -269,7 +274,7 @@ body {
   margin: 10px 0 4px;
 }
 
-input[type="text"], input:not([type]), input[type="number"], textarea, select {
+input[type="text"], input:not([type]), input[type="number"], input[type="date"], textarea, select {
   width: 100%;
   background: var(--panel);
   border: 1px solid var(--panel-border);
@@ -279,7 +284,7 @@ input[type="text"], input:not([type]), input[type="number"], textarea, select {
   font-size: var(--text-base);
   font-family: inherit;
 }
-input[type="text"]:focus, input:not([type]):focus, input[type="number"]:focus, textarea:focus, select:focus {
+input[type="text"]:focus, input:not([type]):focus, input[type="number"]:focus, input[type="date"]:focus, textarea:focus, select:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-tint);
@@ -818,3 +823,72 @@ button.link-button:hover:not(:disabled) { background: transparent; color: var(--
 .chart-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: var(--text-sm); color: var(--muted); margin-top: 6px; }
 .chart-legend-item { display: inline-flex; align-items: center; gap: 6px; }
 .chart-legend-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+/* --- Index Construction: compose step rail -------------------------------- */
+
+.ix-compose { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-6); align-items: start; }
+.ix-step { scroll-margin-top: var(--s-4); }
+
+.ix-rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.ix-rail a {
+  display: grid;
+  grid-template-columns: 1.25em minmax(0, 1fr);
+  column-gap: var(--s-2);
+  padding: 6px 10px;
+  border-radius: var(--r-md);
+  color: var(--text);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+.ix-rail a:hover { background: var(--well); }
+.ix-rail a[aria-current="step"] { background: var(--accent-tint); color: var(--accent-ink); font-weight: 600; }
+.ix-rail-n { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+.ix-rail-summary {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 1100px) {
+  .ix-compose { grid-template-columns: 208px minmax(0, 1fr); }
+  .ix-rail { position: sticky; top: var(--s-6); }
+}
+
+/* Narrower: the rail becomes a sticky, horizontally scrolling strip of
+   step links; summaries drop out to keep it one line. */
+@media (max-width: 1099px) {
+  .ix-compose { gap: var(--s-4); }
+  .ix-rail {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+    border-bottom: 1px solid var(--panel-border);
+    padding: var(--s-2) 0;
+    overflow-x: auto;
+  }
+  .ix-rail ol { flex-direction: row; }
+  .ix-rail li { flex: none; }
+  .ix-rail a { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+  .ix-rail-n:empty { display: none; }
+  .ix-rail-summary { display: none; }
+  .ix-step { scroll-margin-top: 72px; }
+}
+@media (max-width: 760px) {
+  .ix-rail { top: var(--topbar-h); }
+  .ix-rail a { min-height: 44px; align-items: center; }
+  .ix-step { scroll-margin-top: calc(72px + var(--topbar-h)); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.ix-rail) { scroll-behavior: smooth; }
+}
+
+/* Short enums and numbers sized to their content: a wrapping grid instead of
+   stretching one select across the whole card. */
+.ix-compose .inline-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 var(--s-4); }
+.ix-compose .card > .field-label { max-width: 36ch; }

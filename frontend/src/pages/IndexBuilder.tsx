@@ -262,6 +262,28 @@ export function IndexBuilder() {
     }
   }
 
+  const c = spec.constraints;
+  const constraintCount =
+    [c.single_name_cap, c.min_weight, c.max_constituents, c.min_constituents].filter((v) => v != null).length +
+    c.group_caps.length +
+    (c.ucits_5_10_40 ? 1 : 0);
+  const plural = (n: number, word: string) => (n === 0 ? "none" : `${n} ${word}${n === 1 ? "" : "s"}`);
+  const composeSteps: RailStep[] = [
+    { id: "ix-preset", label: "Preset", summary: loaded?.name ?? "optional" },
+    { id: "ix-screens", n: 1, label: "Screens", summary: plural(spec.screens.length, "screen") },
+    { id: "ix-selection", n: 2, label: "Selection", summary: spec.selection.type },
+    { id: "ix-weighting", n: 3, label: "Base weighting", summary: spec.base_weighting.scheme },
+    { id: "ix-tilts", n: 4, label: "Tilts", summary: plural(spec.tilts.length, "tilt") },
+    { id: "ix-constraints", n: 5, label: "Constraints", summary: plural(constraintCount, "limit") },
+    {
+      id: "ix-trajectory",
+      n: 6,
+      label: "Decarbonisation",
+      summary: spec.trajectory.enabled ? `${+(spec.trajectory.annual_reduction_rate * 100).toFixed(2)}% a year` : "off",
+    },
+    { id: "ix-review", label: "Run a review", summary: indexId || "no index id" },
+  ];
+
   return (
     <div className="page">
       <h2>Index Construction</h2>
@@ -283,8 +305,10 @@ export function IndexBuilder() {
       {status && <p className="status-text">{status}</p>}
 
       {sub === "compose" && (
-        <>
-          <div className="card">
+        <div className="ix-compose">
+          <StepRail steps={composeSteps} />
+          <div className="ix-steps">
+          <div className="card ix-step" id="ix-preset">
             <h3>Start from a preset</h3>
             <p className="help-text">
               A preset expands into the ordinary rules below -- nothing is hidden, and every rule stays editable.
@@ -301,14 +325,26 @@ export function IndexBuilder() {
             </div>
           </div>
 
-          <ScreensCard spec={spec} setSpec={setSpec} catalogue={catalogue} fields={fields} onAddBundle={addBundle} />
-          <SelectionCard spec={spec} setSpec={setSpec} fields={fields} />
-          <WeightingCard spec={spec} setSpec={setSpec} fields={fields} />
-          <TiltsCard spec={spec} setSpec={setSpec} fields={fields} />
-          <ConstraintsCard spec={spec} setSpec={setSpec} fields={fields} optimizerAvailable={catalogue?.constraint_solver?.available ?? null} integerAvailable={catalogue?.constraint_solver?.integer_available ?? null} />
-          <TrajectoryCard spec={spec} setSpec={setSpec} fields={fields} />
+          <div className="ix-step" id="ix-screens">
+            <ScreensCard spec={spec} setSpec={setSpec} catalogue={catalogue} fields={fields} onAddBundle={addBundle} />
+          </div>
+          <div className="ix-step" id="ix-selection">
+            <SelectionCard spec={spec} setSpec={setSpec} fields={fields} />
+          </div>
+          <div className="ix-step" id="ix-weighting">
+            <WeightingCard spec={spec} setSpec={setSpec} fields={fields} />
+          </div>
+          <div className="ix-step" id="ix-tilts">
+            <TiltsCard spec={spec} setSpec={setSpec} fields={fields} />
+          </div>
+          <div className="ix-step" id="ix-constraints">
+            <ConstraintsCard spec={spec} setSpec={setSpec} fields={fields} optimizerAvailable={catalogue?.constraint_solver?.available ?? null} integerAvailable={catalogue?.constraint_solver?.integer_available ?? null} />
+          </div>
+          <div className="ix-step" id="ix-trajectory">
+            <TrajectoryCard spec={spec} setSpec={setSpec} fields={fields} />
+          </div>
 
-          <div className="card">
+          <div className="card ix-step" id="ix-review">
             <h3>Run a review</h3>
             <div className="inline-fields">
               <label className="field-label" style={{ flex: 1 }}>
@@ -333,7 +369,8 @@ export function IndexBuilder() {
               </button>
             </div>
           </div>
-        </>
+          </div>
+        </div>
       )}
 
       {sub === "calibrations" && (
@@ -351,6 +388,50 @@ export function IndexBuilder() {
 
       {sub === "result" && <ResultTab result={result} indexId={indexId} />}
     </div>
+  );
+}
+
+// ------------------------------------------------------------ step rail
+
+type RailStep = { id: string; n?: number; label: string; summary: string };
+
+/** Sticky outline of the compose steps: jump links plus a one-line summary of
+ * each step's current state, so the whole methodology reads at a glance
+ * without scrolling ~2,000px of cards. */
+function StepRail({ steps }: { steps: RailStep[] }) {
+  const [current, setCurrent] = useState(steps[0].id);
+  const ids = steps.map((s) => s.id).join(",");
+
+  useEffect(() => {
+    // The step whose top has crossed into the upper third of the viewport.
+    const io = new IntersectionObserver(
+      (entries) => {
+        const hit = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (hit) setCurrent(hit.target.id);
+      },
+      { rootMargin: "0px 0px -65% 0px" },
+    );
+    ids.split(",").forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) io.observe(el);
+    });
+    return () => io.disconnect();
+  }, [ids]);
+
+  return (
+    <nav className="ix-rail" aria-label="Methodology steps">
+      <ol>
+        {steps.map((s) => (
+          <li key={s.id}>
+            <a href={`#${s.id}`} aria-current={s.id === current ? "step" : undefined} onClick={() => setCurrent(s.id)}>
+              <span className="ix-rail-n">{s.n ?? ""}</span>
+              <span className="ix-rail-label">{s.label}</span>
+              <span className="ix-rail-summary">{s.summary}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
   );
 }
 
