@@ -32,6 +32,16 @@
   --text-lg: 1.375rem;
   --text-xl: 1.5rem;
 
+  /* Spacing scale on a 4px base: tight steps inside a group, the wide ones
+     between groups. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-12: 48px;
+
   /* Three radii, replacing nine. */
   --r-sm: 6px;
   --r-md: 8px;
@@ -85,7 +95,7 @@ body {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 4px 8px 22px;
+  padding: var(--s-1) var(--s-2) var(--s-3);
 }
 .app-sidebar-mark {
   width: 26px;
@@ -106,7 +116,7 @@ body {
 .app-nav {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--s-3);
 }
 
 .nav-group { display: flex; flex-direction: column; gap: 2px; }
@@ -127,7 +137,7 @@ body {
   border: none;
   border-radius: var(--r-md);
   color: var(--text);
-  padding: 8px 10px;
+  padding: 7px 10px;
   cursor: pointer;
   font-size: var(--text-sm);
   font-weight: 500;
@@ -144,12 +154,104 @@ body {
 .app-main {
   flex: 1;
   min-width: 0;
-  padding: 32px 36px 80px;
+  padding: var(--s-8) 36px 80px;
   overflow-x: hidden;
+}
+
+.app-topbar, .nav-scrim { display: none; }
+
+/* Below 760px the 232px sidebar left ~160px for content. It becomes an
+   off-canvas drawer behind a sticky top bar that names the current page. */
+@media (max-width: 760px) {
+  .app-shell { flex-direction: column; }
+  .app-topbar {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    padding: var(--s-1) var(--s-3) var(--s-1) var(--s-1);
+    background: var(--sidebar-bg);
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .app-topbar-menu {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    color: var(--text);
+  }
+  .app-topbar-menu:hover:not(:disabled) { background: var(--panel-border); }
+  .app-topbar-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: var(--text-md);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .app-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 60;
+    width: min(288px, 85vw);
+    height: 100dvh;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 220ms;
+  }
+  .nav-open .app-sidebar {
+    transform: none;
+    visibility: visible;
+    box-shadow: var(--shadow-lg);
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .nav-open .nav-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: oklch(20% 0.014 58 / 0.4);
+  }
+  .nav-tab { min-height: 44px; }
+  .app-main { padding: var(--s-6) var(--s-4) var(--s-12); }
+}
+
+@media (max-width: 760px) and (prefers-reduced-motion: reduce) {
+  .app-sidebar, .nav-open .app-sidebar { transition: none; }
 }
 
 .page { max-width: 1200px; }
 .page h2 { margin-top: 0; font-family: var(--font-display); font-size: var(--text-xl); letter-spacing: -0.01em; }
+
+/* Page header: title, lede and page-level tabs read as one tight group, with
+   a wide gap before the working area. The lede is capped at a readable
+   measure -- at full width it ran ~180 characters a line. */
+:where(.page, .page-body) > h2 { margin-bottom: var(--s-2); }
+:where(.page, .page-body) > h2 + :is(.help-text, .muted) {
+  max-width: 72ch;
+  line-height: 1.55;
+  margin: 0 0 var(--s-8);
+}
+:where(.page, .page-body) > h2 + :is(.help-text, .muted):has(+ :is(.sub-nav, .view-toggle)) {
+  margin-bottom: var(--s-4);
+}
+:where(.page, .page-body) > :is(.sub-nav, .view-toggle) { margin: 0 0 var(--s-8); }
+/* A page-level failure is page status, not a stray red line between the
+   header and the content. Errors inside a card stay inline. */
+:where(.page, .page-body) > .error-text {
+  background: color-mix(in srgb, var(--low) 12%, transparent);
+  border: 1px solid var(--low);
+  border-radius: var(--r-md);
+  padding: var(--s-2) 14px;
+  margin: 0 0 var(--s-6);
+  font-size: var(--text-sm);
+}
 
 .card {
   background: var(--panel);

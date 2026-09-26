@@ -227,7 +227,7 @@ export function ReportBuilder() {
 
   return (
     <div className={previewReportId ? "page split-review" : "page"} style={previewReportId ? { maxWidth: 1560 } : undefined}>
-    <div className={previewReportId ? "split-review-main" : undefined}>
+    <div className={previewReportId ? "split-review-main page-body" : "page-body"}>
       <h2>Presentation &amp; Reporting Tool</h2>
       <p className="help-text">
         Drafts a structured content plan from your qualitative notes and quantitative data -- matched to the
