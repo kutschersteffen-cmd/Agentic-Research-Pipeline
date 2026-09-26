@@ -6,7 +6,7 @@ from arp.decision.normalise import normalise_column
 from arp.decision.parsing import to_number
 from arp.decision.profiling import numeric_values, profile_dataset
 from arp.decision.roles import has_keyword, load_keywords, pretty, propose_cohort_column, propose_roles
-from arp.decision.rules import apply_rules
+from arp.decision.rules import apply_rules, apply_tier_graph, tier_contexts
 from arp.decision.scoring import compute_scores, ranks_of
 from arp.decision.stability import ALTERNATIVE_PRESETS, alternative_norm, rank_ranges
 from arp.decision.tree import derive_cuts, dimension_scores, gate_hit, tier_for_score, veto_dimensions
@@ -28,6 +28,7 @@ from arp.schemas.decision import (
 )
 
 _HISTOGRAM_BINS = 20
+_PREVIEW_ROWS = 25  # matches the dataset preview the UI shows
 
 
 def _cohort_values(dataset: Dataset, config: MechanismConfig) -> list[str | None] | None:
@@ -298,7 +299,8 @@ def apply_mechanism(
     excluded_by: list[GateRule | None] = []
     insufficient: list[bool] = []
     for i in range(n):
-        hits = [g for g in config.gates if gate_hit(g, dataset, profiles, i)]
+        # A tier graph replaces gates: it decides exclusions after scoring.
+        hits = [] if config.tier_graph else [g for g in config.gates if gate_hit(g, dataset, profiles, i)]
         gate_hits.append(hits)
         excluded_by.append(next((g for g in hits if g.outcome == "exclude"), None))
         coverage = base[i].grounded_coverage if use_grounded else base[i].coverage
@@ -329,7 +331,7 @@ def apply_mechanism(
 
     tiers_by_rank = {t.rank: t for t in config.tiers}
     lowest_tier = max(tiers_by_rank) if tiers_by_rank else 4
-    vetoable = veto_dimensions(config, columns)
+    vetoable = [] if config.tier_graph else veto_dimensions(config, columns)
     dimension_names = {d.id: d.name for d in config.dimensions}
     size_profile = profiles.get(config.size_column) if config.size_column else None
 
@@ -395,6 +397,14 @@ def apply_mechanism(
             )
         )
 
+    bands = [tier_for_score(e.score, cuts) if e.status == "scored" and e.score is not None else None for e in entities]
+    if config.tier_graph:
+        contexts = tier_contexts(dataset, profiles, entities, bands, config)
+        audit.extend(apply_tier_graph(config.tier_graph, entities, contexts, bands, config))
+        tier_inputs = contexts[:_PREVIEW_ROWS]
+    else:
+        tier_inputs = tier_contexts(dataset, profiles, entities, bands, config, limit=_PREVIEW_ROWS)
+
     leveraged = sorted((e for e in entities if e.leverage is not None), key=lambda e: -e.leverage)
     for position, entity in enumerate(leveraged):
         entity.leverage_rank = position + 1
@@ -428,6 +438,7 @@ def apply_mechanism(
         excluded_count=sum(1 for e in entities if e.status == "excluded"),
         insufficient_count=sum(1 for e in entities if e.status == "insufficient"),
         audit=audit,
+        tier_inputs=tier_inputs,
     )
 
 

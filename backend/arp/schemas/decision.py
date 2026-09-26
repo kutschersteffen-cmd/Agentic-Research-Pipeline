@@ -219,7 +219,14 @@ class MechanismConfig(BaseModel):
         "condition -- which criteria and gates then use like any other column. See arp.decision.rules.",
     )
 
-    @field_validator("rule_graph")
+    tier_graph: dict[str, Any] | None = Field(
+        default=None,
+        description="A GoRules JSON Decision Model evaluated per scored entity after the score band is drawn. When set "
+        "it replaces the gates and the dimension floor: it sees the entity's band, score, rank, coverage and columns "
+        "and must output `tier` (1..number of tiers), optionally `exclude` and `note`. See arp.decision.rules.",
+    )
+
+    @field_validator("rule_graph", "tier_graph")
     @classmethod
     def _declarative_rules_only(cls, graph: dict[str, Any] | None) -> dict[str, Any] | None:
         return check_rule_graph(graph)
@@ -315,6 +322,11 @@ class DecisionResult(BaseModel):
     excluded_count: int = 0
     insufficient_count: int = 0
     audit: list[AuditEntry] = Field(default_factory=list)
+    tier_inputs: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="What a tier graph sees for the first rows (band, score, rank, columns...) -- the browser "
+        "evaluates the tier graph against these while it is being edited.",
+    )
 
 
 class TippingPoint(BaseModel):

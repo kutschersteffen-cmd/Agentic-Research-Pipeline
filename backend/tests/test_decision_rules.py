@@ -10,7 +10,7 @@ from arp.decision.diffing import describe_changes
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
 from arp.decision.rules import apply_rules
 from arp.decision.sensitivity import tipping_points
-from arp.schemas.decision import Criterion, GateRule, MechanismConfig
+from arp.schemas.decision import Criterion, Dimension, GateRule, MechanismConfig, TierDefinition
 
 SAMPLE = Path(__file__).resolve().parents[1] / "arp" / "decision" / "sample_data" / "example_transition_universe.csv"
 
@@ -139,3 +139,122 @@ def test_editing_the_graph_is_a_human_audit_entry(sample):
     entries = [e for e in describe_changes(before, after) if e.item == "Rule graph"]
     assert entries and entries[0].origin == "human" and "edited calc" in entries[0].decision
     assert not [e for e in describe_changes(before, moved) if e.item == "Rule graph"], "dragging a node is not an edit"
+
+
+# --- tier rules --------------------------------------------------------------
+
+
+def _six_bucket_sample():
+    """The binary transition-plan case: count the yes answers, rank within
+    sector, six buckets, and a gate that sends an entity to the worst."""
+    import random
+
+    random.seed(7)
+    criteria = [f"C{i:02d}" for i in range(1, 9)]
+    header = ["Company", "Sector", *criteria, "Coal_Expansion"]
+    rows = []
+    for sector in ("Utilities", "Materials", "Energy"):
+        for k in range(12):
+            p = random.uniform(0.2, 0.9)
+            answers = ["Yes" if random.random() < p else "No" for _ in criteria]
+            rows.append([f"{sector[:3]}-{k:02d}", sector, *answers, "Yes" if k % 5 == 0 else "No"])
+    data = build_dataset("tp", [header, *rows])
+    count = " + ".join(f"(c{i:02d} == true ? 1 : 0)" for i in range(1, 9))
+    config = MechanismConfig(
+        rule_graph=graph(expressions(yes_count=count)),
+        label_column="Company",
+        segment_column="Sector",
+        normalise_within="Sector",
+        weighting="equal",
+        dimensions=[Dimension(id="d0", name="Transition plan")],
+        criteria=[Criterion(column="yes_count", dimension_id="d0")],
+        tiers=[TierDefinition(rank=r, name=f"Bucket {r}") for r in range(1, 7)],
+        cut_mode="absolute",
+        pinned_cuts=[100 * (6 - k) / 6 for k in range(1, 6)],
+    )
+    return data, config
+
+
+def worst_bucket_table(**extra_rules) -> dict:
+    return graph(
+        _node(
+            "tiers",
+            "decisionTableNode",
+            hitPolicy="first",
+            inputs=[{"id": "gate", "name": "Coal", "field": "coal_expansion"}, {"id": "band", "name": "Band", "field": "band"}],
+            outputs=[{"id": "tier", "name": "Tier", "field": "tier"}, *extra_rules.get("outputs", [])],
+            rules=[
+                {"_id": "r1", "gate": "true", "band": "", "tier": "6", **extra_rules.get("first", {})},
+                {"_id": "r2", "gate": "", "band": "", "tier": "band"},
+            ],
+        )
+    )
+
+
+def test_tier_rules_send_gated_entities_to_the_worst_bucket():
+    data, config = _six_bucket_sample()
+    config.tier_graph = worst_bucket_table()
+    result = apply_mechanism(data, config)
+
+    raw = {r["Company"]: r for r in data.rows}
+    scored = [e for e in result.entities if e.status == "scored"]
+    gated = [e for e in scored if raw[e.entity_key]["Coal_Expansion"] == "Yes"]
+    assert gated and all(e.tier == 6 and e.tier_name == "Bucket 6" for e in gated)
+    moved = [e for e in gated if any(n.startswith("Tier rules: band") for n in e.notes)]
+    assert moved, "at least one gated entity started in a better band"
+    for e in scored:
+        if e not in gated:
+            assert not any("Tier rules" in n for n in e.notes), "ungated entities keep their band"
+    summary = next(a for a in result.audit if a.stage == "Tier rules")
+    assert "moved down" in summary.decision and not summary.needs_check
+    assert {"band", "score", "rank", "percentile", "dim_transition_plan", "coal_expansion"} <= set(result.tier_inputs[0])
+
+
+def test_tier_rules_replace_gates_and_say_so():
+    data, config = _six_bucket_sample()
+    config.tier_graph = worst_bucket_table()
+    config.gates = [GateRule(column="Coal_Expansion", op="is", value="Yes", outcome="exclude")]
+    result = apply_mechanism(data, config)
+    assert result.excluded_count == 0, "the gate list is not applied alongside tier rules"
+    assert any(a.decision == "not applied" and a.needs_check for a in result.audit)
+
+
+def test_tier_rules_can_exclude_with_a_note():
+    data, config = _six_bucket_sample()
+    config.tier_graph = worst_bucket_table(
+        outputs=[{"id": "ex", "name": "Exclude", "field": "exclude"}, {"id": "note", "name": "Note", "field": "note"}],
+        first={"ex": "true", "note": "'coal expansion'"},
+    )
+    result = apply_mechanism(data, config)
+    excluded = [e for e in result.entities if e.status == "excluded"]
+    assert excluded and result.excluded_count == len(excluded)
+    assert all(e.tier is None and e.rank is None and "coal expansion" in e.notes for e in excluded)
+
+
+def test_an_invalid_tier_keeps_the_band_and_is_flagged():
+    data, config = _six_bucket_sample()
+    config.tier_graph = graph(expressions(tier="7"))
+    result = apply_mechanism(data, config)
+    assert all(e.tier is not None and e.tier <= 6 for e in result.entities if e.status == "scored")
+    failure = next(a for a in result.audit if a.decision == "band kept")
+    assert failure.needs_check and "1 to 6" in failure.why
+
+
+def test_moving_an_entity_up_is_flagged():
+    data, config = _six_bucket_sample()
+    config.tier_graph = graph(expressions(tier="1"))
+    summary = next(a for a in apply_mechanism(data, config).audit if a.stage == "Tier rules")
+    assert summary.needs_check and "moved up" in summary.decision
+
+
+def test_editing_tier_rules_is_a_human_audit_entry():
+    data, before = _six_bucket_sample()
+    after = before.model_copy(deep=True)
+    after.tier_graph = worst_bucket_table()
+    entries = [e for e in describe_changes(before, after) if e.item == "Tier rules"]
+    assert entries and entries[0].origin == "human" and "added tiers" in entries[0].decision
+
+
+def test_code_nodes_are_refused_in_tier_rules_too():
+    with pytest.raises(ValidationError, match="functionNode"):
+        MechanismConfig(tier_graph=graph(_node("js", "functionNode", source="export const handler = () => ({ tier: 1 })")))

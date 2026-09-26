@@ -82,28 +82,34 @@ def describe_changes(before: MechanismConfig, after: MechanismConfig, *, by: str
 
 
 def _rule_changes(before: MechanismConfig, after: MechanismConfig, by: str | None) -> list[AuditEntry]:
+    return _graph_changes(before.rule_graph, after.rule_graph, "Rule graph", by) + _graph_changes(
+        before.tier_graph, after.tier_graph, "Tier rules", by
+    )
+
+
+def _graph_changes(old_graph: dict | None, new_graph: dict | None, label: str, by: str | None) -> list[AuditEntry]:
     """Node-level: which rule boxes were added, removed or edited. Dragging
     a node on the canvas moves `position` only and is not an edit."""
 
-    def nodes(config: MechanismConfig) -> dict[str, tuple]:
-        graph = config.rule_graph or {}
+    def nodes(graph: dict | None) -> dict[str, tuple]:
+        graph = graph or {}
         return {
             str(n.get("id")): (n.get("name") or n.get("type"), n.get("type"), n.get("content"))
             for n in graph.get("nodes", [])
         }
 
-    def edges(config: MechanismConfig) -> set[tuple]:
-        return {(e.get("sourceId"), e.get("targetId"), e.get("sourceHandle")) for e in (config.rule_graph or {}).get("edges", [])}
+    def edges(graph: dict | None) -> set[tuple]:
+        return {(e.get("sourceId"), e.get("targetId"), e.get("sourceHandle")) for e in (graph or {}).get("edges", [])}
 
-    old, new = nodes(before), nodes(after)
+    old, new = nodes(old_graph), nodes(new_graph)
     changes = [f"added {new[i][0]}" for i in new if i not in old]
     changes += [f"removed {old[i][0]}" for i in old if i not in new]
     changes += [f"edited {new[i][0]}" for i in new if i in old and new[i] != old[i]]
-    if edges(before) != edges(after):
+    if edges(old_graph) != edges(new_graph):
         changes.append("rewired")
     if not changes:
         return []
-    return [AuditEntry(stage="Edit", item="Rule graph", decision="; ".join(changes), why="changed by hand", origin="human", by=by)]
+    return [AuditEntry(stage="Edit", item=label, decision="; ".join(changes), why="changed by hand", origin="human", by=by)]
 
 
 def _criteria_changes(before: MechanismConfig, after: MechanismConfig, by: str | None) -> list[AuditEntry]:

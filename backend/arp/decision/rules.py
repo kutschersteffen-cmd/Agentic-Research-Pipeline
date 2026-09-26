@@ -34,7 +34,7 @@ from arp.decision.dataset import Dataset
 from arp.decision.parsing import to_bool, to_number
 from arp.decision.profiling import profile_dataset
 from arp.decision.roles import slug
-from arp.schemas.decision import AuditEntry, ColumnProfile
+from arp.schemas.decision import AuditEntry, ColumnProfile, EntityDecision, MechanismConfig
 
 
 def rule_inputs(
@@ -180,3 +180,136 @@ def apply_rules(dataset: Dataset, graph: dict[str, Any]) -> tuple[Dataset, list[
             )
         )
     return augmented, audit
+
+
+# --- tier rules: a second graph, run after scoring ---------------------------
+#
+# The score band needs every row (cut-points come from the distribution), and
+# ZEN sees one row at a time -- so the engine draws the band and hands it to
+# the graph, which decides the final tier. Sufficiency stays in the engine: a
+# rule cannot score an entity on a fraction of its criteria.
+
+
+def tier_contexts(
+    dataset: Dataset,
+    profiles: dict[str, ColumnProfile],
+    entities: list[EntityDecision],
+    bands: list[int | None],
+    config: MechanismConfig,
+    *,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
+    """What a tier graph sees per entity: every column (typed, as for rule
+    graphs) plus the engine's own results. Engine keys win over a column of
+    the same name."""
+    rows = dataset.rows if limit is None else dataset.rows[:limit]
+    dim_keys = {d.id: f"dim_{slug(d.name)}" for d in config.dimensions}
+    peers: dict[str | None, list[float]] = {}
+    for e in entities:
+        if e.status == "scored" and e.score is not None:
+            peers.setdefault(e.cohort, []).append(e.score)
+    out = rule_inputs(dataset, profiles, rows=rows)
+    for i, context in enumerate(out):
+        e = entities[i]
+        group = peers.get(e.cohort, [])
+        scored = e.status == "scored" and e.score is not None and bool(group)
+        context.update({key: e.dimension_scores.get(dim_id) for dim_id, key in dim_keys.items()})
+        context.update(
+            score=e.score,
+            band=bands[i],
+            rank=e.rank,
+            percentile=100.0 * sum(1 for s in group if s <= e.score) / len(group) if scored else None,
+            coverage=e.coverage,
+            grounded_coverage=e.grounded_coverage,
+            status=e.status,
+            cohort=e.cohort,
+            segment=e.segment,
+            tier_count=len(config.tiers),
+        )
+    return out
+
+
+def apply_tier_graph(
+    graph: dict[str, Any],
+    entities: list[EntityDecision],
+    contexts: list[dict[str, Any]],
+    bands: list[int | None],
+    config: MechanismConfig,
+) -> list[AuditEntry]:
+    """Sets each scored entity's final tier from the graph's `tier` output,
+    or excludes it on `exclude: true`. A row the graph cannot evaluate, or
+    whose `tier` is not a whole number in range, keeps its band and is
+    flagged -- the same policy calculated columns follow."""
+    tiers_by_rank = {t.rank: t for t in config.tiers}
+    lowest = max(tiers_by_rank) if tiers_by_rank else 4
+    targets = [i for i, e in enumerate(entities) if e.status == "scored"]
+    results = evaluate_rows(graph, [contexts[i] for i in targets])
+    failures: list[tuple[str, str]] = []
+    down = up = excluded = 0
+
+    for i, result in zip(targets, results, strict=True):
+        e, band = entities[i], bands[i]
+        if isinstance(result, str):
+            failures.append((e.name, result))
+            e.notes.append("Tier rules could not be evaluated; band kept")
+            continue
+        if result.get("exclude") is True:
+            e.status, e.tier, e.tier_name, e.tier_action = "excluded", None, None, None
+            e.rank = e.rank_min = e.rank_max = e.leverage = None
+            e.notes.append("Excluded by tier rules")
+            excluded += 1
+        else:
+            tier = result.get("tier")
+            if isinstance(tier, bool) or not isinstance(tier, (int, float)) or tier != int(tier) or not 1 <= tier <= lowest:
+                failures.append((e.name, f"`tier` must be a whole number from 1 to {lowest}, got {tier!r}"))
+                e.notes.append("Tier rules gave no valid tier; band kept")
+                continue
+            tier = int(tier)
+            if band is not None and tier != band:
+                e.notes.append(f"Tier rules: band {band} -> {tier}")
+                down += tier > band
+                up += tier < band
+            definition = tiers_by_rank.get(tier)
+            e.tier, e.tier_name, e.tier_action = (
+                tier,
+                definition.name if definition else None,
+                definition.action if definition else None,
+            )
+        note = result.get("note")
+        if isinstance(note, str) and note.strip():
+            e.notes.append(note.strip())
+
+    audit = [
+        AuditEntry(
+            stage="Tier rules",
+            item=f"{len(targets)} scored entities",
+            decision=f"{down + up + excluded} changed: {down} moved down, {up} moved up, {excluded} excluded",
+            why="the framework's tier rules replace the gates and the dimension floor; they ran per entity after the "
+            "score band was drawn, so an exclusion here does not redraw its peers' cut-points"
+            + ("; moving an entity up is allowed but departs from the band the scores support, so it is flagged" if up else ""),
+            needs_check=up > 0,
+        )
+    ]
+    if failures:
+        name, message = failures[0]
+        audit.append(
+            AuditEntry(
+                stage="Tier rules",
+                item=f"{len(failures)} of {len(targets)} entities",
+                decision="band kept",
+                why=f"no valid `tier` from the tier rules -- first: {name}, {message}",
+                needs_check=True,
+            )
+        )
+    if config.gates:
+        audit.append(
+            AuditEntry(
+                stage="Tier rules",
+                item=f"{len(config.gates)} gates",
+                decision="not applied",
+                why="a framework with tier rules decides exclusions and demotions there; remove the gates or move them "
+                "into the tier rules",
+                needs_check=True,
+            )
+        )
+    return audit
