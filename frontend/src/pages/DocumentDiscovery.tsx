@@ -146,19 +146,23 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
             />
             Enabled
           </label>
-          <label className="field-label">Interval (hours)</label>
-          <input
-            type="number"
-            min={1}
-            value={schedule.interval_hours}
-            onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
-          />
-          <label className="field-label">Universe path (server-side, from an upload above)</label>
-          <input
-            value={schedule.universe_path ?? ""}
-            onChange={(e) => setSchedule({ ...schedule, universe_path: e.target.value })}
-            placeholder={universePath ?? "runs/_universes/your_file.csv"}
-          />
+          <label className="field-label">
+            Interval (hours)
+            <input
+              type="number"
+              min={1}
+              value={schedule.interval_hours}
+              onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
+            />
+          </label>
+          <label className="field-label">
+            Universe path (server-side, from an upload above)
+            <input
+              value={schedule.universe_path ?? ""}
+              onChange={(e) => setSchedule({ ...schedule, universe_path: e.target.value })}
+              placeholder={universePath ?? "runs/_universes/your_file.csv"}
+            />
+          </label>
           <button onClick={saveSchedule} disabled={busy}>
             Save schedule
           </button>

@@ -6,6 +6,7 @@ import { ConfidenceBadge, VerdictBadge } from "../components/ConfidenceBadge";
 import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import type { ActivityCatalogueMapping, ActivityDefinition, CompanyMatch, Taxonomy, ThemeDefinition } from "../types";
+import { activatable } from "../lib/activatable";
 
 const EXPOSURE_RANK: Record<string, number> = { pure_play: 3, significant: 2, minor: 1, none: 0 };
 
@@ -223,10 +224,14 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
 
       <section className="card">
         <h3>1. Define the theme</h3>
-        <label className="field-label">Macro theme name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} />
-        <label className="field-label">Description</label>
-        <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <label className="field-label">
+          Macro theme name
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label className="field-label">
+          Description
+          <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+        </label>
         <button onClick={decompose} disabled={busy}>
           Decompose into activities
         </button>
@@ -235,7 +240,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
           Or load an existing, versioned taxonomy from the Taxonomy Library instead of drafting a new one:
         </p>
         <div className="inline-fields">
-          <select value={selectedTaxonomyId} onChange={(e) => setSelectedTaxonomyId(e.target.value)}>
+          <select aria-label="Saved taxonomy" value={selectedTaxonomyId} onChange={(e) => setSelectedTaxonomyId(e.target.value)}>
             <option value="">Select a saved taxonomy...</option>
             {taxonomies.map((t) => (
               <option key={t.taxonomy_id} value={t.taxonomy_id}>
@@ -262,23 +267,29 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
           {theme.activities.map((a, idx) => (
             <div className="activity-editor" key={a.activity_id}>
               <input value={a.name} onChange={(e) => updateActivity(idx, { name: e.target.value })} />
-              <label className="field-label">In scope</label>
-              <textarea
-                rows={2}
-                value={a.in_scope_description}
-                onChange={(e) => updateActivity(idx, { in_scope_description: e.target.value })}
-              />
-              <label className="field-label">Out of scope</label>
-              <textarea
-                rows={2}
-                value={a.out_of_scope_description}
-                onChange={(e) => updateActivity(idx, { out_of_scope_description: e.target.value })}
-              />
-              <label className="field-label">Seed keywords (comma-separated)</label>
-              <input
-                value={a.seed_keywords.join(", ")}
-                onChange={(e) => updateActivity(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
-              />
+              <label className="field-label">
+                In scope
+                <textarea
+                  rows={2}
+                  value={a.in_scope_description}
+                  onChange={(e) => updateActivity(idx, { in_scope_description: e.target.value })}
+                />
+              </label>
+              <label className="field-label">
+                Out of scope
+                <textarea
+                  rows={2}
+                  value={a.out_of_scope_description}
+                  onChange={(e) => updateActivity(idx, { out_of_scope_description: e.target.value })}
+                />
+              </label>
+              <label className="field-label">
+                Seed keywords (comma-separated)
+                <input
+                  value={a.seed_keywords.join(", ")}
+                  onChange={(e) => updateActivity(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+                />
+              </label>
               <button className="link-button" onClick={() => removeActivity(idx)}>
                 Remove activity
               </button>
@@ -434,7 +445,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
                       const revenue = m.revenue_exposure?.revenue;
                       return (
                         <Fragment key={key}>
-                          <tr onClick={() => setExpanded(expanded === key ? null : key)} className="clickable-row">
+                          <tr {...activatable(() => setExpanded(expanded === key ? null : key), expanded === key)} className="clickable-row">
                             <td>{m.name} {m.ticker && <span className="muted">({m.ticker})</span>}</td>
                             <td>{m.activity_name}</td>
                             <td><VerdictBadge verdict={m.verdict} /></td>

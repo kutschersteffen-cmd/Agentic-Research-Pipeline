@@ -14,6 +14,7 @@ import type {
   TaxonomyRef,
   ThemeDefinition,
 } from "../types";
+import { activatable } from "../lib/activatable";
 
 const METHOD_LABELS: Record<DerivationMethod, string> = {
   llm_draft: "LLM draft (freeform)",
@@ -176,7 +177,7 @@ function LibraryView({
           <tbody>
             {taxonomies.map((t) => (
               <Fragment key={t.taxonomy_id}>
-                <tr className="clickable-row" onClick={() => open(t)}>
+                <tr className="clickable-row" {...activatable(() => open(t))}>
                   <td>{t.name}</td>
                   <td>{METHOD_LABELS[t.derivation_method]}</td>
                   <td>v{t.version}</td>
@@ -191,8 +192,10 @@ function LibraryView({
                     <td colSpan={6} className="detail-cell">
                       <p className="muted">{t.source_notes}</p>
                       <ActivityEditorTable activities={activities} onChange={setActivities} />
-                      <label className="field-label">Version notes</label>
-                      <input value={notes} onChange={(e) => setNotes(e.target.value)} />
+                      <label className="field-label">
+                        Version notes
+                        <input value={notes} onChange={(e) => setNotes(e.target.value)} />
+                      </label>
                       <div className="toolbar">
                         <button onClick={() => saveVersion(t)} disabled={busy}>
                           Save as new version
@@ -358,18 +361,24 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
     <>
       <section className="card">
         <h3>1. Method &amp; theme</h3>
-        <label className="field-label">Derivation method</label>
-        <select value={method} onChange={(e) => setMethod(e.target.value as DerivationMethod)}>
-          {CREATABLE_METHODS.map((m) => (
-            <option key={m} value={m}>
-              {METHOD_LABELS[m]}
-            </option>
-          ))}
-        </select>
-        <label className="field-label">Theme name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} />
-        <label className="field-label">Description</label>
-        <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <label className="field-label">
+          Derivation method
+          <select value={method} onChange={(e) => setMethod(e.target.value as DerivationMethod)}>
+            {CREATABLE_METHODS.map((m) => (
+              <option key={m} value={m}>
+                {METHOD_LABELS[m]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field-label">
+          Theme name
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label className="field-label">
+          Description
+          <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+        </label>
 
         {method === "industry_anchored" && (
           <label className="checkbox-label">
@@ -389,8 +398,10 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
 
         {method === "etf_index_holdings" && (
           <>
-            <label className="field-label">Fund/index holdings export (CSV)</label>
-            <input type="file" accept=".csv" onChange={onHoldingsFile} />
+            <label className="field-label">
+              Fund/index holdings export (CSV)
+              <input type="file" accept=".csv" onChange={onHoldingsFile} />
+            </label>
             {holdingsStatus && <p className="status-text">{holdingsStatus}</p>}
           </>
         )}
@@ -400,8 +411,10 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
             <UniversePicker onResolved={(path) => setUniversePath(path)} />
             {method === "empirical" && (
               <>
-                <label className="field-label">Sample size</label>
-                <input type="number" value={sampleSize} onChange={(e) => setSampleSize(Number(e.target.value))} />
+                <label className="field-label">
+                  Sample size
+                  <input type="number" value={sampleSize} onChange={(e) => setSampleSize(Number(e.target.value))} />
+                </label>
               </>
             )}
             {method === "news_transcript_mining" && (
@@ -521,7 +534,7 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
     <section className="card">
       <h3>Compare two taxonomies</h3>
       <div className="inline-fields">
-        <select value={idA} onChange={(e) => setIdA(e.target.value)}>
+        <select aria-label="Taxonomy A" value={idA} onChange={(e) => setIdA(e.target.value)}>
           <option value="">Taxonomy A</option>
           {taxonomies.map((t) => (
             <option key={t.taxonomy_id} value={t.taxonomy_id}>
@@ -529,7 +542,7 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
             </option>
           ))}
         </select>
-        <select value={idB} onChange={(e) => setIdB(e.target.value)}>
+        <select aria-label="Taxonomy B" value={idB} onChange={(e) => setIdB(e.target.value)}>
           <option value="">Taxonomy B</option>
           {taxonomies.map((t) => (
             <option key={t.taxonomy_id} value={t.taxonomy_id}>
@@ -565,10 +578,14 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
       )}
 
       <h3>Merge into a new taxonomy</h3>
-      <label className="field-label">Merged taxonomy name</label>
-      <input value={mergeName} onChange={(e) => setMergeName(e.target.value)} />
-      <label className="field-label">Description</label>
-      <input value={mergeDescription} onChange={(e) => setMergeDescription(e.target.value)} />
+      <label className="field-label">
+        Merged taxonomy name
+        <input value={mergeName} onChange={(e) => setMergeName(e.target.value)} />
+      </label>
+      <label className="field-label">
+        Description
+        <input value={mergeDescription} onChange={(e) => setMergeDescription(e.target.value)} />
+      </label>
       <button onClick={merge} disabled={busy || !idA || !idB || idA === idB || !mergeName}>
         Draft merge
       </button>
@@ -638,8 +655,10 @@ function UniverseBuilderView() {
     <>
       <section className="card">
         <h3>1. Find sector/index funds (tool-assisted)</h3>
-        <label className="field-label">Sector or index name</label>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. S&amp;P 500, US technology sector" />
+        <label className="field-label">
+          Sector or index name
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. S&amp;P 500, US technology sector" />
+        </label>
         <button onClick={search} disabled={busy || !query}>
           Search
         </button>
@@ -653,7 +672,7 @@ function UniverseBuilderView() {
 
       <section className="card">
         <h3>2. Build a company universe from a holdings export</h3>
-        <input type="file" accept=".csv" onChange={onHoldingsFile} disabled={busy} />
+        <input aria-label="Holdings export (CSV)" type="file" accept=".csv" onChange={onHoldingsFile} disabled={busy} />
         {error && <p className="error-text">{error}</p>}
         {result && (
           <>
@@ -752,8 +771,8 @@ function OverlapView() {
       <section className="card">
         <h3>1. Select ETFs/indices to compare</h3>
         <div className="inline-fields">
-          <input placeholder="Fund display name" value={fundName} onChange={(e) => setFundName(e.target.value)} />
-          <input type="file" accept=".csv" onChange={addFund} disabled={busy || !fundName} />
+          <input aria-label="Fund display name" placeholder="Fund display name" value={fundName} onChange={(e) => setFundName(e.target.value)} />
+          <input aria-label="Fund holdings export (CSV)" type="file" accept=".csv" onChange={addFund} disabled={busy || !fundName} />
         </div>
         {funds.length > 0 && (
           <div className="table-wrap">

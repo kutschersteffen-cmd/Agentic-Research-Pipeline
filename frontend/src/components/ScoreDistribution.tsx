@@ -45,10 +45,14 @@ export function ScoreDistribution({
   const maxCount = Math.max(...bins.map((b) => b.count), 1);
   const x = (value: number) => padLeft + ((value - low) / span) * plotWidth;
   const barWidth = Math.max(2, plotWidth / bins.length - 2); // 2px surface gap between fills
+  const total = bins.reduce((n, b) => n + b.count, 0);
+  const summary = `Score distribution of ${total} scored entities from ${low} to ${high}, ${
+    cuts.length ? `tier cut-points at ${cuts.join(", ")}` : "no tier cut-points"
+  }`;
 
   return (
     <div>
-      <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" role="img" aria-label="Score distribution with tier cut-points">
+      <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" role="img" aria-label={summary}>
         <line x1={padLeft} y1={padTop + plotHeight} x2={width - padRight} y2={padTop + plotHeight} className="chart-axis-line" />
         {[0, maxCount].map((tick) => (
           <text

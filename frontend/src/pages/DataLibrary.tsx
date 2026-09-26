@@ -13,6 +13,7 @@ import type {
   ReviewDecision,
   RunManifest,
 } from "../types";
+import { activatable } from "../lib/activatable";
 
 const SUB_TABS = [
   { id: "results", label: "Run results" },
@@ -97,26 +98,30 @@ function RunResultsView() {
   return (
     <div>
       <section className="card">
-        <label className="field-label">Run type</label>
-        <select value={kind} onChange={(e) => setKind(e.target.value as RunKind)}>
-          <option value="extraction">Data-point extraction</option>
-          <option value="financials">Company financials</option>
-        </select>
-        <label className="field-label">Run</label>
-        <select
-          value={runId}
-          onChange={(e) => {
-            setRunId(e.target.value);
-            loadResults(e.target.value);
-          }}
-        >
-          <option value="">Select a run...</option>
-          {runs.map((r) => (
-            <option key={r.run_id} value={r.run_id}>
-              {r.run_id} -- {new Date(r.created_at).toLocaleString()} ({r.completed_count}/{r.company_count} companies)
-            </option>
-          ))}
-        </select>
+        <label className="field-label">
+          Run type
+          <select value={kind} onChange={(e) => setKind(e.target.value as RunKind)}>
+            <option value="extraction">Data-point extraction</option>
+            <option value="financials">Company financials</option>
+          </select>
+        </label>
+        <label className="field-label">
+          Run
+          <select
+            value={runId}
+            onChange={(e) => {
+              setRunId(e.target.value);
+              loadResults(e.target.value);
+            }}
+          >
+            <option value="">Select a run...</option>
+            {runs.map((r) => (
+              <option key={r.run_id} value={r.run_id}>
+                {r.run_id} -- {new Date(r.created_at).toLocaleString()} ({r.completed_count}/{r.company_count} companies)
+              </option>
+            ))}
+          </select>
+        </label>
         {runs.length === 0 && <p className="muted">No {kind} runs recorded yet.</p>}
         {runId && (
           <div className="toolbar">
@@ -221,26 +226,30 @@ function CompanyResultsView() {
   return (
     <div>
       <section className="card">
-        <label className="field-label">Run type</label>
-        <select value={kind} onChange={(e) => setKind(e.target.value as RunKind)}>
-          <option value="extraction">Data-point extraction</option>
-          <option value="financials">Company financials</option>
-        </select>
-        <label className="field-label">Company</label>
-        <select
-          value={companyId}
-          onChange={(e) => {
-            setCompanyId(e.target.value);
-            load(e.target.value);
-          }}
-        >
-          <option value="">Select a company...</option>
-          {companies.map((c) => (
-            <option key={c.company_id} value={c.company_id}>
-              {c.name ?? c.company_id}{c.ticker ? ` (${c.ticker})` : ""} -- {c.company_id}
-            </option>
-          ))}
-        </select>
+        <label className="field-label">
+          Run type
+          <select value={kind} onChange={(e) => setKind(e.target.value as RunKind)}>
+            <option value="extraction">Data-point extraction</option>
+            <option value="financials">Company financials</option>
+          </select>
+        </label>
+        <label className="field-label">
+          Company
+          <select
+            value={companyId}
+            onChange={(e) => {
+              setCompanyId(e.target.value);
+              load(e.target.value);
+            }}
+          >
+            <option value="">Select a company...</option>
+            {companies.map((c) => (
+              <option key={c.company_id} value={c.company_id}>
+                {c.name ?? c.company_id}{c.ticker ? ` (${c.ticker})` : ""} -- {c.company_id}
+              </option>
+            ))}
+          </select>
+        </label>
         {companies.length === 0 && <p className="muted">No {kind} results recorded for any company yet.</p>}
         {error && <p className="error-text">{error}</p>}
       </section>
@@ -391,7 +400,7 @@ function ParsedDocumentsView() {
             <tbody>
               {rows.map((row) => (
                 <Fragment key={row.id}>
-                  <tr className="clickable-row" onClick={() => toggleExpand(row)}>
+                  <tr className="clickable-row" {...activatable(() => toggleExpand(row), expandedId === row.id)}>
                     <td>{row.company_id ?? <span className="muted">unregistered</span>}</td>
                     <td>{row.doc_type ?? "—"}</td>
                     <td>{row.title ?? "—"}</td>

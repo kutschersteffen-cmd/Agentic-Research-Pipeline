@@ -135,42 +135,46 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
       </p>
 
       <section className="card">
-        <label className="field-label">Run type</label>
-        <select
-          value={kind}
-          onChange={(e) => {
-            setKind(e.target.value as ReviewableRunKind);
-            setRunId("");
-            setPending([]);
-          }}
-        >
-          {(Object.keys(REVIEW_KIND_LABEL) as ReviewableRunKind[]).map((k) => (
-            <option key={k} value={k}>
-              {REVIEW_KIND_LABEL[k]}
-            </option>
-          ))}
-        </select>
+        <label className="field-label">
+          Run type
+          <select
+            value={kind}
+            onChange={(e) => {
+              setKind(e.target.value as ReviewableRunKind);
+              setRunId("");
+              setPending([]);
+            }}
+          >
+            {(Object.keys(REVIEW_KIND_LABEL) as ReviewableRunKind[]).map((k) => (
+              <option key={k} value={k}>
+                {REVIEW_KIND_LABEL[k]}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        <label className="field-label">Run</label>
-        <select value={runId} onChange={(e) => setRunId(e.target.value)}>
-          <option value="">-- select a run --</option>
-          {runsWithFlags.length > 0 && (
-            <optgroup label="Has flagged items">
-              {runsWithFlags.map((r) => (
+        <label className="field-label">
+          Run
+          <select value={runId} onChange={(e) => setRunId(e.target.value)}>
+            <option value="">-- select a run --</option>
+            {runsWithFlags.length > 0 && (
+              <optgroup label="Has flagged items">
+                {runsWithFlags.map((r) => (
+                  <option key={r.run_id} value={r.run_id}>
+                    {r.run_id} -- {r.review_count} flagged ({r.status})
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label="All runs">
+              {runs.map((r) => (
                 <option key={r.run_id} value={r.run_id}>
                   {r.run_id} -- {r.review_count} flagged ({r.status})
                 </option>
               ))}
             </optgroup>
-          )}
-          <optgroup label="All runs">
-            {runs.map((r) => (
-              <option key={r.run_id} value={r.run_id}>
-                {r.run_id} -- {r.review_count} flagged ({r.status})
-              </option>
-            ))}
-          </optgroup>
-        </select>
+          </select>
+        </label>
         {runs.length === 0 && <p className="muted">No {REVIEW_KIND_LABEL[kind].toLowerCase()} runs found.</p>}
 
         <button onClick={() => load()} disabled={busy || !runId}>

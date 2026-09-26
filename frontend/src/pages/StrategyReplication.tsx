@@ -130,17 +130,17 @@ function ProposeStage({
         before anything runs.
       </p>
 
-      <label className="field-label">Search a topic (optional)</label>
+      <label className="field-label" htmlFor="strategy-topic">Search a topic (optional)</label>
       <div className="toolbar">
-        <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. momentum anomaly" />
+        <input id="strategy-topic" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. momentum anomaly" />
         <button onClick={discover} disabled={busy || !topic.trim()}>
           Search
         </button>
       </div>
 
-      <label className="field-label">...or resume a spec draft you started earlier</label>
+      <label className="field-label" htmlFor="strategy-resume-id">...or resume a spec draft you started earlier</label>
       <div className="toolbar">
-        <input value={resumeId} onChange={(e) => setResumeId(e.target.value)} placeholder="spec draft run ID" />
+        <input id="strategy-resume-id" value={resumeId} onChange={(e) => setResumeId(e.target.value)} placeholder="spec draft run ID" />
         <button onClick={resumeDraft} disabled={busy || !resumeId.trim()}>
           Resume
         </button>
@@ -165,16 +165,20 @@ function ProposeStage({
         </div>
       )}
 
-      <label className="field-label">Paper citation</label>
-      <input value={paperCitation} onChange={(e) => setPaperCitation(e.target.value)} placeholder="Author (Year), Journal Vol(Issue)" />
+      <label className="field-label">
+        Paper citation
+        <input value={paperCitation} onChange={(e) => setPaperCitation(e.target.value)} placeholder="Author (Year), Journal Vol(Issue)" />
+      </label>
 
-      <label className="field-label">Paper text, or describe your own methodology</label>
-      <textarea
-        rows={8}
-        value={paperText}
-        onChange={(e) => setPaperText(e.target.value)}
-        placeholder="Paste the paper's methodology/results text, or write your own strategy description in plain English (e.g. 'Rank stocks by 6-month prior return, buy the top decile, short the bottom decile, hold for 3 months, rebalance monthly.')"
-      />
+      <label className="field-label">
+        Paper text, or describe your own methodology
+        <textarea
+          rows={8}
+          value={paperText}
+          onChange={(e) => setPaperText(e.target.value)}
+          placeholder="Paste the paper's methodology/results text, or write your own strategy description in plain English (e.g. 'Rank stocks by 6-month prior return, buy the top decile, short the bottom decile, hold for 3 months, rebalance monthly.')"
+        />
+      </label>
       <button onClick={draftSpec} disabled={busy || !paperCitation.trim() || !paperText.trim()}>
         Draft spec sheet
       </button>
@@ -262,9 +266,10 @@ function ReviewStage({
         {!spec.grounded && " Any manually edited or instruction-revised field is no longer grounded against source text -- review it carefully before approving."}
       </p>
 
-      <label className="field-label">Give an instruction in natural language</label>
+      <label className="field-label" htmlFor="strategy-instruction">Give an instruction in natural language</label>
       <div className="toolbar">
         <input
+          id="strategy-instruction"
           value={instruction}
           onChange={(e) => setInstruction(e.target.value)}
           placeholder="e.g. switch to quarterly rebalancing"
@@ -275,8 +280,10 @@ function ReviewStage({
         </button>
       </div>
 
-      <label className="field-label">Or edit the spec sheet directly</label>
-      <textarea rows={16} className="review-json-edit" value={jsonDraft} onChange={(e) => setJsonDraft(e.target.value)} />
+      <label className="field-label">
+        Or edit the spec sheet directly
+        <textarea rows={16} className="review-json-edit" value={jsonDraft} onChange={(e) => setJsonDraft(e.target.value)} />
+      </label>
       <div className="toolbar">
         <button onClick={saveDirectEdit} disabled={busy}>
           Save direct edit
@@ -401,17 +408,23 @@ function BacktestStage({ specRunId, spec }: { specRunId: string; spec: StrategyS
     <section className="card">
       <h3>3. Run the backtest &amp; review results</h3>
 
-      <label className="field-label">Tickers (comma or newline separated)</label>
-      <textarea rows={3} value={tickers} onChange={(e) => setTickers(e.target.value)} placeholder="AAPL, MSFT, ..." />
+      <label className="field-label">
+        Tickers (comma or newline separated)
+        <textarea rows={3} value={tickers} onChange={(e) => setTickers(e.target.value)} placeholder="AAPL, MSFT, ..." />
+      </label>
 
-      <label className="field-label">Price panel CSV (date column + one column per ticker)</label>
-      <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && uploadPrices(e.target.files[0])} />
+      <label className="field-label">
+        Price panel CSV (date column + one column per ticker)
+        <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && uploadPrices(e.target.files[0])} />
+      </label>
       {pricesRef && <p className="muted">Uploaded.</p>}
 
       {spec.characteristic_name && (
         <>
-          <label className="field-label">{spec.characteristic_name} characteristics CSV</label>
-          <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && uploadCharacteristics(e.target.files[0])} />
+          <label className="field-label">
+            {spec.characteristic_name} characteristics CSV
+            <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && uploadCharacteristics(e.target.files[0])} />
+          </label>
           {characteristicsRef && <p className="muted">Uploaded.</p>}
         </>
       )}

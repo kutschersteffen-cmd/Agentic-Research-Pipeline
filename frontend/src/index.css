@@ -274,6 +274,8 @@ body {
   color: var(--muted);
   margin: 10px 0 4px;
 }
+/* A label wraps its control, which is what associates the two. */
+.field-label > :is(input, select, textarea) { display: block; margin-top: var(--s-1); }
 
 input[type="text"], input:not([type]), input[type="number"], input[type="date"], textarea, select {
   width: 100%;
@@ -452,27 +454,22 @@ button.link-button:hover:not(:disabled) { background: transparent; color: var(--
 .standards-chip { color: var(--muted); }
 .standards-chip strong { color: inherit; margin-right: 4px; }
 
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: oklch(20% 0.014 58 / 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 24px;
-}
-.modal-panel {
+/* Modals are native <dialog>s (components/Modal.tsx). The dialog carries no
+   padding so a click on it can only be a backdrop click; .modal-body pads. */
+dialog.modal-panel {
   background: var(--panel);
+  color: var(--text);
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--panel-border);
   border-radius: var(--r-lg);
-  width: min(900px, 100%);
-  height: min(80vh, 100%);
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
+  padding: 0;
+  width: min(900px, 100% - 48px);
+  height: min(80vh, 100% - 48px);
+  max-width: none;
+  max-height: none;
 }
+dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
+.modal-body { display: flex; flex-direction: column; height: 100%; padding: var(--s-4); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; }
 .modal-header h4 { margin: 0; }
 .modal-iframe { flex: 1; border: none; background: white; border-radius: var(--r-sm); margin-top: 10px; }

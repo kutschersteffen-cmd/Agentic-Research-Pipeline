@@ -32,17 +32,19 @@ export function RunHistory({ onOpenReview }: Props = {}) {
     <div className="page">
       <h2>Run History</h2>
       <section className="card">
-        <label className="field-label">Filter by type</label>
-        <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-          <option value="">All</option>
-          <option value="theme">Thematic universe</option>
-          <option value="extraction">Extraction</option>
-          <option value="financials">Company financials</option>
-          <option value="discovery">Discovery</option>
-          <option value="taxonomy_research">Taxonomy Researcher</option>
-          <option value="calibration">Calibration</option>
-          <option value="emerging_themes">Emerging themes</option>
-        </select>
+        <label className="field-label">
+          Filter by type
+          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+            <option value="">All</option>
+            <option value="theme">Thematic universe</option>
+            <option value="extraction">Extraction</option>
+            <option value="financials">Company financials</option>
+            <option value="discovery">Discovery</option>
+            <option value="taxonomy_research">Taxonomy Researcher</option>
+            <option value="calibration">Calibration</option>
+            <option value="emerging_themes">Emerging themes</option>
+          </select>
+        </label>
         <button onClick={load}>Refresh</button>
         <p className="muted">Total estimated spend across {runs.length} runs: ${totalCost.toFixed(2)}</p>
       </section>

@@ -5,6 +5,7 @@ import { UniversePicker } from "../components/UniversePicker";
 import { CandidateStatusBadge, ConfidenceBadge } from "../components/ConfidenceBadge";
 import { MentionCitationList } from "../components/MentionCitationList";
 import type { EmergingThemeCandidate, EmergingThemesScheduleConfig, RunManifest } from "../types";
+import { activatable } from "../lib/activatable";
 
 interface Props {
   onNavigate?: (tab: "taxonomy" | "theme") => void;
@@ -184,7 +185,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
             </thead>
             <tbody>
               {recentRuns.map((r) => (
-                <tr key={r.run_id} className="clickable-row" onClick={() => selectRun(r.run_id)}>
+                <tr key={r.run_id} className="clickable-row" {...activatable(() => selectRun(r.run_id))}>
                   <td>{r.run_id}</td>
                   <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
                   <td>{r.review_count}</td>
@@ -220,7 +221,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
               <tbody>
                 {candidates.map((c) => (
                   <Fragment key={c.theme_id}>
-                    <tr onClick={() => setExpanded(expanded === c.theme_id ? null : c.theme_id)} className="clickable-row">
+                    <tr {...activatable(() => setExpanded(expanded === c.theme_id ? null : c.theme_id), expanded === c.theme_id)} className="clickable-row">
                       <td>{c.theme_name}</td>
                       <td><ConfidenceBadge value={c.confidence_score} /></td>
                       <td><CandidateStatusBadge status={c.status} /></td>
@@ -358,19 +359,23 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
             />
             Enabled
           </label>
-          <label className="field-label">Interval (hours)</label>
-          <input
-            type="number"
-            min={1}
-            value={schedule.interval_hours}
-            onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
-          />
-          <label className="field-label">Universe path (server-side, from an upload above)</label>
-          <input
-            value={schedule.universe_path ?? ""}
-            onChange={(e) => setSchedule({ ...schedule, universe_path: e.target.value })}
-            placeholder={universePath ?? "runs/_universes/your_file.csv"}
-          />
+          <label className="field-label">
+            Interval (hours)
+            <input
+              type="number"
+              min={1}
+              value={schedule.interval_hours}
+              onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
+            />
+          </label>
+          <label className="field-label">
+            Universe path (server-side, from an upload above)
+            <input
+              value={schedule.universe_path ?? ""}
+              onChange={(e) => setSchedule({ ...schedule, universe_path: e.target.value })}
+              placeholder={universePath ?? "runs/_universes/your_file.csv"}
+            />
+          </label>
           <button onClick={saveSchedule} disabled={busy}>
             Save schedule
           </button>

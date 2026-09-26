@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { Modal } from "../components/Modal";
 import type {
   AudienceLevel,
   ChartType,
@@ -14,6 +15,7 @@ import type {
   Tone,
 } from "../types";
 import { CHART_TYPES } from "../types";
+import { activatable } from "../lib/activatable";
 
 const AUDIENCE_LEVELS: AudienceLevel[] = ["executive", "technical", "general"];
 const TONES: Tone[] = ["formal", "conversational", "persuasive", "neutral_analytical"];
@@ -238,13 +240,19 @@ export function ReportBuilder() {
 
       <section className="card">
         <h3>1. Content</h3>
-        <label className="field-label">Title</label>
-        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Electrification Thematic Review" />
-        <label className="field-label">Qualitative notes / findings</label>
-        <textarea rows={6} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Paste analysis, findings, talking points..." />
+        <label className="field-label">
+          Title
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Electrification Thematic Review" />
+        </label>
+        <label className="field-label">
+          Qualitative notes / findings
+          <textarea rows={6} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Paste analysis, findings, talking points..." />
+        </label>
 
-        <label className="field-label">Quantitative datasets (CSV/XLSX)</label>
-        <input type="file" accept=".csv,.xlsx,.xlsm" onChange={(e) => e.target.files?.[0] && handleDatasetUpload(e.target.files[0])} />
+        <label className="field-label">
+          Quantitative datasets (CSV/XLSX)
+          <input type="file" accept=".csv,.xlsx,.xlsm" onChange={(e) => e.target.files?.[0] && handleDatasetUpload(e.target.files[0])} />
+        </label>
         {datasets.length > 0 && (
           <div className="chip-row">
             {datasets.map((ds, i) => (
@@ -258,8 +266,10 @@ export function ReportBuilder() {
           </div>
         )}
 
-        <label className="field-label">Template (optional -- ingest a .pptx to match its house style)</label>
-        <input type="file" accept=".pptx" onChange={(e) => e.target.files?.[0] && handleTemplateUpload(e.target.files[0])} />
+        <label className="field-label">
+          Template (optional -- ingest a .pptx to match its house style)
+          <input type="file" accept=".pptx" onChange={(e) => e.target.files?.[0] && handleTemplateUpload(e.target.files[0])} />
+        </label>
         {templates.length > 0 && (
           <select value={template?.template_id ?? ""} onChange={(e) => setTemplate(templates.find((t) => t.template_id === e.target.value) ?? null)}>
             <option value="">(no template)</option>
@@ -281,43 +291,57 @@ export function ReportBuilder() {
         <h3>2. Audience &amp; layout</h3>
         <div className="inline-fields">
           <div>
-            <label className="field-label">Audience level</label>
-            <select value={audienceLevel} onChange={(e) => setAudienceLevel(e.target.value as AudienceLevel)}>
-              {AUDIENCE_LEVELS.map((l) => (
-                <option key={l} value={l}>{l}</option>
-              ))}
-            </select>
+            <label className="field-label">
+              Audience level
+              <select value={audienceLevel} onChange={(e) => setAudienceLevel(e.target.value as AudienceLevel)}>
+                {AUDIENCE_LEVELS.map((l) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+            </label>
           </div>
           <div>
-            <label className="field-label">Tone</label>
-            <select value={tone} onChange={(e) => setTone(e.target.value as Tone)}>
-              {TONES.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+            <label className="field-label">
+              Tone
+              <select value={tone} onChange={(e) => setTone(e.target.value as Tone)}>
+                {TONES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </label>
           </div>
           <div>
-            <label className="field-label">Output format</label>
-            <select value={outputFormat} onChange={(e) => setOutputFormat(e.target.value as OutputFormat)}>
-              {OUTPUT_FORMATS.map((f) => (
-                <option key={f} value={f}>{f}</option>
-              ))}
-            </select>
+            <label className="field-label">
+              Output format
+              <select value={outputFormat} onChange={(e) => setOutputFormat(e.target.value as OutputFormat)}>
+                {OUTPUT_FORMATS.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </label>
           </div>
         </div>
-        <label className="field-label">Audience description</label>
-        <input type="text" value={audienceDescription} onChange={(e) => setAudienceDescription(e.target.value)} placeholder="Investment committee, 20 minutes, wants the recommendation up front" />
-        <label className="field-label">Focus areas (comma-separated)</label>
-        <input type="text" value={focusAreas} onChange={(e) => setFocusAreas(e.target.value)} placeholder="risk, valuation, ESG" />
+        <label className="field-label">
+          Audience description
+          <input type="text" value={audienceDescription} onChange={(e) => setAudienceDescription(e.target.value)} placeholder="Investment committee, 20 minutes, wants the recommendation up front" />
+        </label>
+        <label className="field-label">
+          Focus areas (comma-separated)
+          <input type="text" value={focusAreas} onChange={(e) => setFocusAreas(e.target.value)} placeholder="risk, valuation, ESG" />
+        </label>
 
         <div className="inline-fields">
           <div>
-            <label className="field-label">Target length (slides/sections)</label>
-            <input type="number" value={targetLength} onChange={(e) => setTargetLength(e.target.value)} placeholder="planner's choice" />
+            <label className="field-label">
+              Target length (slides/sections)
+              <input type="number" value={targetLength} onChange={(e) => setTargetLength(e.target.value)} placeholder="planner's choice" />
+            </label>
           </div>
           <div>
-            <label className="field-label">Max bullets per slide</label>
-            <input type="number" value={maxBullets} onChange={(e) => setMaxBullets(Number(e.target.value))} />
+            <label className="field-label">
+              Max bullets per slide
+              <input type="number" value={maxBullets} onChange={(e) => setMaxBullets(Number(e.target.value))} />
+            </label>
           </div>
         </div>
         <label className="checkbox-label">
@@ -329,8 +353,10 @@ export function ReportBuilder() {
         <label className="checkbox-label">
           <input type="checkbox" checked={includeAppendix} onChange={(e) => setIncludeAppendix(e.target.checked)} /> Route detailed material to an appendix
         </label>
-        <label className="field-label">Other layout/style instructions</label>
-        <textarea rows={2} value={freeInstructions} onChange={(e) => setFreeInstructions(e.target.value)} placeholder="lead with the risk section, one chart per slide max..." />
+        <label className="field-label">
+          Other layout/style instructions
+          <textarea rows={2} value={freeInstructions} onChange={(e) => setFreeInstructions(e.target.value)} placeholder="lead with the risk section, one chart per slide max..." />
+        </label>
 
         <button onClick={draftPlan} disabled={busy}>Draft content plan</button>
         {error && <p className="error-text">{error}</p>}
@@ -343,10 +369,14 @@ export function ReportBuilder() {
             <span className={`status-pill status-${manifest.status}`}>{manifest.status}</span>
           </div>
 
-          <label className="field-label">Deck/report title</label>
-          <input type="text" value={plan.title} onChange={(e) => setPlan({ ...plan, title: e.target.value })} />
-          <label className="field-label">Subtitle</label>
-          <input type="text" value={plan.subtitle} onChange={(e) => setPlan({ ...plan, subtitle: e.target.value })} />
+          <label className="field-label">
+            Deck/report title
+            <input type="text" value={plan.title} onChange={(e) => setPlan({ ...plan, title: e.target.value })} />
+          </label>
+          <label className="field-label">
+            Subtitle
+            <input type="text" value={plan.subtitle} onChange={(e) => setPlan({ ...plan, subtitle: e.target.value })} />
+          </label>
 
           {plan.sections.map((section, i) => (
             <div className="review-item" key={i}>
@@ -360,12 +390,14 @@ export function ReportBuilder() {
               </div>
               {section.layout_hint !== "section_header" && (
                 <>
-                  <label className="field-label">Narrative (one point per line)</label>
-                  <textarea
-                    rows={3}
-                    value={narrativeToText(section.narrative)}
-                    onChange={(e) => updateSection(i, { narrative: textToNarrative(e.target.value) })}
-                  />
+                  <label className="field-label">
+                    Narrative (one point per line)
+                    <textarea
+                      rows={3}
+                      value={narrativeToText(section.narrative)}
+                      onChange={(e) => updateSection(i, { narrative: textToNarrative(e.target.value) })}
+                    />
+                  </label>
                   {section.chart && (
                     <div className="inline-fields">
                       <span className="chip">Chart on dataset {section.chart.dataset_id}</span>
@@ -428,7 +460,7 @@ export function ReportBuilder() {
               </thead>
               <tbody>
                 {reports.map((r) => (
-                  <tr key={r.report_id} className="clickable-row" onClick={() => openReport(r.report_id)}>
+                  <tr key={r.report_id} className="clickable-row" {...activatable(() => openReport(r.report_id))}>
                     <td>{r.title}</td>
                     <td>{r.output_format}</td>
                     <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
@@ -484,23 +516,17 @@ export function ReportBuilder() {
     )}
 
     {enlargedPage && previewReportId && (
-      <div className="modal-overlay" onClick={() => setEnlargedPage(null)}>
-        <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
-            <h4>{previewTitle} -- page {enlargedPage} / {previewPageCount}</h4>
-            <button className="link-button" onClick={() => setEnlargedPage(null)}>Close</button>
-          </div>
-          <img className="modal-image" src={api.reportPreviewPageUrl(previewReportId, enlargedPage)} alt={`Page ${enlargedPage}`} />
-          <div className="toolbar">
-            <button onClick={() => setEnlargedPage((p) => Math.max(1, (p ?? 1) - 1))} disabled={enlargedPage <= 1}>
-              &larr; Prev
-            </button>
-            <button onClick={() => setEnlargedPage((p) => Math.min(previewPageCount, (p ?? 1) + 1))} disabled={enlargedPage >= previewPageCount}>
-              Next &rarr;
-            </button>
-          </div>
+      <Modal title={`${previewTitle} -- page ${enlargedPage} / ${previewPageCount}`} onClose={() => setEnlargedPage(null)}>
+        <img className="modal-image" src={api.reportPreviewPageUrl(previewReportId, enlargedPage)} alt={`Page ${enlargedPage}`} />
+        <div className="toolbar">
+          <button onClick={() => setEnlargedPage((p) => Math.max(1, (p ?? 1) - 1))} disabled={enlargedPage <= 1}>
+            &larr; Prev
+          </button>
+          <button onClick={() => setEnlargedPage((p) => Math.min(previewPageCount, (p ?? 1) + 1))} disabled={enlargedPage >= previewPageCount}>
+            Next &rarr;
+          </button>
         </div>
-      </div>
+      </Modal>
     )}
     </div>
   );

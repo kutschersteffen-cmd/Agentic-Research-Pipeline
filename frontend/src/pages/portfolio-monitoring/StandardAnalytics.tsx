@@ -78,14 +78,16 @@ function WaciCard() {
   return (
     <section className="card">
       <h3>Weighted-average carbon intensity</h3>
-      <label className="field-label">Group by</label>
-      <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
-        {AGGREGATION_DIMENSIONS.map((d) => (
-          <option key={d} value={d}>
-            {d}
-          </option>
-        ))}
-      </select>
+      <label className="field-label">
+        Group by
+        <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
+          {AGGREGATION_DIMENSIONS.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      </label>
       {loading && <p className="muted">Loading...</p>}
       {error && <p className="error-text">{error}</p>}
       {result && <AggregationView result={result} unit={CARBON_INTENSITY_UNIT} />}
@@ -180,14 +182,16 @@ function CoverageCard() {
     <section className="card">
       <h3>Data coverage</h3>
       <p className="help-text">Which source resolved each issuer's value for a field -- never mistake partial coverage for complete data.</p>
-      <label className="field-label">Field</label>
-      <select value={fieldId} onChange={(e) => setFieldId(e.target.value)}>
-        {(climateSchema?.fields ?? []).map((f) => (
-          <option key={f.field_id} value={f.field_id}>
-            {f.name}
-          </option>
-        ))}
-      </select>
+      <label className="field-label">
+        Field
+        <select value={fieldId} onChange={(e) => setFieldId(e.target.value)}>
+          {(climateSchema?.fields ?? []).map((f) => (
+            <option key={f.field_id} value={f.field_id}>
+              {f.name}
+            </option>
+          ))}
+        </select>
+      </label>
       {error && <p className="error-text">{error}</p>}
       {counts && (
         <div className="inline-block">

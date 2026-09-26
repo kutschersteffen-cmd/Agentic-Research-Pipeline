@@ -231,8 +231,10 @@ export function EngagementIssuePanel({
         </p>
       )}
 
-      <label className="field-label">Acting as (used for all sign-offs below)</label>
-      <input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="your name / handle" />
+      <label className="field-label">
+        Acting as (used for all sign-offs below)
+        <input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="your name / handle" />
+      </label>
       {error && <p className="error-text">{error}</p>}
 
       <div className="panel-section">
@@ -339,10 +341,14 @@ export function EngagementIssuePanel({
         {!dossier && <p className="help-text">Draft a dossier first -- the letter/talking points reuse its grounded citations.</p>}
         {dossier && (
           <>
-            <label className="field-label">Recipient</label>
-            <input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="e.g. Investor Relations" />
-            <label className="field-label">House style notes (optional)</label>
-            <textarea rows={2} value={houseStyle} onChange={(e) => setHouseStyle(e.target.value)} />
+            <label className="field-label">
+              Recipient
+              <input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="e.g. Investor Relations" />
+            </label>
+            <label className="field-label">
+              House style notes (optional)
+              <textarea rows={2} value={houseStyle} onChange={(e) => setHouseStyle(e.target.value)} />
+            </label>
             <div className="toolbar">
               <button onClick={draftLetter} disabled={busy || !recipient}>
                 Draft outreach letter
@@ -390,8 +396,10 @@ export function EngagementIssuePanel({
 
       <div className="panel-section">
         <h4>Post-meeting summary &amp; validation</h4>
-        <label className="field-label">Meeting notes or transcript</label>
-        <textarea rows={4} value={notesOrTranscript} onChange={(e) => setNotesOrTranscript(e.target.value)} placeholder="Paste raw notes or a transcript..." />
+        <label className="field-label">
+          Meeting notes or transcript
+          <textarea rows={4} value={notesOrTranscript} onChange={(e) => setNotesOrTranscript(e.target.value)} placeholder="Paste raw notes or a transcript..." />
+        </label>
         <button onClick={draftSummary} disabled={busy || !notesOrTranscript.trim()}>
           Draft summary
         </button>

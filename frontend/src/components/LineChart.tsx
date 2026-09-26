@@ -57,6 +57,12 @@ export function LineChart({
     return <p className="muted">No data to chart.</p>;
   }
 
+  const latest = series.map((s) => {
+    const v = [...s.values].reverse().find((x) => x != null);
+    return `${s.label} ${v == null ? "no data" : valueFormatter(v)}`;
+  });
+  const summary = `Line chart, ${dates[0]} to ${dates[dates.length - 1]}. Latest: ${latest.join("; ")}`;
+
   const width = 760;
   const height = 300;
   const marginLeft = 64;
@@ -143,7 +149,7 @@ export function LineChart({
         </div>
       )}
       <div className="chart-wrap">
-      <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" role="img" aria-label="Line chart">
+      <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" role="img" aria-label={summary}>
         {yTicks.map((t) => (
           <g key={t}>
             <line x1={marginLeft} y1={yAt(t)} x2={width - marginRight} y2={yAt(t)} className="chart-gridline" />

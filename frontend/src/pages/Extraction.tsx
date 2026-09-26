@@ -167,8 +167,10 @@ export function Extraction({ pendingUniverse }: Props = {}) {
       {mode === "custom" && (
         <section className="card">
           <h3>1. Describe what to extract</h3>
-          <label className="field-label">Research request</label>
-          <textarea rows={2} value={criteria} onChange={(e) => setCriteria(e.target.value)} />
+          <label className="field-label">
+            Research request
+            <textarea rows={2} value={criteria} onChange={(e) => setCriteria(e.target.value)} />
+          </label>
           <button onClick={draft} disabled={busy}>
             Draft extraction schema
           </button>
@@ -182,28 +184,35 @@ export function Extraction({ pendingUniverse }: Props = {}) {
           {schema.fields.map((f, idx) => (
             <div className="activity-editor" key={f.field_id}>
               <input value={f.name} onChange={(e) => updateField(idx, { name: e.target.value })} />
-              <label className="field-label">Description</label>
-              <textarea rows={2} value={f.description} onChange={(e) => updateField(idx, { description: e.target.value })} />
-              <label className="field-label">Extraction instructions</label>
-              <textarea
-                rows={3}
-                value={f.extraction_instructions}
-                onChange={(e) => updateField(idx, { extraction_instructions: e.target.value })}
-              />
-              <label className="field-label">Data type / unit</label>
+              <label className="field-label">
+                Description
+                <textarea rows={2} value={f.description} onChange={(e) => updateField(idx, { description: e.target.value })} />
+              </label>
+              <label className="field-label">
+                Extraction instructions
+                <textarea
+                  rows={3}
+                  value={f.extraction_instructions}
+                  onChange={(e) => updateField(idx, { extraction_instructions: e.target.value })}
+                />
+              </label>
+              <div className="field-label">Data type / unit</div>
               <div className="inline-fields">
                 <span>{f.data_type}</span>
                 <input
+                  aria-label="Unit"
                   placeholder="unit"
                   value={f.unit ?? ""}
                   onChange={(e) => updateField(idx, { unit: e.target.value })}
                 />
               </div>
-              <label className="field-label">Seed keywords (comma-separated)</label>
-              <input
-                value={f.seed_keywords.join(", ")}
-                onChange={(e) => updateField(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
-              />
+              <label className="field-label">
+                Seed keywords (comma-separated)
+                <input
+                  value={f.seed_keywords.join(", ")}
+                  onChange={(e) => updateField(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+                />
+              </label>
             </div>
           ))}
         </section>

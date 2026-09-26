@@ -862,7 +862,7 @@ function ConstraintsCard({
         UCITS 5/10/40 — no issuer above 10%, and issuers above 5% summing to at most 40%
       </label>
 
-      <label className="field-label">Group caps</label>
+      <div className="field-label">Group caps</div>
       {c.group_caps.map((cap, i) => (
         <div className="inline-fields" key={i}>
           <SelectField
