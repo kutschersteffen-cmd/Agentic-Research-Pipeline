@@ -130,13 +130,15 @@ function TaxonomyResearcherPanel() {
             />
             Enabled
           </label>
-          <label className="field-label">Interval (hours)</label>
-          <input
-            type="number"
-            min={1}
-            value={schedule.interval_hours}
-            onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
-          />
+          <label className="field-label">
+            Interval (hours)
+            <input
+              type="number"
+              min={1}
+              value={schedule.interval_hours}
+              onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
+            />
+          </label>
           <label className="checkbox-label">
             <input type="checkbox" checked={scopeAll} onChange={(e) => setScopeAll(e.target.checked)} />
             Scan all ratified taxonomies
@@ -318,13 +320,15 @@ function CalibrationPanel() {
             />
             Enabled
           </label>
-          <label className="field-label">Interval (hours)</label>
-          <input
-            type="number"
-            min={1}
-            value={schedule.interval_hours}
-            onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
-          />
+          <label className="field-label">
+            Interval (hours)
+            <input
+              type="number"
+              min={1}
+              value={schedule.interval_hours}
+              onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
+            />
+          </label>
           <button onClick={saveSchedule} disabled={busy}>
             Save schedule
           </button>

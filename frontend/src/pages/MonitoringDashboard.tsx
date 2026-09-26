@@ -112,184 +112,178 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
       </p>
       {loadError && <p className="error-text">Failed to refresh runs: {loadError}</p>}
 
-      <section className="card">
-        <div className="dashboard-grid">
-          <div className="stat-tile">
-            <span className="stat-value" style={{ color: "var(--accent)" }}>{active.length}</span>
-            <span className="stat-label">Currently executing</span>
-          </div>
-          <div className="stat-tile">
-            <span className="stat-value">{finished.length}</span>
-            <span className="stat-label">Finished runs (recent)</span>
-          </div>
-          <div className="stat-tile">
-            <span className="stat-value">{openIssues.length}</span>
-            <span className="stat-label">Open engagement issues</span>
-          </div>
-          <div className="stat-tile">
-            <span className="stat-value" style={stalledIssues.length > 0 ? { color: "var(--mid)" } : undefined}>{stalledIssues.length}</span>
-            <span className="stat-label">Stalled (SLA breach)</span>
-          </div>
-          <div className="stat-tile">
-            <span className="stat-value" style={escalatedIssues.length > 0 ? { color: "var(--low)" } : undefined}>{escalatedIssues.length}</span>
-            <span className="stat-label">Escalated beyond private engagement</span>
-          </div>
-          <div className="stat-tile">
-            <span className="stat-value">{pendingVoteReviews}</span>
-            <span className="stat-label">Ballot items awaiting decision</span>
-          </div>
+      <dl className="dashboard-grid">
+        <div className="stat-tile">
+          <dt className="stat-label">Currently executing</dt>
+          <dd className="stat-value" style={{ color: "var(--accent)" }}>{active.length}</dd>
         </div>
-      </section>
+        <div className="stat-tile">
+          <dt className="stat-label">Finished runs (recent)</dt>
+          <dd className="stat-value">{finished.length}</dd>
+        </div>
+        <div className="stat-tile">
+          <dt className="stat-label">Open engagement issues</dt>
+          <dd className="stat-value">{openIssues.length}</dd>
+        </div>
+        <div className="stat-tile">
+          <dt className="stat-label">Stalled (SLA breach)</dt>
+          <dd className="stat-value" style={stalledIssues.length > 0 ? { color: "var(--mid)" } : undefined}>{stalledIssues.length}</dd>
+        </div>
+        <div className="stat-tile">
+          <dt className="stat-label">Escalated beyond private engagement</dt>
+          <dd className="stat-value" style={escalatedIssues.length > 0 ? { color: "var(--low)" } : undefined}>{escalatedIssues.length}</dd>
+        </div>
+        <div className="stat-tile">
+          <dt className="stat-label">Ballot items awaiting decision</dt>
+          <dd className="stat-value">{pendingVoteReviews}</dd>
+        </div>
+      </dl>
 
-      <section className="card">
-        <div className="section-heading">
-          <h3>Currently executing</h3>
-        </div>
-        {active.length === 0 && <p className="muted">Nothing running right now.</p>}
-        {active.map((r) => {
-          const pct = r.company_count > 0 ? Math.round((r.completed_count / r.company_count) * 100) : 0;
-          return (
-            <div className="activity-row" key={r.run_id}>
-              <div className="activity-main">
-                <div className="run-progress-header">
-                  <strong>{r.run_id}</strong>
-                  <span className={`status-pill status-${r.status}`}>{r.status}</span>
-                </div>
-                <div className="progress-bar">
-                  <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
-                </div>
-                <div className="activity-meta">
-                  <span>{runTypeLabel(r.run_type)}</span>
-                  <span>{r.completed_count}/{r.company_count} companies</span>
-                  <span>{r.failed_count} failed</span>
-                  <span>{r.review_count} flagged</span>
-                  <span>${r.estimated_cost_usd.toFixed(2)}</span>
-                  {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && onOpenReview && (
-                    <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
-                      Review {r.review_count} flagged &rarr;
-                    </button>
-                  )}
-                </div>
-              </div>
+      {/* Runs are the primary stream (left); stewardship status supports it
+          (right). Stacks to one column below 1180px. */}
+      <div className="dashboard-columns">
+        <div className="dashboard-column">
+          <section className={active.length === 0 ? "card card-empty" : "card"}>
+            <div className="section-heading">
+              <h3>Currently executing</h3>
+              {active.length === 0 && <span className="muted">Nothing running right now.</span>}
             </div>
-          );
-        })}
-      </section>
-
-      <section className="card">
-        <div className="section-heading">
-          <h3>Finished runs</h3>
-          <span className="muted">most recent 25</span>
-        </div>
-        {finished.length === 0 && <p className="muted">No finished runs yet.</p>}
-        {finished.length > 0 && (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Run ID</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Progress</th>
-                  <th>Flagged</th>
-                  <th>Finished</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {finished.map((r) => (
-                  <tr key={r.run_id}>
-                    <td>{r.run_id}</td>
-                    <td>{runTypeLabel(r.run_type)}</td>
-                    <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                    <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
-                    <td>{r.review_count}</td>
-                    <td>{new Date(r.updated_at).toLocaleString()}</td>
-                    <td>
+            {active.map((r) => {
+              const pct = r.company_count > 0 ? Math.round((r.completed_count / r.company_count) * 100) : 0;
+              return (
+                <div className="activity-row" key={r.run_id}>
+                  <div className="activity-main">
+                    <div className="run-progress-header">
+                      <strong>{r.run_id}</strong>
+                      <span className={`status-pill status-${r.status}`}>{r.status}</span>
+                    </div>
+                    <div className="progress-bar">
+                      <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
+                    </div>
+                    <div className="activity-meta">
+                      <span>{runTypeLabel(r.run_type)}</span>
+                      <span>{r.completed_count}/{r.company_count} companies</span>
+                      <span>{r.failed_count} failed</span>
+                      <span>{r.review_count} flagged</span>
+                      <span>${r.estimated_cost_usd.toFixed(2)}</span>
                       {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && onOpenReview && (
                         <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
-                          Review
+                          Review {r.review_count} flagged &rarr;
                         </button>
                       )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </section>
 
-      <section className="card">
-        <div className="section-heading">
-          <h3>Open engagement issues</h3>
-          <button className="link-button" onClick={() => onNavigate("engagement")}>
-            Open Engagement &rarr;
-          </button>
+          <section className={finished.length === 0 ? "card card-empty" : "card"}>
+            <div className="section-heading">
+              <h3>Finished runs</h3>
+              <span className="muted">{finished.length === 0 ? "No finished runs yet." : "most recent 25"}</span>
+            </div>
+            {finished.length > 0 && (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Run ID</th>
+                      <th>Type</th>
+                      <th>Status</th>
+                      <th>Progress</th>
+                      <th>Flagged</th>
+                      <th>Finished</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {finished.map((r) => (
+                      <tr key={r.run_id}>
+                        <td>{r.run_id}</td>
+                        <td>{runTypeLabel(r.run_type)}</td>
+                        <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
+                        <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
+                        <td>{r.review_count}</td>
+                        <td>{new Date(r.updated_at).toLocaleString()}</td>
+                        <td>
+                          {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && onOpenReview && (
+                            <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
+                              Review
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
         </div>
-        {openIssues.length === 0 && <p className="muted">No open issues.</p>}
-        {openIssues.length > 0 && (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Company</th>
-                  <th>Theme</th>
-                  <th>Status</th>
-                  <th>Milestone</th>
-                  <th>Escalation</th>
-                  <th>Severity</th>
-                </tr>
-              </thead>
-              <tbody>
-                {openIssues.slice(0, 30).map(({ record, issue }) => (
-                  <tr key={issue.issue_id}>
-                    <td>{record.name} <span className="muted">({record.company_id})</span></td>
-                    <td>{issue.theme}</td>
-                    <td><span className={`status-pill status-${issue.status === "stalled" ? "failed" : "running"}`}>{issue.status}</span></td>
-                    <td>{issue.milestone_stage.replace(/_/g, " ")}</td>
-                    <td>{issue.escalation_stage.replace(/_/g, " ")}</td>
-                    <td>{issue.severity}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+        <div className="dashboard-column">
+          <section className={openIssues.length === 0 ? "card card-empty" : "card"}>
+            <div className="section-heading">
+              <h3>Open engagement issues</h3>
+              {openIssues.length === 0 && <span className="muted">No open issues.</span>}
+              <button className="link-button" onClick={() => onNavigate("engagement")}>
+                Open Engagement &rarr;
+              </button>
+            </div>
+            {openIssues.slice(0, 30).map(({ record, issue }) => (
+              <div className="activity-row" key={issue.issue_id}>
+                <div className="activity-main">
+                  <div className="run-progress-header">
+                    <strong>
+                      {record.name} <span className="muted">({record.company_id})</span>
+                    </strong>
+                    <span className={`status-pill status-${issue.status === "stalled" ? "failed" : "running"}`}>{issue.status}</span>
+                  </div>
+                  <div>{issue.theme}</div>
+                  <div className="activity-meta">
+                    <span>{issue.milestone_stage.replace(/_/g, " ")}</span>
+                    <span>escalation: {issue.escalation_stage.replace(/_/g, " ")}</span>
+                    <span>severity: {issue.severity}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </section>
 
-      {votingRuns.length > 0 && (
-        <section className="card">
-          <div className="section-heading">
-            <h3>Proxy voting runs</h3>
-            <button className="link-button" onClick={() => onNavigate("voting")}>
-              Open Voting &rarr;
-            </button>
-          </div>
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Run ID</th>
-                  <th>Status</th>
-                  <th>Companies</th>
-                  <th>Awaiting decision</th>
-                </tr>
-              </thead>
-              <tbody>
-                {votingRuns.map((r) => (
-                  <tr key={r.run_id}>
-                    <td>{r.run_id}</td>
-                    <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                    <td>{r.completed_count}/{r.company_count}</td>
-                    <td>{r.review_count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
+          {votingRuns.length > 0 && (
+            <section className="card">
+              <div className="section-heading">
+                <h3>Proxy voting runs</h3>
+                <button className="link-button" onClick={() => onNavigate("voting")}>
+                  Open Voting &rarr;
+                </button>
+              </div>
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Run ID</th>
+                      <th>Status</th>
+                      <th>Companies</th>
+                      <th>Awaiting decision</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {votingRuns.map((r) => (
+                      <tr key={r.run_id}>
+                        <td>{r.run_id}</td>
+                        <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
+                        <td>{r.completed_count}/{r.company_count}</td>
+                        <td>{r.review_count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

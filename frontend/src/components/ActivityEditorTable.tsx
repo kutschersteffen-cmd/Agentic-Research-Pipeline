@@ -61,19 +61,25 @@ export function ActivityEditorTable({ activities, onChange }: Props) {
       {activities.map((a, idx) => (
         <div className="activity-editor" key={a.activity_id}>
           <input value={a.name} onChange={(e) => update(idx, { name: e.target.value })} />
-          <label className="field-label">In scope</label>
-          <textarea rows={2} value={a.in_scope_description} onChange={(e) => update(idx, { in_scope_description: e.target.value })} />
-          <label className="field-label">Out of scope</label>
-          <textarea
-            rows={2}
-            value={a.out_of_scope_description}
-            onChange={(e) => update(idx, { out_of_scope_description: e.target.value })}
-          />
-          <label className="field-label">Seed keywords (comma-separated)</label>
-          <input
-            value={a.seed_keywords.join(", ")}
-            onChange={(e) => update(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
-          />
+          <label className="field-label">
+            In scope
+            <textarea rows={2} value={a.in_scope_description} onChange={(e) => update(idx, { in_scope_description: e.target.value })} />
+          </label>
+          <label className="field-label">
+            Out of scope
+            <textarea
+              rows={2}
+              value={a.out_of_scope_description}
+              onChange={(e) => update(idx, { out_of_scope_description: e.target.value })}
+            />
+          </label>
+          <label className="field-label">
+            Seed keywords (comma-separated)
+            <input
+              value={a.seed_keywords.join(", ")}
+              onChange={(e) => update(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+            />
+          </label>
           {a.source_citation && (
             <p className="muted">
               <GroundedBadge grounded={a.source_citation.grounded} /> source: "{a.source_citation.quote}"

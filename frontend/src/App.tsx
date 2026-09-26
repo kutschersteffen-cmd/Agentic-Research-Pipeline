@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ThemeBuilder } from "./pages/ThemeBuilder";
 import { Extraction } from "./pages/Extraction";
 import { TransitionPlanAssessment } from "./pages/TransitionPlanAssessment";
@@ -31,11 +31,11 @@ const TABS = [
   { id: "emergingThemes", label: "Emerging Themes" },
   { id: "backgroundAgents", label: "Background Agents" },
   { id: "extraction", label: "Extraction" },
-  { id: "transitionPlan", label: "Transition Plan Assessment" },
-  { id: "transitionBarrier", label: "Transition Barrier Assessment" },
+  { id: "transitionPlan", label: "Transition Plan" },
+  { id: "transitionBarrier", label: "Transition Barriers" },
   { id: "identity", label: "Identity Resolution" },
   { id: "discovery", label: "Document Discovery" },
-  { id: "portfolio-monitoring", label: "Portfolio Risk Monitoring Tool" },
+  { id: "portfolio-monitoring", label: "Risk Monitoring" },
   { id: "review", label: "Review Queue" },
   { id: "history", label: "Run History" },
   { id: "engagement", label: "Engagement" },
@@ -65,6 +65,29 @@ function App() {
   const [pendingTaxonomyId, setPendingTaxonomyId] = useState<string | null>(null);
   const [pendingReview, setPendingReview] = useState<{ kind: ReviewableRunKind; runId: string } | null>(null);
 
+  // Below 760px the sidebar is an off-canvas drawer; on desktop navOpen is
+  // ignored by the CSS.
+  const [navOpen, setNavOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!navOpen) return;
+    const menu = menuRef.current;
+    navRef.current?.querySelector<HTMLButtonElement>(".nav-tab.active")?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setNavOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      menu?.focus();
+    };
+  }, [navOpen]);
+
+  function go(id: (typeof TABS)[number]["id"]) {
+    setActive(id);
+    setNavOpen(false);
+  }
+
   function sendToExtraction(path: string, count: number) {
     setPendingUniverse({ path, count });
     setActive("extraction");
@@ -86,8 +109,25 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
-      <aside className="app-sidebar">
+    <div className={navOpen ? "app-shell nav-open" : "app-shell"}>
+      <header className="app-topbar">
+        <button
+          ref={menuRef}
+          className="app-topbar-menu"
+          aria-label="Open navigation"
+          aria-expanded={navOpen}
+          aria-controls="app-sidebar"
+          onClick={() => setNavOpen(true)}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round">
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        </button>
+        <span className="app-sidebar-mark">A</span>
+        <span className="app-topbar-title">{TABS.find((t) => t.id === active)!.label}</span>
+      </header>
+      <div className="nav-scrim" onClick={() => setNavOpen(false)} />
+      <aside className="app-sidebar" id="app-sidebar" ref={navRef}>
         <div className="app-sidebar-brand">
           <span className="app-sidebar-mark">A</span>
           <span className="app-sidebar-wordmark">ARP</span>
@@ -99,7 +139,12 @@ function App() {
               {group.ids.map((id) => {
                 const t = TABS.find((tab) => tab.id === id)!;
                 return (
-                  <button key={t.id} className={t.id === active ? "nav-tab active" : "nav-tab"} onClick={() => setActive(t.id)}>
+                  <button
+                    key={t.id}
+                    className={t.id === active ? "nav-tab active" : "nav-tab"}
+                    aria-current={t.id === active ? "page" : undefined}
+                    onClick={() => go(t.id)}
+                  >
                     <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
                     <span className="nav-tab-label">{t.label}</span>
                   </button>

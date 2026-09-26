@@ -4,6 +4,7 @@ import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
 import { api } from "../api/client";
 import type { RunManifest } from "../types";
+import { activatable } from "../lib/activatable";
 
 export function VotingRuns() {
   const [universePath, setUniversePath] = useState<string | null>(null);
@@ -89,7 +90,7 @@ export function VotingRuns() {
               </thead>
               <tbody>
                 {runs.map((r) => (
-                  <tr key={r.run_id} className="clickable-row" onClick={() => setSelectedRunId(r.run_id)}>
+                  <tr key={r.run_id} className="clickable-row" {...activatable(() => setSelectedRunId(r.run_id))}>
                     <td>{r.run_id}</td>
                     <td>
                       <span className={`status-pill status-${r.status}`}>{r.status}</span>

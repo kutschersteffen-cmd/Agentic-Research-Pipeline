@@ -9,8 +9,8 @@ export function DateSelector() {
 
   return (
     <div>
-      <label className="field-label">As of</label>
-      <div className="view-toggle">
+      <div className="field-label" id="date-mode-label">As of</div>
+      <div className="view-toggle" role="group" aria-labelledby="date-mode-label">
         <button className={dateMode === "latest" ? "active" : ""} onClick={() => setDateMode("latest")}>
           Latest
         </button>
@@ -27,12 +27,16 @@ export function DateSelector() {
       {dateMode === "trend" && (
         <div className="inline-fields">
           <div>
-            <label className="field-label">From</label>
-            <input type="text" placeholder="YYYY-MM-DD" value={trendFrom} onChange={(e) => setTrendFrom(e.target.value)} />
+            <label className="field-label">
+              From
+              <input type="text" placeholder="YYYY-MM-DD" value={trendFrom} onChange={(e) => setTrendFrom(e.target.value)} />
+            </label>
           </div>
           <div>
-            <label className="field-label">To</label>
-            <input type="text" placeholder="YYYY-MM-DD" value={trendTo} onChange={(e) => setTrendTo(e.target.value)} />
+            <label className="field-label">
+              To
+              <input type="text" placeholder="YYYY-MM-DD" value={trendTo} onChange={(e) => setTrendTo(e.target.value)} />
+            </label>
           </div>
         </div>
       )}

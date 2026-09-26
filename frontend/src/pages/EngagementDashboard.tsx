@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { EngagementIssuePanel } from "../components/EngagementIssuePanel";
 import { api } from "../api/client";
 import type { EngagementIssue, EngagementRecord, IssueSeverity, TriggerEvent } from "../types";
+import { activatable } from "../lib/activatable";
 
 interface ScanCompanyRow {
   company_id: string;
@@ -125,13 +126,13 @@ export function EngagementDashboard() {
       <section className="card">
         <h3>Open a new issue</h3>
         <div className="inline-fields">
-          <input placeholder="Company ID (e.g. AAPL)" value={newCompanyId} onChange={(e) => setNewCompanyId(e.target.value)} />
-          <input placeholder="Company name" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} />
-          <input placeholder="Sector (optional)" value={newCompanySector} onChange={(e) => setNewCompanySector(e.target.value)} />
+          <input aria-label="Company ID" placeholder="Company ID (e.g. AAPL)" value={newCompanyId} onChange={(e) => setNewCompanyId(e.target.value)} />
+          <input aria-label="Company name" placeholder="Company name" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} />
+          <input aria-label="Sector" placeholder="Sector (optional)" value={newCompanySector} onChange={(e) => setNewCompanySector(e.target.value)} />
         </div>
         <div className="inline-fields">
-          <input placeholder="Issue theme (e.g. executive_compensation)" value={newIssueTheme} onChange={(e) => setNewIssueTheme(e.target.value)} />
-          <select value={newIssueSeverity} onChange={(e) => setNewIssueSeverity(e.target.value as IssueSeverity)}>
+          <input aria-label="Issue theme" placeholder="Issue theme (e.g. executive_compensation)" value={newIssueTheme} onChange={(e) => setNewIssueTheme(e.target.value)} />
+          <select aria-label="Severity" value={newIssueSeverity} onChange={(e) => setNewIssueSeverity(e.target.value as IssueSeverity)}>
             <option value="low">low</option>
             <option value="medium">medium</option>
             <option value="high">high</option>
@@ -149,8 +150,8 @@ export function EngagementDashboard() {
           wired up -- see the architecture doc) and opens a new issue for every signal without an already-open issue
           on the same theme, plus an SLA sweep flagging stalled issues.
         </p>
-        <label className="field-label">Companies to screen</label>
-        <div className="table-wrap">
+        <div className="field-label" id="screen-companies-label">Companies to screen</div>
+        <div className="table-wrap" role="group" aria-labelledby="screen-companies-label">
           <table className="data-table">
             <thead>
               <tr>
@@ -163,10 +164,10 @@ export function EngagementDashboard() {
               {companyRows.map((row, idx) => (
                 <tr key={idx}>
                   <td>
-                    <input placeholder="e.g. AAPL" value={row.company_id} onChange={(e) => updateCompanyRow(idx, { company_id: e.target.value })} />
+                    <input aria-label="Company ID" placeholder="e.g. AAPL" value={row.company_id} onChange={(e) => updateCompanyRow(idx, { company_id: e.target.value })} />
                   </td>
                   <td>
-                    <input placeholder="e.g. Apple Inc." value={row.name} onChange={(e) => updateCompanyRow(idx, { name: e.target.value })} />
+                    <input aria-label="Company name" placeholder="e.g. Apple Inc." value={row.name} onChange={(e) => updateCompanyRow(idx, { name: e.target.value })} />
                   </td>
                   <td>
                     <button className="link-button" onClick={() => setCompanyRows((prev) => prev.filter((_, i) => i !== idx))}>
@@ -200,24 +201,24 @@ export function EngagementDashboard() {
               {signalRows.map((row, idx) => (
                 <tr key={idx}>
                   <td>
-                    <input placeholder="e.g. AAPL" value={row.company_id} onChange={(e) => updateSignalRow(idx, { company_id: e.target.value })} />
+                    <input aria-label="Company ID" placeholder="e.g. AAPL" value={row.company_id} onChange={(e) => updateSignalRow(idx, { company_id: e.target.value })} />
                   </td>
                   <td>
-                    <input
+                    <input aria-label="Theme"
                       placeholder="e.g. executive_compensation"
                       value={row.theme}
                       onChange={(e) => updateSignalRow(idx, { theme: e.target.value })}
                     />
                   </td>
                   <td>
-                    <select value={row.severity} onChange={(e) => updateSignalRow(idx, { severity: e.target.value as IssueSeverity })}>
+                    <select aria-label="Severity" value={row.severity} onChange={(e) => updateSignalRow(idx, { severity: e.target.value as IssueSeverity })}>
                       <option value="low">low</option>
                       <option value="medium">medium</option>
                       <option value="high">high</option>
                     </select>
                   </td>
                   <td>
-                    <input placeholder="What happened" value={row.detail} onChange={(e) => updateSignalRow(idx, { detail: e.target.value })} />
+                    <input aria-label="What happened" placeholder="What happened" value={row.detail} onChange={(e) => updateSignalRow(idx, { detail: e.target.value })} />
                   </td>
                   <td>
                     <button className="link-button" onClick={() => setSignalRows((prev) => prev.filter((_, i) => i !== idx))}>
@@ -316,7 +317,7 @@ export function EngagementDashboard() {
                       <tr
                         key={issue.issue_id}
                         className="clickable-row issue-row"
-                        onClick={() => setSelected({ companyId: r.company_id, issueId: issue.issue_id })}
+                        {...activatable(() => setSelected({ companyId: r.company_id, issueId: issue.issue_id }))}
                       >
                         <td>{issue.theme}</td>
                         <td>{issue.status}</td>

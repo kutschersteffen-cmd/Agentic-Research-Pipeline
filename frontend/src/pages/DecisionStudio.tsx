@@ -17,6 +17,7 @@ import type {
   MechanismConfig,
   AuditEntry,
 } from "../types";
+import { activatable } from "../lib/activatable";
 
 const SUB_TABS = [
   { id: "data", label: "1 · Data" },
@@ -302,11 +303,11 @@ export function DecisionStudio() {
             read correctly, so a German-locale export needs no cleaning first. Parsing happens on the server, where the
             result can be reproduced and cited.
           </p>
-          <input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
+          <input aria-label="Dataset file" type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
 
           <h3>…or build it from a run this system already produced</h3>
           <div className="inline-fields">
-            <select value={source} onChange={(e) => setSource(e.target.value)}>
+            <select aria-label="Source run type" value={source} onChange={(e) => setSource(e.target.value)}>
               {SOURCES.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.label}
@@ -314,7 +315,7 @@ export function DecisionStudio() {
               ))}
             </select>
             {SOURCES.find((s) => s.id === source)?.needsRun && (
-              <input placeholder="run id" value={runId} onChange={(e) => setRunId(e.target.value)} />
+              <input aria-label="Run id" placeholder="run id" value={runId} onChange={(e) => setRunId(e.target.value)} />
             )}
             {SOURCES.find((s) => s.id === source)?.needsRegion && (
               <select value={region} onChange={(e) => setRegion(e.target.value)}>
@@ -349,7 +350,7 @@ export function DecisionStudio() {
                 </thead>
                 <tbody>
                   {datasets.map((d) => (
-                    <tr key={d.dataset_id} className="clickable-row" onClick={() => selectDataset(d)}>
+                    <tr key={d.dataset_id} className="clickable-row" {...activatable(() => selectDataset(d))}>
                       <td>{d.name}</td>
                       <td className="muted">{d.source}</td>
                       <td className="muted">{d.as_of ?? "—"}</td>

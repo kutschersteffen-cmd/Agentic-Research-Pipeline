@@ -170,15 +170,15 @@ export function GovernanceAudit() {
           </div>
         )}
         <div className="toolbar">
-          <select value={policySetting} onChange={(e) => setPolicySetting(e.target.value as PolicySettingName)}>
+          <select aria-label="Policy setting" value={policySetting} onChange={(e) => setPolicySetting(e.target.value as PolicySettingName)}>
             {POLICY_SETTINGS.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.label}
               </option>
             ))}
           </select>
-          <input type="number" step="any" placeholder="new value" value={policyNewValue} onChange={(e) => setPolicyNewValue(e.target.value)} />
-          <input placeholder="reason" value={policyReason} onChange={(e) => setPolicyReason(e.target.value)} />
+          <input aria-label="New value" type="number" step="any" placeholder="new value" value={policyNewValue} onChange={(e) => setPolicyNewValue(e.target.value)} />
+          <input aria-label="Reason" placeholder="reason" value={policyReason} onChange={(e) => setPolicyReason(e.target.value)} />
           <button onClick={submitPolicyChange} disabled={!policyNewValue}>
             Change setting
           </button>
@@ -230,7 +230,7 @@ export function GovernanceAudit() {
                   <td>{cat}</td>
                   <td>{ownersByCategory[cat]?.owner ?? <span className="muted">unassigned</span>}</td>
                   <td className="toolbar">
-                    <input
+                    <input aria-label="Owner name"
                       placeholder="owner name"
                       value={ownerInputs[cat] ?? ""}
                       onChange={(e) => setOwnerInputs((prev) => ({ ...prev, [cat]: e.target.value }))}
@@ -251,7 +251,7 @@ export function GovernanceAudit() {
         <button className={view === "all" ? "nav-tab active" : "nav-tab"} onClick={() => setView("all")}>
           all
         </button>
-        <input placeholder="Decided by (required to act on an item)" value={decidedBy} onChange={(e) => setDecidedBy(e.target.value)} />
+        <input aria-label="Decided by" placeholder="Decided by (required to act on an item)" value={decidedBy} onChange={(e) => setDecidedBy(e.target.value)} />
       </div>
       {error && <p className="error-text">{error}</p>}
 

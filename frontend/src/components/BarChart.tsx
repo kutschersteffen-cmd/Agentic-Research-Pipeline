@@ -41,9 +41,11 @@ export function BarChart({
   const height = data.length * rowHeight + 8;
   const maxValue = Math.max(...data.map((d) => Math.abs(d.value)), 1);
   const fill = SEQUENTIAL_BLUE[3];
+  // Screen readers get the numbers, not just "a chart".
+  const summary = `Bar chart, ${data.length} ${data.length === 1 ? "bar" : "bars"}: ${data.map((d) => `${d.label} ${valueFormatter(d.value)}`).join("; ")}`;
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" role="img" aria-label="Bar chart">
+    <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" role="img" aria-label={summary}>
       <line x1={labelWidth} y1={0} x2={labelWidth} y2={height} className="chart-axis-line" />
       {data.map((d, i) => {
         const y = i * rowHeight + 4;

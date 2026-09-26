@@ -283,7 +283,7 @@ export function GenerativeBI() {
           notes. Requires <code>ARP_ANTHROPIC_API_KEY</code> on the server.
         </p>
         <p className="selection-summary">Scoped to: {selectionLabel}</p>
-        <textarea
+        <textarea aria-label="Report brief"
           rows={3}
           value={brief}
           onChange={(e) => setBrief(e.target.value)}

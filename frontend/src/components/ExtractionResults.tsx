@@ -5,6 +5,7 @@ import { ReviewControls } from "./ReviewControls";
 import { CitationList } from "./CitationList";
 import type { ActiveSource } from "./SourcePanel";
 import type { BusinessSegment, CompanyFinancialsRecord, ExtractedField, ExtractionRecord, ReviewDecision, SpendSummary } from "../types";
+import { activatable } from "../lib/activatable";
 
 // Shared between Extraction.tsx (a run just started in this browser session)
 // and DataLibrary.tsx (any past run, picked by run_id) -- both render the
@@ -149,7 +150,7 @@ export function ExtractionResultsTable({
         <tbody>
           {results.map((r) => (
             <Fragment key={r.company_id}>
-              <tr className="clickable-row" onClick={() => onToggleExpanded(r.company_id)}>
+              <tr className="clickable-row" {...activatable(() => onToggleExpanded(r.company_id), expanded === r.company_id)}>
                 <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
                 <td>{r.fields.map((f) => `${f.field_name}=${f.value ?? "—"}`).join(", ")}</td>
                 <td><ConfidenceBadge value={r.overall_confidence} /></td>
@@ -222,7 +223,7 @@ export function FinancialsResultsTable({
         <tbody>
           {results.map((r) => (
             <Fragment key={r.company_id}>
-              <tr className="clickable-row" onClick={() => onToggleExpanded(r.company_id)}>
+              <tr className="clickable-row" {...activatable(() => onToggleExpanded(r.company_id), expanded === r.company_id)}>
                 <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
                 <td>{r.segments.length === 0 ? "none found" : `${r.segments.length} segment(s)`}</td>
                 <td>{fmtAmount(r.capex.total.value)} {r.currency ?? ""}</td>

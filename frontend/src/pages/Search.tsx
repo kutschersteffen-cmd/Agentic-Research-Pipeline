@@ -54,13 +54,15 @@ export function Search() {
     <div className="page">
       <h2>Search</h2>
       <section className="card">
-        <label className="field-label">Query</label>
-        <input
-          type="text"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search companies, documents, taxonomy..."
-        />
+        <label className="field-label">
+          Query
+          <input
+            type="text"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search companies, documents, taxonomy..."
+          />
+        </label>
         {ALL_TYPES.map((t) => (
           <label key={t.id} style={{ marginLeft: "1rem" }}>
             <input type="checkbox" checked={types.includes(t.id)} onChange={() => toggleType(t.id)} />

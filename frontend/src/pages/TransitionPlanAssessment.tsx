@@ -8,6 +8,7 @@ import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { BarChart } from "../components/BarChart";
 import type { IndicatorAssessment, IndicatorCategory, ReviewDecision, TransitionPlanAssessmentRecord, TransitionPlanIndicatorDef } from "../types";
+import { activatable } from "../lib/activatable";
 
 interface Props {
   pendingUniverse?: { path: string; count: number } | null;
@@ -309,7 +310,7 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
                     <tbody>
                       {results.map((r) => (
                         <Fragment key={r.company_id}>
-                          <tr className="clickable-row" onClick={() => setExpanded(expanded === r.company_id ? null : r.company_id)}>
+                          <tr className="clickable-row" {...activatable(() => setExpanded(expanded === r.company_id ? null : r.company_id), expanded === r.company_id)}>
                             <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
                             <td>{r.disclosed_count}/64</td>
                             <td>{r.walk_disclosed_count}/{r.walk_total_count}</td>

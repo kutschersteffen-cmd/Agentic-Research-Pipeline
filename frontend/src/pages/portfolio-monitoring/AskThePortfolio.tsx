@@ -47,7 +47,7 @@ export function AskThePortfolio() {
         the server.
       </p>
       <p className="selection-summary">Scoped to: {selectionLabel}</p>
-      <textarea rows={2} value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ask about portfolio exposure..." />
+      <textarea aria-label="Question" rows={2} value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Ask about portfolio exposure..." />
       <div className="toolbar">
         <button onClick={() => ask(question)} disabled={asking || !question.trim()}>
           {asking ? "Asking..." : "Ask"}

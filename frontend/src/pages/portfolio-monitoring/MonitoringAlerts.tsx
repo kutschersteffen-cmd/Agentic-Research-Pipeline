@@ -143,8 +143,8 @@ export function MonitoringAlerts() {
           <code>docs/SPEC_GAP_ANALYSIS.md</code> §1).
         </p>
         <div className="toolbar">
-          <input placeholder="Rule name" value={name} onChange={(e) => setName(e.target.value)} />
-          <select value={ruleType} onChange={(e) => setRuleType(e.target.value as AlertRuleType)}>
+          <input aria-label="Rule name" placeholder="Rule name" value={name} onChange={(e) => setName(e.target.value)} />
+          <select aria-label="Rule type" value={ruleType} onChange={(e) => setRuleType(e.target.value as AlertRuleType)}>
             {RULE_TYPES.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.label}
@@ -152,7 +152,7 @@ export function MonitoringAlerts() {
             ))}
           </select>
           {ruleType !== "concentration_threshold" && (
-            <select value={fieldId} onChange={(e) => setFieldId(e.target.value)}>
+            <select aria-label="Field" value={fieldId} onChange={(e) => setFieldId(e.target.value)}>
               {(climateSchema?.fields ?? []).map((f) => (
                 <option key={f.field_id} value={f.field_id}>
                   {f.name}
@@ -160,14 +160,14 @@ export function MonitoringAlerts() {
               ))}
             </select>
           )}
-          <select value={comparator} onChange={(e) => setComparator(e.target.value as AlertComparator)}>
+          <select aria-label="Comparator" value={comparator} onChange={(e) => setComparator(e.target.value as AlertComparator)}>
             {COMPARATORS.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.label}
               </option>
             ))}
           </select>
-          <input
+          <input aria-label="Threshold value"
             type="number"
             step="any"
             placeholder={ruleType === "concentration_threshold" ? "e.g. 0.1 (10%)" : "threshold value"}
@@ -232,7 +232,7 @@ export function MonitoringAlerts() {
           <button onClick={evaluateNow} disabled={evaluating}>
             {evaluating ? "Evaluating..." : "Evaluate now"}
           </button>
-          <input placeholder="Decided by (required to act on an alert)" value={decidedBy} onChange={(e) => setDecidedBy(e.target.value)} />
+          <input aria-label="Decided by" placeholder="Decided by (required to act on an alert)" value={decidedBy} onChange={(e) => setDecidedBy(e.target.value)} />
         </div>
         {error && <p className="error-text">{error}</p>}
         <div className="table-wrap">
