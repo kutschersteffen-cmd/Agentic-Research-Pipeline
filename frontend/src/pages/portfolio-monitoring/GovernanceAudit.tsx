@@ -245,10 +245,10 @@ export function GovernanceAudit() {
       </section>
 
       <div className="toolbar">
-        <button className={view === "pending" ? "nav-tab active" : "nav-tab"} onClick={() => setView("pending")}>
+        <button className={view === "pending" ? "nav-tab active" : "nav-tab"} aria-pressed={view === "pending"} onClick={() => setView("pending")}>
           pending
         </button>
-        <button className={view === "all" ? "nav-tab active" : "nav-tab"} onClick={() => setView("all")}>
+        <button className={view === "all" ? "nav-tab active" : "nav-tab"} aria-pressed={view === "all"} onClick={() => setView("all")}>
           all
         </button>
         <input aria-label="Decided by" placeholder="Decided by (required to act on an item)" value={decidedBy} onChange={(e) => setDecidedBy(e.target.value)} />

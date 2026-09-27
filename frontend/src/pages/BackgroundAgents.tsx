@@ -22,14 +22,10 @@ export function BackgroundAgents() {
   return (
     <div className="page">
       <h2>Background Agents</h2>
-      <p className="help-text">
-        Two standing agents run continuously rather than on demand. Both only ever propose or flag --
-        neither one auto-applies a change: a Taxonomy Researcher proposal still needs a human to ratify it,
-        and a Calibration Agent drift flag still needs a human to decide whether to re-run classification.
-      </p>
+      <p className="help-text">Two standing agents that run continuously. Both only propose: a Taxonomy Researcher proposal and a Calibration Agent drift flag each wait for a person to decide.</p>
       <nav className="sub-nav">
         {SUB_TABS.map((t) => (
-          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} onClick={() => setSub(t.id)}>
+          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} aria-pressed={t.id === sub} onClick={() => setSub(t.id)}>
             {t.label}
           </button>
         ))}

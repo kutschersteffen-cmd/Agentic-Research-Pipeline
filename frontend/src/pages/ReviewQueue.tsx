@@ -4,6 +4,9 @@ import { ConfidenceBadge, VerdictBadge } from "../components/ConfidenceBadge";
 import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import type { Citation, ReviewableRunKind, RunManifest } from "../types";
+import { REVIEWER_REQUIRED, useReviewer } from "../lib/reviewer";
+import { ReviewerField } from "../components/ReviewerField";
+import { ProposedTag } from "../components/ProposedTag";
 
 const REVIEW_KIND_LABEL: Record<ReviewableRunKind, string> = {
   theme: "Thematic universe",
@@ -85,6 +88,9 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
+  const [reviewer] = useReviewer();
+  const [deciding, setDeciding] = useState<string | null>(null);
+  const [lastDecided, setLastDecided] = useState<string | null>(null);
 
   async function load(loadKind: ReviewableRunKind = kind, loadRunId: string = runId) {
     if (!loadRunId) return;
@@ -120,8 +126,21 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
   }, [pendingReview]);
 
   async function decide(itemKey: string, decision: "approve" | "reject") {
-    await SUBMIT_FNS[kind](runId, { item_key: itemKey, decision, reviewer: "ui-user" });
-    setPending((prev) => prev.filter((p) => p.item_key !== itemKey));
+    if (!reviewer.trim()) {
+      setError(REVIEWER_REQUIRED);
+      return;
+    }
+    setDeciding(itemKey);
+    setError(null);
+    try {
+      await SUBMIT_FNS[kind](runId, { item_key: itemKey, decision, reviewer: reviewer.trim() });
+      setPending((prev) => prev.filter((p) => p.item_key !== itemKey));
+      setLastDecided(`${decision === "approve" ? "Approved" : "Rejected"} ${itemKey} as ${reviewer.trim()}.`);
+    } catch (err) {
+      setError(`Could not record the decision on ${itemKey}: ${(err as Error).message}. It is still pending.`);
+    } finally {
+      setDeciding(null);
+    }
   }
 
   const runsWithFlags = runs.filter((r) => r.review_count > 0);
@@ -129,10 +148,7 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
   return (
     <div className="page">
       <h2>Review Queue</h2>
-      <p className="help-text">
-        Every low-confidence verdict, ungrounded citation, or "uncertain" call lands here instead of the trusted
-        output. Nothing flagged is included in exports until a human approves it.
-      </p>
+      <p className="help-text">Low-confidence verdicts, ungrounded citations and uncertain calls wait here. Nothing flagged reaches an export until a named person approves it.</p>
 
       <section className="card">
         <label className="field-label">
@@ -177,10 +193,16 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
         </label>
         {runs.length === 0 && <p className="muted">No {REVIEW_KIND_LABEL[kind].toLowerCase()} runs found.</p>}
 
-        <button onClick={() => load()} disabled={busy || !runId}>
-          Load pending items
-        </button>
-        {error && <p className="error-text">{error}</p>}
+        <div className="toolbar">
+          <button onClick={() => load()} disabled={busy || !runId}>
+            Load pending items
+          </button>
+          <ReviewerField compact />
+        </div>
+        {error && <p className="error-text" role="alert">{error}</p>}
+        <p className="status-text" aria-live="polite">
+          {lastDecided}
+        </p>
       </section>
 
       {pending.length > 0 && (
@@ -189,11 +211,14 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
             <section className="card">
               <h3>{pending.length} pending</h3>
               {pending.map((item) => (
-                <div className="review-item" key={item.item_key as string}>
+                <div className="review-item proposed" key={item.item_key as string}>
+                  <ProposedTag />
                   <ReviewItemFields item={item} onOpenSource={setActiveSource} />
                   <div className="toolbar">
-                    <button onClick={() => decide(item.item_key as string, "approve")}>Approve</button>
-                    <button onClick={() => decide(item.item_key as string, "reject")} className="danger">
+                    <button onClick={() => decide(item.item_key as string, "approve")} disabled={deciding !== null}>
+                      Approve
+                    </button>
+                    <button onClick={() => decide(item.item_key as string, "reject")} className="danger" disabled={deciding !== null}>
                       Reject
                     </button>
                   </div>

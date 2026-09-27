@@ -602,12 +602,8 @@ export function StrategyReplication() {
 
   return (
     <div className="page">
-      <h2>Investment Strategy Replication</h2>
-      <p className="help-text">
-        Propose a strategy (from a paper or your own description), review and approve the spec sheet it produces,
-        then backtest it and analyze the results -- nothing runs against real data until you explicitly approve the
-        spec.
-      </p>
+      <h2>Strategy Replication</h2>
+      <p className="help-text">Propose a strategy from a paper or your own description, approve its spec sheet, then backtest it. Nothing runs on real data until you approve the spec.</p>
 
       <ProposeStage onSpecCreated={onSpecCreated} onSpecLoaded={setSpecState} />
 

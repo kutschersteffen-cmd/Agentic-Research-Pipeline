@@ -65,14 +65,10 @@ export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
   return (
     <div className="page">
       <h2>Taxonomy Library</h2>
-      <p className="help-text">
-        Reusable, versioned thematic taxonomies with provenance -- draft one from an authoritative source, an
-        existing ETF/index's holdings, news &amp; transcripts, or the Extraction Engine's own readings, then review,
-        edit, ratify, compare and merge.
-      </p>
+      <p className="help-text">Versioned thematic taxonomies with provenance: draft one from a source, an index’s holdings, news or extracted readings, then review, ratify, compare and merge.</p>
       <nav className="sub-nav">
         {SUB_TABS.map((t) => (
-          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} onClick={() => setSub(t.id)}>
+          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} aria-pressed={t.id === sub} onClick={() => setSub(t.id)}>
             {t.label}
           </button>
         ))}

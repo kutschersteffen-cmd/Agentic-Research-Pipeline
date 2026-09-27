@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { api } from "../api/client";
 import type { ReviewDecision } from "../types";
+import { REVIEWER_REQUIRED } from "../lib/reviewer";
+import { ProposedTag } from "./ProposedTag";
 
 function decisionBadgeClass(decision: string): string {
   if (decision === "approve") return "badge badge-high";
@@ -9,7 +11,7 @@ function decisionBadgeClass(decision: string): string {
 }
 
 function decisionLabel(d: ReviewDecision): string {
-  if (d.decision === "approve") return "reviewed";
+  if (d.decision === "approve") return "approved";
   if (d.decision === "reject") return "rejected";
   const v = d.edited_value?.value;
   return `overridden${v !== undefined && v !== null ? ` → ${v}` : ""}`;
@@ -42,13 +44,17 @@ export function ReviewControls({
   const [error, setError] = useState<string | null>(null);
 
   async function submit(decision: "approve" | "edit" | "reject") {
+    if (!reviewer.trim()) {
+      setError(REVIEWER_REQUIRED);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       await submitFn(runId, {
         item_key: itemKey,
         decision,
-        reviewer: reviewer || null,
+        reviewer: reviewer.trim(),
         edited_value: decision === "edit" ? { value: overrideValue } : null,
         comment: comment || null,
       });
@@ -69,34 +75,43 @@ export function ReviewControls({
       setHistory(null); // toggle closed
       return;
     }
-    const res = (await historyFn(runId, itemKey)) as { history: ReviewDecision[] };
-    setHistory(res.history);
+    try {
+      const res = (await historyFn(runId, itemKey)) as { history: ReviewDecision[] };
+      setHistory(res.history);
+    } catch (err) {
+      setError(`Could not load history: ${(err as Error).message}`);
+    }
   }
 
   return (
     <div className="review-controls">
-      {current && (
+      {current ? (
         <span className={decisionBadgeClass(current.decision)}>
           {decisionLabel(current)}
           {current.reviewer ? ` by ${current.reviewer}` : ""}
         </span>
+      ) : (
+        <ProposedTag />
       )}
       <div className="toolbar">
         <button onClick={() => submit("approve")} disabled={busy}>
-          Mark reviewed
+          Approve
         </button>
         <button onClick={() => setShowOverrideInput((s) => !s)} disabled={busy}>
           Override
         </button>
-        <button onClick={() => submit("reject")} disabled={busy}>
+        <button className="danger" onClick={() => submit("reject")} disabled={busy}>
           Reject
         </button>
-        <button onClick={loadHistory}>History{current ? "" : " (0)"}</button>
+        <button className="secondary" onClick={loadHistory} aria-expanded={history !== null}>
+          History
+        </button>
       </div>
       {showOverrideInput && (
         <div className="inline-fields">
           <input
-            placeholder="corrected value"
+            aria-label="Corrected value"
+            placeholder="Corrected value"
             value={overrideValue}
             onChange={(e) => setOverrideValue(e.target.value)}
           />
@@ -107,11 +122,12 @@ export function ReviewControls({
       )}
       <textarea
         rows={1}
+        aria-label="Comment (optional)"
         placeholder="Comment (optional)"
         value={comment}
         onChange={(e) => setComment(e.target.value)}
       />
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
       {history !== null && (
         <ul className="review-history">
           {history.length === 0 && <li className="muted">No decisions yet.</li>}

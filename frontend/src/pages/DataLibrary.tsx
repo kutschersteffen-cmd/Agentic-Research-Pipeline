@@ -14,6 +14,8 @@ import type {
   RunManifest,
 } from "../types";
 import { activatable } from "../lib/activatable";
+import { useReviewer } from "../lib/reviewer";
+import { ReviewerField } from "../components/ReviewerField";
 
 const SUB_TABS = [
   { id: "results", label: "Run results" },
@@ -27,13 +29,10 @@ export function DataLibrary() {
   return (
     <div className="page">
       <h2>Data Library</h2>
-      <p className="help-text">
-        Browse everything already stored: results from any past extraction or financials run, and every parsed
-        document text this instance has cached -- across all companies and runs, not just the last one you looked at.
-      </p>
+      <p className="help-text">Browse every stored extraction and financials result, and every cached document text, across all companies and runs.</p>
       <nav className="sub-nav">
         {SUB_TABS.map((t) => (
-          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} onClick={() => setSub(t.id)}>
+          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} aria-pressed={t.id === sub} onClick={() => setSub(t.id)}>
             {t.label}
           </button>
         ))}
@@ -55,7 +54,7 @@ function RunResultsView() {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [runId, setRunId] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [reviewer, setReviewer] = useState("");
+  const [reviewer] = useReviewer();
   const [error, setError] = useState<string | null>(null);
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
 
@@ -129,15 +128,7 @@ function RunResultsView() {
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
               Export CSV
             </a>
-            <label className="field-label" style={{ marginLeft: "auto" }}>
-              Reviewing as
-            </label>
-            <input
-              placeholder="your name"
-              value={reviewer}
-              onChange={(e) => setReviewer(e.target.value)}
-              style={{ maxWidth: 160 }}
-            />
+            <ReviewerField compact />
           </div>
         )}
         {error && <p className="error-text">{error}</p>}

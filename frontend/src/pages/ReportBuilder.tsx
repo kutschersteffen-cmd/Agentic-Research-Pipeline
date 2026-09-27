@@ -230,13 +230,8 @@ export function ReportBuilder() {
   return (
     <div className={previewReportId ? "page split-review" : "page"} style={previewReportId ? { maxWidth: 1560 } : undefined}>
     <div className={previewReportId ? "split-review-main page-body" : "page-body"}>
-      <h2>Presentation &amp; Reporting Tool</h2>
-      <p className="help-text">
-        Drafts a structured content plan from your qualitative notes and quantitative data -- matched to the
-        audience and layout instructions below, and to an ingested template's style if one is supplied -- then
-        deterministically renders it to pptx/docx/pdf. Review and edit the plan (reorder sections, swap a chart
-        type, tweak text) before rendering the final file.
-      </p>
+      <h2>Presentations &amp; Reports</h2>
+      <p className="help-text">Draft a report plan from your notes and data, edit it, then render it to PowerPoint, Word or PDF.</p>
 
       <section className="card">
         <h3>1. Content</h3>

@@ -36,8 +36,8 @@ export function UniversePicker({ onResolved }: Props) {
         <input type="file" accept=".csv,.json" onChange={onFile} disabled={busy} />
       </label>
       <p className="help-text">
-        Columns: company_id, name, ticker, website, cik, country, sector (company_id + name required). Supply
-        `website`/`cik` when known for the most precise document discovery/EDGAR lookup.
+        Columns: company_id, name, ticker, website, cik, country, sector. Only company_id and name are required;
+        adding website and CIK makes document discovery more precise.
       </p>
       {status && <p className="status-text">{status}</p>}
     </div>
