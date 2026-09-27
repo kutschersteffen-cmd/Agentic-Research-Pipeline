@@ -1030,6 +1030,57 @@ to example decisions and the built custom policy. Impact
 per difference (resolutions affected) is not computed yet, because it needs
 ingested voting history.
 
+#### Executable policy graph
+A policy's positions compile into a ZEN (GoRules JDM) graph for the
+`vote_expectation` domain: `backend/arp/stewardship/policy_graph.py`, tests in
+`backend/tests/test_policy_graph.py`. The house draft and the built example client
+policy are generated as
+[`house_voting_policy_draft.graph.json`](../backend/arp/stewardship/data/house_voting_policy_draft.graph.json)
+and
+[`client_policy_example_built.graph.json`](../backend/arp/stewardship/data/examples/client_policy_example_built.graph.json),
+in the shape the rule editor saves, so they open there directly.
+
+```
+cd backend
+python -m arp.stewardship.policy_graph <policy.json> --out <graph.json>
+```
+
+**Shape.** Three nodes between input and output:
+
+| Node | Type | What it holds |
+|---|---|---|
+| `conditions` | expression | One boolean per position: does it fire on this resolution? Resolution category, vote target, scope and the red-flag condition, with the policy's values written in (`issuer.governance.board_independence_pct < 66`). |
+| `votes` | decision table, `collect` | One row per position; the row id is the issue id, so the trace names the rule that fired (E5). |
+| `decision` | expression | Expected vote by precedence: against > case_by_case > abstain > for. With no hit, it follows management's recommendation. Also returns the issues that decided it. |
+
+**Context per resolution.** `issuer` (company data by field id, plus region and
+sector), `resolution` (category, management recommendation, topic, the director's
+roles and attributes for elections, and proposal terms such as size or
+pre-emption), and `engagement` (per theme: whether it is at the vote step, and
+months without progress). The full contract is in the module docstring.
+
+**Rules that follow from the design:**
+
+- **Missing data never fires a rule.** Every comparison is null-guarded. ZEN fails
+  the whole evaluation on a comparison with null, so this is enforced, and tested
+  across every resolution category.
+- **Stance issues** (`default_action`, e.g. shareholder proposals, M&A) fire on
+  every resolution they govern. A few parameters turn the stance into "against"
+  (a prescriptive climate proposal, a merger without a fairness opinion).
+- **`escalate` positions have no vote rule.** They act through engagement and vote
+  only via `stewardship.engagement_escalation`, which targets the director
+  accountable for the theme once the engagement reaches the vote step.
+- **Parameters that are not vote conditions** are reported instead of silently
+  dropped. In the house draft these are: proxy-access and special-meeting support,
+  annual say-on-climate, pay-gap disclosure, and prior notice. They are
+  preferences or process steps, not conditions on one resolution.
+- The catalogue's `data_fields` are exactly the company fields these conditions
+  read, and a test keeps them in sync.
+
+**Example.** For a nomination committee chair at a company with a 60% independent
+board, the house graph expects **for** (threshold 50%), and the built client graph
+expects **against** (66%), decided by `board.independence`.
+
 #### Deterministic vs AI
 Reading the client's text into positions and wording `unclear` questions use the
 LLM, always with quoted sources and provenance (E5). Alignment, classification of

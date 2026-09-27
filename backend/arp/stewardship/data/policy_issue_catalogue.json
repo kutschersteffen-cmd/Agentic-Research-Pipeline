@@ -1,7 +1,7 @@
 {
-  "version": "0.2-draft",
+  "version": "0.3-draft",
   "status": "generic draft; not a house policy",
-  "note": "Issues, parameters and data fields are placeholders to be confirmed. A policy position picks an action (for | against | abstain | case_by_case | escalate), sets parameter values, a scope and a vote target from vote_targets. data_fields refer to Field Definition ids and are placeholders until the field catalogue exists. Each parameter may carry 'stricter': for numbers 'higher' or 'lower', for booleans the value that is stricter. Stricter means more demanding of the company, i.e. more votes against management. Parameters without it (enums, maps, fields) are compared as changed/unchanged only. A parameter with 'affects_vote': false changes process only (e.g. notice to the company), not the vote itself.",
+  "note": "Issues, parameters and data fields are placeholders to be confirmed. A policy position picks an action (for | against | abstain | case_by_case | escalate), sets parameter values, a scope and a vote target from vote_targets. data_fields refer to Field Definition ids and are placeholders until the field catalogue exists. Each parameter may carry 'stricter': for numbers 'higher' or 'lower', for booleans the value that is stricter. Stricter means more demanding of the company, i.e. more votes against management. Parameters without it (enums, maps, fields) are compared as changed/unchanged only. A parameter with 'affects_vote': false changes process only (e.g. notice to the company), not the vote itself. data_fields are the company fields the generated policy graph reads (arp/stewardship/policy_graph.py); resolution- and director-level inputs come from the voting feed.",
   "position_actions": [
     "for",
     "against",
@@ -115,8 +115,8 @@
       ],
       "data_fields": [
         "governance.audit_committee_independence_pct",
-        "governance.remuneration_committee_independence_pct",
-        "governance.nomination_committee_independence_pct"
+        "governance.nomination_committee_independence_pct",
+        "governance.remuneration_committee_independence_pct"
       ]
     },
     {
@@ -153,7 +153,6 @@
       ],
       "data_fields": [
         "governance.chair_ceo_combined",
-        "governance.lead_independent_director",
         "governance.chair_is_former_ceo"
       ]
     },
@@ -186,9 +185,7 @@
       "vote_targets": [
         "overboarded_director"
       ],
-      "data_fields": [
-        "governance.director_mandate_counts"
-      ]
+      "data_fields": []
     },
     {
       "issue_id": "board.attendance",
@@ -210,9 +207,7 @@
       "vote_targets": [
         "low_attendance_director"
       ],
-      "data_fields": [
-        "governance.director_attendance_pct"
-      ]
+      "data_fields": []
     },
     {
       "issue_id": "board.gender_diversity",
@@ -240,7 +235,8 @@
         "board_chair"
       ],
       "data_fields": [
-        "governance.board_female_pct"
+        "governance.board_female_pct",
+        "region"
       ]
     },
     {
@@ -271,7 +267,8 @@
         "nomination_committee_chair"
       ],
       "data_fields": [
-        "governance.director_tenure_years"
+        "governance.average_board_tenure_years",
+        "governance.longest_independent_tenure_years"
       ]
     },
     {
@@ -307,9 +304,8 @@
         "nomination_committee_chair"
       ],
       "data_fields": [
-        "governance.staggered_board",
-        "governance.bundled_election",
-        "governance.majority_voting"
+        "governance.majority_voting",
+        "governance.staggered_board"
       ]
     },
     {
@@ -339,8 +335,9 @@
         "board_chair"
       ],
       "data_fields": [
-        "voting.prior_year_dissent_pct",
-        "voting.majority_proposal_not_implemented"
+        "voting.dissent_addressed",
+        "voting.majority_proposal_not_implemented",
+        "voting.prior_year_dissent_pct"
       ]
     },
     {
@@ -394,9 +391,8 @@
         "remuneration_committee_chair"
       ],
       "data_fields": [
-        "pay.ceo_total_pay",
-        "pay.ceo_peer_percentile",
-        "pay.ceo_pay_ratio"
+        "pay.ceo_pay_ratio",
+        "pay.ceo_peer_percentile"
       ]
     },
     {
@@ -434,9 +430,9 @@
         "remuneration_committee_chair"
       ],
       "data_fields": [
-        "pay.tsr_relative",
-        "pay.realised_pay_trend",
-        "pay.long_term_incentive_pct"
+        "pay.long_term_incentive_pct",
+        "pay.misalignment_years",
+        "pay.vesting_period_years"
       ]
     },
     {
@@ -471,9 +467,10 @@
         "say_on_pay"
       ],
       "data_fields": [
-        "pay.esg_metric_weight_pct",
+        "climate.high_emitter",
         "pay.climate_metric_included",
-        "climate.high_emitter"
+        "pay.esg_metric_included",
+        "pay.esg_metric_weight_pct"
       ]
     },
     {
@@ -508,6 +505,7 @@
       ],
       "data_fields": [
         "pay.plan_dilution_pct",
+        "pay.plan_discount_pct",
         "pay.repricing_allowed"
       ]
     },
@@ -565,8 +563,9 @@
         "say_on_pay"
       ],
       "data_fields": [
-        "pay.targets_disclosed",
-        "pay.discretion_used"
+        "pay.discretion_explained",
+        "pay.discretion_used",
+        "pay.targets_disclosed"
       ]
     },
     {
@@ -647,7 +646,8 @@
         "audit_committee_chair"
       ],
       "data_fields": [
-        "audit.auditor_tenure_years"
+        "audit.auditor_tenure_years",
+        "audit.tender_disclosed"
       ]
     },
     {
@@ -677,9 +677,8 @@
         "audit_committee_chair"
       ],
       "data_fields": [
-        "audit.qualified_opinion",
         "audit.material_weakness",
-        "audit.restatement"
+        "audit.qualified_opinion"
       ]
     },
     {
@@ -767,7 +766,9 @@
       "vote_targets": [
         "share_buyback"
       ],
-      "data_fields": []
+      "data_fields": [
+        "governance.takeover_period"
+      ]
     },
     {
       "issue_id": "capital.dividend_allocation",
@@ -826,7 +827,8 @@
         "nomination_committee_chair"
       ],
       "data_fields": [
-        "governance.dual_class"
+        "governance.dual_class",
+        "governance.dual_class_sunset_years"
       ]
     },
     {
@@ -856,7 +858,7 @@
         "board_chair"
       ],
       "data_fields": [
-        "governance.poison_pill"
+        "governance.poison_pill_unapproved"
       ]
     },
     {
@@ -911,9 +913,7 @@
       "vote_targets": [
         "related_party_transaction"
       ],
-      "data_fields": [
-        "governance.related_party_value"
-      ]
+      "data_fields": []
     },
     {
       "issue_id": "rights.shareholder_rights",
@@ -945,10 +945,7 @@
       "vote_targets": [
         "articles_amendment"
       ],
-      "data_fields": [
-        "governance.supermajority",
-        "governance.special_meeting_threshold_pct"
-      ]
+      "data_fields": []
     },
     {
       "issue_id": "rights.virtual_meetings",
@@ -1013,9 +1010,8 @@
         "responsible_director"
       ],
       "data_fields": [
-        "score.clti",
         "climate.high_emitter",
-        "engagement.months_without_progress"
+        "score.clti"
       ]
     },
     {
@@ -1085,8 +1081,8 @@
         "responsible_director"
       ],
       "data_fields": [
-        "climate.net_zero_target",
         "climate.interim_target",
+        "climate.net_zero_target",
         "climate.sbti_validated"
       ]
     },
@@ -1119,8 +1115,8 @@
         "say_on_climate"
       ],
       "data_fields": [
-        "score.transition_plan",
-        "climate.capex_alignment_disclosed"
+        "climate.capex_alignment_disclosed",
+        "score.transition_plan"
       ]
     },
     {
@@ -1182,9 +1178,8 @@
         "board_chair"
       ],
       "data_fields": [
-        "score.nature",
         "nature.high_impact_sector",
-        "nature.deforestation_exposure"
+        "score.nature"
       ]
     },
     {
@@ -1267,9 +1262,7 @@
       "vote_targets": [
         "shareholder_proposal_social"
       ],
-      "data_fields": [
-        "social.pay_gap_disclosed"
-      ]
+      "data_fields": []
     },
     {
       "issue_id": "social.shareholder_proposals",
@@ -1344,9 +1337,7 @@
       "vote_targets": [
         "shareholder_proposal_governance"
       ],
-      "data_fields": [
-        "governance.lobbying_disclosed"
-      ]
+      "data_fields": []
     },
     {
       "issue_id": "gov.tax_transparency",
@@ -1421,10 +1412,7 @@
         "say_on_pay",
         "say_on_climate"
       ],
-      "data_fields": [
-        "engagement.escalation_step",
-        "engagement.theme"
-      ]
+      "data_fields": []
     },
     {
       "issue_id": "general.default_management",

@@ -1,7 +1,7 @@
 {
   "policy_id": "house_voting",
   "version": "0.1-draft",
-  "catalogue_version": "0.2-draft",
+  "catalogue_version": "0.3-draft",
   "status": "illustrative draft for policy review; not an approved house policy",
   "note": "One position per catalogue issue. A null parameter means 'not applied'. Values follow common institutional-investor practice and must be confirmed by the stewardship team.",
   "positions": [
