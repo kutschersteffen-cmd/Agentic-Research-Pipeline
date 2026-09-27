@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import type { StewardshipFlow, StewardshipStage, StewardshipStream } from "../types";
 import { SOURCE_LABEL } from "./steward/common";
 import { FlowChart, FlowList } from "./steward/flow";
+import { ProgramStudio } from "./steward/program";
 import {
   CheckpointStudio,
   ClientPicker,
@@ -27,8 +28,10 @@ const STAGE_TABS = [
   { id: "tracking", label: "6 Tracking" },
   { id: "client_policy", label: "7 Client policy" },
   { id: "reporting", label: "8 Reporting" },
+  { id: "program", label: "Client program" },
 ] as const;
-const CLIENT_STAGES = new Set(["client_policy", "reporting"]);
+// "program" is not a stage: it calibrates a client program across stages 2-5 (Part 5).
+const CLIENT_STAGES = new Set(["client_policy", "reporting", "program"]);
 
 const openCount = (stage: StewardshipStage | undefined) =>
   stage ? stage.decisions.filter((d) => d.kind !== "policy_difference" || d.decision === null).length : 0;
@@ -226,7 +229,7 @@ export function StewardWorkflow() {
       {tab !== "overview" && CLIENT_STAGES.has(tab) && stream === "house" && (
         <p className="muted card">Choose a client stream above (or create one on the overview) to work on its policy and reporting.</p>
       )}
-      {tab !== "overview" && !stage && loading && <p className="status-text">Loading…</p>}
+      {tab !== "overview" && tab !== "program" && !stage && loading && <p className="status-text">Loading…</p>}
 
       {studioProps && tab === "monitoring" && <MonitoringStudio {...studioProps} />}
       {studioProps && tab === "selection" && <SelectionStudio {...studioProps} />}
@@ -236,6 +239,7 @@ export function StewardWorkflow() {
       {studioProps && tab === "tracking" && <TrackingStudio {...studioProps} />}
       {studioProps && tab === "client_policy" && stream !== "house" && <ClientPolicyStudio key={stream} {...studioProps} streamId={stream} />}
       {studioProps && tab === "reporting" && stream !== "house" && <ReportingStudio key={stream} {...studioProps} streamId={stream} />}
+      {tab === "program" && stream !== "house" && <ProgramStudio key={stream} streamId={stream} />}
     </div>
   );
 }

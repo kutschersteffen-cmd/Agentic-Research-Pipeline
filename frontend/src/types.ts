@@ -2386,6 +2386,54 @@ export interface ClientReport {
   notes: string[];
 }
 
+export interface ProgramParams {
+  objective: string;
+  normalisation: "rank_percentile" | "zscore" | "max";
+  tilt_floor: number;
+  tilt_ceiling: number;
+  leader_clti: number;
+  laggard_clti: number;
+  include_triggers: boolean;
+  max_targets: number;
+  min_weight_ratio: number;
+  effort_days: number;
+  free_capacity_days: number;
+}
+
+export interface ProgramTarget {
+  issuer_id: string;
+  company: string;
+  theme: string;
+  reason: string;
+  portfolio_pct: number;
+  leverage: number;
+  tier: string | null;
+  origin: "house" | "client_only";
+  weight_ratio: number;
+  step_now: string;
+  house_step: string;
+  client_step: string;
+  above_house: boolean;
+  max_step: string;
+  at_vote_step: boolean;
+}
+
+export interface ProgramSimulation {
+  client: string;
+  benchmark: string;
+  vehicle: string;
+  voting_policy: string;
+  escalation_rules: string;
+  params: ProgramParams;
+  kpis: Record<string, number>;
+  holdings: { company: string; sector: string; clti: number | null; benchmark_pct: number; portfolio_pct: number; active_pct: number; role: string }[];
+  candidates: number;
+  targets: ProgramTarget[];
+  votes: { company: string; resolution: string; house: string; client: string; sanction: string }[];
+  checks: { check: string; value: string; status: "green" | "amber" | "red"; note: string }[];
+  data_note: string;
+}
+
 export interface VotingPreview {
   resolutions: number;
   changed: number;

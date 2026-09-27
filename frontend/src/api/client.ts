@@ -2,6 +2,8 @@ import type {
   CompanyBallot,
   ClientEscalationPreview,
   ClientReport,
+  ProgramParams,
+  ProgramSimulation,
   CoveragePreview,
   EscalationPreview,
   EscalationRecommendation,
@@ -346,6 +348,21 @@ export const api = {
     }),
   activateStewardPolicy: (policyId: StewardPolicyId, body: { version: number; approved_by: string }, stream?: string) =>
     request(`/api/stewardship/policies/${policyId}/activate${streamQuery(stream)}`, { method: "POST", body: JSON.stringify(body) }),
+  getProgram: (streamId: string) =>
+    request<{ saved: { params: ProgramParams; updated_by: string; updated_at: string } | null; simulation: ProgramSimulation }>(
+      `/api/stewardship/streams/${encodeURIComponent(streamId)}/program`,
+    ),
+  simulateProgram: (streamId: string, params: ProgramParams) =>
+    request<ProgramSimulation>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program/simulate`, {
+      method: "POST",
+      body: JSON.stringify({ params }),
+    }),
+  saveProgram: (streamId: string, params: ProgramParams, updatedBy: string) =>
+    request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program`, {
+      method: "PUT",
+      body: JSON.stringify({ params, updated_by: updatedBy }),
+    }),
+  programProposalUrl: (streamId: string) => `${API_BASE}/api/stewardship/streams/${encodeURIComponent(streamId)}/program/proposal.pptx`,
   getClientReport: (streamId: string) => request<ClientReport>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/report`),
   clientReportPptxUrl: (streamId: string) => `${API_BASE}/api/stewardship/streams/${encodeURIComponent(streamId)}/report.pptx`,
   getClientEscalationExample: () => request<Record<string, unknown>>("/api/stewardship/studio/escalation/client-example"),

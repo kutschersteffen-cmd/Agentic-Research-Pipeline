@@ -817,6 +817,38 @@ Monitoring switches to the new version only when it is approved.
 Phase A is testable from the API alone, and it is where the design gets proven
 before any UI is built.
 
+### 5.6a As built (lean Phase A–C)
+
+`backend/arp/stewardship/program.py`, the **Client program** tab of the Steward
+Workflow page (per client stream).
+
+- **Calibration** is a set of parameters saved on the client stream (who saved it,
+  when): the objective, the tilt (normalisation, floor and ceiling multipliers),
+  the leader and laggard CLTI cut-offs, whether monitoring triggers select targets
+  too, the maximum number of targets, the coherence threshold, and the capacity
+  assumptions. Every change reruns the pipeline on the page; saving makes it the
+  calibration the proposal uses.
+- **Tilt**: the index engine's `MetricTilt` on CLTI (`arp/index/weighting.apply_tilts`)
+  over the benchmark weights. Shows weighted CLTI against the benchmark, active
+  share, and active weights with leaders and laggards.
+- **Selection**: CLTI laggards on climate, plus medium and high monitoring triggers
+  on their themes, ranked by leverage (portfolio weight × gap), capped at the
+  maximum. Each target shows its tier and whether the house already engages it.
+- **Escalation**: the client's escalation rules, chained on the house rules, per
+  target (a new target starts at private engagement).
+- **Sanction**: a target whose client step reaches vote against management is at
+  the vote step; the client's voting policy (built, or as envisioned while in
+  review) gives the expected votes at its next meeting, next to the house's.
+- **House comparison**: the six checks of 5.3 as traffic lights (overlap, workload
+  against capacity, theme gap, vote conflicts with the vehicle, escalation above
+  the house, tilt coherence).
+- **Proposal**: `GET /api/stewardship/streams/{id}/program/proposal.pptx`, from the
+  saved calibration, through the deterministic deck builder: objective, tilt,
+  targets, votes, escalation, feasibility, monitoring KPIs, calibration and data.
+- Not built: MSCI World constituents (the 12 sample companies stand in), tracking
+  error (no risk model on the sample), immutable program versions with client
+  approval and frozen targets, the docx, and monitoring the live program (Phase D).
+
 ### 5.7 Policy review — custom policy vs house policy
 
 **Purpose.** Before a custom policy is built, compare what the client *envisions*
@@ -1358,7 +1390,7 @@ its own versioned `escalation_rules` (`PolicyStore(..., client=True)`, stored un
 Implementation: `backend/arp/stewardship/process.py` (streams and the flow), `policies.py` (versions and previews),
 `backend/arp/api/routers/stewardship.py` (`/api/stewardship/...`),
 `frontend/src/pages/StewardWorkflow.tsx` and `frontend/src/pages/steward/` (flowchart, studios, decisions); tests in
-`backend/tests/test_api_stewardship.py`, `test_stewardship_tiers.py`, `test_stewardship_policies.py`, `test_stewardship_monitoring.py`, `test_stewardship_escalation.py`, `test_stewardship_client_report.py`. Client streams are stored as JSON under
+`backend/tests/test_api_stewardship.py`, `test_stewardship_tiers.py`, `test_stewardship_policies.py`, `test_stewardship_monitoring.py`, `test_stewardship_escalation.py`, `test_stewardship_client_report.py`, `test_stewardship_program.py`. Client streams are stored as JSON under
 `stewardship_streams/` (`ARP_STEWARDSHIP_STREAMS_DIR`).
 
 ## Open points

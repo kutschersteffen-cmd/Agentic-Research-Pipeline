@@ -32,6 +32,7 @@ from arp.stewardship.process import (
     record_decision,
     tier_review,
 )
+from arp.stewardship.program import ProgramParams, build_proposal, simulate
 from arp.stewardship.tiers import TierStore, tier_contexts
 from arp.storage.engagement_store import EngagementStore
 
@@ -469,6 +470,76 @@ def get_client_report_pptx(
     report = client_report(streams.root, stream, engagements.list_all(), settings.engagement_sla_days)
     tmp = Path(tempfile.mkdtemp(prefix="arp_client_report_"))
     path = build_pptx(report, tmp / f"{stream_id}-stewardship-report.pptx")
+    background.add_task(shutil.rmtree, tmp, ignore_errors=True)
+    return FileResponse(
+        path,
+        filename=path.name,
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    )
+
+
+# --- Client program (Part 5): calibrate, compare with the house, propose -----
+
+
+@router.get("/streams/{stream_id}/program")
+def get_program(
+    stream_id: str,
+    settings: Settings = Depends(settings_dep),
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    """The simulation for the saved calibration (the defaults until one is saved)."""
+    stream = _stream_or_404(streams, stream_id)
+    return {
+        "saved": stream.get("program"),
+        "simulation": simulate(streams.root, stream, engagements.list_all(), settings.engagement_sla_days),
+    }
+
+
+class ProgramRequest(BaseModel):
+    params: ProgramParams
+
+
+@router.post("/streams/{stream_id}/program/simulate")
+def post_program_simulate(
+    stream_id: str,
+    body: ProgramRequest,
+    settings: Settings = Depends(settings_dep),
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    """Runs a calibration without saving it."""
+    stream = _stream_or_404(streams, stream_id)
+    return simulate(streams.root, stream, engagements.list_all(), settings.engagement_sla_days, body.params.model_dump())
+
+
+class SaveProgramRequest(ProgramRequest):
+    updated_by: str
+
+
+@router.put("/streams/{stream_id}/program")
+def put_program(stream_id: str, body: SaveProgramRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    if not body.updated_by.strip():
+        raise HTTPException(422, "Saving a calibration needs updated_by")
+    stream = _stream_or_404(streams, stream_id)
+    program = {"params": body.params.model_dump(), "updated_by": body.updated_by, "updated_at": datetime.now(UTC).isoformat()}
+    streams.save({**stream, "program": program})
+    return program
+
+
+@router.get("/streams/{stream_id}/program/proposal.pptx")
+def get_program_proposal(
+    stream_id: str,
+    background: BackgroundTasks,
+    settings: Settings = Depends(settings_dep),
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> FileResponse:
+    """The proposal deck for the saved calibration, rendered on request."""
+    stream = _stream_or_404(streams, stream_id)
+    sim = simulate(streams.root, stream, engagements.list_all(), settings.engagement_sla_days)
+    tmp = Path(tempfile.mkdtemp(prefix="arp_program_"))
+    path = build_proposal(sim, tmp / f"{stream_id}-program-proposal.pptx")
     background.add_task(shutil.rmtree, tmp, ignore_errors=True)
     return FileResponse(
         path,
