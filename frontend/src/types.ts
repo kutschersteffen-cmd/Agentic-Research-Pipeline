@@ -620,7 +620,7 @@ export type EscalationStage =
 
 export type IssueStatus = "open" | "stalled" | "resolved" | "closed";
 export type IssueSeverity = "low" | "medium" | "high";
-export type TriggerSource = "controversy_screen" | "analyst_raised" | "sla_stall" | "manual";
+export type TriggerSource = "controversy_screen" | "analyst_raised" | "sla_stall" | "monitoring_rule" | "manual";
 export type CorrespondenceType = "letter" | "call" | "meeting" | "email" | "other";
 export type CommitmentStatus = "open" | "verified" | "missed";
 
@@ -2148,4 +2148,423 @@ export interface IndexCatalogue {
   presets: { name: string; label: string; description: string }[];
   screen_bundles: { name: string; label: string; description: string }[];
   fields: IndexFieldInventory;
+}
+
+// Stewardship process page (backend/arp/stewardship/process.py)
+export type MetricSource = "live" | "sample" | "not_built";
+export type MetricTone = "neutral" | "good" | "warn" | "bad";
+
+export interface StewardshipMetric {
+  label: string;
+  value: string | number;
+  source: MetricSource;
+  tone: MetricTone;
+  hint: string | null;
+}
+
+export interface EscalationDecisionItem {
+  kind: "escalation";
+  company_id: string;
+  company: string;
+  issue_id: string;
+  theme: string;
+  current: string;
+  next: string | null;
+  max_step: string;
+  promote_tier: boolean;
+  reason: string;
+}
+
+export interface StyleFlag {
+  phrase: string;
+  match: string;
+  category: string;
+  suggestion: string;
+  start: number;
+  end: number;
+  line: number;
+  context: string;
+}
+
+export type InteractionType = "informational" | "advocacy_pressure" | "other";
+
+export interface OutreachDraft {
+  draft_id: string;
+  company_id: string;
+  company: string;
+  issue_id: string;
+  theme: string;
+  type: string;
+  text: string;
+  proposed_interaction_type: InteractionType;
+  proposed_because: string;
+  interaction_type: InteractionType;
+  style_flags: StyleFlag[];
+  status: "draft" | "approved" | "sent";
+  created_by: string;
+  created_at: string;
+  approved_by?: string;
+  history: { at: string; by: string; action: string; note?: string }[];
+}
+
+export interface OutreachDecisionItem {
+  kind: "outreach";
+  draft_id: string;
+  company: string;
+  theme: string;
+  type: string;
+  interaction_type: InteractionType;
+  proposed_interaction_type: InteractionType;
+  proposed_because: string;
+  text: string;
+  style_flags: StyleFlag[];
+  authors: string[];
+}
+
+export interface BlocklistEntry {
+  phrase: string;
+  category: string;
+  suggestion?: string;
+}
+
+export interface TrackedCommitment {
+  company_id: string;
+  company: string;
+  issue_id: string;
+  theme: string;
+  commitment_id: string;
+  text: string;
+  made_at: string;
+  target_date: string | null;
+  status: "open" | "verified" | "missed";
+  overdue: boolean;
+  validated_by: string | null;
+}
+
+export interface CommitmentDueItem extends TrackedCommitment {
+  kind: "commitment_due";
+}
+
+export interface TrackedEngagement {
+  company_id: string;
+  company: string;
+  issue_id: string;
+  theme: string;
+  status: string;
+  step: string;
+  milestone: string;
+}
+
+export interface CaseStudy {
+  company: string;
+  theme: string;
+  status: string;
+  text: string;
+  style_flags: StyleFlag[];
+  provenance: string;
+}
+
+export interface ClientExceptionItem {
+  kind: "client_exception";
+  stream_id: string;
+  client: string;
+  company_id: string;
+  company: string;
+  issue_id: string;
+  theme: string;
+  current: string;
+  house: string;
+  client_step: string;
+  reason: string;
+}
+
+export interface TierChangeItem {
+  kind: "tier_change";
+  issuer_id: string;
+  company: string;
+  current: string;
+  proposed: string;
+  rule: string | null;
+  reason: string;
+}
+
+export interface PolicyDifferenceItem {
+  kind: "policy_difference";
+  issue_id: string;
+  title: string;
+  difference: string;
+  changes: { field: string; house: unknown; client: unknown; direction?: string }[];
+  source: string | null;
+  question: string | null;
+  direction: string | null;
+  flags: string[];
+  votes_changed: number | null;
+  recommendation: string;
+  decision: { decision: string; decided_by: string; note?: string } | null;
+}
+
+export interface StewardshipStage {
+  id: string;
+  number: number;
+  title: string;
+  layer: "house" | "client";
+  summary: string;
+  status: "live" | "partial" | "not_built";
+  metrics: StewardshipMetric[];
+  decisions: (
+    | EscalationDecisionItem
+    | ClientExceptionItem
+    | OutreachDecisionItem
+    | CommitmentDueItem
+    | TierChangeItem
+    | PolicyDifferenceItem
+  )[];
+  details: { label: string; rows: Record<string, string | number>[] }[];
+  can_build?: boolean;
+}
+
+export interface StewardshipFlow {
+  stream: { stream_id: string; name: string; mandate?: Record<string, string> | null };
+  data_note: string;
+  stages: StewardshipStage[];
+  edges: { from: string; to: string; label?: string }[];
+}
+
+export interface StewardshipStream {
+  stream_id: string;
+  name: string;
+  kind: "house" | "client";
+}
+
+// Stage studios: versioned house policies (backend/arp/stewardship/policies.py)
+export type StewardPolicyId = "monitoring_rules" | "coverage_rules" | "escalation_rules" | "phrase_blocklist" | "house_voting";
+
+export interface PolicyVersionMeta {
+  version: number;
+  note: string;
+  created_by: string;
+  created_at: string | null;
+}
+
+export interface PolicyActivation {
+  version: number;
+  approved_by: string;
+  approved_at: string;
+}
+
+export interface StewardPolicyInfo {
+  policy_id: StewardPolicyId;
+  active_version: number;
+  active: Record<string, unknown>;
+  versions: PolicyVersionMeta[];
+  activations: PolicyActivation[];
+}
+
+export interface CatalogueParameter {
+  type: "number" | "bool" | "enum" | "map" | "field";
+  description: string;
+  unit?: string;
+  values?: string[];
+  stricter?: "higher" | "lower" | boolean;
+}
+
+export interface CatalogueIssue {
+  issue_id: string;
+  category: string;
+  title: string;
+  description: string;
+  resolution_categories: string[];
+  parameters: Record<string, CatalogueParameter>;
+  vote_targets: string[];
+  data_fields: string[];
+}
+
+export interface IssueCatalogue {
+  version: string;
+  position_actions: string[];
+  categories: string[];
+  issues: CatalogueIssue[];
+}
+
+export interface VotingPosition {
+  issue_id: string;
+  action: string;
+  vote_target: string;
+  parameters: Record<string, unknown>;
+  scope: Record<string, unknown>;
+  rationale: string;
+}
+
+export interface VotingPolicy {
+  policy_id: string;
+  version: string;
+  positions: VotingPosition[];
+  [key: string]: unknown;
+}
+
+export interface CoveragePreview {
+  companies: number;
+  distribution_candidate: Record<string, number>;
+  distribution_active: Record<string, number>;
+  rules_fired: Record<string, number>;
+  changes: { issuer_id: string; company: string; from: string; to: string; rule: string; reason: string }[];
+}
+
+export interface MonitoringTrigger {
+  issuer_id: string;
+  company: string;
+  sector: string;
+  type: string;
+  theme: string;
+  severity: "low" | "medium" | "high";
+  rule: string;
+  reason: string;
+  engagement_id: string | null;
+}
+
+export interface MonitoringPreview {
+  companies: number;
+  triggers_candidate: number;
+  triggers_active: number;
+  flagged_candidate: number;
+  flagged_active: number;
+  by_rule_candidate: Record<string, number>;
+  by_rule_active: Record<string, number>;
+  newly_flagged: { issuer_id: string; company: string }[];
+  no_longer_flagged: { issuer_id: string; company: string }[];
+  triggers: MonitoringTrigger[];
+}
+
+export interface EscalationRecommendation {
+  source: "sample" | "live";
+  company_id: string;
+  company: string;
+  issue_id: string | null;
+  theme: string;
+  tier: string | null;
+  max_step: string;
+  current: string;
+  recommended: string;
+  escalate: boolean;
+  promote_tier: boolean;
+  rule: string;
+  reason: string;
+}
+
+export interface EscalationPreview {
+  engagements: number;
+  escalations_candidate: number;
+  escalations_active: number;
+  promotions_candidate: number;
+  promotions_active: number;
+  by_rule_candidate: Record<string, number>;
+  by_rule_active: Record<string, number>;
+  changes: Record<string, string>[];
+  recommendations: EscalationRecommendation[];
+}
+
+export interface ClientEscalationPreview {
+  engagements: number;
+  higher_candidate: number;
+  higher_active: number;
+  rows: Record<string, string | boolean>[];
+}
+
+export interface ClientReport {
+  client: string;
+  stream_id: string;
+  as_of: string;
+  summary: string[];
+  tiers: { tier: string; companies: number }[];
+  votes: { vote: string; house: number; client: number }[];
+  engagements: Record<string, string>[];
+  exceptions: Record<string, string>[];
+  policy_decisions: Record<string, string>[];
+  notes: string[];
+}
+
+export interface ProgramParams {
+  objective: string;
+  normalisation: "rank_percentile" | "zscore" | "max";
+  tilt_floor: number;
+  tilt_ceiling: number;
+  leader_clti: number;
+  laggard_clti: number;
+  include_triggers: boolean;
+  max_targets: number;
+  min_weight_ratio: number;
+  effort_days: number;
+  free_capacity_days: number;
+}
+
+export interface ProgramTarget {
+  issuer_id: string;
+  company: string;
+  theme: string;
+  reason: string;
+  portfolio_pct: number;
+  leverage: number;
+  tier: string | null;
+  origin: "house" | "client_only";
+  weight_ratio: number;
+  step_now: string;
+  house_step: string;
+  client_step: string;
+  above_house: boolean;
+  max_step: string;
+  at_vote_step: boolean;
+}
+
+export interface ProgramSimulation {
+  client: string;
+  benchmark: string;
+  vehicle: string;
+  voting_policy: string;
+  escalation_rules: string;
+  params: ProgramParams;
+  kpis: Record<string, number>;
+  holdings: { company: string; sector: string; clti: number | null; benchmark_pct: number; portfolio_pct: number; active_pct: number; role: string }[];
+  candidates: number;
+  targets: ProgramTarget[];
+  votes: { company: string; resolution: string; house: string; client: string; sanction: string }[];
+  checks: { check: string; value: string; status: "green" | "amber" | "red"; note: string }[];
+  data_note: string;
+}
+
+export interface ProgramVersion {
+  version: number;
+  params: ProgramParams;
+  targets: { issuer_id: string; company: string; theme: string; client_step: string; origin: string }[];
+  kpis: Record<string, number>;
+  proposed_by: string;
+  approved_by: string;
+  approved_at: string;
+}
+
+export interface ProgramRun {
+  as_of: string;
+  version: number;
+  kpis: Record<string, number>;
+  alerts: number;
+  recorded_by: string;
+}
+
+export interface ProgramMonitor {
+  approved: { version: number; proposed_by: string; approved_by: string; approved_at: string; kpis: Record<string, number> } | null;
+  calibration_changed?: boolean;
+  kpis?: Record<string, number>;
+  alerts?: { kpi: string; status: "green" | "amber" | "red" | "not_built"; detail: string }[];
+  targets?: Record<string, string>[];
+}
+
+export interface VotingPreview {
+  resolutions: number;
+  changed: number;
+  base_votes: Record<string, number>;
+  other_votes: Record<string, number>;
+  affected_by_issue: Record<string, number>;
+  masked_by_issue: Record<string, number>;
+  changed_rows: { resolution_id: string; category: string; base_vote: string; other_vote: string; issues: string[] }[];
+  unused_parameters: Record<string, string[]>;
+  no_vote_effect: string[];
 }

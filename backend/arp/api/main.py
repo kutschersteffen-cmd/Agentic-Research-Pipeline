@@ -35,6 +35,7 @@ from arp.api.routers import (
     revenue_catalogue,
     runs,
     search,
+    stewardship,
     taxonomies,
     taxonomy_researcher,
     themes,
@@ -93,6 +94,7 @@ app.include_router(overlap.router)
 app.include_router(revenue_catalogue.router)
 app.include_router(engagement.router)
 app.include_router(voting.router)
+app.include_router(stewardship.router)
 app.include_router(financials.router)
 app.include_router(tnfd.router)
 app.include_router(transition_plan.router)

@@ -1,0 +1,661 @@
+{
+  "nodes": [
+    {
+      "id": "input",
+      "type": "inputNode",
+      "name": "input",
+      "position": {
+        "x": 0,
+        "y": 100
+      }
+    },
+    {
+      "id": "conditions",
+      "type": "expressionNode",
+      "name": "conditions",
+      "position": {
+        "x": 300,
+        "y": 100
+      },
+      "content": {
+        "passThrough": true,
+        "inputField": null,
+        "outputPath": null,
+        "executionMode": "single",
+        "expressions": [
+          {
+            "id": "board_independence",
+            "key": "c.board_independence",
+            "value": "((resolution.category in ['director_election', 'committee_member_election'] and (resolution.roles != null and contains(resolution.roles, 'nomination_committee_chair'))) and ((issuer.governance.controlled_company == true and (issuer.governance.board_independence_pct != null and issuer.governance.board_independence_pct < 50)) or (issuer.governance.controlled_company != true and (issuer.governance.board_independence_pct != null and issuer.governance.board_independence_pct < 66))))"
+          },
+          {
+            "id": "board_committee_independence",
+            "key": "c.board_committee_independence",
+            "value": "((resolution.category in ['director_election', 'committee_member_election'] and (resolution.director.independent == false and resolution.director.committee_member == true)) and ((issuer.governance.audit_committee_independence_pct != null and issuer.governance.audit_committee_independence_pct < 100) or (issuer.governance.remuneration_committee_independence_pct != null and issuer.governance.remuneration_committee_independence_pct < 50) or (issuer.governance.nomination_committee_independence_pct != null and issuer.governance.nomination_committee_independence_pct < 50)))"
+          },
+          {
+            "id": "board_chair_ceo_separation",
+            "key": "c.board_chair_ceo_separation",
+            "value": "((resolution.category in ['director_election', 'committee_member_election', 'shareholder_proposal_governance'] and (resolution.roles != null and contains(resolution.roles, 'board_chair'))) and (issuer.governance.chair_ceo_combined == true or issuer.governance.chair_is_former_ceo == true))"
+          },
+          {
+            "id": "board_overboarding",
+            "key": "c.board_overboarding",
+            "value": "(resolution.category in ['director_election', 'committee_member_election'] and ((resolution.director.is_executive != true and resolution.director.mandates != null and resolution.director.chair_mandates != null and (resolution.director.mandates + resolution.director.chair_mandates * 1) > 4) or (resolution.director.is_executive == true and (resolution.director.mandates != null and resolution.director.mandates > 1))))"
+          },
+          {
+            "id": "board_attendance",
+            "key": "c.board_attendance",
+            "value": "(resolution.category in ['director_election', 'committee_member_election'] and (resolution.director.attendance_pct != null and resolution.director.attendance_pct < 75))"
+          },
+          {
+            "id": "board_gender_diversity",
+            "key": "c.board_gender_diversity",
+            "value": "((resolution.category in ['director_election', 'committee_member_election'] and (resolution.roles != null and contains(resolution.roles, 'nomination_committee_chair'))) and ((issuer.region == 'EU' and (issuer.governance.board_female_pct != null and issuer.governance.board_female_pct < 40)) or (not (issuer.region in ['EU']) and (issuer.governance.board_female_pct != null and issuer.governance.board_female_pct < 40))))"
+          },
+          {
+            "id": "board_tenure_refreshment",
+            "key": "c.board_tenure_refreshment",
+            "value": "((resolution.category in ['director_election', 'committee_member_election'] and (resolution.roles != null and contains(resolution.roles, 'nomination_committee_chair'))) and ((issuer.governance.longest_independent_tenure_years != null and issuer.governance.longest_independent_tenure_years > 12) or (issuer.governance.average_board_tenure_years != null and issuer.governance.average_board_tenure_years > 10)))"
+          },
+          {
+            "id": "board_election_practices",
+            "key": "c.board_election_practices",
+            "value": "((resolution.category in ['director_election', 'committee_member_election', 'articles_amendment', 'shareholder_proposal_governance'] and (resolution.roles != null and contains(resolution.roles, 'nomination_committee_chair'))) and (issuer.governance.staggered_board == true or resolution.is_bundled == true or issuer.governance.majority_voting == false))"
+          },
+          {
+            "id": "board_responsiveness",
+            "key": "c.board_responsiveness",
+            "value": "((resolution.category in ['director_election', 'committee_member_election'] and (resolution.roles != null and some(resolution.roles, # in ['audit_committee_chair', 'remuneration_committee_chair', 'nomination_committee_chair']))) and (((issuer.voting.prior_year_dissent_pct != null and issuer.voting.prior_year_dissent_pct > 20) and issuer.voting.dissent_addressed == false) or issuer.voting.majority_proposal_not_implemented == true))"
+          },
+          {
+            "id": "pay_say_on_pay",
+            "key": "c.pay_say_on_pay",
+            "value": "(resolution.category in ['say_on_pay'] and resolution.category == 'say_on_pay')"
+          },
+          {
+            "id": "pay_quantum",
+            "key": "c.pay_quantum",
+            "value": "((resolution.category in ['say_on_pay', 'remuneration_policy'] and resolution.category == 'say_on_pay') and ((issuer.pay.ceo_peer_percentile != null and issuer.pay.ceo_peer_percentile > 75) or (issuer.pay.ceo_pay_ratio != null and issuer.pay.ceo_pay_ratio > 150)))"
+          },
+          {
+            "id": "pay_performance_alignment",
+            "key": "c.pay_performance_alignment",
+            "value": "((resolution.category in ['say_on_pay', 'remuneration_policy'] and resolution.category == 'say_on_pay') and ((issuer.pay.misalignment_years != null and issuer.pay.misalignment_years > 3) or (issuer.pay.long_term_incentive_pct != null and issuer.pay.long_term_incentive_pct < 50) or (issuer.pay.vesting_period_years != null and issuer.pay.vesting_period_years < 3)))"
+          },
+          {
+            "id": "pay_esg_metrics",
+            "key": "c.pay_esg_metrics",
+            "value": "((resolution.category in ['say_on_pay', 'remuneration_policy'] and resolution.category == 'remuneration_policy') and ((issuer.pay.esg_metric_included == false or (issuer.pay.esg_metric_weight_pct != null and issuer.pay.esg_metric_weight_pct < 20)) or (issuer.climate.high_emitter == true and issuer.pay.climate_metric_included == false)))"
+          },
+          {
+            "id": "pay_equity_plans",
+            "key": "c.pay_equity_plans",
+            "value": "((resolution.category in ['equity_plan'] and resolution.category == 'equity_plan') and ((issuer.pay.plan_dilution_pct != null and issuer.pay.plan_dilution_pct > 10) or issuer.pay.repricing_allowed == true or (issuer.pay.plan_discount_pct != null and issuer.pay.plan_discount_pct > 0)))"
+          },
+          {
+            "id": "pay_severance",
+            "key": "c.pay_severance",
+            "value": "((resolution.category in ['remuneration_policy', 'say_on_pay'] and resolution.category == 'remuneration_policy') and ((issuer.pay.severance_multiple != null and issuer.pay.severance_multiple > 1) or issuer.pay.single_trigger_vesting == true))"
+          },
+          {
+            "id": "pay_disclosure",
+            "key": "c.pay_disclosure",
+            "value": "((resolution.category in ['say_on_pay', 'remuneration_policy'] and resolution.category == 'say_on_pay') and (issuer.pay.targets_disclosed == false or (issuer.pay.discretion_used == true and issuer.pay.discretion_explained == false)))"
+          },
+          {
+            "id": "pay_non_executive_fees",
+            "key": "c.pay_non_executive_fees",
+            "value": "((resolution.category in ['non_executive_fees'] and resolution.category == 'non_executive_fees') and (issuer.pay.nonexec_performance_pay == true or (issuer.pay.nonexec_fee_change_pct != null and issuer.pay.nonexec_fee_change_pct > 10)))"
+          },
+          {
+            "id": "audit_non_audit_fees",
+            "key": "c.audit_non_audit_fees",
+            "value": "((resolution.category in ['auditor_ratification'] and resolution.category == 'auditor_ratification') and (issuer.audit.non_audit_fee_ratio != null and issuer.audit.non_audit_fee_ratio > 0.5))"
+          },
+          {
+            "id": "audit_auditor_tenure",
+            "key": "c.audit_auditor_tenure",
+            "value": "((resolution.category in ['auditor_ratification'] and resolution.category == 'auditor_ratification') and ((issuer.audit.auditor_tenure_years != null and issuer.audit.auditor_tenure_years > 20) or issuer.audit.tender_disclosed == false))"
+          },
+          {
+            "id": "audit_financial_statements",
+            "key": "c.audit_financial_statements",
+            "value": "((resolution.category in ['financial_statements', 'auditor_ratification', 'director_election'] and resolution.category == 'financial_statements') and (issuer.audit.qualified_opinion == true or issuer.audit.material_weakness == true))"
+          },
+          {
+            "id": "audit_discharge",
+            "key": "c.audit_discharge",
+            "value": "((resolution.category in ['discharge'] and resolution.category == 'discharge') and (issuer.governance.open_investigation == true or (issuer.controversy.max_severity != null and issuer.controversy.max_severity >= 4)))"
+          },
+          {
+            "id": "capital_share_issuance",
+            "key": "c.capital_share_issuance",
+            "value": "((resolution.category in ['share_issuance'] and resolution.category == 'share_issuance') and ((resolution.preemptive_rights == true and (resolution.size_pct != null and resolution.size_pct > 33)) or (resolution.preemptive_rights == false and (resolution.size_pct != null and resolution.size_pct > 5))))"
+          },
+          {
+            "id": "capital_share_buybacks",
+            "key": "c.capital_share_buybacks",
+            "value": "((resolution.category in ['share_buyback'] and resolution.category == 'share_buyback') and ((resolution.size_pct != null and resolution.size_pct > 10) or (resolution.max_premium_pct != null and resolution.max_premium_pct > 10) or issuer.governance.takeover_period == true))"
+          },
+          {
+            "id": "capital_dividend_allocation",
+            "key": "c.capital_dividend_allocation",
+            "value": "((resolution.category in ['dividend_allocation'] and resolution.category == 'dividend_allocation') and (issuer.financial.payout_ratio_pct != null and issuer.financial.payout_ratio_pct > 100))"
+          },
+          {
+            "id": "capital_one_share_one_vote",
+            "key": "c.capital_one_share_one_vote",
+            "value": "((resolution.category in ['capital_structure', 'articles_amendment', 'director_election', 'shareholder_proposal_governance'] and resolution.category == 'capital_structure') and (resolution.creates_unequal_voting == true or (issuer.governance.dual_class == true and (issuer.governance.dual_class_sunset_years == null or issuer.governance.dual_class_sunset_years > 7))))"
+          },
+          {
+            "id": "capital_takeover_defences",
+            "key": "c.capital_takeover_defences",
+            "value": "((resolution.category in ['takeover_defence', 'articles_amendment'] and resolution.category == 'takeover_defence') and (issuer.governance.poison_pill_unapproved == true or (resolution.duration_years != null and resolution.duration_years > 3)))"
+          },
+          {
+            "id": "capital_mergers_acquisitions",
+            "key": "c.capital_mergers_acquisitions",
+            "value": "(resolution.category in ['merger_acquisition'] and resolution.category == 'merger_acquisition')"
+          },
+          {
+            "id": "capital_related_party_transactions",
+            "key": "c.capital_related_party_transactions",
+            "value": "((resolution.category in ['related_party_transaction'] and resolution.category == 'related_party_transaction') and (resolution.independent_review == false or (resolution.value_pct_of_assets != null and resolution.value_pct_of_assets > 5)))"
+          },
+          {
+            "id": "rights_shareholder_rights",
+            "key": "c.rights_shareholder_rights",
+            "value": "((resolution.category in ['articles_amendment', 'shareholder_proposal_governance'] and resolution.category == 'articles_amendment') and resolution.introduces_supermajority == true)"
+          },
+          {
+            "id": "rights_virtual_meetings",
+            "key": "c.rights_virtual_meetings",
+            "value": "false"
+          },
+          {
+            "id": "climate_laggard_accountability",
+            "key": "c.climate_laggard_accountability",
+            "value": "false"
+          },
+          {
+            "id": "climate_disclosure",
+            "key": "c.climate_disclosure",
+            "value": "((resolution.category in ['director_election', 'financial_statements', 'shareholder_proposal_environmental'] and (resolution.roles != null and contains(resolution.roles, 'responsible_director'))) and (issuer.climate.scope1_2_disclosed == false or issuer.climate.scope3_disclosed == false or issuer.climate.tcfd_aligned == false))"
+          },
+          {
+            "id": "climate_targets",
+            "key": "c.climate_targets",
+            "value": "((resolution.category in ['director_election', 'shareholder_proposal_environmental'] and (resolution.roles != null and contains(resolution.roles, 'responsible_director')) and issuer.climate.high_emitter == true) and (issuer.climate.net_zero_target == false or issuer.climate.interim_target == false or issuer.climate.sbti_validated == false))"
+          },
+          {
+            "id": "climate_say_on_climate",
+            "key": "c.climate_say_on_climate",
+            "value": "((resolution.category in ['say_on_climate'] and resolution.category == 'say_on_climate') and issuer.climate.capex_alignment_disclosed == false)"
+          },
+          {
+            "id": "climate_shareholder_proposals",
+            "key": "c.climate_shareholder_proposals",
+            "value": "(resolution.category in ['shareholder_proposal_environmental'] and resolution.category == 'shareholder_proposal_environmental')"
+          },
+          {
+            "id": "social_human_rights",
+            "key": "c.social_human_rights",
+            "value": "((resolution.category in ['director_election', 'discharge', 'shareholder_proposal_social'] and (resolution.roles != null and contains(resolution.roles, 'board_chair'))) and ((issuer.controversy.human_rights_severity != null and issuer.controversy.human_rights_severity >= 4) or issuer.controversy.ungc_status == 'fail'))"
+          },
+          {
+            "id": "social_workforce",
+            "key": "c.social_workforce",
+            "value": "((resolution.category in ['shareholder_proposal_social', 'director_election'] and resolution.category == 'shareholder_proposal_social') and resolution.topic == 'workforce')"
+          },
+          {
+            "id": "social_shareholder_proposals",
+            "key": "c.social_shareholder_proposals",
+            "value": "(resolution.category in ['shareholder_proposal_social'] and resolution.category == 'shareholder_proposal_social')"
+          },
+          {
+            "id": "gov_controversy_accountability",
+            "key": "c.gov_controversy_accountability",
+            "value": "((resolution.category in ['director_election', 'discharge'] and (resolution.roles != null and contains(resolution.roles, 'board_chair'))) and (issuer.controversy.governance_severity != null and issuer.controversy.governance_severity >= 4))"
+          },
+          {
+            "id": "gov_lobbying_political",
+            "key": "c.gov_lobbying_political",
+            "value": "((resolution.category in ['shareholder_proposal_governance', 'shareholder_proposal_environmental'] and resolution.category == 'shareholder_proposal_governance') and resolution.topic == 'lobbying')"
+          },
+          {
+            "id": "gov_tax_transparency",
+            "key": "c.gov_tax_transparency",
+            "value": "((resolution.category in ['shareholder_proposal_governance'] and resolution.category == 'shareholder_proposal_governance') and resolution.topic == 'tax')"
+          },
+          {
+            "id": "gov_shareholder_proposals",
+            "key": "c.gov_shareholder_proposals",
+            "value": "(resolution.category in ['shareholder_proposal_governance'] and resolution.category == 'shareholder_proposal_governance')"
+          },
+          {
+            "id": "stewardship_engagement_escalation",
+            "key": "c.stewardship_engagement_escalation",
+            "value": "(resolution.category in ['director_election', 'committee_member_election', 'say_on_pay', 'say_on_climate', 'discharge'] and ((engagement.climate_transition.at_vote_step == true and (resolution.roles != null and contains(resolution.roles, 'board_chair'))) or (engagement.nature.at_vote_step == true and (resolution.roles != null and contains(resolution.roles, 'responsible_director'))) or (engagement.executive_compensation.at_vote_step == true and resolution.category == 'say_on_pay') or (engagement.board_governance.at_vote_step == true and (resolution.roles != null and contains(resolution.roles, 'nomination_committee_chair')))))"
+          },
+          {
+            "id": "general_default_management",
+            "key": "c.general_default_management",
+            "value": "resolution.category in ['other', 'articles_amendment', 'capital_structure']"
+          }
+        ]
+      }
+    },
+    {
+      "id": "votes",
+      "type": "decisionTableNode",
+      "name": "votes",
+      "position": {
+        "x": 600,
+        "y": 100
+      },
+      "content": {
+        "passThrough": true,
+        "inputField": null,
+        "outputPath": "hits",
+        "executionMode": "single",
+        "hitPolicy": "collect",
+        "inputs": [
+          {
+            "id": "i1",
+            "name": "Position fires"
+          }
+        ],
+        "outputs": [
+          {
+            "id": "o1",
+            "name": "Vote",
+            "field": "vote"
+          },
+          {
+            "id": "o2",
+            "name": "Issue",
+            "field": "issue_id"
+          }
+        ],
+        "rules": [
+          {
+            "_id": "board.independence",
+            "_description": "Boards should be at least two-thirds independent; half for controlled companies.",
+            "i1": "c.board_independence == true",
+            "o1": "'against'",
+            "o2": "'board.independence'"
+          },
+          {
+            "_id": "board.committee_independence",
+            "_description": "The audit committee must be fully independent; remuneration and nomination committees need an independent majority.",
+            "i1": "c.board_committee_independence == true",
+            "o1": "'against'",
+            "o2": "'board.committee_independence'"
+          },
+          {
+            "_id": "board.chair_ceo_separation",
+            "_description": "We expect an independent chair at every company.",
+            "i1": "c.board_chair_ceo_separation == true",
+            "o1": "'against'",
+            "o2": "'board.chair_ceo_separation'"
+          },
+          {
+            "_id": "board.overboarding",
+            "_description": "Non-executive directors should hold no more than four listed-company mandates.",
+            "i1": "c.board_overboarding == true",
+            "o1": "'against'",
+            "o2": "'board.overboarding'"
+          },
+          {
+            "_id": "board.attendance",
+            "_description": "Attendance below 75% without explanation shows insufficient commitment.",
+            "i1": "c.board_attendance == true",
+            "o1": "'against'",
+            "o2": "'board.attendance'"
+          },
+          {
+            "_id": "board.gender_diversity",
+            "_description": "At least 40% of board members should be women, in all markets.",
+            "i1": "c.board_gender_diversity == true",
+            "o1": "'against'",
+            "o2": "'board.gender_diversity'"
+          },
+          {
+            "_id": "board.tenure_refreshment",
+            "_description": "Long tenure erodes independence and signals a lack of refreshment.",
+            "i1": "c.board_tenure_refreshment == true",
+            "o1": "'against'",
+            "o2": "'board.tenure_refreshment'"
+          },
+          {
+            "_id": "board.election_practices",
+            "_description": "Shareholders should be able to hold every director accountable every year.",
+            "i1": "c.board_election_practices == true",
+            "o1": "'against'",
+            "o2": "'board.election_practices'"
+          },
+          {
+            "_id": "board.responsiveness",
+            "_description": "Significant dissent must be addressed; ignoring it is a governance failure.",
+            "i1": "c.board_responsiveness == true",
+            "o1": "'against'",
+            "o2": "'board.responsiveness'"
+          },
+          {
+            "_id": "pay.say_on_pay",
+            "_description": "Support pay reports unless a red flag from another remuneration issue applies.",
+            "i1": "c.pay_say_on_pay == true",
+            "o1": "'for'",
+            "o2": "'pay.say_on_pay'"
+          },
+          {
+            "_id": "pay.quantum",
+            "_description": "CEO pay above the upper quartile of peers, or above 150 times the median employee, is excessive.",
+            "i1": "c.pay_quantum == true",
+            "o1": "'against'",
+            "o2": "'pay.quantum'"
+          },
+          {
+            "_id": "pay.performance_alignment",
+            "_description": "Pay should follow long-term performance; persistent misalignment is not accepted.",
+            "i1": "c.pay_performance_alignment == true",
+            "o1": "'against'",
+            "o2": "'pay.performance_alignment'"
+          },
+          {
+            "_id": "pay.esg_metrics",
+            "_description": "Every company should link at least 20% of variable pay to sustainability targets.",
+            "i1": "c.pay_esg_metrics == true",
+            "o1": "'against'",
+            "o2": "'pay.esg_metrics'"
+          },
+          {
+            "_id": "pay.equity_plans",
+            "_description": "Share plans must not dilute shareholders excessively or reward without performance.",
+            "i1": "c.pay_equity_plans == true",
+            "o1": "'against'",
+            "o2": "'pay.equity_plans'"
+          },
+          {
+            "_id": "pay.severance",
+            "_description": "Severance should not exceed one year of pay.",
+            "i1": "c.pay_severance == true",
+            "o1": "'against'",
+            "o2": "'pay.severance'"
+          },
+          {
+            "_id": "pay.disclosure",
+            "_description": "Shareholders need to see targets and how discretion was used.",
+            "i1": "c.pay_disclosure == true",
+            "o1": "'against'",
+            "o2": "'pay.disclosure'"
+          },
+          {
+            "_id": "pay.non_executive_fees",
+            "_description": "Performance pay for non-executives compromises their independence.",
+            "i1": "c.pay_non_executive_fees == true",
+            "o1": "'against'",
+            "o2": "'pay.non_executive_fees'"
+          },
+          {
+            "_id": "audit.non_audit_fees",
+            "_description": "Non-audit fees should not exceed half of audit fees.",
+            "i1": "c.audit_non_audit_fees == true",
+            "o1": "'against'",
+            "o2": "'audit.non_audit_fees'"
+          },
+          {
+            "_id": "audit.auditor_tenure",
+            "_description": "Very long auditor tenure risks independence.",
+            "i1": "c.audit_auditor_tenure == true",
+            "o1": "'against'",
+            "o2": "'audit.auditor_tenure'"
+          },
+          {
+            "_id": "audit.financial_statements",
+            "_description": "Qualified accounts and unaddressed material weaknesses cannot be approved.",
+            "i1": "c.audit_financial_statements == true",
+            "o1": "'against'",
+            "o2": "'audit.financial_statements'"
+          },
+          {
+            "_id": "audit.discharge",
+            "_description": "Discharge is withheld while serious matters are unresolved.",
+            "i1": "c.audit_discharge == true",
+            "o1": "'against'",
+            "o2": "'audit.discharge'"
+          },
+          {
+            "_id": "capital.share_issuance",
+            "_description": "Issuance without pre-emption rights should be limited to 5% of capital.",
+            "i1": "c.capital_share_issuance == true",
+            "o1": "'against'",
+            "o2": "'capital.share_issuance'"
+          },
+          {
+            "_id": "capital.share_buybacks",
+            "_description": "Buybacks are supported within normal limits and not as a takeover defence.",
+            "i1": "c.capital_share_buybacks == true",
+            "o1": "'against'",
+            "o2": "'capital.share_buybacks'"
+          },
+          {
+            "_id": "capital.dividend_allocation",
+            "_description": "Payouts above earnings need explanation; low payouts are left to the board.",
+            "i1": "c.capital_dividend_allocation == true",
+            "o1": "'case_by_case'",
+            "o2": "'capital.dividend_allocation'"
+          },
+          {
+            "_id": "capital.one_share_one_vote",
+            "_description": "Voting rights should match economic interest.",
+            "i1": "c.capital_one_share_one_vote == true",
+            "o1": "'against'",
+            "o2": "'capital.one_share_one_vote'"
+          },
+          {
+            "_id": "capital.takeover_defences",
+            "_description": "Takeover defences entrench management unless shareholders approve them.",
+            "i1": "c.capital_takeover_defences == true",
+            "o1": "'against'",
+            "o2": "'capital.takeover_defences'"
+          },
+          {
+            "_id": "capital.mergers_acquisitions",
+            "_description": "Transactions are judged on their merits and on the independence of the process.",
+            "i1": "c.capital_mergers_acquisitions == true",
+            "o1": "resolution.fairness_opinion == false ? 'against' : 'case_by_case'",
+            "o2": "'capital.mergers_acquisitions'"
+          },
+          {
+            "_id": "capital.related_party_transactions",
+            "_description": "Insider transactions require independent review.",
+            "i1": "c.capital_related_party_transactions == true",
+            "o1": "'against'",
+            "o2": "'capital.related_party_transactions'"
+          },
+          {
+            "_id": "rights.shareholder_rights",
+            "_description": "Shareholders should be able to act without disproportionate hurdles.",
+            "i1": "c.rights_shareholder_rights == true",
+            "o1": "'against'",
+            "o2": "'rights.shareholder_rights'"
+          },
+          {
+            "_id": "rights.virtual_meetings",
+            "_description": "We have no objection to virtual-only meetings.",
+            "i1": "c.rights_virtual_meetings == true",
+            "o1": "'against'",
+            "o2": "'rights.virtual_meetings'"
+          },
+          {
+            "_id": "climate.laggard_accountability",
+            "_description": "Where a high emitter is a transition laggard and engagement has shown no progress for a year, the responsible director is held accountable. Threshold to be set once the CLTI scale is fixed (proposal: bottom decile of the universe).",
+            "i1": "c.climate_laggard_accountability == true",
+            "o1": "'against'",
+            "o2": "'climate.laggard_accountability'"
+          },
+          {
+            "_id": "climate.disclosure",
+            "_description": "Climate risk cannot be assessed without basic, framework-aligned disclosure.",
+            "i1": "c.climate_disclosure == true",
+            "o1": "'against'",
+            "o2": "'climate.disclosure'"
+          },
+          {
+            "_id": "climate.targets",
+            "_description": "All companies should have science-based, independently validated targets.",
+            "i1": "c.climate_targets == true",
+            "o1": "'against'",
+            "o2": "'climate.targets'"
+          },
+          {
+            "_id": "climate.say_on_climate",
+            "_description": "Climate plans are supported when credible and backed by capex. Plan score threshold to be set with the transition plan assessment.",
+            "i1": "c.climate_say_on_climate == true",
+            "o1": "'case_by_case'",
+            "o2": "'climate.say_on_climate'"
+          },
+          {
+            "_id": "climate.shareholder_proposals",
+            "_description": "Reasonable climate proposals are supported; proposals that dictate strategy are not.",
+            "i1": "c.climate_shareholder_proposals == true",
+            "o1": "resolution.prescriptive == true ? 'against' : 'for'",
+            "o2": "'climate.shareholder_proposals'"
+          },
+          {
+            "_id": "social.human_rights",
+            "_description": "Serious (severity 4 and above) human-rights controversies should lead to a vote against the chair.",
+            "i1": "c.social_human_rights == true",
+            "o1": "'against'",
+            "o2": "'social.human_rights'"
+          },
+          {
+            "_id": "social.workforce",
+            "_description": "Reasonable workforce disclosure requests are supported.",
+            "i1": "c.social_workforce == true",
+            "o1": "'for'",
+            "o2": "'social.workforce'"
+          },
+          {
+            "_id": "social.shareholder_proposals",
+            "_description": "Social proposals are judged on materiality and the company's existing practice.",
+            "i1": "c.social_shareholder_proposals == true",
+            "o1": "'case_by_case'",
+            "o2": "'social.shareholder_proposals'"
+          },
+          {
+            "_id": "gov.controversy_accountability",
+            "_description": "Severe governance controversies need board accountability.",
+            "i1": "c.gov_controversy_accountability == true",
+            "o1": "'against'",
+            "o2": "'gov.controversy_accountability'"
+          },
+          {
+            "_id": "gov.lobbying_political",
+            "_description": "Lobbying should be disclosed and consistent with stated climate commitments.",
+            "i1": "c.gov_lobbying_political == true",
+            "o1": "'for'",
+            "o2": "'gov.lobbying_political'"
+          },
+          {
+            "_id": "gov.tax_transparency",
+            "_description": "Country-by-country tax reporting is supported.",
+            "i1": "c.gov_tax_transparency == true",
+            "o1": "'for'",
+            "o2": "'gov.tax_transparency'"
+          },
+          {
+            "_id": "gov.shareholder_proposals",
+            "_description": "Governance proposals that strengthen shareholder rights are supported.",
+            "i1": "c.gov_shareholder_proposals == true",
+            "o1": "'for'",
+            "o2": "'gov.shareholder_proposals'"
+          },
+          {
+            "_id": "stewardship.engagement_escalation",
+            "_description": "Where an engagement has reached the vote-against-management step, the vote targets the item accountable for the theme, and the company is told beforehand.",
+            "i1": "c.stewardship_engagement_escalation == true",
+            "o1": "'against'",
+            "o2": "'stewardship.engagement_escalation'"
+          },
+          {
+            "_id": "general.default_management",
+            "_description": "Routine items follow management unless another issue applies.",
+            "i1": "c.general_default_management == true",
+            "o1": "resolution.management_recommendation ?? 'for'",
+            "o2": "'general.default_management'"
+          }
+        ]
+      }
+    },
+    {
+      "id": "decision",
+      "type": "expressionNode",
+      "name": "decision",
+      "position": {
+        "x": 900,
+        "y": 100
+      },
+      "content": {
+        "passThrough": false,
+        "inputField": null,
+        "outputPath": null,
+        "executionMode": "single",
+        "expressions": [
+          {
+            "id": "expected_vote",
+            "key": "expected_vote",
+            "value": "len(hits) == 0 ? (resolution.management_recommendation ?? 'for') : some(hits, #.vote == 'against') ? 'against' : some(hits, #.vote == 'case_by_case') ? 'case_by_case' : some(hits, #.vote == 'abstain') ? 'abstain' : hits[0].vote"
+          },
+          {
+            "id": "decided_by",
+            "key": "decided_by",
+            "value": "map(filter(hits, #.vote == $.expected_vote), #.issue_id)"
+          },
+          {
+            "id": "all_hits",
+            "key": "all_hits",
+            "value": "hits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "output",
+      "type": "outputNode",
+      "name": "output",
+      "position": {
+        "x": 1200,
+        "y": 100
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "input-conditions",
+      "sourceId": "input",
+      "targetId": "conditions",
+      "type": "edge"
+    },
+    {
+      "id": "conditions-votes",
+      "sourceId": "conditions",
+      "targetId": "votes",
+      "type": "edge"
+    },
+    {
+      "id": "votes-decision",
+      "sourceId": "votes",
+      "targetId": "decision",
+      "type": "edge"
+    },
+    {
+      "id": "decision-output",
+      "sourceId": "decision",
+      "targetId": "output",
+      "type": "edge"
+    }
+  ]
+}

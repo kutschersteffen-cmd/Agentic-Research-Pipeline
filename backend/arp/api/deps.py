@@ -17,6 +17,7 @@ from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.portfolio.monitoring.scheduler import PortfolioMonitoringScheduler
+from arp.stewardship.process import StreamStore
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
@@ -53,6 +54,8 @@ def get_taxonomy_store() -> TaxonomyStore:
 @lru_cache
 def get_decision_store() -> DecisionStore:
     return DecisionStore(get_settings().frameworks_dir)
+
+
 def get_index_store() -> IndexStore:
     return IndexStore(get_settings().indices_dir)
 
@@ -187,6 +190,11 @@ def get_portfolio_monitoring_scheduler() -> PortfolioMonitoringScheduler:
 def get_engagement_store() -> EngagementStore:
     settings = get_settings()
     return EngagementStore(settings.engagements_dir, projection_config=ProjectionConfig.from_settings(settings))
+
+
+@lru_cache
+def get_stream_store() -> StreamStore:
+    return StreamStore(get_settings().stewardship_streams_dir)
 
 
 @lru_cache

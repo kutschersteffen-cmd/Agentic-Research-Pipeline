@@ -75,6 +75,7 @@ class TriggerSource(StrEnum):
     CONTROVERSY_SCREEN = "controversy_screen"
     ANALYST_RAISED = "analyst_raised"
     SLA_STALL = "sla_stall"
+    MONITORING_RULE = "monitoring_rule"
     MANUAL = "manual"
 
 
@@ -101,6 +102,15 @@ class Contact(BaseModel):
     last_contacted_at: str | None = None
 
 
+class InteractionType(StrEnum):
+    """E6: every call, letter and meeting is tagged, so pressure-type engagement
+    can be reported and gated."""
+
+    INFORMATIONAL = "informational"
+    ADVOCACY_PRESSURE = "advocacy_pressure"
+    OTHER = "other"
+
+
 class CorrespondenceEntry(BaseModel):
     entry_id: str = Field(default_factory=lambda: new_id("corr"))
     date: str = Field(default_factory=now_iso)
@@ -108,6 +118,7 @@ class CorrespondenceEntry(BaseModel):
     summary: str
     doc_ref: str | None = Field(default=None, description="Path/URL to the letter, transcript, or notes document, if any.")
     logged_by: str | None = None
+    interaction_type: InteractionType | None = None  # None on entries logged before E6
 
 
 class Commitment(BaseModel):
@@ -115,6 +126,7 @@ class Commitment(BaseModel):
     text: str
     made_at: str = Field(default_factory=now_iso)
     target_date: str | None = None
+    recorded_by: str | None = None
     status: CommitmentStatus = CommitmentStatus.OPEN
     validated_by: str | None = None
     validated_at: str | None = None

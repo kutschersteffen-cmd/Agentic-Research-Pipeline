@@ -14,7 +14,8 @@
     "@gorules/zen-engine-wasm32-wasi": "2.0.2",
     "@napi-rs/wasm-runtime": "^1.2.4",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "reactflow": "11.11.4"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

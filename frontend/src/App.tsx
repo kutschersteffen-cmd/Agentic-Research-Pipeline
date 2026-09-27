@@ -16,6 +16,7 @@ import { BackgroundAgents } from "./pages/BackgroundAgents";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
+import { StewardWorkflow } from "./pages/StewardWorkflow";
 import { PortfolioRiskMonitoringTool } from "./pages/PortfolioRiskMonitoringTool";
 import { ReportBuilder } from "./pages/ReportBuilder";
 import { StrategyReplication } from "./pages/StrategyReplication";
@@ -40,6 +41,7 @@ const TABS = [
   { id: "portfolio-monitoring", label: "Risk Monitoring" },
   { id: "review", label: "Review Queue" },
   { id: "history", label: "Run History" },
+  { id: "stewardship", label: "Steward Workflow" },
   { id: "engagement", label: "Engagement" },
   { id: "voting", label: "Proxy Voting" },
   { id: "reporting", label: "Presentations & Reports" },
@@ -57,7 +59,7 @@ type TabId = (typeof TABS)[number]["id"];
 const NAV_GROUPS: { label: string | null; ids: readonly TabId[] }[] = [
   { label: null, ids: ["dashboard", "search"] },
   { label: "Needs you", ids: ["review", "voting"] },
-  { label: "Stewardship", ids: ["engagement", "transitionPlan", "transitionBarrier"] },
+  { label: "Stewardship", ids: ["stewardship", "engagement", "transitionPlan", "transitionBarrier"] },
   { label: "Research", ids: ["theme", "taxonomy", "emergingThemes", "extraction", "identity", "discovery", "backgroundAgents"] },
   { label: "Portfolio", ids: ["portfolio-monitoring", "strategyReplication", "decision", "index"] },
   { label: "Output", ids: ["reporting", "library", "history"] },
@@ -226,6 +228,7 @@ function App() {
         {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool />}
         {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} />}
         {active === "history" && <RunHistory onOpenReview={openReview} />}
+        {active === "stewardship" && <StewardWorkflow />}
         {active === "engagement" && <EngagementDashboard />}
         {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}
         {active === "reporting" && <ReportBuilder />}

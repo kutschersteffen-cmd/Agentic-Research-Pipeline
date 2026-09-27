@@ -1,0 +1,23 @@
+{
+  "note": "Draft E8 phrase blocklist (open point 10): phrases that overclaim, use regulated terms loosely, or create legal risk in client-facing text. Matching is case-insensitive on whole words. Flags only; a person rewrites.",
+  "phrases": [
+    {"phrase": "thanks to our engagement", "category": "overclaiming", "suggestion": "Describe what the company did and when, and our part in the dialogue."},
+    {"phrase": "as a result of our engagement", "category": "overclaiming", "suggestion": "Attribute carefully: 'following dialogue with investors including us'."},
+    {"phrase": "we forced", "category": "overclaiming", "suggestion": "Say what we asked for and what the company decided."},
+    {"phrase": "we ensured", "category": "overclaiming", "suggestion": "Say what we asked for and what the company decided."},
+    {"phrase": "we secured", "category": "overclaiming", "suggestion": "Say what the company committed to."},
+    {"phrase": "we made the company", "category": "overclaiming", "suggestion": "Say what the company decided."},
+    {"phrase": "guarantee", "category": "unsupported_claim", "suggestion": "Remove, or state the evidence."},
+    {"phrase": "risk-free", "category": "unsupported_claim", "suggestion": "Remove."},
+    {"phrase": "best-in-class", "category": "unsupported_claim", "suggestion": "Name the ranking and its source, or remove."},
+    {"phrase": "world-leading", "category": "unsupported_claim", "suggestion": "Name the ranking and its source, or remove."},
+    {"phrase": "fully aligned", "category": "unsupported_claim", "suggestion": "Say aligned with what, measured how."},
+    {"phrase": "Paris-aligned", "category": "regulated_term", "suggestion": "Use only for a product that meets the Paris-aligned benchmark rules."},
+    {"phrase": "sustainable investment", "category": "regulated_term", "suggestion": "SFDR term: use only as defined in the product's disclosures."},
+    {"phrase": "impact investing", "category": "regulated_term", "suggestion": "Use only for a product with a stated impact objective."},
+    {"phrase": "ESG-compliant", "category": "regulated_term", "suggestion": "There is no such standard: describe the criteria applied."},
+    {"phrase": "acting in concert", "category": "legal_risk", "suggestion": "Legal term (takeover rules): check with compliance before using."},
+    {"phrase": "we control", "category": "legal_risk", "suggestion": "We hold shares; we do not control the company."},
+    {"phrase": "on behalf of all shareholders", "category": "legal_risk", "suggestion": "We speak for our clients only."}
+  ]
+}

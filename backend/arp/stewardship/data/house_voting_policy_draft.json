@@ -1,0 +1,622 @@
+{
+  "policy_id": "house_voting",
+  "version": "0.1-draft",
+  "catalogue_version": "0.3-draft",
+  "status": "illustrative draft for policy review; not an approved house policy",
+  "note": "One position per catalogue issue. A null parameter means 'not applied'. Values follow common institutional-investor practice and must be confirmed by the stewardship team.",
+  "positions": [
+    {
+      "issue_id": "board.independence",
+      "action": "against",
+      "vote_target": "nomination_committee_chair",
+      "parameters": {
+        "min_independent_pct": 50,
+        "controlled_company_min_pct": 33
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "A board needs an independent majority to oversee management; controlled companies at least one third."
+    },
+    {
+      "issue_id": "board.committee_independence",
+      "action": "against",
+      "vote_target": "non_independent_committee_members",
+      "parameters": {
+        "audit_min_independent_pct": 100,
+        "remuneration_min_independent_pct": 50,
+        "nomination_min_independent_pct": 50
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "The audit committee must be fully independent; remuneration and nomination committees need an independent majority."
+    },
+    {
+      "issue_id": "board.chair_ceo_separation",
+      "action": "against",
+      "vote_target": "combined_chair_ceo",
+      "parameters": {
+        "require_separation": false,
+        "accept_lead_independent_director": true,
+        "oppose_former_ceo_as_chair": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "A combined chair/CEO is accepted only with a lead independent director; a former CEO should not become chair."
+    },
+    {
+      "issue_id": "board.overboarding",
+      "action": "against",
+      "vote_target": "overboarded_director",
+      "parameters": {
+        "max_mandates_non_executive": 5,
+        "max_mandates_executive": 1,
+        "chair_counts_as": 2
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Directors need enough time for each board."
+    },
+    {
+      "issue_id": "board.attendance",
+      "action": "against",
+      "vote_target": "low_attendance_director",
+      "parameters": {
+        "min_attendance_pct": 75
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Attendance below 75% without explanation shows insufficient commitment."
+    },
+    {
+      "issue_id": "board.gender_diversity",
+      "action": "against",
+      "vote_target": "nomination_committee_chair",
+      "parameters": {
+        "min_underrepresented_gender_pct": 30,
+        "markets_with_higher_threshold": {
+          "EU": 40
+        }
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Diverse boards decide better; the nomination committee chair is accountable."
+    },
+    {
+      "issue_id": "board.tenure_refreshment",
+      "action": "against",
+      "vote_target": "nomination_committee_chair",
+      "parameters": {
+        "max_tenure_for_independence_years": 12,
+        "max_average_tenure_years": 10
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Long tenure erodes independence and signals a lack of refreshment."
+    },
+    {
+      "issue_id": "board.election_practices",
+      "action": "against",
+      "vote_target": "nomination_committee_chair",
+      "parameters": {
+        "require_annual_election": true,
+        "oppose_bundled_elections": true,
+        "require_majority_voting": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Shareholders should be able to hold every director accountable every year."
+    },
+    {
+      "issue_id": "board.responsiveness",
+      "action": "against",
+      "vote_target": "committee_chair_responsible",
+      "parameters": {
+        "dissent_threshold_pct": 20,
+        "ignore_majority_proposal": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Significant dissent must be addressed; ignoring it is a governance failure."
+    },
+    {
+      "issue_id": "pay.say_on_pay",
+      "action": "for",
+      "vote_target": "say_on_pay",
+      "parameters": {
+        "default_action": "against_on_red_flag"
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Support pay reports unless a red flag from another remuneration issue applies."
+    },
+    {
+      "issue_id": "pay.quantum",
+      "action": "against",
+      "vote_target": "say_on_pay",
+      "parameters": {
+        "max_peer_percentile": 90,
+        "max_ceo_worker_pay_ratio": null
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "CEO pay above the 90th peer percentile needs a compelling performance justification. No fixed pay ratio limit."
+    },
+    {
+      "issue_id": "pay.performance_alignment",
+      "action": "against",
+      "vote_target": "say_on_pay",
+      "parameters": {
+        "max_misalignment_years": 3,
+        "min_long_term_share_pct": 50,
+        "min_vesting_period_years": 3
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Pay should follow long-term performance; persistent misalignment is not accepted."
+    },
+    {
+      "issue_id": "pay.esg_metrics",
+      "action": "against",
+      "vote_target": "remuneration_policy",
+      "parameters": {
+        "require_esg_metric": false,
+        "min_esg_weight_pct": 10,
+        "require_climate_metric_for_high_emitters": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "High emitters should link variable pay to measurable climate targets."
+    },
+    {
+      "issue_id": "pay.equity_plans",
+      "action": "against",
+      "vote_target": "equity_plan",
+      "parameters": {
+        "max_dilution_pct": 10,
+        "oppose_repricing": true,
+        "max_discount_pct": 0
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Share plans must not dilute shareholders excessively or reward without performance."
+    },
+    {
+      "issue_id": "pay.severance",
+      "action": "against",
+      "vote_target": "remuneration_policy",
+      "parameters": {
+        "max_severance_multiple": 2,
+        "oppose_single_trigger": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Termination pay should not exceed two years of pay or reward failure."
+    },
+    {
+      "issue_id": "pay.disclosure",
+      "action": "against",
+      "vote_target": "say_on_pay",
+      "parameters": {
+        "require_ex_post_target_disclosure": true,
+        "oppose_undisclosed_discretion": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Shareholders need to see targets and how discretion was used."
+    },
+    {
+      "issue_id": "pay.non_executive_fees",
+      "action": "against",
+      "vote_target": "non_executive_fees",
+      "parameters": {
+        "oppose_performance_pay_for_nonexecs": true,
+        "max_fee_increase_pct": 10
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Performance pay for non-executives compromises their independence."
+    },
+    {
+      "issue_id": "audit.non_audit_fees",
+      "action": "against",
+      "vote_target": "auditor_ratification",
+      "parameters": {
+        "max_non_audit_to_audit_ratio": 1.0
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Non-audit fees above audit fees compromise auditor independence."
+    },
+    {
+      "issue_id": "audit.auditor_tenure",
+      "action": "against",
+      "vote_target": "auditor_ratification",
+      "parameters": {
+        "max_auditor_tenure_years": 20,
+        "require_tender_disclosure": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Very long auditor tenure risks independence."
+    },
+    {
+      "issue_id": "audit.financial_statements",
+      "action": "against",
+      "vote_target": "financial_statements",
+      "parameters": {
+        "oppose_on_qualified_opinion": true,
+        "oppose_on_material_weakness": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Qualified accounts and unaddressed material weaknesses cannot be approved."
+    },
+    {
+      "issue_id": "audit.discharge",
+      "action": "against",
+      "vote_target": "discharge",
+      "parameters": {
+        "oppose_on_open_investigation": true,
+        "min_controversy_severity": 4
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Discharge is withheld while serious matters are unresolved."
+    },
+    {
+      "issue_id": "capital.share_issuance",
+      "action": "against",
+      "vote_target": "share_issuance",
+      "parameters": {
+        "max_with_preemption_pct": 33,
+        "max_without_preemption_pct": 10
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Issuance authorities should protect existing shareholders from dilution."
+    },
+    {
+      "issue_id": "capital.share_buybacks",
+      "action": "against",
+      "vote_target": "share_buyback",
+      "parameters": {
+        "max_buyback_pct": 10,
+        "max_premium_pct": 10,
+        "oppose_during_takeover": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Buybacks are supported within normal limits and not as a takeover defence."
+    },
+    {
+      "issue_id": "capital.dividend_allocation",
+      "action": "case_by_case",
+      "vote_target": "dividend_allocation",
+      "parameters": {
+        "min_payout_ratio_pct": null,
+        "max_payout_ratio_pct": 100
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Payouts above earnings need explanation; low payouts are left to the board."
+    },
+    {
+      "issue_id": "capital.one_share_one_vote",
+      "action": "against",
+      "vote_target": "capital_structure",
+      "parameters": {
+        "oppose_new_multiple_voting_classes": true,
+        "require_sunset_years": 7
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Voting rights should match economic interest."
+    },
+    {
+      "issue_id": "capital.takeover_defences",
+      "action": "against",
+      "vote_target": "takeover_defence",
+      "parameters": {
+        "oppose_poison_pill_without_approval": true,
+        "max_pill_duration_years": 3
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Takeover defences entrench management unless shareholders approve them."
+    },
+    {
+      "issue_id": "capital.mergers_acquisitions",
+      "action": "case_by_case",
+      "vote_target": "merger_acquisition",
+      "parameters": {
+        "default_action": "case_by_case",
+        "require_fairness_opinion": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Transactions are judged on their merits and on the independence of the process."
+    },
+    {
+      "issue_id": "capital.related_party_transactions",
+      "action": "against",
+      "vote_target": "related_party_transaction",
+      "parameters": {
+        "require_independent_review": true,
+        "max_value_pct_of_assets": 5
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Insider transactions require independent review."
+    },
+    {
+      "issue_id": "rights.shareholder_rights",
+      "action": "against",
+      "vote_target": "articles_amendment",
+      "parameters": {
+        "oppose_supermajority": true,
+        "support_special_meeting_threshold_pct": 10,
+        "support_proxy_access": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Shareholders should be able to act without disproportionate hurdles."
+    },
+    {
+      "issue_id": "rights.virtual_meetings",
+      "action": "against",
+      "vote_target": "articles_amendment",
+      "parameters": {
+        "oppose_virtual_only": true,
+        "accept_hybrid": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Virtual-only meetings limit shareholder questions; hybrid meetings are fine."
+    },
+    {
+      "issue_id": "climate.laggard_accountability",
+      "action": "against",
+      "vote_target": "responsible_director",
+      "parameters": {
+        "score_field": "score.clti",
+        "laggard_threshold": null,
+        "min_months_engaged_without_progress": 12,
+        "high_emitters_only": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Where a high emitter is a transition laggard and engagement has shown no progress for a year, the responsible director is held accountable. Threshold to be set once the CLTI scale is fixed (proposal: bottom decile of the universe)."
+    },
+    {
+      "issue_id": "climate.disclosure",
+      "action": "against",
+      "vote_target": "responsible_director",
+      "parameters": {
+        "require_scope_1_2": true,
+        "require_scope_3_material": true,
+        "require_aligned_framework": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Climate risk cannot be assessed without basic, framework-aligned disclosure."
+    },
+    {
+      "issue_id": "climate.targets",
+      "action": "against",
+      "vote_target": "responsible_director",
+      "parameters": {
+        "require_net_zero_target": true,
+        "require_interim_targets": true,
+        "require_validated_targets": false
+      },
+      "scope": {
+        "markets": "all",
+        "sectors": "high_emitters"
+      },
+      "rationale": "High emitters need a net-zero commitment with interim targets; validation is encouraged, not required."
+    },
+    {
+      "issue_id": "climate.say_on_climate",
+      "action": "case_by_case",
+      "vote_target": "say_on_climate",
+      "parameters": {
+        "min_plan_score": null,
+        "require_capex_alignment": true,
+        "require_annual_vote": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Climate plans are supported when credible and backed by capex. Plan score threshold to be set with the transition plan assessment."
+    },
+    {
+      "issue_id": "climate.shareholder_proposals",
+      "action": "for",
+      "vote_target": "shareholder_proposal_environmental",
+      "parameters": {
+        "default_action": "support_if_reasonable",
+        "oppose_if_prescriptive": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Reasonable climate proposals are supported; proposals that dictate strategy are not."
+    },
+    {
+      "issue_id": "nature.laggard_accountability",
+      "action": "escalate",
+      "vote_target": "responsible_director",
+      "parameters": {
+        "score_field": "score.nature",
+        "laggard_threshold": null,
+        "high_impact_sectors_only": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Nature laggards are handled through engagement first; a vote against follows only via the escalation ladder (stewardship.engagement_escalation)."
+    },
+    {
+      "issue_id": "nature.disclosure",
+      "action": "escalate",
+      "vote_target": "responsible_director",
+      "parameters": {
+        "require_tnfd_aligned": true
+      },
+      "scope": {
+        "markets": "all",
+        "sectors": "high_impact_nature"
+      },
+      "rationale": "TNFD alignment is expected of high-impact sectors and pursued through engagement before voting."
+    },
+    {
+      "issue_id": "social.human_rights",
+      "action": "against",
+      "vote_target": "board_chair",
+      "parameters": {
+        "min_controversy_severity": 5,
+        "ungc_fail_triggers_action": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Severe human-rights breaches are a board accountability failure."
+    },
+    {
+      "issue_id": "social.workforce",
+      "action": "for",
+      "vote_target": "shareholder_proposal_social",
+      "parameters": {
+        "require_pay_gap_disclosure": false,
+        "support_workforce_disclosure_proposals": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Reasonable workforce disclosure requests are supported."
+    },
+    {
+      "issue_id": "social.shareholder_proposals",
+      "action": "case_by_case",
+      "vote_target": "shareholder_proposal_social",
+      "parameters": {
+        "default_action": "case_by_case"
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Social proposals are judged on materiality and the company's existing practice."
+    },
+    {
+      "issue_id": "gov.controversy_accountability",
+      "action": "against",
+      "vote_target": "board_chair",
+      "parameters": {
+        "min_controversy_severity": 4
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Severe governance controversies need board accountability."
+    },
+    {
+      "issue_id": "gov.lobbying_political",
+      "action": "for",
+      "vote_target": "shareholder_proposal_governance",
+      "parameters": {
+        "support_lobbying_disclosure": true,
+        "require_climate_lobbying_alignment": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Lobbying should be disclosed and consistent with stated climate commitments."
+    },
+    {
+      "issue_id": "gov.tax_transparency",
+      "action": "for",
+      "vote_target": "shareholder_proposal_governance",
+      "parameters": {
+        "support_cbcr_proposals": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Country-by-country tax reporting is supported."
+    },
+    {
+      "issue_id": "gov.shareholder_proposals",
+      "action": "for",
+      "vote_target": "shareholder_proposal_governance",
+      "parameters": {
+        "default_action": "support_if_reasonable"
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Governance proposals that strengthen shareholder rights are supported."
+    },
+    {
+      "issue_id": "stewardship.engagement_escalation",
+      "action": "against",
+      "vote_target": "board_chair",
+      "parameters": {
+        "target_by_theme": {
+          "climate_transition": "board_chair",
+          "nature": "responsible_director",
+          "executive_compensation": "say_on_pay",
+          "board_governance": "nomination_committee_chair"
+        },
+        "require_prior_notice": true
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Where an engagement has reached the vote-against-management step, the vote targets the item accountable for the theme, and the company is told beforehand."
+    },
+    {
+      "issue_id": "general.default_management",
+      "action": "for",
+      "vote_target": "other",
+      "parameters": {
+        "default_action": "follow_management"
+      },
+      "scope": {
+        "markets": "all"
+      },
+      "rationale": "Routine items follow management unless another issue applies."
+    }
+  ]
+}

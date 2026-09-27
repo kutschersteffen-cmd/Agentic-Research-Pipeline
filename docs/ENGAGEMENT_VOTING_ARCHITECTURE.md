@@ -20,6 +20,11 @@ programmatic grounding, confidence scoring + human review queue, resumable
 batch execution — rather than inventing a parallel set for engagement and
 voting.
 
+The target operating model this module is heading toward, a client-agnostic
+house-truth layer plus a per-client overlay, is described in
+[`STEWARDSHIP_OPERATING_MODEL.md`](STEWARDSHIP_OPERATING_MODEL.md), along
+with a mapping onto this v1 code.
+
 ## Core design principle
 
 One shared state store, human gates at every send/decide/vote point —

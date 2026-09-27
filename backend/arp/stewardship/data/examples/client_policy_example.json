@@ -1,0 +1,52 @@
+{
+  "policy_id": "example_client_a_voting_draft",
+  "client": "Example Client A (fictional public pension fund)",
+  "base_policy_id": "house_voting",
+  "note": "Fictional example of an envisioned custom voting policy, captured as a questionnaire: each position states only what differs from the house; everything else inherits the house value. 'source' is the client's own wording.",
+  "mandate": {"vehicle_type": "SMA", "benchmark": "MSCI World", "voting_mode": "house_voted"},
+  "positions": [
+    {"issue_id": "board.independence", "parameters": {"min_independent_pct": 66, "controlled_company_min_pct": 50},
+     "source": "Boards should be at least two-thirds independent; half for controlled companies."},
+    {"issue_id": "board.chair_ceo_separation", "parameters": {"require_separation": true, "accept_lead_independent_director": false},
+     "source": "We expect an independent chair at every company."},
+    {"issue_id": "board.overboarding", "parameters": {"max_mandates_non_executive": 4},
+     "source": "Non-executive directors should hold no more than four listed-company mandates."},
+    {"issue_id": "board.gender_diversity", "parameters": {"min_underrepresented_gender_pct": 40},
+     "source": "At least 40% of board members should be women, in all markets."},
+    {"issue_id": "pay.quantum", "parameters": {"max_peer_percentile": 75, "max_ceo_worker_pay_ratio": 150},
+     "source": "CEO pay above the upper quartile of peers, or above 150 times the median employee, is excessive."},
+    {"issue_id": "pay.esg_metrics", "parameters": {"require_esg_metric": true, "min_esg_weight_pct": 20},
+     "source": "Every company should link at least 20% of variable pay to sustainability targets."},
+    {"issue_id": "pay.severance", "parameters": {"max_severance_multiple": 1},
+     "source": "Severance should not exceed one year of pay."},
+    {"issue_id": "audit.non_audit_fees", "parameters": {"max_non_audit_to_audit_ratio": 0.5},
+     "source": "Non-audit fees should not exceed half of audit fees."},
+    {"issue_id": "capital.share_issuance", "parameters": {"max_without_preemption_pct": 5},
+     "source": "Issuance without pre-emption rights should be limited to 5% of capital."},
+    {"issue_id": "rights.virtual_meetings", "parameters": {"oppose_virtual_only": false},
+     "source": "We have no objection to virtual-only meetings."},
+    {"issue_id": "climate.laggard_accountability", "vote_target": "board_chair",
+     "parameters": {"laggard_threshold": 30, "min_months_engaged_without_progress": 6, "high_emitters_only": false},
+     "source": "Where a company scores below 30 on the CLTI and shows no progress after six months of engagement, we vote against the chair, in any sector."},
+    {"issue_id": "climate.targets", "parameters": {"require_validated_targets": true}, "scope": {"markets": "all"},
+     "source": "All companies should have science-based, independently validated targets."},
+    {"issue_id": "climate.say_on_climate", "action": "against", "parameters": {"min_plan_score": 70},
+     "source": "We vote against climate plans that score below 70 in the transition plan assessment."},
+    {"issue_id": "nature.laggard_accountability", "action": "against",
+     "source": "We vote against the responsible director at nature laggards."},
+    {"issue_id": "social.human_rights", "parameters": {"min_controversy_severity": 4},
+     "source": "Serious (severity 4 and above) human-rights controversies should lead to a vote against the chair."},
+    {"issue_id": "stewardship.engagement_escalation", "parameters": {"require_prior_notice": false},
+     "source": "Escalation votes do not need to be announced to the company in advance."},
+    {"issue_id": "gov.shareholder_proposals", "action": "for",
+     "source": "We support governance proposals that strengthen shareholder rights."}
+  ],
+  "unclear": [
+    {"issue_id": "pay.say_on_pay", "source": "Remuneration should be reasonable and aligned with long-term value creation.",
+     "question": "Should say-on-pay follow the house red-flag approach, or do you want a stricter default (e.g. against unless all remuneration criteria are met)?"}
+  ],
+  "unmapped": [
+    {"source": "We vote against the chair of companies planning new fossil-fuel expansion.", "suggested_issue": "climate.fossil_fuel_expansion"},
+    {"source": "We expect companies to pay a living wage across their supply chain.", "suggested_issue": "social.living_wage"}
+  ]
+}

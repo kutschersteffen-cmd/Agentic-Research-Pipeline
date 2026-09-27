@@ -1,0 +1,285 @@
+{
+  "nodes": [
+    {
+      "id": "input",
+      "type": "inputNode",
+      "name": "input",
+      "position": {
+        "x": 0,
+        "y": 100
+      }
+    },
+    {
+      "id": "monitoring_rules",
+      "type": "decisionTableNode",
+      "name": "monitoring_rules",
+      "position": {
+        "x": 300,
+        "y": 100
+      },
+      "content": {
+        "passThrough": false,
+        "inputField": null,
+        "outputPath": "triggers",
+        "executionMode": "single",
+        "hitPolicy": "collect",
+        "inputs": [
+          {
+            "id": "clti",
+            "name": "CLTI score",
+            "field": "issuer.score.clti"
+          },
+          {
+            "id": "nat",
+            "name": "Nature score",
+            "field": "issuer.score.nature"
+          },
+          {
+            "id": "hin",
+            "name": "High-impact nature sector",
+            "field": "issuer.nature.high_impact_sector"
+          },
+          {
+            "id": "sev",
+            "name": "Max controversy severity",
+            "field": "issuer.controversy.max_severity"
+          },
+          {
+            "id": "hr",
+            "name": "Human rights severity",
+            "field": "issuer.controversy.human_rights_severity"
+          },
+          {
+            "id": "ungc",
+            "name": "UNGC status",
+            "field": "issuer.controversy.ungc_status"
+          },
+          {
+            "id": "emit",
+            "name": "High emitter",
+            "field": "issuer.climate.high_emitter"
+          },
+          {
+            "id": "s12",
+            "name": "Scope 1+2 disclosed",
+            "field": "issuer.climate.scope1_2_disclosed"
+          },
+          {
+            "id": "pay",
+            "name": "Pay misalignment (years)",
+            "field": "issuer.pay.misalignment_years"
+          },
+          {
+            "id": "chg",
+            "name": "Position change %",
+            "field": "holding.change_pct"
+          }
+        ],
+        "outputs": [
+          {
+            "id": "typ",
+            "name": "Trigger type",
+            "field": "type"
+          },
+          {
+            "id": "th",
+            "name": "Theme",
+            "field": "theme"
+          },
+          {
+            "id": "sevo",
+            "name": "Severity",
+            "field": "severity"
+          },
+          {
+            "id": "r",
+            "name": "Rule",
+            "field": "rule"
+          },
+          {
+            "id": "why",
+            "name": "Reason",
+            "field": "reason"
+          }
+        ],
+        "rules": [
+          {
+            "_id": "clti_laggard",
+            "_description": "Climate transition laggards (placeholder CLTI score).",
+            "typ": "'score_change'",
+            "th": "'climate_transition'",
+            "sevo": "'high'",
+            "r": "'clti_laggard'",
+            "why": "'CLTI score below 30'",
+            "clti": "< 30",
+            "nat": "",
+            "hin": "",
+            "sev": "",
+            "hr": "",
+            "ungc": "",
+            "emit": "",
+            "s12": "",
+            "pay": "",
+            "chg": ""
+          },
+          {
+            "_id": "nature_laggard",
+            "_description": "Weak nature score in a high-impact sector (placeholder score).",
+            "typ": "'score_change'",
+            "th": "'nature'",
+            "sevo": "'medium'",
+            "r": "'nature_laggard'",
+            "why": "'Nature score below 25 in a high-impact sector'",
+            "clti": "",
+            "nat": "< 25",
+            "hin": "true",
+            "sev": "",
+            "hr": "",
+            "ungc": "",
+            "emit": "",
+            "s12": "",
+            "pay": "",
+            "chg": ""
+          },
+          {
+            "_id": "severe_controversy",
+            "_description": "Severe controversy of any kind.",
+            "typ": "'controversy'",
+            "th": "'governance_controversy'",
+            "sevo": "'high'",
+            "r": "'severe_controversy'",
+            "why": "'Controversy severity 4 or higher'",
+            "clti": "",
+            "nat": "",
+            "hin": "",
+            "sev": ">= 4",
+            "hr": "",
+            "ungc": "",
+            "emit": "",
+            "s12": "",
+            "pay": "",
+            "chg": ""
+          },
+          {
+            "_id": "human_rights",
+            "_description": "Severe human rights controversy.",
+            "typ": "'controversy'",
+            "th": "'human_rights'",
+            "sevo": "'high'",
+            "r": "'human_rights'",
+            "why": "'Human rights controversy severity 4 or higher'",
+            "clti": "",
+            "nat": "",
+            "hin": "",
+            "sev": "",
+            "hr": ">= 4",
+            "ungc": "",
+            "emit": "",
+            "s12": "",
+            "pay": "",
+            "chg": ""
+          },
+          {
+            "_id": "ungc_fail",
+            "_description": "UN Global Compact failure.",
+            "typ": "'controversy'",
+            "th": "'human_rights'",
+            "sevo": "'high'",
+            "r": "'ungc_fail'",
+            "why": "'Fails the UN Global Compact'",
+            "clti": "",
+            "nat": "",
+            "hin": "",
+            "sev": "",
+            "hr": "",
+            "ungc": "'fail'",
+            "emit": "",
+            "s12": "",
+            "pay": "",
+            "chg": ""
+          },
+          {
+            "_id": "climate_disclosure_gap",
+            "_description": "High emitter without scope 1+2 disclosure.",
+            "typ": "'score_change'",
+            "th": "'climate_transition'",
+            "sevo": "'medium'",
+            "r": "'climate_disclosure_gap'",
+            "why": "'High emitter without scope 1 and 2 disclosure'",
+            "clti": "",
+            "nat": "",
+            "hin": "",
+            "sev": "",
+            "hr": "",
+            "ungc": "",
+            "emit": "true",
+            "s12": "false",
+            "pay": "",
+            "chg": ""
+          },
+          {
+            "_id": "pay_misalignment",
+            "_description": "Pay out of line with performance for three years or more.",
+            "typ": "'score_change'",
+            "th": "'executive_compensation'",
+            "sevo": "'medium'",
+            "r": "'pay_misalignment'",
+            "why": "'Pay misaligned with performance for 3+ years'",
+            "clti": "",
+            "nat": "",
+            "hin": "",
+            "sev": "",
+            "hr": "",
+            "ungc": "",
+            "emit": "",
+            "s12": "",
+            "pay": ">= 3",
+            "chg": ""
+          },
+          {
+            "_id": "position_jump",
+            "_description": "Position grew by more than half: review coverage.",
+            "typ": "'holding_change'",
+            "th": "'position_review'",
+            "sevo": "'low'",
+            "r": "'position_jump'",
+            "why": "'Position up more than 50%'",
+            "clti": "",
+            "nat": "",
+            "hin": "",
+            "sev": "",
+            "hr": "",
+            "ungc": "",
+            "emit": "",
+            "s12": "",
+            "pay": "",
+            "chg": "> 50"
+          }
+        ]
+      }
+    },
+    {
+      "id": "output",
+      "type": "outputNode",
+      "name": "output",
+      "position": {
+        "x": 600,
+        "y": 100
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "input-monitoring_rules",
+      "sourceId": "input",
+      "targetId": "monitoring_rules",
+      "type": "edge"
+    },
+    {
+      "id": "monitoring_rules-output",
+      "sourceId": "monitoring_rules",
+      "targetId": "output",
+      "type": "edge"
+    }
+  ]
+}
