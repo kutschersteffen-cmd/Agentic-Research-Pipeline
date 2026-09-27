@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import ReactFlow, { Controls, Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "reactflow";
+import "reactflow/dist/style.css";
 import { api } from "../api/client";
 import type {
   EscalationDecisionItem,
@@ -10,13 +12,14 @@ import type {
 } from "../types";
 
 // Flowchart layout: the house row (stages 1-6) above the client row (7-8),
-// as in docs/STEWARDSHIP_OPERATING_MODEL.md, Part 2.
-const NODE_W = 160;
-const NODE_H = 132;
-const GAP = 18;
-const HOUSE_Y = 56;
-const CLIENT_Y = 300;
-const X = (i: number) => 16 + i * (NODE_W + GAP);
+// as in docs/STEWARDSHIP_OPERATING_MODEL.md, Part 2. Drawn with React Flow
+// (the same library the rule editor uses): pan, zoom and fit come with it.
+const NODE_W = 170;
+const NODE_H = 136;
+const GAP = 44;
+const HOUSE_Y = 60;
+const CLIENT_Y = 330;
+const X = (i: number) => i * (NODE_W + GAP);
 const POSITIONS: Record<string, { x: number; y: number }> = {
   monitoring: { x: X(0), y: HOUSE_Y },
   selection: { x: X(1), y: HOUSE_Y },
@@ -27,33 +30,43 @@ const POSITIONS: Record<string, { x: number; y: number }> = {
   client_policy: { x: X(4), y: CLIENT_Y },
   reporting: { x: X(5), y: CLIENT_Y },
 };
-const WIDTH = X(6) - GAP + 16;
-const HEIGHT = CLIENT_Y + NODE_H + 24;
+const BANDS = [
+  { id: "band-house", label: "House truth · stages 1–6 use house policies only", x: -20, y: HOUSE_Y - 44, w: X(6) - GAP + 40, h: NODE_H + 76 },
+  { id: "band-client", label: "Client overlay · stages 7–8", x: X(4) - 20, y: CLIENT_Y - 44, w: 2 * NODE_W + GAP + 40, h: NODE_H + 76 },
+];
+
+// Which side of each node an edge leaves from and arrives at.
+const EDGE_HANDLES: Record<string, { sourceHandle: string; targetHandle: string }> = {
+  "tracking>monitoring": { sourceHandle: "top-out-a", targetHandle: "top-in-a" },
+  "monitoring>client_policy": { sourceHandle: "bottom-out-a", targetHandle: "left-in" },
+  "checkpoint>client_policy": { sourceHandle: "bottom-out-a", targetHandle: "top-in-a" },
+  "client_policy>checkpoint": { sourceHandle: "top-out-b", targetHandle: "bottom-in-b" },
+};
 
 const SOURCE_LABEL: Record<MetricSource, string> = { live: "live data", sample: "synthetic sample", not_built: "not built yet" };
 
-function edgePath(from: string, to: string): { d: string; labelAt?: { x: number; y: number } } {
-  const a = POSITIONS[from];
-  const b = POSITIONS[to];
-  if (from === "tracking" && to === "monitoring") {
-    // loop back over the top of the house row
-    const y = HOUSE_Y - 26;
-    return { d: `M ${a.x + NODE_W / 2} ${a.y} V ${y} H ${b.x + NODE_W / 2} V ${b.y - 6}`, labelAt: { x: (a.x + b.x + NODE_W) / 2, y: y - 6 } };
-  }
-  if (from === "monitoring" && to === "client_policy") {
-    const y = CLIENT_Y + NODE_H / 2;
-    return { d: `M ${a.x + NODE_W / 2} ${a.y + NODE_H} V ${y} H ${b.x - 6}` };
-  }
-  if (from === "checkpoint" && to === "client_policy") {
-    return { d: `M ${a.x + NODE_W / 2 - 18} ${a.y + NODE_H} V ${b.y - 6}` };
-  }
-  if (from === "client_policy" && to === "checkpoint") {
-    const x = a.x + NODE_W / 2 + 18;
-    return { d: `M ${x} ${a.y} V ${b.y + NODE_H + 6}`, labelAt: { x: x + 6, y: (a.y + b.y + NODE_H) / 2 } };
-  }
-  // same row, left to right
-  return { d: `M ${a.x + NODE_W} ${a.y + NODE_H / 2} H ${b.x - 6}` };
+type StageNodeData = { stage: StewardshipStage; selected: boolean; onSelect: (id: string) => void };
+
+function StageFlowNode({ data }: NodeProps<StageNodeData>) {
+  return (
+    <>
+      <Handle id="left-in" type="target" position={Position.Left} />
+      <Handle id="right-out" type="source" position={Position.Right} />
+      <Handle id="top-in-a" type="target" position={Position.Top} style={{ left: "35%" }} />
+      <Handle id="top-out-a" type="source" position={Position.Top} style={{ left: "35%" }} />
+      <Handle id="top-out-b" type="source" position={Position.Top} style={{ left: "65%" }} />
+      <Handle id="bottom-out-a" type="source" position={Position.Bottom} style={{ left: "35%" }} />
+      <Handle id="bottom-in-b" type="target" position={Position.Bottom} style={{ left: "65%" }} />
+      <StageNode stage={data.stage} selected={data.selected} onSelect={data.onSelect} style={{ width: NODE_W, height: NODE_H }} />
+    </>
+  );
 }
+
+function BandNode({ data }: NodeProps<{ label: string }>) {
+  return <div className="flow-band-node">{data.label}</div>;
+}
+
+const NODE_TYPES = { stage: StageFlowNode, band: BandNode };
 
 function StageNode({ stage, selected, onSelect, style }: { stage: StewardshipStage; selected: boolean; onSelect: (id: string) => void; style?: CSSProperties }) {
   const open = stage.decisions.filter((d) => d.kind === "escalation" || d.decision === null).length;
@@ -95,50 +108,66 @@ function FlowList({ flow, selected, onSelect }: { flow: StewardshipFlow; selecte
 }
 
 function FlowChart({ flow, selected, onSelect }: { flow: StewardshipFlow; selected: string; onSelect: (id: string) => void }) {
+  const nodes = useMemo<Node[]>(
+    () => [
+      ...BANDS.map((b) => ({
+        id: b.id,
+        type: "band",
+        position: { x: b.x, y: b.y },
+        data: { label: b.label },
+        style: { width: b.w, height: b.h },
+        selectable: false,
+        draggable: false,
+        zIndex: -1,
+      })),
+      ...flow.stages.map((stage) => ({
+        id: stage.id,
+        type: "stage",
+        position: POSITIONS[stage.id],
+        data: { stage, selected: stage.id === selected, onSelect },
+        draggable: false,
+      })),
+    ],
+    [flow, selected, onSelect],
+  );
+  const edges = useMemo<Edge[]>(
+    () =>
+      flow.edges.map((e) => ({
+        id: `${e.from}>${e.to}`,
+        source: e.from,
+        target: e.to,
+        ...(EDGE_HANDLES[`${e.from}>${e.to}`] ?? { sourceHandle: "right-out", targetHandle: "left-in" }),
+        type: "smoothstep",
+        label: e.label,
+        labelBgPadding: [4, 2] as [number, number],
+        className: "flow-rf-edge",
+        markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
+        zIndex: 1,
+      })),
+    [flow],
+  );
   return (
-    <div className="flow-scroll">
-      <div className="flow-canvas" style={{ width: WIDTH, height: HEIGHT }}>
-        <svg className="flow-edges" width={WIDTH} height={HEIGHT} aria-hidden="true">
-          <defs>
-            <marker id="flow-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-              <path d="M 0 0 L 10 5 L 0 10 z" className="flow-arrowhead" />
-            </marker>
-          </defs>
-          <rect className="flow-band" x={4} y={HOUSE_Y - 44} width={WIDTH - 8} height={NODE_H + 60} rx={10} />
-          <rect className="flow-band flow-band-client" x={X(4) - 12} y={CLIENT_Y - 30} width={WIDTH - X(4) + 4} height={NODE_H + 46} rx={10} />
-          <text className="flow-band-label" x={X(1)} y={HOUSE_Y + NODE_H + 30}>
-            House truth · stages 1–6 use house policies only
-          </text>
-          <text className="flow-band-label" x={X(5)} y={CLIENT_Y - 12}>
-            Client overlay · stages 7–8
-          </text>
-          {flow.edges.map((e) => {
-            const { d, labelAt } = edgePath(e.from, e.to);
-            return (
-              <g key={`${e.from}-${e.to}`}>
-                <path d={d} className="flow-edge" markerEnd="url(#flow-arrow)" />
-                {e.label && labelAt && (
-                  <text className="flow-edge-label" x={labelAt.x} y={labelAt.y} textAnchor={e.from === "tracking" ? "middle" : "start"}>
-                    {e.label}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </svg>
-        {flow.stages.map((stage) => {
-          const pos = POSITIONS[stage.id];
-          return (
-            <StageNode
-              key={stage.id}
-              stage={stage}
-              selected={stage.id === selected}
-              onSelect={onSelect}
-              style={{ position: "absolute", left: pos.x, top: pos.y, width: NODE_W, height: NODE_H }}
-            />
-          );
-        })}
-      </div>
+    <div className="flow-rf">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={NODE_TYPES}
+        fitView
+        fitViewOptions={{ padding: 0.06 }}
+        minZoom={0.35}
+        maxZoom={1.6}
+        onNodeClick={(_, node) => node.type === "stage" && onSelect(node.id)}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        nodesFocusable={false}
+        edgesFocusable={false}
+        elementsSelectable={false}
+        zoomOnScroll={false}
+        preventScrolling={false}
+        zoomOnDoubleClick={false}
+      >
+        <Controls showInteractive={false} position="top-right" />
+      </ReactFlow>
     </div>
   );
 }

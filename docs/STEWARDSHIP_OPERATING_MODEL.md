@@ -1172,10 +1172,14 @@ waiting for a person.
   questionnaire JSON on the issue catalogue, or the built-in example) and a vehicle
   type. It runs the same stages 1–6 and adds the client's policy review in stage 7
   and its reporting status in stage 8.
-- **Flowchart.** The house row (1–6, with the loop from tracking back to
-  monitoring) sits above the client row (7–8, with the links to and from the
-  checkpoint). Each stage shows up to three metrics and a count of open decisions.
-  Narrow screens get the same stages as a stacked list.
+- **Flowchart.** Drawn with React Flow 11 (`reactflow`, MIT), the same library
+  and version the rule editor uses, so it adds nothing to the bundle. The house
+  row (1–6, with the loop from tracking back to monitoring) sits above the client
+  row (7–8, with the links to and from the checkpoint). Each stage is a custom node
+  with up to three metrics and a count of open decisions. The chart pans, zooms and
+  fits to the view (controls top right); page scrolling is not captured. Clicking
+  a stage opens its detail below. Narrow screens get the same stages as a stacked
+  list, because a pan-and-zoom canvas works poorly on small touch screens.
 - **Every metric says where its number comes from:** *live* (the engagement record
   store), *synthetic sample* (the fictional meeting data), or *not built yet* (the
   stage needs something that does not exist, such as coverage tiers or disclosure
