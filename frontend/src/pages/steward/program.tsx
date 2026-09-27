@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
-import type { ProgramMonitor, ProgramParams, ProgramRun, ProgramSimulation, ProgramVersion } from "../../types";
+import type { BenchmarkInfo, ProgramMonitor, ProgramParams, ProgramRun, ProgramSimulation, ProgramVersion } from "../../types";
 import { ActorField, DataTable, Section, useActor, words } from "./common";
 
 // Traffic lights reuse the score badges: green = good, amber = mid, red = low.
@@ -33,6 +33,8 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [sim, setSim] = useState<ProgramSimulation | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [benchmarks, setBenchmarks] = useState<BenchmarkInfo[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const run = useRef(0);
@@ -51,6 +53,7 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
       (e) => setError((e as Error).message),
     );
     api.monitorProgram(streamId).then(setWatch, (e) => setError((e as Error).message));
+    api.listBenchmarks().then((r) => setBenchmarks(r.benchmarks), () => undefined);
   }, [streamId]);
 
   // One page, rerun on every change (debounced); only the latest run is shown.
@@ -111,6 +114,21 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
       setBusy(null);
     }
   }
+  async function upload(file: File | undefined) {
+    if (!file || !params) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const b = await api.uploadBenchmark(await file.text(), actor);
+      setBenchmarks([...benchmarks.filter((x) => x.benchmark_id !== b.benchmark_id), b]);
+      setParams({ ...params, benchmark: b.benchmark_id });
+      setMessage(`${b.name}, holdings as of ${b.as_of}: ${b.constituents} equities loaded (${b.dropped} cash, futures and unlisted lines dropped).`);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
   const selfApproval = !!savedAuthor && savedAuthor.trim().toLowerCase() === actor.trim().toLowerCase();
 
   if (!params || !sim) return <p className="status-text">{error ?? "Loading…"}</p>;
@@ -135,7 +153,10 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
           Calibrate the four steps (tilt, engagement selection, vote sanction, escalation) against the house program. Every change
           reruns the whole pipeline. Voting policy: {sim.voting_policy}. Escalation rules: {sim.escalation_rules} (stage 7).
         </p>
-        <p className="muted">{sim.data_note}</p>
+        {sim.score_note && <p className="warning-banner">{sim.score_note}</p>}
+        <p className="muted">
+          {sim.constituents} companies. {sim.data_note}
+        </p>
         <div className="metric-grid">
           {tiles.map(([label, value, hint]) => (
             <div key={label} className="metric-tile">
@@ -152,6 +173,23 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
           Client objective
           <textarea rows={2} value={params.objective} onChange={(e) => set("objective", e.target.value)} />
         </label>
+        <div className="inline-fields">
+          <label className="field-label">
+            Benchmark
+            <select value={params.benchmark} onChange={(e) => set("benchmark", e.target.value)}>
+              <option value="sample">Synthetic sample (12 fictional companies)</option>
+              {benchmarks.map((b) => (
+                <option key={b.benchmark_id} value={b.benchmark_id}>
+                  {b.name}, {b.as_of} ({b.constituents} companies)
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field-label" title={actor ? undefined : "Enter your name above first"}>
+            Upload iShares holdings (CSV)
+            <input type="file" accept=".csv,text/csv" disabled={!actor || uploading} onChange={(e) => upload(e.target.files?.[0])} />
+          </label>
+        </div>
         <div className="program-fields">
           <label className="field-label">
             Tilt normalisation
@@ -329,6 +367,9 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
         <DataTable rows={sim.votes.filter((v) => v.sanction || v.house !== v.client)} empty="The client's expected votes match the house." />
       </Section>
       <Section step="1" title="Tilt">
+        <p className="muted">
+          The {sim.holdings.length} largest active weights of {sim.constituents} companies.
+        </p>
         <DataTable
           rows={sim.holdings.map((h) => ({
             company: h.company,

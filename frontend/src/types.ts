@@ -2485,6 +2485,7 @@ export interface ClientReport {
 
 export interface ProgramParams {
   objective: string;
+  benchmark: string;
   normalisation: "rank_percentile" | "zscore" | "max";
   tilt_floor: number;
   tilt_ceiling: number;
@@ -2529,6 +2530,8 @@ export interface ProgramSimulation {
   votes: { company: string; resolution: string; house: string; client: string; sanction: string }[];
   checks: { check: string; value: string; status: "green" | "amber" | "red"; note: string }[];
   data_note: string;
+  constituents: number;
+  score_note: string | null;
 }
 
 export interface ProgramVersion {
@@ -2555,6 +2558,17 @@ export interface ProgramMonitor {
   kpis?: Record<string, number>;
   alerts?: { kpi: string; status: "green" | "amber" | "red" | "not_built"; detail: string }[];
   targets?: Record<string, string>[];
+}
+
+export interface BenchmarkInfo {
+  benchmark_id: string;
+  name: string;
+  as_of: string;
+  source: string;
+  constituents: number;
+  dropped: number;
+  uploaded_by: string;
+  uploaded_at: string;
 }
 
 export interface VotingPreview {

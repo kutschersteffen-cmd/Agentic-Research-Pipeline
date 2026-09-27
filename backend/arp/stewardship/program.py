@@ -49,6 +49,7 @@ from arp.schemas.reporting import (
 )
 from arp.stewardship import escalation, monitoring
 from arp.stewardship.backtest import build_contexts, proposed_policy
+from arp.stewardship.benchmark import SAMPLE, BenchmarkStore, as_universe
 from arp.stewardship.client_report import _dataset, _w
 from arp.stewardship.policies import PolicyStore
 from arp.stewardship.policy_graph import evaluate as evaluate_votes
@@ -71,6 +72,7 @@ POOLED = {"CCF", "ETF"}
 
 class ProgramParams(BaseModel):
     objective: str = "Tilt an MSCI World portfolio towards CLTI leaders and engage the laggards it keeps."
+    benchmark: str = Field(default=SAMPLE, description="'sample', or the id of an uploaded benchmark")
     normalisation: Literal["rank_percentile", "zscore", "max"] = "rank_percentile"
     tilt_floor: float = Field(default=0.5, gt=0, description="Weight multiplier for the worst CLTI score")
     tilt_ceiling: float = Field(default=1.5, gt=0, description="Weight multiplier for the best CLTI score")
@@ -141,7 +143,14 @@ def _weighted_clti(rows: list[dict], key: str) -> float:
 
 def simulate(root: Path, stream: dict, records: list[EngagementRecord], sla_days: int, params: dict | None = None) -> dict:
     p = ProgramParams(**(params if params is not None else stream.get("program", {}).get("params", {})))
-    sample = json.loads(SAMPLE_PATH.read_text())
+    if p.benchmark == SAMPLE:
+        sample, bench = json.loads(SAMPLE_PATH.read_text()), None
+    else:
+        try:
+            bench = BenchmarkStore(root).get(p.benchmark)
+        except KeyError as exc:
+            raise ValueError(f"Unknown benchmark: {p.benchmark}") from exc
+        sample = as_universe(bench)
     house_store = PolicyStore(root)
 
     # 1. Tilt
@@ -155,7 +164,7 @@ def simulate(root: Path, stream: dict, records: list[EngagementRecord], sla_days
     for h in holdings:
         if h["clti"] is not None and h["clti"] < p.laggard_clti:
             candidates[(h["issuer_id"], "climate_transition")] = {
-                "reason": f"CLTI {h['clti']:g} below {p.laggard_clti:g}",
+                "reason": f"{'Placeholder ' if bench else ''}CLTI {h['clti']:g} below {p.laggard_clti:g}",
                 "gap": (100 - h["clti"]) / 100,
             }
     if p.include_triggers:
@@ -316,7 +325,13 @@ def simulate(root: Path, stream: dict, records: list[EngagementRecord], sla_days
     return {
         "client": stream["name"],
         "stream_id": stream["stream_id"],
-        "benchmark": stream["client_policy"].get("mandate", {}).get("benchmark", "MSCI World"),
+        "benchmark": f"{bench['name']}, holdings as of {bench['as_of']}"
+        if bench
+        else f"{stream['client_policy'].get('mandate', {}).get('benchmark', 'MSCI World')} (synthetic sample)",
+        "constituents": len(holdings),
+        "score_note": "CLTI scores are placeholders, not an assessment of these companies. Do not share this as a view on them."
+        if bench
+        else None,
         "vehicle": vehicle,
         "voting_policy": "custom policy (built)" if built else "custom policy (as envisioned, not yet built)",
         "escalation_rules": f"version {client_store(root, stream['stream_id']).active_version('escalation_rules')}"
@@ -324,13 +339,21 @@ def simulate(root: Path, stream: dict, records: list[EngagementRecord], sla_days
         else "same as the house",
         "params": p.model_dump(),
         "kpis": kpis,
-        "holdings": sorted(holdings, key=lambda h: -h["active_pct"]),
+        # the largest moves only: a real index has over a thousand names
+        "holdings": sorted(sorted(holdings, key=lambda h: -abs(h["active_pct"]))[:40], key=lambda h: -h["active_pct"]),
         "candidates": len(ranked),
         "targets": targets,
         "votes": votes,
         "checks": checks,
-        "data_note": "Benchmark: the synthetic sample's 12 fictional companies standing in for MSCI World; scores are placeholders. "
-        "Engagements marked live are the house's records. Tracking error is not computed (no risk model on the sample).",
+        "data_note": (
+            f"Benchmark: {len(holdings)} equities of {bench['name']} (holdings as of {bench['as_of']}), weights from market value. "
+            "CLTI scores are PLACEHOLDERS derived from the ticker: they are not an assessment of these companies, so no "
+            "company here is actually a leader or a laggard. There is no company or meeting data for these names yet, so "
+            "targets come from the placeholder CLTI only and expected votes are empty."
+            if bench
+            else "Benchmark: the synthetic sample's 12 fictional companies standing in for MSCI World; scores are placeholders."
+        )
+        + " Engagements marked live are the house's records. Tracking error is not computed (no risk model).",
     }
 
 
@@ -380,6 +403,7 @@ def build_proposal(sim: dict, out_path: Path) -> Path:
             heading="Objective and the program on one page",
             layout_hint=SectionLayoutHint.TEXT_ONLY,
             narrative=text(
+                *([sim["score_note"]] if sim.get("score_note") else []),
                 p["objective"],
                 f"Tilt: weighted CLTI {k['weighted_clti_portfolio']} against {k['weighted_clti_benchmark']} for the benchmark "
                 f"({k['clti_uplift']:+}), active share {k['active_share_pct']}%.",

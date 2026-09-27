@@ -1,6 +1,7 @@
 import type {
   CompanyBallot,
   ClientEscalationPreview,
+  BenchmarkInfo,
   CaseStudy,
   ClientReport,
   TrackedCommitment,
@@ -357,6 +358,9 @@ export const api = {
     }),
   activateStewardPolicy: (policyId: StewardPolicyId, body: { version: number; approved_by: string }, stream?: string) =>
     request(`/api/stewardship/policies/${policyId}/activate${streamQuery(stream)}`, { method: "POST", body: JSON.stringify(body) }),
+  listBenchmarks: () => request<{ benchmarks: BenchmarkInfo[] }>("/api/stewardship/benchmarks"),
+  uploadBenchmark: (text: string, uploadedBy: string) =>
+    request<BenchmarkInfo>("/api/stewardship/benchmarks", { method: "POST", body: JSON.stringify({ text, uploaded_by: uploadedBy }) }),
   getProgram: (streamId: string) =>
     request<{
       saved: { params: ProgramParams; updated_by: string; updated_at: string } | null;

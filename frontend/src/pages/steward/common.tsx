@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { api } from "../../api/client";
+import { useReviewer } from "../../lib/reviewer";
 import type { MetricSource, StewardPolicyId, StewardPolicyInfo, StewardshipStage } from "../../types";
 
 export const SOURCE_LABEL: Record<MetricSource, string> = { live: "live data", sample: "synthetic sample", not_built: "not built yet" };
@@ -13,25 +14,8 @@ export function fmt(v: unknown): string {
 
 export const words = (s: string) => s.replace(/_/g, " ");
 
-/** The name recorded with every decision, remembered per browser. */
-export function useActor(): [string, (v: string) => void] {
-  const [actor, setActor] = useState(() => {
-    try {
-      return localStorage.getItem("stewardship-actor") ?? "";
-    } catch {
-      return "";
-    }
-  });
-  const save = useCallback((value: string) => {
-    setActor(value);
-    try {
-      localStorage.setItem("stewardship-actor", value);
-    } catch {
-      /* private mode: the name is simply not remembered */
-    }
-  }, []);
-  return [actor, save];
-}
+/** The name recorded with every decision: the app-wide "Reviewing as" identity. */
+export const useActor = useReviewer;
 
 export function ActorField({ actor, onChange }: { actor: string; onChange: (v: string) => void }) {
   return (
