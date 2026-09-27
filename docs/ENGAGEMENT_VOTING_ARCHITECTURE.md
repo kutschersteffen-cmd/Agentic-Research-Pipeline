@@ -12,7 +12,8 @@ exist under `backend/arp/engagement/` and `backend/arp/voting/` (see the
 per-section file references and §10). No frontend UI has been built yet —
 everything is reachable via the CLI (`arp engagement ...` / `arp voting
 ...`) and the API (`/api/engagement/...` / `/api/voting/...`) described
-below. It extends the existing Agentic Research Pipeline (theme building +
+below. The client-overlay extension (stages 7–8, PTV) is planned in
+[`STEWARDSHIP_WORKFLOW_PLAN.md`](STEWARDSHIP_WORKFLOW_PLAN.md). It extends the existing Agentic Research Pipeline (theme building +
 data-point extraction, see [`../README.md`](../README.md)) with a new
 stewardship layer that reuses the same precision controls described in
 [`METHODOLOGY.md`](METHODOLOGY.md) — schema-first structured output,
