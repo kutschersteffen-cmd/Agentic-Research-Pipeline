@@ -108,8 +108,8 @@ export function CompanyProfiles() {
             <h4>{selected.name}</h4>
             <p className="muted">
               {selected.company_id}
-              {selected.sector ? ` -- ${selected.sector}` : ""}
-              {selected.country ? ` -- ${selected.country}` : ""}
+              {selected.sector ? ` — ${selected.sector}` : ""}
+              {selected.country ? ` — ${selected.country}` : ""}
             </p>
             <div className="stat-tile-grid">
               {(climateSchema?.fields ?? []).map((f) => {

@@ -209,7 +209,7 @@ export function IndexBuilder() {
   const fields = catalogue?.fields ?? { metrics: [], flags: [], categories: [] };
 
   useEffect(() => {
-    api.getIndexCatalogue().then(setCatalogue).catch((e) => setError(String(e)));
+    api.getIndexCatalogue().then(setCatalogue).catch((e) => setError(`Presets and screens could not be loaded (${e instanceof Error ? e.message : String(e)}). Retry by reloading the page.`));
     refreshCalibrations();
   }, []);
 
@@ -227,9 +227,9 @@ export function IndexBuilder() {
       const preset = await api.getIndexPreset(name);
       setSpec(preset);
       setLoaded(null);
-      setStatus(`Loaded the "${name}" preset -- every rule below is editable.`);
+      setStatus(`Loaded the "${name}" preset — every rule below is editable.`);
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -238,9 +238,9 @@ export function IndexBuilder() {
     try {
       const bundle = await api.getIndexScreenBundle(name);
       setSpec({ ...spec, screens: [...spec.screens, ...bundle.screens] });
-      setStatus(`Added ${bundle.screens.length} screens from "${name}". They are ordinary rules -- edit or delete any of them.`);
+      setStatus(`Added ${bundle.screens.length} screens from "${name}". They are ordinary rules — edit or delete any of them.`);
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -263,9 +263,9 @@ export function IndexBuilder() {
       });
       setResult(review);
       setSub("result");
-      setStatus(persist ? `Review saved for ${indexId} @ ${reviewDate}.` : "Preview only -- nothing was written.");
+      setStatus(persist ? `Review saved for ${indexId} @ ${reviewDate}.` : "Preview only — nothing was written.");
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -306,7 +306,7 @@ export function IndexBuilder() {
         ))}
       </nav>
 
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
       {status && <p className="status-text">{status}</p>}
 
       {sub === "compose" && (
@@ -316,7 +316,7 @@ export function IndexBuilder() {
           <div className="card ix-step" id="ix-preset">
             <h3>Start from a preset</h3>
             <p className="help-text">
-              A preset expands into the ordinary rules below -- nothing is hidden, and every rule stays editable.
+              A preset expands into the ordinary rules below — nothing is hidden, and every rule stays editable.
             </p>
             <div className="toolbar" style={{ flexWrap: "wrap" }}>
               {(catalogue?.presets ?? []).map((p) => (
@@ -565,7 +565,7 @@ function ScreensCard({
           <p className="muted">
             {screen.missing === "block"
               ? "A missing value stops the run rather than defaulting silently."
-              : `A missing value is treated as "${screen.missing}" -- a deliberate override that appears in the calibration diff.`}
+              : `A missing value is treated as "${screen.missing}" — a deliberate override that appears in the calibration diff.`}
           </p>
         </RuleShell>
       ))}
@@ -1179,7 +1179,7 @@ function CalibrationsTab({
       setStatus(`Saved ${saved.name} v${saved.version}, effective ${saved.effective_from}.`);
       refresh();
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -1191,9 +1191,9 @@ function CalibrationsTab({
       setSpec(calibration.spec);
       setName(calibration.name);
       setNotes(calibration.notes);
-      setStatus(`Loaded ${calibration.name} v${calibration.version}. Edits become a new version -- history is never overwritten.`);
+      setStatus(`Loaded ${calibration.name} v${calibration.version}. Edits become a new version — history is never overwritten.`);
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 

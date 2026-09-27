@@ -559,8 +559,8 @@ export const api = {
     request<MechanismEnvelope>("/api/decision/mechanisms/derive", { method: "POST", body: JSON.stringify(body) }),
   saveMechanism: (body: { config: MechanismConfig; base_version?: number | null; by?: string | null }) =>
     request<MechanismEnvelope>("/api/decision/mechanisms", { method: "POST", body: JSON.stringify(body) }),
-  ratifyMechanism: (frameworkId: string, version?: number) =>
-    request<MechanismConfig>(`/api/decision/mechanisms/${frameworkId}/ratify${buildQuery({ version: version ? String(version) : undefined })}`, {
+  ratifyMechanism: (frameworkId: string, version: number | undefined, ratifiedBy: string) =>
+    request<MechanismConfig>(`/api/decision/mechanisms/${frameworkId}/ratify${buildQuery({ version: version ? String(version) : undefined, ratified_by: ratifiedBy })}`, {
       method: "POST",
     }),
   scoreDecision: (body: { dataset_id: string; config?: MechanismConfig; framework_id?: string; version?: number }) =>

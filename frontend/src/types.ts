@@ -1726,6 +1726,7 @@ export interface MechanismConfig {
   notes: string;
   ratified: boolean;
   ratified_at?: string | null;
+  ratified_by?: string | null;
   created_at: string;
   norm: NormMethod;
   winsor_pct: number;

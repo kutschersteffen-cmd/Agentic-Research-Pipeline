@@ -51,24 +51,14 @@ export function VotingRuns({ selectedRunId, onSelectRun }: { selectedRunId: stri
       <h2>Proxy Voting</h2>
       <p className="help-text">Agents read each proxy statement and recommend a vote under house policy, checked against open engagement issues. Nothing is cast until a named person decides every proposal.</p>
 
-      <section className="card">
-        <h3>Start a voting run</h3>
-        <UniversePicker
-          onResolved={(path, count) => {
-            setUniversePath(path);
-            setCompanyCount(count);
-          }}
-        />
-        {universePath && (
-          <p className="status-text">
-            {companyCount} companies loaded from {universePath}
-          </p>
-        )}
-        <button onClick={startRun} disabled={starting || !universePath}>
-          Run proposal analysis &amp; policy application
-        </button>
-        {error && <p className="error-text" role="alert">{error}</p>}
-      </section>
+      {selectedRunId && (
+        <>
+          <BallotReview runId={selectedRunId} />
+          <section className="card">
+            <RunProgress runId={selectedRunId} runType="proxy_voting" />
+          </section>
+        </>
+      )}
 
       <section className="card">
         <div className="section-heading">
@@ -86,10 +76,10 @@ export function VotingRuns({ selectedRunId, onSelectRun }: { selectedRunId: stri
           </p>
         )}
         {runs === null && !runsError && <p className="muted" aria-live="polite">Loading runs…</p>}
-        {runs?.length === 0 && <p className="muted">No voting runs yet. Start one above.</p>}
+        {runs?.length === 0 && <p className="muted">No voting runs yet. Start one below.</p>}
         {runs && runs.length > 0 && (
           <div className="table-wrap">
-            <table className="data-table">
+            <table className="data-table stack-on-phone">
               <thead>
                 <tr>
                   <th>Run ID</th>
@@ -103,15 +93,15 @@ export function VotingRuns({ selectedRunId, onSelectRun }: { selectedRunId: stri
               <tbody>
                 {runs.map((r) => (
                   <tr key={r.run_id} className="clickable-row" {...activatable(() => onSelectRun(r.run_id))} aria-current={r.run_id === selectedRunId || undefined}>
-                    <td>{r.run_id}</td>
-                    <td>
+                    <td data-label="Run">{r.run_id}</td>
+                    <td data-label="Status">
                       <span className={`status-pill status-${r.status}`}>{r.status}</span>
                     </td>
-                    <td>
+                    <td data-label="Progress">
                       {r.completed_count}/{r.company_count}
                     </td>
-                    <td>{r.review_count}</td>
-                    <td>{new Date(r.created_at).toLocaleString()}</td>
+                    <td data-label="Awaiting decision">{r.review_count}</td>
+                    <td data-label="Created">{new Date(r.created_at).toLocaleString()}</td>
                     <td>
                       <a href={`#/voting/${encodeURIComponent(r.run_id)}`} onClick={(e) => e.stopPropagation()}>
                         Open
@@ -125,14 +115,28 @@ export function VotingRuns({ selectedRunId, onSelectRun }: { selectedRunId: stri
         )}
       </section>
 
-      {selectedRunId && (
-        <>
-          <section className="card">
-            <RunProgress runId={selectedRunId} runType="proxy_voting" />
-          </section>
-          <BallotReview runId={selectedRunId} />
-        </>
-      )}
+      {/* Once a run is open the ballots are the work; starting another run
+          folds away below them. */}
+      <details className="card start-run" open={!selectedRunId}>
+        <summary>
+          <h3>Start a voting run</h3>
+        </summary>
+        <UniversePicker
+          onResolved={(path, count) => {
+            setUniversePath(path);
+            setCompanyCount(count);
+          }}
+        />
+        {universePath && (
+          <p className="status-text">
+            {companyCount} companies loaded from {universePath}
+          </p>
+        )}
+        <button onClick={startRun} disabled={starting || !universePath}>
+          Run proposal analysis &amp; policy application
+        </button>
+        {error && <p className="error-text" role="alert">{error}</p>}
+      </details>
     </div>
   );
 }

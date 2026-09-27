@@ -148,6 +148,7 @@ class MechanismConfig(BaseModel):
     notes: str = ""
     ratified: bool = False
     ratified_at: str | None = None
+    ratified_by: str | None = None
     created_at: str = Field(default_factory=now_iso)
 
     norm: NormMethod = "percentile"

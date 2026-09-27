@@ -68,7 +68,7 @@ class DecisionStore:
         still point at the rules that produced it."""
         current = self.get(config.framework_id)
         updated = config.model_copy(
-            update={"version": (current.version + 1) if current else 1, "ratified": False, "ratified_at": None, "created_at": now_iso()}
+            update={"version": (current.version + 1) if current else 1, "ratified": False, "ratified_at": None, "ratified_by": None, "created_at": now_iso()}
         )
         self._write(updated)
         if audit is not None:
@@ -125,13 +125,13 @@ class DecisionStore:
                 out.append(config)
         return sorted(out, key=lambda c: c.created_at, reverse=True)
 
-    def ratify(self, framework_id: str, version: int | None = None) -> MechanismConfig:
+    def ratify(self, framework_id: str, version: int | None = None, ratified_by: str | None = None) -> MechanismConfig:
         config = self.get(framework_id, version)
         if config is None:
             raise ValueError(f"Unknown framework: {framework_id} v{version}")
         if config.ratified:
             return config
-        ratified = config.model_copy(update={"ratified": True, "ratified_at": now_iso()})
+        ratified = config.model_copy(update={"ratified": True, "ratified_at": now_iso(), "ratified_by": ratified_by})
         self._write(ratified)
         return ratified
 

@@ -26,7 +26,7 @@ export function PivotTable({ result }: { result: PivotResult }) {
   return (
     <div className="pivot-table-wrap">
       <p className="muted">
-        {result.spec_name} -- {result.row_dim} x {result.col_dim}, as of {result.as_of}
+        {result.spec_name} — {result.row_dim} x {result.col_dim}, as of {result.as_of}
       </p>
       <table className="pivot-table">
         <thead>

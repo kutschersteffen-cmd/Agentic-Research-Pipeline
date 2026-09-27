@@ -149,7 +149,7 @@ export function EngagementIssuePanel({
     if (!letter) return;
     await run(async () => {
       await api.logOutreachSent(record.company_id, issue.issue_id, {
-        summary: `${letter.subject} -- sent to ${letter.recommended_recipient}`,
+        summary: `${letter.subject} — sent to ${letter.recommended_recipient}`,
         sent_by: actor || "unknown",
       });
       await refreshRecord();
@@ -240,7 +240,7 @@ export function EngagementIssuePanel({
       <div className="panel-section">
         <h4>Escalation-lever decision</h4>
         <p className="help-text">
-          The one non-negotiable human checkpoint for escalation -- this is the only way an issue's escalation stage
+          The one non-negotiable human checkpoint for escalation — this is the only way an issue's escalation stage
           moves.
         </p>
         <div className="inline-fields">
@@ -268,7 +268,7 @@ export function EngagementIssuePanel({
                 {t.label}
                 <div className="timeline-meta">
                   {new Date(t.at).toLocaleString()}
-                  {t.note ? ` -- ${t.note}` : ""}
+                  {t.note ? ` — ${t.note}` : ""}
                 </div>
               </li>
             ))}
@@ -338,7 +338,7 @@ export function EngagementIssuePanel({
 
       <div className="panel-section">
         <h4>Drafting Agent</h4>
-        {!dossier && <p className="help-text">Draft a dossier first -- the letter/talking points reuse its grounded citations.</p>}
+        {!dossier && <p className="help-text">Draft a dossier first — the letter/talking points reuse its grounded citations.</p>}
         {dossier && (
           <>
             <label className="field-label">

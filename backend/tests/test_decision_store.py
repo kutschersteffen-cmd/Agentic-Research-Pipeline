@@ -32,12 +32,14 @@ def test_versions_are_never_edited_in_place(tmp_path):
 def test_new_version_leaves_the_previous_one_readable(tmp_path):
     store = DecisionStore(tmp_path)
     store.save(_config())
-    store.ratify("fw_test")
+    store.ratify("fw_test", ratified_by="A. Novak")
     store.new_version(_config(name="v2 name", min_coverage_pct=80))
 
     assert store.get("fw_test").version == 2
     assert store.get("fw_test", 1).name == "Climate engagement"
     assert store.get("fw_test", 1).ratified is True
+    assert store.get("fw_test", 1).ratified_by == "A. Novak"
+    assert store.get("fw_test").ratified_by is None
     assert store.get("fw_test", 2).ratified is False, "a new version starts unratified"
     assert store.list_versions("fw_test") == [1, 2]
 

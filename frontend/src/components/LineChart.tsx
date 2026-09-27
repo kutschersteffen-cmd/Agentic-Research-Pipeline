@@ -66,7 +66,7 @@ export function LineChart({
   const width = 760;
   const height = 300;
   const marginLeft = 64;
-  const marginRight = 118; // room for the value-at-end-of-line direct labels -- never let them clip
+  const marginRight = 118; // room for the value-at-end-of-line direct labels — never let them clip
   const marginTop = 16;
   const marginBottom = 32;
   const plotWidth = width - marginLeft - marginRight;

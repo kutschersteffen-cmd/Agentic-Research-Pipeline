@@ -18,6 +18,11 @@ export function CitationList({ citations, onOpenSource }: Props) {
     <ul className="citation-list">
       {citations.map((c, ci) => (
         <li key={ci}>
+          {!c.grounded && (
+            <span className="badge badge-low" title="The quote was not found in the source document when re-checked">
+              not verified
+            </span>
+          )}{" "}
           [{c.doc_type}] "{c.quote}"
           {c.grounded && c.company_id && c.source_filename && (
             <>

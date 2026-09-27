@@ -18,6 +18,8 @@ import type {
   AuditEntry,
 } from "../types";
 import { activatable } from "../lib/activatable";
+import { useReviewer } from "../lib/reviewer";
+import { ConfirmDecision } from "../components/ConfirmDecision";
 import { newDimension } from "../lib/dimensions";
 import { TIER_STARTER } from "../lib/ruleGraphs";
 
@@ -64,6 +66,8 @@ export function DecisionStudio() {
   const [sensitivity, setSensitivity] = useState<EntitySensitivity | null>(null);
   const [orderBy, setOrderBy] = useState<"score" | "leverage">("score");
   const [status, setStatus] = useState("");
+  const [reviewer] = useReviewer();
+  const [confirmingRatify, setConfirmingRatify] = useState(false);
   const [error, setError] = useState("");
   const [source, setSource] = useState<string>("transition_plan_run");
   const [runId, setRunId] = useState("");
@@ -228,7 +232,7 @@ export function DecisionStudio() {
   async function onSave() {
     if (!config) return;
     const envelope = await guard("Saving a new version…", () =>
-      api.saveMechanism({ config, base_version: baseVersion ?? undefined }),
+      api.saveMechanism({ config, base_version: baseVersion ?? undefined, by: reviewer.trim() || undefined }),
     );
     if (envelope) {
       setConfig(envelope.config);
@@ -237,9 +241,10 @@ export function DecisionStudio() {
     }
   }
 
-  async function onRatify() {
+  async function onRatify(by: string) {
+    setConfirmingRatify(false);
     if (!config) return;
-    const saved = await guard("Ratifying…", () => api.ratifyMechanism(config.framework_id, config.version));
+    const saved = await guard("Ratifying…", () => api.ratifyMechanism(config.framework_id, config.version, by));
     if (saved) setConfig(saved);
   }
 
@@ -636,10 +641,28 @@ export function DecisionStudio() {
               <button className="link-button" onClick={onSave}>
                 Save as new version
               </button>
-              <button className="link-button" onClick={onRatify} disabled={config.ratified}>
-                {config.ratified ? "Ratified" : "Ratify this version"}
-              </button>
+              {config.ratified ? (
+                <span className="badge badge-high">
+                  Ratified{config.ratified_by ? ` by ${config.ratified_by}` : ""}
+                  {config.ratified_at ? ` · ${new Date(config.ratified_at).toLocaleDateString()}` : ""}
+                </span>
+              ) : (
+                <button onClick={() => setConfirmingRatify(true)}>Ratify version {config.version}…</button>
+              )}
             </div>
+            {confirmingRatify && (
+              <ConfirmDecision
+                title={`Ratify version ${config.version}?`}
+                confirmLabel={`Ratify version ${config.version}`}
+                onConfirm={onRatify}
+                onCancel={() => setConfirmingRatify(false)}
+              >
+                <p>
+                  A ratified version is fixed: later edits become a new version, and decisions that cite this one keep
+                  reading it exactly as it is now.
+                </p>
+              </ConfirmDecision>
+            )}
             <p className="help-text">
               A ratified version is never overwritten — later edits become a new version, so the rules a past decision
               cited stay readable exactly as they were.

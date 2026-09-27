@@ -145,9 +145,9 @@ export function GovernanceAudit() {
       <section className="card">
         <h3>Methodology</h3>
         <p className="help-text">
-          Live-configurable governance settings -- the current value and full change history are both derived from
+          Live-configurable governance settings — the current value and full change history are both derived from
           the same append-only event log, never a separate mutable snapshot. Changing a setting only affects future
-          demo-seeds, not already-resolved securities/observations (see <code>docs/SPEC_GAP_ANALYSIS.md</code> §5).
+          demo seeds, not securities or observations that are already resolved.
         </p>
         {policyValues && (
           <div className="table-wrap">
@@ -260,7 +260,7 @@ export function GovernanceAudit() {
           Entity-resolution review queue ({resolutionRows.length})
         </h3>
         <p className="help-text">
-          Securities whose issuer match fell below the confidence threshold -- never auto-matched, always surfaced
+          Securities whose issuer match fell below the confidence threshold — never auto-matched, always surfaced
           here instead (see <code>entity_resolution.py</code>).
         </p>
         <div className="table-wrap">

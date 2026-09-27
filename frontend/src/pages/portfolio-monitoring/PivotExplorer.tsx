@@ -209,7 +209,7 @@ function CrossTab() {
     <div>
       {trendModeActive && (
         <p className="help-text">
-          The pane is set to "Trend range," but cross-tabs are point-in-time only -- switch the pane to Latest or As
+          The pane is set to "Trend range," but cross-tabs are point-in-time only — switch the pane to Latest or As
           of date to run one.
         </p>
       )}
