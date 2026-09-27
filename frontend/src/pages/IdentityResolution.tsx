@@ -64,14 +64,8 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Company Identity Resolution</h2>
-      <p className="help-text">
-        Resolves a list of bare company names to a real, verified website/CIK before any document discovery runs --
-        a deterministic EDGAR lookup resolves the clean case for free, and only genuine ambiguity escalates to a
-        single adjudicating LLM call. Nothing ambiguous is ever guessed: it's queued in the Review Queue tab for a
-        human to approve, edit, or reject. This is a one-time cost per company -- run it once, then reuse the
-        resulting universe for every future Document Discovery run.
-      </p>
+      <h2>Identity Resolution</h2>
+      <p className="help-text">Resolve company names to a verified website and CIK before document discovery. Anything ambiguous goes to the Review Queue instead of being guessed.</p>
 
       <section className="card">
         <h3>Resolve identity</h3>

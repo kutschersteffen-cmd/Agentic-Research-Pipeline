@@ -138,9 +138,8 @@ export function MonitoringAlerts() {
       <section className="card">
         <h3>Add a monitoring rule</h3>
         <p className="help-text">
-          Threshold-based breach monitoring over the same deterministic engine Pivot Explorer uses -- no new data
-          model. Factor/PAI/benchmark-relative rules aren't available yet (see{" "}
-          <code>docs/SPEC_GAP_ANALYSIS.md</code> §1).
+          Flag a breach when a figure crosses a threshold, computed by the same engine as Pivot Explorer. Factor, PAI
+          and benchmark-relative rules are not available yet.
         </p>
         <div className="toolbar">
           <input aria-label="Rule name" placeholder="Rule name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -225,7 +224,7 @@ export function MonitoringAlerts() {
         <h3>Alerts ({visibleAlerts.length})</h3>
         <div className="toolbar">
           {STATUS_FILTERS.map((s) => (
-            <button key={s} className={s === statusFilter ? "nav-tab active" : "nav-tab"} onClick={() => setStatusFilter(s)}>
+            <button key={s} className={s === statusFilter ? "nav-tab active" : "nav-tab"} aria-pressed={s === statusFilter} onClick={() => setStatusFilter(s)}>
               {s.replace("_", " ")}
             </button>
           ))}

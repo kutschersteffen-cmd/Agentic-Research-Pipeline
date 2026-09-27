@@ -9,6 +9,9 @@ import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { BarChart } from "../components/BarChart";
 import type { IndicatorAssessment, IndicatorCategory, ReviewDecision, TransitionPlanAssessmentRecord, TransitionPlanIndicatorDef } from "../types";
 import { activatable } from "../lib/activatable";
+import { useReviewer } from "../lib/reviewer";
+import { ReviewerField } from "../components/ReviewerField";
+import { ProposedTag } from "../components/ProposedTag";
 
 interface Props {
   pendingUniverse?: { path: string; count: number } | null;
@@ -112,7 +115,7 @@ function IndicatorTable({
                         <td>{ind.walk_or_talk}</td>
                         <td><YesNoBadge verdict={ind.verdict} /></td>
                         <td><GroundedBadge grounded={ind.grounded} /></td>
-                        <td>{ind.needs_review ? "⚑" : ""}</td>
+                        <td>{ind.needs_review ? <ProposedTag /> : ""}</td>
                       </tr>
                       {expandedIndicator === ind.identifier && (
                         <tr>
@@ -183,7 +186,7 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
   const [results, setResults] = useState<TransitionPlanAssessmentRecord[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [reviewDecisions, setReviewDecisions] = useState<Record<string, ReviewDecision>>({});
-  const [reviewer, setReviewer] = useState("");
+  const [reviewer] = useReviewer();
   const [indicators, setIndicators] = useState<TransitionPlanIndicatorDef[]>([]);
   const [showMethodology, setShowMethodology] = useState(false);
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
@@ -217,17 +220,8 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Transition Plan Assessment</h2>
-      <p className="help-text">
-        Assesses each company's climate transition disclosures against the 64 indicators from Colesanti Senni,
-        Schimanski, Bingler, Ni &amp; Leippold (2024), <em>"Using AI to assess corporate climate transition
-        disclosures"</em> (Environmental Research Communications). Each indicator gets a grounded RAG verdict --
-        disclosed (YES), not disclosed (NO), or not applicable (NA) -- with a critical, greenwashing-aware
-        explanation and citations independently verified against the source document (never LLM-self-reported).
-        Indicators are classified as "talk" (future targets / general management approach) or "walk" (concrete,
-        already-verifiable activity), mirroring the paper's headline finding that companies over-disclose talk and
-        under-disclose walk.
-      </p>
+      <h2>Transition Plan</h2>
+      <p className="help-text">Score each company’s climate transition disclosures against the 64 indicators of Colesanti Senni et al. (2024), separating “talk” (targets) from “walk” (verifiable activity), with every citation re-verified.</p>
       <button className="link-button" onClick={() => setShowMethodology((s) => !s)}>
         {showMethodology ? "Hide" : "Show"} the 64 indicators
       </button>
@@ -286,10 +280,7 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
               Export CSV
             </a>
-            <label className="field-label" style={{ marginLeft: "auto" }}>
-              Reviewing as
-            </label>
-            <input placeholder="your name" value={reviewer} onChange={(e) => setReviewer(e.target.value)} style={{ maxWidth: 160 }} />
+            <ReviewerField compact />
           </div>
           {results.length > 0 && <BatchOverview results={results} />}
           {results.length > 0 && (
@@ -316,7 +307,7 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
                             <td>{r.walk_disclosed_count}/{r.walk_total_count}</td>
                             <td>{r.talk_disclosed_count}/{r.talk_total_count}</td>
                             <td><ConfidenceBadge value={r.overall_confidence} /></td>
-                            <td>{r.needs_review ? "⚑" : ""}</td>
+                            <td>{r.needs_review ? <ProposedTag /> : ""}</td>
                           </tr>
                           {expanded === r.company_id && (
                             <tr>

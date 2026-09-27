@@ -6,6 +6,7 @@ import { CitationList } from "./CitationList";
 import type { ActiveSource } from "./SourcePanel";
 import type { BusinessSegment, CompanyFinancialsRecord, ExtractedField, ExtractionRecord, ReviewDecision, SpendSummary } from "../types";
 import { activatable } from "../lib/activatable";
+import { ProposedTag } from "./ProposedTag";
 
 // Shared between Extraction.tsx (a run just started in this browser session)
 // and DataLibrary.tsx (any past run, picked by run_id) -- both render the
@@ -154,7 +155,7 @@ export function ExtractionResultsTable({
                 <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
                 <td>{r.fields.map((f) => `${f.field_name}=${f.value ?? "—"}`).join(", ")}</td>
                 <td><ConfidenceBadge value={r.overall_confidence} /></td>
-                <td>{r.needs_review ? "⚑" : ""}</td>
+                <td>{r.needs_review ? <ProposedTag /> : ""}</td>
               </tr>
               {expanded === r.company_id && (
                 <tr>
@@ -229,7 +230,7 @@ export function FinancialsResultsTable({
                 <td>{fmtAmount(r.capex.total.value)} {r.currency ?? ""}</td>
                 <td>{fmtAmount(r.rnd.total.value)} {r.currency ?? ""}</td>
                 <td><ConfidenceBadge value={r.overall_confidence} /></td>
-                <td>{r.needs_review ? "⚑" : ""}</td>
+                <td>{r.needs_review ? <ProposedTag /> : ""}</td>
               </tr>
               {expanded === r.company_id && (
                 <tr>

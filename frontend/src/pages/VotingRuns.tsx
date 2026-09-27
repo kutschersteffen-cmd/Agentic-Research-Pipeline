@@ -6,18 +6,25 @@ import { api } from "../api/client";
 import type { RunManifest } from "../types";
 import { activatable } from "../lib/activatable";
 
-export function VotingRuns() {
+/** The open run lives in the URL (`#/voting/<run id>`), so a link to a
+ * pending ballot opens straight onto it. */
+export function VotingRuns({ selectedRunId, onSelectRun }: { selectedRunId: string | null; onSelectRun: (runId: string) => void }) {
   const [universePath, setUniversePath] = useState<string | null>(null);
   const [companyCount, setCompanyCount] = useState(0);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [runs, setRuns] = useState<RunManifest[]>([]);
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [runs, setRuns] = useState<RunManifest[] | null>(null);
+  const [runsError, setRunsError] = useState<string | null>(null);
 
   async function loadRuns() {
-    const res = (await api.listRuns("proxy_voting")) as { runs: RunManifest[] };
-    setRuns(res.runs);
+    try {
+      const res = (await api.listRuns("proxy_voting")) as { runs: RunManifest[] };
+      setRuns(res.runs);
+      setRunsError(null);
+    } catch (err) {
+      setRunsError((err as Error).message);
+    }
   }
 
   useEffect(() => {
@@ -30,7 +37,7 @@ export function VotingRuns() {
     setError(null);
     try {
       const res = await api.startVotingRun({ universe_path: universePath });
-      setSelectedRunId(res.run_id);
+      onSelectRun(res.run_id);
       await loadRuns();
     } catch (err) {
       setError((err as Error).message);
@@ -42,11 +49,7 @@ export function VotingRuns() {
   return (
     <div className="page">
       <h2>Proxy Voting</h2>
-      <p className="help-text">
-        Proposal Analysis Agent extracts each company's ballot from its proxy statement; the Policy Application Agent
-        recommends a vote (a deterministic house rule, or an LLM judgment call) and cross-checks it against open
-        engagement issues. Every proposal requires an explicit human decision before it can be cast.
-      </p>
+      <p className="help-text">Agents read each proxy statement and recommend a vote under house policy, checked against open engagement issues. Nothing is cast until a named person decides every proposal.</p>
 
       <section className="card">
         <h3>Start a voting run</h3>
@@ -64,7 +67,7 @@ export function VotingRuns() {
         <button onClick={startRun} disabled={starting || !universePath}>
           Run proposal analysis &amp; policy application
         </button>
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
       </section>
 
       <section className="card">
@@ -74,8 +77,17 @@ export function VotingRuns() {
             Refresh
           </button>
         </div>
-        {runs.length === 0 && <p className="muted">No voting runs yet.</p>}
-        {runs.length > 0 && (
+        {runsError && (
+          <p className="error-text" role="alert">
+            Voting runs could not be loaded: {runsError}.{" "}
+            <button className="link-button" onClick={loadRuns}>
+              Retry
+            </button>
+          </p>
+        )}
+        {runs === null && !runsError && <p className="muted" aria-live="polite">Loading runs…</p>}
+        {runs?.length === 0 && <p className="muted">No voting runs yet. Start one above.</p>}
+        {runs && runs.length > 0 && (
           <div className="table-wrap">
             <table className="data-table">
               <thead>
@@ -90,7 +102,7 @@ export function VotingRuns() {
               </thead>
               <tbody>
                 {runs.map((r) => (
-                  <tr key={r.run_id} className="clickable-row" {...activatable(() => setSelectedRunId(r.run_id))}>
+                  <tr key={r.run_id} className="clickable-row" {...activatable(() => onSelectRun(r.run_id))} aria-current={r.run_id === selectedRunId || undefined}>
                     <td>{r.run_id}</td>
                     <td>
                       <span className={`status-pill status-${r.status}`}>{r.status}</span>
@@ -101,9 +113,9 @@ export function VotingRuns() {
                     <td>{r.review_count}</td>
                     <td>{new Date(r.created_at).toLocaleString()}</td>
                     <td>
-                      <button className="link-button" onClick={(e) => { e.stopPropagation(); setSelectedRunId(r.run_id); }}>
+                      <a href={`#/voting/${encodeURIComponent(r.run_id)}`} onClick={(e) => e.stopPropagation()}>
                         Open
-                      </button>
+                      </a>
                     </td>
                   </tr>
                 ))}

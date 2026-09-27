@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { api } from "./api/client";
+import { ReviewerField } from "./components/ReviewerField";
 import { ThemeBuilder } from "./pages/ThemeBuilder";
 import { Extraction } from "./pages/Extraction";
 import { TransitionPlanAssessment } from "./pages/TransitionPlanAssessment";
@@ -21,7 +23,7 @@ import { Search } from "./pages/Search";
 import { DecisionStudio } from "./pages/DecisionStudio";
 import { IndexBuilder } from "./pages/IndexBuilder";
 import { NAV_ICONS } from "./components/NavIcons";
-import type { ReviewableRunKind } from "./types";
+import type { ReviewableRunKind, RunManifest } from "./types";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard" },
@@ -39,7 +41,7 @@ const TABS = [
   { id: "review", label: "Review Queue" },
   { id: "history", label: "Run History" },
   { id: "engagement", label: "Engagement" },
-  { id: "voting", label: "Voting" },
+  { id: "voting", label: "Proxy Voting" },
   { id: "reporting", label: "Presentations & Reports" },
   { id: "strategyReplication", label: "Strategy Replication" },
   { id: "decision", label: "Decision Studio" },
@@ -47,23 +49,69 @@ const TABS = [
   { id: "library", label: "Data Library" },
 ] as const;
 
+type TabId = (typeof TABS)[number]["id"];
+
 // Purely a sidebar presentation grouping -- ids must match TABS above.
-const NAV_GROUPS: { label: string | null; ids: readonly (typeof TABS)[number]["id"][] }[] = [
+// Ordered by the stewardship team's day: what waits on a person first, then
+// their own work, then the research and portfolio tools that feed it.
+const NAV_GROUPS: { label: string | null; ids: readonly TabId[] }[] = [
   { label: null, ids: ["dashboard", "search"] },
-  { label: "Theme Machine", ids: ["theme", "taxonomy", "emergingThemes"] },
-  { label: "Company Research", ids: ["backgroundAgents", "extraction", "identity", "discovery"] },
-  { label: "Portfolio Analysis", ids: ["transitionPlan", "transitionBarrier", "portfolio-monitoring", "strategyReplication", "decision", "index"] },
-  { label: "StewardIQ", ids: ["engagement", "voting"] },
-  { label: "Operations", ids: ["review", "history"] },
-  { label: "Output", ids: ["reporting", "library"] },
+  { label: "Needs you", ids: ["review", "voting"] },
+  { label: "Stewardship", ids: ["engagement", "transitionPlan", "transitionBarrier"] },
+  { label: "Research", ids: ["theme", "taxonomy", "emergingThemes", "extraction", "identity", "discovery", "backgroundAgents"] },
+  { label: "Portfolio", ids: ["portfolio-monitoring", "strategyReplication", "decision", "index"] },
+  { label: "Output", ids: ["reporting", "library", "history"] },
 ];
 
+const REVIEWABLE = new Set<string>(["theme", "extraction", "financials", "identity"]);
+
+/** The URL is the source of truth for where you are: `#/<tab>/<param>...`,
+ * so refresh, Back and a pasted link all land on the same view -- e.g.
+ * `#/voting/<run id>` or `#/review/extraction/<run id>`. */
+function parseHash(): { tab: TabId; params: string[] } {
+  const [tab, ...params] = window.location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+  return TABS.some((t) => t.id === tab) ? { tab: tab as TabId, params } : { tab: "dashboard", params: [] };
+}
+
+function navigate(tab: TabId, ...params: string[]) {
+  window.location.hash = "/" + [tab, ...params].map(encodeURIComponent).join("/");
+}
+
 function App() {
-  const [active, setActive] = useState<(typeof TABS)[number]["id"]>("dashboard");
+  const [route, setRoute] = useState(parseHash);
+  const active = route.tab;
+  const [waiting, setWaiting] = useState<{ review: number; voting: number } | null>(null);
   const [pendingUniverse, setPendingUniverse] = useState<{ path: string; count: number } | null>(null);
   const [pendingDiscoveryUniverse, setPendingDiscoveryUniverse] = useState<{ path: string; count: number } | null>(null);
   const [pendingTaxonomyId, setPendingTaxonomyId] = useState<string | null>(null);
-  const [pendingReview, setPendingReview] = useState<{ kind: ReviewableRunKind; runId: string } | null>(null);
+
+  useEffect(() => {
+    const onHash = () => {
+      setRoute(parseHash());
+      setNavOpen(false);
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  // Counts on the "Needs you" items, refreshed on every navigation. Failure
+  // leaves them off rather than showing a zero nobody measured.
+  useEffect(() => {
+    api
+      .listRuns()
+      .then((res) => {
+        const runs = (res as { runs: RunManifest[] }).runs;
+        const sum = (keep: (r: RunManifest) => boolean) => runs.filter(keep).reduce((n, r) => n + r.review_count, 0);
+        setWaiting({ review: sum((r) => REVIEWABLE.has(r.run_type)), voting: sum((r) => r.run_type === "proxy_voting") });
+      })
+      .catch(() => setWaiting(null));
+  }, [route]);
+
+  const pendingReview =
+    active === "review" && route.params.length === 2 && REVIEWABLE.has(route.params[0])
+      ? { kind: route.params[0] as ReviewableRunKind, runId: route.params[1] }
+      : null;
 
   // Below 760px the sidebar is an off-canvas drawer; on desktop navOpen is
   // ignored by the CSS.
@@ -74,7 +122,7 @@ function App() {
   useEffect(() => {
     if (!navOpen) return;
     const menu = menuRef.current;
-    navRef.current?.querySelector<HTMLButtonElement>(".nav-tab.active")?.focus();
+    navRef.current?.querySelector<HTMLElement>(".nav-tab.active")?.focus();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setNavOpen(false);
     window.addEventListener("keydown", onKey);
     return () => {
@@ -83,29 +131,28 @@ function App() {
     };
   }, [navOpen]);
 
-  function go(id: (typeof TABS)[number]["id"]) {
-    setActive(id);
+  function go(id: TabId) {
+    navigate(id);
     setNavOpen(false);
   }
 
   function sendToExtraction(path: string, count: number) {
     setPendingUniverse({ path, count });
-    setActive("extraction");
+    navigate("extraction");
   }
 
   function sendToDiscovery(path: string, count: number) {
     setPendingDiscoveryUniverse({ path, count });
-    setActive("discovery");
+    navigate("discovery");
   }
 
   function sendToTheme(taxonomyId: string) {
     setPendingTaxonomyId(taxonomyId);
-    setActive("theme");
+    navigate("theme");
   }
 
   function openReview(kind: ReviewableRunKind, runId: string) {
-    setPendingReview({ kind, runId });
-    setActive("review");
+    navigate("review", kind, runId);
   }
 
   return (
@@ -132,22 +179,32 @@ function App() {
           <span className="app-sidebar-mark">A</span>
           <span className="app-sidebar-wordmark">ARP</span>
         </div>
+        <div className="app-sidebar-reviewer">
+          <ReviewerField />
+        </div>
         <nav className="app-nav">
           {NAV_GROUPS.map((group, i) => (
             <div className="nav-group" key={group.label ?? `group-${i}`}>
               {group.label && <div className="nav-group-label">{group.label}</div>}
               {group.ids.map((id) => {
                 const t = TABS.find((tab) => tab.id === id)!;
+                const count = waiting && (id === "review" || id === "voting") ? waiting[id] : 0;
                 return (
-                  <button
+                  <a
                     key={t.id}
+                    href={`#/${t.id}`}
                     className={t.id === active ? "nav-tab active" : "nav-tab"}
                     aria-current={t.id === active ? "page" : undefined}
-                    onClick={() => go(t.id)}
+                    onClick={() => setNavOpen(false)}
                   >
                     <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
                     <span className="nav-tab-label">{t.label}</span>
-                  </button>
+                    {count > 0 && (
+                      <span className="nav-count" aria-label={`${count} awaiting a decision`}>
+                        {count}
+                      </span>
+                    )}
+                  </a>
                 );
               })}
             </div>
@@ -155,11 +212,11 @@ function App() {
         </nav>
       </aside>
       <main className="app-main">
-        {active === "dashboard" && <MonitoringDashboard onNavigate={setActive} onOpenReview={openReview} />}
+        {active === "dashboard" && <MonitoringDashboard onNavigate={go} onOpenReview={openReview} />}
         {active === "search" && <Search />}
         {active === "theme" && <ThemeBuilder onSendToExtraction={sendToExtraction} pendingTaxonomyId={pendingTaxonomyId} />}
         {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
-        {active === "emergingThemes" && <EmergingThemesDetector onNavigate={setActive} />}
+        {active === "emergingThemes" && <EmergingThemesDetector onNavigate={go} />}
         {active === "backgroundAgents" && <BackgroundAgents />}
         {active === "extraction" && <Extraction pendingUniverse={pendingUniverse} />}
         {active === "transitionPlan" && <TransitionPlanAssessment pendingUniverse={pendingUniverse} />}
@@ -167,10 +224,10 @@ function App() {
         {active === "identity" && <IdentityResolution onSendToDiscovery={sendToDiscovery} />}
         {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingDiscoveryUniverse} />}
         {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool />}
-        {active === "review" && <ReviewQueue pendingReview={pendingReview} />}
+        {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} />}
         {active === "history" && <RunHistory onOpenReview={openReview} />}
         {active === "engagement" && <EngagementDashboard />}
-        {active === "voting" && <VotingRuns />}
+        {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}
         {active === "reporting" && <ReportBuilder />}
         {active === "strategyReplication" && <StrategyReplication />}
         {active === "decision" && <DecisionStudio />}

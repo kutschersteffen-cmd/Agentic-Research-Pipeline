@@ -12,15 +12,18 @@ const RUN_TYPE_LABEL: Record<string, string> = {
   transition_barrier_refresh: "Transition barrier source refresh",
   taxonomy_research: "Taxonomy Researcher",
   calibration: "Calibration Agent",
+  financials: "Company financials",
+  identity: "Identity resolution",
+  emerging_themes: "Emerging themes",
 };
 const REVIEWABLE_RUN_TYPES = new Set<string>(["theme", "extraction", "financials", "identity"]);
 
 function runTypeLabel(runType: string): string {
-  return RUN_TYPE_LABEL[runType] ?? runType;
+  return RUN_TYPE_LABEL[runType] ?? runType.replace(/_/g, " ");
 }
 
 interface Props {
-  onNavigate: (tab: "engagement" | "voting") => void;
+  onNavigate: (tab: "engagement" | "voting" | "review") => void;
   onOpenReview?: (kind: ReviewableRunKind, runId: string) => void;
 }
 
@@ -28,6 +31,11 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [records, setRecords] = useState<EngagementRecord[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [recordsError, setRecordsError] = useState<string | null>(null);
+  // Null until the first successful poll: a count we never received is
+  // unknown, never zero.
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [recordsLoaded, setRecordsLoaded] = useState(false);
   const timerRef = useRef<number | undefined>(undefined);
   const cancelledRef = useRef(false);
 
@@ -37,6 +45,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
       if (cancelledRef.current) return;
       setRuns(res.runs);
       setLoadError(null);
+      setLastRefreshed(new Date());
     } catch (err) {
       if (!cancelledRef.current) setLoadError((err as Error).message);
     }
@@ -45,9 +54,12 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
   async function loadRecords() {
     try {
       const res = (await api.listEngagementRecords()) as { records: EngagementRecord[] };
-      if (!cancelledRef.current) setRecords(res.records);
-    } catch {
-      /* engagement store may simply be empty/unreachable -- dashboard degrades gracefully */
+      if (cancelledRef.current) return;
+      setRecords(res.records);
+      setRecordsLoaded(true);
+      setRecordsError(null);
+    } catch (err) {
+      if (!cancelledRef.current) setRecordsError((err as Error).message);
     }
   }
 
@@ -101,41 +113,70 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
 
   const votingRuns = useMemo(() => runs.filter((r) => r.run_type === "proxy_voting"), [runs]);
   const pendingVoteReviews = useMemo(() => votingRuns.reduce((sum, r) => sum + r.review_count, 0), [votingRuns]);
+  const flaggedForReview = useMemo(
+    () => runs.filter((r) => REVIEWABLE_RUN_TYPES.has(r.run_type)).reduce((sum, r) => sum + r.review_count, 0),
+    [runs],
+  );
+
+  const runsKnown = lastRefreshed !== null;
+  const show = (known: boolean, n: number) => (known ? n : "—");
 
   return (
     <div className="page">
-      <h2>Monitoring Dashboard</h2>
-      <p className="help-text">
-        A live view across everything the system is doing: batch pipeline runs (thematic universe, extraction,
-        discovery, proxy voting) and the stewardship module's open engagement issues. Pipeline runs poll every 3s
-        while this page is open.
-      </p>
-      {loadError && <p className="error-text">Failed to refresh runs: {loadError}</p>}
+      <h2>Dashboard</h2>
+      <p className="help-text">What needs a decision first, then what the agents are doing. Runs refresh every 3 seconds.</p>
+      <div aria-live="polite">
+        {loadError && (
+          <div className="error-text" role="alert">
+            Runs could not be refreshed: {loadError}.{" "}
+            {runsKnown ? `Showing data from ${lastRefreshed.toLocaleTimeString()}.` : "Counts are unknown until the backend responds."}{" "}
+            <button className="link-button" onClick={loadRuns}>
+              Retry now
+            </button>
+          </div>
+        )}
+        {recordsError && (
+          <div className="error-text" role="alert">
+            Engagement issues could not be loaded: {recordsError}.{" "}
+            <button className="link-button" onClick={loadRecords}>
+              Retry
+            </button>
+          </div>
+        )}
+      </div>
 
       <dl className="dashboard-grid">
-        <div className="stat-tile">
-          <dt className="stat-label">Currently executing</dt>
-          <dd className="stat-value" style={{ color: "var(--accent)" }}>{active.length}</dd>
+        <div className="stat-tile stat-tile-action">
+          <dt className="stat-label">Ballot items awaiting decision</dt>
+          <dd className="stat-value">
+            <button className="stat-link" onClick={() => onNavigate("voting")} disabled={!runsKnown}>
+              {show(runsKnown, pendingVoteReviews)}
+            </button>
+          </dd>
         </div>
-        <div className="stat-tile">
-          <dt className="stat-label">Finished runs (recent)</dt>
-          <dd className="stat-value">{finished.length}</dd>
-        </div>
-        <div className="stat-tile">
-          <dt className="stat-label">Open engagement issues</dt>
-          <dd className="stat-value">{openIssues.length}</dd>
-        </div>
-        <div className="stat-tile">
-          <dt className="stat-label">Stalled (SLA breach)</dt>
-          <dd className="stat-value" style={stalledIssues.length > 0 ? { color: "var(--mid)" } : undefined}>{stalledIssues.length}</dd>
+        <div className="stat-tile stat-tile-action">
+          <dt className="stat-label">Flagged items awaiting review</dt>
+          <dd className="stat-value">
+            <button className="stat-link" onClick={() => onNavigate("review")} disabled={!runsKnown}>
+              {show(runsKnown, flaggedForReview)}
+            </button>
+          </dd>
         </div>
         <div className="stat-tile">
           <dt className="stat-label">Escalated beyond private engagement</dt>
-          <dd className="stat-value" style={escalatedIssues.length > 0 ? { color: "var(--low)" } : undefined}>{escalatedIssues.length}</dd>
+          <dd className={recordsLoaded && escalatedIssues.length > 0 ? "stat-value stat-low" : "stat-value"}>{show(recordsLoaded, escalatedIssues.length)}</dd>
         </div>
         <div className="stat-tile">
-          <dt className="stat-label">Ballot items awaiting decision</dt>
-          <dd className="stat-value">{pendingVoteReviews}</dd>
+          <dt className="stat-label">Stalled (SLA breach)</dt>
+          <dd className={recordsLoaded && stalledIssues.length > 0 ? "stat-value stat-mid" : "stat-value"}>{show(recordsLoaded, stalledIssues.length)}</dd>
+        </div>
+        <div className="stat-tile">
+          <dt className="stat-label">Open engagement issues</dt>
+          <dd className="stat-value">{show(recordsLoaded, openIssues.length)}</dd>
+        </div>
+        <div className="stat-tile">
+          <dt className="stat-label">Runs executing now</dt>
+          <dd className="stat-value">{show(runsKnown, active.length)}</dd>
         </div>
       </dl>
 
@@ -146,7 +187,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
           <section className={active.length === 0 ? "card card-empty" : "card"}>
             <div className="section-heading">
               <h3>Currently executing</h3>
-              {active.length === 0 && <span className="muted">Nothing running right now.</span>}
+              {active.length === 0 && <span className="muted">{runsKnown ? "Nothing running right now." : "Unknown until runs load."}</span>}
             </div>
             {active.map((r) => {
               const pct = r.company_count > 0 ? Math.round((r.completed_count / r.company_count) * 100) : 0;
@@ -158,7 +199,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                       <span className={`status-pill status-${r.status}`}>{r.status}</span>
                     </div>
                     <div className="progress-bar">
-                      <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
+                      <div className="progress-bar-fill" style={{ transform: `scaleX(${pct / 100})` }} />
                     </div>
                     <div className="activity-meta">
                       <span>{runTypeLabel(r.run_type)}</span>
@@ -181,7 +222,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
           <section className={finished.length === 0 ? "card card-empty" : "card"}>
             <div className="section-heading">
               <h3>Finished runs</h3>
-              <span className="muted">{finished.length === 0 ? "No finished runs yet." : "most recent 25"}</span>
+              <span className="muted">{finished.length > 0 ? "Most recent 25" : runsKnown ? "No finished runs yet." : "Unknown until runs load."}</span>
             </div>
             {finished.length > 0 && (
               <div className="table-wrap">
@@ -225,7 +266,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
           <section className={openIssues.length === 0 ? "card card-empty" : "card"}>
             <div className="section-heading">
               <h3>Open engagement issues</h3>
-              {openIssues.length === 0 && <span className="muted">No open issues.</span>}
+              {openIssues.length === 0 && <span className="muted">{recordsLoaded ? "No open issues." : "Unknown until issues load."}</span>}
               <button className="link-button" onClick={() => onNavigate("engagement")}>
                 Open Engagement &rarr;
               </button>
@@ -237,7 +278,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                     <strong>
                       {record.name} <span className="muted">({record.company_id})</span>
                     </strong>
-                    <span className={`status-pill status-${issue.status === "stalled" ? "failed" : "running"}`}>{issue.status}</span>
+                    <span className={`status-pill status-${issue.status === "stalled" ? "stalled" : "running"}`}>{issue.status}</span>
                   </div>
                   <div>{issue.theme}</div>
                   <div className="activity-meta">

@@ -24,6 +24,7 @@ function saveGroupsToStorage(groups: PortfolioGroup[]) {
 
 export function PortfolioPaneProvider({ children }: { children: ReactNode }) {
   const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
+  const [portfoliosError, setPortfoliosError] = useState<string | null>(null);
   const [climateSchema, setClimateSchema] = useState<DataPointSchema | null>(null);
   const [selectedPortfolioIds, setSelectedPortfolioIds] = useState<string[]>([]);
   const [groups, setGroups] = useState<PortfolioGroup[]>(() => loadGroupsFromStorage());
@@ -35,8 +36,9 @@ export function PortfolioPaneProvider({ children }: { children: ReactNode }) {
   const refreshPortfolios = useCallback(async () => {
     try {
       setPortfolios(await api.listPortfolios());
-    } catch {
-      setPortfolios([]);
+      setPortfoliosError(null);
+    } catch (err) {
+      setPortfoliosError((err as Error).message);
     }
   }, []);
 
@@ -93,6 +95,7 @@ export function PortfolioPaneProvider({ children }: { children: ReactNode }) {
   const value: PaneState = {
     portfolios,
     refreshPortfolios,
+    portfoliosError,
     climateSchema,
     selectedPortfolioIds,
     setSelectedPortfolioIds,

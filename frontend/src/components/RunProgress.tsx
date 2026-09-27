@@ -93,7 +93,7 @@ export function RunProgress({
         <span className={`status-pill status-${manifest.status}`}>{manifest.status}</span>
       </div>
       <div className="progress-bar">
-        <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
+        <div className="progress-bar-fill" style={{ transform: `scaleX(${pct / 100})` }} />
       </div>
       <div className="run-progress-stats">
         <span>{manifest.completed_count}/{manifest.company_count} companies</span>

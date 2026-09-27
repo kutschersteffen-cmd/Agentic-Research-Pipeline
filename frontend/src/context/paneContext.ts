@@ -11,6 +11,8 @@ export interface PortfolioGroup {
 export interface PaneState {
   portfolios: PortfolioSummary[];
   refreshPortfolios: () => Promise<void>;
+  /** Set when the portfolio list failed to load: "none" and "unreachable" are different answers. */
+  portfoliosError: string | null;
   climateSchema: DataPointSchema | null;
 
   selectedPortfolioIds: string[];

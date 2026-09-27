@@ -144,13 +144,8 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Emerging Themes Detector</h2>
-      <p className="help-text">
-        "Tool 0" of the research stack: watches public news, filings, and regulatory flow across a universe for
-        topics nobody has named yet -- clusters mentions with period-over-period lineage tracking, and proposes a
-        candidate theme only when it's genuinely new (no lineage back to a prior period), backed by at least two
-        independent sources. No candidate reaches the Taxonomy Library without an explicit promote below.
-      </p>
+      <h2>Emerging Themes</h2>
+      <p className="help-text">Spot topics nobody has named yet in news, filings and regulatory flow. A candidate needs two independent sources, and nothing reaches the Taxonomy Library until you promote it.</p>
 
       <section className="card">
         <h3>Run a scan now</h3>

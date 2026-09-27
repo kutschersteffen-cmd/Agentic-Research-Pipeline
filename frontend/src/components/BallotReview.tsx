@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { CompanyBallot, VoteRecord, VotePosition, VoteReviewDecision } from "../types";
+import { Modal } from "./Modal";
+import { REVIEWER_REQUIRED, useReviewer } from "../lib/reviewer";
+import { ReviewerField } from "./ReviewerField";
+import { ProposedTag } from "./ProposedTag";
 
 const VOTE_POSITIONS: VotePosition[] = ["for", "against", "abstain", "withhold"];
+
+const DECISION_LABEL: Record<string, string> = { approve: "approved", edit: "overridden", reject: "rejected" };
 
 function itemKey(companyId: string, proposalNumber: string): string {
   return `${companyId}:${proposalNumber}`;
@@ -25,10 +31,11 @@ function ProposalReview({
 }) {
   const rec = vote.policy_recommendation;
   const alreadyCast = castConfirmationId !== undefined;
-  const [reviewDecision, setReviewDecision] = useState<"approve" | "edit" | "reject">("approve");
+  // Starts unset on purpose: a proposal is only decided when a person picks.
+  const [reviewDecision, setReviewDecision] = useState<"" | "approve" | "edit" | "reject">("");
   const [chosenVote, setChosenVote] = useState<VotePosition>(rec?.vote ?? "for");
   const [coSignedBy, setCoSignedBy] = useState("");
-  const [reviewer, setReviewer] = useState("");
+  const [reviewer] = useReviewer();
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +45,11 @@ function ProposalReview({
 
   async function submit() {
     if (!reviewer.trim()) {
-      setError("Reviewer name is required.");
+      setError(REVIEWER_REQUIRED);
+      return;
+    }
+    if (!reviewDecision) {
+      setError("Choose a decision first.");
       return;
     }
     if (needsCoSign && !coSignedBy.trim()) {
@@ -51,7 +62,7 @@ function ProposalReview({
       await api.submitVotingReview(runId, {
         item_key: key,
         decision: reviewDecision,
-        reviewer,
+        reviewer: reviewer.trim(),
         vote: reviewDecision === "edit" ? chosenVote : null,
         co_signed_by: coSignedBy || null,
         comment: comment || null,
@@ -79,37 +90,41 @@ function ProposalReview({
       )}
 
       {rec && (
-        <p className="recommendation-line">
+        <div className={decision || alreadyCast ? "recommendation-line" : "recommendation-line proposed"}>
+          {!decision && !alreadyCast && <ProposedTag>Proposed by the policy agent · awaiting a decision</ProposedTag>}
           Policy recommendation: <strong>{rec.vote}</strong> ({rec.policy_rule_id ? `rule: ${rec.policy_rule_id}` : "LLM judgment"},{" "}
           {Math.round(rec.confidence * 100)}% confidence)
           <br />
           <span className="muted">{rec.rationale}</span>
-        </p>
+        </div>
       )}
       {rec?.engagement_alignment_flag && (
         <div className="banner banner-danger">Engagement alignment flag: {rec.engagement_alignment_note}</div>
       )}
 
       {alreadyCast && (
-        <div className="banner banner-warning">Cast &mdash; confirmation {castConfirmationId}</div>
+        <div className="banner banner-success">Cast &middot; confirmation {castConfirmationId}</div>
       )}
 
       {!alreadyCast && (
         <>
           {decision && (
             <p className="muted">
-              Current decision: <strong>{decision.decision}</strong> by {decision.reviewer ?? "unknown"}
-              {decision.edited_value?.vote ? ` -> ${decision.edited_value.vote}` : ""}
+              Current decision: <strong>{DECISION_LABEL[decision.decision] ?? decision.decision}</strong> by {decision.reviewer ?? "unknown reviewer"}
+              {decision.edited_value?.vote ? ` → ${decision.edited_value.vote}` : ""}
             </p>
           )}
           <div className="inline-fields">
-            <select value={reviewDecision} onChange={(e) => setReviewDecision(e.target.value as typeof reviewDecision)}>
+            <select aria-label="Decision" value={reviewDecision} onChange={(e) => setReviewDecision(e.target.value as typeof reviewDecision)}>
+              <option value="" disabled>
+                Choose a decision…
+              </option>
               <option value="approve">Approve recommendation</option>
               <option value="edit">Override vote</option>
               <option value="reject">Reject (do not cast)</option>
             </select>
             {reviewDecision === "edit" && (
-              <select value={chosenVote} onChange={(e) => setChosenVote(e.target.value as VotePosition)}>
+              <select aria-label="Vote to cast" value={chosenVote} onChange={(e) => setChosenVote(e.target.value as VotePosition)}>
                 {VOTE_POSITIONS.map((v) => (
                   <option key={v} value={v}>
                     {v}
@@ -117,20 +132,20 @@ function ProposalReview({
                 ))}
               </select>
             )}
-            <input placeholder="Reviewer name" value={reviewer} onChange={(e) => setReviewer(e.target.value)} />
           </div>
           {needsCoSign && (
             <input
-              placeholder="Co-signed by (required -- alignment flag)"
+              aria-label="Co-signed by"
+              placeholder="Co-signed by (required: alignment flag)"
               value={coSignedBy}
               onChange={(e) => setCoSignedBy(e.target.value)}
             />
           )}
-          <textarea rows={1} placeholder="Comment (optional)" value={comment} onChange={(e) => setComment(e.target.value)} />
-          <button onClick={submit} disabled={busy}>
+          <textarea rows={1} aria-label="Comment (optional)" placeholder="Comment (optional)" value={comment} onChange={(e) => setComment(e.target.value)} />
+          <button onClick={submit} disabled={busy || !reviewDecision}>
             Record decision
           </button>
-          {error && <p className="error-text">{error}</p>}
+          {error && <p className="error-text" role="alert">{error}</p>}
         </>
       )}
     </div>
@@ -143,7 +158,9 @@ export function BallotReview({ runId }: { runId: string }) {
   const [castByKey, setCastByKey] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [castResult, setCastResult] = useState<string | null>(null);
+  const [castResult, setCastResult] = useState<{ count: number; by: string; at: Date } | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [reviewer] = useReviewer();
 
   async function load() {
     setBusy(true);
@@ -174,20 +191,39 @@ export function BallotReview({ runId }: { runId: string }) {
   }, [runId]);
 
   async function castApproved() {
+    setConfirming(false);
     setBusy(true);
     setError(null);
     setCastResult(null);
     try {
       const res = await api.castVotes(runId);
-      setCastResult(`Cast ${res.cast_count} vote(s).`);
+      setCastResult({ count: res.cast_count, by: reviewer.trim(), at: new Date() });
       await load();
     } catch (err) {
-      setError((err as Error).message);
+      setError(`Casting failed: ${(err as Error).message}. Nothing was marked cast; try again.`);
     } finally {
       setBusy(false);
     }
   }
 
+  // What a cast would send right now, from the same rules the backend applies
+  // (arp.voting.pipeline.cast_approved_votes): decided, not rejected, not cast.
+  const counts = { approved: 0, overridden: 0, rejected: 0, pending: 0, missingCoSign: 0 };
+  for (const b of ballots) {
+    for (const v of b.votes) {
+      const k = itemKey(b.company_id, v.proposal.proposal_number);
+      if (castByKey[k] !== undefined) continue;
+      const d = decisions[k];
+      if (!d) counts.pending++;
+      else if (d.decision === "reject") counts.rejected++;
+      else {
+        if (d.decision === "edit") counts.overridden++;
+        else counts.approved++;
+        if (v.policy_recommendation?.engagement_alignment_flag && !d.edited_value?.co_signed_by) counts.missingCoSign++;
+      }
+    }
+  }
+  const castable = counts.approved + counts.overridden;
   const totalProposals = ballots.reduce((sum, b) => sum + b.votes.length, 0);
   const totalCast = Object.keys(castByKey).length;
 
@@ -200,17 +236,54 @@ export function BallotReview({ runId }: { runId: string }) {
         </button>
       </div>
       <p className="help-text">
-        Every proposal requires an explicit human decision, regardless of confidence -- there is no auto-approve
-        path for voting. An engagement alignment flag additionally requires a co-sign before it can be cast.
+        Every proposal needs a decision from a named person; nothing is approved automatically. A proposal with an
+        engagement alignment flag also needs a co-sign.
       </p>
       <p className="muted">
-        {totalProposals} proposal(s) across {ballots.length} compan{ballots.length === 1 ? "y" : "ies"} &middot; {totalCast} cast
+        {totalProposals} proposal(s) across {ballots.length} compan{ballots.length === 1 ? "y" : "ies"} &middot; {totalCast} cast &middot;{" "}
+        {counts.pending} awaiting a decision
       </p>
-      <button onClick={castApproved} disabled={busy}>
-        Cast approved votes
-      </button>
-      {castResult && <p className="status-text">{castResult}</p>}
-      {error && <p className="error-text">{error}</p>}
+      <div className="toolbar">
+        <ReviewerField compact />
+        <button onClick={() => (reviewer.trim() ? setConfirming(true) : setError(REVIEWER_REQUIRED))} disabled={busy || castable === 0}>
+          Cast {castable} decided vote{castable === 1 ? "" : "s"}…
+        </button>
+      </div>
+      <div aria-live="polite">
+        {castResult && (
+          <div className="banner banner-success">
+            {castResult.count} vote{castResult.count === 1 ? "" : "s"} cast by {castResult.by} at {castResult.at.toLocaleString()}.
+            Confirmation IDs are shown on each proposal below.
+          </div>
+        )}
+      </div>
+      {error && <p className="error-text" role="alert">{error}</p>}
+
+      {confirming && (
+        <Modal title="Cast votes?" compact onClose={() => setConfirming(false)}>
+          <p>
+            This sends <strong>{castable}</strong> vote{castable === 1 ? "" : "s"} to the ballot platform. Cast votes cannot be recalled from here.
+          </p>
+          <ul className="confirm-list">
+            <li>{counts.approved} approved as recommended</li>
+            <li>{counts.overridden} overridden by a reviewer</li>
+            <li>{counts.rejected} rejected (will not be cast)</li>
+            <li>{counts.pending} still awaiting a decision (will not be cast)</li>
+          </ul>
+          {counts.missingCoSign > 0 && (
+            <div className="banner banner-danger">
+              {counts.missingCoSign} flagged vote{counts.missingCoSign === 1 ? " has" : "s have"} no co-sign and will be refused by the platform.
+            </div>
+          )}
+          <p className="muted">Recorded against your name: {reviewer.trim()}</p>
+          <div className="toolbar">
+            <button onClick={castApproved}>Cast {castable} vote{castable === 1 ? "" : "s"}</button>
+            <button className="secondary" onClick={() => setConfirming(false)}>
+              Keep reviewing
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {ballots.map((ballot) => (
         <div key={ballot.company_id} className="panel-section">
