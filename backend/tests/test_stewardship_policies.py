@@ -37,6 +37,8 @@ def test_save_validates_and_stamps_then_activation_needs_an_approver(tmp_path, s
     assert store.active_version("house_voting") == 0  # saving never activates
     with pytest.raises(ValueError):
         store.activate("house_voting", 1, " ")
+    with pytest.raises(ValueError, match="Four-eyes"):
+        store.activate("house_voting", 1, "Designer")  # the author cannot approve their own version
     store.activate("house_voting", 1, "approver")
     assert store.active_version("house_voting") == 1
     store.activate("house_voting", 0, "approver")  # roll back: the log keeps both

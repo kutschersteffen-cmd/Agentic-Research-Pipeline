@@ -9,7 +9,8 @@ Two policies so far:
 Version 0 is the bundled draft in `data/`, always available as the baseline.
 Saved versions are immutable files; activations are an append-only log, and
 the active version is the last activation. Nothing is stored that fails
-validation, and nothing becomes active without `approved_by`.
+validation, and nothing becomes active without `approved_by`, who must not be
+the person who saved that version (four-eyes).
 """
 
 from __future__ import annotations
@@ -120,6 +121,9 @@ class PolicyStore:
         if not approved_by.strip():
             raise ValueError("Activating a policy version needs approved_by")
         self.content(policy_id, version)  # raises for an unknown version
+        meta = next(v for v in self.versions(policy_id) if v["version"] == version)
+        if version > 0 and meta["created_by"].strip().lower() == approved_by.strip().lower():
+            raise ValueError("Four-eyes rule: a version must be activated by someone other than the person who saved it")
         row = {"version": version, "approved_by": approved_by, "approved_at": datetime.now(UTC).isoformat()}
         d = self._dir(policy_id)
         d.mkdir(parents=True, exist_ok=True)

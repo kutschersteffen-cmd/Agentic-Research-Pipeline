@@ -1,4 +1,17 @@
-import type { CompanyBallot, ResearchDossier, StewardshipFlow, StewardshipStream, TriggerEvent, VoteRecord, VoteReviewDecision } from "../types";
+import type {
+  CompanyBallot,
+  CoveragePreview,
+  IssueCatalogue,
+  ResearchDossier,
+  StewardPolicyId,
+  StewardPolicyInfo,
+  StewardshipFlow,
+  StewardshipStream,
+  TriggerEvent,
+  VoteRecord,
+  VoteReviewDecision,
+  VotingPreview,
+} from "../types";
 import type {
   AggregationResult,
   DatasetSummary,
@@ -313,6 +326,19 @@ export const api = {
     request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/decisions`, { method: "POST", body: JSON.stringify(body) }),
   confirmTiers: (body: { decided_by: string; issuer_ids?: string[] }) =>
     request<{ confirmed: number }>("/api/stewardship/tiers/confirm", { method: "POST", body: JSON.stringify(body) }),
+  getStewardPolicy: (policyId: StewardPolicyId) => request<StewardPolicyInfo>(`/api/stewardship/policies/${policyId}`),
+  getStewardPolicyVersion: (policyId: StewardPolicyId, version: number) =>
+    request<Record<string, unknown>>(`/api/stewardship/policies/${policyId}/versions/${version}`),
+  saveStewardPolicyVersion: (policyId: StewardPolicyId, body: { content: unknown; note: string; created_by: string }) =>
+    request<{ version: number }>(`/api/stewardship/policies/${policyId}/versions`, { method: "POST", body: JSON.stringify(body) }),
+  activateStewardPolicy: (policyId: StewardPolicyId, body: { version: number; approved_by: string }) =>
+    request(`/api/stewardship/policies/${policyId}/activate`, { method: "POST", body: JSON.stringify(body) }),
+  getIssueCatalogue: () => request<IssueCatalogue>("/api/stewardship/catalogue"),
+  getCoverageInputs: () => request<{ contexts: Record<string, unknown>[] }>("/api/stewardship/studio/coverage/inputs"),
+  previewCoverage: (graph: unknown) =>
+    request<CoveragePreview>("/api/stewardship/studio/coverage/preview", { method: "POST", body: JSON.stringify({ graph }) }),
+  previewVoting: (policy: unknown) =>
+    request<VotingPreview>("/api/stewardship/studio/voting/preview", { method: "POST", body: JSON.stringify({ policy }) }),
   buildStreamPolicy: (streamId: string) =>
     request<{ positions_from_client: number }>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/build`, { method: "POST" }),
   listEngagementRecords: () => request<{ records: unknown[] }>("/api/engagement/records"),

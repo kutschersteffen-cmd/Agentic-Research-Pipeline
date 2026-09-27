@@ -2222,3 +2222,89 @@ export interface StewardshipStream {
   name: string;
   kind: "house" | "client";
 }
+
+// Stage studios: versioned house policies (backend/arp/stewardship/policies.py)
+export type StewardPolicyId = "coverage_rules" | "house_voting";
+
+export interface PolicyVersionMeta {
+  version: number;
+  note: string;
+  created_by: string;
+  created_at: string | null;
+}
+
+export interface PolicyActivation {
+  version: number;
+  approved_by: string;
+  approved_at: string;
+}
+
+export interface StewardPolicyInfo {
+  policy_id: StewardPolicyId;
+  active_version: number;
+  active: Record<string, unknown>;
+  versions: PolicyVersionMeta[];
+  activations: PolicyActivation[];
+}
+
+export interface CatalogueParameter {
+  type: "number" | "bool" | "enum" | "map" | "field";
+  description: string;
+  unit?: string;
+  values?: string[];
+  stricter?: "higher" | "lower" | boolean;
+}
+
+export interface CatalogueIssue {
+  issue_id: string;
+  category: string;
+  title: string;
+  description: string;
+  resolution_categories: string[];
+  parameters: Record<string, CatalogueParameter>;
+  vote_targets: string[];
+  data_fields: string[];
+}
+
+export interface IssueCatalogue {
+  version: string;
+  position_actions: string[];
+  categories: string[];
+  issues: CatalogueIssue[];
+}
+
+export interface VotingPosition {
+  issue_id: string;
+  action: string;
+  vote_target: string;
+  parameters: Record<string, unknown>;
+  scope: Record<string, unknown>;
+  rationale: string;
+}
+
+export interface VotingPolicy {
+  policy_id: string;
+  version: string;
+  positions: VotingPosition[];
+  [key: string]: unknown;
+}
+
+export interface CoveragePreview {
+  companies: number;
+  distribution_candidate: Record<string, number>;
+  distribution_active: Record<string, number>;
+  rules_fired: Record<string, number>;
+  changes: { issuer_id: string; company: string; from: string; to: string; rule: string; reason: string }[];
+}
+
+export interface VotingPreview {
+  resolutions: number;
+  changed: number;
+  base_votes: Record<string, number>;
+  other_votes: Record<string, number>;
+  affected_by_issue: Record<string, number>;
+  masked_by_issue: Record<string, number>;
+  changed_rows: { resolution_id: string; category: string; base_vote: string; other_vote: string; issues: string[] }[];
+  unused_parameters: Record<string, string[]>;
+  no_vote_effect: string[];
+}

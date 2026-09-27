@@ -1,0 +1,215 @@
+import { useState } from "react";
+import { api } from "../../api/client";
+import type { EscalationDecisionItem, PolicyDifferenceItem, TierChangeItem } from "../../types";
+import { fmt, words } from "./common";
+
+export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[]; actor: string; onDone: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  async function confirm(issuerIds?: string[]) {
+    setBusy(issuerIds ? issuerIds[0] : "all");
+    setError(null);
+    try {
+      await api.confirmTiers({ decided_by: actor, issuer_ids: issuerIds });
+      onDone();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+  const needName = actor ? undefined : "Enter your name above first";
+  return (
+    <>
+      <div className="section-heading">
+        <h4>Coverage tiers to confirm</h4>
+        <button onClick={() => confirm()} disabled={!actor || busy !== null} title={needName}>
+          {busy === "all" ? "Confirming…" : `Confirm all ${items.length}`}
+        </button>
+      </div>
+      <p className="muted">
+        Proposed by the house coverage rules (a decision table you can edit in the rule editor). A tier only counts once it is
+        confirmed; every confirmation is kept, never overwritten.
+      </p>
+      {error && <p className="error-text">{error}</p>}
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Tier</th>
+              <th>Why (rule that fired)</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.issuer_id}>
+                <td>{item.company}</td>
+                <td>
+                  {item.current} → <strong>{item.proposed}</strong>
+                </td>
+                <td>
+                  {item.reason} <span className="muted">({item.rule})</span>
+                </td>
+                <td>
+                  <button onClick={() => confirm([item.issuer_id])} disabled={!actor || busy !== null} title={needName}>
+                    {busy === item.issuer_id ? "Confirming…" : "Confirm"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+export function EscalationDecisions({ items, actor, onDone }: { items: EscalationDecisionItem[]; actor: string; onDone: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  async function escalate(item: EscalationDecisionItem) {
+    if (!item.next) return;
+    setBusy(item.issue_id);
+    setError(null);
+    try {
+      await api.escalateEngagementIssue(item.company_id, item.issue_id, { stage: item.next, decided_by: actor, reason: item.reason });
+      onDone();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+  return (
+    <>
+      {error && <p className="error-text">{error}</p>}
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Theme</th>
+              <th>Why it is flagged</th>
+              <th>Escalation step</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.issue_id}>
+                <td>{item.company}</td>
+                <td>{words(item.theme)}</td>
+                <td>{item.reason}</td>
+                <td>
+                  {words(item.current)} → <strong>{item.next ? words(item.next) : "top of the ladder"}</strong>
+                </td>
+                <td>
+                  <button
+                    onClick={() => escalate(item)}
+                    disabled={!actor || !item.next || busy !== null}
+                    title={actor ? undefined : "Enter your name above first"}
+                  >
+                    {busy === item.issue_id ? "Escalating…" : "Escalate"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="muted">Not escalating is also a decision: log the next outreach on the Engagement page to restart the clock.</p>
+    </>
+  );
+}
+
+const DECISIONS_FOR: Record<string, string[]> = {
+  unclear: ["clarify", "decline"],
+  unmapped: ["clarify", "decline"],
+};
+const DEFAULT_DECISIONS = ["adopt", "decline", "defer"];
+const RECOMMENDED: Record<string, string> = {
+  adopt: "adopt",
+  adopt_when_scale_defined: "defer",
+  adopt_with_modification: "defer",
+  review_with_house: "decline",
+  decline_or_change_vehicle: "decline",
+  clarify: "clarify",
+  clarify_or_add_issue: "clarify",
+};
+
+export function PolicyDifference({ item, streamId, actor, onDone }: { item: PolicyDifferenceItem; streamId: string; actor: string; onDone: () => void }) {
+  const options = DECISIONS_FOR[item.difference] ?? DEFAULT_DECISIONS;
+  const [choice, setChoice] = useState(options.includes(RECOMMENDED[item.recommendation]) ? RECOMMENDED[item.recommendation] : options[0]);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function record() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.recordPolicyDecision(streamId, { issue_id: item.issue_id, decision: choice, decided_by: actor, note: note || undefined });
+      onDone();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className={`decision-card${item.decision ? " decided" : ""}`}>
+      <div className="decision-card-head">
+        <strong>{item.title}</strong>
+        <span className="chip">{words(item.difference)}</span>
+        {item.votes_changed !== null && (
+          <span className="chip" title="Expected votes this difference changes on the synthetic meeting sample">
+            {item.votes_changed} {item.votes_changed === 1 ? "vote" : "votes"} changed (sample)
+          </span>
+        )}
+      </div>
+      {item.changes.length > 0 && (
+        <ul className="decision-changes">
+          {item.changes.map((c) => (
+            <li key={c.field}>
+              <code>{c.field}</code>: {fmt(c.house)} → <strong>{fmt(c.client)}</strong>
+            </li>
+          ))}
+        </ul>
+      )}
+      {item.source && <p className="decision-quote">“{item.source}”</p>}
+      {item.question && <p className="help-text">Question for the client: {item.question}</p>}
+      {item.flags.map((f) => (
+        <p key={f} className="decision-flag">
+          {f}
+        </p>
+      ))}
+      <p className="muted">
+        Recommendation: <strong>{words(item.recommendation)}</strong>
+        {item.recommendation === "adopt_with_modification" &&
+          " — this page cannot record the modification yet: defer it here, and record the modification through the API."}
+      </p>
+      {item.decision ? (
+        <p className="decision-made">
+          Decided: <strong>{words(item.decision.decision)}</strong> by {item.decision.decided_by}
+          {item.decision.note ? ` — ${item.decision.note}` : ""}
+        </p>
+      ) : (
+        <div className="inline-fields decision-controls">
+          <select aria-label={`Decision on ${item.title}`} value={choice} onChange={(e) => setChoice(e.target.value)}>
+            {options.map((o) => (
+              <option key={o} value={o}>
+                {words(o)}
+              </option>
+            ))}
+          </select>
+          <input aria-label={`Note on ${item.title}`} placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+          <button onClick={record} disabled={!actor || busy} title={actor ? undefined : "Enter your name above first"}>
+            {busy ? "Recording…" : "Record decision"}
+          </button>
+        </div>
+      )}
+      {error && <p className="error-text">{error}</p>}
+    </div>
+  );
+}

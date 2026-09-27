@@ -14,7 +14,7 @@ import { BackgroundAgents } from "./pages/BackgroundAgents";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
-import { StewardshipProcess } from "./pages/StewardshipProcess";
+import { StewardWorkflow } from "./pages/StewardWorkflow";
 import { PortfolioRiskMonitoringTool } from "./pages/PortfolioRiskMonitoringTool";
 import { ReportBuilder } from "./pages/ReportBuilder";
 import { StrategyReplication } from "./pages/StrategyReplication";
@@ -39,7 +39,7 @@ const TABS = [
   { id: "portfolio-monitoring", label: "Risk Monitoring" },
   { id: "review", label: "Review Queue" },
   { id: "history", label: "Run History" },
-  { id: "stewardship", label: "Stewardship Process" },
+  { id: "stewardship", label: "Steward Workflow" },
   { id: "engagement", label: "Engagement" },
   { id: "voting", label: "Voting" },
   { id: "reporting", label: "Presentations & Reports" },
@@ -171,7 +171,7 @@ function App() {
         {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool />}
         {active === "review" && <ReviewQueue pendingReview={pendingReview} />}
         {active === "history" && <RunHistory onOpenReview={openReview} />}
-        {active === "stewardship" && <StewardshipProcess />}
+        {active === "stewardship" && <StewardWorkflow />}
         {active === "engagement" && <EngagementDashboard />}
         {active === "voting" && <VotingRuns />}
         {active === "reporting" && <ReportBuilder />}

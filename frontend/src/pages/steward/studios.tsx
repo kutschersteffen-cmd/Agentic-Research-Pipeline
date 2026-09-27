@@ -1,0 +1,738 @@
+import "@gorules/jdm-editor/dist/style.css";
+import { DecisionGraph, JdmConfigProvider, type DecisionGraphType } from "@gorules/jdm-editor";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "../../api/client";
+import type {
+  CatalogueIssue,
+  CoveragePreview,
+  EscalationDecisionItem,
+  IssueCatalogue,
+  PolicyDifferenceItem,
+  StewardshipStage,
+  StewardshipStream,
+  TierChangeItem,
+  VotingPolicy,
+  VotingPosition,
+  VotingPreview,
+} from "../../types";
+import { ActorField, DataTable, Planned, Section, StudioHeader, VersionsPanel, useActor, usePolicy, words } from "./common";
+import { EscalationDecisions, PolicyDifference, TierDecisions } from "./decisions";
+
+export interface StudioProps {
+  stage: StewardshipStage;
+  onChanged: () => void;
+  onOpen: (tab: string) => void;
+}
+
+const TIER_ORDER = ["Priority Bilateral", "Thematic & Collaborative", "Scaled Baseline", "Systemic / Market-Level"];
+
+function countMissing(value: unknown): number {
+  if (value === null || value === undefined) return 1;
+  if (typeof value === "object") return Object.values(value as Record<string, unknown>).reduce<number>((n, v) => n + countMissing(v), 0);
+  return 0;
+}
+
+// --- 1. Monitoring -------------------------------------------------------------
+
+export function MonitoringStudio({ stage }: StudioProps) {
+  const [contexts, setContexts] = useState<Record<string, unknown>[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    api.getCoverageInputs().then(
+      (r) => setContexts(r.contexts),
+      (e) => setError((e as Error).message),
+    );
+  }, []);
+  const rows = (contexts ?? []).map((c) => {
+    const issuer = c.issuer as Record<string, unknown>;
+    const holding = c.holding as Record<string, unknown>;
+    const history = c.history as Record<string, unknown>;
+    return {
+      company: c.name,
+      sector: issuer.sector,
+      region: issuer.region,
+      "index weight %": holding.index_weight_pct,
+      "AUM held (EUR m)": holding.aum_held_eur_m,
+      "values missing": countMissing(issuer),
+      "open engagements": history.open_engagements,
+    };
+  });
+  return (
+    <>
+      <StudioHeader
+        stage={stage}
+        capabilities={[
+          { label: "Review", ready: true },
+          { label: "Design", ready: false },
+          { label: "Calibrate", ready: false },
+          { label: "Versions", ready: false },
+        ]}
+      />
+      <Section step="Review" title="Companies in scope">
+        <p className="help-text">
+          Every company the house holds, with its position and how complete its data is. Missing values never trigger anything; they
+          show where data coverage needs work.
+        </p>
+        {error && <p className="error-text">{error}</p>}
+        {contexts === null ? <p className="status-text">Loading…</p> : <DataTable rows={rows} />}
+      </Section>
+      <Section step="Design · Calibrate" title="Monitoring rules" planned>
+        <Planned
+          items={[
+            "A house monitoring rule table (ZEN, like the coverage rules) over company data: score thresholds, controversy severity, large holding changes, vote outcomes.",
+            "A preview of which companies each rule would flag on today's data, before it goes live.",
+            "Client portfolios in scope alongside the house holdings.",
+            "The stalled-engagement sweep already runs: engagements without activity beyond the SLA are flagged at stage 5.",
+          ]}
+        />
+      </Section>
+    </>
+  );
+}
+
+// --- 2. Research & Selection: coverage tiers -------------------------------------
+
+function PolicyCanvas({ graph, onChange }: { graph: Record<string, unknown>; onChange: (g: Record<string, unknown>) => void }) {
+  return (
+    <div className="card rule-canvas studio-canvas">
+      <JdmConfigProvider theme={{ token: { colorPrimary: "#33507a", fontFamily: "IBM Plex Sans, sans-serif", borderRadius: 6 } }}>
+        <DecisionGraph
+          value={graph as unknown as DecisionGraphType}
+          onChange={(next) => {
+            if (JSON.stringify(next) !== JSON.stringify(graph)) onChange(next as unknown as Record<string, unknown>);
+          }}
+        />
+      </JdmConfigProvider>
+    </div>
+  );
+}
+
+export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
+  const { info, error, reload } = usePolicy("coverage_rules");
+  const [actor, setActor] = useActor();
+  const [graph, setGraph] = useState<Record<string, unknown> | null>(null);
+  const [baseVersion, setBaseVersion] = useState<number | null>(null);
+  const [preview, setPreview] = useState<CoveragePreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (info && graph === null) {
+      setGraph(info.active);
+      setBaseVersion(info.active_version);
+    }
+  }, [info, graph]);
+  const dirty = !!info && !!graph && JSON.stringify(graph) !== JSON.stringify(info.active);
+
+  async function runPreview() {
+    if (!graph) return;
+    setBusy(true);
+    setPreviewError(null);
+    try {
+      setPreview(await api.previewCoverage(graph));
+    } catch (err) {
+      setPreviewError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function load(version: number) {
+    setGraph(await api.getStewardPolicyVersion("coverage_rules", version));
+    setBaseVersion(version);
+    setPreview(null);
+  }
+  const distributionRows = preview
+    ? TIER_ORDER.map((t) => ({
+        tier: t,
+        active: preview.distribution_active[t] ?? 0,
+        "this draft": preview.distribution_candidate[t] ?? 0,
+      }))
+    : [];
+
+  return (
+    <>
+      <StudioHeader
+        stage={stage}
+        capabilities={[
+          { label: "Review", ready: true },
+          { label: "Design", ready: true },
+          { label: "Calibrate", ready: true },
+          { label: "Versions", ready: true },
+        ]}
+      />
+      <Section step="Review" title="Confirmed coverage tiers">
+        <DataTable rows={stage.details.find((d) => d.label.includes("coverage"))?.rows ?? []} />
+        <div className="toolbar">
+          <button className="link-button" onClick={() => onOpen("checkpoint")}>
+            Tier changes are confirmed at stage 5 →
+          </button>
+        </div>
+      </Section>
+      <ActorField actor={actor} onChange={setActor} />
+      {error && <p className="error-text">{error}</p>}
+      <Section step="Design" title="Coverage rules">
+        <p className="help-text">
+          A decision table, read top to bottom: the <strong>first</strong> row that matches decides the tier. Inputs per company:{" "}
+          <code>holding.index_weight_pct</code>, <code>holding.aum_held_eur_m</code>, <code>history.escalated</code>,{" "}
+          <code>history.open_engagements</code>, <code>issuer.climate.high_emitter</code>,{" "}
+          <code>issuer.nature.high_impact_sector</code> (any company field can be added as a column). Outputs: <code>tier</code>{" "}
+          (priority_bilateral, thematic_collaborative, scaled_baseline or systemic), <code>rule</code> and <code>reason</code>. Open
+          the table with <em>Edit Table</em>.
+        </p>
+        <p className="muted">
+          Editing {baseVersion === null ? "…" : `a copy of v${baseVersion}`}
+          {dirty ? " · unsaved changes" : ""}
+        </p>
+        {graph && <PolicyCanvas graph={graph} onChange={setGraph} />}
+      </Section>
+      <Section step="Calibrate" title="What this draft would change">
+        <div className="toolbar">
+          <button onClick={runPreview} disabled={!graph || busy}>
+            {busy ? "Running…" : "Preview against the active rules"}
+          </button>
+        </div>
+        {previewError && <p className="error-text">{previewError}</p>}
+        {preview && (
+          <>
+            <p className="muted">
+              {preview.companies} companies (synthetic sample). {preview.changes.length} would change tier.
+            </p>
+            <div className="studio-columns">
+              <div>
+                <h4>Tier distribution</h4>
+                <DataTable rows={distributionRows} />
+              </div>
+              <div>
+                <h4>Rules that fired</h4>
+                <DataTable rows={Object.entries(preview.rules_fired).map(([rule, companies]) => ({ rule, companies }))} />
+              </div>
+            </div>
+            <h4>Companies that would move</h4>
+            <DataTable
+              rows={preview.changes.map((c) => ({ company: c.company, from: c.from, to: c.to, why: `${c.reason} (${c.rule})` }))}
+              empty="No company would change tier."
+            />
+          </>
+        )}
+      </Section>
+      <Section step="Versions" title="Save and activate">
+        {info && graph && (
+          <VersionsPanel
+            policyId="coverage_rules"
+            info={info}
+            workingCopy={graph}
+            dirty={dirty}
+            actor={actor}
+            onSaved={reload}
+            onLoad={load}
+            onActivated={() => {
+              reload();
+              onChanged();
+            }}
+          />
+        )}
+      </Section>
+    </>
+  );
+}
+
+// --- 3. Drafting -------------------------------------------------------------------
+
+export function DraftingStudio({ stage }: StudioProps) {
+  return (
+    <>
+      <StudioHeader
+        stage={stage}
+        capabilities={[
+          { label: "Review", ready: true },
+          { label: "Design", ready: false },
+          { label: "Calibrate", ready: false },
+        ]}
+      >
+        <p className="muted">
+          Outreach letters, talking points and meeting summaries are drafted on the <strong>Engagement</strong> page, with grounded
+          citations and a human sign-off before anything is sent.
+        </p>
+      </StudioHeader>
+      <Section step="Design" title="Drafting rules and house style" planned>
+        <Planned
+          items={[
+            "Interaction tagging (E6): informational vs advocacy/pressure, with pressure-type outreach always stopping at the checkpoint.",
+            "Phrase blocklist (E8): generic ESG-narrative phrases flagged in every client-facing text before it reaches a person.",
+            "Outreach templates per coverage tier and theme.",
+          ]}
+        />
+      </Section>
+    </>
+  );
+}
+
+// --- 4. Voting: house voting policy ------------------------------------------------
+
+function ParamInput({ spec, value, onChange }: { spec: CatalogueIssue["parameters"][string]; value: unknown; onChange: (v: unknown) => void }) {
+  const [text, setText] = useState(() => JSON.stringify(value ?? null));
+  const [bad, setBad] = useState(false);
+  if (spec.type === "bool")
+    return <input type="checkbox" checked={value === true} onChange={(e) => onChange(e.target.checked)} aria-label={spec.description} />;
+  if (spec.type === "number")
+    return (
+      <input
+        type="number"
+        className="param-number"
+        value={value === null || value === undefined ? "" : String(value)}
+        placeholder="not set"
+        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        aria-label={spec.description}
+      />
+    );
+  if (spec.type === "enum")
+    return (
+      <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} aria-label={spec.description}>
+        {(spec.values ?? []).map((v) => (
+          <option key={v} value={v}>
+            {words(v)}
+          </option>
+        ))}
+      </select>
+    );
+  if (spec.type === "field")
+    return <input value={String(value ?? "")} onChange={(e) => onChange(e.target.value || null)} aria-label={spec.description} />;
+  return (
+    <input
+      className={bad ? "param-json invalid" : "param-json"}
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        try {
+          onChange(JSON.parse(text));
+          setBad(false);
+        } catch {
+          setBad(true);
+        }
+      }}
+      aria-label={spec.description}
+      title="JSON, e.g. {&quot;EU&quot;: 40}"
+    />
+  );
+}
+
+function PositionEditor({
+  issue,
+  position,
+  active,
+  actions,
+  onChange,
+}: {
+  issue: CatalogueIssue;
+  position: VotingPosition;
+  active: VotingPosition | undefined;
+  actions: string[];
+  onChange: (p: VotingPosition) => void;
+}) {
+  const changed = JSON.stringify(position) !== JSON.stringify(active);
+  return (
+    <div className={`position-card${changed ? " changed" : ""}`}>
+      <div className="decision-card-head">
+        <strong>{issue.title}</strong>
+        <code className="muted">{issue.issue_id}</code>
+        {changed && <span className="chip">changed</span>}
+      </div>
+      <p className="muted">{issue.description}</p>
+      <div className="position-grid">
+        <label className="field-label">
+          Vote
+          <select value={position.action} onChange={(e) => onChange({ ...position, action: e.target.value })}>
+            {actions.map((a) => (
+              <option key={a} value={a}>
+                {words(a)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field-label">
+          Target
+          <select value={position.vote_target} onChange={(e) => onChange({ ...position, vote_target: e.target.value })}>
+            {issue.vote_targets.map((t) => (
+              <option key={t} value={t}>
+                {words(t)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {Object.entries(issue.parameters).map(([name, spec]) => (
+          <label key={name} className="field-label" title={spec.description}>
+            {words(name)}
+            {spec.unit ? ` (${spec.unit})` : ""}
+            <ParamInput spec={spec} value={position.parameters[name]} onChange={(v) => onChange({ ...position, parameters: { ...position.parameters, [name]: v } })} />
+          </label>
+        ))}
+      </div>
+      <label className="field-label">
+        Rationale (used in vote disclosure)
+        <input value={position.rationale} onChange={(e) => onChange({ ...position, rationale: e.target.value })} />
+      </label>
+    </div>
+  );
+}
+
+export function VotingStudio({ stage, onChanged }: StudioProps) {
+  const { info, error, reload } = usePolicy("house_voting");
+  const [actor, setActor] = useActor();
+  const [catalogue, setCatalogue] = useState<IssueCatalogue | null>(null);
+  const [policy, setPolicy] = useState<VotingPolicy | null>(null);
+  const [baseVersion, setBaseVersion] = useState<number | null>(null);
+  const [category, setCategory] = useState<string>("board");
+  const [preview, setPreview] = useState<VotingPreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api.getIssueCatalogue().then(setCatalogue);
+  }, []);
+  useEffect(() => {
+    if (info && policy === null) {
+      setPolicy(info.active as unknown as VotingPolicy);
+      setBaseVersion(info.active_version);
+    }
+  }, [info, policy]);
+
+  const activePolicy = info?.active as unknown as VotingPolicy | undefined;
+  const activeById = useMemo(() => new Map((activePolicy?.positions ?? []).map((p) => [p.issue_id, p])), [activePolicy]);
+  const changedCount = policy ? policy.positions.filter((p) => JSON.stringify(p) !== JSON.stringify(activeById.get(p.issue_id))).length : 0;
+  const titles = useMemo(() => new Map((catalogue?.issues ?? []).map((i) => [i.issue_id, i.title])), [catalogue]);
+
+  function update(next: VotingPosition) {
+    if (!policy) return;
+    setPolicy({ ...policy, positions: policy.positions.map((p) => (p.issue_id === next.issue_id ? next : p)) });
+  }
+  async function runPreview() {
+    if (!policy) return;
+    setBusy(true);
+    setPreviewError(null);
+    try {
+      setPreview(await api.previewVoting(policy));
+    } catch (err) {
+      setPreviewError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function load(version: number) {
+    setPolicy((await api.getStewardPolicyVersion("house_voting", version)) as unknown as VotingPolicy);
+    setBaseVersion(version);
+    setPreview(null);
+  }
+
+  const issues = (catalogue?.issues ?? []).filter((i) => i.category === category);
+  const positions = new Map((policy?.positions ?? []).map((p) => [p.issue_id, p]));
+  const voteMix = preview
+    ? ["for", "against", "case_by_case", "abstain"].map((v) => ({ vote: v, active: preview.base_votes[v] ?? 0, "this draft": preview.other_votes[v] ?? 0 }))
+    : [];
+
+  return (
+    <>
+      <StudioHeader
+        stage={stage}
+        capabilities={[
+          { label: "Review", ready: true },
+          { label: "Design", ready: true },
+          { label: "Calibrate", ready: true },
+          { label: "Versions", ready: true },
+        ]}
+      />
+      <Section step="Review" title="What the active policy decides">
+        <p className="help-text">The most frequent reasons the active house policy votes against, on the synthetic meeting sample.</p>
+        <DataTable rows={(stage.details[0]?.rows ?? []).map((r) => ({ ...r, issue: titles.get(String(r.issue)) ?? r.issue }))} />
+      </Section>
+      <ActorField actor={actor} onChange={setActor} />
+      {error && <p className="error-text">{error}</p>}
+      <Section step="Design" title="House voting positions">
+        <p className="help-text">
+          One position per catalogue issue: the vote, what it targets, and the thresholds. Each position compiles into a rule of the
+          house voting graph.
+        </p>
+        <p className="muted">
+          Editing {baseVersion === null ? "…" : `a copy of v${baseVersion}`} · {changedCount} position{changedCount === 1 ? "" : "s"} changed
+        </p>
+        <nav className="sub-nav" aria-label="Issue categories">
+          {(catalogue?.categories ?? []).map((c) => (
+            <button key={c} className={c === category ? "nav-tab active" : "nav-tab"} onClick={() => setCategory(c)}>
+              {words(c)}
+            </button>
+          ))}
+        </nav>
+        {policy && catalogue ? (
+          issues.map((issue) => {
+            const position = positions.get(issue.issue_id);
+            return position ? (
+              <PositionEditor
+                key={`${baseVersion}-${issue.issue_id}`}
+                issue={issue}
+                position={position}
+                active={activeById.get(issue.issue_id)}
+                actions={catalogue.position_actions}
+                onChange={update}
+              />
+            ) : null;
+          })
+        ) : (
+          <p className="status-text">Loading…</p>
+        )}
+      </Section>
+      <Section step="Calibrate" title="Back-test against the active policy">
+        <div className="toolbar">
+          <button onClick={runPreview} disabled={!policy || busy}>
+            {busy ? "Running…" : "Run back-test"}
+          </button>
+        </div>
+        {previewError && <p className="error-text">{previewError}</p>}
+        {preview && (
+          <>
+            <p className="muted">
+              {preview.resolutions} resolutions (synthetic sample): this draft changes the expected vote on{" "}
+              <strong>{preview.changed}</strong>.
+            </p>
+            <div className="studio-columns">
+              <div>
+                <h4>Vote mix</h4>
+                <DataTable rows={voteMix} />
+              </div>
+              <div>
+                <h4>Changes by issue</h4>
+                <DataTable
+                  rows={Object.keys({ ...preview.affected_by_issue, ...preview.masked_by_issue }).map((i) => ({
+                    issue: titles.get(i) ?? i,
+                    "votes changed": preview.affected_by_issue[i] ?? 0,
+                    masked: preview.masked_by_issue[i] ?? 0,
+                  }))}
+                  empty="No position change reaches a vote."
+                />
+              </div>
+            </div>
+            <h4>Resolutions whose expected vote changes</h4>
+            <DataTable
+              rows={preview.changed_rows.slice(0, 25).map((r) => ({
+                resolution: r.resolution_id,
+                category: r.category,
+                active: r.base_vote,
+                "this draft": r.other_vote,
+                because: r.issues.map((i) => titles.get(i) ?? i).join(", "),
+              }))}
+              empty="None."
+            />
+            {Object.keys(preview.unused_parameters).length > 0 && (
+              <p className="muted">
+                Not part of any vote rule (preferences or process steps):{" "}
+                {Object.entries(preview.unused_parameters)
+                  .map(([i, ps]) => `${titles.get(i) ?? i}: ${ps.map(words).join(", ")}`)
+                  .join(" · ")}
+              </p>
+            )}
+          </>
+        )}
+      </Section>
+      <Section step="Versions" title="Save and activate">
+        {info && policy && (
+          <VersionsPanel
+            policyId="house_voting"
+            info={info}
+            workingCopy={policy}
+            dirty={changedCount > 0}
+            actor={actor}
+            onSaved={reload}
+            onLoad={load}
+            onActivated={() => {
+              reload();
+              onChanged();
+            }}
+          />
+        )}
+      </Section>
+    </>
+  );
+}
+
+// --- 5. Human checkpoint -------------------------------------------------------------
+
+export function CheckpointStudio({ stage, onChanged }: StudioProps) {
+  const [actor, setActor] = useActor();
+  const escalations = stage.decisions.filter((d): d is EscalationDecisionItem => d.kind === "escalation");
+  const tiers = stage.decisions.filter((d): d is TierChangeItem => d.kind === "tier_change");
+  return (
+    <>
+      <StudioHeader
+        stage={stage}
+        capabilities={[
+          { label: "Review", ready: true },
+          { label: "Decide", ready: true },
+          { label: "Design", ready: false },
+        ]}
+      />
+      <Section step="Decide" title="Decisions waiting">
+        <ActorField actor={actor} onChange={setActor} />
+        {escalations.length === 0 && tiers.length === 0 && <p className="muted">Nothing is waiting for a decision.</p>}
+        {escalations.length > 0 && (
+          <>
+            <h4>Escalations</h4>
+            <EscalationDecisions items={escalations} actor={actor} onDone={onChanged} />
+          </>
+        )}
+        {tiers.length > 0 && <TierDecisions items={tiers} actor={actor} onDone={onChanged} />}
+      </Section>
+      <Section step="Design" title="Checkpoint rules" planned>
+        <Planned
+          items={[
+            "The escalation ladder steps and the highest step each coverage tier may reach.",
+            "The engagement SLA (days without activity before an engagement is flagged).",
+            "Which items always need a second sign-off (e.g. vote sanctions, advocacy outreach).",
+            "Voting intentions and disclosure records to approve (E2, E3), once the voting feed exists.",
+          ]}
+        />
+      </Section>
+    </>
+  );
+}
+
+// --- 6. Tracking ---------------------------------------------------------------------
+
+export function TrackingStudio({ stage }: StudioProps) {
+  return (
+    <>
+      <StudioHeader
+        stage={stage}
+        capabilities={[
+          { label: "Review", ready: true },
+          { label: "Design", ready: false },
+        ]}
+      />
+      <Section step="Review" title="Open engagements by milestone">
+        <DataTable rows={stage.details[0]?.rows ?? []} empty="No open engagements." />
+        <p className="muted">Correspondence and commitments are logged on the Engagement page.</p>
+      </Section>
+      <Section step="Design" title="Milestones and commitment tracking" planned>
+        <Planned
+          items={[
+            "The milestone ladder (identified → contacted → dialogue → response → commitment → verified), configurable per house.",
+            "Commitment deadlines that raise a trigger in stage 1 when they are missed.",
+            "Escalation case studies (E7) from closed escalation histories.",
+          ]}
+        />
+      </Section>
+    </>
+  );
+}
+
+// --- 7. Client policy ----------------------------------------------------------------
+
+export function ClientPicker({
+  streams,
+  active,
+  onChange,
+  onOpen,
+}: {
+  streams: StewardshipStream[];
+  active: string;
+  onChange: (id: string) => void;
+  onOpen: (tab: string) => void;
+}) {
+  const clients = streams.filter((s) => s.kind === "client");
+  return (
+    <div className="toolbar client-picker">
+      {clients.length === 0 ? (
+        <p className="muted">No client streams yet.</p>
+      ) : (
+        <label className="field-label">
+          Client stream
+          <select value={clients.some((c) => c.stream_id === active) ? active : ""} onChange={(e) => onChange(e.target.value)}>
+            <option value="" disabled>
+              Choose a client…
+            </option>
+            {clients.map((c) => (
+              <option key={c.stream_id} value={c.stream_id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <button className="link-button" onClick={() => onOpen("overview")}>
+        + Add a client stream on the overview
+      </button>
+    </div>
+  );
+}
+
+export function ClientPolicyStudio({ stage, streamId, onChanged }: StudioProps & { streamId: string }) {
+  const [actor, setActor] = useActor();
+  const [building, setBuilding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const differences = stage.decisions.filter((d): d is PolicyDifferenceItem => d.kind === "policy_difference");
+  const open = differences.filter((d) => d.decision === null);
+  async function build() {
+    setBuilding(true);
+    setError(null);
+    try {
+      await api.buildStreamPolicy(streamId);
+      onChanged();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBuilding(false);
+    }
+  }
+  return (
+    <>
+      <StudioHeader
+        stage={stage}
+        capabilities={[
+          { label: "Review", ready: true },
+          { label: "Calibrate", ready: true },
+          { label: "Decide", ready: true },
+          { label: "Versions", ready: false },
+        ]}
+      />
+      <Section step="Review · Calibrate · Decide" title="The client's policy against the house policy">
+        <ActorField actor={actor} onChange={setActor} />
+        <p className="muted">
+          {open.length} of {differences.length} differences still to decide. Each shows its back-test effect on the synthetic sample.
+        </p>
+        {stage.can_build && (
+          <div className="toolbar">
+            <button onClick={build} disabled={building}>
+              {building ? "Building…" : "Build the custom policy"}
+            </button>
+          </div>
+        )}
+        {error && <p className="error-text">{error}</p>}
+        {[...open, ...differences.filter((d) => d.decision !== null)].map((item) => (
+          <PolicyDifference key={item.issue_id} item={item} streamId={streamId} actor={actor} onDone={onChanged} />
+        ))}
+      </Section>
+    </>
+  );
+}
+
+// --- 8. Reporting --------------------------------------------------------------------
+
+export function ReportingStudio({ stage }: StudioProps) {
+  return (
+    <>
+      <StudioHeader
+        stage={stage}
+        capabilities={[
+          { label: "Review", ready: true },
+          { label: "Design", ready: false },
+        ]}
+      />
+      <Section step="Design · Construct" title="Reports and disclosure" planned>
+        <Planned
+          items={[
+            "Per-client stewardship report from house truth plus the client's policy, rendered with the Report Builder templates.",
+            "Public vote disclosure (E2): per-meeting records with a mandatory rationale for every vote against management.",
+            "Program proposal and PPT for a client program (Part 5), and escalation case studies (E7), checked against the phrase blocklist (E8).",
+          ]}
+        />
+      </Section>
+    </>
+  );
+}

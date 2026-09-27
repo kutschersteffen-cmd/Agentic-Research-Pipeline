@@ -1161,11 +1161,47 @@ E8 is small and independent, so it can be built at any point. Voting ingestion
 not list, because the current voting tool extracts and casts votes and does not
 ingest them.
 
-## Part 7 — The Stewardship Process page
+## Part 7 — The Steward Workflow page and its stage studios
 
-The app has a **Stewardship Process** page (StewardIQ group): the process of Part 2
-as an interactive flowchart, with its key numbers per stage and the decisions
-waiting for a person.
+The app has a **Steward Workflow** page (StewardIQ group). Its **Overview** tab
+shows the process of Part 2 as an interactive flowchart, with the key numbers
+per stage and the decisions waiting. Every stage then has its own tab, a
+**studio**, where the stage is reviewed, designed, calibrated and decided.
+Clicking a stage in the flowchart opens its studio; the tab shows how many
+decisions are waiting there.
+
+Every studio follows the same pattern, and says in its header which parts are
+available today (✓) and which are designed but not built (○):
+
+| Step | What it means |
+|---|---|
+| Review | The stage's numbers and underlying data, each labelled live / synthetic sample / not built |
+| Design | Edit the stage's rules or policy as a working copy |
+| Calibrate | Run the working copy against the active version and see exactly what would change |
+| Versions | Save the working copy as a new, unchangeable version; a second person activates it |
+| Decide | The human decisions this stage owns |
+
+| Studio | Built today | Designed, not built |
+|---|---|---|
+| 1 Monitoring | Companies in scope with position and data completeness | Monitoring rules (triggers) and their preview |
+| 2 Selection | Coverage rules in the rule-graph editor; preview of tier moves against the active rules; versions | — |
+| 3 Drafting | Stage numbers; drafting stays on the Engagement page | E6 interaction tagging, E8 phrase blocklist, templates |
+| 4 Voting | House voting positions editor (per issue: vote, target, thresholds, rationale); back-test against the active policy; versions | — |
+| 5 Checkpoint | Escalation decisions and tier confirmations | Ladder, tier caps, SLA and sign-off rules as configuration |
+| 6 Tracking | Open engagements by milestone | Milestone ladder configuration, missed-commitment triggers, E7 |
+| 7 Client policy | Per client stream: policy review, decisions, build | Versioning of client policies |
+| 8 Reporting | Built-policy status | Client reports, E2 disclosure, program proposal and PPT |
+
+**Versioned house policies** (`backend/arp/stewardship/policies.py`). The coverage
+rules and the house voting policy are versioned. Version 0 is the bundled draft.
+Saving validates the working copy (it must run, and a voting policy needs exactly
+one valid position per catalogue issue) and stores an immutable version. Nothing
+changes until a named person activates it, and **four-eyes** applies: the author of
+a version cannot activate it. Activations are an append-only log, so rolling back
+is activating an earlier version. The flow, the tier proposals and the client
+policy reviews always use the active versions: activating a stricter voting policy
+immediately moves the stage 4 numbers, and activating new coverage rules puts the
+resulting tier changes into the stage 5 queue.
 
 - **Streams.** One tab for the *House program*, and one per *client stream*. A
   client stream is created from the client's envisioned voting policy (a
@@ -1222,10 +1258,10 @@ waiting for a person.
   history is live. Sample company ids do not match live engagement records yet,
   so live history only counts once real holdings are connected.
 
-Implementation: `backend/arp/stewardship/process.py` (streams and the flow),
+Implementation: `backend/arp/stewardship/process.py` (streams and the flow), `policies.py` (versions and previews),
 `backend/arp/api/routers/stewardship.py` (`/api/stewardship/...`),
-`frontend/src/pages/StewardshipProcess.tsx`; tests in
-`backend/tests/test_api_stewardship.py`. Client streams are stored as JSON under
+`frontend/src/pages/StewardWorkflow.tsx` and `frontend/src/pages/steward/` (flowchart, studios, decisions); tests in
+`backend/tests/test_api_stewardship.py`, `test_stewardship_tiers.py`, `test_stewardship_policies.py`. Client streams are stored as JSON under
 `stewardship_streams/` (`ARP_STEWARDSHIP_STREAMS_DIR`).
 
 ## Open points
