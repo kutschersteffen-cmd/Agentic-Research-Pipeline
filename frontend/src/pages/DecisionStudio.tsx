@@ -18,6 +18,7 @@ import type {
   AuditEntry,
 } from "../types";
 import { activatable } from "../lib/activatable";
+import { newDimension } from "../lib/dimensions";
 import { TIER_STARTER } from "../lib/ruleGraphs";
 
 // The canvas pulls in the JDM editor and, on first use, the 14 MB engine:
@@ -193,11 +194,15 @@ export function DecisionStudio() {
     };
     const proposal = view?.proposals.find((p) => p.column === column);
     if (role === "criterion") {
+      // Its own dimension, not the first one: joining an unrelated group
+      // would split that group's weight. The Mechanism tab can move it.
+      const dimension = newDimension(next, column);
+      next.dimensions = [...next.dimensions, dimension];
       next.criteria = [
         ...next.criteria,
         {
           column,
-          dimension_id: config.dimensions[0]?.id ?? "d0",
+          dimension_id: dimension.id,
           weight: 1,
           enabled: true,
           direction: proposal?.direction ?? "higher",

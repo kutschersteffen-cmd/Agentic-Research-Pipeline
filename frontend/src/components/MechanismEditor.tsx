@@ -1,3 +1,4 @@
+import { newDimension } from "../lib/dimensions";
 import type { ColumnProfile, MechanismConfig, MissingPolicy, NormMethod, WeightPreset } from "../types";
 
 const NORMS: { value: NormMethod; label: string; note: string }[] = [
@@ -38,6 +39,18 @@ export function MechanismEditor({
     set({ criteria: config.criteria.map((c) => (c.column === column ? { ...c, ...patch } : c)) });
   const setDimension = (id: string, patch: Partial<MechanismConfig["dimensions"][number]>) =>
     set({ dimensions: config.dimensions.map((d) => (d.id === id ? { ...d, ...patch } : d)) });
+
+  // Moving a criterion is how a grouping the correlations got wrong is
+  // corrected; "new" gives it a dimension of its own.
+  const moveCriterion = (column: string, target: string) => {
+    if (target !== "new") return setCriterion(column, { dimension_id: target });
+    const dimension = newDimension(config, column);
+    set({
+      dimensions: [...config.dimensions, dimension],
+      criteria: config.criteria.map((c) => (c.column === column ? { ...c, dimension_id: dimension.id } : c)),
+    });
+  };
+  const removeDimension = (id: string) => set({ dimensions: config.dimensions.filter((d) => d.id !== id) });
 
   const note = (options: { value: string; note: string }[], value: string) => options.find((o) => o.value === value)?.note;
 
@@ -159,11 +172,17 @@ export function MechanismEditor({
                 <span className="muted">
                   {members.length} {members.length === 1 ? "criterion" : "criteria"}
                 </span>
+                {members.length === 0 && (
+                  <button className="link-button" onClick={() => removeDimension(dimension.id)}>
+                    Remove empty dimension
+                  </button>
+                )}
               </div>
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>Criterion</th>
+                    <th>Dimension</th>
                     <th>On</th>
                     <th>Direction</th>
                     <th>Weight</th>
@@ -174,6 +193,20 @@ export function MechanismEditor({
                   {members.map((criterion) => (
                     <tr key={criterion.column}>
                       <td>{criterion.column}</td>
+                      <td>
+                        <select
+                          aria-label={`Dimension of ${criterion.column}`}
+                          value={criterion.dimension_id}
+                          onChange={(e) => moveCriterion(criterion.column, e.target.value)}
+                        >
+                          {config.dimensions.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.name}
+                            </option>
+                          ))}
+                          <option value="new">+ New dimension</option>
+                        </select>
+                      </td>
                       <td>
                         <input
                           type="checkbox"
