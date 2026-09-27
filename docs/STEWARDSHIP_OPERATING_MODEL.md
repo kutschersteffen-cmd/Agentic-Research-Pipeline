@@ -1026,9 +1026,7 @@ The deterministic part of the review (align, classify, assess, register, decide,
 implemented in `backend/arp/stewardship/policy_review.py`, with tests in
 `backend/tests/test_policy_review.py`. [`POLICY_REVIEW_EXAMPLE.md`](POLICY_REVIEW_EXAMPLE.md)
 shows it run on a fictional client policy against the draft house policy, through
-to example decisions and the built custom policy. Impact
-per difference (resolutions affected) is not computed yet, because it needs
-ingested voting history.
+to example decisions and the built custom policy.
 
 #### Executable policy graph
 A policy's positions compile into a ZEN (GoRules JDM) graph for the
@@ -1080,6 +1078,35 @@ months without progress). The full contract is in the module docstring.
 **Example.** For a nomination committee chair at a company with a 60% independent
 board, the house graph expects **for** (threshold 50%), and the built client graph
 expects **against** (66%), decided by `board.independence`.
+
+**Checked in the rule editor.** The generated house graph was loaded into the
+app's `RuleGraphEditor` in a headless browser. All three nodes display. The votes
+table opens with one editable row per rule and the position's rationale in its
+Description column. The live preview, computed by the in-browser ZEN build,
+returned the same expected votes as the Python engine on the sample resolutions.
+
+#### Back-test and impact
+`backend/arp/stewardship/backtest.py` builds a context for every resolution in a
+set of meetings, runs two policies' graphs over them, and attributes every changed
+vote to the issues whose rules fired differently:
+
+- **votes changed:** resolutions whose expected vote changes because of the issue;
+- **masked:** resolutions where the issue's rule fires differently but another
+  rule already decides the vote. A difference with many masked hits matters more
+  once other red flags are fixed.
+
+In the review, `--sample <meetings.json>` back-tests the **envisioned** policy
+(every client difference adopted) against the house policy, and fills the
+*Impact* dimension of each difference, which was the one dimension missing until
+now. Tests are in `backend/tests/test_policy_backtest.py`.
+
+There is no real meeting data yet, so
+[`sample_meetings.json`](../backend/arp/stewardship/data/examples/sample_meetings.json)
+is **synthetic**: 12 fictional companies and about 170 resolutions, with values
+drawn so that the draft house policy votes against about 20% of resolutions, and
+about 10% of company values missing. The counts it produces show that the
+mechanism works; they are not an estimate for any real portfolio. The same code
+runs unchanged on ingested meetings once the voting feed exists.
 
 #### Deterministic vs AI
 Reading the client's text into positions and wording `unclear` questions use the
@@ -1156,4 +1183,5 @@ ingest them.
     review, and the house positions still have to be written, as there is no written
     house voting policy yet.
 9. The agenda feed (E3): source and lead time; N business days for intentions.
+   The same feed, plus past seasons, replaces the synthetic back-test sample (5.7).
 10. The E8 phrase blocklist: an initial list.

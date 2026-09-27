@@ -1,0 +1,2723 @@
+{
+ "note": "SYNTHETIC, fictional data for exercising the policy graphs and back-tests. Company names, values and meetings are invented; about 10% of company values are deliberately missing.",
+ "generated_with_seed": 7,
+ "issuers": [
+  {
+   "issuer_id": "SYN01",
+   "name": "Synthetic Company 01",
+   "region": "EU",
+   "sector": "Industrials",
+   "fields": {
+    "audit.auditor_tenure_years": 3,
+    "audit.material_weakness": null,
+    "audit.non_audit_fee_ratio": 0.1,
+    "audit.qualified_opinion": false,
+    "audit.tender_disclosed": null,
+    "climate.capex_alignment_disclosed": true,
+    "climate.high_emitter": false,
+    "climate.interim_target": true,
+    "climate.net_zero_target": true,
+    "climate.sbti_validated": null,
+    "climate.scope1_2_disclosed": false,
+    "climate.scope3_disclosed": true,
+    "climate.tcfd_aligned": true,
+    "controversy.governance_severity": 2,
+    "controversy.human_rights_severity": 2,
+    "controversy.max_severity": 1,
+    "controversy.ungc_status": "pass",
+    "financial.payout_ratio_pct": 60,
+    "governance.audit_committee_independence_pct": 70,
+    "governance.average_board_tenure_years": 8,
+    "governance.board_female_pct": 42,
+    "governance.board_independence_pct": 80,
+    "governance.chair_ceo_combined": false,
+    "governance.chair_is_former_ceo": false,
+    "governance.controlled_company": false,
+    "governance.dual_class": true,
+    "governance.dual_class_sunset_years": 10,
+    "governance.longest_independent_tenure_years": 9,
+    "governance.majority_voting": true,
+    "governance.nomination_committee_independence_pct": 55,
+    "governance.open_investigation": false,
+    "governance.poison_pill_unapproved": false,
+    "governance.remuneration_committee_independence_pct": null,
+    "governance.staggered_board": false,
+    "governance.takeover_period": false,
+    "nature.high_impact_sector": false,
+    "nature.tnfd_aligned": false,
+    "pay.ceo_pay_ratio": 90,
+    "pay.ceo_peer_percentile": 43,
+    "pay.climate_metric_included": true,
+    "pay.discretion_explained": false,
+    "pay.discretion_used": false,
+    "pay.esg_metric_included": true,
+    "pay.esg_metric_weight_pct": 15,
+    "pay.long_term_incentive_pct": 60,
+    "pay.misalignment_years": 1,
+    "pay.nonexec_fee_change_pct": 0,
+    "pay.nonexec_performance_pay": false,
+    "pay.plan_dilution_pct": null,
+    "pay.plan_discount_pct": 0,
+    "pay.repricing_allowed": null,
+    "pay.severance_multiple": 2,
+    "pay.single_trigger_vesting": false,
+    "pay.targets_disclosed": true,
+    "pay.vesting_period_years": 4,
+    "region": false,
+    "score.clti": 81,
+    "score.nature": 61,
+    "score.transition_plan": 71,
+    "voting.dissent_addressed": true,
+    "voting.majority_proposal_not_implemented": null,
+    "voting.prior_year_dissent_pct": 6
+   }
+  },
+  {
+   "issuer_id": "SYN02",
+   "name": "Synthetic Company 02",
+   "region": "EU",
+   "sector": "Utilities",
+   "fields": {
+    "audit.auditor_tenure_years": 3,
+    "audit.material_weakness": false,
+    "audit.non_audit_fee_ratio": 0.6,
+    "audit.qualified_opinion": false,
+    "audit.tender_disclosed": true,
+    "climate.capex_alignment_disclosed": true,
+    "climate.high_emitter": true,
+    "climate.interim_target": true,
+    "climate.net_zero_target": true,
+    "climate.sbti_validated": true,
+    "climate.scope1_2_disclosed": true,
+    "climate.scope3_disclosed": null,
+    "climate.tcfd_aligned": true,
+    "controversy.governance_severity": 3,
+    "controversy.human_rights_severity": 2,
+    "controversy.max_severity": null,
+    "controversy.ungc_status": "pass",
+    "financial.payout_ratio_pct": 45,
+    "governance.audit_committee_independence_pct": 60,
+    "governance.average_board_tenure_years": 8,
+    "governance.board_female_pct": 45,
+    "governance.board_independence_pct": 100,
+    "governance.chair_ceo_combined": true,
+    "governance.chair_is_former_ceo": false,
+    "governance.controlled_company": false,
+    "governance.dual_class": false,
+    "governance.dual_class_sunset_years": null,
+    "governance.longest_independent_tenure_years": null,
+    "governance.majority_voting": true,
+    "governance.nomination_committee_independence_pct": 100,
+    "governance.open_investigation": false,
+    "governance.poison_pill_unapproved": false,
+    "governance.remuneration_committee_independence_pct": 100,
+    "governance.staggered_board": false,
+    "governance.takeover_period": false,
+    "nature.high_impact_sector": true,
+    "nature.tnfd_aligned": true,
+    "pay.ceo_pay_ratio": null,
+    "pay.ceo_peer_percentile": 60,
+    "pay.climate_metric_included": true,
+    "pay.discretion_explained": null,
+    "pay.discretion_used": false,
+    "pay.esg_metric_included": true,
+    "pay.esg_metric_weight_pct": 0,
+    "pay.long_term_incentive_pct": 55,
+    "pay.misalignment_years": 0,
+    "pay.nonexec_fee_change_pct": 5,
+    "pay.nonexec_performance_pay": false,
+    "pay.plan_dilution_pct": 5,
+    "pay.plan_discount_pct": 0,
+    "pay.repricing_allowed": false,
+    "pay.severance_multiple": 1.5,
+    "pay.single_trigger_vesting": false,
+    "pay.targets_disclosed": null,
+    "pay.vesting_period_years": 2,
+    "region": false,
+    "score.clti": 92,
+    "score.nature": 28,
+    "score.transition_plan": 27,
+    "voting.dissent_addressed": true,
+    "voting.majority_proposal_not_implemented": false,
+    "voting.prior_year_dissent_pct": 3
+   }
+  },
+  {
+   "issuer_id": "SYN03",
+   "name": "Synthetic Company 03",
+   "region": "US",
+   "sector": "Information Technology",
+   "fields": {
+    "audit.auditor_tenure_years": 3,
+    "audit.material_weakness": false,
+    "audit.non_audit_fee_ratio": 0.1,
+    "audit.qualified_opinion": false,
+    "audit.tender_disclosed": true,
+    "climate.capex_alignment_disclosed": true,
+    "climate.high_emitter": false,
+    "climate.interim_target": true,
+    "climate.net_zero_target": null,
+    "climate.sbti_validated": null,
+    "climate.scope1_2_disclosed": true,
+    "climate.scope3_disclosed": true,
+    "climate.tcfd_aligned": true,
+    "controversy.governance_severity": 3,
+    "controversy.human_rights_severity": 2,
+    "controversy.max_severity": 2,
+    "controversy.ungc_status": "pass",
+    "financial.payout_ratio_pct": 120,
+    "governance.audit_committee_independence_pct": 45,
+    "governance.average_board_tenure_years": 6,
+    "governance.board_female_pct": 33,
+    "governance.board_independence_pct": 80,
+    "governance.chair_ceo_combined": null,
+    "governance.chair_is_former_ceo": false,
+    "governance.controlled_company": false,
+    "governance.dual_class": null,
+    "governance.dual_class_sunset_years": null,
+    "governance.longest_independent_tenure_years": 16,
+    "governance.majority_voting": null,
+    "governance.nomination_committee_independence_pct": 60,
+    "governance.open_investigation": true,
+    "governance.poison_pill_unapproved": false,
+    "governance.remuneration_committee_independence_pct": 40,
+    "governance.staggered_board": false,
+    "governance.takeover_period": null,
+    "nature.high_impact_sector": false,
+    "nature.tnfd_aligned": true,
+    "pay.ceo_pay_ratio": 260,
+    "pay.ceo_peer_percentile": 61,
+    "pay.climate_metric_included": true,
+    "pay.discretion_explained": true,
+    "pay.discretion_used": false,
+    "pay.esg_metric_included": true,
+    "pay.esg_metric_weight_pct": 5,
+    "pay.long_term_incentive_pct": 70,
+    "pay.misalignment_years": 2,
+    "pay.nonexec_fee_change_pct": 5,
+    "pay.nonexec_performance_pay": false,
+    "pay.plan_dilution_pct": null,
+    "pay.plan_discount_pct": null,
+    "pay.repricing_allowed": false,
+    "pay.severance_multiple": 1,
+    "pay.single_trigger_vesting": false,
+    "pay.targets_disclosed": true,
+    "pay.vesting_period_years": null,
+    "region": false,
+    "score.clti": 78,
+    "score.nature": null,
+    "score.transition_plan": 70,
+    "voting.dissent_addressed": true,
+    "voting.majority_proposal_not_implemented": false,
+    "voting.prior_year_dissent_pct": 6
+   }
+  },
+  {
+   "issuer_id": "SYN04",
+   "name": "Synthetic Company 04",
+   "region": "US",
+   "sector": "Energy",
+   "fields": {
+    "audit.auditor_tenure_years": 6,
+    "audit.material_weakness": false,
+    "audit.non_audit_fee_ratio": 0.4,
+    "audit.qualified_opinion": false,
+    "audit.tender_disclosed": true,
+    "climate.capex_alignment_disclosed": true,
+    "climate.high_emitter": true,
+    "climate.interim_target": true,
+    "climate.net_zero_target": true,
+    "climate.sbti_validated": null,
+    "climate.scope1_2_disclosed": true,
+    "climate.scope3_disclosed": null,
+    "climate.tcfd_aligned": true,
+    "controversy.governance_severity": null,
+    "controversy.human_rights_severity": 1,
+    "controversy.max_severity": 5,
+    "controversy.ungc_status": "pass",
+    "financial.payout_ratio_pct": 60,
+    "governance.audit_committee_independence_pct": 55,
+    "governance.average_board_tenure_years": 8,
+    "governance.board_female_pct": 33,
+    "governance.board_independence_pct": 100,
+    "governance.chair_ceo_combined": false,
+    "governance.chair_is_former_ceo": true,
+    "governance.controlled_company": false,
+    "governance.dual_class": false,
+    "governance.dual_class_sunset_years": 10,
+    "governance.longest_independent_tenure_years": 11,
+    "governance.majority_voting": true,
+    "governance.nomination_committee_independence_pct": 60,
+    "governance.open_investigation": false,
+    "governance.poison_pill_unapproved": false,
+    "governance.remuneration_committee_independence_pct": 70,
+    "governance.staggered_board": false,
+    "governance.takeover_period": false,
+    "nature.high_impact_sector": false,
+    "nature.tnfd_aligned": true,
+    "pay.ceo_pay_ratio": 140,
+    "pay.ceo_peer_percentile": 31,
+    "pay.climate_metric_included": true,
+    "pay.discretion_explained": false,
+    "pay.discretion_used": false,
+    "pay.esg_metric_included": null,
+    "pay.esg_metric_weight_pct": 10,
+    "pay.long_term_incentive_pct": 70,
+    "pay.misalignment_years": 0,
+    "pay.nonexec_fee_change_pct": 3,
+    "pay.nonexec_performance_pay": false,
+    "pay.plan_dilution_pct": 3,
+    "pay.plan_discount_pct": 0,
+    "pay.repricing_allowed": false,
+    "pay.severance_multiple": null,
+    "pay.single_trigger_vesting": false,
+    "pay.targets_disclosed": true,
+    "pay.vesting_period_years": 3,
+    "region": false,
+    "score.clti": 92,
+    "score.nature": 68,
+    "score.transition_plan": null,
+    "voting.dissent_addressed": false,
+    "voting.majority_proposal_not_implemented": false,
+    "voting.prior_year_dissent_pct": null
+   }
+  },
+  {
+   "issuer_id": "SYN05",
+   "name": "Synthetic Company 05",
+   "region": "UK",
+   "sector": "Materials",
+   "fields": {
+    "audit.auditor_tenure_years": 12,
+    "audit.material_weakness": false,
+    "audit.non_audit_fee_ratio": 0.1,
+    "audit.qualified_opinion": false,
+    "audit.tender_disclosed": true,
+    "climate.capex_alignment_disclosed": true,
+    "climate.high_emitter": true,
+    "climate.interim_target": null,
+    "climate.net_zero_target": true,
+    "climate.sbti_validated": true,
+    "climate.scope1_2_disclosed": true,
+    "climate.scope3_disclosed": true,
+    "climate.tcfd_aligned": true,
+    "controversy.governance_severity": null,
+    "controversy.human_rights_severity": 2,
+    "controversy.max_severity": 1,
+    "controversy.ungc_status": null,
+    "financial.payout_ratio_pct": 30,
+    "governance.audit_committee_independence_pct": 80,
+    "governance.average_board_tenure_years": 6,
+    "governance.board_female_pct": null,
+    "governance.board_independence_pct": 100,
+    "governance.chair_ceo_combined": false,
+    "governance.chair_is_former_ceo": false,
+    "governance.controlled_company": null,
+    "governance.dual_class": false,
+    "governance.dual_class_sunset_years": null,
+    "governance.longest_independent_tenure_years": 4,
+    "governance.majority_voting": true,
+    "governance.nomination_committee_independence_pct": 70,
+    "governance.open_investigation": false,
+    "governance.poison_pill_unapproved": null,
+    "governance.remuneration_committee_independence_pct": 70,
+    "governance.staggered_board": false,
+    "governance.takeover_period": false,
+    "nature.high_impact_sector": true,
+    "nature.tnfd_aligned": true,
+    "pay.ceo_pay_ratio": 180,
+    "pay.ceo_peer_percentile": 46,
+    "pay.climate_metric_included": true,
+    "pay.discretion_explained": false,
+    "pay.discretion_used": null,
+    "pay.esg_metric_included": true,
+    "pay.esg_metric_weight_pct": 5,
+    "pay.long_term_incentive_pct": 60,
+    "pay.misalignment_years": 2,
+    "pay.nonexec_fee_change_pct": null,
+    "pay.nonexec_performance_pay": false,
+    "pay.plan_dilution_pct": 12,
+    "pay.plan_discount_pct": 0,
+    "pay.repricing_allowed": false,
+    "pay.severance_multiple": 1,
+    "pay.single_trigger_vesting": false,
+    "pay.targets_disclosed": true,
+    "pay.vesting_period_years": 4,
+    "region": false,
+    "score.clti": 95,
+    "score.nature": 47,
+    "score.transition_plan": 82,
+    "voting.dissent_addressed": true,
+    "voting.majority_proposal_not_implemented": false,
+    "voting.prior_year_dissent_pct": 6
+   }
+  },
+  {
+   "issuer_id": "SYN06",
+   "name": "Synthetic Company 06",
+   "region": "JP",
+   "sector": "Consumer Discretionary",
+   "fields": {
+    "audit.auditor_tenure_years": 12,
+    "audit.material_weakness": false,
+    "audit.non_audit_fee_ratio": 0.4,
+    "audit.qualified_opinion": false,
+    "audit.tender_disclosed": true,
+    "climate.capex_alignment_disclosed": true,
+    "climate.high_emitter": false,
+    "climate.interim_target": true,
+    "climate.net_zero_target": true,
+    "climate.sbti_validated": true,
+    "climate.scope1_2_disclosed": false,
+    "climate.scope3_disclosed": true,
+    "climate.tcfd_aligned": true,
+    "controversy.governance_severity": 2,
+    "controversy.human_rights_severity": 4,
+    "controversy.max_severity": 1,
+    "controversy.ungc_status": "watchlist",
+    "financial.payout_ratio_pct": 60,
+    "governance.audit_committee_independence_pct": 55,
+    "governance.average_board_tenure_years": 4,
+    "governance.board_female_pct": 33,
+    "governance.board_independence_pct": 55,
+    "governance.chair_ceo_combined": false,
+    "governance.chair_is_former_ceo": null,
+    "governance.controlled_company": false,
+    "governance.dual_class": false,
+    "governance.dual_class_sunset_years": 10,
+    "governance.longest_independent_tenure_years": 11,
+    "governance.majority_voting": true,
+    "governance.nomination_committee_independence_pct": 80,
+    "governance.open_investigation": false,
+    "governance.poison_pill_unapproved": false,
+    "governance.remuneration_committee_independence_pct": 55,
+    "governance.staggered_board": false,
+    "governance.takeover_period": false,
+    "nature.high_impact_sector": false,
+    "nature.tnfd_aligned": true,
+    "pay.ceo_pay_ratio": 180,
+    "pay.ceo_peer_percentile": 58,
+    "pay.climate_metric_included": false,
+    "pay.discretion_explained": false,
+    "pay.discretion_used": false,
+    "pay.esg_metric_included": true,
+    "pay.esg_metric_weight_pct": 15,
+    "pay.long_term_incentive_pct": 60,
+    "pay.misalignment_years": 2,
+    "pay.nonexec_fee_change_pct": 15,
+    "pay.nonexec_performance_pay": null,
+    "pay.plan_dilution_pct": 8,
+    "pay.plan_discount_pct": null,
+    "pay.repricing_allowed": false,
+    "pay.severance_multiple": 1,
+    "pay.single_trigger_vesting": false,
+    "pay.targets_disclosed": true,
+    "pay.vesting_period_years": 4,
+    "region": false,
+    "score.clti": 38,
+    "score.nature": null,
+    "score.transition_plan": 42,
+    "voting.dissent_addressed": true,
+    "voting.majority_proposal_not_implemented": false,
+    "voting.prior_year_dissent_pct": 6
+   }
+  },
+  {
+   "issuer_id": "SYN07",
+   "name": "Synthetic Company 07",
+   "region": "EU",
+   "sector": "Financials",
+   "fields": {
+    "audit.auditor_tenure_years": 6,
+    "audit.material_weakness": false,
+    "audit.non_audit_fee_ratio": 0.4,
+    "audit.qualified_opinion": true,
+    "audit.tender_disclosed": true,
+    "climate.capex_alignment_disclosed": true,
+    "climate.high_emitter": false,
+    "climate.interim_target": true,
+    "climate.net_zero_target": false,
+    "climate.sbti_validated": true,
+    "climate.scope1_2_disclosed": true,
+    "climate.scope3_disclosed": true,
+    "climate.tcfd_aligned": true,
+    "controversy.governance_severity": null,
+    "controversy.human_rights_severity": null,
+    "controversy.max_severity": null,
+    "controversy.ungc_status": "pass",
+    "financial.payout_ratio_pct": null,
+    "governance.audit_committee_independence_pct": 60,
+    "governance.average_board_tenure_years": 8,
+    "governance.board_female_pct": 36,
+    "governance.board_independence_pct": 40,
+    "governance.chair_ceo_combined": false,
+    "governance.chair_is_former_ceo": false,
+    "governance.controlled_company": false,
+    "governance.dual_class": false,
+    "governance.dual_class_sunset_years": null,
+    "governance.longest_independent_tenure_years": 7,
+    "governance.majority_voting": true,
+    "governance.nomination_committee_independence_pct": 70,
+    "governance.open_investigation": false,
+    "governance.poison_pill_unapproved": false,
+    "governance.remuneration_committee_independence_pct": 70,
+    "governance.staggered_board": false,
+    "governance.takeover_period": false,
+    "nature.high_impact_sector": false,
+    "nature.tnfd_aligned": true,
+    "pay.ceo_pay_ratio": 90,
+    "pay.ceo_peer_percentile": 86,
+    "pay.climate_metric_included": true,
+    "pay.discretion_explained": false,
+    "pay.discretion_used": false,
+    "pay.esg_metric_included": true,
+    "pay.esg_metric_weight_pct": 25,
+    "pay.long_term_incentive_pct": 60,
+    "pay.misalignment_years": 1,
+    "pay.nonexec_fee_change_pct": 5,
+    "pay.nonexec_performance_pay": null,
+    "pay.plan_dilution_pct": 3,
+    "pay.plan_discount_pct": 0,
+    "pay.repricing_allowed": false,
+    "pay.severance_multiple": null,
+    "pay.single_trigger_vesting": null,
+    "pay.targets_disclosed": true,
+    "pay.vesting_period_years": 3,
+    "region": false,
+    "score.clti": 78,
+    "score.nature": 18,
+    "score.transition_plan": 59,
+    "voting.dissent_addressed": true,
+    "voting.majority_proposal_not_implemented": true,
+    "voting.prior_year_dissent_pct": 10
+   }
+  },
+  {
+   "issuer_id": "SYN08",
+   "name": "Synthetic Company 08",
+   "region": "US",
+   "sector": "Health Care",
+   "fields": {
+    "audit.auditor_tenure_years": 3,
+    "audit.material_weakness": false,
+    "audit.non_audit_fee_ratio": 0.3,
+    "audit.qualified_opinion": false,
+    "audit.tender_disclosed": true,
+    "climate.capex_alignment_disclosed": null,
+    "climate.high_emitter": false,
+    "climate.interim_target": true,
+    "climate.net_zero_target": true,
+    "climate.sbti_validated": true,
+    "climate.scope1_2_disclosed": true,
+    "climate.scope3_disclosed": true,
+    "climate.tcfd_aligned": true,
+    "controversy.governance_severity": 2,
+    "controversy.human_rights_severity": 2,
+    "controversy.max_severity": 2,
+    "controversy.ungc_status": "pass",
+    "financial.payout_ratio_pct": 45,
+    "governance.audit_committee_independence_pct": 100,
+    "governance.average_board_tenure_years": 4,
+    "governance.board_female_pct": 42,
+    "governance.board_independence_pct": 60,
+    "governance.chair_ceo_combined": false,
+    "governance.chair_is_former_ceo": false,
+    "governance.controlled_company": false,
+    "governance.dual_class": false,
+    "governance.dual_class_sunset_years": 5,
+    "governance.longest_independent_tenure_years": 4,
+    "governance.majority_voting": true,
+    "governance.nomination_committee_independence_pct": 45,
+    "governance.open_investigation": false,
+    "governance.poison_pill_unapproved": false,
+    "governance.remuneration_committee_independence_pct": 80,
+    "governance.staggered_board": null,
+    "governance.takeover_period": false,
+    "nature.high_impact_sector": false,
+    "nature.tnfd_aligned": true,
+    "pay.ceo_pay_ratio": 400,
+    "pay.ceo_peer_percentile": 74,
+    "pay.climate_metric_included": true,
+    "pay.discretion_explained": false,
+    "pay.discretion_used": false,
+    "pay.esg_metric_included": true,
+    "pay.esg_metric_weight_pct": 15,
+    "pay.long_term_incentive_pct": 60,
+    "pay.misalignment_years": 0,
+    "pay.nonexec_fee_change_pct": 5,
+    "pay.nonexec_performance_pay": false,
+    "pay.plan_dilution_pct": 3,
+    "pay.plan_discount_pct": 0,
+    "pay.repricing_allowed": null,
+    "pay.severance_multiple": 1,
+    "pay.single_trigger_vesting": false,
+    "pay.targets_disclosed": true,
+    "pay.vesting_period_years": 5,
+    "region": false,
+    "score.clti": 68,
+    "score.nature": 33,
+    "score.transition_plan": 25,
+    "voting.dissent_addressed": true,
+    "voting.majority_proposal_not_implemented": false,
+    "voting.prior_year_dissent_pct": 25
+   }
+  },
+  {
+   "issuer_id": "SYN09",
+   "name": "Synthetic Company 09",
+   "region": "UK",
+   "sector": "Energy",
+   "fields": {
+    "audit.auditor_tenure_years": null,
+    "audit.material_weakness": false,
+    "audit.non_audit_fee_ratio": 0.3,
+    "audit.qualified_opinion": true,
+    "audit.tender_disclosed": null,
+    "climate.capex_alignment_disclosed": true,
+    "climate.high_emitter": true,
+    "climate.interim_target": true,
+    "climate.net_zero_target": true,
+    "climate.sbti_validated": true,
+    "climate.scope1_2_disclosed": true,
+    "climate.scope3_disclosed": true,
+    "climate.tcfd_aligned": true,
+    "controversy.governance_severity": 2,
+    "controversy.human_rights_severity": 1,
+    "controversy.max_severity": 1,
+    "controversy.ungc_status": "pass",
+    "financial.payout_ratio_pct": 30,
+    "governance.audit_committee_independence_pct": 80,
+    "governance.average_board_tenure_years": 8,
+    "governance.board_female_pct": 28,
+    "governance.board_independence_pct": 70,
+    "governance.chair_ceo_combined": false,
+    "governance.chair_is_former_ceo": false,
+    "governance.controlled_company": null,
+    "governance.dual_class": false,
+    "governance.dual_class_sunset_years": null,
+    "governance.longest_independent_tenure_years": 9,
+    "governance.majority_voting": true,
+    "governance.nomination_committee_independence_pct": 60,
+    "governance.open_investigation": null,
+    "governance.poison_pill_unapproved": false,
+    "governance.remuneration_committee_independence_pct": 70,
+    "governance.staggered_board": false,
+    "governance.takeover_period": false,
+    "nature.high_impact_sector": false,
+    "nature.tnfd_aligned": false,
+    "pay.ceo_pay_ratio": 140,
+    "pay.ceo_peer_percentile": 62,
+    "pay.climate_metric_included": true,
+    "pay.discretion_explained": false,
+    "pay.discretion_used": false,
+    "pay.esg_metric_included": true,
+    "pay.esg_metric_weight_pct": 0,
+    "pay.long_term_incentive_pct": 45,
+    "pay.misalignment_years": 4,
+    "pay.nonexec_fee_change_pct": 15,
+    "pay.nonexec_performance_pay": false,
+    "pay.plan_dilution_pct": 8,
+    "pay.plan_discount_pct": 0,
+    "pay.repricing_allowed": false,
+    "pay.severance_multiple": 1,
+    "pay.single_trigger_vesting": false,
+    "pay.targets_disclosed": true,
+    "pay.vesting_period_years": 2,
+    "region": false,
+    "score.clti": 48,
+    "score.nature": 14,
+    "score.transition_plan": 65,
+    "voting.dissent_addressed": true,
+    "voting.majority_proposal_not_implemented": false,
+    "voting.prior_year_dissent_pct": 6
+   }
+  },
+  {
+   "issuer_id": "SYN10",
+   "name": "Synthetic Company 10",
+   "region": "JP",
+   "sector": "Materials",
+   "fields": {
+    "audit.auditor_tenure_years": 12,
+    "audit.material_weakness": false,
+    "audit.non_audit_fee_ratio": 0.4,
+    "audit.qualified_opinion": false,
+    "audit.tender_disclosed": true,
+    "climate.capex_alignment_disclosed": true,
+    "climate.high_emitter": true,
+    "climate.interim_target": true,
+    "climate.net_zero_target": true,
+    "climate.sbti_validated": true,
+    "climate.scope1_2_disclosed": true,
+    "climate.scope3_disclosed": true,
+    "climate.tcfd_aligned": true,
+    "controversy.governance_severity": 2,
+    "controversy.human_rights_severity": 2,
+    "controversy.max_severity": 2,
+    "controversy.ungc_status": "pass",
+    "financial.payout_ratio_pct": 45,
+    "governance.audit_committee_independence_pct": 55,
+    "governance.average_board_tenure_years": 8,
+    "governance.board_female_pct": 45,
+    "governance.board_independence_pct": 100,
+    "governance.chair_ceo_combined": false,
+    "governance.chair_is_former_ceo": false,
+    "governance.controlled_company": false,
+    "governance.dual_class": null,
+    "governance.dual_class_sunset_years": 10,
+    "governance.longest_independent_tenure_years": 4,
+    "governance.majority_voting": true,
+    "governance.nomination_committee_independence_pct": null,
+    "governance.open_investigation": false,
+    "governance.poison_pill_unapproved": false,
+    "governance.remuneration_committee_independence_pct": 100,
+    "governance.staggered_board": false,
+    "governance.takeover_period": false,
+    "nature.high_impact_sector": true,
+    "nature.tnfd_aligned": true,
+    "pay.ceo_pay_ratio": 140,
+    "pay.ceo_peer_percentile": 39,
+    "pay.climate_metric_included": true,
+    "pay.discretion_explained": false,
+    "pay.discretion_used": false,
+    "pay.esg_metric_included": null,
+    "pay.esg_metric_weight_pct": 0,
+    "pay.long_term_incentive_pct": 55,
+    "pay.misalignment_years": null,
+    "pay.nonexec_fee_change_pct": 5,
+    "pay.nonexec_performance_pay": false,
+    "pay.plan_dilution_pct": 5,
+    "pay.plan_discount_pct": null,
+    "pay.repricing_allowed": false,
+    "pay.severance_multiple": 1,
+    "pay.single_trigger_vesting": false,
+    "pay.targets_disclosed": false,
+    "pay.vesting_period_years": null,
+    "region": false,
+    "score.clti": 18,
+    "score.nature": 91,
+    "score.transition_plan": 25,
+    "voting.dissent_addressed": true,
+    "voting.majority_proposal_not_implemented": false,
+    "voting.prior_year_dissent_pct": null
+   }
+  },
+  {
+   "issuer_id": "SYN11",
+   "name": "Synthetic Company 11",
+   "region": "US",
+   "sector": "Utilities",
+   "fields": {
+    "audit.auditor_tenure_years": 6,
+    "audit.material_weakness": false,
+    "audit.non_audit_fee_ratio": 0.4,
+    "audit.qualified_opinion": false,
+    "audit.tender_disclosed": true,
+    "climate.capex_alignment_disclosed": true,
+    "climate.high_emitter": true,
+    "climate.interim_target": true,
+    "climate.net_zero_target": true,
+    "climate.sbti_validated": false,
+    "climate.scope1_2_disclosed": true,
+    "climate.scope3_disclosed": true,
+    "climate.tcfd_aligned": true,
+    "controversy.governance_severity": 2,
+    "controversy.human_rights_severity": 1,
+    "controversy.max_severity": 2,
+    "controversy.ungc_status": null,
+    "financial.payout_ratio_pct": 30,
+    "governance.audit_committee_independence_pct": 100,
+    "governance.average_board_tenure_years": 13,
+    "governance.board_female_pct": 45,
+    "governance.board_independence_pct": 60,
+    "governance.chair_ceo_combined": false,
+    "governance.chair_is_former_ceo": false,
+    "governance.controlled_company": false,
+    "governance.dual_class": false,
+    "governance.dual_class_sunset_years": null,
+    "governance.longest_independent_tenure_years": 7,
+    "governance.majority_voting": true,
+    "governance.nomination_committee_independence_pct": null,
+    "governance.open_investigation": false,
+    "governance.poison_pill_unapproved": true,
+    "governance.remuneration_committee_independence_pct": 80,
+    "governance.staggered_board": null,
+    "governance.takeover_period": false,
+    "nature.high_impact_sector": true,
+    "nature.tnfd_aligned": true,
+    "pay.ceo_pay_ratio": 40,
+    "pay.ceo_peer_percentile": 68,
+    "pay.climate_metric_included": true,
+    "pay.discretion_explained": false,
+    "pay.discretion_used": null,
+    "pay.esg_metric_included": true,
+    "pay.esg_metric_weight_pct": 10,
+    "pay.long_term_incentive_pct": 70,
+    "pay.misalignment_years": 4,
+    "pay.nonexec_fee_change_pct": 5,
+    "pay.nonexec_performance_pay": null,
+    "pay.plan_dilution_pct": 3,
+    "pay.plan_discount_pct": 0,
+    "pay.repricing_allowed": false,
+    "pay.severance_multiple": 1,
+    "pay.single_trigger_vesting": null,
+    "pay.targets_disclosed": true,
+    "pay.vesting_period_years": null,
+    "region": false,
+    "score.clti": 66,
+    "score.nature": 22,
+    "score.transition_plan": 15,
+    "voting.dissent_addressed": true,
+    "voting.majority_proposal_not_implemented": false,
+    "voting.prior_year_dissent_pct": 3
+   }
+  },
+  {
+   "issuer_id": "SYN12",
+   "name": "Synthetic Company 12",
+   "region": "EU",
+   "sector": "Consumer Staples",
+   "fields": {
+    "audit.auditor_tenure_years": null,
+    "audit.material_weakness": false,
+    "audit.non_audit_fee_ratio": 0.6,
+    "audit.qualified_opinion": true,
+    "audit.tender_disclosed": true,
+    "climate.capex_alignment_disclosed": null,
+    "climate.high_emitter": false,
+    "climate.interim_target": true,
+    "climate.net_zero_target": true,
+    "climate.sbti_validated": true,
+    "climate.scope1_2_disclosed": true,
+    "climate.scope3_disclosed": true,
+    "climate.tcfd_aligned": true,
+    "controversy.governance_severity": 2,
+    "controversy.human_rights_severity": 2,
+    "controversy.max_severity": 2,
+    "controversy.ungc_status": "watchlist",
+    "financial.payout_ratio_pct": 60,
+    "governance.audit_committee_independence_pct": 70,
+    "governance.average_board_tenure_years": null,
+    "governance.board_female_pct": 45,
+    "governance.board_independence_pct": 70,
+    "governance.chair_ceo_combined": false,
+    "governance.chair_is_former_ceo": false,
+    "governance.controlled_company": false,
+    "governance.dual_class": true,
+    "governance.dual_class_sunset_years": null,
+    "governance.longest_independent_tenure_years": 9,
+    "governance.majority_voting": true,
+    "governance.nomination_committee_independence_pct": 55,
+    "governance.open_investigation": false,
+    "governance.poison_pill_unapproved": false,
+    "governance.remuneration_committee_independence_pct": 60,
+    "governance.staggered_board": false,
+    "governance.takeover_period": false,
+    "nature.high_impact_sector": true,
+    "nature.tnfd_aligned": true,
+    "pay.ceo_pay_ratio": 400,
+    "pay.ceo_peer_percentile": 38,
+    "pay.climate_metric_included": true,
+    "pay.discretion_explained": false,
+    "pay.discretion_used": false,
+    "pay.esg_metric_included": true,
+    "pay.esg_metric_weight_pct": 10,
+    "pay.long_term_incentive_pct": 60,
+    "pay.misalignment_years": 1,
+    "pay.nonexec_fee_change_pct": 3,
+    "pay.nonexec_performance_pay": false,
+    "pay.plan_dilution_pct": 15,
+    "pay.plan_discount_pct": 0,
+    "pay.repricing_allowed": false,
+    "pay.severance_multiple": 1.5,
+    "pay.single_trigger_vesting": false,
+    "pay.targets_disclosed": true,
+    "pay.vesting_period_years": 3,
+    "region": null,
+    "score.clti": 73,
+    "score.nature": 78,
+    "score.transition_plan": 78,
+    "voting.dissent_addressed": true,
+    "voting.majority_proposal_not_implemented": false,
+    "voting.prior_year_dissent_pct": 3
+   }
+  }
+ ],
+ "engagements": [
+  {
+   "issuer_id": "SYN02",
+   "theme": "board_governance",
+   "at_vote_step": false,
+   "months_without_progress": 20
+  },
+  {
+   "issuer_id": "SYN06",
+   "theme": "board_governance",
+   "at_vote_step": false,
+   "months_without_progress": 7
+  },
+  {
+   "issuer_id": "SYN07",
+   "theme": "executive_compensation",
+   "at_vote_step": false,
+   "months_without_progress": 20
+  }
+ ],
+ "meetings": [
+  {
+   "meeting_id": "SYN01-2026-AGM",
+   "issuer_id": "SYN01",
+   "meeting_date": "2026-05-15",
+   "meeting_type": "AGM",
+   "resolutions": [
+    {
+     "item": "1",
+     "category": "financial_statements",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "2",
+     "category": "discharge",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "3",
+     "category": "dividend_allocation",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "4",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "board_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "5",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "nomination_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 1,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "6",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "audit_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 0,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "7",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "remuneration_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "8",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "sustainability_committee_chair",
+      "responsible_director"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 1,
+      "attendance_pct": 60
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "9",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [],
+     "director": {
+      "independent": false,
+      "committee_member": false,
+      "is_executive": true,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "10",
+     "category": "say_on_pay",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "11",
+     "category": "auditor_ratification",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "12",
+     "category": "equity_plan",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "13",
+     "category": "share_issuance",
+     "management_recommendation": "for",
+     "size_pct": 10,
+     "preemptive_rights": false
+    },
+    {
+     "item": "14",
+     "category": "share_buyback",
+     "management_recommendation": "for",
+     "size_pct": 10,
+     "max_premium_pct": 5
+    }
+   ]
+  },
+  {
+   "meeting_id": "SYN02-2026-AGM",
+   "issuer_id": "SYN02",
+   "meeting_date": "2026-05-15",
+   "meeting_type": "AGM",
+   "resolutions": [
+    {
+     "item": "1",
+     "category": "financial_statements",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "2",
+     "category": "discharge",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "3",
+     "category": "dividend_allocation",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "4",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "board_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 3,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "5",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "nomination_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "6",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "audit_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "7",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "remuneration_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "8",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "sustainability_committee_chair",
+      "responsible_director"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 3,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "9",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 5,
+      "chair_mandates": 0,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "10",
+     "category": "say_on_pay",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "11",
+     "category": "auditor_ratification",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "12",
+     "category": "share_issuance",
+     "management_recommendation": "for",
+     "size_pct": 10,
+     "preemptive_rights": true
+    },
+    {
+     "item": "13",
+     "category": "say_on_climate",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "14",
+     "category": "shareholder_proposal_governance",
+     "management_recommendation": "against",
+     "topic": "board"
+    }
+   ]
+  },
+  {
+   "meeting_id": "SYN03-2026-AGM",
+   "issuer_id": "SYN03",
+   "meeting_date": "2026-05-15",
+   "meeting_type": "AGM",
+   "resolutions": [
+    {
+     "item": "1",
+     "category": "financial_statements",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "2",
+     "category": "dividend_allocation",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "3",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "board_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 3,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "4",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "nomination_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 3,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "5",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "audit_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 0,
+      "attendance_pct": 60
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "6",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "remuneration_committee_chair"
+     ],
+     "director": {
+      "independent": false,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 1,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "7",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "sustainability_committee_chair",
+      "responsible_director"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 4,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "8",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [],
+     "director": {
+      "independent": false,
+      "committee_member": false,
+      "is_executive": true,
+      "mandates": 0,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "9",
+     "category": "say_on_pay",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "10",
+     "category": "auditor_ratification",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "11",
+     "category": "share_issuance",
+     "management_recommendation": "for",
+     "size_pct": 20,
+     "preemptive_rights": false
+    },
+    {
+     "item": "12",
+     "category": "share_buyback",
+     "management_recommendation": "for",
+     "size_pct": 5,
+     "max_premium_pct": 20
+    },
+    {
+     "item": "13",
+     "category": "shareholder_proposal_environmental",
+     "management_recommendation": "against",
+     "prescriptive": false
+    },
+    {
+     "item": "14",
+     "category": "shareholder_proposal_governance",
+     "management_recommendation": "against",
+     "topic": "board"
+    }
+   ]
+  },
+  {
+   "meeting_id": "SYN04-2026-AGM",
+   "issuer_id": "SYN04",
+   "meeting_date": "2026-05-15",
+   "meeting_type": "AGM",
+   "resolutions": [
+    {
+     "item": "1",
+     "category": "financial_statements",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "2",
+     "category": "dividend_allocation",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "3",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "board_chair"
+     ],
+     "director": {
+      "independent": false,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 4,
+      "chair_mandates": 1,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "4",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "nomination_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "5",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "audit_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 4,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "6",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "remuneration_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 1,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "7",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "sustainability_committee_chair",
+      "responsible_director"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "8",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 3,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "9",
+     "category": "say_on_pay",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "10",
+     "category": "auditor_ratification",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "11",
+     "category": "share_issuance",
+     "management_recommendation": "for",
+     "size_pct": 20,
+     "preemptive_rights": true
+    },
+    {
+     "item": "12",
+     "category": "share_buyback",
+     "management_recommendation": "for",
+     "size_pct": 15,
+     "max_premium_pct": 5
+    },
+    {
+     "item": "13",
+     "category": "say_on_climate",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "14",
+     "category": "shareholder_proposal_social",
+     "management_recommendation": "against",
+     "topic": "workforce"
+    },
+    {
+     "item": "15",
+     "category": "shareholder_proposal_governance",
+     "management_recommendation": "against",
+     "topic": "lobbying"
+    }
+   ]
+  },
+  {
+   "meeting_id": "SYN05-2026-AGM",
+   "issuer_id": "SYN05",
+   "meeting_date": "2026-05-15",
+   "meeting_type": "AGM",
+   "resolutions": [
+    {
+     "item": "1",
+     "category": "financial_statements",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "2",
+     "category": "dividend_allocation",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "3",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "board_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 4,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "4",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "nomination_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 1,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "5",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "audit_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "6",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "remuneration_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "7",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "sustainability_committee_chair",
+      "responsible_director"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 5,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "8",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [],
+     "director": {
+      "independent": true,
+      "committee_member": false,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "9",
+     "category": "say_on_pay",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "10",
+     "category": "auditor_ratification",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "11",
+     "category": "remuneration_policy",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "12",
+     "category": "share_issuance",
+     "management_recommendation": "for",
+     "size_pct": 5,
+     "preemptive_rights": true
+    },
+    {
+     "item": "13",
+     "category": "say_on_climate",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "14",
+     "category": "shareholder_proposal_environmental",
+     "management_recommendation": "against",
+     "prescriptive": false
+    },
+    {
+     "item": "15",
+     "category": "shareholder_proposal_governance",
+     "management_recommendation": "against",
+     "topic": "tax"
+    },
+    {
+     "item": "16",
+     "category": "articles_amendment",
+     "management_recommendation": "for",
+     "allows_virtual_only": true,
+     "allows_hybrid": true
+    }
+   ]
+  },
+  {
+   "meeting_id": "SYN06-2026-AGM",
+   "issuer_id": "SYN06",
+   "meeting_date": "2026-05-15",
+   "meeting_type": "AGM",
+   "resolutions": [
+    {
+     "item": "1",
+     "category": "financial_statements",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "2",
+     "category": "dividend_allocation",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "3",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "board_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 5,
+      "chair_mandates": 0,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "4",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "nomination_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 3,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "5",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "audit_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "6",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "remuneration_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 4,
+      "chair_mandates": 0,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "7",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "sustainability_committee_chair",
+      "responsible_director"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 0,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "8",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [],
+     "director": {
+      "independent": true,
+      "committee_member": false,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 1,
+      "attendance_pct": 60
+     },
+     "is_bundled": true
+    },
+    {
+     "item": "9",
+     "category": "say_on_pay",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "10",
+     "category": "auditor_ratification",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "11",
+     "category": "share_issuance",
+     "management_recommendation": "for",
+     "size_pct": 20,
+     "preemptive_rights": true
+    },
+    {
+     "item": "12",
+     "category": "shareholder_proposal_environmental",
+     "management_recommendation": "against",
+     "prescriptive": true
+    },
+    {
+     "item": "13",
+     "category": "shareholder_proposal_governance",
+     "management_recommendation": "against",
+     "topic": "lobbying"
+    }
+   ]
+  },
+  {
+   "meeting_id": "SYN07-2026-AGM",
+   "issuer_id": "SYN07",
+   "meeting_date": "2026-05-15",
+   "meeting_type": "AGM",
+   "resolutions": [
+    {
+     "item": "1",
+     "category": "financial_statements",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "2",
+     "category": "discharge",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "3",
+     "category": "dividend_allocation",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "4",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "board_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "5",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "nomination_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 3,
+      "chair_mandates": 0,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "6",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "audit_committee_chair"
+     ],
+     "director": {
+      "independent": false,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 4,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "7",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "remuneration_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 5,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "8",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "sustainability_committee_chair",
+      "responsible_director"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 1,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "9",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [],
+     "director": {
+      "independent": false,
+      "committee_member": false,
+      "is_executive": true,
+      "mandates": 0,
+      "chair_mandates": 0,
+      "attendance_pct": 60
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "10",
+     "category": "say_on_pay",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "11",
+     "category": "auditor_ratification",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "12",
+     "category": "remuneration_policy",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "13",
+     "category": "share_issuance",
+     "management_recommendation": "for",
+     "size_pct": 10,
+     "preemptive_rights": false
+    },
+    {
+     "item": "14",
+     "category": "articles_amendment",
+     "management_recommendation": "for",
+     "allows_virtual_only": false,
+     "allows_hybrid": false
+    }
+   ]
+  },
+  {
+   "meeting_id": "SYN08-2026-AGM",
+   "issuer_id": "SYN08",
+   "meeting_date": "2026-05-15",
+   "meeting_type": "AGM",
+   "resolutions": [
+    {
+     "item": "1",
+     "category": "financial_statements",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "2",
+     "category": "dividend_allocation",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "3",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "board_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 3,
+      "chair_mandates": 1,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "4",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "nomination_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "5",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "audit_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "6",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "remuneration_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 3,
+      "chair_mandates": 1,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "7",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "sustainability_committee_chair",
+      "responsible_director"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "8",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [],
+     "director": {
+      "independent": false,
+      "committee_member": true,
+      "is_executive": true,
+      "mandates": 1,
+      "chair_mandates": 0,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "9",
+     "category": "say_on_pay",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "10",
+     "category": "auditor_ratification",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "11",
+     "category": "equity_plan",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "12",
+     "category": "share_issuance",
+     "management_recommendation": "for",
+     "size_pct": 10,
+     "preemptive_rights": true
+    },
+    {
+     "item": "13",
+     "category": "shareholder_proposal_environmental",
+     "management_recommendation": "against",
+     "prescriptive": false
+    },
+    {
+     "item": "14",
+     "category": "shareholder_proposal_governance",
+     "management_recommendation": "against",
+     "topic": "tax"
+    },
+    {
+     "item": "15",
+     "category": "articles_amendment",
+     "management_recommendation": "for",
+     "allows_virtual_only": true,
+     "allows_hybrid": true
+    }
+   ]
+  },
+  {
+   "meeting_id": "SYN09-2026-AGM",
+   "issuer_id": "SYN09",
+   "meeting_date": "2026-05-15",
+   "meeting_type": "AGM",
+   "resolutions": [
+    {
+     "item": "1",
+     "category": "financial_statements",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "2",
+     "category": "dividend_allocation",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "3",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "board_chair"
+     ],
+     "director": {
+      "independent": false,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 1,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "4",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "nomination_committee_chair"
+     ],
+     "director": {
+      "independent": false,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "5",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "audit_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "6",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "remuneration_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "7",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "sustainability_committee_chair",
+      "responsible_director"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 5,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "8",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [],
+     "director": {
+      "independent": true,
+      "committee_member": false,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 1,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "9",
+     "category": "say_on_pay",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "10",
+     "category": "auditor_ratification",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "11",
+     "category": "share_issuance",
+     "management_recommendation": "for",
+     "size_pct": 20,
+     "preemptive_rights": false
+    },
+    {
+     "item": "12",
+     "category": "shareholder_proposal_environmental",
+     "management_recommendation": "against",
+     "prescriptive": true
+    },
+    {
+     "item": "13",
+     "category": "shareholder_proposal_social",
+     "management_recommendation": "against",
+     "topic": "workforce"
+    },
+    {
+     "item": "14",
+     "category": "shareholder_proposal_governance",
+     "management_recommendation": "against",
+     "topic": "tax"
+    }
+   ]
+  },
+  {
+   "meeting_id": "SYN10-2026-AGM",
+   "issuer_id": "SYN10",
+   "meeting_date": "2026-05-15",
+   "meeting_type": "AGM",
+   "resolutions": [
+    {
+     "item": "1",
+     "category": "financial_statements",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "2",
+     "category": "dividend_allocation",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "3",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "board_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": true
+    },
+    {
+     "item": "4",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "nomination_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 3,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "5",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "audit_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 4,
+      "chair_mandates": 0,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "6",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "remuneration_committee_chair"
+     ],
+     "director": {
+      "independent": false,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 3,
+      "chair_mandates": 1,
+      "attendance_pct": 100
+     },
+     "is_bundled": true
+    },
+    {
+     "item": "7",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "sustainability_committee_chair",
+      "responsible_director"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "8",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [],
+     "director": {
+      "independent": false,
+      "committee_member": false,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": true
+    },
+    {
+     "item": "9",
+     "category": "say_on_pay",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "10",
+     "category": "auditor_ratification",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "11",
+     "category": "share_issuance",
+     "management_recommendation": "for",
+     "size_pct": 10,
+     "preemptive_rights": false
+    },
+    {
+     "item": "12",
+     "category": "share_buyback",
+     "management_recommendation": "for",
+     "size_pct": 5,
+     "max_premium_pct": 10
+    },
+    {
+     "item": "13",
+     "category": "shareholder_proposal_governance",
+     "management_recommendation": "against",
+     "topic": "lobbying"
+    }
+   ]
+  },
+  {
+   "meeting_id": "SYN11-2026-AGM",
+   "issuer_id": "SYN11",
+   "meeting_date": "2026-05-15",
+   "meeting_type": "AGM",
+   "resolutions": [
+    {
+     "item": "1",
+     "category": "financial_statements",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "2",
+     "category": "dividend_allocation",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "3",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "board_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 4,
+      "chair_mandates": 1,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "4",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "nomination_committee_chair"
+     ],
+     "director": {
+      "independent": false,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 4,
+      "chair_mandates": 1,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "5",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "audit_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "6",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "remuneration_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 3,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "7",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "sustainability_committee_chair",
+      "responsible_director"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 3,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "8",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [],
+     "director": {
+      "independent": true,
+      "committee_member": false,
+      "is_executive": false,
+      "mandates": 6,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "9",
+     "category": "say_on_pay",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "10",
+     "category": "auditor_ratification",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "11",
+     "category": "equity_plan",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "12",
+     "category": "share_issuance",
+     "management_recommendation": "for",
+     "size_pct": 20,
+     "preemptive_rights": false
+    }
+   ]
+  },
+  {
+   "meeting_id": "SYN12-2026-AGM",
+   "issuer_id": "SYN12",
+   "meeting_date": "2026-05-15",
+   "meeting_type": "AGM",
+   "resolutions": [
+    {
+     "item": "1",
+     "category": "financial_statements",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "2",
+     "category": "discharge",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "3",
+     "category": "dividend_allocation",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "4",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "board_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 1,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "5",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "nomination_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "6",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "audit_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 3,
+      "chair_mandates": 1,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "7",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "remuneration_committee_chair"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 1,
+      "chair_mandates": 0,
+      "attendance_pct": 85
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "8",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [
+      "sustainability_committee_chair",
+      "responsible_director"
+     ],
+     "director": {
+      "independent": true,
+      "committee_member": true,
+      "is_executive": false,
+      "mandates": 3,
+      "chair_mandates": 1,
+      "attendance_pct": 95
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "9",
+     "category": "director_election",
+     "management_recommendation": "for",
+     "roles": [],
+     "director": {
+      "independent": true,
+      "committee_member": false,
+      "is_executive": false,
+      "mandates": 2,
+      "chair_mandates": 0,
+      "attendance_pct": 100
+     },
+     "is_bundled": false
+    },
+    {
+     "item": "10",
+     "category": "say_on_pay",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "11",
+     "category": "auditor_ratification",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "12",
+     "category": "remuneration_policy",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "13",
+     "category": "equity_plan",
+     "management_recommendation": "for"
+    },
+    {
+     "item": "14",
+     "category": "share_issuance",
+     "management_recommendation": "for",
+     "size_pct": 5,
+     "preemptive_rights": false
+    },
+    {
+     "item": "15",
+     "category": "share_buyback",
+     "management_recommendation": "for",
+     "size_pct": 15,
+     "max_premium_pct": 10
+    },
+    {
+     "item": "16",
+     "category": "articles_amendment",
+     "management_recommendation": "for",
+     "allows_virtual_only": true,
+     "allows_hybrid": false
+    }
+   ]
+  }
+ ]
+}

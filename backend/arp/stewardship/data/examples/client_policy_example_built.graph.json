@@ -281,264 +281,308 @@
         "rules": [
           {
             "_id": "board.independence",
+            "_description": "Boards should be at least two-thirds independent; half for controlled companies.",
             "i1": "c.board_independence == true",
             "o1": "'against'",
             "o2": "'board.independence'"
           },
           {
             "_id": "board.committee_independence",
+            "_description": "The audit committee must be fully independent; remuneration and nomination committees need an independent majority.",
             "i1": "c.board_committee_independence == true",
             "o1": "'against'",
             "o2": "'board.committee_independence'"
           },
           {
             "_id": "board.chair_ceo_separation",
+            "_description": "We expect an independent chair at every company.",
             "i1": "c.board_chair_ceo_separation == true",
             "o1": "'against'",
             "o2": "'board.chair_ceo_separation'"
           },
           {
             "_id": "board.overboarding",
+            "_description": "Non-executive directors should hold no more than four listed-company mandates.",
             "i1": "c.board_overboarding == true",
             "o1": "'against'",
             "o2": "'board.overboarding'"
           },
           {
             "_id": "board.attendance",
+            "_description": "Attendance below 75% without explanation shows insufficient commitment.",
             "i1": "c.board_attendance == true",
             "o1": "'against'",
             "o2": "'board.attendance'"
           },
           {
             "_id": "board.gender_diversity",
+            "_description": "At least 40% of board members should be women, in all markets.",
             "i1": "c.board_gender_diversity == true",
             "o1": "'against'",
             "o2": "'board.gender_diversity'"
           },
           {
             "_id": "board.tenure_refreshment",
+            "_description": "Long tenure erodes independence and signals a lack of refreshment.",
             "i1": "c.board_tenure_refreshment == true",
             "o1": "'against'",
             "o2": "'board.tenure_refreshment'"
           },
           {
             "_id": "board.election_practices",
+            "_description": "Shareholders should be able to hold every director accountable every year.",
             "i1": "c.board_election_practices == true",
             "o1": "'against'",
             "o2": "'board.election_practices'"
           },
           {
             "_id": "board.responsiveness",
+            "_description": "Significant dissent must be addressed; ignoring it is a governance failure.",
             "i1": "c.board_responsiveness == true",
             "o1": "'against'",
             "o2": "'board.responsiveness'"
           },
           {
             "_id": "pay.say_on_pay",
+            "_description": "Support pay reports unless a red flag from another remuneration issue applies.",
             "i1": "c.pay_say_on_pay == true",
             "o1": "'for'",
             "o2": "'pay.say_on_pay'"
           },
           {
             "_id": "pay.quantum",
+            "_description": "CEO pay above the upper quartile of peers, or above 150 times the median employee, is excessive.",
             "i1": "c.pay_quantum == true",
             "o1": "'against'",
             "o2": "'pay.quantum'"
           },
           {
             "_id": "pay.performance_alignment",
+            "_description": "Pay should follow long-term performance; persistent misalignment is not accepted.",
             "i1": "c.pay_performance_alignment == true",
             "o1": "'against'",
             "o2": "'pay.performance_alignment'"
           },
           {
             "_id": "pay.esg_metrics",
+            "_description": "Every company should link at least 20% of variable pay to sustainability targets.",
             "i1": "c.pay_esg_metrics == true",
             "o1": "'against'",
             "o2": "'pay.esg_metrics'"
           },
           {
             "_id": "pay.equity_plans",
+            "_description": "Share plans must not dilute shareholders excessively or reward without performance.",
             "i1": "c.pay_equity_plans == true",
             "o1": "'against'",
             "o2": "'pay.equity_plans'"
           },
           {
             "_id": "pay.severance",
+            "_description": "Severance should not exceed one year of pay.",
             "i1": "c.pay_severance == true",
             "o1": "'against'",
             "o2": "'pay.severance'"
           },
           {
             "_id": "pay.disclosure",
+            "_description": "Shareholders need to see targets and how discretion was used.",
             "i1": "c.pay_disclosure == true",
             "o1": "'against'",
             "o2": "'pay.disclosure'"
           },
           {
             "_id": "pay.non_executive_fees",
+            "_description": "Performance pay for non-executives compromises their independence.",
             "i1": "c.pay_non_executive_fees == true",
             "o1": "'against'",
             "o2": "'pay.non_executive_fees'"
           },
           {
             "_id": "audit.non_audit_fees",
+            "_description": "Non-audit fees should not exceed half of audit fees.",
             "i1": "c.audit_non_audit_fees == true",
             "o1": "'against'",
             "o2": "'audit.non_audit_fees'"
           },
           {
             "_id": "audit.auditor_tenure",
+            "_description": "Very long auditor tenure risks independence.",
             "i1": "c.audit_auditor_tenure == true",
             "o1": "'against'",
             "o2": "'audit.auditor_tenure'"
           },
           {
             "_id": "audit.financial_statements",
+            "_description": "Qualified accounts and unaddressed material weaknesses cannot be approved.",
             "i1": "c.audit_financial_statements == true",
             "o1": "'against'",
             "o2": "'audit.financial_statements'"
           },
           {
             "_id": "audit.discharge",
+            "_description": "Discharge is withheld while serious matters are unresolved.",
             "i1": "c.audit_discharge == true",
             "o1": "'against'",
             "o2": "'audit.discharge'"
           },
           {
             "_id": "capital.share_issuance",
+            "_description": "Issuance without pre-emption rights should be limited to 5% of capital.",
             "i1": "c.capital_share_issuance == true",
             "o1": "'against'",
             "o2": "'capital.share_issuance'"
           },
           {
             "_id": "capital.share_buybacks",
+            "_description": "Buybacks are supported within normal limits and not as a takeover defence.",
             "i1": "c.capital_share_buybacks == true",
             "o1": "'against'",
             "o2": "'capital.share_buybacks'"
           },
           {
             "_id": "capital.dividend_allocation",
+            "_description": "Payouts above earnings need explanation; low payouts are left to the board.",
             "i1": "c.capital_dividend_allocation == true",
             "o1": "'case_by_case'",
             "o2": "'capital.dividend_allocation'"
           },
           {
             "_id": "capital.one_share_one_vote",
+            "_description": "Voting rights should match economic interest.",
             "i1": "c.capital_one_share_one_vote == true",
             "o1": "'against'",
             "o2": "'capital.one_share_one_vote'"
           },
           {
             "_id": "capital.takeover_defences",
+            "_description": "Takeover defences entrench management unless shareholders approve them.",
             "i1": "c.capital_takeover_defences == true",
             "o1": "'against'",
             "o2": "'capital.takeover_defences'"
           },
           {
             "_id": "capital.mergers_acquisitions",
+            "_description": "Transactions are judged on their merits and on the independence of the process.",
             "i1": "c.capital_mergers_acquisitions == true",
             "o1": "resolution.fairness_opinion == false ? 'against' : 'case_by_case'",
             "o2": "'capital.mergers_acquisitions'"
           },
           {
             "_id": "capital.related_party_transactions",
+            "_description": "Insider transactions require independent review.",
             "i1": "c.capital_related_party_transactions == true",
             "o1": "'against'",
             "o2": "'capital.related_party_transactions'"
           },
           {
             "_id": "rights.shareholder_rights",
+            "_description": "Shareholders should be able to act without disproportionate hurdles.",
             "i1": "c.rights_shareholder_rights == true",
             "o1": "'against'",
             "o2": "'rights.shareholder_rights'"
           },
           {
             "_id": "rights.virtual_meetings",
+            "_description": "We have no objection to virtual-only meetings.",
             "i1": "c.rights_virtual_meetings == true",
             "o1": "'against'",
             "o2": "'rights.virtual_meetings'"
           },
           {
             "_id": "climate.laggard_accountability",
+            "_description": "Where a high emitter is a transition laggard and engagement has shown no progress for a year, the responsible director is held accountable. Threshold to be set once the CLTI scale is fixed (proposal: bottom decile of the universe).",
             "i1": "c.climate_laggard_accountability == true",
             "o1": "'against'",
             "o2": "'climate.laggard_accountability'"
           },
           {
             "_id": "climate.disclosure",
+            "_description": "Climate risk cannot be assessed without basic, framework-aligned disclosure.",
             "i1": "c.climate_disclosure == true",
             "o1": "'against'",
             "o2": "'climate.disclosure'"
           },
           {
             "_id": "climate.targets",
+            "_description": "All companies should have science-based, independently validated targets.",
             "i1": "c.climate_targets == true",
             "o1": "'against'",
             "o2": "'climate.targets'"
           },
           {
             "_id": "climate.say_on_climate",
+            "_description": "Climate plans are supported when credible and backed by capex. Plan score threshold to be set with the transition plan assessment.",
             "i1": "c.climate_say_on_climate == true",
             "o1": "'case_by_case'",
             "o2": "'climate.say_on_climate'"
           },
           {
             "_id": "climate.shareholder_proposals",
+            "_description": "Reasonable climate proposals are supported; proposals that dictate strategy are not.",
             "i1": "c.climate_shareholder_proposals == true",
             "o1": "resolution.prescriptive == true ? 'against' : 'for'",
             "o2": "'climate.shareholder_proposals'"
           },
           {
             "_id": "social.human_rights",
+            "_description": "Serious (severity 4 and above) human-rights controversies should lead to a vote against the chair.",
             "i1": "c.social_human_rights == true",
             "o1": "'against'",
             "o2": "'social.human_rights'"
           },
           {
             "_id": "social.workforce",
+            "_description": "Reasonable workforce disclosure requests are supported.",
             "i1": "c.social_workforce == true",
             "o1": "'for'",
             "o2": "'social.workforce'"
           },
           {
             "_id": "social.shareholder_proposals",
+            "_description": "Social proposals are judged on materiality and the company's existing practice.",
             "i1": "c.social_shareholder_proposals == true",
             "o1": "'case_by_case'",
             "o2": "'social.shareholder_proposals'"
           },
           {
             "_id": "gov.controversy_accountability",
+            "_description": "Severe governance controversies need board accountability.",
             "i1": "c.gov_controversy_accountability == true",
             "o1": "'against'",
             "o2": "'gov.controversy_accountability'"
           },
           {
             "_id": "gov.lobbying_political",
+            "_description": "Lobbying should be disclosed and consistent with stated climate commitments.",
             "i1": "c.gov_lobbying_political == true",
             "o1": "'for'",
             "o2": "'gov.lobbying_political'"
           },
           {
             "_id": "gov.tax_transparency",
+            "_description": "Country-by-country tax reporting is supported.",
             "i1": "c.gov_tax_transparency == true",
             "o1": "'for'",
             "o2": "'gov.tax_transparency'"
           },
           {
             "_id": "gov.shareholder_proposals",
+            "_description": "Governance proposals that strengthen shareholder rights are supported.",
             "i1": "c.gov_shareholder_proposals == true",
             "o1": "'for'",
             "o2": "'gov.shareholder_proposals'"
           },
           {
             "_id": "stewardship.engagement_escalation",
+            "_description": "Where an engagement has reached the vote-against-management step, the vote targets the item accountable for the theme, and the company is told beforehand.",
             "i1": "c.stewardship_engagement_escalation == true",
             "o1": "'against'",
             "o2": "'stewardship.engagement_escalation'"
           },
           {
             "_id": "general.default_management",
+            "_description": "Routine items follow management unless another issue applies.",
             "i1": "c.general_default_management == true",
             "o1": "resolution.management_recommendation ?? 'for'",
             "o2": "'general.default_management'"

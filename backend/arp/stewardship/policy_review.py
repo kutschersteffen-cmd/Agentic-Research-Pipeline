@@ -401,6 +401,24 @@ def built_to_markdown(policy: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _impact(impact: dict | None) -> str:
+    if not impact:
+        return "—"
+    masked = f" (+{impact['rule_differences_masked']} masked)" if impact["rule_differences_masked"] else ""
+    return f"{impact['votes_changed']}{masked}"
+
+
+def _backtest_line(bt: dict | None) -> str:
+    if not bt:
+        return "Impact per difference (resolutions affected) is not computed: run with `--sample` and meeting data."
+    return (
+        f"**Back-test on {bt['sample']}:** {bt['resolutions']} resolutions; the envisioned policy (every difference "
+        f"adopted) changes the expected vote on **{bt['changed']}**. House: {_fmt(bt['base_votes'])}. Client: "
+        f"{_fmt(bt['other_votes'])}. *Votes changed* counts resolutions whose expected vote changes because of that issue; "
+        "*masked* counts resolutions where its rule fires differently but another rule already decides the vote."
+    )
+
+
 def to_markdown(result: dict) -> str:
     s = result["summary"]
     lines = [
@@ -409,8 +427,9 @@ def to_markdown(result: dict) -> str:
         f"**Mandate:** {_fmt(result['mandate'])}",
         "",
         f"Differences that change how the client's shares are voted: **{s['separate_vote_required']}** need a separate vote "
-        f"of the client's shares, **{s['not_deliverable']}** cannot be delivered in a pooled vehicle. "
-        "Impact per difference (resolutions affected) is not computed yet: it needs ingested voting history.",
+        f"of the client's shares, **{s['not_deliverable']}** cannot be delivered in a pooled vehicle.",
+        "",
+        _backtest_line(s.get("backtest")),
         "",
         "| Kind | Count |",
         "|---|---|",
@@ -422,8 +441,8 @@ def to_markdown(result: dict) -> str:
         "",
         "### Difference register",
         "",
-        "| Issue | Kind | Changes (house → client) | Direction | Flags | Recommendation | Decision |",
-        "|---|---|---|---|---|---|---|",
+        "| Issue | Kind | Changes (house → client) | Direction | Votes changed | Flags | Recommendation | Decision |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for r in result["register"]:
         if r["kind"] in ("identical", "house_only", "no_position", "unclear", "unmapped"):
@@ -432,7 +451,8 @@ def to_markdown(result: dict) -> str:
         changes = "<br>".join(f"`{c['field']}`: {_fmt(c['house'])} → {_fmt(c['client'])}" for c in r.get("changes", []))
         flags = "<br>".join(a.get("flags", []) + a.get("effort", [])) or "—"
         lines.append(
-            f"| `{r['issue_id']}` | {r['kind']} | {changes} | {a.get('direction', '—')} | {flags} | **{a['recommendation']}** "
+            f"| `{r['issue_id']}` | {r['kind']} | {changes} | {a.get('direction', '—')} | {_impact(a.get('impact'))} "
+            f"| {flags} | **{a['recommendation']}** "
             f"| {_decision(r)} |"
         )
     unclear = [r for r in result["register"] if r["kind"] == "unclear"]
@@ -472,8 +492,15 @@ if __name__ == "__main__":
     parser.add_argument("--decisions", type=Path, help="JSON list of decisions to record on the register")
     parser.add_argument("--build", type=Path, help="Write the built custom policy to this path (needs all decisions)")
     parser.add_argument("--json", action="store_true", help="Print the register as JSON instead of markdown")
+    parser.add_argument("--sample", type=Path, help="Meeting data to back-test the envisioned policy on (needs the ZEN engine)")
     args = parser.parse_args()
     result = review(json.loads(args.client_policy.read_text()))
+    if args.sample:
+        from arp.stewardship.backtest import attach_impact  # imports the ZEN engine; this module stays stdlib-only
+
+        sample = json.loads(args.sample.read_text())
+        label = "synthetic sample data" if "SYNTHETIC" in sample.get("note", "") else args.sample.name
+        attach_impact(result, load("house_voting_policy_draft.json"), sample, label)
     if args.decisions:
         decide(result, json.loads(args.decisions.read_text()))
     print(json.dumps(result, indent=2) if args.json else to_markdown(result))

@@ -406,7 +406,15 @@ def generate(policy: dict, catalogue: dict | None = None) -> dict:
         fire, vote, read = rule
         key = f"c.{_slug(issue['issue_id'])}"
         expressions.append({"id": _slug(issue["issue_id"]), "key": key, "value": fire})
-        rows.append({"_id": issue["issue_id"], "i1": f"{key} == true", "o1": vote, "o2": _lit(issue["issue_id"])})
+        rows.append(
+            {
+                "_id": issue["issue_id"],
+                "_description": position.get("rationale", ""),
+                "i1": f"{key} == true",
+                "o1": vote,
+                "o2": _lit(issue["issue_id"]),
+            }
+        )
         extra = sorted(set(position["parameters"]) - read)
         if extra:
             unused[issue["issue_id"]] = extra
