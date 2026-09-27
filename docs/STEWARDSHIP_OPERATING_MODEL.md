@@ -856,7 +856,19 @@ Workflow page (per client stream).
   escalations waiting on a house decision. *Record this monitoring run* appends a
   KPI snapshot, which builds the time series. Sanction conformance shows as not
   built: it needs the voting feed.
-- Not built: MSCI World constituents (the 12 sample companies stand in), tracking
+- **Benchmark.** The Client program runs on the synthetic sample or on an uploaded
+  benchmark: an iShares holdings export (e.g. URTH for MSCI World), parsed by
+  `backend/arp/stewardship/benchmark.py` into listed equities with weights from
+  market value (cash, collateral, futures and unlisted lines dropped; companies
+  keyed by ticker and country, because tickers repeat across markets). Uploads are
+  runtime data under `benchmarks/` in the streams directory, not in the
+  repository. The export has no company data, so each company gets a
+  **placeholder CLTI score** fixed by its ticker; the page shows a warning, target
+  reasons read "Placeholder CLTI", and the proposal deck's first content slide
+  says the scores are not an assessment of these companies. Expected votes are
+  empty until meeting data exists for these names. The tilt table shows the 40
+  largest active weights.
+- Not built: real CLTI scores and company data for the benchmark names, tracking
   error (no risk model on the sample), a separate client sign-off next to the
   house approval, the docx, and scheduled runs and alert delivery (runs are
   recorded by hand).

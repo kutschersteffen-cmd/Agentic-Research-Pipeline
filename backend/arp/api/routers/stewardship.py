@@ -24,6 +24,7 @@ from arp.schemas.engagement import (
     TriggerSource,
 )
 from arp.stewardship import drafting, escalation, monitoring, tracking
+from arp.stewardship.benchmark import BenchmarkStore, parse_ishares_holdings
 from arp.stewardship.client_report import build_pptx, client_report
 from arp.stewardship.policies import PolicyStore, coverage_preview, voting_preview
 from arp.stewardship.policy_review import DATA, load
@@ -526,7 +527,10 @@ def post_program_simulate(
 ) -> dict:
     """Runs a calibration without saving it."""
     stream = _stream_or_404(streams, stream_id)
-    return simulate(streams.root, stream, engagements.list_all(), settings.engagement_sla_days, body.params.model_dump())
+    try:
+        return simulate(streams.root, stream, engagements.list_all(), settings.engagement_sla_days, body.params.model_dump())
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 class SaveProgramRequest(ProgramRequest):
@@ -538,6 +542,11 @@ def put_program(stream_id: str, body: SaveProgramRequest, streams: StreamStore =
     if not body.updated_by.strip():
         raise HTTPException(422, "Saving a calibration needs updated_by")
     stream = _stream_or_404(streams, stream_id)
+    if body.params.benchmark != "sample":
+        try:
+            BenchmarkStore(streams.root).get(body.params.benchmark)
+        except KeyError as exc:
+            raise HTTPException(422, f"Unknown benchmark: {body.params.benchmark}") from exc
     program = {"params": body.params.model_dump(), "updated_by": body.updated_by, "updated_at": datetime.now(UTC).isoformat()}
     streams.save({**stream, "program": program})
     return program
@@ -838,3 +847,29 @@ def get_case_study(
         raise HTTPException(404, "Unknown engagement") from exc
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
+
+
+# --- Benchmarks for client programs ----------------------------------------------
+
+
+@router.get("/benchmarks")
+def list_benchmarks(streams: StreamStore = Depends(get_stream_store)) -> dict:
+    return {"benchmarks": BenchmarkStore(streams.root).list()}
+
+
+class BenchmarkUpload(BaseModel):
+    text: str
+    uploaded_by: str
+
+
+@router.post("/benchmarks")
+def upload_benchmark(body: BenchmarkUpload, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    """An iShares holdings export (e.g. URTH for MSCI World): equities and weights.
+    Uploading the same fund and date again replaces it."""
+    if len(body.text) > 5_000_000:
+        raise HTTPException(413, "File too large for a holdings export")
+    try:
+        record = BenchmarkStore(streams.root).save(parse_ishares_holdings(body.text), body.uploaded_by)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {k: v for k, v in record.items() if k != "constituents"} | {"constituents": len(record["constituents"])}
