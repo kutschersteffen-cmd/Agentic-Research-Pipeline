@@ -49,7 +49,7 @@ function BatchSpendChart({ results }: { results: CompanyFinancialsRecord[] }) {
       <p className="help-text">
         {withValue.length} of {results.length} companies disclosed a {metric === "capex" ? "CapEx" : "R&D"} total
         {results.length > withValue.length && ` (${results.length - withValue.length} not disclosed, excluded from the chart)`}.
-        {currencies.size > 1 && " Figures are shown exactly as each company reports them -- currencies are not converted; see the table below for each company's currency."}
+        {currencies.size > 1 && " Figures are shown exactly as each company reports them — currencies are not converted; see the table below for each company's currency."}
       </p>
       <BarChart data={chartData} valueFormatter={(v) => v.toLocaleString(undefined, { maximumFractionDigits: 0 })} />
     </section>
@@ -219,7 +219,7 @@ export function Extraction({ pendingUniverse }: Props = {}) {
       {mode === "financials" && (
         <p className="help-text">
           Pulls disclosed business segments (name, description, revenue, operating income, assets), total CapEx, and
-          total R&amp;D -- each with a grounded description and any disclosed category breakdown -- in a single
+          total R&amp;D — each with a grounded description and any disclosed category breakdown — in a single
           combined pass per company: one document fetch, one extractor call, one independent verifier call, instead
           of three separate pipelines.
         </p>

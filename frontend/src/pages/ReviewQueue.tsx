@@ -6,6 +6,7 @@ import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import type { Citation, ReviewableRunKind, RunManifest } from "../types";
 import { REVIEWER_REQUIRED, useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "../components/ReviewerField";
+import { DecisionBar } from "../components/DecisionBar";
 import { ProposedTag } from "../components/ProposedTag";
 
 const REVIEW_KIND_LABEL: Record<ReviewableRunKind, string> = {
@@ -80,52 +81,62 @@ function ReviewItemFields({ item, onOpenSource }: { item: Record<string, unknown
   );
 }
 
+interface QueueItem {
+  kind: ReviewableRunKind;
+  runId: string;
+  item: Record<string, unknown>;
+}
+
+/** One inbox across every run with flagged items, lowest confidence first,
+ * so the reviewer starts deciding instead of picking a type and a run.
+ * A run opened from elsewhere (`#/review/<kind>/<run id>`) starts filtered
+ * to that run. */
 export function ReviewQueue({ pendingReview }: Props = {}) {
-  const [kind, setKind] = useState<ReviewableRunKind>(pendingReview?.kind ?? "theme");
-  const [runId, setRunId] = useState(pendingReview?.runId ?? "");
+  const [items, setItems] = useState<QueueItem[] | null>(null);
   const [runs, setRuns] = useState<RunManifest[]>([]);
-  const [pending, setPending] = useState<Record<string, unknown>[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [filter, setFilter] = useState(pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "");
   const [error, setError] = useState<string | null>(null);
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
   const [reviewer] = useReviewer();
   const [deciding, setDeciding] = useState<string | null>(null);
   const [lastDecided, setLastDecided] = useState<string | null>(null);
 
-  async function load(loadKind: ReviewableRunKind = kind, loadRunId: string = runId) {
-    if (!loadRunId) return;
-    setBusy(true);
+  async function load() {
     setError(null);
+    setItems(null);
     try {
-      const res = await QUEUE_FNS[loadKind](loadRunId);
-      setPending((res as { pending: Record<string, unknown>[] }).pending);
+      const all = ((await api.listRuns()) as { runs: RunManifest[] }).runs;
+      const flagged = all.filter(
+        (r) =>
+          r.run_type in QUEUE_FNS &&
+          (r.review_count > 0 || (pendingReview?.runId === r.run_id && pendingReview.kind === r.run_type)),
+      );
+      setRuns(flagged);
+      const results = await Promise.allSettled(
+        flagged.map(async (r) => {
+          const kind = r.run_type as ReviewableRunKind;
+          const res = (await QUEUE_FNS[kind](r.run_id)) as { pending: Record<string, unknown>[] };
+          return res.pending.map((item) => ({ kind, runId: r.run_id, item }));
+        }),
+      );
+      const failed = results.filter((x) => x.status === "rejected").length;
+      if (failed) setError(`${failed} run${failed === 1 ? "" : "s"} could not be loaded; their items are missing below.`);
+      const loaded = results.flatMap((x) => (x.status === "fulfilled" ? x.value : []));
+      const conf = (q: QueueItem) => (typeof q.item.confidence === "number" ? q.item.confidence : 1);
+      setItems(loaded.sort((a, b) => conf(a) - conf(b)));
     } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
+      setError(`Flagged items could not be loaded: ${(err as Error).message}.`);
+      setItems([]);
     }
   }
 
   useEffect(() => {
-    setRuns([]);
-    api
-      .listRuns(kind)
-      .then((res) => setRuns((res as { runs: RunManifest[] }).runs))
-      .catch(() => setRuns([]));
-  }, [kind]);
-
-  // A run clicked from Run History's "Review" link arrives here -- load its
-  // queue immediately instead of making the user re-pick the type and
-  // re-type/paste the run ID they just came from.
-  useEffect(() => {
-    if (!pendingReview) return;
-    setKind(pendingReview.kind);
-    setRunId(pendingReview.runId);
-    load(pendingReview.kind, pendingReview.runId);
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingReview]);
+  }, []);
 
-  async function decide(itemKey: string, decision: "approve" | "reject") {
+  async function decide(q: QueueItem, decision: "approve" | "reject") {
+    const itemKey = q.item.item_key as string;
     if (!reviewer.trim()) {
       setError(REVIEWER_REQUIRED);
       return;
@@ -133,8 +144,8 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
     setDeciding(itemKey);
     setError(null);
     try {
-      await SUBMIT_FNS[kind](runId, { item_key: itemKey, decision, reviewer: reviewer.trim() });
-      setPending((prev) => prev.filter((p) => p.item_key !== itemKey));
+      await SUBMIT_FNS[q.kind](q.runId, { item_key: itemKey, decision, reviewer: reviewer.trim() });
+      setItems((prev) => prev?.filter((p) => p !== q) ?? null);
       setLastDecided(`${decision === "approve" ? "Approved" : "Rejected"} ${itemKey} as ${reviewer.trim()}.`);
     } catch (err) {
       setError(`Could not record the decision on ${itemKey}: ${(err as Error).message}. It is still pending.`);
@@ -143,85 +154,55 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
     }
   }
 
-  const runsWithFlags = runs.filter((r) => r.review_count > 0);
+  const shown = (items ?? []).filter((q) => !filter || `${q.kind}/${q.runId}` === filter);
+  const countFor = (r: RunManifest) => (items ?? []).filter((q) => q.runId === r.run_id).length;
 
   return (
     <div className="page">
       <h2>Review Queue</h2>
-      <p className="help-text">Low-confidence verdicts, ungrounded citations and uncertain calls wait here. Nothing flagged reaches an export until a named person approves it.</p>
+      <p className="help-text">Low-confidence verdicts, ungrounded citations and uncertain calls wait here, lowest confidence first. Nothing flagged reaches an export until a named person approves it.</p>
 
-      <section className="card">
-        <label className="field-label">
-          Run type
-          <select
-            value={kind}
-            onChange={(e) => {
-              setKind(e.target.value as ReviewableRunKind);
-              setRunId("");
-              setPending([]);
-            }}
-          >
-            {(Object.keys(REVIEW_KIND_LABEL) as ReviewableRunKind[]).map((k) => (
-              <option key={k} value={k}>
-                {REVIEW_KIND_LABEL[k]}
+      <div className="toolbar">
+        <label className="field-label inline-label">
+          Show
+          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+            <option value="">All runs ({items?.length ?? "…"} items)</option>
+            {runs.map((r) => (
+              <option key={r.run_id} value={`${r.run_type}/${r.run_id}`}>
+                {REVIEW_KIND_LABEL[r.run_type as ReviewableRunKind]}: {r.run_id} ({countFor(r)})
               </option>
             ))}
           </select>
         </label>
+        <button className="secondary" onClick={load} disabled={items === null}>
+          Refresh
+        </button>
+        <ReviewerField compact />
+      </div>
+      {error && <p className="error-text" role="alert">{error}</p>}
+      <p className="status-text" aria-live="polite">
+        {items === null ? "Loading flagged items…" : lastDecided}
+      </p>
 
-        <label className="field-label">
-          Run
-          <select value={runId} onChange={(e) => setRunId(e.target.value)}>
-            <option value="">-- select a run --</option>
-            {runsWithFlags.length > 0 && (
-              <optgroup label="Has flagged items">
-                {runsWithFlags.map((r) => (
-                  <option key={r.run_id} value={r.run_id}>
-                    {r.run_id} -- {r.review_count} flagged ({r.status})
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            <optgroup label="All runs">
-              {runs.map((r) => (
-                <option key={r.run_id} value={r.run_id}>
-                  {r.run_id} -- {r.review_count} flagged ({r.status})
-                </option>
-              ))}
-            </optgroup>
-          </select>
-        </label>
-        {runs.length === 0 && <p className="muted">No {REVIEW_KIND_LABEL[kind].toLowerCase()} runs found.</p>}
-
-        <div className="toolbar">
-          <button onClick={() => load()} disabled={busy || !runId}>
-            Load pending items
-          </button>
-          <ReviewerField compact />
-        </div>
-        {error && <p className="error-text" role="alert">{error}</p>}
-        <p className="status-text" aria-live="polite">
-          {lastDecided}
-        </p>
-      </section>
-
-      {pending.length > 0 && (
+      {shown.length > 0 && (
         <div className="split-review">
           <div className="split-review-main">
             <section className="card">
-              <h3>{pending.length} pending</h3>
-              {pending.map((item) => (
-                <div className="review-item proposed" key={item.item_key as string}>
+              <h3>
+                {shown.length} awaiting a decision
+              </h3>
+              {shown.map((q) => (
+                <div className="review-item proposed" key={`${q.runId}/${q.item.item_key as string}`}>
                   <ProposedTag />
-                  <ReviewItemFields item={item} onOpenSource={setActiveSource} />
-                  <div className="toolbar">
-                    <button onClick={() => decide(item.item_key as string, "approve")} disabled={deciding !== null}>
-                      Approve
-                    </button>
-                    <button onClick={() => decide(item.item_key as string, "reject")} className="danger" disabled={deciding !== null}>
-                      Reject
-                    </button>
-                  </div>
+                  <p className="muted review-item-source">
+                    {REVIEW_KIND_LABEL[q.kind]} · {q.runId}
+                  </p>
+                  <ReviewItemFields item={q.item} onOpenSource={setActiveSource} />
+                  <DecisionBar
+                    onApprove={() => decide(q, "approve")}
+                    onReject={() => decide(q, "reject")}
+                    disabled={deciding !== null}
+                  />
                 </div>
               ))}
             </section>
@@ -229,7 +210,9 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
           <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
         </div>
       )}
-      {pending.length === 0 && runId && !busy && <p className="muted">Nothing pending for this run.</p>}
+      {items !== null && shown.length === 0 && !error && (
+        <p className="muted">Nothing is waiting for review{filter ? " in this run" : ""}.</p>
+      )}
     </div>
   );
 }

@@ -17,7 +17,7 @@ export function SourceDiscoveryPanel({ candidates, selected, onToggle }: Props) 
   const [inspecting, setInspecting] = useState<SourceCandidate | null>(null);
 
   if (candidates.length === 0) {
-    return <p className="help-text">No candidates yet -- run a search above.</p>;
+    return <p className="help-text">No candidates yet — run a search above.</p>;
   }
 
   return (

@@ -37,7 +37,7 @@ function RatingCell({ cell, onClick }: { cell: BarrierMatrixCell | undefined; on
         type="button"
         className="link-button"
         onClick={onClick}
-        title={`${RATING_LABEL[cell.rating]} -- confidence ${cell.confidence}${cell.stale ? " -- STALE" : ""}`}
+        title={`${RATING_LABEL[cell.rating]} — confidence ${cell.confidence}${cell.stale ? " — STALE" : ""}`}
       >
         <span className={RATING_CLASS[cell.rating]}>{cell.rating}</span>
         {cell.stale && <span className="badge badge-neutral" title={`Last verified ${cell.last_verified}`}>stale</span>}
@@ -52,7 +52,7 @@ function CriterionDetail({ detail, onClose }: { detail: BarrierCriterionDetail; 
     <div className="card">
       <div className="section-heading">
         <h3>
-          {criterion.code} -- {criterion.criterion}
+          {criterion.code} — {criterion.criterion}
         </h3>
         <button type="button" onClick={onClose}>
           Close
@@ -201,7 +201,7 @@ export function TransitionBarrierAssessment() {
       <h2>Transition Barriers</h2>
       <p className="muted">
         How feasible decarbonisation is for {matrix.sectors.length} hard-to-abate sectors across{" "}
-        {matrix.regions.length} regions -- {matrix.criteria.length} criteria x {matrix.regions.length} regions ={" "}
+        {matrix.regions.length} regions — {matrix.criteria.length} criteria x {matrix.regions.length} regions ={" "}
         {matrix.criteria.length * matrix.regions.length} rated cells. <strong>H means transition is more feasible</strong>{" "}
         (fewer barriers), not that the barrier is high.
       </p>

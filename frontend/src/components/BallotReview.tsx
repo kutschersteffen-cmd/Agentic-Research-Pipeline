@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { CompanyBallot, VoteRecord, VotePosition, VoteReviewDecision } from "../types";
 import { Modal } from "./Modal";
+import { DecisionBar } from "./DecisionBar";
+import { CitationList } from "./CitationList";
+import { SourcePanel, type ActiveSource } from "./SourcePanel";
 import { REVIEWER_REQUIRED, useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "./ReviewerField";
 import { ProposedTag } from "./ProposedTag";
@@ -9,6 +12,15 @@ import { ProposedTag } from "./ProposedTag";
 const VOTE_POSITIONS: VotePosition[] = ["for", "against", "abstain", "withhold"];
 
 const DECISION_LABEL: Record<string, string> = { approve: "approved", edit: "overridden", reject: "rejected" };
+
+/** "12 Oct 2026 · in 5 days": the date a vote is due, and how soon. */
+function meetingLabel(date: string | null | undefined): string {
+  if (!date) return "Meeting date not found in the proxy statement";
+  const d = new Date(date);
+  const days = Math.ceil((d.getTime() - Date.now()) / 86_400_000);
+  const when = days > 1 ? `in ${days} days` : days === 1 ? "tomorrow" : days === 0 ? "today" : `${-days} days ago`;
+  return `Meeting ${d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })} · ${when}`;
+}
 
 function itemKey(companyId: string, proposalNumber: string): string {
   return `${companyId}:${proposalNumber}`;
@@ -21,6 +33,7 @@ function ProposalReview({
   decision,
   castConfirmationId,
   onReviewed,
+  onOpenSource,
 }: {
   runId: string;
   ballot: CompanyBallot;
@@ -28,11 +41,12 @@ function ProposalReview({
   decision: VoteReviewDecision | undefined;
   castConfirmationId: string | undefined;
   onReviewed: () => void;
+  onOpenSource: (s: ActiveSource) => void;
 }) {
   const rec = vote.policy_recommendation;
   const alreadyCast = castConfirmationId !== undefined;
-  // Starts unset on purpose: a proposal is only decided when a person picks.
-  const [reviewDecision, setReviewDecision] = useState<"" | "approve" | "edit" | "reject">("");
+  // Nothing is pre-selected: a proposal is only decided when a person presses a decision.
+  const [overrideOpen, setOverrideOpen] = useState(false);
   const [chosenVote, setChosenVote] = useState<VotePosition>(rec?.vote ?? "for");
   const [coSignedBy, setCoSignedBy] = useState("");
   const [reviewer] = useReviewer();
@@ -43,17 +57,17 @@ function ProposalReview({
   const key = itemKey(ballot.company_id, vote.proposal.proposal_number);
   const needsCoSign = rec?.engagement_alignment_flag === true;
 
-  async function submit() {
+  async function submit(reviewDecision: "approve" | "edit" | "reject") {
     if (!reviewer.trim()) {
       setError(REVIEWER_REQUIRED);
       return;
     }
-    if (!reviewDecision) {
-      setError("Choose a decision first.");
+    if (needsCoSign && coSignedBy.trim().toLowerCase() === reviewer.trim().toLowerCase()) {
+      setError("The co-sign must come from a second person, not the reviewer.");
       return;
     }
     if (needsCoSign && !coSignedBy.trim()) {
-      setError("This item carries an engagement alignment flag -- a co-sign is required before it can be cast.");
+      setError("This proposal has an engagement alignment flag: enter a second person’s name as co-signer first.");
       return;
     }
     setBusy(true);
@@ -68,6 +82,7 @@ function ProposalReview({
         comment: comment || null,
       });
       setComment("");
+      setOverrideOpen(false);
       onReviewed();
     } catch (err) {
       setError((err as Error).message);
@@ -88,6 +103,21 @@ function ProposalReview({
       {vote.proposal.management_recommendation && (
         <p className="muted">Management recommends: {vote.proposal.management_recommendation}</p>
       )}
+      {Object.keys(vote.proposal.supporting_data ?? {}).length > 0 && (
+        <dl className="supporting-data">
+          {Object.entries(vote.proposal.supporting_data).map(([k, v]) => (
+            <div key={k}>
+              <dt>{k.replace(/_/g, " ")}</dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {vote.proposal.citations.length > 0 ? (
+        <CitationList citations={vote.proposal.citations} onOpenSource={onOpenSource} />
+      ) : (
+        <p className="muted">No citation from the proxy statement was recorded for this proposal.</p>
+      )}
 
       {rec && (
         <div className={decision || alreadyCast ? "recommendation-line" : "recommendation-line proposed"}>
@@ -99,7 +129,9 @@ function ProposalReview({
         </div>
       )}
       {rec?.engagement_alignment_flag && (
-        <div className="banner banner-danger">Engagement alignment flag: {rec.engagement_alignment_note}</div>
+        <div className="banner banner-warning">
+          <strong>Needs a second person.</strong> Engagement alignment flag: {rec.engagement_alignment_note}
+        </div>
       )}
 
       {alreadyCast && (
@@ -114,25 +146,6 @@ function ProposalReview({
               {decision.edited_value?.vote ? ` → ${decision.edited_value.vote}` : ""}
             </p>
           )}
-          <div className="inline-fields">
-            <select aria-label="Decision" value={reviewDecision} onChange={(e) => setReviewDecision(e.target.value as typeof reviewDecision)}>
-              <option value="" disabled>
-                Choose a decision…
-              </option>
-              <option value="approve">Approve recommendation</option>
-              <option value="edit">Override vote</option>
-              <option value="reject">Reject (do not cast)</option>
-            </select>
-            {reviewDecision === "edit" && (
-              <select aria-label="Vote to cast" value={chosenVote} onChange={(e) => setChosenVote(e.target.value as VotePosition)}>
-                {VOTE_POSITIONS.map((v) => (
-                  <option key={v} value={v}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
           {needsCoSign && (
             <input
               aria-label="Co-signed by"
@@ -142,9 +155,29 @@ function ProposalReview({
             />
           )}
           <textarea rows={1} aria-label="Comment (optional)" placeholder="Comment (optional)" value={comment} onChange={(e) => setComment(e.target.value)} />
-          <button onClick={submit} disabled={busy || !reviewDecision}>
-            Record decision
-          </button>
+          <DecisionBar
+            approveLabel={rec ? `Approve: vote ${rec.vote}` : "Approve"}
+            onApprove={() => submit("approve")}
+            onOverride={() => setOverrideOpen((o) => !o)}
+            overrideOpen={overrideOpen}
+            onReject={() => submit("reject")}
+            rejectLabel="Reject (do not cast)"
+            disabled={busy}
+          />
+          {overrideOpen && (
+            <div className="inline-fields">
+              <select aria-label="Vote to cast instead" value={chosenVote} onChange={(e) => setChosenVote(e.target.value as VotePosition)}>
+                {VOTE_POSITIONS.map((v) => (
+                  <option key={v} value={v}>
+                    Vote {v}
+                  </option>
+                ))}
+              </select>
+              <button className="secondary" onClick={() => submit("edit")} disabled={busy}>
+                Record override
+              </button>
+            </div>
+          )}
           {error && <p className="error-text" role="alert">{error}</p>}
         </>
       )}
@@ -209,6 +242,7 @@ export function BallotReview({ runId }: { runId: string }) {
   // What a cast would send right now, from the same rules the backend applies
   // (arp.voting.pipeline.cast_approved_votes): decided, not rejected, not cast.
   const counts = { approved: 0, overridden: 0, rejected: 0, pending: 0, missingCoSign: 0 };
+  const outgoing: { key: string; company: string; number: string; vote: string; overridden: boolean }[] = [];
   for (const b of ballots) {
     for (const v of b.votes) {
       const k = itemKey(b.company_id, v.proposal.proposal_number);
@@ -219,6 +253,13 @@ export function BallotReview({ runId }: { runId: string }) {
       else {
         if (d.decision === "edit") counts.overridden++;
         else counts.approved++;
+        outgoing.push({
+          key: k,
+          company: b.name,
+          number: v.proposal.proposal_number,
+          vote: (d.decision === "edit" ? d.edited_value?.vote : v.policy_recommendation?.vote) ?? "—",
+          overridden: d.decision === "edit",
+        });
         if (v.policy_recommendation?.engagement_alignment_flag && !d.edited_value?.co_signed_by) counts.missingCoSign++;
       }
     }
@@ -226,6 +267,9 @@ export function BallotReview({ runId }: { runId: string }) {
   const castable = counts.approved + counts.overridden;
   const totalProposals = ballots.reduce((sum, b) => sum + b.votes.length, 0);
   const totalCast = Object.keys(castByKey).length;
+  // Soonest meeting first: that is the order the deadlines arrive in.
+  const byMeeting = [...ballots].sort((a, b) => (a.meeting_date ?? "9999").localeCompare(b.meeting_date ?? "9999"));
+  const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
 
   return (
     <section className="card">
@@ -240,7 +284,7 @@ export function BallotReview({ runId }: { runId: string }) {
         engagement alignment flag also needs a co-sign.
       </p>
       <p className="muted">
-        {totalProposals} proposal(s) across {ballots.length} compan{ballots.length === 1 ? "y" : "ies"} &middot; {totalCast} cast &middot;{" "}
+        {totalProposals} proposal{totalProposals === 1 ? "" : "s"} across {ballots.length} compan{ballots.length === 1 ? "y" : "ies"} &middot; {totalCast} cast &middot;{" "}
         {counts.pending} awaiting a decision
       </p>
       <div className="toolbar">
@@ -270,12 +314,34 @@ export function BallotReview({ runId }: { runId: string }) {
             <li>{counts.rejected} rejected (will not be cast)</li>
             <li>{counts.pending} still awaiting a decision (will not be cast)</li>
           </ul>
+          <table className="data-table cast-list">
+            <caption className="visually-hidden">Votes that will be cast</caption>
+            <thead>
+              <tr>
+                <th>Company</th>
+                <th>Proposal</th>
+                <th>Vote</th>
+              </tr>
+            </thead>
+            <tbody>
+              {outgoing.map((o) => (
+                <tr key={o.key}>
+                  <td>{o.company}</td>
+                  <td>#{o.number}</td>
+                  <td>
+                    <strong>{o.vote}</strong>
+                    {o.overridden && <span className="muted"> (overridden)</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
           {counts.missingCoSign > 0 && (
             <div className="banner banner-danger">
               {counts.missingCoSign} flagged vote{counts.missingCoSign === 1 ? " has" : "s have"} no co-sign and will be refused by the platform.
             </div>
           )}
-          <p className="muted">Recorded against your name: {reviewer.trim()}</p>
+          <p className="muted">Recorded against the name you entered: {reviewer.trim()} (not verified by a login)</p>
           <div className="toolbar">
             <button onClick={castApproved}>Cast {castable} vote{castable === 1 ? "" : "s"}</button>
             <button className="secondary" onClick={() => setConfirming(false)}>
@@ -285,11 +351,14 @@ export function BallotReview({ runId }: { runId: string }) {
         </Modal>
       )}
 
-      {ballots.map((ballot) => (
+      <div className="split-review">
+      <div className="split-review-main">
+      {byMeeting.map((ballot) => (
         <div key={ballot.company_id} className="panel-section">
           <h4>
             {ballot.name} <span className="muted">({ballot.company_id})</span>
           </h4>
+          <p className="meeting-line">{meetingLabel(ballot.meeting_date)}</p>
           {ballot.votes.length === 0 && <p className="muted">No proposals found (no proxy statement available yet).</p>}
           {ballot.votes.map((vote) => (
             <ProposalReview
@@ -300,10 +369,14 @@ export function BallotReview({ runId }: { runId: string }) {
               decision={decisions[itemKey(ballot.company_id, vote.proposal.proposal_number)]}
               castConfirmationId={castByKey[itemKey(ballot.company_id, vote.proposal.proposal_number)] || undefined}
               onReviewed={load}
+              onOpenSource={setActiveSource}
             />
           ))}
         </div>
       ))}
+      </div>
+      <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
+      </div>
     </section>
   );
 }

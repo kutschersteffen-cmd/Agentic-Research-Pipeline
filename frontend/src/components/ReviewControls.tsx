@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../api/client";
 import type { ReviewDecision } from "../types";
 import { REVIEWER_REQUIRED } from "../lib/reviewer";
+import { DecisionBar } from "./DecisionBar";
 import { ProposedTag } from "./ProposedTag";
 
 function decisionBadgeClass(decision: string): string {
@@ -93,20 +94,17 @@ export function ReviewControls({
       ) : (
         <ProposedTag />
       )}
-      <div className="toolbar">
-        <button onClick={() => submit("approve")} disabled={busy}>
-          Approve
-        </button>
-        <button onClick={() => setShowOverrideInput((s) => !s)} disabled={busy}>
-          Override
-        </button>
-        <button className="danger" onClick={() => submit("reject")} disabled={busy}>
-          Reject
-        </button>
-        <button className="secondary" onClick={loadHistory} aria-expanded={history !== null}>
+      <DecisionBar
+        onApprove={() => submit("approve")}
+        onOverride={() => setShowOverrideInput((s) => !s)}
+        overrideOpen={showOverrideInput}
+        onReject={() => submit("reject")}
+        disabled={busy}
+      >
+        <button className="link-button" onClick={loadHistory} aria-expanded={history !== null}>
           History
         </button>
-      </div>
+      </DecisionBar>
       {showOverrideInput && (
         <div className="inline-fields">
           <input

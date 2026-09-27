@@ -262,7 +262,7 @@ export function ReportBuilder() {
         )}
 
         <label className="field-label">
-          Template (optional -- ingest a .pptx to match its house style)
+          Template (optional — ingest a .pptx to match its house style)
           <input type="file" accept=".pptx" onChange={(e) => e.target.files?.[0] && handleTemplateUpload(e.target.files[0])} />
         </label>
         {templates.length > 0 && (
@@ -277,7 +277,7 @@ export function ReportBuilder() {
         )}
         {template && (
           <p className="muted">
-            Using "{template.source_filename}" -- {template.layouts.length} layout(s), fonts {template.major_font ?? "?"}/{template.minor_font ?? "?"}.
+            Using "{template.source_filename}" — {template.layouts.length} layout(s), fonts {template.major_font ?? "?"}/{template.minor_font ?? "?"}.
           </p>
         )}
       </section>
@@ -491,7 +491,7 @@ export function ReportBuilder() {
     {previewReportId && (
       <aside className="source-panel">
         <div className="source-panel-header">
-          <h4>Preview -- {previewTitle}</h4>
+          <h4>Preview — {previewTitle}</h4>
           <button className="link-button" onClick={closePreview}>Close</button>
         </div>
         {previewLoading && <p className="muted">Rendering preview...</p>}
@@ -511,7 +511,7 @@ export function ReportBuilder() {
     )}
 
     {enlargedPage && previewReportId && (
-      <Modal title={`${previewTitle} -- page ${enlargedPage} / ${previewPageCount}`} onClose={() => setEnlargedPage(null)}>
+      <Modal title={`${previewTitle} — page ${enlargedPage} / ${previewPageCount}`} onClose={() => setEnlargedPage(null)}>
         <img className="modal-image" src={api.reportPreviewPageUrl(previewReportId, enlargedPage)} alt={`Page ${enlargedPage}`} />
         <div className="toolbar">
           <button onClick={() => setEnlargedPage((p) => Math.max(1, (p ?? 1) - 1))} disabled={enlargedPage <= 1}>

@@ -107,12 +107,13 @@ def test_saving_edits_records_them_as_human_decisions(client):
 def test_ratified_versions_are_readable_after_later_edits(client):
     dataset_id = _upload(client)["dataset_id"]
     config = client.post("/api/decision/mechanisms/derive", json={"dataset_id": dataset_id, "save": True}).json()["config"]
-    client.post(f"/api/decision/mechanisms/{config['framework_id']}/ratify")
+    client.post(f"/api/decision/mechanisms/{config['framework_id']}/ratify", params={"ratified_by": " A. Novak "})
     edited = {**config, "min_coverage_pct": 90}
     client.post("/api/decision/mechanisms", json={"config": edited, "base_version": 1})
 
     v1 = client.get(f"/api/decision/mechanisms/{config['framework_id']}", params={"version": 1}).json()
     assert v1["config"]["ratified"] is True
+    assert v1["config"]["ratified_by"] == "A. Novak"
     assert v1["config"]["min_coverage_pct"] == 60
     assert client.get(f"/api/decision/mechanisms/{config['framework_id']}/versions").json() == [1, 2]
 

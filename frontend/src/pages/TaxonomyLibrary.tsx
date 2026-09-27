@@ -15,6 +15,7 @@ import type {
   ThemeDefinition,
 } from "../types";
 import { activatable } from "../lib/activatable";
+import { ConfirmDecision } from "../components/ConfirmDecision";
 
 const METHOD_LABELS: Record<DerivationMethod, string> = {
   llm_draft: "LLM draft (freeform)",
@@ -96,7 +97,7 @@ function LibraryView({
   const [openId, setOpenId] = useState<string | null>(null);
   const [activities, setActivities] = useState<ActivityDefinition[]>([]);
   const [notes, setNotes] = useState("Manual edit.");
-  const [ratifiedBy, setRatifiedBy] = useState("");
+  const [confirmingRatify, setConfirmingRatify] = useState<Taxonomy | null>(null);
   const [useSampleIcio, setUseSampleIcio] = useState(false);
   const [useSampleStandards, setUseSampleStandards] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -121,8 +122,8 @@ function LibraryView({
     }
   }
 
-  async function ratify(t: Taxonomy) {
-    if (!ratifiedBy) return;
+  async function ratify(t: Taxonomy, ratifiedBy: string) {
+    setConfirmingRatify(null);
     setBusy(true);
     setError(null);
     try {
@@ -153,11 +154,24 @@ function LibraryView({
   }
 
   if (taxonomies.length === 0) {
-    return <p className="help-text">No taxonomies yet -- draft one under "New taxonomy".</p>;
+    return <p className="help-text">No taxonomies yet — draft one under "New taxonomy".</p>;
   }
 
   return (
     <section className="card">
+      {confirmingRatify && (
+        <ConfirmDecision
+          title={`Ratify ${confirmingRatify.name} version ${confirmingRatify.version}?`}
+          confirmLabel={`Ratify version ${confirmingRatify.version}`}
+          onConfirm={(by) => ratify(confirmingRatify, by)}
+          onCancel={() => setConfirmingRatify(null)}
+        >
+          <p>
+            Ratifying records that a named person approved this version. Later edits become a new version; this one
+            stays exactly as ratified.
+          </p>
+        </ConfirmDecision>
+      )}
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -178,7 +192,9 @@ function LibraryView({
                   <td>{METHOD_LABELS[t.derivation_method]}</td>
                   <td>v{t.version}</td>
                   <td>
-                    <span className={t.status === "ratified" ? "badge badge-high" : "badge badge-neutral"}>{t.status}</span>
+                    <span className={t.status === "ratified" ? "badge badge-high" : "badge badge-neutral"}>
+                      {t.status === "ratified" && t.ratified_by ? `ratified by ${t.ratified_by}` : t.status}
+                    </span>
                   </td>
                   <td>{t.theme.activities.length}</td>
                   <td>{openId === t.taxonomy_id ? "▲" : "▼"}</td>
@@ -199,13 +215,8 @@ function LibraryView({
                       </div>
                       {t.status === "draft" && (
                         <div className="toolbar">
-                          <input
-                            placeholder="Ratified by (name)"
-                            value={ratifiedBy}
-                            onChange={(e) => setRatifiedBy(e.target.value)}
-                          />
-                          <button onClick={() => ratify(t)} disabled={busy || !ratifiedBy}>
-                            Ratify v{t.version}
+                          <button onClick={() => setConfirmingRatify(t)} disabled={busy}>
+                            Ratify version {t.version}…
                           </button>
                         </div>
                       )}
@@ -432,7 +443,7 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
         <section className="card">
           <h3>2. Review &amp; adjust the drafted taxonomy</h3>
           <p className="muted">
-            {draft.name} v{draft.version} -- {draft.source_notes}
+            {draft.name} v{draft.version} — {draft.source_notes}
           </p>
           <ActivityEditorTable activities={draftActivities} onChange={setDraftActivities} />
           <button onClick={saveDraftEdits} disabled={busy}>
@@ -565,7 +576,7 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
           <ul>
             {comparison.likely_duplicates.map((d, i) => (
               <li key={i}>
-                {activityName(d.activity_a_id)} &harr; {activityName(d.activity_b_id)} -- {d.similarity_note}
+                {activityName(d.activity_a_id)} &harr; {activityName(d.activity_b_id)} — {d.similarity_note}
               </li>
             ))}
             {comparison.likely_duplicates.length === 0 && <li className="muted">none found</li>}
@@ -673,7 +684,7 @@ function UniverseBuilderView() {
         {result && (
           <>
             <p className="status-text">
-              Built {result.company_count} companies -- saved at <code>{result.path}</code>. Use this path as the
+              Built {result.company_count} companies — saved at <code>{result.path}</code>. Use this path as the
               universe for the empirical/news-mining derivation methods or the Thematic Universe Builder.
             </p>
             <div className="table-wrap">

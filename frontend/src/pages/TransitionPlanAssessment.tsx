@@ -265,11 +265,11 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
           }}
         />
         <button onClick={startRun} disabled={busy || !universePath}>
-          Assess transition plans across {companyCount || "..."} companies
+          {companyCount ? `Assess transition plans for ${companyCount} companies` : "Assess transition plans"}
         </button>
       </section>
 
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
 
       {runId && (
         <section className="card">

@@ -96,6 +96,8 @@ def submit_voting_review(run_id: str, req: VoteReviewDecisionRequest, run_store:
         raise HTTPException(400, "decision must be 'approve', 'edit', or 'reject'")
     if req.decision == "edit" and not req.vote:
         raise HTTPException(400, "vote is required when decision == 'edit'")
+    if req.co_signed_by and req.reviewer and req.co_signed_by.strip().casefold() == req.reviewer.strip().casefold():
+        raise HTTPException(400, "co_signed_by must be a second person, not the reviewer")
     edited_value = {"vote": req.vote, "co_signed_by": req.co_signed_by} if req.decision == "edit" else (
         {"co_signed_by": req.co_signed_by} if req.co_signed_by else None
     )
