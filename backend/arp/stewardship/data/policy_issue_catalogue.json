@@ -1,7 +1,7 @@
 {
-  "version": "0.1-draft",
+  "version": "0.2-draft",
   "status": "generic draft; not a house policy",
-  "note": "Issues, parameters and data fields are placeholders to be confirmed. A policy position picks an action (for | against | abstain | case_by_case | escalate), sets parameter values, a scope and a vote target from vote_targets. data_fields refer to Field Definition ids and are placeholders until the field catalogue exists.",
+  "note": "Issues, parameters and data fields are placeholders to be confirmed. A policy position picks an action (for | against | abstain | case_by_case | escalate), sets parameter values, a scope and a vote target from vote_targets. data_fields refer to Field Definition ids and are placeholders until the field catalogue exists. Each parameter may carry 'stricter': for numbers 'higher' or 'lower', for booleans the value that is stricter. Stricter means more demanding of the company, i.e. more votes against management. Parameters without it (enums, maps, fields) are compared as changed/unchanged only. A parameter with 'affects_vote': false changes process only (e.g. notice to the company), not the vote itself.",
   "position_actions": [
     "for",
     "against",
@@ -60,12 +60,14 @@
         "min_independent_pct": {
           "type": "number",
           "description": "Minimum independent directors",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "higher"
         },
         "controlled_company_min_pct": {
           "type": "number",
           "description": "Lower minimum for controlled companies",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "higher"
         }
       },
       "vote_targets": [
@@ -91,17 +93,20 @@
         "audit_min_independent_pct": {
           "type": "number",
           "description": "Audit committee",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "higher"
         },
         "remuneration_min_independent_pct": {
           "type": "number",
           "description": "Remuneration committee",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "higher"
         },
         "nomination_min_independent_pct": {
           "type": "number",
           "description": "Nomination committee",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "higher"
         }
       },
       "vote_targets": [
@@ -127,15 +132,18 @@
       "parameters": {
         "require_separation": {
           "type": "bool",
-          "description": "Oppose a combined chair/CEO"
+          "description": "Oppose a combined chair/CEO",
+          "stricter": true
         },
         "accept_lead_independent_director": {
           "type": "bool",
-          "description": "A lead independent director mitigates a combined role"
+          "description": "A lead independent director mitigates a combined role",
+          "stricter": false
         },
         "oppose_former_ceo_as_chair": {
           "type": "bool",
-          "description": "Oppose a former CEO becoming chair"
+          "description": "Oppose a former CEO becoming chair",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -161,15 +169,18 @@
       "parameters": {
         "max_mandates_non_executive": {
           "type": "number",
-          "description": "Maximum listed-company boards for a non-executive"
+          "description": "Maximum listed-company boards for a non-executive",
+          "stricter": "lower"
         },
         "max_mandates_executive": {
           "type": "number",
-          "description": "Maximum outside boards for a sitting executive"
+          "description": "Maximum outside boards for a sitting executive",
+          "stricter": "lower"
         },
         "chair_counts_as": {
           "type": "number",
-          "description": "Mandates a chair role counts as"
+          "description": "Mandates a chair role counts as",
+          "stricter": "higher"
         }
       },
       "vote_targets": [
@@ -192,7 +203,8 @@
         "min_attendance_pct": {
           "type": "number",
           "description": "Minimum attendance",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "higher"
         }
       },
       "vote_targets": [
@@ -215,7 +227,8 @@
         "min_underrepresented_gender_pct": {
           "type": "number",
           "description": "Minimum share",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "higher"
         },
         "markets_with_higher_threshold": {
           "type": "map",
@@ -243,12 +256,14 @@
         "max_tenure_for_independence_years": {
           "type": "number",
           "description": "Tenure limit for independence",
-          "unit": "years"
+          "unit": "years",
+          "stricter": "lower"
         },
         "max_average_tenure_years": {
           "type": "number",
           "description": "Maximum average board tenure",
-          "unit": "years"
+          "unit": "years",
+          "stricter": "lower"
         }
       },
       "vote_targets": [
@@ -273,15 +288,18 @@
       "parameters": {
         "require_annual_election": {
           "type": "bool",
-          "description": "Oppose staggered boards"
+          "description": "Oppose staggered boards",
+          "stricter": true
         },
         "oppose_bundled_elections": {
           "type": "bool",
-          "description": "Oppose slates voted as one item"
+          "description": "Oppose slates voted as one item",
+          "stricter": true
         },
         "require_majority_voting": {
           "type": "bool",
-          "description": "Support majority voting standards"
+          "description": "Support majority voting standards",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -307,11 +325,13 @@
         "dissent_threshold_pct": {
           "type": "number",
           "description": "Prior-year opposition that requires a response",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "lower"
         },
         "ignore_majority_proposal": {
           "type": "bool",
-          "description": "Act when a majority-supported shareholder proposal was not implemented"
+          "description": "Act when a majority-supported shareholder proposal was not implemented",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -360,11 +380,13 @@
         "max_peer_percentile": {
           "type": "number",
           "description": "CEO pay above this peer percentile is a red flag",
-          "unit": "percentile"
+          "unit": "percentile",
+          "stricter": "lower"
         },
         "max_ceo_worker_pay_ratio": {
           "type": "number",
-          "description": "Maximum CEO-to-median-employee pay ratio"
+          "description": "Maximum CEO-to-median-employee pay ratio",
+          "stricter": "lower"
         }
       },
       "vote_targets": [
@@ -390,17 +412,20 @@
         "max_misalignment_years": {
           "type": "number",
           "description": "Consecutive years of misalignment tolerated",
-          "unit": "years"
+          "unit": "years",
+          "stricter": "lower"
         },
         "min_long_term_share_pct": {
           "type": "number",
           "description": "Minimum long-term share of variable pay",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "higher"
         },
         "min_vesting_period_years": {
           "type": "number",
           "description": "Minimum vesting/holding period",
-          "unit": "years"
+          "unit": "years",
+          "stricter": "higher"
         }
       },
       "vote_targets": [
@@ -426,16 +451,19 @@
       "parameters": {
         "require_esg_metric": {
           "type": "bool",
-          "description": "Require at least one measurable sustainability metric"
+          "description": "Require at least one measurable sustainability metric",
+          "stricter": true
         },
         "min_esg_weight_pct": {
           "type": "number",
           "description": "Minimum weight in variable pay",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "higher"
         },
         "require_climate_metric_for_high_emitters": {
           "type": "bool",
-          "description": "Require a climate metric for high-emitting sectors"
+          "description": "Require a climate metric for high-emitting sectors",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -460,16 +488,19 @@
         "max_dilution_pct": {
           "type": "number",
           "description": "Maximum dilution from all plans",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "lower"
         },
         "oppose_repricing": {
           "type": "bool",
-          "description": "Oppose option repricing without shareholder approval"
+          "description": "Oppose option repricing without shareholder approval",
+          "stricter": true
         },
         "max_discount_pct": {
           "type": "number",
           "description": "Maximum grant price discount",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "lower"
         }
       },
       "vote_targets": [
@@ -492,11 +523,13 @@
       "parameters": {
         "max_severance_multiple": {
           "type": "number",
-          "description": "Maximum multiple of salary + bonus"
+          "description": "Maximum multiple of salary + bonus",
+          "stricter": "lower"
         },
         "oppose_single_trigger": {
           "type": "bool",
-          "description": "Oppose single-trigger change-of-control vesting"
+          "description": "Oppose single-trigger change-of-control vesting",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -519,11 +552,13 @@
       "parameters": {
         "require_ex_post_target_disclosure": {
           "type": "bool",
-          "description": "Targets disclosed after the performance period"
+          "description": "Targets disclosed after the performance period",
+          "stricter": true
         },
         "oppose_undisclosed_discretion": {
           "type": "bool",
-          "description": "Oppose upward discretion without explanation"
+          "description": "Oppose upward discretion without explanation",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -545,12 +580,14 @@
       "parameters": {
         "oppose_performance_pay_for_nonexecs": {
           "type": "bool",
-          "description": "Oppose performance-linked pay for non-executives"
+          "description": "Oppose performance-linked pay for non-executives",
+          "stricter": true
         },
         "max_fee_increase_pct": {
           "type": "number",
           "description": "Maximum unexplained fee increase",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "lower"
         }
       },
       "vote_targets": [
@@ -572,7 +609,8 @@
       "parameters": {
         "max_non_audit_to_audit_ratio": {
           "type": "number",
-          "description": "Maximum non-audit / audit fee ratio"
+          "description": "Maximum non-audit / audit fee ratio",
+          "stricter": "lower"
         }
       },
       "vote_targets": [
@@ -595,11 +633,13 @@
         "max_auditor_tenure_years": {
           "type": "number",
           "description": "Maximum tenure",
-          "unit": "years"
+          "unit": "years",
+          "stricter": "lower"
         },
         "require_tender_disclosure": {
           "type": "bool",
-          "description": "Require disclosure of the last tender"
+          "description": "Require disclosure of the last tender",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -623,11 +663,13 @@
       "parameters": {
         "oppose_on_qualified_opinion": {
           "type": "bool",
-          "description": "Oppose accounts with a qualified opinion"
+          "description": "Oppose accounts with a qualified opinion",
+          "stricter": true
         },
         "oppose_on_material_weakness": {
           "type": "bool",
-          "description": "Hold the audit committee accountable for material weaknesses"
+          "description": "Hold the audit committee accountable for material weaknesses",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -651,11 +693,13 @@
       "parameters": {
         "oppose_on_open_investigation": {
           "type": "bool",
-          "description": "Oppose discharge during open investigations"
+          "description": "Oppose discharge during open investigations",
+          "stricter": true
         },
         "min_controversy_severity": {
           "type": "number",
-          "description": "Controversy severity that blocks discharge (1-5)"
+          "description": "Controversy severity that blocks discharge (1-5)",
+          "stricter": "lower"
         }
       },
       "vote_targets": [
@@ -678,12 +722,14 @@
         "max_with_preemption_pct": {
           "type": "number",
           "description": "Maximum issuance with pre-emptive rights",
-          "unit": "% of capital"
+          "unit": "% of capital",
+          "stricter": "lower"
         },
         "max_without_preemption_pct": {
           "type": "number",
           "description": "Maximum issuance without pre-emptive rights",
-          "unit": "% of capital"
+          "unit": "% of capital",
+          "stricter": "lower"
         }
       },
       "vote_targets": [
@@ -703,16 +749,19 @@
         "max_buyback_pct": {
           "type": "number",
           "description": "Maximum authority",
-          "unit": "% of capital"
+          "unit": "% of capital",
+          "stricter": "lower"
         },
         "max_premium_pct": {
           "type": "number",
           "description": "Maximum price premium",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "lower"
         },
         "oppose_during_takeover": {
           "type": "bool",
-          "description": "Oppose use during a takeover period"
+          "description": "Oppose use during a takeover period",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -737,7 +786,8 @@
         "max_payout_ratio_pct": {
           "type": "number",
           "description": "Maximum payout ratio before questioning sustainability",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "lower"
         }
       },
       "vote_targets": [
@@ -761,12 +811,14 @@
       "parameters": {
         "oppose_new_multiple_voting_classes": {
           "type": "bool",
-          "description": "Oppose creating unequal voting classes"
+          "description": "Oppose creating unequal voting classes",
+          "stricter": true
         },
         "require_sunset_years": {
           "type": "number",
           "description": "Maximum sunset for existing dual-class structures",
-          "unit": "years"
+          "unit": "years",
+          "stricter": "lower"
         }
       },
       "vote_targets": [
@@ -789,12 +841,14 @@
       "parameters": {
         "oppose_poison_pill_without_approval": {
           "type": "bool",
-          "description": "Oppose pills not approved by shareholders"
+          "description": "Oppose pills not approved by shareholders",
+          "stricter": true
         },
         "max_pill_duration_years": {
           "type": "number",
           "description": "Maximum pill duration",
-          "unit": "years"
+          "unit": "years",
+          "stricter": "lower"
         }
       },
       "vote_targets": [
@@ -824,7 +878,8 @@
         },
         "require_fairness_opinion": {
           "type": "bool",
-          "description": "Require an independent fairness opinion"
+          "description": "Require an independent fairness opinion",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -843,12 +898,14 @@
       "parameters": {
         "require_independent_review": {
           "type": "bool",
-          "description": "Require independent committee review"
+          "description": "Require independent committee review",
+          "stricter": true
         },
         "max_value_pct_of_assets": {
           "type": "number",
           "description": "Value above which case-by-case review applies",
-          "unit": "% of assets"
+          "unit": "% of assets",
+          "stricter": "lower"
         }
       },
       "vote_targets": [
@@ -870,16 +927,19 @@
       "parameters": {
         "oppose_supermajority": {
           "type": "bool",
-          "description": "Oppose supermajority vote requirements"
+          "description": "Oppose supermajority vote requirements",
+          "stricter": true
         },
         "support_special_meeting_threshold_pct": {
           "type": "number",
           "description": "Support a right to call meetings at or below this holding",
-          "unit": "%"
+          "unit": "%",
+          "stricter": "higher"
         },
         "support_proxy_access": {
           "type": "bool",
-          "description": "Support proxy access proposals"
+          "description": "Support proxy access proposals",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -901,11 +961,13 @@
       "parameters": {
         "oppose_virtual_only": {
           "type": "bool",
-          "description": "Oppose virtual-only meetings without equivalent rights"
+          "description": "Oppose virtual-only meetings without equivalent rights",
+          "stricter": true
         },
         "accept_hybrid": {
           "type": "bool",
-          "description": "Accept hybrid meetings"
+          "description": "Accept hybrid meetings",
+          "stricter": false
         }
       },
       "vote_targets": [
@@ -930,16 +992,19 @@
         },
         "laggard_threshold": {
           "type": "number",
-          "description": "Score below which the company is a laggard"
+          "description": "Score below which the company is a laggard",
+          "stricter": "higher"
         },
         "min_months_engaged_without_progress": {
           "type": "number",
           "description": "Months of engagement without progress before voting against",
-          "unit": "months"
+          "unit": "months",
+          "stricter": "lower"
         },
         "high_emitters_only": {
           "type": "bool",
-          "description": "Apply only to high-emitting sectors"
+          "description": "Apply only to high-emitting sectors",
+          "stricter": false
         }
       },
       "vote_targets": [
@@ -966,15 +1031,18 @@
       "parameters": {
         "require_scope_1_2": {
           "type": "bool",
-          "description": "Require scope 1 and 2 disclosure"
+          "description": "Require scope 1 and 2 disclosure",
+          "stricter": true
         },
         "require_scope_3_material": {
           "type": "bool",
-          "description": "Require material scope 3 disclosure"
+          "description": "Require material scope 3 disclosure",
+          "stricter": true
         },
         "require_aligned_framework": {
           "type": "bool",
-          "description": "Require ISSB/TCFD-aligned reporting"
+          "description": "Require ISSB/TCFD-aligned reporting",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -999,15 +1067,18 @@
       "parameters": {
         "require_net_zero_target": {
           "type": "bool",
-          "description": "Require a net-zero commitment"
+          "description": "Require a net-zero commitment",
+          "stricter": true
         },
         "require_interim_targets": {
           "type": "bool",
-          "description": "Require interim targets"
+          "description": "Require interim targets",
+          "stricter": true
         },
         "require_validated_targets": {
           "type": "bool",
-          "description": "Require independently validated (e.g. SBTi) targets"
+          "description": "Require independently validated (e.g. SBTi) targets",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -1030,15 +1101,18 @@
       "parameters": {
         "min_plan_score": {
           "type": "number",
-          "description": "Minimum transition plan assessment score"
+          "description": "Minimum transition plan assessment score",
+          "stricter": "higher"
         },
         "require_capex_alignment": {
           "type": "bool",
-          "description": "Require capex alignment disclosure"
+          "description": "Require capex alignment disclosure",
+          "stricter": true
         },
         "require_annual_vote": {
           "type": "bool",
-          "description": "Prefer an annual vote on progress"
+          "description": "Prefer an annual vote on progress",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -1069,7 +1143,8 @@
         },
         "oppose_if_prescriptive": {
           "type": "bool",
-          "description": "Oppose proposals that micromanage strategy"
+          "description": "Oppose proposals that micromanage strategy",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -1093,11 +1168,13 @@
         },
         "laggard_threshold": {
           "type": "number",
-          "description": "Score below which the company is a laggard"
+          "description": "Score below which the company is a laggard",
+          "stricter": "higher"
         },
         "high_impact_sectors_only": {
           "type": "bool",
-          "description": "Apply only to high-impact sectors"
+          "description": "Apply only to high-impact sectors",
+          "stricter": false
         }
       },
       "vote_targets": [
@@ -1122,7 +1199,8 @@
       "parameters": {
         "require_tnfd_aligned": {
           "type": "bool",
-          "description": "Require TNFD-aligned disclosure for high-impact sectors"
+          "description": "Require TNFD-aligned disclosure for high-impact sectors",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -1146,11 +1224,13 @@
       "parameters": {
         "min_controversy_severity": {
           "type": "number",
-          "description": "Controversy severity that triggers action (1-5)"
+          "description": "Controversy severity that triggers action (1-5)",
+          "stricter": "lower"
         },
         "ungc_fail_triggers_action": {
           "type": "bool",
-          "description": "A UN Global Compact 'fail' triggers action"
+          "description": "A UN Global Compact 'fail' triggers action",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -1175,11 +1255,13 @@
       "parameters": {
         "require_pay_gap_disclosure": {
           "type": "bool",
-          "description": "Require gender/ethnicity pay gap disclosure"
+          "description": "Require gender/ethnicity pay gap disclosure",
+          "stricter": true
         },
         "support_workforce_disclosure_proposals": {
           "type": "bool",
-          "description": "Support reasonable disclosure proposals"
+          "description": "Support reasonable disclosure proposals",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -1225,7 +1307,8 @@
       "parameters": {
         "min_controversy_severity": {
           "type": "number",
-          "description": "Controversy severity that triggers action (1-5)"
+          "description": "Controversy severity that triggers action (1-5)",
+          "stricter": "lower"
         }
       },
       "vote_targets": [
@@ -1249,11 +1332,13 @@
       "parameters": {
         "support_lobbying_disclosure": {
           "type": "bool",
-          "description": "Support lobbying disclosure proposals"
+          "description": "Support lobbying disclosure proposals",
+          "stricter": true
         },
         "require_climate_lobbying_alignment": {
           "type": "bool",
-          "description": "Require lobbying aligned with stated climate commitments"
+          "description": "Require lobbying aligned with stated climate commitments",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -1274,7 +1359,8 @@
       "parameters": {
         "support_cbcr_proposals": {
           "type": "bool",
-          "description": "Support country-by-country reporting proposals"
+          "description": "Support country-by-country reporting proposals",
+          "stricter": true
         }
       },
       "vote_targets": [
@@ -1325,7 +1411,8 @@
         },
         "require_prior_notice": {
           "type": "bool",
-          "description": "Inform the company before the vote"
+          "description": "Inform the company before the vote",
+          "affects_vote": false
         }
       },
       "vote_targets": [

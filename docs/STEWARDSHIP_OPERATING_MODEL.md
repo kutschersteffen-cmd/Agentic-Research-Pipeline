@@ -962,8 +962,11 @@ flowchart LR
    | Kind | Meaning |
    |---|---|
    | identical | Same action, parameters and scope. |
-   | stricter | Same direction, tighter parameter (e.g. independence 50% → 66%). |
-   | looser | Same direction, looser parameter. |
+   | stricter | Same action, tighter parameters (e.g. independence 50% → 66%). |
+   | looser | Same action, looser parameters. |
+   | mixed | Same action, some parameters tighter and some looser. |
+   | changed | Same action, parameters without a strictness direction changed (e.g. a process step). |
+   | different_target | Same action and parameters, a different vote target (e.g. chair instead of committee chair). |
    | different_action | A different vote on the same issue. |
    | scope_change | Same rule, different markets, sectors or holdings. |
    | client_only | The client has a position where the house has none. |
@@ -971,7 +974,9 @@ flowchart LR
    | unclear | The client text cannot be read as a definite position. Becomes a question to the client. |
    | unmapped | A client clause with no catalogue issue. Candidate for a new issue. |
 
-   Parameter-level changes are listed field by field (`min_independence_pct: 50 → 66`).
+   Parameter-level changes are listed field by field (`min_independent_pct: 50 → 66`).
+   Whether a change is stricter or looser comes from the `stricter` direction each
+   catalogue parameter declares, not from its name.
 4. **Assess** each difference that is not `identical` or `house_only`:
 
    | Dimension | How it is measured |
@@ -1010,6 +1015,14 @@ a new review that points to the previous one.
   impact, and all red flags (split votes, data gaps, regulatory).
 - **Proposal section:** the register feeds the voting section of the program
   proposal and PPT (5.4).
+
+#### Implementation and worked example
+The deterministic part of the review (align, classify, assess, register) is
+implemented in `backend/arp/stewardship/policy_review.py`, with tests in
+`backend/tests/test_policy_review.py`. [`POLICY_REVIEW_EXAMPLE.md`](POLICY_REVIEW_EXAMPLE.md)
+shows it run on a fictional client policy against the draft house policy. Impact
+per difference (resolutions affected) is not computed yet, because it needs
+ingested voting history.
 
 #### Deterministic vs AI
 Reading the client's text into positions and wording `unclear` questions use the
