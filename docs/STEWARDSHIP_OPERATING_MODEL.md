@@ -203,7 +203,7 @@ the tool writes them except the ingestion job.
 |---|---|---|
 | policy_id | PK | |
 | owner | enum + FK | `house`, or `client` + client_id. |
-| domain | enum | escalation \| vote_review \| priority (extensible). |
+| domain | enum | escalation \| vote_review \| vote_sanction \| priority (extensible; `vote_sanction` is used by client programs, Part 5). |
 | active_version | int | |
 
 | Policy Version | Type | Notes |
@@ -436,13 +436,152 @@ generates zero exceptions.
 | Immutable versions + approval | `arp/storage/decision_store.py` pattern (`new_version`, `ratify`, per-version audit). |
 | Append-only observations | `DataPointObservation` + `PortfolioStore.latest_observation(as_of=...)` in `arp/schemas/portfolio.py`: already the Issuer Observation shape. |
 | Holdings, security→issuer | `Holding`, `SecurityResolution`, `PortfolioStore` snapshots. |
-| Report templates | `arp/storage/reporting_store.py` (Report Builder). |
+| Report templates, docx/pptx output | `arp/storage/reporting_store.py`, `arp/reporting/` (Report Builder). |
+| Portfolio tilting | `arp/index/` (`metric_tilt`, constraints, TE budget, versioned calibrations). |
+| Target selection by leverage | `arp/decision/` (scoring, `tier_graph`, leverage = size × gap). |
+| Alerts and scheduling | `arp/portfolio/monitoring/` (`evaluator.py`, `scheduler.py`). |
 | Postgres at volume | existing projection pattern in `arp/storage/postgres_*_projection.py`. |
 
 **Storage split.** Small, versioned configuration (policies, clients, themes, field
 catalogue) goes in JSON file stores, like `DecisionStore`. High-volume facts
 (observations, vote records, trigger events, evaluations) go in Postgres, which the
 issuer context and report queries read.
+
+## Part 5 — Client program design, calibration and monitoring
+
+**Scenario.** The house stewardship program runs. A client wants their own
+program on an MSCI World portfolio:
+
+1. **Tilt**: over-weight CLTI leaders and under-weight laggards.
+2. **Select**: pick engagement targets from the CLTI assessment plus other topics.
+3. **Sanction**: for some targets, set a vote sanction at the next AGM.
+4. **Escalate**: for some targets, escalate further.
+
+The tool has to let an analyst calibrate all four steps for this client's portfolio
+and objective, and check them against the house program for efficiency and
+feasibility. It then produces a documented program proposal and a PPT. Once the
+client approves, the same definition drives monitoring.
+
+### 5.1 The program as a versioned bundle
+
+A client program is **a set of references to calibrations that already exist**,
+plus the client's objective. It is not new logic.
+
+| Step | Engine that does it | Where it lives |
+|---|---|---|
+| 1. Tilt | Index engine: `metric_tilt` on `score.clti` (rank_percentile or z-score, `[floor, ceiling]` multipliers), constraints and tracking-error budget | `arp/index/` (versioned calibrations in `index_store.py`) |
+| 2. Engagement selection | Decision mechanism: score on CLTI + other topic columns, tier by `tier_graph`, rank by **leverage** (position size × gap to a perfect score) | `arp/decision/` (versioned, ratifiable frameworks) |
+| 3. Vote sanction | Policy graph, domain `vote_sanction`: per target, *what vote the program expects* at the next AGM (e.g. against the chair or the say-on-pay) | ZEN graph, Part 1 policy layer |
+| 4. Escalation | Policy graph, domain `escalation` (client-owned, chained on the house one) | ZEN graph, Part 1 policy layer |
+| Proposal + PPT | Report Builder: datasets → content plan → `pptx` / `docx` | `arp/reporting/` |
+| Monitoring | Portfolio alert rules + scheduler, plus stage 7 client exceptions | `arp/portfolio/monitoring/` |
+
+Votes are still consumed only (design constraint 1). A **vote sanction is an
+expectation**. The program publishes the sanction list to whoever votes, and the
+tool then checks the ingested votes against it. It never instructs or casts a vote.
+
+New entities (additions to Part 1):
+
+| Entity | Key fields | Notes |
+|---|---|---|
+| CLIENT_PROGRAM | program_id, client_id, portfolio_id, benchmark (`MSCI World`), objective, status | draft → proposed → approved → live → retired. |
+| PROGRAM_VERSION | program_id + version, `index_calibration` (id+version), `decision_framework` (id+version), `policy_versions` {vote_sanction, escalation}, `capacity` assumptions, approved_by | **Immutable.** Recalibrating makes a new version, so what was proposed, approved and monitored is always exactly reproducible. |
+| PROGRAM_SIMULATION | simulation_id, program_id + version, as_of, outputs (below), house_comparison | One per "Run" click in the calibration loop. Cheap to throw away; the version the client approves points at its simulation. |
+| PROGRAM_TARGET | program_id + version, issuer_id, role, origin | role: overweight \| underweight \| engage \| sanction \| escalate. origin: `house` (already in the house program) \| `client_only`. Frozen at approval; this is the monitored list. |
+| PROGRAM_KPI_SNAPSHOT | program_id, as_of, kpis (JSON) | One row per monitoring run; the time series behind the monitoring view. |
+
+### 5.2 Calibration loop
+
+One page, one pipeline, rerun on every change. Each step shows its outputs *and*
+the house comparison, so the analyst sees the cost of a setting immediately.
+
+```mermaid
+flowchart LR
+    U["Universe<br/><i>MSCI World + score.clti<br/>+ topic fields, as_of</i>"]
+    T["1. Tilt<br/><i>index engine</i>"]
+    E["2. Engagement selection<br/><i>decision framework</i>"]
+    V["3. Vote sanction<br/><i>policy graph</i>"]
+    X["4. Escalation<br/><i>policy graph</i>"]
+    H["House comparison<br/><i>overlap · capacity · conflicts</i>"]
+    P["Proposal<br/><i>docx + pptx</i>"]
+    U --> T --> E --> V --> X --> H
+    H -- "adjust" --> T
+    H -- "adjust" --> E
+    H --> P
+```
+
+| Step | The analyst sets | The tool shows |
+|---|---|---|
+| Universe | benchmark, as_of, which topic fields to use | coverage of `score.clti` and each topic field across the benchmark; names with no score (handled by the index engine's `missing` policy) |
+| 1. Tilt | normalisation, floor/ceiling, TE budget, sector/country caps | active weights of the leaders and laggards, weighted CLTI uplift vs benchmark, tracking error, turnover vs last version |
+| 2. Selection | criteria and weights, tier cut-points or tier graph, max targets | the ranked target list by leverage, why each name is in, tier sensitivity (does the list survive a weight change?) |
+| 3. Sanction | graph, e.g. `tier == 1 and no_progress_months >= 12 → against chair` | sanction list per upcoming AGM, and where it contradicts the house recommendation |
+| 4. Escalation | graph, chained on the house result | names where the client would escalate further than the house |
+
+### 5.3 House comparison — efficiency and feasibility
+
+This is the reason to calibrate *against* the house program and not in isolation.
+Each check is computed from the simulation and shown as a traffic light.
+
+| Check | Computed as | Why it matters |
+|---|---|---|
+| Engagement overlap | share of client targets already in a house engagement (same issuer + theme) | Overlap costs nothing extra: the client joins an existing dialogue. |
+| Marginal workload | client-only targets × effort per engagement (capacity assumption) vs free house capacity | The key feasibility number: can the team actually deliver the program? |
+| Theme gap | client targets on themes the house does not cover | Needs new expertise; flag it, do not hide it. |
+| Vote conflicts | sanctions where the house recommendation differs | Only deliverable if the client's shares can be voted separately. **Feasible in an SMA; not in a pooled CCF/ETF**, which must vote one way. Checked against `Portfolio.vehicle_type`. |
+| Escalation conflicts | client step > house step on the same engagement | One company, one dialogue: the house has to agree to escalate, or the proposal says it won't. |
+| Tilt vs engagement coherence | engagement targets that the tilt has sold down to near zero | Leverage falls with the position; engaging a company the portfolio barely holds is weak. |
+
+### 5.4 Proposal and PPT
+
+Generated from the approved simulation through the Report Builder, so every number
+in the document comes from the recorded run.
+
+Sections, identical in the docx and the deck:
+
+1. Client objective and the program in one page.
+2. Tilt: method, leaders/laggards, CLTI uplift, tracking error, top active weights.
+3. Engagement: target list, selection logic, overlap with the house program.
+4. Voting: sanction policy, expected sanctions next season, split-vote feasibility.
+5. Escalation: ladder, client-specific triggers, conflicts with the house.
+6. Feasibility: workload vs capacity and every red/amber check from 5.3, with the
+   mitigation chosen.
+7. Monitoring: the KPIs and alert thresholds below, and the reporting cadence.
+8. Appendix: rule versions, data as_of, full target list.
+
+Each simulation result becomes a Report Builder `QuantitativeDataset` (tables and
+charts), and the proposal is one Report Builder request against the client's
+template.
+
+### 5.5 Monitoring once live
+
+The approved PROGRAM_VERSION is what gets monitored. A scheduled run (existing
+monitoring scheduler) writes a PROGRAM_KPI_SNAPSHOT and raises alerts through the
+existing alert rules:
+
+| KPI | Alert when |
+|---|---|
+| Weighted CLTI vs benchmark | uplift falls below the proposal's target |
+| Tracking error, active weight drift | above budget |
+| Target membership | a new name qualifies or a target no longer qualifies (the proposal reruns on fresh data) |
+| Engagement progress per target | milestone stalled beyond SLA (raises a Trigger Event) |
+| Sanction conformance | an ingested vote on a sanctioned resolution does not match the expected vote (becomes a Client Exception) |
+| Escalation status | a client-only escalation is waiting on a house decision |
+
+Recalibration is a new program version with its own simulation and proposal.
+Monitoring switches to the new version only when it is approved.
+
+### 5.6 Build order
+
+| Phase | Delivers | Effort (rough) |
+|---|---|---|
+| A | Program, version and target entities; a simulation that runs tilt → selection → sanction → escalation through the existing engines on MSCI World; house comparison | 4–6 days |
+| B | Calibration page (one screen, reusing the index-builder, decision-studio and rule-editor components) | 4–6 days |
+| C | Proposal: datasets + one Report Builder request producing docx and pptx | 2–3 days |
+| D | Monitoring: KPI snapshots, alert rules, sanction conformance on ingested votes | 3–4 days |
+
+Phase A is testable from the API alone, and it is where the design gets proven
+before any UI is built.
 
 ## Open points
 
@@ -452,3 +591,9 @@ issuer context and report queries read.
    supplied by the house.
 3. Theme list: whether to seed it from the existing taxonomy library or start with
    a short hand-maintained list.
+4. MSCI World constituents and weights: source and refresh frequency (the index
+   engine needs price, shares and free-float factor per name).
+5. Capacity assumptions for the house comparison: effort per engagement and free
+   analyst capacity per year.
+6. The client's vehicle type (SMA vs pooled), which decides whether vote sanctions
+   that contradict the house can be delivered at all.
