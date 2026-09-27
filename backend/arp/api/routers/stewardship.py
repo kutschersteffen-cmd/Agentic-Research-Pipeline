@@ -8,7 +8,8 @@ from pydantic import BaseModel
 
 from arp.api.deps import get_engagement_store, get_stream_store, settings_dep
 from arp.config import Settings
-from arp.stewardship.policy_review import DATA
+from arp.stewardship.policies import POLICIES, PolicyStore, coverage_preview, voting_preview
+from arp.stewardship.policy_review import DATA, load
 from arp.stewardship.process import (
     HOUSE,
     SAMPLE_PATH,
@@ -19,7 +20,7 @@ from arp.stewardship.process import (
     record_decision,
     tier_review,
 )
-from arp.stewardship.tiers import TierStore
+from arp.stewardship.tiers import TierStore, tier_contexts
 from arp.storage.engagement_store import EngagementStore
 
 router = APIRouter(prefix="/api/stewardship", tags=["stewardship"])
@@ -85,7 +86,7 @@ class PolicyDecisionRequest(BaseModel):
 def post_decision(body: PolicyDecisionRequest, stream_id: str, streams: StreamStore = Depends(get_stream_store)) -> dict:
     stream = _stream_or_404(streams, stream_id)
     try:
-        updated = record_decision(stream, body.model_dump(exclude_none=True))
+        updated = record_decision(stream, body.model_dump(exclude_none=True), PolicyStore(streams.root).active("house_voting"))
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     streams.save(updated)
@@ -96,7 +97,7 @@ def post_decision(body: PolicyDecisionRequest, stream_id: str, streams: StreamSt
 def post_build(stream_id: str, streams: StreamStore = Depends(get_stream_store)) -> dict:
     stream = _stream_or_404(streams, stream_id)
     try:
-        updated = build_stream_policy(stream)
+        updated = build_stream_policy(stream, PolicyStore(streams.root).active("house_voting"))
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     streams.save(updated)
@@ -129,3 +130,108 @@ def get_tiers(
     per issuer with the rule that decided it, and the changes awaiting confirmation."""
     review = tier_review(streams.root, json.loads(SAMPLE_PATH.read_text()), engagements.list_all())
     return {**review, "assignments": list(TierStore(streams.root).latest().values())}
+
+
+# --- Stage studios: versioned house policies, design and calibration ---------
+
+
+def _policy_or_404(policy_id: str) -> str:
+    if policy_id not in POLICIES:
+        raise HTTPException(404, "Unknown policy")
+    return policy_id
+
+
+@router.get("/policies/{policy_id}")
+def get_policy(policy_id: str, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    store = PolicyStore(streams.root)
+    _policy_or_404(policy_id)
+    active = store.active_version(policy_id)
+    return {
+        "policy_id": policy_id,
+        "active_version": active,
+        "active": store.content(policy_id, active),
+        "versions": store.versions(policy_id),
+        "activations": store.activations(policy_id),
+    }
+
+
+@router.get("/policies/{policy_id}/versions/{version}")
+def get_policy_version(policy_id: str, version: int, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    try:
+        return PolicyStore(streams.root).content(_policy_or_404(policy_id), version)
+    except KeyError as exc:
+        raise HTTPException(404, "Unknown version") from exc
+
+
+class SavePolicyRequest(BaseModel):
+    content: dict
+    note: str = ""
+    created_by: str
+
+
+@router.post("/policies/{policy_id}/versions")
+def save_policy_version(policy_id: str, body: SavePolicyRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    try:
+        version = PolicyStore(streams.root).save(
+            _policy_or_404(policy_id), body.content, body.note, body.created_by, json.loads(SAMPLE_PATH.read_text())
+        )
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {"version": version}
+
+
+class ActivateRequest(BaseModel):
+    version: int
+    approved_by: str
+
+
+@router.post("/policies/{policy_id}/activate")
+def activate_policy_version(policy_id: str, body: ActivateRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    try:
+        return PolicyStore(streams.root).activate(_policy_or_404(policy_id), body.version, body.approved_by)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.get("/catalogue")
+def get_catalogue() -> dict:
+    return load("policy_issue_catalogue.json")
+
+
+@router.get("/studio/coverage/inputs")
+def coverage_inputs(engagements: EngagementStore = Depends(get_engagement_store)) -> dict:
+    """The per-company inputs the coverage rules see (for the rule editor's live preview)."""
+    return {"contexts": tier_contexts(json.loads(SAMPLE_PATH.read_text()), engagements.list_all())}
+
+
+class CoveragePreviewRequest(BaseModel):
+    graph: dict
+
+
+@router.post("/studio/coverage/preview")
+def post_coverage_preview(
+    body: CoveragePreviewRequest,
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    try:
+        return coverage_preview(
+            body.graph,
+            PolicyStore(streams.root).active("coverage_rules"),
+            json.loads(SAMPLE_PATH.read_text()),
+            engagements.list_all(),
+        )
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(422, f"The coverage rules do not run: {exc}") from exc
+
+
+class VotingPreviewRequest(BaseModel):
+    policy: dict
+
+
+@router.post("/studio/voting/preview")
+def post_voting_preview(body: VotingPreviewRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    try:
+        return voting_preview(body.policy, PolicyStore(streams.root).active("house_voting"), json.loads(SAMPLE_PATH.read_text()))
+    except (ValueError, KeyError, RuntimeError) as exc:
+        raise HTTPException(422, f"The voting policy does not run: {exc}") from exc

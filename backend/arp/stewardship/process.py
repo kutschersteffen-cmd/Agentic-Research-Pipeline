@@ -26,11 +26,11 @@ from typing import Any
 from arp.engagement.orchestrator import OrchestratorAction, decide_next_action, is_stalled, next_escalation_stage
 from arp.schemas.engagement import EngagementRecord, IssueStatus, MilestoneStage
 from arp.stewardship.backtest import attach_impact, build_contexts
+from arp.stewardship.policies import PolicyStore
 from arp.stewardship.policy_graph import evaluate, generate
-from arp.stewardship.policy_review import DATA, build, decide, load, review
+from arp.stewardship.policy_review import DATA, build, decide, review
 from arp.stewardship.tiers import TIER_LABELS, TIERS, TierStore, review_tiers, tier_contexts
 from arp.stewardship.tiers import evaluate as evaluate_tiers
-from arp.stewardship.tiers import load_graph as load_tier_graph
 from arp.storage.atomic_io import atomic_write_text
 
 SAMPLE_PATH = DATA / "examples" / "sample_meetings.json"
@@ -379,7 +379,7 @@ EDGES = [
 
 def flow(stream_id: str, streams: StreamStore, records: list[EngagementRecord], sla_days: int) -> dict:
     sample = json.loads(SAMPLE_PATH.read_text())
-    house_policy = load("house_voting_policy_draft.json")
+    house_policy = PolicyStore(streams.root).active("house_voting")
     tiers = tier_review(streams.root, sample, records)
     if stream_id == HOUSE:
         stream = {"stream_id": HOUSE, "name": "House program"}
@@ -399,7 +399,7 @@ def flow(stream_id: str, streams: StreamStore, records: list[EngagementRecord], 
 
 
 def tier_review(root: Path, sample: dict, records: list[EngagementRecord]) -> dict:
-    proposals = evaluate_tiers(load_tier_graph(), tier_contexts(sample, records))
+    proposals = evaluate_tiers(PolicyStore(root).active("coverage_rules"), tier_contexts(sample, records))
     return review_tiers(proposals, TierStore(root).latest())
 
 
