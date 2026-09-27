@@ -33,7 +33,7 @@ These are fixed inputs to the design. They are not open questions.
 Four layers:
 
 - **Reference & company data** — who the issuers are and everything known about them.
-- **House truth** — engagements, escalations and ingested voting facts, written once.
+- **House truth** — engagements with their engagement level, and ingested voting facts, written once.
 - **Policy** — versioned rule graphs, owned by the house or by a client, plus an
   audit row for every evaluation.
 - **Client overlay** — clients, their portfolios, and *exceptions only*: rows where
@@ -46,11 +46,11 @@ erDiagram
     ISSUER ||--o{ ENGAGEMENT : "1:N"
     THEME ||--o{ ENGAGEMENT : "tags"
     ENGAGEMENT ||--o{ ENGAGEMENT_ACTIVITY : "1:N"
-    ENGAGEMENT ||--o| ESCALATION_CASE : "0..1"
-    ESCALATION_CASE ||--o{ ESCALATION_STEP : "1:N"
+    ENGAGEMENT ||--o{ LEVEL_CHANGE : "1:N"
+    MONITORING_RUN ||--o{ TRIGGER_EVENT : "raises"
     ISSUER ||--o{ TRIGGER_EVENT : "1:N"
     TRIGGER_EVENT }o--o| ENGAGEMENT : "opens / feeds"
-    ESCALATION_STEP }o--o{ TRIGGER_EVENT : "cites"
+    LEVEL_CHANGE }o--o{ TRIGGER_EVENT : "cites"
     ISSUER ||--o{ MEETING : "1:N"
     MEETING ||--o{ RESOLUTION : "1:N"
     THEME ||--o{ RESOLUTION : "tags"
@@ -113,6 +113,46 @@ list, and free-text themes break both.
 
 ### House truth — client-agnostic, written once
 
+#### Monitoring scope and Monitoring Run
+Stage 1 continuously monitors **every issuer in scope**:
+
+- the **house scope**: every issuer held in any in-scope portfolio, as of the
+  monitoring date; and
+- every **client portfolio**, including issuers only that client holds.
+
+Scope is derived from the holdings snapshots at run time, not stored as its own
+list: an issuer enters or leaves scope when it is bought or sold. Each scheduled
+pass is recorded so every trigger can be traced back to the data it saw.
+
+| Field | Type | Notes |
+|---|---|---|
+| run_id | PK | |
+| as_of | date | Holdings snapshot date and observation cut-off. |
+| portfolios | array → Portfolio | What was in scope for this run. |
+| issuer_count, trigger_count | int | |
+| policy_version | FK → Policy Version | The house `monitoring` graph used. |
+
+Reading holdings is not a client *policy*: the monitoring run treats client
+portfolios as data, so stages 1–6 still never read a client policy.
+
+#### Engagement levels
+One ladder describes **how intensively the house engages an issuer on a theme**.
+Selection and escalation both move an engagement along it,
+so they share one ladder, one policy domain and one history table. Stage 2
+proposes a level; stage 5 is where a person confirms it.
+
+| Level | Name | Meaning | Typical ladder steps |
+|---|---|---|---|
+| 0 | Monitor | In scope and watched through data only. No engagement row exists. | — |
+| 1 | Watchlist | Flagged by monitoring or selection. Engagement opened; desk research, no outreach yet. | — |
+| 2 | Engage | Active dialogue, private or collaborative (`mode`). | private engagement, joint engagement |
+| 3 | Engage + vote sanction | Dialogue continues, and the policy expects a vote against management at the next AGM (e.g. against the chair or say-on-pay). | vote against management |
+| 4 | Escalate | Formal escalation beyond voting. | written escalation to the board, escalation to the chair, co-file a resolution, public statement |
+
+Level names, the number of levels and the steps within each level are
+configuration. The table is the proposed default. Within a level, `step` records
+the exact rung (e.g. level 4 step "co-file a resolution").
+
 #### Engagement
 
 | Field | Type | Notes |
@@ -120,7 +160,8 @@ list, and free-text themes break both.
 | engagement_id | PK, string | One per issuer × theme dialogue. |
 | issuer_id | FK → Issuer | 1 : N. |
 | theme_id | FK → Theme | |
-| status, milestone | enum | open \| stalled \| resolved \| closed; milestone ladder is configuration. |
+| level, step, mode | int, string, enum | Current engagement level (1–4), the rung within it, and private \| collaborative. Written only through Level Change. |
+| status, milestone | enum | open \| stalled \| resolved \| closed; the milestone ladder (progress of the dialogue itself) is configuration. |
 | opened_by_trigger_id | FK → Trigger Event | Why it exists. |
 
 #### Engagement Activity
@@ -143,31 +184,27 @@ escalation's many triggers converge**, and where voting feeds engagement.
 |---|---|---|
 | trigger_id | PK | |
 | issuer_id | FK → Issuer | |
-| type | enum | vote_outcome \| controversy \| score_change \| commitment_missed \| engagement_stalled \| calendar \| manual |
+| type | enum | vote_outcome \| controversy \| score_change \| holding_change \| commitment_missed \| engagement_stalled \| calendar \| manual |
 | theme_id | FK → Theme, nullable | |
 | engagement_id | FK, nullable | Set when the trigger is matched to an open engagement. |
 | subject_ref | string, nullable | What it points at, e.g. a `resolution_id` for vote outcomes or a `field_id` for score changes. |
 | payload | JSON | Type-specific facts (support %, old/new score, controversy severity, …). |
+| run_id | FK → Monitoring Run, nullable | Set when raised by a monitoring pass. |
 | detected_at, source | | |
 
-#### Escalation Case / Escalation Step
-An escalation belongs to an **engagement**. A vote is one possible *trigger* for a
-step and one possible *lever* (e.g. "vote against the chair"), but it is not what
-the case hangs off.
+#### Level Change
+Append-only history of every move on the engagement ladder: selection onto the
+ladder, escalation up it, and de-escalation or closure down it. A vote is one
+possible *trigger* for a change and level 3 is where a vote becomes the *lever*,
+but the change always belongs to the engagement, never to a resolution.
 
-| Escalation Case | Type | Notes |
+| Field | Type | Notes |
 |---|---|---|
-| escalation_id | PK | |
-| engagement_id | FK → Engagement, unique | 0..1 per engagement. |
-| current_step | int | Position on the ladder; ladder labels are configuration. |
-
-| Escalation Step | Type | Notes |
-|---|---|---|
-| escalation_id + seq | composite PK | Append-only history. |
-| step | int | |
+| engagement_id + seq | composite PK | |
+| from_level, to_level, step | int, int, string | |
 | trigger_ids | array → Trigger Event | What prompted it. |
-| recommended_by_evaluation_id | FK → Policy Evaluation | The house policy's recommendation. |
-| decided_by, decided_at, note | | **Human checkpoint.** A step exists only once a person decides it. |
+| recommended_by_evaluation_id | FK → Policy Evaluation | The house `engagement_level` recommendation. |
+| decided_by, decided_at, note | | **Human checkpoint.** A change exists only once a person decides it. |
 
 #### Meeting / Resolution / Vote Record — ingested, read-only
 All three are loaded from the external voting source after the event. Nothing in
@@ -203,7 +240,7 @@ the tool writes them except the ingestion job.
 |---|---|---|
 | policy_id | PK | |
 | owner | enum + FK | `house`, or `client` + client_id. |
-| domain | enum | escalation \| vote_review \| vote_sanction \| priority (extensible; `vote_sanction` is used by client programs, Part 5). |
+| domain | enum | monitoring \| engagement_level \| vote_expectation (extensible). |
 | active_version | int | |
 
 | Policy Version | Type | Notes |
@@ -217,14 +254,20 @@ the tool writes them except the ingestion job.
 
 | Domain | Evaluated per | Input context | Output |
 |---|---|---|---|
-| escalation | engagement, whenever a trigger lands on it | `issuer` (context), `engagement`, `escalation` (current step, history length), `trigger` | `recommended_step`, `reason` |
-| vote_review | vote record | `issuer`, `resolution`, `vote` (incl. `voted_by`), `engagement` (open, same theme, current step), `portfolio` | `expected_vote`, `consistent` (bool), `reason` |
-| priority | engagement | `issuer`, `engagement`, `holding` (client's aggregate weight in the issuer) | `relevance` (number), `include` (bool) |
+| monitoring | issuer in scope, each monitoring run | `issuer` (context, incl. change since the last run), `holding` (weight, change in weight, which portfolios hold it) | `triggers`: list of {type, theme, severity, detail} |
+| engagement_level | issuer × theme: every candidate from stage 1, and every open engagement with new triggers | `issuer`, `holding`, `engagement` (null if none: current level, step, milestone, months at level, commitments), `triggers` since the last decision, `selection` (score, tier and leverage from the decision framework, if one is attached) | `level`, `step`, `mode`, `relevance`, `reason` |
+| vote_expectation | resolution (before the meeting) and vote record (once ingested) | `issuer`, `resolution`, `engagement` (level, step, theme), `portfolio`, `vote` (null before the meeting) | `expected_vote`, `consistent` (null before the meeting), `reason` |
+
+`engagement_level` covers both selection and escalation: for an issuer with no
+engagement it answers "should we start, and at which level?", and for an open
+engagement it answers "stay, move up, or move down?". `vote_expectation` evaluated
+before a meeting gives the vote-sanction list for level 3 engagements; evaluated
+after ingestion, it checks the vote that was actually cast.
 
 **House → client chaining.** A client graph is evaluated with the house result in
 its input under `house.*`. A client that agrees with the house simply returns
-`house.*`; a client with a stricter rule overrides one field. That is how "voting
-policy deltas" and "priority weights" are expressed: as small graphs that start
+`house.*`; a client with a stricter rule overrides one field. That is how a client's
+voting deviations, selection preferences and escalation rules are expressed: as small graphs that start
 from the house answer. They are not a separate delta format. A client with no
 policy for a domain inherits the house result.
 
@@ -236,7 +279,7 @@ traceable to a rule version and its inputs.
 |---|---|---|
 | evaluation_id | PK | |
 | policy_id + version | FK → Policy Version | |
-| subject_type, subject_id | enum, string | engagement \| vote_record. |
+| subject_type, subject_id | enum, string | issuer \| issuer_theme \| engagement \| resolution \| vote_record. |
 | as_of | date | Observation cut-off used for the issuer context. |
 | input_hash, output | string, JSON | The full input can be rebuilt from `as_of`, so only its hash is stored. |
 | evaluated_at | timestamp | |
@@ -261,7 +304,7 @@ The old *Client Policy Profile* is not an entity any more. It is simply the set 
 | portfolio_id | PK | |
 | client_id | FK → Client | 1 : N. |
 | vehicle_type | enum | SMA \| CCF \| ETF |
-| voting_mode | enum | house_voted \| pass_through. Part of the vote_review input, so a client policy can treat its own pass-through votes differently. |
+| voting_mode | enum | house_voted \| pass_through. Part of the vote_expectation input, so a client policy can treat its own pass-through votes differently. |
 
 Holdings keep the existing shape: immutable snapshots keyed by
 `portfolio_id + security_id + as_of_date`, with the issuer reached through the
@@ -274,20 +317,23 @@ and adding a client never touches house data.
 
 | Field | Type | Notes |
 |---|---|---|
-| client_id + domain + subject_id | composite PK | subject = engagement_id or resolution_id + portfolio_id. |
+| client_id + domain + subject_id | composite PK | subject = issuer_id + theme_id, engagement_id, or resolution_id + portfolio_id. |
 | evaluation_id | FK → Policy Evaluation | The client evaluation that produced it. |
 | house_evaluation_id | FK → Policy Evaluation | What it deviates from. |
-| kind | enum | escalation_differs \| vote_inconsistent \| priority_differs |
-| detail | JSON | e.g. `{"house_step": 2, "client_step": 4}`. |
+| kind | enum | level_higher \| level_lower \| vote_expectation_differs \| vote_inconsistent |
+| detail | JSON | e.g. `{"house_level": 1, "client_level": 3}`. |
 | status | enum | open \| acknowledged \| raised_to_house |
 
-Priority relevance is **not stored** per client × engagement. It is evaluated at
-read time. It is persisted only as an exception, when the client's `include`
-disagrees with the house.
+Client relevance is **not stored** per client × engagement. It is evaluated at
+read time and persisted only when the client's level differs from the house level.
 
-A client's escalation result cannot run its own engagement, because the house
-engages each company once. A higher client step therefore becomes an exception
-that is (a) shown at the house human checkpoint and (b) reported to the client.
+The house engages each company once, so a client cannot run its own dialogue. A
+client level higher than the house level (including an issuer only that client
+holds, where the house level is 0) becomes a `level_higher` exception that is
+(a) shown at the house human checkpoint, where the house can adopt it, and
+(b) reported to the client either way. A vote expectation that differs from the
+house only affects that client's portfolios, and is deliverable only where the
+client's shares can be voted separately (Part 5.3).
 
 #### Report Run
 Reports are rendered from data at generation time and are not stored content. Only
@@ -308,31 +354,30 @@ the facts needed to reproduce and audit them are kept.
 
 ## Part 2 — The Process Graph
 
-Two inputs feed the house layer: the engagement track and ingested voting data.
-Trigger Events join them. Stages 1–6 use house policies only; stages 7–8 add client
-policies.
+Stage 1 runs continuously over everything in scope. Stages 2–6 act on the issuers
+it surfaces, using house policies only. Stages 7–8 add client policies.
 
 ```mermaid
 flowchart TD
-    I1["Ingest: company data<br/><i>observations</i>"]
-    I2["Ingest: voting data<br/><i>meetings, resolutions, votes cast</i>"]
-    S1["1. Trigger & Detection<br/><i>raise Trigger Events</i>"]
-    S2["2. Research<br/><i>compile issuer context</i>"]
+    I1["Data feeds<br/><i>holdings (house + client portfolios),<br/>company data, news/controversies</i>"]
+    I2["Voting feed<br/><i>meetings, resolutions, votes cast</i>"]
+    S1["1. Continuous Monitoring & Detection<br/><i>monitoring graph → Trigger Events</i>"]
+    S2["2. Research & Selection<br/><i>engagement_level graph → proposed level</i>"]
     S3["3. Drafting<br/><i>outreach content</i>"]
-    S4["4. House Policy Evaluation<br/><i>escalation · vote_review · priority</i>"]
-    S5["5. Human Checkpoint<br/><i>decide escalation step</i>"]
-    S6["6. Tracking<br/><i>log activities & outcomes</i>"]
-    S7["7. Client Policy Evaluation<br/><i>chain client graphs on house results</i>"]
+    S4["4. Link Engagement ↔ Voting<br/><i>vote_expectation graph</i>"]
+    S5["5. Human Checkpoint<br/><i>confirm level · sanctions · outreach</i>"]
+    S6["6. Tracking<br/><i>activities, milestones, outcomes</i>"]
+    S7["7. Client Policy Evaluation<br/><i>client graphs on house results</i>"]
     S8["8. Reporting<br/><i>per-client disclosure</i>"]
 
     I1 --> S1
     I2 --> S1
     I2 --> S4
     S1 --> S2 --> S3 --> S4 --> S5 --> S6
-    S6 -- "new activity / missed commitment" --> S1
-    S4 --> S7
+    S6 -- "missed commitment / stall / new activity" --> S1
+    S1 --> S7
     S5 --> S7
-    S7 -- "exceptions raised to house" --> S5
+    S7 -- "level_higher exceptions" --> S5
     S7 --> S8
 
     style S7 fill:#EEF3F3,stroke:#2F5153
@@ -343,23 +388,38 @@ flowchart TD
 
 ## Part 3 — Process Activities
 
-### 1. Trigger & Detection
-- Turn new inputs into Trigger Events: a vote outcome (e.g. low support, a house
-  vote against management), a controversy, an observation crossing a threshold, a
-  missed commitment date, a stalled engagement, a calendar date, or manual input.
-- Match each trigger to an open engagement on the same issuer + theme, or open a
-  new engagement.
+### 1. Continuous Monitoring & Detection
+Runs on a schedule (daily for news and controversies, on each holdings or data
+refresh otherwise) over the full monitoring scope.
 
-**Reads:** Issuer, Issuer Observation, Resolution, Vote Record, Engagement Activity
-**Writes:** Trigger Event, Engagement (create)
+- Take the latest holdings snapshot of **all in-scope house portfolios and every
+  client portfolio**; the union of their issuers is the scope for this run.
+- Refresh the issuer context for each issuer: holdings and weight changes, scores,
+  controversies and any other observed field.
+- Evaluate the house `monitoring` graph per issuer and write a Trigger Event for
+  each output: a score crossing a threshold, a new or worsening controversy, a
+  large holding change, a vote outcome from the voting feed, a missed commitment,
+  a stalled engagement, a calendar date.
+- Attach each trigger to an open engagement on the same issuer + theme where one
+  exists. Triggers on issuers with no engagement make them selection candidates.
+
+**Reads:** Portfolio, Holding (house and client portfolios), Issuer, Issuer Observation, Resolution, Vote Record, Engagement, Engagement Activity
+**Writes:** Monitoring Run, Trigger Event
 **Human checkpoint:** —
 
-### 2. Research
-- Build the issuer context (latest observations as of today) and compile history:
-  prior engagements, activities, triggers, and past votes on the same theme.
+### 2. Research & Selection
+- **Selection.** For each candidate (issuer × theme with new triggers) and each open
+  engagement with new triggers, evaluate the house `engagement_level` graph. Inputs
+  include the triggers, the issuer context and, where a decision framework is
+  attached, its score, tier and leverage (position size × gap to a perfect score).
+  The output is a proposed level (0–4), step and relevance.
+- Candidates proposed at level 1 or higher get an Engagement row at level 0
+  (pending) until the checkpoint confirms the level.
+- **Research.** For every proposed level ≥ 1, compile the dossier: company context,
+  prior engagements and their outcomes, triggers, and past votes on the same theme.
 
-**Reads:** Issuer, Issuer Observation, Engagement, Engagement Activity, Trigger Event, Resolution, Vote Record
-**Writes:** Engagement Activity (research note)
+**Reads:** Policy Version (house `engagement_level`), issuer context, Trigger Event, Engagement, Engagement Activity, Resolution, Vote Record, decision framework results
+**Writes:** Policy Evaluation, Engagement (create, pending), Engagement Activity (research note)
 **Human checkpoint:** —
 
 ### 3. Drafting
@@ -371,24 +431,29 @@ flowchart TD
 **Human checkpoint:** before any outreach is sent (a draft only becomes a `letter`
 activity once a person has sent it).
 
-### 4. House Policy Evaluation
-- **escalation** — for each engagement with new triggers → recommended step.
-- **vote_review** — for each newly ingested vote record → consistent with house
-  policy and with open engagements, or not.
-- **priority** — house relevance per engagement.
+### 4. Link Engagement ↔ Voting
+- For upcoming meetings, evaluate `vote_expectation` per resolution. For issuers at
+  level 3 this produces the **vote-sanction list** (e.g. vote against the chair),
+  which is published to whoever votes. The tool never casts the vote.
+- For newly ingested vote records, evaluate `vote_expectation` again and record
+  whether the vote cast was consistent. An inconsistent vote on a level 3
+  engagement, or a failed or low-support vote, becomes a Trigger Event.
 
-**Reads:** Policy Version (house), issuer context, Engagement, Escalation Case, Trigger Event, Resolution, Vote Record
-**Writes:** Policy Evaluation
+**Reads:** Policy Version (house `vote_expectation`), Engagement (level, theme), Resolution, Vote Record, Portfolio
+**Writes:** Policy Evaluation, Trigger Event
 **Human checkpoint:** —
 
 ### 5. Human Checkpoint
-- Review escalation recommendations (and client exceptions raised to house) and
-  decide the step.
-- Review inconsistent house votes and record an explanation. The vote itself is
-  already cast and is not changed here.
+- Confirm or change each proposed level from stage 2: selection onto the ladder,
+  escalation up it, de-escalation or closure down it. Also review `level_higher`
+  exceptions raised by clients.
+- Approve the vote-sanction list before it is published.
+- Authorise outreach before anything is sent.
+- For votes cast inconsistently with house policy, record an explanation. The vote
+  itself already happened and is not changed.
 
-**Reads:** Policy Evaluation, Escalation Case, Client Exception (raised_to_house)
-**Writes:** Escalation Step, Engagement Activity (vote-inconsistency note)
+**Reads:** Policy Evaluation, Engagement, Client Exception (raised_to_house), drafts
+**Writes:** Level Change, Engagement (level, step, mode), Engagement Activity
 **Human checkpoint:** this stage.
 
 ### 6. Tracking
@@ -400,18 +465,22 @@ activity once a person has sent it).
 **Human checkpoint:** commitments are logged only once a person has validated them.
 
 ### 7. Client Policy Evaluation *(client overlay)*
-- For each client and domain, evaluate the client's graph with the house result
-  under `house.*`.
-- Write a Client Exception wherever the output differs. For vote_review, evaluate
-  only the vote records of that client's portfolios.
+- For each client, evaluate the client's `engagement_level` graph over **the
+  client's own portfolio** (every issuer they hold, including ones outside the house
+  scope), with the house result under `house.*`. For issuers the house does not
+  engage, the house result is level 0.
+- Evaluate the client's `vote_expectation` graph for resolutions and vote records of
+  the client's portfolios.
+- Write a Client Exception wherever the output differs from the house. Raise
+  `level_higher` exceptions to the house checkpoint (stage 5).
 
 **Reads:** Policy Version (client), Policy Evaluation (house), issuer context, Portfolio, Holding, Vote Record
 **Writes:** Policy Evaluation (client), Client Exception
 **Human checkpoint:** —
 
 ### 8. Reporting *(client overlay)*
-- For the period: the client's holdings, the engagements they include (priority),
-  escalation steps, votes cast in their portfolios with house/client consistency,
+- For the period: the client's holdings, the engagements relevant to them with
+  their levels and level changes, votes cast in their portfolios with house/client consistency,
   and their exceptions, all rendered through the client's template.
 
 **Reads:** everything above, filtered by client, period and as_of
@@ -470,9 +539,9 @@ plus the client's objective. It is not new logic.
 | Step | Engine that does it | Where it lives |
 |---|---|---|
 | 1. Tilt | Index engine: `metric_tilt` on `score.clti` (rank_percentile or z-score, `[floor, ceiling]` multipliers), constraints and tracking-error budget | `arp/index/` (versioned calibrations in `index_store.py`) |
-| 2. Engagement selection | Decision mechanism: score on CLTI + other topic columns, tier by `tier_graph`, rank by **leverage** (position size × gap to a perfect score) | `arp/decision/` (versioned, ratifiable frameworks) |
-| 3. Vote sanction | Policy graph, domain `vote_sanction`: per target, *what vote the program expects* at the next AGM (e.g. against the chair or the say-on-pay) | ZEN graph, Part 1 policy layer |
-| 4. Escalation | Policy graph, domain `escalation` (client-owned, chained on the house one) | ZEN graph, Part 1 policy layer |
+| 2. Engagement selection | Decision mechanism scores on CLTI + other topic columns, tiers by `tier_graph` and ranks by **leverage** (position size × gap to a perfect score); the client's `engagement_level` graph turns tier + triggers into a level (0–4) | `arp/decision/` + ZEN graph, Part 1 policy layer |
+| 3. Vote sanction | Level 3 targets; the client's `vote_expectation` graph says *which vote the program expects* at the next AGM (e.g. against the chair or the say-on-pay) | ZEN graph, Part 1 policy layer |
+| 4. Escalation | Level 4, from the same client `engagement_level` graph (chained on the house one) | ZEN graph, Part 1 policy layer |
 | Proposal + PPT | Report Builder: datasets → content plan → `pptx` / `docx` | `arp/reporting/` |
 | Monitoring | Portfolio alert rules + scheduler, plus stage 7 client exceptions | `arp/portfolio/monitoring/` |
 
@@ -485,9 +554,9 @@ New entities (additions to Part 1):
 | Entity | Key fields | Notes |
 |---|---|---|
 | CLIENT_PROGRAM | program_id, client_id, portfolio_id, benchmark (`MSCI World`), objective, status | draft → proposed → approved → live → retired. |
-| PROGRAM_VERSION | program_id + version, `index_calibration` (id+version), `decision_framework` (id+version), `policy_versions` {vote_sanction, escalation}, `capacity` assumptions, approved_by | **Immutable.** Recalibrating makes a new version, so what was proposed, approved and monitored is always exactly reproducible. |
+| PROGRAM_VERSION | program_id + version, `index_calibration` (id+version), `decision_framework` (id+version), `policy_versions` {engagement_level, vote_expectation}, `capacity` assumptions, approved_by | **Immutable.** Recalibrating makes a new version, so what was proposed, approved and monitored is always exactly reproducible. |
 | PROGRAM_SIMULATION | simulation_id, program_id + version, as_of, outputs (below), house_comparison | One per "Run" click in the calibration loop. Cheap to throw away; the version the client approves points at its simulation. |
-| PROGRAM_TARGET | program_id + version, issuer_id, role, origin | role: overweight \| underweight \| engage \| sanction \| escalate. origin: `house` (already in the house program) \| `client_only`. Frozen at approval; this is the monitored list. |
+| PROGRAM_TARGET | program_id + version, issuer_id, theme_id, role, level, origin | role: overweight \| underweight \| engage; `level` 1–4 from the engagement ladder (3 = vote sanction, 4 = escalation). origin: `house` (already in the house program) \| `client_only`. Frozen at approval; this is the monitored list. |
 | PROGRAM_KPI_SNAPSHOT | program_id, as_of, kpis (JSON) | One row per monitoring run; the time series behind the monitoring view. |
 
 ### 5.2 Calibration loop
@@ -516,7 +585,7 @@ flowchart LR
 | 1. Tilt | normalisation, floor/ceiling, TE budget, sector/country caps | active weights of the leaders and laggards, weighted CLTI uplift vs benchmark, tracking error, turnover vs last version |
 | 2. Selection | criteria and weights, tier cut-points or tier graph, max targets | the ranked target list by leverage, why each name is in, tier sensitivity (does the list survive a weight change?) |
 | 3. Sanction | graph, e.g. `tier == 1 and no_progress_months >= 12 → against chair` | sanction list per upcoming AGM, and where it contradicts the house recommendation |
-| 4. Escalation | graph, chained on the house result | names where the client would escalate further than the house |
+| 3–4. Sanction & escalation | the client's `engagement_level` graph, chained on the house result | names where the client's level is above the house level |
 
 ### 5.3 House comparison — efficiency and feasibility
 
@@ -529,7 +598,7 @@ Each check is computed from the simulation and shown as a traffic light.
 | Marginal workload | client-only targets × effort per engagement (capacity assumption) vs free house capacity | The key feasibility number: can the team actually deliver the program? |
 | Theme gap | client targets on themes the house does not cover | Needs new expertise; flag it, do not hide it. |
 | Vote conflicts | sanctions where the house recommendation differs | Only deliverable if the client's shares can be voted separately. **Feasible in an SMA; not in a pooled CCF/ETF**, which must vote one way. Checked against `Portfolio.vehicle_type`. |
-| Escalation conflicts | client step > house step on the same engagement | One company, one dialogue: the house has to agree to escalate, or the proposal says it won't. |
+| Level conflicts | client level > house level on the same issuer × theme | One company, one dialogue: the house has to agree to escalate, or the proposal says it won't. |
 | Tilt vs engagement coherence | engagement targets that the tilt has sold down to near zero | Leverage falls with the position; engaging a company the portfolio barely holds is weak. |
 
 ### 5.4 Proposal and PPT
