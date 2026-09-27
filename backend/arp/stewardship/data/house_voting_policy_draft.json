@@ -129,7 +129,7 @@
     },
     {
       "issue_id": "pay.say_on_pay",
-      "action": "case_by_case",
+      "action": "for",
       "vote_target": "say_on_pay",
       "parameters": {
         "default_action": "against_on_red_flag"

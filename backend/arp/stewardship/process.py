@@ -377,7 +377,7 @@ def _client_stages(
     stream: dict, sample: dict, house_policy: dict, escalations: list[dict], escalation_version: int
 ) -> list[dict]:
     result = review(stream["client_policy"], house_policy)
-    decide(result, stream["decisions"])
+    decide(result, stream["decisions"], strict=False)
     attach_impact(result, house_policy, sample, "synthetic sample")
     s, bt = result["summary"], result["summary"]["backtest"]
     differences = [r for r in result["register"] if "assessment" in r]
@@ -391,6 +391,19 @@ def _client_stages(
         "The client's policy against the house policy: decide every difference, then build.",
         [
             _metric("To decide", len(open_rows), "live", "warn" if open_rows else "good"),
+            *(
+                [
+                    _metric(
+                        "Decisions set aside",
+                        len(result["stale_decisions"]),
+                        "live",
+                        "warn",
+                        "A new house version changed these differences: decide them again",
+                    )
+                ]
+                if result["stale_decisions"]
+                else []
+            ),
             _metric("Differences", len(differences), "live"),
             _metric("Separate votes", s["separate_vote_required"], "live"),
             _metric("Not deliverable", s["not_deliverable"], "live", "bad" if s["not_deliverable"] else "neutral"),
@@ -448,12 +461,11 @@ def _client_stages(
     return [s7, s8]
 
 
-def _house_reporting(streams: list[dict], records: list[EngagementRecord]) -> list[dict]:
+def _house_reporting(streams: list[dict], records: list[EngagementRecord], house_policy: dict) -> list[dict]:
     open_decisions = 0
-    for stream in streams:
-        decided = {d["issue_id"] for d in stream["decisions"]}
-        result = review(stream["client_policy"])
-        open_decisions += sum(1 for r in result["register"] if "assessment" in r and r["issue_id"] not in decided)
+    for stream in streams:  # counted exactly as each stream's own stage 7 counts them
+        result = decide(review(stream["client_policy"], house_policy), stream["decisions"], strict=False)
+        open_decisions += sum(1 for r in result["register"] if "assessment" in r and r["decision"] is None)
     return [
         _stage(
             "client_policy",
@@ -512,7 +524,7 @@ def flow(stream_id: str, streams: StreamStore, records: list[EngagementRecord], 
         stream = {"stream_id": HOUSE, "name": "House program"}
         stages = _house_stages(
             records, sample, house_policy, sla_days, tiers, triggers, escalations, exceptions, drafts
-        ) + _house_reporting(streams.list(), records)
+        ) + _house_reporting(streams.list(), records, house_policy)
     else:
         stream = streams.get(stream_id)
         if stream is None:
@@ -590,10 +602,12 @@ def record_decision(stream: dict, decision: dict, house_policy: dict | None = No
     if stream.get("built_policy") is not None:
         raise ValueError("The policy is already built; start a new stream to change it")
     decisions = [d for d in stream["decisions"] if d["issue_id"] != decision["issue_id"]] + [decision]
-    decide(review(stream["client_policy"], house_policy), decisions)  # raises on an invalid decision
+    result = decide(review(stream["client_policy"], house_policy), decisions[:-1], strict=False)  # earlier ones may be stale
+    decide(result, [decision])  # the new decision must fit the current register
     return {**stream, "decisions": decisions}
 
 
 def build_stream_policy(stream: dict, house_policy: dict | None = None) -> dict:
-    result = decide(review(stream["client_policy"], house_policy), stream["decisions"])
+    # stale decisions are set aside: their rows read as undecided, and build refuses until they are decided again
+    result = decide(review(stream["client_policy"], house_policy), stream["decisions"], strict=False)
     return {**stream, "built_policy": build(result, house_policy)}

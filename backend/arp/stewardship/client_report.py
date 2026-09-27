@@ -56,7 +56,7 @@ def client_report(root: Path, stream: dict, records: list[EngagementRecord], sla
     engagements = client_escalations(root, stream["stream_id"], ctxs, house)
     esc_version = client_store(root, stream["stream_id"]).active_version("escalation_rules")
 
-    result = decide(review(stream["client_policy"], house_policy), stream["decisions"])
+    result = decide(review(stream["client_policy"], house_policy), stream["decisions"], strict=False)
     differences = [r for r in result["register"] if "assessment" in r]
     decided = [r for r in differences if r["decision"]]
     built = stream.get("built_policy")

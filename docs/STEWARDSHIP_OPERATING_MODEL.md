@@ -927,7 +927,7 @@ below is generated from that file and the draft house positions.
 | `board.tenure_refreshment` | Tenure after which a director stops counting as independent, and board refreshment. | **against** `nomination_committee_chair` — `max_tenure_for_independence_years` 12; `max_average_tenure_years` 10 |
 | `board.election_practices` | Annual, individual and majority-vote director elections. | **against** `nomination_committee_chair` — `require_annual_election` yes; `oppose_bundled_elections` yes; `require_majority_voting` yes |
 | `board.responsiveness` | Action when the board ignores significant prior-year dissent or majority-supported proposals. | **against** `committee_chair_responsible` — `dissent_threshold_pct` 20; `ignore_majority_proposal` yes |
-| `pay.say_on_pay` | Default approach to the remuneration report vote. | **case_by_case** `say_on_pay` — `default_action` against_on_red_flag |
+| `pay.say_on_pay` | Default approach to the remuneration report vote. | **for** `say_on_pay` — `default_action` against_on_red_flag |
 | `pay.quantum` | CEO pay level relative to peers and to the workforce. | **against** `say_on_pay` — `max_peer_percentile` 90; `max_ceo_worker_pay_ratio` not set |
 | `pay.performance_alignment` | Alignment of realised pay with shareholder returns and performance conditions. | **against** `say_on_pay` — `max_misalignment_years` 3; `min_long_term_share_pct` 50; `min_vesting_period_years` 3 |
 | `pay.esg_metrics` | Whether variable pay must include measurable sustainability (e.g. climate) targets. | **against** `remuneration_policy` — `require_esg_metric` no; `min_esg_weight_pct` 10; `require_climate_metric_for_high_emitters` yes |
@@ -1094,6 +1094,13 @@ python -m arp.stewardship.policy_graph <policy.json> --out <graph.json>
 | `conditions` | expression | One boolean per position: does it fire on this resolution? Resolution category, vote target, scope and the red-flag condition, with the policy's values written in (`issuer.governance.board_independence_pct < 66`). |
 | `votes` | decision table, `collect` | One row per position; the row id is the issue id, so the trace names the rule that fired (E5). |
 | `decision` | expression | Expected vote by precedence: against > case_by_case > abstain > for. With no hit, it follows management's recommendation. Also returns the issues that decided it. |
+
+**Stance issues** (say-on-pay, M&A, the three shareholder-proposal issues, the
+management default) carry both an action and a `default_action`. The action is the
+vote: `against`, `abstain` and `case_by_case` are voted as they are, and only `for`
+is refined by the stance (support if reasonable, follow management, for unless a red
+flag). A `default_action` that disagrees with a non-`for` action is reported as not
+part of the vote rule, so the conflict is visible.
 
 **Context per resolution.** `issuer` (company data by field id, plus region and
 sector), `resolution` (category, management recommendation, topic, the director's

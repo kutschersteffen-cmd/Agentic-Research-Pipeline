@@ -173,6 +173,12 @@ def review(client_policy: dict, house_policy: dict | None = None, catalogue: dic
     unknown = (set(client) | set(unclear)) - set(issues)
     if unknown:
         raise ValueError(f"Issues not in the catalogue: {sorted(unknown)}")
+    for issue_id, c in client.items():  # a misspelt name would otherwise read as "same as the house"
+        extra = set(c.get("parameters", {})) - set(issues[issue_id]["parameters"])
+        if extra:
+            raise ValueError(
+                f"Unknown parameters for {issue_id}: {sorted(extra)} (known: {sorted(issues[issue_id]['parameters'])})"
+            )
 
     register: list[dict] = []
     for issue_id, issue in issues.items():
@@ -276,18 +282,30 @@ _DECISIONS = {
 }
 
 
-def decide(result: dict, decisions: list[dict]) -> dict:
+def decide(result: dict, decisions: list[dict], strict: bool = True) -> dict:
     """Records human decisions on register rows. Each decision needs
     `issue_id`, `decision` and `decided_by`; `adopt_with_modification` also
-    needs a `modification` (a partial position laid over the client's)."""
+    needs a `modification` (a partial position laid over the client's).
+
+    With `strict=False`, a decision that no longer fits its row (a new house
+    version changed the row's kind, or removed the difference) is set aside in
+    `result["stale_decisions"]` instead of raising, so the row reads as undecided
+    again and a person decides it anew."""
     rows = {r["issue_id"]: r for r in result["register"]}
+    result["stale_decisions"] = []
     for d in decisions:
         row = rows.get(d["issue_id"])
-        if row is None:
-            raise ValueError(f"No register row for {d['issue_id']}")
         allowed = _DECISIONS.get(d["decision"])
-        if allowed is None or row["kind"] not in allowed:
-            raise ValueError(f"Decision '{d['decision']}' is not valid for a '{row['kind']}' row ({d['issue_id']})")
+        stale = None
+        if row is None:
+            stale = f"No register row for {d['issue_id']}"
+        elif allowed is None or row["kind"] not in allowed:
+            stale = f"Decision '{d['decision']}' is not valid for a '{row['kind']}' row ({d['issue_id']})"
+        if stale:
+            if strict:
+                raise ValueError(stale)
+            result["stale_decisions"].append({**d, "reason": stale})
+            continue
         if not d.get("decided_by"):
             raise ValueError(f"Decision on {d['issue_id']} has no decided_by")
         if (d["decision"] == "adopt_with_modification") != bool(d.get("modification")):

@@ -383,8 +383,17 @@ def _position_rule(issue: dict, position: dict) -> tuple[str, str, set[str]] | N
     in_scope = _all(applies, target, _scope(position["scope"]))
 
     if "default_action" in issue["parameters"]:  # a stance: fires on every resolution it governs
-        vote = _STANCE_VOTES.get(params["default_action"], _lit(params["default_action"]))
-        override = _AGAINST_OVERRIDES[issue_id](params) if issue_id in _AGAINST_OVERRIDES else "false"
+        # The action is the vote; only `for` is refined by the stance (support if
+        # reasonable, follow management, for unless a red flag). Against, abstain and
+        # case-by-case are votes in their own right, and then default_action is unused.
+        if position["action"] in ("against", "abstain", "case_by_case"):
+            vote = _lit(position["action"])
+            if position["parameters"].get("default_action") == position["action"]:
+                params["default_action"]  # agrees with the action, so it is not an unused parameter
+        else:
+            vote = _STANCE_VOTES.get(params["default_action"], _lit(params["default_action"]))
+        against = position["action"] == "against"
+        override = _AGAINST_OVERRIDES[issue_id](params) if issue_id in _AGAINST_OVERRIDES and not against else "false"
         if override != "false":
             vote = f"{override} ? 'against' : {vote}"
         return in_scope, vote, params.read
