@@ -2226,6 +2226,43 @@ export interface BlocklistEntry {
   suggestion?: string;
 }
 
+export interface TrackedCommitment {
+  company_id: string;
+  company: string;
+  issue_id: string;
+  theme: string;
+  commitment_id: string;
+  text: string;
+  made_at: string;
+  target_date: string | null;
+  status: "open" | "verified" | "missed";
+  overdue: boolean;
+  validated_by: string | null;
+}
+
+export interface CommitmentDueItem extends TrackedCommitment {
+  kind: "commitment_due";
+}
+
+export interface TrackedEngagement {
+  company_id: string;
+  company: string;
+  issue_id: string;
+  theme: string;
+  status: string;
+  step: string;
+  milestone: string;
+}
+
+export interface CaseStudy {
+  company: string;
+  theme: string;
+  status: string;
+  text: string;
+  style_flags: StyleFlag[];
+  provenance: string;
+}
+
 export interface ClientExceptionItem {
   kind: "client_exception";
   stream_id: string;
@@ -2273,7 +2310,14 @@ export interface StewardshipStage {
   summary: string;
   status: "live" | "partial" | "not_built";
   metrics: StewardshipMetric[];
-  decisions: (EscalationDecisionItem | ClientExceptionItem | OutreachDecisionItem | TierChangeItem | PolicyDifferenceItem)[];
+  decisions: (
+    | EscalationDecisionItem
+    | ClientExceptionItem
+    | OutreachDecisionItem
+    | CommitmentDueItem
+    | TierChangeItem
+    | PolicyDifferenceItem
+  )[];
   details: { label: string; rows: Record<string, string | number>[] }[];
   can_build?: boolean;
 }

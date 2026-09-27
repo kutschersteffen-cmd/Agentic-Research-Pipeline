@@ -1232,7 +1232,7 @@ available today (✓) and which are designed but not built (○):
 | 3 Drafting | Outreach drafts with a proposed interaction type (E6) and a live style check (E8); the phrase blocklist as a versioned policy; mark approved outreach sent | Outreach templates per tier and theme; E8 on reports and case studies |
 | 4 Voting | House voting positions editor (per issue: vote, target, thresholds, rationale); back-test against the active policy; versions | — |
 | 5 Checkpoint | Escalation decisions from the escalation rules, client escalations above the house (adopt or keep the house step) and tier confirmations; recommendations for every open engagement; escalation rules and tier caps in the rule-graph editor; preview; versions | SLA and sign-off rules as configuration |
-| 6 Tracking | Open engagements by milestone | Milestone ladder configuration, missed-commitment triggers, E7 |
+| 6 Tracking | Commitments with target dates (verify or mark missed); overdue and missed commitments and stalls raised as stage 1 triggers; close an engagement with its outcome; E7 case studies with E8 flags | Milestone ladder configuration; case-study approval |
 | 7 Client policy | Per client stream: voting policy review, decisions, build; the client's escalation rules (editor, preview against the house, versions) | Versioning of client voting policies; client coverage rules |
 | 8 Reporting | Per client stream: stewardship report on the page and as a PowerPoint deck | Report period and template choice, E2 disclosure, program proposal, E7 case studies |
 
@@ -1383,6 +1383,28 @@ its own versioned `escalation_rules` (`PolicyStore(..., client=True)`, stored un
   engagements. Client-only issuers and client coverage rules (`tier_higher`) come
   with client holdings.
 
+**Tracking (stage 6 → stage 1), as built.** `backend/arp/stewardship/tracking.py`.
+
+- **Commitments** are recorded on a live engagement with an optional target date
+  and who recorded them (`Commitment.recorded_by`), then marked verified or missed
+  by a named person. Open commitments past their target date are the stage 6
+  decisions.
+- **The loop back to monitoring.** A missed commitment (high), an open commitment
+  past its target date (medium) and an engagement stalled beyond the SLA (medium)
+  are raised as triggers in stage 1, next to the rule triggers on company data,
+  always attached to their engagement. They are not fed to the escalation rules as
+  triggers, because the escalation rules read missed commitments and stalls
+  directly (no double counting).
+- **Closing** an engagement as resolved or closed needs an outcome, which is logged
+  on the engagement.
+- **Case studies (E7)** are compiled deterministically from a closed engagement's
+  record: why it was opened, outreach by type and interaction tag, the highest
+  step and each escalation with its date and decider, commitments kept and
+  missed, and the outcome. The text states that it was compiled from records, and
+  runs through the E8 style check (the closer's outcome wording is checked too).
+- Not built: a configurable milestone ladder, and approval of case studies before
+  use.
+
 **Outreach drafting (stage 3 → stage 5), as built.** `backend/arp/stewardship/drafting.py`, `style.py`.
 
 - **E6.** Every outreach draft (letter, email, call, meeting) on a live engagement
@@ -1429,7 +1451,7 @@ its own versioned `escalation_rules` (`PolicyStore(..., client=True)`, stored un
 Implementation: `backend/arp/stewardship/process.py` (streams and the flow), `policies.py` (versions and previews),
 `backend/arp/api/routers/stewardship.py` (`/api/stewardship/...`),
 `frontend/src/pages/StewardWorkflow.tsx` and `frontend/src/pages/steward/` (flowchart, studios, decisions); tests in
-`backend/tests/test_api_stewardship.py`, `test_stewardship_tiers.py`, `test_stewardship_policies.py`, `test_stewardship_monitoring.py`, `test_stewardship_escalation.py`, `test_stewardship_client_report.py`, `test_stewardship_program.py`, `test_stewardship_drafting.py`. Client streams are stored as JSON under
+`backend/tests/test_api_stewardship.py`, `test_stewardship_tiers.py`, `test_stewardship_policies.py`, `test_stewardship_monitoring.py`, `test_stewardship_escalation.py`, `test_stewardship_client_report.py`, `test_stewardship_program.py`, `test_stewardship_drafting.py`, `test_stewardship_tracking.py`. Client streams are stored as JSON under
 `stewardship_streams/` (`ARP_STEWARDSHIP_STREAMS_DIR`).
 
 ## Open points

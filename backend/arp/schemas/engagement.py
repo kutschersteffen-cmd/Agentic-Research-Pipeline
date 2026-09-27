@@ -126,6 +126,7 @@ class Commitment(BaseModel):
     text: str
     made_at: str = Field(default_factory=now_iso)
     target_date: str | None = None
+    recorded_by: str | None = None
     status: CommitmentStatus = CommitmentStatus.OPEN
     validated_by: str | None = None
     validated_at: str | None = None

@@ -25,7 +25,7 @@ from typing import Any
 
 from arp.engagement.orchestrator import is_stalled
 from arp.schemas.engagement import EngagementRecord, IssueStatus, MilestoneStage
-from arp.stewardship import escalation, monitoring
+from arp.stewardship import escalation, monitoring, tracking
 from arp.stewardship.backtest import attach_impact, build_contexts
 from arp.stewardship.drafting import DraftStore
 from arp.stewardship.policies import PolicyStore
@@ -143,6 +143,8 @@ def _house_stages(
 
     milestones = Counter(i.milestone_stage.value for _, i in open_issues)
     pending = [d for d in drafts if d["status"] == "draft"]
+    tracked = tracking.triggers(records, sla_days)
+    due = [c for c in tracking.commitments(records) if c["overdue"]]
     sent = [d for d in drafts if d["status"] == "sent"]
     commitments = Counter(c.status.value for i in all_issues for c in i.commitments)
     to_decide = [r for r in escalations if escalation.needs_decision(r)]
@@ -157,7 +159,14 @@ def _house_stages(
         [
             _metric("Companies monitored", len(sample["issuers"]), "sample"),
             _metric("Values missing", f"{missing:.0%}", "sample", "warn" if missing > 0.05 else "neutral"),
-            _metric("Triggers raised", len(triggers), "sample", hint="By the active monitoring rules"),
+            _metric("Triggers raised", len(triggers), "sample", hint="By the active monitoring rules, on company data"),
+            _metric(
+                "Tracking triggers",
+                len(tracked),
+                "live",
+                "warn" if tracked else "good",
+                "Missed or overdue commitments and stalled engagements (stage 6)",
+            ),
             _metric(
                 "Without an engagement",
                 len({t["issuer_id"] for t in triggers if t["engagement_id"] is None}),
@@ -345,6 +354,13 @@ def _house_stages(
             _metric(
                 "Commitments missed", commitments.get("missed", 0), "live", "bad" if commitments.get("missed") else "neutral"
             ),
+            _metric("Past target date", len(due), "live", "warn" if due else "good", "Open commitments to verify or mark missed"),
+            _metric(
+                "Case studies ready",
+                sum(1 for r in records for i in r.issues if i.status.value in ("resolved", "closed")),
+                "live",
+                hint="Closed engagements (E7)",
+            ),
         ],
         details=[
             {
@@ -353,6 +369,7 @@ def _house_stages(
             }
         ],
     )
+    s6["decisions"] = [{"kind": "commitment_due", **c} for c in due]
     return [s1, s2, s3, s4, s5, s6]
 
 

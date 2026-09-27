@@ -5,6 +5,7 @@ import { SOURCE_LABEL } from "./steward/common";
 import { FlowChart, FlowList } from "./steward/flow";
 import { DraftingStudio } from "./steward/drafting";
 import { ProgramStudio } from "./steward/program";
+import { TrackingStudio } from "./steward/tracking";
 import {
   CheckpointStudio,
   ClientPicker,
@@ -12,7 +13,6 @@ import {
   MonitoringStudio,
   ReportingStudio,
   SelectionStudio,
-  TrackingStudio,
   VotingStudio,
 } from "./steward/studios";
 import type { MetricSource } from "../types";

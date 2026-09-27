@@ -878,33 +878,6 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
 
 // --- 6. Tracking ---------------------------------------------------------------------
 
-export function TrackingStudio({ stage }: StudioProps) {
-  return (
-    <>
-      <StudioHeader
-        stage={stage}
-        capabilities={[
-          { label: "Review", ready: true },
-          { label: "Design", ready: false },
-        ]}
-      />
-      <Section step="Review" title="Open engagements by milestone">
-        <DataTable rows={stage.details[0]?.rows ?? []} empty="No open engagements." />
-        <p className="muted">Correspondence and commitments are logged on the Engagement page.</p>
-      </Section>
-      <Section step="Design" title="Milestones and commitment tracking" planned>
-        <Planned
-          items={[
-            "The milestone ladder (identified → contacted → dialogue → response → commitment → verified), configurable per house.",
-            "Commitment deadlines that raise a trigger in stage 1 when they are missed.",
-            "Escalation case studies (E7) from closed escalation histories.",
-          ]}
-        />
-      </Section>
-    </>
-  );
-}
-
 // --- 7. Client policy ----------------------------------------------------------------
 
 export function ClientPicker({

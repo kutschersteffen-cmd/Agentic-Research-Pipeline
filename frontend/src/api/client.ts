@@ -1,7 +1,10 @@
 import type {
   CompanyBallot,
   ClientEscalationPreview,
+  CaseStudy,
   ClientReport,
+  TrackedCommitment,
+  TrackedEngagement,
   InteractionType,
   OutreachDraft,
   StyleFlag,
@@ -399,6 +402,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ sent_by: sentBy }),
     }),
+  getTracking: () => request<{ commitments: TrackedCommitment[]; engagements: TrackedEngagement[] }>("/api/stewardship/tracking"),
+  addCommitment: (body: { company_id: string; issue_id: string; text: string; target_date?: string; recorded_by: string }) =>
+    request("/api/stewardship/tracking/commitments", { method: "POST", body: JSON.stringify(body) }),
+  setCommitmentStatus: (commitmentId: string, body: { company_id: string; issue_id: string; status: "verified" | "missed"; decided_by: string }) =>
+    request(`/api/stewardship/tracking/commitments/${encodeURIComponent(commitmentId)}`, { method: "POST", body: JSON.stringify(body) }),
+  closeEngagement: (body: { company_id: string; issue_id: string; status: "resolved" | "closed"; outcome: string; decided_by: string }) =>
+    request("/api/stewardship/tracking/close", { method: "POST", body: JSON.stringify(body) }),
+  getCaseStudy: (companyId: string, issueId: string) =>
+    request<CaseStudy>(`/api/stewardship/tracking/case-study/${encodeURIComponent(companyId)}/${encodeURIComponent(issueId)}`),
   getClientReport: (streamId: string) => request<ClientReport>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/report`),
   clientReportPptxUrl: (streamId: string) => `${API_BASE}/api/stewardship/streams/${encodeURIComponent(streamId)}/report.pptx`,
   getClientEscalationExample: () => request<Record<string, unknown>>("/api/stewardship/studio/escalation/client-example"),

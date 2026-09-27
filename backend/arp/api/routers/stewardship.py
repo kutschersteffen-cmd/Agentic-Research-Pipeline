@@ -13,8 +13,17 @@ from pydantic import BaseModel
 
 from arp.api.deps import get_engagement_store, get_stream_store, settings_dep
 from arp.config import Settings
-from arp.schemas.engagement import CorrespondenceType, EscalationStage, InteractionType, IssueSeverity, TriggerSource
-from arp.stewardship import drafting, escalation, monitoring
+from arp.schemas.engagement import (
+    Commitment,
+    CommitmentStatus,
+    CorrespondenceType,
+    EscalationStage,
+    InteractionType,
+    IssueSeverity,
+    IssueStatus,
+    TriggerSource,
+)
+from arp.stewardship import drafting, escalation, monitoring, tracking
 from arp.stewardship.client_report import build_pptx, client_report
 from arp.stewardship.policies import PolicyStore, coverage_preview, voting_preview
 from arp.stewardship.policy_review import DATA, load
@@ -267,11 +276,15 @@ def post_voting_preview(body: VotingPreviewRequest, streams: StreamStore = Depen
 
 @router.get("/studio/monitoring/triggers")
 def monitoring_triggers(
-    streams: StreamStore = Depends(get_stream_store), engagements: EngagementStore = Depends(get_engagement_store)
+    settings: Settings = Depends(settings_dep),
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
 ) -> dict:
-    """The triggers the active monitoring rules raise, matched to open engagements."""
-    sample = json.loads(SAMPLE_PATH.read_text())
-    return {"triggers": monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, engagements.list_all())}
+    """The triggers the active monitoring rules raise on company data, matched to
+    open engagements, followed by the tracking triggers from the engagements themselves."""
+    sample, records = json.loads(SAMPLE_PATH.read_text()), engagements.list_all()
+    rules = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, records)
+    return {"triggers": rules + tracking.triggers(records, settings.engagement_sla_days)}
 
 
 class MonitoringPreviewRequest(BaseModel):
@@ -712,5 +725,116 @@ def mark_draft_sent(
         return drafting.mark_sent(_drafts(streams), engagements, draft_id, body.sent_by)
     except KeyError as exc:
         raise HTTPException(404, "Unknown draft or engagement") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+# --- Stage 6: tracking ---------------------------------------------------------
+
+
+@router.get("/tracking")
+def get_tracking(engagements: EngagementStore = Depends(get_engagement_store)) -> dict:
+    """Every commitment with its target date and status, and the engagements, open and closed."""
+    records = engagements.list_all()
+    return {
+        "commitments": tracking.commitments(records),
+        "engagements": [
+            {
+                "company_id": r.company_id,
+                "company": r.name,
+                "issue_id": i.issue_id,
+                "theme": i.theme,
+                "status": i.status.value,
+                "step": i.escalation_stage.value,
+                "milestone": i.milestone_stage.value,
+            }
+            for r in records
+            for i in r.issues
+        ],
+    }
+
+
+class CommitmentRequest(BaseModel):
+    company_id: str
+    issue_id: str
+    text: str
+    target_date: str | None = None
+    recorded_by: str
+
+
+@router.post("/tracking/commitments")
+def add_commitment(body: CommitmentRequest, engagements: EngagementStore = Depends(get_engagement_store)) -> dict:
+    """Logs a commitment the company made, as validated by the person recording it."""
+    if not body.text.strip() or not body.recorded_by.strip():
+        raise HTTPException(422, "A commitment needs text and recorded_by")
+    if body.target_date:
+        try:
+            datetime.fromisoformat(body.target_date)
+        except ValueError as exc:
+            raise HTTPException(422, "target_date must be an ISO date") from exc
+    commitment = Commitment(text=body.text, target_date=body.target_date, recorded_by=body.recorded_by)
+    try:
+        engagements.add_commitment(body.company_id, body.issue_id, commitment)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(404, "Unknown engagement") from exc
+    return commitment.model_dump(mode="json")
+
+
+class CommitmentStatusRequest(BaseModel):
+    company_id: str
+    issue_id: str
+    status: Literal["verified", "missed"]
+    decided_by: str
+
+
+@router.post("/tracking/commitments/{commitment_id}")
+def set_commitment_status(
+    commitment_id: str, body: CommitmentStatusRequest, engagements: EngagementStore = Depends(get_engagement_store)
+) -> dict:
+    if not body.decided_by.strip():
+        raise HTTPException(422, "A decision needs decided_by")
+    try:
+        engagements.update_commitment_status(
+            body.company_id, body.issue_id, commitment_id, CommitmentStatus(body.status), body.decided_by
+        )
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return {"commitment_id": commitment_id, "status": body.status}
+
+
+class CloseRequest(BaseModel):
+    company_id: str
+    issue_id: str
+    status: Literal["resolved", "closed"]
+    outcome: str
+    decided_by: str
+
+
+@router.post("/tracking/close")
+def close_engagement(body: CloseRequest, engagements: EngagementStore = Depends(get_engagement_store)) -> dict:
+    try:
+        tracking.close(engagements, body.company_id, body.issue_id, IssueStatus(body.status), body.outcome, body.decided_by)
+    except KeyError as exc:
+        raise HTTPException(404, "Unknown engagement") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {"issue_id": body.issue_id, "status": body.status}
+
+
+@router.get("/tracking/case-study/{company_id}/{issue_id}")
+def get_case_study(
+    company_id: str,
+    issue_id: str,
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    """E7: a case study compiled from a closed engagement's records, with its E8 style flags."""
+    record = engagements.get(company_id)
+    if record is None:
+        raise HTTPException(404, "Unknown engagement")
+    try:
+        return tracking.case_study(record, issue_id, _blocklist(streams))
+    except KeyError as exc:
+        raise HTTPException(404, "Unknown engagement") from exc
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc

@@ -14,6 +14,7 @@ from arp.api.routers.stewardship import (  # noqa: E402
     monitoring_triggers,
     open_engagement_from_trigger,
 )
+from arp.config import Settings  # noqa: E402
 from arp.stewardship.monitoring import evaluate, load_graph, preview  # noqa: E402
 from arp.stewardship.policies import PolicyStore  # noqa: E402
 from arp.stewardship.process import SAMPLE_PATH, StreamStore  # noqa: E402
@@ -73,7 +74,7 @@ def test_open_engagement_from_a_trigger_uses_the_rule_and_only_once(tmp_path):
     [issue] = engagements.get("SYN10").issues
     assert (issue.theme, issue.severity.value, issue.source.value) == ("climate_transition", "high", "monitoring_rule")
     assert opened["issue_id"] == issue.issue_id
-    attached = next(t for t in monitoring_triggers(streams, engagements)["triggers"] if t["rule"] == "clti_laggard")
+    attached = next(t for t in monitoring_triggers(Settings(), streams, engagements)["triggers"] if t["rule"] == "clti_laggard")
     assert attached["engagement_id"] == issue.issue_id
     with pytest.raises(HTTPException) as again:
         open_engagement_from_trigger(body, streams, engagements)
