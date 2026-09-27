@@ -23,9 +23,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from arp.engagement.orchestrator import OrchestratorAction, decide_next_action, is_stalled, next_escalation_stage
+from arp.engagement.orchestrator import is_stalled
 from arp.schemas.engagement import EngagementRecord, IssueStatus, MilestoneStage
-from arp.stewardship import monitoring
+from arp.stewardship import escalation, monitoring
 from arp.stewardship.backtest import attach_impact, build_contexts
 from arp.stewardship.policies import PolicyStore
 from arp.stewardship.policy_graph import evaluate, generate
@@ -117,7 +117,13 @@ def _open_issues(records: list[EngagementRecord]):
 
 
 def _house_stages(
-    records: list[EngagementRecord], sample: dict, policy: dict, sla_days: int, tiers: dict, triggers: list[dict]
+    records: list[EngagementRecord],
+    sample: dict,
+    policy: dict,
+    sla_days: int,
+    tiers: dict,
+    triggers: list[dict],
+    escalations: list[dict],
 ) -> list[dict]:
     open_issues = list(_open_issues(records))
     all_issues = [i for r in records for i in r.issues]
@@ -134,11 +140,8 @@ def _house_stages(
 
     milestones = Counter(i.milestone_stage.value for _, i in open_issues)
     commitments = Counter(c.status.value for i in all_issues for c in i.commitments)
-    flagged = [
-        (record, issue)
-        for record, issue in open_issues
-        if decide_next_action(issue, sla_days).action == OrchestratorAction.FLAG_FOR_ESCALATION_DECISION
-    ]
+    to_decide = [r for r in escalations if escalation.needs_decision(r)]
+    live = [r for r in to_decide if r["source"] == "live"]
 
     s1 = _stage(
         "monitoring",
@@ -230,7 +233,15 @@ def _house_stages(
         "house",
         "Every escalation, sanction list, outreach and disclosure is decided by a person.",
         [
-            _metric("Escalations to decide", len(flagged), "live", "warn" if flagged else "good"),
+            _metric(
+                "Escalations to decide", len(live), "live", "warn" if live else "good", "Recommended by the escalation rules"
+            ),
+            _metric(
+                "Sample recommendations",
+                len(to_decide) - len(live),
+                "sample",
+                hint=f"{sum(r['promote_tier'] for r in to_decide)} at their tier's cap: promote the tier",
+            ),
             _metric("Tier changes to confirm", len(tier_changes), "sample", "warn" if tier_changes else "good"),
         ],
     )
@@ -246,18 +257,19 @@ def _house_stages(
                 "reason": change["reason"],
             }
         )
-    for record, issue in flagged:
-        nxt = next_escalation_stage(issue.escalation_stage)
+    for r in live:
         s5["decisions"].append(
             {
                 "kind": "escalation",
-                "company_id": record.company_id,
-                "company": record.name,
-                "issue_id": issue.issue_id,
-                "theme": issue.theme,
-                "current": issue.escalation_stage.value,
-                "next": nxt.value if nxt else None,
-                "reason": decide_next_action(issue, sla_days).reason,
+                "company_id": r["company_id"],
+                "company": r["company"],
+                "issue_id": r["issue_id"],
+                "theme": r["theme"],
+                "current": r["current"],
+                "next": r["recommended"] if r["escalate"] else None,
+                "max_step": r["max_step"],
+                "promote_tier": r["promote_tier"],
+                "reason": f"{r['reason']} ({r['rule']})",
             }
         )
     s6 = _stage(
@@ -396,9 +408,13 @@ def flow(stream_id: str, streams: StreamStore, records: list[EngagementRecord], 
     house_policy = PolicyStore(streams.root).active("house_voting")
     tiers = tier_review(streams.root, sample, records)
     triggers = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, records)
+    escalations = escalation.evaluate(
+        PolicyStore(streams.root).active("escalation_rules"),
+        escalation_contexts(streams.root, sample, records, sla_days, triggers),
+    )
     if stream_id == HOUSE:
         stream = {"stream_id": HOUSE, "name": "House program"}
-        stages = _house_stages(records, sample, house_policy, sla_days, tiers, triggers) + _house_reporting(
+        stages = _house_stages(records, sample, house_policy, sla_days, tiers, triggers, escalations) + _house_reporting(
             streams.list(), records
         )
     else:
@@ -406,13 +422,28 @@ def flow(stream_id: str, streams: StreamStore, records: list[EngagementRecord], 
         if stream is None:
             raise KeyError(stream_id)
         policy = stream.get("built_policy") or house_policy
-        stages = _house_stages(records, sample, policy, sla_days, tiers, triggers) + _client_stages(stream, sample, house_policy)
+        stages = _house_stages(records, sample, policy, sla_days, tiers, triggers, escalations) + _client_stages(
+            stream, sample, house_policy
+        )
     return {
         "stream": {k: stream[k] for k in ("stream_id", "name")} | {"mandate": stream.get("client_policy", {}).get("mandate")},
         "data_note": "Meeting and company data are a synthetic sample (fictional companies); engagement data is live.",
         "stages": stages,
         "edges": EDGES,
     }
+
+
+def escalation_contexts(
+    root: Path, sample: dict, records: list[EngagementRecord], sla_days: int, triggers: list[dict] | None = None
+) -> list[dict]:
+    """Engagement contexts for the escalation rules: the confirmed tier where there is
+    one, else the proposed tier, and the triggers of the active monitoring rules."""
+    store = PolicyStore(root)
+    if triggers is None:
+        triggers = monitoring.evaluate(store.active("monitoring_rules"), sample, records)
+    proposals = evaluate_tiers(store.active("coverage_rules"), tier_contexts(sample, records))
+    tiers = {p["issuer_id"]: p["tier"] for p in proposals} | {i: r["tier"] for i, r in TierStore(root).latest().items()}
+    return escalation.contexts(sample, records, tiers, triggers, sla_days)
 
 
 def tier_review(root: Path, sample: dict, records: list[EngagementRecord]) -> dict:

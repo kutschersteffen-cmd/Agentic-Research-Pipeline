@@ -91,7 +91,7 @@ export function EscalationDecisions({ items, actor, onDone }: { items: Escalatio
             <tr>
               <th>Company</th>
               <th>Theme</th>
-              <th>Why it is flagged</th>
+              <th>Why (rule)</th>
               <th>Escalation step</th>
               <th />
             </tr>
@@ -103,7 +103,16 @@ export function EscalationDecisions({ items, actor, onDone }: { items: Escalatio
                 <td>{words(item.theme)}</td>
                 <td>{item.reason}</td>
                 <td>
-                  {words(item.current)} → <strong>{item.next ? words(item.next) : "top of the ladder"}</strong>
+                  {item.next ? (
+                    <>
+                      {words(item.current)} → <strong>{words(item.next)}</strong>
+                    </>
+                  ) : (
+                    words(item.current)
+                  )}
+                  {item.promote_tier && (
+                    <span className="muted"> · capped by its tier at {words(item.max_step)}: consider promoting the tier</span>
+                  )}
                 </td>
                 <td>
                   <button

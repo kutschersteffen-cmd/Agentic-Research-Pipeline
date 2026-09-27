@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from arp.api.deps import get_engagement_store, get_stream_store, settings_dep
 from arp.config import Settings
 from arp.schemas.engagement import IssueSeverity, TriggerSource
-from arp.stewardship import monitoring
+from arp.stewardship import escalation, monitoring
 from arp.stewardship.policies import POLICIES, PolicyStore, coverage_preview, voting_preview
 from arp.stewardship.policy_review import DATA, load
 from arp.stewardship.process import (
@@ -18,6 +18,7 @@ from arp.stewardship.process import (
     StreamStore,
     build_stream_policy,
     confirm_tiers,
+    escalation_contexts,
     flow,
     record_decision,
     tier_review,
@@ -302,3 +303,38 @@ def open_engagement_from_trigger(
         sector=trigger["sector"],
     )
     return {"issue_id": issue.issue_id, "trigger": {**trigger, "engagement_id": issue.issue_id}}
+
+
+def _escalation_contexts(settings: Settings, streams: StreamStore, engagements: EngagementStore) -> list[dict]:
+    return escalation_contexts(
+        streams.root, json.loads(SAMPLE_PATH.read_text()), engagements.list_all(), settings.engagement_sla_days
+    )
+
+
+@router.get("/studio/escalation/recommendations")
+def escalation_recommendations(
+    settings: Settings = Depends(settings_dep),
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    """What the active escalation rules recommend for every open engagement (sample and live)."""
+    ctxs = _escalation_contexts(settings, streams, engagements)
+    return {"recommendations": escalation.evaluate(PolicyStore(streams.root).active("escalation_rules"), ctxs)}
+
+
+class EscalationPreviewRequest(BaseModel):
+    graph: dict
+
+
+@router.post("/studio/escalation/preview")
+def post_escalation_preview(
+    body: EscalationPreviewRequest,
+    settings: Settings = Depends(settings_dep),
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    try:
+        ctxs = _escalation_contexts(settings, streams, engagements)
+        return escalation.preview(body.graph, PolicyStore(streams.root).active("escalation_rules"), ctxs)
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(422, f"The escalation rules do not run: {exc}") from exc

@@ -1,6 +1,8 @@
 import type {
   CompanyBallot,
   CoveragePreview,
+  EscalationPreview,
+  EscalationRecommendation,
   MonitoringPreview,
   MonitoringTrigger,
   IssueCatalogue,
@@ -344,6 +346,10 @@ export const api = {
     request<MonitoringPreview>("/api/stewardship/studio/monitoring/preview", { method: "POST", body: JSON.stringify({ graph }) }),
   openEngagementFromTrigger: (body: { issuer_id: string; rule: string; decided_by: string }) =>
     request<{ issue_id: string }>("/api/stewardship/monitoring/open-engagement", { method: "POST", body: JSON.stringify(body) }),
+  getEscalationRecommendations: () =>
+    request<{ recommendations: EscalationRecommendation[] }>("/api/stewardship/studio/escalation/recommendations"),
+  previewEscalation: (graph: unknown) =>
+    request<EscalationPreview>("/api/stewardship/studio/escalation/preview", { method: "POST", body: JSON.stringify({ graph }) }),
   previewVoting: (policy: unknown) =>
     request<VotingPreview>("/api/stewardship/studio/voting/preview", { method: "POST", body: JSON.stringify({ policy }) }),
   buildStreamPolicy: (streamId: string) =>

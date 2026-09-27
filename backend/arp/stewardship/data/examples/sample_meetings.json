@@ -908,19 +908,52 @@
    "issuer_id": "SYN02",
    "theme": "board_governance",
    "at_vote_step": false,
-   "months_without_progress": 20
+   "months_without_progress": 20,
+   "step": "joint_engagement",
+   "months_at_step": 20,
+   "commitments_missed": 0
   },
   {
    "issuer_id": "SYN06",
    "theme": "board_governance",
    "at_vote_step": false,
-   "months_without_progress": 7
+   "months_without_progress": 7,
+   "step": "private_engagement",
+   "months_at_step": 7,
+   "commitments_missed": 0
   },
   {
    "issuer_id": "SYN07",
    "theme": "executive_compensation",
    "at_vote_step": false,
-   "months_without_progress": 20
+   "months_without_progress": 20,
+   "step": "written_escalation_to_board",
+   "months_at_step": 20,
+   "commitments_missed": 0
+  },
+  {
+   "issuer_id": "SYN04",
+   "theme": "governance_controversy",
+   "at_vote_step": false,
+   "step": "private_engagement",
+   "months_at_step": 3,
+   "commitments_missed": 0
+  },
+  {
+   "issuer_id": "SYN09",
+   "theme": "executive_compensation",
+   "at_vote_step": false,
+   "step": "escalation_to_chair",
+   "months_at_step": 5,
+   "commitments_missed": 1
+  },
+  {
+   "issuer_id": "SYN10",
+   "theme": "climate_transition",
+   "at_vote_step": false,
+   "step": "written_escalation_to_board",
+   "months_at_step": 4,
+   "commitments_missed": 0
   }
  ],
  "meetings": [

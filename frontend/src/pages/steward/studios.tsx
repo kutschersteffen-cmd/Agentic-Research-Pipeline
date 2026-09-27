@@ -6,10 +6,13 @@ import type {
   CatalogueIssue,
   CoveragePreview,
   EscalationDecisionItem,
+  EscalationPreview,
+  EscalationRecommendation,
   IssueCatalogue,
   MonitoringPreview,
   MonitoringTrigger,
   PolicyDifferenceItem,
+  StewardPolicyId,
   StewardshipStage,
   StewardshipStream,
   TierChangeItem,
@@ -34,21 +37,54 @@ function countMissing(value: unknown): number {
   return 0;
 }
 
+/** The working copy of a versioned rule graph: load a version, edit, preview against the active one. */
+function useRuleDraft<P>(policyId: StewardPolicyId, previewFn: (graph: Record<string, unknown>) => Promise<P>) {
+  const { info, error, reload } = usePolicy(policyId);
+  const [graph, setGraph] = useState<Record<string, unknown> | null>(null);
+  const [baseVersion, setBaseVersion] = useState<number | null>(null);
+  const [preview, setPreview] = useState<P | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  useEffect(() => {
+    if (info && graph === null) {
+      setGraph(info.active);
+      setBaseVersion(info.active_version);
+    }
+  }, [info, graph]);
+  const dirty = !!info && !!graph && JSON.stringify(graph) !== JSON.stringify(info.active);
+  async function runPreview() {
+    if (!graph) return;
+    setPreviewing(true);
+    setPreviewError(null);
+    try {
+      setPreview(await previewFn(graph));
+    } catch (err) {
+      setPreviewError((err as Error).message);
+    } finally {
+      setPreviewing(false);
+    }
+  }
+  async function load(version: number) {
+    setGraph(await api.getStewardPolicyVersion(policyId, version));
+    setBaseVersion(version);
+    setPreview(null);
+  }
+  const editing = `Editing ${baseVersion === null ? "…" : `a copy of v${baseVersion}`}${dirty ? " · unsaved changes" : ""}`;
+  return { info, error, reload, graph, setGraph, dirty, editing, load, preview, previewError, previewing, runPreview };
+}
+
 // --- 1. Monitoring -------------------------------------------------------------
 
 // The badge palette reads as a score (high = green), so a high severity takes the red one.
 const SEVERITY_BADGE: Record<string, string> = { high: "badge-low", medium: "badge-mid", low: "badge-neutral" };
 
 export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
-  const { info, error, reload } = usePolicy("monitoring_rules");
+  const draft = useRuleDraft<MonitoringPreview>("monitoring_rules", api.previewMonitoring);
+  const { info, graph, preview } = draft;
   const [actor, setActor] = useActor();
   const [contexts, setContexts] = useState<Record<string, unknown>[] | null>(null);
   const [triggers, setTriggers] = useState<MonitoringTrigger[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [graph, setGraph] = useState<Record<string, unknown> | null>(null);
-  const [baseVersion, setBaseVersion] = useState<number | null>(null);
-  const [preview, setPreview] = useState<MonitoringPreview | null>(null);
-  const [previewError, setPreviewError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -64,13 +100,6 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
     );
     loadTriggers();
   }, []);
-  useEffect(() => {
-    if (info && graph === null) {
-      setGraph(info.active);
-      setBaseVersion(info.active_version);
-    }
-  }, [info, graph]);
-  const dirty = !!info && !!graph && JSON.stringify(graph) !== JSON.stringify(info.active);
 
   async function openEngagement(t: MonitoringTrigger) {
     setBusy(`${t.issuer_id}-${t.rule}`);
@@ -84,23 +113,6 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
     } finally {
       setBusy(null);
     }
-  }
-  async function runPreview() {
-    if (!graph) return;
-    setBusy("preview");
-    setPreviewError(null);
-    try {
-      setPreview(await api.previewMonitoring(graph));
-    } catch (err) {
-      setPreviewError((err as Error).message);
-    } finally {
-      setBusy(null);
-    }
-  }
-  async function load(version: number) {
-    setGraph(await api.getStewardPolicyVersion("monitoring_rules", version));
-    setBaseVersion(version);
-    setPreview(null);
   }
 
   const rows = (contexts ?? []).map((c) => {
@@ -208,7 +220,7 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
         </p>
         {contexts === null ? <p className="status-text">Loading…</p> : <DataTable rows={rows} />}
       </Section>
-      {error && <p className="error-text">{error}</p>}
+      {draft.error && <p className="error-text">{draft.error}</p>}
       <Section step="Design" title="Monitoring rules">
         <p className="help-text">
           A decision table where <strong>every</strong> matching row raises a trigger, so one company can raise several. Inputs per
@@ -219,19 +231,16 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
           <code>severity</code> (low, medium, high), <code>rule</code> and <code>reason</code>. Open the table with{" "}
           <em>Edit Table</em>.
         </p>
-        <p className="muted">
-          Editing {baseVersion === null ? "…" : `a copy of v${baseVersion}`}
-          {dirty ? " · unsaved changes" : ""}
-        </p>
-        {graph && <PolicyCanvas graph={graph} onChange={setGraph} />}
+        <p className="muted">{draft.editing}</p>
+        {graph && <PolicyCanvas graph={graph} onChange={draft.setGraph} />}
       </Section>
       <Section step="Calibrate" title="What this draft would raise">
         <div className="toolbar">
-          <button onClick={runPreview} disabled={!graph || busy !== null}>
-            {busy === "preview" ? "Running…" : "Preview against the active rules"}
+          <button onClick={draft.runPreview} disabled={!graph || draft.previewing}>
+            {draft.previewing ? "Running…" : "Preview against the active rules"}
           </button>
         </div>
-        {previewError && <p className="error-text">{previewError}</p>}
+        {draft.previewError && <p className="error-text">{draft.previewError}</p>}
         {preview && (
           <>
             <p className="muted">
@@ -260,12 +269,12 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
             policyId="monitoring_rules"
             info={info}
             workingCopy={graph}
-            dirty={dirty}
+            dirty={draft.dirty}
             actor={actor}
-            onSaved={reload}
-            onLoad={load}
+            onSaved={draft.reload}
+            onLoad={draft.load}
             onActivated={() => {
-              reload();
+              draft.reload();
               loadTriggers();
               onChanged();
             }}
@@ -294,39 +303,9 @@ function PolicyCanvas({ graph, onChange }: { graph: Record<string, unknown>; onC
 }
 
 export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
-  const { info, error, reload } = usePolicy("coverage_rules");
+  const draft = useRuleDraft<CoveragePreview>("coverage_rules", api.previewCoverage);
+  const { info, graph, preview } = draft;
   const [actor, setActor] = useActor();
-  const [graph, setGraph] = useState<Record<string, unknown> | null>(null);
-  const [baseVersion, setBaseVersion] = useState<number | null>(null);
-  const [preview, setPreview] = useState<CoveragePreview | null>(null);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (info && graph === null) {
-      setGraph(info.active);
-      setBaseVersion(info.active_version);
-    }
-  }, [info, graph]);
-  const dirty = !!info && !!graph && JSON.stringify(graph) !== JSON.stringify(info.active);
-
-  async function runPreview() {
-    if (!graph) return;
-    setBusy(true);
-    setPreviewError(null);
-    try {
-      setPreview(await api.previewCoverage(graph));
-    } catch (err) {
-      setPreviewError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function load(version: number) {
-    setGraph(await api.getStewardPolicyVersion("coverage_rules", version));
-    setBaseVersion(version);
-    setPreview(null);
-  }
   const distributionRows = preview
     ? TIER_ORDER.map((t) => ({
         tier: t,
@@ -355,7 +334,7 @@ export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
         </div>
       </Section>
       <ActorField actor={actor} onChange={setActor} />
-      {error && <p className="error-text">{error}</p>}
+      {draft.error && <p className="error-text">{draft.error}</p>}
       <Section step="Design" title="Coverage rules">
         <p className="help-text">
           A decision table, read top to bottom: the <strong>first</strong> row that matches decides the tier. Inputs per company:{" "}
@@ -365,19 +344,16 @@ export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
           (priority_bilateral, thematic_collaborative, scaled_baseline or systemic), <code>rule</code> and <code>reason</code>. Open
           the table with <em>Edit Table</em>.
         </p>
-        <p className="muted">
-          Editing {baseVersion === null ? "…" : `a copy of v${baseVersion}`}
-          {dirty ? " · unsaved changes" : ""}
-        </p>
-        {graph && <PolicyCanvas graph={graph} onChange={setGraph} />}
+        <p className="muted">{draft.editing}</p>
+        {graph && <PolicyCanvas graph={graph} onChange={draft.setGraph} />}
       </Section>
       <Section step="Calibrate" title="What this draft would change">
         <div className="toolbar">
-          <button onClick={runPreview} disabled={!graph || busy}>
-            {busy ? "Running…" : "Preview against the active rules"}
+          <button onClick={draft.runPreview} disabled={!graph || draft.previewing}>
+            {draft.previewing ? "Running…" : "Preview against the active rules"}
           </button>
         </div>
-        {previewError && <p className="error-text">{previewError}</p>}
+        {draft.previewError && <p className="error-text">{draft.previewError}</p>}
         {preview && (
           <>
             <p className="muted">
@@ -407,12 +383,12 @@ export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
             policyId="coverage_rules"
             info={info}
             workingCopy={graph}
-            dirty={dirty}
+            dirty={draft.dirty}
             actor={actor}
-            onSaved={reload}
-            onLoad={load}
+            onSaved={draft.reload}
+            onLoad={draft.load}
             onActivated={() => {
-              reload();
+              draft.reload();
               onChanged();
             }}
           />
@@ -740,10 +716,39 @@ export function VotingStudio({ stage, onChanged }: StudioProps) {
 
 // --- 5. Human checkpoint -------------------------------------------------------------
 
-export function CheckpointStudio({ stage, onChanged }: StudioProps) {
+const LADDER = [
+  "private_engagement",
+  "joint_engagement",
+  "written_escalation_to_board",
+  "escalation_to_chair",
+  "vote_against_management",
+  "file_or_cofile_resolution",
+  "public_statement",
+];
+
+export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
   const [actor, setActor] = useActor();
+  const draft = useRuleDraft<EscalationPreview>("escalation_rules", api.previewEscalation);
+  const { info, graph, preview } = draft;
+  const [recs, setRecs] = useState<EscalationRecommendation[] | null>(null);
+  const [recError, setRecError] = useState<string | null>(null);
+  const loadRecs = () =>
+    api.getEscalationRecommendations().then(
+      (r) => setRecs(r.recommendations),
+      (e) => setRecError((e as Error).message),
+    );
+  useEffect(() => {
+    loadRecs();
+  }, []);
   const escalations = stage.decisions.filter((d): d is EscalationDecisionItem => d.kind === "escalation");
   const tiers = stage.decisions.filter((d): d is TierChangeItem => d.kind === "tier_change");
+  const ruleRows = preview
+    ? [...new Set([...Object.keys(preview.by_rule_active), ...Object.keys(preview.by_rule_candidate)])].map((rule) => ({
+        rule,
+        active: preview.by_rule_active[rule] ?? 0,
+        "this draft": preview.by_rule_candidate[rule] ?? 0,
+      }))
+    : [];
   return (
     <>
       <StudioHeader
@@ -751,27 +756,128 @@ export function CheckpointStudio({ stage, onChanged }: StudioProps) {
         capabilities={[
           { label: "Review", ready: true },
           { label: "Decide", ready: true },
-          { label: "Design", ready: false },
+          { label: "Design", ready: true },
+          { label: "Calibrate", ready: true },
+          { label: "Versions", ready: true },
         ]}
       />
+      <ActorField actor={actor} onChange={setActor} />
       <Section step="Decide" title="Decisions waiting">
-        <ActorField actor={actor} onChange={setActor} />
         {escalations.length === 0 && tiers.length === 0 && <p className="muted">Nothing is waiting for a decision.</p>}
         {escalations.length > 0 && (
           <>
             <h4>Escalations</h4>
-            <EscalationDecisions items={escalations} actor={actor} onDone={onChanged} />
+            <p className="help-text">
+              Live engagements the escalation rules recommend moving up. Escalating moves the engagement to the recommended step and
+              records you and the rule; the rules only recommend.
+            </p>
+            <EscalationDecisions
+              items={escalations}
+              actor={actor}
+              onDone={() => {
+                loadRecs();
+                onChanged();
+              }}
+            />
           </>
         )}
         {tiers.length > 0 && <TierDecisions items={tiers} actor={actor} onDone={onChanged} />}
       </Section>
-      <Section step="Design" title="Checkpoint rules" planned>
+      <Section step="Review" title="Escalation recommendations">
+        <p className="help-text">
+          What the active rules recommend for every open engagement: the live ones and the synthetic sample ones. The coverage tier
+          (confirmed, else proposed) caps the step; wanting to go past the cap means the tier should be promoted (coverage rules,
+          stage 2). A trigger or missed commitment escalates only after 3 months at the current step, so one trigger does not climb
+          the whole ladder.
+        </p>
+        <div className="toolbar">
+          <button className="link-button" onClick={() => onOpen("selection")}>
+            Coverage tiers are set at stage 2 →
+          </button>
+        </div>
+        {recError && <p className="error-text">{recError}</p>}
+        {recs === null ? (
+          <p className="status-text">Loading…</p>
+        ) : (
+          <DataTable
+            rows={recs.map((r) => ({
+              company: r.company,
+              theme: r.theme,
+              data: r.source === "live" ? "live" : "sample",
+              tier: r.tier ?? "none",
+              "step now": r.current,
+              recommended: r.escalate ? r.recommended : "hold",
+              "tier cap": r.max_step + (r.promote_tier ? " · promote" : ""),
+              why: `${r.reason} (${r.rule})`,
+            }))}
+            empty="No open engagements."
+          />
+        )}
+      </Section>
+      {draft.error && <p className="error-text">{draft.error}</p>}
+      <Section step="Design" title="Escalation rules and tier caps">
+        <p className="help-text">
+          Two tables, both read top to bottom with the <strong>first</strong> matching row deciding. <code>tier_caps</code> sets the
+          highest ladder step per coverage tier (<code>tier.max_step</code>, 0-6). <code>escalation_rules</code> sets how many steps
+          up an engagement should move (<code>escalate_by</code>) with <code>rule</code> and <code>reason</code>. Its inputs:{" "}
+          <code>triggers.high_same_theme</code>, <code>triggers.same_theme</code>, <code>engagement.commitments_missed</code>,{" "}
+          <code>engagement.months_at_step</code>, <code>engagement.stalled</code>, <code>engagement.step_index</code>,{" "}
+          <code>tier.tier</code>, <code>tier.max_step</code> and any company field under <code>issuer</code>. The ladder:{" "}
+          {LADDER.map((step, i) => `${i} ${words(step)}`).join(" · ")}.
+        </p>
+        <p className="muted">{draft.editing}</p>
+        {graph && <PolicyCanvas graph={graph} onChange={draft.setGraph} />}
+      </Section>
+      <Section step="Calibrate" title="What this draft would recommend">
+        <div className="toolbar">
+          <button onClick={draft.runPreview} disabled={!graph || draft.previewing}>
+            {draft.previewing ? "Running…" : "Preview against the active rules"}
+          </button>
+        </div>
+        {draft.previewError && <p className="error-text">{draft.previewError}</p>}
+        {preview && (
+          <>
+            <p className="muted">
+              {preview.engagements} open engagements. This draft recommends {preview.escalations_candidate} escalations and{" "}
+              {preview.promotions_candidate} tier promotions; the active rules recommend {preview.escalations_active} and{" "}
+              {preview.promotions_active}.
+            </p>
+            <div className="studio-columns">
+              <div>
+                <h4>Recommendations per rule</h4>
+                <DataTable rows={ruleRows} empty="No rule recommends anything." />
+              </div>
+            </div>
+            <h4>Engagements whose recommendation would change</h4>
+            <DataTable rows={preview.changes} empty="No recommendation would change." />
+          </>
+        )}
+      </Section>
+      <Section step="Versions" title="Save and activate">
+        {info && graph && (
+          <VersionsPanel
+            policyId="escalation_rules"
+            info={info}
+            workingCopy={graph}
+            dirty={draft.dirty}
+            actor={actor}
+            onSaved={draft.reload}
+            onLoad={draft.load}
+            onActivated={() => {
+              draft.reload();
+              loadRecs();
+              onChanged();
+            }}
+          />
+        )}
+      </Section>
+      <Section step="Design" title="Other checkpoint rules" planned>
         <Planned
           items={[
-            "The escalation ladder steps and the highest step each coverage tier may reach.",
-            "The engagement SLA (days without activity before an engagement is flagged).",
+            "The engagement SLA (days without activity before an engagement counts as stalled); today a server setting.",
             "Which items always need a second sign-off (e.g. vote sanctions, advocacy outreach).",
             "Voting intentions and disclosure records to approve (E2, E3), once the voting feed exists.",
+            "Client escalation rules chained on the house result, with client exceptions raised here.",
           ]}
         />
       </Section>

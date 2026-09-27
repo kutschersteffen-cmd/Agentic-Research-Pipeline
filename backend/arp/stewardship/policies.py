@@ -1,10 +1,11 @@
 """Versioned house policies for the stage studios: design a new version,
 calibrate it against the active one, then activate it with a named approver.
 
-Three policies so far:
+Four policies so far:
 
 - `monitoring_rules`: the ZEN decision table that raises triggers (stage 1);
 - `coverage_rules`: the ZEN decision table that proposes coverage tiers (stage 2);
+- `escalation_rules`: tier caps and the escalation recommendations (stages 2 and 5);
 - `house_voting`: the house voting positions on the issue catalogue (stage 4).
 
 Version 0 is the bundled draft in `data/`, always available as the baseline.
@@ -23,12 +24,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from arp.schemas.engagement import EngagementRecord
-from arp.stewardship import monitoring
+from arp.stewardship import escalation, monitoring
 from arp.stewardship.backtest import backtest
 from arp.stewardship.policy_graph import evaluate as evaluate_votes
 from arp.stewardship.policy_graph import generate
 from arp.stewardship.policy_review import _validate_position, load
-from arp.stewardship.tiers import TIER_LABELS, tier_contexts
+from arp.stewardship.tiers import TIER_LABELS, TIERS, tier_contexts
 from arp.stewardship.tiers import evaluate as evaluate_tiers
 from arp.stewardship.tiers import load_graph as default_coverage_graph
 from arp.storage.atomic_io import atomic_write_text
@@ -52,6 +53,17 @@ def _validate_monitoring(graph: dict, sample: dict) -> None:
         raise ValueError(f"The monitoring rules do not run: {exc}") from exc
 
 
+def _validate_escalation(graph: dict, sample: dict) -> None:
+    if not isinstance(graph, dict) or not graph.get("nodes"):
+        raise ValueError("An escalation policy is a rule graph with nodes and edges")
+    # every engagement under every tier, and under no tier, must get a valid cap and recommendation
+    ctxs = [{**c, "tier": {"tier": t}} for c in escalation.contexts(sample, [], {}, [], sla_days=30) for t in [*TIERS, None]]
+    try:
+        escalation.evaluate(graph, ctxs)
+    except RuntimeError as exc:
+        raise ValueError(f"The escalation rules do not run: {exc}") from exc
+
+
 def _validate_voting(policy: dict, sample: dict) -> None:
     catalogue = load("policy_issue_catalogue.json")
     issues = {i["issue_id"]: i for i in catalogue["issues"]}
@@ -70,6 +82,7 @@ def _validate_voting(policy: dict, sample: dict) -> None:
 POLICIES: dict[str, dict[str, Callable]] = {
     "monitoring_rules": {"default": monitoring.load_graph, "validate": _validate_monitoring},
     "coverage_rules": {"default": default_coverage_graph, "validate": _validate_coverage},
+    "escalation_rules": {"default": escalation.load_graph, "validate": _validate_escalation},
     "house_voting": {"default": lambda: load("house_voting_policy_draft.json"), "validate": _validate_voting},
 }
 

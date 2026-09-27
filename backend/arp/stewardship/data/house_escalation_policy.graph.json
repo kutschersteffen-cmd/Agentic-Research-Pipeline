@@ -1,0 +1,216 @@
+{
+  "nodes": [
+    {
+      "id": "input",
+      "type": "inputNode",
+      "name": "input",
+      "position": {
+        "x": 0,
+        "y": 100
+      }
+    },
+    {
+      "id": "tier_caps",
+      "type": "decisionTableNode",
+      "name": "tier_caps",
+      "position": {
+        "x": 300,
+        "y": 100
+      },
+      "content": {
+        "passThrough": true,
+        "inputField": null,
+        "outputPath": null,
+        "executionMode": "single",
+        "hitPolicy": "first",
+        "inputs": [
+          {
+            "id": "t",
+            "name": "Tier",
+            "field": "tier.tier"
+          }
+        ],
+        "outputs": [
+          {
+            "id": "m",
+            "name": "Max escalation step (0-6)",
+            "field": "tier.max_step"
+          }
+        ],
+        "rules": [
+          {
+            "_id": "priority_bilateral",
+            "_description": "Full ladder, up to a public statement",
+            "t": "'priority_bilateral'",
+            "m": "6"
+          },
+          {
+            "_id": "thematic_collaborative",
+            "_description": "Up to escalation to the chair; beyond means promotion to Priority Bilateral",
+            "t": "'thematic_collaborative'",
+            "m": "3"
+          },
+          {
+            "_id": "scaled_baseline",
+            "_description": "Up to a vote against management",
+            "t": "'scaled_baseline'",
+            "m": "4"
+          },
+          {
+            "_id": "systemic",
+            "_description": "Voting only: no company-specific escalation",
+            "t": "'systemic'",
+            "m": "0"
+          },
+          {
+            "_id": "no_tier",
+            "_description": "No tier yet: not capped; the tier is assigned at stage 2.",
+            "t": "",
+            "m": "6"
+          }
+        ]
+      }
+    },
+    {
+      "id": "escalation_rules",
+      "type": "decisionTableNode",
+      "name": "escalation_rules",
+      "position": {
+        "x": 600,
+        "y": 100
+      },
+      "content": {
+        "passThrough": true,
+        "inputField": null,
+        "outputPath": "recommendation",
+        "executionMode": "single",
+        "hitPolicy": "first",
+        "inputs": [
+          {
+            "id": "hst",
+            "name": "High-severity trigger on the theme",
+            "field": "triggers.high_same_theme"
+          },
+          {
+            "id": "cm",
+            "name": "Commitments missed",
+            "field": "engagement.commitments_missed"
+          },
+          {
+            "id": "mas",
+            "name": "Months at this step",
+            "field": "engagement.months_at_step"
+          },
+          {
+            "id": "st",
+            "name": "Stalled beyond the SLA",
+            "field": "engagement.stalled"
+          }
+        ],
+        "outputs": [
+          {
+            "id": "by",
+            "name": "Steps up",
+            "field": "escalate_by"
+          },
+          {
+            "id": "r",
+            "name": "Rule",
+            "field": "rule"
+          },
+          {
+            "id": "why",
+            "name": "Reason",
+            "field": "reason"
+          }
+        ],
+        "rules": [
+          {
+            "_id": "high_severity_trigger",
+            "_description": "A high-severity monitoring trigger on the engagement theme jumps two steps, once the company has had 3 months at this step (so one trigger does not climb the whole ladder).",
+            "by": "2",
+            "r": "'high_severity_trigger'",
+            "why": "'High-severity trigger on the engagement theme, 3+ months at this step'",
+            "hst": "true",
+            "cm": "",
+            "mas": ">= 3",
+            "st": ""
+          },
+          {
+            "_id": "commitment_missed",
+            "_description": "The company missed a commitment it made; 3 months at this step before the next move.",
+            "by": "1",
+            "r": "'commitment_missed'",
+            "why": "'A commitment was missed, 3+ months at this step'",
+            "hst": "",
+            "cm": ">= 1",
+            "mas": ">= 3",
+            "st": ""
+          },
+          {
+            "_id": "no_progress_12m",
+            "_description": "Twelve months or more at the same step.",
+            "by": "1",
+            "r": "'no_progress_12m'",
+            "why": "'12 months or more at this step'",
+            "hst": "",
+            "cm": "",
+            "mas": ">= 12",
+            "st": ""
+          },
+          {
+            "_id": "stalled",
+            "_description": "No recorded activity beyond the engagement SLA.",
+            "by": "1",
+            "r": "'stalled'",
+            "why": "'No activity beyond the SLA'",
+            "hst": "",
+            "cm": "",
+            "mas": "",
+            "st": "true"
+          },
+          {
+            "_id": "hold",
+            "_description": "Nothing calls for escalation.",
+            "by": "0",
+            "r": "'hold'",
+            "why": "'No escalation trigger'",
+            "hst": "",
+            "cm": "",
+            "mas": "",
+            "st": ""
+          }
+        ]
+      }
+    },
+    {
+      "id": "output",
+      "type": "outputNode",
+      "name": "output",
+      "position": {
+        "x": 900,
+        "y": 100
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "input-tier_caps",
+      "sourceId": "input",
+      "targetId": "tier_caps",
+      "type": "edge"
+    },
+    {
+      "id": "tier_caps-escalation_rules",
+      "sourceId": "tier_caps",
+      "targetId": "escalation_rules",
+      "type": "edge"
+    },
+    {
+      "id": "escalation_rules-output",
+      "sourceId": "escalation_rules",
+      "targetId": "output",
+      "type": "edge"
+    }
+  ]
+}

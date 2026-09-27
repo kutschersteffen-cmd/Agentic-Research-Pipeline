@@ -2169,6 +2169,8 @@ export interface EscalationDecisionItem {
   theme: string;
   current: string;
   next: string | null;
+  max_step: string;
+  promote_tier: boolean;
   reason: string;
 }
 
@@ -2224,7 +2226,7 @@ export interface StewardshipStream {
 }
 
 // Stage studios: versioned house policies (backend/arp/stewardship/policies.py)
-export type StewardPolicyId = "monitoring_rules" | "coverage_rules" | "house_voting";
+export type StewardPolicyId = "monitoring_rules" | "coverage_rules" | "escalation_rules" | "house_voting";
 
 export interface PolicyVersionMeta {
   version: number;
@@ -2320,6 +2322,34 @@ export interface MonitoringPreview {
   newly_flagged: { issuer_id: string; company: string }[];
   no_longer_flagged: { issuer_id: string; company: string }[];
   triggers: MonitoringTrigger[];
+}
+
+export interface EscalationRecommendation {
+  source: "sample" | "live";
+  company_id: string;
+  company: string;
+  issue_id: string | null;
+  theme: string;
+  tier: string | null;
+  max_step: string;
+  current: string;
+  recommended: string;
+  escalate: boolean;
+  promote_tier: boolean;
+  rule: string;
+  reason: string;
+}
+
+export interface EscalationPreview {
+  engagements: number;
+  escalations_candidate: number;
+  escalations_active: number;
+  promotions_candidate: number;
+  promotions_active: number;
+  by_rule_candidate: Record<string, number>;
+  by_rule_active: Record<string, number>;
+  changes: Record<string, string>[];
+  recommendations: EscalationRecommendation[];
 }
 
 export interface VotingPreview {

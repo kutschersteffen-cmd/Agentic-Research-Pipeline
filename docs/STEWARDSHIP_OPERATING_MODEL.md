@@ -1187,13 +1187,13 @@ available today (✓) and which are designed but not built (○):
 | 2 Selection | Coverage rules in the rule-graph editor; preview of tier moves against the active rules; versions | — |
 | 3 Drafting | Stage numbers; drafting stays on the Engagement page | E6 interaction tagging, E8 phrase blocklist, templates |
 | 4 Voting | House voting positions editor (per issue: vote, target, thresholds, rationale); back-test against the active policy; versions | — |
-| 5 Checkpoint | Escalation decisions and tier confirmations | Ladder, tier caps, SLA and sign-off rules as configuration |
+| 5 Checkpoint | Escalation decisions from the escalation rules and tier confirmations; recommendations for every open engagement; escalation rules and tier caps in the rule-graph editor; preview; versions | SLA and sign-off rules as configuration, client escalation rules |
 | 6 Tracking | Open engagements by milestone | Milestone ladder configuration, missed-commitment triggers, E7 |
 | 7 Client policy | Per client stream: policy review, decisions, build | Versioning of client policies |
 | 8 Reporting | Built-policy status | Client reports, E2 disclosure, program proposal and PPT |
 
 **Versioned house policies** (`backend/arp/stewardship/policies.py`). The monitoring
-rules, the coverage rules and the house voting policy are versioned. Version 0 is the bundled draft.
+rules, the coverage rules, the escalation rules and the house voting policy are versioned. Version 0 is the bundled draft.
 Saving validates the working copy (it must run, and a voting policy needs exactly
 one valid position per catalogue issue) and stores an immutable version. Nothing
 changes until a named person activates it, and **four-eyes** applies: the author of
@@ -1221,9 +1221,9 @@ resulting tier changes into the stage 5 queue.
   stage needs something that does not exist, such as coverage tiers or disclosure
   records). Nothing is shown as real when it is not.
 - **Decisions on the page:**
-  - *Stage 5, House:* escalation decisions the engagement orchestrator flagged
-    (stalled beyond the SLA). "Escalate" moves the issue one step up the ladder
-    through the existing engagement API, with the decider's name.
+  - *Stage 5, House:* escalation decisions: live engagements the escalation rules
+    recommend moving up (below). "Escalate" moves the issue to the recommended step
+    through the existing engagement API, with the decider's name and the rule.
   - *Stage 5, House:* coverage tiers to confirm (E1), see below. Confirm one
     company or all of them.
   - *Stage 7, client stream:* every policy difference, with its changes, the
@@ -1282,10 +1282,42 @@ resulting tier changes into the stage 5 queue.
   until holdings snapshots exist; vote-outcome, commitment and calendar triggers
   come with their feeds. The stalled-engagement sweep already exists separately.
 
+**Escalation rules (stage 5), as built.** `backend/arp/stewardship/escalation.py`.
+
+- One ZEN graph,
+  [`house_escalation_policy.graph.json`](../backend/arp/stewardship/data/house_escalation_policy.graph.json),
+  with two chained decision tables (both hit policy *first*):
+  - `tier_caps`: the highest ladder step per coverage tier (Part 1 defaults:
+    Priority Bilateral 6 public statement, Thematic & Collaborative 3 chair,
+    Scaled Baseline 4 vote against management, Systemic 0). An issuer without a tier
+    is not capped.
+  - `escalation_rules`: how many steps up (`escalate_by`), with rule and reason.
+    Draft rules, in order: a high-severity monitoring trigger on the engagement
+    theme → 2 steps; a missed commitment → 1; 12+ months at the step → 1; stalled
+    beyond the SLA → 1; otherwise hold. The trigger and commitment rules need 3+
+    months at the current step, because both conditions persist after an
+    escalation: without that, one trigger would climb the ladder one click at a time.
+- Inputs per open engagement: step, months at the step (since the last escalation),
+  missed commitments, stalled (the engagement SLA), the active monitoring triggers
+  on the same company and theme, the tier (confirmed, else proposed) and the
+  company data.
+- The recommendation is capped by the tier and never goes down. Wanting to go past
+  the cap sets `promote_tier`, shown next to the decision; the tier itself moves
+  through the coverage rules (stage 2), whose `escalated` rule already promotes
+  escalated issuers.
+- Stage 5 decides live engagements only. The six sample engagements (with a
+  synthetic step, months at step and missed commitments) show in the review table
+  and in the preview, so the rules can be calibrated before any live engagement
+  exists. This replaces the fixed rule "stalled → one step up" from the
+  engagement orchestrator.
+- Not built: client escalation rules chained on the house result (the
+  `escalation_higher` exception), and storing each recommendation as a Policy
+  Evaluation with the Escalation Change.
+
 Implementation: `backend/arp/stewardship/process.py` (streams and the flow), `policies.py` (versions and previews),
 `backend/arp/api/routers/stewardship.py` (`/api/stewardship/...`),
 `frontend/src/pages/StewardWorkflow.tsx` and `frontend/src/pages/steward/` (flowchart, studios, decisions); tests in
-`backend/tests/test_api_stewardship.py`, `test_stewardship_tiers.py`, `test_stewardship_policies.py`, `test_stewardship_monitoring.py`. Client streams are stored as JSON under
+`backend/tests/test_api_stewardship.py`, `test_stewardship_tiers.py`, `test_stewardship_policies.py`, `test_stewardship_monitoring.py`, `test_stewardship_escalation.py`. Client streams are stored as JSON under
 `stewardship_streams/` (`ARP_STEWARDSHIP_STREAMS_DIR`).
 
 ## Open points
