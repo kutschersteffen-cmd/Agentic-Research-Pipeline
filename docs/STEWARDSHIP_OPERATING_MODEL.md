@@ -729,6 +729,8 @@ flowchart LR
 The same loop is how the house helps a client design their own policy, for voting
 as well as for tiering and escalation.
 
+0. **Review first.** Run a policy review (5.7) on what the client envisions; the
+   decided differences are what gets built.
 1. **Start from a base.** Copy the closest menu policy (or the house policy) into a
    client-owned draft. The draft records its base.
 2. **Change only what the client needs**, in the rule editor: e.g. vote against the
@@ -741,8 +743,9 @@ as well as for tiering and escalation.
    - the rate of votes against management;
    - which past house votes the draft would have contradicted (the split-vote need);
    - for each difference, the rule row that caused it (from the ZEN trace).
-4. **Review the diff** with the client: the base policy, each changed rule, and its
-   back-test effect. This diff is a section of the program proposal (5.4).
+4. **Review the differences** with the client in a structured policy review
+   (5.7): each difference from the house policy, classified, assessed and decided,
+   with its back-test effect. This diff is a section of the program proposal (5.4).
 5. **Approve.** Both the client and the house sign off on the version. It then
    applies from its effective date. Earlier votes and disclosures stay as they were.
 
@@ -814,6 +817,139 @@ Monitoring switches to the new version only when it is approved.
 Phase A is testable from the API alone, and it is where the design gets proven
 before any UI is built.
 
+### 5.7 Policy review — custom policy vs house policy
+
+**Purpose.** Before a custom policy is built, compare what the client *envisions*
+with the house policy, and turn the comparison into a structured list of
+differences. Each difference is then assessed and decided on its own. The review
+answers three questions: where exactly does the client deviate, what does each
+deviation cost or risk, and which deviations do we implement.
+
+It works for voting policies first. Tiering and escalation policies use the same
+structure with their own issue catalogue.
+
+#### A common language: the policy issue catalogue
+Two policies can only be compared point by point if both are written in the same
+terms. The review therefore expresses **both** policies as positions on a shared
+catalogue of issues:
+
+| Policy Issue | Type | Notes |
+|---|---|---|
+| issue_id | PK | e.g. `board.independence`, `board.overboarding`, `pay.say_on_pay`, `audit.non_audit_fees`, `climate.laggard_accountability`, `shp.climate_proposals`. |
+| category | enum | board \| remuneration \| audit \| capital \| shareholder_proposals \| climate \| nature \| social \| other |
+| resolution_categories | array | Which resolution types the issue governs. Used to count affected resolutions. |
+| parameters | JSON schema | The typed parameters a position can set, e.g. `{"min_independence_pct": number, "applies_to": ["market"], "action": "against_nomination_chair"}`. |
+| data_fields | array → Field Definition | Company data the issue needs (e.g. `score.clti`, `governance.board_independence_pct`). |
+
+| Policy Position | Type | Notes |
+|---|---|---|
+| position_id | PK | |
+| owner | policy version, or client source document | A house policy version, or the client's envisioned policy before any graph exists. |
+| issue_id | FK → Policy Issue | |
+| action | enum | for \| against \| abstain \| case_by_case \| escalate |
+| parameters | JSON | Validated against the issue's parameter schema. |
+| scope | JSON | Markets, sectors, index membership, holding size. |
+| source_ref | quote + location | The sentence in the policy text the position comes from (grounded). |
+| implemented_by | array | Rule-row ids in the policy graph that implement it. |
+
+**House positions are maintained once**, alongside the house graph. A consistency
+check flags any position without implementing rules and any rule row without a
+position, so the written policy and the executable one cannot drift apart. The
+menu policies (not yet defined) should be written in the same catalogue from the
+start.
+
+#### Review flow
+
+```mermaid
+flowchart LR
+    C["1. Capture<br/><i>client document,<br/>questionnaire or draft graph</i>"]
+    A["2. Align<br/><i>positions per issue</i>"]
+    D["3. Classify<br/><i>kind of difference</i>"]
+    I["4. Assess<br/><i>impact · feasibility · risk</i>"]
+    R["5. Decide<br/><i>per difference</i>"]
+    B["6. Build<br/><i>custom graph from base</i>"]
+    C --> A --> D --> I --> R --> B
+    R -- "clarify with client" --> C
+```
+
+1. **Capture** the envisioned policy, from one of three inputs:
+   - the client's **written guidelines** (PDF/Word): positions are extracted per
+     issue with the existing two-pass extraction (extractor + verifier), and every
+     position carries the quoted source text. Clauses that match no catalogue issue
+     are listed as **unmapped**, not dropped;
+   - a **questionnaire** built from the catalogue, filled in with the client;
+   - an existing **draft graph** (5.2): positions are read from its annotated rules.
+2. **Align** positions by `issue_id`. The join is exact, so this step is
+   deterministic.
+3. **Classify** every issue into one difference kind:
+
+   | Kind | Meaning |
+   |---|---|
+   | identical | Same action, parameters and scope. |
+   | stricter | Same direction, tighter parameter (e.g. independence 50% → 66%). |
+   | looser | Same direction, looser parameter. |
+   | different_action | A different vote on the same issue. |
+   | scope_change | Same rule, different markets, sectors or holdings. |
+   | client_only | The client has a position where the house has none. |
+   | house_only | The client is silent. By default the client inherits the house position. |
+   | unclear | The client text cannot be read as a definite position. Becomes a question to the client. |
+   | unmapped | A client clause with no catalogue issue. Candidate for a new issue. |
+
+   Parameter-level changes are listed field by field (`min_independence_pct: 50 → 66`).
+4. **Assess** each difference that is not `identical` or `house_only`:
+
+   | Dimension | How it is measured |
+   |---|---|
+   | Impact | Resolutions affected in past seasons and on upcoming agendas for the client's holdings, from the issue's resolution categories. Once a draft graph exists, this is an exact back-test (5.2). |
+   | Direction | Change in the rate of votes against management. |
+   | Split-vote need | Past house votes the difference would have contradicted, against the mandate's vehicle type (SMA vs pooled, 5.3). |
+   | Data feasibility | Whether the issue's data fields exist in the field catalogue, and their coverage across the client's holdings. A rule on a field covering 40% of holdings is flagged. |
+   | Operational effort | Extra manual review expected (e.g. `case_by_case` actions). |
+   | Consistency | Conflicts with the house engagement stance on the same companies, and with the client's own tiering and escalation policy. |
+   | Regulatory flag | Positions that amount to pressure-type engagement (E6) or other compliance review. |
+
+5. **Decide** each difference: adopt, adopt with modification (stating the
+   modification), decline (with a reason for the client), or clarify with the
+   client. Decisions carry who decided and when.
+6. **Build.** Adopted differences are applied to a copy of the base policy graph
+   (5.2). Each changed rule row records the `difference_id` it implements, so every
+   rule in a custom policy traces back to a reviewed, decided difference and its
+   source sentence.
+
+#### Entities
+
+| Entity | Key fields | Notes |
+|---|---|---|
+| POLICY_REVIEW | review_id, client_id, domain, house_policy_version, source (document id, questionnaire or draft version), status, reviewers | draft → in_review → decided → built. |
+| POLICY_DIFFERENCE | review_id + issue_id, house_position_id, client_position_id, kind, parameter_changes, assessment (JSON, per dimension), recommendation, decision, decided_by, decided_at, implemented_in (policy version + rule rows) | One row per catalogue issue plus one per unmapped clause. |
+
+The review is itself versioned: a re-review after the client changes their mind is
+a new review that points to the previous one.
+
+#### Outputs
+- **Difference register:** one table, one row per difference, with kind, parameter
+  changes, assessment and decision. Exportable to xlsx and usable as a Report
+  Builder dataset.
+- **Summary:** counts by kind and by category, the differences with the largest
+  impact, and all red flags (split votes, data gaps, regulatory).
+- **Proposal section:** the register feeds the voting section of the program
+  proposal and PPT (5.4).
+
+#### Deterministic vs AI
+Reading the client's text into positions and wording `unclear` questions use the
+LLM, always with quoted sources and provenance (E5). Alignment, classification of
+typed parameters, impact counts and feasibility checks are deterministic, so the
+same inputs always give the same register.
+
+#### Reuse and effort
+
+| Part | Reuse | Effort (rough) |
+|---|---|---|
+| Issue catalogue + house positions + consistency check | Field catalogue, ZEN graph annotations | 2–3 days (plus writing the house positions) |
+| Capture from documents | Extraction engine (extractor/verifier, grounding) | 2–3 days |
+| Align, classify, assess | Back-test from 5.2; diff pattern from `decision/diffing.py` | 2–3 days |
+| Review UI (register, decisions) and export | Report Builder datasets | 3–4 days |
+
 ## Part 6 — Mandate-win enhancements (E1–E8)
 
 Backlog from *Stewardship Process Enhancements — Implementation Spec*, aimed at
@@ -869,5 +1005,8 @@ ingest them.
 7. The Full-Index Coverage model (E1): its classification rules and thresholds are
    not in the repo. The tier names and caps in Part 1 are the working assumption.
 8. The voting-policy menu (E4): the 3–4 named policies and what distinguishes them.
+   To be written in the policy issue catalogue (5.7) from the start.
+11. The policy issue catalogue (5.7): initial list of issues and their parameters,
+    and whether a written house voting policy exists to derive house positions from.
 9. The agenda feed (E3): source and lead time; N business days for intentions.
 10. The E8 phrase blocklist: an initial list.
