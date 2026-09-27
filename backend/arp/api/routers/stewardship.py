@@ -1,0 +1,93 @@
+from __future__ import annotations
+
+import json
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
+from arp.api.deps import get_engagement_store, get_stream_store, settings_dep
+from arp.config import Settings
+from arp.stewardship.policy_review import DATA
+from arp.stewardship.process import HOUSE, StreamStore, build_stream_policy, flow, record_decision
+from arp.storage.engagement_store import EngagementStore
+
+router = APIRouter(prefix="/api/stewardship", tags=["stewardship"])
+
+
+def _stream_or_404(streams: StreamStore, stream_id: str) -> dict:
+    try:
+        stream = streams.get(stream_id)
+    except ValueError as exc:
+        raise HTTPException(404, "Stream not found") from exc
+    if stream is None:
+        raise HTTPException(404, "Stream not found")
+    return stream
+
+
+@router.get("/streams")
+def list_streams(streams: StreamStore = Depends(get_stream_store)) -> dict:
+    return {
+        "streams": [{"stream_id": HOUSE, "name": "House program", "kind": "house"}]
+        + [{"stream_id": s["stream_id"], "name": s["name"], "kind": "client"} for s in streams.list()]
+    }
+
+
+class CreateStreamRequest(BaseModel):
+    name: str
+    vehicle_type: Literal["SMA", "CCF", "ETF"] = "SMA"
+    client_policy: dict | None = None  # None: start from the example envisioned policy
+
+
+@router.post("/streams")
+def create_stream(body: CreateStreamRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    if not body.name.strip():
+        raise HTTPException(422, "A client stream needs a name")
+    policy = body.client_policy or json.loads((DATA / "examples" / "client_policy_example.json").read_text())
+    try:
+        stream = streams.create(body.name.strip(), policy, body.vehicle_type)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(422, f"Invalid client policy: {exc}") from exc
+    return {"stream_id": stream["stream_id"]}
+
+
+@router.get("/streams/{stream_id}/flow")
+def get_flow(
+    stream_id: str,
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+    settings: Settings = Depends(settings_dep),
+) -> dict:
+    if stream_id != HOUSE:
+        _stream_or_404(streams, stream_id)
+    return flow(stream_id, streams, engagements.list_all(), settings.engagement_sla_days)
+
+
+class PolicyDecisionRequest(BaseModel):
+    issue_id: str
+    decision: Literal["adopt", "adopt_with_modification", "decline", "defer", "clarify"]
+    decided_by: str
+    note: str | None = None
+    modification: dict | None = None
+
+
+@router.post("/streams/{stream_id}/decisions")
+def post_decision(body: PolicyDecisionRequest, stream_id: str, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    stream = _stream_or_404(streams, stream_id)
+    try:
+        updated = record_decision(stream, body.model_dump(exclude_none=True))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    streams.save(updated)
+    return {"ok": True}
+
+
+@router.post("/streams/{stream_id}/build")
+def post_build(stream_id: str, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    stream = _stream_or_404(streams, stream_id)
+    try:
+        updated = build_stream_policy(stream)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    streams.save(updated)
+    return {"ok": True, "positions_from_client": sum(p["origin"] == "client" for p in updated["built_policy"]["positions"])}

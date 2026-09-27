@@ -129,6 +129,14 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <path d="M12 7v5l3.5 2" />
     </svg>
   ),
+  stewardship: (
+    <svg {...ICON_PROPS}>
+      <rect x="3" y="4" width="6" height="5" rx="1" />
+      <rect x="15" y="4" width="6" height="5" rx="1" />
+      <rect x="15" y="15" width="6" height="5" rx="1" />
+      <path d="M9 6.5h6M18 9v6" />
+    </svg>
+  ),
   engagement: (
     <svg {...ICON_PROPS}>
       <circle cx="9" cy="12" r="4.5" />

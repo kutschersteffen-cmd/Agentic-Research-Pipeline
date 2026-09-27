@@ -1161,6 +1161,42 @@ E8 is small and independent, so it can be built at any point. Voting ingestion
 not list, because the current voting tool extracts and casts votes and does not
 ingest them.
 
+## Part 7 — The Stewardship Process page
+
+The app has a **Stewardship Process** page (StewardIQ group): the process of Part 2
+as an interactive flowchart, with its key numbers per stage and the decisions
+waiting for a person.
+
+- **Streams.** One tab for the *House program*, and one per *client stream*. A
+  client stream is created from the client's envisioned voting policy (a
+  questionnaire JSON on the issue catalogue, or the built-in example) and a vehicle
+  type. It runs the same stages 1–6 and adds the client's policy review in stage 7
+  and its reporting status in stage 8.
+- **Flowchart.** The house row (1–6, with the loop from tracking back to
+  monitoring) sits above the client row (7–8, with the links to and from the
+  checkpoint). Each stage shows up to three metrics and a count of open decisions.
+  Narrow screens get the same stages as a stacked list.
+- **Every metric says where its number comes from:** *live* (the engagement record
+  store), *synthetic sample* (the fictional meeting data), or *not built yet* (the
+  stage needs something that does not exist, such as coverage tiers or disclosure
+  records). Nothing is shown as real when it is not.
+- **Decisions on the page:**
+  - *Stage 5, House:* escalation decisions the engagement orchestrator flagged
+    (stalled beyond the SLA). "Escalate" moves the issue one step up the ladder
+    through the existing engagement API, with the decider's name.
+  - *Stage 7, client stream:* every policy difference, with its changes, the
+    client's own wording, flags, the back-test effect and a recommendation.
+    Record adopt, decline, defer or clarify with a note. Once every difference is
+    decided, *Build the custom policy* produces it (Part 5.7). `adopt_with_modification`
+    still has to go through the API, because the page has no editor for the
+    modification yet.
+
+Implementation: `backend/arp/stewardship/process.py` (streams and the flow),
+`backend/arp/api/routers/stewardship.py` (`/api/stewardship/...`),
+`frontend/src/pages/StewardshipProcess.tsx`; tests in
+`backend/tests/test_api_stewardship.py`. Client streams are stored as JSON under
+`stewardship_streams/` (`ARP_STEWARDSHIP_STREAMS_DIR`).
+
 ## Open points
 
 1. Source format of the voting feed (provider export / CSV layout), which fixes

@@ -2148,3 +2148,67 @@ export interface IndexCatalogue {
   screen_bundles: { name: string; label: string; description: string }[];
   fields: IndexFieldInventory;
 }
+
+// Stewardship process page (backend/arp/stewardship/process.py)
+export type MetricSource = "live" | "sample" | "not_built";
+export type MetricTone = "neutral" | "good" | "warn" | "bad";
+
+export interface StewardshipMetric {
+  label: string;
+  value: string | number;
+  source: MetricSource;
+  tone: MetricTone;
+  hint: string | null;
+}
+
+export interface EscalationDecisionItem {
+  kind: "escalation";
+  company_id: string;
+  company: string;
+  issue_id: string;
+  theme: string;
+  current: string;
+  next: string | null;
+  reason: string;
+}
+
+export interface PolicyDifferenceItem {
+  kind: "policy_difference";
+  issue_id: string;
+  title: string;
+  difference: string;
+  changes: { field: string; house: unknown; client: unknown; direction?: string }[];
+  source: string | null;
+  question: string | null;
+  direction: string | null;
+  flags: string[];
+  votes_changed: number | null;
+  recommendation: string;
+  decision: { decision: string; decided_by: string; note?: string } | null;
+}
+
+export interface StewardshipStage {
+  id: string;
+  number: number;
+  title: string;
+  layer: "house" | "client";
+  summary: string;
+  status: "live" | "partial" | "not_built";
+  metrics: StewardshipMetric[];
+  decisions: (EscalationDecisionItem | PolicyDifferenceItem)[];
+  details: { label: string; rows: Record<string, string | number>[] }[];
+  can_build?: boolean;
+}
+
+export interface StewardshipFlow {
+  stream: { stream_id: string; name: string; mandate?: Record<string, string> | null };
+  data_note: string;
+  stages: StewardshipStage[];
+  edges: { from: string; to: string; label?: string }[];
+}
+
+export interface StewardshipStream {
+  stream_id: string;
+  name: string;
+  kind: "house" | "client";
+}

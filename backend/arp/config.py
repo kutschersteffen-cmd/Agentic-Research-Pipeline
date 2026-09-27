@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     )
     discovery_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".discovery_state")
     engagements_dir: Path = Field(default=REPO_ROOT / "engagements")
+    stewardship_streams_dir: Path = Field(default=REPO_ROOT / "stewardship_streams", description="Stewardship process page: one JSON file per client stream (envisioned policy, review decisions, built policy).")
     indices_dir: Path = Field(
         default=REPO_ROOT / "indices",
         description="Index construction calibrations (versioned, effective-dated) and the reviews run from them; see arp/storage/index_store.py.",
@@ -445,6 +446,7 @@ class Settings(BaseSettings):
             self.document_store_dir,
             self.discovery_state_dir,
             self.engagements_dir,
+            self.stewardship_streams_dir,
             self.ballots_dir,
             self.reports_dir,
             self.report_templates_dir,

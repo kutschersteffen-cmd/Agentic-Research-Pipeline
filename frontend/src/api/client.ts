@@ -1,4 +1,4 @@
-import type { CompanyBallot, ResearchDossier, TriggerEvent, VoteRecord, VoteReviewDecision } from "../types";
+import type { CompanyBallot, ResearchDossier, StewardshipFlow, StewardshipStream, TriggerEvent, VoteRecord, VoteReviewDecision } from "../types";
 import type {
   AggregationResult,
   DatasetSummary,
@@ -305,6 +305,14 @@ export const api = {
     request("/api/revenue-catalogue/suggest-mapping", { method: "POST", body: JSON.stringify(body) }),
 
   // Engagement (stewardship)
+  listStewardshipStreams: () => request<{ streams: StewardshipStream[] }>("/api/stewardship/streams"),
+  createStewardshipStream: (body: { name: string; vehicle_type: string; client_policy?: unknown }) =>
+    request<{ stream_id: string }>("/api/stewardship/streams", { method: "POST", body: JSON.stringify(body) }),
+  getStewardshipFlow: (streamId: string) => request<StewardshipFlow>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/flow`),
+  recordPolicyDecision: (streamId: string, body: { issue_id: string; decision: string; decided_by: string; note?: string }) =>
+    request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/decisions`, { method: "POST", body: JSON.stringify(body) }),
+  buildStreamPolicy: (streamId: string) =>
+    request<{ positions_from_client: number }>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/build`, { method: "POST" }),
   listEngagementRecords: () => request<{ records: unknown[] }>("/api/engagement/records"),
   createEngagementRecord: (body: { company_id: string; name: string; sector?: string | null }) =>
     request("/api/engagement/records", { method: "POST", body: JSON.stringify(body) }),
