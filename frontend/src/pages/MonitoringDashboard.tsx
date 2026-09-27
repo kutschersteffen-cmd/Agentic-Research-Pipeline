@@ -146,7 +146,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
       </div>
 
       <dl className="dashboard-grid">
-        <div className="stat-tile stat-tile-action">
+        <div className={`stat-tile stat-tile-action${runsKnown && pendingVoteReviews > 0 ? " awaiting" : ""}`}>
           <dt className="stat-label">Ballot items awaiting decision</dt>
           <dd className="stat-value">
             <button className="stat-link" onClick={() => onNavigate("voting")} disabled={!runsKnown}>
@@ -154,7 +154,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
             </button>
           </dd>
         </div>
-        <div className="stat-tile stat-tile-action">
+        <div className={`stat-tile stat-tile-action${runsKnown && flaggedForReview > 0 ? " awaiting" : ""}`}>
           <dt className="stat-label">Flagged items awaiting review</dt>
           <dd className="stat-value">
             <button className="stat-link" onClick={() => onNavigate("review")} disabled={!runsKnown}>

@@ -295,7 +295,7 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
 function PolicyCanvas({ graph, onChange }: { graph: Record<string, unknown>; onChange: (g: Record<string, unknown>) => void }) {
   return (
     <div className="card rule-canvas studio-canvas">
-      <JdmConfigProvider theme={{ token: { colorPrimary: "#33507a", fontFamily: "IBM Plex Sans, sans-serif", borderRadius: 6 } }}>
+      <JdmConfigProvider theme={{ token: { colorPrimary: "#2a2826", fontFamily: "Hanken Grotesk, sans-serif", borderRadius: 6 } }}>
         <DecisionGraph
           value={graph as unknown as DecisionGraphType}
           onChange={(next) => {

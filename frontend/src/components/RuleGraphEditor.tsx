@@ -185,7 +185,7 @@ export default function RuleGraphEditor({
       </div>
 
       <div className="card rule-canvas">
-        <JdmConfigProvider theme={{ token: { colorPrimary: "#33507a", fontFamily: "IBM Plex Sans, sans-serif", borderRadius: 6 } }}>
+        <JdmConfigProvider theme={{ token: { colorPrimary: "#2a2826", fontFamily: "Hanken Grotesk, sans-serif", borderRadius: 6 } }}>
           <DecisionGraph
             value={current as unknown as DecisionGraphType}
             simulate={trace}
