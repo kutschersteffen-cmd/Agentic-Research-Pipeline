@@ -293,17 +293,13 @@ export function DecisionStudio() {
   return (
     <div className="page">
       <h2>Decision Studio</h2>
-      <p className="help-text">
-        Turns any per-entity table this system produces into a scored, ranked and tiered decision — deterministically,
-        with no LLM anywhere in the numbers, and with every automated choice and every edit of yours recorded. See{" "}
-        <code>docs/DECISION_MECHANISM.md</code> for the design.
-      </p>
+      <p className="help-text">Turn any per-company table into a scored, ranked and tiered decision. The numbers are computed deterministically, with no LLM, and every automated choice and edit is recorded.</p>
 
       <nav className="sub-nav">
         {SUB_TABS.map((tab) => (
           <button
             key={tab.id}
-            className={tab.id === sub ? "nav-tab active" : "nav-tab"}
+            className={tab.id === sub ? "nav-tab active" : "nav-tab"} aria-pressed={tab.id === sub}
             onClick={() => setSub(tab.id)}
             disabled={tab.id !== "data" && !dataset}
           >

@@ -68,12 +68,7 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
   return (
     <div className="page">
       <h2>Document Discovery</h2>
-      <p className="help-text">
-        Finds each company's investor-relations site, crawls it (bounded, robots.txt-respecting, same-domain only)
-        for annual reports / sustainability reports / proxy statements / transcripts, downloads new or changed
-        documents into the local store, and raises an event the moment something new appears -- run manually or on
-        an automatic schedule.
-      </p>
+      <p className="help-text">Find each company’s investor-relations site and download new annual, sustainability and proxy reports and transcripts, on demand or on a schedule.</p>
 
       <section className="card">
         <h3>Run now (manual)</h3>

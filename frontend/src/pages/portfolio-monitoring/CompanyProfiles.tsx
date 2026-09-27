@@ -80,10 +80,8 @@ export function CompanyProfiles() {
     <section className="card">
       <h3>Company Profiles</h3>
       <p className="help-text">
-        Reached by picking an issuer directly, or by filtering to one <code>company_id</code> in Pivot Explorer. No
-        engagement/voting history is shown -- this repo has no Engagement Record Store to draw from (see{" "}
-        <code>docs/SPEC_GAP_ANALYSIS.md</code>). Climate figures reflect what's recorded against holdings in this
-        issuer within the current pane selection; an issuer not currently held may show no data for that reason.
+        Pick an issuer, or filter Pivot Explorer to one company. Climate figures come from holdings in the current
+        selection, so an issuer you do not hold may show no data. Engagement and voting history is not shown here yet.
       </p>
       <label className="field-label">
         Filter issuers

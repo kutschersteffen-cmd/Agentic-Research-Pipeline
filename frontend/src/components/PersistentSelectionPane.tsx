@@ -9,7 +9,7 @@ import type { DemoSeedSummary } from "../types";
  * sub-tab itself, rendered once above the sub-nav, and read by every
  * sub-tab via `usePortfolioPane()` -- switching sub-tabs never resets it. */
 export function PersistentSelectionPane() {
-  const { portfolios, refreshPortfolios, selectedPortfolioIds, setSelectedPortfolioIds, groups, saveCurrentAsGroup, loadGroup, deleteGroup } =
+  const { portfolios, refreshPortfolios, portfoliosError, selectedPortfolioIds, setSelectedPortfolioIds, groups, saveCurrentAsGroup, loadGroup, deleteGroup } =
     usePortfolioPane();
   const [groupName, setGroupName] = useState("");
   const [seeding, setSeeding] = useState(false);
@@ -31,13 +31,18 @@ export function PersistentSelectionPane() {
 
   return (
     <section className="card selection-pane">
-      {portfolios.length === 0 ? (
+      {portfoliosError && portfolios.length === 0 ? (
+        <div role="alert">
+          <p className="error-text">Portfolios could not be loaded ({portfoliosError}). The backend may be unreachable.</p>
+          <button onClick={refreshPortfolios}>Retry</button>
+        </div>
+      ) : portfolios.length === 0 ? (
         <>
           <p className="help-text">No portfolios yet. Seed the built-in illustrative demo dataset to get started.</p>
           <button onClick={seedDemo} disabled={seeding}>
             {seeding ? "Seeding..." : "Seed demo dataset"}
           </button>
-          {seedError && <p className="error-text">{seedError}</p>}
+          {seedError && <p className="error-text" role="alert">{seedError}</p>}
           {seedSummary && (
             <p className="status-text">
               Seeded {seedSummary.company_count} companies, {seedSummary.portfolio_count} portfolios,{" "}

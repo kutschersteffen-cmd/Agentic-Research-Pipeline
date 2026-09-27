@@ -109,6 +109,15 @@ function NumberField({
   );
 }
 
+/** Enum and field ids read as words in the UI; the value sent stays the id.
+ * All-caps ids (solver names) are proper names and pass through. */
+const OPTION_WORDS: Record<string, string> = { mcap: "market cap", zscore: "z-score", n: "N" };
+function optionLabel(id: string): string {
+  if (id === id.toUpperCase()) return id;
+  const text = id.split("_").map((w) => OPTION_WORDS[w] ?? w).join(" ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 function SelectField({
   label,
   value,
@@ -126,10 +135,10 @@ function SelectField({
     <label className="field-label" style={{ flex: 1 }}>
       {label}
       <select value={value ?? ""} onChange={(e) => onChange(e.target.value)}>
-        {allowEmpty && <option value="">--</option>}
+        {allowEmpty && <option value="">—</option>}
         {options.map((o) => (
           <option key={o} value={o}>
-            {o}
+            {optionLabel(o)}
           </option>
         ))}
       </select>
@@ -287,15 +296,11 @@ export function IndexBuilder() {
   return (
     <div className="page">
       <h2>Index Construction</h2>
-      <p className="help-text">
-        Compose screens, a selection rule, weighting, tilts, constraints and the path-dependent decarbonisation layer into
-        one methodology, save it as a versioned calibration, and run a review. Everything here is deterministic and
-        zero-LLM. See <code>docs/INDEX_METHODOLOGY_LANDSCAPE.md</code> for where each rule type comes from.
-      </p>
+      <p className="help-text">Compose screens, selection, weighting, tilts, constraints and the decarbonisation path into one methodology, save it as a versioned calibration, and run a review. Every step is deterministic.</p>
 
       <nav className="sub-nav">
         {SUB_TABS.map((t) => (
-          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} onClick={() => setSub(t.id)}>
+          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} aria-pressed={t.id === sub} onClick={() => setSub(t.id)}>
             {t.label}
           </button>
         ))}
@@ -315,11 +320,11 @@ export function IndexBuilder() {
             </p>
             <div className="toolbar" style={{ flexWrap: "wrap" }}>
               {(catalogue?.presets ?? []).map((p) => (
-                <button key={p.name} className="nav-tab" title={p.description} onClick={() => loadPreset(p.name)}>
+                <button key={p.name} className="secondary" title={p.description} onClick={() => loadPreset(p.name)}>
                   {p.label}
                 </button>
               ))}
-              <button className="nav-tab" onClick={() => { setSpec(EMPTY_SPEC); setLoaded(null); setStatus("Started from an empty methodology."); }}>
+              <button className="secondary" onClick={() => { setSpec(EMPTY_SPEC); setLoaded(null); setStatus("Started from an empty methodology."); }}>
                 Empty
               </button>
             </div>
@@ -364,7 +369,7 @@ export function IndexBuilder() {
               <button onClick={() => runReview(false)} disabled={busy}>
                 {busy ? "Running..." : "Preview"}
               </button>
-              <button onClick={() => runReview(true)} disabled={busy} className="nav-tab">
+              <button onClick={() => runReview(true)} disabled={busy} className="secondary">
                 Run &amp; save
               </button>
             </div>
@@ -480,12 +485,12 @@ function ScreensCard({
       </p>
       <div className="toolbar" style={{ flexWrap: "wrap" }}>
         {(catalogue?.screens ?? []).map((s) => (
-          <button key={s.type} className="nav-tab" title={s.help} onClick={() => add(s.type as ScreenRule["type"])}>
+          <button key={s.type} className="secondary" title={s.help} onClick={() => add(s.type as ScreenRule["type"])}>
             + {s.label}
           </button>
         ))}
         {(catalogue?.screen_bundles ?? []).map((b) => (
-          <button key={b.name} className="nav-tab" title={b.description} onClick={() => onAddBundle(b.name)}>
+          <button key={b.name} className="secondary" title={b.description} onClick={() => onAddBundle(b.name)}>
             + {b.label}
           </button>
         ))}
@@ -721,10 +726,10 @@ function TiltsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setSpec:
         silently becomes an exclusion, which is a methodology change nobody approved.
       </p>
       <div className="toolbar">
-        <button className="nav-tab" onClick={() => add("metric_tilt")}>
+        <button className="secondary" onClick={() => add("metric_tilt")}>
           + Metric tilt
         </button>
-        <button className="nav-tab" onClick={() => add("bucket_tilt")}>
+        <button className="secondary" onClick={() => add("bucket_tilt")}>
           + Category multiplier table
         </button>
       </div>
@@ -882,7 +887,7 @@ function ConstraintsCard({
           </button>
         </div>
       ))}
-      <button className="nav-tab" onClick={() => update({ group_caps: [...c.group_caps, { dimension: fields.categories[0] ?? "sector", max_weight: 0.4 }] })}>
+      <button className="secondary" onClick={() => update({ group_caps: [...c.group_caps, { dimension: fields.categories[0] ?? "sector", max_weight: 0.4 }] })}>
         + Group cap
       </button>
 
@@ -1225,7 +1230,7 @@ function CalibrationsTab({
           <button onClick={() => save(false)} disabled={!name.trim()}>
             Save as new calibration
           </button>
-          <button className="nav-tab" onClick={() => save(true)} disabled={!loaded}>
+          <button className="secondary" onClick={() => save(true)} disabled={!loaded}>
             {loaded ? `Save as v${loaded.version + 1} of ${loaded.name}` : "Save as new version"}
           </button>
         </div>

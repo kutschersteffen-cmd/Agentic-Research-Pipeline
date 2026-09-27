@@ -6,6 +6,8 @@ import { ExtractionResultsTable, FinancialsResultsTable } from "../components/Ex
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { BarChart } from "../components/BarChart";
 import type { CompanyFinancialsRecord, DataPointSchema, ExtractionRecord, FieldDefinition, ReviewDecision } from "../types";
+import { useReviewer } from "../lib/reviewer";
+import { ReviewerField } from "../components/ReviewerField";
 
 const DEFAULT_CRITERIA =
   "Green capex: total green/sustainable capital expenditure in USD/EUR millions for the most recent fiscal " +
@@ -66,7 +68,7 @@ export function Extraction({ pendingUniverse }: Props = {}) {
   const [companyCount, setCompanyCount] = useState(pendingUniverse?.count ?? 0);
   const [runId, setRunId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [reviewer, setReviewer] = useState("");
+  const [reviewer] = useReviewer();
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
 
   // Custom-schema mode only
@@ -149,11 +151,7 @@ export function Extraction({ pendingUniverse }: Props = {}) {
   return (
     <div className="page">
       <h2>Extraction</h2>
-      <p className="help-text">
-        Extract data from company disclosures with an independent verifier pass and a hard programmatic grounding
-        check on every citation. Either draft a custom schema for any research question (e.g. "green capex"), or run
-        the built-in combined pass for business segments, CapEx, and R&amp;D.
-      </p>
+      <p className="help-text">Extract data points from company disclosures, each checked by a verifier and every citation re-verified against its source. Draft a custom schema, or run the built-in segments, CapEx and R&amp;D pass.</p>
 
       <div className="view-toggle">
         <button className={mode === "custom" ? "active" : ""} onClick={() => switchMode("custom")}>
@@ -261,15 +259,7 @@ export function Extraction({ pendingUniverse }: Props = {}) {
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
               Export CSV
             </a>
-            <label className="field-label" style={{ marginLeft: "auto" }}>
-              Reviewing as
-            </label>
-            <input
-              placeholder="your name"
-              value={reviewer}
-              onChange={(e) => setReviewer(e.target.value)}
-              style={{ maxWidth: 160 }}
-            />
+            <ReviewerField compact />
           </div>
 
           {mode === "financials" && financialsResults.length > 0 && <BatchSpendChart results={financialsResults} />}

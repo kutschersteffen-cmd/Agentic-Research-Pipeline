@@ -7,6 +7,7 @@ import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import type { ActivityCatalogueMapping, ActivityDefinition, CompanyMatch, Taxonomy, ThemeDefinition } from "../types";
 import { activatable } from "../lib/activatable";
+import { ProposedTag } from "../components/ProposedTag";
 
 const EXPOSURE_RANK: Record<string, number> = { pure_play: 3, significant: 2, minor: 1, none: 0 };
 
@@ -216,11 +217,8 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
 
   return (
     <div className="page">
-      <h2>Thematic Investment Universe Builder</h2>
-      <p className="help-text">
-        Decompose a macro theme into checkable activities, then screen a company universe against each one using an
-        Advocate / Opposing / Adjudicator agent pipeline with programmatically grounded citations.
-      </p>
+      <h2>Thematic Universe</h2>
+      <p className="help-text">Break a theme into checkable activities, then screen a universe against each one. An advocate, an opponent and an adjudicator argue every call, with grounded citations.</p>
 
       <section className="card">
         <h3>1. Define the theme</h3>
@@ -469,7 +467,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
                                 ""
                               )}
                             </td>
-                            <td>{m.flagged_for_review ? "⚑" : ""}</td>
+                            <td>{m.flagged_for_review ? <ProposedTag /> : ""}</td>
                           </tr>
                           {expanded === key && (
                             <tr>

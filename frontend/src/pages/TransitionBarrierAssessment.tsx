@@ -198,7 +198,7 @@ export function TransitionBarrierAssessment() {
 
   return (
     <div>
-      <h2>Transition Barrier Assessment</h2>
+      <h2>Transition Barriers</h2>
       <p className="muted">
         How feasible decarbonisation is for {matrix.sectors.length} hard-to-abate sectors across{" "}
         {matrix.regions.length} regions -- {matrix.criteria.length} criteria x {matrix.regions.length} regions ={" "}

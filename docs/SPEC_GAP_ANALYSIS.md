@@ -273,7 +273,9 @@ seven sub-tabs (Standard Analytics & Visuals, Pivot Explorer, Monitoring &
 Alerts, Company Profiles, Custom Analysis, Ask the Portfolio, Governance &
 Audit). An eighth, Generative BI, was added afterwards (§5c of
 [`PORTFOLIO_RISK_EXPOSURE_PLAN.md`](PORTFOLIO_RISK_EXPOSURE_PLAN.md)); it
-reads the same pane selection as its siblings.
+reads the same pane selection as its siblings. The Custom Analysis sub-tab
+was later removed from the UI: it only ever rendered a "not yet built"
+placeholder, and §7 above remains the record of that gap.
 
 ## Market-mapping table and suggested build sequence
 

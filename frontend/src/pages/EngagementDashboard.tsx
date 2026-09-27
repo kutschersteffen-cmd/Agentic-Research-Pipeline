@@ -116,11 +116,7 @@ export function EngagementDashboard() {
   return (
     <div className="page">
       <h2>Engagement</h2>
-      <p className="help-text">
-        The engagement record store: one entry per company, with per-issue milestone progression, an escalation
-        ladder, correspondence, and commitments. Every send/decide checkpoint is a human action -- nothing here
-        contacts a company or moves an escalation stage on its own.
-      </p>
+      <p className="help-text">One record per company: issues, milestones, escalation stage, correspondence and commitments. Nothing here contacts a company or escalates on its own.</p>
       {error && <p className="error-text">{error}</p>}
 
       <section className="card">
