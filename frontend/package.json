@@ -29,6 +29,9 @@
     "transition-hook": {
       "react": "$react",
       "react-dom": "$react-dom"
+    },
+    "exceljs": {
+      "uuid": "^11.1.1"
     }
   }
 }
