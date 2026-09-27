@@ -2174,6 +2174,58 @@ export interface EscalationDecisionItem {
   reason: string;
 }
 
+export interface StyleFlag {
+  phrase: string;
+  match: string;
+  category: string;
+  suggestion: string;
+  start: number;
+  end: number;
+  line: number;
+  context: string;
+}
+
+export type InteractionType = "informational" | "advocacy_pressure" | "other";
+
+export interface OutreachDraft {
+  draft_id: string;
+  company_id: string;
+  company: string;
+  issue_id: string;
+  theme: string;
+  type: string;
+  text: string;
+  proposed_interaction_type: InteractionType;
+  proposed_because: string;
+  interaction_type: InteractionType;
+  style_flags: StyleFlag[];
+  status: "draft" | "approved" | "sent";
+  created_by: string;
+  created_at: string;
+  approved_by?: string;
+  history: { at: string; by: string; action: string; note?: string }[];
+}
+
+export interface OutreachDecisionItem {
+  kind: "outreach";
+  draft_id: string;
+  company: string;
+  theme: string;
+  type: string;
+  interaction_type: InteractionType;
+  proposed_interaction_type: InteractionType;
+  proposed_because: string;
+  text: string;
+  style_flags: StyleFlag[];
+  authors: string[];
+}
+
+export interface BlocklistEntry {
+  phrase: string;
+  category: string;
+  suggestion?: string;
+}
+
 export interface ClientExceptionItem {
   kind: "client_exception";
   stream_id: string;
@@ -2221,7 +2273,7 @@ export interface StewardshipStage {
   summary: string;
   status: "live" | "partial" | "not_built";
   metrics: StewardshipMetric[];
-  decisions: (EscalationDecisionItem | ClientExceptionItem | TierChangeItem | PolicyDifferenceItem)[];
+  decisions: (EscalationDecisionItem | ClientExceptionItem | OutreachDecisionItem | TierChangeItem | PolicyDifferenceItem)[];
   details: { label: string; rows: Record<string, string | number>[] }[];
   can_build?: boolean;
 }
@@ -2240,7 +2292,7 @@ export interface StewardshipStream {
 }
 
 // Stage studios: versioned house policies (backend/arp/stewardship/policies.py)
-export type StewardPolicyId = "monitoring_rules" | "coverage_rules" | "escalation_rules" | "house_voting";
+export type StewardPolicyId = "monitoring_rules" | "coverage_rules" | "escalation_rules" | "phrase_blocklist" | "house_voting";
 
 export interface PolicyVersionMeta {
   version: number;

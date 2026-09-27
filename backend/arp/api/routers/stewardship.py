@@ -13,8 +13,8 @@ from pydantic import BaseModel
 
 from arp.api.deps import get_engagement_store, get_stream_store, settings_dep
 from arp.config import Settings
-from arp.schemas.engagement import EscalationStage, IssueSeverity, TriggerSource
-from arp.stewardship import escalation, monitoring
+from arp.schemas.engagement import CorrespondenceType, EscalationStage, InteractionType, IssueSeverity, TriggerSource
+from arp.stewardship import drafting, escalation, monitoring
 from arp.stewardship.client_report import build_pptx, client_report
 from arp.stewardship.policies import PolicyStore, coverage_preview, voting_preview
 from arp.stewardship.policy_review import DATA, load
@@ -33,6 +33,7 @@ from arp.stewardship.process import (
     tier_review,
 )
 from arp.stewardship.program import ProgramParams, approve, build_proposal, monitor, record_run, simulate
+from arp.stewardship.style import check as style_check
 from arp.stewardship.tiers import TierStore, tier_contexts
 from arp.storage.engagement_store import EngagementStore
 
@@ -607,3 +608,109 @@ def post_program_run(
         raise HTTPException(422, str(exc)) from exc
     streams.save(stream)
     return stream["program_runs"][-1]
+
+
+# --- Stage 3: outreach drafts (E6 tags, E8 style check), approved at stage 5 ---
+
+
+def _drafts(streams: StreamStore) -> drafting.DraftStore:
+    return drafting.DraftStore(streams.root)
+
+
+def _blocklist(streams: StreamStore) -> dict:
+    return PolicyStore(streams.root).active("phrase_blocklist")
+
+
+class StyleCheckRequest(BaseModel):
+    text: str
+
+
+@router.post("/style/check")
+def post_style_check(body: StyleCheckRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    """E8: blocklisted phrases in a text, with where they are. Flags only."""
+    return {"flags": style_check(body.text, _blocklist(streams))}
+
+
+@router.get("/drafts")
+def list_drafts(streams: StreamStore = Depends(get_stream_store)) -> dict:
+    return {"drafts": _drafts(streams).list()}
+
+
+class CreateDraftRequest(BaseModel):
+    company_id: str
+    issue_id: str
+    type: CorrespondenceType = CorrespondenceType.LETTER
+    text: str
+    created_by: str
+    interaction_type: InteractionType | None = None  # None: take the proposed tag
+
+
+@router.post("/drafts")
+def create_draft(
+    body: CreateDraftRequest,
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    try:
+        return drafting.create(_drafts(streams), engagements, _blocklist(streams), **body.model_dump())
+    except KeyError as exc:
+        raise HTTPException(404, "Unknown engagement") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+class UpdateDraftRequest(BaseModel):
+    updated_by: str
+    text: str | None = None
+    interaction_type: InteractionType | None = None
+
+
+@router.put("/drafts/{draft_id}")
+def update_draft(
+    draft_id: str,
+    body: UpdateDraftRequest,
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    try:
+        return drafting.update(_drafts(streams), engagements, _blocklist(streams), draft_id, **body.model_dump())
+    except KeyError as exc:
+        raise HTTPException(404, "Unknown draft or engagement") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+class ApproveDraftRequest(BaseModel):
+    approved_by: str
+    note: str = ""
+
+
+@router.post("/drafts/{draft_id}/approve")
+def approve_draft(draft_id: str, body: ApproveDraftRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    """The stage 5 checkpoint for outreach: nothing is sent before a second person approves it."""
+    try:
+        return drafting.approve(_drafts(streams), draft_id, body.approved_by, body.note)
+    except KeyError as exc:
+        raise HTTPException(404, "Unknown draft") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+class SentRequest(BaseModel):
+    sent_by: str
+
+
+@router.post("/drafts/{draft_id}/sent")
+def mark_draft_sent(
+    draft_id: str,
+    body: SentRequest,
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    """Records that an approved draft went out: it is logged as correspondence with its interaction type."""
+    try:
+        return drafting.mark_sent(_drafts(streams), engagements, draft_id, body.sent_by)
+    except KeyError as exc:
+        raise HTTPException(404, "Unknown draft or engagement") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc

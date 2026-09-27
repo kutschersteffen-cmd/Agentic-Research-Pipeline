@@ -14,6 +14,7 @@ import type {
   IssueCatalogue,
   MonitoringPreview,
   MonitoringTrigger,
+  OutreachDecisionItem,
   PolicyDifferenceItem,
   StewardPolicyId,
   StewardshipStage,
@@ -25,6 +26,7 @@ import type {
 } from "../../types";
 import { ActorField, DataTable, Planned, Section, StudioHeader, VersionsPanel, useActor, usePolicy, words } from "./common";
 import { ClientExceptionDecisions, EscalationDecisions, PolicyDifference, TierDecisions } from "./decisions";
+import { OutreachDecisions } from "./drafting";
 
 export interface StudioProps {
   stage: StewardshipStage;
@@ -403,35 +405,6 @@ export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
 
 // --- 3. Drafting -------------------------------------------------------------------
 
-export function DraftingStudio({ stage }: StudioProps) {
-  return (
-    <>
-      <StudioHeader
-        stage={stage}
-        capabilities={[
-          { label: "Review", ready: true },
-          { label: "Design", ready: false },
-          { label: "Calibrate", ready: false },
-        ]}
-      >
-        <p className="muted">
-          Outreach letters, talking points and meeting summaries are drafted on the <strong>Engagement</strong> page, with grounded
-          citations and a human sign-off before anything is sent.
-        </p>
-      </StudioHeader>
-      <Section step="Design" title="Drafting rules and house style" planned>
-        <Planned
-          items={[
-            "Interaction tagging (E6): informational vs advocacy/pressure, with pressure-type outreach always stopping at the checkpoint.",
-            "Phrase blocklist (E8): generic ESG-narrative phrases flagged in every client-facing text before it reaches a person.",
-            "Outreach templates per coverage tier and theme.",
-          ]}
-        />
-      </Section>
-    </>
-  );
-}
-
 // --- 4. Voting: house voting policy ------------------------------------------------
 
 function ParamInput({ spec, value, onChange }: { spec: CatalogueIssue["parameters"][string]; value: unknown; onChange: (v: unknown) => void }) {
@@ -746,6 +719,7 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
   const escalations = stage.decisions.filter((d): d is EscalationDecisionItem => d.kind === "escalation");
   const tiers = stage.decisions.filter((d): d is TierChangeItem => d.kind === "tier_change");
   const clientItems = stage.decisions.filter((d): d is ClientExceptionItem => d.kind === "client_exception");
+  const outreach = stage.decisions.filter((d): d is OutreachDecisionItem => d.kind === "outreach");
   const ruleRows = preview
     ? [...new Set([...Object.keys(preview.by_rule_active), ...Object.keys(preview.by_rule_candidate)])].map((rule) => ({
         rule,
@@ -767,7 +741,13 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
       />
       <ActorField actor={actor} onChange={setActor} />
       <Section step="Decide" title="Decisions waiting">
-        {escalations.length === 0 && tiers.length === 0 && clientItems.length === 0 && (
+        {outreach.length > 0 && (
+          <>
+            <h4>Outreach to approve</h4>
+            <OutreachDecisions items={outreach} actor={actor} onDone={onChanged} />
+          </>
+        )}
+        {escalations.length === 0 && tiers.length === 0 && clientItems.length === 0 && outreach.length === 0 && (
           <p className="muted">Nothing is waiting for a decision.</p>
         )}
         {escalations.length > 0 && (

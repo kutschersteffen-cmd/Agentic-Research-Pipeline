@@ -1,11 +1,12 @@
 """Versioned house policies for the stage studios: design a new version,
 calibrate it against the active one, then activate it with a named approver.
 
-Four policies so far:
+Five policies so far:
 
 - `monitoring_rules`: the ZEN decision table that raises triggers (stage 1);
 - `coverage_rules`: the ZEN decision table that proposes coverage tiers (stage 2);
 - `escalation_rules`: tier caps and the escalation recommendations (stages 2 and 5);
+- `phrase_blocklist`: the E8 style check on outreach and client-facing text (stage 3);
 - `house_voting`: the house voting positions on the issue catalogue (stage 4).
 
 Client streams have their own store (`PolicyStore(root, client=True)` on the
@@ -29,7 +30,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from arp.schemas.engagement import EngagementRecord
-from arp.stewardship import escalation, monitoring
+from arp.stewardship import escalation, monitoring, style
 from arp.stewardship.backtest import backtest
 from arp.stewardship.policy_graph import evaluate as evaluate_votes
 from arp.stewardship.policy_graph import generate
@@ -104,6 +105,7 @@ POLICIES: dict[str, dict[str, Callable]] = {
         "client_default": escalation.load_client_default,
         "client_validate": _validate_client_escalation,
     },
+    "phrase_blocklist": {"default": style.load_blocklist, "validate": style.validate_blocklist},
     "house_voting": {"default": lambda: load("house_voting_policy_draft.json"), "validate": _validate_voting},
 }
 

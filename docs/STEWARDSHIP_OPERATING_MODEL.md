@@ -1229,7 +1229,7 @@ available today (✓) and which are designed but not built (○):
 |---|---|---|
 | 1 Monitoring | Triggers raised, matched to open engagements, with *Open engagement*; companies in scope; monitoring rules in the rule-graph editor; preview of who a draft would flag; versions | Monitoring Run log, vote-outcome and calendar triggers, client portfolios in scope |
 | 2 Selection | Coverage rules in the rule-graph editor; preview of tier moves against the active rules; versions | — |
-| 3 Drafting | Stage numbers; drafting stays on the Engagement page | E6 interaction tagging, E8 phrase blocklist, templates |
+| 3 Drafting | Outreach drafts with a proposed interaction type (E6) and a live style check (E8); the phrase blocklist as a versioned policy; mark approved outreach sent | Outreach templates per tier and theme; E8 on reports and case studies |
 | 4 Voting | House voting positions editor (per issue: vote, target, thresholds, rationale); back-test against the active policy; versions | — |
 | 5 Checkpoint | Escalation decisions from the escalation rules, client escalations above the house (adopt or keep the house step) and tier confirmations; recommendations for every open engagement; escalation rules and tier caps in the rule-graph editor; preview; versions | SLA and sign-off rules as configuration |
 | 6 Tracking | Open engagements by milestone | Milestone ladder configuration, missed-commitment triggers, E7 |
@@ -1383,6 +1383,33 @@ its own versioned `escalation_rules` (`PolicyStore(..., client=True)`, stored un
   engagements. Client-only issuers and client coverage rules (`tier_higher`) come
   with client holdings.
 
+**Outreach drafting (stage 3 → stage 5), as built.** `backend/arp/stewardship/drafting.py`, `style.py`.
+
+- **E6.** Every outreach draft (letter, email, call, meeting) on a live engagement
+  carries an interaction type: informational, advocacy/pressure or other. The tool
+  proposes it deterministically: pressure wording ("vote against", "escalate",
+  "unless", "public statement", "file a resolution", a deadline) or an engagement at
+  written escalation to the board or beyond makes it advocacy/pressure, and it says
+  why. The author can override it, and so can the checkpoint (a retag does not make
+  the approver an author).
+- **E8.** A deterministic matcher checks the text against the phrase blocklist
+  (whole words, case-insensitive, spaces and hyphens interchangeable) and returns
+  each match with line, position, category and a suggested rewrite. It flags and
+  never changes the text. The blocklist
+  ([`style_blocklist.json`](../backend/arp/stewardship/data/style_blocklist.json),
+  18 draft phrases: overclaiming, unsupported claims, regulated terms, legal risk)
+  is a versioned house policy (`phrase_blocklist`), edited in the Drafting studio.
+- **Checkpoint.** Every draft waits at stage 5 and is approved by someone who did
+  not write or edit it; open style flags need a note saying why they stay. Any
+  change to an approved draft sends it back for approval.
+- **Sent.** Marking an approved draft sent logs it as correspondence on the
+  engagement with its interaction type (`CorrespondenceEntry.interaction_type`,
+  empty on entries logged before E6), and moves an engagement still at
+  `identified` to `contacted`. Stage 3 shows the advocacy/pressure share of sent
+  outreach.
+- Not built: outreach templates per tier and theme, and running E8 on client
+  reports, case studies and disclosure texts.
+
 **Client report (stage 8), as built.** `backend/arp/stewardship/client_report.py`.
 
 - Per client stream, built from current data on every request: the programme at
@@ -1402,7 +1429,7 @@ its own versioned `escalation_rules` (`PolicyStore(..., client=True)`, stored un
 Implementation: `backend/arp/stewardship/process.py` (streams and the flow), `policies.py` (versions and previews),
 `backend/arp/api/routers/stewardship.py` (`/api/stewardship/...`),
 `frontend/src/pages/StewardWorkflow.tsx` and `frontend/src/pages/steward/` (flowchart, studios, decisions); tests in
-`backend/tests/test_api_stewardship.py`, `test_stewardship_tiers.py`, `test_stewardship_policies.py`, `test_stewardship_monitoring.py`, `test_stewardship_escalation.py`, `test_stewardship_client_report.py`, `test_stewardship_program.py`. Client streams are stored as JSON under
+`backend/tests/test_api_stewardship.py`, `test_stewardship_tiers.py`, `test_stewardship_policies.py`, `test_stewardship_monitoring.py`, `test_stewardship_escalation.py`, `test_stewardship_client_report.py`, `test_stewardship_program.py`, `test_stewardship_drafting.py`. Client streams are stored as JSON under
 `stewardship_streams/` (`ARP_STEWARDSHIP_STREAMS_DIR`).
 
 ## Open points

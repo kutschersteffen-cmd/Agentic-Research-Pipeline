@@ -2,6 +2,9 @@ import type {
   CompanyBallot,
   ClientEscalationPreview,
   ClientReport,
+  InteractionType,
+  OutreachDraft,
+  StyleFlag,
   ProgramMonitor,
   ProgramParams,
   ProgramRun,
@@ -382,6 +385,20 @@ export const api = {
       body: JSON.stringify({ recorded_by: recordedBy }),
     }),
   programProposalUrl: (streamId: string) => `${API_BASE}/api/stewardship/streams/${encodeURIComponent(streamId)}/program/proposal.pptx`,
+  checkStyle: (text: string) =>
+    request<{ flags: StyleFlag[] }>("/api/stewardship/style/check", { method: "POST", body: JSON.stringify({ text }) }),
+  listDrafts: () => request<{ drafts: OutreachDraft[] }>("/api/stewardship/drafts"),
+  createDraft: (body: { company_id: string; issue_id: string; type: string; text: string; created_by: string }) =>
+    request<OutreachDraft>("/api/stewardship/drafts", { method: "POST", body: JSON.stringify(body) }),
+  updateDraft: (draftId: string, body: { updated_by: string; text?: string; interaction_type?: InteractionType }) =>
+    request<OutreachDraft>(`/api/stewardship/drafts/${encodeURIComponent(draftId)}`, { method: "PUT", body: JSON.stringify(body) }),
+  approveDraft: (draftId: string, body: { approved_by: string; note?: string }) =>
+    request<OutreachDraft>(`/api/stewardship/drafts/${encodeURIComponent(draftId)}/approve`, { method: "POST", body: JSON.stringify(body) }),
+  markDraftSent: (draftId: string, sentBy: string) =>
+    request<OutreachDraft>(`/api/stewardship/drafts/${encodeURIComponent(draftId)}/sent`, {
+      method: "POST",
+      body: JSON.stringify({ sent_by: sentBy }),
+    }),
   getClientReport: (streamId: string) => request<ClientReport>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/report`),
   clientReportPptxUrl: (streamId: string) => `${API_BASE}/api/stewardship/streams/${encodeURIComponent(streamId)}/report.pptx`,
   getClientEscalationExample: () => request<Record<string, unknown>>("/api/stewardship/studio/escalation/client-example"),

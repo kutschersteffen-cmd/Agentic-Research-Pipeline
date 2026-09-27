@@ -3,12 +3,12 @@ import { api } from "../api/client";
 import type { StewardshipFlow, StewardshipStage, StewardshipStream } from "../types";
 import { SOURCE_LABEL } from "./steward/common";
 import { FlowChart, FlowList } from "./steward/flow";
+import { DraftingStudio } from "./steward/drafting";
 import { ProgramStudio } from "./steward/program";
 import {
   CheckpointStudio,
   ClientPicker,
   ClientPolicyStudio,
-  DraftingStudio,
   MonitoringStudio,
   ReportingStudio,
   SelectionStudio,

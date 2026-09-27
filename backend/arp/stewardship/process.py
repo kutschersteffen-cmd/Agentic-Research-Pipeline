@@ -27,6 +27,7 @@ from arp.engagement.orchestrator import is_stalled
 from arp.schemas.engagement import EngagementRecord, IssueStatus, MilestoneStage
 from arp.stewardship import escalation, monitoring
 from arp.stewardship.backtest import attach_impact, build_contexts
+from arp.stewardship.drafting import DraftStore
 from arp.stewardship.policies import PolicyStore
 from arp.stewardship.policy_graph import evaluate, generate
 from arp.stewardship.policy_review import DATA, build, decide, review
@@ -125,6 +126,7 @@ def _house_stages(
     triggers: list[dict],
     escalations: list[dict],
     exceptions: list[dict],
+    drafts: list[dict],
 ) -> list[dict]:
     open_issues = list(_open_issues(records))
     all_issues = [i for r in records for i in r.issues]
@@ -140,6 +142,8 @@ def _house_stages(
     sanctions = sum("stewardship.engagement_escalation" in r["decided_by"] for r in results)
 
     milestones = Counter(i.milestone_stage.value for _, i in open_issues)
+    pending = [d for d in drafts if d["status"] == "draft"]
+    sent = [d for d in drafts if d["status"] == "sent"]
     commitments = Counter(c.status.value for i in all_issues for c in i.commitments)
     to_decide = [r for r in escalations if escalation.needs_decision(r)]
     live = [r for r in to_decide if r["source"] == "live"]
@@ -205,6 +209,20 @@ def _house_stages(
         [
             _metric("Summaries to draft", milestones.get(MilestoneStage.RESPONSE_RECEIVED.value, 0), "live"),
             _metric("Awaiting response", milestones.get(MilestoneStage.CONTACTED.value, 0), "live"),
+            _metric("Drafts at the checkpoint", len(pending), "live", "warn" if pending else "good"),
+            _metric(
+                "Advocacy / pressure",
+                f"{sum(d['interaction_type'] == 'advocacy_pressure' for d in sent)} of {len(sent)}",
+                "live",
+                hint="Sent outreach tagged advocacy/pressure (E6)",
+            ),
+            _metric(
+                "Style flags open",
+                sum(len(d["style_flags"]) for d in pending),
+                "live",
+                "warn" if any(d["style_flags"] for d in pending) else "good",
+                "E8 phrase blocklist, on drafts not yet approved",
+            ),
         ],
     )
     s4 = _stage(
@@ -245,6 +263,9 @@ def _house_stages(
             ),
             _metric("Tier changes to confirm", len(tier_changes), "sample", "warn" if tier_changes else "good"),
             _metric(
+                "Outreach to approve", len(pending), "live", "warn" if pending else "good", "Nothing is sent before approval"
+            ),
+            _metric(
                 "Client escalations above the house",
                 len(exceptions),
                 "live",
@@ -278,6 +299,22 @@ def _house_stages(
                 "max_step": r["max_step"],
                 "promote_tier": r["promote_tier"],
                 "reason": f"{r['reason']} ({r['rule']})",
+            }
+        )
+    for d in pending:
+        s5["decisions"].append(
+            {
+                "kind": "outreach",
+                "draft_id": d["draft_id"],
+                "company": d["company"],
+                "theme": d["theme"],
+                "type": d["type"],
+                "interaction_type": d["interaction_type"],
+                "proposed_interaction_type": d["proposed_interaction_type"],
+                "proposed_because": d["proposed_because"],
+                "text": d["text"],
+                "style_flags": d["style_flags"],
+                "authors": sorted({h["by"] for h in d["history"] if h["action"] in ("created", "edited")}),
             }
         )
     for r in exceptions:
@@ -453,17 +490,20 @@ def flow(stream_id: str, streams: StreamStore, records: list[EngagementRecord], 
         for s in streams.list()
         for r in open_exceptions(s, clients[s["stream_id"]])
     ]
+    drafts = DraftStore(streams.root).list()
     if stream_id == HOUSE:
         stream = {"stream_id": HOUSE, "name": "House program"}
         stages = _house_stages(
-            records, sample, house_policy, sla_days, tiers, triggers, escalations, exceptions
+            records, sample, house_policy, sla_days, tiers, triggers, escalations, exceptions, drafts
         ) + _house_reporting(streams.list(), records)
     else:
         stream = streams.get(stream_id)
         if stream is None:
             raise KeyError(stream_id)
         policy = stream.get("built_policy") or house_policy
-        stages = _house_stages(records, sample, policy, sla_days, tiers, triggers, escalations, exceptions) + _client_stages(
+        stages = _house_stages(
+            records, sample, policy, sla_days, tiers, triggers, escalations, exceptions, drafts
+        ) + _client_stages(
             stream,
             sample,
             house_policy,
