@@ -418,7 +418,7 @@ def apply_mechanism(
                 f"drawn over the {sum(1 for v in eligible if v is not None)} entities still eligible after gates and "
                 "sufficiency -- an excluded entity should not move the band its peers are judged against"
             )
-            + ("" if cuts_origin == config.cut_mode else f"; '{config.cut_mode}' was requested but there was too little data for it"),
+            + ("" if cuts_origin == config.cut_mode else f"; '{config.cut_mode}' was requested but {_cuts_fallback_reason(config, eligible)}"),
         )
     )
 
@@ -440,6 +440,14 @@ def apply_mechanism(
         audit=audit,
         tier_inputs=tier_inputs,
     )
+
+
+def _cuts_fallback_reason(config: MechanismConfig, eligible: list[float | None]) -> str:
+    needed = max(1, len(config.tiers) - 1)
+    pinned = config.pinned_cuts or []
+    if config.cut_mode == "absolute" and len(pinned) != needed:
+        return f"{len(pinned)} fixed cut-points were given where {len(config.tiers)} tiers need {needed}"
+    return f"there was too little data for it ({sum(1 for v in eligible if v is not None)} eligible entities)"
 
 
 def _tier_summary(entities: list[EntityDecision], config: MechanismConfig) -> list[TierSummary]:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from arp.decision.dataset import Dataset
-from arp.decision.parsing import to_bool, to_number
+from arp.decision.parsing import is_blank, to_bool, to_number
 from arp.decision.profiling import quantile
 from arp.schemas.decision import ColumnProfile, CriterionContribution, CutMode, GateRule, MechanismConfig
 
@@ -11,16 +11,24 @@ _MIN_BAND_SHARE = 0.1
 def gate_hit(rule: GateRule, dataset: Dataset, profiles: dict[str, ColumnProfile], row_index: int) -> bool:
     """Evaluated against the raw cell, never the normalised score -- a gate
     is a statement about the world ("this company is expanding coal"), not
-    about where the entity landed on a scale."""
+    about where the entity landed on a scale.
+
+    Every type follows the operator and value on screen: `is`/`=` match the
+    value, `is not` is its negation, `<`/`>` compare numbers. A blank cell
+    never triggers a gate, whatever the operator -- "no answer" is not
+    evidence either way.
+    """
     profile = profiles.get(rule.column)
     if profile is None:
         return False
     raw = dataset.rows[row_index].get(rule.column, "")
+    if is_blank(raw):
+        return False
     if profile.type == "boolean":
-        value = to_bool(raw)
-        if value is None:
+        value, target = to_bool(raw), to_bool(rule.value)
+        if value is None or target is None or rule.op in ("lt", "gt"):
             return False
-        return value == 1 if rule.op == "is" else value == 0
+        return value != target if rule.op == "isnot" else value == target
     if profile.type in ("numeric", "ordinal"):
         value = to_number(raw, profile.decimal_comma)
         threshold = to_number(rule.value, False)
@@ -30,7 +38,7 @@ def gate_hit(rule: GateRule, dataset: Dataset, profiles: dict[str, ColumnProfile
             return value < threshold
         if rule.op == "gt":
             return value > threshold
-        return value == threshold
+        return value != threshold if rule.op == "isnot" else value == threshold
     left = str(raw).strip().lower()
     right = str(rule.value).strip().lower()
     return left != right if rule.op == "isnot" else left == right

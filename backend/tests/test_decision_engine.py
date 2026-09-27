@@ -11,9 +11,9 @@ from arp.decision.normalise import normalise_column
 from arp.decision.parsing import detect_decimal_comma, sniff_delimiter, to_bool, to_number
 from arp.decision.profiling import profile_dataset
 from arp.decision.scoring import compute_scores
-from arp.decision.tree import derive_cuts, quantile_positions, tier_for_score
+from arp.decision.tree import derive_cuts, gate_hit, quantile_positions, tier_for_score
 from arp.decision.weighting import breadth_adjusted_weight, effective_weights
-from arp.schemas.decision import ColumnProfile, Criterion, Dimension, MechanismConfig
+from arp.schemas.decision import ColumnProfile, Criterion, Dimension, GateRule, MechanismConfig, TierDefinition
 
 SAMPLE = Path(__file__).resolve().parents[1] / "arp" / "decision" / "sample_data" / "example_transition_universe.csv"
 
@@ -361,3 +361,59 @@ def test_audit_log_states_the_threshold_it_actually_used(sample_dataset):
     assert standalone
     assert all("0.80" in e.why for e in standalone)
     assert not any("0.60" in e.why for e in audit)
+
+
+# --- gates follow the operator and value on screen ---------------------------
+
+_GATE_TABLE = build_dataset(
+    "gates",
+    [["name", "num", "flag", "sector"], ["a", "5", "Yes", "Energy"], ["b", "7", "No", "Utilities"], ["c", "", "", ""], ["d", "5", "Yes", "energy "]],
+)
+_GATE_PROFILES = profile_dataset(_GATE_TABLE)
+
+
+def _hits(op: str, column: str, value: str) -> list[str]:
+    rule = GateRule(column=column, op=op, value=value)
+    return [row["name"] for i, row in enumerate(_GATE_TABLE.rows) if gate_hit(rule, _GATE_TABLE, _GATE_PROFILES, i)]
+
+
+@pytest.mark.parametrize(
+    ("op", "column", "value", "expected"),
+    [
+        ("isnot", "num", "5", ["b"]),  # was ["a", "d"]: 'is not' behaved as '='
+        ("is", "num", "5", ["a", "d"]),
+        ("eq", "num", "5", ["a", "d"]),
+        ("lt", "num", "6", ["a", "d"]),
+        ("gt", "num", "6", ["b"]),
+        ("is", "flag", "No", ["b"]),  # was ["a", "d"]: the value was ignored
+        ("is", "flag", "Yes", ["a", "d"]),
+        ("isnot", "flag", "Yes", ["b"]),
+        ("isnot", "flag", "No", ["a", "d"]),
+        ("gt", "flag", "Yes", []),  # '<' / '>' mean nothing for yes/no
+        ("is", "sector", "ENERGY", ["a", "d"]),
+        ("isnot", "sector", "Energy", ["b"]),  # was ["b", "c"]: a blank triggered 'is not'
+    ],
+)
+def test_gates_follow_the_operator_and_value_shown(op, column, value, expected):
+    assert _hits(op, column, value) == expected
+
+
+def test_a_blank_cell_never_triggers_a_gate():
+    for op in ("is", "isnot", "lt", "gt", "eq"):
+        for column, value in (("num", "5"), ("flag", "Yes"), ("sector", "Energy")):
+            assert "c" not in _hits(op, column, value)
+
+
+def test_mismatched_fixed_cut_points_say_why_they_were_not_used():
+    data = build_dataset("t", [["name", "x"], *[[f"r{i}", str(i)] for i in range(10)]])
+    config = MechanismConfig(
+        label_column="name",
+        dimensions=[Dimension(id="d0", name="X")],
+        criteria=[Criterion(column="x", dimension_id="d0")],
+        cut_mode="absolute",
+        pinned_cuts=[70, 40],
+        tiers=[TierDefinition(rank=r, name=f"T{r}") for r in range(1, 5)],
+    )
+    entry = next(a for a in apply_mechanism(data, config).audit if a.stage == "Cut-points")
+    assert entry.decision == "quantile"
+    assert "2 fixed cut-points were given where 4 tiers need 3" in entry.why
