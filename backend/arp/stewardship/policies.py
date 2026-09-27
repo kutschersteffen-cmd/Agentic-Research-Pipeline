@@ -8,6 +8,11 @@ Four policies so far:
 - `escalation_rules`: tier caps and the escalation recommendations (stages 2 and 5);
 - `house_voting`: the house voting positions on the issue catalogue (stage 4).
 
+Client streams have their own store (`PolicyStore(root, client=True)` on the
+stream's directory) for the policies that have a client form: so far
+`escalation_rules`, a graph chained on the house result, whose version 0
+returns the house answer unchanged.
+
 Version 0 is the bundled draft in `data/`, always available as the baseline.
 Saved versions are immutable files; activations are an append-only log, and
 the active version is the last activation. Nothing is stored that fails
@@ -64,6 +69,17 @@ def _validate_escalation(graph: dict, sample: dict) -> None:
         raise ValueError(f"The escalation rules do not run: {exc}") from exc
 
 
+def _validate_client_escalation(graph: dict, sample: dict) -> None:
+    if not isinstance(graph, dict) or not graph.get("nodes"):
+        raise ValueError("An escalation policy is a rule graph with nodes and edges")
+    base = escalation.contexts(sample, [], {}, [], sla_days=30)
+    ctxs = [{**c, "tier": {"tier": t}} for c in base for t in [*TIERS, None]]
+    try:
+        escalation.client_evaluate(graph, ctxs, escalation.evaluate(escalation.load_graph(), ctxs))
+    except RuntimeError as exc:
+        raise ValueError(f"The escalation rules do not run: {exc}") from exc
+
+
 def _validate_voting(policy: dict, sample: dict) -> None:
     catalogue = load("policy_issue_catalogue.json")
     issues = {i["issue_id"]: i for i in catalogue["issues"]}
@@ -82,23 +98,36 @@ def _validate_voting(policy: dict, sample: dict) -> None:
 POLICIES: dict[str, dict[str, Callable]] = {
     "monitoring_rules": {"default": monitoring.load_graph, "validate": _validate_monitoring},
     "coverage_rules": {"default": default_coverage_graph, "validate": _validate_coverage},
-    "escalation_rules": {"default": escalation.load_graph, "validate": _validate_escalation},
+    "escalation_rules": {
+        "default": escalation.load_graph,
+        "validate": _validate_escalation,
+        "client_default": escalation.load_client_default,
+        "client_validate": _validate_client_escalation,
+    },
     "house_voting": {"default": lambda: load("house_voting_policy_draft.json"), "validate": _validate_voting},
 }
 
 
 class PolicyStore:
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, client: bool = False) -> None:
         self.root = root / "policies"
+        self.client = client
+
+    def _spec(self, policy_id: str, key: str) -> Callable:
+        spec = POLICIES.get(policy_id, {})
+        fn = spec.get(f"client_{key}" if self.client else key)
+        if fn is None:
+            raise KeyError(policy_id)
+        return fn
 
     def _dir(self, policy_id: str) -> Path:
-        if policy_id not in POLICIES:
-            raise KeyError(policy_id)
+        self._spec(policy_id, "default")  # raises for an unknown policy, or one without a client form
         return self.root / policy_id
 
     def versions(self, policy_id: str) -> list[dict]:
         d = self._dir(policy_id)
-        metas = [{"version": 0, "note": "Bundled draft", "created_by": "system", "created_at": None}]
+        note = "Same as the house" if self.client else "Bundled draft"
+        metas = [{"version": 0, "note": note, "created_by": "system", "created_at": None}]
         if d.exists():
             for path in sorted(d.glob("v*.json"), key=lambda p: int(p.stem[1:])):
                 metas.append({k: v for k, v in json.loads(path.read_text()).items() if k != "content"})
@@ -106,7 +135,7 @@ class PolicyStore:
 
     def content(self, policy_id: str, version: int) -> dict:
         if version == 0:
-            return POLICIES[policy_id]["default"]()
+            return self._spec(policy_id, "default")()
         path = self._dir(policy_id) / f"v{version}.json"
         if not path.exists():
             raise KeyError(f"{policy_id} v{version}")
@@ -126,7 +155,7 @@ class PolicyStore:
     def save(self, policy_id: str, content: dict, note: str, created_by: str, sample: dict) -> int:
         if not created_by.strip():
             raise ValueError("A policy version needs created_by")
-        POLICIES[policy_id]["validate"](content, sample)
+        self._spec(policy_id, "validate")(content, sample)
         version = max(v["version"] for v in self.versions(policy_id)) + 1
         if "policy_id" in content:  # stamp the store version into the policy, so reviews and builds cite it
             content = {**content, "version": f"v{version}"}

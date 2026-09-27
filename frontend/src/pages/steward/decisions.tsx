@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../../api/client";
-import type { EscalationDecisionItem, PolicyDifferenceItem, TierChangeItem } from "../../types";
+import type { ClientExceptionItem, EscalationDecisionItem, PolicyDifferenceItem, TierChangeItem } from "../../types";
 import { fmt, words } from "./common";
 
 export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[]; actor: string; onDone: () => void }) {
@@ -129,6 +129,77 @@ export function EscalationDecisions({ items, actor, onDone }: { items: Escalatio
         </table>
       </div>
       <p className="muted">Not escalating is also a decision: log the next outreach on the Engagement page to restart the clock.</p>
+    </>
+  );
+}
+
+/** A client's escalation rules want a higher step than the house's: the house engages
+ * each company once, so it adopts the client's step or keeps its own. */
+export function ClientExceptionDecisions({ items, actor, onDone }: { items: ClientExceptionItem[]; actor: string; onDone: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  async function decide(item: ClientExceptionItem, decision: "adopt" | "decline") {
+    setBusy(`${item.stream_id}-${item.issue_id}`);
+    setError(null);
+    try {
+      await api.decideClientException(item.stream_id, {
+        issue_id: item.issue_id,
+        client_step: item.client_step,
+        decision,
+        decided_by: actor,
+      });
+      onDone();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+  return (
+    <>
+      {error && <p className="error-text">{error}</p>}
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Company</th>
+              <th>Theme</th>
+              <th>Why (client rule)</th>
+              <th>Step</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={`${item.stream_id}-${item.issue_id}`}>
+                <td>{item.client}</td>
+                <td>{item.company}</td>
+                <td>{words(item.theme)}</td>
+                <td>{item.reason}</td>
+                <td>
+                  now {words(item.current)} · house {words(item.house)} · client <strong>{words(item.client_step)}</strong>
+                </td>
+                <td>
+                  <div className="row-actions">
+                    <button
+                      onClick={() => decide(item, "adopt")}
+                      disabled={!actor || busy !== null}
+                      title={actor ? undefined : "Enter your name above first"}
+                    >
+                      Adopt
+                    </button>
+                    <button className="secondary" onClick={() => decide(item, "decline")} disabled={!actor || busy !== null}>
+                      Keep the house step
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="muted">Adopting moves the engagement to the client&apos;s step. Either way the decision is logged for the client&apos;s report.</p>
     </>
   );
 }

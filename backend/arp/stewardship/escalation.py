@@ -143,11 +143,71 @@ def evaluate(graph: dict, ctxs: list[dict]) -> list[dict]:
                 "recommended": STEPS[recommended],
                 "escalate": recommended > current,
                 "promote_tier": by > 0 and wanted > cap,
+                "steps_up": by,
+                "cap_index": cap,
+                "recommended_index": recommended,
                 "rule": rec.get("rule", "none"),
                 "reason": rec.get("reason", "No rule matched"),
             }
         )
     return out
+
+
+def load_client_default() -> dict:
+    """A client graph that returns the house answer unchanged."""
+    return json.loads((DATA / "client_escalation_inherit.graph.json").read_text())
+
+
+def load_client_example() -> dict:
+    return json.loads((DATA / "examples" / "client_escalation_example.graph.json").read_text())
+
+
+def client_evaluate(client_graph: dict, ctxs: list[dict], house: list[dict]) -> list[dict]:
+    """A client's escalation graph, chained on the house result: each context gets
+    the house recommendation under `house.*` (`escalate_by`, `max_step`, `rule`,
+    `reason`, `recommended_step`). `higher` marks a step above the house's, which the
+    house has to adopt or decline (an `escalation_higher` exception)."""
+    chained = [
+        {
+            **c,
+            "house": {
+                "escalate_by": h["steps_up"],
+                "max_step": h["cap_index"],
+                "recommended_step": h["recommended_index"],
+                "rule": h["rule"],
+                "reason": h["reason"],
+            },
+        }
+        for c, h in zip(ctxs, house, strict=True)
+    ]
+    return [
+        {**r, "house_recommended": h["recommended"], "higher": r["recommended_index"] > h["recommended_index"]}
+        for r, h in zip(evaluate(client_graph, chained), house, strict=True)
+    ]
+
+
+def client_preview(candidate: dict, active: dict, ctxs: list[dict], house: list[dict]) -> dict:
+    """A candidate client graph against the client's active one, both against the house."""
+    new, old = client_evaluate(candidate, ctxs, house), client_evaluate(active, ctxs, house)
+    return {
+        "engagements": len(new),
+        "higher_candidate": sum(r["higher"] for r in new),
+        "higher_active": sum(r["higher"] for r in old),
+        "rows": [
+            {
+                "company": n["company"],
+                "theme": n["theme"],
+                "source": n["source"],
+                "step now": n["current"],
+                "house": n["house_recommended"],
+                "client (active)": o["recommended"],
+                "client (this draft)": n["recommended"],
+                "above the house": n["higher"],
+                "why": f"{n['reason']} ({n['rule']})",
+            }
+            for n, o in zip(new, old, strict=True)
+        ],
+    }
 
 
 def needs_decision(r: dict) -> bool:

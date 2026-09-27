@@ -1,0 +1,148 @@
+{
+  "nodes": [
+    {
+      "id": "input",
+      "type": "inputNode",
+      "name": "input",
+      "position": {
+        "x": 0,
+        "y": 100
+      }
+    },
+    {
+      "id": "tier_caps",
+      "type": "decisionTableNode",
+      "name": "tier_caps",
+      "position": {
+        "x": 300,
+        "y": 100
+      },
+      "content": {
+        "passThrough": true,
+        "inputField": null,
+        "outputPath": null,
+        "executionMode": "single",
+        "hitPolicy": "first",
+        "inputs": [
+          {
+            "id": "th",
+            "name": "Theme",
+            "field": "engagement.theme"
+          },
+          {
+            "id": "t",
+            "name": "Tier",
+            "field": "tier.tier"
+          }
+        ],
+        "outputs": [
+          {
+            "id": "m",
+            "name": "Max escalation step (0-6)",
+            "field": "tier.max_step"
+          }
+        ],
+        "rules": [
+          {
+            "_id": "house",
+            "_description": "Same cap as the house.",
+            "m": "house.max_step",
+            "th": "",
+            "t": ""
+          }
+        ]
+      }
+    },
+    {
+      "id": "escalation_rules",
+      "type": "decisionTableNode",
+      "name": "escalation_rules",
+      "position": {
+        "x": 600,
+        "y": 100
+      },
+      "content": {
+        "passThrough": true,
+        "inputField": null,
+        "outputPath": "recommendation",
+        "executionMode": "single",
+        "hitPolicy": "first",
+        "inputs": [
+          {
+            "id": "th",
+            "name": "Theme",
+            "field": "engagement.theme"
+          },
+          {
+            "id": "clti",
+            "name": "CLTI score",
+            "field": "issuer.score.clti"
+          },
+          {
+            "id": "mas",
+            "name": "Months at this step",
+            "field": "engagement.months_at_step"
+          }
+        ],
+        "outputs": [
+          {
+            "id": "by",
+            "name": "Steps up",
+            "field": "escalate_by"
+          },
+          {
+            "id": "r",
+            "name": "Rule",
+            "field": "rule"
+          },
+          {
+            "id": "why",
+            "name": "Reason",
+            "field": "reason"
+          }
+        ],
+        "rules": [
+          {
+            "_id": "house",
+            "_description": "Same recommendation as the house.",
+            "by": "house.escalate_by",
+            "r": "house.rule",
+            "why": "house.reason",
+            "th": "",
+            "clti": "",
+            "mas": ""
+          }
+        ]
+      }
+    },
+    {
+      "id": "output",
+      "type": "outputNode",
+      "name": "output",
+      "position": {
+        "x": 900,
+        "y": 100
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "input-tier_caps",
+      "sourceId": "input",
+      "targetId": "tier_caps",
+      "type": "edge"
+    },
+    {
+      "id": "tier_caps-escalation_rules",
+      "sourceId": "tier_caps",
+      "targetId": "escalation_rules",
+      "type": "edge"
+    },
+    {
+      "id": "escalation_rules-output",
+      "sourceId": "escalation_rules",
+      "targetId": "output",
+      "type": "edge"
+    }
+  ]
+}

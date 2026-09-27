@@ -333,6 +333,8 @@ button {
 button:hover:not(:disabled) { background: var(--accent-ink); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 button.danger { background: var(--low); }
+button.secondary { background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+button.secondary:hover:not(:disabled) { background: var(--well); }
 button.link-button { background: transparent; color: var(--accent); padding: 4px 0; }
 button.link-button:hover:not(:disabled) { background: transparent; color: var(--accent-ink); text-decoration: underline; }
 

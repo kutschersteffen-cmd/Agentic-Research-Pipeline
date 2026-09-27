@@ -1,5 +1,6 @@
 import type {
   CompanyBallot,
+  ClientEscalationPreview,
   CoveragePreview,
   EscalationPreview,
   EscalationRecommendation,
@@ -85,6 +86,9 @@ function buildQuery(params: Record<string, string | string[] | undefined | null>
   const qs = usp.toString();
   return qs ? `?${qs}` : "";
 }
+
+/** Policy endpoints act on the house by default, or on a client stream's own policies. */
+const streamQuery = (stream?: string) => (stream ? `?stream=${encodeURIComponent(stream)}` : "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
@@ -330,13 +334,27 @@ export const api = {
     request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/decisions`, { method: "POST", body: JSON.stringify(body) }),
   confirmTiers: (body: { decided_by: string; issuer_ids?: string[] }) =>
     request<{ confirmed: number }>("/api/stewardship/tiers/confirm", { method: "POST", body: JSON.stringify(body) }),
-  getStewardPolicy: (policyId: StewardPolicyId) => request<StewardPolicyInfo>(`/api/stewardship/policies/${policyId}`),
-  getStewardPolicyVersion: (policyId: StewardPolicyId, version: number) =>
-    request<Record<string, unknown>>(`/api/stewardship/policies/${policyId}/versions/${version}`),
-  saveStewardPolicyVersion: (policyId: StewardPolicyId, body: { content: unknown; note: string; created_by: string }) =>
-    request<{ version: number }>(`/api/stewardship/policies/${policyId}/versions`, { method: "POST", body: JSON.stringify(body) }),
-  activateStewardPolicy: (policyId: StewardPolicyId, body: { version: number; approved_by: string }) =>
-    request(`/api/stewardship/policies/${policyId}/activate`, { method: "POST", body: JSON.stringify(body) }),
+  getStewardPolicy: (policyId: StewardPolicyId, stream?: string) =>
+    request<StewardPolicyInfo>(`/api/stewardship/policies/${policyId}${streamQuery(stream)}`),
+  getStewardPolicyVersion: (policyId: StewardPolicyId, version: number, stream?: string) =>
+    request<Record<string, unknown>>(`/api/stewardship/policies/${policyId}/versions/${version}${streamQuery(stream)}`),
+  saveStewardPolicyVersion: (policyId: StewardPolicyId, body: { content: unknown; note: string; created_by: string }, stream?: string) =>
+    request<{ version: number }>(`/api/stewardship/policies/${policyId}/versions${streamQuery(stream)}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  activateStewardPolicy: (policyId: StewardPolicyId, body: { version: number; approved_by: string }, stream?: string) =>
+    request(`/api/stewardship/policies/${policyId}/activate${streamQuery(stream)}`, { method: "POST", body: JSON.stringify(body) }),
+  getClientEscalationExample: () => request<Record<string, unknown>>("/api/stewardship/studio/escalation/client-example"),
+  previewClientEscalation: (streamId: string, graph: unknown) =>
+    request<ClientEscalationPreview>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/studio/escalation/preview`, {
+      method: "POST",
+      body: JSON.stringify({ graph }),
+    }),
+  decideClientException: (
+    streamId: string,
+    body: { issue_id: string; client_step: string; decision: "adopt" | "decline"; decided_by: string; note?: string },
+  ) => request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/exceptions`, { method: "POST", body: JSON.stringify(body) }),
   getIssueCatalogue: () => request<IssueCatalogue>("/api/stewardship/catalogue"),
   getCoverageInputs: () => request<{ contexts: Record<string, unknown>[] }>("/api/stewardship/studio/coverage/inputs"),
   previewCoverage: (graph: unknown) =>

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,18 +9,21 @@ from pydantic import BaseModel
 
 from arp.api.deps import get_engagement_store, get_stream_store, settings_dep
 from arp.config import Settings
-from arp.schemas.engagement import IssueSeverity, TriggerSource
+from arp.schemas.engagement import EscalationStage, IssueSeverity, TriggerSource
 from arp.stewardship import escalation, monitoring
-from arp.stewardship.policies import POLICIES, PolicyStore, coverage_preview, voting_preview
+from arp.stewardship.policies import PolicyStore, coverage_preview, voting_preview
 from arp.stewardship.policy_review import DATA, load
 from arp.stewardship.process import (
     HOUSE,
     SAMPLE_PATH,
     StreamStore,
     build_stream_policy,
+    client_escalations,
+    client_store,
     confirm_tiers,
     escalation_contexts,
     flow,
+    open_exceptions,
     record_decision,
     tier_review,
 )
@@ -138,16 +142,24 @@ def get_tiers(
 # --- Stage studios: versioned house policies, design and calibration ---------
 
 
-def _policy_or_404(policy_id: str) -> str:
-    if policy_id not in POLICIES:
-        raise HTTPException(404, "Unknown policy")
-    return policy_id
+def _store(streams: StreamStore, stream: str, policy_id: str) -> PolicyStore:
+    """The house store, or a client stream's store (`?stream=<id>`) for the
+    policies that have a client form."""
+    if stream == HOUSE:
+        store = PolicyStore(streams.root)
+    else:
+        _stream_or_404(streams, stream)
+        store = client_store(streams.root, stream)
+    try:
+        store.versions(policy_id)
+    except KeyError as exc:
+        raise HTTPException(404, "Unknown policy") from exc
+    return store
 
 
 @router.get("/policies/{policy_id}")
-def get_policy(policy_id: str, streams: StreamStore = Depends(get_stream_store)) -> dict:
-    store = PolicyStore(streams.root)
-    _policy_or_404(policy_id)
+def get_policy(policy_id: str, stream: str = HOUSE, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    store = _store(streams, stream, policy_id)
     active = store.active_version(policy_id)
     return {
         "policy_id": policy_id,
@@ -159,9 +171,11 @@ def get_policy(policy_id: str, streams: StreamStore = Depends(get_stream_store))
 
 
 @router.get("/policies/{policy_id}/versions/{version}")
-def get_policy_version(policy_id: str, version: int, streams: StreamStore = Depends(get_stream_store)) -> dict:
+def get_policy_version(
+    policy_id: str, version: int, stream: str = HOUSE, streams: StreamStore = Depends(get_stream_store)
+) -> dict:
     try:
-        return PolicyStore(streams.root).content(_policy_or_404(policy_id), version)
+        return _store(streams, stream, policy_id).content(policy_id, version)
     except KeyError as exc:
         raise HTTPException(404, "Unknown version") from exc
 
@@ -173,11 +187,12 @@ class SavePolicyRequest(BaseModel):
 
 
 @router.post("/policies/{policy_id}/versions")
-def save_policy_version(policy_id: str, body: SavePolicyRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
+def save_policy_version(
+    policy_id: str, body: SavePolicyRequest, stream: str = HOUSE, streams: StreamStore = Depends(get_stream_store)
+) -> dict:
+    store = _store(streams, stream, policy_id)
     try:
-        version = PolicyStore(streams.root).save(
-            _policy_or_404(policy_id), body.content, body.note, body.created_by, json.loads(SAMPLE_PATH.read_text())
-        )
+        version = store.save(policy_id, body.content, body.note, body.created_by, json.loads(SAMPLE_PATH.read_text()))
     except (ValueError, KeyError) as exc:
         raise HTTPException(422, str(exc)) from exc
     return {"version": version}
@@ -189,9 +204,12 @@ class ActivateRequest(BaseModel):
 
 
 @router.post("/policies/{policy_id}/activate")
-def activate_policy_version(policy_id: str, body: ActivateRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
+def activate_policy_version(
+    policy_id: str, body: ActivateRequest, stream: str = HOUSE, streams: StreamStore = Depends(get_stream_store)
+) -> dict:
+    store = _store(streams, stream, policy_id)
     try:
-        return PolicyStore(streams.root).activate(_policy_or_404(policy_id), body.version, body.approved_by)
+        return store.activate(policy_id, body.version, body.approved_by)
     except (ValueError, KeyError) as exc:
         raise HTTPException(422, str(exc)) from exc
 
@@ -338,3 +356,85 @@ def post_escalation_preview(
         return escalation.preview(body.graph, PolicyStore(streams.root).active("escalation_rules"), ctxs)
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(422, f"The escalation rules do not run: {exc}") from exc
+
+
+@router.get("/studio/escalation/client-example")
+def client_escalation_example() -> dict:
+    """An example client escalation graph (stricter on climate for CLTI laggards)."""
+    return escalation.load_client_example()
+
+
+@router.post("/streams/{stream_id}/studio/escalation/preview")
+def post_client_escalation_preview(
+    stream_id: str,
+    body: EscalationPreviewRequest,
+    settings: Settings = Depends(settings_dep),
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    _stream_or_404(streams, stream_id)
+    ctxs = _escalation_contexts(settings, streams, engagements)
+    house = escalation.evaluate(PolicyStore(streams.root).active("escalation_rules"), ctxs)
+    try:
+        return escalation.client_preview(
+            body.graph, client_store(streams.root, stream_id).active("escalation_rules"), ctxs, house
+        )
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(422, f"The escalation rules do not run: {exc}") from exc
+
+
+class ExceptionDecisionRequest(BaseModel):
+    issue_id: str
+    client_step: str  # the step the decider saw: a stale or repeated request finds no open exception
+    decision: Literal["adopt", "decline"]
+    decided_by: str
+    note: str = ""
+
+
+@router.post("/streams/{stream_id}/exceptions")
+def decide_client_exception(
+    stream_id: str,
+    body: ExceptionDecisionRequest,
+    settings: Settings = Depends(settings_dep),
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    """The house decides a client's escalation above its own step: adopt moves the
+    engagement to the client's step; decline keeps the house step. Both are logged
+    on the stream, so the client report can show them."""
+    if not body.decided_by.strip():
+        raise HTTPException(422, "A decision needs decided_by")
+    stream = _stream_or_404(streams, stream_id)
+    ctxs = _escalation_contexts(settings, streams, engagements)
+    house = escalation.evaluate(PolicyStore(streams.root).active("escalation_rules"), ctxs)
+    item = next(
+        (
+            r
+            for r in open_exceptions(stream, client_escalations(streams.root, stream_id, ctxs, house))
+            if (r["issue_id"], r["recommended"]) == (body.issue_id, body.client_step)
+        ),
+        None,
+    )
+    if item is None:
+        raise HTTPException(404, "No open exception for this engagement at this step")
+    if body.decision == "adopt":
+        engagements.set_escalation_stage(
+            item["company_id"],
+            item["issue_id"],
+            EscalationStage(item["recommended"]),
+            body.decided_by,
+            f"Adopted from {stream['name']}: {item['reason']} ({item['rule']})",
+        )
+    row = {
+        "issue_id": item["issue_id"],
+        "company_id": item["company_id"],
+        "theme": item["theme"],
+        "house_step": item["house_recommended"],
+        "client_step": item["recommended"],
+        "decision": body.decision,
+        "decided_by": body.decided_by,
+        "note": body.note,
+        "decided_at": datetime.now(UTC).isoformat(),
+    }
+    streams.save({**stream, "exception_decisions": [*stream.get("exception_decisions", []), row]})
+    return row

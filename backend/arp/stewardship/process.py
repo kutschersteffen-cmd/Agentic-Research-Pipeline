@@ -124,6 +124,7 @@ def _house_stages(
     tiers: dict,
     triggers: list[dict],
     escalations: list[dict],
+    exceptions: list[dict],
 ) -> list[dict]:
     open_issues = list(_open_issues(records))
     all_issues = [i for r in records for i in r.issues]
@@ -243,6 +244,13 @@ def _house_stages(
                 hint=f"{sum(r['promote_tier'] for r in to_decide)} at their tier's cap: promote the tier",
             ),
             _metric("Tier changes to confirm", len(tier_changes), "sample", "warn" if tier_changes else "good"),
+            _metric(
+                "Client escalations above the house",
+                len(exceptions),
+                "live",
+                "warn" if exceptions else "good",
+                "A client's escalation rules want a higher step: adopt or decline",
+            ),
         ],
     )
     for change in tier_changes:
@@ -272,6 +280,22 @@ def _house_stages(
                 "reason": f"{r['reason']} ({r['rule']})",
             }
         )
+    for r in exceptions:
+        s5["decisions"].append(
+            {
+                "kind": "client_exception",
+                "stream_id": r["stream_id"],
+                "client": r["client"],
+                "company_id": r["company_id"],
+                "company": r["company"],
+                "issue_id": r["issue_id"],
+                "theme": r["theme"],
+                "current": r["current"],
+                "house": r["house_recommended"],
+                "client_step": r["recommended"],
+                "reason": f"{r['reason']} ({r['rule']})",
+            }
+        )
     s6 = _stage(
         "tracking",
         6,
@@ -295,7 +319,9 @@ def _house_stages(
     return [s1, s2, s3, s4, s5, s6]
 
 
-def _client_stages(stream: dict, sample: dict, house_policy: dict) -> list[dict]:
+def _client_stages(
+    stream: dict, sample: dict, house_policy: dict, escalations: list[dict], escalation_version: int
+) -> list[dict]:
     result = review(stream["client_policy"], house_policy)
     decide(result, stream["decisions"])
     attach_impact(result, house_policy, sample, "synthetic sample")
@@ -319,6 +345,17 @@ def _client_stages(stream: dict, sample: dict, house_policy: dict) -> list[dict]
                 f"{bt['changed']} of {bt['resolutions']}",
                 "sample",
                 hint="Back-test of the envisioned policy against the house",
+            ),
+            _metric(
+                "Escalation rules",
+                f"v{escalation_version}" if escalation_version else "Same as house",
+                "live",
+            ),
+            _metric(
+                "Escalations above the house",
+                sum(r["higher"] for r in escalations),
+                "sample",
+                hint="Live ones go to the house checkpoint (stage 5)",
             ),
         ],
         can_build=not open_rows and stream.get("built_policy") is None,
@@ -408,22 +445,30 @@ def flow(stream_id: str, streams: StreamStore, records: list[EngagementRecord], 
     house_policy = PolicyStore(streams.root).active("house_voting")
     tiers = tier_review(streams.root, sample, records)
     triggers = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, records)
-    escalations = escalation.evaluate(
-        PolicyStore(streams.root).active("escalation_rules"),
-        escalation_contexts(streams.root, sample, records, sla_days, triggers),
-    )
+    ctxs = escalation_contexts(streams.root, sample, records, sla_days, triggers)
+    escalations = escalation.evaluate(PolicyStore(streams.root).active("escalation_rules"), ctxs)
+    clients = {s["stream_id"]: client_escalations(streams.root, s["stream_id"], ctxs, escalations) for s in streams.list()}
+    exceptions = [
+        {**r, "stream_id": s["stream_id"], "client": s["name"]}
+        for s in streams.list()
+        for r in open_exceptions(s, clients[s["stream_id"]])
+    ]
     if stream_id == HOUSE:
         stream = {"stream_id": HOUSE, "name": "House program"}
-        stages = _house_stages(records, sample, house_policy, sla_days, tiers, triggers, escalations) + _house_reporting(
-            streams.list(), records
-        )
+        stages = _house_stages(
+            records, sample, house_policy, sla_days, tiers, triggers, escalations, exceptions
+        ) + _house_reporting(streams.list(), records)
     else:
         stream = streams.get(stream_id)
         if stream is None:
             raise KeyError(stream_id)
         policy = stream.get("built_policy") or house_policy
-        stages = _house_stages(records, sample, policy, sla_days, tiers, triggers, escalations) + _client_stages(
-            stream, sample, house_policy
+        stages = _house_stages(records, sample, policy, sla_days, tiers, triggers, escalations, exceptions) + _client_stages(
+            stream,
+            sample,
+            house_policy,
+            clients[stream_id],
+            client_store(streams.root, stream_id).active_version("escalation_rules"),
         )
     return {
         "stream": {k: stream[k] for k in ("stream_id", "name")} | {"mandate": stream.get("client_policy", {}).get("mandate")},
@@ -431,6 +476,23 @@ def flow(stream_id: str, streams: StreamStore, records: list[EngagementRecord], 
         "stages": stages,
         "edges": EDGES,
     }
+
+
+def client_store(root: Path, stream_id: str) -> PolicyStore:
+    StreamStore(root)._path(stream_id)  # validates the id before it becomes a path
+    return PolicyStore(root / "clients" / stream_id, client=True)
+
+
+def client_escalations(root: Path, stream_id: str, ctxs: list[dict], house: list[dict]) -> list[dict]:
+    graph = client_store(root, stream_id).active("escalation_rules")
+    return escalation.client_evaluate(graph, ctxs, house)
+
+
+def open_exceptions(stream: dict, results: list[dict]) -> list[dict]:
+    """Live engagements where the client's step is above the house's and the house
+    has not yet decided on that step."""
+    decided = {(d["issue_id"], d["client_step"]) for d in stream.get("exception_decisions", [])}
+    return [r for r in results if r["higher"] and r["source"] == "live" and (r["issue_id"], r["recommended"]) not in decided]
 
 
 def escalation_contexts(

@@ -7,10 +7,33 @@ import pytest
 
 pytest.importorskip("zen")
 
+from fastapi import HTTPException  # noqa: E402
+
+from arp.api.routers.stewardship import (  # noqa: E402
+    CreateStreamRequest,
+    ExceptionDecisionRequest,
+    create_stream,
+    decide_client_exception,
+)
+from arp.config import Settings  # noqa: E402
 from arp.schemas.engagement import Commitment, CommitmentStatus  # noqa: E402
-from arp.stewardship.escalation import evaluate, load_graph, preview  # noqa: E402
+from arp.stewardship.escalation import (  # noqa: E402
+    client_evaluate,
+    evaluate,
+    load_client_default,
+    load_client_example,
+    load_graph,
+    preview,
+)
 from arp.stewardship.policies import PolicyStore  # noqa: E402
-from arp.stewardship.process import HOUSE, SAMPLE_PATH, StreamStore, escalation_contexts, flow  # noqa: E402
+from arp.stewardship.process import (  # noqa: E402
+    HOUSE,
+    SAMPLE_PATH,
+    StreamStore,
+    client_store,
+    escalation_contexts,
+    flow,
+)
 from arp.storage.engagement_store import EngagementStore  # noqa: E402
 
 SAMPLE = json.loads(SAMPLE_PATH.read_text())
@@ -112,3 +135,66 @@ def test_a_cap_outside_the_ladder_is_rejected_on_save(tmp_path):
     caps["content"]["rules"][-1]["m"] = "9"  # the no-tier fallback
     with pytest.raises(ValueError, match="invalid tier cap"):
         PolicyStore(tmp_path).save("escalation_rules", graph, "", "Designer", SAMPLE)
+
+
+def _example_without_wait() -> dict:
+    """The example client graph, without its 3-month wait, so a just-opened live engagement qualifies."""
+    graph = load_client_example()
+    rules = next(n for n in graph["nodes"] if n["id"] == "escalation_rules")
+    rules["content"]["rules"][0]["mas"] = ""
+    return graph
+
+
+def test_client_graph_inherits_the_house_unless_it_overrides(tmp_path):
+    ctxs = escalation_contexts(tmp_path, SAMPLE, [], sla_days=30)
+    house = evaluate(load_graph(), ctxs)
+    assert not any(r["higher"] for r in client_evaluate(load_client_default(), ctxs, house))
+    higher = [r for r in client_evaluate(load_client_example(), ctxs, house) if r["higher"]]
+    assert [(r["company_id"], r["recommended"], r["rule"]) for r in higher] == [
+        ("SYN10", "vote_against_management", "clti_laggard")
+    ]
+
+
+def test_client_store_only_holds_client_policies_and_keeps_four_eyes(tmp_path):
+    store = client_store(tmp_path, "pension-fund")
+    assert store.versions("escalation_rules")[0]["note"] == "Same as the house"
+    with pytest.raises(KeyError):
+        store.versions("coverage_rules")
+    version = store.save("escalation_rules", load_client_example(), "CLTI", "Designer", SAMPLE)
+    with pytest.raises(ValueError, match="Four-eyes"):
+        store.activate("escalation_rules", version, "designer")
+    store.activate("escalation_rules", version, "Approver")
+    assert PolicyStore(tmp_path).active_version("escalation_rules") == 0  # the house is untouched
+    with pytest.raises(ValueError):
+        client_store(tmp_path, "../escape")
+
+
+@pytest.mark.parametrize("decision", ["adopt", "decline"])
+def test_a_client_escalation_above_the_house_is_decided_at_the_house_checkpoint(tmp_path, decision):
+    streams, engagements = StreamStore(tmp_path / "s"), EngagementStore(tmp_path / "e")
+    stream = streams.get(create_stream(CreateStreamRequest(name="Pension Fund", vehicle_type="SMA"), streams)["stream_id"])
+    store = client_store(streams.root, stream["stream_id"])
+    store.activate(
+        "escalation_rules", store.save("escalation_rules", _example_without_wait(), "", "Designer", SAMPLE), "Approver"
+    )
+    _, issue = engagements.open_issue("SYN10", "Synthetic Company 10", theme="climate_transition")
+    settings = Settings(engagement_sla_days=365)
+
+    def checkpoint():
+        stages = flow(HOUSE, streams, engagements.list_all(), sla_days=365)["stages"]
+        return [d for d in next(s for s in stages if s["id"] == "checkpoint")["decisions"] if d["kind"] == "client_exception"]
+
+    [item] = checkpoint()
+    assert (item["client"], item["house"], item["client_step"]) == ("Pension Fund", "private_engagement", "joint_engagement")
+    body = ExceptionDecisionRequest(
+        issue_id=issue.issue_id, client_step=item["client_step"], decision=decision, decided_by="Lead"
+    )
+    row = decide_client_exception(stream["stream_id"], body, settings, streams, engagements)
+    assert row["decision"] == decision
+    # the decided step is gone (this test graph has no wait, so after an adopt it already asks for the next step)
+    assert all(d["client_step"] != item["client_step"] for d in checkpoint())
+    [live] = engagements.get("SYN10").issues
+    assert live.escalation_stage.value == ("joint_engagement" if decision == "adopt" else "private_engagement")
+    with pytest.raises(HTTPException) as again:
+        decide_client_exception(stream["stream_id"], body, settings, streams, engagements)
+    assert again.value.status_code == 404

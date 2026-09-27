@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client";
 import type {
   CatalogueIssue,
+  ClientEscalationPreview,
+  ClientExceptionItem,
   CoveragePreview,
   EscalationDecisionItem,
   EscalationPreview,
@@ -21,7 +23,7 @@ import type {
   VotingPreview,
 } from "../../types";
 import { ActorField, DataTable, Planned, Section, StudioHeader, VersionsPanel, useActor, usePolicy, words } from "./common";
-import { EscalationDecisions, PolicyDifference, TierDecisions } from "./decisions";
+import { ClientExceptionDecisions, EscalationDecisions, PolicyDifference, TierDecisions } from "./decisions";
 
 export interface StudioProps {
   stage: StewardshipStage;
@@ -38,8 +40,8 @@ function countMissing(value: unknown): number {
 }
 
 /** The working copy of a versioned rule graph: load a version, edit, preview against the active one. */
-function useRuleDraft<P>(policyId: StewardPolicyId, previewFn: (graph: Record<string, unknown>) => Promise<P>) {
-  const { info, error, reload } = usePolicy(policyId);
+function useRuleDraft<P>(policyId: StewardPolicyId, previewFn: (graph: Record<string, unknown>) => Promise<P>, stream?: string) {
+  const { info, error, reload } = usePolicy(policyId, stream);
   const [graph, setGraph] = useState<Record<string, unknown> | null>(null);
   const [baseVersion, setBaseVersion] = useState<number | null>(null);
   const [preview, setPreview] = useState<P | null>(null);
@@ -65,7 +67,7 @@ function useRuleDraft<P>(policyId: StewardPolicyId, previewFn: (graph: Record<st
     }
   }
   async function load(version: number) {
-    setGraph(await api.getStewardPolicyVersion(policyId, version));
+    setGraph(await api.getStewardPolicyVersion(policyId, version, stream));
     setBaseVersion(version);
     setPreview(null);
   }
@@ -742,6 +744,7 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
   }, []);
   const escalations = stage.decisions.filter((d): d is EscalationDecisionItem => d.kind === "escalation");
   const tiers = stage.decisions.filter((d): d is TierChangeItem => d.kind === "tier_change");
+  const clientItems = stage.decisions.filter((d): d is ClientExceptionItem => d.kind === "client_exception");
   const ruleRows = preview
     ? [...new Set([...Object.keys(preview.by_rule_active), ...Object.keys(preview.by_rule_candidate)])].map((rule) => ({
         rule,
@@ -763,7 +766,9 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
       />
       <ActorField actor={actor} onChange={setActor} />
       <Section step="Decide" title="Decisions waiting">
-        {escalations.length === 0 && tiers.length === 0 && <p className="muted">Nothing is waiting for a decision.</p>}
+        {escalations.length === 0 && tiers.length === 0 && clientItems.length === 0 && (
+          <p className="muted">Nothing is waiting for a decision.</p>
+        )}
         {escalations.length > 0 && (
           <>
             <h4>Escalations</h4>
@@ -779,6 +784,12 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
                 onChanged();
               }}
             />
+          </>
+        )}
+        {clientItems.length > 0 && (
+          <>
+            <h4>Client escalations above the house</h4>
+            <ClientExceptionDecisions items={clientItems} actor={actor} onDone={onChanged} />
           </>
         )}
         {tiers.length > 0 && <TierDecisions items={tiers} actor={actor} onDone={onChanged} />}
@@ -877,7 +888,6 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
             "The engagement SLA (days without activity before an engagement counts as stalled); today a server setting.",
             "Which items always need a second sign-off (e.g. vote sanctions, advocacy outreach).",
             "Voting intentions and disclosure records to approve (E2, E3), once the voting feed exists.",
-            "Client escalation rules chained on the house result, with client exceptions raised here.",
           ]}
         />
       </Section>
@@ -956,6 +966,12 @@ export function ClientPicker({
 
 export function ClientPolicyStudio({ stage, streamId, onChanged }: StudioProps & { streamId: string }) {
   const [actor, setActor] = useActor();
+  const draft = useRuleDraft<ClientEscalationPreview>(
+    "escalation_rules",
+    (graph) => api.previewClientEscalation(streamId, graph),
+    streamId,
+  );
+  const { info, graph, preview } = draft;
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const differences = stage.decisions.filter((d): d is PolicyDifferenceItem => d.kind === "policy_difference");
@@ -980,11 +996,12 @@ export function ClientPolicyStudio({ stage, streamId, onChanged }: StudioProps &
           { label: "Review", ready: true },
           { label: "Calibrate", ready: true },
           { label: "Decide", ready: true },
-          { label: "Versions", ready: false },
+          { label: "Design", ready: true },
+          { label: "Versions", ready: true },
         ]}
       />
-      <Section step="Review · Calibrate · Decide" title="The client's policy against the house policy">
-        <ActorField actor={actor} onChange={setActor} />
+      <ActorField actor={actor} onChange={setActor} />
+      <Section step="Review · Calibrate · Decide" title="The client's voting policy against the house policy">
         <p className="muted">
           {open.length} of {differences.length} differences still to decide. Each shows its back-test effect on the synthetic sample.
         </p>
@@ -999,6 +1016,63 @@ export function ClientPolicyStudio({ stage, streamId, onChanged }: StudioProps &
         {[...open, ...differences.filter((d) => d.decision !== null)].map((item) => (
           <PolicyDifference key={item.issue_id} item={item} streamId={streamId} actor={actor} onDone={onChanged} />
         ))}
+      </Section>
+      {draft.error && <p className="error-text">{draft.error}</p>}
+      <Section step="Design" title="The client's escalation rules">
+        <p className="help-text">
+          The same two tables as the house rules (stage 5), evaluated after them with the house answer under <code>house.*</code>:{" "}
+          <code>house.escalate_by</code>, <code>house.max_step</code>, <code>house.recommended_step</code>, <code>house.rule</code>,{" "}
+          <code>house.reason</code>. Version 0 returns the house answer unchanged; a client rule overrides it where the client wants
+          more. Where the client&apos;s step is above the house&apos;s on a live engagement, the house decides at stage 5 whether to
+          adopt it. Give trigger-based rules a wait at each step (<code>engagement.months_at_step</code>), otherwise one condition
+          keeps asking for the next step.
+        </p>
+        <div className="toolbar">
+          <span className="muted">{draft.editing}</span>
+          <button
+            className="secondary"
+            onClick={async () => draft.setGraph(await api.getClientEscalationExample())}
+            title="A client that escalates climate engagements with CLTI laggards one step further than the house"
+          >
+            Start from the example client rules
+          </button>
+        </div>
+        {graph && <PolicyCanvas graph={graph} onChange={draft.setGraph} />}
+      </Section>
+      <Section step="Calibrate" title="Client against house">
+        <div className="toolbar">
+          <button onClick={draft.runPreview} disabled={!graph || draft.previewing}>
+            {draft.previewing ? "Running…" : "Preview against the house and the client's active rules"}
+          </button>
+        </div>
+        {draft.previewError && <p className="error-text">{draft.previewError}</p>}
+        {preview && (
+          <>
+            <p className="muted">
+              {preview.engagements} open engagements. This draft goes above the house on {preview.higher_candidate}; the client&apos;s
+              active rules on {preview.higher_active}.
+            </p>
+            <DataTable rows={preview.rows} />
+          </>
+        )}
+      </Section>
+      <Section step="Versions" title="Save and activate the client's escalation rules">
+        {info && graph && (
+          <VersionsPanel
+            policyId="escalation_rules"
+            stream={streamId}
+            info={info}
+            workingCopy={graph}
+            dirty={draft.dirty}
+            actor={actor}
+            onSaved={draft.reload}
+            onLoad={draft.load}
+            onActivated={() => {
+              draft.reload();
+              onChanged();
+            }}
+          />
+        )}
       </Section>
     </>
   );

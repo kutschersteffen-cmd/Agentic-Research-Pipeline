@@ -1187,9 +1187,9 @@ available today (✓) and which are designed but not built (○):
 | 2 Selection | Coverage rules in the rule-graph editor; preview of tier moves against the active rules; versions | — |
 | 3 Drafting | Stage numbers; drafting stays on the Engagement page | E6 interaction tagging, E8 phrase blocklist, templates |
 | 4 Voting | House voting positions editor (per issue: vote, target, thresholds, rationale); back-test against the active policy; versions | — |
-| 5 Checkpoint | Escalation decisions from the escalation rules and tier confirmations; recommendations for every open engagement; escalation rules and tier caps in the rule-graph editor; preview; versions | SLA and sign-off rules as configuration, client escalation rules |
+| 5 Checkpoint | Escalation decisions from the escalation rules, client escalations above the house (adopt or keep the house step) and tier confirmations; recommendations for every open engagement; escalation rules and tier caps in the rule-graph editor; preview; versions | SLA and sign-off rules as configuration |
 | 6 Tracking | Open engagements by milestone | Milestone ladder configuration, missed-commitment triggers, E7 |
-| 7 Client policy | Per client stream: policy review, decisions, build | Versioning of client policies |
+| 7 Client policy | Per client stream: voting policy review, decisions, build; the client's escalation rules (editor, preview against the house, versions) | Versioning of client voting policies; client coverage rules |
 | 8 Reporting | Built-policy status | Client reports, E2 disclosure, program proposal and PPT |
 
 **Versioned house policies** (`backend/arp/stewardship/policies.py`). The monitoring
@@ -1310,9 +1310,34 @@ resulting tier changes into the stage 5 queue.
   and in the preview, so the rules can be calibrated before any live engagement
   exists. This replaces the fixed rule "stalled → one step up" from the
   engagement orchestrator.
-- Not built: client escalation rules chained on the house result (the
-  `escalation_higher` exception), and storing each recommendation as a Policy
-  Evaluation with the Escalation Change.
+- Not built: storing each recommendation as a Policy Evaluation with the
+  Escalation Change.
+
+**Client escalation rules (stage 7 → stage 5), as built.** Every client stream has
+its own versioned `escalation_rules` (`PolicyStore(..., client=True)`, stored under
+`clients/<stream_id>/policies/` in the streams directory; four-eyes as for the house).
+
+- The client graph has the same two tables and runs **after** the house graph,
+  with the house answer under `house.*` (`escalate_by`, `max_step`,
+  `recommended_step`, `rule`, `reason`). Version 0
+  ([`client_escalation_inherit.graph.json`](../backend/arp/stewardship/data/client_escalation_inherit.graph.json))
+  returns the house answer unchanged, so a client without rules inherits the house.
+- The example ([`examples/client_escalation_example.graph.json`](../backend/arp/stewardship/data/examples/client_escalation_example.graph.json)),
+  the CLTI-tilt client of Part 5: climate engagements may reach a vote against
+  management whatever the tier (`max([house.max_step, 4])`), and a CLTI laggard
+  (< 40) on climate moves one step more than the house after 3 months at a step.
+- Where the client's step is above the house's on a live engagement, stage 5 shows
+  an `escalation_higher` exception. The house engages each company once, so it
+  either **adopts** the client's step (the engagement moves, with the client and
+  its rule as the reason) or **keeps the house step**. Both are logged on the
+  stream (`exception_decisions`) for the client's report. A decision names the
+  step it was taken on, so a repeated or stale click cannot adopt a later step.
+- Stage 7 shows the client's rule version and how many engagements it puts above
+  the house; the preview compares house, the client's active rules and the draft
+  per engagement.
+- The client's portfolio is not modelled yet, so client rules run over the house's
+  engagements. Client-only issuers and client coverage rules (`tier_higher`) come
+  with client holdings.
 
 Implementation: `backend/arp/stewardship/process.py` (streams and the flow), `policies.py` (versions and previews),
 `backend/arp/api/routers/stewardship.py` (`/api/stewardship/...`),

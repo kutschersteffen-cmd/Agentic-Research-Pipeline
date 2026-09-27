@@ -137,16 +137,16 @@ export function Planned({ items }: { items: string[] }) {
   );
 }
 
-export function usePolicy(policyId: StewardPolicyId) {
+export function usePolicy(policyId: StewardPolicyId, stream?: string) {
   const [info, setInfo] = useState<StewardPolicyInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const reload = useCallback(async () => {
     try {
-      setInfo(await api.getStewardPolicy(policyId));
+      setInfo(await api.getStewardPolicy(policyId, stream));
     } catch (err) {
       setError((err as Error).message);
     }
-  }, [policyId]);
+  }, [policyId, stream]);
   useEffect(() => {
     reload();
   }, [reload]);
@@ -156,6 +156,7 @@ export function usePolicy(policyId: StewardPolicyId) {
 /** Save the working copy as a new version; activate any version with a named approver. */
 export function VersionsPanel({
   policyId,
+  stream,
   info,
   workingCopy,
   dirty,
@@ -165,6 +166,7 @@ export function VersionsPanel({
   onActivated,
 }: {
   policyId: StewardPolicyId;
+  stream?: string;
   info: StewardPolicyInfo;
   workingCopy: unknown;
   dirty: boolean;
@@ -184,7 +186,7 @@ export function VersionsPanel({
     setError(null);
     setMessage(null);
     try {
-      const res = await api.saveStewardPolicyVersion(policyId, { content: workingCopy, note, created_by: actor });
+      const res = await api.saveStewardPolicyVersion(policyId, { content: workingCopy, note, created_by: actor }, stream);
       setNote("");
       setMessage(`Saved as version ${res.version}. It is not active until someone activates it.`);
       onSaved();
@@ -199,7 +201,7 @@ export function VersionsPanel({
     setError(null);
     setMessage(null);
     try {
-      await api.activateStewardPolicy(policyId, { version, approved_by: actor });
+      await api.activateStewardPolicy(policyId, { version, approved_by: actor }, stream);
       setMessage(`Version ${version} is now active.`);
       onActivated();
     } catch (err) {

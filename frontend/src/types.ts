@@ -2174,6 +2174,20 @@ export interface EscalationDecisionItem {
   reason: string;
 }
 
+export interface ClientExceptionItem {
+  kind: "client_exception";
+  stream_id: string;
+  client: string;
+  company_id: string;
+  company: string;
+  issue_id: string;
+  theme: string;
+  current: string;
+  house: string;
+  client_step: string;
+  reason: string;
+}
+
 export interface TierChangeItem {
   kind: "tier_change";
   issuer_id: string;
@@ -2207,7 +2221,7 @@ export interface StewardshipStage {
   summary: string;
   status: "live" | "partial" | "not_built";
   metrics: StewardshipMetric[];
-  decisions: (EscalationDecisionItem | TierChangeItem | PolicyDifferenceItem)[];
+  decisions: (EscalationDecisionItem | ClientExceptionItem | TierChangeItem | PolicyDifferenceItem)[];
   details: { label: string; rows: Record<string, string | number>[] }[];
   can_build?: boolean;
 }
@@ -2350,6 +2364,13 @@ export interface EscalationPreview {
   by_rule_active: Record<string, number>;
   changes: Record<string, string>[];
   recommendations: EscalationRecommendation[];
+}
+
+export interface ClientEscalationPreview {
+  engagements: number;
+  higher_candidate: number;
+  higher_active: number;
+  rows: Record<string, string | boolean>[];
 }
 
 export interface VotingPreview {
