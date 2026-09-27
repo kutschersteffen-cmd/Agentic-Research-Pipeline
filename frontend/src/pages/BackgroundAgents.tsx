@@ -110,7 +110,7 @@ function TaxonomyResearcherPanel() {
     <div>
       <p className="help-text">
         Periodically re-derives every ratified taxonomy from current authority sources and proposes a new
-        DRAFT version when genuinely new activities surface. Never ratifies -- review any proposal below in
+        DRAFT version when genuinely new activities surface. Never ratifies — review any proposal below in
         the Taxonomy Library before it's used by a run.
       </p>
       {error && <p className="error-text">{error}</p>}
@@ -301,7 +301,7 @@ function CalibrationPanel() {
       <p className="help-text">
         Scans every completed thematic-universe run and flags a verdict as possibly stale when a company's
         currently-fetchable documents include one fetched after that verdict was generated. A flag is not a
-        claim the verdict is wrong -- it never re-runs classification or edits a match itself.
+        claim the verdict is wrong — it never re-runs classification or edits a match itself.
       </p>
       {error && <p className="error-text">{error}</p>}
 

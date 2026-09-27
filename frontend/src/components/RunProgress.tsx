@@ -72,7 +72,7 @@ export function RunProgress({
     try {
       await api.resumeThemeRun(runId);
       if (timerRef.current) window.clearTimeout(timerRef.current);
-      await poll(); // status is "running" again server-side -- re-arms continued polling
+      await poll(); // status is "running" again server-side — re-arms continued polling
     } catch (err) {
       setActionError((err as Error).message);
     } finally {

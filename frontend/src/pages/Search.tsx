@@ -74,7 +74,7 @@ export function Search() {
       <section className="card">
         {notConfigured && (
           <p className="muted">
-            Search is not enabled on this server -- an administrator needs to set ARP_OPENSEARCH_URL to turn it on.
+            Search is not enabled on this server — an administrator needs to set ARP_OPENSEARCH_URL to turn it on.
           </p>
         )}
         {error && <p className="error">{error}</p>}

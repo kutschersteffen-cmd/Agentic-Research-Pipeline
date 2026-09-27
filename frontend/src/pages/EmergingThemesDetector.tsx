@@ -166,7 +166,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
         <h3>Recent scans</h3>
         <button onClick={refreshRecentRuns}>Refresh</button>
         {recentRuns.length === 0 ? (
-          <p className="muted">No scans yet -- run one above, or enable the automatic schedule below.</p>
+          <p className="muted">No scans yet — run one above, or enable the automatic schedule below.</p>
         ) : (
           <table className="data-table">
             <thead>
@@ -197,7 +197,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
       {selectedRunId && (
         <section className="card">
-          <h3>Candidates -- {selectedRunId}</h3>
+          <h3>Candidates — {selectedRunId}</h3>
           <button onClick={() => refreshCandidates(selectedRunId)}>Refresh candidates</button>
           {candidates.length === 0 ? (
             <p className="muted">No candidates for this run (nothing survived the independent-source-minimum and lineage-birth filters).</p>
@@ -227,7 +227,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                           ))}
                         </div>
                       </td>
-                      <td title="This period's mention count vs. baseline -- see the expanded row for what this cluster's baseline was.">{c.signal_velocity.toFixed(2)}&times;</td>
+                      <td title="This period's mention count vs. baseline — see the expanded row for what this cluster's baseline was.">{c.signal_velocity.toFixed(2)}&times;</td>
                       <td>{c.first_detected_date}</td>
                     </tr>
                     {expanded === c.theme_id && (
@@ -265,7 +265,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
                           {c.contradiction_evidence.length > 0 && (
                             <>
-                              <p><strong>Contradicting evidence</strong> <span className="muted">(retained regardless of status -- delays, cancellations, impairments, or target withdrawals):</span></p>
+                              <p><strong>Contradicting evidence</strong> <span className="muted">(retained regardless of status — delays, cancellations, impairments, or target withdrawals):</span></p>
                               <MentionCitationList citations={c.contradiction_evidence} />
                             </>
                           )}
@@ -274,12 +274,12 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                             <>
                               <p>
                                 <strong>Company exposure</strong>{" "}
-                                <span className="muted">(role + Risk/Momentum/Evidence-quality -- Revenue/Capex/Demand/Enablement are resolved separately once promoted, via "Run company exposure" below):</span>
+                                <span className="muted">(role + Risk/Momentum/Evidence-quality — Revenue/Capex/Demand/Enablement are resolved separately once promoted, via "Run company exposure" below):</span>
                               </p>
                               <ul>
                                 {c.company_exposure.map((x) => (
                                   <li key={x.company_id}>
-                                    <strong>{x.company_id}</strong> -- {x.role.replace(/_/g, " ")}: {x.role_rationale}{" "}
+                                    <strong>{x.company_id}</strong> — {x.role.replace(/_/g, " ")}: {x.role_rationale}{" "}
                                     <span className="muted">
                                       (risk {Math.round(x.risk * 100)}%, momentum {x.momentum.toFixed(2)}&times;, evidence quality {Math.round(x.evidence_quality * 100)}%)
                                     </span>
@@ -315,7 +315,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                           {c.status === "promoted" && (
                             <p className="status-text">
                               Promoted &rarr; taxonomy {c.promoted_to_taxonomy_id} v{c.promoted_to_taxonomy_version}
-                              {c.decision_reason && <> -- "{c.decision_reason}"</>}.{" "}
+                              {c.decision_reason && <> — "{c.decision_reason}"</>}.{" "}
                               {onNavigate && (
                                 <button className="link-button" onClick={() => onNavigate("taxonomy")}>
                                   View in Taxonomy Library
@@ -327,10 +327,10 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                             </p>
                           )}
                           {c.status === "rejected" && c.decision_reason && (
-                            <p className="muted">Rejected -- "{c.decision_reason}"</p>
+                            <p className="muted">Rejected — "{c.decision_reason}"</p>
                           )}
                           {c.status === "disconfirmed" && c.decision_reason && (
-                            <p className="muted">Disconfirmed -- "{c.decision_reason}"</p>
+                            <p className="muted">Disconfirmed — "{c.decision_reason}"</p>
                           )}
                         </td>
                       </tr>

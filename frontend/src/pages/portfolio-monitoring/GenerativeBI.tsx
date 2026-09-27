@@ -30,7 +30,7 @@ function RejectedSentences({ narrative }: { narrative: Narrative }) {
   return (
     <details>
       <summary>
-        {narrative.rejected_sentences.length} rejected sentence(s) -- no computed figure supports{" "}
+        {narrative.rejected_sentences.length} rejected sentence(s) — no computed figure supports{" "}
         {narrative.ungrounded_tokens.join(", ")}
       </summary>
       <ul className="citation-list">
@@ -73,7 +73,7 @@ function NarrativeBlock({ narrative }: { narrative?: Narrative }) {
             <RejectedSentences narrative={narrative} />
           </div>
         ) : (
-          <p className="muted">Computed figures, stated as-is -- no commentary was generated for this panel.</p>
+          <p className="muted">Computed figures, stated as-is — no commentary was generated for this panel.</p>
         ))}
     </>
   );
@@ -126,7 +126,7 @@ function DashboardView({
     return (
       <section className="card">
         <div className="banner banner-warning">
-          No dashboard was planned: {dashboard.clarification_needed} Nothing was invented in its place -- refine the brief and
+          No dashboard was planned: {dashboard.clarification_needed} Nothing was invented in its place — refine the brief and
           try again.
         </div>
         {dashboard.warnings.map((w) => (
@@ -171,7 +171,7 @@ function DashboardView({
         </div>
         {dashboard.warnings.length > 0 && (
           <details>
-            <summary>{dashboard.warnings.length} planner note(s) -- rejected, re-planned or failed panels</summary>
+            <summary>{dashboard.warnings.length} planner note(s) — rejected, re-planned or failed panels</summary>
             <ul className="citation-list">
               {dashboard.warnings.map((w) => (
                 <li key={w}>{w}</li>
@@ -278,7 +278,7 @@ export function GenerativeBI() {
         <p className="help-text">
           The model plans the panels and writes the commentary; it never produces a number. Every figure comes from the same
           deterministic engine the Explore and Pivot tabs use, and every figure in the commentary is matched back to a computed
-          panel result before you see it -- an invented or derived figure is rejected and replaced by the computed facts.
+          panel result before you see it — an invented or derived figure is rejected and replaced by the computed facts.
           A panel that fails validation gets exactly one re-plan attempt, and both attempts are listed under the planner
           notes. Requires <code>ARP_ANTHROPIC_API_KEY</code> on the server.
         </p>
@@ -291,7 +291,7 @@ export function GenerativeBI() {
         />
         <label className="checkbox-label">
           <input type="checkbox" checked={narrate} onChange={(e) => setNarrate(e.target.checked)} />
-          Write commentary (uncheck for panels and computed facts only -- one LLM call instead of two)
+          Write commentary (uncheck for panels and computed facts only — one LLM call instead of two)
         </label>
         <div className="toolbar">
           <button onClick={() => generate(brief)} disabled={busy || !brief.trim()}>

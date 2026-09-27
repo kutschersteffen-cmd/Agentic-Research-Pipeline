@@ -42,7 +42,7 @@ export function AskThePortfolio() {
     <section className="card">
       <h3>Ask the Portfolio</h3>
       <p className="help-text">
-        The LLM only drafts the underlying query (portfolios, filters, grouping, metric) -- the deterministic
+        The LLM only drafts the underlying query (portfolios, filters, grouping, metric) — the deterministic
         aggregation engine computes the real number. Requires <code>ARP_ANTHROPIC_API_KEY</code> to be configured on
         the server.
       </p>

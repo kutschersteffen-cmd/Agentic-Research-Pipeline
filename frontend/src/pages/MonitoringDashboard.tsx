@@ -226,7 +226,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
             </div>
             {finished.length > 0 && (
               <div className="table-wrap">
-                <table className="data-table">
+                <table className="data-table stack-on-phone">
                   <thead>
                     <tr>
                       <th>Run ID</th>
@@ -241,12 +241,12 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                   <tbody>
                     {finished.map((r) => (
                       <tr key={r.run_id}>
-                        <td>{r.run_id}</td>
-                        <td>{runTypeLabel(r.run_type)}</td>
-                        <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                        <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
-                        <td>{r.review_count}</td>
-                        <td>{new Date(r.updated_at).toLocaleString()}</td>
+                        <td data-label="Run">{r.run_id}</td>
+                        <td data-label="Type">{runTypeLabel(r.run_type)}</td>
+                        <td data-label="Status"><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
+                        <td data-label="Progress">{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
+                        <td data-label="Flagged">{r.review_count}</td>
+                        <td data-label="Finished">{new Date(r.updated_at).toLocaleString()}</td>
                         <td>
                           {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && onOpenReview && (
                             <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
@@ -300,7 +300,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                 </button>
               </div>
               <div className="table-wrap">
-                <table className="data-table">
+                <table className="data-table stack-on-phone">
                   <thead>
                     <tr>
                       <th>Run ID</th>
@@ -312,10 +312,10 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                   <tbody>
                     {votingRuns.map((r) => (
                       <tr key={r.run_id}>
-                        <td>{r.run_id}</td>
-                        <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                        <td>{r.completed_count}/{r.company_count}</td>
-                        <td>{r.review_count}</td>
+                        <td data-label="Run">{r.run_id}</td>
+                        <td data-label="Status"><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
+                        <td data-label="Companies">{r.completed_count}/{r.company_count}</td>
+                        <td data-label="Awaiting decision">{r.review_count}</td>
                       </tr>
                     ))}
                   </tbody>

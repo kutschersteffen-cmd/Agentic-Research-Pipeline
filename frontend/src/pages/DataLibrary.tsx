@@ -116,7 +116,7 @@ function RunResultsView() {
             <option value="">Select a run...</option>
             {runs.map((r) => (
               <option key={r.run_id} value={r.run_id}>
-                {r.run_id} -- {new Date(r.created_at).toLocaleString()} ({r.completed_count}/{r.company_count} companies)
+                {r.run_id} — {new Date(r.created_at).toLocaleString()} ({r.completed_count}/{r.company_count} companies)
               </option>
             ))}
           </select>
@@ -236,7 +236,7 @@ function CompanyResultsView() {
             <option value="">Select a company...</option>
             {companies.map((c) => (
               <option key={c.company_id} value={c.company_id}>
-                {c.name ?? c.company_id}{c.ticker ? ` (${c.ticker})` : ""} -- {c.company_id}
+                {c.name ?? c.company_id}{c.ticker ? ` (${c.ticker})` : ""} — {c.company_id}
               </option>
             ))}
           </select>
@@ -284,7 +284,7 @@ function CompanyResultsView() {
             {kind === "extraction" &&
               extractionRecords.map((r) => (
                 <section className="card" key={r.run_id}>
-                  <h3>Run {r.run_id} -- {new Date(r.generated_at).toLocaleString()}</h3>
+                  <h3>Run {r.run_id} — {new Date(r.generated_at).toLocaleString()}</h3>
                   <p>
                     <ConfidenceBadge value={r.overall_confidence} /> {r.needs_review && <span className="badge badge-low">needs review</span>}
                   </p>
@@ -297,7 +297,7 @@ function CompanyResultsView() {
             {kind === "financials" &&
               financialsRecords.map((r) => (
                 <section className="card" key={r.run_id}>
-                  <h3>Run {r.run_id} -- {new Date(r.generated_at).toLocaleString()}</h3>
+                  <h3>Run {r.run_id} — {new Date(r.generated_at).toLocaleString()}</h3>
                   <p>
                     <ConfidenceBadge value={r.overall_confidence} /> {r.needs_review && <span className="badge badge-low">needs review</span>}
                   </p>
@@ -413,7 +413,7 @@ function ParsedDocumentsView() {
                             </a>
                           </p>
                         ) : (
-                          <p className="muted">Source document not separately registered -- showing cached text only.</p>
+                          <p className="muted">Source document not separately registered — showing cached text only.</p>
                         )}
                         {detail === null ? (
                           <p className="muted">Loading...</p>

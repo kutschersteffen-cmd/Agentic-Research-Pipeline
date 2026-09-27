@@ -253,7 +253,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
         {loadedTaxonomy && (
           <p className="status-text">
             Loaded {loadedTaxonomy.name} v{loadedTaxonomy.version} ({loadedTaxonomy.derivation_method},{" "}
-            {loadedTaxonomy.status}) -- {loadedTaxonomy.theme.activities.length} activities. Edits below are local to
+            {loadedTaxonomy.status}) — {loadedTaxonomy.theme.activities.length} activities. Edits below are local to
             this run and aren't saved back to the taxonomy; use the Taxonomy Library to save changes permanently.
           </p>
         )}
@@ -310,20 +310,20 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
             Enable indirect (input-output) exposure tier using the bundled sample dataset
           </label>
           <p className="help-text">
-            Structural supply-chain exposure via OECD ICIO input-output propagation -- catches companies with no
+            Structural supply-chain exposure via OECD ICIO input-output propagation — catches companies with no
             direct textual evidence but real economic linkage to the theme's core sectors. The sample dataset is
             illustrative only; for a real run, configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH on the
             backend instead and leave this off.
           </p>
 
           <p className="help-text" style={{ marginTop: 16 }}>
-            Optional: a structured revenue/CapEx catalogue -- resolves exposure from hard disclosed numbers
+            Optional: a structured revenue/CapEx catalogue — resolves exposure from hard disclosed numbers
             (catalogue match, then extraction from disclosures) before falling back to the qualitative debate above.
           </p>
           <input type="file" accept=".csv" onChange={uploadCatalogue} />
           {catalogueStatus && <p className="status-text">{catalogueStatus}</p>}
           {cataloguePath && !loadedTaxonomy && (
-            <p className="help-text">Load a saved taxonomy above first -- mapping suggestion needs a taxonomy_id to reference.</p>
+            <p className="help-text">Load a saved taxonomy above first — mapping suggestion needs a taxonomy_id to reference.</p>
           )}
           {cataloguePath && loadedTaxonomy && (
             <button onClick={suggestMapping} disabled={mappingBusy}>
@@ -483,13 +483,13 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
                                         Revenue: {m.revenue_exposure.revenue.value_pct != null ? `${(m.revenue_exposure.revenue.value_pct * 100).toFixed(1)}%` : "unresolved"}
                                         {" "}({m.revenue_exposure.revenue.source})
                                         {m.revenue_exposure.revenue.matched_catalogue_labels.length > 0 &&
-                                          ` -- ${m.revenue_exposure.revenue.matched_catalogue_labels.join(", ")}`}
+                                          ` — ${m.revenue_exposure.revenue.matched_catalogue_labels.join(", ")}`}
                                       </li>
                                       <li>
                                         CapEx: {m.revenue_exposure.capex.value_pct != null ? `${(m.revenue_exposure.capex.value_pct * 100).toFixed(1)}%` : "unresolved"}
                                         {" "}({m.revenue_exposure.capex.source})
                                         {m.revenue_exposure.capex.matched_catalogue_labels.length > 0 &&
-                                          ` -- ${m.revenue_exposure.capex.matched_catalogue_labels.join(", ")}`}
+                                          ` — ${m.revenue_exposure.capex.matched_catalogue_labels.join(", ")}`}
                                       </li>
                                       <li className="muted">Sector-relevant to this company: {m.revenue_exposure.sector_relevant ? "yes" : "no"}</li>
                                     </ul>
@@ -502,8 +502,8 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
                                       {io.core_sector && <span className="badge badge-high">core sector</span>}
                                     </p>
                                     <ul>
-                                      <li>Upstream exposure: {(io.upstream_exposure * 100).toFixed(1)}% -- share of this industry's total input requirement traceable to the activity's core sectors</li>
-                                      <li>Downstream exposure: {(io.downstream_exposure * 100).toFixed(1)}% -- share of this industry's output propagation landing in the activity's core sectors</li>
+                                      <li>Upstream exposure: {(io.upstream_exposure * 100).toFixed(1)}% — share of this industry's total input requirement traceable to the activity's core sectors</li>
+                                      <li>Downstream exposure: {(io.downstream_exposure * 100).toFixed(1)}% — share of this industry's output propagation landing in the activity's core sectors</li>
                                       <li className="muted">Computed from {io.icio_edition}</li>
                                     </ul>
                                   </>

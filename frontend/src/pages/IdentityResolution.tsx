@@ -49,7 +49,7 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
     try {
       const enriched = await api.getEnrichedUniverse(runId);
       if (enriched.companies.length === 0) {
-        setSendStatus("No resolved (or approved) companies yet -- nothing to send.");
+        setSendStatus("No resolved (or approved) companies yet — nothing to send.");
         return;
       }
       const res = await api.universeFromCompanies(enriched.companies, "identity_resolved");

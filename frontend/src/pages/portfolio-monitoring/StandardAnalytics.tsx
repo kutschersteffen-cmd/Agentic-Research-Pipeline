@@ -24,11 +24,11 @@ export function StandardAnalytics() {
   return (
     <>
       <p className="help-text">
-        Pre-built climate risk dashboards for the current selection. Factor, concentration, and PAI dashboards
-        aren't built yet (see <code>docs/SPEC_GAP_ANALYSIS.md</code>) -- only climate risk is modeled today.
+        Pre-built climate risk dashboards for the current selection. Only climate risk is modelled today; factor,
+        concentration and PAI dashboards are not built yet.
       </p>
       {portfolios.length === 0 ? (
-        <p className="muted">Seed the demo dataset above to see dashboards.</p>
+        <p className="muted">No portfolios are loaded yet. Use the portfolio panel above to load or seed them.</p>
       ) : (
         <>
           <WaciCard />
@@ -181,7 +181,7 @@ function CoverageCard() {
   return (
     <section className="card">
       <h3>Data coverage</h3>
-      <p className="help-text">Which source resolved each issuer's value for a field -- never mistake partial coverage for complete data.</p>
+      <p className="help-text">Which source resolved each issuer's value for a field — never mistake partial coverage for complete data.</p>
       <label className="field-label">
         Field
         <select value={fieldId} onChange={(e) => setFieldId(e.target.value)}>

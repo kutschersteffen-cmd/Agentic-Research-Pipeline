@@ -126,7 +126,7 @@ function ProposeStage({
       <h3>1. Propose a strategy</h3>
       <p className="help-text">
         Search for candidate "outperformance" papers on a topic, or skip straight to describing your own methodology
-        in plain English below -- both ways feed the same drafting step, which produces a spec sheet you review
+        in plain English below — both ways feed the same drafting step, which produces a spec sheet you review
         before anything runs.
       </p>
 
@@ -260,10 +260,10 @@ function ReviewStage({
         {state.approved ? <span className="badge badge-high">Approved</span> : <span className="badge badge-mid">Needs approval</span>}
       </div>
       <p className="help-text">
-        {spec.strategy_name} -- {spec.signal_type}, {spec.holding_period_months}-month holding period,
+        {spec.strategy_name} — {spec.signal_type}, {spec.holding_period_months}-month holding period,
         {" "}{spec.num_portfolios} portfolios (long #{spec.long_leg_portfolio} / short #{spec.short_leg_portfolio}),
         {" "}{spec.rebalance_frequency} rebalance. Grounded: {spec.grounded ? "yes" : "no"} (confidence {Math.round(spec.confidence * 100)}%).
-        {!spec.grounded && " Any manually edited or instruction-revised field is no longer grounded against source text -- review it carefully before approving."}
+        {!spec.grounded && " Any manually edited or instruction-revised field is no longer grounded against source text — review it carefully before approving."}
       </p>
 
       <label className="field-label" htmlFor="strategy-instruction">Give an instruction in natural language</label>
@@ -560,7 +560,7 @@ function ResultsView({
           ))}
         </div>
       ) : (
-        <p className="muted">Not run yet -- an LLM second opinion on whether these figures look plausible.</p>
+        <p className="muted">Not run yet — an LLM second opinion on whether these figures look plausible.</p>
       )}
 
       <div className="section-heading">
@@ -581,10 +581,10 @@ function ResultsView({
           <p className="muted">{detail.regime_report.notes}</p>
         )
       ) : (
-        <p className="muted">Not run yet -- breaks performance out by low/mid/high benchmark-volatility regime.</p>
+        <p className="muted">Not run yet — breaks performance out by low/mid/high benchmark-volatility regime.</p>
       )}
       <p className="muted">
-        Charts are long/short/long-short leg-level only -- the backtest engine doesn't retain per-decile-portfolio
+        Charts are long/short/long-short leg-level only — the backtest engine doesn't retain per-decile-portfolio
         returns, so a per-decile breakdown isn't available.
       </p>
     </div>

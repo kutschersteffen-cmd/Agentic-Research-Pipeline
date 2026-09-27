@@ -298,9 +298,15 @@ def list_mechanism_versions(framework_id: str, store: DecisionStore = Depends(ge
 
 
 @router.post("/mechanisms/{framework_id}/ratify", response_model=MechanismConfig)
-def ratify_mechanism(framework_id: str, version: int | None = None, store: DecisionStore = Depends(get_decision_store)) -> MechanismConfig:
+def ratify_mechanism(
+    framework_id: str,
+    version: int | None = None,
+    ratified_by: str | None = None,
+    store: DecisionStore = Depends(get_decision_store),
+) -> MechanismConfig:
+    """`ratified_by` names the person ratifying; the UI always sends it."""
     try:
-        return store.ratify(framework_id, version)
+        return store.ratify(framework_id, version, ratified_by=ratified_by.strip() if ratified_by else None)
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
 

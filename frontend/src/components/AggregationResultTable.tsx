@@ -10,7 +10,7 @@ export function AggregationResultTable({ result }: { result: AggregationResult }
   return (
     <div>
       <p className="muted">
-        {result.spec_name} -- grouped by {result.group_by}, as of {result.as_of}
+        {result.spec_name} — grouped by {result.group_by}, as of {result.as_of}
       </p>
       <div className="table-wrap">
         <table className="data-table">
