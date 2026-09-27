@@ -32,7 +32,7 @@ from arp.stewardship.process import (
     record_decision,
     tier_review,
 )
-from arp.stewardship.program import ProgramParams, build_proposal, simulate
+from arp.stewardship.program import ProgramParams, approve, build_proposal, monitor, record_run, simulate
 from arp.stewardship.tiers import TierStore, tier_contexts
 from arp.storage.engagement_store import EngagementStore
 
@@ -492,6 +492,8 @@ def get_program(
     stream = _stream_or_404(streams, stream_id)
     return {
         "saved": stream.get("program"),
+        "versions": stream.get("program_versions", []),
+        "runs": stream.get("program_runs", []),
         "simulation": simulate(streams.root, stream, engagements.list_all(), settings.engagement_sla_days),
     }
 
@@ -546,3 +548,62 @@ def get_program_proposal(
         filename=path.name,
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
     )
+
+
+class ApproveProgramRequest(BaseModel):
+    approved_by: str
+
+
+@router.post("/streams/{stream_id}/program/approve")
+def post_program_approve(
+    stream_id: str,
+    body: ApproveProgramRequest,
+    settings: Settings = Depends(settings_dep),
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    """Freezes the saved calibration as a new program version (four-eyes)."""
+    stream = _stream_or_404(streams, stream_id)
+    try:
+        stream = approve(streams.root, stream, engagements.list_all(), settings.engagement_sla_days, body.approved_by)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    streams.save(stream)
+    return stream["program_versions"][-1]
+
+
+@router.get("/streams/{stream_id}/program/monitor")
+def get_program_monitor(
+    stream_id: str,
+    settings: Settings = Depends(settings_dep),
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    stream = _stream_or_404(streams, stream_id)
+    return monitor(streams.root, stream, engagements.list_all(), settings.engagement_sla_days)
+
+
+class RecordRunRequest(BaseModel):
+    recorded_by: str
+
+
+@router.post("/streams/{stream_id}/program/runs")
+def post_program_run(
+    stream_id: str,
+    body: RecordRunRequest,
+    settings: Settings = Depends(settings_dep),
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    """Records one monitoring run (a KPI snapshot) against the approved version."""
+    if not body.recorded_by.strip():
+        raise HTTPException(422, "Recording a run needs recorded_by")
+    stream = _stream_or_404(streams, stream_id)
+    try:
+        stream = record_run(
+            stream, monitor(streams.root, stream, engagements.list_all(), settings.engagement_sla_days), body.recorded_by
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    streams.save(stream)
+    return stream["program_runs"][-1]

@@ -2,8 +2,11 @@ import type {
   CompanyBallot,
   ClientEscalationPreview,
   ClientReport,
+  ProgramMonitor,
   ProgramParams,
+  ProgramRun,
   ProgramSimulation,
+  ProgramVersion,
   CoveragePreview,
   EscalationPreview,
   EscalationRecommendation,
@@ -349,7 +352,12 @@ export const api = {
   activateStewardPolicy: (policyId: StewardPolicyId, body: { version: number; approved_by: string }, stream?: string) =>
     request(`/api/stewardship/policies/${policyId}/activate${streamQuery(stream)}`, { method: "POST", body: JSON.stringify(body) }),
   getProgram: (streamId: string) =>
-    request<{ saved: { params: ProgramParams; updated_by: string; updated_at: string } | null; simulation: ProgramSimulation }>(
+    request<{
+      saved: { params: ProgramParams; updated_by: string; updated_at: string } | null;
+      versions: ProgramVersion[];
+      runs: ProgramRun[];
+      simulation: ProgramSimulation;
+    }>(
       `/api/stewardship/streams/${encodeURIComponent(streamId)}/program`,
     ),
   simulateProgram: (streamId: string, params: ProgramParams) =>
@@ -361,6 +369,17 @@ export const api = {
     request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program`, {
       method: "PUT",
       body: JSON.stringify({ params, updated_by: updatedBy }),
+    }),
+  approveProgram: (streamId: string, approvedBy: string) =>
+    request<ProgramVersion>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program/approve`, {
+      method: "POST",
+      body: JSON.stringify({ approved_by: approvedBy }),
+    }),
+  monitorProgram: (streamId: string) => request<ProgramMonitor>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program/monitor`),
+  recordProgramRun: (streamId: string, recordedBy: string) =>
+    request<ProgramRun>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program/runs`, {
+      method: "POST",
+      body: JSON.stringify({ recorded_by: recordedBy }),
     }),
   programProposalUrl: (streamId: string) => `${API_BASE}/api/stewardship/streams/${encodeURIComponent(streamId)}/program/proposal.pptx`,
   getClientReport: (streamId: string) => request<ClientReport>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/report`),

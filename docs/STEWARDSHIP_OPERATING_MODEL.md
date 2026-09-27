@@ -845,9 +845,21 @@ Workflow page (per client stream).
 - **Proposal**: `GET /api/stewardship/streams/{id}/program/proposal.pptx`, from the
   saved calibration, through the deterministic deck builder: objective, tilt,
   targets, votes, escalation, feasibility, monitoring KPIs, calibration and data.
+- **Approval**: approving freezes the saved calibration as an immutable program
+  version (params, target list, KPIs at approval), stored on the stream. Four-eyes:
+  the approver is not the person who saved the calibration. Recalibrating means
+  approving a new version.
+- **Monitoring** (5.5) runs the latest approved version against today's data:
+  weighted CLTI uplift against the approved one, target membership (new names that
+  qualify, targets that no longer do), engagement progress per frozen target
+  (stalled beyond the SLA), client-only targets nobody has engaged yet, and client
+  escalations waiting on a house decision. *Record this monitoring run* appends a
+  KPI snapshot, which builds the time series. Sanction conformance shows as not
+  built: it needs the voting feed.
 - Not built: MSCI World constituents (the 12 sample companies stand in), tracking
-  error (no risk model on the sample), immutable program versions with client
-  approval and frozen targets, the docx, and monitoring the live program (Phase D).
+  error (no risk model on the sample), a separate client sign-off next to the
+  house approval, the docx, and scheduled runs and alert delivery (runs are
+  recorded by hand).
 
 ### 5.7 Policy review — custom policy vs house policy
 

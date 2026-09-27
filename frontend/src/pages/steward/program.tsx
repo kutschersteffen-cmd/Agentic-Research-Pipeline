@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
-import type { ProgramParams, ProgramSimulation } from "../../types";
+import type { ProgramMonitor, ProgramParams, ProgramRun, ProgramSimulation, ProgramVersion } from "../../types";
 import { ActorField, DataTable, Section, useActor, words } from "./common";
 
 // Traffic lights reuse the score badges: green = good, amber = mid, red = low.
-const LIGHT: Record<string, string> = { green: "badge-high", amber: "badge-mid", red: "badge-low" };
+const LIGHT: Record<string, string> = { green: "badge-high", amber: "badge-mid", red: "badge-low", not_built: "badge-neutral" };
 
 type NumberKey = { [K in keyof ProgramParams]: ProgramParams[K] extends number ? K : never }[keyof ProgramParams];
 
@@ -26,6 +26,11 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
   const [params, setParams] = useState<ProgramParams | null>(null);
   const [saved, setSaved] = useState<ProgramParams | null>(null);
   const [savedBy, setSavedBy] = useState<string | null>(null);
+  const [savedAuthor, setSavedAuthor] = useState<string | null>(null);
+  const [versions, setVersions] = useState<ProgramVersion[]>([]);
+  const [runs, setRuns] = useState<ProgramRun[]>([]);
+  const [watch, setWatch] = useState<ProgramMonitor | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
   const [sim, setSim] = useState<ProgramSimulation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
@@ -38,10 +43,14 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
         setParams(r.simulation.params);
         setSaved(r.simulation.params);
         setSavedBy(r.saved ? `${r.saved.updated_by}, ${new Date(r.saved.updated_at).toLocaleDateString()}` : null);
+        setSavedAuthor(r.saved?.updated_by ?? null);
+        setVersions(r.versions);
+        setRuns(r.runs);
         setSim(r.simulation);
       },
       (e) => setError((e as Error).message),
     );
+    api.monitorProgram(streamId).then(setWatch, (e) => setError((e as Error).message));
   }, [streamId]);
 
   // One page, rerun on every change (debounced); only the latest run is shown.
@@ -75,11 +84,34 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
       await api.saveProgram(streamId, params, actor);
       setSaved(params);
       setSavedBy(`${actor}, ${new Date().toLocaleDateString()}`);
+      setSavedAuthor(actor);
       setMessage("Calibration saved. The proposal now uses it.");
     } catch (err) {
       setError((err as Error).message);
     }
   }
+
+  async function act(kind: "approve" | "run") {
+    setBusy(kind);
+    setError(null);
+    setMessage(null);
+    try {
+      if (kind === "approve") {
+        const v = await api.approveProgram(streamId, actor);
+        setVersions([...versions, v]);
+        setMessage(`Program version ${v.version} approved: its ${v.targets.length} targets are now monitored.`);
+      } else {
+        const run = await api.recordProgramRun(streamId, actor);
+        setRuns([...runs, run]);
+      }
+      setWatch(await api.monitorProgram(streamId));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+  const selfApproval = !!savedAuthor && savedAuthor.trim().toLowerCase() === actor.trim().toLowerCase();
 
   if (!params || !sim) return <p className="status-text">{error ?? "Loading…"}</p>;
   const k = sim.kpis;
@@ -158,6 +190,94 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
         </div>
         {message && <p className="status-text">{message}</p>}
         {error && <p className="error-text">{error}</p>}
+      </Section>
+      <Section step="Approve" title="Program versions">
+        <p className="help-text">
+          Approving freezes the saved calibration as a new, unchangeable version with its target list. Monitoring always runs against
+          the latest approved version; recalibrating means approving a new one. A second person (not the one who saved the
+          calibration) approves.
+        </p>
+        <div className="toolbar">
+          <button
+            onClick={() => act("approve")}
+            disabled={!actor || !savedAuthor || dirty || selfApproval || busy !== null}
+            title={
+              !actor
+                ? "Enter your name above first"
+                : !savedAuthor
+                  ? "Save a calibration first"
+                  : dirty
+                    ? "Save or discard the changes first"
+                    : selfApproval
+                      ? "Four-eyes: someone other than the person who saved the calibration approves"
+                      : undefined
+            }
+          >
+            {busy === "approve" ? "Approving…" : "Approve the saved calibration"}
+          </button>
+        </div>
+        <DataTable
+          rows={[...versions].reverse().map((v) => ({
+            version: `v${v.version}`,
+            targets: v.targets.length,
+            "CLTI uplift": v.kpis.clti_uplift,
+            "proposed by": v.proposed_by,
+            "approved by": `${v.approved_by} · ${new Date(v.approved_at).toLocaleDateString()}`,
+          }))}
+          empty="Not approved yet."
+        />
+      </Section>
+      <Section step="Monitor" title="The approved program against today's data">
+        {!watch?.approved ? (
+          <p className="muted">Monitoring starts once a version is approved.</p>
+        ) : (
+          <>
+            <p className="muted">
+              Version {watch.approved.version}, approved by {watch.approved.approved_by}.
+              {watch.calibration_changed ? " The saved calibration has changed since: approve it to monitor the new one." : ""}
+            </p>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>KPI</th>
+                    <th>Status</th>
+                    <th>Detail</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {watch.alerts?.map((a) => (
+                    <tr key={a.kpi}>
+                      <td>{a.kpi}</td>
+                      <td>
+                        <span className={`badge ${LIGHT[a.status]}`}>{a.status === "not_built" ? "not built" : a.status}</span>
+                      </td>
+                      <td>{a.detail}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <h4>Approved targets</h4>
+            <DataTable rows={watch.targets ?? []} />
+            <div className="toolbar">
+              <button onClick={() => act("run")} disabled={!actor || busy !== null} title={actor ? undefined : "Enter your name above first"}>
+                {busy === "run" ? "Recording…" : "Record this monitoring run"}
+              </button>
+            </div>
+            <DataTable
+              rows={[...runs].reverse().map((r) => ({
+                date: new Date(r.as_of).toLocaleString(),
+                version: `v${r.version}`,
+                "CLTI uplift": r.kpis.clti_uplift,
+                targets: r.kpis.targets,
+                alerts: r.alerts,
+                "recorded by": r.recorded_by,
+              }))}
+              empty="No run recorded yet."
+            />
+          </>
+        )}
       </Section>
       <Section step="House comparison" title="Feasibility against the house program">
         <div className="table-wrap">

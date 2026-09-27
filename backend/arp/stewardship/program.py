@@ -25,12 +25,14 @@ from __future__ import annotations
 
 import copy
 import json
+from datetime import UTC, datetime
 from math import fsum
 from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from arp.engagement.orchestrator import is_stalled
 from arp.index.weighting import apply_tilts, normalise
 from arp.reporting.deck_builder import build_deck
 from arp.schemas.engagement import EngagementRecord, IssueStatus
@@ -52,7 +54,14 @@ from arp.stewardship.policies import PolicyStore
 from arp.stewardship.policy_graph import evaluate as evaluate_votes
 from arp.stewardship.policy_graph import generate
 from arp.stewardship.policy_review import review
-from arp.stewardship.process import SAMPLE_PATH, client_store, current_tiers
+from arp.stewardship.process import (
+    SAMPLE_PATH,
+    client_escalations,
+    client_store,
+    current_tiers,
+    escalation_contexts,
+    open_exceptions,
+)
 from arp.stewardship.tiers import TIER_LABELS
 
 VOTE_STEP = escalation.STEPS.index("vote_against_management")
@@ -440,3 +449,138 @@ def build_proposal(sim: dict, out_path: Path) -> Path:
         title=f"{sim['client']}: stewardship program proposal", subtitle=f"Benchmark {sim['benchmark']}", sections=sections
     )
     return build_deck(plan, datasets, LayoutInstructions(include_appendix=True), None, out_path)
+
+
+# --- Approval and monitoring (5.5) --------------------------------------------
+
+
+def approve(root: Path, stream: dict, records: list[EngagementRecord], sla_days: int, approved_by: str) -> dict:
+    """Freezes the saved calibration as an immutable program version: its params,
+    target list and KPIs at approval. Four-eyes: the approver is not the person
+    who saved the calibration. Returns the stream with the version appended."""
+    saved = stream.get("program")
+    if not saved:
+        raise ValueError("Save a calibration before approving the program")
+    if not approved_by.strip():
+        raise ValueError("Approving a program needs approved_by")
+    if saved["updated_by"].strip().lower() == approved_by.strip().lower():
+        raise ValueError(
+            "Four-eyes rule: the program must be approved by someone other than the person who saved the calibration"
+        )
+    sim = simulate(root, stream, records, sla_days, saved["params"])
+    versions = stream.get("program_versions", [])
+    version = {
+        "version": len(versions) + 1,
+        "params": saved["params"],
+        "targets": [
+            {k: t[k] for k in ("issuer_id", "company", "theme", "tier", "origin", "client_step", "max_step", "at_vote_step")}
+            for t in sim["targets"]
+        ],
+        "kpis": sim["kpis"],
+        "proposed_by": saved["updated_by"],
+        "approved_by": approved_by,
+        "approved_at": datetime.now(UTC).isoformat(),
+    }
+    return {**stream, "program_versions": [*versions, version]}
+
+
+def _alert(kpi: str, ok: bool, detail: str, status_if_not: str = "amber") -> dict:
+    return {"kpi": kpi, "status": "green" if ok else status_if_not, "detail": detail}
+
+
+def monitor(root: Path, stream: dict, records: list[EngagementRecord], sla_days: int) -> dict:
+    """The approved program version against today's data: KPIs, target membership,
+    engagement progress per target and escalations waiting on the house."""
+    versions = stream.get("program_versions", [])
+    if not versions:
+        return {"approved": None}
+    approved = versions[-1]
+    now = simulate(root, stream, records, sla_days, approved["params"])
+    key = lambda t: (t["issuer_id"], t["theme"])  # noqa: E731
+    frozen, current = {key(t): t for t in approved["targets"]}, {key(t): t for t in now["targets"]}
+    new, gone = sorted(current.keys() - frozen.keys()), sorted(frozen.keys() - current.keys())
+
+    live = {(r.company_id, i.theme): i for r in records for i in r.issues if i.status in (IssueStatus.OPEN, IssueStatus.STALLED)}
+    ctxs = escalation_contexts(root, json.loads(SAMPLE_PATH.read_text()), records, sla_days)
+    house = escalation.evaluate(PolicyStore(root).active("escalation_rules"), ctxs)
+    waiting = {
+        (r["company_id"], r["theme"]) for r in open_exceptions(stream, client_escalations(root, stream["stream_id"], ctxs, house))
+    }
+
+    rows, stalled, not_started = [], [], []
+    for k, t in frozen.items():
+        issue = live.get(k)
+        if issue is not None:
+            state = "stalled" if is_stalled(issue, sla_days) else "active"
+        else:
+            state = "house engagement (sample)" if t["origin"] == "house" else "no engagement yet"
+        if state == "stalled":
+            stalled.append(t["company"])
+        if issue is None and t["origin"] == "client_only":
+            not_started.append(t["company"])
+        rows.append(
+            {
+                "company": t["company"],
+                "theme": _w(t["theme"]),
+                "engagement": state,
+                "step now": _w(issue.escalation_stage.value) if issue else "—",
+                "planned step": _w(t["client_step"]),
+                "waiting on house": "yes" if k in waiting else "",
+                "still qualifies": "yes" if k in current else "no",
+            }
+        )
+    k_now, k_then = now["kpis"], approved["kpis"]
+    alerts = [
+        _alert(
+            "Weighted CLTI uplift",
+            k_now["clti_uplift"] >= k_then["clti_uplift"] - 0.5,
+            f"{k_now['clti_uplift']:+} now, {k_then['clti_uplift']:+} at approval",
+        ),
+        _alert(
+            "Target membership",
+            not new and not gone,
+            f"{len(new)} new names qualify, {len(gone)} targets no longer do"
+            + (f": new {', '.join(current[n]['company'] + ' (' + _w(n[1]) + ')' for n in new)}" if new else ""),
+        ),
+        _alert(
+            "Engagement progress",
+            not stalled,
+            f"stalled beyond the SLA: {', '.join(stalled)}" if stalled else "no target stalled",
+        ),
+        _alert(
+            "Engagements not started",
+            not not_started,
+            f"client-only targets without an engagement: {', '.join(sorted(set(not_started)))}"
+            if not_started
+            else "every target is engaged",
+        ),
+        _alert("Escalation waiting on the house", not waiting & frozen.keys(), f"{len(waiting & frozen.keys())} targets"),
+        {
+            "kpi": "Sanction conformance",
+            "status": "not_built",
+            "detail": "Needs the voting feed: ingested votes on sanctioned resolutions.",
+        },
+    ]
+    return {
+        "approved": {k: approved[k] for k in ("version", "proposed_by", "approved_by", "approved_at", "kpis")},
+        "calibration_changed": (stream.get("program") or {}).get("params") != approved["params"],
+        "kpis": k_now,
+        "alerts": alerts,
+        "targets": rows,
+        "data_note": now["data_note"],
+    }
+
+
+def record_run(stream: dict, result: dict, recorded_by: str) -> dict:
+    """Appends a KPI snapshot (one monitoring run) to the stream: the time series
+    behind the monitoring view."""
+    if not result.get("approved"):
+        raise ValueError("No approved program to monitor")
+    run = {
+        "as_of": datetime.now(UTC).isoformat(),
+        "version": result["approved"]["version"],
+        "kpis": result["kpis"],
+        "alerts": sum(a["status"] in ("amber", "red") for a in result["alerts"]),
+        "recorded_by": recorded_by,
+    }
+    return {**stream, "program_runs": [*stream.get("program_runs", []), run]}

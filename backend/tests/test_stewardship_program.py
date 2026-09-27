@@ -12,7 +12,8 @@ from pydantic import ValidationError  # noqa: E402
 from arp.api.routers.stewardship import CreateStreamRequest, create_stream  # noqa: E402
 from arp.stewardship.escalation import load_client_example  # noqa: E402
 from arp.stewardship.process import SAMPLE_PATH, StreamStore, client_store  # noqa: E402
-from arp.stewardship.program import ProgramParams, build_proposal, simulate  # noqa: E402
+from arp.stewardship.program import ProgramParams, approve, build_proposal, monitor, record_run, simulate  # noqa: E402
+from arp.storage.engagement_store import EngagementStore  # noqa: E402
 
 SAMPLE = json.loads(SAMPLE_PATH.read_text())
 
@@ -71,3 +72,52 @@ def test_proposal_deck_has_every_section(stream, tmp_path):
     titles = [x.shapes.title.text for x in deck.slides]
     for heading in ("Engagement targets", "Escalation: house and client steps", "Feasibility against the house program"):
         assert heading in titles
+
+
+def _save(streams, s, params, by="Designer"):
+    return streams.save({**s, "program": {"params": ProgramParams(**params).model_dump(), "updated_by": by, "updated_at": "x"}})
+
+
+def test_approval_needs_a_saved_calibration_and_a_second_person(stream):
+    streams, s = stream
+    with pytest.raises(ValueError, match="Save a calibration"):
+        approve(streams.root, s, [], 45, "Approver")
+    s = _save(streams, s, {"max_targets": 3})
+    with pytest.raises(ValueError, match="Four-eyes"):
+        approve(streams.root, s, [], 45, "designer")
+    s = approve(streams.root, s, [], 45, "Approver")
+    [v] = s["program_versions"]
+    assert v["version"] == 1 and len(v["targets"]) == 3 and v["proposed_by"] == "Designer"
+
+
+def test_monitoring_flags_new_targets_and_engagement_state_against_the_frozen_list(stream):
+    streams, s = stream
+    assert monitor(streams.root, s, [], 45) == {"approved": None}
+    s = approve(streams.root, _save(streams, s, {"max_targets": 3}), [], 45, "Approver")
+    calm = {a["kpi"]: a["status"] for a in monitor(streams.root, s, [], 45)["alerts"]}
+    assert calm["Target membership"] == "green" and calm["Sanction conformance"] == "not_built"
+    assert calm["Engagements not started"] == "amber"  # client-only targets nobody has opened yet
+
+    engagements = EngagementStore(streams.root / "e")
+    first = s["program_versions"][0]["targets"][0]
+    engagements.open_issue(first["issuer_id"], first["company"], theme=first["theme"])
+    result = monitor(streams.root, s, engagements.list_all(), sla_days=-1)  # every open engagement is stalled
+    row = next(
+        r for r in result["targets"] if r["company"] == first["company"] and r["theme"] == first["theme"].replace("_", " ")
+    )
+    assert row["engagement"] == "stalled"
+    assert {a["kpi"]: a["status"] for a in result["alerts"]}["Engagement progress"] == "amber"
+
+    # the approved list stays frozen: a wider calibration saved later does not change what is monitored
+    s = streams.save({**s, "program": {**s["program"], "params": {**s["program"]["params"], "max_targets": 10}}})
+    later = monitor(streams.root, s, [], 45)
+    assert later["calibration_changed"] and len(later["targets"]) == 3
+
+
+def test_recorded_runs_build_the_kpi_series(stream):
+    streams, s = stream
+    with pytest.raises(ValueError):
+        record_run(s, monitor(streams.root, s, [], 45), "Analyst")
+    s = approve(streams.root, _save(streams, s, {}), [], 45, "Approver")
+    s = record_run(record_run(s, monitor(streams.root, s, [], 45), "Analyst"), monitor(streams.root, s, [], 45), "Analyst")
+    assert [r["version"] for r in s["program_runs"]] == [1, 1] and "clti_uplift" in s["program_runs"][0]["kpis"]

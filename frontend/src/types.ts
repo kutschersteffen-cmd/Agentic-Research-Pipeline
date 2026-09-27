@@ -2434,6 +2434,32 @@ export interface ProgramSimulation {
   data_note: string;
 }
 
+export interface ProgramVersion {
+  version: number;
+  params: ProgramParams;
+  targets: { issuer_id: string; company: string; theme: string; client_step: string; origin: string }[];
+  kpis: Record<string, number>;
+  proposed_by: string;
+  approved_by: string;
+  approved_at: string;
+}
+
+export interface ProgramRun {
+  as_of: string;
+  version: number;
+  kpis: Record<string, number>;
+  alerts: number;
+  recorded_by: string;
+}
+
+export interface ProgramMonitor {
+  approved: { version: number; proposed_by: string; approved_by: string; approved_at: string; kpis: Record<string, number> } | null;
+  calibration_changed?: boolean;
+  kpis?: Record<string, number>;
+  alerts?: { kpi: string; status: "green" | "amber" | "red" | "not_built"; detail: string }[];
+  targets?: Record<string, string>[];
+}
+
 export interface VotingPreview {
   resolutions: number;
   changed: number;
