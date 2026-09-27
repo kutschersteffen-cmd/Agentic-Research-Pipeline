@@ -870,56 +870,65 @@ The source of truth is
 It holds, per issue, the parameters with types and units, the resolution
 categories it governs, the allowed vote targets, and the company data fields it
 needs. The data fields are placeholders until the field catalogue exists. The table
-below is generated from that file.
+below is generated from that file and the draft house positions.
 
-| Issue | Category | What it governs | Parameters |
-|---|---|---|---|
-| `board.independence` | board | Minimum share of independent directors on the board. | `min_independent_pct`, `controlled_company_min_pct` |
-| `board.committee_independence` | board | Independence of audit, remuneration and nomination committees. | `audit_min_independent_pct`, `remuneration_min_independent_pct`, `nomination_min_independent_pct` |
-| `board.chair_ceo_separation` | board | Whether the chair and CEO roles must be split, and what mitigates a combined role. | `require_separation`, `accept_lead_independent_director`, `oppose_former_ceo_as_chair` |
-| `board.overboarding` | board | Limits on the number of board mandates a director may hold. | `max_mandates_non_executive`, `max_mandates_executive`, `chair_counts_as` |
-| `board.attendance` | board | Minimum attendance of board and committee meetings. | `min_attendance_pct` |
-| `board.gender_diversity` | board | Minimum representation of the under-represented gender. | `min_underrepresented_gender_pct`, `markets_with_higher_threshold` |
-| `board.tenure_refreshment` | board | Tenure after which a director stops counting as independent, and board refreshment. | `max_tenure_for_independence_years`, `max_average_tenure_years` |
-| `board.election_practices` | board | Annual, individual and majority-vote director elections. | `require_annual_election`, `oppose_bundled_elections`, `require_majority_voting` |
-| `board.responsiveness` | board | Action when the board ignores significant prior-year dissent or majority-supported proposals. | `dissent_threshold_pct`, `ignore_majority_proposal` |
-| `pay.say_on_pay` | remuneration | Default approach to the remuneration report vote. | `default_action` |
-| `pay.quantum` | remuneration | CEO pay level relative to peers and to the workforce. | `max_peer_percentile`, `max_ceo_worker_pay_ratio` |
-| `pay.performance_alignment` | remuneration | Alignment of realised pay with shareholder returns and performance conditions. | `max_misalignment_years`, `min_long_term_share_pct`, `min_vesting_period_years` |
-| `pay.esg_metrics` | remuneration | Whether variable pay must include measurable sustainability (e.g. climate) targets. | `require_esg_metric`, `min_esg_weight_pct`, `require_climate_metric_for_high_emitters` |
-| `pay.equity_plans` | remuneration | Dilution, repricing and discount features of share plans. | `max_dilution_pct`, `oppose_repricing`, `max_discount_pct` |
-| `pay.severance` | remuneration | Limits on termination payments. | `max_severance_multiple`, `oppose_single_trigger` |
-| `pay.disclosure` | remuneration | Minimum disclosure of targets, outcomes and discretion. | `require_ex_post_target_disclosure`, `oppose_undisclosed_discretion` |
-| `pay.non_executive_fees` | remuneration | Structure of non-executive director pay. | `oppose_performance_pay_for_nonexecs`, `max_fee_increase_pct` |
-| `audit.non_audit_fees` | audit | Auditor independence measured by non-audit fees. | `max_non_audit_to_audit_ratio` |
-| `audit.auditor_tenure` | audit | Maximum auditor tenure and tendering. | `max_auditor_tenure_years`, `require_tender_disclosure` |
-| `audit.financial_statements` | audit | Response to qualified opinions, restatements and material weaknesses. | `oppose_on_qualified_opinion`, `oppose_on_material_weakness` |
-| `audit.discharge` | audit | Withholding discharge where legal or significant controversies are unresolved. | `oppose_on_open_investigation`, `min_controversy_severity` |
-| `capital.share_issuance` | capital | Issuance authorities with and without pre-emptive rights. | `max_with_preemption_pct`, `max_without_preemption_pct` |
-| `capital.share_buybacks` | capital | Buyback authorities. | `max_buyback_pct`, `max_premium_pct`, `oppose_during_takeover` |
-| `capital.dividend_allocation` | capital | Payout and capital allocation proposals. | `min_payout_ratio_pct`, `max_payout_ratio_pct` |
-| `capital.one_share_one_vote` | capital | Unequal voting rights and multiple share classes. | `oppose_new_multiple_voting_classes`, `require_sunset_years` |
-| `capital.takeover_defences` | capital | Poison pills and other anti-takeover measures. | `oppose_poison_pill_without_approval`, `max_pill_duration_years` |
-| `capital.mergers_acquisitions` | capital | Stance on M&A and major transactions. | `default_action`, `require_fairness_opinion` |
-| `capital.related_party_transactions` | capital | Approval of transactions with insiders or controlling shareholders. | `require_independent_review`, `max_value_pct_of_assets` |
-| `rights.shareholder_rights` | rights | Supermajority requirements, rights to call meetings and proxy access. | `oppose_supermajority`, `support_special_meeting_threshold_pct`, `support_proxy_access` |
-| `rights.virtual_meetings` | rights | Authorisations for meetings with no physical attendance. | `oppose_virtual_only`, `accept_hybrid` |
-| `climate.laggard_accountability` | climate | Holding directors accountable where the company's climate transition assessment is weak. | `score_field`, `laggard_threshold`, `min_months_engaged_without_progress`, `high_emitters_only` |
-| `climate.disclosure` | climate | Minimum climate reporting (e.g. ISSB/TCFD-aligned, scope 1-3 emissions). | `require_scope_1_2`, `require_scope_3_material`, `require_aligned_framework` |
-| `climate.targets` | climate | Existence and credibility of emissions reduction targets. | `require_net_zero_target`, `require_interim_targets`, `require_validated_targets` |
-| `climate.say_on_climate` | climate | Criteria for supporting management climate transition plans. | `min_plan_score`, `require_capex_alignment`, `require_annual_vote` |
-| `climate.shareholder_proposals` | climate | Support for shareholder proposals on climate. | `default_action`, `oppose_if_prescriptive` |
-| `nature.laggard_accountability` | nature | Accountability where nature-related performance or risk management is weak (e.g. deforestation). | `score_field`, `laggard_threshold`, `high_impact_sectors_only` |
-| `nature.disclosure` | nature | Nature-related disclosure (e.g. TNFD-aligned). | `require_tnfd_aligned` |
-| `social.human_rights` | social | Response to severe human-rights controversies or global-norm breaches (e.g. UNGC). | `min_controversy_severity`, `ungc_fail_triggers_action` |
-| `social.workforce` | social | Workforce, pay equity and diversity disclosure. | `require_pay_gap_disclosure`, `support_workforce_disclosure_proposals` |
-| `social.shareholder_proposals` | social | Support for shareholder proposals on social topics. | `default_action` |
-| `gov.controversy_accountability` | governance | Accountability for severe governance controversies (bribery, fraud, misconduct). | `min_controversy_severity` |
-| `gov.lobbying_political` | governance | Disclosure and alignment of lobbying and political contributions. | `support_lobbying_disclosure`, `require_climate_lobbying_alignment` |
-| `gov.tax_transparency` | governance | Public country-by-country tax reporting. | `support_cbcr_proposals` |
-| `gov.shareholder_proposals` | governance | Default stance on governance shareholder proposals not covered by a more specific issue. | `default_action` |
-| `stewardship.engagement_escalation` | stewardship | Voting against management where an engagement has reached the vote-against-management escalation step. | `target_by_theme`, `require_prior_notice` |
-| `general.default_management` | general | Stance on routine items and anything no other issue covers. | `default_action` |
+| Issue | What it governs | Draft house position |
+|---|---|---|
+| `board.independence` | Minimum share of independent directors on the board. | **against** `nomination_committee_chair` — `min_independent_pct` 50; `controlled_company_min_pct` 33 |
+| `board.committee_independence` | Independence of audit, remuneration and nomination committees. | **against** `non_independent_committee_members` — `audit_min_independent_pct` 100; `remuneration_min_independent_pct` 50; `nomination_min_independent_pct` 50 |
+| `board.chair_ceo_separation` | Whether the chair and CEO roles must be split, and what mitigates a combined role. | **against** `combined_chair_ceo` — `require_separation` no; `accept_lead_independent_director` yes; `oppose_former_ceo_as_chair` yes |
+| `board.overboarding` | Limits on the number of board mandates a director may hold. | **against** `overboarded_director` — `max_mandates_non_executive` 5; `max_mandates_executive` 1; `chair_counts_as` 2 |
+| `board.attendance` | Minimum attendance of board and committee meetings. | **against** `low_attendance_director` — `min_attendance_pct` 75 |
+| `board.gender_diversity` | Minimum representation of the under-represented gender. | **against** `nomination_committee_chair` — `min_underrepresented_gender_pct` 30; `markets_with_higher_threshold` EU→40 |
+| `board.tenure_refreshment` | Tenure after which a director stops counting as independent, and board refreshment. | **against** `nomination_committee_chair` — `max_tenure_for_independence_years` 12; `max_average_tenure_years` 10 |
+| `board.election_practices` | Annual, individual and majority-vote director elections. | **against** `nomination_committee_chair` — `require_annual_election` yes; `oppose_bundled_elections` yes; `require_majority_voting` yes |
+| `board.responsiveness` | Action when the board ignores significant prior-year dissent or majority-supported proposals. | **against** `committee_chair_responsible` — `dissent_threshold_pct` 20; `ignore_majority_proposal` yes |
+| `pay.say_on_pay` | Default approach to the remuneration report vote. | **case_by_case** `say_on_pay` — `default_action` against_on_red_flag |
+| `pay.quantum` | CEO pay level relative to peers and to the workforce. | **against** `say_on_pay` — `max_peer_percentile` 90; `max_ceo_worker_pay_ratio` not set |
+| `pay.performance_alignment` | Alignment of realised pay with shareholder returns and performance conditions. | **against** `say_on_pay` — `max_misalignment_years` 3; `min_long_term_share_pct` 50; `min_vesting_period_years` 3 |
+| `pay.esg_metrics` | Whether variable pay must include measurable sustainability (e.g. climate) targets. | **against** `remuneration_policy` — `require_esg_metric` no; `min_esg_weight_pct` 10; `require_climate_metric_for_high_emitters` yes |
+| `pay.equity_plans` | Dilution, repricing and discount features of share plans. | **against** `equity_plan` — `max_dilution_pct` 10; `oppose_repricing` yes; `max_discount_pct` 0 |
+| `pay.severance` | Limits on termination payments. | **against** `remuneration_policy` — `max_severance_multiple` 2; `oppose_single_trigger` yes |
+| `pay.disclosure` | Minimum disclosure of targets, outcomes and discretion. | **against** `say_on_pay` — `require_ex_post_target_disclosure` yes; `oppose_undisclosed_discretion` yes |
+| `pay.non_executive_fees` | Structure of non-executive director pay. | **against** `non_executive_fees` — `oppose_performance_pay_for_nonexecs` yes; `max_fee_increase_pct` 10 |
+| `audit.non_audit_fees` | Auditor independence measured by non-audit fees. | **against** `auditor_ratification` — `max_non_audit_to_audit_ratio` 1.0 |
+| `audit.auditor_tenure` | Maximum auditor tenure and tendering. | **against** `auditor_ratification` — `max_auditor_tenure_years` 20; `require_tender_disclosure` yes |
+| `audit.financial_statements` | Response to qualified opinions, restatements and material weaknesses. | **against** `financial_statements` — `oppose_on_qualified_opinion` yes; `oppose_on_material_weakness` yes |
+| `audit.discharge` | Withholding discharge where legal or significant controversies are unresolved. | **against** `discharge` — `oppose_on_open_investigation` yes; `min_controversy_severity` 4 |
+| `capital.share_issuance` | Issuance authorities with and without pre-emptive rights. | **against** `share_issuance` — `max_with_preemption_pct` 33; `max_without_preemption_pct` 10 |
+| `capital.share_buybacks` | Buyback authorities. | **against** `share_buyback` — `max_buyback_pct` 10; `max_premium_pct` 10; `oppose_during_takeover` yes |
+| `capital.dividend_allocation` | Payout and capital allocation proposals. | **case_by_case** `dividend_allocation` — `min_payout_ratio_pct` not set; `max_payout_ratio_pct` 100 |
+| `capital.one_share_one_vote` | Unequal voting rights and multiple share classes. | **against** `capital_structure` — `oppose_new_multiple_voting_classes` yes; `require_sunset_years` 7 |
+| `capital.takeover_defences` | Poison pills and other anti-takeover measures. | **against** `takeover_defence` — `oppose_poison_pill_without_approval` yes; `max_pill_duration_years` 3 |
+| `capital.mergers_acquisitions` | Stance on M&A and major transactions. | **case_by_case** `merger_acquisition` — `default_action` case_by_case; `require_fairness_opinion` yes |
+| `capital.related_party_transactions` | Approval of transactions with insiders or controlling shareholders. | **against** `related_party_transaction` — `require_independent_review` yes; `max_value_pct_of_assets` 5 |
+| `rights.shareholder_rights` | Supermajority requirements, rights to call meetings and proxy access. | **against** `articles_amendment` — `oppose_supermajority` yes; `support_special_meeting_threshold_pct` 10; `support_proxy_access` yes |
+| `rights.virtual_meetings` | Authorisations for meetings with no physical attendance. | **against** `articles_amendment` — `oppose_virtual_only` yes; `accept_hybrid` yes |
+| `climate.laggard_accountability` | Holding directors accountable where the company's climate transition assessment is weak. | **against** `responsible_director` — `score_field` score.clti; `laggard_threshold` not set; `min_months_engaged_without_progress` 12; `high_emitters_only` yes |
+| `climate.disclosure` | Minimum climate reporting (e.g. ISSB/TCFD-aligned, scope 1-3 emissions). | **against** `responsible_director` — `require_scope_1_2` yes; `require_scope_3_material` yes; `require_aligned_framework` yes |
+| `climate.targets` | Existence and credibility of emissions reduction targets. | **against** `responsible_director` — `require_net_zero_target` yes; `require_interim_targets` yes; `require_validated_targets` no |
+| `climate.say_on_climate` | Criteria for supporting management climate transition plans. | **case_by_case** `say_on_climate` — `min_plan_score` not set; `require_capex_alignment` yes; `require_annual_vote` yes |
+| `climate.shareholder_proposals` | Support for shareholder proposals on climate. | **for** `shareholder_proposal_environmental` — `default_action` support_if_reasonable; `oppose_if_prescriptive` yes |
+| `nature.laggard_accountability` | Accountability where nature-related performance or risk management is weak (e.g. deforestation). | **escalate** `responsible_director` — `score_field` score.nature; `laggard_threshold` not set; `high_impact_sectors_only` yes |
+| `nature.disclosure` | Nature-related disclosure (e.g. TNFD-aligned). | **escalate** `responsible_director` — `require_tnfd_aligned` yes |
+| `social.human_rights` | Response to severe human-rights controversies or global-norm breaches (e.g. UNGC). | **against** `board_chair` — `min_controversy_severity` 5; `ungc_fail_triggers_action` yes |
+| `social.workforce` | Workforce, pay equity and diversity disclosure. | **for** `shareholder_proposal_social` — `require_pay_gap_disclosure` no; `support_workforce_disclosure_proposals` yes |
+| `social.shareholder_proposals` | Support for shareholder proposals on social topics. | **case_by_case** `shareholder_proposal_social` — `default_action` case_by_case |
+| `gov.controversy_accountability` | Accountability for severe governance controversies (bribery, fraud, misconduct). | **against** `board_chair` — `min_controversy_severity` 4 |
+| `gov.lobbying_political` | Disclosure and alignment of lobbying and political contributions. | **for** `shareholder_proposal_governance` — `support_lobbying_disclosure` yes; `require_climate_lobbying_alignment` yes |
+| `gov.tax_transparency` | Public country-by-country tax reporting. | **for** `shareholder_proposal_governance` — `support_cbcr_proposals` yes |
+| `gov.shareholder_proposals` | Default stance on governance shareholder proposals not covered by a more specific issue. | **for** `shareholder_proposal_governance` — `default_action` support_if_reasonable |
+| `stewardship.engagement_escalation` | Voting against management where an engagement has reached the vote-against-management escalation step. | **against** `board_chair` — `target_by_theme` climate_transition→board_chair, nature→responsible_director, executive_compensation→say_on_pay, board_governance→nomination_committee_chair; `require_prior_notice` yes |
+| `general.default_management` | Stance on routine items and anything no other issue covers. | **for** `other` — `default_action` follow_management |
+
+The draft house positions are in
+[`backend/arp/stewardship/data/house_voting_policy_draft.json`](../backend/arp/stewardship/data/house_voting_policy_draft.json):
+one position per issue, with a short rationale for each (usable as disclosure text,
+E2). They follow common institutional-investor practice and are **illustrative,
+not approved house policy**. "Not set" means the parameter is not applied. The
+climate and nature laggard thresholds stay open until the CLTI and nature score
+scales are fixed. Nature issues are marked `escalate`: engagement comes first, and
+a vote against happens only through `stewardship.engagement_escalation`.
 
 When the house voting policy is written, each issue gets a house position, and
 issues are added, split or removed as needed. The `version` in the file changes
