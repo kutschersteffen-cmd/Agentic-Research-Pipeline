@@ -8,6 +8,8 @@ from pydantic import BaseModel
 
 from arp.api.deps import get_engagement_store, get_stream_store, settings_dep
 from arp.config import Settings
+from arp.schemas.engagement import IssueSeverity, TriggerSource
+from arp.stewardship import monitoring
 from arp.stewardship.policies import POLICIES, PolicyStore, coverage_preview, voting_preview
 from arp.stewardship.policy_review import DATA, load
 from arp.stewardship.process import (
@@ -235,3 +237,68 @@ def post_voting_preview(body: VotingPreviewRequest, streams: StreamStore = Depen
         return voting_preview(body.policy, PolicyStore(streams.root).active("house_voting"), json.loads(SAMPLE_PATH.read_text()))
     except (ValueError, KeyError, RuntimeError) as exc:
         raise HTTPException(422, f"The voting policy does not run: {exc}") from exc
+
+
+@router.get("/studio/monitoring/triggers")
+def monitoring_triggers(
+    streams: StreamStore = Depends(get_stream_store), engagements: EngagementStore = Depends(get_engagement_store)
+) -> dict:
+    """The triggers the active monitoring rules raise, matched to open engagements."""
+    sample = json.loads(SAMPLE_PATH.read_text())
+    return {"triggers": monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, engagements.list_all())}
+
+
+class MonitoringPreviewRequest(BaseModel):
+    graph: dict
+
+
+@router.post("/studio/monitoring/preview")
+def post_monitoring_preview(
+    body: MonitoringPreviewRequest,
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    try:
+        return monitoring.preview(
+            body.graph,
+            PolicyStore(streams.root).active("monitoring_rules"),
+            json.loads(SAMPLE_PATH.read_text()),
+            engagements.list_all(),
+        )
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(422, f"The monitoring rules do not run: {exc}") from exc
+
+
+class OpenFromTriggerRequest(BaseModel):
+    issuer_id: str
+    rule: str
+    decided_by: str
+
+
+@router.post("/monitoring/open-engagement")
+def open_engagement_from_trigger(
+    body: OpenFromTriggerRequest,
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    """Opens an engagement for a trigger the active rules raise. The theme and
+    severity come from the rule, not the request."""
+    if not body.decided_by.strip():
+        raise HTTPException(422, "Opening an engagement needs decided_by")
+    sample = json.loads(SAMPLE_PATH.read_text())
+    triggers = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, engagements.list_all())
+    trigger = next((t for t in triggers if t["issuer_id"] == body.issuer_id and t["rule"] == body.rule), None)
+    if trigger is None:
+        raise HTTPException(404, "The active monitoring rules raise no such trigger")
+    if trigger["engagement_id"] is not None:
+        raise HTTPException(409, f"Already attached to engagement {trigger['engagement_id']}")
+    _, issue = engagements.open_issue(
+        trigger["issuer_id"],
+        trigger["company"],
+        theme=trigger["theme"],
+        severity=IssueSeverity(trigger["severity"]),
+        source=TriggerSource.MONITORING_RULE,
+        source_detail=f"{trigger['rule']}: {trigger['reason']} (opened by {body.decided_by})",
+        sector=trigger["sector"],
+    )
+    return {"issue_id": issue.issue_id, "trigger": {**trigger, "engagement_id": issue.issue_id}}

@@ -7,6 +7,8 @@ import type {
   CoveragePreview,
   EscalationDecisionItem,
   IssueCatalogue,
+  MonitoringPreview,
+  MonitoringTrigger,
   PolicyDifferenceItem,
   StewardshipStage,
   StewardshipStream,
@@ -34,15 +36,73 @@ function countMissing(value: unknown): number {
 
 // --- 1. Monitoring -------------------------------------------------------------
 
-export function MonitoringStudio({ stage }: StudioProps) {
+// The badge palette reads as a score (high = green), so a high severity takes the red one.
+const SEVERITY_BADGE: Record<string, string> = { high: "badge-low", medium: "badge-mid", low: "badge-neutral" };
+
+export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
+  const { info, error, reload } = usePolicy("monitoring_rules");
+  const [actor, setActor] = useActor();
   const [contexts, setContexts] = useState<Record<string, unknown>[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [triggers, setTriggers] = useState<MonitoringTrigger[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [graph, setGraph] = useState<Record<string, unknown> | null>(null);
+  const [baseVersion, setBaseVersion] = useState<number | null>(null);
+  const [preview, setPreview] = useState<MonitoringPreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadTriggers = () =>
+    api.getMonitoringTriggers().then(
+      (r) => setTriggers(r.triggers),
+      (e) => setLoadError((e as Error).message),
+    );
   useEffect(() => {
     api.getCoverageInputs().then(
       (r) => setContexts(r.contexts),
-      (e) => setError((e as Error).message),
+      (e) => setLoadError((e as Error).message),
     );
+    loadTriggers();
   }, []);
+  useEffect(() => {
+    if (info && graph === null) {
+      setGraph(info.active);
+      setBaseVersion(info.active_version);
+    }
+  }, [info, graph]);
+  const dirty = !!info && !!graph && JSON.stringify(graph) !== JSON.stringify(info.active);
+
+  async function openEngagement(t: MonitoringTrigger) {
+    setBusy(`${t.issuer_id}-${t.rule}`);
+    setActionError(null);
+    try {
+      await api.openEngagementFromTrigger({ issuer_id: t.issuer_id, rule: t.rule, decided_by: actor });
+      await loadTriggers();
+      onChanged();
+    } catch (err) {
+      setActionError((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function runPreview() {
+    if (!graph) return;
+    setBusy("preview");
+    setPreviewError(null);
+    try {
+      setPreview(await api.previewMonitoring(graph));
+    } catch (err) {
+      setPreviewError((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function load(version: number) {
+    setGraph(await api.getStewardPolicyVersion("monitoring_rules", version));
+    setBaseVersion(version);
+    setPreview(null);
+  }
+
   const rows = (contexts ?? []).map((c) => {
     const issuer = c.issuer as Record<string, unknown>;
     const holding = c.holding as Record<string, unknown>;
@@ -53,38 +113,164 @@ export function MonitoringStudio({ stage }: StudioProps) {
       region: issuer.region,
       "index weight %": holding.index_weight_pct,
       "AUM held (EUR m)": holding.aum_held_eur_m,
+      "position change %": holding.change_pct,
       "values missing": countMissing(issuer),
       "open engagements": history.open_engagements,
     };
   });
+  const ruleRows = preview
+    ? [...new Set([...Object.keys(preview.by_rule_active), ...Object.keys(preview.by_rule_candidate)])].map((rule) => ({
+        rule,
+        active: preview.by_rule_active[rule] ?? 0,
+        "this draft": preview.by_rule_candidate[rule] ?? 0,
+      }))
+    : [];
+
   return (
     <>
       <StudioHeader
         stage={stage}
         capabilities={[
           { label: "Review", ready: true },
-          { label: "Design", ready: false },
-          { label: "Calibrate", ready: false },
-          { label: "Versions", ready: false },
+          { label: "Design", ready: true },
+          { label: "Calibrate", ready: true },
+          { label: "Versions", ready: true },
+          { label: "Decide", ready: true },
         ]}
       />
+      <ActorField actor={actor} onChange={setActor} />
+      {loadError && <p className="error-text">{loadError}</p>}
+      <Section step="Review · Decide" title="Triggers raised">
+        <p className="help-text">
+          What the active monitoring rules raise on today&apos;s company data. A trigger on the same theme as an open engagement is
+          attached to it; any other trigger makes the company a selection candidate. Opening an engagement takes its theme and
+          severity from the rule.
+        </p>
+        {actionError && <p className="error-text">{actionError}</p>}
+        {triggers === null ? (
+          <p className="status-text">Loading…</p>
+        ) : triggers.length === 0 ? (
+          <p className="muted">No trigger raised.</p>
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Severity</th>
+                  <th>Type</th>
+                  <th>Theme</th>
+                  <th>Why</th>
+                  <th>Engagement</th>
+                </tr>
+              </thead>
+              <tbody>
+                {triggers.map((t) => (
+                  <tr key={`${t.issuer_id}-${t.rule}`}>
+                    <td>{t.company}</td>
+                    <td>
+                      <span className={`badge ${SEVERITY_BADGE[t.severity]}`}>{t.severity}</span>
+                    </td>
+                    <td>{words(t.type)}</td>
+                    <td>{words(t.theme)}</td>
+                    <td>
+                      {t.reason} <span className="muted">({t.rule})</span>
+                    </td>
+                    <td>
+                      {t.engagement_id ? (
+                        <span className="muted">attached to {t.engagement_id}</span>
+                      ) : (
+                        <button
+                          onClick={() => openEngagement(t)}
+                          disabled={!actor || busy !== null}
+                          title={actor ? undefined : "Enter your name above first"}
+                        >
+                          {busy === `${t.issuer_id}-${t.rule}` ? "Opening…" : "Open engagement"}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="toolbar">
+          <button className="link-button" onClick={() => onOpen("selection")}>
+            New engagements are tiered at stage 2 →
+          </button>
+        </div>
+      </Section>
       <Section step="Review" title="Companies in scope">
         <p className="help-text">
           Every company the house holds, with its position and how complete its data is. Missing values never trigger anything; they
           show where data coverage needs work.
         </p>
-        {error && <p className="error-text">{error}</p>}
         {contexts === null ? <p className="status-text">Loading…</p> : <DataTable rows={rows} />}
       </Section>
-      <Section step="Design · Calibrate" title="Monitoring rules" planned>
-        <Planned
-          items={[
-            "A house monitoring rule table (ZEN, like the coverage rules) over company data: score thresholds, controversy severity, large holding changes, vote outcomes.",
-            "A preview of which companies each rule would flag on today's data, before it goes live.",
-            "Client portfolios in scope alongside the house holdings.",
-            "The stalled-engagement sweep already runs: engagements without activity beyond the SLA are flagged at stage 5.",
-          ]}
-        />
+      {error && <p className="error-text">{error}</p>}
+      <Section step="Design" title="Monitoring rules">
+        <p className="help-text">
+          A decision table where <strong>every</strong> matching row raises a trigger, so one company can raise several. Inputs per
+          company: scores (<code>issuer.score.clti</code>, <code>issuer.score.nature</code>, placeholders), controversies
+          (<code>issuer.controversy.*</code>), climate flags, <code>issuer.pay.misalignment_years</code> and{" "}
+          <code>holding.change_pct</code> (any company field can be added as a column). Outputs: <code>type</code> (controversy,
+          score_change, holding_change, vote_outcome, commitment_missed, engagement_stalled, calendar or manual), <code>theme</code>,{" "}
+          <code>severity</code> (low, medium, high), <code>rule</code> and <code>reason</code>. Open the table with{" "}
+          <em>Edit Table</em>.
+        </p>
+        <p className="muted">
+          Editing {baseVersion === null ? "…" : `a copy of v${baseVersion}`}
+          {dirty ? " · unsaved changes" : ""}
+        </p>
+        {graph && <PolicyCanvas graph={graph} onChange={setGraph} />}
+      </Section>
+      <Section step="Calibrate" title="What this draft would raise">
+        <div className="toolbar">
+          <button onClick={runPreview} disabled={!graph || busy !== null}>
+            {busy === "preview" ? "Running…" : "Preview against the active rules"}
+          </button>
+        </div>
+        {previewError && <p className="error-text">{previewError}</p>}
+        {preview && (
+          <>
+            <p className="muted">
+              {preview.companies} companies (synthetic sample). This draft raises {preview.triggers_candidate} triggers on{" "}
+              {preview.flagged_candidate} companies ({Math.round((100 * preview.flagged_candidate) / preview.companies)}%); the active
+              rules raise {preview.triggers_active} on {preview.flagged_active}.
+            </p>
+            <div className="studio-columns">
+              <div>
+                <h4>Triggers per rule</h4>
+                <DataTable rows={ruleRows} />
+              </div>
+              <div>
+                <h4>Newly flagged</h4>
+                <DataTable rows={preview.newly_flagged.map((c) => ({ company: c.company }))} empty="Nobody new." />
+                <h4>No longer flagged</h4>
+                <DataTable rows={preview.no_longer_flagged.map((c) => ({ company: c.company }))} empty="Nobody drops out." />
+              </div>
+            </div>
+          </>
+        )}
+      </Section>
+      <Section step="Versions" title="Save and activate">
+        {info && graph && (
+          <VersionsPanel
+            policyId="monitoring_rules"
+            info={info}
+            workingCopy={graph}
+            dirty={dirty}
+            actor={actor}
+            onSaved={reload}
+            onLoad={load}
+            onActivated={() => {
+              reload();
+              loadTriggers();
+              onChanged();
+            }}
+          />
+        )}
       </Section>
     </>
   );

@@ -1183,7 +1183,7 @@ available today (✓) and which are designed but not built (○):
 
 | Studio | Built today | Designed, not built |
 |---|---|---|
-| 1 Monitoring | Companies in scope with position and data completeness | Monitoring rules (triggers) and their preview |
+| 1 Monitoring | Triggers raised, matched to open engagements, with *Open engagement*; companies in scope; monitoring rules in the rule-graph editor; preview of who a draft would flag; versions | Monitoring Run log, vote-outcome and calendar triggers, client portfolios in scope |
 | 2 Selection | Coverage rules in the rule-graph editor; preview of tier moves against the active rules; versions | — |
 | 3 Drafting | Stage numbers; drafting stays on the Engagement page | E6 interaction tagging, E8 phrase blocklist, templates |
 | 4 Voting | House voting positions editor (per issue: vote, target, thresholds, rationale); back-test against the active policy; versions | — |
@@ -1192,8 +1192,8 @@ available today (✓) and which are designed but not built (○):
 | 7 Client policy | Per client stream: policy review, decisions, build | Versioning of client policies |
 | 8 Reporting | Built-policy status | Client reports, E2 disclosure, program proposal and PPT |
 
-**Versioned house policies** (`backend/arp/stewardship/policies.py`). The coverage
-rules and the house voting policy are versioned. Version 0 is the bundled draft.
+**Versioned house policies** (`backend/arp/stewardship/policies.py`). The monitoring
+rules, the coverage rules and the house voting policy are versioned. Version 0 is the bundled draft.
 Saving validates the working copy (it must run, and a voting policy needs exactly
 one valid position per catalogue issue) and stores an immutable version. Nothing
 changes until a named person activates it, and **four-eyes** applies: the author of
@@ -1258,10 +1258,34 @@ resulting tier changes into the stage 5 queue.
   history is live. Sample company ids do not match live engagement records yet,
   so live history only counts once real holdings are connected.
 
+**Monitoring rules (stage 1), as built.** `backend/arp/stewardship/monitoring.py`.
+
+- The house monitoring rules are a ZEN decision table,
+  [`house_monitoring_policy.graph.json`](../backend/arp/stewardship/data/house_monitoring_policy.graph.json),
+  with hit policy *collect*: every matching row raises a trigger, so one company can
+  raise several. Each row outputs a Trigger Event `type`, a `theme`, a `severity`
+  (low / medium / high), the `rule` and a `reason`. Saving rejects a rule set that
+  returns an unknown type or severity.
+- Draft rules: CLTI < 30 (high), nature score < 25 in a high-impact sector
+  (medium), controversy severity ≥ 4 (high), human-rights severity ≥ 4 (high),
+  UNGC fail (high), high emitter without scope 1+2 disclosure (medium), pay
+  misaligned for 3+ years (medium), position up more than 50% (low, a coverage
+  review). Scores are placeholders; missing values never raise a trigger.
+- A trigger is attached to an open engagement on the same company and theme.
+  Otherwise the studio offers *Open engagement*: the theme and severity come from
+  the rule (the request only names the company, the rule and who decided), and the
+  engagement is recorded with source `monitoring_rule` and the rule as its detail.
+- Stage 1 shows *Triggers raised* and *Without an engagement* (companies with a
+  trigger and no matching engagement).
+- Not built: triggers are evaluated on demand, not stored as Trigger Events with
+  a Monitoring Run; the position change (`holding.change_pct`) is a synthetic field
+  until holdings snapshots exist; vote-outcome, commitment and calendar triggers
+  come with their feeds. The stalled-engagement sweep already exists separately.
+
 Implementation: `backend/arp/stewardship/process.py` (streams and the flow), `policies.py` (versions and previews),
 `backend/arp/api/routers/stewardship.py` (`/api/stewardship/...`),
 `frontend/src/pages/StewardWorkflow.tsx` and `frontend/src/pages/steward/` (flowchart, studios, decisions); tests in
-`backend/tests/test_api_stewardship.py`, `test_stewardship_tiers.py`, `test_stewardship_policies.py`. Client streams are stored as JSON under
+`backend/tests/test_api_stewardship.py`, `test_stewardship_tiers.py`, `test_stewardship_policies.py`, `test_stewardship_monitoring.py`. Client streams are stored as JSON under
 `stewardship_streams/` (`ARP_STEWARDSHIP_STREAMS_DIR`).
 
 ## Open points

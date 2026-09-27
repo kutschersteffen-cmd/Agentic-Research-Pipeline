@@ -73,7 +73,8 @@
    },
    "holding": {
     "index_weight_pct": 0.9,
-    "aum_held_eur_m": 303
+    "aum_held_eur_m": 303,
+    "change_pct": 0
    }
   },
   {
@@ -147,7 +148,8 @@
    },
    "holding": {
     "index_weight_pct": 0.3,
-    "aum_held_eur_m": 81
+    "aum_held_eur_m": 81,
+    "change_pct": -15
    }
   },
   {
@@ -221,7 +223,8 @@
    },
    "holding": {
     "index_weight_pct": 3.1,
-    "aum_held_eur_m": 1547
+    "aum_held_eur_m": 1547,
+    "change_pct": -40
    }
   },
   {
@@ -295,7 +298,8 @@
    },
    "holding": {
     "index_weight_pct": 0.2,
-    "aum_held_eur_m": 92
+    "aum_held_eur_m": 92,
+    "change_pct": 120
    }
   },
   {
@@ -369,7 +373,8 @@
    },
    "holding": {
     "index_weight_pct": 0.03,
-    "aum_held_eur_m": 8
+    "aum_held_eur_m": 8,
+    "change_pct": 0
    }
   },
   {
@@ -443,7 +448,8 @@
    },
    "holding": {
     "index_weight_pct": 0.45,
-    "aum_held_eur_m": 249
+    "aum_held_eur_m": 249,
+    "change_pct": 10
    }
   },
   {
@@ -517,7 +523,8 @@
    },
    "holding": {
     "index_weight_pct": 1.4,
-    "aum_held_eur_m": 768
+    "aum_held_eur_m": 768,
+    "change_pct": 10
    }
   },
   {
@@ -591,7 +598,8 @@
    },
    "holding": {
     "index_weight_pct": 0.6,
-    "aum_held_eur_m": 270
+    "aum_held_eur_m": 270,
+    "change_pct": 65
    }
   },
   {
@@ -665,7 +673,8 @@
    },
    "holding": {
     "index_weight_pct": 0.04,
-    "aum_held_eur_m": 17
+    "aum_held_eur_m": 17,
+    "change_pct": 5
    }
   },
   {
@@ -739,7 +748,8 @@
    },
    "holding": {
     "index_weight_pct": 0.02,
-    "aum_held_eur_m": 6
+    "aum_held_eur_m": 6,
+    "change_pct": -5
    }
   },
   {
@@ -813,7 +823,8 @@
    },
    "holding": {
     "index_weight_pct": 0.08,
-    "aum_held_eur_m": 20
+    "aum_held_eur_m": 20,
+    "change_pct": 0
    }
   },
   {
@@ -887,7 +898,8 @@
    },
    "holding": {
     "index_weight_pct": 0.12,
-    "aum_held_eur_m": 49
+    "aum_held_eur_m": 49,
+    "change_pct": 0
    }
   }
  ],

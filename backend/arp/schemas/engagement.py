@@ -75,6 +75,7 @@ class TriggerSource(StrEnum):
     CONTROVERSY_SCREEN = "controversy_screen"
     ANALYST_RAISED = "analyst_raised"
     SLA_STALL = "sla_stall"
+    MONITORING_RULE = "monitoring_rule"
     MANUAL = "manual"
 
 

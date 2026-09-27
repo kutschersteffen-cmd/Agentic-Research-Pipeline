@@ -620,7 +620,7 @@ export type EscalationStage =
 
 export type IssueStatus = "open" | "stalled" | "resolved" | "closed";
 export type IssueSeverity = "low" | "medium" | "high";
-export type TriggerSource = "controversy_screen" | "analyst_raised" | "sla_stall" | "manual";
+export type TriggerSource = "controversy_screen" | "analyst_raised" | "sla_stall" | "monitoring_rule" | "manual";
 export type CorrespondenceType = "letter" | "call" | "meeting" | "email" | "other";
 export type CommitmentStatus = "open" | "verified" | "missed";
 
@@ -2224,7 +2224,7 @@ export interface StewardshipStream {
 }
 
 // Stage studios: versioned house policies (backend/arp/stewardship/policies.py)
-export type StewardPolicyId = "coverage_rules" | "house_voting";
+export type StewardPolicyId = "monitoring_rules" | "coverage_rules" | "house_voting";
 
 export interface PolicyVersionMeta {
   version: number;
@@ -2295,6 +2295,31 @@ export interface CoveragePreview {
   distribution_active: Record<string, number>;
   rules_fired: Record<string, number>;
   changes: { issuer_id: string; company: string; from: string; to: string; rule: string; reason: string }[];
+}
+
+export interface MonitoringTrigger {
+  issuer_id: string;
+  company: string;
+  sector: string;
+  type: string;
+  theme: string;
+  severity: "low" | "medium" | "high";
+  rule: string;
+  reason: string;
+  engagement_id: string | null;
+}
+
+export interface MonitoringPreview {
+  companies: number;
+  triggers_candidate: number;
+  triggers_active: number;
+  flagged_candidate: number;
+  flagged_active: number;
+  by_rule_candidate: Record<string, number>;
+  by_rule_active: Record<string, number>;
+  newly_flagged: { issuer_id: string; company: string }[];
+  no_longer_flagged: { issuer_id: string; company: string }[];
+  triggers: MonitoringTrigger[];
 }
 
 export interface VotingPreview {

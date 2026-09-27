@@ -25,6 +25,7 @@ from typing import Any
 
 from arp.engagement.orchestrator import OrchestratorAction, decide_next_action, is_stalled, next_escalation_stage
 from arp.schemas.engagement import EngagementRecord, IssueStatus, MilestoneStage
+from arp.stewardship import monitoring
 from arp.stewardship.backtest import attach_impact, build_contexts
 from arp.stewardship.policies import PolicyStore
 from arp.stewardship.policy_graph import evaluate, generate
@@ -115,11 +116,13 @@ def _open_issues(records: list[EngagementRecord]):
                 yield record, issue
 
 
-def _house_stages(records: list[EngagementRecord], sample: dict, policy: dict, sla_days: int, tiers: dict) -> list[dict]:
+def _house_stages(
+    records: list[EngagementRecord], sample: dict, policy: dict, sla_days: int, tiers: dict, triggers: list[dict]
+) -> list[dict]:
     open_issues = list(_open_issues(records))
     all_issues = [i for r in records for i in r.issues]
     stalled = sum(1 for _, i in open_issues if is_stalled(i, sla_days))
-    triggered = sum(1 for i in all_issues if i.source.value in ("controversy_screen", "sla_stall"))
+    triggered = sum(1 for i in all_issues if i.source.value in ("controversy_screen", "sla_stall", "monitoring_rule"))
     fields = [v for issuer in sample["issuers"] for v in issuer["fields"].values()]
     missing = sum(v is None for v in fields) / len(fields) if fields else 0
 
@@ -146,8 +149,19 @@ def _house_stages(records: list[EngagementRecord], sample: dict, policy: dict, s
         [
             _metric("Companies monitored", len(sample["issuers"]), "sample"),
             _metric("Values missing", f"{missing:.0%}", "sample", "warn" if missing > 0.05 else "neutral"),
+            _metric("Triggers raised", len(triggers), "sample", hint="By the active monitoring rules"),
             _metric(
-                "Opened by triggers", triggered, "live", hint="Engagements opened by the controversy screen or the SLA sweep"
+                "Without an engagement",
+                len({t["issuer_id"] for t in triggers if t["engagement_id"] is None}),
+                "sample",
+                "warn" if any(t["engagement_id"] is None for t in triggers) else "good",
+                "Companies with a trigger and no open engagement on its theme",
+            ),
+            _metric(
+                "Opened by triggers",
+                triggered,
+                "live",
+                hint="Engagements opened by the controversy screen, the SLA sweep or a monitoring rule",
             ),
             _metric("Stalled engagements", stalled, "live", "warn" if stalled else "good", f"No activity for {sla_days} days"),
         ],
@@ -381,15 +395,18 @@ def flow(stream_id: str, streams: StreamStore, records: list[EngagementRecord], 
     sample = json.loads(SAMPLE_PATH.read_text())
     house_policy = PolicyStore(streams.root).active("house_voting")
     tiers = tier_review(streams.root, sample, records)
+    triggers = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, records)
     if stream_id == HOUSE:
         stream = {"stream_id": HOUSE, "name": "House program"}
-        stages = _house_stages(records, sample, house_policy, sla_days, tiers) + _house_reporting(streams.list(), records)
+        stages = _house_stages(records, sample, house_policy, sla_days, tiers, triggers) + _house_reporting(
+            streams.list(), records
+        )
     else:
         stream = streams.get(stream_id)
         if stream is None:
             raise KeyError(stream_id)
         policy = stream.get("built_policy") or house_policy
-        stages = _house_stages(records, sample, policy, sla_days, tiers) + _client_stages(stream, sample, house_policy)
+        stages = _house_stages(records, sample, policy, sla_days, tiers, triggers) + _client_stages(stream, sample, house_policy)
     return {
         "stream": {k: stream[k] for k in ("stream_id", "name")} | {"mandate": stream.get("client_policy", {}).get("mandate")},
         "data_note": "Meeting and company data are a synthetic sample (fictional companies); engagement data is live.",

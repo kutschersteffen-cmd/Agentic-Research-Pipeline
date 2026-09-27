@@ -1,6 +1,8 @@
 import type {
   CompanyBallot,
   CoveragePreview,
+  MonitoringPreview,
+  MonitoringTrigger,
   IssueCatalogue,
   ResearchDossier,
   StewardPolicyId,
@@ -337,6 +339,11 @@ export const api = {
   getCoverageInputs: () => request<{ contexts: Record<string, unknown>[] }>("/api/stewardship/studio/coverage/inputs"),
   previewCoverage: (graph: unknown) =>
     request<CoveragePreview>("/api/stewardship/studio/coverage/preview", { method: "POST", body: JSON.stringify({ graph }) }),
+  getMonitoringTriggers: () => request<{ triggers: MonitoringTrigger[] }>("/api/stewardship/studio/monitoring/triggers"),
+  previewMonitoring: (graph: unknown) =>
+    request<MonitoringPreview>("/api/stewardship/studio/monitoring/preview", { method: "POST", body: JSON.stringify({ graph }) }),
+  openEngagementFromTrigger: (body: { issuer_id: string; rule: string; decided_by: string }) =>
+    request<{ issue_id: string }>("/api/stewardship/monitoring/open-engagement", { method: "POST", body: JSON.stringify(body) }),
   previewVoting: (policy: unknown) =>
     request<VotingPreview>("/api/stewardship/studio/voting/preview", { method: "POST", body: JSON.stringify({ policy }) }),
   buildStreamPolicy: (streamId: string) =>

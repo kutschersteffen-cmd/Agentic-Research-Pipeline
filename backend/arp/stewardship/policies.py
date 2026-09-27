@@ -1,8 +1,9 @@
 """Versioned house policies for the stage studios: design a new version,
 calibrate it against the active one, then activate it with a named approver.
 
-Two policies so far:
+Three policies so far:
 
+- `monitoring_rules`: the ZEN decision table that raises triggers (stage 1);
 - `coverage_rules`: the ZEN decision table that proposes coverage tiers (stage 2);
 - `house_voting`: the house voting positions on the issue catalogue (stage 4).
 
@@ -22,6 +23,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from arp.schemas.engagement import EngagementRecord
+from arp.stewardship import monitoring
 from arp.stewardship.backtest import backtest
 from arp.stewardship.policy_graph import evaluate as evaluate_votes
 from arp.stewardship.policy_graph import generate
@@ -41,6 +43,15 @@ def _validate_coverage(graph: dict, sample: dict) -> None:
         raise ValueError(f"The coverage rules do not run: {exc}") from exc
 
 
+def _validate_monitoring(graph: dict, sample: dict) -> None:
+    if not isinstance(graph, dict) or not graph.get("nodes"):
+        raise ValueError("A monitoring policy is a rule graph with nodes and edges")
+    try:
+        monitoring.evaluate(graph, sample, [])
+    except RuntimeError as exc:
+        raise ValueError(f"The monitoring rules do not run: {exc}") from exc
+
+
 def _validate_voting(policy: dict, sample: dict) -> None:
     catalogue = load("policy_issue_catalogue.json")
     issues = {i["issue_id"]: i for i in catalogue["issues"]}
@@ -57,6 +68,7 @@ def _validate_voting(policy: dict, sample: dict) -> None:
 
 
 POLICIES: dict[str, dict[str, Callable]] = {
+    "monitoring_rules": {"default": monitoring.load_graph, "validate": _validate_monitoring},
     "coverage_rules": {"default": default_coverage_graph, "validate": _validate_coverage},
     "house_voting": {"default": lambda: load("house_voting_policy_draft.json"), "validate": _validate_voting},
 }
