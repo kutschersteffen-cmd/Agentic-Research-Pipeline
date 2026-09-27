@@ -311,6 +311,8 @@ export const api = {
   getStewardshipFlow: (streamId: string) => request<StewardshipFlow>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/flow`),
   recordPolicyDecision: (streamId: string, body: { issue_id: string; decision: string; decided_by: string; note?: string }) =>
     request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/decisions`, { method: "POST", body: JSON.stringify(body) }),
+  confirmTiers: (body: { decided_by: string; issuer_ids?: string[] }) =>
+    request<{ confirmed: number }>("/api/stewardship/tiers/confirm", { method: "POST", body: JSON.stringify(body) }),
   buildStreamPolicy: (streamId: string) =>
     request<{ positions_from_client: number }>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/build`, { method: "POST" }),
   listEngagementRecords: () => request<{ records: unknown[] }>("/api/engagement/records"),

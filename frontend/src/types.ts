@@ -2172,6 +2172,16 @@ export interface EscalationDecisionItem {
   reason: string;
 }
 
+export interface TierChangeItem {
+  kind: "tier_change";
+  issuer_id: string;
+  company: string;
+  current: string;
+  proposed: string;
+  rule: string | null;
+  reason: string;
+}
+
 export interface PolicyDifferenceItem {
   kind: "policy_difference";
   issue_id: string;
@@ -2195,7 +2205,7 @@ export interface StewardshipStage {
   summary: string;
   status: "live" | "partial" | "not_built";
   metrics: StewardshipMetric[];
-  decisions: (EscalationDecisionItem | PolicyDifferenceItem)[];
+  decisions: (EscalationDecisionItem | TierChangeItem | PolicyDifferenceItem)[];
   details: { label: string; rows: Record<string, string | number>[] }[];
   can_build?: boolean;
 }

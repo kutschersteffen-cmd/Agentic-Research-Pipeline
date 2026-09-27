@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import type {
   EscalationDecisionItem,
   MetricSource,
+  TierChangeItem,
   PolicyDifferenceItem,
   StewardshipFlow,
   StewardshipStage,
@@ -69,7 +70,7 @@ function BandNode({ data }: NodeProps<{ label: string }>) {
 const NODE_TYPES = { stage: StageFlowNode, band: BandNode };
 
 function StageNode({ stage, selected, onSelect, style }: { stage: StewardshipStage; selected: boolean; onSelect: (id: string) => void; style?: CSSProperties }) {
-  const open = stage.decisions.filter((d) => d.kind === "escalation" || d.decision === null).length;
+  const open = stage.decisions.filter((d) => d.kind !== "policy_difference" || d.decision === null).length;
   return (
     <button className={`flow-node flow-${stage.layer}${selected ? " selected" : ""}`} style={style} aria-pressed={selected} onClick={() => onSelect(stage.id)}>
       <span className="flow-node-head">
@@ -180,6 +181,69 @@ function fmt(v: unknown): string {
 }
 
 const words = (s: string) => s.replace(/_/g, " ");
+
+function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[]; actor: string; onDone: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  async function confirm(issuerIds?: string[]) {
+    setBusy(issuerIds ? issuerIds[0] : "all");
+    setError(null);
+    try {
+      await api.confirmTiers({ decided_by: actor, issuer_ids: issuerIds });
+      onDone();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+  const needName = actor ? undefined : "Enter your name above first";
+  return (
+    <>
+      <div className="section-heading">
+        <h4>Coverage tiers to confirm</h4>
+        <button onClick={() => confirm()} disabled={!actor || busy !== null} title={needName}>
+          {busy === "all" ? "Confirming…" : `Confirm all ${items.length}`}
+        </button>
+      </div>
+      <p className="muted">
+        Proposed by the house coverage rules (a decision table you can edit in the rule editor). A tier only counts once it is
+        confirmed; every confirmation is kept, never overwritten.
+      </p>
+      {error && <p className="error-text">{error}</p>}
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Tier</th>
+              <th>Why (rule that fired)</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.issuer_id}>
+                <td>{item.company}</td>
+                <td>
+                  {item.current} → <strong>{item.proposed}</strong>
+                </td>
+                <td>
+                  {item.reason} <span className="muted">({item.rule})</span>
+                </td>
+                <td>
+                  <button onClick={() => confirm([item.issuer_id])} disabled={!actor || busy !== null} title={needName}>
+                    {busy === item.issuer_id ? "Confirming…" : "Confirm"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
 
 function EscalationDecisions({ items, actor, onDone }: { items: EscalationDecisionItem[]; actor: string; onDone: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
@@ -334,6 +398,7 @@ function StageDetail({ stage, streamId, onChanged }: { stage: StewardshipStage; 
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const escalations = stage.decisions.filter((d): d is EscalationDecisionItem => d.kind === "escalation");
+  const tierChanges = stage.decisions.filter((d): d is TierChangeItem => d.kind === "tier_change");
   const differences = stage.decisions.filter((d): d is PolicyDifferenceItem => d.kind === "policy_difference");
   const openDifferences = differences.filter((d) => d.decision === null);
 
@@ -409,7 +474,7 @@ function StageDetail({ stage, streamId, onChanged }: { stage: StewardshipStage; 
         ),
       )}
 
-      {(escalations.length > 0 || differences.length > 0) && (
+      {(escalations.length > 0 || tierChanges.length > 0 || differences.length > 0) && (
         <div className="panel-section">
           <h4>Decisions</h4>
           <label className="field-label">
@@ -417,6 +482,7 @@ function StageDetail({ stage, streamId, onChanged }: { stage: StewardshipStage; 
             <input value={actor} onChange={(e) => saveActor(e.target.value)} placeholder="e.g. J. Doe" />
           </label>
           {escalations.length > 0 && <EscalationDecisions items={escalations} actor={actor} onDone={onChanged} />}
+          {tierChanges.length > 0 && <TierDecisions items={tierChanges} actor={actor} onDone={onChanged} />}
           {differences.length > 0 && (
             <>
               <p className="muted">

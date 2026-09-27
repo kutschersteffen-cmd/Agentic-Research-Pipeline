@@ -9,7 +9,17 @@ from pydantic import BaseModel
 from arp.api.deps import get_engagement_store, get_stream_store, settings_dep
 from arp.config import Settings
 from arp.stewardship.policy_review import DATA
-from arp.stewardship.process import HOUSE, StreamStore, build_stream_policy, flow, record_decision
+from arp.stewardship.process import (
+    HOUSE,
+    SAMPLE_PATH,
+    StreamStore,
+    build_stream_policy,
+    confirm_tiers,
+    flow,
+    record_decision,
+    tier_review,
+)
+from arp.stewardship.tiers import TierStore
 from arp.storage.engagement_store import EngagementStore
 
 router = APIRouter(prefix="/api/stewardship", tags=["stewardship"])
@@ -91,3 +101,31 @@ def post_build(stream_id: str, streams: StreamStore = Depends(get_stream_store))
         raise HTTPException(422, str(exc)) from exc
     streams.save(updated)
     return {"ok": True, "positions_from_client": sum(p["origin"] == "client" for p in updated["built_policy"]["positions"])}
+
+
+class ConfirmTiersRequest(BaseModel):
+    decided_by: str
+    issuer_ids: list[str] | None = None  # None: confirm every proposed change
+
+
+@router.post("/tiers/confirm")
+def post_confirm_tiers(
+    body: ConfirmTiersRequest,
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    try:
+        confirmed = confirm_tiers(streams.root, engagements.list_all(), body.decided_by, body.issuer_ids)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {"confirmed": confirmed}
+
+
+@router.get("/tiers")
+def get_tiers(
+    streams: StreamStore = Depends(get_stream_store), engagements: EngagementStore = Depends(get_engagement_store)
+) -> dict:
+    """The tier report (E1): distribution of confirmed tiers, the latest assignment
+    per issuer with the rule that decided it, and the changes awaiting confirmation."""
+    review = tier_review(streams.root, json.loads(SAMPLE_PATH.read_text()), engagements.list_all())
+    return {**review, "assignments": list(TierStore(streams.root).latest().values())}

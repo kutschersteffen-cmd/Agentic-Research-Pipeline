@@ -1,5 +1,5 @@
 {
- "note": "SYNTHETIC, fictional data for exercising the policy graphs and back-tests. Company names, values and meetings are invented; about 10% of company values are deliberately missing.",
+ "note": "SYNTHETIC, fictional data for exercising the policy graphs and back-tests. Company names, values and meetings are invented; about 10% of company values are deliberately missing. Holdings (index weight, AUM held across house portfolios) are synthetic too.",
  "generated_with_seed": 7,
  "issuers": [
   {
@@ -70,6 +70,10 @@
     "voting.dissent_addressed": true,
     "voting.majority_proposal_not_implemented": null,
     "voting.prior_year_dissent_pct": 6
+   },
+   "holding": {
+    "index_weight_pct": 0.9,
+    "aum_held_eur_m": 303
    }
   },
   {
@@ -140,6 +144,10 @@
     "voting.dissent_addressed": true,
     "voting.majority_proposal_not_implemented": false,
     "voting.prior_year_dissent_pct": 3
+   },
+   "holding": {
+    "index_weight_pct": 0.3,
+    "aum_held_eur_m": 81
    }
   },
   {
@@ -210,6 +218,10 @@
     "voting.dissent_addressed": true,
     "voting.majority_proposal_not_implemented": false,
     "voting.prior_year_dissent_pct": 6
+   },
+   "holding": {
+    "index_weight_pct": 3.1,
+    "aum_held_eur_m": 1547
    }
   },
   {
@@ -280,6 +292,10 @@
     "voting.dissent_addressed": false,
     "voting.majority_proposal_not_implemented": false,
     "voting.prior_year_dissent_pct": null
+   },
+   "holding": {
+    "index_weight_pct": 0.2,
+    "aum_held_eur_m": 92
    }
   },
   {
@@ -350,6 +366,10 @@
     "voting.dissent_addressed": true,
     "voting.majority_proposal_not_implemented": false,
     "voting.prior_year_dissent_pct": 6
+   },
+   "holding": {
+    "index_weight_pct": 0.03,
+    "aum_held_eur_m": 8
    }
   },
   {
@@ -420,6 +440,10 @@
     "voting.dissent_addressed": true,
     "voting.majority_proposal_not_implemented": false,
     "voting.prior_year_dissent_pct": 6
+   },
+   "holding": {
+    "index_weight_pct": 0.45,
+    "aum_held_eur_m": 249
    }
   },
   {
@@ -490,6 +514,10 @@
     "voting.dissent_addressed": true,
     "voting.majority_proposal_not_implemented": true,
     "voting.prior_year_dissent_pct": 10
+   },
+   "holding": {
+    "index_weight_pct": 1.4,
+    "aum_held_eur_m": 768
    }
   },
   {
@@ -560,6 +588,10 @@
     "voting.dissent_addressed": true,
     "voting.majority_proposal_not_implemented": false,
     "voting.prior_year_dissent_pct": 25
+   },
+   "holding": {
+    "index_weight_pct": 0.6,
+    "aum_held_eur_m": 270
    }
   },
   {
@@ -630,6 +662,10 @@
     "voting.dissent_addressed": true,
     "voting.majority_proposal_not_implemented": false,
     "voting.prior_year_dissent_pct": 6
+   },
+   "holding": {
+    "index_weight_pct": 0.04,
+    "aum_held_eur_m": 17
    }
   },
   {
@@ -700,6 +736,10 @@
     "voting.dissent_addressed": true,
     "voting.majority_proposal_not_implemented": false,
     "voting.prior_year_dissent_pct": null
+   },
+   "holding": {
+    "index_weight_pct": 0.02,
+    "aum_held_eur_m": 6
    }
   },
   {
@@ -770,6 +810,10 @@
     "voting.dissent_addressed": true,
     "voting.majority_proposal_not_implemented": false,
     "voting.prior_year_dissent_pct": 3
+   },
+   "holding": {
+    "index_weight_pct": 0.08,
+    "aum_held_eur_m": 20
    }
   },
   {
@@ -840,6 +884,10 @@
     "voting.dissent_addressed": true,
     "voting.majority_proposal_not_implemented": false,
     "voting.prior_year_dissent_pct": 3
+   },
+   "holding": {
+    "index_weight_pct": 0.12,
+    "aum_held_eur_m": 49
    }
   }
  ],

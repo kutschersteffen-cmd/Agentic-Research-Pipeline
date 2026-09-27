@@ -32,7 +32,7 @@ def test_house_flow_has_all_stages_with_sourced_metrics(streams, tmp_path):
     result = flow(HOUSE, streams, engagements.list_all(), sla_days=-1)  # every open issue is stalled
     assert [s["number"] for s in result["stages"]] == list(range(1, 9))
     assert all(m["source"] in ("live", "sample", "not_built") for s in result["stages"] for m in s["metrics"])
-    decisions = _stage(result, "checkpoint")["decisions"]
+    decisions = [d for d in _stage(result, "checkpoint")["decisions"] if d["kind"] == "escalation"]
     assert [(d["company_id"], d["current"], d["next"]) for d in decisions] == [("ACME", "private_engagement", "joint_engagement")]
 
 

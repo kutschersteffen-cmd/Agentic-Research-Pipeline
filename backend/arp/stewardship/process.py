@@ -28,6 +28,9 @@ from arp.schemas.engagement import EngagementRecord, IssueStatus, MilestoneStage
 from arp.stewardship.backtest import attach_impact, build_contexts
 from arp.stewardship.policy_graph import evaluate, generate
 from arp.stewardship.policy_review import DATA, build, decide, load, review
+from arp.stewardship.tiers import TIER_LABELS, TIERS, TierStore, review_tiers, tier_contexts
+from arp.stewardship.tiers import evaluate as evaluate_tiers
+from arp.stewardship.tiers import load_graph as load_tier_graph
 from arp.storage.atomic_io import atomic_write_text
 
 SAMPLE_PATH = DATA / "examples" / "sample_meetings.json"
@@ -112,7 +115,7 @@ def _open_issues(records: list[EngagementRecord]):
                 yield record, issue
 
 
-def _house_stages(records: list[EngagementRecord], sample: dict, policy: dict, sla_days: int) -> list[dict]:
+def _house_stages(records: list[EngagementRecord], sample: dict, policy: dict, sla_days: int, tiers: dict) -> list[dict]:
     open_issues = list(_open_issues(records))
     all_issues = [i for r in records for i in r.issues]
     stalled = sum(1 for _, i in open_issues if is_stalled(i, sla_days))
@@ -158,7 +161,21 @@ def _house_stages(records: list[EngagementRecord], sample: dict, policy: dict, s
         [
             _metric("Open engagements", len(open_issues), "live"),
             _metric("Awaiting research", milestones.get(MilestoneStage.IDENTIFIED.value, 0), "live"),
-            _metric("Coverage tiers", "—", "not_built", hint="Coverage tiers (E1) are designed but not built."),
+            _metric(
+                "Tiers confirmed",
+                f"{tiers['confirmed']} of {tiers['in_scope']}",
+                "sample",
+                "warn" if tiers["changes"] or tiers["reevaluation_due"] else "good",
+                "Quarterly re-evaluation is due"
+                if tiers["reevaluation_due"]
+                else "Coverage tiers (E1) from the house coverage rules",
+            ),
+        ],
+        details=[
+            {
+                "label": "Confirmed coverage tiers",
+                "rows": [{"tier": TIER_LABELS[t], "companies": tiers["distribution"].get(t, 0)} for t in TIERS],
+            },
         ],
     )
     s3 = _stage(
@@ -191,14 +208,30 @@ def _house_stages(records: list[EngagementRecord], sample: dict, policy: dict, s
             }
         ],
     )
+    tier_changes = tiers["changes"]
     s5 = _stage(
         "checkpoint",
         5,
         "Human Checkpoint",
         "house",
         "Every escalation, sanction list, outreach and disclosure is decided by a person.",
-        [_metric("Escalations to decide", len(flagged), "live", "warn" if flagged else "good")],
+        [
+            _metric("Escalations to decide", len(flagged), "live", "warn" if flagged else "good"),
+            _metric("Tier changes to confirm", len(tier_changes), "sample", "warn" if tier_changes else "good"),
+        ],
     )
+    for change in tier_changes:
+        s5["decisions"].append(
+            {
+                "kind": "tier_change",
+                "issuer_id": change["issuer_id"],
+                "company": change["name"],
+                "current": TIER_LABELS.get(change["current_tier"], "none"),
+                "proposed": TIER_LABELS[change["tier"]],
+                "rule": change["rule"],
+                "reason": change["reason"],
+            }
+        )
     for record, issue in flagged:
         nxt = next_escalation_stage(issue.escalation_stage)
         s5["decisions"].append(
@@ -347,21 +380,37 @@ EDGES = [
 def flow(stream_id: str, streams: StreamStore, records: list[EngagementRecord], sla_days: int) -> dict:
     sample = json.loads(SAMPLE_PATH.read_text())
     house_policy = load("house_voting_policy_draft.json")
+    tiers = tier_review(streams.root, sample, records)
     if stream_id == HOUSE:
         stream = {"stream_id": HOUSE, "name": "House program"}
-        stages = _house_stages(records, sample, house_policy, sla_days) + _house_reporting(streams.list(), records)
+        stages = _house_stages(records, sample, house_policy, sla_days, tiers) + _house_reporting(streams.list(), records)
     else:
         stream = streams.get(stream_id)
         if stream is None:
             raise KeyError(stream_id)
         policy = stream.get("built_policy") or house_policy
-        stages = _house_stages(records, sample, policy, sla_days) + _client_stages(stream, sample, house_policy)
+        stages = _house_stages(records, sample, policy, sla_days, tiers) + _client_stages(stream, sample, house_policy)
     return {
         "stream": {k: stream[k] for k in ("stream_id", "name")} | {"mandate": stream.get("client_policy", {}).get("mandate")},
         "data_note": "Meeting and company data are a synthetic sample (fictional companies); engagement data is live.",
         "stages": stages,
         "edges": EDGES,
     }
+
+
+def tier_review(root: Path, sample: dict, records: list[EngagementRecord]) -> dict:
+    proposals = evaluate_tiers(load_tier_graph(), tier_contexts(sample, records))
+    return review_tiers(proposals, TierStore(root).latest())
+
+
+def confirm_tiers(root: Path, records: list[EngagementRecord], decided_by: str, issuer_ids: list[str] | None = None) -> int:
+    """Confirms the proposed tier changes (all of them, or the listed issuers)."""
+    changes = tier_review(root, json.loads(SAMPLE_PATH.read_text()), records)["changes"]
+    wanted = [c for c in changes if issuer_ids is None or c["issuer_id"] in issuer_ids]
+    store = TierStore(root)
+    for change in wanted:
+        store.confirm({k: v for k, v in change.items() if k != "current_tier"}, decided_by)
+    return len(wanted)
 
 
 def record_decision(stream: dict, decision: dict, house_policy: dict | None = None) -> dict:

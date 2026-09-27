@@ -1,0 +1,207 @@
+{
+  "nodes": [
+    {
+      "id": "input",
+      "type": "inputNode",
+      "name": "input",
+      "position": {
+        "x": 0,
+        "y": 100
+      }
+    },
+    {
+      "id": "coverage_tiers",
+      "type": "decisionTableNode",
+      "name": "coverage_tiers",
+      "position": {
+        "x": 300,
+        "y": 100
+      },
+      "content": {
+        "passThrough": false,
+        "inputField": null,
+        "outputPath": null,
+        "executionMode": "single",
+        "hitPolicy": "first",
+        "inputs": [
+          {
+            "id": "w",
+            "name": "Index weight %",
+            "field": "holding.index_weight_pct"
+          },
+          {
+            "id": "a",
+            "name": "AUM held (EUR m)",
+            "field": "holding.aum_held_eur_m"
+          },
+          {
+            "id": "e",
+            "name": "Escalated engagement",
+            "field": "history.escalated"
+          },
+          {
+            "id": "o",
+            "name": "Open engagements",
+            "field": "history.open_engagements"
+          },
+          {
+            "id": "c",
+            "name": "High emitter",
+            "field": "issuer.climate.high_emitter"
+          },
+          {
+            "id": "n",
+            "name": "High-impact nature sector",
+            "field": "issuer.nature.high_impact_sector"
+          }
+        ],
+        "outputs": [
+          {
+            "id": "t",
+            "name": "Tier",
+            "field": "tier"
+          },
+          {
+            "id": "r",
+            "name": "Rule",
+            "field": "rule"
+          },
+          {
+            "id": "why",
+            "name": "Reason",
+            "field": "reason"
+          }
+        ],
+        "rules": [
+          {
+            "_id": "top_weight",
+            "_description": "Largest index positions get bespoke bilateral engagement.",
+            "t": "'priority_bilateral'",
+            "r": "'top_weight'",
+            "why": "'Index weight of 1% or more'",
+            "w": ">= 1",
+            "a": "",
+            "e": "",
+            "o": "",
+            "c": "",
+            "n": ""
+          },
+          {
+            "_id": "large_exposure",
+            "_description": "Large absolute exposure across house portfolios.",
+            "t": "'priority_bilateral'",
+            "r": "'large_exposure'",
+            "why": "'More than EUR 500m held'",
+            "w": "",
+            "a": "> 500",
+            "e": "",
+            "o": "",
+            "c": "",
+            "n": ""
+          },
+          {
+            "_id": "escalated",
+            "_description": "Keep companies already in escalation in bilateral dialogue.",
+            "t": "'priority_bilateral'",
+            "r": "'escalated'",
+            "why": "'An engagement is already escalated'",
+            "w": "",
+            "a": "",
+            "e": "true",
+            "o": "",
+            "c": "",
+            "n": ""
+          },
+          {
+            "_id": "high_emitter",
+            "_description": "High emitters are covered through climate collaborative initiatives.",
+            "t": "'thematic_collaborative'",
+            "r": "'high_emitter'",
+            "why": "'High-emitting sector'",
+            "w": "",
+            "a": "",
+            "e": "",
+            "o": "",
+            "c": "true",
+            "n": ""
+          },
+          {
+            "_id": "nature_impact",
+            "_description": "High-impact nature sectors are covered through nature initiatives.",
+            "t": "'thematic_collaborative'",
+            "r": "'nature_impact'",
+            "why": "'High-impact nature sector'",
+            "w": "",
+            "a": "",
+            "e": "",
+            "o": "",
+            "c": "",
+            "n": "true"
+          },
+          {
+            "_id": "open_engagement",
+            "_description": "Companies with an open engagement stay in thematic coverage.",
+            "t": "'thematic_collaborative'",
+            "r": "'open_engagement'",
+            "why": "'An engagement is open'",
+            "w": "",
+            "a": "",
+            "e": "",
+            "o": "> 0",
+            "c": "",
+            "n": ""
+          },
+          {
+            "_id": "small_position",
+            "_description": "Very small positions are covered through market-level work and voting.",
+            "t": "'systemic'",
+            "r": "'small_position'",
+            "why": "'Index weight below 0.05%'",
+            "w": "< 0.05",
+            "a": "",
+            "e": "",
+            "o": "",
+            "c": "",
+            "n": ""
+          },
+          {
+            "_id": "default",
+            "_description": "Everyone else: baseline expectations letter and voting policy.",
+            "t": "'scaled_baseline'",
+            "r": "'default'",
+            "why": "'Default: baseline coverage'",
+            "w": "",
+            "a": "",
+            "e": "",
+            "o": "",
+            "c": "",
+            "n": ""
+          }
+        ]
+      }
+    },
+    {
+      "id": "output",
+      "type": "outputNode",
+      "name": "output",
+      "position": {
+        "x": 600,
+        "y": 100
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "input-coverage_tiers",
+      "sourceId": "input",
+      "targetId": "coverage_tiers",
+      "type": "edge"
+    },
+    {
+      "id": "coverage_tiers-output",
+      "sourceId": "coverage_tiers",
+      "targetId": "output",
+      "type": "edge"
+    }
+  ]
+}

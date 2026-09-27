@@ -1134,7 +1134,7 @@ sub-agents → stages 2, 3, 6 and 8, Record Store → Part 1, Human Checkpoints 
 
 | Item | Lands in | Adjustment to the spec |
 |---|---|---|
-| **E1** Tiered coverage | Tier Assignment + `coverage_tier` graph (stage 2); quarterly monitoring run; tier distribution query | The tier sits on the **issuer**, not only on engagement records, because every holding needs one. It replaces the 0–4 engagement-level ladder of the previous revision. Escalation stays a separate ladder, capped by tier. |
+| **E1** Tiered coverage — **built** | Tier Assignment + `coverage_tier` graph (stage 2); quarterly re-evaluation; tier report (`GET /api/stewardship/tiers`) | The tier sits on the **issuer**, not only on engagement records, because every holding needs one. It replaces the 0–4 engagement-level ladder of the previous revision. Escalation stays a separate ladder, capped by tier. |
 | **E2** Public vote disclosure | Disclosure Record (stage 4 drafts, stage 5 finalises, stage 8 exports) | The rationale gate blocks the **disclosure record**, not the vote. Votes are ingested facts and cannot be blocked. JSON + HTML/PDF export reuses `arp/reporting/` (`pdf_builder.py`). |
 | **E3** Pre-meeting intentions | `meeting_profile` graph + Voting Intention (stage 4 → stage 5) | Needs the **agenda part of the voting feed before the meeting**. This relaxes design constraint 1 for meeting data only; votes are still consumed after the event. |
 | **E4** Voting-policy menu | House `vote_expectation` policies with `menu_name`; Portfolio `voting_policy_id` + effective date | The menu is the standard offer. **Clients can also have a custom policy**, designed with the house from a menu base (Part 5.2), back-tested and co-approved. "Vote-instruction generation" becomes the expected vote per mandate, published to whoever votes. Immutable policy versions, effective dates and frozen disclosure records make it non-retroactive. |
@@ -1188,12 +1188,39 @@ waiting for a person.
   - *Stage 5, House:* escalation decisions the engagement orchestrator flagged
     (stalled beyond the SLA). "Escalate" moves the issue one step up the ladder
     through the existing engagement API, with the decider's name.
+  - *Stage 5, House:* coverage tiers to confirm (E1), see below. Confirm one
+    company or all of them.
   - *Stage 7, client stream:* every policy difference, with its changes, the
     client's own wording, flags, the back-test effect and a recommendation.
     Record adopt, decline, defer or clarify with a note. Once every difference is
     decided, *Build the custom policy* produces it (Part 5.7). `adopt_with_modification`
     still has to go through the API, because the page has no editor for the
     modification yet.
+
+**Coverage tiers (E1), as built.** `backend/arp/stewardship/tiers.py`.
+
+- The house coverage rules are a ZEN decision table,
+  [`house_coverage_policy.graph.json`](../backend/arp/stewardship/data/house_coverage_policy.graph.json)
+  (hit policy *first*, one row per rule, each with a description), so they are
+  edited in the rule editor like any other policy. Inputs per company: index
+  weight and AUM held (holdings), high-emitter and high-impact-nature flags
+  (company data), open and escalated engagements (history). Draft rules, in
+  order: index weight ≥ 1% or > EUR 500m held or an escalated engagement →
+  Priority Bilateral; high emitter, high-impact nature sector or an open
+  engagement → Thematic & Collaborative; index weight < 0.05% → Systemic;
+  everyone else → Scaled Baseline. Decision-table cells never match a missing
+  value, so missing data falls through to the default rather than failing.
+- The rules *propose*; a tier counts only once a person confirms it at stage 5.
+  Only new companies and changed tiers need confirming.
+- Confirmed tiers are an append-only log (`tier_assignments.jsonl` in the streams
+  directory): each row keeps the rule that fired (the stored justification), its
+  inputs, who confirmed and when. Re-evaluation never edits a past row.
+- Stage 2 shows *Tiers confirmed* and the distribution. The metric turns amber
+  when changes are waiting or the oldest confirmation is older than a quarter
+  (re-evaluation due).
+- Tier inputs come from the synthetic sample (holdings added to it); engagement
+  history is live. Sample company ids do not match live engagement records yet,
+  so live history only counts once real holdings are connected.
 
 Implementation: `backend/arp/stewardship/process.py` (streams and the flow),
 `backend/arp/api/routers/stewardship.py` (`/api/stewardship/...`),
@@ -1216,7 +1243,8 @@ Implementation: `backend/arp/stewardship/process.py` (streams and the flow),
 6. The client's vehicle type (SMA vs pooled), which decides whether vote sanctions
    that contradict the house can be delivered at all.
 7. The Full-Index Coverage model (E1): its classification rules and thresholds are
-   not in the repo. The tier names and caps in Part 1 are the working assumption.
+   not in the repo. The draft house coverage rules (Part 7) and the tier caps in
+   Part 1 are the working assumption, to be replaced by the model's rules.
 8. The voting-policy menu (E4): the 3–4 named policies and what distinguishes them.
    To be written in the policy issue catalogue (5.7) from the start.
 11. The policy issue catalogue (5.7): a generic draft exists (46 issues); it needs
