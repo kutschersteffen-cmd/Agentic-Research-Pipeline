@@ -1,18 +1,25 @@
 :root {
-  /* Warm Paper: a cream ground with ink text, hairline rules instead of
-     shadows, and a recessive navy accent -- colour is reserved almost
-     entirely for data and status, which is what an audit tool wants. */
-  --bg: oklch(96.5% 0.014 78);
-  --panel: oklch(99% 0.009 80);
-  --panel-border: oklch(86% 0.016 74);
-  --well: oklch(93.5% 0.016 76);
-  --text: oklch(20% 0.014 58);
-  --muted: oklch(47% 0.014 64);
-  --accent: oklch(40% 0.070 250);
-  --accent-ink: oklch(32% 0.070 250);
-  --accent-tint: oklch(40% 0.070 250 / 0.10);
-  --sidebar-bg: oklch(94.5% 0.016 76);
-  --on-accent: oklch(99% 0.009 80); /* text on accent and status fills */
+  /* Steep base, Ramp rule: a near-white monochrome canvas with ink text and
+     ink controls. The one warm colour, peach (--await), is reserved for
+     things waiting on a person -- the "needs you" counts, proposed-not-
+     ratified output, the tiles that link to a decision. Once someone
+     decides, the peach goes. Nothing automated ever uses it. */
+  --bg: oklch(98.6% 0.002 60);
+  --panel: oklch(100% 0 0);
+  --panel-border: oklch(90.5% 0.004 60);
+  --well: oklch(96.4% 0.003 60);
+  --text: oklch(19% 0.004 60);
+  --muted: oklch(47% 0.006 60);
+  --accent: oklch(22% 0.004 60);
+  --accent-ink: oklch(10% 0 0);
+  --accent-tint: oklch(22% 0.004 60 / 0.06);
+  --sidebar-bg: oklch(97.4% 0.003 60);
+  --on-accent: oklch(100% 0 0); /* text on accent and status fills */
+  /* Awaiting a person. The fill is Steep's peach; the edge is deepened to
+     3.3:1 on white so a pending boundary still reads on a projector. Text
+     on the fill stays --text (13.8:1). */
+  --await: #fbe1d1;
+  --await-edge: #c9794a;
   /* high/mid/low/neutral are status semantics (run status, escalation
      stage, badges) rendered as small text/borders, not chart marks.
      Deepened again when the ground moved to warm cream: at the previous
@@ -62,9 +69,11 @@
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --dur: 140ms;
 
-  --font-display: "Space Grotesk", -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "Space Mono", ui-monospace, monospace;
-  font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Newsreader and Hanken Grotesk stand in for Steep's Signifier and Söhne
+     (commercial, Klim); swap these two tokens if the licence is bought. */
+  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color-scheme: light;
 }
 
@@ -168,14 +177,13 @@ a.nav-tab { text-decoration: none; }
   min-width: 1.5rem;
   padding: 1px 6px;
   border-radius: var(--r-pill);
-  background: var(--mid);
-  color: var(--on-accent);
+  background: var(--await);
+  color: var(--text);
   font-size: var(--text-xs);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
-.nav-tab.active .nav-count { background: var(--on-accent); color: var(--accent); }
 /* Up top, under the mark: who is deciding is the first thing set, and it
    stays in view on a laptop-height sidebar. */
 .app-sidebar-reviewer { padding: 0 10px var(--s-4); margin-bottom: var(--s-3); border-bottom: 1px solid var(--panel-border); }
@@ -369,7 +377,7 @@ a.button-link:hover, .toolbar a.button-link:hover { background: var(--accent-ink
    competing with Approve. */
 button.danger-outline { background: transparent; color: color-mix(in oklch, var(--low) 80%, var(--text)); border: 1px solid var(--low); }
 button.danger-outline:hover:not(:disabled) { background: color-mix(in srgb, var(--low) 10%, transparent); }
-button.link-button { background: transparent; color: var(--accent); padding: 4px 0; }
+button.link-button { background: transparent; color: var(--accent); padding: 4px 0; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.15em; }
 button.link-button:hover:not(:disabled) { background: transparent; color: var(--accent-ink); text-decoration: underline; }
 
 /* The quiet action beside a primary one: a real button, bordered, never
@@ -395,7 +403,7 @@ details.start-run > summary { cursor: pointer; list-style-position: outside; }
 details.start-run > summary h3 { display: inline; margin: 0; }
 details.start-run[open] > summary { margin-bottom: var(--s-3); }
 .confirm-list { margin: var(--s-2) 0 var(--s-4); padding-left: 1.2em; line-height: 1.6; }
-.toolbar a { color: var(--accent); }
+.toolbar a, .data-table a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 0.15em; }
 
 .help-text { color: var(--muted); font-size: var(--text-sm); max-width: 75ch; }
 /* The open run in a list of runs. */
@@ -405,7 +413,6 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
 .error-text { color: var(--low); }
 /* An inline recovery action inside a message reads as part of the sentence. */
 .error-text .link-button { margin: 0; padding: 0; font-size: inherit; font-weight: 600; }
-.data-table a { color: var(--accent); }
 /* Same truth at every size: below 560px a run table becomes one card per
    row, each cell labelled, instead of hiding columns behind a sideways
    scroll nobody knows is there. */
@@ -496,18 +503,19 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
    has decided yet (components/ProposedTag.tsx). Dashed means provisional;
    it turns solid, with a name, once someone decides. */
 .proposed {
-  border: 1px dashed var(--mid);
+  border: 1px dashed var(--await-edge);
   border-radius: var(--r-md);
-  background: color-mix(in srgb, var(--mid) 5%, var(--panel));
+  background: color-mix(in srgb, var(--await) 35%, var(--panel));
 }
 .recommendation-line.proposed { padding: var(--s-2) var(--s-3); }
 .proposed-tag {
   display: inline-block;
   margin-bottom: var(--s-1);
   padding: 1px 8px;
-  border: 1px dashed var(--mid);
+  border: 1px dashed var(--await-edge);
   border-radius: var(--r-md);
-  color: color-mix(in oklch, var(--mid) 70%, var(--text));
+  background: var(--await);
+  color: var(--text);
   font-size: var(--text-xs);
   font-weight: 600;
 }
@@ -709,6 +717,7 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
    person are the largest on the screen. */
 .dashboard-grid .stat-tile-action .stat-value { font-size: 2.25rem; font-weight: 600; }
 .dashboard-grid .stat-tile-action .stat-label { color: var(--text); font-weight: 500; }
+.dashboard-grid .stat-tile-action.awaiting { background: var(--await); box-shadow: inset 3px 0 0 var(--await-edge); }
 .stat-link {
   all: unset;
   cursor: pointer;
@@ -950,15 +959,15 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
    applied -- a wrong direction inverts a ranking and looks entirely
    normal on screen. */
 .decision-check-banner {
-  border: 1px solid var(--mid);
+  border: 1px solid var(--await-edge);
   border-radius: var(--r-md);
-  background: color-mix(in srgb, var(--mid) 12%, transparent);
+  background: var(--await);
   padding: 8px 12px;
   margin: 10px 0;
   font-size: var(--text-sm);
 }
 
-.audit-needs-check td { background: color-mix(in srgb, var(--mid) 7%, transparent); }
+.audit-needs-check td { background: color-mix(in srgb, var(--await) 60%, transparent); }
 .audit-stage { margin-bottom: 18px; }
 .audit-stage h4 { margin: 0 0 6px; font-size: var(--text-base); color: var(--muted); }
 
