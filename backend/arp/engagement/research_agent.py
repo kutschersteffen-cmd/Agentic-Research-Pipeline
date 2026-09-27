@@ -9,6 +9,8 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import Citation, CompanyRef, DocumentChunk
 from arp.schemas.engagement import EngagementIssue, EngagementRecord, ResearchDossier
+from arp.schemas.transition_plan import TransitionPlanAssessmentRecord
+from arp.transition_plan.clti import clti_summary
 
 _SYSTEM_PROMPT = """\
 You are a stewardship research analyst preparing a briefing dossier for a \
@@ -58,7 +60,12 @@ class ResearchDossierDraft(BaseModel):
 
 
 async def draft_dossier(
-    company_name: str, issue: EngagementIssue, record: EngagementRecord, chunks: list[DocumentChunk], llm: LLMClient
+    company_name: str,
+    issue: EngagementIssue,
+    record: EngagementRecord,
+    chunks: list[DocumentChunk],
+    llm: LLMClient,
+    clti_text: str = "",
 ) -> tuple[ResearchDossierDraft, LLMUsage]:
     contacts_text = "\n".join(f"- {c.name} ({c.role})" for c in record.contacts) or "No contacts on file."
     prompt = (
@@ -68,6 +75,7 @@ async def draft_dossier(
         f"Current milestone stage: {issue.milestone_stage.value}\n\n"
         f"Prior correspondence on this issue:\n{_format_engagement_history(record, issue)}\n\n"
         f"Known contacts:\n{contacts_text}\n\n"
+        f"House transition plan assessment (CLTI):\n{clti_text or '(no assessment on file)'}\n\n"
         f"Evidence from company disclosures:\n{_format_evidence(chunks) or '(no matching evidence found)'}"
     )
     return await llm.complete_structured(system=_SYSTEM_PROMPT, prompt=prompt, output_model=ResearchDossierDraft)
@@ -109,6 +117,7 @@ async def research_company_issue(
     fuzzy_threshold: float,
     confidence_review_threshold: float,
     max_chunks: int = 12,
+    clti: TransitionPlanAssessmentRecord | None = None,
 ) -> tuple[ResearchDossier, bool, LLMUsage]:
     """Fetches the company's available disclosures, prefilters evidence by
     the issue's theme, and drafts a grounded dossier -- the Research Agent
@@ -122,9 +131,10 @@ async def research_company_issue(
         all_chunks.extend(chunk_document(doc, keywords=keywords))
     evidence = select_relevant_chunks(all_chunks, keywords, max_chunks=max_chunks, fallback_to_all=True)
 
-    draft, usage = await draft_dossier(company.name, issue, record, evidence, llm)
+    clti_text = clti_summary(clti) if clti else ""
+    draft, usage = await draft_dossier(company.name, issue, record, evidence, llm, clti_text)
     dossier, needs_review = build_dossier(
         company.company_id, issue.issue_id, draft, documents_by_id, fuzzy_threshold, confidence_review_threshold
     )
-    dossier = dossier.model_copy(update={"engagement_history_summary": _format_engagement_history(record, issue)})
+    dossier = dossier.model_copy(update={"engagement_history_summary": _format_engagement_history(record, issue), "clti_summary": clti_text})
     return dossier, needs_review, usage

@@ -200,3 +200,22 @@ async def test_cast_approved_votes_respects_review_decisions(tmp_path, fake_llm)
     # Idempotent: a second call doesn't re-cast already-cast items.
     cast_again = await cast_approved_votes(run_id, run_store, platform)
     assert cast_again == []
+
+
+async def test_cast_vote_requires_cosign_for_escalation_lever_vote_against(tmp_path):
+    from arp.schemas.voting import HumanVoteDecision, Proposal, VoteRecord
+
+    proposal = Proposal(company_id="C1", meeting_id="mtg1", proposal_number="3", type=ProposalType.SAY_ON_PAY, sponsor="Management", resolution_text="x")
+    platform = ManualInstructionBallotPlatform(tmp_path / "ballots")
+
+    def _record(vote: VotePosition, co_signed_by: str | None = None) -> VoteRecord:
+        decision = HumanVoteDecision(vote=vote, decided_by="jane.pm", co_signed_by=co_signed_by)
+        return VoteRecord(proposal=proposal, issue_id="iss_1", escalation_lever=True, human_decision=decision)
+
+    try:
+        await cast_vote(platform, _record(VotePosition.AGAINST))
+        raise AssertionError("expected CastVoteError")
+    except CastVoteError:
+        pass
+    assert (await cast_vote(platform, _record(VotePosition.AGAINST, co_signed_by="lead.steward"))).cast_confirmation is not None
+    assert (await cast_vote(platform, _record(VotePosition.FOR))).cast_confirmation is not None

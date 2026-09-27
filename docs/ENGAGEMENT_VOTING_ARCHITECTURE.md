@@ -193,6 +193,13 @@ Implemented in `backend/arp/engagement/triggers.py`:
   decision, not an architectural one, see §8) and opens a new
   `EngagementIssue` for every signal without an already-open issue on the
   same company/theme (deduped so a recurring feed can't spawn duplicates).
+- `TransitionPlanSource` screens on the house transition plan score
+  (CLTI, `backend/arp/transition_plan/clti.py`): a company whose latest
+  assessment falls below a threshold, or drops by at least 0.1 since the
+  previous one, gets a `climate_transition` issue (`TriggerSource.TRANSITION_PLAN`).
+  `--clti-threshold` on `arp engagement trigger-scan` / `clti_threshold` on
+  `POST /api/engagement/trigger-scan`. The Research Agent's dossier carries
+  the same CLTI block (`ResearchDossier.clti_summary`).
 - `scan_for_stalled_issues(store, sla_days)` is the SLA half: no external
   feed needed, just a sweep over every open issue using the same
   `is_stalled` check the orchestrator uses, marking newly-stalled issues
@@ -360,15 +367,12 @@ Executes an authorized vote and closes the loop. Implemented in
   by design intent, meant to be cross-signed the same way: both the
   relationship owner and whoever made the original escalation-lever
   decision (§4's last bullet) confirm, since this is the point where
-  engagement and voting are the same decision wearing two hats. **Not yet
-  enforced in code as its own case**: `check_engagement_alignment` only
-  flags a *conflict* (voting FOR despite an active escalation) — a vote
-  that correctly votes AGAINST, consistent with an already-chosen
-  escalation lever, doesn't currently set the alignment flag and so
-  doesn't currently force a co-sign. Extending the check to flag
-  escalation-*consistent* AGAINST votes too (not just escalation-
-  *inconsistent* FOR votes) would close this gap; today it's a manual
-  house process rather than a structural guarantee.
+  engagement and voting are the same decision wearing two hats. Enforced
+  structurally: when the ballot is built, `link_engagement_issue`
+  (`policy_agent.py`) links each item to the open issue on its mapped theme
+  (`VoteRecord.issue_id`), and sets `VoteRecord.escalation_lever` if that
+  issue is at `VOTE_AGAINST_MANAGEMENT` or beyond. `cast_vote` refuses an
+  AGAINST/WITHHOLD vote on such an item without `co_signed_by`.
 
 ### 6.6 Reporting Agent (extended)
 
@@ -520,6 +524,8 @@ backend/arp/voting/
                          cast_vote (§6.4)
   pipeline.py            run_voting / execute_voting_run (batch orchestration, §6.3),
                           cast_approved_votes (review-decision -> cast, §6.5)
+
+backend/arp/transition_plan/clti.py      clti_score, load_assessments, clti_summary (CLTI trigger + dossier, §5)
 
 backend/arp/api/routers/engagement.py   /api/engagement/... (records, issues, escalation,
                                          trigger-scan, dossier/outreach/talking-points/

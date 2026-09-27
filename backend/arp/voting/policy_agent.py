@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from arp.engagement.orchestrator import escalation_index
 from arp.llm.base import LLMClient, LLMUsage
-from arp.schemas.engagement import EngagementRecord, EscalationStage, IssueStatus
+from arp.schemas.engagement import EngagementIssue, EngagementRecord, EscalationStage, IssueStatus
 from arp.schemas.voting import PolicyRecommendation, Proposal, ProposalType, VotePosition
 
 """Policy Application Agent: applies house voting policy to a proposal.
@@ -99,6 +99,23 @@ def _looks_self_filed(sponsor: str, fund_name: str | None) -> bool:
     return fund_name.strip().lower() in sponsor.strip().lower()
 
 
+def link_engagement_issue(proposal: Proposal, record: EngagementRecord | None) -> EngagementIssue | None:
+    """Links a ballot item to the company's open engagement issue on the
+    theme its proposal type maps to -- the most escalated one if several.
+    None when the type maps to no theme or no such issue is open."""
+    theme = _PROPOSAL_THEME_MAP.get(proposal.type)
+    if record is None or theme is None:
+        return None
+    issues = [i for i in record.issues if i.theme == theme and i.status in _OPEN_STATUSES]
+    return max(issues, key=lambda i: escalation_index(i.escalation_stage), default=None)
+
+
+def is_escalation_lever(issue: EngagementIssue | None) -> bool:
+    """True once the issue has reached the vote-against-management rung, i.e.
+    a vote against on its linked ballot items is the escalation itself."""
+    return issue is not None and escalation_index(issue.escalation_stage) >= escalation_index(EscalationStage.VOTE_AGAINST_MANAGEMENT)
+
+
 def check_engagement_alignment(
     vote: VotePosition, proposal: Proposal, record: EngagementRecord | None, fund_name: str | None = None
 ) -> tuple[bool, str | None]:
@@ -111,23 +128,9 @@ def check_engagement_alignment(
     if proposal.type == ProposalType.SHAREHOLDER_RESOLUTION and _looks_self_filed(proposal.sponsor, fund_name) and vote != VotePosition.FOR:
         return True, f"Recommendation is '{vote.value}' on a resolution that appears to be co-filed/sponsored by the fund ({proposal.sponsor})."
 
-    if record is None:
-        return False, None
-
-    theme = _PROPOSAL_THEME_MAP.get(proposal.type)
-    if theme is None:
-        return False, None
-
-    escalated_issues = [
-        i
-        for i in record.issues
-        if i.theme == theme
-        and i.status in _OPEN_STATUSES
-        and escalation_index(i.escalation_stage) >= escalation_index(EscalationStage.VOTE_AGAINST_MANAGEMENT)
-    ]
-    if escalated_issues and vote == VotePosition.FOR:
-        stages = ", ".join(sorted({i.escalation_stage.value for i in escalated_issues}))
-        return True, f"Recommendation votes FOR management on '{theme}' while engagement on this company is escalated ({stages})."
+    issue = link_engagement_issue(proposal, record)
+    if is_escalation_lever(issue) and vote == VotePosition.FOR:
+        return True, f"Recommendation votes FOR management on '{issue.theme}' while engagement on this company is escalated ({issue.escalation_stage.value})."
     return False, None
 
 

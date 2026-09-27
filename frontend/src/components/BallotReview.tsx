@@ -34,7 +34,9 @@ function ProposalReview({
   const [error, setError] = useState<string | null>(null);
 
   const key = itemKey(ballot.company_id, vote.proposal.proposal_number);
-  const needsCoSign = rec?.engagement_alignment_flag === true;
+  const finalVote = reviewDecision === "edit" ? chosenVote : rec?.vote;
+  const isEscalationLeverVote = vote.escalation_lever === true && (finalVote === "against" || finalVote === "withhold");
+  const needsCoSign = rec?.engagement_alignment_flag === true || isEscalationLeverVote;
 
   async function submit() {
     if (!reviewer.trim()) {
@@ -42,7 +44,11 @@ function ProposalReview({
       return;
     }
     if (needsCoSign && !coSignedBy.trim()) {
-      setError("This item carries an engagement alignment flag -- a co-sign is required before it can be cast.");
+      setError(
+        isEscalationLeverVote
+          ? "This vote against is the escalation lever on an escalated engagement issue -- a co-sign is required before it can be cast."
+          : "This item carries an engagement alignment flag -- a co-sign is required before it can be cast.",
+      );
       return;
     }
     setBusy(true);
@@ -90,6 +96,12 @@ function ProposalReview({
         <div className="banner banner-danger">Engagement alignment flag: {rec.engagement_alignment_note}</div>
       )}
 
+      {vote.escalation_lever && (
+        <div className="banner banner-warning">
+          Linked engagement issue is escalated to a vote against management -- voting against here is the escalation lever and needs a co-sign.
+        </div>
+      )}
+
       {alreadyCast && (
         <div className="banner banner-warning">Cast &mdash; confirmation {castConfirmationId}</div>
       )}
@@ -121,7 +133,7 @@ function ProposalReview({
           </div>
           {needsCoSign && (
             <input
-              placeholder="Co-signed by (required -- alignment flag)"
+              placeholder={`Co-signed by (required -- ${isEscalationLeverVote ? "escalation lever" : "alignment flag"})`}
               value={coSignedBy}
               onChange={(e) => setCoSignedBy(e.target.value)}
             />

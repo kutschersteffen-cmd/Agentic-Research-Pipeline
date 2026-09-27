@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from arp.schemas.voting import CastConfirmation, VoteRecord
+from arp.schemas.voting import CastConfirmation, VotePosition, VoteRecord
 
 
 class BallotPlatform(ABC):
@@ -62,7 +62,8 @@ async def cast_vote(platform: BallotPlatform, vote_record: VoteRecord) -> VoteRe
 
     A recommendation carrying an engagement_alignment_flag additionally
     requires a co-sign (see docs/ENGAGEMENT_VOTING_ARCHITECTURE.md #6.5)
-    before it can be cast.
+    before it can be cast, and so does a vote against that is itself the
+    escalation lever of the linked issue (`escalation_lever`).
 
     Idempotent: a vote_record that already has a cast_confirmation is
     returned unchanged rather than cast twice.
@@ -76,6 +77,15 @@ async def cast_vote(platform: BallotPlatform, vote_record: VoteRecord) -> VoteRe
     ):
         raise CastVoteError(
             f"Refusing to cast {vote_record.vote_record_id}: engagement_alignment_flag is set and requires a co-sign."
+        )
+    if (
+        vote_record.escalation_lever
+        and vote_record.human_decision.vote in (VotePosition.AGAINST, VotePosition.WITHHOLD)
+        and not vote_record.human_decision.co_signed_by
+    ):
+        raise CastVoteError(
+            f"Refusing to cast {vote_record.vote_record_id}: a vote against on escalated issue {vote_record.issue_id} "
+            "is the escalation lever and requires a co-sign."
         )
     if vote_record.cast_confirmation is not None:
         return vote_record

@@ -7,7 +7,9 @@ from pydantic import BaseModel
 from arp.engagement.orchestrator import is_stalled
 from arp.schemas.common import CompanyRef
 from arp.schemas.engagement import IssueSeverity, IssueStatus, TriggerEvent, TriggerSource
+from arp.schemas.transition_plan import TransitionPlanAssessmentRecord
 from arp.storage.engagement_store import EngagementStore
+from arp.transition_plan.clti import clti_score, clti_summary
 
 
 class ControversySignal(BaseModel):
@@ -25,6 +27,7 @@ class ControversySource(ABC):
     docs/ENGAGEMENT_VOTING_ARCHITECTURE.md #8)."""
 
     name: str = "base"
+    trigger_source: TriggerSource = TriggerSource.CONTROVERSY_SCREEN
 
     @abstractmethod
     async def screen(self, companies: list[CompanyRef]) -> list[ControversySignal]:
@@ -47,6 +50,39 @@ class StaticControversySource(ControversySource):
         return [s for s in self._signals if s.company_id in wanted]
 
 
+class TransitionPlanSource(ControversySource):
+    """Raises a climate_transition issue when a company's latest CLTI is
+    below `threshold`, or has fallen by at least `drop` since its previous
+    assessment. Fed by transition plan assessments rather than news (see
+    arp.transition_plan.clti.load_assessments)."""
+
+    name = "transition_plan"
+    trigger_source = TriggerSource.TRANSITION_PLAN
+    theme = "climate_transition"
+
+    def __init__(self, assessments: dict[str, list[TransitionPlanAssessmentRecord]], threshold: float, drop: float = 0.1) -> None:
+        self._assessments = assessments
+        self._threshold = threshold
+        self._drop = drop
+
+    async def screen(self, companies: list[CompanyRef]) -> list[ControversySignal]:
+        signals: list[ControversySignal] = []
+        for company in companies:
+            history = self._assessments.get(company.company_id)
+            if not history:
+                continue
+            score = clti_score(history[-1])
+            previous = clti_score(history[-2]) if len(history) > 1 else None
+            if score < self._threshold:
+                reason = f"CLTI {score:.2f} is below the house threshold {self._threshold:.2f}."
+            elif previous is not None and previous - score >= self._drop:
+                reason = f"CLTI fell from {previous:.2f} to {score:.2f} since the previous assessment."
+            else:
+                continue
+            signals.append(ControversySignal(company_id=company.company_id, theme=self.theme, detail=f"{reason}\n{clti_summary(history[-1])}"))
+        return signals
+
+
 async def run_trigger_screen(
     companies: list[CompanyRef], source: ControversySource, store: EngagementStore
 ) -> list[TriggerEvent]:
@@ -67,7 +103,7 @@ async def run_trigger_screen(
             name,
             theme=signal.theme,
             severity=signal.severity,
-            source=TriggerSource.CONTROVERSY_SCREEN,
+            source=source.trigger_source,
             source_detail=signal.detail,
             sector=sectors_by_id.get(signal.company_id),
         )
@@ -75,7 +111,7 @@ async def run_trigger_screen(
             TriggerEvent(
                 company_id=signal.company_id,
                 theme=signal.theme,
-                source=TriggerSource.CONTROVERSY_SCREEN,
+                source=source.trigger_source,
                 severity=signal.severity,
                 detail=signal.detail,
                 raised_issue_id=issue.issue_id,

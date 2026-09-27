@@ -331,6 +331,11 @@ export function EngagementIssuePanel({
             <p>
               <strong>Peer benchmark:</strong> {dossier.peer_benchmark_notes}
             </p>
+            {dossier.clti_summary && (
+              <p style={{ whiteSpace: "pre-line" }}>
+                <strong>Transition plan (CLTI):</strong> {dossier.clti_summary}
+              </p>
+            )}
             <p className="muted">Confidence: {Math.round(dossier.confidence * 100)}% &middot; {dossier.citations.length} citation(s)</p>
           </div>
         )}

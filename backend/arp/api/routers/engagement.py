@@ -3,18 +3,26 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from arp.api.deps import get_engagement_store, get_llm_client, get_registry, settings_dep
+from arp.api.deps import get_engagement_store, get_llm_client, get_registry, get_run_store, settings_dep
 from arp.config import Settings
 from arp.engagement.drafting_agent import draft_meeting_summary, draft_outreach_letter, draft_talking_points
 from arp.engagement.orchestrator import decide_next_action
 from arp.engagement.reporting_agent import compile_report
 from arp.engagement.research_agent import research_company_issue
 from arp.engagement.tracking_agent import log_commitment_verified, log_meeting_summary_validated, log_outreach_sent
-from arp.engagement.triggers import ControversySignal, StaticControversySource, run_trigger_screen, scan_for_stalled_issues
+from arp.engagement.triggers import (
+    ControversySignal,
+    StaticControversySource,
+    TransitionPlanSource,
+    run_trigger_screen,
+    scan_for_stalled_issues,
+)
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.schemas.common import CompanyRef
 from arp.schemas.engagement import Contact, EscalationStage, IssueSeverity, TriggerSource
 from arp.storage.engagement_store import EngagementStore
+from arp.storage.run_store import RunStore
+from arp.transition_plan.clti import latest_assessment, load_assessments
 from arp.voting.pipeline import get_ballots
 
 router = APIRouter(prefix="/api/engagement", tags=["engagement"])
@@ -102,17 +110,25 @@ def escalate_issue(company_id: str, issue_id: str, req: EscalateRequest, store: 
 
 class TriggerScanRequest(BaseModel):
     companies: list[CompanyRef]
-    signals: list[ControversySignal]
+    signals: list[ControversySignal] = []
+    clti_threshold: float | None = None
 
 
 @router.post("/trigger-scan")
-async def trigger_scan(req: TriggerScanRequest, store: EngagementStore = Depends(get_engagement_store)) -> dict:
+async def trigger_scan(
+    req: TriggerScanRequest,
+    store: EngagementStore = Depends(get_engagement_store),
+    run_store: RunStore = Depends(get_run_store),
+) -> dict:
     """Runs the trigger & detection layer against a caller-supplied
     controversy signal set (no real data-provider integration is wired up
     yet -- see docs/ENGAGEMENT_VOTING_ARCHITECTURE.md #8) plus an SLA sweep
     over existing issues."""
     source = StaticControversySource(req.signals)
     events = await run_trigger_screen(req.companies, source, store)
+    if req.clti_threshold is not None:
+        clti_source = TransitionPlanSource(load_assessments(run_store), req.clti_threshold)
+        events += await run_trigger_screen(req.companies, clti_source, store)
     settings = settings_dep()
     events += scan_for_stalled_issues(store, settings.engagement_sla_days)
     return {"events": [e.model_dump(mode="json") for e in events]}
@@ -126,6 +142,7 @@ async def draft_dossier_endpoint(
     settings: Settings = Depends(settings_dep),
     store: EngagementStore = Depends(get_engagement_store),
     registry: DocumentSourceRegistry = Depends(get_registry),
+    run_store: RunStore = Depends(get_run_store),
 ) -> dict:
     record = _get_record_or_404(store, company_id)
     issue = _get_issue_or_404(record, issue_id)
@@ -133,6 +150,7 @@ async def draft_dossier_endpoint(
     dossier, needs_review, _usage = await research_company_issue(
         company, issue, record, registry=registry, llm=llm,
         fuzzy_threshold=settings.grounding_fuzzy_threshold, confidence_review_threshold=settings.confidence_review_threshold,
+        clti=latest_assessment(run_store, company_id),
     )
     return {"dossier": dossier.model_dump(mode="json"), "needs_review": needs_review}
 
@@ -227,8 +245,6 @@ def report(period_label: str, run_id: str | None = None, store: EngagementStore 
     """Reporting Agent: compiles a stewardship report for `period_label`.
     Pass `run_id` to include a voting run's cast votes in the same report;
     omitted, the report covers engagement activity only."""
-    from arp.storage.run_store import RunStore
-
     vote_records = []
     if run_id:
         run_store = RunStore(settings_dep().runs_dir)

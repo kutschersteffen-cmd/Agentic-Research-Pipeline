@@ -10,7 +10,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.schemas.common import CompanyRef, DocumentChunk, SourceDocument, new_id
 from arp.schemas.voting import CompanyBallot, Proposal, VoteRecord
 from arp.storage.engagement_store import EngagementStore
-from arp.voting.policy_agent import PolicyRule, apply_policy
+from arp.voting.policy_agent import PolicyRule, apply_policy, is_escalation_lever, link_engagement_issue
 from arp.voting.proposal_agent import extract_proposals
 
 
@@ -77,7 +77,15 @@ async def _extract_and_apply_policy(state: BallotState) -> dict:
         )
         recommendation, policy_usage = await apply_policy(proposal, record, llm, rules=state["rules"], fund_name=state["fund_name"])
         usages.append(policy_usage)
-        votes.append(VoteRecord(proposal=proposal, policy_recommendation=recommendation))
+        issue = link_engagement_issue(proposal, record)
+        votes.append(
+            VoteRecord(
+                proposal=proposal,
+                policy_recommendation=recommendation,
+                issue_id=issue.issue_id if issue else None,
+                escalation_lever=is_escalation_lever(issue),
+            )
+        )
 
     ballot = CompanyBallot(company_id=company.company_id, name=company.name, meeting_id=meeting_id, meeting_date=meeting_date, votes=votes)
     return {"ballot": ballot, "usages": usages}

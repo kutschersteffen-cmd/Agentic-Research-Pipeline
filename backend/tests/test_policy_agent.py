@@ -4,6 +4,8 @@ from arp.voting.policy_agent import (
     PolicyJudgmentDraft,
     apply_policy,
     check_engagement_alignment,
+    is_escalation_lever,
+    link_engagement_issue,
     rule_auditor_independence,
     rule_egregious_pay_ratio,
 )
@@ -114,3 +116,17 @@ async def test_apply_policy_falls_back_to_llm_judgment_when_no_rule_matches(fake
     assert recommendation.policy_rule_id is None
     assert recommendation.engagement_alignment_flag is False
     assert llm.calls == ["PolicyJudgmentDraft"]
+
+
+def test_link_engagement_issue_picks_most_escalated_open_issue_on_mapped_theme():
+    early = EngagementIssue(theme="executive_compensation", source=TriggerSource.MANUAL)
+    escalated = EngagementIssue(theme="executive_compensation", source=TriggerSource.MANUAL, escalation_stage=EscalationStage.VOTE_AGAINST_MANAGEMENT)
+    other_theme = EngagementIssue(theme="board_governance", source=TriggerSource.MANUAL, escalation_stage=EscalationStage.PUBLIC_STATEMENT)
+    record = EngagementRecord(company_id="C1", name="Acme", issues=[early, escalated, other_theme])
+
+    linked = link_engagement_issue(_proposal(type=ProposalType.SAY_ON_PAY), record)
+
+    assert linked.issue_id == escalated.issue_id
+    assert is_escalation_lever(linked)
+    assert not is_escalation_lever(early)
+    assert link_engagement_issue(_proposal(type=ProposalType.CAPITAL_ACTION), record) is None

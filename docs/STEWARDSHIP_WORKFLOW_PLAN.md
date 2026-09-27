@@ -7,6 +7,10 @@ Stages 1–6 are mostly built; stages 7–8 (client overlay) are new.
 
 ## Decisions
 
+Confirmed as well: CLTI = indicators disclosed ÷ 64; PTV shares with no
+client instruction by the cutoff go unvoted; client-delta lines skip
+per-item review.
+
 | # | Question | Decision |
 |---|---|---|
 | 1 | Escalation keyed to resolution (operating model) or issue (v1)? | **Per issue.** Ladder steps 1–4 happen before any resolution exists. A vote against management is ladder step 5 and links *to* the issue. |
@@ -62,7 +66,8 @@ simply an extra rule list evaluated after the house decision.
 - **CLTI** = latest `TransitionPlanAssessmentRecord` for the company:
   `disclosed_count / 64`, plus the walk/talk split and `by_category`.
   Versioned by `run_id` / `generated_at` (the record already carries both).
-- **Nature** = latest TNFD assessment for the company.
+- **Nature**: deferred. The TNFD extraction record has no single company
+  score yet; add one before wiring it into triggers or dossiers.
 - **Used in:**
   - **Stage 1 trigger:** a CLTI below a house threshold, or one that falls
     between runs, opens a `climate_transition` issue through the existing
@@ -131,7 +136,7 @@ Two extra agents:
 
 | Phase | Scope | Size |
 |---|---|---|
-| 1 | Stage 1–6 gaps: `VoteRecord.issue_id`, co-sign for escalation-lever votes, CLTI/nature in dossier, CLTI trigger source | ~1–2 days |
+| 1 ✅ | Stage 1–6 gaps: `VoteRecord.issue_id`, co-sign for escalation-lever votes, CLTI in dossier, CLTI trigger source | done |
 | 2 | Overlay schemas + storage: `Client`, `ClientPolicyProfile`, `ClientVoteInstruction`, `Portfolio.client_id/vehicle_type` | ~1 day |
 | 3 | Stage 7: `BallotLine` expansion, client deltas, PTV routing, `cast_vote` on lines | ~2–3 days |
 | 4 | Stage 8: per-client report, relevance weighting, compliance gate, delivery log | ~2 days |

@@ -73,6 +73,7 @@ class IssueSeverity(StrEnum):
 
 class TriggerSource(StrEnum):
     CONTROVERSY_SCREEN = "controversy_screen"
+    TRANSITION_PLAN = "transition_plan"
     ANALYST_RAISED = "analyst_raised"
     SLA_STALL = "sla_stall"
     MANUAL = "manual"
@@ -191,6 +192,7 @@ class ResearchDossier(BaseModel):
     controversy_context: str
     peer_benchmark_notes: str
     engagement_history_summary: str
+    clti_summary: str = Field(default="", description="Latest transition plan assessment (score + undisclosed indicators), verbatim from the assessment run.")
     recommended_contacts: list[str] = Field(default_factory=list)
     citations: list[Citation] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0)

@@ -81,6 +81,14 @@ class VoteRecord(BaseModel):
     run_id: str = ""
     proposal: Proposal
     policy_recommendation: PolicyRecommendation | None = None
+    issue_id: str | None = Field(
+        default=None, description="Open engagement issue on this company whose theme the proposal type maps to (see policy_agent.link_engagement_issue)."
+    )
+    escalation_lever: bool = Field(
+        default=False,
+        description="The linked issue was escalated to vote-against-management or beyond when the ballot was built, so an AGAINST/WITHHOLD "
+        "vote here is the chosen escalation lever and needs a co-sign before casting.",
+    )
     human_decision: HumanVoteDecision | None = None
     cast_confirmation: CastConfirmation | None = None
 

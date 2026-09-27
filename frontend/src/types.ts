@@ -620,7 +620,7 @@ export type EscalationStage =
 
 export type IssueStatus = "open" | "stalled" | "resolved" | "closed";
 export type IssueSeverity = "low" | "medium" | "high";
-export type TriggerSource = "controversy_screen" | "analyst_raised" | "sla_stall" | "manual";
+export type TriggerSource = "controversy_screen" | "transition_plan" | "analyst_raised" | "sla_stall" | "manual";
 export type CorrespondenceType = "letter" | "call" | "meeting" | "email" | "other";
 export type CommitmentStatus = "open" | "verified" | "missed";
 
@@ -725,6 +725,7 @@ export interface ResearchDossier {
   controversy_context: string;
   peer_benchmark_notes: string;
   engagement_history_summary: string;
+  clti_summary?: string;
   recommended_contacts: string[];
   citations: Citation[];
   confidence: number;
@@ -809,6 +810,8 @@ export interface VoteRecord {
   run_id: string;
   proposal: Proposal;
   policy_recommendation?: PolicyRecommendation | null;
+  issue_id?: string | null;
+  escalation_lever?: boolean;
   human_decision?: HumanVoteDecision | null;
   cast_confirmation?: CastConfirmation | null;
 }

@@ -10,10 +10,17 @@ from arp.cli._shared import _engagement_store, _registry
 from arp.config import get_settings
 from arp.engagement.orchestrator import decide_next_action
 from arp.engagement.reporting_agent import compile_report
-from arp.engagement.triggers import ControversySignal, StaticControversySource, run_trigger_screen, scan_for_stalled_issues
+from arp.engagement.triggers import (
+    ControversySignal,
+    StaticControversySource,
+    TransitionPlanSource,
+    run_trigger_screen,
+    scan_for_stalled_issues,
+)
 from arp.llm.factory import build_llm_client
 from arp.schemas.engagement import CorrespondenceEntry, EscalationStage, IssueSeverity, TriggerSource
 from arp.storage.run_store import RunStore
+from arp.transition_plan.clti import latest_assessment, load_assessments
 from arp.universe import load_company_universe
 from arp.voting.pipeline import get_ballots, get_cast_votes
 
@@ -133,6 +140,7 @@ def engagement_dossier_draft(
         research_company_issue(
             company, issue, record, registry=_registry(), llm=llm,
             fuzzy_threshold=settings.grounding_fuzzy_threshold, confidence_review_threshold=settings.confidence_review_threshold,
+            clti=latest_assessment(RunStore(settings.runs_dir), company_id),
         )
     )
     out.write_text(dossier.model_dump_json(indent=2))
@@ -144,6 +152,7 @@ def engagement_dossier_draft(
 def engagement_trigger_scan(
     universe: Path = typer.Option(...),
     signals: Path = typer.Option(None, help="JSON list of {company_id, theme, severity, detail} controversy signals."),
+    clti_threshold: float = typer.Option(None, help="Also open a climate_transition issue where the latest CLTI is below this (or fell >= 0.1)."),
 ) -> None:
     """Runs the trigger & detection layer: opens a new issue for every
     controversy signal without an already-open issue on the same theme,
@@ -153,6 +162,9 @@ def engagement_trigger_scan(
     signal_list = [ControversySignal(**s) for s in json.loads(signals.read_text())] if signals else []
     source = StaticControversySource(signal_list)
     events = asyncio.run(run_trigger_screen(companies, source, store))
+    if clti_threshold is not None:
+        clti_source = TransitionPlanSource(load_assessments(RunStore(get_settings().runs_dir)), clti_threshold)
+        events += asyncio.run(run_trigger_screen(companies, clti_source, store))
     events += scan_for_stalled_issues(store, get_settings().engagement_sla_days)
     for e in events:
         typer.echo(f"{e.source.value}\t{e.company_id}\t{e.theme}\t{e.severity.value}\tissue={e.raised_issue_id}")
