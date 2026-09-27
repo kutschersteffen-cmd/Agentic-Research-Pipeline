@@ -5,6 +5,7 @@ import { api } from "../../api/client";
 import type {
   CatalogueIssue,
   ClientEscalationPreview,
+  ClientReport,
   ClientExceptionItem,
   CoveragePreview,
   EscalationDecisionItem,
@@ -1080,7 +1081,13 @@ export function ClientPolicyStudio({ stage, streamId, onChanged }: StudioProps &
 
 // --- 8. Reporting --------------------------------------------------------------------
 
-export function ReportingStudio({ stage }: StudioProps) {
+export function ReportingStudio({ stage, streamId }: StudioProps & { streamId: string }) {
+  const [report, setReport] = useState<ClientReport | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    setReport(null);
+    api.getClientReport(streamId).then(setReport, (e) => setError((e as Error).message));
+  }, [streamId, stage]);
   return (
     <>
       <StudioHeader
@@ -1090,12 +1097,59 @@ export function ReportingStudio({ stage }: StudioProps) {
           { label: "Design", ready: false },
         ]}
       />
-      <Section step="Design · Construct" title="Reports and disclosure" planned>
+      <Section step="Construct" title="Client stewardship report">
+        <p className="help-text">
+          Built from current data each time you open it: house truth plus this client&apos;s own policies. The PowerPoint has the
+          same content, in the house deck design; nothing in it is written by a model.
+        </p>
+        <div className="toolbar">
+          <a className="button-link" href={api.clientReportPptxUrl(streamId)} download>
+            Download PowerPoint
+          </a>
+        </div>
+        {error && <p className="error-text">{error}</p>}
+        {report === null && !error && <p className="status-text">Loading…</p>}
+        {report && (
+          <>
+            <h4>
+              {report.client}, as of {report.as_of}
+            </h4>
+            <ul className="planned-list">
+              {report.summary.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <div className="studio-columns">
+              <div>
+                <h4>Coverage tiers</h4>
+                <DataTable rows={report.tiers} />
+              </div>
+              <div>
+                <h4>Expected votes, house against client</h4>
+                <DataTable rows={report.votes} empty="The client's voting policy is not built yet (stage 7)." />
+              </div>
+            </div>
+            <h4>Engagements and escalation</h4>
+            <DataTable rows={report.engagements} empty="No open engagements." />
+            <h4>Client escalations decided by the house</h4>
+            <DataTable rows={report.exceptions} empty="None so far." />
+            <h4>Voting policy decisions</h4>
+            <DataTable rows={report.policy_decisions} empty="No difference decided yet (stage 7)." />
+            <h4>Data sources</h4>
+            <ul className="planned-list">
+              {report.notes.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Section>
+      <Section step="Design · Construct" title="Still to build" planned>
         <Planned
           items={[
-            "Per-client stewardship report from house truth plus the client's policy, rendered with the Report Builder templates.",
+            "Report period and template choice (the Report Builder's templates).",
             "Public vote disclosure (E2): per-meeting records with a mandatory rationale for every vote against management.",
-            "Program proposal and PPT for a client program (Part 5), and escalation case studies (E7), checked against the phrase blocklist (E8).",
+            "Program proposal for a new client program (Part 5), and escalation case studies (E7), checked against the phrase blocklist (E8).",
           ]}
         />
       </Section>

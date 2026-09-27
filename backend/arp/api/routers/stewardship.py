@@ -1,16 +1,21 @@
 from __future__ import annotations
 
 import json
+import shutil
+import tempfile
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from arp.api.deps import get_engagement_store, get_stream_store, settings_dep
 from arp.config import Settings
 from arp.schemas.engagement import EscalationStage, IssueSeverity, TriggerSource
 from arp.stewardship import escalation, monitoring
+from arp.stewardship.client_report import build_pptx, client_report
 from arp.stewardship.policies import PolicyStore, coverage_preview, voting_preview
 from arp.stewardship.policy_review import DATA, load
 from arp.stewardship.process import (
@@ -438,3 +443,35 @@ def decide_client_exception(
     }
     streams.save({**stream, "exception_decisions": [*stream.get("exception_decisions", []), row]})
     return row
+
+
+@router.get("/streams/{stream_id}/report")
+def get_client_report(
+    stream_id: str,
+    settings: Settings = Depends(settings_dep),
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> dict:
+    stream = _stream_or_404(streams, stream_id)
+    return client_report(streams.root, stream, engagements.list_all(), settings.engagement_sla_days)
+
+
+@router.get("/streams/{stream_id}/report.pptx")
+def get_client_report_pptx(
+    stream_id: str,
+    background: BackgroundTasks,
+    settings: Settings = Depends(settings_dep),
+    streams: StreamStore = Depends(get_stream_store),
+    engagements: EngagementStore = Depends(get_engagement_store),
+) -> FileResponse:
+    """The same report as a PowerPoint deck, rendered on request and not stored."""
+    stream = _stream_or_404(streams, stream_id)
+    report = client_report(streams.root, stream, engagements.list_all(), settings.engagement_sla_days)
+    tmp = Path(tempfile.mkdtemp(prefix="arp_client_report_"))
+    path = build_pptx(report, tmp / f"{stream_id}-stewardship-report.pptx")
+    background.add_task(shutil.rmtree, tmp, ignore_errors=True)
+    return FileResponse(
+        path,
+        filename=path.name,
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    )

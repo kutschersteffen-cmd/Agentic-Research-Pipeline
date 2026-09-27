@@ -1,6 +1,7 @@
 import type {
   CompanyBallot,
   ClientEscalationPreview,
+  ClientReport,
   CoveragePreview,
   EscalationPreview,
   EscalationRecommendation,
@@ -345,6 +346,8 @@ export const api = {
     }),
   activateStewardPolicy: (policyId: StewardPolicyId, body: { version: number; approved_by: string }, stream?: string) =>
     request(`/api/stewardship/policies/${policyId}/activate${streamQuery(stream)}`, { method: "POST", body: JSON.stringify(body) }),
+  getClientReport: (streamId: string) => request<ClientReport>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/report`),
+  clientReportPptxUrl: (streamId: string) => `${API_BASE}/api/stewardship/streams/${encodeURIComponent(streamId)}/report.pptx`,
   getClientEscalationExample: () => request<Record<string, unknown>>("/api/stewardship/studio/escalation/client-example"),
   previewClientEscalation: (streamId: string, graph: unknown) =>
     request<ClientEscalationPreview>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/studio/escalation/preview`, {

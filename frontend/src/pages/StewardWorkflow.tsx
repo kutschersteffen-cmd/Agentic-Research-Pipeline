@@ -235,7 +235,7 @@ export function StewardWorkflow() {
       {studioProps && tab === "checkpoint" && <CheckpointStudio {...studioProps} />}
       {studioProps && tab === "tracking" && <TrackingStudio {...studioProps} />}
       {studioProps && tab === "client_policy" && stream !== "house" && <ClientPolicyStudio key={stream} {...studioProps} streamId={stream} />}
-      {studioProps && tab === "reporting" && stream !== "house" && <ReportingStudio {...studioProps} />}
+      {studioProps && tab === "reporting" && stream !== "house" && <ReportingStudio key={stream} {...studioProps} streamId={stream} />}
     </div>
   );
 }

@@ -1190,7 +1190,7 @@ available today (✓) and which are designed but not built (○):
 | 5 Checkpoint | Escalation decisions from the escalation rules, client escalations above the house (adopt or keep the house step) and tier confirmations; recommendations for every open engagement; escalation rules and tier caps in the rule-graph editor; preview; versions | SLA and sign-off rules as configuration |
 | 6 Tracking | Open engagements by milestone | Milestone ladder configuration, missed-commitment triggers, E7 |
 | 7 Client policy | Per client stream: voting policy review, decisions, build; the client's escalation rules (editor, preview against the house, versions) | Versioning of client voting policies; client coverage rules |
-| 8 Reporting | Built-policy status | Client reports, E2 disclosure, program proposal and PPT |
+| 8 Reporting | Per client stream: stewardship report on the page and as a PowerPoint deck | Report period and template choice, E2 disclosure, program proposal, E7 case studies |
 
 **Versioned house policies** (`backend/arp/stewardship/policies.py`). The monitoring
 rules, the coverage rules, the escalation rules and the house voting policy are versioned. Version 0 is the bundled draft.
@@ -1339,10 +1339,26 @@ its own versioned `escalation_rules` (`PolicyStore(..., client=True)`, stored un
   engagements. Client-only issuers and client coverage rules (`tier_higher`) come
   with client holdings.
 
+**Client report (stage 8), as built.** `backend/arp/stewardship/client_report.py`.
+
+- Per client stream, built from current data on every request: the programme at
+  a glance (vehicle, voting policy status, the client's escalation rule version
+  and how many engagements it puts above the house, the house's decisions on them),
+  coverage tiers, expected votes house against the client's built policy, open
+  engagements with house and client steps, the client escalations the house
+  decided, the voting-policy decisions, and the data sources.
+- `GET /api/stewardship/streams/{id}/report` returns it as data (the Reporting
+  studio shows it); `.../report.pptx` renders the same content as a deck through
+  the existing deterministic deck builder (`arp/reporting/deck_builder.py`), so it
+  uses the house deck design and no text is model-written. The deck is rendered
+  on request and not stored.
+- Not built: a report period (everything is "as of today"), template choice, and
+  a stored Report Run for audit.
+
 Implementation: `backend/arp/stewardship/process.py` (streams and the flow), `policies.py` (versions and previews),
 `backend/arp/api/routers/stewardship.py` (`/api/stewardship/...`),
 `frontend/src/pages/StewardWorkflow.tsx` and `frontend/src/pages/steward/` (flowchart, studios, decisions); tests in
-`backend/tests/test_api_stewardship.py`, `test_stewardship_tiers.py`, `test_stewardship_policies.py`, `test_stewardship_monitoring.py`, `test_stewardship_escalation.py`. Client streams are stored as JSON under
+`backend/tests/test_api_stewardship.py`, `test_stewardship_tiers.py`, `test_stewardship_policies.py`, `test_stewardship_monitoring.py`, `test_stewardship_escalation.py`, `test_stewardship_client_report.py`. Client streams are stored as JSON under
 `stewardship_streams/` (`ARP_STEWARDSHIP_STREAMS_DIR`).
 
 ## Open points

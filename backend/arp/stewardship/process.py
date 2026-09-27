@@ -388,7 +388,7 @@ def _client_stages(
         [
             _metric("Custom policy", "built" if built else "pending", "live", "good" if built else "neutral"),
             _metric("Client positions", sum(p["origin"] == "client" for p in built["positions"]) if built else "—", "live"),
-            _metric("Client report", "—", "not_built", hint="Per-client reports (stage 8) are designed but not built."),
+            _metric("Client report", "ready", "live", "good", "Report and PowerPoint, rebuilt from current data on request"),
         ],
     )
     return [s7, s8]
@@ -503,9 +503,13 @@ def escalation_contexts(
     store = PolicyStore(root)
     if triggers is None:
         triggers = monitoring.evaluate(store.active("monitoring_rules"), sample, records)
-    proposals = evaluate_tiers(store.active("coverage_rules"), tier_contexts(sample, records))
-    tiers = {p["issuer_id"]: p["tier"] for p in proposals} | {i: r["tier"] for i, r in TierStore(root).latest().items()}
-    return escalation.contexts(sample, records, tiers, triggers, sla_days)
+    return escalation.contexts(sample, records, current_tiers(root, sample, records), triggers, sla_days)
+
+
+def current_tiers(root: Path, sample: dict, records: list[EngagementRecord]) -> dict[str, str]:
+    """The tier per issuer: the confirmed one where there is one, else the proposed one."""
+    proposals = evaluate_tiers(PolicyStore(root).active("coverage_rules"), tier_contexts(sample, records))
+    return {p["issuer_id"]: p["tier"] for p in proposals} | {i: r["tier"] for i, r in TierStore(root).latest().items()}
 
 
 def tier_review(root: Path, sample: dict, records: list[EngagementRecord]) -> dict:

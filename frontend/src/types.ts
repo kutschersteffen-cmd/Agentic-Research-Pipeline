@@ -2373,6 +2373,19 @@ export interface ClientEscalationPreview {
   rows: Record<string, string | boolean>[];
 }
 
+export interface ClientReport {
+  client: string;
+  stream_id: string;
+  as_of: string;
+  summary: string[];
+  tiers: { tier: string; companies: number }[];
+  votes: { vote: string; house: number; client: number }[];
+  engagements: Record<string, string>[];
+  exceptions: Record<string, string>[];
+  policy_decisions: Record<string, string>[];
+  notes: string[];
+}
+
 export interface VotingPreview {
   resolutions: number;
   changed: number;
