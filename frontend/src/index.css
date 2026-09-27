@@ -267,6 +267,7 @@ body {
   margin-bottom: 18px;
 }
 .card h3 { margin-top: 0; font-family: var(--font-display); font-weight: 600; }
+.card > h3:not(:first-child) { margin-top: 24px; }
 
 .field-label {
   display: block;
