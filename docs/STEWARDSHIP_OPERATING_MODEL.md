@@ -336,6 +336,7 @@ policy (E4) never touches them.
 | owner | enum + FK | `house`, or `client` + client_id. |
 | domain | enum | monitoring \| coverage_tier \| escalation \| vote_expectation \| meeting_profile (extensible). |
 | menu_name | string, nullable | Set for house `vote_expectation` policies offered on the voting-policy menu (E4). |
+| base_policy_id + base_version | FK → Policy Version, nullable | For a custom client policy: the menu policy (or house policy) it was derived from. |
 | active_version | int | |
 
 | Policy Version | Type | Notes |
@@ -371,11 +372,19 @@ tiering preferences and escalation rules are expressed: as small graphs that sta
 from the house answer. They are not a separate delta format. A client with no
 policy for a domain inherits the house result.
 
-**Voting is menu-based (E4).** For `vote_expectation`, clients do not get bespoke
-graphs. The house maintains a fixed menu of 3–4 named voting policies (each a
-house-owned policy with a `menu_name`), and each mandate selects one (Portfolio
-`voting_policy_id`, with an effective date). Bespoke client graphs remain available
-for `coverage_tier` and `escalation`.
+**Voting: menu or custom (E4).** Each mandate has exactly one voting policy
+(Portfolio `voting_policy_id`, with an effective date), from one of two sources:
+
+- **Menu** — one of 3–4 named house policies (house-owned, with a `menu_name`).
+  This is the standard offer: narrow, defensible, no design work.
+- **Custom** — a client-owned `vote_expectation` policy that the house designs
+  **with** the client (Part 5.2). It starts as a copy of a menu policy
+  (`base_policy_id`) and changes only what the client needs, so every deviation
+  from the menu is visible as a diff between two graphs.
+
+Both are ordinary policies on the same engine, so everything downstream (expected
+votes, consistency checks, disclosure, reporting) treats them the same way. Custom
+client graphs are equally available for `coverage_tier` and `escalation`.
 
 #### Policy Evaluation
 The audit trail. It makes every recommendation, exception and report number
@@ -412,7 +421,7 @@ The old *Client Policy Profile* is not an entity any more. It is simply the set 
 | client_id | FK → Client | 1 : N. |
 | vehicle_type | enum | SMA \| CCF \| ETF |
 | voting_mode | enum | house_voted \| pass_through. Part of the vote_expectation input. |
-| voting_policy_id, voting_policy_effective_from | FK → Policy, date | The menu policy this mandate selected (E4). A change applies to meetings after the effective date only. |
+| voting_policy_id, voting_policy_effective_from | FK → Policy, date | The menu or custom voting policy of this mandate (E4). A change applies to meetings after the effective date only. |
 
 Holdings keep the existing shape: immutable snapshots keyed by
 `portfolio_id + security_id + as_of_date`, with the issuer reached through the
@@ -437,7 +446,7 @@ client tier or escalation step above the house's (including an issuer only that
 client holds) becomes a `tier_higher` or `escalation_higher` exception that is
 (a) shown at the house human checkpoint, where the house can adopt it, and
 (b) reported to the client either way. A vote expectation that differs from the
-house comes from the mandate's menu choice; it only affects that client's
+house comes from the mandate's voting policy (menu or custom); it only affects that client's
 portfolios and is deliverable only where the client's shares can be voted
 separately (Part 5.3).
 
@@ -549,7 +558,7 @@ activity once a person has sent it).
 - For upcoming meetings, evaluate `meeting_profile`. A high-profile meeting gets a
   **draft Voting Intention** N business days before the meeting (E3).
 - For upcoming meetings, evaluate `vote_expectation` per resolution, once with the
-  house policy and once per menu policy in use by a mandate. This gives the expected
+  house policy and once per voting policy in use by a mandate (menu or custom). This gives the expected
   votes, including sanctions for engagements at the vote-against-management step. It
   is published to whoever votes; the tool never casts a vote.
 - For newly ingested vote records, evaluate `vote_expectation` again and record
@@ -557,7 +566,7 @@ activity once a person has sent it).
   vote-against-management step, or a failed or low-support vote, becomes a Trigger
   Event. Each house vote gets a Disclosure Record (E2).
 
-**Reads:** Policy Version (house `vote_expectation`, menu policies, `meeting_profile`), Engagement, Tier Assignment, Meeting, Resolution, Vote Record, Portfolio
+**Reads:** Policy Version (house `vote_expectation`, mandate voting policies, `meeting_profile`), Engagement, Tier Assignment, Meeting, Resolution, Vote Record, Portfolio
 **Writes:** Policy Evaluation, Trigger Event, Voting Intention (draft), Disclosure Record (draft)
 **Human checkpoint:** —
 
@@ -587,8 +596,8 @@ activity once a person has sent it).
 - For each client, evaluate the client's `coverage_tier` and `escalation` graphs
   over **the client's own portfolio** (every issuer they hold, including ones outside
   the house scope), with the house result under `house.*`.
-- Evaluate `vote_expectation` for the client's portfolios using the menu policy each
-  mandate selected.
+- Evaluate `vote_expectation` for the client's portfolios using each mandate's
+  voting policy (menu or custom).
 - Write a Client Exception wherever the output differs from the house. Raise
   `tier_higher` and `escalation_higher` exceptions to the house checkpoint (stage 5).
 
@@ -599,7 +608,7 @@ activity once a person has sent it).
 ### 8. Reporting & Disclosure *(client overlay + public)*
 - **Client reports.** For the period: the client's holdings and their tier
   distribution, engagements relevant to them with escalation changes, votes cast in
-  their portfolios with consistency against their menu policy, and their
+  their portfolios with consistency against their voting policy, and their
   exceptions, rendered through the client's template.
 - **Public vote disclosure (E2).** Export final Disclosure Records per meeting and
   period as JSON and as a human-readable HTML/PDF view, with no manual reformatting.
@@ -669,7 +678,7 @@ plus the client's objective. It is not new logic.
 |---|---|---|
 | 1. Tilt | Index engine: `metric_tilt` on `score.clti` (rank_percentile or z-score, `[floor, ceiling]` multipliers), constraints and tracking-error budget | `arp/index/` (versioned calibrations in `index_store.py`) |
 | 2. Engagement selection | Decision mechanism scores on CLTI + other topic columns, tiers by `tier_graph` and ranks by **leverage** (position size × gap to a perfect score); the client's `coverage_tier` graph turns that into a coverage tier | `arp/decision/` + ZEN graph, Part 1 policy layer |
-| 3. Vote sanction | Targets at the vote-against-management step; the mandate's voting policy (a menu item, or a new menu item if the client's needs justify one) says *which vote the program expects* at the next AGM (e.g. against the chair or the say-on-pay) | ZEN graph, Part 1 policy layer |
+| 3. Vote sanction | Targets at the vote-against-management step; the mandate's voting policy (a menu item, or a custom policy designed with the client, below) says *which vote the program expects* at the next AGM (e.g. against the chair or the say-on-pay) | ZEN graph, Part 1 policy layer |
 | 4. Escalation | The client's `escalation` graph (chained on the house one), capped by tier | ZEN graph, Part 1 policy layer |
 | Proposal + PPT | Report Builder: datasets → content plan → `pptx` / `docx` | `arp/reporting/` |
 | Monitoring | Portfolio alert rules + scheduler, plus stage 7 client exceptions | `arp/portfolio/monitoring/` |
@@ -714,7 +723,31 @@ flowchart LR
 | 1. Tilt | normalisation, floor/ceiling, TE budget, sector/country caps | active weights of the leaders and laggards, weighted CLTI uplift vs benchmark, tracking error, turnover vs last version |
 | 2. Selection | criteria and weights, tier cut-points or tier graph, max targets | the ranked target list by leverage, why each name is in, tier sensitivity (does the list survive a weight change?) |
 | 3. Sanction | graph, e.g. `tier == 1 and no_progress_months >= 12 → against chair` | sanction list per upcoming AGM, and where it contradicts the house recommendation |
-| 3–4. Sanction & escalation | voting menu choice; the client's `escalation` graph, chained on the house result | names where the client's tier or step is above the house's |
+| 3–4. Sanction & escalation | voting policy (menu item or custom, below); the client's `escalation` graph, chained on the house result | names where the client's tier or step is above the house's |
+
+#### Designing a custom policy with the client
+The same loop is how the house helps a client design their own policy, for voting
+as well as for tiering and escalation.
+
+1. **Start from a base.** Copy the closest menu policy (or the house policy) into a
+   client-owned draft. The draft records its base.
+2. **Change only what the client needs**, in the rule editor: e.g. vote against the
+   chair where `score.clti` is in the bottom decile and the engagement has made no
+   progress for 12 months.
+3. **Back-test** the draft on past seasons of ingested meetings, resolutions and
+   votes, and on upcoming agendas for the client's holdings. The tool shows:
+   - how many resolutions the draft decides differently from the base, and from the
+     house, broken down by resolution category and theme;
+   - the rate of votes against management;
+   - which past house votes the draft would have contradicted (the split-vote need);
+   - for each difference, the rule row that caused it (from the ZEN trace).
+4. **Review the diff** with the client: the base policy, each changed rule, and its
+   back-test effect. This diff is a section of the program proposal (5.4).
+5. **Approve.** Both the client and the house sign off on the version. It then
+   applies from its effective date. Earlier votes and disclosures stay as they were.
+
+If several clients converge on similar custom policies, promote the pattern to a
+new menu item.
 
 ### 5.3 House comparison — efficiency and feasibility
 
@@ -726,7 +759,7 @@ Each check is computed from the simulation and shown as a traffic light.
 | Engagement overlap | share of client targets already in a house engagement (same issuer + theme) | Overlap costs nothing extra: the client joins an existing dialogue. |
 | Marginal workload | client-only targets × effort per engagement (capacity assumption) vs free house capacity | The key feasibility number: can the team actually deliver the program? |
 | Theme gap | client targets on themes the house does not cover | Needs new expertise; flag it, do not hide it. |
-| Vote conflicts | sanctions where the house recommendation differs | Only deliverable if the client's shares can be voted separately. **Feasible in an SMA; not in a pooled CCF/ETF**, which must vote one way. Checked against `Portfolio.vehicle_type`. |
+| Vote conflicts | sanctions, and custom-policy expected votes, where the house recommendation differs | Only deliverable if the client's shares can be voted separately. **Feasible in an SMA; not in a pooled CCF/ETF**, which must vote one way. Checked against `Portfolio.vehicle_type`. |
 | Tier and escalation conflicts | client tier or step > house tier or step on the same issuer | One company, one dialogue: the house has to agree to escalate, or the proposal says it won't. |
 | Tilt vs engagement coherence | engagement targets that the tilt has sold down to near zero | Leverage falls with the position; engaging a company the portfolio barely holds is weak. |
 
@@ -740,7 +773,7 @@ Sections, identical in the docx and the deck:
 1. Client objective and the program in one page.
 2. Tilt: method, leaders/laggards, CLTI uplift, tracking error, top active weights.
 3. Engagement: target list, selection logic, overlap with the house program.
-4. Voting: sanction policy, expected sanctions next season, split-vote feasibility.
+4. Voting: the mandate's voting policy (menu item, or custom policy with its diff to the base and the back-test), expected sanctions next season, split-vote feasibility.
 5. Escalation: ladder, client-specific triggers, conflicts with the house.
 6. Feasibility: workload vs capacity and every red/amber check from 5.3, with the
    mitigation chosen.
@@ -795,7 +828,7 @@ sub-agents → stages 2, 3, 6 and 8, Record Store → Part 1, Human Checkpoints 
 | **E1** Tiered coverage | Tier Assignment + `coverage_tier` graph (stage 2); quarterly monitoring run; tier distribution query | The tier sits on the **issuer**, not only on engagement records, because every holding needs one. It replaces the 0–4 engagement-level ladder of the previous revision. Escalation stays a separate ladder, capped by tier. |
 | **E2** Public vote disclosure | Disclosure Record (stage 4 drafts, stage 5 finalises, stage 8 exports) | The rationale gate blocks the **disclosure record**, not the vote. Votes are ingested facts and cannot be blocked. JSON + HTML/PDF export reuses `arp/reporting/` (`pdf_builder.py`). |
 | **E3** Pre-meeting intentions | `meeting_profile` graph + Voting Intention (stage 4 → stage 5) | Needs the **agenda part of the voting feed before the meeting**. This relaxes design constraint 1 for meeting data only; votes are still consumed after the event. |
-| **E4** Voting-policy menu | House `vote_expectation` policies with `menu_name`; Portfolio `voting_policy_id` + effective date | Voting is menu-only; bespoke client graphs remain for tiering and escalation. "Vote-instruction generation" becomes the expected vote per mandate, published to whoever votes. Immutable policy versions, effective dates and frozen disclosure records make it non-retroactive. |
+| **E4** Voting-policy menu | House `vote_expectation` policies with `menu_name`; Portfolio `voting_policy_id` + effective date | The menu is the standard offer. **Clients can also have a custom policy**, designed with the house from a menu base (Part 5.2), back-tested and co-approved. "Vote-instruction generation" becomes the expected vote per mandate, published to whoever votes. Immutable policy versions, effective dates and frozen disclosure records make it non-retroactive. |
 | **E5** Audit trail | Provenance on every AI output; `fired_rules` on every Policy Evaluation; checkpoint gate | Reuses the existing citation grounding and the ZEN trace. Build first, as the spec says. |
 | **E6** Interaction tagging | `interaction_type` + `status` on Engagement Activity; checkpoint gate | Aggregate compliance reporting is a query on Engagement Activity. |
 | **E7** Case studies | Stage 8, from Engagement Activity, Escalation Change, Vote Record, Disclosure Record | Only for engagements with a **closed** escalation sequence. Drafts carry provenance and go through E8 and the checkpoint. |
@@ -809,7 +842,7 @@ sub-agents → stages 2, 3, 6 and 8, Record Store → Part 1, Human Checkpoints 
 | 2 | E1 Coverage tiers | 3–4 days | Holdings snapshots, E5, a first house `coverage_tier` graph |
 | 3 | E2 Disclosure records + export | 2–3 days | Voting ingestion (votes cast) |
 | 4 | E6 Interaction tagging + gate | 1–2 days | Engagement Activity |
-| 5 | E4 Voting-policy menu | 2–3 days | Voting ingestion, policy layer |
+| 5 | E4 Voting-policy menu + custom policies | 2–3 days (menu), +2–3 days (custom design: copy-from-base, diff, back-test) | Voting ingestion with history, policy layer |
 | 6 | E3 Voting intentions | 2–3 days | Agenda feed, E4 |
 | 7 | E8 Style filter | ½–1 day | — |
 | 8 | E7 Case studies | 2–3 days | E2, E5, E8, closed escalation history |
