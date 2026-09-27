@@ -11,13 +11,19 @@ starts from positions.
 Stricter means more demanding of the company, i.e. more votes against
 management. See docs/STEWARDSHIP_OPERATING_MODEL.md, section 5.7.
 
-    python -m arp.stewardship.policy_review data/examples/client_policy_example.json
+    python -m arp.stewardship.policy_review data/examples/client_policy_example.json \
+        [--decisions decisions.json] [--build custom_policy.json] [--json]
+
+After the review: `decide` records a human decision per difference, and
+`build` turns the decided register into the complete custom policy (the base
+house policy plus every adopted difference), with each position tracing back
+to its decision and the client's source text.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
-import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -116,7 +122,9 @@ def _assess(issue: dict, kind: str, house: dict, client: dict, changes: list[dic
     if split == "not_deliverable":
         flags.append(f"Deviating votes cannot be cast separately in a pooled {vehicle}.")
     changed_fields = {c["field"] for c in changes}
-    if any("threshold" in f for f in changed_fields) and any(d.startswith("score.") for d in issue["data_fields"]):
+    if any("threshold" in f or "score" in f for f in changed_fields) and any(
+        d.startswith("score.") for d in issue["data_fields"]
+    ):
         flags.append("Threshold set on a placeholder score whose scale is not yet defined.")
     if house["action"] == "escalate" and client["action"] != "escalate":
         flags.append("Bypasses the house engagement-first sequence (house escalates through engagement before voting).")
@@ -206,7 +214,7 @@ def review(client_policy: dict, house_policy: dict | None = None, catalogue: dic
             "scope": c.get("scope", h["scope"]),
         }
         kind, changes = _classify(issue, h, merged)
-        entry = {**row, "kind": kind, "source": c.get("source"), "changes": changes, "decision": None}
+        entry = {**row, "kind": kind, "source": c.get("source"), "changes": changes, "client_position": merged, "decision": None}
         if kind != "identical":
             entry["assessment"] = _assess(issue, kind, h, merged, changes, mandate)
         register.append(entry)
@@ -227,6 +235,8 @@ def review(client_policy: dict, house_policy: dict | None = None, catalogue: dic
         "client": client_policy.get("client"),
         "client_policy_id": client_policy.get("policy_id"),
         "house_policy": f"{house_policy['policy_id']} {house_policy['version']}",
+        "house_policy_id": house_policy["policy_id"],
+        "house_policy_version": house_policy["version"],
         "catalogue_version": catalogue["version"],
         "mandate": mandate,
         "summary": {
@@ -244,6 +254,112 @@ def review(client_policy: dict, house_policy: dict | None = None, catalogue: dic
     }
 
 
+# Which decisions a row of each kind can take. `defer` keeps the house position
+# until an external condition is met (e.g. a score scale is defined).
+_DECISIONS = {
+    "adopt": {"stricter", "looser", "mixed", "changed", "different_action", "different_target", "scope_change", "client_only"},
+    "adopt_with_modification": {"stricter", "looser", "mixed", "changed", "different_action", "different_target", "scope_change"},
+    "decline": {
+        "stricter",
+        "looser",
+        "mixed",
+        "changed",
+        "different_action",
+        "different_target",
+        "scope_change",
+        "client_only",
+        "unclear",
+        "unmapped",
+    },
+    "defer": {"stricter", "looser", "mixed", "changed", "different_action", "different_target", "scope_change", "client_only"},
+    "clarify": {"unclear", "unmapped"},
+}
+
+
+def decide(result: dict, decisions: list[dict]) -> dict:
+    """Records human decisions on register rows. Each decision needs
+    `issue_id`, `decision` and `decided_by`; `adopt_with_modification` also
+    needs a `modification` (a partial position laid over the client's)."""
+    rows = {r["issue_id"]: r for r in result["register"]}
+    for d in decisions:
+        row = rows.get(d["issue_id"])
+        if row is None:
+            raise ValueError(f"No register row for {d['issue_id']}")
+        allowed = _DECISIONS.get(d["decision"])
+        if allowed is None or row["kind"] not in allowed:
+            raise ValueError(f"Decision '{d['decision']}' is not valid for a '{row['kind']}' row ({d['issue_id']})")
+        if not d.get("decided_by"):
+            raise ValueError(f"Decision on {d['issue_id']} has no decided_by")
+        if (d["decision"] == "adopt_with_modification") != bool(d.get("modification")):
+            raise ValueError(f"A modification goes with, and only with, adopt_with_modification ({d['issue_id']})")
+        row["decision"] = {
+            k: d[k] for k in ("decision", "decided_by", "decided_at", "note", "modification") if d.get(k) is not None
+        }
+    return result
+
+
+def _validate_position(issue: dict, position: dict, actions: list[str]) -> None:
+    if position["action"] not in actions or position["vote_target"] not in issue["vote_targets"]:
+        raise ValueError(f"Invalid action or vote target for {issue['issue_id']}")
+    extra = set(position["parameters"]) - set(issue["parameters"])
+    if extra:
+        raise ValueError(f"Unknown parameters for {issue['issue_id']}: {sorted(extra)}")
+
+
+def build(result: dict, house_policy: dict | None = None, catalogue: dict | None = None) -> dict:
+    """The complete custom policy: the base house policy, with each adopted
+    difference applied. Refuses while any difference is undecided."""
+    catalogue = catalogue or load("policy_issue_catalogue.json")
+    house_policy = house_policy or load("house_voting_policy_draft.json")
+    if (house_policy["policy_id"], house_policy["version"]) != (result["house_policy_id"], result["house_policy_version"]):
+        raise ValueError("The review was run against a different house policy version")
+    open_rows = [r["issue_id"] for r in result["register"] if "assessment" in r and r["decision"] is None]
+    if open_rows:
+        raise ValueError(f"Undecided differences: {open_rows}")
+
+    issues = {i["issue_id"]: i for i in catalogue["issues"]}
+    rows = {r["issue_id"]: r for r in result["register"]}
+    positions = []
+    for h in house_policy["positions"]:
+        row = rows[h["issue_id"]]
+        decision = (row.get("decision") or {}).get("decision")
+        if decision in ("adopt", "adopt_with_modification"):
+            p = dict(row["client_position"])
+            mod = row["decision"].get("modification", {})
+            p = {**p, **{k: v for k, v in mod.items() if k != "parameters"}}
+            p["parameters"] = {**p["parameters"], **mod.get("parameters", {})}
+            _validate_position(issues[h["issue_id"]], p, catalogue["position_actions"])
+            p = {
+                "issue_id": h["issue_id"],
+                **p,
+                # The client's own wording; the house rationale would contradict the client's values.
+                "rationale": row.get("source") or h["rationale"],
+                "origin": "client",
+            }
+        else:
+            p = {**h, "origin": "house"}
+        if decision:
+            p["review"] = {"kind": row["kind"], **row["decision"]}
+        positions.append(p)
+
+    return {
+        "policy_id": f"{result['client_policy_id']}_built",
+        "owner": "client",
+        "client": result["client"],
+        "domain": "vote_expectation",
+        "base_policy_id": house_policy["policy_id"],
+        "base_version": house_policy["version"],
+        "catalogue_version": catalogue["version"],
+        "status": "built; pending client and house approval",
+        "open_items": [
+            {"issue_id": r["issue_id"], "kind": r["kind"], "source": r.get("source"), **r["decision"]}
+            for r in result["register"]
+            if (r.get("decision") or {}).get("decision") in ("clarify", "defer")
+        ],
+        "positions": positions,
+    }
+
+
 def _fmt(value: Any) -> str:
     if value is None:
         return "not set"
@@ -252,6 +368,37 @@ def _fmt(value: Any) -> str:
     if isinstance(value, dict):
         return ", ".join(f"{k}: {_fmt(v)}" for k, v in value.items())
     return str(value)
+
+
+def _decision(row: dict) -> str:
+    d = row.get("decision")
+    if not d:
+        return "—"
+    note = f": {d['note']}" if d.get("note") else ""
+    return f"**{d['decision']}** ({d['decided_by']}){note}"
+
+
+def built_to_markdown(policy: dict) -> str:
+    client_rows = [p for p in policy["positions"] if p["origin"] == "client"]
+    lines = [
+        f"**Built policy:** `{policy['policy_id']}` · base `{policy['base_policy_id']} {policy['base_version']}` · "
+        f"status: {policy['status']}",
+        "",
+        f"{len(client_rows)} of {len(policy['positions'])} positions come from the client; the rest are the house position.",
+        "",
+        "| Issue | Action | Vote target | Parameters (client values applied) | Decision |",
+        "|---|---|---|---|---|",
+    ]
+    for p in client_rows:
+        r = p["review"]
+        lines.append(
+            f"| `{p['issue_id']}` | {p['action']} | `{p['vote_target']}` | "
+            f"{_fmt({c: p['parameters'][c] for c in p['parameters']})} | {r['decision']} |"
+        )
+    if policy["open_items"]:
+        lines += ["", "**Open items (house position applies until resolved):**", ""]
+        lines += [f"- `{o['issue_id']}` ({o['decision']}): {o.get('note', '')}" for o in policy["open_items"]]
+    return "\n".join(lines) + "\n"
 
 
 def to_markdown(result: dict) -> str:
@@ -275,8 +422,8 @@ def to_markdown(result: dict) -> str:
         "",
         "### Difference register",
         "",
-        "| Issue | Kind | Changes (house → client) | Direction | Flags | Recommendation |",
-        "|---|---|---|---|---|---|",
+        "| Issue | Kind | Changes (house → client) | Direction | Flags | Recommendation | Decision |",
+        "|---|---|---|---|---|---|---|",
     ]
     for r in result["register"]:
         if r["kind"] in ("identical", "house_only", "no_position", "unclear", "unmapped"):
@@ -285,16 +432,29 @@ def to_markdown(result: dict) -> str:
         changes = "<br>".join(f"`{c['field']}`: {_fmt(c['house'])} → {_fmt(c['client'])}" for c in r.get("changes", []))
         flags = "<br>".join(a.get("flags", []) + a.get("effort", [])) or "—"
         lines.append(
-            f"| `{r['issue_id']}` | {r['kind']} | {changes} | {a.get('direction', '—')} | {flags} | **{a['recommendation']}** |"
+            f"| `{r['issue_id']}` | {r['kind']} | {changes} | {a.get('direction', '—')} | {flags} | **{a['recommendation']}** "
+            f"| {_decision(r)} |"
         )
     unclear = [r for r in result["register"] if r["kind"] == "unclear"]
     if unclear:
-        lines += ["", "### Questions for the client (unclear)", "", "| Issue | Client text | Question |", "|---|---|---|"]
-        lines += [f"| `{r['issue_id']}` | {r['source']} | {r['question']} |" for r in unclear]
+        lines += [
+            "",
+            "### Questions for the client (unclear)",
+            "",
+            "| Issue | Client text | Question | Decision |",
+            "|---|---|---|---|",
+        ]
+        lines += [f"| `{r['issue_id']}` | {r['source']} | {r['question']} | {_decision(r)} |" for r in unclear]
     unmapped = [r for r in result["register"] if r["kind"] == "unmapped"]
     if unmapped:
-        lines += ["", "### Unmapped client clauses", "", "| Client text | Suggested catalogue issue |", "|---|---|"]
-        lines += [f"| {r['source']} | `{r['title']}` |" for r in unmapped]
+        lines += [
+            "",
+            "### Unmapped client clauses",
+            "",
+            "| Client text | Suggested catalogue issue | Decision |",
+            "|---|---|---|",
+        ]
+        lines += [f"| {r['source']} | `{r['title']}` | {_decision(r)} |" for r in unmapped]
     same = [r["issue_id"] for r in result["register"] if r["kind"] == "identical"]
     inherited = [r["issue_id"] for r in result["register"] if r["kind"] == "house_only"]
     lines += [
@@ -307,5 +467,17 @@ def to_markdown(result: dict) -> str:
 
 
 if __name__ == "__main__":
-    result = review(json.loads(Path(sys.argv[1]).read_text()))
-    print(to_markdown(result) if "--json" not in sys.argv else json.dumps(result, indent=2))
+    parser = argparse.ArgumentParser(description="Review a custom client voting policy against the house policy.")
+    parser.add_argument("client_policy", type=Path)
+    parser.add_argument("--decisions", type=Path, help="JSON list of decisions to record on the register")
+    parser.add_argument("--build", type=Path, help="Write the built custom policy to this path (needs all decisions)")
+    parser.add_argument("--json", action="store_true", help="Print the register as JSON instead of markdown")
+    args = parser.parse_args()
+    result = review(json.loads(args.client_policy.read_text()))
+    if args.decisions:
+        decide(result, json.loads(args.decisions.read_text()))
+    print(json.dumps(result, indent=2) if args.json else to_markdown(result))
+    if args.build:
+        policy = build(result)
+        args.build.write_text(json.dumps(policy, indent=2, ensure_ascii=False) + "\n")
+        print(built_to_markdown(policy))

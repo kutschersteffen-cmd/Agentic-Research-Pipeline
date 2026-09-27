@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from arp.stewardship.policy_review import review
+from arp.stewardship.policy_review import build, decide, load, review
 
 
 def _row(result: dict, issue_id: str) -> dict:
@@ -63,3 +63,57 @@ def test_process_only_change_needs_no_separate_vote():
 def test_unknown_issue_is_rejected():
     with pytest.raises(ValueError):
         review({"positions": [{"issue_id": "board.nonexistent"}]})
+
+
+def _decided(decisions: list[dict], positions: list[dict]) -> dict:
+    return decide(review({"policy_id": "c", "positions": positions}), decisions)
+
+
+_STRICTER = [{"issue_id": "board.independence", "parameters": {"min_independent_pct": 66}, "source": "Two-thirds independent."}]
+
+
+def test_build_applies_adopted_differences_and_keeps_house_elsewhere():
+    policy = build(_decided([{"issue_id": "board.independence", "decision": "adopt", "decided_by": "x"}], _STRICTER))
+    positions = {p["issue_id"]: p for p in policy["positions"]}
+    assert positions["board.independence"]["parameters"]["min_independent_pct"] == 66
+    assert positions["board.independence"]["origin"] == "client"
+    assert positions["board.independence"]["rationale"] == "Two-thirds independent."
+    assert positions["board.attendance"]["origin"] == "house"
+    assert len(positions) == len(load("policy_issue_catalogue.json")["issues"])
+
+
+def test_build_refuses_undecided_differences():
+    with pytest.raises(ValueError, match="Undecided"):
+        build(review({"policy_id": "c", "positions": _STRICTER}))
+
+
+def test_decline_and_defer_keep_the_house_position():
+    for decision in ("decline", "defer"):
+        policy = build(_decided([{"issue_id": "board.independence", "decision": decision, "decided_by": "x"}], _STRICTER))
+        independence = next(p for p in policy["positions"] if p["issue_id"] == "board.independence")
+        assert independence["origin"] == "house"
+        assert independence["parameters"]["min_independent_pct"] == 50
+    assert [o["issue_id"] for o in policy["open_items"]] == ["board.independence"]  # defer stays open
+
+
+def test_modification_is_applied_and_validated():
+    ok = [
+        {
+            "issue_id": "board.independence",
+            "decision": "adopt_with_modification",
+            "decided_by": "x",
+            "modification": {"parameters": {"min_independent_pct": 60}},
+        }
+    ]
+    policy = build(_decided(ok, _STRICTER))
+    assert (
+        next(p for p in policy["positions"] if p["issue_id"] == "board.independence")["parameters"]["min_independent_pct"] == 60
+    )
+    bad = [{**ok[0], "modification": {"vote_target": "say_on_pay"}}]  # not a target of this issue
+    with pytest.raises(ValueError, match="vote target"):
+        build(_decided(bad, _STRICTER))
+
+
+def test_decision_must_fit_the_kind_of_row():
+    with pytest.raises(ValueError, match="not valid"):
+        _decided([{"issue_id": "board.attendance", "decision": "adopt", "decided_by": "x"}], _STRICTER)  # house_only row

@@ -990,10 +990,15 @@ flowchart LR
    | Regulatory flag | Positions that amount to pressure-type engagement (E6) or other compliance review. |
 
 5. **Decide** each difference: adopt, adopt with modification (stating the
-   modification), decline (with a reason for the client), or clarify with the
-   client. Decisions carry who decided and when.
-6. **Build.** Adopted differences are applied to a copy of the base policy graph
-   (5.2). Each changed rule row records the `difference_id` it implements, so every
+   modification), decline (with a reason for the client), defer (until a condition
+   is met, e.g. a score scale is defined), or clarify with the client. Decisions
+   carry who decided and when, and must fit the kind of difference (a `house_only`
+   row cannot be adopted, for example).
+6. **Build.** Adopted differences are applied to a copy of the base policy
+   (positions now, the graph once it exists; 5.2). The build refuses while any
+   difference is undecided; deferred and clarified items keep the house position
+   and are listed as open items. Adopted positions carry the client's own wording
+   as their rationale. Each changed rule row records the `difference_id` it implements, so every
    rule in a custom policy traces back to a reviewed, decided difference and its
    source sentence.
 
@@ -1017,10 +1022,11 @@ a new review that points to the previous one.
   proposal and PPT (5.4).
 
 #### Implementation and worked example
-The deterministic part of the review (align, classify, assess, register) is
+The deterministic part of the review (align, classify, assess, register, decide, build) is
 implemented in `backend/arp/stewardship/policy_review.py`, with tests in
 `backend/tests/test_policy_review.py`. [`POLICY_REVIEW_EXAMPLE.md`](POLICY_REVIEW_EXAMPLE.md)
-shows it run on a fictional client policy against the draft house policy. Impact
+shows it run on a fictional client policy against the draft house policy, through
+to example decisions and the built custom policy. Impact
 per difference (resolutions affected) is not computed yet, because it needs
 ingested voting history.
 
