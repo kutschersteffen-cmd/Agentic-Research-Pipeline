@@ -838,7 +838,8 @@ catalogue of issues:
 | issue_id | PK | e.g. `board.independence`, `board.overboarding`, `pay.say_on_pay`, `audit.non_audit_fees`, `climate.laggard_accountability`, `shp.climate_proposals`. |
 | category | enum | board \| remuneration \| audit \| capital \| shareholder_proposals \| climate \| nature \| social \| other |
 | resolution_categories | array | Which resolution types the issue governs. Used to count affected resolutions. |
-| parameters | JSON schema | The typed parameters a position can set, e.g. `{"min_independence_pct": number, "applies_to": ["market"], "action": "against_nomination_chair"}`. |
+| parameters | typed map | The parameters a position can set (number, bool, enum, map, or a field reference), e.g. `min_independent_pct` (number, %). |
+| vote_targets | array | What a position on this issue can vote against, e.g. `nomination_committee_chair`, `say_on_pay`. |
 | data_fields | array → Field Definition | Company data the issue needs (e.g. `score.clti`, `governance.board_independence_pct`). |
 
 | Policy Position | Type | Notes |
@@ -846,7 +847,7 @@ catalogue of issues:
 | position_id | PK | |
 | owner | policy version, or client source document | A house policy version, or the client's envisioned policy before any graph exists. |
 | issue_id | FK → Policy Issue | |
-| action | enum | for \| against \| abstain \| case_by_case \| escalate |
+| action, vote_target | enum, string | for \| against \| abstain \| case_by_case \| escalate; the target from the issue's `vote_targets`. |
 | parameters | JSON | Validated against the issue's parameter schema. |
 | scope | JSON | Markets, sectors, index membership, holding size. |
 | source_ref | quote + location | The sentence in the policy text the position comes from (grounded). |
@@ -857,6 +858,72 @@ check flags any position without implementing rules and any rule row without a
 position, so the written policy and the executable one cannot drift apart. The
 menu policies (not yet defined) should be written in the same catalogue from the
 start.
+
+#### Generic draft catalogue
+There is no written house voting policy yet, so the catalogue starts as a
+**generic draft** covering the issues common to institutional voting policies:
+46 issues in 11 categories. It is not a house policy. It defines what a policy can
+take a position on, not which position it takes.
+
+The source of truth is
+[`backend/arp/stewardship/data/policy_issue_catalogue.json`](../backend/arp/stewardship/data/policy_issue_catalogue.json).
+It holds, per issue, the parameters with types and units, the resolution
+categories it governs, the allowed vote targets, and the company data fields it
+needs. The data fields are placeholders until the field catalogue exists. The table
+below is generated from that file.
+
+| Issue | Category | What it governs | Parameters |
+|---|---|---|---|
+| `board.independence` | board | Minimum share of independent directors on the board. | `min_independent_pct`, `controlled_company_min_pct` |
+| `board.committee_independence` | board | Independence of audit, remuneration and nomination committees. | `audit_min_independent_pct`, `remuneration_min_independent_pct`, `nomination_min_independent_pct` |
+| `board.chair_ceo_separation` | board | Whether the chair and CEO roles must be split, and what mitigates a combined role. | `require_separation`, `accept_lead_independent_director`, `oppose_former_ceo_as_chair` |
+| `board.overboarding` | board | Limits on the number of board mandates a director may hold. | `max_mandates_non_executive`, `max_mandates_executive`, `chair_counts_as` |
+| `board.attendance` | board | Minimum attendance of board and committee meetings. | `min_attendance_pct` |
+| `board.gender_diversity` | board | Minimum representation of the under-represented gender. | `min_underrepresented_gender_pct`, `markets_with_higher_threshold` |
+| `board.tenure_refreshment` | board | Tenure after which a director stops counting as independent, and board refreshment. | `max_tenure_for_independence_years`, `max_average_tenure_years` |
+| `board.election_practices` | board | Annual, individual and majority-vote director elections. | `require_annual_election`, `oppose_bundled_elections`, `require_majority_voting` |
+| `board.responsiveness` | board | Action when the board ignores significant prior-year dissent or majority-supported proposals. | `dissent_threshold_pct`, `ignore_majority_proposal` |
+| `pay.say_on_pay` | remuneration | Default approach to the remuneration report vote. | `default_action` |
+| `pay.quantum` | remuneration | CEO pay level relative to peers and to the workforce. | `max_peer_percentile`, `max_ceo_worker_pay_ratio` |
+| `pay.performance_alignment` | remuneration | Alignment of realised pay with shareholder returns and performance conditions. | `max_misalignment_years`, `min_long_term_share_pct`, `min_vesting_period_years` |
+| `pay.esg_metrics` | remuneration | Whether variable pay must include measurable sustainability (e.g. climate) targets. | `require_esg_metric`, `min_esg_weight_pct`, `require_climate_metric_for_high_emitters` |
+| `pay.equity_plans` | remuneration | Dilution, repricing and discount features of share plans. | `max_dilution_pct`, `oppose_repricing`, `max_discount_pct` |
+| `pay.severance` | remuneration | Limits on termination payments. | `max_severance_multiple`, `oppose_single_trigger` |
+| `pay.disclosure` | remuneration | Minimum disclosure of targets, outcomes and discretion. | `require_ex_post_target_disclosure`, `oppose_undisclosed_discretion` |
+| `pay.non_executive_fees` | remuneration | Structure of non-executive director pay. | `oppose_performance_pay_for_nonexecs`, `max_fee_increase_pct` |
+| `audit.non_audit_fees` | audit | Auditor independence measured by non-audit fees. | `max_non_audit_to_audit_ratio` |
+| `audit.auditor_tenure` | audit | Maximum auditor tenure and tendering. | `max_auditor_tenure_years`, `require_tender_disclosure` |
+| `audit.financial_statements` | audit | Response to qualified opinions, restatements and material weaknesses. | `oppose_on_qualified_opinion`, `oppose_on_material_weakness` |
+| `audit.discharge` | audit | Withholding discharge where legal or significant controversies are unresolved. | `oppose_on_open_investigation`, `min_controversy_severity` |
+| `capital.share_issuance` | capital | Issuance authorities with and without pre-emptive rights. | `max_with_preemption_pct`, `max_without_preemption_pct` |
+| `capital.share_buybacks` | capital | Buyback authorities. | `max_buyback_pct`, `max_premium_pct`, `oppose_during_takeover` |
+| `capital.dividend_allocation` | capital | Payout and capital allocation proposals. | `min_payout_ratio_pct`, `max_payout_ratio_pct` |
+| `capital.one_share_one_vote` | capital | Unequal voting rights and multiple share classes. | `oppose_new_multiple_voting_classes`, `require_sunset_years` |
+| `capital.takeover_defences` | capital | Poison pills and other anti-takeover measures. | `oppose_poison_pill_without_approval`, `max_pill_duration_years` |
+| `capital.mergers_acquisitions` | capital | Stance on M&A and major transactions. | `default_action`, `require_fairness_opinion` |
+| `capital.related_party_transactions` | capital | Approval of transactions with insiders or controlling shareholders. | `require_independent_review`, `max_value_pct_of_assets` |
+| `rights.shareholder_rights` | rights | Supermajority requirements, rights to call meetings and proxy access. | `oppose_supermajority`, `support_special_meeting_threshold_pct`, `support_proxy_access` |
+| `rights.virtual_meetings` | rights | Authorisations for meetings with no physical attendance. | `oppose_virtual_only`, `accept_hybrid` |
+| `climate.laggard_accountability` | climate | Holding directors accountable where the company's climate transition assessment is weak. | `score_field`, `laggard_threshold`, `min_months_engaged_without_progress`, `high_emitters_only` |
+| `climate.disclosure` | climate | Minimum climate reporting (e.g. ISSB/TCFD-aligned, scope 1-3 emissions). | `require_scope_1_2`, `require_scope_3_material`, `require_aligned_framework` |
+| `climate.targets` | climate | Existence and credibility of emissions reduction targets. | `require_net_zero_target`, `require_interim_targets`, `require_validated_targets` |
+| `climate.say_on_climate` | climate | Criteria for supporting management climate transition plans. | `min_plan_score`, `require_capex_alignment`, `require_annual_vote` |
+| `climate.shareholder_proposals` | climate | Support for shareholder proposals on climate. | `default_action`, `oppose_if_prescriptive` |
+| `nature.laggard_accountability` | nature | Accountability where nature-related performance or risk management is weak (e.g. deforestation). | `score_field`, `laggard_threshold`, `high_impact_sectors_only` |
+| `nature.disclosure` | nature | Nature-related disclosure (e.g. TNFD-aligned). | `require_tnfd_aligned` |
+| `social.human_rights` | social | Response to severe human-rights controversies or global-norm breaches (e.g. UNGC). | `min_controversy_severity`, `ungc_fail_triggers_action` |
+| `social.workforce` | social | Workforce, pay equity and diversity disclosure. | `require_pay_gap_disclosure`, `support_workforce_disclosure_proposals` |
+| `social.shareholder_proposals` | social | Support for shareholder proposals on social topics. | `default_action` |
+| `gov.controversy_accountability` | governance | Accountability for severe governance controversies (bribery, fraud, misconduct). | `min_controversy_severity` |
+| `gov.lobbying_political` | governance | Disclosure and alignment of lobbying and political contributions. | `support_lobbying_disclosure`, `require_climate_lobbying_alignment` |
+| `gov.tax_transparency` | governance | Public country-by-country tax reporting. | `support_cbcr_proposals` |
+| `gov.shareholder_proposals` | governance | Default stance on governance shareholder proposals not covered by a more specific issue. | `default_action` |
+| `stewardship.engagement_escalation` | stewardship | Voting against management where an engagement has reached the vote-against-management escalation step. | `target_by_theme`, `require_prior_notice` |
+| `general.default_management` | general | Stance on routine items and anything no other issue covers. | `default_action` |
+
+When the house voting policy is written, each issue gets a house position, and
+issues are added, split or removed as needed. The `version` in the file changes
+with every edit, and a review records the catalogue version it used.
 
 #### Review flow
 
@@ -1006,7 +1073,8 @@ ingest them.
    not in the repo. The tier names and caps in Part 1 are the working assumption.
 8. The voting-policy menu (E4): the 3–4 named policies and what distinguishes them.
    To be written in the policy issue catalogue (5.7) from the start.
-11. The policy issue catalogue (5.7): initial list of issues and their parameters,
-    and whether a written house voting policy exists to derive house positions from.
+11. The policy issue catalogue (5.7): a generic draft exists (46 issues); it needs
+    review, and the house positions still have to be written, as there is no written
+    house voting policy yet.
 9. The agenda feed (E3): source and lead time; N business days for intentions.
 10. The E8 phrase blocklist: an initial list.

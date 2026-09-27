@@ -1,0 +1,1369 @@
+{
+  "version": "0.1-draft",
+  "status": "generic draft; not a house policy",
+  "note": "Issues, parameters and data fields are placeholders to be confirmed. A policy position picks an action (for | against | abstain | case_by_case | escalate), sets parameter values, a scope and a vote target from vote_targets. data_fields refer to Field Definition ids and are placeholders until the field catalogue exists.",
+  "position_actions": [
+    "for",
+    "against",
+    "abstain",
+    "case_by_case",
+    "escalate"
+  ],
+  "categories": [
+    "board",
+    "remuneration",
+    "audit",
+    "capital",
+    "rights",
+    "climate",
+    "nature",
+    "social",
+    "governance",
+    "stewardship",
+    "general"
+  ],
+  "resolution_categories": [
+    "director_election",
+    "committee_member_election",
+    "say_on_pay",
+    "remuneration_policy",
+    "equity_plan",
+    "non_executive_fees",
+    "auditor_ratification",
+    "financial_statements",
+    "discharge",
+    "dividend_allocation",
+    "share_issuance",
+    "share_buyback",
+    "capital_structure",
+    "merger_acquisition",
+    "takeover_defence",
+    "related_party_transaction",
+    "articles_amendment",
+    "say_on_climate",
+    "shareholder_proposal_governance",
+    "shareholder_proposal_environmental",
+    "shareholder_proposal_social",
+    "other"
+  ],
+  "issues": [
+    {
+      "issue_id": "board.independence",
+      "category": "board",
+      "title": "Board independence",
+      "description": "Minimum share of independent directors on the board.",
+      "resolution_categories": [
+        "director_election",
+        "committee_member_election"
+      ],
+      "parameters": {
+        "min_independent_pct": {
+          "type": "number",
+          "description": "Minimum independent directors",
+          "unit": "%"
+        },
+        "controlled_company_min_pct": {
+          "type": "number",
+          "description": "Lower minimum for controlled companies",
+          "unit": "%"
+        }
+      },
+      "vote_targets": [
+        "nomination_committee_chair",
+        "non_independent_nominees",
+        "board_chair"
+      ],
+      "data_fields": [
+        "governance.board_independence_pct",
+        "governance.controlled_company"
+      ]
+    },
+    {
+      "issue_id": "board.committee_independence",
+      "category": "board",
+      "title": "Key committee independence",
+      "description": "Independence of audit, remuneration and nomination committees.",
+      "resolution_categories": [
+        "director_election",
+        "committee_member_election"
+      ],
+      "parameters": {
+        "audit_min_independent_pct": {
+          "type": "number",
+          "description": "Audit committee",
+          "unit": "%"
+        },
+        "remuneration_min_independent_pct": {
+          "type": "number",
+          "description": "Remuneration committee",
+          "unit": "%"
+        },
+        "nomination_min_independent_pct": {
+          "type": "number",
+          "description": "Nomination committee",
+          "unit": "%"
+        }
+      },
+      "vote_targets": [
+        "non_independent_committee_members",
+        "committee_chair"
+      ],
+      "data_fields": [
+        "governance.audit_committee_independence_pct",
+        "governance.remuneration_committee_independence_pct",
+        "governance.nomination_committee_independence_pct"
+      ]
+    },
+    {
+      "issue_id": "board.chair_ceo_separation",
+      "category": "board",
+      "title": "Separation of chair and CEO",
+      "description": "Whether the chair and CEO roles must be split, and what mitigates a combined role.",
+      "resolution_categories": [
+        "director_election",
+        "committee_member_election",
+        "shareholder_proposal_governance"
+      ],
+      "parameters": {
+        "require_separation": {
+          "type": "bool",
+          "description": "Oppose a combined chair/CEO"
+        },
+        "accept_lead_independent_director": {
+          "type": "bool",
+          "description": "A lead independent director mitigates a combined role"
+        },
+        "oppose_former_ceo_as_chair": {
+          "type": "bool",
+          "description": "Oppose a former CEO becoming chair"
+        }
+      },
+      "vote_targets": [
+        "board_chair",
+        "combined_chair_ceo",
+        "nomination_committee_chair"
+      ],
+      "data_fields": [
+        "governance.chair_ceo_combined",
+        "governance.lead_independent_director",
+        "governance.chair_is_former_ceo"
+      ]
+    },
+    {
+      "issue_id": "board.overboarding",
+      "category": "board",
+      "title": "Director overboarding",
+      "description": "Limits on the number of board mandates a director may hold.",
+      "resolution_categories": [
+        "director_election",
+        "committee_member_election"
+      ],
+      "parameters": {
+        "max_mandates_non_executive": {
+          "type": "number",
+          "description": "Maximum listed-company boards for a non-executive"
+        },
+        "max_mandates_executive": {
+          "type": "number",
+          "description": "Maximum outside boards for a sitting executive"
+        },
+        "chair_counts_as": {
+          "type": "number",
+          "description": "Mandates a chair role counts as"
+        }
+      },
+      "vote_targets": [
+        "overboarded_director"
+      ],
+      "data_fields": [
+        "governance.director_mandate_counts"
+      ]
+    },
+    {
+      "issue_id": "board.attendance",
+      "category": "board",
+      "title": "Board meeting attendance",
+      "description": "Minimum attendance of board and committee meetings.",
+      "resolution_categories": [
+        "director_election",
+        "committee_member_election"
+      ],
+      "parameters": {
+        "min_attendance_pct": {
+          "type": "number",
+          "description": "Minimum attendance",
+          "unit": "%"
+        }
+      },
+      "vote_targets": [
+        "low_attendance_director"
+      ],
+      "data_fields": [
+        "governance.director_attendance_pct"
+      ]
+    },
+    {
+      "issue_id": "board.gender_diversity",
+      "category": "board",
+      "title": "Board gender diversity",
+      "description": "Minimum representation of the under-represented gender.",
+      "resolution_categories": [
+        "director_election",
+        "committee_member_election"
+      ],
+      "parameters": {
+        "min_underrepresented_gender_pct": {
+          "type": "number",
+          "description": "Minimum share",
+          "unit": "%"
+        },
+        "markets_with_higher_threshold": {
+          "type": "map",
+          "description": "Market-specific thresholds, e.g. {\"EU\": 40}"
+        }
+      },
+      "vote_targets": [
+        "nomination_committee_chair",
+        "board_chair"
+      ],
+      "data_fields": [
+        "governance.board_female_pct"
+      ]
+    },
+    {
+      "issue_id": "board.tenure_refreshment",
+      "category": "board",
+      "title": "Tenure and refreshment",
+      "description": "Tenure after which a director stops counting as independent, and board refreshment.",
+      "resolution_categories": [
+        "director_election",
+        "committee_member_election"
+      ],
+      "parameters": {
+        "max_tenure_for_independence_years": {
+          "type": "number",
+          "description": "Tenure limit for independence",
+          "unit": "years"
+        },
+        "max_average_tenure_years": {
+          "type": "number",
+          "description": "Maximum average board tenure",
+          "unit": "years"
+        }
+      },
+      "vote_targets": [
+        "long_tenured_director",
+        "nomination_committee_chair"
+      ],
+      "data_fields": [
+        "governance.director_tenure_years"
+      ]
+    },
+    {
+      "issue_id": "board.election_practices",
+      "category": "board",
+      "title": "Election practices",
+      "description": "Annual, individual and majority-vote director elections.",
+      "resolution_categories": [
+        "director_election",
+        "committee_member_election",
+        "articles_amendment",
+        "shareholder_proposal_governance"
+      ],
+      "parameters": {
+        "require_annual_election": {
+          "type": "bool",
+          "description": "Oppose staggered boards"
+        },
+        "oppose_bundled_elections": {
+          "type": "bool",
+          "description": "Oppose slates voted as one item"
+        },
+        "require_majority_voting": {
+          "type": "bool",
+          "description": "Support majority voting standards"
+        }
+      },
+      "vote_targets": [
+        "bundled_slate",
+        "nomination_committee_chair"
+      ],
+      "data_fields": [
+        "governance.staggered_board",
+        "governance.bundled_election",
+        "governance.majority_voting"
+      ]
+    },
+    {
+      "issue_id": "board.responsiveness",
+      "category": "board",
+      "title": "Responsiveness to shareholder dissent",
+      "description": "Action when the board ignores significant prior-year dissent or majority-supported proposals.",
+      "resolution_categories": [
+        "director_election",
+        "committee_member_election"
+      ],
+      "parameters": {
+        "dissent_threshold_pct": {
+          "type": "number",
+          "description": "Prior-year opposition that requires a response",
+          "unit": "%"
+        },
+        "ignore_majority_proposal": {
+          "type": "bool",
+          "description": "Act when a majority-supported shareholder proposal was not implemented"
+        }
+      },
+      "vote_targets": [
+        "committee_chair_responsible",
+        "board_chair"
+      ],
+      "data_fields": [
+        "voting.prior_year_dissent_pct",
+        "voting.majority_proposal_not_implemented"
+      ]
+    },
+    {
+      "issue_id": "pay.say_on_pay",
+      "category": "remuneration",
+      "title": "Say-on-pay: overall stance",
+      "description": "Default approach to the remuneration report vote.",
+      "resolution_categories": [
+        "say_on_pay"
+      ],
+      "parameters": {
+        "default_action": {
+          "type": "enum",
+          "values": [
+            "for",
+            "case_by_case",
+            "against_on_red_flag"
+          ],
+          "description": "Default when no red flag applies"
+        }
+      },
+      "vote_targets": [
+        "say_on_pay"
+      ],
+      "data_fields": []
+    },
+    {
+      "issue_id": "pay.quantum",
+      "category": "remuneration",
+      "title": "Pay quantum",
+      "description": "CEO pay level relative to peers and to the workforce.",
+      "resolution_categories": [
+        "say_on_pay",
+        "remuneration_policy"
+      ],
+      "parameters": {
+        "max_peer_percentile": {
+          "type": "number",
+          "description": "CEO pay above this peer percentile is a red flag",
+          "unit": "percentile"
+        },
+        "max_ceo_worker_pay_ratio": {
+          "type": "number",
+          "description": "Maximum CEO-to-median-employee pay ratio"
+        }
+      },
+      "vote_targets": [
+        "say_on_pay",
+        "remuneration_committee_chair"
+      ],
+      "data_fields": [
+        "pay.ceo_total_pay",
+        "pay.ceo_peer_percentile",
+        "pay.ceo_pay_ratio"
+      ]
+    },
+    {
+      "issue_id": "pay.performance_alignment",
+      "category": "remuneration",
+      "title": "Pay-for-performance alignment",
+      "description": "Alignment of realised pay with shareholder returns and performance conditions.",
+      "resolution_categories": [
+        "say_on_pay",
+        "remuneration_policy"
+      ],
+      "parameters": {
+        "max_misalignment_years": {
+          "type": "number",
+          "description": "Consecutive years of misalignment tolerated",
+          "unit": "years"
+        },
+        "min_long_term_share_pct": {
+          "type": "number",
+          "description": "Minimum long-term share of variable pay",
+          "unit": "%"
+        },
+        "min_vesting_period_years": {
+          "type": "number",
+          "description": "Minimum vesting/holding period",
+          "unit": "years"
+        }
+      },
+      "vote_targets": [
+        "say_on_pay",
+        "remuneration_policy",
+        "remuneration_committee_chair"
+      ],
+      "data_fields": [
+        "pay.tsr_relative",
+        "pay.realised_pay_trend",
+        "pay.long_term_incentive_pct"
+      ]
+    },
+    {
+      "issue_id": "pay.esg_metrics",
+      "category": "remuneration",
+      "title": "Sustainability metrics in pay",
+      "description": "Whether variable pay must include measurable sustainability (e.g. climate) targets.",
+      "resolution_categories": [
+        "say_on_pay",
+        "remuneration_policy"
+      ],
+      "parameters": {
+        "require_esg_metric": {
+          "type": "bool",
+          "description": "Require at least one measurable sustainability metric"
+        },
+        "min_esg_weight_pct": {
+          "type": "number",
+          "description": "Minimum weight in variable pay",
+          "unit": "%"
+        },
+        "require_climate_metric_for_high_emitters": {
+          "type": "bool",
+          "description": "Require a climate metric for high-emitting sectors"
+        }
+      },
+      "vote_targets": [
+        "remuneration_policy",
+        "say_on_pay"
+      ],
+      "data_fields": [
+        "pay.esg_metric_weight_pct",
+        "pay.climate_metric_included",
+        "climate.high_emitter"
+      ]
+    },
+    {
+      "issue_id": "pay.equity_plans",
+      "category": "remuneration",
+      "title": "Equity incentive plans",
+      "description": "Dilution, repricing and discount features of share plans.",
+      "resolution_categories": [
+        "equity_plan"
+      ],
+      "parameters": {
+        "max_dilution_pct": {
+          "type": "number",
+          "description": "Maximum dilution from all plans",
+          "unit": "%"
+        },
+        "oppose_repricing": {
+          "type": "bool",
+          "description": "Oppose option repricing without shareholder approval"
+        },
+        "max_discount_pct": {
+          "type": "number",
+          "description": "Maximum grant price discount",
+          "unit": "%"
+        }
+      },
+      "vote_targets": [
+        "equity_plan"
+      ],
+      "data_fields": [
+        "pay.plan_dilution_pct",
+        "pay.repricing_allowed"
+      ]
+    },
+    {
+      "issue_id": "pay.severance",
+      "category": "remuneration",
+      "title": "Severance and change of control",
+      "description": "Limits on termination payments.",
+      "resolution_categories": [
+        "remuneration_policy",
+        "say_on_pay"
+      ],
+      "parameters": {
+        "max_severance_multiple": {
+          "type": "number",
+          "description": "Maximum multiple of salary + bonus"
+        },
+        "oppose_single_trigger": {
+          "type": "bool",
+          "description": "Oppose single-trigger change-of-control vesting"
+        }
+      },
+      "vote_targets": [
+        "remuneration_policy"
+      ],
+      "data_fields": [
+        "pay.severance_multiple",
+        "pay.single_trigger_vesting"
+      ]
+    },
+    {
+      "issue_id": "pay.disclosure",
+      "category": "remuneration",
+      "title": "Remuneration disclosure",
+      "description": "Minimum disclosure of targets, outcomes and discretion.",
+      "resolution_categories": [
+        "say_on_pay",
+        "remuneration_policy"
+      ],
+      "parameters": {
+        "require_ex_post_target_disclosure": {
+          "type": "bool",
+          "description": "Targets disclosed after the performance period"
+        },
+        "oppose_undisclosed_discretion": {
+          "type": "bool",
+          "description": "Oppose upward discretion without explanation"
+        }
+      },
+      "vote_targets": [
+        "say_on_pay"
+      ],
+      "data_fields": [
+        "pay.targets_disclosed",
+        "pay.discretion_used"
+      ]
+    },
+    {
+      "issue_id": "pay.non_executive_fees",
+      "category": "remuneration",
+      "title": "Non-executive fees",
+      "description": "Structure of non-executive director pay.",
+      "resolution_categories": [
+        "non_executive_fees"
+      ],
+      "parameters": {
+        "oppose_performance_pay_for_nonexecs": {
+          "type": "bool",
+          "description": "Oppose performance-linked pay for non-executives"
+        },
+        "max_fee_increase_pct": {
+          "type": "number",
+          "description": "Maximum unexplained fee increase",
+          "unit": "%"
+        }
+      },
+      "vote_targets": [
+        "non_executive_fees"
+      ],
+      "data_fields": [
+        "pay.nonexec_fee_change_pct",
+        "pay.nonexec_performance_pay"
+      ]
+    },
+    {
+      "issue_id": "audit.non_audit_fees",
+      "category": "audit",
+      "title": "Non-audit fees",
+      "description": "Auditor independence measured by non-audit fees.",
+      "resolution_categories": [
+        "auditor_ratification"
+      ],
+      "parameters": {
+        "max_non_audit_to_audit_ratio": {
+          "type": "number",
+          "description": "Maximum non-audit / audit fee ratio"
+        }
+      },
+      "vote_targets": [
+        "auditor_ratification",
+        "audit_committee_chair"
+      ],
+      "data_fields": [
+        "audit.non_audit_fee_ratio"
+      ]
+    },
+    {
+      "issue_id": "audit.auditor_tenure",
+      "category": "audit",
+      "title": "Auditor tenure and rotation",
+      "description": "Maximum auditor tenure and tendering.",
+      "resolution_categories": [
+        "auditor_ratification"
+      ],
+      "parameters": {
+        "max_auditor_tenure_years": {
+          "type": "number",
+          "description": "Maximum tenure",
+          "unit": "years"
+        },
+        "require_tender_disclosure": {
+          "type": "bool",
+          "description": "Require disclosure of the last tender"
+        }
+      },
+      "vote_targets": [
+        "auditor_ratification",
+        "audit_committee_chair"
+      ],
+      "data_fields": [
+        "audit.auditor_tenure_years"
+      ]
+    },
+    {
+      "issue_id": "audit.financial_statements",
+      "category": "audit",
+      "title": "Financial statements and audit opinion",
+      "description": "Response to qualified opinions, restatements and material weaknesses.",
+      "resolution_categories": [
+        "financial_statements",
+        "auditor_ratification",
+        "director_election"
+      ],
+      "parameters": {
+        "oppose_on_qualified_opinion": {
+          "type": "bool",
+          "description": "Oppose accounts with a qualified opinion"
+        },
+        "oppose_on_material_weakness": {
+          "type": "bool",
+          "description": "Hold the audit committee accountable for material weaknesses"
+        }
+      },
+      "vote_targets": [
+        "financial_statements",
+        "audit_committee_chair"
+      ],
+      "data_fields": [
+        "audit.qualified_opinion",
+        "audit.material_weakness",
+        "audit.restatement"
+      ]
+    },
+    {
+      "issue_id": "audit.discharge",
+      "category": "audit",
+      "title": "Discharge of board and management",
+      "description": "Withholding discharge where legal or significant controversies are unresolved.",
+      "resolution_categories": [
+        "discharge"
+      ],
+      "parameters": {
+        "oppose_on_open_investigation": {
+          "type": "bool",
+          "description": "Oppose discharge during open investigations"
+        },
+        "min_controversy_severity": {
+          "type": "number",
+          "description": "Controversy severity that blocks discharge (1-5)"
+        }
+      },
+      "vote_targets": [
+        "discharge"
+      ],
+      "data_fields": [
+        "controversy.max_severity",
+        "governance.open_investigation"
+      ]
+    },
+    {
+      "issue_id": "capital.share_issuance",
+      "category": "capital",
+      "title": "Share issuance",
+      "description": "Issuance authorities with and without pre-emptive rights.",
+      "resolution_categories": [
+        "share_issuance"
+      ],
+      "parameters": {
+        "max_with_preemption_pct": {
+          "type": "number",
+          "description": "Maximum issuance with pre-emptive rights",
+          "unit": "% of capital"
+        },
+        "max_without_preemption_pct": {
+          "type": "number",
+          "description": "Maximum issuance without pre-emptive rights",
+          "unit": "% of capital"
+        }
+      },
+      "vote_targets": [
+        "share_issuance"
+      ],
+      "data_fields": []
+    },
+    {
+      "issue_id": "capital.share_buybacks",
+      "category": "capital",
+      "title": "Share buybacks",
+      "description": "Buyback authorities.",
+      "resolution_categories": [
+        "share_buyback"
+      ],
+      "parameters": {
+        "max_buyback_pct": {
+          "type": "number",
+          "description": "Maximum authority",
+          "unit": "% of capital"
+        },
+        "max_premium_pct": {
+          "type": "number",
+          "description": "Maximum price premium",
+          "unit": "%"
+        },
+        "oppose_during_takeover": {
+          "type": "bool",
+          "description": "Oppose use during a takeover period"
+        }
+      },
+      "vote_targets": [
+        "share_buyback"
+      ],
+      "data_fields": []
+    },
+    {
+      "issue_id": "capital.dividend_allocation",
+      "category": "capital",
+      "title": "Dividend and capital allocation",
+      "description": "Payout and capital allocation proposals.",
+      "resolution_categories": [
+        "dividend_allocation"
+      ],
+      "parameters": {
+        "min_payout_ratio_pct": {
+          "type": "number",
+          "description": "Minimum payout ratio before questioning retention",
+          "unit": "%"
+        },
+        "max_payout_ratio_pct": {
+          "type": "number",
+          "description": "Maximum payout ratio before questioning sustainability",
+          "unit": "%"
+        }
+      },
+      "vote_targets": [
+        "dividend_allocation"
+      ],
+      "data_fields": [
+        "financial.payout_ratio_pct"
+      ]
+    },
+    {
+      "issue_id": "capital.one_share_one_vote",
+      "category": "capital",
+      "title": "One share, one vote",
+      "description": "Unequal voting rights and multiple share classes.",
+      "resolution_categories": [
+        "capital_structure",
+        "articles_amendment",
+        "director_election",
+        "shareholder_proposal_governance"
+      ],
+      "parameters": {
+        "oppose_new_multiple_voting_classes": {
+          "type": "bool",
+          "description": "Oppose creating unequal voting classes"
+        },
+        "require_sunset_years": {
+          "type": "number",
+          "description": "Maximum sunset for existing dual-class structures",
+          "unit": "years"
+        }
+      },
+      "vote_targets": [
+        "capital_structure",
+        "nomination_committee_chair"
+      ],
+      "data_fields": [
+        "governance.dual_class"
+      ]
+    },
+    {
+      "issue_id": "capital.takeover_defences",
+      "category": "capital",
+      "title": "Takeover defences",
+      "description": "Poison pills and other anti-takeover measures.",
+      "resolution_categories": [
+        "takeover_defence",
+        "articles_amendment"
+      ],
+      "parameters": {
+        "oppose_poison_pill_without_approval": {
+          "type": "bool",
+          "description": "Oppose pills not approved by shareholders"
+        },
+        "max_pill_duration_years": {
+          "type": "number",
+          "description": "Maximum pill duration",
+          "unit": "years"
+        }
+      },
+      "vote_targets": [
+        "takeover_defence",
+        "board_chair"
+      ],
+      "data_fields": [
+        "governance.poison_pill"
+      ]
+    },
+    {
+      "issue_id": "capital.mergers_acquisitions",
+      "category": "capital",
+      "title": "Mergers and acquisitions",
+      "description": "Stance on M&A and major transactions.",
+      "resolution_categories": [
+        "merger_acquisition"
+      ],
+      "parameters": {
+        "default_action": {
+          "type": "enum",
+          "values": [
+            "case_by_case",
+            "follow_management"
+          ],
+          "description": "Default approach"
+        },
+        "require_fairness_opinion": {
+          "type": "bool",
+          "description": "Require an independent fairness opinion"
+        }
+      },
+      "vote_targets": [
+        "merger_acquisition"
+      ],
+      "data_fields": []
+    },
+    {
+      "issue_id": "capital.related_party_transactions",
+      "category": "capital",
+      "title": "Related-party transactions",
+      "description": "Approval of transactions with insiders or controlling shareholders.",
+      "resolution_categories": [
+        "related_party_transaction"
+      ],
+      "parameters": {
+        "require_independent_review": {
+          "type": "bool",
+          "description": "Require independent committee review"
+        },
+        "max_value_pct_of_assets": {
+          "type": "number",
+          "description": "Value above which case-by-case review applies",
+          "unit": "% of assets"
+        }
+      },
+      "vote_targets": [
+        "related_party_transaction"
+      ],
+      "data_fields": [
+        "governance.related_party_value"
+      ]
+    },
+    {
+      "issue_id": "rights.shareholder_rights",
+      "category": "rights",
+      "title": "Shareholder rights",
+      "description": "Supermajority requirements, rights to call meetings and proxy access.",
+      "resolution_categories": [
+        "articles_amendment",
+        "shareholder_proposal_governance"
+      ],
+      "parameters": {
+        "oppose_supermajority": {
+          "type": "bool",
+          "description": "Oppose supermajority vote requirements"
+        },
+        "support_special_meeting_threshold_pct": {
+          "type": "number",
+          "description": "Support a right to call meetings at or below this holding",
+          "unit": "%"
+        },
+        "support_proxy_access": {
+          "type": "bool",
+          "description": "Support proxy access proposals"
+        }
+      },
+      "vote_targets": [
+        "articles_amendment"
+      ],
+      "data_fields": [
+        "governance.supermajority",
+        "governance.special_meeting_threshold_pct"
+      ]
+    },
+    {
+      "issue_id": "rights.virtual_meetings",
+      "category": "rights",
+      "title": "Virtual-only meetings",
+      "description": "Authorisations for meetings with no physical attendance.",
+      "resolution_categories": [
+        "articles_amendment"
+      ],
+      "parameters": {
+        "oppose_virtual_only": {
+          "type": "bool",
+          "description": "Oppose virtual-only meetings without equivalent rights"
+        },
+        "accept_hybrid": {
+          "type": "bool",
+          "description": "Accept hybrid meetings"
+        }
+      },
+      "vote_targets": [
+        "articles_amendment"
+      ],
+      "data_fields": []
+    },
+    {
+      "issue_id": "climate.laggard_accountability",
+      "category": "climate",
+      "title": "Climate laggard accountability",
+      "description": "Holding directors accountable where the company's climate transition assessment is weak.",
+      "resolution_categories": [
+        "director_election",
+        "committee_member_election",
+        "discharge"
+      ],
+      "parameters": {
+        "score_field": {
+          "type": "field",
+          "description": "Score used, e.g. score.clti (placeholder)"
+        },
+        "laggard_threshold": {
+          "type": "number",
+          "description": "Score below which the company is a laggard"
+        },
+        "min_months_engaged_without_progress": {
+          "type": "number",
+          "description": "Months of engagement without progress before voting against",
+          "unit": "months"
+        },
+        "high_emitters_only": {
+          "type": "bool",
+          "description": "Apply only to high-emitting sectors"
+        }
+      },
+      "vote_targets": [
+        "board_chair",
+        "sustainability_committee_chair",
+        "responsible_director"
+      ],
+      "data_fields": [
+        "score.clti",
+        "climate.high_emitter",
+        "engagement.months_without_progress"
+      ]
+    },
+    {
+      "issue_id": "climate.disclosure",
+      "category": "climate",
+      "title": "Climate disclosure",
+      "description": "Minimum climate reporting (e.g. ISSB/TCFD-aligned, scope 1-3 emissions).",
+      "resolution_categories": [
+        "director_election",
+        "financial_statements",
+        "shareholder_proposal_environmental"
+      ],
+      "parameters": {
+        "require_scope_1_2": {
+          "type": "bool",
+          "description": "Require scope 1 and 2 disclosure"
+        },
+        "require_scope_3_material": {
+          "type": "bool",
+          "description": "Require material scope 3 disclosure"
+        },
+        "require_aligned_framework": {
+          "type": "bool",
+          "description": "Require ISSB/TCFD-aligned reporting"
+        }
+      },
+      "vote_targets": [
+        "responsible_director",
+        "financial_statements"
+      ],
+      "data_fields": [
+        "climate.scope1_2_disclosed",
+        "climate.scope3_disclosed",
+        "climate.tcfd_aligned"
+      ]
+    },
+    {
+      "issue_id": "climate.targets",
+      "category": "climate",
+      "title": "Climate targets",
+      "description": "Existence and credibility of emissions reduction targets.",
+      "resolution_categories": [
+        "director_election",
+        "shareholder_proposal_environmental"
+      ],
+      "parameters": {
+        "require_net_zero_target": {
+          "type": "bool",
+          "description": "Require a net-zero commitment"
+        },
+        "require_interim_targets": {
+          "type": "bool",
+          "description": "Require interim targets"
+        },
+        "require_validated_targets": {
+          "type": "bool",
+          "description": "Require independently validated (e.g. SBTi) targets"
+        }
+      },
+      "vote_targets": [
+        "responsible_director"
+      ],
+      "data_fields": [
+        "climate.net_zero_target",
+        "climate.interim_target",
+        "climate.sbti_validated"
+      ]
+    },
+    {
+      "issue_id": "climate.say_on_climate",
+      "category": "climate",
+      "title": "Say-on-climate votes",
+      "description": "Criteria for supporting management climate transition plans.",
+      "resolution_categories": [
+        "say_on_climate"
+      ],
+      "parameters": {
+        "min_plan_score": {
+          "type": "number",
+          "description": "Minimum transition plan assessment score"
+        },
+        "require_capex_alignment": {
+          "type": "bool",
+          "description": "Require capex alignment disclosure"
+        },
+        "require_annual_vote": {
+          "type": "bool",
+          "description": "Prefer an annual vote on progress"
+        }
+      },
+      "vote_targets": [
+        "say_on_climate"
+      ],
+      "data_fields": [
+        "score.transition_plan",
+        "climate.capex_alignment_disclosed"
+      ]
+    },
+    {
+      "issue_id": "climate.shareholder_proposals",
+      "category": "climate",
+      "title": "Climate shareholder proposals",
+      "description": "Support for shareholder proposals on climate.",
+      "resolution_categories": [
+        "shareholder_proposal_environmental"
+      ],
+      "parameters": {
+        "default_action": {
+          "type": "enum",
+          "values": [
+            "support_if_reasonable",
+            "case_by_case",
+            "follow_management"
+          ],
+          "description": "Default stance"
+        },
+        "oppose_if_prescriptive": {
+          "type": "bool",
+          "description": "Oppose proposals that micromanage strategy"
+        }
+      },
+      "vote_targets": [
+        "shareholder_proposal_environmental"
+      ],
+      "data_fields": []
+    },
+    {
+      "issue_id": "nature.laggard_accountability",
+      "category": "nature",
+      "title": "Nature and biodiversity laggards",
+      "description": "Accountability where nature-related performance or risk management is weak (e.g. deforestation).",
+      "resolution_categories": [
+        "director_election",
+        "committee_member_election"
+      ],
+      "parameters": {
+        "score_field": {
+          "type": "field",
+          "description": "Score used, e.g. score.nature (placeholder)"
+        },
+        "laggard_threshold": {
+          "type": "number",
+          "description": "Score below which the company is a laggard"
+        },
+        "high_impact_sectors_only": {
+          "type": "bool",
+          "description": "Apply only to high-impact sectors"
+        }
+      },
+      "vote_targets": [
+        "responsible_director",
+        "board_chair"
+      ],
+      "data_fields": [
+        "score.nature",
+        "nature.high_impact_sector",
+        "nature.deforestation_exposure"
+      ]
+    },
+    {
+      "issue_id": "nature.disclosure",
+      "category": "nature",
+      "title": "Nature disclosure",
+      "description": "Nature-related disclosure (e.g. TNFD-aligned).",
+      "resolution_categories": [
+        "shareholder_proposal_environmental",
+        "director_election"
+      ],
+      "parameters": {
+        "require_tnfd_aligned": {
+          "type": "bool",
+          "description": "Require TNFD-aligned disclosure for high-impact sectors"
+        }
+      },
+      "vote_targets": [
+        "responsible_director",
+        "shareholder_proposal_environmental"
+      ],
+      "data_fields": [
+        "nature.tnfd_aligned"
+      ]
+    },
+    {
+      "issue_id": "social.human_rights",
+      "category": "social",
+      "title": "Human rights and severe controversies",
+      "description": "Response to severe human-rights controversies or global-norm breaches (e.g. UNGC).",
+      "resolution_categories": [
+        "director_election",
+        "discharge",
+        "shareholder_proposal_social"
+      ],
+      "parameters": {
+        "min_controversy_severity": {
+          "type": "number",
+          "description": "Controversy severity that triggers action (1-5)"
+        },
+        "ungc_fail_triggers_action": {
+          "type": "bool",
+          "description": "A UN Global Compact 'fail' triggers action"
+        }
+      },
+      "vote_targets": [
+        "board_chair",
+        "responsible_director",
+        "discharge"
+      ],
+      "data_fields": [
+        "controversy.human_rights_severity",
+        "controversy.ungc_status"
+      ]
+    },
+    {
+      "issue_id": "social.workforce",
+      "category": "social",
+      "title": "Workforce and diversity reporting",
+      "description": "Workforce, pay equity and diversity disclosure.",
+      "resolution_categories": [
+        "shareholder_proposal_social",
+        "director_election"
+      ],
+      "parameters": {
+        "require_pay_gap_disclosure": {
+          "type": "bool",
+          "description": "Require gender/ethnicity pay gap disclosure"
+        },
+        "support_workforce_disclosure_proposals": {
+          "type": "bool",
+          "description": "Support reasonable disclosure proposals"
+        }
+      },
+      "vote_targets": [
+        "shareholder_proposal_social"
+      ],
+      "data_fields": [
+        "social.pay_gap_disclosed"
+      ]
+    },
+    {
+      "issue_id": "social.shareholder_proposals",
+      "category": "social",
+      "title": "Social shareholder proposals",
+      "description": "Support for shareholder proposals on social topics.",
+      "resolution_categories": [
+        "shareholder_proposal_social"
+      ],
+      "parameters": {
+        "default_action": {
+          "type": "enum",
+          "values": [
+            "support_if_reasonable",
+            "case_by_case",
+            "follow_management"
+          ],
+          "description": "Default stance"
+        }
+      },
+      "vote_targets": [
+        "shareholder_proposal_social"
+      ],
+      "data_fields": []
+    },
+    {
+      "issue_id": "gov.controversy_accountability",
+      "category": "governance",
+      "title": "Governance controversies",
+      "description": "Accountability for severe governance controversies (bribery, fraud, misconduct).",
+      "resolution_categories": [
+        "director_election",
+        "discharge"
+      ],
+      "parameters": {
+        "min_controversy_severity": {
+          "type": "number",
+          "description": "Controversy severity that triggers action (1-5)"
+        }
+      },
+      "vote_targets": [
+        "board_chair",
+        "audit_committee_chair",
+        "discharge"
+      ],
+      "data_fields": [
+        "controversy.governance_severity"
+      ]
+    },
+    {
+      "issue_id": "gov.lobbying_political",
+      "category": "governance",
+      "title": "Lobbying and political spending",
+      "description": "Disclosure and alignment of lobbying and political contributions.",
+      "resolution_categories": [
+        "shareholder_proposal_governance",
+        "shareholder_proposal_environmental"
+      ],
+      "parameters": {
+        "support_lobbying_disclosure": {
+          "type": "bool",
+          "description": "Support lobbying disclosure proposals"
+        },
+        "require_climate_lobbying_alignment": {
+          "type": "bool",
+          "description": "Require lobbying aligned with stated climate commitments"
+        }
+      },
+      "vote_targets": [
+        "shareholder_proposal_governance"
+      ],
+      "data_fields": [
+        "governance.lobbying_disclosed"
+      ]
+    },
+    {
+      "issue_id": "gov.tax_transparency",
+      "category": "governance",
+      "title": "Tax transparency",
+      "description": "Public country-by-country tax reporting.",
+      "resolution_categories": [
+        "shareholder_proposal_governance"
+      ],
+      "parameters": {
+        "support_cbcr_proposals": {
+          "type": "bool",
+          "description": "Support country-by-country reporting proposals"
+        }
+      },
+      "vote_targets": [
+        "shareholder_proposal_governance"
+      ],
+      "data_fields": []
+    },
+    {
+      "issue_id": "gov.shareholder_proposals",
+      "category": "governance",
+      "title": "Governance shareholder proposals",
+      "description": "Default stance on governance shareholder proposals not covered by a more specific issue.",
+      "resolution_categories": [
+        "shareholder_proposal_governance"
+      ],
+      "parameters": {
+        "default_action": {
+          "type": "enum",
+          "values": [
+            "support_if_reasonable",
+            "case_by_case",
+            "follow_management"
+          ],
+          "description": "Default stance"
+        }
+      },
+      "vote_targets": [
+        "shareholder_proposal_governance"
+      ],
+      "data_fields": []
+    },
+    {
+      "issue_id": "stewardship.engagement_escalation",
+      "category": "stewardship",
+      "title": "Voting as an engagement escalation",
+      "description": "Voting against management where an engagement has reached the vote-against-management escalation step.",
+      "resolution_categories": [
+        "director_election",
+        "committee_member_election",
+        "say_on_pay",
+        "say_on_climate",
+        "discharge"
+      ],
+      "parameters": {
+        "target_by_theme": {
+          "type": "map",
+          "description": "Which item to vote against per engagement theme, e.g. {\"climate_transition\": \"board_chair\"}"
+        },
+        "require_prior_notice": {
+          "type": "bool",
+          "description": "Inform the company before the vote"
+        }
+      },
+      "vote_targets": [
+        "board_chair",
+        "responsible_director",
+        "say_on_pay",
+        "say_on_climate"
+      ],
+      "data_fields": [
+        "engagement.escalation_step",
+        "engagement.theme"
+      ]
+    },
+    {
+      "issue_id": "general.default_management",
+      "category": "general",
+      "title": "Default for routine and unlisted items",
+      "description": "Stance on routine items and anything no other issue covers.",
+      "resolution_categories": [
+        "other",
+        "articles_amendment",
+        "capital_structure"
+      ],
+      "parameters": {
+        "default_action": {
+          "type": "enum",
+          "values": [
+            "follow_management",
+            "case_by_case",
+            "abstain"
+          ],
+          "description": "Default stance"
+        }
+      },
+      "vote_targets": [
+        "other"
+      ],
+      "data_fields": []
+    }
+  ]
+}
