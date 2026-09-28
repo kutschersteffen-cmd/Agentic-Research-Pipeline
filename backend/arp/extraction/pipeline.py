@@ -4,6 +4,7 @@ import logging
 
 from arp.config import Settings
 from arp.extraction.field_graph import extract_one_field
+from arp.extraction.pre_steps import prepare_company
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
@@ -118,6 +119,7 @@ async def execute_extraction_run(
     """
 
     async def _worker(company: CompanyRef) -> ExtractionRecordResult:
+        company = await prepare_company(company, settings=settings, llm=llm, registry=registry)
         result = await _extract_company(
             company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings
         )

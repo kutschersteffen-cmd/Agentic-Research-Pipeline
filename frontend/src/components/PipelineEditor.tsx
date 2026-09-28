@@ -67,6 +67,30 @@ const STEP_ICONS: Record<string, ReactElement> = {
   ),
 };
 STEP_ICONS.answer = STEP_ICONS.extract;
+STEP_ICONS.identity = (
+  <svg {...ICON}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <circle cx="9" cy="11" r="2.2" />
+    <path d="M5.8 16c.6-1.6 1.8-2.4 3.2-2.4s2.6.8 3.2 2.4M14.5 10h4M14.5 13.5h3" />
+  </svg>
+);
+STEP_ICONS.content_search = (
+  <svg {...ICON}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M3.5 12h17M12 3.5c2.4 2.4 3.5 5.2 3.5 8.5s-1.1 6.1-3.5 8.5c-2.4-2.4-3.5-5.2-3.5-8.5S9.6 5.9 12 3.5z" />
+  </svg>
+);
+STEP_ICONS.document_mgmt = (
+  <svg {...ICON}>
+    <path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" />
+  </svg>
+);
+STEP_ICONS.parse_index = (
+  <svg {...ICON}>
+    <path d="M6 3.5h8l4 4v13H6z" />
+    <path d="M9 11h6M9 14.5h6M9 18h4" />
+  </svg>
+);
 
 const iconFor = (id: string) => STEP_ICONS[id] ?? (id.startsWith("finalize") ? STEP_ICONS.finalize : null);
 
@@ -234,11 +258,14 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
       changed: runId ? effective(key) !== shape!.defaults[key] : value[key] !== undefined && value[key] !== null,
     }));
     const empty = { rows: settingRows, banner: null, footer: null, share: null };
-    if (!runId) return { ...empty, status: "idle" };
+    const on = node.optional ? !!effective(node.settings[0]) : true;
+    if (!runId) return { ...empty, rows: node.optional ? [] : settingRows, footer: node.optional ? (on ? "on for this run" : "off — click to switch on") : null, status: on ? "idle" : "skipped" };
     if (!steps) return { ...empty, status: "pending" };
 
     const items = steps.counts.gather_evidence ?? 0;
     if (node.id === "item") return { ...empty, rows: [], footer: `${items} items`, status: running ? "running" : "done" };
+    if (node.id === "start") return { ...empty, rows: [], footer: company ? company.name : manifest ? `${manifest.company_count} companies` : null, status: running ? "running" : "done" };
+    if (node.optional) return describePreStep(node, on);
 
     if (node.id === "company") {
       if (company) {
@@ -308,12 +335,49 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
     };
   }
 
+  /** A step before extraction: what it found, for one company or summed over the run. */
+  function describePreStep(node: PipelineNode, on: boolean): ReturnType<typeof describe> {
+    if (!on) return { rows: [], banner: null, footer: "off for this run", share: null, status: "skipped" };
+    const n = steps!.counts[node.id] ?? 0;
+    const secs = steps!.seconds[node.id] ?? 0;
+    const found = steps!.details[node.id] ?? {};
+    const num = (k: string) => Number(found[k] ?? 0);
+    const text = (k: string) => (found[k] == null ? "—" : String(found[k]));
+    const mb = (bytes: number) => `${(bytes / 1_048_576).toFixed(2)} MB`;
+    const rows: Row[] = [];
+    if (node.id === "identity") {
+      if (company) rows.push({ label: "Verdict", value: text("verdict") }, { label: "Website", value: text("website") }, { label: "CIK", value: text("cik") });
+      else rows.push({ label: "Resolved", value: `${num("resolved")}/${n}` }, { label: "Flagged", value: String(num("flagged")) });
+    } else if (node.id === "content_search") {
+      if (company) rows.push({ label: "Homepage", value: text("homepage") }, { label: "Report links", value: String(num("links")) });
+      else rows.push({ label: "Homepages found", value: `${num("found_homepage")}/${n}` }, { label: "Report links", value: String(num("links")) });
+    } else if (node.id === "document_mgmt") {
+      rows.push(
+        { label: "Documents", value: String(num("documents")) },
+        { label: "Total size", value: mb(num("bytes")) },
+        { label: "Downloaded", value: String(num("downloaded")) },
+        { label: "New or changed", value: String(num("new_or_changed")) },
+      );
+    } else if (node.id === "parse_index") {
+      rows.push({ label: "Documents parsed", value: String(num("documents")) }, { label: "Chunks", value: String(num("chunks")) });
+    }
+    const failed = num("failed");
+    const total = company ? 1 : manifest?.company_count ?? 0;
+    return {
+      rows: n ? rows : [],
+      banner: failed ? { text: company ? `Failed: ${text("error")}` : `${failed} ${failed === 1 ? "company" : "companies"} failed here`, tone: "bad" } : null,
+      footer: n ? (company ? duration(secs) : `${n} companies · ${duration(secs / n)} per company`) : null,
+      share: total && !company ? n / total : null,
+      status: failed && (company || failed === n) ? "failed" : n ? (running ? "running" : "done") : running ? "pending" : "skipped",
+    };
+  }
+
   const { nodes, edges } = useMemo(() => {
     if (!shape) return { nodes: [] as Node<CardData>[], edges: [] as Edge[] };
     const all = { ...shape, nodes: [...shape.nodes, { id: "end", label: "End", about: "", per_item: false, settings: [] }], edges: [...shape.edges, { source: "rules", target: "end", conditional: false }] };
     const positions = layoutPipeline(all, COL_W, ROW_H);
     const nodes: Node<CardData>[] = all.nodes.map((node) => {
-      const pill = node.id === "item" || node.id === "end";
+      const pill = node.id === "start" || node.id === "item" || node.id === "end";
       const d = describe(node);
       const pos = positions[node.id] ?? { x: 0, y: 0 };
       return {
@@ -327,10 +391,19 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
         data: {
           kind: pill ? "pill" : "card",
           id: node.id,
-          label: node.id === "item" ? "Start" : node.id === "end" ? "End" : node.label,
+          label: node.id === "item" ? "Per item" : node.label,
           about: node.about,
           ...d,
-          footer: node.id === "item" && !runId ? node.label.replace(/^For /, "for ") : node.id === "end" ? (runId ? manifest?.status ?? null : null) : d.footer,
+          footer:
+            node.id === "item" && !runId
+              ? node.label.replace(/^For /, "for ")
+              : node.id === "start" && !runId
+                ? "each company"
+                : node.id === "end"
+                  ? runId
+                    ? (manifest?.status ?? null)
+                    : null
+                  : d.footer,
           status: node.id === "end" ? (runId ? (running ? "pending" : "done") : "idle") : d.status,
           selected: selected === node.id,
           onSelect: (id) => setSelected(selected === id ? null : id),
@@ -481,7 +554,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
                       : "No framework is attached to this run."
                     : !restartable
                       ? "This run wasn't started from this screen, so its inputs aren't saved to restart from."
-                      : current.id === "item" || current.id === "gather_evidence"
+                      : current.id === "start" || current.optional || current.id === "item" || current.id === "gather_evidence"
                         ? "A new run: documents are fetched and parsed again, and every later step runs afresh."
                         : current.id === "extract" || current.id === "answer"
                           ? "A new run: evidence is reused; the extractor, the verifier and everything after them run afresh."

@@ -2709,6 +2709,10 @@ export type ExtractionProfile = "custom" | "financials" | "tnfd" | "transition_p
 
 /** Per-run step settings from the node editor; a key left out keeps the app's setting. */
 export interface StepSettings {
+  pre_identity_enabled?: boolean | null;
+  pre_content_search_enabled?: boolean | null;
+  pre_document_mgmt_enabled?: boolean | null;
+  pre_parse_index_enabled?: boolean | null;
   hybrid_retrieval_enabled?: boolean | null;
   xbrl_facts_enabled?: boolean | null;
   llm_model?: string | null;
@@ -2734,6 +2738,8 @@ export interface PipelineNode {
   /** Runs once per item (field, indicator or company); false for the company-level steps. */
   per_item: boolean;
   settings: StepSettingKey[];
+  /** A step before extraction that each run switches on or off. */
+  optional?: boolean;
 }
 
 /** A profile's steps, read from the per-item graph the backend runs. */
@@ -2750,6 +2756,8 @@ export interface RunSteps {
   counts: Record<string, number>;
   /** Seconds those items spent in each step, summed. */
   seconds: Record<string, number>;
+  /** What each step before extraction found: one company's findings, or numbers summed across the run. */
+  details: Record<string, Record<string, string | number | boolean | string[] | null>>;
   /** Still counting: the run is executing in this server process. */
   live: boolean;
   settings: StepSettings | null;

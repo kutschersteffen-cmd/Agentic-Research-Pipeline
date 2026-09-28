@@ -25,6 +25,12 @@ class Settings(BaseSettings):
         "Set equal to llm_model to opt back into the old single-model behavior.",
     )
     llm_cache_enabled: bool = Field(default=True)
+    # The optional steps before extraction (arp/extraction/pre_steps.py),
+    # switched on per run from the Extraction screen's node editor.
+    pre_identity_enabled: bool = Field(default=False, description="Resolve each company's website/CIK before extraction.")
+    pre_content_search_enabled: bool = Field(default=False, description="Find the homepage and crawl it for report links.")
+    pre_document_mgmt_enabled: bool = Field(default=False, description="Download found documents and take stock of each company's documents.")
+    pre_parse_index_enabled: bool = Field(default=False, description="Parse and chunk every document once before the per-item steps.")
     llm_cache_refresh: bool = Field(
         default=False,
         description="Skip reading the LLM disk cache but keep writing it. Set per run by a restart from the Extract step.",

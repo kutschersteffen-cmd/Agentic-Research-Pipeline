@@ -23,6 +23,10 @@ ExtractionProfile = Literal["custom", "financials", "tnfd", "transition_plan"]
 class StepSettings(BaseModel):
     """Per-run overrides; a field left out keeps the app's setting."""
 
+    pre_identity_enabled: bool | None = None
+    pre_content_search_enabled: bool | None = None
+    pre_document_mgmt_enabled: bool | None = None
+    pre_parse_index_enabled: bool | None = None
     hybrid_retrieval_enabled: bool | None = None
     xbrl_facts_enabled: bool | None = None
     llm_model: str | None = Field(default=None, min_length=1)
@@ -39,6 +43,10 @@ class StepSettings(BaseModel):
 
 
 SETTING_INFO: dict[str, dict] = {
+    "pre_identity_enabled": {"label": "Run this step", "type": "bool", "help": "Resolves the company's website and SEC CIK (at most one LLM call) and uses them if the match is clear."},
+    "pre_content_search_enabled": {"label": "Run this step", "type": "bool", "help": "Finds the homepage (from the website, or a web search) and crawls it for report links."},
+    "pre_document_mgmt_enabled": {"label": "Run this step", "type": "bool", "help": "Downloads what content search found, records new and changed documents, and counts what the company has."},
+    "pre_parse_index_enabled": {"label": "Run this step", "type": "bool", "help": "Parses every document once and caches the text, so each item's evidence step reads it back."},
     "hybrid_retrieval_enabled": {"label": "Hybrid search", "type": "bool", "help": "Ranks evidence by BM25 and local embeddings together; off is BM25 only."},
     "xbrl_facts_enabled": {"label": "SEC XBRL facts first", "type": "bool", "help": "EDGAR filers' CapEx and R&D totals come from SEC's structured data, not the LLM."},
     "llm_model": {"label": "Extractor model", "type": "model", "help": "Drafts each answer with quotes from the evidence."},
@@ -48,6 +56,11 @@ SETTING_INFO: dict[str, dict] = {
 }
 
 STEP_INFO: dict[str, dict[str, str]] = {
+    "start": {"label": "Start", "about": ""},
+    "identity": {"label": "Identity", "about": "Resolves who the company is: its website and SEC CIK, from what is known, an EDGAR lookup, or a web search the model adjudicates."},
+    "content_search": {"label": "Content search", "about": "Finds the company's homepage and crawls it for sustainability and annual reports, listing candidate URLs."},
+    "document_mgmt": {"label": "Document management", "about": "Downloads the found documents into the company's folder, records which are new or changed, and takes stock of its documents."},
+    "parse_index": {"label": "Parse & index", "about": "Parses every document (PDF, DOCX, HTML) once and splits it into chunks for evidence ranking."},
     "gather_evidence": {"label": "Find evidence", "about": "Fetches the company's documents, splits them into chunks and ranks the chunks against the item's keywords."},
     "finalize_no_evidence": {"label": "No evidence", "about": "Nothing matched: recorded as not disclosed, with no LLM call and no review."},
     "extract": {"label": "Extract", "about": "The extractor model drafts the value, quoting the evidence it used."},
@@ -84,13 +97,21 @@ def _graph(profile: str):
     return _COMPILED_GRAPH.get_graph()
 
 
+PRE_STEPS = ("identity", "content_search", "document_mgmt", "parse_index")
+
+
 def pipeline_shape(profile: str, settings: Settings) -> dict:
-    """Nodes and edges for the diagram. `__start__` becomes the per-item
-    entry and `__end__` the company record, followed by the rules step."""
+    """Nodes and edges for the diagram: the start, the optional steps before
+    extraction, then the per-item graph -- `__start__` becomes the per-item
+    entry and `__end__` the company record -- and the rules step."""
     graph = _graph(profile)
     rename = {"__start__": "item", "__end__": "company"}
     node_settings = PROFILES[profile]["settings"]
-    nodes = [
+    pre = [
+        {"id": step, **STEP_INFO[step], "per_item": False, "settings": [f"pre_{step}_enabled"], "optional": True}
+        for step in PRE_STEPS
+    ]
+    nodes = [{"id": "start", **STEP_INFO["start"], "per_item": False, "settings": []}, *pre] + [
         {
             "id": rename.get(n, n),
             "label": f"For {PROFILES[profile]['item']}" if n == "__start__" else STEP_INFO.get(rename.get(n, n), {}).get("label", n),
@@ -101,7 +122,9 @@ def pipeline_shape(profile: str, settings: Settings) -> dict:
         for n in graph.nodes
     ]
     nodes.append({"id": "rules", **STEP_INFO["rules"], "per_item": False, "settings": []})
-    edges = [{"source": rename.get(e.source, e.source), "target": rename.get(e.target, e.target), "conditional": e.conditional} for e in graph.edges]
+    chain = ["start", *PRE_STEPS, "item"]
+    edges = [{"source": a, "target": b, "conditional": False} for a, b in zip(chain, chain[1:], strict=False)]
+    edges += [{"source": rename.get(e.source, e.source), "target": rename.get(e.target, e.target), "conditional": e.conditional} for e in graph.edges]
     edges.append({"source": "company", "target": "rules", "conditional": False})
     return {
         "profile": profile,
@@ -117,7 +140,7 @@ def restart_overrides(step: str) -> dict:
     that step on, so it and every later step recompute while the earlier
     ones replay. Grounding and the company record need nothing skipped --
     they rerun on every run from the (cached) model answers."""
-    if step in ("item", "gather_evidence"):
+    if step in ("start", *PRE_STEPS, "item", "gather_evidence"):
         return {"document_cache_enabled": False, "llm_cache_refresh": True}
     if step in ("extract", "answer"):
         return {"llm_cache_refresh": True}

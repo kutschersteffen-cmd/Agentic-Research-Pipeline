@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from arp.config import Settings
+from arp.extraction.pre_steps import prepare_company
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
@@ -72,6 +73,7 @@ async def execute_transition_plan_run(
     """
 
     async def _worker(company: CompanyRef) -> TransitionPlanAssessmentResult:
+        company = await prepare_company(company, settings=settings, llm=llm, registry=registry)
         result = await _assess_company(company, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings)
         result.record.run_id = run_id
         return result
