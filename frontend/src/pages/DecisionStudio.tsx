@@ -17,6 +17,7 @@ import type {
   EntitySensitivity,
   MechanismConfig,
   AuditEntry,
+  TemplateMatch,
 } from "../types";
 import { activatable } from "../lib/activatable";
 import { useReviewer } from "../lib/reviewer";
@@ -77,6 +78,8 @@ export function DecisionStudio() {
   const [region, setRegion] = useState("");
   const [compareWith, setCompareWith] = useState("");
   const [baseVersion, setBaseVersion] = useState<number | null>(null);
+  const [includeIndicators, setIncludeIndicators] = useState(false);
+  const [templates, setTemplates] = useState<TemplateMatch[]>([]);
   const scoreTimer = useRef<number | undefined>(undefined);
   const view = calculated ?? dataset;
 
@@ -91,6 +94,19 @@ export function DecisionStudio() {
   useEffect(() => {
     refreshDatasets();
   }, [refreshDatasets]);
+
+  // Saved frameworks, each checked against the selected table's columns.
+  const refreshTemplates = useCallback(async () => {
+    try {
+      setTemplates(await api.matchTemplates({ columns: dataset?.columns ?? [] }));
+    } catch {
+      setTemplates([]);
+    }
+  }, [dataset]);
+
+  useEffect(() => {
+    refreshTemplates();
+  }, [refreshTemplates]);
 
   async function guard<T>(label: string, fn: () => Promise<T>): Promise<T | null> {
     setError("");
@@ -115,7 +131,12 @@ export function DecisionStudio() {
 
   async function onFromSource() {
     const summary = await guard("Building the table…", () =>
-      api.decisionDatasetFromSource({ source, run_id: runId || undefined, region: region || undefined }),
+      api.decisionDatasetFromSource({
+        source,
+        run_id: runId || undefined,
+        region: region || undefined,
+        include_indicators: source === "transition_plan_run" && includeIndicators,
+      }),
     );
     if (summary) {
       selectDataset(summary);
@@ -134,6 +155,28 @@ export function DecisionStudio() {
     setSub("profile");
   }
 
+  /** Loads a saved framework onto the selected table. Saving afterwards makes
+   * a new version of that framework, diffed against the one loaded. */
+  async function onApplyTemplate(match: TemplateMatch) {
+    const envelope = await guard("Loading the template…", () => api.getMechanism(match.config.framework_id, match.config.version));
+    if (envelope) {
+      setConfig(envelope.config);
+      setAudit(envelope.audit);
+      setBaseVersion(envelope.config.version);
+      setSub("mechanism");
+    }
+  }
+
+  async function onImportTemplate(file: File) {
+    const envelope = await guard("Importing the template…", async () =>
+      api.importMechanism(JSON.parse(await file.text()), reviewer.trim() || undefined),
+    );
+    if (envelope) {
+      setStatus(`Imported ${envelope.config.name} as a draft.`);
+      refreshTemplates();
+    }
+  }
+
   async function onDerive() {
     if (!dataset) return;
     const envelope = await guard("Deriving the mechanism…", () =>
@@ -145,6 +188,7 @@ export function DecisionStudio() {
       // v1 is the proposal as derived. Saving it now is what lets the next
       // save diff against it and record which rules a person changed.
       setBaseVersion(envelope.config.version);
+      refreshTemplates();
       setSub("mechanism");
     }
   }
@@ -241,6 +285,7 @@ export function DecisionStudio() {
       setConfig(envelope.config);
       setAudit(envelope.audit);
       setBaseVersion(envelope.config.version);
+      refreshTemplates();
     }
   }
 
@@ -378,6 +423,12 @@ export function DecisionStudio() {
                 ))}
               </select>
             )}
+            {source === "transition_plan_run" && (
+              <label>
+                <input type="checkbox" checked={includeIndicators} onChange={(e) => setIncludeIndicators(e.target.checked)} /> one
+                Yes/No column per indicator
+              </label>
+            )}
             <button className="link-button" onClick={onFromSource}>
               Build table
             </button>
@@ -413,6 +464,58 @@ export function DecisionStudio() {
                 </tbody>
               </table>
             </>
+          )}
+
+          <h3>Scoring templates</h3>
+          <p className="help-text">
+            A saved framework is a template: apply it to the selected table, attach it to an extraction or transition plan run
+            when you start one, or export it as a file for another installation. An imported template starts as a draft —
+            ratification does not travel with a file.
+          </p>
+          <label className="field-label">
+            Import a template file
+            <input
+              type="file"
+              accept=".json"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onImportTemplate(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {templates.length > 0 && (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Template</th>
+                  <th>Status</th>
+                  <th>Fit to the selected table</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {templates.map((t) => (
+                  <tr key={t.config.framework_id}>
+                    <td>
+                      {t.config.name} v{t.config.version}
+                    </td>
+                    <td className="muted">{t.config.ratified ? `ratified${t.config.ratified_by ? ` by ${t.config.ratified_by}` : ""}` : "draft"}</td>
+                    <td className="muted">
+                      {!dataset ? "select a table" : t.missing_columns.length === 0 ? "fits" : `needs ${t.missing_columns.join(", ")}`}
+                    </td>
+                    <td>
+                      {dataset && t.missing_columns.length === 0 && (
+                        <button className="link-button" onClick={() => onApplyTemplate(t)}>
+                          Apply
+                        </button>
+                      )}{" "}
+                      <a href={api.exportMechanismUrl(t.config.framework_id, t.config.version)}>Export</a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       )}
@@ -653,6 +756,9 @@ export function DecisionStudio() {
               <button className="link-button" onClick={onSave}>
                 Save as new version
               </button>
+              {baseVersion === config.version && (
+                <a href={api.exportMechanismUrl(config.framework_id, config.version)}>Export v{config.version} as template</a>
+              )}
               {config.ratified ? (
                 <span className="badge badge-high">
                   Ratified{config.ratified_by ? ` by ${config.ratified_by}` : ""}

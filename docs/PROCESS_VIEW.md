@@ -87,7 +87,14 @@ They are listed by how often a process crosses them.
    levels) have no feed yet. An installation that already saved its own
    monitoring rules needs the row added in the rule editor; the default applies
    only where no version was saved.
-6. **Transition Barriers → Transition Plan.** Sector context is read, not joined.
+6. ~~**Extraction / Transition Plan → Decision Studio.**~~ **Closed.** A saved
+   framework is a scoring template: pick one in the run's "Score the results"
+   step (or attach it after the run) and the run is scored with that version
+   pinned, shown under the run. Decision Studio is where the template is built,
+   tuned and ratified; see `DECISION_MECHANISM.md` §7a. Once the run has
+   finished and its template version is ratified, the run's Scoring panel
+   publishes the tiers to Steward · Selection and Index Construction directly.
+7. **Transition Barriers → Transition Plan.** Sector context is read, not joined.
    Fix: show the issuer's sector × jurisdiction barrier cells next to its
    walk-vs-talk verdict.
 

@@ -19,19 +19,16 @@ def _matrix(columns: list[str], rows: list[list[str]]) -> list[list[str]]:
     return [columns] + rows
 
 
-def from_transition_plan_run(run_store: RunStore, run_id: str) -> Dataset:
-    """A transition-plan assessment run -> a scoreable table.
+def indicator_column(identifier: str) -> str:
+    """One transition-plan indicator's verdict as a column. `_Disclosed` puts
+    it in the higher-is-better dictionary, which is what a YES means."""
+    return f"Ind_{identifier}_Disclosed"
 
-    The paper's completeness metric is a count, not a decision. This is
-    what turns "42 of 64 indicators disclosed" into "Tier 2, engage on
-    governance", which is what an investor actually does with it.
-    """
-    records = run_store.read_jsonl(run_store.results_path(run_id))
-    if not records:
-        raise ValueError(f"Transition plan run {run_id} has no results.")
 
-    categories = sorted({b.get("category", "") for r in records for b in r.get("by_category", []) if b.get("category")})
-    columns = [
+def transition_plan_columns(categories: list[str], indicator_ids: list[str] | None = None) -> list[str]:
+    """The columns `from_transition_plan_run` emits -- also what a scoring
+    template is checked against before a run has any results."""
+    return [
         "Company",
         "Company_Id",
         "Sector",
@@ -43,7 +40,43 @@ def from_transition_plan_run(run_store: RunStore, run_id: str) -> Dataset:
         "Assessment_Confidence_pct",
         *[f"{c.title()}_Disclosure_pct" for c in categories],
         "Needs_Review_Flag",
+        *[indicator_column(i) for i in indicator_ids or []],
     ]
+
+
+def expected_transition_plan_columns() -> list[str]:
+    """Every column a transition-plan run can produce, indicators included."""
+    from arp.schemas.transition_plan import IndicatorCategory
+    from arp.transition_plan.indicators import load_indicators
+
+    return transition_plan_columns(sorted(c.value for c in IndicatorCategory), [i.identifier for i in load_indicators()])
+
+
+def from_transition_plan_run(run_store: RunStore, run_id: str, *, include_indicators: bool = False) -> Dataset:
+    """A transition-plan assessment run -> a scoreable table.
+
+    The paper's completeness metric is a count, not a decision. This is
+    what turns "42 of 64 indicators disclosed" into "Tier 2, engage on
+    governance", which is what an investor actually does with it.
+
+    `include_indicators` adds one Yes/No column per indicator (blank for
+    NA), so rules can combine individual answers ("a 2030 target AND a
+    board-level owner"). Off by default: 64 more criteria is a different
+    derivation, not a bigger table.
+    """
+    records = run_store.read_jsonl(run_store.results_path(run_id))
+    if not records:
+        raise ValueError(f"Transition plan run {run_id} has no results.")
+
+    categories = sorted({b.get("category", "") for r in records for b in r.get("by_category", []) if b.get("category")})
+    indicator_ids: list[str] = []
+    if include_indicators:
+        for record in records:
+            for indicator in record.get("indicators", []):
+                if indicator.get("identifier") and indicator["identifier"] not in indicator_ids:
+                    indicator_ids.append(indicator["identifier"])
+    columns = transition_plan_columns(categories, indicator_ids)
+    indicator_confidence: dict[str, list[float | None]] = defaultdict(list)
     rows: list[list[str]] = []
     for record in records:
         by_category = {b.get("category"): b for b in record.get("by_category", [])}
@@ -65,6 +98,14 @@ def from_transition_plan_run(run_store: RunStore, run_id: str) -> Dataset:
             total = breakdown.get("total_count") or 0
             row.append(f"{(breakdown.get('disclosed_count', 0) / total * 100):.1f}" if total else "")
         row.append("Yes" if record.get("needs_review") else "No")
+        by_identifier = {i.get("identifier"): i for i in record.get("indicators", [])}
+        for identifier in indicator_ids:
+            indicator = by_identifier.get(identifier) or {}
+            verdict = indicator.get("verdict")
+            row.append({"YES": "Yes", "NO": "No"}.get(verdict, ""))
+            indicator_confidence[indicator_column(identifier)].append(
+                float(indicator.get("confidence") or 0.0) if verdict in ("YES", "NO") else None
+            )
         rows.append(row)
 
     dataset = build_dataset(
@@ -75,7 +116,14 @@ def from_transition_plan_run(run_store: RunStore, run_id: str) -> Dataset:
     confidence = [(float(r.get("overall_confidence") or 0.0)) for r in records]
     for column in ("Indicators_Disclosed_Count", "Walk_Disclosed_Count", "Talk_Disclosed_Count", "Walk_Share_pct"):
         dataset.confidence[column] = list(confidence)
+    dataset.confidence.update(indicator_confidence)
     return dataset
+
+
+def extraction_columns(field_names: list[str]) -> list[str]:
+    """The columns `from_extraction_run` emits for a schema's fields -- also
+    what a scoring template is checked against before the run has results."""
+    return ["Company", "Company_Id", "Extraction_Confidence_pct", *field_names, "Needs_Review_Flag"]
 
 
 def from_extraction_run(run_store: RunStore, run_id: str) -> Dataset:
@@ -98,7 +146,7 @@ def from_extraction_run(run_store: RunStore, run_id: str) -> Dataset:
             if name and name not in field_names:
                 field_names.append(name)
 
-    columns = ["Company", "Company_Id", "Extraction_Confidence_pct", *field_names, "Needs_Review_Flag"]
+    columns = extraction_columns(field_names)
     rows: list[list[str]] = []
     confidence: dict[str, list[float | None]] = defaultdict(list)
     for record in records:

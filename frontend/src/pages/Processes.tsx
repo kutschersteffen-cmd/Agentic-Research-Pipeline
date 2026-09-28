@@ -28,7 +28,7 @@ const PROCESSES: Process[] = [
     steps: [
       { tab: "identity", label: "Identity Resolution", does: "Upload the holdings list; resolve each line to a canonical issuer.", handsOn: "Resolved universe", carried: true, runTypes: ["identity"] },
       { tab: "discovery", label: "Document Discovery", does: "Find each issuer's IR site and download annual, sustainability and proxy reports.", handsOn: "Same universe", carried: true, runTypes: ["discovery"] },
-      { tab: "extraction", label: "Extraction", does: "Company financials (segments, CapEx, R&D) and any schema-defined data points.", handsOn: "Flagged figures", carried: true, runTypes: ["extraction", "financials"] },
+      { tab: "extraction", label: "Extraction", does: "Company financials (segments, CapEx, R&D) and any schema-defined data points; optionally scored and tiered with a Decision Studio template.", handsOn: "Flagged figures", carried: true, runTypes: ["extraction", "financials"] },
       { tab: "review", label: "Review Queue", does: "Approve, edit or reject every flagged figure.", handsOn: "Reviewed figures", carried: true, runTypes: REVIEWABLE },
       { tab: "library", label: "Data Library", does: "Check the issuer view: figures, sources and review history in one place." },
     ],
@@ -41,8 +41,8 @@ const PROCESSES: Process[] = [
     steps: [
       { tab: "portfolio-monitoring", sub: "standard", label: "Risk Monitoring", does: "WACI, financed emissions and data coverage by portfolio: where the carbon sits.", handsOn: "Holdings in scope", carried: true },
       { tab: "transitionBarrier", label: "Transition Barriers", does: "Read the sector × jurisdiction barriers first: what can a company in this sector realistically commit to?", handsOn: "Sector context", runTypes: ["transition_barrier_refresh"] },
-      { tab: "transitionPlan", label: "Transition Plan", does: "Score 64 indicators per issuer, walk vs. talk, each with a grounded citation.", handsOn: "Indicator scores", carried: true, runTypes: ["transition_plan"] },
-      { tab: "decision", label: "Decision Studio", does: "Score and tier issuers from the transition plan run; ratify, then publish the tiers.", handsOn: "Published tiers", carried: true },
+      { tab: "transitionPlan", label: "Transition Plan", does: "Score 64 indicators per issuer, walk vs. talk, each with a grounded citation. Attach the scoring template in step 1 and every issuer is tiered as results arrive.", handsOn: "Indicator scores and tiers", carried: true, runTypes: ["transition_plan"] },
+      { tab: "decision", label: "Decision Studio", does: "Build or tune the scoring template (per-indicator rules, gates, tiers); ratify it, then publish the tiers.", handsOn: "Published tiers", carried: true },
       { tab: "stewardship", sub: "selection", label: "Steward · Selection", does: "Coverage rules read the published tiers; confirm tier changes: who gets engaged this cycle.", handsOn: "Engagement program" },
       { tab: "reporting", label: "Presentations & Reports", does: "Committee pack: the tiering with its evidence." },
     ],

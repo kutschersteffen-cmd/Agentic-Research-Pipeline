@@ -39,6 +39,9 @@ import type {
   MechanismConfig,
   MechanismEnvelope,
   RuleGraph,
+  RunDecision,
+  RunScoringKind,
+  TemplateMatch,
   Alert,
   AlertRule,
   AlertStatus,
@@ -711,7 +714,7 @@ export const api = {
     form.append("file", file);
     return request<DatasetSummary>("/api/decision/datasets", { method: "POST", body: form });
   },
-  decisionDatasetFromSource: (body: { source: string; run_id?: string; run_ids?: string[]; as_of?: string; portfolio_ids?: string[]; region?: string; sectors?: string[] }) =>
+  decisionDatasetFromSource: (body: { source: string; run_id?: string; run_ids?: string[]; as_of?: string; portfolio_ids?: string[]; region?: string; sectors?: string[]; include_indicators?: boolean }) =>
     request<DatasetSummary>("/api/decision/datasets/from-source", { method: "POST", body: JSON.stringify(body) }),
   listDecisionDatasets: () => request<DatasetSummary[]>("/api/decision/datasets"),
   calculatedColumns: (datasetId: string, ruleGraph: RuleGraph) =>
@@ -731,6 +734,19 @@ export const api = {
   compareDecisions: (body: { dataset_id_before: string; dataset_id_after: string; config?: MechanismConfig; framework_id?: string; version?: number }) =>
     request<DecisionComparison>("/api/decision/compare", { method: "POST", body: JSON.stringify(body) }),
   decisionExportUrl: () => `${API_BASE}/api/decision/export.csv`,
+  getMechanism: (frameworkId: string, version?: number) =>
+    request<MechanismEnvelope>(`/api/decision/mechanisms/${frameworkId}${buildQuery({ version: version ? String(version) : undefined })}`),
+  exportMechanismUrl: (frameworkId: string, version?: number) =>
+    `${API_BASE}/api/decision/mechanisms/${frameworkId}/export${buildQuery({ version: version ? String(version) : undefined })}`,
+  importMechanism: (template: unknown, by?: string) =>
+    request<MechanismEnvelope>("/api/decision/mechanisms/import", { method: "POST", body: JSON.stringify({ template, by }) }),
+  matchTemplates: (body: { run_type?: RunScoringKind; field_names?: string[]; columns?: string[] }) =>
+    request<TemplateMatch[]>("/api/decision/templates/match", { method: "POST", body: JSON.stringify(body) }),
+  attachRunFramework: (runId: string, frameworkId: string, version?: number) =>
+    request(`/api/decision/runs/${runId}/framework`, { method: "PUT", body: JSON.stringify({ framework_id: frameworkId, version }) }),
+  getRunDecision: (runId: string) => request<RunDecision>(`/api/decision/runs/${runId}/decision`),
+  publishRunDecision: (runId: string, publishedBy: string) =>
+    request<PublishedDecision>(`/api/decision/runs/${runId}/publish`, { method: "POST", body: JSON.stringify({ published_by: publishedBy }) }),
   publishDecision: (body: { dataset_id: string; framework_id: string; version?: number; published_by: string; id_column?: string; note?: string }) =>
     request<PublishedDecision>("/api/decision/publish", { method: "POST", body: JSON.stringify(body) }),
   listPublishedDecisions: () => request<PublishedDecision[]>("/api/decision/published"),
