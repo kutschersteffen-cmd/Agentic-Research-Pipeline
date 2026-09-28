@@ -57,17 +57,29 @@ They are listed by how often a process crosses them.
      policy decides. A review dated before the publication is refused, and the
      review records which publications it read.
    Strategy research stays manual here: its rows are strategies, not companies.
-2. **Proxy Voting run → Steward · Voting / Checkpoint.** The stewardship voting stage
-   reads its own data, not the ballots decided in Proxy Voting. Fix: have the
-   stewardship flow read decided ballots from voting runs.
+2. ~~**Proxy Voting run → Steward · Voting / Checkpoint.**~~ **Closed.** The
+   stewardship flow reads every Proxy Voting run (`arp/stewardship/voting_feed.py`):
+   - **Steward · Voting** shows the decided ballots next to the policy's
+     recommendation, plus live counts (items decided, votes against management).
+   - **Steward · Checkpoint** lists every vote decided against the policy's
+     recommendation, with the decider, co-signer and reason, for review.
+   - Per issuer, the counts become company fields (`vote.decided`,
+     `vote.against_management`, `vote.overrode_policy`, `vote.last_meeting_date`),
+     so any stewardship rule can use them.
+   The expected-vote metrics on the synthetic meeting sample stay as they were.
 3. **Document Discovery → Extraction / Transition Plan.** After discovery, the
    universe has to be uploaded again. Fix: a "Send to Extraction" button, the same
    pattern Identity Resolution already uses for Discovery.
 4. **Risk Monitoring → Transition Plan / Steward · Monitoring.** Portfolio holdings
    and alerts don't become a universe or triggers. Fix: "Use these holdings as a
    universe" from the selection pane, and alerts as `manual` trigger events.
-5. **Checkpoint → Engagement.** `vote_outcome` is already a monitoring trigger type,
-   but real vote outcomes don't raise it yet.
+5. ~~**Checkpoint → Engagement.**~~ **Closed with gap #2.** A new house monitoring
+   rule (`vote_against_management`) raises a `vote_outcome` trigger when we voted
+   against management; Steward · Monitoring opens the engagement from it. The
+   trigger reads *our* vote, not the meeting result: vote results (support
+   levels) have no feed yet. An installation that already saved its own
+   monitoring rules needs the row added in the rule editor; the default applies
+   only where no version was saved.
 6. **Transition Barriers → Transition Plan.** Sector context is read, not joined.
    Fix: show the issuer's sector × jurisdiction barrier cells next to its
    walk-vs-talk verdict.

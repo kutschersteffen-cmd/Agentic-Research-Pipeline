@@ -623,6 +623,16 @@ export function VotingStudio({ stage, onChanged }: StudioProps) {
         <p className="help-text">The most frequent reasons the active house policy votes against, on the synthetic meeting sample.</p>
         <DataTable rows={(stage.details[0]?.rows ?? []).map((r) => ({ ...r, issue: titles.get(String(r.issue)) ?? r.issue }))} />
       </Section>
+      <Section step="Review" title="Votes decided in Proxy Voting">
+        <p className="help-text">
+          The live ballots: every item a person decided in <a href="#/voting">Proxy Voting</a>, with the policy's recommendation next
+          to the vote. A vote against management raises a <code>vote_outcome</code> trigger at stage 1.
+        </p>
+        <DataTable
+          rows={stage.details.find((d) => d.label === "Votes decided in Proxy Voting")?.rows ?? []}
+          empty="No ballot decided yet. Start a run in Proxy Voting and decide its items."
+        />
+      </Section>
       <ActorField actor={actor} onChange={setActor} />
       {error && <p className="error-text">{error}</p>}
       <Section step="Design" title="House voting positions">
@@ -815,6 +825,16 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
           </>
         )}
         {tiers.length > 0 && <TierDecisions items={tiers} actor={actor} onDone={onChanged} />}
+      </Section>
+      <Section step="Review" title="Votes against the policy's recommendation">
+        <p className="help-text">
+          Ballot items a person decided in <a href="#/voting">Proxy Voting</a> against the house policy's recommendation, with their
+          reason. Check each reason holds; a pattern here is a case for changing the policy (stage 4).
+        </p>
+        <DataTable
+          rows={stage.details.find((d) => d.label === "Votes against the policy's recommendation")?.rows ?? []}
+          empty="No vote departs from the policy's recommendation."
+        />
       </Section>
       <Section step="Review" title="Escalation recommendations">
         <p className="help-text">

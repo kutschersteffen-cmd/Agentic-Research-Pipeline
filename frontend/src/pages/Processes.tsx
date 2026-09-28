@@ -66,10 +66,10 @@ const PROCESSES: Process[] = [
     cadence: "Per meeting, peaks March–June",
     outcome: "Voting intentions published, votes cast checked against policy, outcomes fed into engagement.",
     steps: [
-      { tab: "voting", label: "Proxy Voting", does: "Start a run from meeting agendas; the policy drafts a vote per resolution.", handsOn: "Decided ballots", runTypes: ["proxy_voting"] },
-      { tab: "stewardship", sub: "voting", label: "Steward · Voting", does: "Voting intentions and the house policy behind them.", handsOn: "Intentions", carried: true },
-      { tab: "stewardship", sub: "checkpoint", label: "Steward · Checkpoint", does: "Votes actually cast reviewed against policy; a named person signs off.", handsOn: "Vote outcomes" },
-      { tab: "engagement", label: "Engagement", does: "Failed or contested votes become engagement triggers." },
+      { tab: "voting", label: "Proxy Voting", does: "Start a run from meeting agendas; the policy drafts a vote per resolution.", handsOn: "Decided ballots", carried: true, runTypes: ["proxy_voting"] },
+      { tab: "stewardship", sub: "voting", label: "Steward · Voting", does: "Decided ballots next to the house policy behind them.", handsOn: "Votes against policy", carried: true },
+      { tab: "stewardship", sub: "checkpoint", label: "Steward · Checkpoint", does: "Review every vote decided against the policy's recommendation, with its reason.", handsOn: "Votes against management", carried: true },
+      { tab: "engagement", label: "Engagement", does: "A vote against management raises a vote_outcome trigger; open the engagement from Steward · Monitoring." },
     ],
   },
   {
