@@ -68,7 +68,7 @@ the extraction engine's decorrelated verifier:
   answerer, and `create_transition_plan_run` records no `verifier_model`.
 - It also ignores `settings.hybrid_retrieval_enabled` and always uses BM25.
 
-This is the path a maturity-score build would start from, so both are worth fixing first.
+**Fixed:** the verify step now runs on the verifier model, the run records both models, and evidence search follows `hybrid_retrieval_enabled` as in extraction.
 
 ## Data model
 
@@ -103,8 +103,9 @@ This is the path a maturity-score build would start from, so both are worth fixi
 1. **Upload hardening.** Add a malware scan (e.g. ClamAV), a size cap and an
    extension allowlist to `upload_document`. This is a security gap, not a
    feature gap.
-2. **Align Transition Plan with extraction.** Pass `verifier_llm`, record
-   `verifier_model`, and honour `hybrid_retrieval_enabled`. Small diff.
+2. ~~**Align Transition Plan with extraction.**~~ **Done.** The verify step gets
+   `verifier_llm`, the run records `verifier_model`, and search honours
+   `hybrid_retrieval_enabled`.
 3. **DOCX parsing** in `local_files.py`. docling already reads DOCX.
 4. **Maturity-score rules engine.** Add a static criteria grid (criterion → 1–7 level
    rules over indicator verdicts and extracted fields), then cluster scores and

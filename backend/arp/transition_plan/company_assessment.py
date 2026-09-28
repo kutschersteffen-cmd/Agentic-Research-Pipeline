@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from arp.config import Settings
 from arp.ingestion.parsing import chunk_document
 from arp.llm.base import LLMClient, LLMUsage
 from arp.retrieval.select_evidence import select_relevant_chunks
@@ -59,6 +60,8 @@ async def assess_company_transition_plan(
     *,
     documents: list[SourceDocument],
     llm: LLMClient,
+    verifier_llm: LLMClient | None = None,
+    settings: Settings | None = None,
     fuzzy_threshold: float,
     run_id: str = "",
 ) -> tuple[TransitionPlanAssessmentRecord, list[LLMUsage]]:
@@ -69,6 +72,9 @@ async def assess_company_transition_plan(
     the same shape as arp/extraction/pipeline.py's per-field loop; batch-
     level concurrency (see pipeline.py) is what keeps a large universe run
     fast, not intra-company parallelism.
+
+    `verifier_llm` and `settings` pass straight through to every indicator
+    (see assess_one_indicator).
     """
     documents_by_id = {d.doc_id: d for d in documents}
     all_chunks: list[DocumentChunk] = []
@@ -100,6 +106,8 @@ async def assess_company_transition_plan(
             all_chunks=all_chunks,
             documents_by_id=documents_by_id,
             llm=llm,
+            verifier_llm=verifier_llm,
+            settings=settings,
             fuzzy_threshold=fuzzy_threshold,
         )
         assessments.append(assessment)
