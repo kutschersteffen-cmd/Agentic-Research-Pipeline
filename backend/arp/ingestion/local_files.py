@@ -21,6 +21,7 @@ _TEXT_SUFFIXES = {".txt", ".md"}
 _HTML_SUFFIXES = {".html", ".htm"}
 _PDF_SUFFIXES = {".pdf"}
 _XLSX_SUFFIXES = {".xlsx", ".xlsm"}
+_DOCX_SUFFIXES = {".docx"}
 
 # Bump whenever the extraction logic here changes -- including the
 # `cursor += len(text) + 2` page-join arithmetic in _extract_pdf_text --
@@ -90,6 +91,15 @@ def _extract_pdf_text(path: Path) -> tuple[str, list[int]]:
     return "\n\n".join(parts), page_breaks
 
 
+def _extract_docx_text(path: Path) -> str:
+    """A Word document as markdown via the same Docling converter as PDFs,
+    so headings and tables come out the same way. Docling reads DOCX
+    declaratively (no layout model), so this is fast. A .docx has no fixed
+    pages, hence no page breaks: citations ground to the text, without a
+    page number."""
+    return _docling_converter().convert(str(path)).document.export_to_markdown()
+
+
 def _extract_html_text(path: Path) -> str:
     return extract_html_text(path.read_text(errors="ignore"))
 
@@ -134,6 +144,8 @@ def parse_file_to_text_with_pages(path: Path) -> tuple[str, list[int]]:
         return path.read_text(errors="ignore"), []
     if suffix in _XLSX_SUFFIXES:
         return _extract_xlsx_text(path), []
+    if suffix in _DOCX_SUFFIXES:
+        return _extract_docx_text(path), []
     raise ValueError(f"Unsupported document file type: {suffix}")
 
 

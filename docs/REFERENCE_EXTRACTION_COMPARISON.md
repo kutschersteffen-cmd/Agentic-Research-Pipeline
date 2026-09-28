@@ -28,7 +28,7 @@ The gaps are in the stages around extraction:
 
 - no deterministic scoring engine that turns verdicts into a maturity score
 - no malware scan on upload
-- no DOCX parsing
+- ~~no DOCX parsing~~ (done)
 - no client identifiers (ISIN/LEI/internal client ID/NACE) on the company record
 - no multi-role approval workflow
 - no per-stage run monitoring
@@ -43,7 +43,7 @@ The gaps are in the stages around extraction:
 | 3 | `POPULATE_URL` | `SourceDocument.source_url` | Built | Set by the downloader. |
 | 4 | `DOCUMENT_MGMT` | `documents_dir/<company>/<doc_type>/`, document registry, `change_detector.py` | Built | Manual uploads (`POST /api/documents/upload`) and crawled files share one layout. |
 | – | Malware scan | — | **Not built** | `api/routers/documents.py::upload_document` writes the uploaded bytes straight to disk. There is no AV scan, no size cap and no MIME/extension check before `write_bytes`. |
-| 5 | `EMBED_CHUNK_INDEX` (PDF, DOCX → text) | `ingestion/local_files.py` (docling for PDF), `ingestion/parsing.py` chunking, BM25 plus local multilingual embeddings | Partial | Handles PDF, HTML, text and XLSX. **DOCX raises `Unsupported document file type`**. The embedding model is local fastembed `paraphrase-multilingual-MiniLM-L12-v2`, not a hosted embedding service. |
+| 5 | `EMBED_CHUNK_INDEX` (PDF, DOCX → text) | `ingestion/local_files.py` (docling for PDF and DOCX), `ingestion/parsing.py` chunking, BM25 plus local multilingual embeddings | Built | Handles PDF, DOCX, HTML, text and XLSX. A DOCX has no fixed pages, so its citations carry no page number. The embedding model is local fastembed `paraphrase-multilingual-MiniLM-L12-v2`, not a hosted embedding service. |
 | 6 | `INITIALIZE_OUTPUT` | Empty result and review-queue files per run (`RunStore`) | Built | |
 | 7 | `EXTRACTION` (AI; metric: combinations extracted, duration) | `extraction/field_graph.py` (gather → extract → verify → aggregate); `transition_plan/indicator_graph.py` | Built (metrics partial) | Extraction logic is stronger than the reference (see below). The manifest tracks completed companies, tokens and cost, but not **combinations extracted per stage** or **stage duration**. |
 | 8 | `SCORING` (AI alignment, then rules engine) | — | **Not built** for the maturity score | Transition Plan Assessment stops at counts (`disclosed_count`, walk/talk, `by_category`). Nothing maps verdicts to 1–7 criterion scores or cluster scores. Decision Studio (`arp/decision/`) is a deterministic scoring engine, but it scores tables across entities and has no maturity-score criteria grid. |
@@ -106,7 +106,8 @@ the extraction engine's decorrelated verifier:
 2. ~~**Align Transition Plan with extraction.**~~ **Done.** The verify step gets
    `verifier_llm`, the run records `verifier_model`, and search honours
    `hybrid_retrieval_enabled`.
-3. **DOCX parsing** in `local_files.py`. docling already reads DOCX.
+3. ~~**DOCX parsing**~~ **Done.** `local_files.py` reads `.docx` through the same
+   docling converter as PDFs.
 4. **Maturity-score rules engine.** Add a static criteria grid (criterion → 1–7 level
    rules over indicator verdicts and extracted fields), then cluster scores and
    priority flags. Zero LLM calls, following the repo's "LLM plans,
