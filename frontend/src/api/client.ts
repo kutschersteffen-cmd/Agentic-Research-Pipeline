@@ -78,6 +78,7 @@ import type {
   TransitionPlanIndicatorDef,
   TrendPoint,
 } from "../types";
+import type { DecisionInput, PublishedDecision } from "../types";
 import type { QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, TemplateStyleProfile } from "../types";
 import type { PaperCandidate, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
 import type {
@@ -106,6 +107,18 @@ function buildQuery(params: Record<string, string | string[] | undefined | null>
 /** Policy endpoints act on the house by default, or on a client stream's own policies. */
 const streamQuery = (stream?: string) => (stream ? `?stream=${encodeURIComponent(stream)}` : "");
 
+/** FastAPI's 422 body: `detail` is a list of {loc, msg}. Rendered as
+ * "spec › screens › 0 › metric_threshold: needs at least one of …". */
+function formatValidationErrors(errors: { loc?: (string | number)[]; msg?: string }[]): string {
+  return errors
+    .map((e) => {
+      const where = (e.loc ?? []).filter((part) => part !== "body").join(" › ");
+      const msg = (e.msg ?? "invalid").replace(/^Value error, /, "");
+      return where ? `${where}: ${msg}` : msg;
+    })
+    .join("; ");
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
   const res = await fetch(`${API_BASE}${path}`, {
@@ -116,7 +129,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     let detail = res.statusText;
     try {
       const body = await res.json();
-      detail = body.detail ?? JSON.stringify(body);
+      detail = Array.isArray(body.detail)
+        ? formatValidationErrors(body.detail)
+        : typeof body.detail === "string"
+          ? body.detail
+          : JSON.stringify(body.detail ?? body);
     } catch {
       /* ignore parse failure */
     }
@@ -525,6 +542,11 @@ export const api = {
   seedPortfolioDemo: () => request<DemoSeedSummary>("/api/portfolio/demo/seed", { method: "POST" }),
   listPortfolios: () => request<PortfolioSummary[]>("/api/portfolio/portfolios"),
   listSecuritiesNeedingReview: () => request<SecurityResolution[]>("/api/portfolio/securities-needing-review"),
+  holdingsUniverse: (body: { portfolio_ids: string[]; as_of?: string }) =>
+    request<{ path: string; company_count: number; as_of: string; unresolved: number }>("/api/portfolio/universe", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   listPortfolioCompanies: () => request<CompanyRef[]>("/api/portfolio/companies"),
   listConflictingObservations: () => request<DataPointObservation[]>("/api/portfolio/climate-conflicts"),
   runPortfolioAggregate: (body: AnalyticRequest) =>
@@ -723,6 +745,16 @@ export const api = {
   attachRunFramework: (runId: string, frameworkId: string, version?: number) =>
     request(`/api/decision/runs/${runId}/framework`, { method: "PUT", body: JSON.stringify({ framework_id: frameworkId, version }) }),
   getRunDecision: (runId: string) => request<RunDecision>(`/api/decision/runs/${runId}/decision`),
+  publishDecision: (body: { dataset_id: string; framework_id: string; version?: number; published_by: string; id_column?: string; note?: string }) =>
+    request<PublishedDecision>("/api/decision/publish", { method: "POST", body: JSON.stringify(body) }),
+  listPublishedDecisions: () => request<PublishedDecision[]>("/api/decision/published"),
+  getHouseUniverse: () =>
+    request<{ source: "sample" | "portfolio"; set_by: string | null; set_at: string | null; issuers: number; note: string | null }>(
+      "/api/stewardship/universe",
+    ),
+  setHouseUniverse: (body: { source: "sample" | "portfolio"; set_by: string }) =>
+    request<{ source: "sample" | "portfolio"; issuers: number }>("/api/stewardship/universe", { method: "PUT", body: JSON.stringify(body) }),
+  getDecisionInputs: () => request<{ in_scope: number; published: DecisionInput[] }>("/api/stewardship/decision-inputs"),
   // Index construction
   getIndexCatalogue: () => request<IndexCatalogue>("/api/index/catalogue"),
   getIndexPreset: (name: string) => request<ConstructionSpec>(`/api/index/presets/${name}`),
@@ -746,5 +778,6 @@ export const api = {
     calibration_id?: string;
     persist?: boolean;
     use_prior_state?: boolean;
+    decision_snapshot_ids?: string[];
   }) => request<IndexReviewResult>("/api/index/run", { method: "POST", body: JSON.stringify(body) }),
 };

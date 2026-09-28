@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
-import type { DiscoveryCompanyResult, DiscoveryScheduleConfig, DocumentEvent } from "../types";
+import type { DiscoveryCompanyResult, DiscoveryScheduleConfig, DocumentEvent, UniverseHandoff } from "../types";
 
 interface Props {
-  pendingUniverse?: { path: string; count: number } | null;
+  pendingUniverse?: UniverseHandoff | null;
+  onSendUniverse?: (to: "extraction" | "transitionPlan", path: string, count: number) => void;
 }
 
-export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
+export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {}) {
   const [universePath, setUniversePath] = useState<string | null>(pendingUniverse?.path ?? null);
   const [companyCount, setCompanyCount] = useState(pendingUniverse?.count ?? 0);
   const [runId, setRunId] = useState<string | null>(null);
@@ -74,7 +75,7 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
         <h3>Run now (manual)</h3>
         {pendingUniverse && universePath === pendingUniverse.path && (
           <p className="status-text">
-            Using {pendingUniverse.count} companies sent from Identity Resolution. Upload a different universe below
+            Using {pendingUniverse.count} companies sent from {pendingUniverse.from}. Upload a different universe below
             to replace it.
           </p>
         )}
@@ -89,6 +90,17 @@ export function DocumentDiscovery({ pendingUniverse }: Props = {}) {
         </button>
         {error && <p className="error-text">{error}</p>}
         {runId && <RunProgress runId={runId} runType="extraction" />}
+        {runId && universePath && onSendUniverse && (
+          <div className="toolbar">
+            <span className="muted">Next, with the same {companyCount} companies:</span>
+            <button className="secondary" onClick={() => onSendUniverse("extraction", universePath, companyCount)}>
+              Extraction &rarr;
+            </button>
+            <button className="secondary" onClick={() => onSendUniverse("transitionPlan", universePath, companyCount)}>
+              Transition Plan &rarr;
+            </button>
+          </div>
+        )}
         {runId && (
           <>
             <button onClick={refreshResults}>Refresh results</button>

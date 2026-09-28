@@ -8,9 +8,33 @@ import type { DemoSeedSummary } from "../types";
 /** The persistent portfolio/group + as-of-date selector (spec §9): not a
  * sub-tab itself, rendered once above the sub-nav, and read by every
  * sub-tab via `usePortfolioPane()` -- switching sub-tabs never resets it. */
-export function PersistentSelectionPane() {
-  const { portfolios, refreshPortfolios, portfoliosError, selectedPortfolioIds, setSelectedPortfolioIds, groups, saveCurrentAsGroup, loadGroup, deleteGroup } =
-    usePortfolioPane();
+type Destination = "transitionPlan" | "extraction" | "discovery";
+const DESTINATIONS: { id: Destination; label: string }[] = [
+  { id: "transitionPlan", label: "Transition Plan" },
+  { id: "extraction", label: "Extraction" },
+  { id: "discovery", label: "Document Discovery" },
+];
+
+export function PersistentSelectionPane({ onSendUniverse }: { onSendUniverse?: (to: Destination, path: string, count: number) => void }) {
+  const {
+    portfolios, refreshPortfolios, portfoliosError, selectedPortfolioIds, setSelectedPortfolioIds, groups, saveCurrentAsGroup, loadGroup, deleteGroup,
+    effectiveAsOf, selectionLabel,
+  } = usePortfolioPane();
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+
+  // The held companies, saved as a universe and handed to the chosen screen.
+  async function sendHoldings(to: Destination) {
+    setSending(true);
+    setSendError(null);
+    try {
+      const u = await api.holdingsUniverse({ portfolio_ids: selectedPortfolioIds, as_of: effectiveAsOf });
+      onSendUniverse?.(to, u.path, u.company_count);
+    } catch (e) {
+      setSendError((e as Error).message);
+      setSending(false);
+    }
+  }
   const [groupName, setGroupName] = useState("");
   const [seeding, setSeeding] = useState(false);
   const [seedSummary, setSeedSummary] = useState<DemoSeedSummary | null>(null);
@@ -94,6 +118,17 @@ export function PersistentSelectionPane() {
             )}
           </div>
           <DateSelector />
+          {onSendUniverse && (
+            <div className="toolbar" style={{ gridColumn: "1 / -1" }}>
+              <span className="muted">Use the companies held in {selectionLabel || "this selection"} in:</span>
+              {DESTINATIONS.map((d) => (
+                <button key={d.id} className="secondary" disabled={sending} onClick={() => sendHoldings(d.id)}>
+                  {d.label} &rarr;
+                </button>
+              ))}
+              {sendError && <span className="error-text" role="alert">{sendError}</span>}
+            </div>
+          )}
         </div>
       )}
     </section>

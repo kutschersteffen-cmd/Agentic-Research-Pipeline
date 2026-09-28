@@ -5,7 +5,7 @@ import { UniversePicker } from "../components/UniversePicker";
 import { ExtractionResultsTable, FinancialsResultsTable } from "../components/ExtractionResults";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { BarChart } from "../components/BarChart";
-import type { CompanyFinancialsRecord, DataPointSchema, ExtractionRecord, FieldDefinition, ReviewDecision } from "../types";
+import type { CompanyFinancialsRecord, DataPointSchema, ExtractionRecord, FieldDefinition, ReviewDecision, UniverseHandoff } from "../types";
 import { useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "../components/ReviewerField";
 import { RunScoringPanel, ScoringTemplatePicker } from "../components/RunScoring";
@@ -58,7 +58,7 @@ function BatchSpendChart({ results }: { results: CompanyFinancialsRecord[] }) {
 }
 
 interface Props {
-  pendingUniverse?: { path: string; count: number } | null;
+  pendingUniverse?: UniverseHandoff | null;
 }
 
 export function Extraction({ pendingUniverse }: Props = {}) {
@@ -248,7 +248,7 @@ export function Extraction({ pendingUniverse }: Props = {}) {
           <h3>{universeStepNumber}. Choose the company universe</h3>
           {pendingUniverse && universePath === pendingUniverse.path && (
             <p className="status-text">
-              Using {pendingUniverse.count} companies sent from a Thematic Universe screen. Upload a different
+              Using {pendingUniverse.count} companies sent from {pendingUniverse.from}. Upload a different
               universe below to replace it.
             </p>
           )}

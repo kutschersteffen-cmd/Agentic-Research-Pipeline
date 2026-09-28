@@ -7,6 +7,7 @@ import { DecisionTreeEditor } from "../components/DecisionTreeEditor";
 import { MechanismEditor } from "../components/MechanismEditor";
 import { ScoreDistribution } from "../components/ScoreDistribution";
 import type {
+  PublishedDecision,
   ColumnRole,
   DatasetSummary,
   DecisionComparison,
@@ -69,6 +70,8 @@ export function DecisionStudio() {
   const [status, setStatus] = useState("");
   const [reviewer] = useReviewer();
   const [confirmingRatify, setConfirmingRatify] = useState(false);
+  const [confirmingPublish, setConfirmingPublish] = useState(false);
+  const [published, setPublished] = useState<PublishedDecision | null>(null);
   const [error, setError] = useState("");
   const [source, setSource] = useState<string>("transition_plan_run");
   const [runId, setRunId] = useState("");
@@ -291,6 +294,15 @@ export function DecisionStudio() {
     if (!config) return;
     const saved = await guard("Ratifying…", () => api.ratifyMechanism(config.framework_id, config.version, by));
     if (saved) setConfig(saved);
+  }
+
+  async function onPublish(by: string) {
+    setConfirmingPublish(false);
+    if (!config || !dataset) return;
+    const snapshot = await guard("Publishing…", () =>
+      api.publishDecision({ dataset_id: dataset.dataset_id, framework_id: config.framework_id, version: config.version, published_by: by }),
+    );
+    if (snapshot) setPublished(snapshot);
   }
 
   async function onExplain(entity: EntityDecision) {
@@ -755,6 +767,9 @@ export function DecisionStudio() {
               ) : (
                 <button onClick={() => setConfirmingRatify(true)}>Ratify version {config.version}…</button>
               )}
+              {config.ratified && dataset && (
+                <button onClick={() => setConfirmingPublish(true)}>Publish to stewardship and index…</button>
+              )}
             </div>
             {confirmingRatify && (
               <ConfirmDecision
@@ -768,6 +783,27 @@ export function DecisionStudio() {
                   reading it exactly as it is now.
                 </p>
               </ConfirmDecision>
+            )}
+            {confirmingPublish && dataset && (
+              <ConfirmDecision
+                title="Publish these tiers?"
+                confirmLabel="Publish"
+                onConfirm={onPublish}
+                onCancel={() => setConfirmingPublish(false)}
+              >
+                <p>
+                  Freezes version {config.version}'s result on <strong>{dataset.name}</strong>, matched to issuers by their id column. Steward
+                  Workflow's coverage rules and Index Construction can then read the tiers and scores. Nothing changes there until a
+                  person confirms tiers or runs an index review.
+                </p>
+              </ConfirmDecision>
+            )}
+            {published && (
+              <p className="status-text" role="status">
+                Published {published.rows.length} entities (matched on <code>{published.id_column}</code>) as{" "}
+                <code>decision.{published.framework_id}</code>. Next: <a href="#/stewardship/selection">use the tiers in coverage rules</a> or{" "}
+                <a href="#/index">join the scores in an index</a>.
+              </p>
             )}
             <p className="help-text">
               A ratified version is never overwritten — later edits become a new version, so the rules a past decision

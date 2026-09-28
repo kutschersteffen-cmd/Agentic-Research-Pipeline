@@ -23,6 +23,15 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <rect x="13" y="13" width="8" height="8" rx="1.5" />
     </svg>
   ),
+  // Three steps joined left to right: a process, not a single screen.
+  processes: (
+    <svg {...ICON_PROPS}>
+      <circle cx="5" cy="12" r="2.5" />
+      <circle cx="12" cy="12" r="2.5" />
+      <circle cx="19" cy="12" r="2.5" />
+      <path d="M7.5 12h2M14.5 12h2" />
+    </svg>
+  ),
   search: (
     <svg {...ICON_PROPS}>
       <circle cx="10.5" cy="10.5" r="6.5" />
