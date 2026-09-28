@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from arp.schemas.common import new_id, now_iso
 
@@ -17,6 +17,7 @@ GateOp = Literal["is", "isnot", "lt", "gt", "eq"]
 GateOutcome = Literal["exclude", "demote", "flag"]
 EntityStatus = Literal["scored", "excluded", "insufficient"]
 AuditOrigin = Literal["derived", "human"]
+ScoringMode = Literal["relative", "levels"]
 RULE_NODE_TYPES = frozenset({"inputNode", "outputNode", "expressionNode", "decisionTableNode", "switchNode"})
 
 
@@ -105,6 +106,32 @@ class Criterion(BaseModel):
     direction: Direction = "higher"
 
 
+class LevelRule(BaseModel):
+    """One cell of a criterion's level grid: the level a company gets when
+    `when` holds for its row. A ZEN expression over the table's columns
+    (by name or slug), e.g. `target_coverage_pct >= 65 and net_zero_target`."""
+
+    level: int
+    when: str
+    note: str = ""
+
+
+class LevelCriterion(BaseModel):
+    """A criterion scored on the framework's fixed scale, from the company's
+    own data only. Rules are tried in order and the first that holds sets
+    the level; a row none of them fits gets `otherwise`, or no level at all
+    (missing, which the sufficiency gate then counts)."""
+
+    id: str = Field(default_factory=lambda: new_id("crit"))
+    name: str
+    dimension_id: str = Field(description="The cluster this criterion belongs to.")
+    weight: float = Field(default=1.0, ge=0.0, description="Relative share of its cluster's weight.")
+    enabled: bool = True
+    rules: list[LevelRule] = Field(default_factory=list)
+    otherwise: int | None = None
+    hint: str = Field(default="", description="What the criterion asks, shown to reviewers next to the level.")
+
+
 class GateRule(BaseModel):
     """A rule evaluated *before* the score exists. A knockout is a
     decision, not a deduction -- an excluded entity never reaches the
@@ -150,6 +177,18 @@ class MechanismConfig(BaseModel):
     ratified_at: str | None = None
     ratified_by: str | None = None
     created_at: str = Field(default_factory=now_iso)
+
+    mode: ScoringMode = Field(
+        default="relative",
+        description="relative: each criterion is normalised against the other entities in the table. levels: each "
+        "criterion gets a level on a fixed scale from rules over the entity's own data, and cluster and total scores "
+        "are weighted averages on that scale -- an entity's score does not move when its peers change.",
+    )
+    level_min: int = Field(default=1, description="levels mode: the lowest level on the scale.")
+    level_max: int = Field(default=7, description="levels mode: the highest level on the scale.")
+    level_criteria: list[LevelCriterion] = Field(
+        default_factory=list, description="levels mode: the criteria, each with its level grid. Clusters are `dimensions`."
+    )
 
     norm: NormMethod = "percentile"
     winsor_pct: float = Field(default=5.0, ge=0.0, le=20.0)
@@ -238,6 +277,28 @@ class MechanismConfig(BaseModel):
     @classmethod
     def _declarative_rules_only(cls, graph: dict[str, Any] | None) -> dict[str, Any] | None:
         return check_rule_graph(graph)
+
+    @model_validator(mode="after")
+    def _levels_on_the_scale(self) -> MechanismConfig:
+        """A level grid is a trust boundary like a rule graph: it arrives inline
+        from the UI or a template file. Levels must sit on the scale and every
+        condition must parse, so a typo is refused on save rather than
+        quietly matching nothing on every row."""
+        if self.level_min >= self.level_max:
+            raise ValueError("level_min must be below level_max.")
+        import zen
+
+        for criterion in self.level_criteria:
+            levels = [r.level for r in criterion.rules] + ([criterion.otherwise] if criterion.otherwise is not None else [])
+            off = [lv for lv in levels if not self.level_min <= lv <= self.level_max]
+            if off:
+                raise ValueError(f"{criterion.name}: levels {off} are outside {self.level_min}-{self.level_max}.")
+            for rule in criterion.rules:
+                # An empty condition is a rule not written yet: it is skipped, not refused.
+                error = zen.validate_expression(rule.when) if rule.when.strip() else None
+                if error:
+                    raise ValueError(f"{criterion.name}, level {rule.level}: {error.get('source', error)}")
+        return self
 
 
 class AuditEntry(BaseModel):

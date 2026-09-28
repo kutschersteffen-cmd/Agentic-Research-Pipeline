@@ -522,6 +522,7 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
 .proposed > .proposed-tag { display: table; }
 .review-json { white-space: pre-wrap; word-break: break-word; background: var(--well); padding: 10px; border-radius: var(--r-sm); font-size: var(--text-xs); max-height: 260px; overflow: auto; }
 .review-json-edit { font-family: var(--font-mono); font-size: var(--text-xs); }
+.level-condition { font-family: var(--font-mono); font-size: var(--text-sm); width: 100%; }
 
 .field-detail { border-top: 1px solid var(--panel-border); padding: 8px 0; }
 

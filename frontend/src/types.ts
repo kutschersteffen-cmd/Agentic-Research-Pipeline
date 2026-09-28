@@ -1735,6 +1735,12 @@ export interface MechanismConfig {
   ratified_at?: string | null;
   ratified_by?: string | null;
   created_at: string;
+  /** relative: normalised against the other entities. levels: fixed-scale levels from rules over each entity's own data. */
+  mode?: ScoringMode;
+  level_min?: number;
+  level_max?: number;
+  /** levels mode: criteria with their level grids. Clusters are `dimensions`. */
+  level_criteria?: LevelCriterion[];
   norm: NormMethod;
   winsor_pct: number;
   missing: MissingPolicy;
@@ -1761,6 +1767,27 @@ export interface MechanismConfig {
   rule_graph?: RuleGraph | null;
   /** GoRules JSON Decision Model setting the final tier after scoring; replaces gates and the dimension floor. */
   tier_graph?: RuleGraph | null;
+}
+
+export type ScoringMode = "relative" | "levels";
+
+/** One cell of a level grid: the level an entity gets when `when` (a ZEN expression over its columns) holds. */
+export interface LevelRule {
+  level: number;
+  when: string;
+  note?: string;
+}
+
+/** A criterion scored on the fixed scale; rules are tried in order, first match wins, else `otherwise`. */
+export interface LevelCriterion {
+  id: string;
+  name: string;
+  dimension_id: string;
+  weight: number;
+  enabled: boolean;
+  rules: LevelRule[];
+  otherwise?: number | null;
+  hint?: string;
 }
 
 export interface RuleGraph {

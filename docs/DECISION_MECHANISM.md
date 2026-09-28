@@ -279,6 +279,42 @@ choice.
 score. The ordering a stewardship team actually wants: not who scores
 worst, but where engagement moves the most.
 
+### 3k. Levels mode: absolute scores on a fixed scale (`levels.py`)
+
+Everything above places each criterion among the other entities in the
+table, so a score moves when the peers change. Some frameworks need the
+opposite: "a short-term target covering at least 65%" is level 4 for every
+company, whoever else is in the run. A framework with `mode = "levels"`
+scores that way:
+
+- **Scale.** `level_min`..`level_max`, e.g. 1-7.
+- **Clusters** are the framework's `dimensions`, named and weighted by hand
+  (nothing is derived from correlation in this mode).
+- **Level criteria.** Each has ordered rules, `level` + `when` (a ZEN
+  expression over the columns, by name or slug), and an optional default.
+  The first rule that holds sets the level. A comparison against a blank
+  value does not hold, so missing data never earns a level; a criterion
+  with no match and no default has no level, which counts against
+  coverage (or, with `missing = penalise | neutral`, as the bottom or
+  middle of the scale). A rule with an empty condition is not written yet
+  and is skipped; a condition that does not parse, or a level off the
+  scale, is refused on save.
+- **Scores.** Cluster = weighted average of its criteria's levels;
+  total = weighted average of the clusters. Both are on the framework's
+  scale, and effective weights are criterion-in-cluster times
+  cluster-in-total.
+- **Tiers.** Fixed cut-points on the scale (switching to levels mode
+  spaces them evenly), or tier rules, which can read each level as
+  `lvl_<criterion>` next to `dim_<cluster>`.
+
+Shared with the relative mode unchanged: the rule graph (calculated columns
+are available to level rules), gates, the sufficiency gate, sensitivity
+(it sweeps the cluster weights), publishing, templates and the rules step
+at the end of a run. Not used, because they are about relative placement:
+normalisation, cohorts, derived dimensions, the rank-stability band and the
+dimension floor. Grounded coverage is not computed in this mode, since a
+level can rest on several columns.
+
 ---
 
 ## 4. Sensitivity: how much do the weights matter (`sensitivity.py`)
@@ -463,6 +499,7 @@ backend/arp/decision/
   mechanism.py     derive_mechanism / apply_mechanism
   sources.py       in-repo tables (transition plan, extraction, theme, portfolio)
   rules.py         rule graph (GoRules JDM) -> calculated columns, via ZEN
+  levels.py        levels mode: level grids, fixed-scale cluster and total scores
   templates.py     template fit, export/import, attachment to runs
   sample_data/example_transition_universe.csv
 backend/arp/schemas/decision.py      every type named in this document
@@ -472,6 +509,7 @@ backend/arp/cli/decision.py            arp decision ...
 backend/tests/test_decision_*.py       engine, store, analysis, sources, rules, API
 frontend/src/pages/DecisionStudio.tsx
 frontend/src/components/RunScoring.tsx  template picker + scoring panel on the run pages
+frontend/src/components/LevelGridEditor.tsx  the level grid (Mechanism tab, levels mode)
 frontend/src/components/{ColumnProfileTable,MechanismEditor,DecisionTreeEditor,
                          DecisionResultsTable,ScoreDistribution,AuditLogView}.tsx
 frameworks/                            versioned frameworks + saved datasets (gitignored)
