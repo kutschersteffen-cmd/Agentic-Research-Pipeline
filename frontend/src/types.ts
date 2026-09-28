@@ -1785,7 +1785,7 @@ export interface MechanismEnvelope {
 }
 
 /** Run types a scoring template can be attached to. */
-export type RunScoringKind = "extraction" | "transition_plan";
+export type RunScoringKind = "extraction" | "transition_plan" | "financials" | "tnfd";
 
 /** A saved framework and the columns it needs that a table or schema would not supply. */
 export interface TemplateMatch {
@@ -1800,6 +1800,8 @@ export interface RunDecision {
   /** Only a ratified version can be published. */
   ratified: boolean;
   run_status: string;
+  /** When the run's rules step stored this result; absent while the run is still going. */
+  scored_at?: string | null;
   missing_columns: string[];
   result: DecisionResult;
 }

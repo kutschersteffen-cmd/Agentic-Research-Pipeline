@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from arp.api.company_results import list_company_results
-from arp.api.deps import get_registry, get_run_store, get_xbrl_source, settings_dep
+from arp.api.deps import get_decision_store, get_registry, get_run_store, get_xbrl_source, settings_dep
 from arp.api.review_endpoints import (
     ReviewDecisionRequest,
     get_review_decisions,
@@ -12,11 +12,14 @@ from arp.api.review_endpoints import (
     get_review_queue,
     submit_review,
 )
+from arp.api.routers.decision import template_for_run
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
+from arp.decision.templates import attach_to_run
 from arp.extraction.financials_pipeline import create_financials_extraction_run, execute_financials_extraction_run
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.schemas.common import CompanyRef
+from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
@@ -26,6 +29,8 @@ router = APIRouter(prefix="/api/financials", tags=["financials"])
 class RunRequest(BaseModel):
     companies: list[CompanyRef] | None = None
     universe_path: str | None = None
+    decision_framework_id: str | None = Field(default=None, description="Decision Studio framework applied as the run's last step.")
+    decision_framework_version: int | None = None
 
 
 @router.post("/runs")
@@ -35,13 +40,20 @@ async def start_financials_extraction_run(
     run_store: RunStore = Depends(get_run_store),
     registry: DocumentSourceRegistry = Depends(get_registry),
     xbrl_source=Depends(get_xbrl_source),
+    decision_store: DecisionStore = Depends(get_decision_store),
 ) -> dict:
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
+    template = None
+    if req.decision_framework_id:
+        template = template_for_run(decision_store, "financials", req.decision_framework_id, req.decision_framework_version)
 
     def _create() -> str:
-        return create_financials_extraction_run(companies, settings, run_store)
+        run_id = create_financials_extraction_run(companies, settings, run_store)
+        if template is not None:
+            attach_to_run(run_store, run_id, template, decision_store.get_audit(template.framework_id, template.version))
+        return run_id
 
     async def _run(run_id: str, llm, verifier_llm) -> None:
         await execute_financials_extraction_run(

@@ -88,6 +88,7 @@ export function Extraction({ pendingUniverse }: Props = {}) {
     setMode(next);
     setRunId(null);
     setError(null);
+    setTemplateId(null);
     setExpanded(null);
     setActiveSource(null);
   }
@@ -125,7 +126,7 @@ export function Extraction({ pendingUniverse }: Props = {}) {
         setRunId(res.run_id);
         setExtractionResults([]);
       } else {
-        const res = await api.startFinancialsRun({ universe_path: universePath });
+        const res = await api.startFinancialsRun({ universe_path: universePath, decision_framework_id: templateId ?? undefined });
         setRunId(res.run_id);
         setFinancialsResults([]);
       }
@@ -151,7 +152,8 @@ export function Extraction({ pendingUniverse }: Props = {}) {
     }
   }
 
-  const universeStepNumber = mode === "custom" ? 4 : 1;
+  const scoringStepNumber = mode === "custom" ? 3 : 1;
+  const universeStepNumber = scoringStepNumber + 1;
   const fieldNames = schema?.fields.map((f) => f.name) ?? [];
   const readyForUniverseStep = mode === "financials" || (mode === "custom" && schema != null);
 
@@ -223,14 +225,19 @@ export function Extraction({ pendingUniverse }: Props = {}) {
         </section>
       )}
 
-      {mode === "custom" && schema && (
+      {readyForUniverseStep && (
         <section className="card">
-          <h3>3. Score the results (optional)</h3>
+          <h3>{scoringStepNumber}. Score the results (optional)</h3>
           <p className="help-text">
-            Attach a Decision Studio framework and every company is scored and tiered as its results come in. You can also
-            attach one after the run.
+            Attach a Decision Studio framework: once every company is extracted, the run applies its rules as the last step
+            and stores the scores and tiers with the run. You can also attach one after the run.
           </p>
-          <ScoringTemplatePicker runType="extraction" fieldNames={fieldNames} value={templateId} onChange={setTemplateId} />
+          <ScoringTemplatePicker
+            runType={mode === "custom" ? "extraction" : "financials"}
+            fieldNames={mode === "custom" ? fieldNames : undefined}
+            value={templateId}
+            onChange={setTemplateId}
+          />
         </section>
       )}
 
@@ -317,7 +324,14 @@ export function Extraction({ pendingUniverse }: Props = {}) {
         </section>
       )}
 
-      {runId && mode === "custom" && <RunScoringPanel key={runId} runId={runId} runType="extraction" fieldNames={fieldNames} />}
+      {runId && (
+        <RunScoringPanel
+          key={runId}
+          runId={runId}
+          runType={mode === "custom" ? "extraction" : "financials"}
+          fieldNames={mode === "custom" ? fieldNames : undefined}
+        />
+      )}
     </div>
   );
 }

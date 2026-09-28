@@ -45,6 +45,8 @@ const SUB_TABS = [
 const SOURCES = [
   { id: "transition_plan_run", label: "Transition plan run", entity: "company", needsRun: true, needsRegion: false },
   { id: "extraction_run", label: "Extraction run", entity: "company", needsRun: true, needsRegion: false },
+  { id: "financials_run", label: "Financials run", entity: "company", needsRun: true, needsRegion: false },
+  { id: "tnfd_run", label: "TNFD run", entity: "company", needsRun: true, needsRegion: false },
   { id: "theme_run", label: "Thematic universe run", entity: "company", needsRun: true, needsRegion: false },
   { id: "portfolio_snapshot", label: "Portfolio snapshot + climate", entity: "company", needsRun: false, needsRegion: false },
   { id: "transition_barrier", label: "Transition barrier matrix", entity: "sector × region", needsRun: false, needsRegion: true },
@@ -468,8 +470,8 @@ export function DecisionStudio() {
 
           <h3>Scoring templates</h3>
           <p className="help-text">
-            A saved framework is a template: apply it to the selected table, attach it to an extraction or transition plan run
-            when you start one, or export it as a file for another installation. An imported template starts as a draft —
+            A saved framework is a template: apply it to the selected table, attach it to an Extraction, Financials, TNFD or Transition Plan run
+            when you start one (the run applies it as its last step), or export it as a file for another installation. An imported template starts as a draft —
             ratification does not travel with a file.
           </p>
           <label className="field-label">

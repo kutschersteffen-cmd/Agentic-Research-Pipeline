@@ -173,6 +173,108 @@ def from_extraction_run(run_store: RunStore, run_id: str) -> Dataset:
     return dataset
 
 
+FINANCIALS_COLUMNS = [
+    "Company",
+    "Company_Id",
+    "Currency",
+    "Fiscal_Period",
+    "Capex_Total",
+    "Rnd_Total",
+    "Segments_Count",
+    "Segment_Revenue_Total",
+    "Extraction_Confidence_pct",
+    "Needs_Review_Flag",
+]
+
+
+def from_financials_run(run_store: RunStore, run_id: str) -> Dataset:
+    """A company-financials run -> one row per company: CapEx and R&D totals,
+    segment count and summed segment revenue, as reported (currencies are not
+    converted, so a framework comparing companies should normalise within a
+    currency cohort or use a ratio computed by a rule)."""
+    records = run_store.read_jsonl(run_store.results_path(run_id))
+    if not records:
+        raise ValueError(f"Financials run {run_id} has no results.")
+
+    rows: list[list[str]] = []
+    confidence: dict[str, list[float | None]] = defaultdict(list)
+    for record in records:
+        segments = record.get("segments") or []
+        revenues = [(s.get("revenue") or {}).get("value") for s in segments]
+        row = [
+            str(record.get("name") or record.get("company_id") or ""),
+            str(record.get("company_id") or ""),
+            str(record.get("currency") or ""),
+            str(record.get("fiscal_period") or ""),
+        ]
+        for key, column in (("capex", "Capex_Total"), ("rnd", "Rnd_Total")):
+            spend = record.get(key) or {}
+            value = (spend.get("total") or {}).get("value")
+            row.append("" if value is None else f"{float(value):g}")
+            confidence[column].append(float(spend.get("confidence") or 0.0) if spend.get("grounded") else (0.0 if value is not None else None))
+        row.append(str(len(segments)))
+        row.append(f"{sum(revenues):g}" if revenues and all(v is not None for v in revenues) else "")
+        row.append(f"{(record.get('overall_confidence') or 0.0) * 100:.1f}")
+        row.append("Yes" if record.get("needs_review") else "No")
+        rows.append(row)
+
+    dataset = build_dataset(f"Financials run {run_id}", _matrix(FINANCIALS_COLUMNS, rows), source="financials_run", source_ref=run_id)
+    dataset.confidence = dict(confidence)
+    return dataset
+
+
+def tnfd_columns() -> list[str]:
+    """The columns `from_tnfd_run` emits: one Yes/No per TNFD recommendation
+    and a count of grounded core global metrics per category. Metric values
+    are left out on purpose -- their units differ per company and metric, so
+    a column of them would not compare like with like."""
+    from arp.schemas.tnfd import CoreGlobalMetricCategory, RecommendationId
+
+    return [
+        "Company",
+        "Company_Id",
+        *[f"{_slug_title(r.value.title())}_Disclosed" for r in RecommendationId],
+        "Recommendations_Disclosed_Count",
+        *[f"{_slug_title(c.value.title())}_Metrics_Count" for c in CoreGlobalMetricCategory],
+        "Extraction_Confidence_pct",
+        "Needs_Review_Flag",
+    ]
+
+
+def from_tnfd_run(run_store: RunStore, run_id: str) -> Dataset:
+    """A TNFD extraction run -> one row per company."""
+    from arp.schemas.tnfd import CoreGlobalMetricCategory, RecommendationId
+
+    records = run_store.read_jsonl(run_store.results_path(run_id))
+    if not records:
+        raise ValueError(f"TNFD run {run_id} has no results.")
+
+    rows: list[list[str]] = []
+    confidence: dict[str, list[float | None]] = defaultdict(list)
+    for record in records:
+        by_rec = {d.get("recommendation_id"): d for d in record.get("disclosures") or []}
+        row = [str(record.get("name") or record.get("company_id") or ""), str(record.get("company_id") or "")]
+        disclosed = 0
+        for rec in RecommendationId:
+            item = by_rec.get(rec.value)
+            yes = bool(item and item.get("disclosed"))
+            disclosed += yes
+            row.append("" if item is None else ("Yes" if yes else "No"))
+            column = f"{_slug_title(rec.value.title())}_Disclosed"
+            confidence[column].append(None if item is None else (float(item.get("confidence") or 0.0) if item.get("grounded") else 0.0))
+        row.append(str(disclosed))
+        metrics = record.get("core_global_metrics") or []
+        for category in CoreGlobalMetricCategory:
+            row.append(str(sum(1 for m in metrics if m.get("category") == category.value and m.get("grounded"))))
+        row.append(f"{(record.get('overall_confidence') or 0.0) * 100:.1f}")
+        row.append("Yes" if record.get("needs_review") else "No")
+        rows.append(row)
+
+    dataset = build_dataset(f"TNFD run {run_id}", _matrix(tnfd_columns(), rows), source="tnfd_run", source_ref=run_id)
+    dataset.confidence = dict(confidence)
+    return dataset
+
+
 def from_theme_run(run_store: RunStore, run_id: str) -> Dataset:
     """A thematic universe run -> one row per company, aggregated over the
     per-activity matches: how many activities it was included on, its best

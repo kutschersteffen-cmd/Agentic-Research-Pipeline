@@ -151,7 +151,7 @@ async def upload_dataset(
 
 class FromSourceRequest(BaseModel):
     source: str = Field(
-        description="transition_plan_run | extraction_run | theme_run | portfolio_snapshot | "
+        description="transition_plan_run | extraction_run | financials_run | tnfd_run | theme_run | portfolio_snapshot | "
         "transition_barrier | emerging_themes_run | replication_runs"
     )
     run_id: str | None = None
@@ -180,6 +180,10 @@ def dataset_from_source(
             )
         elif req.source == "extraction_run":
             dataset = sources.from_extraction_run(run_store, _require(req.run_id, "run_id"))
+        elif req.source == "financials_run":
+            dataset = sources.from_financials_run(run_store, _require(req.run_id, "run_id"))
+        elif req.source == "tnfd_run":
+            dataset = sources.from_tnfd_run(run_store, _require(req.run_id, "run_id"))
         elif req.source == "theme_run":
             dataset = sources.from_theme_run(run_store, _require(req.run_id, "run_id"))
         elif req.source == "portfolio_snapshot":
@@ -333,7 +337,9 @@ def import_mechanism(req: ImportRequest, store: DecisionStore = Depends(get_deci
 
 
 class TemplateMatchRequest(BaseModel):
-    run_type: str | None = Field(default=None, description="extraction | transition_plan -- the columns such a run will produce.")
+    run_type: str | None = Field(
+        default=None, description="extraction | transition_plan | financials | tnfd -- the columns such a run will produce."
+    )
     field_names: list[str] = Field(default_factory=list, description="extraction: the schema's field names.")
     columns: list[str] | None = Field(default=None, description="Or the table's columns directly.")
 
@@ -492,60 +498,103 @@ def attach_framework(
         schema = run_store.run_dir(run_id) / "schema.json"
         field_names = [f["name"] for f in json.loads(schema.read_text()).get("fields", [])] if schema.exists() else []
     config = template_for_run(store, manifest.run_type, req.framework_id, req.version, field_names)
-    return templates.attach_to_run(run_store, run_id, config).params["decision_framework"]
+    templates.attach_to_run(run_store, run_id, config, store.get_audit(config.framework_id, config.version))
+    # A finished run gets no more pipeline steps, so the rules step runs now.
+    if manifest.status.value in _FINISHED:
+        templates.score_run(run_store, run_id)
+    return run_store.load_manifest(run_id).params["decision_framework"]
 
 
 class RunDecision(BaseModel):
     framework: dict[str, Any]
     ratified: bool = Field(default=False, description="Whether the pinned version is ratified -- only then can it be published.")
     run_status: str
+    scored_at: str | None = Field(default=None, description="When the rules step stored this result; None while the run is still going.")
     missing_columns: list[str]
     result: DecisionResult
 
 
-def _run_scoring(run_id: str, store: DecisionStore, run_store: RunStore):
-    """The run's manifest, pinned framework version and current table."""
+# A run in these states will not gain more results, so its tiers are final.
+_FINISHED = {"completed", "partially_completed", "cancelled"}
+
+
+def _pinned(run_id: str, store: DecisionStore, run_store: RunStore):
+    """The run's manifest and the framework version pinned on it.
+
+    The rules come from the copy saved with the run (older runs without one
+    fall back to the stored version). Ratification is read from the stored
+    version: ratifying changes the sign-off, never the rules, and a run
+    attached before its framework was ratified must be publishable after."""
     manifest = run_store.load_manifest(run_id)
     if manifest is None:
         raise HTTPException(404, "Run not found")
-    pinned = manifest.params.get("decision_framework")
-    if not pinned:
+    attached = manifest.params.get("decision_framework")
+    if not attached:
         raise HTTPException(404, "No scoring template is attached to this run.")
-    config = store.get(pinned["framework_id"], pinned.get("version"))
-    if config is None:
-        raise HTTPException(404, f"Attached framework {pinned['framework_id']} v{pinned.get('version')} no longer exists.")
+    pinned = templates.pinned_framework(run_store, run_id)
+    stored = store.get(attached["framework_id"], attached.get("version"))
+    if pinned is None and stored is None:
+        raise HTTPException(404, f"Attached framework {attached['framework_id']} v{attached.get('version')} no longer exists.")
+    config, audit = pinned if pinned is not None else (stored, store.get_audit(stored.framework_id, stored.version))
+    if stored is not None:
+        config = config.model_copy(update={"ratified": stored.ratified, "ratified_at": stored.ratified_at, "ratified_by": stored.ratified_by})
+    return manifest, attached, config, audit
+
+
+def _dataset(run_store: RunStore, manifest):
     try:
-        dataset = templates.run_dataset(run_store, manifest)
+        return templates.run_dataset(run_store, manifest)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    return manifest, pinned, config, dataset
 
 
 @router.get("/runs/{run_id}/decision", response_model=RunDecision)
 def run_decision(
     run_id: str, store: DecisionStore = Depends(get_decision_store), run_store: RunStore = Depends(get_run_store)
 ) -> RunDecision:
-    """The run's results scored with its pinned template. Computed on request
-    rather than stored: the template version is fixed and results only
-    grow, so the same request always gives the same answer, and a run still
-    in progress is scored on what it has so far (`run_status` says so)."""
-    manifest, pinned, config, dataset = _run_scoring(run_id, store, run_store)
+    """The run's results scored with its pinned template.
+
+    A finished run returns what its rules step stored. A run still going is
+    scored on the companies finished so far, on request, and nothing is
+    stored until the last step runs."""
+    manifest, attached, config, audit = _pinned(run_id, store, run_store)
+    stored = templates.stored_decision(run_store, run_id) if manifest.status.value in _FINISHED else None
+    if stored is not None:
+        if stored.get("error"):
+            raise HTTPException(422, f"The rules step failed: {stored['error']}")
+        return RunDecision(
+            framework=stored["framework"],
+            ratified=config.ratified,
+            run_status=manifest.status.value,
+            scored_at=stored["scored_at"],
+            missing_columns=stored["missing_columns"],
+            result=DecisionResult.model_validate(stored["result"]),
+        )
+    dataset = _dataset(run_store, manifest)
     return RunDecision(
-        framework=pinned,
+        framework=attached,
         ratified=config.ratified,
         run_status=manifest.status.value,
         missing_columns=templates.missing_columns(config, dataset.columns),
-        result=_apply(dataset, config, derivation_audit=store.get_audit(config.framework_id, config.version)),
+        result=_apply(dataset, config, derivation_audit=audit),
     )
+
+
+@router.post("/runs/{run_id}/decision/rescore", response_model=RunDecision)
+def rescore_run(
+    run_id: str, store: DecisionStore = Depends(get_decision_store), run_store: RunStore = Depends(get_run_store)
+) -> RunDecision:
+    """Runs the rules step again on a finished run, e.g. after review edits."""
+    manifest, _attached, _config, _audit = _pinned(run_id, store, run_store)
+    if manifest.status.value not in _FINISHED:
+        raise HTTPException(409, f"The run is {manifest.status.value}; the rules step runs when it finishes.")
+    templates.score_run(run_store, run_id)
+    return run_decision(run_id, store, run_store)
 
 
 class RunPublishRequest(BaseModel):
     published_by: str
     note: str = ""
-
-
-# A run in these states will not gain more results, so its tiers are final.
-_FINISHED = {"completed", "partially_completed", "cancelled"}
 
 
 @router.post("/runs/{run_id}/publish", response_model=PublishedDecision)
@@ -563,9 +612,10 @@ def publish_run(
     column the template needs may be missing (criteria on a missing column
     are skipped, which changes the score without saying so). The scored table
     is saved as a dataset, so the snapshot's dataset_id opens in the studio."""
-    manifest, _pinned, config, dataset = _run_scoring(run_id, store, run_store)
+    manifest, _attached, config, _audit = _pinned(run_id, store, run_store)
     if manifest.status.value not in _FINISHED:
         raise HTTPException(409, f"The run is {manifest.status.value}; publish once it has finished.")
+    dataset = _dataset(run_store, manifest)
     missing = templates.missing_columns(config, dataset.columns)
     if missing:
         raise HTTPException(422, f"Not published: the results lack columns the template scores on: {', '.join(missing)}")

@@ -255,7 +255,7 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
       <section className="card">
         <h3>1. Score the results (optional)</h3>
         <p className="help-text">
-          Attach a Decision Studio framework to turn the 64 answers into a score and a tier per company. Each indicator is
+          Attach a Decision Studio framework to turn the 64 answers into a score and a tier per company, applied as the run&apos;s last step. Each indicator is
           available to its rules as a Yes/No column (<code>Ind_&lt;identifier&gt;_Disclosed</code>). You can also attach one
           after the run.
         </p>

@@ -55,6 +55,10 @@ def _dataset(
                 dataset = decision_sources.from_transition_plan_run(run_store, _require(run_id))
             elif source == "extraction_run":
                 dataset = decision_sources.from_extraction_run(run_store, _require(run_id))
+            elif source == "financials_run":
+                dataset = decision_sources.from_financials_run(run_store, _require(run_id))
+            elif source == "tnfd_run":
+                dataset = decision_sources.from_tnfd_run(run_store, _require(run_id))
             elif source == "theme_run":
                 dataset = decision_sources.from_theme_run(run_store, _require(run_id))
             elif source == "portfolio_snapshot":

@@ -110,6 +110,18 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
     load();
   }, [load]);
 
+  // A finished run re-runs its rules step (e.g. after review edits); a run
+  // still going is re-scored on the companies finished so far.
+  async function rescore() {
+    if (!decision || !FINISHED.includes(decision.run_status)) return load();
+    setError("");
+    try {
+      setDecision(await api.rescoreRunDecision(runId));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
   async function publish(by: string) {
     setConfirmingPublish(false);
     setError("");
@@ -135,7 +147,7 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
       <div className="toolbar">
         <h3>Scoring</h3>
         {decision && (
-          <button className="link-button" onClick={load}>
+          <button className="link-button" onClick={rescore}>
             Re-score
           </button>
         )}
@@ -179,7 +191,9 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
         <>
           <p className="help-text">
             {decision.framework.name} v{decision.framework.version}
-            {decision.run_status === "running" ? " — the run is still going, so this scores the companies finished so far." : "."}
+            {decision.scored_at
+              ? ` — scored as the run's last step, ${new Date(decision.scored_at).toLocaleString()}.`
+              : " — the run is still going, so this scores the companies finished so far."}
           </p>
           {decision.missing_columns.length > 0 && (
             <p className="decision-check-banner">

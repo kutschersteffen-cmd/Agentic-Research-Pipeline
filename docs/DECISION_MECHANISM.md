@@ -346,6 +346,8 @@ of these seven sources prove it.
 | --- | --- | --- |
 | `transition_plan_run` | company | disclosed count, walk/talk split, per-category disclosure %, assessment confidence — carried per cell |
 | `extraction_run` | company | one column per schema field, each cell's confidence carried, and **zero** where the citation did not ground |
+| `financials_run` | company | CapEx and R&D totals, segment count and summed segment revenue, as reported (currencies not converted) |
+| `tnfd_run` | company | one Yes/No per TNFD recommendation, recommendations disclosed, grounded core global metrics per category |
 | `theme_run` | company | aggregate of the per-activity matches: activities included, best and mean exposure, adjudicator confidence |
 | `portfolio_snapshot` | company | holdings as of one date joined to climate data-point observations, with `market_value_eur` as the size column |
 | `transition_barrier` | **sector × region** | the shipped matrix, one row per cell: per-pillar feasibility, confidence, staleness. Needs no run — it is reference data |
@@ -389,16 +391,24 @@ A saved framework is a template. Three things make it usable as one:
   file: the copy starts as a draft, with an `Import` audit entry naming
   where it came from and who ratified it there. The config is validated like
   any inline framework, so an imported rule graph stays declarative.
-- **Attachment to runs.** `POST /api/extraction/runs` and
-  `POST /api/transition-plan/runs` take `decision_framework_id` (and
-  optionally a version). The template is refused up front if it needs
-  columns the run cannot produce, and the resolved version is pinned in the
-  run manifest (`params.decision_framework`), so editing the template later
-  does not change how the run is scored. `PUT /api/decision/runs/{id}/framework`
-  attaches or replaces one afterwards. `GET /api/decision/runs/{id}/decision`
-  scores the run's current results with the pinned version; it is computed
-  on request rather than stored, since the version is fixed and results only
-  grow. `POST /api/decision/runs/{id}/publish` publishes those tiers
+- **The rules step, last in every extraction pipeline.** Extraction,
+  Financials, TNFD and Transition Plan runs take `decision_framework_id`
+  (and optionally a version) when they start. A template that needs columns
+  the run cannot produce is refused up front. Attaching writes a copy of
+  that framework version and its audit trail into the run folder
+  (`decision_framework.json`), so the rules that score a run travel with
+  it. When every company is done, the shared batch runner
+  (`orchestration/batch_runner.py`) applies them (`templates.score_run`) and
+  stores the outcome in `decision.json` before the run is marked finished.
+  A failure there is recorded on the run and never fails it: the extracted
+  results stand either way. `PUT /api/decision/runs/{id}/framework`
+  attaches or replaces a template afterwards (a finished run is scored at
+  once); `GET /api/decision/runs/{id}/decision` serves the stored result
+  (or, while a run is still going, scores what it has so far);
+  `POST .../decision/rescore` runs the step again, e.g. after review edits.
+  Ratification is read from the stored framework version, since ratifying
+  changes the sign-off and not the rules.
+  `POST /api/decision/runs/{id}/publish` publishes those tiers
   straight from the run (the same snapshot as publishing from the studio,
   and the scored table is saved as a dataset). It is stricter than the
   studio, because nobody looks at a table before signing: the pinned
@@ -406,7 +416,7 @@ A saved framework is a template. Three things make it usable as one:
   run would be frozen as if they covered the universe), and no column the
   template scores on may be missing.
 
-In the UI, both run pages have an optional "Score the results" step and a
+In the UI, the Extraction (custom schema and Financials) and Transition Plan pages have an optional "Score the results" step and a
 Scoring panel under the run; Decision Studio's Data tab lists templates with
 their fit to the selected table, and applies, imports and exports them.
 
