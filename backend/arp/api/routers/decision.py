@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from arp.api.deps import get_decision_store, get_portfolio_store, get_run_store, settings_dep
 from arp.config import Settings
-from arp.decision import sources, templates
+from arp.decision import overrides, sources, templates
 from arp.decision.compare import compare_results
 from arp.decision.dataset import Dataset, build_dataset
 from arp.decision.diffing import describe_changes
@@ -28,6 +28,7 @@ from arp.schemas.decision import (
     DecisionComparison,
     DecisionResult,
     EntitySensitivity,
+    LevelOverride,
     MechanismConfig,
     PublishedDecision,
     RoleProposal,
@@ -151,12 +152,16 @@ async def upload_dataset(
 
 class FromSourceRequest(BaseModel):
     source: str = Field(
-        description="transition_plan_run | extraction_run | financials_run | tnfd_run | theme_run | portfolio_snapshot | "
-        "transition_barrier | emerging_themes_run | replication_runs"
+        description="transition_plan_run | extraction_run | financials_run | tnfd_run | joined_runs | theme_run | "
+        "portfolio_snapshot | transition_barrier | emerging_themes_run | replication_runs"
     )
     run_id: str | None = None
     include_indicators: bool = Field(default=False, description="transition_plan_run: one Yes/No column per indicator.")
-    run_ids: list[str] | None = Field(default=None, description="replication_runs: defaults to every strategy_replication run.")
+    run_ids: list[str] | None = Field(
+        default=None,
+        description="joined_runs: two or more transition plan, extraction, financials or TNFD runs to join by company. "
+        "replication_runs: defaults to every strategy_replication run.",
+    )
     as_of: str | None = None
     portfolio_ids: list[str] | None = None
     region: str | None = Field(default=None, description="transition_barrier: one of the matrix's three jurisdictions.")
@@ -184,6 +189,8 @@ def dataset_from_source(
             dataset = sources.from_financials_run(run_store, _require(req.run_id, "run_id"))
         elif req.source == "tnfd_run":
             dataset = sources.from_tnfd_run(run_store, _require(req.run_id, "run_id"))
+        elif req.source == "joined_runs":
+            dataset = sources.from_joined_runs(run_store, req.run_ids or [], include_indicators=req.include_indicators)
         elif req.source == "theme_run":
             dataset = sources.from_theme_run(run_store, _require(req.run_id, "run_id"))
         elif req.source == "portfolio_snapshot":
@@ -401,14 +408,14 @@ def score(req: ScoreRequest, store: DecisionStore = Depends(get_decision_store))
     dataset = _load_dataset(req.dataset_id, store)
     config = _resolve_config(req.config, req.framework_id, req.version, store)
     audit = store.get_audit(config.framework_id, config.version) if req.config is None else None
-    return _apply(dataset, config, derivation_audit=audit)
+    return _apply(dataset, config, derivation_audit=audit, overrides=overrides.load(store.overrides_path(dataset.dataset_id)))
 
 
 @router.post("/export.csv", response_class=PlainTextResponse)
 def export_csv(req: ScoreRequest, store: DecisionStore = Depends(get_decision_store)) -> PlainTextResponse:
     dataset = _load_dataset(req.dataset_id, store)
     config = _resolve_config(req.config, req.framework_id, req.version, store)
-    result = _apply(dataset, config)
+    result = _apply(dataset, config, overrides=overrides.load(store.overrides_path(dataset.dataset_id)))
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(["rank", "name", "segment", "cohort", "score", "tier", "tier_name", "action", "status", "coverage_pct", "grounded_coverage_pct", "rank_min", "rank_max", "size", "leverage", "leverage_rank", "notes"])
@@ -512,6 +519,7 @@ class RunDecision(BaseModel):
     scored_at: str | None = Field(default=None, description="When the rules step stored this result; None while the run is still going.")
     missing_columns: list[str]
     result: DecisionResult
+    level_scale: list[int] | None = Field(default=None, description="Levels mode: [lowest, highest] level, the range an override may set.")
 
 
 # A run in these states will not gain more results, so its tiers are final.
@@ -569,6 +577,7 @@ def run_decision(
             scored_at=stored["scored_at"],
             missing_columns=stored["missing_columns"],
             result=DecisionResult.model_validate(stored["result"]),
+            level_scale=_scale(config),
         )
     dataset = _dataset(run_store, manifest)
     return RunDecision(
@@ -576,8 +585,13 @@ def run_decision(
         ratified=config.ratified,
         run_status=manifest.status.value,
         missing_columns=templates.missing_columns(config, dataset.columns),
-        result=_apply(dataset, config, derivation_audit=audit),
+        result=_apply(dataset, config, derivation_audit=audit, overrides=overrides.load(templates.run_overrides_path(run_store, run_id))),
+        level_scale=_scale(config),
     )
+
+
+def _scale(config: MechanismConfig) -> list[int] | None:
+    return [config.level_min, config.level_max] if config.mode == "levels" else None
 
 
 @router.post("/runs/{run_id}/decision/rescore", response_model=RunDecision)
@@ -589,6 +603,89 @@ def rescore_run(
     if manifest.status.value not in _FINISHED:
         raise HTTPException(409, f"The run is {manifest.status.value}; the rules step runs when it finishes.")
     templates.score_run(run_store, run_id)
+    return run_decision(run_id, store, run_store)
+
+
+# --- reviewer overrides: one criterion's level for one entity, by hand ---
+
+
+class OverridesView(BaseModel):
+    overrides: list[LevelOverride]
+    history: list[dict]
+
+
+class RemoveOverrideRequest(BaseModel):
+    entity_key: str
+    criterion_id: str
+    reviewer: str = Field(min_length=1)
+    reason: str = Field(min_length=3)
+
+
+def _overrides_view(path) -> OverridesView:
+    return OverridesView(overrides=overrides.load(path), history=overrides.history(path))
+
+
+@router.get("/datasets/{dataset_id}/overrides", response_model=OverridesView)
+def get_dataset_overrides(dataset_id: str, store: DecisionStore = Depends(get_decision_store)) -> OverridesView:
+    _load_dataset(dataset_id, store)
+    return _overrides_view(store.overrides_path(dataset_id))
+
+
+@router.post("/datasets/{dataset_id}/overrides", response_model=OverridesView)
+def set_dataset_override(dataset_id: str, override: LevelOverride, store: DecisionStore = Depends(get_decision_store)) -> OverridesView:
+    """Sets one entity's level on one criterion by hand. Every score of this
+    table applies it from now on; the rules' level stays on the result."""
+    _load_dataset(dataset_id, store)
+    overrides.set_override(store.overrides_path(dataset_id), override)
+    return _overrides_view(store.overrides_path(dataset_id))
+
+
+@router.post("/datasets/{dataset_id}/overrides/remove", response_model=OverridesView)
+def remove_dataset_override(dataset_id: str, req: RemoveOverrideRequest, store: DecisionStore = Depends(get_decision_store)) -> OverridesView:
+    _load_dataset(dataset_id, store)
+    try:
+        overrides.remove_override(store.overrides_path(dataset_id), req.entity_key, req.criterion_id, req.reviewer, req.reason)
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return _overrides_view(store.overrides_path(dataset_id))
+
+
+@router.get("/runs/{run_id}/overrides", response_model=OverridesView)
+def get_run_overrides(run_id: str, store: DecisionStore = Depends(get_decision_store), run_store: RunStore = Depends(get_run_store)) -> OverridesView:
+    _pinned(run_id, store, run_store)
+    return _overrides_view(templates.run_overrides_path(run_store, run_id))
+
+
+@router.post("/runs/{run_id}/overrides", response_model=RunDecision)
+def set_run_override(
+    run_id: str, override: LevelOverride, store: DecisionStore = Depends(get_decision_store), run_store: RunStore = Depends(get_run_store)
+) -> RunDecision:
+    """Sets one company's level on one criterion of the run's scores, then
+    scores the run again (a finished run) so the stored tiers include it."""
+    manifest, _attached, config, _audit = _pinned(run_id, store, run_store)
+    if config.mode != "levels":
+        raise HTTPException(400, "Overrides set a criterion's level, and this run's framework is not in levels mode.")
+    if not any(c.id == override.criterion_id for c in config.level_criteria):
+        raise HTTPException(400, f"`{override.criterion_id}` is not a criterion of {config.name} v{config.version}.")
+    if not config.level_min <= override.level <= config.level_max:
+        raise HTTPException(400, f"Level {override.level} is off the {config.level_min}-{config.level_max} scale.")
+    overrides.set_override(templates.run_overrides_path(run_store, run_id), override)
+    if manifest.status.value in _FINISHED:
+        templates.score_run(run_store, run_id)
+    return run_decision(run_id, store, run_store)
+
+
+@router.post("/runs/{run_id}/overrides/remove", response_model=RunDecision)
+def remove_run_override(
+    run_id: str, req: RemoveOverrideRequest, store: DecisionStore = Depends(get_decision_store), run_store: RunStore = Depends(get_run_store)
+) -> RunDecision:
+    manifest, _attached, _config, _audit = _pinned(run_id, store, run_store)
+    try:
+        overrides.remove_override(templates.run_overrides_path(run_store, run_id), req.entity_key, req.criterion_id, req.reviewer, req.reason)
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    if manifest.status.value in _FINISHED:
+        templates.score_run(run_store, run_id)
     return run_decision(run_id, store, run_store)
 
 
@@ -620,7 +717,8 @@ def publish_run(
     if missing:
         raise HTTPException(422, f"Not published: the results lack columns the template scores on: {', '.join(missing)}")
     try:
-        snapshot = publish(dataset, config, _apply(dataset, config), published_by=req.published_by, note=req.note or f"From run {run_id}")
+        result = _apply(dataset, config, overrides=overrides.load(templates.run_overrides_path(run_store, run_id)))
+        snapshot = publish(dataset, config, result, published_by=req.published_by, note=req.note or f"From run {run_id}")
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     store.save_dataset(dataset)
@@ -644,8 +742,8 @@ def compare(req: CompareRequest, store: DecisionStore = Depends(get_decision_sto
     after = _load_dataset(req.dataset_id_after, store)
     config = _resolve_config(req.config, req.framework_id, req.version, store)
     return compare_results(
-        _apply(before, config),
-        _apply(after, config),
+        _apply(before, config, overrides=overrides.load(store.overrides_path(before.dataset_id))),
+        _apply(after, config, overrides=overrides.load(store.overrides_path(after.dataset_id))),
         label_before=before.as_of or before.name,
         label_after=after.as_of or after.name,
     )
@@ -671,9 +769,8 @@ def post_publish(req: PublishRequest, store: DecisionStore = Depends(get_decisio
     dataset = _load_dataset(req.dataset_id, store)
     config = _resolve_config(None, req.framework_id, req.version, store)
     try:
-        snapshot = publish(
-            dataset, config, _apply(dataset, config), published_by=req.published_by, id_column=req.id_column, note=req.note
-        )
+        result = _apply(dataset, config, overrides=overrides.load(store.overrides_path(dataset.dataset_id)))
+        snapshot = publish(dataset, config, result, published_by=req.published_by, id_column=req.id_column, note=req.note)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     return store.save_published(snapshot)

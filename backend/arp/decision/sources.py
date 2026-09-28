@@ -606,3 +606,87 @@ def from_replication_runs(run_store: RunStore, run_ids: list[str] | None = None)
 
 def _num(value) -> str:
     return "" if value is None else f"{float(value):g}"
+
+
+# The company-level runs a joined table can combine, and the prefix a
+# column takes when two of them share its name.
+_JOINABLE = {"transition_plan": "TP", "extraction": "Extraction", "financials": "Financials", "tnfd": "TNFD"}
+
+
+def _normalised_name(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", name.lower())
+
+
+def from_joined_runs(run_store: RunStore, run_ids: list[str], *, include_indicators: bool = False) -> Dataset:
+    """Several company-level runs -> one table, one row per company, so a
+    criterion can combine what each run found ("a 2030 target disclosed AND
+    target coverage >= 65%").
+
+    Rows are matched on Company_Id, falling back to the company name when a
+    run has no id for it; a company missing from one run keeps blank cells
+    for that run's columns, which the scorer already treats as missing data.
+    A column two runs both have (confidence, review flag, sector) takes each
+    run's prefix -- TP_, Extraction_, Financials_, TNFD_ -- so neither is lost.
+    """
+    if len(run_ids) < 2:
+        raise ValueError("Pick at least two runs to join.")
+    parts: list[tuple[str, Dataset]] = []
+    seen: dict[str, int] = {}
+    for run_id in run_ids:
+        manifest = run_store.load_manifest(run_id)
+        if manifest is None:
+            raise ValueError(f"Run {run_id} not found.")
+        if manifest.run_type not in _JOINABLE:
+            raise ValueError(f"Run {run_id} is a {manifest.run_type} run; only {', '.join(_JOINABLE)} runs can be joined.")
+        if manifest.run_type == "transition_plan":
+            dataset = from_transition_plan_run(run_store, run_id, include_indicators=include_indicators)
+        elif manifest.run_type == "extraction":
+            dataset = from_extraction_run(run_store, run_id)
+        elif manifest.run_type == "financials":
+            dataset = from_financials_run(run_store, run_id)
+        else:
+            dataset = from_tnfd_run(run_store, run_id)
+        prefix = _JOINABLE[manifest.run_type]
+        seen[prefix] = seen.get(prefix, 0) + 1
+        parts.append((prefix if seen[prefix] == 1 else f"{prefix}{seen[prefix]}", dataset))
+
+    keys = ("Company", "Company_Id")
+    uses: dict[str, int] = defaultdict(int)
+    for _, dataset in parts:
+        for column in dataset.columns:
+            if column not in keys:
+                uses[column] += 1
+    renamed = [
+        (dataset, {c: (f"{prefix}_{c}" if uses[c] > 1 else c) for c in dataset.columns if c not in keys}) for prefix, dataset in parts
+    ]
+
+    order: list[str] = []
+    joined: dict[str, dict[str, str]] = {}
+    by_name: dict[str, str] = {}
+    confidence: dict[str, list[float | None]] = {}
+    at: dict[str, dict[str, float | None]] = defaultdict(dict)  # column -> row key -> confidence
+    for dataset, names in renamed:
+        for index, row in enumerate(dataset.rows):
+            name = row.get("Company", "")
+            key = row.get("Company_Id") or by_name.get(_normalised_name(name)) or f"name:{_normalised_name(name)}"
+            if key not in joined:
+                order.append(key)
+                joined[key] = {"Company": name, "Company_Id": row.get("Company_Id", "")}
+                by_name.setdefault(_normalised_name(name), key)
+            for column, target in names.items():
+                joined[key][target] = row.get(column, "")
+                if column in dataset.confidence:
+                    at[target][key] = dataset.confidence[column][index]
+    columns = ["Company", "Company_Id", *[t for _, names in renamed for t in names.values()]]
+    rows = [[joined[k].get(c, "") for c in columns] for k in order]
+    for column, per_row in at.items():
+        confidence[column] = [per_row.get(k) for k in order]
+
+    dataset = build_dataset(
+        "Joined: " + " + ".join(f"{prefix} {d.source_ref}" for prefix, d in parts),
+        _matrix(columns, rows),
+        source="joined_runs",
+        source_ref=",".join(run_ids),
+    )
+    dataset.confidence = confidence
+    return dataset

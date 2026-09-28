@@ -316,6 +316,19 @@ class AuditEntry(BaseModel):
     by: str | None = None
 
 
+class LevelOverride(BaseModel):
+    """A reviewer setting one criterion's level for one entity by hand, in
+    levels mode. The rules' own level stays on the result beside it
+    (CriterionContribution.overridden_from), and the override is audited."""
+
+    entity_key: str = Field(min_length=1)
+    criterion_id: str = Field(min_length=1)
+    level: int
+    reason: str = Field(min_length=3, description="Why the rules' level is wrong for this entity; shown to anyone reading the score.")
+    reviewer: str = Field(min_length=1)
+    at: str = Field(default_factory=now_iso)
+
+
 class CriterionContribution(BaseModel):
     column: str
     normalised: float | None = None
@@ -323,6 +336,11 @@ class CriterionContribution(BaseModel):
     contribution: float = 0.0
     imputed: bool = False
     low_confidence: bool = False
+    # Levels mode: which criterion this is, and, when a reviewer overrode
+    # it, the level the rules gave and the override itself.
+    criterion_id: str | None = None
+    overridden_from: float | None = None
+    override: LevelOverride | None = None
 
 
 class EntityDecision(BaseModel):

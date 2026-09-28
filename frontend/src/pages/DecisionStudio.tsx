@@ -19,6 +19,7 @@ import type {
   EntitySensitivity,
   MechanismConfig,
   AuditEntry,
+  RunManifest,
   TemplateMatch,
 } from "../types";
 import { activatable } from "../lib/activatable";
@@ -49,6 +50,7 @@ const SOURCES = [
   { id: "extraction_run", label: "Extraction run", entity: "company", needsRun: true, needsRegion: false },
   { id: "financials_run", label: "Financials run", entity: "company", needsRun: true, needsRegion: false },
   { id: "tnfd_run", label: "TNFD run", entity: "company", needsRun: true, needsRegion: false },
+  { id: "joined_runs", label: "Joined runs (by company)", entity: "company", needsRun: false, needsRegion: false },
   { id: "theme_run", label: "Thematic universe run", entity: "company", needsRun: true, needsRegion: false },
   { id: "portfolio_snapshot", label: "Portfolio snapshot + climate", entity: "company", needsRun: false, needsRegion: false },
   { id: "transition_barrier", label: "Transition barrier matrix", entity: "sector × region", needsRun: false, needsRegion: true },
@@ -57,6 +59,8 @@ const SOURCES = [
 ] as const;
 
 const BARRIER_REGIONS = ["", "European Union", "United States", "China"];
+const JOINABLE_RUN_TYPES = new Set(["transition_plan", "extraction", "financials", "tnfd"]);
+const RUN_TYPE_LABEL: Record<string, string> = { transition_plan: "Transition plan", extraction: "Extraction", financials: "Financials", tnfd: "TNFD" };
 
 export function DecisionStudio() {
   const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("data");
@@ -83,6 +87,9 @@ export function DecisionStudio() {
   const [compareWith, setCompareWith] = useState("");
   const [baseVersion, setBaseVersion] = useState<number | null>(null);
   const [includeIndicators, setIncludeIndicators] = useState(false);
+  // Joined runs: the company-level runs to combine, and the ones to pick from.
+  const [joinIds, setJoinIds] = useState<string[]>([]);
+  const [joinable, setJoinable] = useState<RunManifest[]>([]);
   const [templates, setTemplates] = useState<TemplateMatch[]>([]);
   const scoreTimer = useRef<number | undefined>(undefined);
   const view = calculated ?? dataset;
@@ -133,13 +140,22 @@ export function DecisionStudio() {
     }
   }
 
+  useEffect(() => {
+    if (source !== "joined_runs" || joinable.length) return;
+    api
+      .listRuns()
+      .then((res) => setJoinable((res as { runs: RunManifest[] }).runs.filter((r) => JOINABLE_RUN_TYPES.has(r.run_type) && r.completed_count > 0).slice(0, 40)))
+      .catch(() => {});
+  }, [source, joinable.length]);
+
   async function onFromSource() {
     const summary = await guard("Building the table…", () =>
       api.decisionDatasetFromSource({
         source,
         run_id: runId || undefined,
         region: region || undefined,
-        include_indicators: source === "transition_plan_run" && includeIndicators,
+        include_indicators: (source === "transition_plan_run" || source === "joined_runs") && includeIndicators,
+        run_ids: source === "joined_runs" ? joinIds : undefined,
       }),
     );
     if (summary) {
@@ -200,6 +216,8 @@ export function DecisionStudio() {
   // Every number on this page comes back from the engine. Editing a rule
   // re-scores server-side rather than recomputing anything locally, so what
   // is on screen is exactly what the audit trail records.
+  // Bumped when a reviewer sets or removes a level override, to score again.
+  const [overridesTick, setOverridesTick] = useState(0);
   useEffect(() => {
     if (!dataset || !config) return;
     window.clearTimeout(scoreTimer.current);
@@ -212,7 +230,7 @@ export function DecisionStudio() {
       }
     }, 300);
     return () => window.clearTimeout(scoreTimer.current);
-  }, [dataset, config]);
+  }, [dataset, config, overridesTick]);
 
   const ruleGraph = config?.rule_graph;
   useEffect(() => {
@@ -427,16 +445,41 @@ export function DecisionStudio() {
                 ))}
               </select>
             )}
-            {source === "transition_plan_run" && (
+            {(source === "transition_plan_run" || source === "joined_runs") && (
               <label>
                 <input type="checkbox" checked={includeIndicators} onChange={(e) => setIncludeIndicators(e.target.checked)} /> one
                 Yes/No column per indicator
               </label>
             )}
-            <button className="link-button" onClick={onFromSource}>
+            <button className="link-button" onClick={onFromSource} disabled={source === "joined_runs" && joinIds.length < 2}>
               Build table
             </button>
           </div>
+          {source === "joined_runs" && (
+            <div className="join-picker">
+              <p className="help-text">
+                Pick two or more runs. Rows are matched on the company id, or on the name when a run has none; a company
+                missing from a run gets blank cells for that run&apos;s columns. A column two runs share (confidence, review
+                flag) takes each run&apos;s prefix — <code>TP_</code>, <code>Extraction_</code>, <code>Financials_</code>,{" "}
+                <code>TNFD_</code>.
+              </p>
+              {joinable.length === 0 && <p className="muted">No finished Transition Plan, Extraction, Financials or TNFD runs yet.</p>}
+              {joinable.map((r) => (
+                <label key={r.run_id} className="join-run">
+                  <input
+                    type="checkbox"
+                    checked={joinIds.includes(r.run_id)}
+                    onChange={(e) => setJoinIds(e.target.checked ? [...joinIds, r.run_id] : joinIds.filter((id) => id !== r.run_id))}
+                  />
+                  <span>{RUN_TYPE_LABEL[r.run_type] ?? r.run_type}</span>
+                  <code>{r.run_id}</code>
+                  <span className="muted">
+                    {r.completed_count} companies · {new Date(r.created_at).toLocaleDateString()}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
           <p className="help-text">
             One row per {SOURCES.find((s) => s.id === source)?.entity}. Nothing in the engine assumes an entity is a
             company — a sector in a jurisdiction, a theme and a strategy are scored the same way.
@@ -663,7 +706,21 @@ export function DecisionStudio() {
                 Export CSV
               </button>
             </div>
-            <DecisionResultsTable result={result} config={config} orderBy={orderBy} onOrderBy={setOrderBy} onExplain={onExplain} />
+            <DecisionResultsTable
+              result={result}
+              config={config}
+              orderBy={orderBy}
+              onOrderBy={setOrderBy}
+              onExplain={onExplain}
+              onSetOverride={async (override) => {
+                await api.setDatasetOverride(dataset!.dataset_id, override);
+                setOverridesTick((t) => t + 1);
+              }}
+              onRemoveOverride={async (entityKey, criterionId, reviewer, reason) => {
+                await api.removeDatasetOverride(dataset!.dataset_id, { entity_key: entityKey, criterion_id: criterionId, reviewer, reason });
+                setOverridesTick((t) => t + 1);
+              }}
+            />
           </div>
 
           {sensitivity && (

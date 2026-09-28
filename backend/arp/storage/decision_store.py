@@ -152,6 +152,10 @@ class DecisionStore:
             return None
         return Dataset.model_validate_json(path.read_text())
 
+    def overrides_path(self, dataset_id: str) -> Path:
+        """Reviewers' level overrides on this table (arp.decision.overrides)."""
+        return self.frameworks_dir / "_overrides" / f"{safe_id(dataset_id, label='dataset_id')}.json"
+
     def list_datasets(self) -> list[Dataset]:
         d = self.frameworks_dir / "_datasets"
         if not d.exists():

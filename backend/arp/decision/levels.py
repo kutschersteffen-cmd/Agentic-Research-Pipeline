@@ -35,6 +35,7 @@ from arp.schemas.decision import (
     EntityDecision,
     GateRule,
     LevelCriterion,
+    LevelOverride,
     MechanismConfig,
 )
 
@@ -99,13 +100,58 @@ def _missing_level(config: MechanismConfig) -> float | None:
     return None
 
 
-def apply_levels(dataset: Dataset, config: MechanismConfig, profiles: dict[str, ColumnProfile], audit: list[AuditEntry]) -> DecisionResult:
+def apply_overrides(
+    dataset: Dataset, config: MechanismConfig, levels: list[dict[str, tuple[int | None, bool]]], overrides: list[LevelOverride], audit: list[AuditEntry]
+) -> dict[tuple[int, str], tuple[int | None, LevelOverride]]:
+    """Puts reviewers' levels in place of the rules' ones. Returns, per
+    (row, criterion) overridden, the level the rules gave and the override.
+    An override that no longer fits -- the entity or criterion is gone, or
+    the level is off this framework's scale -- is left out, and says so."""
+    rows = {str(row.get(config.label_column) or f"row_{i + 1}"): i for i, row in enumerate(dataset.rows)}
+    criteria = {c.id: c for c in config.level_criteria}
+    applied: dict[tuple[int, str], tuple[int | None, LevelOverride]] = {}
+    for override in overrides:
+        criterion = criteria.get(override.criterion_id)
+        i = rows.get(override.entity_key)
+        problem = (
+            "the entity is not in this table" if i is None
+            else "the criterion is not in this framework version" if criterion is None
+            else f"level {override.level} is off the {config.level_min}-{config.level_max} scale"
+            if not config.level_min <= override.level <= config.level_max
+            else None
+        )
+        item = f"{override.entity_key} · {criterion.name if criterion else override.criterion_id}"
+        if problem:
+            audit.append(AuditEntry(stage="Overrides", item=item, decision="not applied", why=f"{problem}; set by {override.reviewer}", needs_check=True))
+            continue
+        original = levels[i][override.criterion_id][0] if override.criterion_id in levels[i] else None
+        levels[i][override.criterion_id] = (override.level, False)
+        applied[(i, override.criterion_id)] = (original, override)
+        audit.append(
+            AuditEntry(
+                stage="Overrides",
+                item=item,
+                decision=f"level {'none' if original is None else original} -> {override.level} by {override.reviewer}",
+                why=override.reason,
+            )
+        )
+    return applied
+
+
+def apply_levels(
+    dataset: Dataset,
+    config: MechanismConfig,
+    profiles: dict[str, ColumnProfile],
+    audit: list[AuditEntry],
+    overrides: list[LevelOverride] | None = None,
+) -> DecisionResult:
     from arp.decision.mechanism import _PREVIEW_ROWS, _cohort_values, _cuts_fallback_reason, _histogram, _tier_summary
 
     n = dataset.row_count
     weights = level_weights(config)
     criteria: dict[str, LevelCriterion] = {c.id: c for c in config.level_criteria if c.enabled and c.id in weights}
     levels, errors = evaluate_levels(dataset, config, profiles)
+    overridden = apply_overrides(dataset, config, levels, overrides or [], audit)
     if errors:
         audit.append(
             AuditEntry(
@@ -132,6 +178,7 @@ def apply_levels(dataset: Dataset, config: MechanismConfig, profiles: dict[str, 
                 covered += weights[cid]
             if value is not None:
                 by_cluster.setdefault(criterion.dimension_id, []).append((value, criterion.weight))
+            original, override = overridden.get((i, cid), (None, None))
             contributions.append(
                 CriterionContribution(
                     column=criterion.name,
@@ -139,6 +186,9 @@ def apply_levels(dataset: Dataset, config: MechanismConfig, profiles: dict[str, 
                     weight=weights[cid],
                     contribution=(value or 0.0) * weights[cid],
                     imputed=imputed,
+                    criterion_id=cid,
+                    overridden_from=float(original) if override is not None and original is not None else None,
+                    override=override,
                 )
             )
         cluster_scores: dict[str, float | None] = {}
@@ -170,7 +220,7 @@ def apply_levels(dataset: Dataset, config: MechanismConfig, profiles: dict[str, 
     entities: list[EntityDecision] = []
     for i, row in enumerate(dataset.rows):
         total, covered, cluster_scores, contributions = rows_scored[i]
-        notes: list[str] = []
+        notes: list[str] = [f"Override: {c.column} {'—' if c.overridden_from is None else f'{c.overridden_from:g}'} → {c.normalised:g}" for c in contributions if c.override is not None]
         status = "scored"
         tier: int | None = None
         if excluded_by[i] is not None:
