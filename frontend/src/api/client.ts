@@ -75,6 +75,8 @@ import type {
   SecurityResolution,
   SearchResponse,
   TransitionPlanAssessmentRecord,
+  ExtractionProfile,
+  TnfdRecord,
   TransitionPlanIndicatorDef,
   TrendPoint,
 } from "../types";
@@ -173,8 +175,6 @@ export const api = {
   // Extraction
   draftSchema: (criteriaText: string) =>
     request("/api/extraction/schemas/draft", { method: "POST", body: JSON.stringify({ criteria_text: criteriaText }) }),
-  startExtractionRun: (body: unknown) =>
-    request<{ run_id: string; company_count: number }>("/api/extraction/runs", { method: "POST", body: JSON.stringify(body) }),
   getExtractionResults: (runId: string, offset = 0, limit = 500) =>
     request(`/api/extraction/runs/${runId}/results?offset=${offset}&limit=${limit}`),
   getExtractionReviewQueue: (runId: string) => request(`/api/extraction/runs/${runId}/review-queue`),
@@ -187,8 +187,14 @@ export const api = {
     request(`/api/extraction/companies/${encodeURIComponent(companyId)}/results`),
 
   // Company Financials (business segments + CapEx + R&D, one combined pass)
-  startFinancialsRun: (body: unknown) =>
-    request<{ run_id: string; company_count: number }>("/api/financials/runs", { method: "POST", body: JSON.stringify(body) }),
+  /** One entry point for every extraction profile; returns which run type it started. */
+  startExtraction: (body: { profile: ExtractionProfile } & Record<string, unknown>) =>
+    request<{ run_id: string; company_count: number; run_type: RunScoringKind }>("/api/extraction/start", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  getTnfdResults: (runId: string, offset = 0, limit = 500) =>
+    request<{ total: number; results: TnfdRecord[] }>(`/api/tnfd/runs/${runId}/results?offset=${offset}&limit=${limit}`),
   getFinancialsResults: (runId: string, offset = 0, limit = 500) =>
     request(`/api/financials/runs/${runId}/results?offset=${offset}&limit=${limit}`),
   getFinancialsReviewQueue: (runId: string) => request(`/api/financials/runs/${runId}/review-queue`),
@@ -202,8 +208,6 @@ export const api = {
 
   // Transition Plan Assessment (64-indicator walk/talk RAG disclosure assessment)
   getTransitionPlanIndicators: () => request<TransitionPlanIndicatorDef[]>("/api/transition-plan/indicators"),
-  startTransitionPlanRun: (body: unknown) =>
-    request<{ run_id: string; company_count: number }>("/api/transition-plan/runs", { method: "POST", body: JSON.stringify(body) }),
   getTransitionPlanResults: (runId: string, offset = 0, limit = 500) =>
     request<{ total: number; results: TransitionPlanAssessmentRecord[] }>(
       `/api/transition-plan/runs/${runId}/results?offset=${offset}&limit=${limit}`,
