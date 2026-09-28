@@ -24,7 +24,6 @@ World until constituents are connected; every output says so.
 from __future__ import annotations
 
 import copy
-import json
 from datetime import UTC, datetime
 from math import fsum
 from pathlib import Path
@@ -56,11 +55,11 @@ from arp.stewardship.policy_graph import evaluate as evaluate_votes
 from arp.stewardship.policy_graph import generate
 from arp.stewardship.policy_review import review
 from arp.stewardship.process import (
-    SAMPLE_PATH,
     client_escalations,
     client_store,
     current_tiers,
     escalation_contexts,
+    load_sample,
     open_exceptions,
 )
 from arp.stewardship.tiers import TIER_LABELS
@@ -144,7 +143,7 @@ def _weighted_clti(rows: list[dict], key: str) -> float:
 def simulate(root: Path, stream: dict, records: list[EngagementRecord], sla_days: int, params: dict | None = None) -> dict:
     p = ProgramParams(**(params if params is not None else stream.get("program", {}).get("params", {})))
     if p.benchmark == SAMPLE:
-        sample, bench = json.loads(SAMPLE_PATH.read_text()), None
+        sample, bench = load_sample(), None
     else:
         try:
             bench = BenchmarkStore(root).get(p.benchmark)
@@ -525,7 +524,7 @@ def monitor(root: Path, stream: dict, records: list[EngagementRecord], sla_days:
     new, gone = sorted(current.keys() - frozen.keys()), sorted(frozen.keys() - current.keys())
 
     live = {(r.company_id, i.theme): i for r in records for i in r.issues if i.status in (IssueStatus.OPEN, IssueStatus.STALLED)}
-    ctxs = escalation_contexts(root, json.loads(SAMPLE_PATH.read_text()), records, sla_days)
+    ctxs = escalation_contexts(root, load_sample(), records, sla_days)
     house = escalation.evaluate(PolicyStore(root).active("escalation_rules"), ctxs)
     waiting = {
         (r["company_id"], r["theme"]) for r in open_exceptions(stream, client_escalations(root, stream["stream_id"], ctxs, house))

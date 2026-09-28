@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import type {
+  PublishedDecision,
   ConstraintSolver,
   ConstructionSpec,
   IndexCalibration,
@@ -113,6 +114,8 @@ function NumberField({
  * All-caps ids (solver names) are proper names and pass through. */
 const OPTION_WORDS: Record<string, string> = { mcap: "market cap", zscore: "z-score", n: "N" };
 function optionLabel(id: string): string {
+  // decision.<framework_id>.<field>: only one publication is joined at a time.
+  if (id.startsWith("decision.")) return `Decision Studio ${id.split(".").pop()!.replace("_", " ")}`;
   if (id === id.toUpperCase()) return id;
   const text = id.split("_").map((w) => OPTION_WORDS[w] ?? w).join(" ");
   return text.charAt(0).toUpperCase() + text.slice(1);
@@ -206,11 +209,26 @@ export function IndexBuilder() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
-  const fields = catalogue?.fields ?? { metrics: [], flags: [], categories: [] };
+  // Published Decision Studio results (process gap #1): a chosen one joins the
+  // universe by company id, so its fields become pickable in every rule below.
+  const [publications, setPublications] = useState<PublishedDecision[]>([]);
+  const [snapshotId, setSnapshotId] = useState("");
+  const snapshot = publications.find((p) => p.snapshot_id === snapshotId);
+  const fields = useMemo(() => {
+    const baseFields = catalogue?.fields ?? { metrics: [], flags: [], categories: [] };
+    if (!snapshot) return baseFields;
+    const p = `decision.${snapshot.framework_id}`;
+    return {
+      ...baseFields,
+      metrics: [...baseFields.metrics, `${p}.score`, `${p}.tier`, `${p}.rank`, `${p}.rank_max`],
+      categories: [...baseFields.categories, `${p}.tier_name`],
+    };
+  }, [catalogue, snapshot]);
 
   useEffect(() => {
     api.getIndexCatalogue().then(setCatalogue).catch((e) => setError(`Presets and screens could not be loaded (${e instanceof Error ? e.message : String(e)}). Retry by reloading the page.`));
     refreshCalibrations();
+    api.listPublishedDecisions().then(setPublications).catch(() => setPublications([]));
   }, []);
 
   async function refreshCalibrations() {
@@ -260,6 +278,7 @@ export function IndexBuilder() {
         spec,
         persist,
         use_prior_state: true,
+        decision_snapshot_ids: snapshotId ? [snapshotId] : [],
       });
       setResult(review);
       setSub("result");
@@ -328,6 +347,24 @@ export function IndexBuilder() {
                 Empty
               </button>
             </div>
+            <label className="field-label">
+              Scores from Decision Studio
+              <select value={snapshotId} onChange={(e) => setSnapshotId(e.target.value)}>
+                <option value="">None</option>
+                {publications.map((p) => (
+                  <option key={p.snapshot_id} value={p.snapshot_id}>
+                    {p.framework_name} v{p.framework_version} · {p.dataset_name} · published {p.published_at.slice(0, 10)} by {p.published_by}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="help-text">
+              {snapshot
+                ? <>Adds <code>decision.{snapshot.framework_id}.score</code>, <code>.tier</code> and <code>.rank</code> to the fields below, joined by company id. Companies without a match lack the field, so a rule on it hits its missing-value policy. A review dated before the publication is refused.</>
+                : publications.length === 0
+                  ? <>Nothing published yet: ratify and publish a framework in <a href="#/decision">Decision Studio</a> to screen, select or tilt on its tiers.</>
+                  : "Optional: screen, select or tilt on a ratified Decision Studio result."}
+            </p>
           </div>
 
           <div className="ix-step" id="ix-screens">
@@ -1354,6 +1391,17 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
             </div>
           )}
         </div>
+
+        {(result.input_notes ?? []).length > 0 && (
+          <>
+            <h4>Decision Studio scores read</h4>
+            <ul>
+              {result.input_notes!.map((note, i) => (
+                <li key={i}>{note}</li>
+              ))}
+            </ul>
+          </>
+        )}
 
         {result.exceptions.length > 0 && (
           <>

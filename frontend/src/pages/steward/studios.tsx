@@ -3,6 +3,7 @@ import { DecisionGraph, JdmConfigProvider, type DecisionGraphType } from "@gorul
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client";
 import type {
+  DecisionInput,
   CatalogueIssue,
   ClientEscalationPreview,
   ClientReport,
@@ -307,6 +308,45 @@ function PolicyCanvas({ graph, onChange }: { graph: Record<string, unknown>; onC
   );
 }
 
+/** Decision Studio publications the coverage rules can read (process gap #1:
+ * Decision Studio -> Selection). They arrive as issuer fields; a rule has to
+ * use them, and tier changes are still confirmed at stage 5. */
+function DecisionInputs() {
+  const [inputs, setInputs] = useState<{ in_scope: number; published: DecisionInput[] } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    api.getDecisionInputs().then(setInputs, (e: Error) => setError(e.message));
+  }, []);
+  return (
+    <Section step="Inputs" title="Tiers published from Decision Studio">
+      {error && <p className="error-text">{error}</p>}
+      {inputs && inputs.published.length === 0 && (
+        <p className="muted">
+          Nothing published yet. Ratify a framework in <a href="#/decision">Decision Studio</a> and publish it; its tiers then appear
+          here as company fields.
+        </p>
+      )}
+      {inputs && inputs.published.length > 0 && (
+        <>
+          <p className="help-text">
+            Add a column on one of these fields to the coverage table below, e.g. <code>{inputs.published[0].field}.tier</code> (also{" "}
+            <code>.score</code>, <code>.rank</code>, <code>.tier_name</code>). Issuers without a match don't have the field.
+          </p>
+          <DataTable
+            rows={inputs.published.map((p) => ({
+              framework: `${p.framework_name} v${p.framework_version}`,
+              table: p.dataset_name + (p.as_of ? ` (as of ${p.as_of})` : ""),
+              published: `${new Date(p.published_at).toLocaleDateString()} by ${p.published_by}`,
+              matched: `${p.matched} of ${inputs.in_scope} issuers`,
+              field: p.field,
+            }))}
+          />
+        </>
+      )}
+    </Section>
+  );
+}
+
 export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
   const draft = useRuleDraft<CoveragePreview>("coverage_rules", api.previewCoverage);
   const { info, graph, preview } = draft;
@@ -338,6 +378,7 @@ export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
           </button>
         </div>
       </Section>
+      <DecisionInputs />
       <ActorField actor={actor} onChange={setActor} />
       {draft.error && <p className="error-text">{draft.error}</p>}
       <Section step="Design" title="Coverage rules">

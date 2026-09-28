@@ -2105,6 +2105,8 @@ export interface IndexReviewResult {
   trace: StageTrace[];
   state: IndexState;
   exceptions: string[];
+  decision_snapshot_ids?: string[];
+  input_notes?: string[];
   created_at: string;
 }
 
@@ -2581,4 +2583,33 @@ export interface VotingPreview {
   changed_rows: { resolution_id: string; category: string; base_vote: string; other_vote: string; issues: string[] }[];
   unused_parameters: Record<string, string[]>;
   no_vote_effect: string[];
+}
+
+/** A ratified Decision Studio result, frozen for Steward Workflow and Index Construction. */
+export interface PublishedDecision {
+  snapshot_id: string;
+  framework_id: string;
+  framework_version: number;
+  framework_name: string;
+  dataset_id: string;
+  dataset_name: string;
+  as_of?: string | null;
+  id_column: string;
+  published_by: string;
+  published_at: string;
+  note: string;
+  rows: { entity_id: string; name: string; score: number | null; tier: number | null; tier_name: string | null; rank: number | null; status: string }[];
+}
+
+export interface DecisionInput {
+  snapshot_id: string;
+  framework_name: string;
+  framework_version: number;
+  dataset_name: string;
+  as_of?: string | null;
+  published_by: string;
+  published_at: string;
+  field: string;
+  rows: number;
+  matched: number;
 }

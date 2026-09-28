@@ -11,7 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from arp.api.deps import get_engagement_store, get_stream_store, settings_dep
+from arp.api.deps import get_decision_store, get_engagement_store, get_stream_store, settings_dep
 from arp.config import Settings
 from arp.schemas.engagement import (
     Commitment,
@@ -30,7 +30,6 @@ from arp.stewardship.policies import PolicyStore, coverage_preview, voting_previ
 from arp.stewardship.policy_review import DATA, load
 from arp.stewardship.process import (
     HOUSE,
-    SAMPLE_PATH,
     StreamStore,
     build_stream_policy,
     client_escalations,
@@ -38,6 +37,7 @@ from arp.stewardship.process import (
     confirm_tiers,
     escalation_contexts,
     flow,
+    load_sample,
     open_exceptions,
     record_decision,
     tier_review,
@@ -45,6 +45,7 @@ from arp.stewardship.process import (
 from arp.stewardship.program import ProgramParams, approve, build_proposal, monitor, record_run, simulate
 from arp.stewardship.style import check as style_check
 from arp.stewardship.tiers import TierStore, tier_contexts
+from arp.storage.decision_store import DecisionStore
 from arp.storage.engagement_store import EngagementStore
 
 router = APIRouter(prefix="/api/stewardship", tags=["stewardship"])
@@ -152,7 +153,7 @@ def get_tiers(
 ) -> dict:
     """The tier report (E1): distribution of confirmed tiers, the latest assignment
     per issuer with the rule that decided it, and the changes awaiting confirmation."""
-    review = tier_review(streams.root, json.loads(SAMPLE_PATH.read_text()), engagements.list_all())
+    review = tier_review(streams.root, load_sample(), engagements.list_all())
     return {**review, "assignments": list(TierStore(streams.root).latest().values())}
 
 
@@ -209,7 +210,7 @@ def save_policy_version(
 ) -> dict:
     store = _store(streams, stream, policy_id)
     try:
-        version = store.save(policy_id, body.content, body.note, body.created_by, json.loads(SAMPLE_PATH.read_text()))
+        version = store.save(policy_id, body.content, body.note, body.created_by, load_sample())
     except (ValueError, KeyError) as exc:
         raise HTTPException(422, str(exc)) from exc
     return {"version": version}
@@ -236,10 +237,35 @@ def get_catalogue() -> dict:
     return load("policy_issue_catalogue.json")
 
 
+@router.get("/decision-inputs")
+def decision_inputs(decisions: DecisionStore = Depends(get_decision_store)) -> dict:
+    """Decision Studio publications the coverage rules can read, and how many
+    issuers in scope each one matched. Unmatched issuers simply lack the field."""
+    issuer_ids = {i["issuer_id"] for i in load_sample()["issuers"]}
+    return {
+        "in_scope": len(issuer_ids),
+        "published": [
+            {
+                "snapshot_id": s.snapshot_id,
+                "framework_name": s.framework_name,
+                "framework_version": s.framework_version,
+                "dataset_name": s.dataset_name,
+                "as_of": s.as_of,
+                "published_by": s.published_by,
+                "published_at": s.published_at,
+                "field": f"issuer.decision.{s.framework_id}",
+                "rows": len(s.rows),
+                "matched": sum(1 for r in s.rows if r.entity_id in issuer_ids),
+            }
+            for s in decisions.latest_published()
+        ],
+    }
+
+
 @router.get("/studio/coverage/inputs")
 def coverage_inputs(engagements: EngagementStore = Depends(get_engagement_store)) -> dict:
     """The per-company inputs the coverage rules see (for the rule editor's live preview)."""
-    return {"contexts": tier_contexts(json.loads(SAMPLE_PATH.read_text()), engagements.list_all())}
+    return {"contexts": tier_contexts(load_sample(), engagements.list_all())}
 
 
 class CoveragePreviewRequest(BaseModel):
@@ -256,7 +282,7 @@ def post_coverage_preview(
         return coverage_preview(
             body.graph,
             PolicyStore(streams.root).active("coverage_rules"),
-            json.loads(SAMPLE_PATH.read_text()),
+            load_sample(),
             engagements.list_all(),
         )
     except (ValueError, RuntimeError) as exc:
@@ -270,7 +296,7 @@ class VotingPreviewRequest(BaseModel):
 @router.post("/studio/voting/preview")
 def post_voting_preview(body: VotingPreviewRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
     try:
-        return voting_preview(body.policy, PolicyStore(streams.root).active("house_voting"), json.loads(SAMPLE_PATH.read_text()))
+        return voting_preview(body.policy, PolicyStore(streams.root).active("house_voting"), load_sample())
     except (ValueError, KeyError, RuntimeError) as exc:
         raise HTTPException(422, f"The voting policy does not run: {exc}") from exc
 
@@ -283,7 +309,7 @@ def monitoring_triggers(
 ) -> dict:
     """The triggers the active monitoring rules raise on company data, matched to
     open engagements, followed by the tracking triggers from the engagements themselves."""
-    sample, records = json.loads(SAMPLE_PATH.read_text()), engagements.list_all()
+    sample, records = load_sample(), engagements.list_all()
     rules = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, records)
     return {"triggers": rules + tracking.triggers(records, settings.engagement_sla_days)}
 
@@ -302,7 +328,7 @@ def post_monitoring_preview(
         return monitoring.preview(
             body.graph,
             PolicyStore(streams.root).active("monitoring_rules"),
-            json.loads(SAMPLE_PATH.read_text()),
+            load_sample(),
             engagements.list_all(),
         )
     except (ValueError, RuntimeError) as exc:
@@ -325,7 +351,7 @@ def open_engagement_from_trigger(
     severity come from the rule, not the request."""
     if not body.decided_by.strip():
         raise HTTPException(422, "Opening an engagement needs decided_by")
-    sample = json.loads(SAMPLE_PATH.read_text())
+    sample = load_sample()
     triggers = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, engagements.list_all())
     trigger = next((t for t in triggers if t["issuer_id"] == body.issuer_id and t["rule"] == body.rule), None)
     if trigger is None:
@@ -346,7 +372,7 @@ def open_engagement_from_trigger(
 
 def _escalation_contexts(settings: Settings, streams: StreamStore, engagements: EngagementStore) -> list[dict]:
     return escalation_contexts(
-        streams.root, json.loads(SAMPLE_PATH.read_text()), engagements.list_all(), settings.engagement_sla_days
+        streams.root, load_sample(), engagements.list_all(), settings.engagement_sla_days
     )
 
 

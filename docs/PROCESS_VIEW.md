@@ -42,10 +42,21 @@ edit when a process changes.
 Each of these is a place where a person carries data between screens by hand.
 They are listed by how often a process crosses them.
 
-1. **Decision Studio → Steward · Selection / Index Construction.** Tiers and
-   scores don't reach coverage tiers or index screens. Two processes end here. Fix:
-   export a scored table as an index score snapshot and as a tier proposal that
-   Selection shows *proposed*, never applied.
+1. ~~**Decision Studio → Steward · Selection / Index Construction.**~~ **Closed.**
+   A ratified framework's result can be *published*: frozen, signed by a named
+   person, with each row matched to an issuer by its id column (`Company_Id`,
+   `issuer_id`, …). Consumers read the latest publication per framework as
+   ordinary company fields, `decision.<framework_id>.tier` / `.score` / `.rank`:
+   - **Steward · Selection**: the fields reach the coverage rules as
+     `issuer.decision.<framework_id>.*`. A person adds a column that uses them,
+     and tier changes are confirmed at stage 5 as before. The studio lists each
+     publication and how many issuers in scope it matched.
+   - **Index Construction**: pick a publication under *Start from a preset*. Its
+     fields join the universe by company id and become pickable in every rule.
+     A candidate without a match lacks the field, so the rule's missing-value
+     policy decides. A review dated before the publication is refused, and the
+     review records which publications it read.
+   Strategy research stays manual here: its rows are strategies, not companies.
 2. **Proxy Voting run → Steward · Voting / Checkpoint.** The stewardship voting stage
    reads its own data, not the ballots decided in Proxy Voting. Fix: have the
    stewardship flow read decided ballots from voting runs.

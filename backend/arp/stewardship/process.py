@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from arp.decision.publish import as_fields
 from arp.engagement.orchestrator import is_stalled
 from arp.schemas.engagement import EngagementRecord, IssueStatus, MilestoneStage
 from arp.stewardship import escalation, monitoring, tracking
@@ -34,9 +35,27 @@ from arp.stewardship.policy_review import DATA, build, decide, review
 from arp.stewardship.tiers import TIER_LABELS, TIERS, TierStore, review_tiers, tier_contexts
 from arp.stewardship.tiers import evaluate as evaluate_tiers
 from arp.storage.atomic_io import atomic_write_text
+from arp.storage.decision_store import DecisionStore
 
 SAMPLE_PATH = DATA / "examples" / "sample_meetings.json"
 HOUSE = "house"
+
+
+def load_sample(frameworks_dir: Path | None = None) -> dict:
+    """The issuer sample with each framework's latest published decision
+    merged in as company fields (`decision.<framework_id>.tier`, `.score`,
+    `.rank`...), matched by issuer id. Coverage, monitoring and escalation
+    rules can then read Decision Studio's tiers like any other field."""
+    if frameworks_dir is None:
+        from arp.config import get_settings
+
+        frameworks_dir = get_settings().frameworks_dir
+    sample = json.loads(SAMPLE_PATH.read_text())
+    for snapshot in DecisionStore(frameworks_dir).latest_published():
+        fields = as_fields(snapshot)
+        for issuer in sample["issuers"]:
+            issuer["fields"].update(fields.get(issuer["issuer_id"], {}))
+    return sample
 
 
 class StreamStore:
@@ -507,7 +526,7 @@ EDGES = [
 
 
 def flow(stream_id: str, streams: StreamStore, records: list[EngagementRecord], sla_days: int) -> dict:
-    sample = json.loads(SAMPLE_PATH.read_text())
+    sample = load_sample()
     house_policy = PolicyStore(streams.root).active("house_voting")
     tiers = tier_review(streams.root, sample, records)
     triggers = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, records)
@@ -588,7 +607,7 @@ def tier_review(root: Path, sample: dict, records: list[EngagementRecord]) -> di
 
 def confirm_tiers(root: Path, records: list[EngagementRecord], decided_by: str, issuer_ids: list[str] | None = None) -> int:
     """Confirms the proposed tier changes (all of them, or the listed issuers)."""
-    changes = tier_review(root, json.loads(SAMPLE_PATH.read_text()), records)["changes"]
+    changes = tier_review(root, load_sample(), records)["changes"]
     wanted = [c for c in changes if issuer_ids is None or c["issuer_id"] in issuer_ids]
     store = TierStore(root)
     for change in wanted:

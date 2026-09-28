@@ -75,6 +75,7 @@ import type {
   TransitionPlanIndicatorDef,
   TrendPoint,
 } from "../types";
+import type { DecisionInput, PublishedDecision } from "../types";
 import type { QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, TemplateStyleProfile } from "../types";
 import type { PaperCandidate, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
 import type {
@@ -709,6 +710,10 @@ export const api = {
   compareDecisions: (body: { dataset_id_before: string; dataset_id_after: string; config?: MechanismConfig; framework_id?: string; version?: number }) =>
     request<DecisionComparison>("/api/decision/compare", { method: "POST", body: JSON.stringify(body) }),
   decisionExportUrl: () => `${API_BASE}/api/decision/export.csv`,
+  publishDecision: (body: { dataset_id: string; framework_id: string; version?: number; published_by: string; id_column?: string; note?: string }) =>
+    request<PublishedDecision>("/api/decision/publish", { method: "POST", body: JSON.stringify(body) }),
+  listPublishedDecisions: () => request<PublishedDecision[]>("/api/decision/published"),
+  getDecisionInputs: () => request<{ in_scope: number; published: DecisionInput[] }>("/api/stewardship/decision-inputs"),
   // Index construction
   getIndexCatalogue: () => request<IndexCatalogue>("/api/index/catalogue"),
   getIndexPreset: (name: string) => request<ConstructionSpec>(`/api/index/presets/${name}`),
@@ -732,5 +737,6 @@ export const api = {
     calibration_id?: string;
     persist?: boolean;
     use_prior_state?: boolean;
+    decision_snapshot_ids?: string[];
   }) => request<IndexReviewResult>("/api/index/run", { method: "POST", body: JSON.stringify(body) }),
 };
