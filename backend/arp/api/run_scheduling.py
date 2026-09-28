@@ -4,11 +4,16 @@ import asyncio
 from collections.abc import Awaitable, Callable
 
 from arp.api.deps import get_llm_client, get_verifier_llm_client
+from arp.config import Settings
 from arp.llm.base import LLMClient
+from arp.llm.factory import build_llm_client, build_verifier_llm_client
 
 
 def schedule_llm_run(
-    *, create_fn: Callable[[], str], run: Callable[[str, LLMClient, LLMClient], Awaitable[None]]
+    *,
+    create_fn: Callable[[], str],
+    run: Callable[[str, LLMClient, LLMClient], Awaitable[None]],
+    settings: Settings | None = None,
 ) -> str:
     """The shared shape of every `POST /runs` endpoint that needs an LLM
     (themes, extraction, financials, voting, identity): resolve both LLM
@@ -31,9 +36,12 @@ def schedule_llm_run(
     scheduled as a background asyncio task, not awaited here, so the
     endpoint returns immediately. A `run` for a pipeline with no separate
     verifier role (e.g. voting, identity) simply ignores the third arg.
+
+    `settings`, when given, builds both clients from it rather than the
+    app's settings -- how a run started with its own models gets them.
     """
-    llm = get_llm_client()
-    verifier_llm = get_verifier_llm_client()
+    llm = build_llm_client(settings) if settings else get_llm_client()
+    verifier_llm = build_verifier_llm_client(settings) if settings else get_verifier_llm_client()
     run_id = create_fn()
     asyncio.create_task(run(run_id, llm, verifier_llm))
     return run_id

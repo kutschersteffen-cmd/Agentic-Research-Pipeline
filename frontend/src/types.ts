@@ -11,7 +11,7 @@ export type JobStatus = "pending" | "running" | "completed" | "partially_complet
 
 // The run types the Review Queue endpoints exist for -- a subset of every
 // run_type, since discovery has no review queue of its own.
-export type ReviewableRunKind = "theme" | "extraction" | "financials" | "identity";
+export type ReviewableRunKind = "theme" | "extraction" | "financials" | "identity" | "transition_plan" | "tnfd";
 
 export interface CompanyRef {
   company_id: string;
@@ -44,6 +44,7 @@ export interface RunManifest {
   input_tokens: number;
   output_tokens: number;
   estimated_cost_usd: number;
+  cancel_requested?: boolean;
   model?: string | null;
   error?: string | null;
 }
@@ -2705,3 +2706,70 @@ export interface TnfdRecord {
 }
 
 export type ExtractionProfile = "custom" | "financials" | "tnfd" | "transition_plan";
+
+/** Per-run step settings from the node editor; a key left out keeps the app's setting. */
+export interface StepSettings {
+  pre_identity_enabled?: boolean | null;
+  pre_content_search_enabled?: boolean | null;
+  pre_document_mgmt_enabled?: boolean | null;
+  pre_parse_index_enabled?: boolean | null;
+  hybrid_retrieval_enabled?: boolean | null;
+  xbrl_facts_enabled?: boolean | null;
+  llm_model?: string | null;
+  llm_verifier_model?: string | null;
+  grounding_fuzzy_threshold?: number | null;
+  confidence_review_threshold?: number | null;
+}
+export type StepSettingKey = keyof StepSettings;
+
+export interface StepSettingInfo {
+  label: string;
+  type: "bool" | "number" | "model";
+  help: string;
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+export interface PipelineNode {
+  id: string;
+  label: string;
+  about: string;
+  /** Runs once per item (field, indicator or company); false for the company-level steps. */
+  per_item: boolean;
+  settings: StepSettingKey[];
+  /** A step before extraction that each run switches on or off. */
+  optional?: boolean;
+}
+
+/** A profile's steps, read from the per-item graph the backend runs. */
+export interface PipelineShape {
+  profile: ExtractionProfile;
+  nodes: PipelineNode[];
+  edges: { source: string; target: string; conditional: boolean }[];
+  setting_info: Record<StepSettingKey, StepSettingInfo>;
+  defaults: Required<{ [K in StepSettingKey]: NonNullable<StepSettings[K]> }>;
+}
+
+export interface RunSteps {
+  /** Items through each step, for the run or the company asked for. */
+  counts: Record<string, number>;
+  /** Seconds those items spent in each step, summed. */
+  seconds: Record<string, number>;
+  /** What each step before extraction found: one company's findings, or numbers summed across the run. */
+  details: Record<string, Record<string, string | number | boolean | string[] | null>>;
+  /** Still counting: the run is executing in this server process. */
+  live: boolean;
+  settings: StepSettings | null;
+  /** Set when this run is a restart of another from one of its steps. */
+  restarted_from: { run_id: string; step: string; company_count: number } | null;
+  /** Started from the Extraction screen, so it can be restarted from a step. */
+  restartable: boolean;
+}
+
+export interface RunCompany {
+  company_id: string;
+  name: string;
+  /** review: a step before extraction stopped it, and its error report waits in the review queue. */
+  status: "done" | "failed" | "review" | "waiting";
+}

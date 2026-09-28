@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -20,7 +20,9 @@ from arp.config import Settings
 from arp.decision.templates import attach_to_run
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.schema_builder import draft_schema
+from arp.extraction.steps import ExtractionProfile, StepSettings, pipeline_shape, restart_overrides
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.orchestration.step_tally import step_counts
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema
 from arp.storage.decision_store import DecisionStore
@@ -90,11 +92,8 @@ async def start_extraction_run(
             run_store=run_store,
         )
 
-    run_id = schedule_llm_run(create_fn=_create, run=_run)
+    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings)
     return {"run_id": run_id, "company_count": len(companies)}
-
-
-ExtractionProfile = Literal["custom", "financials", "tnfd", "transition_plan"]
 
 
 class StartRequest(BaseModel):
@@ -108,6 +107,7 @@ class StartRequest(BaseModel):
     universe_path: str | None = None
     decision_framework_id: str | None = Field(default=None, description="Decision Studio framework applied as the run's last step.")
     decision_framework_version: int | None = None
+    step_settings: StepSettings | None = Field(default=None, description="Per-run step settings from the node editor.")
 
 
 @router.post("/start")
@@ -120,14 +120,23 @@ async def start_extraction(
     xbrl_source=Depends(get_xbrl_source),
 ) -> dict:
     """The single entry point for the extraction pipelines: custom schema,
-    financials, TNFD and transition plan. It hands the request to that
-    pipeline's own start endpoint, which stays available for existing
-    callers. Returns `run_type` so a caller knows which results to read."""
+    financials, TNFD and transition plan, over a batch or a single company.
+    It hands the request to that pipeline's own start endpoint, which stays
+    available for existing callers. Returns `run_type` so a caller knows
+    which results to read."""
+    if req.step_settings:
+        settings = req.step_settings.apply(settings)
+    return await _dispatch(req, settings, run_store, registry, decision_store, xbrl_source)
+
+
+async def _dispatch(req: StartRequest, settings: Settings, run_store: RunStore, registry, decision_store, xbrl_source) -> dict:
     from arp.api.routers import financials, tnfd, transition_plan
 
+    companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
+    if not companies:
+        raise HTTPException(400, "Provide either `companies` or `universe_path`.")
     common = {
-        "companies": req.companies,
-        "universe_path": req.universe_path,
+        "companies": companies,
         "decision_framework_id": req.decision_framework_id,
         "decision_framework_version": req.decision_framework_version,
     }
@@ -146,7 +155,132 @@ async def start_extraction(
     else:
         started = await transition_plan.start_transition_plan_run(transition_plan.RunRequest(**common), **stores)
         run_type = "transition_plan"
+    run_dir = run_store.run_dir(started["run_id"])
+    # What the run used, overrides or not, for its step view; and what it
+    # was started with, companies resolved, so it can be restarted.
+    (run_dir / "step_settings.json").write_text(StepSettings.effective(settings).model_dump_json())
+    saved = req.model_copy(update={"companies": companies, "universe_path": None, "step_settings": StepSettings.effective(settings)})
+    (run_dir / "start_request.json").write_text(saved.model_dump_json())
     return {**started, "run_type": run_type}
+
+
+@router.get("/pipeline")
+def get_pipeline(profile: ExtractionProfile, settings: Settings = Depends(settings_dep)) -> dict:
+    """The profile's steps for the node editor: nodes, edges, the settings
+    each node exposes, and the app's current values for them."""
+    return pipeline_shape(profile, settings)
+
+
+def _manifest_or_404(run_store: RunStore, run_id: str):
+    manifest = run_store.load_manifest(run_id)
+    if manifest is None:
+        raise HTTPException(404, "Run not found")
+    return manifest
+
+
+def _saved(run_store: RunStore, run_id: str, name: str) -> str | None:
+    path = run_store.run_dir(run_id) / name
+    return path.read_text() if path.exists() else None
+
+
+@router.get("/runs/{run_id}/steps")
+def get_run_steps(run_id: str, company_id: str | None = None, run_store: RunStore = Depends(get_run_store)) -> dict:
+    """How many items went through each step and the seconds they spent
+    there, for the run or one company, live while the run executes; the
+    step settings it was started with (null for runs started before the
+    node editor, or not through /start); and the run it restarted, if any."""
+    _manifest_or_404(run_store, run_id)
+    view, live = step_counts(run_store, run_id, company_id)
+    settings = _saved(run_store, run_id, "step_settings.json")
+    restarted = _saved(run_store, run_id, "restarted_from.json")
+    return {
+        **view,
+        "live": live,
+        "settings": StepSettings.model_validate_json(settings) if settings else None,
+        "restarted_from": json.loads(restarted) if restarted else None,
+        "restartable": _saved(run_store, run_id, "start_request.json") is not None,
+    }
+
+
+@router.get("/runs/{run_id}/companies")
+def get_run_companies(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+    """Every company in the run with where it stands: done, failed, in
+    review (a step before extraction stopped it, with an error report in
+    the review queue), or still waiting (queued or in flight)."""
+    _manifest_or_404(run_store, run_id)
+    saved = _saved(run_store, run_id, "start_request.json")
+    done = {r.get("company_id") for r in run_store.read_jsonl(run_store.results_path(run_id))}
+    errors = run_store.read_jsonl(run_store.errors_path(run_id))
+    review = {r.get("key") for r in errors if r.get("review")} - done
+    failed = {r.get("key") for r in errors} - done - review
+    if saved:
+        companies = StartRequest.model_validate_json(saved).companies or []
+        rows = [{"company_id": c.company_id, "name": c.name} for c in companies]
+    else:  # a run started before /start saved its companies: only those with an outcome
+        rows = [{"company_id": r.get("company_id"), "name": r.get("name")} for r in run_store.read_jsonl(run_store.results_path(run_id))]
+        rows += [{"company_id": k, "name": k} for k in failed | review]
+    for row in rows:
+        cid = row["company_id"]
+        row["status"] = "done" if cid in done else "review" if cid in review else "failed" if cid in failed else "waiting"
+    return {"companies": rows}
+
+
+class RestartRequest(BaseModel):
+    from_step: str = Field(description="A node id from /pipeline: steps before it are reused, it and those after run afresh.")
+    company_ids: list[str] | None = Field(default=None, description="Only these companies; all of the run's when left out.")
+
+
+@router.post("/runs/{run_id}/restart")
+async def restart_run(
+    run_id: str,
+    req: RestartRequest,
+    settings: Settings = Depends(settings_dep),
+    run_store: RunStore = Depends(get_run_store),
+    decision_store: DecisionStore = Depends(get_decision_store),
+    xbrl_source=Depends(get_xbrl_source),
+) -> dict:
+    """Starts the run again from one of its steps, as a new run with the
+    same inputs and step settings. What comes before the step is reused
+    from the document and LLM caches; the step and everything after it run
+    afresh (see arp.extraction.steps.restart_overrides). From the rules
+    step, the run itself is scored again instead -- nothing is extracted."""
+    manifest = _manifest_or_404(run_store, run_id)
+    if manifest.status in ("running", "pending"):
+        raise HTTPException(409, "Stop the run first, or wait for it to finish.")
+    if req.from_step == "rules":
+        from arp.decision.templates import score_run
+
+        if not score_run(run_store, run_id):
+            raise HTTPException(400, "No Decision Studio framework is attached to this run.")
+        return {"run_id": run_id, "run_type": manifest.run_type, "rescored": True}
+    saved = _saved(run_store, run_id, "start_request.json")
+    if saved is None:
+        raise HTTPException(400, "This run was not started from the Extraction screen, so there is nothing to restart it from.")
+    original = StartRequest.model_validate_json(saved)
+    if req.from_step not in {n["id"] for n in pipeline_shape(original.profile, settings)["nodes"]}:
+        raise HTTPException(400, f"`{req.from_step}` is not a step of the {original.profile} pipeline.")
+    companies = original.companies or []
+    if req.company_ids is not None:
+        wanted = set(req.company_ids)
+        companies = [c for c in companies if c.company_id in wanted]
+        if not companies:
+            raise HTTPException(400, "None of those companies are in this run.")
+
+    overrides = restart_overrides(req.from_step)
+    run_settings = (original.step_settings or StepSettings()).apply(settings).model_copy(update=overrides)
+    registry = get_registry()
+    if overrides.get("document_cache_enabled") is False:
+        from arp.api.deps import build_registry
+        from arp.storage.document_store import DocumentContentStore
+
+        registry = build_registry(run_settings, DocumentContentStore(run_settings.document_store_dir, enabled=False))
+    started = await _dispatch(
+        original.model_copy(update={"companies": companies}), run_settings, run_store, registry, decision_store, xbrl_source
+    )
+    (run_store.run_dir(started["run_id"]) / "restarted_from.json").write_text(
+        json.dumps({"run_id": run_id, "step": req.from_step, "company_count": len(companies)})
+    )
+    return started
 
 
 @router.get("/runs/{run_id}")

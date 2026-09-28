@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { ReviewableRunKind, RunManifest } from "../types";
 
-const REVIEWABLE_KINDS = new Set<ReviewableRunKind>(["theme", "extraction", "financials", "identity"]);
+const REVIEWABLE_KINDS = new Set<ReviewableRunKind>(["theme", "extraction", "financials", "identity", "transition_plan", "tnfd"]);
 
 function isReviewable(runType: string): runType is ReviewableRunKind {
   return REVIEWABLE_KINDS.has(runType as ReviewableRunKind);

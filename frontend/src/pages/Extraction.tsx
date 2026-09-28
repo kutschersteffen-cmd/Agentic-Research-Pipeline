@@ -5,12 +5,13 @@ import { UniversePicker } from "../components/UniversePicker";
 import { ExtractionResultsTable, FinancialsResultsTable } from "../components/ExtractionResults";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { BarChart } from "../components/BarChart";
-import type { CompanyFinancialsRecord, DataPointSchema, ExtractionProfile, ExtractionRecord, FieldDefinition, ReviewDecision, RunScoringKind, TnfdRecord, TransitionPlanAssessmentRecord, UniverseHandoff } from "../types";
+import type { CompanyFinancialsRecord, DataPointSchema, ExtractionProfile, ExtractionRecord, FieldDefinition, ReviewDecision, RunScoringKind, StepSettings, TnfdRecord, TransitionPlanAssessmentRecord, UniverseHandoff } from "../types";
 import { useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "../components/ReviewerField";
 import { RunScoringPanel, ScoringTemplatePicker } from "../components/RunScoring";
 import { TransitionPlanBatchOverview, TransitionPlanMethodology, TransitionPlanResultsTable } from "../components/TransitionPlanResults";
 import { TnfdResultsTable } from "../components/TnfdResults";
+import { PipelineEditor } from "../components/PipelineEditor";
 
 const DEFAULT_CRITERIA =
   "Green capex: total green/sustainable capital expenditure in USD/EUR millions for the most recent fiscal " +
@@ -96,6 +97,8 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const [error, setError] = useState<string | null>(null);
   const [universePath, setUniversePath] = useState<string | null>(pendingUniverse?.path ?? null);
   const [companyCount, setCompanyCount] = useState(pendingUniverse?.count ?? 0);
+  const [scope, setScope] = useState<"batch" | "single">("batch");
+  const [single, setSingle] = useState({ name: "", ticker: "", website: "" });
   const [runId, setRunId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [reviewer] = useReviewer();
@@ -107,6 +110,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const [extractionResults, setExtractionResults] = useState<ExtractionRecord[]>([]);
   const [extractionReviewDecisions, setExtractionReviewDecisions] = useState<Record<string, ReviewDecision>>({});
   const [templateId, setTemplateId] = useState<string | null>(null);
+  const [stepSettings, setStepSettings] = useState<StepSettings>({});
 
   // Financials mode only
   const [financialsResults, setFinancialsResults] = useState<CompanyFinancialsRecord[]>([]);
@@ -128,6 +132,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     setRunId(null);
     setError(null);
     setTemplateId(null);
+    setStepSettings({});
     setExpanded(null);
     setActiveSource(null);
   }
@@ -150,8 +155,19 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     setSchema({ ...schema, fields });
   }
 
+  /** One company typed in, as a one-row universe; its id is the ticker, or the name when there is none. */
+  const singleCompany = single.name.trim()
+    ? {
+        company_id: (single.ticker.trim() || single.name.trim()).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
+        name: single.name.trim(),
+        ticker: single.ticker.trim() || null,
+        website: single.website.trim() || null,
+      }
+    : null;
+  const readyToStart = scope === "batch" ? !!universePath : !!singleCompany;
+
   async function startRun() {
-    if (!universePath) return;
+    if (!readyToStart) return;
     if (mode === "custom" && !schema) return;
     setBusy(true);
     setError(null);
@@ -160,8 +176,9 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
         profile: mode,
         datapoint_schema: mode === "custom" ? schema : undefined,
         as_of: mode === "tnfd" ? asOf : undefined,
-        universe_path: universePath,
+        ...(scope === "batch" ? { universe_path: universePath } : { companies: [singleCompany] }),
         decision_framework_id: templateId ?? undefined,
+        step_settings: Object.keys(stepSettings).length ? stepSettings : undefined,
       });
       setRunId(res.run_id);
       setExtractionResults([]);
@@ -217,6 +234,15 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
       </div>
       {profile.about && <p className="help-text">{profile.about}</p>}
       {mode === "transition_plan" && <TransitionPlanMethodology />}
+
+      <section className="card">
+        <h3>Pipeline</h3>
+        <p className="help-text">
+          The steps every item goes through. Optional: click a step to change its settings for this run only; the app&apos;s
+          defaults stay as they are.
+        </p>
+        <PipelineEditor profile={mode} value={stepSettings} onChange={setStepSettings} />
+      </section>
 
       {mode === "custom" && (
         <section className="card">
@@ -291,8 +317,16 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
 
       {readyForUniverseStep && (
         <section className="card">
-          <h3>{universeStepNumber}. Choose the company universe</h3>
-          {pendingUniverse && universePath === pendingUniverse.path && (
+          <h3>{universeStepNumber}. Choose the companies</h3>
+          <div className="view-toggle" role="group" aria-label="Run on">
+            <button className={scope === "batch" ? "active" : ""} aria-pressed={scope === "batch"} onClick={() => setScope("batch")}>
+              Batch (list)
+            </button>
+            <button className={scope === "single" ? "active" : ""} aria-pressed={scope === "single"} onClick={() => setScope("single")}>
+              Single company
+            </button>
+          </div>
+          {scope === "batch" && pendingUniverse && universePath === pendingUniverse.path && (
             <p className="status-text">
               Using {pendingUniverse.count} companies sent from {pendingUniverse.from}. Upload a different
               universe below to replace it.
@@ -304,14 +338,33 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
               <input value={asOf} onChange={(e) => setAsOf(e.target.value)} placeholder="FY2025" />
             </label>
           )}
-          <UniversePicker
-            onResolved={(path, count) => {
-              setUniversePath(path);
-              setCompanyCount(count);
-            }}
-          />
-          <button onClick={startRun} disabled={busy || !universePath || (mode === "tnfd" && !asOf.trim())}>
-            {`Extract ${mode === "custom" ? "" : `${profile.label} `}across ${companyCount || "..."} companies`}
+          {scope === "batch" ? (
+            <UniversePicker
+              onResolved={(path, count) => {
+                setUniversePath(path);
+                setCompanyCount(count);
+              }}
+            />
+          ) : (
+            <div className="inline-fields">
+              <label className="field-label">
+                Company name
+                <input value={single.name} onChange={(e) => setSingle({ ...single, name: e.target.value })} placeholder="BASF SE" />
+              </label>
+              <label className="field-label">
+                Ticker (optional)
+                <input value={single.ticker} onChange={(e) => setSingle({ ...single, ticker: e.target.value })} placeholder="BAS" />
+              </label>
+              <label className="field-label">
+                Website (optional)
+                <input value={single.website} onChange={(e) => setSingle({ ...single, website: e.target.value })} placeholder="basf.com" />
+              </label>
+            </div>
+          )}
+          <button onClick={startRun} disabled={busy || !readyToStart || (mode === "tnfd" && !asOf.trim())}>
+            {scope === "single"
+              ? `Extract ${mode === "custom" ? "" : `${profile.label} `}for ${singleCompany?.name ?? "..."}`
+              : `Extract ${mode === "custom" ? "" : `${profile.label} `}across ${companyCount || "..."} companies`}
           </button>
         </section>
       )}
@@ -322,6 +375,18 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
         <section className="card">
           <h3>{universeStepNumber + 1}. Run progress</h3>
           <RunProgress runId={runId} runType={profile.runType} />
+          <PipelineEditor
+            key={runId}
+            profile={mode}
+            runId={runId}
+            onRestarted={(next) => {
+              setRunId(next);
+              setExtractionResults([]);
+              setFinancialsResults([]);
+              setTnfdResults([]);
+              setTransitionResults([]);
+            }}
+          />
           <div className="toolbar">
             <button onClick={refreshResults}>Refresh results</button>
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">

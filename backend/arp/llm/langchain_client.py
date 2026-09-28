@@ -132,12 +132,13 @@ class LangChainAnthropicClient(LLMClient):
         model: str,
         cache_dir: Path,
         cache_enabled: bool = True,
+        cache_refresh: bool = False,
         max_network_retries: int = 5,
         prompt_cache_enabled: bool = True,
     ) -> None:
         self._chat = ChatAnthropic(model=model, api_key=api_key, max_retries=0)
         self.model = model
-        self.cache = DiskLLMCache(cache_dir, enabled=cache_enabled)
+        self.cache = DiskLLMCache(cache_dir, enabled=cache_enabled, refresh=cache_refresh)
         self._max_network_retries = max_network_retries
         self._prompt_cache_enabled = prompt_cache_enabled
         # Set the first time this model/account combination rejects an

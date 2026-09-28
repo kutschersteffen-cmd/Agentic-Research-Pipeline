@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from arp.config import Settings
+from arp.extraction.pre_steps import prepare_company
 from arp.extraction.tnfd_graph import extract_company_tnfd
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
@@ -79,6 +80,7 @@ async def execute_tnfd_extraction_run(
     a TNFD extraction run always targets one reporting period at a time."""
 
     async def _worker(company: CompanyRef) -> TNFDExtractionResult:
+        company = await prepare_company(company, settings=settings, llm=llm, registry=registry)
         return await _extract_company_tnfd(
             company, run_id=run_id, as_of=as_of, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings
         )

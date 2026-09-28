@@ -4,6 +4,7 @@ import logging
 
 from arp.config import Settings
 from arp.extraction.financials_graph import extract_company_financials
+from arp.extraction.pre_steps import prepare_company
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient, LLMUsage
@@ -128,6 +129,7 @@ async def execute_financials_extraction_run(
     already-created run (see create_financials_extraction_run)."""
 
     async def _worker(company: CompanyRef) -> FinancialsExtractionResult:
+        company = await prepare_company(company, settings=settings, llm=llm, registry=registry)
         result = await _extract_company_financials(
             company, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings, xbrl_source=xbrl_source
         )

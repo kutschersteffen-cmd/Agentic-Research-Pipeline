@@ -76,6 +76,9 @@ import type {
   SearchResponse,
   TransitionPlanAssessmentRecord,
   ExtractionProfile,
+  PipelineShape,
+  RunCompany,
+  RunSteps,
   TnfdRecord,
   TransitionPlanIndicatorDef,
   TrendPoint,
@@ -193,6 +196,16 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  getExtractionPipeline: (profile: ExtractionProfile) => request<PipelineShape>(`/api/extraction/pipeline?profile=${profile}`),
+  getRunSteps: (runId: string, companyId?: string | null) =>
+    request<RunSteps>(`/api/extraction/runs/${runId}/steps${companyId ? `?company_id=${encodeURIComponent(companyId)}` : ""}`),
+  getRunCompanies: (runId: string) => request<{ companies: RunCompany[] }>(`/api/extraction/runs/${runId}/companies`),
+  /** A new run from `from_step` on (the same run, rescored, from the rules step). */
+  restartRun: (runId: string, body: { from_step: string; company_ids?: string[] }) =>
+    request<{ run_id: string; run_type: RunScoringKind; rescored?: boolean }>(`/api/extraction/runs/${runId}/restart`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   getTnfdResults: (runId: string, offset = 0, limit = 500) =>
     request<{ total: number; results: TnfdRecord[] }>(`/api/tnfd/runs/${runId}/results?offset=${offset}&limit=${limit}`),
   getFinancialsResults: (runId: string, offset = 0, limit = 500) =>
@@ -212,6 +225,10 @@ export const api = {
     request<{ total: number; results: TransitionPlanAssessmentRecord[] }>(
       `/api/transition-plan/runs/${runId}/results?offset=${offset}&limit=${limit}`,
     ),
+  getTransitionPlanReviewQueue: (runId: string) => request(`/api/transition-plan/runs/${runId}/review-queue`),
+  getTnfdReviewQueue: (runId: string) => request(`/api/tnfd/runs/${runId}/review-queue`),
+  submitTnfdReview: (runId: string, body: unknown) =>
+    request(`/api/tnfd/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
   submitTransitionPlanReview: (runId: string, body: unknown) =>
     request(`/api/transition-plan/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
   getTransitionPlanReviewDecisions: (runId: string) => request(`/api/transition-plan/runs/${runId}/review-decisions`),

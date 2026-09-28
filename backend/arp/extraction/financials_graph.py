@@ -11,6 +11,7 @@ from arp.extraction.segment_extractor_agent import SEGMENT_DOC_TYPES, SEGMENT_KE
 from arp.extraction.spend_extractor_agent import SPEND_DOC_TYPES, SPEND_KEYWORDS
 from arp.ingestion.parsing import chunk_document
 from arp.llm.base import LLMClient, LLMUsage
+from arp.orchestration.step_tally import run_graph
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import CompanyRef, DocumentChunk, ProvenanceInfo, SourceDocument
 from arp.schemas.financials import CompanyFinancialsRecord
@@ -206,5 +207,5 @@ async def extract_company_financials(
         "verifier_usage": None,
         "record": None,
     }
-    final_state = await _COMPILED_GRAPH.ainvoke(initial)
+    final_state = await run_graph(_COMPILED_GRAPH, initial)
     return final_state["record"], final_state["usages"]

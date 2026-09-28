@@ -9,6 +9,7 @@ from typing import Protocol, TypeVar
 from arp.llm.base import LLMUsage
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
+from arp.orchestration.step_tally import on_company, tally_run
 from arp.schemas.common import CompanyRef
 from arp.storage.run_store import RunStore
 
@@ -18,6 +19,17 @@ ItemT = TypeVar("ItemT")
 ResultT = TypeVar("ResultT")
 
 _KEY_FIELD = "_key"
+
+
+class ReviewRequired(Exception):
+    """A worker stopping an item on purpose so a person looks at it: the
+    item is not a result, and `report` (what went wrong, and what was known
+    up to then) goes to the errors file and, in a company batch, to the
+    run's review queue."""
+
+    def __init__(self, message: str, report: dict) -> None:
+        super().__init__(message)
+        self.report = report
 
 
 def read_done_keys(results_path: Path) -> set[str]:
@@ -93,9 +105,12 @@ async def run_batch(
                 result = await worker(item)
             except Exception as exc:  # noqa: BLE001 - isolate failures per item
                 logger.exception("Batch item %s failed", key)
+                row = {"key": key, "error": str(exc)}
+                if isinstance(exc, ReviewRequired):
+                    row.update(review=True, report=exc.report)
                 async with write_lock:
                     with errors_path.open("a") as f:
-                        f.write(json.dumps({"key": key, "error": str(exc)}) + "\n")
+                        f.write(json.dumps(row) + "\n")
                 if on_error:
                     on_error(item, exc)
                 return
@@ -133,7 +148,8 @@ async def run_company_batch(
     errors files, cancellable via the manifest's cancel_requested flag.
     Each success queues `review_items(company, result)` for human sign-off
     and records completed/review/token/cost progress; each failure records
-    failed_delta. When the batch is done, applies the run's attached
+    failed_delta, except a ReviewRequired stop, whose report is queued for
+    review instead. When the batch is done, applies the run's attached
     Decision Studio framework (arp.decision.templates.score_run), then
     finishes the run.
     """
@@ -152,22 +168,34 @@ async def run_company_batch(
             cost_delta_usd=cost_usd(result),
         )
 
+    def _on_error(company: CompanyRef, exc: Exception) -> None:
+        if isinstance(exc, ReviewRequired):
+            queue_for_review(run_store, run_id, company.company_id, exc.report)
+            job_manager.record_progress(run_id, review_delta=1)
+        else:
+            job_manager.record_progress(run_id, failed_delta=1)
+
+    async def _worker(company: CompanyRef) -> UsageResultT:
+        with on_company(company.company_id):
+            return await worker(company)
+
     def _cancel_check() -> bool:
         current = run_store.load_manifest(run_id)
         return current is not None and current.cancel_requested
 
-    await run_batch(
-        companies,
-        item_key=lambda c: c.company_id,
-        worker=worker,
-        results_path=run_store.results_path(run_id),
-        errors_path=run_store.errors_path(run_id),
-        concurrency=concurrency,
-        result_to_json=result_to_json,
-        on_success=_on_success,
-        on_error=lambda company, exc: job_manager.record_progress(run_id, failed_delta=1),
-        cancel_check=_cancel_check,
-    )
+    with tally_run(run_store, run_id):
+        await run_batch(
+            companies,
+            item_key=lambda c: c.company_id,
+            worker=_worker,
+            results_path=run_store.results_path(run_id),
+            errors_path=run_store.errors_path(run_id),
+            concurrency=concurrency,
+            result_to_json=result_to_json,
+            on_success=_on_success,
+            on_error=_on_error,
+            cancel_check=_cancel_check,
+        )
     # The rules step: a run with a Decision Studio framework attached is
     # scored before it is marked finished, so a finished run's scores are
     # already stored when anyone looks. A no-op without one. Whatever goes

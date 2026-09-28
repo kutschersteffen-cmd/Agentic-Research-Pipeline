@@ -160,3 +160,35 @@ async def test_hybrid_retrieval_setting_reaches_evidence_selection(tmp_path, fak
     llm_on = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [verifier]})
     await _extract_company(company, schema, registry=registry, llm=llm_on, settings=settings_on)
     assert embed_calls != []  # explicit constructor kwarg wins over the env-var default -- hybrid actually ran
+
+
+async def test_a_run_counts_the_items_through_each_step(tmp_path, fake_llm):
+    """End to end through run_company_batch: one company has evidence, one does not."""
+    from arp.extraction.pipeline import run_extraction
+    from arp.orchestration.step_tally import step_counts
+    from arp.storage.run_store import RunStore
+
+    class _ByCompany(DocumentSource):
+        name = "by-company"
+
+        async def fetch(self, company, doc_types=None):
+            text = "In fiscal 2025, we invested $120 million in green capex." if company.company_id == "c1" else "We sell shoes."
+            return [SourceDocument(company_id=company.company_id, doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG", full_text=text)]
+
+    draft = ExtractionDraft(value=120.0, raw_value_text="$120 million", citations=[], confidence=0.9)
+    verifier = VerifierOutput(agrees=True, corrected_value=None, confidence=0.9, notes="ok")
+    llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [verifier]})
+    settings = _settings(tmp_path).model_copy(update={"hybrid_retrieval_enabled": False})
+    run_store = RunStore(settings.runs_dir)
+    companies = [CompanyRef(company_id="c1", name="Acme"), CompanyRef(company_id="c2", name="Shoe Co")]
+
+    run_id = await run_extraction(
+        _schema(), companies, llm=llm, registry=DocumentSourceRegistry([_ByCompany()]), settings=settings, run_store=run_store
+    )
+    view, live = step_counts(run_store, run_id)
+    assert live is False
+    assert view["counts"] == {"gather_evidence": 2, "extract": 1, "verify": 1, "aggregate": 1, "finalize_no_evidence": 1}
+    assert set(view["seconds"]) == set(view["counts"])
+    # Per company: the one without evidence never reached the extractor.
+    assert step_counts(run_store, run_id, "c2")[0]["counts"] == {"gather_evidence": 1, "finalize_no_evidence": 1}
+    assert step_counts(run_store, run_id, "c1")[0]["counts"] == {"gather_evidence": 1, "extract": 1, "verify": 1, "aggregate": 1}
