@@ -1121,8 +1121,8 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   position: absolute;
   top: -9px;
   right: 8px;
-  background: var(--mid);
-  color: var(--on-accent);
+  background: var(--await);
+  color: var(--text);
   border-radius: var(--r-pill);
   padding: 1px 8px;
   font-size: var(--text-xs);
@@ -1179,8 +1179,8 @@ mark.style-flag { background: color-mix(in srgb, var(--mid) 30%, transparent); c
 .workflow-tabs { flex-wrap: wrap; }
 .tab-badge {
   margin-left: 6px;
-  background: var(--mid);
-  color: var(--on-accent);
+  background: var(--await);
+  color: var(--text);
   border-radius: var(--r-pill);
   padding: 0 7px;
   font-size: var(--text-xs);
