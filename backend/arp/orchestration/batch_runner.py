@@ -9,6 +9,7 @@ from typing import Protocol, TypeVar
 from arp.llm.base import LLMUsage
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
+from arp.orchestration.step_tally import on_company, tally_run
 from arp.schemas.common import CompanyRef
 from arp.storage.run_store import RunStore
 
@@ -152,22 +153,27 @@ async def run_company_batch(
             cost_delta_usd=cost_usd(result),
         )
 
+    async def _worker(company: CompanyRef) -> UsageResultT:
+        with on_company(company.company_id):
+            return await worker(company)
+
     def _cancel_check() -> bool:
         current = run_store.load_manifest(run_id)
         return current is not None and current.cancel_requested
 
-    await run_batch(
-        companies,
-        item_key=lambda c: c.company_id,
-        worker=worker,
-        results_path=run_store.results_path(run_id),
-        errors_path=run_store.errors_path(run_id),
-        concurrency=concurrency,
-        result_to_json=result_to_json,
-        on_success=_on_success,
-        on_error=lambda company, exc: job_manager.record_progress(run_id, failed_delta=1),
-        cancel_check=_cancel_check,
-    )
+    with tally_run(run_store, run_id):
+        await run_batch(
+            companies,
+            item_key=lambda c: c.company_id,
+            worker=_worker,
+            results_path=run_store.results_path(run_id),
+            errors_path=run_store.errors_path(run_id),
+            concurrency=concurrency,
+            result_to_json=result_to_json,
+            on_success=_on_success,
+            on_error=lambda company, exc: job_manager.record_progress(run_id, failed_delta=1),
+            cancel_check=_cancel_check,
+        )
     # The rules step: a run with a Decision Studio framework attached is
     # scored before it is marked finished, so a finished run's scores are
     # already stored when anyone looks. A no-op without one. Whatever goes

@@ -15,9 +15,12 @@ class DiskLLMCache:
     as $0 so real spend is never inflated.
     """
 
-    def __init__(self, cache_dir: Path, enabled: bool = True) -> None:
+    def __init__(self, cache_dir: Path, enabled: bool = True, refresh: bool = False) -> None:
         self.cache_dir = cache_dir
         self.enabled = enabled
+        # Refresh: never read, still write -- a restarted step calls the
+        # model afresh and leaves its new answer for the steps after it.
+        self.refresh = refresh
         if self.enabled:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -39,7 +42,7 @@ class DiskLLMCache:
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     def get(self, key: str) -> dict[str, Any] | None:
-        if not self.enabled:
+        if not self.enabled or self.refresh:
             return None
         path = self.cache_dir / f"{key}.json"
         if not path.exists():

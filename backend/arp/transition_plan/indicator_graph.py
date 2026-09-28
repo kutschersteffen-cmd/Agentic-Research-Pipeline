@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from arp.config import Settings
 from arp.llm.base import LLMClient, LLMUsage
+from arp.orchestration.step_tally import run_graph
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import DocumentChunk, SourceDocument
 from arp.schemas.transition_plan import IndicatorAssessment, TransitionPlanIndicator
@@ -203,5 +204,5 @@ async def assess_one_indicator(
         "assessment": None,
         "error": None,
     }
-    final_state = await _COMPILED_GRAPH.ainvoke(initial)
+    final_state = await run_graph(_COMPILED_GRAPH, initial)
     return final_state["assessment"], final_state["usages"]

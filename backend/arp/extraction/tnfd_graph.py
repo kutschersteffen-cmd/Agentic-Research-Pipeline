@@ -9,6 +9,7 @@ from arp.extraction.tnfd_extractor_agent import TNFD_DOC_TYPES, TNFD_KEYWORDS, T
 from arp.extraction.tnfd_verifier_agent import TNFDVerifierOutput, verify_tnfd
 from arp.ingestion.parsing import chunk_document
 from arp.llm.base import LLMClient, LLMUsage
+from arp.orchestration.step_tally import run_graph
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import CompanyRef, DocumentChunk, ProvenanceInfo, SourceDocument
 from arp.schemas.tnfd import TNFDExtractionRecord
@@ -181,5 +182,5 @@ async def extract_company_tnfd(
         "verifier_usage": None,
         "record": None,
     }
-    final_state = await _COMPILED_GRAPH.ainvoke(initial)
+    final_state = await run_graph(_COMPILED_GRAPH, initial)
     return final_state["record"], final_state["usages"]

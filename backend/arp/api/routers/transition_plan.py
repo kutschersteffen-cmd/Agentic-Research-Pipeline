@@ -68,7 +68,7 @@ async def start_transition_plan_run(
             run_id, companies, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store
         )
 
-    run_id = schedule_llm_run(create_fn=_create, run=_run)
+    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings)
     return {"run_id": run_id, "company_count": len(companies)}
 
 

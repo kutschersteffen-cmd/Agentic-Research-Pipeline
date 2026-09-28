@@ -76,6 +76,9 @@ import type {
   SearchResponse,
   TransitionPlanAssessmentRecord,
   ExtractionProfile,
+  PipelineShape,
+  RunCompany,
+  RunSteps,
   TnfdRecord,
   TransitionPlanIndicatorDef,
   TrendPoint,
@@ -190,6 +193,16 @@ export const api = {
   /** One entry point for every extraction profile; returns which run type it started. */
   startExtraction: (body: { profile: ExtractionProfile } & Record<string, unknown>) =>
     request<{ run_id: string; company_count: number; run_type: RunScoringKind }>("/api/extraction/start", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  getExtractionPipeline: (profile: ExtractionProfile) => request<PipelineShape>(`/api/extraction/pipeline?profile=${profile}`),
+  getRunSteps: (runId: string, companyId?: string | null) =>
+    request<RunSteps>(`/api/extraction/runs/${runId}/steps${companyId ? `?company_id=${encodeURIComponent(companyId)}` : ""}`),
+  getRunCompanies: (runId: string) => request<{ companies: RunCompany[] }>(`/api/extraction/runs/${runId}/companies`),
+  /** A new run from `from_step` on (the same run, rescored, from the rules step). */
+  restartRun: (runId: string, body: { from_step: string; company_ids?: string[] }) =>
+    request<{ run_id: string; run_type: RunScoringKind; rescored?: boolean }>(`/api/extraction/runs/${runId}/restart`, {
       method: "POST",
       body: JSON.stringify(body),
     }),

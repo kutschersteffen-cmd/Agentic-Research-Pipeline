@@ -74,19 +74,25 @@ def get_document_content_store() -> DocumentContentStore:
 @lru_cache
 def get_registry() -> DocumentSourceRegistry:
     settings = get_settings()
+    return build_registry(settings, get_document_content_store())
+
+
+def build_registry(settings: Settings, content_store: DocumentContentStore) -> DocumentSourceRegistry:
+    """get_registry's sources, for a run that needs its own content store
+    (a restart from Find evidence re-parses rather than reading the cache)."""
     indexing_config = IndexingConfig.from_settings(settings)
     return DocumentSourceRegistry(
         [
             LocalFileDocumentSource(
                 settings.documents_dir,
-                content_store=get_document_content_store(),
+                content_store=content_store,
                 max_concurrent_parses=settings.max_concurrent_parses,
                 indexing_config=indexing_config,
             ),
             EdgarDocumentSource(
                 settings.edgar_user_agent,
                 settings.cache_dir,
-                content_store=get_document_content_store(),
+                content_store=content_store,
                 submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
                 indexing_config=indexing_config,
             ),

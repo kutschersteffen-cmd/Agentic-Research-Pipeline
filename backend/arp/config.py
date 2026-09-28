@@ -25,6 +25,13 @@ class Settings(BaseSettings):
         "Set equal to llm_model to opt back into the old single-model behavior.",
     )
     llm_cache_enabled: bool = Field(default=True)
+    llm_cache_refresh: bool = Field(
+        default=False,
+        description="Skip reading the LLM disk cache but keep writing it. Set per run by a restart from the Extract step.",
+    )
+    llm_verifier_cache_refresh: bool = Field(
+        default=False, description="The same for the verifier client only. Set per run by a restart from the Verify step."
+    )
     llm_prompt_cache_enabled: bool = Field(
         default=True,
         description="Anthropic server-side prompt caching (distinct from llm_cache_enabled's disk cache). "

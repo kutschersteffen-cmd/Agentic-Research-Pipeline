@@ -44,6 +44,7 @@ export interface RunManifest {
   input_tokens: number;
   output_tokens: number;
   estimated_cost_usd: number;
+  cancel_requested?: boolean;
   model?: string | null;
   error?: string | null;
 }
@@ -2705,3 +2706,61 @@ export interface TnfdRecord {
 }
 
 export type ExtractionProfile = "custom" | "financials" | "tnfd" | "transition_plan";
+
+/** Per-run step settings from the node editor; a key left out keeps the app's setting. */
+export interface StepSettings {
+  hybrid_retrieval_enabled?: boolean | null;
+  xbrl_facts_enabled?: boolean | null;
+  llm_model?: string | null;
+  llm_verifier_model?: string | null;
+  grounding_fuzzy_threshold?: number | null;
+  confidence_review_threshold?: number | null;
+}
+export type StepSettingKey = keyof StepSettings;
+
+export interface StepSettingInfo {
+  label: string;
+  type: "bool" | "number" | "model";
+  help: string;
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+export interface PipelineNode {
+  id: string;
+  label: string;
+  about: string;
+  /** Runs once per item (field, indicator or company); false for the company-level steps. */
+  per_item: boolean;
+  settings: StepSettingKey[];
+}
+
+/** A profile's steps, read from the per-item graph the backend runs. */
+export interface PipelineShape {
+  profile: ExtractionProfile;
+  nodes: PipelineNode[];
+  edges: { source: string; target: string; conditional: boolean }[];
+  setting_info: Record<StepSettingKey, StepSettingInfo>;
+  defaults: Required<{ [K in StepSettingKey]: NonNullable<StepSettings[K]> }>;
+}
+
+export interface RunSteps {
+  /** Items through each step, for the run or the company asked for. */
+  counts: Record<string, number>;
+  /** Seconds those items spent in each step, summed. */
+  seconds: Record<string, number>;
+  /** Still counting: the run is executing in this server process. */
+  live: boolean;
+  settings: StepSettings | null;
+  /** Set when this run is a restart of another from one of its steps. */
+  restarted_from: { run_id: string; step: string; company_count: number } | null;
+  /** Started from the Extraction screen, so it can be restarted from a step. */
+  restartable: boolean;
+}
+
+export interface RunCompany {
+  company_id: string;
+  name: string;
+  status: "done" | "failed" | "waiting";
+}

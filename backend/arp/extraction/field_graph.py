@@ -9,6 +9,7 @@ from arp.extraction.graph_shape import build_extract_verify_graph
 from arp.extraction.verifier_agent import VerifierOutput, verify_extraction
 from arp.ingestion.parsing import chunk_document
 from arp.llm.base import LLMClient, LLMUsage
+from arp.orchestration.step_tally import run_graph
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import DocumentChunk, ProvenanceInfo, SourceDocument
 from arp.schemas.datapoints import ExtractedField, FieldDefinition
@@ -168,5 +169,5 @@ async def extract_one_field(
         "extracted": None,
         "needs_review": False,
     }
-    final_state = await _COMPILED_GRAPH.ainvoke(initial)
+    final_state = await run_graph(_COMPILED_GRAPH, initial)
     return final_state["extracted"], final_state["needs_review"], final_state["usages"]
