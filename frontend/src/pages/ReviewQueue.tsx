@@ -14,6 +14,8 @@ const REVIEW_KIND_LABEL: Record<ReviewableRunKind, string> = {
   extraction: "Data-point extraction",
   financials: "Company financials",
   identity: "Identity resolution",
+  transition_plan: "Transition plan",
+  tnfd: "TNFD",
 };
 
 const QUEUE_FNS: Record<ReviewableRunKind, (runId: string) => Promise<unknown>> = {
@@ -21,6 +23,8 @@ const QUEUE_FNS: Record<ReviewableRunKind, (runId: string) => Promise<unknown>> 
   extraction: api.getExtractionReviewQueue,
   financials: api.getFinancialsReviewQueue,
   identity: api.getIdentityReviewQueue,
+  transition_plan: api.getTransitionPlanReviewQueue,
+  tnfd: api.getTnfdReviewQueue,
 };
 
 const SUBMIT_FNS: Record<ReviewableRunKind, (runId: string, body: unknown) => Promise<unknown>> = {
@@ -28,6 +32,8 @@ const SUBMIT_FNS: Record<ReviewableRunKind, (runId: string, body: unknown) => Pr
   extraction: api.submitExtractionReview,
   financials: api.submitFinancialsReview,
   identity: api.submitIdentityReview,
+  transition_plan: api.submitTransitionPlanReview,
+  tnfd: api.submitTnfdReview,
 };
 
 interface Props {
@@ -45,7 +51,7 @@ function isCitationArray(v: unknown): v is Citation[] {
  * known field stays available, just tucked behind "Full record" instead of
  * dominating the card the way a top-level JSON.stringify dump used to. */
 function ReviewItemFields({ item, onOpenSource }: { item: Record<string, unknown>; onOpenSource: (s: ActiveSource) => void }) {
-  const known = new Set(["item_key", "queued_at", "company_id", "name", "ticker", "confidence", "verdict", "citations", "adjudicator_rationale", "rationale"]);
+  const known = new Set(["item_key", "queued_at", "company_id", "name", "ticker", "confidence", "verdict", "citations", "adjudicator_rationale", "rationale", "failed_step_label", "error"]);
   const rest = Object.fromEntries(Object.entries(item).filter(([k]) => !known.has(k)));
   const hasRest = Object.keys(rest).length > 0;
 
@@ -62,6 +68,11 @@ function ReviewItemFields({ item, onOpenSource }: { item: Record<string, unknown
         </span>
       </div>
       {Boolean(item.company_id && item.name) && <p className="muted">{item.item_key as string}</p>}
+      {typeof item.failed_step_label === "string" && (
+        <p className="error-text">
+          Stopped at {item.failed_step_label}: {String(item.error ?? "")}
+        </p>
+      )}
       {Boolean(item.adjudicator_rationale || item.rationale) && <p>{(item.adjudicator_rationale ?? item.rationale) as string}</p>}
       {isCitationArray(item.citations) && (
         <>

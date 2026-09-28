@@ -8,6 +8,12 @@ They reuse the standalone pipelines' own pieces (identity resolution,
 Document Discovery's homepage finder, crawler, downloader and change
 detector), so a company prepared here is prepared exactly as those
 screens would, and report what they found to the run's step view.
+
+A step that fails -- it raised, or it produced nothing the next step can
+use (an unclear identity, no homepage or report links, no documents,
+nothing parsed) -- stops the company there: no extraction runs for it, and
+an error report goes to the run's review queue (PreStepFailed, a
+ReviewRequired) so a person decides, then restarts it from that step.
 """
 
 from __future__ import annotations
@@ -21,9 +27,10 @@ from arp.config import Settings
 from arp.ingestion.parsing import chunk_document
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient
+from arp.orchestration.batch_runner import ReviewRequired
 from arp.orchestration.cost_tracker import combine_usage
 from arp.orchestration.step_tally import record_cost, record_step
-from arp.schemas.common import CompanyRef
+from arp.schemas.common import CompanyRef, now_iso
 from arp.schemas.discovery import IdentityVerdict
 from arp.storage.safe_path import safe_id
 
@@ -32,6 +39,19 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+LABELS = {"identity": "Identity", "content_search": "Content search", "document_mgmt": "Document management", "parse_index": "Parse & index"}
+
+
+class PreStepFailed(ReviewRequired):
+    """A step before extraction failed for one company, which stops there."""
+
+
+class _Unusable(Exception):
+    """The step ran but found nothing the next step can use."""
+
+    def __init__(self, message: str, details: dict) -> None:
+        super().__init__(message)
+        self.details = details
 
 
 async def prepare_company(
@@ -39,32 +59,54 @@ async def prepare_company(
 ) -> CompanyRef:
     """Runs the enabled steps in order and returns the company as the
     extraction should see it (identity may fill in its website and CIK).
-    A step that fails is recorded and the company moves on: what the
-    extraction finds on its own is still worth having."""
+    Raises PreStepFailed at the first step that fails."""
     candidates: list[CandidateDocumentLink] = []
+    found: dict[str, dict] = {}
     if settings.pre_identity_enabled:
-        company = await _timed("identity", _identity(company, settings, llm), fallback=company)
+        company = await _run("identity", _identity(company, settings, llm), company, found)
     if settings.pre_content_search_enabled:
-        company, candidates = await _timed("content_search", _content_search(company, settings), fallback=(company, []))
+        company, candidates = await _run("content_search", _content_search(company, settings), company, found)
     if settings.pre_document_mgmt_enabled:
-        await _timed("document_mgmt", _document_mgmt(company, candidates, settings), fallback=None)
+        await _run("document_mgmt", _document_mgmt(company, candidates, settings), company, found)
     if settings.pre_parse_index_enabled:
-        await _timed("parse_index", _parse_index(company, registry), fallback=None)
+        await _run("parse_index", _parse_index(company, registry), company, found)
     return company
 
 
-async def _timed(node: str, step, *, fallback):
-    """Runs one step and reports it; a failure is reported too and yields
-    `fallback`, so the company carries on as if the step were off."""
+async def _run(node: str, step, company: CompanyRef, found: dict[str, dict]):
+    """Runs one step and reports it to the step view. On failure, reports
+    that too and stops the company with an error report for review."""
     started = time.monotonic()
     try:
         result, details = await step
-    except Exception as exc:  # noqa: BLE001 - one step failing must not cost the company its extraction
-        logger.exception("Pre-step %s failed", node)
-        record_step(node, time.monotonic() - started, {"failed": True, "error": str(exc)[:300]})
-        return fallback
+    except _Unusable as exc:
+        error, details = str(exc), {**exc.details, "failed": True, "error": str(exc)}
+    except Exception as exc:  # noqa: BLE001 - becomes the error report
+        logger.exception("Pre-step %s failed for %s", node, company.company_id)
+        error, details = f"{type(exc).__name__}: {exc}"[:500], {"failed": True, "error": f"{type(exc).__name__}: {exc}"[:500]}
+    else:
+        record_step(node, time.monotonic() - started, details)
+        found[node] = details
+        return result
     record_step(node, time.monotonic() - started, details)
-    return result
+    label = LABELS[node]
+    raise PreStepFailed(
+        f"{label} failed for {company.name}: {error}",
+        {
+            "company_id": company.company_id,
+            "name": company.name,
+            "ticker": company.ticker,
+            "confidence": 0.0,  # sorts error reports to the top of the review queue
+            "rationale": f"{label} failed: {error}. The company was stopped before extraction; "
+            f"fix the cause, then restart it from {label} on the Extraction screen.",
+            "failed_step": node,
+            "failed_step_label": label,
+            "error": error,
+            "step_output": details,
+            "found_before": found,
+            "failed_at": now_iso(),
+        },
+    )
 
 
 async def _identity(company: CompanyRef, settings: Settings, llm: LLMClient):
@@ -95,6 +137,12 @@ async def _identity(company: CompanyRef, settings: Settings, llm: LLMClient):
         "cik": result.resolved_cik,
         "confidence": round(result.confidence, 2),
     }
+    if not usable:
+        raise _Unusable(
+            f"identity unclear (verdict {result.verdict.value}, confidence {result.confidence:.2f})"
+            + (f": {result.rationale}" if getattr(result, "rationale", None) else ""),
+            details,
+        )
     return company, details
 
 
@@ -104,7 +152,7 @@ async def _content_search(company: CompanyRef, settings: Settings):
 
     homepage = company.website or await resolve_company_homepage(company.name, DuckDuckGoSearchClient(settings.discovery_user_agent))
     if not homepage:
-        return (company, []), {"homepage": None, "links": 0, "found_homepage": False}
+        raise _Unusable("no homepage found for the company", {"homepage": None, "links": 0, "found_homepage": False})
     config = CrawlConfig(
         user_agent=settings.discovery_user_agent,
         max_depth=settings.discovery_max_crawl_depth,
@@ -114,7 +162,9 @@ async def _content_search(company: CompanyRef, settings: Settings):
     try:
         candidates = await crawl_for_documents(homepage, config)
     except HomepageUnreachableError as exc:
-        return (company, []), {"homepage": homepage, "links": 0, "found_homepage": True, "unreachable": True, "error": str(exc)[:300]}
+        raise _Unusable(f"homepage {homepage} could not be reached ({exc})"[:500], {"homepage": homepage, "links": 0, "found_homepage": True, "unreachable": True}) from exc
+    if not candidates:
+        raise _Unusable(f"no report links found on {homepage}", {"homepage": homepage, "links": 0, "found_homepage": True})
     return (company.model_copy(update={"website": homepage}), candidates), {
         "homepage": homepage,
         "links": len(candidates),
@@ -141,12 +191,16 @@ async def _document_mgmt(company: CompanyRef, candidates: list[CandidateDocument
         changed = len(await detector.diff_and_record(company, downloaded))
     folder = Path(settings.documents_dir) / safe_id(company.company_id, label="company_id")
     files = [f for f in folder.rglob("*") if f.is_file()] if folder.exists() else []
-    return None, {
+    details = {
         "downloaded": len(downloaded),
         "new_or_changed": changed,
         "documents": len(files),
         "bytes": sum(f.stat().st_size for f in files),
     }
+    if not files:
+        reason = f"none of the {len(candidates)} found links could be downloaded" if candidates else "no documents on file and nothing found to download"
+        raise _Unusable(f"no documents for the company: {reason}", details)
+    return None, details
 
 
 async def _parse_index(company: CompanyRef, registry: DocumentSourceRegistry):
@@ -155,4 +209,7 @@ async def _parse_index(company: CompanyRef, registry: DocumentSourceRegistry):
     parsing again -- and counts the chunks evidence will be ranked from."""
     docs = await registry.fetch_all(company)
     chunks = sum(len(chunk_document(d)) for d in docs)
-    return None, {"documents": len(docs), "chunks": chunks, "characters": sum(len(d.full_text or "") for d in docs)}
+    details = {"documents": len(docs), "chunks": chunks, "characters": sum(len(d.full_text or "") for d in docs)}
+    if not chunks:
+        raise _Unusable("no document text could be parsed" if docs else "no documents found in any source", details)
+    return None, details

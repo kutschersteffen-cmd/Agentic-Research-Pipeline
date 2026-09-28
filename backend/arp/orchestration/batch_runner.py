@@ -21,6 +21,17 @@ ResultT = TypeVar("ResultT")
 _KEY_FIELD = "_key"
 
 
+class ReviewRequired(Exception):
+    """A worker stopping an item on purpose so a person looks at it: the
+    item is not a result, and `report` (what went wrong, and what was known
+    up to then) goes to the errors file and, in a company batch, to the
+    run's review queue."""
+
+    def __init__(self, message: str, report: dict) -> None:
+        super().__init__(message)
+        self.report = report
+
+
 def read_done_keys(results_path: Path) -> set[str]:
     if not results_path.exists():
         return set()
@@ -94,9 +105,12 @@ async def run_batch(
                 result = await worker(item)
             except Exception as exc:  # noqa: BLE001 - isolate failures per item
                 logger.exception("Batch item %s failed", key)
+                row = {"key": key, "error": str(exc)}
+                if isinstance(exc, ReviewRequired):
+                    row.update(review=True, report=exc.report)
                 async with write_lock:
                     with errors_path.open("a") as f:
-                        f.write(json.dumps({"key": key, "error": str(exc)}) + "\n")
+                        f.write(json.dumps(row) + "\n")
                 if on_error:
                     on_error(item, exc)
                 return
@@ -134,7 +148,8 @@ async def run_company_batch(
     errors files, cancellable via the manifest's cancel_requested flag.
     Each success queues `review_items(company, result)` for human sign-off
     and records completed/review/token/cost progress; each failure records
-    failed_delta. When the batch is done, applies the run's attached
+    failed_delta, except a ReviewRequired stop, whose report is queued for
+    review instead. When the batch is done, applies the run's attached
     Decision Studio framework (arp.decision.templates.score_run), then
     finishes the run.
     """
@@ -152,6 +167,13 @@ async def run_company_batch(
             output_tokens_delta=result.usage.output_tokens,
             cost_delta_usd=cost_usd(result),
         )
+
+    def _on_error(company: CompanyRef, exc: Exception) -> None:
+        if isinstance(exc, ReviewRequired):
+            queue_for_review(run_store, run_id, company.company_id, exc.report)
+            job_manager.record_progress(run_id, review_delta=1)
+        else:
+            job_manager.record_progress(run_id, failed_delta=1)
 
     async def _worker(company: CompanyRef) -> UsageResultT:
         with on_company(company.company_id):
@@ -171,7 +193,7 @@ async def run_company_batch(
             concurrency=concurrency,
             result_to_json=result_to_json,
             on_success=_on_success,
-            on_error=lambda company, exc: job_manager.record_progress(run_id, failed_delta=1),
+            on_error=_on_error,
             cancel_check=_cancel_check,
         )
     # The rules step: a run with a Decision Studio framework attached is

@@ -204,20 +204,24 @@ def get_run_steps(run_id: str, company_id: str | None = None, run_store: RunStor
 
 @router.get("/runs/{run_id}/companies")
 def get_run_companies(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    """Every company in the run with where it stands: done, failed, or
-    still waiting (queued or in flight)."""
+    """Every company in the run with where it stands: done, failed, in
+    review (a step before extraction stopped it, with an error report in
+    the review queue), or still waiting (queued or in flight)."""
     _manifest_or_404(run_store, run_id)
     saved = _saved(run_store, run_id, "start_request.json")
     done = {r.get("company_id") for r in run_store.read_jsonl(run_store.results_path(run_id))}
-    failed = {r.get("key") for r in run_store.read_jsonl(run_store.errors_path(run_id))} - done
+    errors = run_store.read_jsonl(run_store.errors_path(run_id))
+    review = {r.get("key") for r in errors if r.get("review")} - done
+    failed = {r.get("key") for r in errors} - done - review
     if saved:
         companies = StartRequest.model_validate_json(saved).companies or []
         rows = [{"company_id": c.company_id, "name": c.name} for c in companies]
     else:  # a run started before /start saved its companies: only those with an outcome
         rows = [{"company_id": r.get("company_id"), "name": r.get("name")} for r in run_store.read_jsonl(run_store.results_path(run_id))]
-        rows += [{"company_id": k, "name": k} for k in failed]
+        rows += [{"company_id": k, "name": k} for k in failed | review]
     for row in rows:
-        row["status"] = "done" if row["company_id"] in done else "failed" if row["company_id"] in failed else "waiting"
+        cid = row["company_id"]
+        row["status"] = "done" if cid in done else "review" if cid in review else "failed" if cid in failed else "waiting"
     return {"companies": rows}
 
 

@@ -225,6 +225,10 @@ export const api = {
     request<{ total: number; results: TransitionPlanAssessmentRecord[] }>(
       `/api/transition-plan/runs/${runId}/results?offset=${offset}&limit=${limit}`,
     ),
+  getTransitionPlanReviewQueue: (runId: string) => request(`/api/transition-plan/runs/${runId}/review-queue`),
+  getTnfdReviewQueue: (runId: string) => request(`/api/tnfd/runs/${runId}/review-queue`),
+  submitTnfdReview: (runId: string, body: unknown) =>
+    request(`/api/tnfd/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
   submitTransitionPlanReview: (runId: string, body: unknown) =>
     request(`/api/transition-plan/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
   getTransitionPlanReviewDecisions: (runId: string) => request(`/api/transition-plan/runs/${runId}/review-decisions`),

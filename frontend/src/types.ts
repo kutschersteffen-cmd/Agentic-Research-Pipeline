@@ -11,7 +11,7 @@ export type JobStatus = "pending" | "running" | "completed" | "partially_complet
 
 // The run types the Review Queue endpoints exist for -- a subset of every
 // run_type, since discovery has no review queue of its own.
-export type ReviewableRunKind = "theme" | "extraction" | "financials" | "identity";
+export type ReviewableRunKind = "theme" | "extraction" | "financials" | "identity" | "transition_plan" | "tnfd";
 
 export interface CompanyRef {
   company_id: string;
@@ -2770,5 +2770,6 @@ export interface RunSteps {
 export interface RunCompany {
   company_id: string;
   name: string;
-  status: "done" | "failed" | "waiting";
+  /** review: a step before extraction stopped it, and its error report waits in the review queue. */
+  status: "done" | "failed" | "review" | "waiting";
 }

@@ -269,8 +269,15 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
 
     if (node.id === "company") {
       if (company) {
-        const status: Status = company.status === "done" ? "done" : company.status === "failed" ? "failed" : running ? "running" : "skipped";
-        return { rows: [], banner: company.status === "failed" ? { text: "Failed — see the run's errors", tone: "bad" } : null, footer: company.status, share: null, status };
+        const stoppedAt = shape!.nodes.find((n) => n.optional && steps.details[n.id]?.failed);
+        const status: Status = company.status === "done" ? "done" : company.status === "failed" || company.status === "review" ? "failed" : running ? "running" : "skipped";
+        const banner =
+          company.status === "review"
+            ? ({ text: `Stopped at ${stoppedAt?.label ?? "a step before extraction"} — in review`, tone: "bad" } as const)
+            : company.status === "failed"
+              ? ({ text: "Failed — see the run's errors", tone: "bad" } as const)
+              : null;
+        return { rows: [], banner, footer: company.status === "review" ? "error report in the Review Queue" : company.status, share: null, status };
       }
       if (!manifest) return { ...empty, rows: [], status: "pending" };
       const done = manifest.completed_count;
@@ -278,7 +285,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
         rows: [
           { label: "Companies done", value: `${done}/${manifest.company_count}` },
           { label: "Failed", value: String(manifest.failed_count) },
-          { label: "Flagged for review", value: String(manifest.review_count) },
+          { label: "In review", value: String(manifest.review_count) },
         ],
         banner: null,
         footer: null,
@@ -322,6 +329,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
     const n = steps.counts[node.id] ?? 0;
     const secs = steps.seconds[node.id] ?? 0;
     const failedStep = node.id === "finalize_answer_error" && n > 0;
+    if (!n && !running) return { rows: [], banner: null, footer: "not reached", share: null, status: "skipped" };
     return {
       rows: [
         { label: "Items", value: String(n) },
@@ -365,7 +373,9 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
     const total = company ? 1 : manifest?.company_count ?? 0;
     return {
       rows: n ? rows : [],
-      banner: failed ? { text: company ? `Failed: ${text("error")}` : `${failed} ${failed === 1 ? "company" : "companies"} failed here`, tone: "bad" } : null,
+      banner: failed
+        ? { text: company ? `Failed: ${text("error")}` : `${failed} ${failed === 1 ? "company" : "companies"} stopped here — in review`, tone: "bad" }
+        : null,
       footer: n ? (company ? duration(secs) : `${n} companies · ${duration(secs / n)} per company`) : null,
       share: total && !company ? n / total : null,
       status: failed && (company || failed === n) ? "failed" : n ? (running ? "running" : "done") : running ? "pending" : "skipped",
