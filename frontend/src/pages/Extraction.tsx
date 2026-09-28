@@ -5,10 +5,12 @@ import { UniversePicker } from "../components/UniversePicker";
 import { ExtractionResultsTable, FinancialsResultsTable } from "../components/ExtractionResults";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { BarChart } from "../components/BarChart";
-import type { CompanyFinancialsRecord, DataPointSchema, ExtractionRecord, FieldDefinition, ReviewDecision, UniverseHandoff } from "../types";
+import type { CompanyFinancialsRecord, DataPointSchema, ExtractionProfile, ExtractionRecord, FieldDefinition, ReviewDecision, RunScoringKind, TnfdRecord, TransitionPlanAssessmentRecord, UniverseHandoff } from "../types";
 import { useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "../components/ReviewerField";
 import { RunScoringPanel, ScoringTemplatePicker } from "../components/RunScoring";
+import { TransitionPlanBatchOverview, TransitionPlanMethodology, TransitionPlanResultsTable } from "../components/TransitionPlanResults";
+import { TnfdResultsTable } from "../components/TnfdResults";
 
 const DEFAULT_CRITERIA =
   "Green capex: total green/sustainable capital expenditure in USD/EUR millions for the most recent fiscal " +
@@ -20,7 +22,32 @@ const DEFAULT_CRITERIA =
   "targets/guidance as a SEPARATE field from the actual reported figure -- extraction_instructions must " +
   "explicitly forbid conflating a target with an actual reported number.";
 
-type Mode = "custom" | "financials";
+type Mode = ExtractionProfile;
+
+const PROFILES: { id: Mode; label: string; runType: RunScoringKind; about: string }[] = [
+  { id: "custom", label: "Custom schema", runType: "extraction", about: "" },
+  {
+    id: "financials",
+    label: "Financials",
+    runType: "financials",
+    about:
+      "Pulls disclosed business segments (name, description, revenue, operating income, assets), total CapEx, and total R&D — each with a grounded description and any disclosed category breakdown — in a single combined pass per company: one document fetch, one extractor call, one independent verifier call.",
+  },
+  {
+    id: "tnfd",
+    label: "TNFD",
+    runType: "tnfd",
+    about:
+      "Checks each of the 14 TNFD recommendations for a disclosure and extracts the core global metrics, each with citations re-verified against the source. Rules can read each recommendation as a Yes/No column (e.g. Governance_A_Disclosed).",
+  },
+  {
+    id: "transition_plan",
+    label: "Transition Plan",
+    runType: "transition_plan",
+    about:
+      "Scores each company’s climate transition disclosures against the 64 indicators of Colesanti Senni et al. (2024), separating “talk” (targets) from “walk” (verifiable activity). Rules can read each indicator as a Yes/No column (Ind_<identifier>_Disclosed).",
+  },
+];
 
 /** Batch-level CapEx/R&D comparison across every company in the run --
  * companies with no disclosed value for the chosen metric are left out of
@@ -59,10 +86,12 @@ function BatchSpendChart({ results }: { results: CompanyFinancialsRecord[] }) {
 
 interface Props {
   pendingUniverse?: UniverseHandoff | null;
+  /** The profile the screen opens on, e.g. the Transition Plan menu item. */
+  initialProfile?: Mode;
 }
 
-export function Extraction({ pendingUniverse }: Props = {}) {
-  const [mode, setMode] = useState<Mode>("custom");
+export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props = {}) {
+  const [mode, setMode] = useState<Mode>(initialProfile);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [universePath, setUniversePath] = useState<string | null>(pendingUniverse?.path ?? null);
@@ -82,6 +111,16 @@ export function Extraction({ pendingUniverse }: Props = {}) {
   // Financials mode only
   const [financialsResults, setFinancialsResults] = useState<CompanyFinancialsRecord[]>([]);
   const [financialsReviewDecisions, setFinancialsReviewDecisions] = useState<Record<string, ReviewDecision>>({});
+
+  // TNFD profile only
+  const [asOf, setAsOf] = useState(`FY${new Date().getFullYear() - 1}`);
+  const [tnfdResults, setTnfdResults] = useState<TnfdRecord[]>([]);
+
+  // Transition Plan profile only
+  const [transitionResults, setTransitionResults] = useState<TransitionPlanAssessmentRecord[]>([]);
+  const [transitionReviewDecisions, setTransitionReviewDecisions] = useState<Record<string, ReviewDecision>>({});
+
+  const profile = PROFILES.find((p) => p.id === mode)!;
 
   function switchMode(next: Mode) {
     if (next === mode) return;
@@ -117,19 +156,18 @@ export function Extraction({ pendingUniverse }: Props = {}) {
     setBusy(true);
     setError(null);
     try {
-      if (mode === "custom") {
-        const res = await api.startExtractionRun({
-          datapoint_schema: schema!,
-          universe_path: universePath,
-          decision_framework_id: templateId ?? undefined,
-        });
-        setRunId(res.run_id);
-        setExtractionResults([]);
-      } else {
-        const res = await api.startFinancialsRun({ universe_path: universePath, decision_framework_id: templateId ?? undefined });
-        setRunId(res.run_id);
-        setFinancialsResults([]);
-      }
+      const res = await api.startExtraction({
+        profile: mode,
+        datapoint_schema: mode === "custom" ? schema : undefined,
+        as_of: mode === "tnfd" ? asOf : undefined,
+        universe_path: universePath,
+        decision_framework_id: templateId ?? undefined,
+      });
+      setRunId(res.run_id);
+      setExtractionResults([]);
+      setFinancialsResults([]);
+      setTnfdResults([]);
+      setTransitionResults([]);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -144,32 +182,41 @@ export function Extraction({ pendingUniverse }: Props = {}) {
       setExtractionResults(res.results);
       const decisionsRes = (await api.getExtractionReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
       setExtractionReviewDecisions(decisionsRes.decisions);
-    } else {
+    } else if (mode === "financials") {
       const res = (await api.getFinancialsResults(runId)) as { results: CompanyFinancialsRecord[] };
       setFinancialsResults(res.results);
       const decisionsRes = (await api.getFinancialsReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
       setFinancialsReviewDecisions(decisionsRes.decisions);
+    } else if (mode === "tnfd") {
+      setTnfdResults((await api.getTnfdResults(runId)).results);
+    } else {
+      setTransitionResults((await api.getTransitionPlanResults(runId)).results);
+      const decisionsRes = (await api.getTransitionPlanReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
+      setTransitionReviewDecisions(decisionsRes.decisions);
     }
   }
 
   const scoringStepNumber = mode === "custom" ? 3 : 1;
   const universeStepNumber = scoringStepNumber + 1;
   const fieldNames = schema?.fields.map((f) => f.name) ?? [];
-  const readyForUniverseStep = mode === "financials" || (mode === "custom" && schema != null);
+  const readyForUniverseStep = mode !== "custom" || schema != null;
+  const resultCount = { custom: extractionResults, financials: financialsResults, tnfd: tnfdResults, transition_plan: transitionResults }[mode].length;
+  const toggleExpanded = (companyId: string) => setExpanded(expanded === companyId ? null : companyId);
 
   return (
     <div className="page">
       <h2>Extraction</h2>
-      <p className="help-text">Extract data points from company disclosures, each checked by a verifier and every citation re-verified against its source. Draft a custom schema, or run the built-in segments, CapEx and R&amp;D pass.</p>
+      <p className="help-text">Extract data points from company disclosures, each checked by a verifier and every citation re-verified against its source. Pick a profile: draft a custom schema, or run one of the built-in ones — Financials, TNFD or Transition Plan.</p>
 
-      <div className="view-toggle">
-        <button className={mode === "custom" ? "active" : ""} onClick={() => switchMode("custom")}>
-          Custom schema
-        </button>
-        <button className={mode === "financials" ? "active" : ""} onClick={() => switchMode("financials")}>
-          Financials (segments / CapEx / R&amp;D)
-        </button>
+      <div className="view-toggle" role="group" aria-label="Extraction profile">
+        {PROFILES.map((p) => (
+          <button key={p.id} className={mode === p.id ? "active" : ""} aria-pressed={mode === p.id} onClick={() => switchMode(p.id)}>
+            {p.label}
+          </button>
+        ))}
       </div>
+      {profile.about && <p className="help-text">{profile.about}</p>}
+      {mode === "transition_plan" && <TransitionPlanMethodology />}
 
       {mode === "custom" && (
         <section className="card">
@@ -233,7 +280,7 @@ export function Extraction({ pendingUniverse }: Props = {}) {
             and stores the scores and tiers with the run. You can also attach one after the run.
           </p>
           <ScoringTemplatePicker
-            runType={mode === "custom" ? "extraction" : "financials"}
+            runType={profile.runType}
             fieldNames={mode === "custom" ? fieldNames : undefined}
             value={templateId}
             onChange={setTemplateId}
@@ -241,14 +288,6 @@ export function Extraction({ pendingUniverse }: Props = {}) {
         </section>
       )}
 
-      {mode === "financials" && (
-        <p className="help-text">
-          Pulls disclosed business segments (name, description, revenue, operating income, assets), total CapEx, and
-          total R&amp;D — each with a grounded description and any disclosed category breakdown — in a single
-          combined pass per company: one document fetch, one extractor call, one independent verifier call, instead
-          of three separate pipelines.
-        </p>
-      )}
 
       {readyForUniverseStep && (
         <section className="card">
@@ -259,16 +298,20 @@ export function Extraction({ pendingUniverse }: Props = {}) {
               universe below to replace it.
             </p>
           )}
+          {mode === "tnfd" && (
+            <label className="field-label">
+              Reporting period
+              <input value={asOf} onChange={(e) => setAsOf(e.target.value)} placeholder="FY2025" />
+            </label>
+          )}
           <UniversePicker
             onResolved={(path, count) => {
               setUniversePath(path);
               setCompanyCount(count);
             }}
           />
-          <button onClick={startRun} disabled={busy || !universePath}>
-            {mode === "custom"
-              ? `Extract across ${companyCount || "..."} companies`
-              : `Extract financials across ${companyCount || "..."} companies`}
+          <button onClick={startRun} disabled={busy || !universePath || (mode === "tnfd" && !asOf.trim())}>
+            {`Extract ${mode === "custom" ? "" : `${profile.label} `}across ${companyCount || "..."} companies`}
           </button>
         </section>
       )}
@@ -278,7 +321,7 @@ export function Extraction({ pendingUniverse }: Props = {}) {
       {runId && (
         <section className="card">
           <h3>{universeStepNumber + 1}. Run progress</h3>
-          <RunProgress runId={runId} runType={mode === "custom" ? "extraction" : "financials"} />
+          <RunProgress runId={runId} runType={profile.runType} />
           <div className="toolbar">
             <button onClick={refreshResults}>Refresh results</button>
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
@@ -288,8 +331,9 @@ export function Extraction({ pendingUniverse }: Props = {}) {
           </div>
 
           {mode === "financials" && financialsResults.length > 0 && <BatchSpendChart results={financialsResults} />}
+          {mode === "transition_plan" && transitionResults.length > 0 && <TransitionPlanBatchOverview results={transitionResults} />}
 
-          {((mode === "custom" && extractionResults.length > 0) || (mode === "financials" && financialsResults.length > 0)) && (
+          {resultCount > 0 && (
             <div className="split-review">
               <div className="split-review-main">
                 {mode === "custom" && (
@@ -297,7 +341,7 @@ export function Extraction({ pendingUniverse }: Props = {}) {
                     results={extractionResults}
                     runId={runId}
                     expanded={expanded}
-                    onToggleExpanded={(companyId) => setExpanded(expanded === companyId ? null : companyId)}
+                    onToggleExpanded={toggleExpanded}
                     reviewDecisions={extractionReviewDecisions}
                     reviewer={reviewer}
                     onReviewDone={refreshResults}
@@ -310,11 +354,28 @@ export function Extraction({ pendingUniverse }: Props = {}) {
                     results={financialsResults}
                     runId={runId}
                     expanded={expanded}
-                    onToggleExpanded={(companyId) => setExpanded(expanded === companyId ? null : companyId)}
+                    onToggleExpanded={toggleExpanded}
                     reviewDecisions={financialsReviewDecisions}
                     reviewer={reviewer}
                     onReviewDone={refreshResults}
                     onOpenSource={setActiveSource}
+                  />
+                )}
+
+                {mode === "tnfd" && (
+                  <TnfdResultsTable results={tnfdResults} expanded={expanded} onToggleExpanded={toggleExpanded} onOpenSource={setActiveSource} />
+                )}
+
+                {mode === "transition_plan" && (
+                  <TransitionPlanResultsTable
+                    runId={runId}
+                    results={transitionResults}
+                    reviewDecisions={transitionReviewDecisions}
+                    reviewer={reviewer}
+                    onReviewed={refreshResults}
+                    onOpenSource={setActiveSource}
+                    expanded={expanded}
+                    onToggleExpanded={toggleExpanded}
                   />
                 )}
               </div>
@@ -328,7 +389,7 @@ export function Extraction({ pendingUniverse }: Props = {}) {
         <RunScoringPanel
           key={runId}
           runId={runId}
-          runType={mode === "custom" ? "extraction" : "financials"}
+          runType={profile.runType}
           fieldNames={mode === "custom" ? fieldNames : undefined}
         />
       )}

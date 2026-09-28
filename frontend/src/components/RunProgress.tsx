@@ -17,6 +17,7 @@ export function RunProgress({
     | "discovery"
     | "proxy_voting"
     | "financials"
+    | "tnfd"
     | "identity"
     | "transition_plan"
     | "transition_barrier_refresh"

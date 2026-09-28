@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from arp.api.company_results import list_company_results
-from arp.api.deps import get_decision_store, get_llm_client, get_registry, get_run_store, settings_dep
+from arp.api.deps import get_decision_store, get_llm_client, get_registry, get_run_store, get_xbrl_source, settings_dep
 from arp.api.review_endpoints import (
     ReviewDecisionRequest,
     get_review_decisions,
@@ -90,6 +92,61 @@ async def start_extraction_run(
 
     run_id = schedule_llm_run(create_fn=_create, run=_run)
     return {"run_id": run_id, "company_count": len(companies)}
+
+
+ExtractionProfile = Literal["custom", "financials", "tnfd", "transition_plan"]
+
+
+class StartRequest(BaseModel):
+    """One way to start any extraction pipeline. `profile` picks the
+    pipeline; the fields after it are what that pipeline needs."""
+
+    profile: ExtractionProfile
+    datapoint_schema: DataPointSchema | None = Field(default=None, description="custom: the schema to extract.")
+    as_of: str | None = Field(default=None, description="tnfd: the reporting period the run covers, e.g. FY2025.")
+    companies: list[CompanyRef] | None = None
+    universe_path: str | None = None
+    decision_framework_id: str | None = Field(default=None, description="Decision Studio framework applied as the run's last step.")
+    decision_framework_version: int | None = None
+
+
+@router.post("/start")
+async def start_extraction(
+    req: StartRequest,
+    settings: Settings = Depends(settings_dep),
+    run_store: RunStore = Depends(get_run_store),
+    registry: DocumentSourceRegistry = Depends(get_registry),
+    decision_store: DecisionStore = Depends(get_decision_store),
+    xbrl_source=Depends(get_xbrl_source),
+) -> dict:
+    """The single entry point for the extraction pipelines: custom schema,
+    financials, TNFD and transition plan. It hands the request to that
+    pipeline's own start endpoint, which stays available for existing
+    callers. Returns `run_type` so a caller knows which results to read."""
+    from arp.api.routers import financials, tnfd, transition_plan
+
+    common = {
+        "companies": req.companies,
+        "universe_path": req.universe_path,
+        "decision_framework_id": req.decision_framework_id,
+        "decision_framework_version": req.decision_framework_version,
+    }
+    stores = {"settings": settings, "run_store": run_store, "registry": registry, "decision_store": decision_store}
+    if req.profile == "custom":
+        if req.datapoint_schema is None:
+            raise HTTPException(400, "The custom profile needs `datapoint_schema`.")
+        started, run_type = await start_extraction_run(RunRequest(datapoint_schema=req.datapoint_schema, **common), **stores), "extraction"
+    elif req.profile == "financials":
+        started = await financials.start_financials_extraction_run(financials.RunRequest(**common), **stores, xbrl_source=xbrl_source)
+        run_type = "financials"
+    elif req.profile == "tnfd":
+        if not req.as_of:
+            raise HTTPException(400, "The TNFD profile needs `as_of`, the reporting period the run covers.")
+        started, run_type = await tnfd.start_tnfd_extraction_run(tnfd.RunRequest(as_of=req.as_of, **common), **stores), "tnfd"
+    else:
+        started = await transition_plan.start_transition_plan_run(transition_plan.RunRequest(**common), **stores)
+        run_type = "transition_plan"
+    return {**started, "run_type": run_type}
 
 
 @router.get("/runs/{run_id}")

@@ -3,7 +3,6 @@ import { api } from "./api/client";
 import { ReviewerField } from "./components/ReviewerField";
 import { ThemeBuilder } from "./pages/ThemeBuilder";
 import { Extraction } from "./pages/Extraction";
-import { TransitionPlanAssessment } from "./pages/TransitionPlanAssessment";
 import { TransitionBarrierAssessment } from "./pages/TransitionBarrierAssessment";
 import { DocumentDiscovery } from "./pages/DocumentDiscovery";
 import { EmergingThemesDetector } from "./pages/EmergingThemesDetector";
@@ -219,8 +218,8 @@ function App() {
         {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
         {active === "emergingThemes" && <EmergingThemesDetector onNavigate={go} />}
         {active === "backgroundAgents" && <BackgroundAgents />}
-        {active === "extraction" && <Extraction pendingUniverse={pendingFor("extraction")} />}
-        {active === "transitionPlan" && <TransitionPlanAssessment pendingUniverse={pendingFor("transitionPlan")} />}
+        {active === "extraction" && <Extraction key="extraction" pendingUniverse={pendingFor("extraction")} />}
+        {active === "transitionPlan" && <Extraction key="transitionPlan" initialProfile="transition_plan" pendingUniverse={pendingFor("transitionPlan")} />}
         {active === "transitionBarrier" && <TransitionBarrierAssessment />}
         {active === "identity" && <IdentityResolution onSendToDiscovery={(path, count) => sendUniverse("Identity Resolution")("discovery", path, count)} />}
         {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingFor("discovery")} onSendUniverse={sendUniverse("Document Discovery")} />}

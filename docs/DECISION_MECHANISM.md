@@ -452,7 +452,8 @@ A saved framework is a template. Three things make it usable as one:
   run would be frozen as if they covered the universe), and no column the
   template scores on may be missing.
 
-In the UI, the Extraction (custom schema and Financials) and Transition Plan pages have an optional "Score the results" step and a
+In the UI, the Extraction screen has an optional "Score the results" step for every profile (custom schema, Financials, TNFD,
+Transition Plan) and a
 Scoring panel under the run; Decision Studio's Data tab lists templates with
 their fit to the selected table, and applies, imports and exports them.
 

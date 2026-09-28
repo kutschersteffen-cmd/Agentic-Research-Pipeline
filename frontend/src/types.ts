@@ -2671,3 +2671,37 @@ export interface DecisionInput {
   rows: number;
   matched: number;
 }
+
+/** One TNFD recommendation as extracted for a company (subset of the backend's DisclosureExtraction). */
+export interface TnfdDisclosure {
+  recommendation_id: string;
+  disclosed: boolean;
+  summary: string | null;
+  summary_citations: Citation[];
+  confidence: number;
+  grounded: boolean;
+  verifier_notes: string | null;
+}
+
+export interface TnfdMetric {
+  category: string;
+  metric_name: string;
+  value: number | null;
+  unit: string | null;
+  grounded: boolean;
+}
+
+/** A company's TNFD extraction (subset of the backend's TNFDExtractionRecord). */
+export interface TnfdRecord {
+  company_id: string;
+  ticker: string | null;
+  name: string;
+  as_of: string;
+  disclosures: TnfdDisclosure[];
+  core_global_metrics: TnfdMetric[];
+  missing_recommendations: string[];
+  overall_confidence: number;
+  needs_review: boolean;
+}
+
+export type ExtractionProfile = "custom" | "financials" | "tnfd" | "transition_plan";
