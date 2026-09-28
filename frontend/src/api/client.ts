@@ -745,6 +745,8 @@ export const api = {
   attachRunFramework: (runId: string, frameworkId: string, version?: number) =>
     request(`/api/decision/runs/${runId}/framework`, { method: "PUT", body: JSON.stringify({ framework_id: frameworkId, version }) }),
   getRunDecision: (runId: string) => request<RunDecision>(`/api/decision/runs/${runId}/decision`),
+  publishRunDecision: (runId: string, publishedBy: string) =>
+    request<PublishedDecision>(`/api/decision/runs/${runId}/publish`, { method: "POST", body: JSON.stringify({ published_by: publishedBy }) }),
   publishDecision: (body: { dataset_id: string; framework_id: string; version?: number; published_by: string; id_column?: string; note?: string }) =>
     request<PublishedDecision>("/api/decision/publish", { method: "POST", body: JSON.stringify(body) }),
   listPublishedDecisions: () => request<PublishedDecision[]>("/api/decision/published"),

@@ -91,8 +91,9 @@ They are listed by how often a process crosses them.
    framework is a scoring template: pick one in the run's "Score the results"
    step (or attach it after the run) and the run is scored with that version
    pinned, shown under the run. Decision Studio is where the template is built,
-   tuned and ratified; see `DECISION_MECHANISM.md` §7a. Publishing still goes
-   through Decision Studio.
+   tuned and ratified; see `DECISION_MECHANISM.md` §7a. Once the run has
+   finished and its template version is ratified, the run's Scoring panel
+   publishes the tiers to Steward · Selection and Index Construction directly.
 7. **Transition Barriers → Transition Plan.** Sector context is read, not joined.
    Fix: show the issuer's sector × jurisdiction barrier cells next to its
    walk-vs-talk verdict.

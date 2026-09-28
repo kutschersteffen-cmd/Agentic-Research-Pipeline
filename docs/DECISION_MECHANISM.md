@@ -398,7 +398,13 @@ A saved framework is a template. Three things make it usable as one:
   attaches or replaces one afterwards. `GET /api/decision/runs/{id}/decision`
   scores the run's current results with the pinned version; it is computed
   on request rather than stored, since the version is fixed and results only
-  grow.
+  grow. `POST /api/decision/runs/{id}/publish` publishes those tiers
+  straight from the run (the same snapshot as publishing from the studio,
+  and the scored table is saved as a dataset). It is stricter than the
+  studio, because nobody looks at a table before signing: the pinned
+  version must be ratified, the run must have finished (tiers from half a
+  run would be frozen as if they covered the universe), and no column the
+  template scores on may be missing.
 
 In the UI, both run pages have an optional "Score the results" step and a
 Scoring panel under the run; Decision Studio's Data tab lists templates with

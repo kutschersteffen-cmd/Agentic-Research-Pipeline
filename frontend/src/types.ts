@@ -1797,6 +1797,8 @@ export interface TemplateMatch {
 /** A run's results scored with the template version pinned on it. */
 export interface RunDecision {
   framework: { framework_id: string; version: number; name: string };
+  /** Only a ratified version can be published. */
+  ratified: boolean;
   run_status: string;
   missing_columns: string[];
   result: DecisionResult;

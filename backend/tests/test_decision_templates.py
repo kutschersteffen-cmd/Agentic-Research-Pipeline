@@ -129,6 +129,29 @@ def test_attached_template_scores_the_run_with_its_pinned_version(client):
     assert scored["result"]["scored_count"] + scored["result"]["excluded_count"] + scored["result"]["insufficient_count"] == 8
 
 
+def test_publishing_from_a_run_needs_a_finished_run_and_a_ratified_version(client):
+    framework_id = _template(client)
+    run_id = _extraction_run(client.run_store)
+    client.put(f"/api/decision/runs/{run_id}/framework", json={"framework_id": framework_id})
+    body = {"published_by": "ana"}
+
+    running = client.post(f"/api/decision/runs/{run_id}/publish", json=body)
+    assert running.status_code == 409, "half a run's tiers are not the universe's tiers"
+
+    JobManager(client.run_store).finish_run(run_id)
+    assert client.get(f"/api/decision/runs/{run_id}/decision").json()["ratified"] is False
+    assert client.post(f"/api/decision/runs/{run_id}/publish", json=body).status_code == 422
+
+    client.store.ratify(framework_id, 1, ratified_by="IC")
+    published = client.post(f"/api/decision/runs/{run_id}/publish", json=body)
+    assert published.status_code == 200, published.text
+    snapshot = published.json()
+    assert snapshot["framework_version"] == 1 and snapshot["id_column"] == "Company_Id"
+    assert sorted(r["entity_id"] for r in snapshot["rows"]) == [f"c{i}" for i in range(8)]
+    assert client.store.get_dataset(snapshot["dataset_id"]) is not None, "the snapshot's table opens in the studio"
+    assert [p["snapshot_id"] for p in client.get("/api/decision/published").json()] == [snapshot["snapshot_id"]]
+
+
 def test_attach_refuses_a_template_the_schema_cannot_feed(client):
     framework_id = _template(client)
     run_id = _extraction_run(client.run_store, fields=["Something else"])

@@ -497,19 +497,14 @@ def attach_framework(
 
 class RunDecision(BaseModel):
     framework: dict[str, Any]
+    ratified: bool = Field(default=False, description="Whether the pinned version is ratified -- only then can it be published.")
     run_status: str
     missing_columns: list[str]
     result: DecisionResult
 
 
-@router.get("/runs/{run_id}/decision", response_model=RunDecision)
-def run_decision(
-    run_id: str, store: DecisionStore = Depends(get_decision_store), run_store: RunStore = Depends(get_run_store)
-) -> RunDecision:
-    """The run's results scored with its pinned template. Computed on request
-    rather than stored: the template version is fixed and results only
-    grow, so the same request always gives the same answer, and a run still
-    in progress is scored on what it has so far (`run_status` says so)."""
+def _run_scoring(run_id: str, store: DecisionStore, run_store: RunStore):
+    """The run's manifest, pinned framework version and current table."""
     manifest = run_store.load_manifest(run_id)
     if manifest is None:
         raise HTTPException(404, "Run not found")
@@ -523,12 +518,63 @@ def run_decision(
         dataset = templates.run_dataset(run_store, manifest)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
+    return manifest, pinned, config, dataset
+
+
+@router.get("/runs/{run_id}/decision", response_model=RunDecision)
+def run_decision(
+    run_id: str, store: DecisionStore = Depends(get_decision_store), run_store: RunStore = Depends(get_run_store)
+) -> RunDecision:
+    """The run's results scored with its pinned template. Computed on request
+    rather than stored: the template version is fixed and results only
+    grow, so the same request always gives the same answer, and a run still
+    in progress is scored on what it has so far (`run_status` says so)."""
+    manifest, pinned, config, dataset = _run_scoring(run_id, store, run_store)
     return RunDecision(
         framework=pinned,
+        ratified=config.ratified,
         run_status=manifest.status.value,
         missing_columns=templates.missing_columns(config, dataset.columns),
         result=_apply(dataset, config, derivation_audit=store.get_audit(config.framework_id, config.version)),
     )
+
+
+class RunPublishRequest(BaseModel):
+    published_by: str
+    note: str = ""
+
+
+# A run in these states will not gain more results, so its tiers are final.
+_FINISHED = {"completed", "partially_completed", "cancelled"}
+
+
+@router.post("/runs/{run_id}/publish", response_model=PublishedDecision)
+def publish_run(
+    run_id: str,
+    req: RunPublishRequest,
+    store: DecisionStore = Depends(get_decision_store),
+    run_store: RunStore = Depends(get_run_store),
+) -> PublishedDecision:
+    """Publishes a run's tiers straight from the run, with the pinned version.
+
+    Stricter than publishing from the studio in two ways, both because nobody
+    looks at a table here before signing: the run must have finished (tiers
+    from half a run would be frozen as if they covered the universe), and no
+    column the template needs may be missing (criteria on a missing column
+    are skipped, which changes the score without saying so). The scored table
+    is saved as a dataset, so the snapshot's dataset_id opens in the studio."""
+    manifest, _pinned, config, dataset = _run_scoring(run_id, store, run_store)
+    if manifest.status.value not in _FINISHED:
+        raise HTTPException(409, f"The run is {manifest.status.value}; publish once it has finished.")
+    missing = templates.missing_columns(config, dataset.columns)
+    if missing:
+        raise HTTPException(422, f"Not published: the results lack columns the template scores on: {', '.join(missing)}")
+    try:
+        snapshot = publish(dataset, config, _apply(dataset, config), published_by=req.published_by, note=req.note or f"From run {run_id}")
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    store.save_dataset(dataset)
+    return store.save_published(snapshot)
 
 
 class CompareRequest(BaseModel):

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
-import type { RunDecision, RunScoringKind, TemplateMatch } from "../types";
+import type { PublishedDecision, RunDecision, RunScoringKind, TemplateMatch } from "../types";
+import { ConfirmDecision } from "./ConfirmDecision";
 
 interface PickerProps {
   runType: RunScoringKind;
@@ -73,12 +74,25 @@ interface PanelProps {
   fieldNames?: string[];
 }
 
+// A run in these states gains no more results, so its tiers are final.
+const FINISHED = ["completed", "partially_completed", "cancelled"];
+
+/** Why the run's tiers cannot be published yet, or null when they can. */
+function publishBlocker(decision: RunDecision): string | null {
+  if (!FINISHED.includes(decision.run_status)) return "Publish once the run has finished — until then the tiers cover only part of the universe.";
+  if (decision.missing_columns.length > 0) return "Publishing is blocked while columns the template scores on are missing.";
+  if (!decision.ratified) return `Ratify v${decision.framework.version} of ${decision.framework.name} in Decision Studio (Audit tab) to publish.`;
+  return null;
+}
+
 /** The run's results scored with its pinned template, or a picker to attach one. */
 export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
   const [decision, setDecision] = useState<RunDecision | null>(null);
   const [unattached, setUnattached] = useState(false);
   const [choice, setChoice] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [confirmingPublish, setConfirmingPublish] = useState(false);
+  const [published, setPublished] = useState<PublishedDecision | null>(null);
 
   const load = useCallback(async () => {
     setError("");
@@ -95,6 +109,16 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function publish(by: string) {
+    setConfirmingPublish(false);
+    setError("");
+    try {
+      setPublished(await api.publishRunDecision(runId, by));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
 
   async function attach() {
     if (!choice) return;
@@ -115,7 +139,31 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
             Re-score
           </button>
         )}
+        {decision && !published && !publishBlocker(decision) && (
+          <button onClick={() => setConfirmingPublish(true)}>Publish to stewardship and index…</button>
+        )}
       </div>
+      {decision && publishBlocker(decision) && <p className="muted">{publishBlocker(decision)}</p>}
+      {confirmingPublish && decision && (
+        <ConfirmDecision
+          title="Publish these tiers?"
+          confirmLabel="Publish"
+          onConfirm={publish}
+          onCancel={() => setConfirmingPublish(false)}
+        >
+          <p>
+            Freezes {decision.framework.name} v{decision.framework.version}&apos;s tiers for the {decision.result.entities.length}{" "}
+            companies in this run, matched to issuers by company id. Steward Workflow&apos;s coverage rules and Index Construction can
+            then read them. Nothing changes there until a person confirms tiers or runs an index review.
+          </p>
+        </ConfirmDecision>
+      )}
+      {published && (
+        <p className="status-text" role="status">
+          Published {published.rows.length} companies as <code>decision.{published.framework_id}</code>. Next:{" "}
+          <a href="#/stewardship/selection">use the tiers in coverage rules</a> or <a href="#/index">join the scores in an index</a>.
+        </p>
+      )}
       {error && <p className="error-text">{error}</p>}
 
       {unattached && (
