@@ -27,7 +27,7 @@ const PROCESSES: Process[] = [
     outcome: "Every holding resolved to one issuer, with current disclosures and reviewed figures.",
     steps: [
       { tab: "identity", label: "Identity Resolution", does: "Upload the holdings list; resolve each line to a canonical issuer.", handsOn: "Resolved universe", carried: true, runTypes: ["identity"] },
-      { tab: "discovery", label: "Document Discovery", does: "Find each issuer's IR site and download annual, sustainability and proxy reports.", handsOn: "Disclosure library", runTypes: ["discovery"] },
+      { tab: "discovery", label: "Document Discovery", does: "Find each issuer's IR site and download annual, sustainability and proxy reports.", handsOn: "Same universe", carried: true, runTypes: ["discovery"] },
       { tab: "extraction", label: "Extraction", does: "Company financials (segments, CapEx, R&D) and any schema-defined data points.", handsOn: "Flagged figures", carried: true, runTypes: ["extraction", "financials"] },
       { tab: "review", label: "Review Queue", does: "Approve, edit or reject every flagged figure.", handsOn: "Reviewed figures", carried: true, runTypes: REVIEWABLE },
       { tab: "library", label: "Data Library", does: "Check the issuer view: figures, sources and review history in one place." },

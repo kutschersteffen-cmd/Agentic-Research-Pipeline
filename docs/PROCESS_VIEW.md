@@ -67,9 +67,9 @@ They are listed by how often a process crosses them.
      `vote.against_management`, `vote.overrode_policy`, `vote.last_meeting_date`),
      so any stewardship rule can use them.
    The expected-vote metrics on the synthetic meeting sample stay as they were.
-3. **Document Discovery → Extraction / Transition Plan.** After discovery, the
-   universe has to be uploaded again. Fix: a "Send to Extraction" button, the same
-   pattern Identity Resolution already uses for Discovery.
+3. ~~**Document Discovery → Extraction / Transition Plan.**~~ **Closed.** Once a
+   discovery run starts, Document Discovery offers "Extraction →" and
+   "Transition Plan →" with the same universe, so nothing is uploaded twice.
 4. **Risk Monitoring → Transition Plan / Steward · Monitoring.** Portfolio holdings
    and alerts don't become a universe or triggers. Fix: "Use these holdings as a
    universe" from the selection pane, and alerts as `manual` trigger events.
@@ -84,9 +84,9 @@ They are listed by how often a process crosses them.
    Fix: show the issuer's sector × jurisdiction barrier cells next to its
    walk-vs-talk verdict.
 
-Also: the Thematic Universe → Extraction handoff sets a single "pending universe"
-that the Transition Plan screen picks up too, and it says "sent from another screen"
-there. Tag the pending universe with its destination once a second sender exists.
+The universe handoff between screens is one piece of state in `App.tsx` that
+records its sender and its destination, so only the addressed screen picks it
+up and names where it came from.
 
 ## Deliberately not done
 

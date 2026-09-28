@@ -7,14 +7,14 @@ import { ReviewControls } from "../components/ReviewControls";
 import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { BarChart } from "../components/BarChart";
-import type { IndicatorAssessment, IndicatorCategory, ReviewDecision, TransitionPlanAssessmentRecord, TransitionPlanIndicatorDef } from "../types";
+import type { IndicatorAssessment, IndicatorCategory, ReviewDecision, TransitionPlanAssessmentRecord, TransitionPlanIndicatorDef, UniverseHandoff } from "../types";
 import { activatable } from "../lib/activatable";
 import { useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "../components/ReviewerField";
 import { ProposedTag } from "../components/ProposedTag";
 
 interface Props {
-  pendingUniverse?: { path: string; count: number } | null;
+  pendingUniverse?: UniverseHandoff | null;
 }
 
 const CATEGORY_LABELS: Record<IndicatorCategory, string> = {
@@ -254,7 +254,7 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
         <h3>1. Choose the company universe</h3>
         {pendingUniverse && universePath === pendingUniverse.path && (
           <p className="status-text">
-            Using {pendingUniverse.count} companies sent from another screen. Upload a different universe below to
+            Using {pendingUniverse.count} companies sent from {pendingUniverse.from}. Upload a different universe below to
             replace it.
           </p>
         )}
