@@ -734,6 +734,12 @@ export const api = {
   publishDecision: (body: { dataset_id: string; framework_id: string; version?: number; published_by: string; id_column?: string; note?: string }) =>
     request<PublishedDecision>("/api/decision/publish", { method: "POST", body: JSON.stringify(body) }),
   listPublishedDecisions: () => request<PublishedDecision[]>("/api/decision/published"),
+  getHouseUniverse: () =>
+    request<{ source: "sample" | "portfolio"; set_by: string | null; set_at: string | null; issuers: number; note: string | null }>(
+      "/api/stewardship/universe",
+    ),
+  setHouseUniverse: (body: { source: "sample" | "portfolio"; set_by: string }) =>
+    request<{ source: "sample" | "portfolio"; issuers: number }>("/api/stewardship/universe", { method: "PUT", body: JSON.stringify(body) }),
   getDecisionInputs: () => request<{ in_scope: number; published: DecisionInput[] }>("/api/stewardship/decision-inputs"),
   // Index construction
   getIndexCatalogue: () => request<IndexCatalogue>("/api/index/catalogue"),

@@ -2160,7 +2160,7 @@ export interface IndexCatalogue {
 }
 
 // Stewardship process page (backend/arp/stewardship/process.py)
-export type MetricSource = "live" | "sample" | "not_built";
+export type MetricSource = "live" | "sample" | "portfolio" | "not_built";
 export type MetricTone = "neutral" | "good" | "warn" | "bad";
 
 export interface StewardshipMetric {

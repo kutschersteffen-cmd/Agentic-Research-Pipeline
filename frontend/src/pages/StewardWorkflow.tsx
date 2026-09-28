@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { StewardshipFlow, StewardshipStage, StewardshipStream } from "../types";
 import { SOURCE_LABEL } from "./steward/common";
+import { useReviewer } from "../lib/reviewer";
 import { FlowChart, FlowList } from "./steward/flow";
 import { DraftingStudio } from "./steward/drafting";
 import { ProgramStudio } from "./steward/program";
@@ -35,6 +36,50 @@ const CLIENT_STAGES = new Set(["client_policy", "reporting", "program"]);
 
 const openCount = (stage: StewardshipStage | undefined) =>
   stage ? stage.decisions.filter((d) => d.kind !== "policy_difference" || d.decision === null).length : 0;
+
+/** Which companies the house program covers (see backend stewardship/universe.py).
+ * Portfolio holdings make stewardship share company ids with Risk Monitoring,
+ * Proxy Voting and Decision Studio, so their handoffs match. */
+function HouseUniverse({ onChanged }: { onChanged: () => void }) {
+  const [info, setInfo] = useState<Awaited<ReturnType<typeof api.getHouseUniverse>> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [reviewer] = useReviewer();
+  useEffect(() => {
+    api.getHouseUniverse().then(setInfo, (e: Error) => setError(e.message));
+  }, []);
+  async function choose(source: "sample" | "portfolio") {
+    setError(null);
+    try {
+      await api.setHouseUniverse({ source, set_by: reviewer });
+      setInfo(await api.getHouseUniverse());
+      onChanged();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+  if (!info) return error ? <p className="error-text">{error}</p> : null;
+  return (
+    <div className="toolbar">
+      <span className="muted">Companies covered:</span>
+      {(["sample", "portfolio"] as const).map((s) => (
+        <button
+          key={s}
+          className={info.source === s ? "nav-tab active" : "nav-tab"}
+          aria-pressed={info.source === s}
+          disabled={!reviewer.trim() && info.source !== s}
+          onClick={() => info.source !== s && choose(s)}
+        >
+          {s === "sample" ? "Synthetic sample" : "Portfolio holdings"}
+        </button>
+      ))}
+      <span className="muted">
+        {info.issuers} companies{info.set_by ? ` · set by ${info.set_by}` : ""}
+        {!reviewer.trim() && " · enter your name in the sidebar to change it"}
+      </span>
+      {error && <span className="error-text">{error}</span>}
+    </div>
+  );
+}
 
 function AddStream({ onCreated }: { onCreated: (id: string) => void }) {
   const [name, setName] = useState("");
@@ -219,6 +264,7 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
                   </span>
                 ))}
               </div>
+              {stream === "house" && <HouseUniverse onChanged={reload} />}
               <p className="muted">{overviewFlow.data_note} Click a stage to open its studio.</p>
               <FlowChart flow={overviewFlow} selected="" onSelect={openTab} />
               <FlowList flow={overviewFlow} selected="" onSelect={openTab} />

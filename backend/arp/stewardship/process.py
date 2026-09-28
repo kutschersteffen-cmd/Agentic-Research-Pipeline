@@ -34,6 +34,7 @@ from arp.stewardship.policy_graph import evaluate, generate
 from arp.stewardship.policy_review import DATA, build, decide, review
 from arp.stewardship.tiers import TIER_LABELS, TIERS, TierStore, review_tiers, tier_contexts
 from arp.stewardship.tiers import evaluate as evaluate_tiers
+from arp.stewardship.universe import HouseUniverseSetting, from_portfolio
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
@@ -60,8 +61,25 @@ def portfolio_alerts() -> list:
     return list_alerts(build_portfolio_store(get_settings()))
 
 
-def load_sample(frameworks_dir: Path | None = None, votes: list[dict] | None = None, alerts: list | None = None) -> dict:
-    """The issuer sample with live data merged in as company fields, matched
+def house_universe() -> dict:
+    """The issuers the house program covers: the synthetic sample, or the companies
+    held in the house portfolios, as the house setting says (see universe.py)."""
+    from arp.config import get_settings
+    from arp.storage.portfolio_store_factory import build_portfolio_store
+
+    settings = get_settings()
+    if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "portfolio":
+        return from_portfolio(build_portfolio_store(settings))
+    return json.loads(SAMPLE_PATH.read_text())
+
+
+def load_sample(
+    frameworks_dir: Path | None = None,
+    votes: list[dict] | None = None,
+    alerts: list | None = None,
+    base: dict | None = None,
+) -> dict:
+    """The house issuers (`house_universe()`, or `base`) with live data merged in as company fields, matched
     by issuer id, so coverage, monitoring and escalation rules read it like
     any other field:
 
@@ -75,7 +93,7 @@ def load_sample(frameworks_dir: Path | None = None, votes: list[dict] | None = N
         from arp.config import get_settings
 
         frameworks_dir = get_settings().frameworks_dir
-    sample = json.loads(SAMPLE_PATH.read_text())
+    sample = house_universe() if base is None else base
     merged = [as_fields(snapshot) for snapshot in DecisionStore(frameworks_dir).latest_published()]
     merged.append(voting_feed.issuer_fields(vote_items() if votes is None else votes))
     merged.append(alerts_feed.issuer_fields(portfolio_alerts() if alerts is None else alerts))
@@ -626,9 +644,16 @@ def flow(
             clients[stream_id],
             client_store(streams.root, stream_id).active_version("escalation_rules"),
         )
+    if sample.get("source") == "portfolio":
+        # Figures that would come from the synthetic sample come from the held companies instead.
+        for stage in stages:
+            stage["metrics"] = [{**m, "source": "portfolio"} if m["source"] == "sample" else m for m in stage["metrics"]]
+        data_note = f"{sample['note']} Engagement data is live."
+    else:
+        data_note = "Meeting and company data are a synthetic sample (fictional companies); engagement data is live."
     return {
         "stream": {k: stream[k] for k in ("stream_id", "name")} | {"mandate": stream.get("client_policy", {}).get("mandate")},
-        "data_note": "Meeting and company data are a synthetic sample (fictional companies); engagement data is live.",
+        "data_note": data_note,
         "stages": stages,
         "edges": EDGES,
     }

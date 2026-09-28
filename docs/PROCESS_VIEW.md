@@ -91,6 +91,20 @@ They are listed by how often a process crosses them.
    Fix: show the issuer's sector × jurisdiction barrier cells next to its
    walk-vs-talk verdict.
 
+### One set of companies
+
+Steward Workflow's overview has a house setting, **Companies covered**:
+*Synthetic sample* (the default, 12 fictional companies with meetings and rich
+company data) or *Portfolio holdings* (the companies held in the house
+portfolios). On portfolio holdings, stewardship issuer ids are the portfolio
+company ids, so Decision Studio publications, Proxy Voting ballots and Risk
+Monitoring alerts all match. The holdings supply AUM held, the share of house
+holdings (in place of an index weight) and position changes. Company fields are
+the latest portfolio data points plus a placeholder CLTI score, and figures are
+labelled "portfolio holdings". What the holdings don't carry (meetings,
+governance data, engagement history) is left empty, not invented, so for
+example expected votes read 0 until agendas arrive.
+
 The universe handoff between screens is one piece of state in `App.tsx` that
 records its sender and its destination, so only the addressed screen picks it
 up and names where it came from.

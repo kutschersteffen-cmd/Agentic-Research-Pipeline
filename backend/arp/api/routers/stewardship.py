@@ -45,6 +45,7 @@ from arp.stewardship.process import (
 from arp.stewardship.program import ProgramParams, approve, build_proposal, monitor, record_run, simulate
 from arp.stewardship.style import check as style_check
 from arp.stewardship.tiers import TierStore, tier_contexts
+from arp.stewardship.universe import HouseUniverseSetting
 from arp.storage.decision_store import DecisionStore
 from arp.storage.engagement_store import EngagementStore
 
@@ -235,6 +236,27 @@ def activate_policy_version(
 @router.get("/catalogue")
 def get_catalogue() -> dict:
     return load("policy_issue_catalogue.json")
+
+
+class UniverseRequest(BaseModel):
+    source: Literal["sample", "portfolio"]
+    set_by: str
+
+
+@router.get("/universe")
+def get_universe(streams: StreamStore = Depends(get_stream_store)) -> dict:
+    """Which companies the house program covers, and how many each source has."""
+    sample = load_sample(votes=[], alerts=[])
+    return {**HouseUniverseSetting(streams.root).get(), "issuers": len(sample["issuers"]), "note": sample.get("note")}
+
+
+@router.put("/universe")
+def put_universe(body: UniverseRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    try:
+        HouseUniverseSetting(streams.root).set(body.source, body.set_by)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return get_universe(streams)
 
 
 @router.get("/decision-inputs")
