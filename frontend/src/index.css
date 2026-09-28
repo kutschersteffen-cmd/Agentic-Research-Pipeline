@@ -1318,3 +1318,15 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .pipeline-setting .help-text { grid-column: 1 / -1; margin: 0; }
 .pipeline-setting input[type="checkbox"] { justify-self: start; }
 @media (max-width: 640px) { .pipeline-setting { grid-template-columns: 1fr; } .pipeline-rf { height: 380px; } }
+
+/* Decision Studio: picking runs to join into one table. */
+.join-picker { margin-top: var(--s-2); }
+.join-run { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); padding: var(--s-1) 0; }
+.join-run code { overflow-wrap: anywhere; }
+
+/* Reviewer level overrides (levels mode). */
+.level-overrides { margin-top: var(--s-2); }
+.level-overridden { background: var(--accent-tint); }
+.level-override-note { font-size: var(--text-xs); color: var(--muted); margin-top: 2px; }
+.level-override-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-2); margin-top: var(--s-2); }
+.level-override-form input { min-width: 16rem; }

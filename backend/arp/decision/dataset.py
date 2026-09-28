@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from arp.decision.parsing import load_table
 from arp.schemas.common import new_id, now_iso
 
-DatasetSource = str  # "upload" | "transition_plan_run" | "portfolio_snapshot" | "theme_run" | "extraction_run"
+DatasetSource = str  # "upload" | "transition_plan_run" | "extraction_run" | "joined_runs" | "portfolio_snapshot" | ...
 
 
 class Dataset(BaseModel):

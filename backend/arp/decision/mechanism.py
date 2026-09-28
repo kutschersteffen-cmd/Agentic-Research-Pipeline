@@ -21,6 +21,7 @@ from arp.schemas.decision import (
     EntityDecision,
     GateRule,
     HistogramBin,
+    LevelOverride,
     MechanismConfig,
     NormMethod,
     RoleProposal,
@@ -246,6 +247,7 @@ def apply_mechanism(
     *,
     derivation_audit: list[AuditEntry] | None = None,
     with_stability: bool = True,
+    overrides: list[LevelOverride] | None = None,
 ) -> DecisionResult:
     """Applies a fixed mechanism to a table.
 
@@ -264,7 +266,17 @@ def apply_mechanism(
     if config.mode == "levels":
         from arp.decision.levels import apply_levels
 
-        return apply_levels(dataset, config, profiles, audit)
+        return apply_levels(dataset, config, profiles, audit, overrides)
+    if overrides:
+        audit.append(
+            AuditEntry(
+                stage="Overrides",
+                item=f"{len(overrides)} level overrides",
+                decision="not applied",
+                why="overrides set a criterion's level, which only the levels mode has",
+                needs_check=True,
+            )
+        )
     columns = active_criteria(config, profiles)
     cohorts = _cohort_values(dataset, config)
     n = dataset.row_count

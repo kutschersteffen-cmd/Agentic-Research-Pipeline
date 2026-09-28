@@ -315,6 +315,25 @@ normalisation, cohorts, derived dimensions, the rank-stability band and the
 dimension floor. Grounded coverage is not computed in this mode, since a
 level can rest on several columns.
 
+**Reviewer overrides (`overrides.py`).** A reviewer can set one criterion's
+level for one entity by hand, with a reason and their name
+(`LevelOverride`). Scoring puts it in place of the rules' level before
+cluster and total scores are averaged, so the tier moves with it. The
+rules' level stays on the result (`CriterionContribution.overridden_from`),
+the entity's notes say `Override: <criterion> 1 → 5`, and the audit log gets
+one `Overrides` entry per override, with the reason. An override that no
+longer fits is left out and flagged in the audit log: the entity has left the
+table, the criterion is not in this framework version, or the level is off
+the scale.
+
+Overrides belong to what was scored, not to the framework, which is reused
+across runs. A Decision Studio table keeps its overrides beside it
+(`_overrides/<dataset_id>.json`); a run keeps them in its folder
+(`level_overrides.json`), and setting or removing one re-scores a finished
+run. Each file holds the overrides in force and the history of every change,
+removals included, with who and why. The relative mode has no levels to set;
+an override given to it is not applied, and the audit log says so.
+
 ---
 
 ## 4. Sensitivity: how much do the weights matter (`sensitivity.py`)
@@ -405,6 +424,17 @@ rule can combine individual answers ("a 2030 target AND a board-level
 owner"). It is off by default when building a table by hand, because 64 more
 criteria is a different derivation; a run scored through a template (§7a)
 always has them.
+
+`joined_runs` combines two or more Transition Plan, Extraction, Financials or
+TNFD runs into one table, one row per company, so a criterion can combine what
+each run found ("a 2030 target disclosed AND target coverage >= 65%"). Rows
+are matched on `Company_Id`, or on the company name when a run has no id. A
+company missing from a run gets blank cells for that run's columns, which the
+scorer treats as missing data. A column two runs both have takes each run's
+prefix (`TP_`, `Extraction_`, `Financials_`, `TNFD_`, numbered for a second
+run of the same kind), and per-cell confidence follows the joined rows. A
+joined table is built in the studio; it cannot be attached to a single run as
+its rules step.
 
 ---
 

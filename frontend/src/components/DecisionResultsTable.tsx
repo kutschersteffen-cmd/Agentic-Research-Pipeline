@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react";
-import type { DecisionResult, EntityDecision, MechanismConfig } from "../types";
+import { LevelOverrides } from "./LevelOverrides";
+import type { DecisionResult, EntityDecision, LevelOverride, MechanismConfig } from "../types";
 
 function tierClass(tier?: number | null): string {
   if (tier === 1) return "badge badge-high";
@@ -21,12 +22,17 @@ export function DecisionResultsTable({
   orderBy,
   onOrderBy,
   onExplain,
+  onSetOverride,
+  onRemoveOverride,
 }: {
   result: DecisionResult;
   config: MechanismConfig;
   orderBy: "score" | "leverage";
   onOrderBy: (value: "score" | "leverage") => void;
   onExplain: (entity: EntityDecision) => void;
+  /** Levels mode: a reviewer sets or removes one criterion's level for one entity. */
+  onSetOverride?: (override: LevelOverride) => Promise<void>;
+  onRemoveOverride?: (entityKey: string, criterionId: string, reviewer: string, reason: string) => Promise<void>;
 }) {
   const [filter, setFilter] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -119,6 +125,14 @@ export function DecisionResultsTable({
                         </span>
                       ))}
                     </div>
+                    {config.mode === "levels" && onSetOverride && onRemoveOverride ? (
+                      <LevelOverrides
+                        entity={entity}
+                        scale={[config.level_min ?? 1, config.level_max ?? 7]}
+                        onSet={onSetOverride}
+                        onRemove={(criterionId, reviewer, reason) => onRemoveOverride(entity.entity_key, criterionId, reviewer, reason)}
+                      />
+                    ) : (
                     <table className="data-table">
                       <thead>
                         <tr>
@@ -145,6 +159,7 @@ export function DecisionResultsTable({
                           ))}
                       </tbody>
                     </table>
+                    )}
                   </td>
                 </tr>
               )}

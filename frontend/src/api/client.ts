@@ -40,6 +40,8 @@ import type {
   MechanismEnvelope,
   RuleGraph,
   RunDecision,
+  LevelOverride,
+  OverridesView,
   RunScoringKind,
   TemplateMatch,
   Alert,
@@ -766,6 +768,15 @@ export const api = {
   attachRunFramework: (runId: string, frameworkId: string, version?: number) =>
     request(`/api/decision/runs/${runId}/framework`, { method: "PUT", body: JSON.stringify({ framework_id: frameworkId, version }) }),
   getRunDecision: (runId: string) => request<RunDecision>(`/api/decision/runs/${runId}/decision`),
+  setRunOverride: (runId: string, body: LevelOverride) =>
+    request<RunDecision>(`/api/decision/runs/${runId}/overrides`, { method: "POST", body: JSON.stringify(body) }),
+  removeRunOverride: (runId: string, body: { entity_key: string; criterion_id: string; reviewer: string; reason: string }) =>
+    request<RunDecision>(`/api/decision/runs/${runId}/overrides/remove`, { method: "POST", body: JSON.stringify(body) }),
+  getDatasetOverrides: (datasetId: string) => request<OverridesView>(`/api/decision/datasets/${datasetId}/overrides`),
+  setDatasetOverride: (datasetId: string, body: LevelOverride) =>
+    request<OverridesView>(`/api/decision/datasets/${datasetId}/overrides`, { method: "POST", body: JSON.stringify(body) }),
+  removeDatasetOverride: (datasetId: string, body: { entity_key: string; criterion_id: string; reviewer: string; reason: string }) =>
+    request<OverridesView>(`/api/decision/datasets/${datasetId}/overrides/remove`, { method: "POST", body: JSON.stringify(body) }),
   rescoreRunDecision: (runId: string) => request<RunDecision>(`/api/decision/runs/${runId}/decision/rescore`, { method: "POST" }),
   publishRunDecision: (runId: string, publishedBy: string) =>
     request<PublishedDecision>(`/api/decision/runs/${runId}/publish`, { method: "POST", body: JSON.stringify({ published_by: publishedBy }) }),

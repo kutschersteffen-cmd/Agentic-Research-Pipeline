@@ -1832,6 +1832,18 @@ export interface RunDecision {
   scored_at?: string | null;
   missing_columns: string[];
   result: DecisionResult;
+  /** Levels mode: [lowest, highest] level, the range an override may set. */
+  level_scale?: [number, number] | null;
+}
+
+/** A reviewer setting one criterion's level for one entity by hand (levels mode). */
+export interface LevelOverride {
+  entity_key: string;
+  criterion_id: string;
+  level: number;
+  reason: string;
+  reviewer: string;
+  at?: string;
 }
 
 export interface CriterionContribution {
@@ -1841,6 +1853,15 @@ export interface CriterionContribution {
   contribution: number;
   imputed: boolean;
   low_confidence: boolean;
+  /** Levels mode: the criterion, and when overridden, the rules' level and the override. */
+  criterion_id?: string | null;
+  overridden_from?: number | null;
+  override?: LevelOverride | null;
+}
+
+export interface OverridesView {
+  overrides: LevelOverride[];
+  history: (Partial<LevelOverride> & { action: "set" | "removed"; at: string })[];
 }
 
 export interface EntityDecision {

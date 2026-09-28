@@ -19,6 +19,7 @@ import json
 import logging
 import re
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from arp.decision import sources
@@ -192,6 +193,14 @@ def stored_decision(run_store: RunStore, run_id: str) -> dict[str, Any] | None:
     return json.loads(path.read_text()) if path.exists() else None
 
 
+OVERRIDES_FILE = "level_overrides.json"
+
+
+def run_overrides_path(run_store: RunStore, run_id: str) -> Path:
+    """Reviewers' level overrides on a run's scores (arp.decision.overrides)."""
+    return run_store.run_dir(run_id) / OVERRIDES_FILE
+
+
 def score_run(run_store: RunStore, run_id: str) -> dict[str, Any] | None:
     """The rules step: scores a run's results with its pinned framework and
     stores the outcome in the run folder. Returns None when no framework is
@@ -203,6 +212,7 @@ def score_run(run_store: RunStore, run_id: str) -> dict[str, Any] | None:
     into the pipeline: the extracted results are the run's product and stay
     valid whether or not the rules could be applied to them.
     """
+    from arp.decision import overrides
     from arp.decision.mechanism import apply_mechanism
 
     pinned = pinned_framework(run_store, run_id)
@@ -218,7 +228,9 @@ def score_run(run_store: RunStore, run_id: str) -> dict[str, Any] | None:
             "ratified": config.ratified,
             "scored_at": now_iso(),
             "missing_columns": missing_columns(config, dataset.columns),
-            "result": json.loads(apply_mechanism(dataset, config, derivation_audit=audit).model_dump_json()),
+            "result": json.loads(
+                apply_mechanism(dataset, config, derivation_audit=audit, overrides=overrides.load(run_overrides_path(run_store, run_id))).model_dump_json()
+            ),
             "error": None,
         }
     except Exception as exc:  # noqa: BLE001 - the rules step must not fail the extraction run
