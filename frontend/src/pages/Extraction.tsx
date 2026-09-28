@@ -8,6 +8,7 @@ import { BarChart } from "../components/BarChart";
 import type { CompanyFinancialsRecord, DataPointSchema, ExtractionRecord, FieldDefinition, ReviewDecision } from "../types";
 import { useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "../components/ReviewerField";
+import { RunScoringPanel, ScoringTemplatePicker } from "../components/RunScoring";
 
 const DEFAULT_CRITERIA =
   "Green capex: total green/sustainable capital expenditure in USD/EUR millions for the most recent fiscal " +
@@ -76,6 +77,7 @@ export function Extraction({ pendingUniverse }: Props = {}) {
   const [schema, setSchema] = useState<DataPointSchema | null>(null);
   const [extractionResults, setExtractionResults] = useState<ExtractionRecord[]>([]);
   const [extractionReviewDecisions, setExtractionReviewDecisions] = useState<Record<string, ReviewDecision>>({});
+  const [templateId, setTemplateId] = useState<string | null>(null);
 
   // Financials mode only
   const [financialsResults, setFinancialsResults] = useState<CompanyFinancialsRecord[]>([]);
@@ -115,7 +117,11 @@ export function Extraction({ pendingUniverse }: Props = {}) {
     setError(null);
     try {
       if (mode === "custom") {
-        const res = await api.startExtractionRun({ datapoint_schema: schema!, universe_path: universePath });
+        const res = await api.startExtractionRun({
+          datapoint_schema: schema!,
+          universe_path: universePath,
+          decision_framework_id: templateId ?? undefined,
+        });
         setRunId(res.run_id);
         setExtractionResults([]);
       } else {
@@ -145,7 +151,8 @@ export function Extraction({ pendingUniverse }: Props = {}) {
     }
   }
 
-  const universeStepNumber = mode === "custom" ? 3 : 1;
+  const universeStepNumber = mode === "custom" ? 4 : 1;
+  const fieldNames = schema?.fields.map((f) => f.name) ?? [];
   const readyForUniverseStep = mode === "financials" || (mode === "custom" && schema != null);
 
   return (
@@ -213,6 +220,17 @@ export function Extraction({ pendingUniverse }: Props = {}) {
               </label>
             </div>
           ))}
+        </section>
+      )}
+
+      {mode === "custom" && schema && (
+        <section className="card">
+          <h3>3. Score the results (optional)</h3>
+          <p className="help-text">
+            Attach a Decision Studio framework and every company is scored and tiered as its results come in. You can also
+            attach one after the run.
+          </p>
+          <ScoringTemplatePicker runType="extraction" fieldNames={fieldNames} value={templateId} onChange={setTemplateId} />
         </section>
       )}
 
@@ -298,6 +316,8 @@ export function Extraction({ pendingUniverse }: Props = {}) {
           )}
         </section>
       )}
+
+      {runId && mode === "custom" && <RunScoringPanel key={runId} runId={runId} runType="extraction" fieldNames={fieldNames} />}
     </div>
   );
 }

@@ -1747,6 +1747,8 @@ export interface MechanismConfig {
   label_column?: string | null;
   size_column?: string | null;
   segment_column?: string | null;
+  /** Columns of the table the framework was derived on; anything else it uses comes from its rule graph. */
+  source_columns?: string[];
   cluster_threshold: number;
   /** GoRules JSON Decision Model: calculated columns, evaluated per row before scoring. */
   rule_graph?: RuleGraph | null;
@@ -1773,6 +1775,24 @@ export interface AuditEntry {
 export interface MechanismEnvelope {
   config: MechanismConfig;
   audit: AuditEntry[];
+}
+
+/** Run types a scoring template can be attached to. */
+export type RunScoringKind = "extraction" | "transition_plan";
+
+/** A saved framework and the columns it needs that a table or schema would not supply. */
+export interface TemplateMatch {
+  config: MechanismConfig;
+  required_columns: string[];
+  missing_columns: string[];
+}
+
+/** A run's results scored with the template version pinned on it. */
+export interface RunDecision {
+  framework: { framework_id: string; version: number; name: string };
+  run_status: string;
+  missing_columns: string[];
+  result: DecisionResult;
 }
 
 export interface CriterionContribution {

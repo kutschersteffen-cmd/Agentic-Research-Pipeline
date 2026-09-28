@@ -204,6 +204,13 @@ class MechanismConfig(BaseModel):
     size_column: str | None = None
     segment_column: str | None = None
 
+    source_columns: list[str] = Field(
+        default_factory=list,
+        description="The columns of the table this framework was derived on. A column the framework uses that is "
+        "not in here came from its rule graph, so a template is checked against another table (or an extraction "
+        "schema before its run exists) only for the columns that table has to supply. See arp.decision.templates.",
+    )
+
     cluster_threshold: float = Field(
         default=0.72,
         ge=0.0,

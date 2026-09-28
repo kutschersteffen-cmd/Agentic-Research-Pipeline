@@ -2,22 +2,23 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel, Field, field_validator
+from fastapi.responses import JSONResponse, PlainTextResponse
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from arp.api.deps import get_decision_store, get_portfolio_store, get_run_store, settings_dep
 from arp.config import Settings
-from arp.decision import sources
+from arp.decision import sources, templates
 from arp.decision.compare import compare_results
 from arp.decision.dataset import Dataset, build_dataset
 from arp.decision.diffing import describe_changes
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
 from arp.decision.parsing import load_table
 from arp.decision.profiling import profile_dataset
-from arp.decision.roles import propose_roles
+from arp.decision.roles import propose_roles, slug
 from arp.decision.rules import apply_rules, rule_inputs
 from arp.decision.sensitivity import tipping_points
 from arp.schemas.decision import (
@@ -152,6 +153,7 @@ class FromSourceRequest(BaseModel):
         "transition_barrier | emerging_themes_run | replication_runs"
     )
     run_id: str | None = None
+    include_indicators: bool = Field(default=False, description="transition_plan_run: one Yes/No column per indicator.")
     run_ids: list[str] | None = Field(default=None, description="replication_runs: defaults to every strategy_replication run.")
     as_of: str | None = None
     portfolio_ids: list[str] | None = None
@@ -171,7 +173,9 @@ def dataset_from_source(
     here rather than in a spreadsheet."""
     try:
         if req.source == "transition_plan_run":
-            dataset = sources.from_transition_plan_run(run_store, _require(req.run_id, "run_id"))
+            dataset = sources.from_transition_plan_run(
+                run_store, _require(req.run_id, "run_id"), include_indicators=req.include_indicators
+            )
         elif req.source == "extraction_run":
             dataset = sources.from_extraction_run(run_store, _require(req.run_id, "run_id"))
         elif req.source == "theme_run":
@@ -297,6 +301,67 @@ def list_mechanism_versions(framework_id: str, store: DecisionStore = Depends(ge
     return store.list_versions(framework_id)
 
 
+@router.get("/mechanisms/{framework_id}/export")
+def export_mechanism(framework_id: str, version: int | None = None, store: DecisionStore = Depends(get_decision_store)) -> JSONResponse:
+    """One framework version as a downloadable scoring template."""
+    config = store.get(framework_id, version)
+    if config is None:
+        raise HTTPException(404, f"Unknown framework: {framework_id}")
+    filename = f"{slug(config.name) or 'framework'}_v{config.version}.template.json"
+    return JSONResponse(
+        templates.export_template(config, store.get_audit(framework_id, config.version)),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+class ImportRequest(BaseModel):
+    template: dict[str, Any]
+    by: str | None = None
+
+
+@router.post("/mechanisms/import", response_model=MechanismEnvelope)
+def import_mechanism(req: ImportRequest, store: DecisionStore = Depends(get_decision_store)) -> MechanismEnvelope:
+    """A template file -> a new, unratified framework in this installation."""
+    try:
+        config, audit = templates.import_template(req.template, by=req.by)
+    except (ValueError, ValidationError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    store.save(config, audit)
+    return MechanismEnvelope(config=config, audit=audit)
+
+
+class TemplateMatchRequest(BaseModel):
+    run_type: str | None = Field(default=None, description="extraction | transition_plan -- the columns such a run will produce.")
+    field_names: list[str] = Field(default_factory=list, description="extraction: the schema's field names.")
+    columns: list[str] | None = Field(default=None, description="Or the table's columns directly.")
+
+
+class TemplateMatch(BaseModel):
+    config: MechanismConfig
+    required_columns: list[str]
+    missing_columns: list[str]
+
+
+@router.post("/templates/match", response_model=list[TemplateMatch])
+def match_templates(req: TemplateMatchRequest, store: DecisionStore = Depends(get_decision_store)) -> list[TemplateMatch]:
+    """Every saved framework (latest version), with the columns it needs that
+    this table or schema would not supply. Fitting templates first."""
+    if req.columns is not None:
+        columns = req.columns
+    elif req.run_type:
+        try:
+            columns = templates.expected_run_columns(req.run_type, req.field_names)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+    else:
+        raise HTTPException(400, "Provide `columns` or `run_type`.")
+    matches = [
+        TemplateMatch(config=c, required_columns=templates.required_columns(c), missing_columns=templates.missing_columns(c, columns))
+        for c in store.list_frameworks()
+    ]
+    return sorted(matches, key=lambda m: len(m.missing_columns))
+
+
 @router.post("/mechanisms/{framework_id}/ratify", response_model=MechanismConfig)
 def ratify_mechanism(
     framework_id: str,
@@ -381,6 +446,87 @@ def sensitivity(req: SensitivityRequest, store: DecisionStore = Depends(get_deci
         return tipping_points(dataset, config, entity_keys=req.entity_keys, steps=req.steps)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
+
+
+# --- scoring templates attached to runs ---
+
+
+def template_for_run(
+    store: DecisionStore, run_type: str, framework_id: str, version: int | None, field_names: list[str] | None = None
+) -> MechanismConfig:
+    """Resolves the framework a run is being started (or re-scored) with and
+    refuses one that needs columns the run cannot produce -- found now, not
+    after an hour of extraction. Resolving pins today's latest version."""
+    config = store.get(framework_id, version)
+    if config is None:
+        raise HTTPException(404, f"Unknown framework: {framework_id}" + (f" v{version}" if version else ""))
+    try:
+        missing = templates.missing_columns(config, templates.expected_run_columns(run_type, field_names))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if missing:
+        raise HTTPException(400, f"{config.name} v{config.version} needs columns this run will not produce: {', '.join(missing)}")
+    return config
+
+
+class AttachRequest(BaseModel):
+    framework_id: str
+    version: int | None = None
+
+
+@router.put("/runs/{run_id}/framework")
+def attach_framework(
+    run_id: str,
+    req: AttachRequest,
+    store: DecisionStore = Depends(get_decision_store),
+    run_store: RunStore = Depends(get_run_store),
+) -> dict:
+    """Attaches (or replaces) the scoring template on an existing run."""
+    manifest = run_store.load_manifest(run_id)
+    if manifest is None:
+        raise HTTPException(404, "Run not found")
+    field_names = None
+    if manifest.run_type == "extraction":
+        schema = run_store.run_dir(run_id) / "schema.json"
+        field_names = [f["name"] for f in json.loads(schema.read_text()).get("fields", [])] if schema.exists() else []
+    config = template_for_run(store, manifest.run_type, req.framework_id, req.version, field_names)
+    return templates.attach_to_run(run_store, run_id, config).params["decision_framework"]
+
+
+class RunDecision(BaseModel):
+    framework: dict[str, Any]
+    run_status: str
+    missing_columns: list[str]
+    result: DecisionResult
+
+
+@router.get("/runs/{run_id}/decision", response_model=RunDecision)
+def run_decision(
+    run_id: str, store: DecisionStore = Depends(get_decision_store), run_store: RunStore = Depends(get_run_store)
+) -> RunDecision:
+    """The run's results scored with its pinned template. Computed on request
+    rather than stored: the template version is fixed and results only
+    grow, so the same request always gives the same answer, and a run still
+    in progress is scored on what it has so far (`run_status` says so)."""
+    manifest = run_store.load_manifest(run_id)
+    if manifest is None:
+        raise HTTPException(404, "Run not found")
+    pinned = manifest.params.get("decision_framework")
+    if not pinned:
+        raise HTTPException(404, "No scoring template is attached to this run.")
+    config = store.get(pinned["framework_id"], pinned.get("version"))
+    if config is None:
+        raise HTTPException(404, f"Attached framework {pinned['framework_id']} v{pinned.get('version')} no longer exists.")
+    try:
+        dataset = templates.run_dataset(run_store, manifest)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return RunDecision(
+        framework=pinned,
+        run_status=manifest.status.value,
+        missing_columns=templates.missing_columns(config, dataset.columns),
+        result=_apply(dataset, config, derivation_audit=store.get_audit(config.framework_id, config.version)),
+    )
 
 
 class CompareRequest(BaseModel):

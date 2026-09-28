@@ -361,6 +361,49 @@ The portfolio source is what makes leverage real: position size × the gap
 to a perfect score, over actual holdings, is a portfolio-weighted
 engagement priority list.
 
+`transition_plan_run` can also emit one Yes/No column per indicator
+(`Ind_<identifier>_Disclosed`, blank for NA) with `include_indicators`, so a
+rule can combine individual answers ("a 2030 target AND a board-level
+owner"). It is off by default when building a table by hand, because 64 more
+criteria is a different derivation; a run scored through a template (§7a)
+always has them.
+
+---
+
+## 7a. Scoring templates (`templates.py`)
+
+A saved framework is a template. Three things make it usable as one:
+
+- **Fit.** `required_columns` lists the columns a table must supply: every
+  column the framework names (criteria, gates, label/size/segment, cohort),
+  minus those its own rule graph calculates, plus source columns the rule
+  graph reads. The two are told apart by `source_columns`, the table the
+  framework was derived on. `POST /api/decision/templates/match` checks every
+  saved framework against a table's columns, or against the columns an
+  extraction schema (its field names) or a transition-plan run *will*
+  produce — before the run exists.
+- **Export / import.** `GET /mechanisms/{id}/export` downloads one version,
+  with its audit trail, as `arp.decision_template` JSON;
+  `POST /mechanisms/import` (and `arp decision export | import`) turns such a
+  file into a new framework at v1. Ratification does not travel with a
+  file: the copy starts as a draft, with an `Import` audit entry naming
+  where it came from and who ratified it there. The config is validated like
+  any inline framework, so an imported rule graph stays declarative.
+- **Attachment to runs.** `POST /api/extraction/runs` and
+  `POST /api/transition-plan/runs` take `decision_framework_id` (and
+  optionally a version). The template is refused up front if it needs
+  columns the run cannot produce, and the resolved version is pinned in the
+  run manifest (`params.decision_framework`), so editing the template later
+  does not change how the run is scored. `PUT /api/decision/runs/{id}/framework`
+  attaches or replaces one afterwards. `GET /api/decision/runs/{id}/decision`
+  scores the run's current results with the pinned version; it is computed
+  on request rather than stored, since the version is fixed and results only
+  grow.
+
+In the UI, both run pages have an optional "Score the results" step and a
+Scoring panel under the run; Decision Studio's Data tab lists templates with
+their fit to the selected table, and applies, imports and exports them.
+
 ---
 
 ## 8. Surfaces
@@ -371,7 +414,7 @@ engagement priority list.
 LLM, so none needs `schedule_llm_run`: scoring is synchronous.
 
 **CLI** — `arp decision profile | derive | score | sensitivity | compare |
-list | show | audit | new-version | ratify` (`arp/cli/decision.py`),
+list | show | audit | new-version | ratify | export | import` (`arp/cli/decision.py`),
 mirroring `arp taxonomy`.
 
 **UI** — `frontend/src/pages/DecisionStudio.tsx`, eight sub-tabs: Data,
@@ -404,6 +447,7 @@ backend/arp/decision/
   mechanism.py     derive_mechanism / apply_mechanism
   sources.py       in-repo tables (transition plan, extraction, theme, portfolio)
   rules.py         rule graph (GoRules JDM) -> calculated columns, via ZEN
+  templates.py     template fit, export/import, attachment to runs
   sample_data/example_transition_universe.csv
 backend/arp/schemas/decision.py      every type named in this document
 backend/arp/storage/decision_store.py  versioned frameworks + datasets
@@ -411,6 +455,7 @@ backend/arp/api/routers/decision.py    /api/decision
 backend/arp/cli/decision.py            arp decision ...
 backend/tests/test_decision_*.py       engine, store, analysis, sources, rules, API
 frontend/src/pages/DecisionStudio.tsx
+frontend/src/components/RunScoring.tsx  template picker + scoring panel on the run pages
 frontend/src/components/{ColumnProfileTable,MechanismEditor,DecisionTreeEditor,
                          DecisionResultsTable,ScoreDistribution,AuditLogView}.tsx
 frameworks/                            versioned frameworks + saved datasets (gitignored)
@@ -423,7 +468,9 @@ frameworks/                            versioned frameworks + saved datasets (gi
 1. **A framework is bound to column names.** Applying one to a table whose
    columns are named differently needs a mapping step that does not exist
    yet; the practical path is the `sources.py` adapters, which emit stable
-   names.
+   names. For an extraction schema this means field names: renaming a field
+   makes a template stop fitting, and the template picker says which column
+   it misses.
 2. **Tier changes do not enter the review queue.** An entity whose rank
    band spans two tiers, or whose tier flipped since last quarter, is a
    strong review-queue candidate. Deliberately not wired yet — it is a

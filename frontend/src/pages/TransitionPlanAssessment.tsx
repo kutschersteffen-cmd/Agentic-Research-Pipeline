@@ -12,6 +12,7 @@ import { activatable } from "../lib/activatable";
 import { useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "../components/ReviewerField";
 import { ProposedTag } from "../components/ProposedTag";
+import { RunScoringPanel, ScoringTemplatePicker } from "../components/RunScoring";
 
 interface Props {
   pendingUniverse?: { path: string; count: number } | null;
@@ -190,6 +191,7 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
   const [indicators, setIndicators] = useState<TransitionPlanIndicatorDef[]>([]);
   const [showMethodology, setShowMethodology] = useState(false);
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
+  const [templateId, setTemplateId] = useState<string | null>(null);
 
   useEffect(() => {
     api.getTransitionPlanIndicators().then(setIndicators).catch(() => {});
@@ -200,7 +202,7 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
     setBusy(true);
     setError(null);
     try {
-      const res = await api.startTransitionPlanRun({ universe_path: universePath });
+      const res = await api.startTransitionPlanRun({ universe_path: universePath, decision_framework_id: templateId ?? undefined });
       setRunId(res.run_id);
       setResults([]);
     } catch (err) {
@@ -251,7 +253,17 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
       )}
 
       <section className="card">
-        <h3>1. Choose the company universe</h3>
+        <h3>1. Score the results (optional)</h3>
+        <p className="help-text">
+          Attach a Decision Studio framework to turn the 64 answers into a score and a tier per company. Each indicator is
+          available to its rules as a Yes/No column (<code>Ind_&lt;identifier&gt;_Disclosed</code>). You can also attach one
+          after the run.
+        </p>
+        <ScoringTemplatePicker runType="transition_plan" value={templateId} onChange={setTemplateId} />
+      </section>
+
+      <section className="card">
+        <h3>2. Choose the company universe</h3>
         {pendingUniverse && universePath === pendingUniverse.path && (
           <p className="status-text">
             Using {pendingUniverse.count} companies sent from another screen. Upload a different universe below to
@@ -273,7 +285,7 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
 
       {runId && (
         <section className="card">
-          <h3>2. Run progress</h3>
+          <h3>3. Run progress</h3>
           <RunProgress runId={runId} runType="transition_plan" />
           <div className="toolbar">
             <button onClick={refreshResults}>Refresh results</button>
@@ -341,6 +353,8 @@ export function TransitionPlanAssessment({ pendingUniverse }: Props = {}) {
           )}
         </section>
       )}
+
+      {runId && <RunScoringPanel key={runId} runId={runId} runType="transition_plan" />}
     </div>
   );
 }

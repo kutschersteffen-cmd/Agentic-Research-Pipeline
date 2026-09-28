@@ -80,7 +80,9 @@ def derive_mechanism(dataset: Dataset, *, name: str | None = None, cluster_thres
     proposals = propose_roles(profiles, dataset.columns)
     audit: list[AuditEntry] = []
 
-    config = MechanismConfig(name=name or f"Framework for {dataset.name}", cluster_threshold=cluster_threshold)
+    config = MechanismConfig(
+        name=name or f"Framework for {dataset.name}", cluster_threshold=cluster_threshold, source_columns=list(dataset.columns)
+    )
 
     for proposal in proposals:
         audit.append(

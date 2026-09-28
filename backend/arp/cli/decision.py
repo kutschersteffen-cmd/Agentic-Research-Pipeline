@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import typer
+from pydantic import ValidationError
 
 from arp.cli._shared import _portfolio_store, _run_store
 from arp.config import get_settings
 from arp.decision import sources as decision_sources
+from arp.decision import templates
 from arp.decision.compare import compare_results
 from arp.decision.dataset import Dataset, dataset_from_file
 from arp.decision.diffing import describe_changes
@@ -297,6 +300,37 @@ def decision_new_version(
     audit = list(store.get_audit(framework_id, previous.version)) + describe_changes(previous, edited, by=by)
     saved = store.new_version(edited.model_copy(update={"framework_id": framework_id}), audit)
     typer.echo(f"Created {saved.framework_id} v{saved.version}")
+
+
+@decision_app.command("export")
+def decision_export(
+    framework_id: str,
+    out: Path = typer.Option(..., "--out", help="Where to write the scoring template JSON."),
+    version: int = typer.Option(None),
+) -> None:
+    """One framework version as a portable scoring template, audit trail included."""
+    store = _decision_store()
+    config = store.get(framework_id, version)
+    if config is None:
+        typer.echo(f"Unknown framework: {framework_id}", err=True)
+        raise typer.Exit(1)
+    out.write_text(json.dumps(templates.export_template(config, store.get_audit(framework_id, config.version)), indent=2))
+    typer.echo(f"Exported {config.framework_id} v{config.version} to {out}")
+
+
+@decision_app.command("import")
+def decision_import(
+    template_file: Path,
+    by: str = typer.Option(None, "--by", help="Who imported it, recorded in the audit trail."),
+) -> None:
+    """A scoring template file -> a new, unratified framework here."""
+    try:
+        config, audit = templates.import_template(json.loads(template_file.read_text()), by=by)
+    except (ValueError, ValidationError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    _decision_store().save(config, audit)
+    typer.echo(f"Imported as {config.framework_id} v1 (draft)")
 
 
 @decision_app.command("ratify")

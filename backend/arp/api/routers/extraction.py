@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from arp.api.company_results import list_company_results
-from arp.api.deps import get_llm_client, get_registry, get_run_store, settings_dep
+from arp.api.deps import get_decision_store, get_llm_client, get_registry, get_run_store, settings_dep
 from arp.api.review_endpoints import (
     ReviewDecisionRequest,
     get_review_decisions,
@@ -12,13 +12,16 @@ from arp.api.review_endpoints import (
     get_review_queue,
     submit_review,
 )
+from arp.api.routers.decision import template_for_run
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
+from arp.decision.templates import attach_to_run
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.schema_builder import draft_schema
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema
+from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
@@ -44,6 +47,8 @@ class RunRequest(BaseModel):
     datapoint_schema: DataPointSchema
     companies: list[CompanyRef] | None = None
     universe_path: str | None = None
+    decision_framework_id: str | None = Field(default=None, description="Scoring template to score the results with.")
+    decision_framework_version: int | None = None
 
 
 @router.post("/runs")
@@ -52,15 +57,24 @@ async def start_extraction_run(
     settings: Settings = Depends(settings_dep),
     run_store: RunStore = Depends(get_run_store),
     registry: DocumentSourceRegistry = Depends(get_registry),
+    decision_store: DecisionStore = Depends(get_decision_store),
 ) -> dict:
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 
     schema = req.datapoint_schema
+    template = None
+    if req.decision_framework_id:
+        template = template_for_run(
+            decision_store, "extraction", req.decision_framework_id, req.decision_framework_version, [f.name for f in schema.fields]
+        )
 
     def _create() -> str:
-        return create_extraction_run(schema, companies, settings, run_store)
+        run_id = create_extraction_run(schema, companies, settings, run_store)
+        if template is not None:
+            attach_to_run(run_store, run_id, template)
+        return run_id
 
     async def _run(run_id: str, llm, verifier_llm) -> None:
         await execute_extraction_run(
