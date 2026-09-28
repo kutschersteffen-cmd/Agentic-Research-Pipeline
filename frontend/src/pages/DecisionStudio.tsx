@@ -470,8 +470,8 @@ export function DecisionStudio() {
 
           <h3>Scoring templates</h3>
           <p className="help-text">
-            A saved framework is a template: apply it to the selected table, attach it to an extraction or transition plan run
-            when you start one, or export it as a file for another installation. An imported template starts as a draft —
+            A saved framework is a template: apply it to the selected table, attach it to an Extraction, Financials, TNFD or Transition Plan run
+            when you start one (the run applies it as its last step), or export it as a file for another installation. An imported template starts as a draft —
             ratification does not travel with a file.
           </p>
           <label className="field-label">
