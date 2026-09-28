@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from arp.api.deps import get_llm_client, get_portfolio_store, settings_dep
+from arp.api.routers.universe import save_universe
 from arp.config import Settings
 from arp.llm.base import LLMClient
-from arp.portfolio import analytics, datapoint_mapping, governance, qa_agent
+from arp.portfolio import aggregation, analytics, datapoint_mapping, governance, qa_agent
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
 from arp.portfolio.news.classifier import classify_article
@@ -50,6 +51,36 @@ def list_portfolios(store: PortfolioStore = Depends(get_portfolio_store)) -> lis
 @router.get("/companies", response_model=list[CompanyRef])
 def list_companies(store: PortfolioStore = Depends(get_portfolio_store)) -> list[CompanyRef]:
     return store.list_companies()
+
+
+class HoldingsUniverseRequest(BaseModel):
+    portfolio_ids: list[str] = Field(default_factory=list, description="Empty: every portfolio.")
+    as_of: str | None = Field(default=None, description="Defaults to the latest snapshot date.")
+
+
+@router.post("/universe")
+def holdings_universe(
+    req: HoldingsUniverseRequest,
+    settings: Settings = Depends(settings_dep),
+    store: PortfolioStore = Depends(get_portfolio_store),
+) -> dict:
+    """The companies held in the selected portfolios, saved as a universe file,
+    so Transition Plan, Extraction or Discovery can run on them without an
+    upload. Holdings that don't resolve to a company are counted, not guessed."""
+    dates = store.all_snapshot_dates()
+    as_of = req.as_of or (dates[-1] if dates else None)
+    holdings = store.load_holdings_as_of(as_of, req.portfolio_ids or None) if as_of else []
+    if not holdings:
+        raise HTTPException(404, "No holdings for that selection and date.")
+    securities, companies = portfolio_directories(store)
+    result = aggregation.aggregate(
+        holdings, securities, companies, group_by="company_id", metric="market_value_sum",
+        as_of=as_of, portfolio_filter=req.portfolio_ids or None,
+    )
+    held = [companies[r.group_value] for r in result.rows if r.group_value in companies]
+    unresolved = sum(1 for r in result.rows if r.group_value not in companies)
+    name = "holdings_" + ("_".join(req.portfolio_ids) if req.portfolio_ids else "all") + f"_{as_of}"
+    return {**save_universe(settings, held, name[:80]), "as_of": as_of, "unresolved": unresolved}
 
 
 @router.get("/securities-needing-review")

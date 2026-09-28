@@ -39,7 +39,7 @@ const PROCESSES: Process[] = [
     cadence: "Annual, plus ad hoc before committees",
     outcome: "A tiered list of issuers to engage, each with a walk-vs-talk verdict and sector context.",
     steps: [
-      { tab: "portfolio-monitoring", sub: "standard", label: "Risk Monitoring", does: "WACI, financed emissions and data coverage by portfolio: where the carbon sits.", handsOn: "Holdings in scope" },
+      { tab: "portfolio-monitoring", sub: "standard", label: "Risk Monitoring", does: "WACI, financed emissions and data coverage by portfolio: where the carbon sits.", handsOn: "Holdings in scope", carried: true },
       { tab: "transitionBarrier", label: "Transition Barriers", does: "Read the sector × jurisdiction barriers first: what can a company in this sector realistically commit to?", handsOn: "Sector context", runTypes: ["transition_barrier_refresh"] },
       { tab: "transitionPlan", label: "Transition Plan", does: "Score 64 indicators per issuer, walk vs. talk, each with a grounded citation.", handsOn: "Indicator scores", carried: true, runTypes: ["transition_plan"] },
       { tab: "decision", label: "Decision Studio", does: "Score and tier issuers from the transition plan run; ratify, then publish the tiers.", handsOn: "Published tiers", carried: true },
@@ -53,7 +53,7 @@ const PROCESSES: Process[] = [
     cadence: "Continuous",
     outcome: "Every issue has an owner, a next step and a documented escalation path.",
     steps: [
-      { tab: "portfolio-monitoring", sub: "monitoring", label: "Risk Monitoring · Alerts", does: "News flags and rule breaches on holdings.", handsOn: "Trigger events" },
+      { tab: "portfolio-monitoring", sub: "monitoring", label: "Risk Monitoring · Alerts", does: "News flags and rule breaches on holdings; open alerts reach the stewardship monitoring rules.", handsOn: "Trigger events", carried: true },
       { tab: "stewardship", sub: "monitoring", label: "Steward · Monitoring", does: "Triggers evaluated against house policy; open an engagement from one.", handsOn: "Open issue", carried: true },
       { tab: "engagement", label: "Engagement", does: "Issue record: contacts, severity, milestone and escalation stage.", handsOn: "Issue record", carried: true },
       { tab: "stewardship", sub: "drafting", label: "Steward · Drafting", does: "Dossier, outreach letter and talking points; a person approves before sending.", handsOn: "Sent outreach", carried: true },

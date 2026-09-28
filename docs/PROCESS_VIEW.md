@@ -70,9 +70,16 @@ They are listed by how often a process crosses them.
 3. ~~**Document Discovery → Extraction / Transition Plan.**~~ **Closed.** Once a
    discovery run starts, Document Discovery offers "Extraction →" and
    "Transition Plan →" with the same universe, so nothing is uploaded twice.
-4. **Risk Monitoring → Transition Plan / Steward · Monitoring.** Portfolio holdings
-   and alerts don't become a universe or triggers. Fix: "Use these holdings as a
-   universe" from the selection pane, and alerts as `manual` trigger events.
+4. ~~**Risk Monitoring → Transition Plan / Steward · Monitoring.**~~ **Closed.**
+   - Under the portfolio selection, "Use the companies held in … in:" saves the
+     companies held in the selected portfolios (as of the selected date) as a
+     universe and opens Transition Plan, Extraction or Document Discovery with
+     it. Holdings that don't resolve to a company are left out and counted.
+   - Open Risk Monitoring alerts (open, acknowledged or escalated) become
+     company fields, `alert.open_news_controversy` and
+     `alert.open_threshold_breach`. Two new default house monitoring rules
+     raise a stewardship trigger from them, and Steward · Monitoring opens the
+     engagement. Alerts match stewardship issuers by company id.
 5. ~~**Checkpoint → Engagement.**~~ **Closed with gap #2.** A new house monitoring
    rule (`vote_against_management`) raises a `vote_outcome` trigger when we voted
    against management; Steward · Monitoring opens the engagement from it. The

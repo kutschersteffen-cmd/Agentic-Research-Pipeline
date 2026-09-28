@@ -26,7 +26,7 @@ from typing import Any
 from arp.decision.publish import as_fields
 from arp.engagement.orchestrator import is_stalled
 from arp.schemas.engagement import EngagementRecord, IssueStatus, MilestoneStage
-from arp.stewardship import escalation, monitoring, tracking, voting_feed
+from arp.stewardship import alerts_feed, escalation, monitoring, tracking, voting_feed
 from arp.stewardship.backtest import attach_impact, build_contexts
 from arp.stewardship.drafting import DraftStore
 from arp.stewardship.policies import PolicyStore
@@ -51,7 +51,16 @@ def vote_items(runs_dir: Path | None = None) -> list[dict]:
     return voting_feed.items(RunStore(runs_dir))
 
 
-def load_sample(frameworks_dir: Path | None = None, votes: list[dict] | None = None) -> dict:
+def portfolio_alerts() -> list:
+    """Every Risk Monitoring alert, current status folded in."""
+    from arp.config import get_settings
+    from arp.portfolio.monitoring.evaluator import list_alerts
+    from arp.storage.portfolio_store_factory import build_portfolio_store
+
+    return list_alerts(build_portfolio_store(get_settings()))
+
+
+def load_sample(frameworks_dir: Path | None = None, votes: list[dict] | None = None, alerts: list | None = None) -> dict:
     """The issuer sample with live data merged in as company fields, matched
     by issuer id, so coverage, monitoring and escalation rules read it like
     any other field:
@@ -59,7 +68,9 @@ def load_sample(frameworks_dir: Path | None = None, votes: list[dict] | None = N
     - each framework's latest published decision (`decision.<framework_id>.tier`,
       `.score`, `.rank`...);
     - decided Proxy Voting ballots (`vote.decided`, `vote.against_management`,
-      `vote.overrode_policy`, `vote.last_meeting_date`)."""
+      `vote.overrode_policy`, `vote.last_meeting_date`);
+    - open Risk Monitoring alerts (`alert.open_news_controversy`,
+      `alert.open_threshold_breach`)."""
     if frameworks_dir is None:
         from arp.config import get_settings
 
@@ -67,6 +78,7 @@ def load_sample(frameworks_dir: Path | None = None, votes: list[dict] | None = N
     sample = json.loads(SAMPLE_PATH.read_text())
     merged = [as_fields(snapshot) for snapshot in DecisionStore(frameworks_dir).latest_published()]
     merged.append(voting_feed.issuer_fields(vote_items() if votes is None else votes))
+    merged.append(alerts_feed.issuer_fields(portfolio_alerts() if alerts is None else alerts))
     for fields in merged:
         for issuer in sample["issuers"]:
             issuer["fields"].update(fields.get(issuer["issuer_id"], {}))

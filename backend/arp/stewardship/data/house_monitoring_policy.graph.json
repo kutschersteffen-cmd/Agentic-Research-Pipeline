@@ -78,6 +78,16 @@
             "id": "vam",
             "name": "Votes against management",
             "field": "issuer.vote.against_management"
+          },
+          {
+            "id": "anc",
+            "name": "Open news-controversy alerts",
+            "field": "issuer.alert.open_news_controversy"
+          },
+          {
+            "id": "atb",
+            "name": "Open threshold-breach alerts",
+            "field": "issuer.alert.open_threshold_breach"
           }
         ],
         "outputs": [
@@ -126,7 +136,9 @@
             "s12": "",
             "pay": "",
             "chg": "",
-            "vam": ""
+            "vam": "",
+            "anc": "",
+            "atb": ""
           },
           {
             "_id": "nature_laggard",
@@ -146,7 +158,9 @@
             "s12": "",
             "pay": "",
             "chg": "",
-            "vam": ""
+            "vam": "",
+            "anc": "",
+            "atb": ""
           },
           {
             "_id": "severe_controversy",
@@ -166,7 +180,9 @@
             "s12": "",
             "pay": "",
             "chg": "",
-            "vam": ""
+            "vam": "",
+            "anc": "",
+            "atb": ""
           },
           {
             "_id": "human_rights",
@@ -186,7 +202,9 @@
             "s12": "",
             "pay": "",
             "chg": "",
-            "vam": ""
+            "vam": "",
+            "anc": "",
+            "atb": ""
           },
           {
             "_id": "ungc_fail",
@@ -206,7 +224,9 @@
             "s12": "",
             "pay": "",
             "chg": "",
-            "vam": ""
+            "vam": "",
+            "anc": "",
+            "atb": ""
           },
           {
             "_id": "climate_disclosure_gap",
@@ -226,7 +246,9 @@
             "s12": "false",
             "pay": "",
             "chg": "",
-            "vam": ""
+            "vam": "",
+            "anc": "",
+            "atb": ""
           },
           {
             "_id": "pay_misalignment",
@@ -246,7 +268,9 @@
             "s12": "",
             "pay": ">= 3",
             "chg": "",
-            "vam": ""
+            "vam": "",
+            "anc": "",
+            "atb": ""
           },
           {
             "_id": "position_jump",
@@ -266,7 +290,9 @@
             "s12": "",
             "pay": "",
             "chg": "> 50",
-            "vam": ""
+            "vam": "",
+            "anc": "",
+            "atb": ""
           },
           {
             "_id": "vote_against_management",
@@ -286,7 +312,53 @@
             "s12": "",
             "pay": "",
             "chg": "",
-            "vam": "> 0"
+            "vam": "> 0",
+            "anc": "",
+            "atb": ""
+          },
+          {
+            "_id": "portfolio_news_controversy",
+            "_description": "Risk Monitoring has an open news-controversy alert on a holding.",
+            "typ": "'controversy'",
+            "th": "'governance_controversy'",
+            "sevo": "'medium'",
+            "r": "'portfolio_news_controversy'",
+            "why": "'Open news-controversy alert in Risk Monitoring'",
+            "clti": "",
+            "nat": "",
+            "hin": "",
+            "sev": "",
+            "hr": "",
+            "ungc": "",
+            "emit": "",
+            "s12": "",
+            "pay": "",
+            "chg": "",
+            "vam": "",
+            "anc": "> 0",
+            "atb": ""
+          },
+          {
+            "_id": "portfolio_threshold_breach",
+            "_description": "Risk Monitoring has an open threshold-breach alert on a holding (e.g. concentration or a climate limit).",
+            "typ": "'holding_change'",
+            "th": "'position_review'",
+            "sevo": "'low'",
+            "r": "'portfolio_threshold_breach'",
+            "why": "'Open threshold-breach alert in Risk Monitoring'",
+            "clti": "",
+            "nat": "",
+            "hin": "",
+            "sev": "",
+            "hr": "",
+            "ungc": "",
+            "emit": "",
+            "s12": "",
+            "pay": "",
+            "chg": "",
+            "vam": "",
+            "anc": "",
+            "atb": "> 0"
           }
         ]
       }
