@@ -4,6 +4,9 @@ from arp.decision.roles import pretty
 from arp.schemas.decision import AuditEntry, MechanismConfig
 
 _SETTING_LABELS = {
+    "mode": "Scoring mode",
+    "level_min": "Lowest level",
+    "level_max": "Highest level",
     "norm": "Normalisation method",
     "winsor_pct": "Winsorised tails (%)",
     "missing": "Missing-data policy",
@@ -63,6 +66,7 @@ def describe_changes(before: MechanismConfig, after: MechanismConfig, *, by: str
         )
 
     entries.extend(_criteria_changes(before, after, by))
+    entries.extend(_level_changes(before, after, by))
     entries.extend(_dimension_changes(before, after, by))
     entries.extend(_gate_changes(before, after, by))
     entries.extend(_rule_changes(before, after, by))
@@ -193,6 +197,40 @@ def _criteria_changes(before: MechanismConfig, after: MechanismConfig, by: str |
     for column in old:
         if column not in new:
             entries.append(AuditEntry(stage="Edit", item=pretty(column), decision="removed as a criterion", why="removed by hand", origin="human", by=by))
+    return entries
+
+
+def _level_changes(before: MechanismConfig, after: MechanismConfig, by: str | None) -> list[AuditEntry]:
+    """Level-grid edits, per criterion: which were added or removed, and
+    which had their rules, default, weight, cluster or on/off state changed."""
+    old = {c.id: c for c in before.level_criteria}
+    new = {c.id: c for c in after.level_criteria}
+    entries: list[AuditEntry] = []
+
+    def entry(item: str, decision: str) -> AuditEntry:
+        return AuditEntry(stage="Edit", item=item, decision=decision, why="changed by hand", origin="human", by=by)
+
+    for cid, criterion in new.items():
+        previous = old.get(cid)
+        if previous is None:
+            entries.append(entry(criterion.name, f"level criterion added ({len(criterion.rules)} rules)"))
+            continue
+        changes = []
+        if previous.rules != criterion.rules:
+            changes.append("level rules: " + "; ".join(f"{r.level} if {r.when}" for r in criterion.rules))
+        if previous.otherwise != criterion.otherwise:
+            changes.append(f"default level {_render(previous.otherwise)} -> {_render(criterion.otherwise)}")
+        if previous.weight != criterion.weight:
+            changes.append(f"weight {previous.weight:g} -> {criterion.weight:g}")
+        if previous.dimension_id != criterion.dimension_id:
+            names = {d.id: d.name for d in after.dimensions}
+            changes.append(f"moved to {names.get(criterion.dimension_id, criterion.dimension_id)}")
+        if previous.enabled != criterion.enabled:
+            changes.append("enabled" if criterion.enabled else "parked")
+        if previous.name != criterion.name:
+            changes.append(f"renamed from {previous.name}")
+        entries.extend(entry(criterion.name, change) for change in changes)
+    entries.extend(entry(c.name, "level criterion removed") for cid, c in old.items() if cid not in new)
     return entries
 
 

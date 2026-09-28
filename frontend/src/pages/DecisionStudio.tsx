@@ -5,6 +5,8 @@ import { ColumnProfileTable } from "../components/ColumnProfileTable";
 import { DecisionResultsTable } from "../components/DecisionResultsTable";
 import { DecisionTreeEditor } from "../components/DecisionTreeEditor";
 import { MechanismEditor } from "../components/MechanismEditor";
+import { LevelGridEditor } from "../components/LevelGridEditor";
+import { toLevelsMode } from "../lib/levels";
 import { ScoreDistribution } from "../components/ScoreDistribution";
 import type {
   PublishedDecision,
@@ -565,7 +567,32 @@ export function DecisionStudio() {
       {sub === "rules" && dataset && !config && <p className="muted">Derive a mechanism first — rules are part of the framework.</p>}
 
       {sub === "mechanism" && dataset && config && (
-        <MechanismEditor config={config} profiles={view?.profiles ?? dataset.profiles} weights={result?.effective_weights ?? {}} onChange={setConfig} />
+        <>
+          <div className="card">
+            <h3>How criteria are scored</h3>
+            <div className="view-toggle">
+              <button
+                className={config.mode !== "levels" ? "active" : ""}
+                onClick={() => config.mode === "levels" && setConfig({ ...config, mode: "relative", cut_mode: "quantile", pinned_cuts: null })}
+              >
+                Relative to the other companies
+              </button>
+              <button className={config.mode === "levels" ? "active" : ""} onClick={() => config.mode !== "levels" && setConfig(toLevelsMode(config))}>
+                Fixed levels from rules
+              </button>
+            </div>
+            <p className="help-text">
+              {config.mode === "levels"
+                ? "Each criterion gets a level from rules over the company's own data, so a score is absolute: the same company scores the same in any table."
+                : "Each criterion is normalised against the other companies in the table, so a score says where a company stands in this field."}
+            </p>
+          </div>
+          {config.mode === "levels" ? (
+            <LevelGridEditor config={config} columns={(view ?? dataset).columns} onChange={setConfig} />
+          ) : (
+            <MechanismEditor config={config} profiles={view?.profiles ?? dataset.profiles} weights={result?.effective_weights ?? {}} onChange={setConfig} />
+          )}
+        </>
       )}
 
       {sub === "tree" && dataset && config && (

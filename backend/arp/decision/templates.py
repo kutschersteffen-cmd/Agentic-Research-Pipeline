@@ -68,13 +68,16 @@ def required_columns(config: MechanismConfig) -> list[str]:
     in the graph, which is a text match: a column mentioned only in a note
     counts too, which errs towards reporting a gap rather than hiding one.
     """
-    named = [c.column for c in config.criteria if c.enabled] + [g.column for g in config.gates]
+    named = [c.column for c in config.criteria if c.enabled] if config.mode == "relative" else []
+    named += [g.column for g in config.gates]
     named += [c for c in (config.label_column, config.size_column, config.segment_column, config.normalise_within) if c]
+    # Level conditions name columns the same way rule graphs do.
+    conditions = [r.when for c in config.level_criteria if c.enabled for r in c.rules] if config.mode == "levels" else []
     if config.source_columns:
         source = set(config.source_columns)
         named = [c for c in named if c in source]
-        if config.rule_graph or config.tier_graph:
-            graph_text = json.dumps([config.rule_graph, config.tier_graph])
+        if config.rule_graph or config.tier_graph or conditions:
+            graph_text = json.dumps([config.rule_graph, config.tier_graph, conditions])
             named += [c for c in config.source_columns if f'"{c}"' in graph_text or slug(c) and re.search(rf"\b{re.escape(slug(c))}\b", graph_text)]
     return list(dict.fromkeys(named))
 

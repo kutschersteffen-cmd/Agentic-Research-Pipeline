@@ -261,6 +261,10 @@ def apply_mechanism(
         dataset, rule_audit = apply_rules(dataset, config.rule_graph)
         audit.extend(rule_audit)
     profiles = profile_dataset(dataset)
+    if config.mode == "levels":
+        from arp.decision.levels import apply_levels
+
+        return apply_levels(dataset, config, profiles, audit)
     columns = active_criteria(config, profiles)
     cohorts = _cohort_values(dataset, config)
     n = dataset.row_count
