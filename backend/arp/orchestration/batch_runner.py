@@ -133,7 +133,9 @@ async def run_company_batch(
     errors files, cancellable via the manifest's cancel_requested flag.
     Each success queues `review_items(company, result)` for human sign-off
     and records completed/review/token/cost progress; each failure records
-    failed_delta. Finishes the run when the batch is done.
+    failed_delta. When the batch is done, applies the run's attached
+    Decision Studio framework (arp.decision.templates.score_run), then
+    finishes the run.
     """
     job_manager = JobManager(run_store)
 
@@ -166,4 +168,14 @@ async def run_company_batch(
         on_error=lambda company, exc: job_manager.record_progress(run_id, failed_delta=1),
         cancel_check=_cancel_check,
     )
+    # The rules step: a run with a Decision Studio framework attached is
+    # scored before it is marked finished, so a finished run's scores are
+    # already stored when anyone looks. A no-op without one. Whatever goes
+    # wrong in it, the run still finishes: its extracted results stand.
+    from arp.decision.templates import score_run
+
+    try:
+        score_run(run_store, run_id)
+    except Exception:  # noqa: BLE001
+        logger.exception("Rules step failed for run %s", run_id)
     job_manager.finish_run(run_id)

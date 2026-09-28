@@ -73,7 +73,7 @@ async def start_extraction_run(
     def _create() -> str:
         run_id = create_extraction_run(schema, companies, settings, run_store)
         if template is not None:
-            attach_to_run(run_store, run_id, template)
+            attach_to_run(run_store, run_id, template, decision_store.get_audit(template.framework_id, template.version))
         return run_id
 
     async def _run(run_id: str, llm, verifier_llm) -> None:
