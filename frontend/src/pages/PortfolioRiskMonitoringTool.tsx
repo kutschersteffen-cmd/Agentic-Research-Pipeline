@@ -24,16 +24,18 @@ const SUB_TABS = [
  * area. Sub-tab 1 (Standard Analytics) is explicitly a curated view of
  * sub-tab 2's (Pivot Explorer) engine, not a separate data path -- the
  * one place two sub-tabs share a home section, per the spec. */
-export function PortfolioRiskMonitoringTool() {
+export function PortfolioRiskMonitoringTool({ initialSub }: { initialSub?: string }) {
   return (
     <PortfolioPaneProvider>
-      <Inner />
+      <Inner initialSub={initialSub} />
     </PortfolioPaneProvider>
   );
 }
 
-function Inner() {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("standard");
+type SubId = (typeof SUB_TABS)[number]["id"];
+
+function Inner({ initialSub }: { initialSub?: string }) {
+  const [sub, setSub] = useState<SubId>(SUB_TABS.some((t) => t.id === initialSub) ? (initialSub as SubId) : "standard");
 
   return (
     <div className="page">

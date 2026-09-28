@@ -1214,3 +1214,39 @@ mark.style-flag { background: color-mix(in srgb, var(--mid) 30%, transparent); c
 .position-grid input[type="checkbox"] { display: block; margin-top: var(--s-2); }
 .param-number { width: 100%; }
 .param-json.invalid { border-color: var(--low); }
+
+/* Processes: a process as its ordered steps. A row that wraps on wide
+   screens, a column on phones; the handoff label sits on the connector. */
+.process-steps { list-style: none; margin: var(--s-3) 0 0; padding: 0; display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--s-2) 0; }
+.process-step { display: flex; align-items: center; }
+.process-step-card {
+  display: flex; flex-direction: column; gap: 6px;
+  width: 210px; min-height: 100%; padding: 12px 14px;
+  background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-md);
+  color: var(--text); text-decoration: none;
+  transition: border-color var(--dur) var(--ease);
+}
+.process-step-card:hover { border-color: var(--accent); }
+.process-step-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.process-step-head { display: flex; gap: 6px; align-items: baseline; }
+.process-step-does { font-size: var(--text-sm); color: var(--muted); line-height: 1.4; flex: 1; }
+.process-step-status { display: flex; align-items: center; gap: 6px; font-size: var(--text-xs); }
+.process-step-status .nav-count { margin-left: auto; }
+.process-handoff {
+  position: relative; width: 96px; padding: 0 8px 10px; text-align: center;
+  font-size: var(--text-xs); color: var(--muted); line-height: 1.25;
+}
+.process-handoff::after {
+  content: ""; position: absolute; left: 8px; right: 8px; bottom: 0;
+  border-bottom: 2px solid var(--muted);
+}
+.process-handoff.manual { color: var(--mid); }
+.process-handoff.manual::after { border-bottom-style: dashed; border-color: var(--mid); }
+@media (max-width: 760px) {
+  .process-steps { flex-direction: column; flex-wrap: nowrap; }
+  .process-step { flex-direction: column; align-items: stretch; }
+  .process-step-card { width: auto; }
+  .process-handoff { width: auto; padding: 8px 0 8px 18px; text-align: left; }
+  .process-handoff::after { left: 6px; right: auto; top: 0; bottom: 0; border-bottom: 0; border-left: 2px solid var(--muted); }
+  .process-handoff.manual::after { border-left-style: dashed; border-color: var(--mid); }
+}

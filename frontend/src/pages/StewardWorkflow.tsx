@@ -94,8 +94,10 @@ function AddStream({ onCreated }: { onCreated: (id: string) => void }) {
   );
 }
 
-export function StewardWorkflow() {
-  const [tab, setTab] = useState<string>("overview");
+/** `initialTab` comes from the URL (`#/stewardship/<stage>`), so a process
+ * step can open a stage studio directly. */
+export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
+  const [tab, setTab] = useState<string>(STAGE_TABS.some((t) => t.id === initialTab) ? initialTab! : "overview");
   const [streams, setStreams] = useState<StewardshipStream[]>([]);
   const [stream, setStream] = useState("house");
   const [houseFlow, setHouseFlow] = useState<StewardshipFlow | null>(null);

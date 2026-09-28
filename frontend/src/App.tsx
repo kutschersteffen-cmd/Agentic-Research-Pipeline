@@ -23,11 +23,13 @@ import { StrategyReplication } from "./pages/StrategyReplication";
 import { Search } from "./pages/Search";
 import { DecisionStudio } from "./pages/DecisionStudio";
 import { IndexBuilder } from "./pages/IndexBuilder";
+import { Processes } from "./pages/Processes";
 import { NAV_ICONS } from "./components/NavIcons";
 import type { ReviewableRunKind, RunManifest } from "./types";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard" },
+  { id: "processes", label: "Processes" },
   { id: "search", label: "Search" },
   { id: "theme", label: "Thematic Universe" },
   { id: "taxonomy", label: "Taxonomy Library" },
@@ -57,7 +59,7 @@ type TabId = (typeof TABS)[number]["id"];
 // Ordered by the stewardship team's day: what waits on a person first, then
 // their own work, then the research and portfolio tools that feed it.
 const NAV_GROUPS: { label: string | null; ids: readonly TabId[] }[] = [
-  { label: null, ids: ["dashboard", "search"] },
+  { label: null, ids: ["dashboard", "processes", "search"] },
   { label: "Needs you", ids: ["review", "voting"] },
   { label: "Stewardship", ids: ["stewardship", "engagement", "transitionPlan", "transitionBarrier"] },
   { label: "Research", ids: ["theme", "taxonomy", "emergingThemes", "extraction", "identity", "discovery", "backgroundAgents"] },
@@ -215,6 +217,7 @@ function App() {
       </aside>
       <main className="app-main">
         {active === "dashboard" && <MonitoringDashboard onNavigate={go} onOpenReview={openReview} />}
+        {active === "processes" && <Processes selected={route.params[0] ?? null} onSelect={(id) => navigate("processes", id)} />}
         {active === "search" && <Search />}
         {active === "theme" && <ThemeBuilder onSendToExtraction={sendToExtraction} pendingTaxonomyId={pendingTaxonomyId} />}
         {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
@@ -225,10 +228,10 @@ function App() {
         {active === "transitionBarrier" && <TransitionBarrierAssessment />}
         {active === "identity" && <IdentityResolution onSendToDiscovery={sendToDiscovery} />}
         {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingDiscoveryUniverse} />}
-        {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool />}
+        {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} />}
         {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} />}
         {active === "history" && <RunHistory onOpenReview={openReview} />}
-        {active === "stewardship" && <StewardWorkflow />}
+        {active === "stewardship" && <StewardWorkflow key={route.params[0]} initialTab={route.params[0]} />}
         {active === "engagement" && <EngagementDashboard />}
         {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}
         {active === "reporting" && <ReportBuilder />}
