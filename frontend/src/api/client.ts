@@ -104,6 +104,18 @@ function buildQuery(params: Record<string, string | string[] | undefined | null>
 /** Policy endpoints act on the house by default, or on a client stream's own policies. */
 const streamQuery = (stream?: string) => (stream ? `?stream=${encodeURIComponent(stream)}` : "");
 
+/** FastAPI's 422 body: `detail` is a list of {loc, msg}. Rendered as
+ * "spec › screens › 0 › metric_threshold: needs at least one of …". */
+function formatValidationErrors(errors: { loc?: (string | number)[]; msg?: string }[]): string {
+  return errors
+    .map((e) => {
+      const where = (e.loc ?? []).filter((part) => part !== "body").join(" › ");
+      const msg = (e.msg ?? "invalid").replace(/^Value error, /, "");
+      return where ? `${where}: ${msg}` : msg;
+    })
+    .join("; ");
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
   const res = await fetch(`${API_BASE}${path}`, {
@@ -114,7 +126,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     let detail = res.statusText;
     try {
       const body = await res.json();
-      detail = body.detail ?? JSON.stringify(body);
+      detail = Array.isArray(body.detail)
+        ? formatValidationErrors(body.detail)
+        : typeof body.detail === "string"
+          ? body.detail
+          : JSON.stringify(body.detail ?? body);
     } catch {
       /* ignore parse failure */
     }

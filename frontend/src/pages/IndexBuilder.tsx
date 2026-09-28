@@ -465,7 +465,16 @@ function StepRail({ steps }: { steps: RailStep[] }) {
       <ol>
         {steps.map((s) => (
           <li key={s.id}>
-            <a href={`#${s.id}`} aria-current={s.id === current ? "step" : undefined} onClick={() => setCurrent(s.id)}>
+            {/* The URL hash is the app's router, so scroll instead of following #<step>. */}
+            <a
+              href={`#${s.id}`}
+              aria-current={s.id === current ? "step" : undefined}
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById(s.id)?.scrollIntoView({ block: "start" });
+                setCurrent(s.id);
+              }}
+            >
               <span className="ix-rail-n">{s.n ?? ""}</span>
               <span className="ix-rail-label">{s.label}</span>
               <span className="ix-rail-summary">{s.summary}</span>
