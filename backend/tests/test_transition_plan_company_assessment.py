@@ -85,3 +85,16 @@ async def test_assess_company_no_documents_skips_basic_info_call(monkeypatch, fa
     assert all(a.verdict == Verdict.NA for a in record.indicators)
     assert llm.calls == []
     assert usages == []
+
+
+def test_run_records_both_the_answering_and_the_checking_model(tmp_path):
+    from arp.config import Settings
+    from arp.schemas.common import CompanyRef
+    from arp.storage.run_store import RunStore
+    from arp.transition_plan.pipeline import create_transition_plan_run
+
+    settings = Settings(anthropic_api_key="unused", llm_model="model-a", llm_verifier_model="model-b")
+    run_store = RunStore(tmp_path)
+    run_id = create_transition_plan_run([CompanyRef(company_id="c1", name="Acme")], settings, run_store)
+    manifest = run_store.load_manifest(run_id)
+    assert (manifest.model, manifest.verifier_model) == ("model-a", "model-b")

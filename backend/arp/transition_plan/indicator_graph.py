@@ -5,6 +5,7 @@ from typing import TypedDict
 from langgraph.graph import END, StateGraph
 from pydantic import ValidationError
 
+from arp.config import Settings
 from arp.llm.base import LLMClient, LLMUsage
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import DocumentChunk, SourceDocument
@@ -23,6 +24,8 @@ class IndicatorState(TypedDict):
     all_chunks: list[DocumentChunk]
     documents_by_id: dict[str, SourceDocument]
     llm: LLMClient
+    verifier_llm: LLMClient
+    settings: Settings | None
     fuzzy_threshold: float
     evidence: list[DocumentChunk]
     draft: IndicatorAnswerDraft | None
@@ -39,12 +42,33 @@ async def _gather_evidence(state: IndicatorState) -> dict:
     # irrelevant, rather than skipping retrieval outright for a weak
     # match. BM25 ranking (not embeddings) is this codebase's established,
     # deterministic/embedding-free default -- see select_evidence.py.
+    # With settings supplied, hybrid (BM25 + local embedding) retrieval and
+    # the OpenSearch backend are gated exactly as in
+    # arp/extraction/field_graph.py -- which is also what makes this closer
+    # to the paper's embedding-similarity retrieval.
+    settings = state["settings"]
+    content_store = None
+    if settings is not None and settings.hybrid_retrieval_enabled:
+        from arp.retrieval.content_store_factory import build_hybrid_content_store
+
+        content_store = build_hybrid_content_store(settings)
+
+    opensearch_client = None
+    if settings is not None and settings.retrieval_backend == "opensearch" and settings.opensearch_url:
+        from arp.storage.opensearch_client import get_client
+
+        opensearch_client = get_client(settings.opensearch_url)
+
     evidence = select_relevant_chunks(
         state["all_chunks"],
         [state["indicator"].question],
         max_chunks=_MAX_CHUNKS,
         require_hit=False,
         fallback_to_all=True,
+        hybrid_retrieval_enabled=settings is not None and settings.hybrid_retrieval_enabled,
+        content_store=content_store,
+        retrieval_backend=settings.retrieval_backend if settings is not None else "bm25",
+        opensearch_client=opensearch_client,
     )
     return {"evidence": evidence}
 
@@ -82,7 +106,7 @@ def _route_after_answer(state: IndicatorState) -> str:
 async def _verify(state: IndicatorState) -> dict:
     try:
         verifier, usage = await verify_indicator(
-            state["company_name"], state["indicator"], state["evidence"], state["draft"], state["llm"]
+            state["company_name"], state["indicator"], state["evidence"], state["draft"], state["verifier_llm"]
         )
     except ValidationError as exc:
         # Same isolation as _answer: the verifier's own self-correction
@@ -146,12 +170,21 @@ async def assess_one_indicator(
     all_chunks: list[DocumentChunk],
     documents_by_id: dict[str, SourceDocument],
     llm: LLMClient,
+    verifier_llm: LLMClient | None = None,
+    settings: Settings | None = None,
     fuzzy_threshold: float,
 ) -> tuple[IndicatorAssessment, list[LLMUsage]]:
     """Runs one indicator's evidence-select -> answer -> independent-verify ->
     programmatic-grounding-check -> aggregate flow as a LangGraph graph,
     mirroring arp/extraction/field_graph.py's shape for a single data-point
     field.
+
+    `verifier_llm` is the second, deliberately different-model client for the
+    verify step, as in extract_one_field: the same model re-reading the same
+    evidence tends to agree with its own mistake. Defaults to `llm` only for
+    callers that don't supply one. `settings`, when supplied, gates hybrid
+    retrieval via settings.hybrid_retrieval_enabled; omitted, evidence
+    selection stays pure BM25.
     """
     initial: IndicatorState = {
         "company_name": company_name,
@@ -160,6 +193,8 @@ async def assess_one_indicator(
         "all_chunks": all_chunks,
         "documents_by_id": documents_by_id,
         "llm": llm,
+        "verifier_llm": verifier_llm or llm,
+        "settings": settings,
         "fuzzy_threshold": fuzzy_threshold,
         "evidence": [],
         "draft": None,

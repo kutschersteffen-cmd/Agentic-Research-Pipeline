@@ -8,7 +8,7 @@ import typer
 
 from arp.cli._shared import _registry, _run_store
 from arp.config import get_settings
-from arp.llm.factory import build_llm_client
+from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.transition_plan.indicators import load_indicators
 from arp.transition_plan.pipeline import run_transition_plan_assessment
 from arp.universe import load_company_universe
@@ -39,9 +39,12 @@ def transition_plan_run(
     check as `extract run`."""
     settings = get_settings()
     llm = build_llm_client(settings)
+    verifier_llm = build_verifier_llm_client(settings)
     companies = load_company_universe(universe)
     typer.echo(f"Assessing transition plans across {len(companies)} companies against 64 indicators...")
     run_id = asyncio.run(
-        run_transition_plan_assessment(companies, llm=llm, registry=_registry(), settings=settings, run_store=_run_store())
+        run_transition_plan_assessment(
+            companies, llm=llm, verifier_llm=verifier_llm, registry=_registry(), settings=settings, run_store=_run_store()
+        )
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")

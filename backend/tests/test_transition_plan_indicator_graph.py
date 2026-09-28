@@ -1,3 +1,4 @@
+import numpy as np
 from pydantic import ValidationError
 
 from arp.ingestion.parsing import chunk_document
@@ -202,3 +203,52 @@ async def test_unrecoverable_verifier_failure_is_isolated_to_this_indicator(fake
     assert assessment.needs_review is True
     assert "Assessment failed" in assessment.answer
     assert len(usages) == 1  # the draft answer call itself succeeded and is still billed
+
+
+def _grounded_draft(doc: SourceDocument) -> IndicatorAnswerDraft:
+    return IndicatorAnswerDraft(
+        verdict=Verdict.YES,
+        answer="The company reports a company-wide net zero target for 2050.",
+        citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote="company-wide net zero target for 2050")],
+    )
+
+
+async def test_verify_step_runs_on_the_verifier_model_not_the_answering_one(fake_llm):
+    """Same model re-reading the same evidence tends to agree with its own
+    mistake -- the check has to run on the second client."""
+    doc = _doc()
+    answerer = fake_llm({"IndicatorAnswerDraft": [_grounded_draft(doc)]})
+    verifier = fake_llm({"IndicatorVerifierOutput": [_agreeing_verifier()]})
+
+    assessment, usages = await assess_one_indicator(
+        "Acme Corp", " - Company name: Acme Corp", _indicator(),
+        all_chunks=chunk_document(doc), documents_by_id={doc.doc_id: doc},
+        llm=answerer, verifier_llm=verifier, fuzzy_threshold=0.92,
+    )
+
+    assert answerer.calls == ["IndicatorAnswerDraft"]
+    assert verifier.calls == ["IndicatorVerifierOutput"]
+    assert assessment.grounded is True and len(usages) == 2
+
+
+async def test_hybrid_retrieval_follows_the_setting(fake_llm, tmp_path, monkeypatch):
+    from arp.config import Settings
+    from arp.retrieval import embeddings as embeddings_module
+
+    embed_calls = []
+    monkeypatch.setattr(
+        embeddings_module, "embed_texts", lambda texts: embed_calls.append(list(texts)) or np.zeros((len(texts), 384), dtype=np.float32)
+    )
+    doc = _doc()
+
+    async def run(settings):
+        llm = fake_llm({"IndicatorAnswerDraft": [_grounded_draft(doc)], "IndicatorVerifierOutput": [_agreeing_verifier()]})
+        await assess_one_indicator(
+            "Acme Corp", " - Company name: Acme Corp", _indicator(),
+            all_chunks=chunk_document(doc), documents_by_id={doc.doc_id: doc}, llm=llm, settings=settings, fuzzy_threshold=0.92,
+        )
+
+    await run(None)
+    assert embed_calls == [], "no settings: keyword search only, as before"
+    await run(Settings(anthropic_api_key="unused", cache_dir=tmp_path / "cache", hybrid_retrieval_enabled=True))
+    assert embed_calls != [], "setting on: meaning-based search joins the keyword ranking"

@@ -65,7 +65,7 @@ async def start_transition_plan_run(
 
     async def _run(run_id: str, llm, verifier_llm) -> None:
         await execute_transition_plan_run(
-            run_id, companies, llm=llm, registry=registry, settings=settings, run_store=run_store
+            run_id, companies, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store
         )
 
     run_id = schedule_llm_run(create_fn=_create, run=_run)
