@@ -73,6 +73,21 @@
             "id": "chg",
             "name": "Position change %",
             "field": "holding.change_pct"
+          },
+          {
+            "id": "vam",
+            "name": "Votes against management",
+            "field": "issuer.vote.against_management"
+          },
+          {
+            "id": "anc",
+            "name": "Open news-controversy alerts",
+            "field": "issuer.alert.open_news_controversy"
+          },
+          {
+            "id": "atb",
+            "name": "Open threshold-breach alerts",
+            "field": "issuer.alert.open_threshold_breach"
           }
         ],
         "outputs": [
@@ -120,7 +135,10 @@
             "emit": "",
             "s12": "",
             "pay": "",
-            "chg": ""
+            "chg": "",
+            "vam": "",
+            "anc": "",
+            "atb": ""
           },
           {
             "_id": "nature_laggard",
@@ -139,7 +157,10 @@
             "emit": "",
             "s12": "",
             "pay": "",
-            "chg": ""
+            "chg": "",
+            "vam": "",
+            "anc": "",
+            "atb": ""
           },
           {
             "_id": "severe_controversy",
@@ -158,7 +179,10 @@
             "emit": "",
             "s12": "",
             "pay": "",
-            "chg": ""
+            "chg": "",
+            "vam": "",
+            "anc": "",
+            "atb": ""
           },
           {
             "_id": "human_rights",
@@ -177,7 +201,10 @@
             "emit": "",
             "s12": "",
             "pay": "",
-            "chg": ""
+            "chg": "",
+            "vam": "",
+            "anc": "",
+            "atb": ""
           },
           {
             "_id": "ungc_fail",
@@ -196,7 +223,10 @@
             "emit": "",
             "s12": "",
             "pay": "",
-            "chg": ""
+            "chg": "",
+            "vam": "",
+            "anc": "",
+            "atb": ""
           },
           {
             "_id": "climate_disclosure_gap",
@@ -215,7 +245,10 @@
             "emit": "true",
             "s12": "false",
             "pay": "",
-            "chg": ""
+            "chg": "",
+            "vam": "",
+            "anc": "",
+            "atb": ""
           },
           {
             "_id": "pay_misalignment",
@@ -234,7 +267,10 @@
             "emit": "",
             "s12": "",
             "pay": ">= 3",
-            "chg": ""
+            "chg": "",
+            "vam": "",
+            "anc": "",
+            "atb": ""
           },
           {
             "_id": "position_jump",
@@ -253,7 +289,76 @@
             "emit": "",
             "s12": "",
             "pay": "",
-            "chg": "> 50"
+            "chg": "> 50",
+            "vam": "",
+            "anc": "",
+            "atb": ""
+          },
+          {
+            "_id": "vote_against_management",
+            "_description": "We voted against management on a decided ballot item (from Proxy Voting): follow up with the company.",
+            "typ": "'vote_outcome'",
+            "th": "'shareholder_vote'",
+            "sevo": "'medium'",
+            "r": "'vote_against_management'",
+            "why": "'Voted against management at the last meeting'",
+            "clti": "",
+            "nat": "",
+            "hin": "",
+            "sev": "",
+            "hr": "",
+            "ungc": "",
+            "emit": "",
+            "s12": "",
+            "pay": "",
+            "chg": "",
+            "vam": "> 0",
+            "anc": "",
+            "atb": ""
+          },
+          {
+            "_id": "portfolio_news_controversy",
+            "_description": "Risk Monitoring has an open news-controversy alert on a holding.",
+            "typ": "'controversy'",
+            "th": "'governance_controversy'",
+            "sevo": "'medium'",
+            "r": "'portfolio_news_controversy'",
+            "why": "'Open news-controversy alert in Risk Monitoring'",
+            "clti": "",
+            "nat": "",
+            "hin": "",
+            "sev": "",
+            "hr": "",
+            "ungc": "",
+            "emit": "",
+            "s12": "",
+            "pay": "",
+            "chg": "",
+            "vam": "",
+            "anc": "> 0",
+            "atb": ""
+          },
+          {
+            "_id": "portfolio_threshold_breach",
+            "_description": "Risk Monitoring has an open threshold-breach alert on a holding (e.g. concentration or a climate limit).",
+            "typ": "'holding_change'",
+            "th": "'position_review'",
+            "sevo": "'low'",
+            "r": "'portfolio_threshold_breach'",
+            "why": "'Open threshold-breach alert in Risk Monitoring'",
+            "clti": "",
+            "nat": "",
+            "hin": "",
+            "sev": "",
+            "hr": "",
+            "ungc": "",
+            "emit": "",
+            "s12": "",
+            "pay": "",
+            "chg": "",
+            "vam": "",
+            "anc": "",
+            "atb": "> 0"
           }
         ]
       }

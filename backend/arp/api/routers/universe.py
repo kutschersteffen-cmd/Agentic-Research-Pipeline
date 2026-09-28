@@ -102,9 +102,14 @@ async def universe_from_companies(req: FromCompaniesRequest, settings: Settings 
     """
     if not req.companies:
         raise HTTPException(400, "Provide at least one company.")
+    return save_universe(settings, req.companies, req.name)
+
+
+def save_universe(settings: Settings, companies: list[CompanyRef], name: str) -> dict:
+    """Writes a company list as a universe file under runs/_universes."""
     dest_dir = settings.runs_dir / "_universes"
     dest_dir.mkdir(parents=True, exist_ok=True)
-    safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in req.name) or "derived"
+    safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in name) or "derived"
     dest_path = dest_dir / f"{safe_name}_{int(time.time())}.json"
-    dest_path.write_text(json.dumps([c.model_dump(mode="json") for c in req.companies], indent=2))
-    return {"path": str(dest_path), "company_count": len(req.companies), "sample": [c.model_dump() for c in req.companies[:5]]}
+    dest_path.write_text(json.dumps([c.model_dump(mode="json") for c in companies], indent=2))
+    return {"path": str(dest_path), "company_count": len(companies), "sample": [c.model_dump() for c in companies[:5]]}

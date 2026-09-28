@@ -3,7 +3,7 @@ import { api } from "../../api/client";
 import { useReviewer } from "../../lib/reviewer";
 import type { MetricSource, StewardPolicyId, StewardPolicyInfo, StewardshipStage } from "../../types";
 
-export const SOURCE_LABEL: Record<MetricSource, string> = { live: "live data", sample: "synthetic sample", not_built: "not built yet" };
+export const SOURCE_LABEL: Record<MetricSource, string> = { live: "live data", sample: "synthetic sample", portfolio: "portfolio holdings", not_built: "not built yet" };
 
 export function fmt(v: unknown): string {
   if (v === null || v === undefined) return "not set";

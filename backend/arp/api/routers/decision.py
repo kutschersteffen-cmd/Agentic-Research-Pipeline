@@ -17,6 +17,7 @@ from arp.decision.diffing import describe_changes
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
 from arp.decision.parsing import load_table
 from arp.decision.profiling import profile_dataset
+from arp.decision.publish import publish
 from arp.decision.roles import propose_roles
 from arp.decision.rules import apply_rules, rule_inputs
 from arp.decision.sensitivity import tipping_points
@@ -27,6 +28,7 @@ from arp.schemas.decision import (
     DecisionResult,
     EntitySensitivity,
     MechanismConfig,
+    PublishedDecision,
     RoleProposal,
     check_rule_graph,
 )
@@ -405,3 +407,44 @@ def compare(req: CompareRequest, store: DecisionStore = Depends(get_decision_sto
         label_before=before.as_of or before.name,
         label_after=after.as_of or after.name,
     )
+
+
+# --- publishing: the handoff to stewardship coverage and index construction ---
+
+
+class PublishRequest(BaseModel):
+    dataset_id: str
+    framework_id: str
+    version: int | None = None
+    published_by: str
+    id_column: str | None = Field(default=None, description="Column matching rows to issuers; found automatically when omitted.")
+    note: str = ""
+
+
+@router.post("/publish", response_model=PublishedDecision)
+def post_publish(req: PublishRequest, store: DecisionStore = Depends(get_decision_store)) -> PublishedDecision:
+    """Freezes a ratified framework's result so Steward Workflow and Index
+    Construction can read it. Publishing proposes: coverage tiers still need
+    confirming at the checkpoint, and an index still needs its own run."""
+    dataset = _load_dataset(req.dataset_id, store)
+    config = _resolve_config(None, req.framework_id, req.version, store)
+    try:
+        snapshot = publish(
+            dataset, config, _apply(dataset, config), published_by=req.published_by, id_column=req.id_column, note=req.note
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return store.save_published(snapshot)
+
+
+@router.get("/published", response_model=list[PublishedDecision])
+def list_published(store: DecisionStore = Depends(get_decision_store)) -> list[PublishedDecision]:
+    return store.list_published()
+
+
+@router.get("/published/{snapshot_id}", response_model=PublishedDecision)
+def get_published(snapshot_id: str, store: DecisionStore = Depends(get_decision_store)) -> PublishedDecision:
+    snapshot = store.get_published(snapshot_id)
+    if snapshot is None:
+        raise HTTPException(404, f"Unknown published decision: {snapshot_id}")
+    return snapshot

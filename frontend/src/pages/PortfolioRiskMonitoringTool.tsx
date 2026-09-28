@@ -24,23 +24,27 @@ const SUB_TABS = [
  * area. Sub-tab 1 (Standard Analytics) is explicitly a curated view of
  * sub-tab 2's (Pivot Explorer) engine, not a separate data path -- the
  * one place two sub-tabs share a home section, per the spec. */
-export function PortfolioRiskMonitoringTool() {
+type SendUniverse = (to: "transitionPlan" | "extraction" | "discovery", path: string, count: number) => void;
+
+export function PortfolioRiskMonitoringTool({ initialSub, onSendUniverse }: { initialSub?: string; onSendUniverse?: SendUniverse }) {
   return (
     <PortfolioPaneProvider>
-      <Inner />
+      <Inner initialSub={initialSub} onSendUniverse={onSendUniverse} />
     </PortfolioPaneProvider>
   );
 }
 
-function Inner() {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("standard");
+type SubId = (typeof SUB_TABS)[number]["id"];
+
+function Inner({ initialSub, onSendUniverse }: { initialSub?: string; onSendUniverse?: SendUniverse }) {
+  const [sub, setSub] = useState<SubId>(SUB_TABS.some((t) => t.id === initialSub) ? (initialSub as SubId) : "standard");
 
   return (
     <div className="page">
       <h2>Risk Monitoring</h2>
       <p className="help-text">Pick a portfolio or group and an as-of date; the selection carries across every tab below.</p>
 
-      <PersistentSelectionPane />
+      <PersistentSelectionPane onSendUniverse={onSendUniverse} />
 
       <nav className="sub-nav">
         {SUB_TABS.map((t) => (

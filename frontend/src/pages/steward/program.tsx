@@ -177,7 +177,7 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
           <label className="field-label">
             Benchmark
             <select value={params.benchmark} onChange={(e) => set("benchmark", e.target.value)}>
-              <option value="sample">Synthetic sample (12 fictional companies)</option>
+              <option value="sample">House companies (synthetic sample or portfolio holdings, per the house setting)</option>
               {benchmarks.map((b) => (
                 <option key={b.benchmark_id} value={b.benchmark_id}>
                   {b.name}, {b.as_of} ({b.constituents} companies)

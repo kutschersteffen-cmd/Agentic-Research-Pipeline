@@ -5,7 +5,7 @@ from pathlib import Path
 
 from arp.decision.dataset import Dataset
 from arp.schemas.common import now_iso
-from arp.schemas.decision import AuditEntry, MechanismConfig
+from arp.schemas.decision import AuditEntry, MechanismConfig, PublishedDecision
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.safe_path import safe_id
 
@@ -158,3 +158,38 @@ class DecisionStore:
             return []
         datasets = [Dataset.model_validate_json(p.read_text()) for p in d.glob("*.json")]
         return sorted(datasets, key=lambda ds: ds.created_at, reverse=True)
+
+    # --- published results ---
+
+    def _published_dir(self) -> Path:
+        d = self.frameworks_dir / "_published"
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def save_published(self, snapshot: PublishedDecision) -> PublishedDecision:
+        path = self._published_dir() / f"{safe_id(snapshot.snapshot_id, label='snapshot_id')}.json"
+        if path.exists():
+            raise ValueError(f"{snapshot.snapshot_id} is already published and cannot be overwritten.")
+        atomic_write_text(path, snapshot.model_dump_json(indent=2))
+        return snapshot
+
+    def get_published(self, snapshot_id: str) -> PublishedDecision | None:
+        path = self._published_dir() / f"{safe_id(snapshot_id, label='snapshot_id')}.json"
+        return PublishedDecision.model_validate_json(path.read_text()) if path.exists() else None
+
+    def list_published(self) -> list[PublishedDecision]:
+        d = self.frameworks_dir / "_published"
+        if not d.exists():
+            return []
+        return sorted(
+            (PublishedDecision.model_validate_json(p.read_text()) for p in d.glob("*.json")),
+            key=lambda s: s.published_at,
+            reverse=True,
+        )
+
+    def latest_published(self) -> list[PublishedDecision]:
+        """The most recent publication per framework: what consumers read."""
+        latest: dict[str, PublishedDecision] = {}
+        for s in self.list_published():  # newest first
+            latest.setdefault(s.framework_id, s)
+        return list(latest.values())

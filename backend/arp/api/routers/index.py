@@ -5,7 +5,8 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from arp.api.deps import get_index_store
+from arp.api.deps import get_decision_store, get_index_store
+from arp.decision.publish import as_fields
 from arp.index.calc import level_series
 from arp.index.fields import DataQualityBlock, available_fields
 from arp.index.mock_data import demo_price_panel, demo_risk_model, demo_universe
@@ -18,6 +19,7 @@ from arp.schemas.index import (
     IndexLevelPoint,
     ReviewResult,
 )
+from arp.storage.decision_store import DecisionStore
 from arp.storage.index_store import IndexStore
 
 router = APIRouter(prefix="/api/index", tags=["index"])
@@ -164,6 +166,46 @@ class RunRequest(BaseModel):
         default=None,
         description="{period: {company_id: return}} used to estimate the risk model. Omit to use the built-in demo panel.",
     )
+    decision_snapshot_ids: list[str] = Field(
+        default_factory=list,
+        description="Published Decision Studio results to join as fields (decision.<framework_id>.score, .tier, ...).",
+    )
+
+
+def _with_decisions(
+    universe: list[IndexCandidate], snapshot_ids: list[str], review_date: str, decisions: DecisionStore
+) -> tuple[list[IndexCandidate], list[str]]:
+    """Joins published decision scores onto the candidates by company id.
+    A candidate with no match simply lacks the field, so a rule on it hits
+    that rule's missing-value policy (block by default) rather than a guess."""
+    notes = []
+    for snapshot_id in snapshot_ids:
+        snapshot = decisions.get_published(snapshot_id)
+        if snapshot is None:
+            raise HTTPException(404, f"Unknown published decision: {snapshot_id}")
+        if snapshot.published_at[:10] > review_date:
+            raise HTTPException(
+                400,
+                f"{snapshot.framework_name} was published on {snapshot.published_at[:10]}, after the review date "
+                f"{review_date}: a review cannot read scores that did not exist yet.",
+            )
+        fields = as_fields(snapshot)
+        joined = []
+        for c in universe:
+            values = fields.get(c.company_id)
+            if values is None:
+                joined.append(c)
+                continue
+            metrics = {k: float(v) for k, v in values.items() if isinstance(v, int | float) and not isinstance(v, bool)}
+            categories = {k: v for k, v in values.items() if isinstance(v, str)}
+            joined.append(c.model_copy(update={"metrics": {**c.metrics, **metrics}, "categories": {**c.categories, **categories}}))
+        universe = joined
+        matched = sum(1 for c in universe if c.company_id in fields)
+        notes.append(
+            f"{snapshot.framework_name} v{snapshot.framework_version} (published {snapshot.published_at[:10]} by "
+            f"{snapshot.published_by}): matched {matched} of {len(universe)} candidates."
+        )
+    return universe, notes
 
 
 def _resolve_spec(req: RunRequest, store: IndexStore) -> tuple[ConstructionSpec, str | None, int | None]:
@@ -182,11 +224,15 @@ def _resolve_spec(req: RunRequest, store: IndexStore) -> tuple[ConstructionSpec,
 
 
 @router.post("/run", response_model=ReviewResult)
-def run(req: RunRequest, store: IndexStore = Depends(get_index_store)) -> ReviewResult:
+def run(
+    req: RunRequest,
+    store: IndexStore = Depends(get_index_store),
+    decisions: DecisionStore = Depends(get_decision_store),
+) -> ReviewResult:
     spec, calibration_id, version = _resolve_spec(req, store)
     prior_state = store.latest_state_before(req.index_id, req.review_date) if req.use_prior_state else None
 
-    universe = _universe(req.candidates)
+    universe, input_notes = _with_decisions(_universe(req.candidates), req.decision_snapshot_ids, req.review_date, decisions)
     settings = spec.constraints.solver
     risk_model = None
     if settings.method in ("min_tracking_error", "max_score") or settings.tracking_error_budget is not None:
@@ -219,6 +265,7 @@ def run(req: RunRequest, store: IndexStore = Depends(get_index_store)) -> Review
         raise HTTPException(422, f"Data quality block: {exc}") from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
+    result = result.model_copy(update={"decision_snapshot_ids": req.decision_snapshot_ids, "input_notes": input_notes})
     if req.persist:
         store.save_review(result)
     return result

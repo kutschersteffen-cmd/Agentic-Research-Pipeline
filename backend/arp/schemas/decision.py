@@ -393,3 +393,35 @@ class DecisionComparison(BaseModel):
         description="A limitation of the comparison that does not invalidate it -- chiefly that a rank-based "
         "normalisation can only show movement relative to the field, never absolute improvement.",
     )
+
+
+class PublishedRow(BaseModel):
+    entity_id: str
+    name: str
+    score: float | None = None
+    tier: int | None = None
+    tier_name: str | None = None
+    rank: int | None = None
+    rank_min: int | None = None
+    rank_max: int | None = None
+    status: EntityStatus = "scored"
+
+
+class PublishedDecision(BaseModel):
+    """A ratified framework's result on one dataset, frozen and signed so
+    other functions can read it. Stewardship coverage rules and index
+    construction see it as company fields (`decision.<framework_id>.tier`
+    etc.); neither ever reads a live, re-scorable result."""
+
+    snapshot_id: str = Field(default_factory=lambda: new_id("pub"))
+    framework_id: str
+    framework_version: int
+    framework_name: str
+    dataset_id: str
+    dataset_name: str
+    as_of: str | None = None
+    id_column: str
+    published_by: str
+    published_at: str = Field(default_factory=now_iso)
+    note: str = ""
+    rows: list[PublishedRow] = Field(default_factory=list)

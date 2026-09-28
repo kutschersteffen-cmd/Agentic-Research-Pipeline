@@ -23,9 +23,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from arp.decision.publish import as_fields
 from arp.engagement.orchestrator import is_stalled
 from arp.schemas.engagement import EngagementRecord, IssueStatus, MilestoneStage
-from arp.stewardship import escalation, monitoring, tracking
+from arp.stewardship import alerts_feed, escalation, monitoring, tracking, voting_feed
 from arp.stewardship.backtest import attach_impact, build_contexts
 from arp.stewardship.drafting import DraftStore
 from arp.stewardship.policies import PolicyStore
@@ -33,10 +34,73 @@ from arp.stewardship.policy_graph import evaluate, generate
 from arp.stewardship.policy_review import DATA, build, decide, review
 from arp.stewardship.tiers import TIER_LABELS, TIERS, TierStore, review_tiers, tier_contexts
 from arp.stewardship.tiers import evaluate as evaluate_tiers
+from arp.stewardship.universe import HouseUniverseSetting, from_portfolio
 from arp.storage.atomic_io import atomic_write_text
+from arp.storage.decision_store import DecisionStore
+from arp.storage.run_store import RunStore
 
 SAMPLE_PATH = DATA / "examples" / "sample_meetings.json"
 HOUSE = "house"
+
+
+def vote_items(runs_dir: Path | None = None) -> list[dict]:
+    """Every ballot item from the Proxy Voting runs (see voting_feed)."""
+    if runs_dir is None:
+        from arp.config import get_settings
+
+        runs_dir = get_settings().runs_dir
+    return voting_feed.items(RunStore(runs_dir))
+
+
+def portfolio_alerts() -> list:
+    """Every Risk Monitoring alert, current status folded in."""
+    from arp.config import get_settings
+    from arp.portfolio.monitoring.evaluator import list_alerts
+    from arp.storage.portfolio_store_factory import build_portfolio_store
+
+    return list_alerts(build_portfolio_store(get_settings()))
+
+
+def house_universe() -> dict:
+    """The issuers the house program covers: the synthetic sample, or the companies
+    held in the house portfolios, as the house setting says (see universe.py)."""
+    from arp.config import get_settings
+    from arp.storage.portfolio_store_factory import build_portfolio_store
+
+    settings = get_settings()
+    if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "portfolio":
+        return from_portfolio(build_portfolio_store(settings))
+    return json.loads(SAMPLE_PATH.read_text())
+
+
+def load_sample(
+    frameworks_dir: Path | None = None,
+    votes: list[dict] | None = None,
+    alerts: list | None = None,
+    base: dict | None = None,
+) -> dict:
+    """The house issuers (`house_universe()`, or `base`) with live data merged in as company fields, matched
+    by issuer id, so coverage, monitoring and escalation rules read it like
+    any other field:
+
+    - each framework's latest published decision (`decision.<framework_id>.tier`,
+      `.score`, `.rank`...);
+    - decided Proxy Voting ballots (`vote.decided`, `vote.against_management`,
+      `vote.overrode_policy`, `vote.last_meeting_date`);
+    - open Risk Monitoring alerts (`alert.open_news_controversy`,
+      `alert.open_threshold_breach`)."""
+    if frameworks_dir is None:
+        from arp.config import get_settings
+
+        frameworks_dir = get_settings().frameworks_dir
+    sample = house_universe() if base is None else base
+    merged = [as_fields(snapshot) for snapshot in DecisionStore(frameworks_dir).latest_published()]
+    merged.append(voting_feed.issuer_fields(vote_items() if votes is None else votes))
+    merged.append(alerts_feed.issuer_fields(portfolio_alerts() if alerts is None else alerts))
+    for fields in merged:
+        for issuer in sample["issuers"]:
+            issuer["fields"].update(fields.get(issuer["issuer_id"], {}))
+    return sample
 
 
 class StreamStore:
@@ -89,6 +153,25 @@ class StreamStore:
         )
 
 
+VOTES_DECIDED = "Votes decided in Proxy Voting"
+VOTES_AGAINST_POLICY = "Votes against the policy's recommendation"
+
+
+def _vote_row(v: dict) -> dict:
+    return {
+        "company": v["company"],
+        "meeting": v["meeting_date"],
+        "item": v["item"],
+        "type": v["type"],
+        "management": v["management"],
+        "policy": v["policy"],
+        "vote": v["vote"],
+        "status": v["status"],
+        "decided by": v["decided_by"] + (f" (co-signed {v['co_signed_by']})" if v["co_signed_by"] else ""),
+        "reason": v["note"],
+    }
+
+
 def _metric(label: str, value: Any, source: str, tone: str = "neutral", hint: str | None = None) -> dict:
     return {"label": label, "value": value, "source": source, "tone": tone, "hint": hint}
 
@@ -127,6 +210,7 @@ def _house_stages(
     escalations: list[dict],
     exceptions: list[dict],
     drafts: list[dict],
+    ballots: list[dict],
 ) -> list[dict]:
     open_issues = list(_open_issues(records))
     all_issues = [i for r in records for i in r.issues]
@@ -141,6 +225,8 @@ def _house_stages(
     deciders = Counter(i for r in results if r["expected_vote"] == "against" for i in r["decided_by"])
     sanctions = sum("stewardship.engagement_escalation" in r["decided_by"] for r in results)
 
+    decided = [v for v in ballots if v["vote"] is not None]
+    overrides = [v for v in decided if v["overrode_policy"]]
     milestones = Counter(i.milestone_stage.value for _, i in open_issues)
     pending = [d for d in drafts if d["status"] == "draft"]
     tracked = tracking.triggers(records, sla_days)
@@ -245,12 +331,20 @@ def _house_stages(
             _metric("Expected against", f"{votes.get('against', 0) / len(results):.0%}" if results else "—", "sample"),
             _metric("Case-by-case", votes.get("case_by_case", 0), "sample"),
             _metric("Sanction votes", sanctions, "sample", hint="Votes against because an engagement reached the vote step"),
+            _metric(
+                "Ballot items decided",
+                f"{len(decided)} of {len(ballots)}" if ballots else "—",
+                "live",
+                hint="From Proxy Voting runs; the rest await a person",
+            ),
+            _metric("Against management", sum(v["against_management"] for v in decided), "live"),
         ],
         details=[
             {
                 "label": "Most frequent reasons to vote against",
                 "rows": [{"issue": i, "resolutions": n} for i, n in deciders.most_common(6)],
-            }
+            },
+            {"label": VOTES_DECIDED, "rows": [_vote_row(v) for v in decided]},
         ],
     )
     tier_changes = tiers["changes"]
@@ -275,6 +369,13 @@ def _house_stages(
                 "Outreach to approve", len(pending), "live", "warn" if pending else "good", "Nothing is sent before approval"
             ),
             _metric(
+                "Votes against the policy",
+                len(overrides),
+                "live",
+                "warn" if overrides else "good",
+                "Decided in Proxy Voting against the policy's recommendation: review the reason",
+            ),
+            _metric(
                 "Client escalations above the house",
                 len(exceptions),
                 "live",
@@ -282,6 +383,7 @@ def _house_stages(
                 "A client's escalation rules want a higher step: adopt or decline",
             ),
         ],
+        details=[{"label": VOTES_AGAINST_POLICY, "rows": [_vote_row(v) for v in overrides]}],
     )
     for change in tier_changes:
         s5["decisions"].append(
@@ -506,8 +608,11 @@ EDGES = [
 ]
 
 
-def flow(stream_id: str, streams: StreamStore, records: list[EngagementRecord], sla_days: int) -> dict:
-    sample = json.loads(SAMPLE_PATH.read_text())
+def flow(
+    stream_id: str, streams: StreamStore, records: list[EngagementRecord], sla_days: int, votes: list[dict] | None = None
+) -> dict:
+    votes = vote_items() if votes is None else votes
+    sample = load_sample(votes=votes)
     house_policy = PolicyStore(streams.root).active("house_voting")
     tiers = tier_review(streams.root, sample, records)
     triggers = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, records)
@@ -523,7 +628,7 @@ def flow(stream_id: str, streams: StreamStore, records: list[EngagementRecord], 
     if stream_id == HOUSE:
         stream = {"stream_id": HOUSE, "name": "House program"}
         stages = _house_stages(
-            records, sample, house_policy, sla_days, tiers, triggers, escalations, exceptions, drafts
+            records, sample, house_policy, sla_days, tiers, triggers, escalations, exceptions, drafts, votes
         ) + _house_reporting(streams.list(), records, house_policy)
     else:
         stream = streams.get(stream_id)
@@ -531,7 +636,7 @@ def flow(stream_id: str, streams: StreamStore, records: list[EngagementRecord], 
             raise KeyError(stream_id)
         policy = stream.get("built_policy") or house_policy
         stages = _house_stages(
-            records, sample, policy, sla_days, tiers, triggers, escalations, exceptions, drafts
+            records, sample, policy, sla_days, tiers, triggers, escalations, exceptions, drafts, votes
         ) + _client_stages(
             stream,
             sample,
@@ -539,9 +644,16 @@ def flow(stream_id: str, streams: StreamStore, records: list[EngagementRecord], 
             clients[stream_id],
             client_store(streams.root, stream_id).active_version("escalation_rules"),
         )
+    if sample.get("source") == "portfolio":
+        # Figures that would come from the synthetic sample come from the held companies instead.
+        for stage in stages:
+            stage["metrics"] = [{**m, "source": "portfolio"} if m["source"] == "sample" else m for m in stage["metrics"]]
+        data_note = f"{sample['note']} Engagement data is live."
+    else:
+        data_note = "Meeting and company data are a synthetic sample (fictional companies); engagement data is live."
     return {
         "stream": {k: stream[k] for k in ("stream_id", "name")} | {"mandate": stream.get("client_policy", {}).get("mandate")},
-        "data_note": "Meeting and company data are a synthetic sample (fictional companies); engagement data is live.",
+        "data_note": data_note,
         "stages": stages,
         "edges": EDGES,
     }
@@ -588,7 +700,7 @@ def tier_review(root: Path, sample: dict, records: list[EngagementRecord]) -> di
 
 def confirm_tiers(root: Path, records: list[EngagementRecord], decided_by: str, issuer_ids: list[str] | None = None) -> int:
     """Confirms the proposed tier changes (all of them, or the listed issuers)."""
-    changes = tier_review(root, json.loads(SAMPLE_PATH.read_text()), records)["changes"]
+    changes = tier_review(root, load_sample(), records)["changes"]
     wanted = [c for c in changes if issuer_ids is None or c["issuer_id"] in issuer_ids]
     store = TierStore(root)
     for change in wanted:
