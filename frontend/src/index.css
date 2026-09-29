@@ -1336,3 +1336,20 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .level-override-note { font-size: var(--text-xs); color: var(--muted); margin-top: 2px; }
 .level-override-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-2); margin-top: var(--s-2); }
 .level-override-form input { min-width: 16rem; }
+
+/* Process progress: which step of a Processes workflow this screen is. */
+.process-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-4);
+  max-width: 1200px;
+  margin-bottom: var(--s-4);
+  padding: 8px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-sm);
+  background: var(--well);
+}
+.process-bar-title { color: var(--muted); }
+.process-bar-next { margin-left: auto; font-weight: 600; color: var(--accent); }
+.process-bar .link-button { text-decoration: none; min-width: 24px; }

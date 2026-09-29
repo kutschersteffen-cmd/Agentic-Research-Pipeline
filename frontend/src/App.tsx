@@ -22,7 +22,7 @@ import { StrategyReplication } from "./pages/StrategyReplication";
 import { Search } from "./pages/Search";
 import { DecisionStudio } from "./pages/DecisionStudio";
 import { IndexBuilder } from "./pages/IndexBuilder";
-import { Processes } from "./pages/Processes";
+import { ProcessBar, Processes } from "./pages/Processes";
 import { NAV_ICONS } from "./components/NavIcons";
 import type { ReviewableRunKind, RunManifest, UniverseHandoff } from "./types";
 
@@ -243,6 +243,7 @@ function App() {
         </nav>
       </aside>
       <main className="app-main">
+        <ProcessBar tab={active} sub={route.params[0]} />
         {hub && (
           <nav className="sub-nav hub-nav" aria-label={hub.label}>
             {hub.tabs.map(([id, label]) => (
