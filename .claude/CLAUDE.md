@@ -12,7 +12,7 @@ Branch off `main` when starting work. If a branch was created from anything else
 
 ## Plugins
 
-`.claude/settings.json` declares six marketplaces and enables a plugin from each. Neither
+`.claude/settings.json` declares seven marketplaces and enables a plugin from each. Neither
 entry does any fetching: `extraKnownMarketplaces` only *declares* a marketplace, and
 `enabledPlugins` only flips a plugin on once it is installed. So each collaborator has to
 register every marketplace and run every install once themselves:
@@ -73,6 +73,32 @@ claude plugin install humanizer@humanizer
   first, surgical changes, goal-driven execution. Skill only.
 - **humanizer** — rewrites AI-sounding text so it reads naturally. `/humanizer:humanizer`.
   Skill only.
+
+And one more, the same way:
+
+```
+claude plugin marketplace add obra/superpowers-marketplace
+claude plugin install superpowers@superpowers-marketplace
+```
+
+- **superpowers** — development workflow skills: brainstorming, writing plans, TDD,
+  systematic debugging, worktrees. Its `SessionStart` hook loads `using-superpowers`.
+
+## Which plugin does what
+
+superpowers and ponytail pull in opposite directions (process vs. minimalism), so each owns a
+phase:
+
+- **Planning → superpowers.** For non-trivial work use `superpowers:brainstorming`, then
+  `superpowers:writing-plans`. Apply ponytail's ladder to the plan itself: cut tasks that
+  don't need to exist before writing them down. Trivial changes skip planning.
+- **Implementation → ponytail.** Smallest working diff; follow the plan's tasks, not more.
+- **Frontend design → impeccable and ui-ux-pro-max**, as before.
+- **Review → ponytail.** Review with `/ponytail:ponytail-review` (over-engineering) plus
+  `/code-review` (correctness). Do not use `superpowers:requesting-code-review` or
+  `superpowers:receiving-code-review`.
+- **Finishing → no auto-merge.** `superpowers:finishing-a-development-branch` must open a PR
+  against `main` (see above); never merge locally.
 
 ## Invoking skills
 
