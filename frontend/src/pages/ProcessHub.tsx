@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import type { RunManifest, StewardshipFlow } from "../types";
 import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
 import { openCount } from "./steward/common";
+import { useReviewer } from "../lib/reviewer";
 
 // The start page and the three process overview pages. A process is a named
 // group of screens in order; each step links to the screen that does it and
@@ -180,7 +181,16 @@ const WEEK_MS = 7 * 24 * 3600 * 1000;
 const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
 const recent = (iso: string) => Date.now() - new Date(iso).getTime() < WEEK_MS;
 
-function RunsPanel({ runs, error, retry }: ReturnType<typeof useRuns>) {
+function ago(iso: string): string {
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 60) return `${Math.max(min, 1)} min ago`;
+  if (min < 48 * 60) return `${Math.round(min / 60)} h ago`;
+  return `${Math.round(min / 1440)} days ago`;
+}
+
+/** One line of run counts, with the runs that need attention folded below it:
+ * the start page leads with the processes, so runs stay compact. */
+function RunsSummary({ runs, error, retry }: ReturnType<typeof useRuns>) {
   const known = runs !== null;
   const all = runs ?? [];
   const active = all.filter((r) => ACTIVE_STATUSES.has(r.status));
@@ -192,15 +202,10 @@ function RunsPanel({ runs, error, retry }: ReturnType<typeof useRuns>) {
   const rows = [...new Set([...active, ...waitingRuns, ...failed])]
     .sort((a, b) => rank(a) - rank(b) || (a.updated_at < b.updated_at ? 1 : -1))
     .slice(0, 8);
-  const lastDone = all.filter((r) => DONE.has(r.status)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
   const n = (v: number) => (known ? v : "—");
 
   return (
-    <section aria-labelledby="hub-runs">
-      <div className="hub-sec">
-        <h3 id="hub-runs">Runs</h3>
-        <a href="#/history">All runs →</a>
-      </div>
+    <section className="hub-runbar" aria-label="Runs">
       {error && (
         <p className="error-text" role="alert">
           Runs could not be loaded: {error}. {known ? "Showing the last answer." : "Counts are unknown until the backend responds."}{" "}
@@ -209,106 +214,124 @@ function RunsPanel({ runs, error, retry }: ReturnType<typeof useRuns>) {
           </button>
         </p>
       )}
-      <dl className="hub-stats">
-        <div className="hub-stat">
-          <dt>Running now</dt>
+      <dl className="hub-runbar-stats">
+        <div>
+          <dt>running</dt>
           <dd>{n(active.length)}</dd>
         </div>
-        <div className={known && waitingItems > 0 ? "hub-stat awaiting" : "hub-stat"}>
-          <dt>Waiting on review</dt>
+        <div className={known && waitingItems > 0 ? "awaiting" : undefined}>
+          <dt>waiting on review</dt>
           <dd>{n(waitingItems)}</dd>
-          {known && waitingRuns.length > 0 && <small>in {waitingRuns.length} run{waitingRuns.length === 1 ? "" : "s"}</small>}
         </div>
-        <div className={known && failed.length > 0 ? "hub-stat failed" : "hub-stat"}>
-          <dt>Failed, last 7 days</dt>
+        <div className={known && failed.length > 0 ? "failed" : undefined}>
+          <dt>failed this week</dt>
           <dd>{n(failed.length)}</dd>
         </div>
-        <div className="hub-stat">
-          <dt>Finished today</dt>
+        <div>
+          <dt>finished today</dt>
           <dd>{n(today.length)}</dd>
         </div>
       </dl>
-      {known && rows.length === 0 && (
-        <p className="card card-empty muted">
-          Nothing running, waiting or failed.{lastDone ? ` The last run finished ${new Date(lastDone.updated_at).toLocaleString()}.` : " No runs yet."}
-        </p>
-      )}
+      <a className="hub-runbar-all" href="#/history">
+        All runs →
+      </a>
       {rows.length > 0 && (
-        <ul className="hub-runs">
-          {rows.map((r) => {
-            const pct = r.company_count > 0 ? Math.round((r.completed_count / r.company_count) * 100) : 0;
-            const w = waitingCount(r);
-            return (
-              <li key={r.run_id}>
-                <a className="hub-run" href={runHref(r)}>
-                  <span className="hub-tag">{PROCESS_OF_RUN_TYPE.get(r.run_type)?.name ?? "Other"}</span>
-                  <span className="hub-run-main">
-                    <strong>{runTypeLabel(r.run_type)}</strong>
-                    <span className="muted">
-                      {r.completed_count}/{r.company_count} companies{w > 0 ? ` · ${w} waiting on you` : ""}
-                      {r.status === "failed" && r.error ? ` · ${r.error}` : ""}
+        <details className="hub-runbar-list">
+          <summary>
+            {rows.length} run{rows.length === 1 ? "" : "s"} need{rows.length === 1 ? "s" : ""} attention
+          </summary>
+          <ul className="hub-runs">
+            {rows.map((r) => {
+              const pct = r.company_count > 0 ? Math.round((r.completed_count / r.company_count) * 100) : 0;
+              const w = waitingCount(r);
+              return (
+                <li key={r.run_id}>
+                  <a className="hub-run" href={runHref(r)}>
+                    <span className="hub-tag">{PROCESS_OF_RUN_TYPE.get(r.run_type)?.name ?? "Other"}</span>
+                    <span className="hub-run-main">
+                      <strong>{runTypeLabel(r.run_type)}</strong>
+                      <span className="muted">
+                        {r.completed_count}/{r.company_count} companies{w > 0 ? ` · ${w} waiting on you` : ""}
+                        {r.status === "failed" && r.error ? ` · ${r.error}` : ""}
+                      </span>
                     </span>
-                  </span>
-                  <span className="progress-bar" aria-hidden>
-                    <span className="progress-bar-fill" style={{ transform: `scaleX(${pct / 100})` }} />
-                  </span>
-                  <span className={w > 0 && !ACTIVE_STATUSES.has(r.status) ? "status-pill hub-pill-await" : `status-pill status-${r.status}`}>
-                    {w > 0 && !ACTIVE_STATUSES.has(r.status) ? "review" : r.status.replace(/_/g, " ")}
-                  </span>
-                </a>
-              </li>
-            );
-          })}
-        </ul>
+                    <span className="progress-bar" aria-hidden>
+                      <span className="progress-bar-fill" style={{ transform: `scaleX(${pct / 100})` }} />
+                    </span>
+                    <span className={w > 0 && !ACTIVE_STATUSES.has(r.status) ? "status-pill hub-pill-await" : `status-pill status-${r.status}`}>
+                      {w > 0 && !ACTIVE_STATUSES.has(r.status) ? "review" : r.status.replace(/_/g, " ")}
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </details>
       )}
     </section>
   );
 }
 
-function StepStrip({ p, runs, flow }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+const STATE_LABEL: Record<StepState, string> = { done: "has a finished run", now: "running", wait: "waiting on a person", failed: "last run failed", idle: "no activity yet" };
+
+/** A process as a large card: its steps as a chain of labelled dots, so where
+ * each process stands reads at a glance without opening it. */
+function ProcessCard({ p, runs, flow }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+  const h = headline(p, runs, flow);
+  const last = runs?.filter((r) => p.runTypes.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
   return (
-    <span className="hub-strip" aria-hidden>
-      {p.steps.map((s) => (
-        <i key={s.label} className={`hub-strip-${stepState(s, runs, flow)}`} />
-      ))}
-    </span>
+    <a className={`hub-card${h.tone ? ` hub-card-${h.tone}` : ""}`} href={p.href}>
+      <span className="hub-card-top">
+        <span className="hub-card-icon">{p.icon}</span>
+        <span className={`hub-pill ${h.tone}`}>{h.text}</span>
+      </span>
+      <span className="hub-card-name">{p.name}</span>
+      <span className="hub-card-purpose">{p.purpose}</span>
+      <ol className="hub-chain">
+        {p.steps.map((s) => {
+          const st = stepState(s, runs, flow);
+          return (
+            <li key={s.label} className={`hub-chain-${st}`}>
+              <span className="hub-chain-dot" aria-hidden />
+              <span className="hub-chain-label">{s.label}</span>
+              <span className="visually-hidden"> ({STATE_LABEL[st]})</span>
+            </li>
+          );
+        })}
+      </ol>
+      <span className="hub-card-foot">
+        <span className="muted">{!runs ? "" : last ? `Last run ${ago(last.updated_at)}` : "No runs yet"}</span>
+        <span className="hub-card-go">Open {p.name} →</span>
+      </span>
+    </a>
   );
 }
 
 export function StartPage() {
   const runsState = useRuns();
   const { flow } = useHouseFlow();
-  const { runs } = runsState;
+  const [reviewer] = useReviewer();
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   return (
-    <div className="page hub">
-      <h2>Start</h2>
-      <p className="help-text">How the runs are doing, and the four key processes. Runs refresh every 3 seconds.</p>
-      <RunsPanel {...runsState} />
-      <section aria-labelledby="hub-processes">
-        <div className="hub-sec">
-          <h3 id="hub-processes">Processes</h3>
-        </div>
-        <div className="hub-boxes">
-          {PROCESSES.map((p) => {
-            const h = headline(p, runs, flow);
-            return (
-              <a key={p.id} className="hub-box" href={p.href}>
-                <span className="hub-box-icon">{p.icon}</span>
-                <span className="hub-box-name">{p.name}</span>
-                <span className="hub-box-purpose">{p.purpose}</span>
-                <StepStrip p={p} runs={runs} flow={flow} />
-                <span className="hub-box-foot">
-                  <span className={`hub-pill ${h.tone}`}>{h.text}</span>
-                  <span className="hub-box-go">Open →</span>
-                </span>
-              </a>
-            );
-          })}
-        </div>
-        <p className="muted hub-legend">
-          <span className="hub-key done" /> finished run <span className="hub-key now" /> running <span className="hub-key wait" /> waiting on a person <span className="hub-key failed" /> last run failed
-        </p>
-      </section>
+    <div className="page hub hub-start">
+      <header className="hub-hero">
+        <p className="hub-hero-kicker">Agentic Research Pipeline</p>
+        <h2>
+          {greeting}
+          {reviewer.trim() ? `, ${reviewer.trim()}` : ""}
+        </h2>
+        <p className="help-text">Four processes carry the work. Pick one to see its steps, or check the runs below.</p>
+      </header>
+      <div className="hub-cards">
+        {PROCESSES.map((p) => (
+          <ProcessCard key={p.id} p={p} runs={runsState.runs} flow={flow} />
+        ))}
+      </div>
+      <p className="muted hub-legend">
+        <span className="hub-key done" /> finished run <span className="hub-key now" /> running <span className="hub-key wait" /> waiting on a person <span className="hub-key failed" /> last run failed
+      </p>
+      <RunsSummary {...runsState} />
     </div>
   );
 }
