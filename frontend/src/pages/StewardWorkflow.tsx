@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
-import type { StewardshipFlow, StewardshipStage, StewardshipStream } from "../types";
-import { SOURCE_LABEL } from "./steward/common";
+import type { StewardshipFlow, StewardshipStream } from "../types";
+import { SOURCE_LABEL, openCount } from "./steward/common";
 import { useReviewer } from "../lib/reviewer";
 import { FlowChart, FlowList } from "./steward/flow";
 import { DraftingStudio } from "./steward/drafting";
@@ -33,9 +33,6 @@ export const STAGE_TABS = [
 ] as const;
 // "program" is not a stage: it calibrates a client program across stages 2-5 (Part 5).
 const CLIENT_STAGES = new Set(["client_policy", "reporting", "program"]);
-
-const openCount = (stage: StewardshipStage | undefined) =>
-  stage ? stage.decisions.filter((d) => d.kind !== "policy_difference" || d.decision === null).length : 0;
 
 /** Which companies the house program covers (see backend stewardship/universe.py).
  * Portfolio holdings make stewardship share company ids with Risk Monitoring,

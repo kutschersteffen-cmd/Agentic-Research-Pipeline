@@ -2,7 +2,7 @@ import { useMemo, type CSSProperties } from "react";
 import ReactFlow, { Controls, Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
 import type { StewardshipFlow, StewardshipStage } from "../../types";
-import { SOURCE_LABEL } from "./common";
+import { SOURCE_LABEL, openCount } from "./common";
 
 // Flowchart layout: the house row (stages 1-6) above the client row (7-8),
 // as in docs/STEWARDSHIP_OPERATING_MODEL.md, Part 2. Drawn with React Flow
@@ -60,7 +60,7 @@ function BandNode({ data }: NodeProps<{ label: string }>) {
 const NODE_TYPES = { stage: StageFlowNode, band: BandNode };
 
 export function StageNode({ stage, selected, onSelect, style }: { stage: StewardshipStage; selected: boolean; onSelect: (id: string) => void; style?: CSSProperties }) {
-  const open = stage.decisions.filter((d) => d.kind !== "policy_difference" || d.decision === null).length;
+  const open = openCount(stage);
   return (
     <button className={`flow-node flow-${stage.layer}${selected ? " selected" : ""}`} style={style} aria-pressed={selected} onClick={() => onSelect(stage.id)}>
       <span className="flow-node-head">

@@ -13,6 +13,7 @@ import { DataLibrary } from "./pages/DataLibrary";
 import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
 import { BackgroundAgents } from "./pages/BackgroundAgents";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
+import { ProcessOverview, StartPage } from "./pages/ProcessHub";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
 import { STAGE_TABS, StewardWorkflow } from "./pages/StewardWorkflow";
@@ -28,6 +29,10 @@ import { NAV_ICONS } from "./components/NavIcons";
 import type { ReviewableRunKind, RunManifest, UniverseHandoff } from "./types";
 
 const TABS = [
+  { id: "home", label: "Start" },
+  { id: "stewardiq", label: "StewardIQ" },
+  { id: "themeMachine", label: "Theme Machine" },
+  { id: "designStudio", label: "Design Studio" },
   { id: "dashboard", label: "Dashboard" },
   { id: "processes", label: "Processes" },
   { id: "search", label: "Search" },
@@ -66,7 +71,10 @@ const HUBS: { label: string; tabs: [TabId, string][] }[] = [
 const hubOf = (id: TabId) => HUBS.find((h) => h.tabs.some(([t]) => t === id));
 // Transition Plan is Extraction preset to its profile (Extraction's own
 // profile toggle switches it), so the sidebar shows Extraction for both.
-const navIdOf = (id: TabId): TabId => (id === "transitionPlan" ? "extraction" : id);
+// The process overview pages are reached from the start page's boxes, so the
+// sidebar shows Start for them.
+const navIdOf = (id: TabId): TabId =>
+  id === "transitionPlan" ? "extraction" : id === "stewardiq" || id === "themeMachine" || id === "designStudio" ? "home" : id;
 
 // Purely a sidebar presentation grouping -- ids must match TABS above; a hub
 // is listed by its first tab. Ordered by the stewardship team's day: what
@@ -75,7 +83,7 @@ const navIdOf = (id: TabId): TabId => (id === "transitionPlan" ? "extraction" : 
 // A `collapsed` group starts folded (and opens itself while one of its
 // screens is showing): the specialist tools the day-to-day work doesn't need.
 const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boolean }[] = [
-  { label: null, ids: ["dashboard", "library"] },
+  { label: null, ids: ["home", "dashboard", "library"] },
   { label: "Needs you", ids: ["review", "voting"] },
   { label: "Stewardship", ids: ["stewardship", "engagement", "extraction", "transitionBarrier"] },
   { label: "Research", ids: ["theme", "identity"] },
@@ -99,7 +107,7 @@ const REVIEWABLE = new Set<string>(["theme", "extraction", "financials", "identi
  * `#/voting/<run id>` or `#/review/extraction/<run id>`. */
 function parseHash(): { tab: TabId; params: string[] } {
   const [tab, ...params] = window.location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
-  return TABS.some((t) => t.id === tab) ? { tab: tab as TabId, params } : { tab: "dashboard", params: [] };
+  return TABS.some((t) => t.id === tab) ? { tab: tab as TabId, params } : { tab: "home", params: [] };
 }
 
 function navigate(tab: TabId, ...params: string[]) {
@@ -279,6 +287,8 @@ function App() {
             ))}
           </nav>
         )}
+        {active === "home" && <StartPage />}
+        {(active === "stewardiq" || active === "themeMachine" || active === "designStudio") && <ProcessOverview key={active} id={active} />}
         {active === "dashboard" && <MonitoringDashboard onNavigate={go} onOpenReview={openReview} />}
         {active === "processes" && <Processes selected={route.params[0] ?? null} onSelect={(id) => navigate("processes", id)} />}
         {active === "search" && <Search />}

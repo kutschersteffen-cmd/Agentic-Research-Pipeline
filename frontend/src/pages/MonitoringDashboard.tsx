@@ -1,26 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { EngagementRecord, ReviewableRunKind, RunManifest } from "../types";
-
-const ACTIVE_STATUSES = new Set(["running", "pending"]);
-const RUN_TYPE_LABEL: Record<string, string> = {
-  theme: "Thematic universe",
-  extraction: "Data extraction",
-  discovery: "Document discovery",
-  proxy_voting: "Proxy voting",
-  transition_plan: "Transition plan assessment",
-  transition_barrier_refresh: "Transition barrier source refresh",
-  taxonomy_research: "Taxonomy Researcher",
-  calibration: "Calibration Agent",
-  financials: "Company financials",
-  identity: "Identity resolution",
-  emerging_themes: "Emerging themes",
-};
-const REVIEWABLE_RUN_TYPES = new Set<string>(["theme", "extraction", "financials", "identity"]);
-
-function runTypeLabel(runType: string): string {
-  return RUN_TYPE_LABEL[runType] ?? runType.replace(/_/g, " ");
-}
+import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, runTypeLabel } from "../lib/runs";
 
 interface Props {
   onNavigate: (tab: "engagement" | "voting" | "review") => void;

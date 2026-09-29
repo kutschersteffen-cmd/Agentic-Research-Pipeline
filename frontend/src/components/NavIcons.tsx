@@ -15,6 +15,13 @@ const ICON_PROPS = {
 // App.tsx's TABS). Kept as inline SVG (not a font/emoji) so it recolors
 // with currentColor and stays crisp at any zoom.
 export const NAV_ICONS: Record<string, ReactElement> = {
+  home: (
+    <svg {...ICON_PROPS}>
+      <path d="M3 11 12 4l9 7" />
+      <path d="M5 10v10h14V10" />
+      <path d="M10 20v-5h4v5" />
+    </svg>
+  ),
   dashboard: (
     <svg {...ICON_PROPS}>
       <rect x="3" y="3" width="8" height="8" rx="1.5" />
