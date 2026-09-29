@@ -27,7 +27,7 @@ function EngagementSelect({ engagements, value, onChange }: { engagements: Track
 /** Stage 6: commitments with target dates (overdue or missed ones raise stage 1 triggers),
  * closing an engagement with its outcome, and E7 case studies from closed engagements. */
 export function TrackingStudio({ stage, onChanged }: StudioProps) {
-  const [actor, setActor] = useActor();
+  const [actor] = useActor();
   const [data, setData] = useState<{ commitments: TrackedCommitment[]; engagements: TrackedEngagement[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -86,7 +86,7 @@ export function TrackingStudio({ stage, onChanged }: StudioProps) {
           is logged on the Engagement page and when outreach is sent (stage 3).
         </p>
       </StudioHeader>
-      <ActorField actor={actor} onChange={setActor} />
+      <ActorField />
       {error && <p className="error-text">{error}</p>}
       <Section step="Decide" title="Commitments past their target date">
         {due.length === 0 ? (

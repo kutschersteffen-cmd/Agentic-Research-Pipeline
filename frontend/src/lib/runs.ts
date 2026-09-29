@@ -29,3 +29,16 @@ export function runTypeLabel(runType: string): string {
 export function waitingCount(r: RunManifest): number {
   return REVIEWABLE_RUN_TYPES.has(r.run_type) || r.run_type === "proxy_voting" ? r.review_count : 0;
 }
+
+/** Items waiting on a person across these runs, by kind. Ballot items come
+ * from voting runs, flagged items from runs with a review queue. The start
+ * page and the sidebar counts both use this, so they always agree. */
+export function waitingParts(runs: RunManifest[]): { ballots: number; review: number } {
+  let ballots = 0;
+  let review = 0;
+  for (const r of runs) {
+    if (r.run_type === "proxy_voting") ballots += r.review_count;
+    else if (REVIEWABLE_RUN_TYPES.has(r.run_type)) review += r.review_count;
+  }
+  return { ballots, review };
+}

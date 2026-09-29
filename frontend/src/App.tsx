@@ -14,6 +14,7 @@ import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
 import { BackgroundAgents } from "./pages/BackgroundAgents";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
 import { ProcessOverview, StartPage } from "./pages/ProcessHub";
+import { waitingParts } from "./lib/runs";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
 import { STAGE_TABS, StewardWorkflow } from "./pages/StewardWorkflow";
@@ -141,8 +142,8 @@ function App() {
       .listRuns()
       .then((res) => {
         const runs = (res as { runs: RunManifest[] }).runs;
-        const sum = (keep: (r: RunManifest) => boolean) => runs.filter(keep).reduce((n, r) => n + r.review_count, 0);
-        setWaiting({ review: sum((r) => REVIEWABLE.has(r.run_type)), voting: sum((r) => r.run_type === "proxy_voting") });
+        const parts = waitingParts(runs);
+        setWaiting({ review: parts.review, voting: parts.ballots });
       })
       .catch(() => setWaiting(null));
   }, [route]);

@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { RunManifest, StewardshipFlow } from "../types";
-import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
+import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount, waitingParts } from "../lib/runs";
 import { openCount } from "./steward/common";
-import { useReviewer } from "../lib/reviewer";
 
 // The start page and the three process overview pages. A process is a named
 // group of screens in order; each step links to the screen that does it and
@@ -11,23 +10,18 @@ import { useReviewer } from "../lib/reviewer";
 // stewardship flow). Data Engineer has no overview page: its box opens
 // Extraction, which already draws its own pipeline.
 type Step = { label: string; screen: string; href: string; about: string; runTypes?: string[]; stage?: string };
-type Process = { id: string; name: string; purpose: string; href: string; runTypes: string[]; steps: Step[]; icon: ReactElement };
+// `code` prefixes the process's serial number in the start-page register.
+type Process = { id: string; code: string; name: string; purpose: string; href: string; runTypes: string[]; steps: Step[] };
 
-const ICON = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
 const PROCESSES: Process[] = [
   {
     id: "stewardiq",
+    code: "SIQ",
     name: "StewardIQ",
     purpose: "Monitor holdings, engage companies, vote, and track what they commit to.",
     href: "#/stewardiq",
     runTypes: ["proxy_voting"],
-    icon: (
-      <svg {...ICON}>
-        <path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z" />
-        <path d="m9 12 2 2 4-4" />
-      </svg>
-    ),
     steps: [
       { label: "Monitor", screen: "Steward · Monitoring", href: "#/stewardship/monitoring", stage: "monitoring", about: "Triggers on holdings, checked against house policy." },
       { label: "Select", screen: "Steward · Selection", href: "#/stewardship/selection", stage: "selection", about: "Which companies the program engages this cycle." },
@@ -39,17 +33,11 @@ const PROCESSES: Process[] = [
   },
   {
     id: "themeMachine",
+    code: "TM",
     name: "Theme Machine",
     purpose: "Spot emerging themes, define them as taxonomies, and match companies to them.",
     href: "#/themeMachine",
     runTypes: ["emerging_themes", "taxonomy_research", "theme"],
-    icon: (
-      <svg {...ICON}>
-        <path d="M12 2 2 7l10 5 10-5z" />
-        <path d="m2 17 10 5 10-5" />
-        <path d="m2 12 10 5 10-5" />
-      </svg>
-    ),
     steps: [
       { label: "Spot", screen: "Emerging Themes", href: "#/emergingThemes", runTypes: ["emerging_themes"], about: "Candidate themes from filings and news." },
       { label: "Define", screen: "Taxonomy Library", href: "#/taxonomy", runTypes: ["taxonomy_research"], about: "The theme's activities; ratify a version." },
@@ -59,17 +47,11 @@ const PROCESSES: Process[] = [
   },
   {
     id: "dataEngineer",
+    code: "DE",
     name: "Data Engineer",
     purpose: "Extract data points from disclosures, each verified and cited against its source.",
     href: "#/extraction",
     runTypes: ["extraction", "financials", "tnfd", "transition_plan"],
-    icon: (
-      <svg {...ICON}>
-        <ellipse cx="12" cy="5" rx="8" ry="3" />
-        <path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" />
-        <path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
-      </svg>
-    ),
     // One per Extraction profile; only drawn as the box's progress strip.
     steps: [
       { label: "Custom schema", screen: "Extraction", href: "#/extraction", runTypes: ["extraction"], about: "" },
@@ -80,16 +62,11 @@ const PROCESSES: Process[] = [
   },
   {
     id: "designStudio",
+    code: "DS",
     name: "Design Studio",
     purpose: "Build and ratify scoring templates, then turn the scores into an index.",
     href: "#/designStudio",
     runTypes: ["calibration"],
-    icon: (
-      <svg {...ICON}>
-        <path d="M3 3v18h18" />
-        <path d="m7 15 4-4 3 3 5-6" />
-      </svg>
-    ),
     steps: [
       { label: "Build template", screen: "Decision Studio", href: "#/decision", about: "Load a table or a finished run; set indicators, gates and tiers." },
       { label: "Ratify & publish", screen: "Decision Studio", href: "#/decision", about: "A named person ratifies the template, then the tiers are published." },
@@ -156,19 +133,25 @@ function stepState(step: Step, runs: RunManifest[] | null, flow: StewardshipFlow
   return "idle";
 }
 
-/** The one line a process box leads with: what waits on a person first, then
- * failures, then what is running. */
-function headline(p: Process, runs: RunManifest[] | null, flow: StewardshipFlow | null): { tone: string; text: string } {
-  if (!runs) return { tone: "", text: "Status unknown" };
-  const mine = runs.filter((r) => p.runTypes.includes(r.run_type));
-  const waiting = mine.reduce((n, r) => n + waitingCount(r), 0) + p.steps.reduce((n, s) => n + (s.stage ? openCount(flow?.stages.find((x) => x.id === s.stage)) : 0), 0);
-  const failed = mine.filter((r) => r.status === "failed").length;
-  const running = mine.filter((r) => ACTIVE_STATUSES.has(r.status)).length;
-  if (waiting > 0) return { tone: "await", text: `${waiting} waiting on you` };
-  if (failed > 0) return { tone: "failed", text: `${failed} failed` };
-  if (running > 0) return { tone: "running", text: `${running} running` };
-  return { tone: "", text: "Nothing waiting" };
+/** What a process waits on a person for, as named parts: ballot items and
+ * flagged items from its runs, plus open decisions in its stewardship stages.
+ * Every count on the start page is built from these parts, so a total is
+ * always shown with what it is made of. */
+function processParts(p: Process, runs: RunManifest[], flow: StewardshipFlow | null) {
+  const w = waitingParts(runs.filter((r) => p.runTypes.includes(r.run_type)));
+  const stages = p.steps.reduce((n, s) => n + (s.stage ? openCount(flow?.stages.find((x) => x.id === s.stage)) : 0), 0);
+  return { ...w, stages, total: w.ballots + w.review + stages };
 }
+
+function describe(parts: { ballots: number; review: number; stages: number }): string[] {
+  const out: string[] = [];
+  if (parts.ballots) out.push(`${parts.ballots} ballot item${parts.ballots === 1 ? "" : "s"}`);
+  if (parts.review) out.push(`${parts.review} flagged item${parts.review === 1 ? "" : "s"}`);
+  if (parts.stages) out.push(`${parts.stages} stage decision${parts.stages === 1 ? "" : "s"}`);
+  return out;
+}
+
+const joinAnd = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
 /** Where a run row goes: its review, its ballot, or its process. */
 function runHref(r: RunManifest): string {
@@ -178,7 +161,6 @@ function runHref(r: RunManifest): string {
 }
 
 const WEEK_MS = 7 * 24 * 3600 * 1000;
-const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
 const recent = (iso: string) => Date.now() - new Date(iso).getTime() < WEEK_MS;
 
 function ago(iso: string): string {
@@ -188,24 +170,139 @@ function ago(iso: string): string {
   return `${Math.round(min / 1440)} days ago`;
 }
 
-/** One line of run counts, with the runs that need attention folded below it:
- * the start page leads with the processes, so runs stay compact. */
-function RunsSummary({ runs, error, retry }: ReturnType<typeof useRuns>) {
+const STATE_LABEL: Record<StepState, string> = { done: "has a finished run", now: "running", wait: "awaiting countersignature", failed: "last run void", idle: "no activity yet" };
+
+/** A step mark: a ruled circle, ticked once a run has finished, dashed in
+ * stamp violet while it awaits a person, struck through when its run failed. */
+function StepMark({ state }: { state: StepState }) {
+  return (
+    <svg className={`cs-mark cs-mark-${state}`} viewBox="0 0 22 22" aria-hidden>
+      <circle cx="11" cy="11" r="8.5" />
+      {state === "done" && <path d="M6.5 11.5l3 3 6-6.5" />}
+      {state === "now" && <circle className="cs-mark-dot" cx="11" cy="11" r="3.5" />}
+      {state === "failed" && <path d="M6 16 16 6" />}
+    </svg>
+  );
+}
+
+/** The engraved rosette: concentric rings crossed by rotated ellipses, the
+ * figure security printers use as a seal. Decorative only. */
+function Rosette({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 200 200" aria-hidden>
+      {[30, 45, 60, 75, 90].map((r) => (
+        <circle key={r} cx="100" cy="100" r={r} />
+      ))}
+      {[0, 30, 60, 90, 120, 150].map((a) => (
+        <ellipse key={a} cx="100" cy="100" rx="90" ry="35" transform={`rotate(${a} 100 100)`} />
+      ))}
+    </svg>
+  );
+}
+
+function RegisterRow({ p, runs, flow }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+  const mine = (runs ?? []).filter((r) => p.runTypes.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
+  const last = mine[0];
+  const parts = runs ? processParts(p, runs, flow) : null;
+  const states = p.steps.map((s) => stepState(s, runs, flow));
+  const serial = `${p.code} ${String(mine.length).padStart(4, "0")}`;
+  return (
+    <tr>
+      <td className="cs-serial" title={`${mine.length} run${mine.length === 1 ? "" : "s"} registered`}>
+        {serial}
+      </td>
+      <th scope="row" className="cs-process">
+        <a href={p.href}>{p.name}</a>
+        <small>{p.purpose}</small>
+      </th>
+      <td>
+        <span className="cs-marks">
+          {states.map((st, i) => (
+            <StepMark key={p.steps[i].label} state={st} />
+          ))}
+        </span>
+        <span className="visually-hidden">{p.steps.map((s, i) => `${s.label}: ${STATE_LABEL[states[i]]}`).join("; ")}</span>
+      </td>
+      <td className="cs-prepared">
+        {!runs ? (
+          "Unknown"
+        ) : !last ? (
+          "No runs yet"
+        ) : last.status === "failed" ? (
+          <>
+            <span className="cs-void">Void</span> stopped at {last.completed_count} of {last.company_count}
+          </>
+        ) : (
+          `${runTypeLabel(last.run_type)}, ${ago(last.updated_at)}`
+        )}
+      </td>
+      <td>
+        {!parts ? (
+          <span className="muted">Unknown</span>
+        ) : parts.total > 0 ? (
+          <span className="cs-await">
+            <span className="cs-sigline" aria-hidden />
+            {parts.total} awaiting: {describe(parts).join(", ")}
+          </span>
+        ) : (
+          <span className="muted">Nothing to sign</span>
+        )}
+      </td>
+      <td className="cs-open">
+        <a href={p.href} aria-label={`Open ${p.name}`}>
+          Open
+        </a>
+      </td>
+    </tr>
+  );
+}
+
+export function StartPage() {
+  const { runs, error, retry } = useRuns();
+  const { flow } = useHouseFlow();
   const known = runs !== null;
   const all = runs ?? [];
+  const totals = PROCESSES.reduce(
+    (t, p) => {
+      const x = processParts(p, all, flow);
+      return { ballots: t.ballots + x.ballots, review: t.review + x.review, stages: t.stages + x.stages };
+    },
+    { ballots: 0, review: 0, stages: 0 },
+  );
+  const due = describe(totals);
   const active = all.filter((r) => ACTIVE_STATUSES.has(r.status));
-  const waitingRuns = all.filter((r) => waitingCount(r) > 0);
-  const waitingItems = waitingRuns.reduce((n, r) => n + waitingCount(r), 0);
   const failed = all.filter((r) => r.status === "failed" && recent(r.updated_at));
-  const today = all.filter((r) => DONE.has(r.status) && isToday(r.updated_at));
   const rank = (r: RunManifest) => (ACTIVE_STATUSES.has(r.status) ? 0 : waitingCount(r) > 0 ? 1 : 2);
-  const rows = [...new Set([...active, ...waitingRuns, ...failed])]
+  const attention = [...new Set([...active, ...all.filter((r) => waitingCount(r) > 0), ...failed])]
     .sort((a, b) => rank(a) - rank(b) || (a.updated_at < b.updated_at ? 1 : -1))
     .slice(0, 8);
-  const n = (v: number) => (known ? v : "—");
+  const lastDone = all.filter((r) => DONE.has(r.status)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
 
   return (
-    <section className="hub-runbar" aria-label="Runs">
+    <div className="page cs-start">
+      <section className="cs-band" aria-labelledby="cs-due">
+        <Rosette className="cs-rosette" />
+        <h2 id="cs-due">
+          {!known ? (
+            "Status unknown until the runs load."
+          ) : due.length ? (
+            <>
+              {joinAnd(due)
+                .split(/(\d+)/)
+                .map((chunk, i) => (i % 2 ? <em key={i}>{chunk}</em> : chunk))}{" "}
+              await countersignature.
+            </>
+          ) : (
+            "Nothing awaits countersignature."
+          )}
+        </h2>
+        <p className="cs-asof">
+          As of {new Date().toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+          {known && active.length > 0 && ` · ${active.length} run${active.length === 1 ? "" : "s"} in progress`}
+          {known && failed.length > 0 && ` · ${failed.length} run${failed.length === 1 ? "" : "s"} void this week`}
+          {known && !due.length && lastDone && ` · last run finished ${ago(lastDone.updated_at)}`}
+        </p>
+      </section>
       {error && (
         <p className="error-text" role="alert">
           Runs could not be loaded: {error}. {known ? "Showing the last answer." : "Counts are unknown until the backend responds."}{" "}
@@ -214,124 +311,77 @@ function RunsSummary({ runs, error, retry }: ReturnType<typeof useRuns>) {
           </button>
         </p>
       )}
-      <dl className="hub-runbar-stats">
-        <div>
-          <dt>running</dt>
-          <dd>{n(active.length)}</dd>
+
+      <section aria-labelledby="cs-register">
+        <div className="cs-head">
+          <h3 id="cs-register">Register of processes</h3>
+          <span className="muted">Prepared by agents, countersigned by people</span>
         </div>
-        <div className={known && waitingItems > 0 ? "awaiting" : undefined}>
-          <dt>waiting on review</dt>
-          <dd>{n(waitingItems)}</dd>
+        <table className="cs-table">
+          <thead>
+            <tr>
+              <th scope="col">No.</th>
+              <th scope="col">Process</th>
+              <th scope="col">Steps</th>
+              <th scope="col">Prepared</th>
+              <th scope="col">Countersign</th>
+              <th scope="col">
+                <span className="visually-hidden">Open</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {PROCESSES.map((p) => (
+              <RegisterRow key={p.id} p={p} runs={runs} flow={flow} />
+            ))}
+          </tbody>
+        </table>
+        <p className="cs-legend muted">
+          <StepMark state="done" /> finished run <StepMark state="now" /> running <StepMark state="wait" /> awaiting countersignature <StepMark state="failed" /> void
+        </p>
+      </section>
+
+      <section aria-labelledby="cs-runs">
+        <div className="cs-head">
+          <h3 id="cs-runs">Runs needing attention</h3>
+          <a href="#/history">All runs</a>
         </div>
-        <div className={known && failed.length > 0 ? "failed" : undefined}>
-          <dt>failed this week</dt>
-          <dd>{n(failed.length)}</dd>
-        </div>
-        <div>
-          <dt>finished today</dt>
-          <dd>{n(today.length)}</dd>
-        </div>
-      </dl>
-      <a className="hub-runbar-all" href="#/history">
-        All runs →
-      </a>
-      {rows.length > 0 && (
-        <details className="hub-runbar-list">
-          <summary>
-            {rows.length} run{rows.length === 1 ? "" : "s"} need{rows.length === 1 ? "s" : ""} attention
-          </summary>
-          <ul className="hub-runs">
-            {rows.map((r) => {
-              const pct = r.company_count > 0 ? Math.round((r.completed_count / r.company_count) * 100) : 0;
-              const w = waitingCount(r);
-              return (
-                <li key={r.run_id}>
-                  <a className="hub-run" href={runHref(r)}>
-                    <span className="hub-tag">{PROCESS_OF_RUN_TYPE.get(r.run_type)?.name ?? "Other"}</span>
-                    <span className="hub-run-main">
-                      <strong>{runTypeLabel(r.run_type)}</strong>
-                      <span className="muted">
-                        {r.completed_count}/{r.company_count} companies{w > 0 ? ` · ${w} waiting on you` : ""}
-                        {r.status === "failed" && r.error ? ` · ${r.error}` : ""}
+        {!known ? (
+          <p className="muted">Unknown until the runs load.</p>
+        ) : attention.length === 0 ? (
+          <p className="muted">Nothing running, awaiting a person or void.</p>
+        ) : (
+          <table className="cs-table cs-runs">
+            <tbody>
+              {attention.map((r) => {
+                const pct = r.company_count > 0 ? Math.round((r.completed_count / r.company_count) * 100) : 0;
+                const w = waitingCount(r);
+                const state = ACTIVE_STATUSES.has(r.status) ? "running" : w > 0 ? "awaiting" : r.status === "failed" ? "void" : r.status;
+                return (
+                  <tr key={r.run_id}>
+                    <td className="cs-serial">{PROCESS_OF_RUN_TYPE.get(r.run_type)?.code ?? "RUN"}</td>
+                    <th scope="row" className="cs-process">
+                      <a href={runHref(r)}>{runTypeLabel(r.run_type)}</a>
+                      <small>
+                        {r.completed_count} of {r.company_count} companies{w > 0 ? `, ${w} awaiting a person` : ""}
+                        {r.status === "failed" && r.error ? `, ${r.error}` : ""}
+                      </small>
+                    </th>
+                    <td className="cs-progress">
+                      <span className="progress-bar" aria-hidden>
+                        <span className="progress-bar-fill" style={{ transform: `scaleX(${pct / 100})` }} />
                       </span>
-                    </span>
-                    <span className="progress-bar" aria-hidden>
-                      <span className="progress-bar-fill" style={{ transform: `scaleX(${pct / 100})` }} />
-                    </span>
-                    <span className={w > 0 && !ACTIVE_STATUSES.has(r.status) ? "status-pill hub-pill-await" : `status-pill status-${r.status}`}>
-                      {w > 0 && !ACTIVE_STATUSES.has(r.status) ? "review" : r.status.replace(/_/g, " ")}
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </details>
-      )}
-    </section>
-  );
-}
-
-const STATE_LABEL: Record<StepState, string> = { done: "has a finished run", now: "running", wait: "waiting on a person", failed: "last run failed", idle: "no activity yet" };
-
-/** A process as a large card: its steps as a chain of labelled dots, so where
- * each process stands reads at a glance without opening it. */
-function ProcessCard({ p, runs, flow }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
-  const h = headline(p, runs, flow);
-  const last = runs?.filter((r) => p.runTypes.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
-  return (
-    <a className={`hub-card${h.tone ? ` hub-card-${h.tone}` : ""}`} href={p.href}>
-      <span className="hub-card-top">
-        <span className="hub-card-icon">{p.icon}</span>
-        <span className={`hub-pill ${h.tone}`}>{h.text}</span>
-      </span>
-      <span className="hub-card-name">{p.name}</span>
-      <span className="hub-card-purpose">{p.purpose}</span>
-      <ol className="hub-chain">
-        {p.steps.map((s) => {
-          const st = stepState(s, runs, flow);
-          return (
-            <li key={s.label} className={`hub-chain-${st}`}>
-              <span className="hub-chain-dot" aria-hidden />
-              <span className="hub-chain-label">{s.label}</span>
-              <span className="visually-hidden"> ({STATE_LABEL[st]})</span>
-            </li>
-          );
-        })}
-      </ol>
-      <span className="hub-card-foot">
-        <span className="muted">{!runs ? "" : last ? `Last run ${ago(last.updated_at)}` : "No runs yet"}</span>
-        <span className="hub-card-go">Open {p.name} →</span>
-      </span>
-    </a>
-  );
-}
-
-export function StartPage() {
-  const runsState = useRuns();
-  const { flow } = useHouseFlow();
-  const [reviewer] = useReviewer();
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  return (
-    <div className="page hub hub-start">
-      <header className="hub-hero">
-        <p className="hub-hero-kicker">Agentic Research Pipeline</p>
-        <h2>
-          {greeting}
-          {reviewer.trim() ? `, ${reviewer.trim()}` : ""}
-        </h2>
-        <p className="help-text">Four processes carry the work. Pick one to see its steps, or check the runs below.</p>
-      </header>
-      <div className="hub-cards">
-        {PROCESSES.map((p) => (
-          <ProcessCard key={p.id} p={p} runs={runsState.runs} flow={flow} />
-        ))}
-      </div>
-      <p className="muted hub-legend">
-        <span className="hub-key done" /> finished run <span className="hub-key now" /> running <span className="hub-key wait" /> waiting on a person <span className="hub-key failed" /> last run failed
-      </p>
-      <RunsSummary {...runsState} />
+                    </td>
+                    <td className="cs-state">
+                      {state === "void" ? <span className="cs-void">Void</span> : <span className={`cs-tag cs-tag-${state}`}>{state}</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
     </div>
   );
 }

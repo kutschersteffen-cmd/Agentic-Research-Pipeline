@@ -35,4 +35,4 @@ export function useReviewer(): [string, (name: string) => void] {
   return [useSyncExternalStore(subscribe, read), write];
 }
 
-export const REVIEWER_REQUIRED = "Enter your name under “Reviewing as” first: every decision is recorded against a named person.";
+export const REVIEWER_REQUIRED = "Enter your name under “Deciding as” first: every decision is recorded against a named person.";

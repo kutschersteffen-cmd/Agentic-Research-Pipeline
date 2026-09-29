@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { api } from "../../api/client";
 import { useReviewer } from "../../lib/reviewer";
+import { ReviewerField } from "../../components/ReviewerField";
 import type { MetricSource, StewardPolicyId, StewardPolicyInfo, StewardshipStage } from "../../types";
 
 export const SOURCE_LABEL: Record<MetricSource, string> = { live: "live data", sample: "synthetic sample", portfolio: "portfolio holdings", not_built: "not built yet" };
@@ -19,16 +20,13 @@ export const words = (s: string) => s.replace(/_/g, " ");
 export const openCount = (stage: StewardshipStage | undefined) =>
   stage ? stage.decisions.filter((d) => d.kind !== "policy_difference" || d.decision === null).length : 0;
 
-/** The name recorded with every decision: the app-wide "Reviewing as" identity. */
+/** The name recorded with every decision: the app-wide "Deciding as" identity. */
 export const useActor = useReviewer;
 
-export function ActorField({ actor, onChange }: { actor: string; onChange: (v: string) => void }) {
-  return (
-    <label className="field-label actor-field">
-      Your name (recorded with every decision and version)
-      <input value={actor} onChange={(e) => onChange(e.target.value)} placeholder="e.g. J. Doe" />
-    </label>
-  );
+/** The stage studios' name field: the same shared "Deciding as" identity as
+ * the sidebar and every other page, not a separate one. */
+export function ActorField() {
+  return <ReviewerField compact />;
 }
 
 export type Capability = { label: "Review" | "Design" | "Calibrate" | "Versions" | "Decide"; ready: boolean };

@@ -277,7 +277,7 @@ function BlocklistEditor({ actor, onActivated }: { actor: string; onActivated: (
 }
 
 export function DraftingStudio({ stage, onChanged, onOpen }: StudioProps) {
-  const [actor, setActor] = useActor();
+  const [actor] = useActor();
   const [drafts, setDrafts] = useState<OutreachDraft[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = () => api.listDrafts().then((r) => setDrafts(r.drafts), (e) => setError((e as Error).message));
@@ -312,7 +312,7 @@ export function DraftingStudio({ stage, onChanged, onOpen }: StudioProps) {
           each outreach gets its interaction type (E6) and the style check (E8), and waits for approval at stage 5 before it is sent.
         </p>
       </StudioHeader>
-      <ActorField actor={actor} onChange={setActor} />
+      <ActorField />
       <Section step="Construct" title="New outreach draft">
         <Compose actor={actor} onCreated={refresh} />
       </Section>

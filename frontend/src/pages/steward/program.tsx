@@ -22,7 +22,7 @@ const FIELDS: { key: NumberKey; label: string; step: number; hint: string }[] = 
 /** Client program (operating model Part 5): calibrate tilt -> selection -> sanction ->
  * escalation against the house program, save the calibration, download the proposal. */
 export function ProgramStudio({ streamId }: { streamId: string }) {
-  const [actor, setActor] = useActor();
+  const [actor] = useActor();
   const [params, setParams] = useState<ProgramParams | null>(null);
   const [saved, setSaved] = useState<ProgramParams | null>(null);
   const [savedBy, setSavedBy] = useState<string | null>(null);
@@ -167,7 +167,7 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
           ))}
         </div>
       </section>
-      <ActorField actor={actor} onChange={setActor} />
+      <ActorField />
       <Section step="Calibrate" title="Settings">
         <label className="field-label">
           Client objective
