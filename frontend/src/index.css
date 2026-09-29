@@ -149,6 +149,12 @@ td, .stat-value, .nav-count { font-variant-numeric: tabular-nums; }
   padding: 0 10px 4px;
 }
 
+.nav-more > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }
+.nav-more > summary::-webkit-details-marker { display: none; }
+.nav-more > summary::after { content: "▸"; font-size: 0.9em; }
+.nav-more[open] > summary::after { content: "▾"; }
+.nav-more > summary:hover { color: var(--text); }
+
 .nav-tab {
   display: flex;
   align-items: center;

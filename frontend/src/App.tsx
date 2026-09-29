@@ -71,13 +71,16 @@ const navIdOf = (id: TabId): TabId => (id === "transitionPlan" ? "extraction" : 
 // is listed by its first tab. Ordered by the stewardship team's day: what
 // waits on a person first, then their own work, then the research and
 // portfolio tools that feed it.
-const NAV_GROUPS: { label: string | null; ids: readonly TabId[] }[] = [
+// A `collapsed` group starts folded (and opens itself while one of its
+// screens is showing): the specialist tools the day-to-day work doesn't need.
+const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boolean }[] = [
   { label: null, ids: ["dashboard", "library"] },
   { label: "Needs you", ids: ["review", "voting"] },
   { label: "Stewardship", ids: ["stewardship", "engagement", "extraction", "transitionBarrier"] },
-  { label: "Research", ids: ["theme", "taxonomy", "emergingThemes", "identity"] },
-  { label: "Portfolio", ids: ["portfolio-monitoring", "strategyReplication", "decision", "index"] },
+  { label: "Research", ids: ["theme", "identity"] },
+  { label: "Portfolio", ids: ["portfolio-monitoring"] },
   { label: "Output", ids: ["reporting", "history"] },
+  { label: "More tools", ids: ["decision", "taxonomy", "emergingThemes", "strategyReplication", "index"], collapsed: true },
 ];
 
 const REVIEWABLE = new Set<string>(["theme", "extraction", "financials", "identity"]);
@@ -198,34 +201,45 @@ function App() {
           <ReviewerField />
         </div>
         <nav className="app-nav">
-          {NAV_GROUPS.map((group, i) => (
-            <div className="nav-group" key={group.label ?? `group-${i}`}>
-              {group.label && <div className="nav-group-label">{group.label}</div>}
-              {group.ids.map((id) => {
-                const t = TABS.find((tab) => tab.id === id)!;
-                const h = hubOf(id);
-                const current = h ? h.tabs.some(([tid]) => tid === active) : id === navIdOf(active);
-                const count = waiting && (id === "review" || id === "voting") ? waiting[id] : 0;
-                return (
-                  <a
-                    key={t.id}
-                    href={`#/${t.id}`}
-                    className={current ? "nav-tab active" : "nav-tab"}
-                    aria-current={current ? "page" : undefined}
-                    onClick={() => setNavOpen(false)}
-                  >
-                    <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
-                    <span className="nav-tab-label">{h?.label ?? t.label}</span>
-                    {count > 0 && (
-                      <span className="nav-count" aria-label={`${count} awaiting a decision`}>
-                        {count}
-                      </span>
-                    )}
-                  </a>
-                );
-              })}
-            </div>
-          ))}
+          {NAV_GROUPS.map((group, i) => {
+            const links = group.ids.map((id) => {
+              const t = TABS.find((tab) => tab.id === id)!;
+              const h = hubOf(id);
+              const current = h ? h.tabs.some(([tid]) => tid === active) : id === navIdOf(active);
+              const count = waiting && (id === "review" || id === "voting") ? waiting[id] : 0;
+              return (
+                <a
+                  key={t.id}
+                  href={`#/${t.id}`}
+                  className={current ? "nav-tab active" : "nav-tab"}
+                  aria-current={current ? "page" : undefined}
+                  onClick={() => setNavOpen(false)}
+                >
+                  <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
+                  <span className="nav-tab-label">{h?.label ?? t.label}</span>
+                  {count > 0 && (
+                    <span className="nav-count" aria-label={`${count} awaiting a decision`}>
+                      {count}
+                    </span>
+                  )}
+                </a>
+              );
+            });
+            if (group.collapsed) {
+              return (
+                <details className="nav-more" key={group.label} open={group.ids.includes(navIdOf(active)) || undefined}>
+                  <summary className="nav-group-label">{group.label}</summary>
+                  <div className="nav-group">{links}</div>
+                </details>
+              );
+            }
+            return (
+              <div className="nav-group" key={group.label ?? `group-${i}`}>
+                {group.label && <div className="nav-group-label">{group.label}</div>}
+                {links}
+              </div>
+            );
+          })}
         </nav>
       </aside>
       <main className="app-main">
