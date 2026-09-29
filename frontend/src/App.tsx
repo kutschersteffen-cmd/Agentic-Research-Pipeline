@@ -15,8 +15,9 @@ import { BackgroundAgents } from "./pages/BackgroundAgents";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
-import { StewardWorkflow } from "./pages/StewardWorkflow";
-import { PortfolioRiskMonitoringTool } from "./pages/PortfolioRiskMonitoringTool";
+import { STAGE_TABS, StewardWorkflow } from "./pages/StewardWorkflow";
+import { PortfolioRiskMonitoringTool, SUB_TABS as RISK_TABS } from "./pages/PortfolioRiskMonitoringTool";
+import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
 import { ReportBuilder } from "./pages/ReportBuilder";
 import { StrategyReplication } from "./pages/StrategyReplication";
 import { Search } from "./pages/Search";
@@ -83,6 +84,14 @@ const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boo
   { label: "More tools", ids: ["decision", "taxonomy", "emergingThemes", "strategyReplication", "index"], collapsed: true },
 ];
 
+// Everything the command palette can jump to: every screen (under its hub's
+// name where it has one), plus the Steward stages and Risk Monitoring tabs.
+const PALETTE_ITEMS: PaletteItem[] = [
+  ...TABS.map((t) => ({ label: t.label, hint: hubOf(t.id)?.label.replace(t.label, "") || undefined, href: `#/${t.id}` })),
+  ...STAGE_TABS.map((t) => ({ label: t.label, hint: "Steward Workflow", href: `#/stewardship/${t.id}` })),
+  ...RISK_TABS.map((t) => ({ label: t.label, hint: "Risk Monitoring", href: `#/portfolio-monitoring/${t.id}` })),
+];
+
 const REVIEWABLE = new Set<string>(["theme", "extraction", "financials", "identity"]);
 
 /** The URL is the source of truth for where you are: `#/<tab>/<param>...`,
@@ -135,6 +144,18 @@ function App() {
     active === "review" && route.params.length === 2 && REVIEWABLE.has(route.params[0])
       ? { kind: route.params[0] as ReviewableRunKind, runId: route.params[1] }
       : null;
+
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Below 760px the sidebar is an off-canvas drawer; on desktop navOpen is
   // ignored by the CSS.
@@ -200,6 +221,10 @@ function App() {
         <div className="app-sidebar-reviewer">
           <ReviewerField />
         </div>
+        <button className="palette-trigger" onClick={() => setPaletteOpen(true)}>
+          Jump to…
+          <kbd>{/Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘K" : "Ctrl K"}</kbd>
+        </button>
         <nav className="app-nav">
           {NAV_GROUPS.map((group, i) => {
             const links = group.ids.map((id) => {
@@ -242,6 +267,7 @@ function App() {
           })}
         </nav>
       </aside>
+      {paletteOpen && <CommandPalette items={PALETTE_ITEMS} onClose={() => setPaletteOpen(false)} />}
       <main className="app-main">
         <ProcessBar tab={active} sub={route.params[0]} />
         {hub && (

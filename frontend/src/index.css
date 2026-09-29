@@ -1379,3 +1379,30 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
   font-size: var(--text-xs);
 }
 .stepper .nav-tab.active .stepper-num { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+
+/* Command palette (Ctrl/⌘K) and its sidebar trigger. */
+.palette-trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 10px var(--s-3);
+  padding: 6px 10px;
+  background: var(--panel);
+  color: var(--muted);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--r-sm);
+  font-weight: 400;
+}
+.palette-trigger:hover { color: var(--text); border-color: var(--accent); background: var(--panel); }
+.palette-trigger kbd { font-family: var(--font-mono); font-size: var(--text-xs); }
+.palette-input { width: 100%; margin-top: var(--s-3); }
+.palette-list { list-style: none; margin: var(--s-2) 0 0; padding: 0; max-height: 50vh; overflow: auto; }
+.palette-item {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.palette-item.active { background: var(--well); box-shadow: inset 2px 0 0 var(--accent); }

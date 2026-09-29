@@ -20,7 +20,7 @@ import type { MetricSource } from "../types";
 
 // One tab per stage of docs/STEWARDSHIP_OPERATING_MODEL.md, Part 2. Stages 1-6
 // are house truth and always show the house program; 7-8 work on a client stream.
-const STAGE_TABS = [
+export const STAGE_TABS = [
   { id: "monitoring", n: 1, label: "Monitoring" },
   { id: "selection", n: 2, label: "Selection" },
   { id: "drafting", n: 3, label: "Drafting" },
