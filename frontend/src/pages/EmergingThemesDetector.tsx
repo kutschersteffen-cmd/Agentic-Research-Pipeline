@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
+import { DecisionBar } from "../components/DecisionBar";
 import { UniversePicker } from "../components/UniversePicker";
 import { CandidateStatusBadge, ConfidenceBadge } from "../components/ConfidenceBadge";
 import { MentionCitationList } from "../components/MentionCitationList";
@@ -301,15 +302,16 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                                 value={taxonomyIdInputs[c.theme_id] ?? ""}
                                 onChange={(e) => setTaxonomyIdInputs({ ...taxonomyIdInputs, [c.theme_id]: e.target.value })}
                               />
-                              <button onClick={() => promote(c)} disabled={busy || !(reasonInputs[c.theme_id] ?? "").trim()}>
-                                Promote
-                              </button>
-                              <button onClick={() => reject(c)} disabled={busy || !(reasonInputs[c.theme_id] ?? "").trim()} className="danger">
-                                Reject
-                              </button>
-                              <button onClick={() => disconfirm(c)} disabled={busy || !(reasonInputs[c.theme_id] ?? "").trim()} className="danger">
-                                Disconfirm
-                              </button>
+                              <DecisionBar
+                                approveLabel="Promote"
+                                onApprove={() => promote(c)}
+                                onReject={() => reject(c)}
+                                disabled={busy || !(reasonInputs[c.theme_id] ?? "").trim()}
+                              >
+                                <button onClick={() => disconfirm(c)} disabled={busy || !(reasonInputs[c.theme_id] ?? "").trim()} className="danger-outline">
+                                  Disconfirm
+                                </button>
+                              </DecisionBar>
                             </div>
                           )}
                           {c.status === "promoted" && (

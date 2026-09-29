@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
+import { REVIEWER_REQUIRED, useReviewer } from "../../lib/reviewer";
 import { usePortfolioPane } from "../../context/usePortfolioPane";
 import { PortfolioFilterPicker } from "../../components/PortfolioFilterPicker";
 import type { Alert, AlertComparator, AlertRule, AlertRuleType, AlertStatus } from "../../types";
@@ -51,7 +52,7 @@ export function MonitoringAlerts() {
   const [statusFilter, setStatusFilter] = useState<AlertStatus | "all">("open");
   const [error, setError] = useState<string | null>(null);
   const [evaluating, setEvaluating] = useState(false);
-  const [decidedBy, setDecidedBy] = useState("");
+  const [decidedBy] = useReviewer();
 
   const [name, setName] = useState("");
   const [ruleType, setRuleType] = useState<AlertRuleType>("field_threshold");
@@ -117,7 +118,7 @@ export function MonitoringAlerts() {
 
   async function transition(alert: Alert, status: AlertStatus) {
     if (!decidedBy.trim()) {
-      setError("Enter who's making this decision (top right) before acting on an alert.");
+      setError(REVIEWER_REQUIRED);
       return;
     }
     setError(null);
@@ -231,7 +232,6 @@ export function MonitoringAlerts() {
           <button onClick={evaluateNow} disabled={evaluating}>
             {evaluating ? "Evaluating..." : "Evaluate now"}
           </button>
-          <input aria-label="Decided by" placeholder="Decided by (required to act on an alert)" value={decidedBy} onChange={(e) => setDecidedBy(e.target.value)} />
         </div>
         {error && <p className="error-text">{error}</p>}
         <div className="table-wrap">

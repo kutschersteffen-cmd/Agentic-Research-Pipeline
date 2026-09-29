@@ -13,20 +13,26 @@ import { DataLibrary } from "./pages/DataLibrary";
 import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
 import { BackgroundAgents } from "./pages/BackgroundAgents";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
+import { ProcessOverview, StartPage } from "./pages/ProcessHub";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
-import { StewardWorkflow } from "./pages/StewardWorkflow";
-import { PortfolioRiskMonitoringTool } from "./pages/PortfolioRiskMonitoringTool";
+import { STAGE_TABS, StewardWorkflow } from "./pages/StewardWorkflow";
+import { PortfolioRiskMonitoringTool, SUB_TABS as RISK_TABS } from "./pages/PortfolioRiskMonitoringTool";
+import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
 import { ReportBuilder } from "./pages/ReportBuilder";
 import { StrategyReplication } from "./pages/StrategyReplication";
 import { Search } from "./pages/Search";
 import { DecisionStudio } from "./pages/DecisionStudio";
 import { IndexBuilder } from "./pages/IndexBuilder";
-import { Processes } from "./pages/Processes";
+import { ProcessBar, Processes } from "./pages/Processes";
 import { NAV_ICONS } from "./components/NavIcons";
 import type { ReviewableRunKind, RunManifest, UniverseHandoff } from "./types";
 
 const TABS = [
+  { id: "home", label: "Start" },
+  { id: "stewardiq", label: "StewardIQ" },
+  { id: "themeMachine", label: "Theme Machine" },
+  { id: "designStudio", label: "Design Studio" },
   { id: "dashboard", label: "Dashboard" },
   { id: "processes", label: "Processes" },
   { id: "search", label: "Search" },
@@ -54,16 +60,44 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-// Purely a sidebar presentation grouping -- ids must match TABS above.
-// Ordered by the stewardship team's day: what waits on a person first, then
-// their own work, then the research and portfolio tools that feed it.
-const NAV_GROUPS: { label: string | null; ids: readonly TabId[] }[] = [
-  { label: null, ids: ["dashboard", "processes", "search"] },
+// Screens that share one sidebar item, switched by a tab strip above the page.
+// Every id keeps its own route, so deep links and Processes steps still land.
+const HUBS: { label: string; tabs: [TabId, string][] }[] = [
+  { label: "Dashboard", tabs: [["dashboard", "Overview"], ["processes", "Processes"]] },
+  { label: "Library", tabs: [["library", "Data Library"], ["search", "Search"]] },
+  { label: "Onboard issuers", tabs: [["identity", "1 Resolve identities"], ["discovery", "2 Find documents"]] },
+  { label: "Runs", tabs: [["history", "Run history"], ["backgroundAgents", "Standing agents"]] },
+];
+const hubOf = (id: TabId) => HUBS.find((h) => h.tabs.some(([t]) => t === id));
+// Transition Plan is Extraction preset to its profile (Extraction's own
+// profile toggle switches it), so the sidebar shows Extraction for both.
+// The process overview pages are reached from the start page's boxes, so the
+// sidebar shows Start for them.
+const navIdOf = (id: TabId): TabId =>
+  id === "transitionPlan" ? "extraction" : id === "stewardiq" || id === "themeMachine" || id === "designStudio" ? "home" : id;
+
+// Purely a sidebar presentation grouping -- ids must match TABS above; a hub
+// is listed by its first tab. Ordered by the stewardship team's day: what
+// waits on a person first, then their own work, then the research and
+// portfolio tools that feed it.
+// A `collapsed` group starts folded (and opens itself while one of its
+// screens is showing): the specialist tools the day-to-day work doesn't need.
+const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boolean }[] = [
+  { label: null, ids: ["home", "dashboard", "library"] },
   { label: "Needs you", ids: ["review", "voting"] },
-  { label: "Stewardship", ids: ["stewardship", "engagement", "transitionPlan", "transitionBarrier"] },
-  { label: "Research", ids: ["theme", "taxonomy", "emergingThemes", "extraction", "identity", "discovery", "backgroundAgents"] },
-  { label: "Portfolio", ids: ["portfolio-monitoring", "strategyReplication", "decision", "index"] },
-  { label: "Output", ids: ["reporting", "library", "history"] },
+  { label: "Stewardship", ids: ["stewardship", "engagement", "extraction", "transitionBarrier"] },
+  { label: "Research", ids: ["theme", "identity"] },
+  { label: "Portfolio", ids: ["portfolio-monitoring"] },
+  { label: "Output", ids: ["reporting", "history"] },
+  { label: "More tools", ids: ["decision", "taxonomy", "emergingThemes", "strategyReplication", "index"], collapsed: true },
+];
+
+// Everything the command palette can jump to: every screen (under its hub's
+// name where it has one), plus the Steward stages and Risk Monitoring tabs.
+const PALETTE_ITEMS: PaletteItem[] = [
+  ...TABS.map((t) => ({ label: t.label, hint: hubOf(t.id)?.label.replace(t.label, "") || undefined, href: `#/${t.id}` })),
+  ...STAGE_TABS.map((t) => ({ label: t.label, hint: "Steward Workflow", href: `#/stewardship/${t.id}` })),
+  ...RISK_TABS.map((t) => ({ label: t.label, hint: "Risk Monitoring", href: `#/portfolio-monitoring/${t.id}` })),
 ];
 
 const REVIEWABLE = new Set<string>(["theme", "extraction", "financials", "identity"]);
@@ -73,7 +107,7 @@ const REVIEWABLE = new Set<string>(["theme", "extraction", "financials", "identi
  * `#/voting/<run id>` or `#/review/extraction/<run id>`. */
 function parseHash(): { tab: TabId; params: string[] } {
   const [tab, ...params] = window.location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
-  return TABS.some((t) => t.id === tab) ? { tab: tab as TabId, params } : { tab: "dashboard", params: [] };
+  return TABS.some((t) => t.id === tab) ? { tab: tab as TabId, params } : { tab: "home", params: [] };
 }
 
 function navigate(tab: TabId, ...params: string[]) {
@@ -112,10 +146,24 @@ function App() {
       .catch(() => setWaiting(null));
   }, [route]);
 
+  const hub = hubOf(active);
+
   const pendingReview =
     active === "review" && route.params.length === 2 && REVIEWABLE.has(route.params[0])
       ? { kind: route.params[0] as ReviewableRunKind, runId: route.params[1] }
       : null;
+
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Below 760px the sidebar is an off-canvas drawer; on desktop navOpen is
   // ignored by the CSS.
@@ -181,36 +229,66 @@ function App() {
         <div className="app-sidebar-reviewer">
           <ReviewerField />
         </div>
+        <button className="palette-trigger" onClick={() => setPaletteOpen(true)}>
+          Jump to…
+          <kbd>{/Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘K" : "Ctrl K"}</kbd>
+        </button>
         <nav className="app-nav">
-          {NAV_GROUPS.map((group, i) => (
-            <div className="nav-group" key={group.label ?? `group-${i}`}>
-              {group.label && <div className="nav-group-label">{group.label}</div>}
-              {group.ids.map((id) => {
-                const t = TABS.find((tab) => tab.id === id)!;
-                const count = waiting && (id === "review" || id === "voting") ? waiting[id] : 0;
-                return (
-                  <a
-                    key={t.id}
-                    href={`#/${t.id}`}
-                    className={t.id === active ? "nav-tab active" : "nav-tab"}
-                    aria-current={t.id === active ? "page" : undefined}
-                    onClick={() => setNavOpen(false)}
-                  >
-                    <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
-                    <span className="nav-tab-label">{t.label}</span>
-                    {count > 0 && (
-                      <span className="nav-count" aria-label={`${count} awaiting a decision`}>
-                        {count}
-                      </span>
-                    )}
-                  </a>
-                );
-              })}
-            </div>
-          ))}
+          {NAV_GROUPS.map((group, i) => {
+            const links = group.ids.map((id) => {
+              const t = TABS.find((tab) => tab.id === id)!;
+              const h = hubOf(id);
+              const current = h ? h.tabs.some(([tid]) => tid === active) : id === navIdOf(active);
+              const count = waiting && (id === "review" || id === "voting") ? waiting[id] : 0;
+              return (
+                <a
+                  key={t.id}
+                  href={`#/${t.id}`}
+                  className={current ? "nav-tab active" : "nav-tab"}
+                  aria-current={current ? "page" : undefined}
+                  onClick={() => setNavOpen(false)}
+                >
+                  <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
+                  <span className="nav-tab-label">{h?.label ?? t.label}</span>
+                  {count > 0 && (
+                    <span className="nav-count" aria-label={`${count} awaiting a decision`}>
+                      {count}
+                    </span>
+                  )}
+                </a>
+              );
+            });
+            if (group.collapsed) {
+              return (
+                <details className="nav-more" key={group.label} open={group.ids.includes(navIdOf(active)) || undefined}>
+                  <summary className="nav-group-label">{group.label}</summary>
+                  <div className="nav-group">{links}</div>
+                </details>
+              );
+            }
+            return (
+              <div className="nav-group" key={group.label ?? `group-${i}`}>
+                {group.label && <div className="nav-group-label">{group.label}</div>}
+                {links}
+              </div>
+            );
+          })}
         </nav>
       </aside>
+      {paletteOpen && <CommandPalette items={PALETTE_ITEMS} onClose={() => setPaletteOpen(false)} />}
       <main className="app-main">
+        <ProcessBar tab={active} sub={route.params[0]} />
+        {hub && (
+          <nav className="sub-nav hub-nav" aria-label={hub.label}>
+            {hub.tabs.map(([id, label]) => (
+              <a key={id} href={`#/${id}`} className={id === active ? "nav-tab active" : "nav-tab"} aria-current={id === active ? "page" : undefined}>
+                {label}
+              </a>
+            ))}
+          </nav>
+        )}
+        {active === "home" && <StartPage />}
+        {(active === "stewardiq" || active === "themeMachine" || active === "designStudio") && <ProcessOverview key={active} id={active} />}
         {active === "dashboard" && <MonitoringDashboard onNavigate={go} onOpenReview={openReview} />}
         {active === "processes" && <Processes selected={route.params[0] ?? null} onSelect={(id) => navigate("processes", id)} />}
         {active === "search" && <Search />}
@@ -226,7 +304,7 @@ function App() {
         {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} onSendUniverse={sendUniverse("Risk Monitoring")} />}
         {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} />}
         {active === "history" && <RunHistory onOpenReview={openReview} />}
-        {active === "stewardship" && <StewardWorkflow key={route.params[0]} initialTab={route.params[0]} />}
+        {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}
         {active === "engagement" && <EngagementDashboard />}
         {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}
         {active === "reporting" && <ReportBuilder />}

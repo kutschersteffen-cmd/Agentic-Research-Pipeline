@@ -1,0 +1,408 @@
+import { useCallback, useEffect, useState, type ReactElement } from "react";
+import { api } from "../api/client";
+import type { RunManifest, StewardshipFlow } from "../types";
+import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
+import { openCount } from "./steward/common";
+import { useReviewer } from "../lib/reviewer";
+
+// The start page and the three process overview pages. A process is a named
+// group of screens in order; each step links to the screen that does it and
+// reads its live state from the runs list (or, for StewardIQ, the house
+// stewardship flow). Data Engineer has no overview page: its box opens
+// Extraction, which already draws its own pipeline.
+type Step = { label: string; screen: string; href: string; about: string; runTypes?: string[]; stage?: string };
+type Process = { id: string; name: string; purpose: string; href: string; runTypes: string[]; steps: Step[]; icon: ReactElement };
+
+const ICON = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+
+const PROCESSES: Process[] = [
+  {
+    id: "stewardiq",
+    name: "StewardIQ",
+    purpose: "Monitor holdings, engage companies, vote, and track what they commit to.",
+    href: "#/stewardiq",
+    runTypes: ["proxy_voting"],
+    icon: (
+      <svg {...ICON}>
+        <path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z" />
+        <path d="m9 12 2 2 4-4" />
+      </svg>
+    ),
+    steps: [
+      { label: "Monitor", screen: "Steward · Monitoring", href: "#/stewardship/monitoring", stage: "monitoring", about: "Triggers on holdings, checked against house policy." },
+      { label: "Select", screen: "Steward · Selection", href: "#/stewardship/selection", stage: "selection", about: "Which companies the program engages this cycle." },
+      { label: "Engage", screen: "Steward · Drafting", href: "#/stewardship/drafting", stage: "drafting", about: "Dossier, outreach letter and talking points." },
+      { label: "Vote", screen: "Proxy Voting", href: "#/voting", runTypes: ["proxy_voting"], about: "Ballots drafted by the policy, decided by a person." },
+      { label: "Checkpoint", screen: "Steward · Checkpoint", href: "#/stewardship/checkpoint", stage: "checkpoint", about: "Votes decided against the policy, with their reason." },
+      { label: "Track", screen: "Steward · Tracking", href: "#/stewardship/tracking", stage: "tracking", about: "Commitments verified or missed; missed ones escalate." },
+    ],
+  },
+  {
+    id: "themeMachine",
+    name: "Theme Machine",
+    purpose: "Spot emerging themes, define them as taxonomies, and match companies to them.",
+    href: "#/themeMachine",
+    runTypes: ["emerging_themes", "taxonomy_research", "theme"],
+    icon: (
+      <svg {...ICON}>
+        <path d="M12 2 2 7l10 5 10-5z" />
+        <path d="m2 17 10 5 10-5" />
+        <path d="m2 12 10 5 10-5" />
+      </svg>
+    ),
+    steps: [
+      { label: "Spot", screen: "Emerging Themes", href: "#/emergingThemes", runTypes: ["emerging_themes"], about: "Candidate themes from filings and news." },
+      { label: "Define", screen: "Taxonomy Library", href: "#/taxonomy", runTypes: ["taxonomy_research"], about: "The theme's activities; ratify a version." },
+      { label: "Match", screen: "Thematic Universe", href: "#/theme", runTypes: ["theme"], about: "Companies matched to activities, with cited rationale." },
+      { label: "Review", screen: "Review Queue", href: "#/review", runTypes: ["theme"], about: "Resolve contested classifications." },
+    ],
+  },
+  {
+    id: "dataEngineer",
+    name: "Data Engineer",
+    purpose: "Extract data points from disclosures, each verified and cited against its source.",
+    href: "#/extraction",
+    runTypes: ["extraction", "financials", "tnfd", "transition_plan"],
+    icon: (
+      <svg {...ICON}>
+        <ellipse cx="12" cy="5" rx="8" ry="3" />
+        <path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" />
+        <path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
+      </svg>
+    ),
+    // One per Extraction profile; only drawn as the box's progress strip.
+    steps: [
+      { label: "Custom schema", screen: "Extraction", href: "#/extraction", runTypes: ["extraction"], about: "" },
+      { label: "Financials", screen: "Extraction", href: "#/extraction", runTypes: ["financials"], about: "" },
+      { label: "TNFD", screen: "Extraction", href: "#/extraction", runTypes: ["tnfd"], about: "" },
+      { label: "Transition plan", screen: "Extraction", href: "#/transitionPlan", runTypes: ["transition_plan"], about: "" },
+    ],
+  },
+  {
+    id: "designStudio",
+    name: "Design Studio",
+    purpose: "Build and ratify scoring templates, then turn the scores into an index.",
+    href: "#/designStudio",
+    runTypes: ["calibration"],
+    icon: (
+      <svg {...ICON}>
+        <path d="M3 3v18h18" />
+        <path d="m7 15 4-4 3 3 5-6" />
+      </svg>
+    ),
+    steps: [
+      { label: "Build template", screen: "Decision Studio", href: "#/decision", about: "Load a table or a finished run; set indicators, gates and tiers." },
+      { label: "Ratify & publish", screen: "Decision Studio", href: "#/decision", about: "A named person ratifies the template, then the tiers are published." },
+      { label: "Construct index", screen: "Index Construction", href: "#/index", about: "Screen, select, weight and cap from the published scores." },
+      { label: "Calibrate", screen: "Index Construction", href: "#/index", runTypes: ["calibration"], about: "Save an effective-dated calibration." },
+    ],
+  },
+];
+
+const PROCESS_OF_RUN_TYPE = new Map(PROCESSES.flatMap((p) => p.runTypes.map((t) => [t, p] as const)));
+
+/** Runs, refreshed every 3 s. Null until the first answer: a count nobody
+ * received is unknown, never zero. */
+function useRuns() {
+  const [runs, setRuns] = useState<RunManifest[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    try {
+      setRuns(((await api.listRuns()) as { runs: RunManifest[] }).runs);
+      setError(null);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }, []);
+  useEffect(() => {
+    let cancelled = false;
+    let timer: number | undefined;
+    const tick = async () => {
+      await load();
+      if (!cancelled) timer = window.setTimeout(tick, 3000);
+    };
+    tick();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [load]);
+  return { runs, error, retry: load };
+}
+
+/** The house stewardship flow, loaded once: its stages carry StewardIQ's numbers. */
+function useHouseFlow() {
+  const [flow, setFlow] = useState<StewardshipFlow | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    api.getStewardshipFlow("house").then(setFlow, (err: Error) => setError(err.message));
+  }, []);
+  return { flow, error };
+}
+
+type StepState = "done" | "now" | "wait" | "failed" | "idle";
+const DONE = new Set(["completed", "partially_completed"]);
+
+function stepState(step: Step, runs: RunManifest[] | null, flow: StewardshipFlow | null): StepState {
+  if (step.runTypes && runs) {
+    const mine = runs.filter((r) => step.runTypes!.includes(r.run_type));
+    if (mine.some((r) => ACTIVE_STATUSES.has(r.status))) return "now";
+    if (mine.some((r) => waitingCount(r) > 0)) return "wait";
+    const latest = mine.sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
+    if (latest?.status === "failed") return "failed";
+    if (mine.some((r) => DONE.has(r.status))) return "done";
+  }
+  if (step.stage && openCount(flow?.stages.find((s) => s.id === step.stage)) > 0) return "wait";
+  return "idle";
+}
+
+/** The one line a process box leads with: what waits on a person first, then
+ * failures, then what is running. */
+function headline(p: Process, runs: RunManifest[] | null, flow: StewardshipFlow | null): { tone: string; text: string } {
+  if (!runs) return { tone: "", text: "Status unknown" };
+  const mine = runs.filter((r) => p.runTypes.includes(r.run_type));
+  const waiting = mine.reduce((n, r) => n + waitingCount(r), 0) + p.steps.reduce((n, s) => n + (s.stage ? openCount(flow?.stages.find((x) => x.id === s.stage)) : 0), 0);
+  const failed = mine.filter((r) => r.status === "failed").length;
+  const running = mine.filter((r) => ACTIVE_STATUSES.has(r.status)).length;
+  if (waiting > 0) return { tone: "await", text: `${waiting} waiting on you` };
+  if (failed > 0) return { tone: "failed", text: `${failed} failed` };
+  if (running > 0) return { tone: "running", text: `${running} running` };
+  return { tone: "", text: "Nothing waiting" };
+}
+
+/** Where a run row goes: its review, its ballot, or its process. */
+function runHref(r: RunManifest): string {
+  if (r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type)) return `#/review/${r.run_type}/${encodeURIComponent(r.run_id)}`;
+  if (r.run_type === "proxy_voting") return `#/voting/${encodeURIComponent(r.run_id)}`;
+  return PROCESS_OF_RUN_TYPE.get(r.run_type)?.href ?? "#/history";
+}
+
+const WEEK_MS = 7 * 24 * 3600 * 1000;
+const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
+const recent = (iso: string) => Date.now() - new Date(iso).getTime() < WEEK_MS;
+
+function ago(iso: string): string {
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 60) return `${Math.max(min, 1)} min ago`;
+  if (min < 48 * 60) return `${Math.round(min / 60)} h ago`;
+  return `${Math.round(min / 1440)} days ago`;
+}
+
+/** One line of run counts, with the runs that need attention folded below it:
+ * the start page leads with the processes, so runs stay compact. */
+function RunsSummary({ runs, error, retry }: ReturnType<typeof useRuns>) {
+  const known = runs !== null;
+  const all = runs ?? [];
+  const active = all.filter((r) => ACTIVE_STATUSES.has(r.status));
+  const waitingRuns = all.filter((r) => waitingCount(r) > 0);
+  const waitingItems = waitingRuns.reduce((n, r) => n + waitingCount(r), 0);
+  const failed = all.filter((r) => r.status === "failed" && recent(r.updated_at));
+  const today = all.filter((r) => DONE.has(r.status) && isToday(r.updated_at));
+  const rank = (r: RunManifest) => (ACTIVE_STATUSES.has(r.status) ? 0 : waitingCount(r) > 0 ? 1 : 2);
+  const rows = [...new Set([...active, ...waitingRuns, ...failed])]
+    .sort((a, b) => rank(a) - rank(b) || (a.updated_at < b.updated_at ? 1 : -1))
+    .slice(0, 8);
+  const n = (v: number) => (known ? v : "—");
+
+  return (
+    <section className="hub-runbar" aria-label="Runs">
+      {error && (
+        <p className="error-text" role="alert">
+          Runs could not be loaded: {error}. {known ? "Showing the last answer." : "Counts are unknown until the backend responds."}{" "}
+          <button className="link-button" onClick={retry}>
+            Retry
+          </button>
+        </p>
+      )}
+      <dl className="hub-runbar-stats">
+        <div>
+          <dt>running</dt>
+          <dd>{n(active.length)}</dd>
+        </div>
+        <div className={known && waitingItems > 0 ? "awaiting" : undefined}>
+          <dt>waiting on review</dt>
+          <dd>{n(waitingItems)}</dd>
+        </div>
+        <div className={known && failed.length > 0 ? "failed" : undefined}>
+          <dt>failed this week</dt>
+          <dd>{n(failed.length)}</dd>
+        </div>
+        <div>
+          <dt>finished today</dt>
+          <dd>{n(today.length)}</dd>
+        </div>
+      </dl>
+      <a className="hub-runbar-all" href="#/history">
+        All runs →
+      </a>
+      {rows.length > 0 && (
+        <details className="hub-runbar-list">
+          <summary>
+            {rows.length} run{rows.length === 1 ? "" : "s"} need{rows.length === 1 ? "s" : ""} attention
+          </summary>
+          <ul className="hub-runs">
+            {rows.map((r) => {
+              const pct = r.company_count > 0 ? Math.round((r.completed_count / r.company_count) * 100) : 0;
+              const w = waitingCount(r);
+              return (
+                <li key={r.run_id}>
+                  <a className="hub-run" href={runHref(r)}>
+                    <span className="hub-tag">{PROCESS_OF_RUN_TYPE.get(r.run_type)?.name ?? "Other"}</span>
+                    <span className="hub-run-main">
+                      <strong>{runTypeLabel(r.run_type)}</strong>
+                      <span className="muted">
+                        {r.completed_count}/{r.company_count} companies{w > 0 ? ` · ${w} waiting on you` : ""}
+                        {r.status === "failed" && r.error ? ` · ${r.error}` : ""}
+                      </span>
+                    </span>
+                    <span className="progress-bar" aria-hidden>
+                      <span className="progress-bar-fill" style={{ transform: `scaleX(${pct / 100})` }} />
+                    </span>
+                    <span className={w > 0 && !ACTIVE_STATUSES.has(r.status) ? "status-pill hub-pill-await" : `status-pill status-${r.status}`}>
+                      {w > 0 && !ACTIVE_STATUSES.has(r.status) ? "review" : r.status.replace(/_/g, " ")}
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </details>
+      )}
+    </section>
+  );
+}
+
+const STATE_LABEL: Record<StepState, string> = { done: "has a finished run", now: "running", wait: "waiting on a person", failed: "last run failed", idle: "no activity yet" };
+
+/** A process as a large card: its steps as a chain of labelled dots, so where
+ * each process stands reads at a glance without opening it. */
+function ProcessCard({ p, runs, flow }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+  const h = headline(p, runs, flow);
+  const last = runs?.filter((r) => p.runTypes.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
+  return (
+    <a className={`hub-card${h.tone ? ` hub-card-${h.tone}` : ""}`} href={p.href}>
+      <span className="hub-card-top">
+        <span className="hub-card-icon">{p.icon}</span>
+        <span className={`hub-pill ${h.tone}`}>{h.text}</span>
+      </span>
+      <span className="hub-card-name">{p.name}</span>
+      <span className="hub-card-purpose">{p.purpose}</span>
+      <ol className="hub-chain">
+        {p.steps.map((s) => {
+          const st = stepState(s, runs, flow);
+          return (
+            <li key={s.label} className={`hub-chain-${st}`}>
+              <span className="hub-chain-dot" aria-hidden />
+              <span className="hub-chain-label">{s.label}</span>
+              <span className="visually-hidden"> ({STATE_LABEL[st]})</span>
+            </li>
+          );
+        })}
+      </ol>
+      <span className="hub-card-foot">
+        <span className="muted">{!runs ? "" : last ? `Last run ${ago(last.updated_at)}` : "No runs yet"}</span>
+        <span className="hub-card-go">Open {p.name} →</span>
+      </span>
+    </a>
+  );
+}
+
+export function StartPage() {
+  const runsState = useRuns();
+  const { flow } = useHouseFlow();
+  const [reviewer] = useReviewer();
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  return (
+    <div className="page hub hub-start">
+      <header className="hub-hero">
+        <p className="hub-hero-kicker">Agentic Research Pipeline</p>
+        <h2>
+          {greeting}
+          {reviewer.trim() ? `, ${reviewer.trim()}` : ""}
+        </h2>
+        <p className="help-text">Four processes carry the work. Pick one to see its steps, or check the runs below.</p>
+      </header>
+      <div className="hub-cards">
+        {PROCESSES.map((p) => (
+          <ProcessCard key={p.id} p={p} runs={runsState.runs} flow={flow} />
+        ))}
+      </div>
+      <p className="muted hub-legend">
+        <span className="hub-key done" /> finished run <span className="hub-key now" /> running <span className="hub-key wait" /> waiting on a person <span className="hub-key failed" /> last run failed
+      </p>
+      <RunsSummary {...runsState} />
+    </div>
+  );
+}
+
+/** A process drawn as its steps in order, like Extraction's pipeline: each
+ * card carries the step's live state and opens the screen that does it. */
+export function ProcessOverview({ id }: { id: string }) {
+  const p = PROCESSES.find((x) => x.id === id)!;
+  const { runs, error } = useRuns();
+  const { flow, error: flowError } = useHouseFlow();
+  const usesFlow = p.steps.some((s) => s.stage);
+
+  return (
+    <div className="page hub">
+      <p className="hub-crumb">
+        <a href="#/home">Start</a> › {p.name}
+      </p>
+      <h2>{p.name}</h2>
+      <p className="help-text">{p.purpose} Open a step to work in its screen.</p>
+      {error && <p className="error-text" role="alert">Runs could not be loaded: {error}. Step states are unknown until the backend responds.</p>}
+      {usesFlow && flowError && <p className="error-text" role="alert">The stewardship flow could not be loaded: {flowError}. Stage numbers are unknown.</p>}
+      <ol className="hub-flow">
+        {p.steps.map((s, i) => {
+          const state = stepState(s, runs, flow);
+          const mine = s.runTypes && runs ? runs.filter((r) => s.runTypes!.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)) : null;
+          const last = mine?.[0];
+          const waiting = mine ? mine.reduce((n, r) => n + waitingCount(r), 0) : 0;
+          const stage = s.stage ? flow?.stages.find((x) => x.id === s.stage) : undefined;
+          const decisions = openCount(stage);
+          return (
+            <li key={s.label} className="hub-flow-item">
+              <a className={`hub-step hub-step-${state}`} href={s.href}>
+                <span className="hub-step-head">
+                  <span className="hub-step-num">{i + 1}</span>
+                  <span className="hub-step-title">{s.label}</span>
+                </span>
+                {(waiting > 0 || decisions > 0) && (
+                  <span className="hub-step-banner">{waiting > 0 ? `${waiting} waiting on you` : `${decisions} decision${decisions === 1 ? "" : "s"} open`}</span>
+                )}
+                {mine && (
+                  <span className="hub-step-rows">
+                    <span>
+                      Last run<b>{last ? last.status.replace(/_/g, " ") : "none yet"}</b>
+                    </span>
+                    {last && (
+                      <span>
+                        Updated<b>{new Date(last.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</b>
+                      </span>
+                    )}
+                  </span>
+                )}
+                {stage && stage.metrics.length > 0 && (
+                  <span className="hub-step-rows">
+                    {stage.metrics.slice(0, 2).map((m) => (
+                      <span key={m.label}>
+                        {m.label}
+                        <b>{m.value}</b>
+                      </span>
+                    ))}
+                  </span>
+                )}
+                {!mine && !stage?.metrics.length && <span className="hub-step-about">{s.about}</span>}
+                <span className="hub-step-foot">{s.screen} →</span>
+              </a>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="muted hub-legend">
+        <span className="hub-key done" /> has a finished run <span className="hub-key now" /> running <span className="hub-key wait" /> waiting on a person <span className="hub-key failed" /> last run failed
+      </p>
+    </div>
+  );
+}

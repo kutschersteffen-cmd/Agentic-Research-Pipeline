@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
-import type { StewardshipFlow, StewardshipStage, StewardshipStream } from "../types";
-import { SOURCE_LABEL } from "./steward/common";
+import type { StewardshipFlow, StewardshipStream } from "../types";
+import { SOURCE_LABEL, openCount } from "./steward/common";
 import { useReviewer } from "../lib/reviewer";
 import { FlowChart, FlowList } from "./steward/flow";
 import { DraftingStudio } from "./steward/drafting";
@@ -20,22 +20,19 @@ import type { MetricSource } from "../types";
 
 // One tab per stage of docs/STEWARDSHIP_OPERATING_MODEL.md, Part 2. Stages 1-6
 // are house truth and always show the house program; 7-8 work on a client stream.
-const STAGE_TABS = [
-  { id: "monitoring", label: "1 Monitoring" },
-  { id: "selection", label: "2 Selection" },
-  { id: "drafting", label: "3 Drafting" },
-  { id: "voting", label: "4 Voting" },
-  { id: "checkpoint", label: "5 Checkpoint" },
-  { id: "tracking", label: "6 Tracking" },
-  { id: "client_policy", label: "7 Client policy" },
-  { id: "reporting", label: "8 Reporting" },
-  { id: "program", label: "Client program" },
+export const STAGE_TABS = [
+  { id: "monitoring", n: 1, label: "Monitoring" },
+  { id: "selection", n: 2, label: "Selection" },
+  { id: "drafting", n: 3, label: "Drafting" },
+  { id: "voting", n: 4, label: "Voting" },
+  { id: "checkpoint", n: 5, label: "Checkpoint" },
+  { id: "tracking", n: 6, label: "Tracking" },
+  { id: "client_policy", n: 7, label: "Client policy" },
+  { id: "reporting", n: 8, label: "Reporting" },
+  { id: "program", n: null, label: "Client program" },
 ] as const;
 // "program" is not a stage: it calibrates a client program across stages 2-5 (Part 5).
 const CLIENT_STAGES = new Set(["client_policy", "reporting", "program"]);
-
-const openCount = (stage: StewardshipStage | undefined) =>
-  stage ? stage.decisions.filter((d) => d.kind !== "policy_difference" || d.decision === null).length : 0;
 
 /** Which companies the house program covers (see backend stewardship/universe.py).
  * Portfolio holdings make stewardship share company ids with Risk Monitoring,
@@ -139,10 +136,10 @@ function AddStream({ onCreated }: { onCreated: (id: string) => void }) {
   );
 }
 
-/** `initialTab` comes from the URL (`#/stewardship/<stage>`), so a process
- * step can open a stage studio directly. */
+/** The stage lives in the URL (`#/stewardship/<stage>`), so Back moves between
+ * stages and a process step can open a stage studio directly. */
 export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
-  const [tab, setTab] = useState<string>(STAGE_TABS.some((t) => t.id === initialTab) ? initialTab! : "overview");
+  const tab: string = STAGE_TABS.some((t) => t.id === initialTab) ? initialTab! : "overview";
   const [streams, setStreams] = useState<StewardshipStream[]>([]);
   const [stream, setStream] = useState("house");
   const [houseFlow, setHouseFlow] = useState<StewardshipFlow | null>(null);
@@ -182,9 +179,8 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
   const firstClient = streams.find((s) => s.kind === "client")?.stream_id;
   function openTab(next: string) {
     setAdding(false);
-    setTab(next);
     if (CLIENT_STAGES.has(next) && stream === "house" && firstClient) setStream(firstClient);
-    window.scrollTo({ top: 0 });
+    window.location.hash = next === "overview" ? "/stewardship" : `/stewardship/${next}`;
   }
 
   const overviewFlow = stream === "house" ? houseFlow : clientFlow;
@@ -201,17 +197,32 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
         has its own studio to review its data, design and calibrate its rules, and take its decisions.
       </p>
 
-      <nav className="sub-nav workflow-tabs" aria-label="Workflow stages">
-        <button className={tab === "overview" ? "nav-tab active" : "nav-tab"} onClick={() => openTab("overview")}>
+      <nav className="sub-nav workflow-tabs stepper" aria-label="Workflow stages">
+        <button className={tab === "overview" ? "nav-tab active" : "nav-tab"} aria-current={tab === "overview" ? "step" : undefined} onClick={() => openTab("overview")}>
           Overview
         </button>
         {STAGE_TABS.map((t) => {
           const n = openCount(stageFor(t.id));
           return (
-            <button key={t.id} className={tab === t.id ? "nav-tab active" : "nav-tab"} onClick={() => openTab(t.id)}>
-              {t.label}
-              {n > 0 && <span className="tab-badge">{n}</span>}
-            </button>
+            <span key={t.id} className="stepper-item">
+              {t.id === "monitoring" && <span className="stepper-group">House</span>}
+              {t.id === "client_policy" && (
+                <>
+                  <span className="stepper-break" />
+                  <span className="stepper-group">Client</span>
+                </>
+              )}
+              <button
+                className={tab === t.id ? "nav-tab active" : "nav-tab"}
+                aria-current={tab === t.id ? "step" : undefined}
+                aria-label={n > 0 ? `${t.label}, ${n} open decisions` : undefined}
+                onClick={() => openTab(t.id)}
+              >
+                {t.n && <span className="stepper-num">{t.n}</span>}
+                {t.label}
+                {n > 0 && <span className="tab-badge">{n}</span>}
+              </button>
+            </span>
           );
         })}
       </nav>

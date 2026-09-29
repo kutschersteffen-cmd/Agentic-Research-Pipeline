@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { api } from "../api/client";
 import type { RunManifest } from "../types";
 
@@ -113,6 +113,71 @@ const PROCESSES: Process[] = [
   },
 ];
 
+// The process a person is walking through, remembered for this browser tab
+// only, so a step's screen can show where it sits and what comes next.
+const WALK_KEY = "arp.processWalk";
+type Walk = { id: string; step: number };
+
+function readWalk(): Walk | null {
+  try {
+    return JSON.parse(sessionStorage.getItem(WALK_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+function writeWalk(walk: Walk | null) {
+  try {
+    if (walk) sessionStorage.setItem(WALK_KEY, JSON.stringify(walk));
+    else sessionStorage.removeItem(WALK_KEY);
+  } catch {
+    /* storage unavailable: the bar just won't show */
+  }
+}
+
+const stepHref = (step: Step) => `#/${[step.tab, step.sub].filter(Boolean).map((p) => encodeURIComponent(p!)).join("/")}`;
+
+/** "Step 2 of 5" above a screen reached from a process, with the next step
+ * one click away. Shows only while the current screen is a step of that
+ * process, so wandering off hides it and coming back restores it. */
+export function ProcessBar({ tab, sub }: { tab: string; sub?: string }) {
+  const [, rerender] = useReducer((n: number) => n + 1, 0);
+  const walk = readWalk();
+  const process = PROCESSES.find((p) => p.id === walk?.id);
+  if (!walk || !process) return null;
+  const matches = (s: Step) => s.tab === tab && (!s.sub || !sub || s.sub === sub);
+  const i = process.steps[walk.step] && matches(process.steps[walk.step]) ? walk.step : process.steps.findIndex(matches);
+  if (i < 0) return null;
+  const next = process.steps[i + 1];
+  return (
+    <nav className="process-bar" aria-label="Process progress">
+      <a href={`#/processes/${process.id}`} className="process-bar-title">
+        {process.title}
+      </a>
+      <span>
+        Step {i + 1} of {process.steps.length}: <strong>{process.steps[i].label}</strong>
+      </span>
+      {next ? (
+        <a href={stepHref(next)} className="process-bar-next" onClick={() => writeWalk({ id: process.id, step: i + 1 })}>
+          Next: {next.label} →
+        </a>
+      ) : (
+        <span className="muted">Last step</span>
+      )}
+      <button
+        className="link-button"
+        aria-label="Stop following this process"
+        onClick={() => {
+          writeWalk(null);
+          rerender();
+        }}
+      >
+        ✕
+      </button>
+    </nav>
+  );
+}
+
 function latest(runs: RunManifest[], types: string[]) {
   return runs.filter((r) => types.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
 }
@@ -153,8 +218,8 @@ export function Processes({ selected, onSelect }: { selected: string | null; onS
     <div className="page">
       <h2>Processes</h2>
       <p className="help-text">
-        The team's recurring work, each as the screens that carry it in order. Open a step to work in that screen; come back here
-        for the next one. A dashed arrow means that handoff is re-entered by hand today.
+        The team's recurring work, each as the screens that carry it in order. Open a step to work in that screen; a bar at the top
+        of it shows the step you're on and links to the next one. A dashed arrow means that handoff is re-entered by hand today.
       </p>
       {error && <p className="error-text">Run status could not be loaded: {error}. Steps still link to their screens.</p>}
 
@@ -177,7 +242,7 @@ export function Processes({ selected, onSelect }: { selected: string | null; onS
         <ol className="process-steps">
           {process.steps.map((step, i) => (
             <li key={`${step.tab}-${step.sub ?? i}`} className="process-step">
-              <a className="process-step-card" href={`#/${[step.tab, step.sub].filter(Boolean).join("/")}`}>
+              <a className="process-step-card" href={stepHref(step)} onClick={() => writeWalk({ id: process.id, step: i })}>
                 <span className="process-step-head">
                   <span className="flow-node-number">{i + 1}</span>
                   <span className="flow-node-title">{step.label}</span>

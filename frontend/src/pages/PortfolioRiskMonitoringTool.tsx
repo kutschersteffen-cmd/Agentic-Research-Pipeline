@@ -9,7 +9,7 @@ import { AskThePortfolio } from "./portfolio-monitoring/AskThePortfolio";
 import { GenerativeBI } from "./portfolio-monitoring/GenerativeBI";
 import { GovernanceAudit } from "./portfolio-monitoring/GovernanceAudit";
 
-const SUB_TABS = [
+export const SUB_TABS = [
   { id: "standard", label: "Standard Analytics & Visuals" },
   { id: "pivot", label: "Pivot Explorer" },
   { id: "monitoring", label: "Monitoring & Alerts" },

@@ -14,6 +14,11 @@ export function fmt(v: unknown): string {
 
 export const words = (s: string) => s.replace(/_/g, " ");
 
+/** Decisions a stage still waits on: every item except policy differences
+ * already decided. */
+export const openCount = (stage: StewardshipStage | undefined) =>
+  stage ? stage.decisions.filter((d) => d.kind !== "policy_difference" || d.decision === null).length : 0;
+
 /** The name recorded with every decision: the app-wide "Reviewing as" identity. */
 export const useActor = useReviewer;
 
