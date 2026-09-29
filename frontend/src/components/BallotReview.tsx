@@ -8,6 +8,7 @@ import { SourcePanel, type ActiveSource } from "./SourcePanel";
 import { REVIEWER_REQUIRED, useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "./ReviewerField";
 import { ProposedTag } from "./ProposedTag";
+import { Seal } from "./Seal";
 
 const VOTE_POSITIONS: VotePosition[] = ["for", "against", "abstain", "withhold"];
 
@@ -51,6 +52,7 @@ function ProposalReview({
   const [coSignedBy, setCoSignedBy] = useState("");
   const [reviewer] = useReviewer();
   const [comment, setComment] = useState("");
+  const [commentOpen, setCommentOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,6 +84,7 @@ function ProposalReview({
         comment: comment || null,
       });
       setComment("");
+      setCommentOpen(false);
       setOverrideOpen(false);
       onReviewed();
     } catch (err) {
@@ -154,7 +157,13 @@ function ProposalReview({
               onChange={(e) => setCoSignedBy(e.target.value)}
             />
           )}
-          <textarea rows={1} aria-label="Comment (optional)" placeholder="Comment (optional)" value={comment} onChange={(e) => setComment(e.target.value)} />
+          {commentOpen || comment ? (
+            <textarea rows={2} autoFocus aria-label="Comment (optional)" placeholder="Comment (optional)" value={comment} onChange={(e) => setComment(e.target.value)} />
+          ) : (
+            <button className="link-button add-comment" onClick={() => setCommentOpen(true)}>
+              Add comment
+            </button>
+          )}
           <DecisionBar
             approveLabel={rec ? `Approve: vote ${rec.vote}` : "Approve"}
             onApprove={() => submit("approve")}
@@ -265,6 +274,8 @@ export function BallotReview({ runId }: { runId: string }) {
     }
   }
   const castable = counts.approved + counts.overridden;
+  // Proposals not yet cast, decided or not: what the sticky bar counts down.
+  const toDecide = castable + counts.rejected + counts.pending;
   const totalProposals = ballots.reduce((sum, b) => sum + b.votes.length, 0);
   const totalCast = Object.keys(castByKey).length;
   // Soonest meeting first: that is the order the deadlines arrive in.
@@ -274,7 +285,9 @@ export function BallotReview({ runId }: { runId: string }) {
   return (
     <section className="card">
       <div className="section-heading">
-        <h3>Ballots for {runId}</h3>
+        <h3>
+          Ballots <span className="muted">run {runId}</span>
+        </h3>
         <button className="link-button" onClick={load}>
           Refresh
         </button>
@@ -289,15 +302,15 @@ export function BallotReview({ runId }: { runId: string }) {
       </p>
       <div className="toolbar">
         <ReviewerField compact />
-        <button onClick={() => (reviewer.trim() ? setConfirming(true) : setError(REVIEWER_REQUIRED))} disabled={busy || castable === 0}>
-          Cast {castable} decided vote{castable === 1 ? "" : "s"}…
-        </button>
       </div>
       <div aria-live="polite">
         {castResult && (
-          <div className="banner banner-success">
-            {castResult.count} vote{castResult.count === 1 ? "" : "s"} cast by {castResult.by} at {castResult.at.toLocaleString()}.
-            Confirmation IDs are shown on each proposal below.
+          <div className="banner banner-success cast-sealed">
+            <Seal className="cast-seal" draw />
+            <span>
+              {castResult.count} vote{castResult.count === 1 ? "" : "s"} countersigned and cast by {castResult.by} at {castResult.at.toLocaleString()}.
+              Confirmation IDs are shown on each proposal below.
+            </span>
           </div>
         )}
       </div>
@@ -375,8 +388,19 @@ export function BallotReview({ runId }: { runId: string }) {
         </div>
       ))}
       </div>
-      <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
+      {activeSource && <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />}
       </div>
+      {toDecide > 0 && (
+        <div className="cast-bar">
+          <span>
+            <strong>{toDecide - counts.pending}</strong> of {toDecide} decided
+            {counts.pending > 0 && <span className="muted"> · {counts.pending} awaiting a decision</span>}
+          </span>
+          <button onClick={() => (reviewer.trim() ? setConfirming(true) : setError(REVIEWER_REQUIRED))} disabled={busy || castable === 0}>
+            Cast {castable} vote{castable === 1 ? "" : "s"}…
+          </button>
+        </div>
+      )}
     </section>
   );
 }

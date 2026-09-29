@@ -21,6 +21,7 @@ import { STAGE_TABS, StewardWorkflow } from "./pages/StewardWorkflow";
 import { PortfolioRiskMonitoringTool, SUB_TABS as RISK_TABS } from "./pages/PortfolioRiskMonitoringTool";
 import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
 import { ThemeSwitch } from "./components/ThemeSwitch";
+import { ScreenBoundary } from "./components/ScreenBoundary";
 import { ReportBuilder } from "./pages/ReportBuilder";
 import { StrategyReplication } from "./pages/StrategyReplication";
 import { Search } from "./pages/Search";
@@ -290,31 +291,33 @@ function App() {
             ))}
           </nav>
         )}
-        {active === "home" && <StartPage />}
-        {(active === "stewardiq" || active === "themeMachine" || active === "designStudio") && <ProcessOverview key={active} id={active} />}
-        {active === "dashboard" && <MonitoringDashboard onNavigate={go} onOpenReview={openReview} />}
-        {active === "processes" && <Processes selected={route.params[0] ?? null} onSelect={(id) => navigate("processes", id)} />}
-        {active === "search" && <Search />}
-        {active === "theme" && <ThemeBuilder onSendToExtraction={(path, count) => sendUniverse("Thematic Universe")("extraction", path, count)} pendingTaxonomyId={pendingTaxonomyId} />}
-        {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
-        {active === "emergingThemes" && <EmergingThemesDetector onNavigate={go} />}
-        {active === "backgroundAgents" && <BackgroundAgents />}
-        {active === "extraction" && <Extraction key="extraction" pendingUniverse={pendingFor("extraction")} />}
-        {active === "transitionPlan" && <Extraction key="transitionPlan" initialProfile="transition_plan" pendingUniverse={pendingFor("transitionPlan")} />}
-        {active === "transitionBarrier" && <TransitionBarrierAssessment />}
-        {active === "identity" && <IdentityResolution onSendToDiscovery={(path, count) => sendUniverse("Identity Resolution")("discovery", path, count)} />}
-        {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingFor("discovery")} onSendUniverse={sendUniverse("Document Discovery")} />}
-        {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} onSendUniverse={sendUniverse("Risk Monitoring")} />}
-        {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} />}
-        {active === "history" && <RunHistory onOpenReview={openReview} />}
-        {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}
-        {active === "engagement" && <EngagementDashboard />}
-        {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}
-        {active === "reporting" && <ReportBuilder />}
-        {active === "strategyReplication" && <StrategyReplication />}
-        {active === "decision" && <DecisionStudio />}
-        {active === "index" && <IndexBuilder />}
-        {active === "library" && <DataLibrary />}
+        <ScreenBoundary key={active}>
+          {active === "home" && <StartPage />}
+          {(active === "stewardiq" || active === "themeMachine" || active === "designStudio") && <ProcessOverview key={active} id={active} />}
+          {active === "dashboard" && <MonitoringDashboard onNavigate={go} onOpenReview={openReview} />}
+          {active === "processes" && <Processes selected={route.params[0] ?? null} onSelect={(id) => navigate("processes", id)} />}
+          {active === "search" && <Search />}
+          {active === "theme" && <ThemeBuilder onSendToExtraction={(path, count) => sendUniverse("Thematic Universe")("extraction", path, count)} pendingTaxonomyId={pendingTaxonomyId} />}
+          {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
+          {active === "emergingThemes" && <EmergingThemesDetector onNavigate={go} />}
+          {active === "backgroundAgents" && <BackgroundAgents />}
+          {active === "extraction" && <Extraction key="extraction" pendingUniverse={pendingFor("extraction")} />}
+          {active === "transitionPlan" && <Extraction key="transitionPlan" initialProfile="transition_plan" pendingUniverse={pendingFor("transitionPlan")} />}
+          {active === "transitionBarrier" && <TransitionBarrierAssessment />}
+          {active === "identity" && <IdentityResolution onSendToDiscovery={(path, count) => sendUniverse("Identity Resolution")("discovery", path, count)} />}
+          {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingFor("discovery")} onSendUniverse={sendUniverse("Document Discovery")} />}
+          {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} onSendUniverse={sendUniverse("Risk Monitoring")} />}
+          {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} />}
+          {active === "history" && <RunHistory onOpenReview={openReview} />}
+          {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}
+          {active === "engagement" && <EngagementDashboard />}
+          {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}
+          {active === "reporting" && <ReportBuilder />}
+          {active === "strategyReplication" && <StrategyReplication />}
+          {active === "decision" && <DecisionStudio />}
+          {active === "index" && <IndexBuilder />}
+          {active === "library" && <DataLibrary />}
+        </ScreenBoundary>
       </main>
     </div>
   );

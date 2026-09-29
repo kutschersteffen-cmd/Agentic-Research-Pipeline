@@ -37,7 +37,7 @@ export function StudioHeader({ stage, capabilities, children }: { stage: Steward
     <section className="card">
       <div className="section-heading">
         <h3>
-          {stage.number}. {stage.title} studio
+          {stage.number}. {stage.title.charAt(0).toUpperCase() + stage.title.slice(1)} studio
         </h3>
         <span className="chip">{stage.layer === "house" ? "House truth" : "Client overlay"}</span>
       </div>
@@ -103,8 +103,10 @@ export function DataTable({ rows, empty = "Nothing to show." }: { rows: Record<s
 export function Section({ step, title, children, planned }: { step: string; title: string; children: ReactNode; planned?: boolean }) {
   return (
     <section className={`card studio-section${planned ? " planned" : ""}`}>
-      <p className="studio-step">{step}</p>
-      <h3>{title}</h3>
+      <div className="studio-head">
+        <h3>{title}</h3>
+        <span className="studio-step">{step}</span>
+      </div>
       {children}
     </section>
   );

@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import type { RunManifest, StewardshipFlow } from "../types";
 import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount, waitingParts } from "../lib/runs";
 import { openCount } from "./steward/common";
+import { Seal } from "../components/Seal";
 
 // The start page and the three process overview pages. A process is a named
 // group of screens in order; each step links to the screen that does it and
@@ -185,21 +186,6 @@ function StepMark({ state }: { state: StepState }) {
   );
 }
 
-/** The engraved rosette: concentric rings crossed by rotated ellipses, the
- * figure security printers use as a seal. Decorative only. */
-function Rosette({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 200 200" aria-hidden>
-      {[30, 45, 60, 75, 90].map((r) => (
-        <circle key={r} cx="100" cy="100" r={r} />
-      ))}
-      {[0, 30, 60, 90, 120, 150].map((a) => (
-        <ellipse key={a} cx="100" cy="100" rx="90" ry="35" transform={`rotate(${a} 100 100)`} />
-      ))}
-    </svg>
-  );
-}
-
 function RegisterRow({ p, runs, flow }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
   const mine = (runs ?? []).filter((r) => p.runTypes.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
   const last = mine[0];
@@ -281,7 +267,7 @@ export function StartPage() {
   return (
     <div className="page cs-start">
       <section className="cs-band" aria-labelledby="cs-due">
-        <Rosette className="cs-rosette" />
+        <Seal className="cs-rosette" />
         <h2 id="cs-due">
           {!known ? (
             "Status unknown until the runs load."

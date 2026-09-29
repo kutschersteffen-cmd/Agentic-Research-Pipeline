@@ -165,7 +165,7 @@ function StepCard({ data }: NodeProps<CardData>) {
         )}
         {data.share !== null && (
           <span className="pipeline-card-bar" aria-hidden>
-            <span style={{ width: `${Math.round(data.share * 100)}%` }} />
+            <span style={{ transform: `scaleX(${data.share})` }} />
           </span>
         )}
         {data.footer && <span className="pipeline-card-footer">{data.footer}</span>}
