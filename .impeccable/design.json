@@ -1,0 +1,639 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-29T21:19:12+00:00",
+  "title": "Design System: ARP (Agentic Research Pipeline)",
+  "extensions": {
+    "colorMeta": {
+      "intaglio-green": {
+        "role": "primary",
+        "displayName": "Intaglio Green",
+        "canonical": "#173d33",
+        "cssVar": "--accent / --sidebar-bg",
+        "oklch": "oklch(32.9% 0.047 174)",
+        "tonalRamp": [
+          "oklch(15% 0.047 174)",
+          "oklch(26% 0.047 174)",
+          "oklch(37% 0.047 174)",
+          "oklch(48% 0.047 174)",
+          "oklch(59% 0.047 174)",
+          "oklch(70% 0.047 174)",
+          "oklch(82% 0.047 174)",
+          "oklch(95% 0.047 174)"
+        ],
+        "dark": "#d6e6dd (accent) / #08110e (sidebar)"
+      },
+      "intaglio-ink": {
+        "role": "primary",
+        "displayName": "Intaglio Ink",
+        "canonical": "#0e2921",
+        "cssVar": "--accent-ink",
+        "oklch": "oklch(25.7% 0.037 171)",
+        "tonalRamp": [
+          "oklch(15% 0.037 171)",
+          "oklch(26% 0.037 171)",
+          "oklch(37% 0.037 171)",
+          "oklch(48% 0.037 171)",
+          "oklch(59% 0.037 171)",
+          "oklch(70% 0.037 171)",
+          "oklch(82% 0.037 171)",
+          "oklch(95% 0.037 171)"
+        ],
+        "dark": "#ffffff"
+      },
+      "underprint": {
+        "role": "neutral",
+        "displayName": "Underprint",
+        "canonical": "#eef2ee",
+        "cssVar": "--bg",
+        "oklch": "oklch(95.7% 0.007 146)",
+        "tonalRamp": [
+          "oklch(15% 0.007 146)",
+          "oklch(26% 0.007 146)",
+          "oklch(37% 0.007 146)",
+          "oklch(48% 0.007 146)",
+          "oklch(59% 0.007 146)",
+          "oklch(70% 0.007 146)",
+          "oklch(82% 0.007 146)",
+          "oklch(95% 0.007 146)"
+        ],
+        "dark": "#0c1512"
+      },
+      "certificate-paper": {
+        "role": "neutral",
+        "displayName": "Certificate Paper",
+        "canonical": "#fbfcfa",
+        "cssVar": "--panel",
+        "oklch": "oklch(99.0% 0.003 128)",
+        "tonalRamp": [
+          "oklch(15% 0.003 128)",
+          "oklch(26% 0.003 128)",
+          "oklch(37% 0.003 128)",
+          "oklch(48% 0.003 128)",
+          "oklch(59% 0.003 128)",
+          "oklch(70% 0.003 128)",
+          "oklch(82% 0.003 128)",
+          "oklch(95% 0.003 128)"
+        ],
+        "dark": "#121e1a"
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#c9d4cd",
+        "cssVar": "--panel-border",
+        "oklch": "oklch(86.0% 0.015 158)",
+        "tonalRamp": [
+          "oklch(15% 0.015 158)",
+          "oklch(26% 0.015 158)",
+          "oklch(37% 0.015 158)",
+          "oklch(48% 0.015 158)",
+          "oklch(59% 0.015 158)",
+          "oklch(70% 0.015 158)",
+          "oklch(82% 0.015 158)",
+          "oklch(95% 0.015 158)"
+        ],
+        "dark": "#273a32"
+      },
+      "well": {
+        "role": "neutral",
+        "displayName": "Well",
+        "canonical": "#e4ebe6",
+        "cssVar": "--well",
+        "oklch": "oklch(93.3% 0.010 155)",
+        "tonalRamp": [
+          "oklch(15% 0.010 155)",
+          "oklch(26% 0.010 155)",
+          "oklch(37% 0.010 155)",
+          "oklch(48% 0.010 155)",
+          "oklch(59% 0.010 155)",
+          "oklch(70% 0.010 155)",
+          "oklch(82% 0.010 155)",
+          "oklch(95% 0.010 155)"
+        ],
+        "dark": "#17261f"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#17211d",
+        "cssVar": "--text",
+        "oklch": "oklch(23.7% 0.016 168)",
+        "tonalRamp": [
+          "oklch(15% 0.016 168)",
+          "oklch(26% 0.016 168)",
+          "oklch(37% 0.016 168)",
+          "oklch(48% 0.016 168)",
+          "oklch(59% 0.016 168)",
+          "oklch(70% 0.016 168)",
+          "oklch(82% 0.016 168)",
+          "oklch(95% 0.016 168)"
+        ],
+        "dark": "#e1ebe5"
+      },
+      "muted-ink": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "#4e5c56",
+        "cssVar": "--muted",
+        "oklch": "oklch(46.1% 0.020 168)",
+        "tonalRamp": [
+          "oklch(15% 0.020 168)",
+          "oklch(26% 0.020 168)",
+          "oklch(37% 0.020 168)",
+          "oklch(48% 0.020 168)",
+          "oklch(59% 0.020 168)",
+          "oklch(70% 0.020 168)",
+          "oklch(82% 0.020 168)",
+          "oklch(95% 0.020 168)"
+        ],
+        "dark": "#9cb0a7"
+      },
+      "on-accent": {
+        "role": "neutral",
+        "displayName": "On Accent",
+        "canonical": "#ffffff",
+        "cssVar": "--on-accent",
+        "oklch": "oklch(100.0% 0.000 90)",
+        "tonalRamp": [
+          "oklch(15% 0.000 90)",
+          "oklch(26% 0.000 90)",
+          "oklch(37% 0.000 90)",
+          "oklch(48% 0.000 90)",
+          "oklch(59% 0.000 90)",
+          "oklch(70% 0.000 90)",
+          "oklch(82% 0.000 90)",
+          "oklch(95% 0.000 90)"
+        ],
+        "dark": "#0c1512"
+      },
+      "stamp-violet": {
+        "role": "secondary",
+        "displayName": "Stamp Violet",
+        "canonical": "#5b3fa0",
+        "cssVar": "--await-edge",
+        "oklch": "oklch(45.2% 0.150 293)",
+        "tonalRamp": [
+          "oklch(15% 0.150 293)",
+          "oklch(26% 0.150 293)",
+          "oklch(37% 0.150 293)",
+          "oklch(48% 0.150 293)",
+          "oklch(59% 0.150 293)",
+          "oklch(70% 0.150 293)",
+          "oklch(82% 0.150 293)",
+          "oklch(95% 0.150 293)"
+        ],
+        "dark": "#b39cf2"
+      },
+      "stamp-violet-tint": {
+        "role": "secondary",
+        "displayName": "Stamp Violet Tint",
+        "canonical": "#ebe5f8",
+        "cssVar": "--await",
+        "oklch": "oklch(93.2% 0.026 300)",
+        "tonalRamp": [
+          "oklch(15% 0.026 300)",
+          "oklch(26% 0.026 300)",
+          "oklch(37% 0.026 300)",
+          "oklch(48% 0.026 300)",
+          "oklch(59% 0.026 300)",
+          "oklch(70% 0.026 300)",
+          "oklch(82% 0.026 300)",
+          "oklch(95% 0.026 300)"
+        ],
+        "dark": "#2a2144"
+      },
+      "verified-green": {
+        "role": "tertiary",
+        "displayName": "Verified Green",
+        "canonical": "#1c6e47",
+        "cssVar": "--high",
+        "oklch": "oklch(47.9% 0.100 158)",
+        "tonalRamp": [
+          "oklch(15% 0.100 158)",
+          "oklch(26% 0.100 158)",
+          "oklch(37% 0.100 158)",
+          "oklch(48% 0.100 158)",
+          "oklch(59% 0.100 158)",
+          "oklch(70% 0.100 158)",
+          "oklch(82% 0.100 158)",
+          "oklch(95% 0.100 158)"
+        ],
+        "dark": "#58c48f"
+      },
+      "caution-ochre": {
+        "role": "tertiary",
+        "displayName": "Caution Ochre",
+        "canonical": "#8a5a00",
+        "cssVar": "--mid",
+        "oklch": "oklch(50.8% 0.108 73)",
+        "tonalRamp": [
+          "oklch(15% 0.108 73)",
+          "oklch(26% 0.108 73)",
+          "oklch(37% 0.108 73)",
+          "oklch(48% 0.108 73)",
+          "oklch(59% 0.108 73)",
+          "oklch(70% 0.108 73)",
+          "oklch(82% 0.108 73)",
+          "oklch(95% 0.108 73)"
+        ],
+        "dark": "#e0b04a"
+      },
+      "error-red": {
+        "role": "tertiary",
+        "displayName": "Error Red",
+        "canonical": "#b0231b",
+        "cssVar": "--low",
+        "oklch": "oklch(49.3% 0.178 29)",
+        "tonalRamp": [
+          "oklch(15% 0.160 29)",
+          "oklch(26% 0.160 29)",
+          "oklch(37% 0.160 29)",
+          "oklch(48% 0.160 29)",
+          "oklch(59% 0.160 29)",
+          "oklch(70% 0.160 29)",
+          "oklch(82% 0.160 29)",
+          "oklch(95% 0.160 29)"
+        ],
+        "dark": "#ff7a6b"
+      },
+      "neutral-grey": {
+        "role": "neutral",
+        "displayName": "Neutral Grey",
+        "canonical": "#55625c",
+        "cssVar": "--neutral",
+        "oklch": "oklch(48.3% 0.019 166)",
+        "tonalRamp": [
+          "oklch(15% 0.019 166)",
+          "oklch(26% 0.019 166)",
+          "oklch(37% 0.019 166)",
+          "oklch(48% 0.019 166)",
+          "oklch(59% 0.019 166)",
+          "oklch(70% 0.019 166)",
+          "oklch(82% 0.019 166)",
+          "oklch(95% 0.019 166)"
+        ],
+        "dark": "#9cb0a7"
+      },
+      "void-black": {
+        "role": "tertiary",
+        "displayName": "Void Black",
+        "canonical": "#1d1d1b",
+        "cssVar": "--void",
+        "oklch": "oklch(23.0% 0.004 107)",
+        "tonalRamp": [
+          "oklch(15% 0.004 107)",
+          "oklch(26% 0.004 107)",
+          "oklch(37% 0.004 107)",
+          "oklch(48% 0.004 107)",
+          "oklch(59% 0.004 107)",
+          "oklch(70% 0.004 107)",
+          "oklch(82% 0.004 107)",
+          "oklch(95% 0.004 107)"
+        ],
+        "dark": "#e1ebe5"
+      },
+      "chrome-text": {
+        "role": "neutral",
+        "displayName": "Chrome Text",
+        "canonical": "#e3ece7",
+        "cssVar": "--text inside .app-sidebar/.app-topbar",
+        "oklch": "oklch(93.5% 0.012 162)",
+        "tonalRamp": [
+          "oklch(15% 0.012 162)",
+          "oklch(26% 0.012 162)",
+          "oklch(37% 0.012 162)",
+          "oklch(48% 0.012 162)",
+          "oklch(59% 0.012 162)",
+          "oklch(70% 0.012 162)",
+          "oklch(82% 0.012 162)",
+          "oklch(95% 0.012 162)"
+        ]
+      },
+      "chrome-muted": {
+        "role": "neutral",
+        "displayName": "Chrome Muted",
+        "canonical": "#a9c2b8",
+        "cssVar": "--muted inside chrome",
+        "oklch": "oklch(79.2% 0.031 169)",
+        "tonalRamp": [
+          "oklch(15% 0.031 169)",
+          "oklch(26% 0.031 169)",
+          "oklch(37% 0.031 169)",
+          "oklch(48% 0.031 169)",
+          "oklch(59% 0.031 169)",
+          "oklch(70% 0.031 169)",
+          "oklch(82% 0.031 169)",
+          "oklch(95% 0.031 169)"
+        ]
+      },
+      "chrome-field": {
+        "role": "neutral",
+        "displayName": "Chrome Field",
+        "canonical": "#1f4a3e",
+        "cssVar": "--panel inside chrome",
+        "oklch": "oklch(37.5% 0.053 173)",
+        "tonalRamp": [
+          "oklch(15% 0.053 173)",
+          "oklch(26% 0.053 173)",
+          "oklch(37% 0.053 173)",
+          "oklch(48% 0.053 173)",
+          "oklch(59% 0.053 173)",
+          "oklch(70% 0.053 173)",
+          "oklch(82% 0.053 173)",
+          "oklch(95% 0.053 173)"
+        ]
+      },
+      "chrome-rule": {
+        "role": "neutral",
+        "displayName": "Chrome Rule",
+        "canonical": "#2f5c4f",
+        "cssVar": "--panel-border inside chrome",
+        "oklch": "oklch(43.8% 0.055 173)",
+        "tonalRamp": [
+          "oklch(15% 0.055 173)",
+          "oklch(26% 0.055 173)",
+          "oklch(37% 0.055 173)",
+          "oklch(48% 0.055 173)",
+          "oklch(59% 0.055 173)",
+          "oklch(70% 0.055 173)",
+          "oklch(82% 0.055 173)",
+          "oklch(95% 0.055 173)"
+        ]
+      },
+      "chrome-active": {
+        "role": "neutral",
+        "displayName": "Chrome Active",
+        "canonical": "#f1f4f0",
+        "cssVar": "--accent inside chrome (active tab, mark)",
+        "oklch": "oklch(96.4% 0.006 138)",
+        "tonalRamp": [
+          "oklch(15% 0.006 138)",
+          "oklch(26% 0.006 138)",
+          "oklch(37% 0.006 138)",
+          "oklch(48% 0.006 138)",
+          "oklch(59% 0.006 138)",
+          "oklch(70% 0.006 138)",
+          "oklch(82% 0.006 138)",
+          "oklch(95% 0.006 138)"
+        ]
+      },
+      "chrome-stamp-edge": {
+        "role": "secondary",
+        "displayName": "Chrome Stamp Edge",
+        "canonical": "#c9b8f5",
+        "cssVar": "--await-edge inside chrome",
+        "oklch": "oklch(81.8% 0.086 297)",
+        "tonalRamp": [
+          "oklch(15% 0.086 297)",
+          "oklch(26% 0.086 297)",
+          "oklch(37% 0.086 297)",
+          "oklch(48% 0.086 297)",
+          "oklch(59% 0.086 297)",
+          "oklch(70% 0.086 297)",
+          "oklch(82% 0.086 297)",
+          "oklch(95% 0.086 297)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "engraved-title": {
+        "displayName": "Engraved Title",
+        "purpose": "Page h2 titles on inner pages (Cinzel 700)."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "ARP wordmark and sidebar mark."
+      },
+      "due-headline": {
+        "displayName": "Due Headline",
+        "purpose": "Start band's due sentence; 1.35rem under 760px; violet tabular counts."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section and card headings; intaglio green on Start."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "All read or operated text; ledes capped at 72ch."
+      },
+      "body-sm": {
+        "displayName": "Body Small",
+        "purpose": "Help text, meta, prepared-by, purposes."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase register column heads and state tags."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Raw data only: JSON, conditions, node numbers, kbd."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow-md",
+        "value": "0 2px 6px rgb(14 41 33 / 0.08), 0 8px 24px rgb(14 41 33 / 0.10)",
+        "purpose": "Chart tooltips (floating)."
+      },
+      {
+        "name": "shadow-lg",
+        "value": "0 12px 32px rgb(14 41 33 / 0.18)",
+        "purpose": "Modal dialogs and the open nav drawer."
+      },
+      {
+        "name": "cast-bar-lift",
+        "value": "0 -6px 16px rgb(14 41 33 / 0.08)",
+        "purpose": "Sticky ballot cast bar only."
+      },
+      {
+        "name": "focus-halo",
+        "value": "0 0 0 3px var(--accent-tint)",
+        "purpose": "Focused inputs."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default state transitions (background, border, colour)."
+      },
+      {
+        "name": "dur",
+        "value": "140ms",
+        "purpose": "Default state-transition duration."
+      },
+      {
+        "name": "drawer",
+        "value": "220ms cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Mobile nav drawer; none under reduced motion."
+      },
+      {
+        "name": "seal-engrave",
+        "value": "1.1s cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Seal strokes engrave on cast; ellipses delayed 0.25s; static under reduced motion."
+      },
+      {
+        "name": "progress",
+        "value": "0.4s cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Progress fill scaleX as polls land."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone-stack",
+        "value": "560px"
+      },
+      {
+        "name": "drawer",
+        "value": "760px"
+      },
+      {
+        "name": "split-stack",
+        "value": "900px"
+      },
+      {
+        "name": "dashboard-3col",
+        "value": "1100px"
+      },
+      {
+        "name": "dashboard-split",
+        "value": "1180px"
+      }
+    ],
+    "darkMode": {
+      "trigger": "prefers-color-scheme: dark unless data-theme=light; or :root[data-theme=dark]",
+      "note": "Per-token dark values in colorMeta.<token>.dark; chrome tokens are local to .app-sidebar/.app-topbar and not redefined for dark."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single solid action: cast, save, start a run.",
+      "html": "<button class=\"ds-btn\">Cast votes</button>",
+      "css": ".ds-btn { background: var(--accent, #173d33); color: var(--on-accent, #fff); border: none; border-radius: 8px; padding: 9px 16px; font: 500 0.9375rem 'Source Sans 3', system-ui, sans-serif; cursor: pointer; transition: background 140ms cubic-bezier(0.4,0,0.2,1); } .ds-btn:hover { background: var(--accent-ink, #0e2921); } .ds-btn:focus-visible { outline: 2px solid var(--accent, #173d33); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "The quiet action beside a primary: bordered, never bare text.",
+      "html": "<button class=\"ds-btn-secondary\">Back</button>",
+      "css": ".ds-btn-secondary { background: transparent; color: var(--accent, #173d33); border: 1px solid var(--panel-border, #c9d4cd); border-radius: 8px; padding: 9px 16px; font: 500 0.9375rem 'Source Sans 3', system-ui, sans-serif; cursor: pointer; transition: background 140ms, border-color 140ms; } .ds-btn-secondary:hover { background: rgb(23 61 51 / 0.08); border-color: var(--accent, #173d33); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--accent, #173d33); outline-offset: 2px; }"
+    },
+    {
+      "name": "Reviewer Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "The one 'Deciding as' identity; dashed violet while unsigned.",
+      "html": "<label class=\"ds-reviewer\"><span>Deciding as</span><input class=\"ds-input\" placeholder=\"Your name\" aria-invalid=\"true\"><small>Typed on this device, not verified by a login.</small></label>",
+      "css": ".ds-reviewer { display: grid; gap: 4px; font: 0.875rem 'Source Sans 3', system-ui, sans-serif; color: var(--muted, #4e5c56); max-width: 18rem; } .ds-reviewer small { font-size: 0.8125rem; } .ds-input { background: var(--panel, #fbfcfa); border: 1px solid var(--panel-border, #c9d4cd); color: var(--text, #17211d); border-radius: 8px; padding: 8px 10px; font: 0.9375rem 'Source Sans 3', system-ui, sans-serif; } .ds-input[aria-invalid] { border: 1.5px dashed var(--await-edge, #5b3fa0); } .ds-input::placeholder { color: var(--muted, #4e5c56); } .ds-input:focus { outline: none; border-color: var(--accent, #173d33); box-shadow: 0 0 0 3px rgb(23 61 51 / 0.08); }"
+    },
+    {
+      "name": "Sidebar Navigation",
+      "kind": "nav",
+      "refersTo": "nav-tab",
+      "description": "Solid intaglio-green chrome with local light-on-green tokens; SVG icons; violet count on 'Needs you' entries.",
+      "html": "<nav class=\"ds-side\"><div class=\"ds-brand\"><span class=\"ds-mark-a\">A</span><span class=\"ds-word\">ARP</span></div><div class=\"ds-group\">Needs you</div><a class=\"ds-tab ds-active\" href=\"#\"><svg viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M2 7.5 8 2.5l6 5V14H2z\"/></svg>Start</a><a class=\"ds-tab\" href=\"#\"><svg viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M3 4h10M3 8h10M3 12h6\"/></svg>Review Queue<span class=\"ds-count\">4</span></a></nav>",
+      "css": ".ds-side { --text: #e3ece7; --muted: #a9c2b8; --panel-border: #2f5c4f; --accent: #f1f4f0; --on-accent: #173d33; background: #173d33; color: var(--text); padding: 22px 14px; width: 232px; font-family: 'Source Sans 3', system-ui, sans-serif; } .ds-brand { display: flex; align-items: center; gap: 9px; padding: 4px 8px 12px; } .ds-mark-a { width: 26px; height: 26px; border-radius: 6px; background: var(--accent); color: var(--on-accent); display: flex; align-items: center; justify-content: center; font: 700 0.875rem Cinzel, Georgia, serif; } .ds-word { font: 700 1rem Cinzel, Georgia, serif; letter-spacing: 0.14em; } .ds-group { font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding: 8px 10px 4px; } .ds-tab { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; color: var(--text); text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: background 140ms; } .ds-tab:hover { background: var(--panel-border); } .ds-tab.ds-active { background: var(--accent); color: var(--on-accent); font-weight: 600; } .ds-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; } .ds-count { margin-left: auto; min-width: 1.5rem; padding: 1px 6px; border-radius: 999px; background: #5b3fa0; color: #fff; font-size: 0.8125rem; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Certificate Band",
+      "kind": "custom",
+      "refersTo": "certificate-band",
+      "description": "Start page's one factual band: double rule, due sentence with violet counts, as-of line, clipped rosette.",
+      "html": "<section class=\"ds-band\"><svg class=\"ds-rosette\" viewBox=\"0 0 200 200\" aria-hidden=\"true\"><circle cx=\"100\" cy=\"100\" r=\"30\"/><circle cx=\"100\" cy=\"100\" r=\"45\"/><circle cx=\"100\" cy=\"100\" r=\"60\"/><circle cx=\"100\" cy=\"100\" r=\"75\"/><circle cx=\"100\" cy=\"100\" r=\"90\"/><ellipse cx=\"100\" cy=\"100\" rx=\"90\" ry=\"35\" transform=\"rotate(0 100 100)\"/><ellipse cx=\"100\" cy=\"100\" rx=\"90\" ry=\"35\" transform=\"rotate(30 100 100)\"/><ellipse cx=\"100\" cy=\"100\" rx=\"90\" ry=\"35\" transform=\"rotate(60 100 100)\"/><ellipse cx=\"100\" cy=\"100\" rx=\"90\" ry=\"35\" transform=\"rotate(90 100 100)\"/><ellipse cx=\"100\" cy=\"100\" rx=\"90\" ry=\"35\" transform=\"rotate(120 100 100)\"/><ellipse cx=\"100\" cy=\"100\" rx=\"90\" ry=\"35\" transform=\"rotate(150 100 100)\"/></svg><h2><em>3</em> ballot items before Shell plc&rsquo;s meeting on 8 Oct and <em>4</em> flagged items await countersignature.</h2><p>As of 29 Sep, 21:14 &middot; 1 run in progress</p></section>",
+      "css": ".ds-band { position: relative; overflow: hidden; padding: 22px 26px 18px; background: var(--panel, #fbfcfa); border: 1px solid var(--accent, #173d33); font-family: 'Source Sans 3', system-ui, sans-serif; color: var(--text, #17211d); } .ds-band::before { content: ''; position: absolute; inset: 5px; border: 1px solid var(--panel-border, #c9d4cd); pointer-events: none; } .ds-rosette { position: absolute; right: -56px; top: -76px; width: 290px; height: 290px; fill: none; stroke: var(--accent, #173d33); stroke-width: 0.7; opacity: 0.22; pointer-events: none; } .ds-band h2 { position: relative; margin: 0 0 8px; max-width: 34ch; font-weight: 600; font-size: 1.75rem; line-height: 1.25; letter-spacing: -0.01em; } .ds-band em { font-style: normal; color: var(--await-edge, #5b3fa0); font-variant-numeric: tabular-nums; } .ds-band p { position: relative; margin: 0; color: var(--muted, #4e5c56); font-size: 0.875rem; }"
+    },
+    {
+      "name": "Register Row",
+      "kind": "custom",
+      "refersTo": "register-cell",
+      "description": "Ruled register between 2px intaglio rules: serial, process, step marks, prepared, countersign (signature line), open.",
+      "html": "<table class=\"ds-reg\"><thead><tr><th>No.</th><th>Process</th><th>Steps</th><th>Prepared</th><th>Countersign</th><th></th></tr></thead><tbody><tr><td class=\"ds-serial\">SIQ 0001</td><td class=\"ds-proc\"><a href=\"#\">StewardIQ</a><small>Monitor holdings, engage companies, vote.</small></td><td><span class=\"ds-marks\"><svg class=\"ds-mark ds-mark-done\" viewBox=\"0 0 22 22\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8.5\"/><path d=\"M6.5 11.5l3 3 6-6.5\"/></svg><svg class=\"ds-mark ds-mark-now\" viewBox=\"0 0 22 22\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8.5\"/><circle class=\"ds-dot\" cx=\"11\" cy=\"11\" r=\"3.5\"/></svg><svg class=\"ds-mark ds-mark-wait\" viewBox=\"0 0 22 22\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8.5\"/></svg><svg class=\"ds-mark ds-mark-failed\" viewBox=\"0 0 22 22\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8.5\"/><path d=\"M6 16 16 6\"/></svg><svg class=\"ds-mark ds-mark-idle\" viewBox=\"0 0 22 22\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8.5\"/></svg></span></td><td class=\"ds-muted\">Proxy voting, 1 min ago</td><td><span class=\"ds-await\"><span class=\"ds-sig\"></span>6 awaiting:<a href=\"#\">3 ballot items</a><a href=\"#\">3 stage decisions</a></span></td><td><a class=\"ds-open\" href=\"#\">Open</a></td></tr></tbody></table>",
+      "css": ".ds-reg { width: 100%; border-collapse: collapse; background: var(--panel, #fbfcfa); border-top: 2px solid var(--accent, #173d33); border-bottom: 2px solid var(--accent, #173d33); font: 0.9375rem 'Source Sans 3', system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--text, #17211d); } .ds-reg th { padding: 8px 12px; text-align: left; font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted, #4e5c56); border-bottom: 1px solid var(--accent, #173d33); } .ds-reg td { padding: 12px; vertical-align: middle; } .ds-serial { color: var(--accent, #173d33); font-weight: 700; font-size: 0.875rem; letter-spacing: 0.06em; white-space: nowrap; } .ds-proc a { color: var(--text, #17211d); font-weight: 700; font-size: 1rem; text-decoration: none; } .ds-proc a:hover { text-decoration: underline; text-underline-offset: 3px; } .ds-proc small, .ds-muted { display: block; color: var(--muted, #4e5c56); font-size: 0.875rem; } .ds-marks { display: inline-flex; gap: 4px; } .ds-mark { width: 22px; height: 22px; fill: none; stroke: var(--panel-border, #c9d4cd); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; } .ds-mark-done { stroke: var(--high, #1c6e47); } .ds-mark-now { stroke: var(--accent, #173d33); } .ds-dot { fill: var(--accent, #173d33); stroke: none; } .ds-mark-wait { stroke: var(--await-edge, #5b3fa0); stroke-dasharray: 3 2.5; } .ds-mark-failed { stroke: var(--void, #1d1d1b); } .ds-await { display: inline-flex; flex-direction: column; gap: 3px; color: var(--await-edge, #5b3fa0); font-size: 0.875rem; font-weight: 700; } .ds-await a { color: inherit; text-underline-offset: 0.15em; } .ds-sig { display: block; width: 9rem; height: 12px; border-bottom: 1.5px dashed var(--await-edge, #5b3fa0); } .ds-open { color: var(--accent, #173d33); font-weight: 700; text-underline-offset: 3px; } .ds-reg a:focus-visible { outline: 2px solid var(--accent, #173d33); outline-offset: 2px; }"
+    },
+    {
+      "name": "VOID Stamp",
+      "kind": "custom",
+      "refersTo": "void-stamp",
+      "description": "The only failed-run marker: engraved capitals in a 2px void-black box, rotated like a rubber stamp.",
+      "html": "<span class=\"ds-void\">Void</span> stopped at 212 of 380",
+      "css": ".ds-void { display: inline-block; margin-right: 6px; padding: 0 6px; border: 2px solid var(--void, #1d1d1b); color: var(--void, #1d1d1b); font: 700 0.8125rem Cinzel, Georgia, serif; letter-spacing: 0.2em; text-transform: uppercase; transform: rotate(-4deg); }"
+    },
+    {
+      "name": "Awaiting Banner and Proposed Tag",
+      "kind": "chip",
+      "refersTo": "banner-await",
+      "description": "Stamp-violet tint with a dashed violet edge: waiting on a person. Turns solid once decided.",
+      "html": "<div class=\"ds-proposed\"><span class=\"ds-tag\">Proposed</span><p>Vote FOR, per house policy 4.2.</p></div><div class=\"ds-banner\">2 proposals await your decision.</div>",
+      "css": ".ds-proposed { border: 1px dashed var(--await-edge, #5b3fa0); border-radius: 8px; background: color-mix(in srgb, var(--await, #ebe5f8) 35%, var(--panel, #fbfcfa)); padding: 8px 12px; margin-bottom: 10px; font: 0.875rem 'Source Sans 3', system-ui, sans-serif; } .ds-proposed p { margin: 0; } .ds-tag { display: inline-block; margin-bottom: 4px; padding: 1px 8px; border: 1px dashed var(--await-edge, #5b3fa0); border-radius: 8px; background: var(--await, #ebe5f8); color: var(--text, #17211d); font-size: 0.8125rem; font-weight: 600; } .ds-banner { background: var(--await, #ebe5f8); border: 1px dashed var(--await-edge, #5b3fa0); color: var(--text, #17211d); border-radius: 8px; padding: 10px 14px; font: 0.875rem 'Source Sans 3', system-ui, sans-serif; }"
+    },
+    {
+      "name": "Cast Seal",
+      "kind": "custom",
+      "description": "The countersign moment: the rosette engraves itself beside the cast confirmation.",
+      "html": "<div class=\"ds-sealed\"><svg class=\"ds-seal\" viewBox=\"0 0 200 200\" aria-hidden=\"true\"><circle cx=\"100\" cy=\"100\" r=\"30\"/><circle cx=\"100\" cy=\"100\" r=\"45\"/><circle cx=\"100\" cy=\"100\" r=\"60\"/><circle cx=\"100\" cy=\"100\" r=\"75\"/><circle cx=\"100\" cy=\"100\" r=\"90\"/><ellipse cx=\"100\" cy=\"100\" rx=\"90\" ry=\"35\" transform=\"rotate(0 100 100)\"/><ellipse cx=\"100\" cy=\"100\" rx=\"90\" ry=\"35\" transform=\"rotate(30 100 100)\"/><ellipse cx=\"100\" cy=\"100\" rx=\"90\" ry=\"35\" transform=\"rotate(60 100 100)\"/><ellipse cx=\"100\" cy=\"100\" rx=\"90\" ry=\"35\" transform=\"rotate(90 100 100)\"/><ellipse cx=\"100\" cy=\"100\" rx=\"90\" ry=\"35\" transform=\"rotate(120 100 100)\"/><ellipse cx=\"100\" cy=\"100\" rx=\"90\" ry=\"35\" transform=\"rotate(150 100 100)\"/></svg><span>Cast &middot; confirmation 7F3A-0921</span></div>",
+      "css": ".ds-sealed { display: flex; align-items: center; gap: 12px; background: color-mix(in srgb, var(--high, #1c6e47) 12%, transparent); border: 1px solid var(--high, #1c6e47); color: color-mix(in oklch, var(--high, #1c6e47) 70%, var(--text, #17211d)); border-radius: 8px; padding: 10px 14px; font: 0.875rem 'Source Sans 3', system-ui, sans-serif; } .ds-seal { flex: none; width: 44px; height: 44px; fill: none; stroke: var(--high, #1c6e47); stroke-width: 2.4; } .ds-seal circle, .ds-seal ellipse { stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: ds-engrave 1.1s cubic-bezier(0.16,1,0.3,1) forwards; } .ds-seal ellipse { animation-delay: 0.25s; } @keyframes ds-engrave { to { stroke-dashoffset: 0; } } @media (prefers-reduced-motion: reduce) { .ds-seal circle, .ds-seal ellipse { animation: none; stroke-dashoffset: 0; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Countersign",
+    "overview": "The app is set like security printing: a share certificate, a banknote, a registrar's stamp. A figure counts as final only once a named person has countersigned it, so the whole visual system exists to show where that has happened and where it hasn't yet. Intaglio green does the chrome and the rules. It sits on a pale green-grey underprint, and depth comes from ruled lines, not shadows. Engraved capitals are rare, used for page titles, the wordmark and the VOID stamp. Everything a person reads or operates is set in a plain, legible sans with tabular figures.\n\nThe system gives each colour one job. Stamp violet means one thing only: this is waiting on a person. It usually arrives with a dashed stroke, which reads as a signature line. Red means an error. A black stamp saying VOID, rotated like a rubber stamp, marks a failed run. The guilloche rosette is the one ornament, and it appears only on the certificate band and on the seal that engraves itself when a ballot is cast.\n\nThe density is a working register, not a dashboard. On the Start page the register is a ruled table between 2px green rules. There are no cards there, no greeting, no hero metric and no icon tiles. Every count names what it is made of.",
+    "keyCharacteristics": [
+      "Solid intaglio-green sidebar with its own light-on-green token set.",
+      "Ruled registers bounded by 2px accent rules; hairline row rules inside.",
+      "Stamp violet plus dashed stroke means \"awaiting a person\" and nothing else.",
+      "Cinzel capitals for page titles, the wordmark and the VOID stamp only.",
+      "Source Sans 3 with tabular figures for all read or operated text; IBM Plex Mono for raw data.",
+      "One guilloche rosette, used on the certificate band and on seals.",
+      "Flat surfaces; shadow only on things that genuinely float."
+    ],
+    "rules": [
+      {
+        "name": "The One Colour, One Meaning Rule",
+        "body": "Violet means waiting on a person, red means error, and void black means a failed run. Nothing automated ever uses violet, and no colour borrows another's meaning.",
+        "section": "colors"
+      },
+      {
+        "name": "The Signature Line Rule",
+        "body": "When something awaits a person, draw it with a dashed violet stroke (1 to 1.5px, `stamp-violet`): the unsigned reviewer field, proposed agent output, awaiting step marks and hub steps, the countersign column's signature line, and the awaiting stat cell. Once a person decides, it turns solid. The only other dashed status in the build is the ochre \"stalled\" pill.",
+        "section": "colors"
+      },
+      {
+        "name": "The Engraving Is Rare Rule",
+        "body": "Cinzel appears on page titles, the wordmark and the VOID stamp, and nowhere else. Nothing a person reads at length or operates is set in capitals-only engraving.",
+        "section": "typography"
+      },
+      {
+        "name": "The 13px Floor Rule",
+        "body": "No text is set below `--text-xs` (0.8125rem). The type scale was raised for screen-share legibility.",
+        "section": "typography"
+      },
+      {
+        "name": "The Rules, Not Shadow Rule",
+        "body": "A resting surface never carries a drop shadow. Separate things with hairlines and 2px accent rules.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** bound registers with 2px intaglio-green rules and separate rows with 1px hairlines.",
+      "**Do** use stamp violet with a dashed stroke for anything waiting on a person, and switch it to solid once someone signs.",
+      "**Do** mark a failed run with the rotated VOID stamp in void black, and keep red for errors.",
+      "**Do** build every count from named parts (\"6 awaiting: 3 ballot items, 3 stage decisions\"), and show \"Unknown\" rather than zero before data arrives.",
+      "**Do** set every figure in tabular numerals.",
+      "**Do** draw icons as inline SVG strokes (nav icons, step marks).",
+      "**Do** keep the rosette to the certificate band and the cast seal."
+    ],
+    "donts": [
+      "**Don't** use stamp violet for anything automated, decorative or merely \"selected\".",
+      "**Don't** open the Start page with a greeting, a hero metric, icon cards or stat tiles. It is a ruled register under one certificate band.",
+      "**Don't** put a small uppercase kicker or eyebrow above a heading.",
+      "**Don't** use text glyphs (arrows, triangles, emoji) as icons.",
+      "**Don't** set body, labels or controls in Cinzel. Engraving is for titles, the wordmark and the VOID stamp.",
+      "**Don't** give resting surfaces a drop shadow.",
+      "**Don't** set any text below 0.8125rem."
+    ]
+  }
+}
