@@ -77,6 +77,60 @@
   color-scheme: light;
 }
 
+/* Dark mode, "Trading Desk": a terminal-black ground, monospace headings and
+   one amber signal. The rule carries over from light mode: amber is the only
+   colour for "waiting on a person" (peach's role), while controls and the
+   current item are near-white ink. Follows the system setting unless the
+   sidebar switch pins a mode (data-theme on <html>). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0d10;
+    --panel: #11151a;
+    --panel-border: #262e38;
+    --well: #171c23;
+    --text: #dde2e8;
+    --muted: #95a0ad;
+    --accent: #e8ecf1;
+    --accent-ink: #ffffff;
+    --accent-tint: rgb(232 236 241 / 0.08);
+    --sidebar-bg: #0f1216;
+    --on-accent: #0b0d10;
+    --await: #3a2c07;
+    --await-edge: #ffb000;
+    --high: #26c281;
+    --mid: #ff9b42;
+    --low: #ff5f5f;
+    --neutral: #95a0ad;
+    --shadow-md: 0 2px 6px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
+    --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
+    --font-display: "IBM Plex Mono", ui-monospace, monospace;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0d10;
+  --panel: #11151a;
+  --panel-border: #262e38;
+  --well: #171c23;
+  --text: #dde2e8;
+  --muted: #95a0ad;
+  --accent: #e8ecf1;
+  --accent-ink: #ffffff;
+  --accent-tint: rgb(232 236 241 / 0.08);
+  --sidebar-bg: #0f1216;
+  --on-accent: #0b0d10;
+  --await: #3a2c07;
+  --await-edge: #ffb000;
+  --high: #26c281;
+  --mid: #ff9b42;
+  --low: #ff5f5f;
+  --neutral: #95a0ad;
+  --shadow-md: 0 2px 6px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
+  --font-display: "IBM Plex Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -1485,6 +1539,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .status-pill.hub-pill-await { background: var(--await); border: 1px solid var(--await-edge); color: var(--text); }
 
 .hub-crumb { margin: 0 0 var(--s-1); font-size: var(--text-sm); color: var(--muted); }
+.hub-crumb a { color: var(--accent); }
 .hub-flow { list-style: none; display: flex; gap: 18px; margin: var(--s-4) 0 0; padding: 22px 18px; border: 1px solid var(--panel-border); border-radius: var(--r-md); background: radial-gradient(var(--panel-border) 1px, transparent 1px) 0 0 / 18px 18px, var(--panel); }
 .hub-flow-item { flex: 1 1 0; min-width: 0; position: relative; display: flex; }
 /* The arrow into each step after the first, as on the extraction pipeline. */
@@ -1519,3 +1574,9 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
   .hub-start .hub-hero h2 { font-size: 1.75rem; }
   .hub-runbar-all { margin-left: 0; }
 }
+
+/* Sidebar colour-theme switch: System / Light / Dark. */
+.theme-switch { display: flex; margin: 0 10px var(--s-3); padding: 2px; gap: 2px; border: 1px solid var(--panel-border); border-radius: var(--r-sm); background: var(--well); }
+.theme-switch button { flex: 1; padding: 4px 0; font-size: var(--text-xs); font-weight: 500; background: transparent; color: var(--muted); border-radius: 4px; }
+.theme-switch button:hover:not(.on) { background: var(--panel); color: var(--text); }
+.theme-switch button.on { background: var(--accent); color: var(--on-accent); font-weight: 600; }
