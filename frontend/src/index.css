@@ -1353,3 +1353,29 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .process-bar-title { color: var(--muted); }
 .process-bar-next { margin-left: auto; font-weight: 600; color: var(--accent); }
 .process-bar .link-button { text-decoration: none; min-width: 24px; }
+
+/* Steward Workflow stages as a numbered stepper, house stages then client. */
+.stepper { align-items: center; }
+.stepper-item { display: contents; }
+.stepper-group {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 2px 0 var(--s-3);
+}
+.stepper-break { flex-basis: 100%; height: 0; }
+.stepper-break + .stepper-group { margin-left: 0; min-width: 4.5em; }
+.stepper .nav-tab { display: inline-flex; align-items: center; gap: 6px; }
+.stepper-num {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+.stepper .nav-tab.active .stepper-num { background: var(--accent); border-color: var(--accent); color: var(--panel); }

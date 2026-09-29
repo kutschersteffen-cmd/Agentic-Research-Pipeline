@@ -268,7 +268,7 @@ function App() {
         {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} onSendUniverse={sendUniverse("Risk Monitoring")} />}
         {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} />}
         {active === "history" && <RunHistory onOpenReview={openReview} />}
-        {active === "stewardship" && <StewardWorkflow key={route.params[0]} initialTab={route.params[0]} />}
+        {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}
         {active === "engagement" && <EngagementDashboard />}
         {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}
         {active === "reporting" && <ReportBuilder />}
