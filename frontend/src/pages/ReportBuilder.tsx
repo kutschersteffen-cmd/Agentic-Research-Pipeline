@@ -518,7 +518,7 @@ export function ReportBuilder() {
             &larr; Prev
           </button>
           <button onClick={() => setEnlargedPage((p) => Math.min(previewPageCount, (p ?? 1) + 1))} disabled={enlargedPage >= previewPageCount}>
-            Next &rarr;
+            Next
           </button>
         </div>
       </Modal>

@@ -45,7 +45,8 @@ export function StudioHeader({ stage, capabilities, children }: { stage: Steward
       <div className="chip-row" aria-label="What this studio does">
         {capabilities.map((c) => (
           <span key={c.label} className={`chip capability${c.ready ? " ready" : ""}`} title={c.ready ? "Available" : "Not built yet"}>
-            {c.ready ? "✓" : "○"} {c.label}
+            {c.label}
+            {!c.ready && <span className="visually-hidden"> (not built yet)</span>}
           </span>
         ))}
       </div>

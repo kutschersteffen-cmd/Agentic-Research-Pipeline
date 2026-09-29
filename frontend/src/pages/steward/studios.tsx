@@ -215,7 +215,7 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
         )}
         <div className="toolbar">
           <button className="link-button" onClick={() => onOpen("selection")}>
-            New engagements are tiered at stage 2 →
+            New engagements are tiered at stage 2
           </button>
         </div>
       </Section>
@@ -374,7 +374,7 @@ export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
         <DataTable rows={stage.details.find((d) => d.label.includes("coverage"))?.rows ?? []} />
         <div className="toolbar">
           <button className="link-button" onClick={() => onOpen("checkpoint")}>
-            Tier changes are confirmed at stage 5 →
+            Tier changes are confirmed at stage 5
           </button>
         </div>
       </Section>
@@ -845,7 +845,7 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
         </p>
         <div className="toolbar">
           <button className="link-button" onClick={() => onOpen("selection")}>
-            Coverage tiers are set at stage 2 →
+            Coverage tiers are set at stage 2
           </button>
         </div>
         {recError && <p className="error-text">{recError}</p>}

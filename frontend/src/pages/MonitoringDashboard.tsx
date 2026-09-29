@@ -190,7 +190,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                       <span>${r.estimated_cost_usd.toFixed(2)}</span>
                       {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && onOpenReview && (
                         <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
-                          Review {r.review_count} flagged &rarr;
+                          Review {r.review_count} flagged
                         </button>
                       )}
                     </div>
@@ -249,7 +249,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
               <h3>Open engagement issues</h3>
               {openIssues.length === 0 && <span className="muted">{recordsLoaded ? "No open issues." : "Unknown until issues load."}</span>}
               <button className="link-button" onClick={() => onNavigate("engagement")}>
-                Open Engagement &rarr;
+                Open Engagement
               </button>
             </div>
             {openIssues.slice(0, 30).map(({ record, issue }) => (
@@ -277,7 +277,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
               <div className="section-heading">
                 <h3>Proxy voting runs</h3>
                 <button className="link-button" onClick={() => onNavigate("voting")}>
-                  Open Voting &rarr;
+                  Open Voting
                 </button>
               </div>
               <div className="table-wrap">
@@ -287,7 +287,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                       <th>Run ID</th>
                       <th>Status</th>
                       <th>Companies</th>
-                      <th>Awaiting decision</th>
+                      <th>To decide</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -296,7 +296,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                         <td data-label="Run">{r.run_id}</td>
                         <td data-label="Status"><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
                         <td data-label="Companies">{r.completed_count}/{r.company_count}</td>
-                        <td data-label="Awaiting decision">{r.review_count}</td>
+                        <td data-label="To decide">{r.review_count}</td>
                       </tr>
                     ))}
                   </tbody>

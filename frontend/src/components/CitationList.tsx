@@ -23,7 +23,7 @@ export function CitationList({ citations, onOpenSource }: Props) {
               not verified
             </span>
           )}{" "}
-          [{c.doc_type}] "{c.quote}"
+          {c.doc_type && `[${c.doc_type}] `}"{c.quote}"
           {c.grounded && c.company_id && c.source_filename && (
             <>
               {" "}

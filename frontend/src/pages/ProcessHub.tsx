@@ -144,15 +144,51 @@ function processParts(p: Process, runs: RunManifest[], flow: StewardshipFlow | n
   return { ...w, stages, total: w.ballots + w.review + stages };
 }
 
-function describe(parts: { ballots: number; review: number; stages: number }): string[] {
-  const out: string[] = [];
-  if (parts.ballots) out.push(`${parts.ballots} ballot item${parts.ballots === 1 ? "" : "s"}`);
-  if (parts.review) out.push(`${parts.review} flagged item${parts.review === 1 ? "" : "s"}`);
-  if (parts.stages) out.push(`${parts.stages} stage decision${parts.stages === 1 ? "" : "s"}`);
+type Part = { n: number; noun: string; href: string };
+
+/** The named parts, each with where it gets signed. `stageHref` is the first
+ * stewardship stage with open decisions. */
+function partList(parts: { ballots: number; review: number; stages: number }, stageHref = "#/stewardiq"): Part[] {
+  const out: Part[] = [];
+  if (parts.ballots) out.push({ n: parts.ballots, noun: `ballot item${parts.ballots === 1 ? "" : "s"}`, href: "#/voting" });
+  if (parts.review) out.push({ n: parts.review, noun: `flagged item${parts.review === 1 ? "" : "s"}`, href: "#/review" });
+  if (parts.stages) out.push({ n: parts.stages, noun: `stage decision${parts.stages === 1 ? "" : "s"}`, href: stageHref });
   return out;
 }
 
-const joinAnd = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+
+function openStageHref(p: Process, flow: StewardshipFlow | null): string | undefined {
+  return p.steps.find((s) => s.stage && openCount(flow?.stages.find((x) => x.id === s.stage)) > 0)?.href;
+}
+
+/** The earliest upcoming meeting among voting runs that still wait on a
+ * person, so the band can say what the ballot items are due before. */
+function useNextMeeting(runs: RunManifest[] | null) {
+  const ids = (runs ?? [])
+    .filter((r) => r.run_type === "proxy_voting" && r.review_count > 0)
+    .map((r) => r.run_id)
+    .sort()
+    .join(",");
+  const [next, setNext] = useState<{ name: string; date: Date } | null>(null);
+  useEffect(() => {
+    if (!ids) return setNext(null);
+    let cancelled = false;
+    Promise.all(ids.split(",").map((id) => api.getVotingBallots(id).then((x) => x.ballots, () => [])))
+      .then((all) => {
+        const today = new Date().setHours(0, 0, 0, 0);
+        const soonest = all
+          .flat()
+          .filter((b) => b.meeting_date && new Date(b.meeting_date).getTime() >= today)
+          .sort((a, b) => a.meeting_date!.localeCompare(b.meeting_date!))[0];
+        if (!cancelled) setNext(soonest ? { name: soonest.name, date: new Date(soonest.meeting_date!) } : null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ids]);
+  return next;
+}
+
 
 /** Where a run row goes: its review, its ballot, or its process. */
 function runHref(r: RunManifest): string {
@@ -183,6 +219,15 @@ function StepMark({ state }: { state: StepState }) {
       {state === "now" && <circle className="cs-mark-dot" cx="11" cy="11" r="3.5" />}
       {state === "failed" && <path d="M6 16 16 6" />}
     </svg>
+  );
+}
+
+/** One mark vocabulary for every process view. */
+function Legend() {
+  return (
+    <p className="cs-legend muted">
+      <StepMark state="idle" /> no activity yet <StepMark state="done" /> finished run <StepMark state="now" /> running <StepMark state="wait" /> awaiting countersignature <StepMark state="failed" /> void
+    </p>
   );
 }
 
@@ -228,7 +273,14 @@ function RegisterRow({ p, runs, flow }: { p: Process; runs: RunManifest[] | null
         ) : parts.total > 0 ? (
           <span className="cs-await">
             <span className="cs-sigline" aria-hidden />
-            {parts.total} awaiting: {describe(parts).join(", ")}
+            {parts.total} awaiting:{" "}
+            {partList(parts, openStageHref(p, flow)).map((x) => (
+              <span key={x.noun} className="cs-part">
+                <a href={x.href}>
+                  {x.n} {x.noun}
+                </a>
+              </span>
+            ))}
           </span>
         ) : (
           <span className="muted">Nothing to sign</span>
@@ -255,7 +307,8 @@ export function StartPage() {
     },
     { ballots: 0, review: 0, stages: 0 },
   );
-  const due = describe(totals);
+  const due = partList(totals);
+  const next = useNextMeeting(runs);
   const active = all.filter((r) => ACTIVE_STATUSES.has(r.status));
   const failed = all.filter((r) => r.status === "failed" && recent(r.updated_at));
   const rank = (r: RunManifest) => (ACTIVE_STATUSES.has(r.status) ? 0 : waitingCount(r) > 0 ? 1 : 2);
@@ -273,9 +326,15 @@ export function StartPage() {
             "Status unknown until the runs load."
           ) : due.length ? (
             <>
-              {joinAnd(due)
-                .split(/(\d+)/)
-                .map((chunk, i) => (i % 2 ? <em key={i}>{chunk}</em> : chunk))}{" "}
+              {due.map((x, i) => (
+                <span key={x.noun}>
+                  {i === 0 ? "" : i === due.length - 1 ? " and " : ", "}
+                  <em>{x.n}</em> {x.noun}
+                  {x.href === "#/voting" &&
+                    next &&
+                    ` before ${next.name}\u2019s meeting on ${next.date.toLocaleDateString(undefined, { day: "numeric", month: "short" })}`}
+                </span>
+              ))}{" "}
               await countersignature.
             </>
           ) : (
@@ -322,9 +381,7 @@ export function StartPage() {
             ))}
           </tbody>
         </table>
-        <p className="cs-legend muted">
-          <StepMark state="done" /> finished run <StepMark state="now" /> running <StepMark state="wait" /> awaiting countersignature <StepMark state="failed" /> void
-        </p>
+        <Legend />
       </section>
 
       <section aria-labelledby="cs-runs">
@@ -401,8 +458,11 @@ export function ProcessOverview({ id }: { id: string }) {
             <li key={s.label} className="hub-flow-item">
               <a className={`hub-step hub-step-${state}`} href={s.href}>
                 <span className="hub-step-head">
-                  <span className="hub-step-num">{i + 1}</span>
-                  <span className="hub-step-title">{s.label}</span>
+                  <StepMark state={state} />
+                  <span className="hub-step-title">
+                    {i + 1}. {s.label}
+                  </span>
+                  <span className="visually-hidden">: {STATE_LABEL[state]}</span>
                 </span>
                 {(waiting > 0 || decisions > 0) && (
                   <span className="hub-step-banner">{waiting > 0 ? `${waiting} waiting on you` : `${decisions} decision${decisions === 1 ? "" : "s"} open`}</span>
@@ -430,15 +490,13 @@ export function ProcessOverview({ id }: { id: string }) {
                   </span>
                 )}
                 {!mine && !stage?.metrics.length && <span className="hub-step-about">{s.about}</span>}
-                <span className="hub-step-foot">{s.screen} →</span>
+                <span className="hub-step-foot">{s.screen}</span>
               </a>
             </li>
           );
         })}
       </ol>
-      <p className="muted hub-legend">
-        <span className="hub-key done" /> has a finished run <span className="hub-key now" /> running <span className="hub-key wait" /> waiting on a person <span className="hub-key failed" /> last run failed
-      </p>
+      <Legend />
     </div>
   );
 }

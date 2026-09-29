@@ -760,7 +760,7 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 
 /* --- Monitoring dashboard --- */
 
-/* KPI strip: one ruled panel, cells divided by hairlines (the 1px gap shows
+/* Status row: one ruled register row, cells divided by hairlines (the 1px gap shows
    the border colour through) -- depth from rules, not six nested boxes.
    A fixed column count so six figures never wrap 5 + 1. */
 .dashboard-grid {
@@ -768,9 +768,8 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 1px;
   background: var(--panel-border);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--r-lg);
-  overflow: hidden;
+  border-top: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
   margin: 0 0 var(--s-6);
 }
 .dashboard-grid .stat-tile {
@@ -780,16 +779,14 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   gap: var(--s-1);
   border: none;
   border-radius: 0;
-  padding: var(--s-4);
+  padding: var(--s-3) var(--s-4);
 }
-.dashboard-grid .stat-value { font-size: var(--text-xl); margin: 0; line-height: 1.1; }
+.dashboard-grid .stat-value { font-size: var(--text-lg); font-weight: 600; margin: 0; line-height: 1.1; }
 .dashboard-grid .stat-label { line-height: 1.35; }
 .stat-value.stat-low { color: var(--low); }
 .stat-value.stat-mid { color: var(--mid); }
-/* The two tiles that need a person lead the row and go somewhere. */
-/* Read from the back of a committee room: the two figures that need a
-   person are the largest on the screen. */
-.dashboard-grid .stat-tile-action .stat-value { font-size: 2.25rem; font-weight: 600; }
+/* The two cells that need a person lead the row and go somewhere; the
+   violet stamp, not a bigger number, is what marks them. */
 .dashboard-grid .stat-tile-action .stat-label { color: var(--text); font-weight: 500; }
 .dashboard-grid .stat-tile-action.awaiting { background: var(--await); outline: 1.5px dashed var(--await-edge); outline-offset: -4px; }
 .stat-link {
@@ -899,6 +896,8 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 /* Status text sits on a 12% tint of its own hue, which cost it contrast
    (the danger banner measured 4.2:1), so the text is pulled toward ink. */
 .banner-warning { background: color-mix(in srgb, var(--mid) 12%, transparent); border: 1px solid var(--mid); color: color-mix(in oklch, var(--mid) 70%, var(--text)); }
+/* Waiting on a person: stamp violet, dashed like the signature line. */
+.banner-await { background: var(--await); border: 1px dashed var(--await-edge); color: var(--text); }
 .banner-success { background: color-mix(in srgb, var(--high) 12%, transparent); border: 1px solid var(--high); color: color-mix(in oklch, var(--high) 70%, var(--text)); }
 .banner-danger { background: color-mix(in srgb, var(--low) 12%, transparent); border: 1px solid var(--low); color: color-mix(in oklch, var(--low) 70%, var(--text)); }
 
@@ -1260,7 +1259,7 @@ mark.style-flag { background: color-mix(in srgb, var(--mid) 30%, transparent); c
   font-size: var(--text-xs);
   font-weight: 600;
 }
-.capability { color: var(--muted); }
+.capability { color: var(--muted); border-style: dashed; }
 .capability.ready { color: var(--high); border-color: var(--high); }
 /* A studio section's phase (Construct, Review, Design...) sits beside its
    heading as a quiet note, never as a label above it. */
@@ -1482,7 +1481,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .cs-band h2 em { font-style: normal; color: var(--await-edge); font-variant-numeric: tabular-nums; }
 .cs-asof { position: relative; margin: 0; color: var(--muted); font-size: var(--text-sm); }
 .cs-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-3); margin: var(--s-8) 0 var(--s-2); }
-.cs-head h3 { margin: 0; font-family: var(--font-engraved); font-weight: 700; font-size: var(--text-md); letter-spacing: 0.1em; color: var(--accent); }
+.cs-head h3 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: var(--text-md); color: var(--accent); }
 .cs-head a { color: var(--accent); font-weight: 600; font-size: var(--text-sm); }
 .cs-table { width: 100%; border-collapse: collapse; background: var(--panel); border-top: 2px solid var(--accent); border-bottom: 2px solid var(--accent); font-variant-numeric: tabular-nums; }
 .cs-table th[scope="col"] { padding: 8px 12px; text-align: left; font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--accent); }
@@ -1501,6 +1500,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .cs-mark-failed { stroke: var(--void); }
 .cs-prepared { color: var(--muted); font-size: var(--text-sm); }
 .cs-await { display: inline-flex; flex-direction: column; gap: 3px; color: var(--await-edge); font-size: var(--text-sm); font-weight: 700; }
+.cs-part a { color: inherit; text-underline-offset: 0.15em; }
 .cs-sigline { display: block; width: 9rem; height: 12px; border-bottom: 1.5px dashed var(--await-edge); }
 .cs-void { display: inline-block; margin-right: 6px; padding: 0 6px; border: 2px solid var(--void); color: var(--void); font-family: var(--font-engraved); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; transform: rotate(-4deg); }
 .cs-open a { color: var(--accent); font-weight: 700; text-underline-offset: 3px; }
@@ -1527,13 +1527,6 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
   .cs-progress { width: auto; }
 }
 
-.hub-legend { font-size: var(--text-xs); margin-top: var(--s-3); }
-.hub-key { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 4px 1px 10px; vertical-align: middle; }
-.hub-key:first-child { margin-left: 0; }
-.hub-key.done { background: var(--high); }
-.hub-key.now { background: var(--accent); }
-.hub-key.wait { background: var(--await); border: 2px solid var(--await-edge); }
-.hub-key.failed { background: var(--void); }
 
 .hub-crumb { margin: 0 0 var(--s-1); font-size: var(--text-sm); color: var(--muted); }
 .hub-crumb a { color: var(--accent); }
@@ -1549,8 +1542,6 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-step-wait { border: 1.5px dashed var(--await-edge); }
 .hub-step-failed { border-color: var(--void); }
 .hub-step-head { display: flex; align-items: center; gap: 8px; }
-.hub-step-num { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--r-sm); background: var(--well); color: var(--muted); font-family: var(--font-mono); font-weight: 600; }
-.hub-step-done .hub-step-num { color: var(--high); }
 .hub-step-title { font-family: var(--font-display); font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; line-height: 1.25; }
 .hub-step-banner { padding: 4px 8px; border-radius: var(--r-sm); background: var(--await); border: 1px solid var(--await-edge); font-weight: 600; text-align: center; }
 .hub-step-rows { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: var(--r-sm); background: var(--well); color: var(--muted); }

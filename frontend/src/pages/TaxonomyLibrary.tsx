@@ -238,7 +238,7 @@ function LibraryView({
                       </div>
                       {onUseInTheme && (
                         <div className="toolbar">
-                          <button onClick={() => onUseInTheme(t.taxonomy_id)}>Use in Thematic Universe &rarr;</button>
+                          <button onClick={() => onUseInTheme(t.taxonomy_id)}>Use in Thematic Universe</button>
                         </div>
                       )}
                       <p className="help-text">

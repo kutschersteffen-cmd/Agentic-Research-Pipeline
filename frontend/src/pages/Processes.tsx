@@ -159,7 +159,7 @@ export function ProcessBar({ tab, sub }: { tab: string; sub?: string }) {
       </span>
       {next ? (
         <a href={stepHref(next)} className="process-bar-next" onClick={() => writeWalk({ id: process.id, step: i + 1 })}>
-          Next: {next.label} →
+          Next: {next.label}
         </a>
       ) : (
         <span className="muted">Last step</span>

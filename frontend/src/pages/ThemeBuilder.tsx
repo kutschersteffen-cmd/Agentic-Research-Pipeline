@@ -412,7 +412,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
                 </button>
                 {sentUniverse && (
                   <button onClick={() => onSendToExtraction?.(sentUniverse.path, sentUniverse.count)}>
-                    Go to Extraction Engine &rarr;
+                    Go to Extraction Engine
                   </button>
                 )}
               </div>

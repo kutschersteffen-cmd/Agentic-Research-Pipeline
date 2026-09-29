@@ -132,7 +132,7 @@ function ProposalReview({
         </div>
       )}
       {rec?.engagement_alignment_flag && (
-        <div className="banner banner-warning">
+        <div className="banner banner-await">
           <strong>Needs a second person.</strong> Engagement alignment flag: {rec.engagement_alignment_note}
         </div>
       )}

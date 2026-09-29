@@ -123,7 +123,7 @@ export function PersistentSelectionPane({ onSendUniverse }: { onSendUniverse?: (
               <span className="muted">Use the companies held in {selectionLabel || "this selection"} in:</span>
               {DESTINATIONS.map((d) => (
                 <button key={d.id} className="secondary" disabled={sending} onClick={() => sendHoldings(d.id)}>
-                  {d.label} &rarr;
+                  {d.label}
                 </button>
               ))}
               {sendError && <span className="error-text" role="alert">{sendError}</span>}

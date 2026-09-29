@@ -351,7 +351,7 @@ export function DraftingStudio({ stage, onChanged, onOpen }: StudioProps) {
                     <td>
                       {d.status === "draft" && (
                         <button className="link-button" onClick={() => onOpen("checkpoint")}>
-                          Approve at stage 5 →
+                          Approve at stage 5
                         </button>
                       )}
                       {d.status === "approved" && (

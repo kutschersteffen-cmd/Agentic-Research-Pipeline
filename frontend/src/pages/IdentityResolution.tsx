@@ -125,7 +125,7 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
               </button>
               {sentUniverse && (
                 <button onClick={() => onSendToDiscovery?.(sentUniverse.path, sentUniverse.count)}>
-                  Go to Document Discovery &rarr;
+                  Go to Document Discovery
                 </button>
               )}
             </div>

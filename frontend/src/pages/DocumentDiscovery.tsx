@@ -94,10 +94,10 @@ export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {
           <div className="toolbar">
             <span className="muted">Next, with the same {companyCount} companies:</span>
             <button className="secondary" onClick={() => onSendUniverse("extraction", universePath, companyCount)}>
-              Extraction &rarr;
+              Extraction
             </button>
             <button className="secondary" onClick={() => onSendUniverse("transitionPlan", universePath, companyCount)}>
-              Transition Plan &rarr;
+              Transition Plan
             </button>
           </div>
         )}
