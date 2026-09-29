@@ -38,10 +38,12 @@ add_marketplace pbakaus/impeccable
 add_marketplace ayghri/i-have-adhd
 add_marketplace forrestchang/andrej-karpathy-skills
 add_marketplace blader/humanizer
+add_marketplace obra/superpowers-marketplace
 
 installed=()
 for spec in ponytail@ponytail ui-ux-pro-max@ui-ux-pro-max-skill impeccable@impeccable \
-            i-have-adhd@i-have-adhd andrej-karpathy-skills@karpathy-skills humanizer@humanizer; do
+            i-have-adhd@i-have-adhd andrej-karpathy-skills@karpathy-skills humanizer@humanizer \
+            superpowers@superpowers-marketplace; do
   name=$(install_plugin "$spec") && [ -n "$name" ] && installed+=("$name")
 done
 
