@@ -54,16 +54,30 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-// Purely a sidebar presentation grouping -- ids must match TABS above.
-// Ordered by the stewardship team's day: what waits on a person first, then
-// their own work, then the research and portfolio tools that feed it.
+// Screens that share one sidebar item, switched by a tab strip above the page.
+// Every id keeps its own route, so deep links and Processes steps still land.
+const HUBS: { label: string; tabs: [TabId, string][] }[] = [
+  { label: "Dashboard", tabs: [["dashboard", "Overview"], ["processes", "Processes"]] },
+  { label: "Library", tabs: [["library", "Data Library"], ["search", "Search"]] },
+  { label: "Onboard issuers", tabs: [["identity", "1 Resolve identities"], ["discovery", "2 Find documents"]] },
+  { label: "Runs", tabs: [["history", "Run history"], ["backgroundAgents", "Standing agents"]] },
+];
+const hubOf = (id: TabId) => HUBS.find((h) => h.tabs.some(([t]) => t === id));
+// Transition Plan is Extraction preset to its profile (Extraction's own
+// profile toggle switches it), so the sidebar shows Extraction for both.
+const navIdOf = (id: TabId): TabId => (id === "transitionPlan" ? "extraction" : id);
+
+// Purely a sidebar presentation grouping -- ids must match TABS above; a hub
+// is listed by its first tab. Ordered by the stewardship team's day: what
+// waits on a person first, then their own work, then the research and
+// portfolio tools that feed it.
 const NAV_GROUPS: { label: string | null; ids: readonly TabId[] }[] = [
-  { label: null, ids: ["dashboard", "processes", "search"] },
+  { label: null, ids: ["dashboard", "library"] },
   { label: "Needs you", ids: ["review", "voting"] },
-  { label: "Stewardship", ids: ["stewardship", "engagement", "transitionPlan", "transitionBarrier"] },
-  { label: "Research", ids: ["theme", "taxonomy", "emergingThemes", "extraction", "identity", "discovery", "backgroundAgents"] },
+  { label: "Stewardship", ids: ["stewardship", "engagement", "extraction", "transitionBarrier"] },
+  { label: "Research", ids: ["theme", "taxonomy", "emergingThemes", "identity"] },
   { label: "Portfolio", ids: ["portfolio-monitoring", "strategyReplication", "decision", "index"] },
-  { label: "Output", ids: ["reporting", "library", "history"] },
+  { label: "Output", ids: ["reporting", "history"] },
 ];
 
 const REVIEWABLE = new Set<string>(["theme", "extraction", "financials", "identity"]);
@@ -111,6 +125,8 @@ function App() {
       })
       .catch(() => setWaiting(null));
   }, [route]);
+
+  const hub = hubOf(active);
 
   const pendingReview =
     active === "review" && route.params.length === 2 && REVIEWABLE.has(route.params[0])
@@ -187,17 +203,19 @@ function App() {
               {group.label && <div className="nav-group-label">{group.label}</div>}
               {group.ids.map((id) => {
                 const t = TABS.find((tab) => tab.id === id)!;
+                const h = hubOf(id);
+                const current = h ? h.tabs.some(([tid]) => tid === active) : id === navIdOf(active);
                 const count = waiting && (id === "review" || id === "voting") ? waiting[id] : 0;
                 return (
                   <a
                     key={t.id}
                     href={`#/${t.id}`}
-                    className={t.id === active ? "nav-tab active" : "nav-tab"}
-                    aria-current={t.id === active ? "page" : undefined}
+                    className={current ? "nav-tab active" : "nav-tab"}
+                    aria-current={current ? "page" : undefined}
                     onClick={() => setNavOpen(false)}
                   >
                     <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
-                    <span className="nav-tab-label">{t.label}</span>
+                    <span className="nav-tab-label">{h?.label ?? t.label}</span>
                     {count > 0 && (
                       <span className="nav-count" aria-label={`${count} awaiting a decision`}>
                         {count}
@@ -211,6 +229,15 @@ function App() {
         </nav>
       </aside>
       <main className="app-main">
+        {hub && (
+          <nav className="sub-nav hub-nav" aria-label={hub.label}>
+            {hub.tabs.map(([id, label]) => (
+              <a key={id} href={`#/${id}`} className={id === active ? "nav-tab active" : "nav-tab"} aria-current={id === active ? "page" : undefined}>
+                {label}
+              </a>
+            ))}
+          </nav>
+        )}
         {active === "dashboard" && <MonitoringDashboard onNavigate={go} onOpenReview={openReview} />}
         {active === "processes" && <Processes selected={route.params[0] ?? null} onSelect={(id) => navigate("processes", id)} />}
         {active === "search" && <Search />}
