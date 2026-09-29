@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
+import { REVIEWER_REQUIRED, useReviewer } from "../../lib/reviewer";
 import { ConfidenceBadge } from "../../components/ConfidenceBadge";
+import { DecisionBar } from "../../components/DecisionBar";
 import type {
   DataPointObservation,
   GovernanceDecision,
@@ -54,7 +56,7 @@ export function GovernanceAudit() {
   const [owners, setOwners] = useState<RiskCategoryOwner[]>([]);
   const [ownerInputs, setOwnerInputs] = useState<Record<string, string>>({});
 
-  const [decidedBy, setDecidedBy] = useState("");
+  const [decidedBy] = useReviewer();
   const [overrideInputs, setOverrideInputs] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
 
@@ -87,7 +89,7 @@ export function GovernanceAudit() {
 
   async function decide(itemType: "entity_resolution" | "climate_conflict", itemKey: string, decision: "accept" | "override" | "reject") {
     if (!decidedBy.trim()) {
-      setError("Enter who's making this decision (top right) before acting on an item.");
+      setError(REVIEWER_REQUIRED);
       return;
     }
     const overrideValue = overrideInputs[itemKey];
@@ -111,7 +113,8 @@ export function GovernanceAudit() {
   }
 
   async function submitPolicyChange() {
-    if (!decidedBy.trim() || !policyNewValue) return;
+    if (!decidedBy.trim()) return setError(REVIEWER_REQUIRED);
+    if (!policyNewValue) return;
     setError(null);
     try {
       await api.updateGovernancePolicy({ setting_name: policySetting, new_value: Number(policyNewValue), changed_by: decidedBy.trim(), reason: policyReason });
@@ -125,7 +128,8 @@ export function GovernanceAudit() {
 
   async function assignOwner(category: string) {
     const owner = ownerInputs[category];
-    if (!decidedBy.trim() || !owner?.trim()) return;
+    if (!decidedBy.trim()) return setError(REVIEWER_REQUIRED);
+    if (!owner?.trim()) return;
     setError(null);
     try {
       await api.assignGovernanceOwner(category, { owner: owner.trim(), assigned_by: decidedBy.trim() });
@@ -251,7 +255,6 @@ export function GovernanceAudit() {
         <button className={view === "all" ? "nav-tab active" : "nav-tab"} aria-pressed={view === "all"} onClick={() => setView("all")}>
           all
         </button>
-        <input aria-label="Decided by" placeholder="Decided by (required to act on an item)" value={decidedBy} onChange={(e) => setDecidedBy(e.target.value)} />
       </div>
       {error && <p className="error-text">{error}</p>}
 
@@ -287,21 +290,19 @@ export function GovernanceAudit() {
                     </td>
                     <td>{r.method}</td>
                     <td>{decision ? `${decision.decision} by ${decision.decided_by}` : <span className="muted">none</span>}</td>
-                    <td className="toolbar">
-                      <button className="link-button" onClick={() => decide("entity_resolution", r.security_id, "accept")}>
-                        Accept
-                      </button>
+                    <td>
                       <input
+                        aria-label="Corrected value, for Override"
                         placeholder="correct company_id"
                         value={overrideInputs[r.security_id] ?? ""}
                         onChange={(e) => setOverrideInputs((prev) => ({ ...prev, [r.security_id]: e.target.value }))}
                       />
-                      <button className="link-button" onClick={() => decide("entity_resolution", r.security_id, "override")}>
-                        Override
-                      </button>
-                      <button className="link-button" onClick={() => decide("entity_resolution", r.security_id, "reject")}>
-                        Reject
-                      </button>
+                      <DecisionBar
+                        approveLabel="Accept"
+                        onApprove={() => decide("entity_resolution", r.security_id, "accept")}
+                        onOverride={() => decide("entity_resolution", r.security_id, "override")}
+                        onReject={() => decide("entity_resolution", r.security_id, "reject")}
+                      />
                     </td>
                   </tr>
                 );
@@ -350,23 +351,21 @@ export function GovernanceAudit() {
                     <td>{String(c.conflicting_value)}</td>
                     <td>{c.conflicting_source_label}</td>
                     <td>{decision ? `${decision.decision} by ${decision.decided_by}` : <span className="muted">none</span>}</td>
-                    <td className="toolbar">
-                      <button className="link-button" onClick={() => decide("climate_conflict", itemKey, "accept")}>
-                        Accept
-                      </button>
+                    <td>
                       <input
                         type="number"
                         step="any"
+                        aria-label="Corrected value, for Override"
                         placeholder="correct value"
                         value={overrideInputs[itemKey] ?? ""}
                         onChange={(e) => setOverrideInputs((prev) => ({ ...prev, [itemKey]: e.target.value }))}
                       />
-                      <button className="link-button" onClick={() => decide("climate_conflict", itemKey, "override")}>
-                        Override
-                      </button>
-                      <button className="link-button" onClick={() => decide("climate_conflict", itemKey, "reject")}>
-                        Reject
-                      </button>
+                      <DecisionBar
+                        approveLabel="Accept"
+                        onApprove={() => decide("climate_conflict", itemKey, "accept")}
+                        onOverride={() => decide("climate_conflict", itemKey, "override")}
+                        onReject={() => decide("climate_conflict", itemKey, "reject")}
+                      />
                     </td>
                   </tr>
                 );
