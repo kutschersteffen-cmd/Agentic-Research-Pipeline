@@ -43,3 +43,24 @@ def test_missing_image_raises(tmp_path):
     deck = Deck(title="T", slides=[SlideContent(headline="h", layout="image", variant="default", image_path=str(tmp_path / "no.png"))])
     with pytest.raises(FileNotFoundError, match="no.png"):
         render_deck_html(deck, [])
+
+
+def _tokens_with_fonts(heading: str, body: str):
+    from arp.reporting.house_style import load_tokens
+
+    t = load_tokens()
+    return t.model_copy(update={"fonts": t.fonts.model_copy(update={"heading": heading, "body": body})})
+
+
+def test_token_font_with_a_file_is_embedded_as_data_uri():
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="bullets", variant="three", slots={"items": ["a"]})])
+    html = render_deck_html(deck, [], tokens=_tokens_with_fonts("'Source Serif 4', Georgia, serif", "Source Sans 3, Arial, sans-serif"))
+    assert "--font-heading: 'Source Serif 4', Georgia, serif" in html  # quotes not HTML-escaped inside <style>
+    assert html.count("@font-face") == 3  # SourceSerif4-600, SourceSans3-400/600
+    assert "font-family: 'Source Serif 4'; font-weight: 600" in html and "src: url(data:font/ttf;base64," in html
+
+
+def test_token_font_without_a_file_falls_back_without_font_face():
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="bullets", variant="three", slots={"items": ["a"]})])
+    html = render_deck_html(deck, [], tokens=_tokens_with_fonts("No Such Face, Arial, sans-serif", "Helvetica Neue, Arial"))
+    assert "@font-face" not in html and "No Such Face, Arial, sans-serif" in html

@@ -220,7 +220,7 @@ def render_chart_svg(
     with plt.rc_context({"svg.fonttype": "none"}):
         fig = _draw_chart(spec, datasets, theme, width_px / 144, height_px / 144)
         buf = StringIO()
-        fig.savefig(buf, format="svg", facecolor=fig.get_facecolor())
+        fig.savefig(buf, format="svg", transparent=True)  # the slide's own background shows through
         plt.close(fig)
     svg = buf.getvalue()
     return svg[svg.index("<svg") :]

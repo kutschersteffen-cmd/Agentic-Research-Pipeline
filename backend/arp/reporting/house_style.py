@@ -29,6 +29,8 @@ class Grid(BaseModel):
     gutter: int
     headline_band: int
     footer_band: int
+    rule_width: int = 96  # accent rule above the headline; the content width makes it a full rule
+    rule_height: int = 8
 
 
 class TypeStyle(BaseModel):
@@ -55,6 +57,7 @@ class Colors(BaseModel):
     accent: str
     background: str
     categorical: list[str]
+    band: str | None = None  # full-bleed fill behind the headline band; None = no band
 
 
 class Fonts(BaseModel):

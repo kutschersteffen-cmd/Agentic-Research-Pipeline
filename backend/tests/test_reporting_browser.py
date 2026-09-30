@@ -1,7 +1,10 @@
+from pathlib import Path
+
 import pytest
 from pypdf import PdfReader
 
 from arp.reporting.browser import BrowserUnavailable, measure, write_pdf, write_pngs
+from arp.reporting.house_style import Tokens
 from arp.reporting.html_render import render_deck_html
 from arp.schemas.reporting import Deck, SlideContent
 from tests.fixtures.stress_deck import stress_deck
@@ -47,3 +50,14 @@ async def test_overlong_headline_reports_overflow():
     deck = Deck(title="T", slides=[SlideContent(headline="word " * 60, layout="bullets", variant="three", slots={"items": ["a"]})])
     [f] = await measure(render_deck_html(deck, []))
     assert (f.rule, f.slot, f.slide) == ("overflow", "headline", 0)
+
+
+_DIRECTIONS = sorted((Path(__file__).parents[1] / "arp/reporting/style/directions").glob("*.json"))
+
+
+@pytest.mark.parametrize("path", _DIRECTIONS, ids=[p.stem for p in _DIRECTIONS])
+async def test_stress_deck_max_fits_in_every_candidate_direction(path):
+    deck, ds = stress_deck("max")
+    html = render_deck_html(deck, ds, tokens=Tokens.model_validate_json(path.read_text()))
+    assert "data:font/" in html
+    assert await measure(html) == []

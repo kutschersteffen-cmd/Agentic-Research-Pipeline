@@ -26,7 +26,7 @@ def theme_from_tokens(tokens: Tokens) -> DesignTheme:
     c = tokens.color
     bare = lambda h: h.lstrip("#")  # noqa: E731 -- DesignTheme stores colors without '#'
     return DesignTheme(
-        accent=bare(c.accent), ink_primary=bare(c.ink), ink_secondary=bare(c.ink_muted), gridline=bare(c.neutral),
+        accent=bare(c.accent), ink_primary=bare(c.ink), ink_secondary=bare(c.ink_muted), ink_muted=bare(c.ink_muted), gridline=bare(c.neutral),
         categorical=[bare(x) for x in c.categorical],
         font_major=tokens.fonts.heading.split(",")[0], font_minor=tokens.fonts.body.split(",")[0],
     )
@@ -38,6 +38,20 @@ def _data_uri(path: Path) -> str:
         raise FileNotFoundError(f"image_path does not exist: {path}")
     mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     return f"data:{mime};base64,{base64.b64encode(path.read_bytes()).decode()}"
+
+
+def _font_faces(tokens: Tokens) -> str:
+    # Files are style/fonts/<dir>/<FamilyWithoutSpaces>-<weight>.(woff2|ttf), e.g. SourceSerif4-600.ttf.
+    faces = []
+    for family in dict.fromkeys(f.split(",")[0].strip().strip("'\"") for f in (tokens.fonts.heading, tokens.fonts.body)):
+        for path in sorted((_STYLE_DIR / "fonts").glob(f"*/{family.replace(' ', '')}-*")):
+            weight, ext = path.stem.rsplit("-", 1)[1], path.suffix[1:]
+            if weight.isdigit() and ext in ("woff2", "ttf"):
+                b64 = base64.b64encode(path.read_bytes()).decode()
+                fmt = "woff2" if ext == "woff2" else "truetype"
+                faces.append(f"@font-face {{ font-family: '{family}'; font-weight: {weight}; font-style: normal; "
+                             f"src: url(data:font/{ext};base64,{b64}) format('{fmt}'); }}")
+    return "\n".join(faces)
 
 
 def _as_text(v: str | list[str] | None) -> str:
@@ -74,4 +88,4 @@ def render_deck_html(deck: Deck, datasets: list[QuantitativeDataset], tokens: To
         }
         for i, s in enumerate(deck.slides)
     ]
-    return _env.get_template("base.html.j2").render(deck=deck, slides=slides, t=tokens)
+    return _env.get_template("base.html.j2").render(deck=deck, slides=slides, t=tokens, font_faces=_font_faces(tokens))
