@@ -1788,6 +1788,8 @@ export interface LevelCriterion {
   enabled: boolean;
   rules: LevelRule[];
   otherwise?: number | null;
+  /** Whether `otherwise` also applies when a value a rule reads is blank. */
+  otherwise_on_blank?: boolean;
   hint?: string;
 }
 

@@ -220,6 +220,8 @@ def _level_changes(before: MechanismConfig, after: MechanismConfig, by: str | No
             changes.append("level rules: " + "; ".join(f"{r.level} if {r.when}" for r in criterion.rules))
         if previous.otherwise != criterion.otherwise:
             changes.append(f"default level {_render(previous.otherwise)} -> {_render(criterion.otherwise)}")
+        if previous.otherwise_on_blank != criterion.otherwise_on_blank:
+            changes.append("default level " + ("now also fills blank values" if criterion.otherwise_on_blank else "no longer fills blank values"))
         if previous.weight != criterion.weight:
             changes.append(f"weight {previous.weight:g} -> {criterion.weight:g}")
         if previous.dimension_id != criterion.dimension_id:

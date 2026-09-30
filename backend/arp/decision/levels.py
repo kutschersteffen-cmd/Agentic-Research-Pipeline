@@ -61,9 +61,11 @@ def level_weights(config: MechanismConfig) -> dict[str, float]:
 
 def evaluate_levels(dataset: Dataset, config: MechanismConfig, profiles: dict[str, ColumnProfile]) -> tuple[list[dict[str, tuple[int | None, bool]]], int]:
     """Per row, per criterion: (level, from_default). A rule whose condition
-    cannot be evaluated on a row -- a comparison against a blank value,
-    usually -- does not match: missing data never earns a level. Returns the
-    levels and how many rule evaluations errored that way."""
+    cannot be decided on a row -- a comparison against a blank value, or a
+    blank flag -- does not match. If no rule holds, the criterion's
+    `otherwise` applies, unless a rule was undecided and the criterion has
+    `otherwise_on_blank` off: then the row gets no level. Returns the levels
+    and how many rule evaluations errored."""
     contexts = rule_inputs(dataset, profiles)
     criteria = [c for c in config.level_criteria if c.enabled]
     compiled = {(c.id, i): zen.compile_expression(r.when) for c in criteria for i, r in enumerate(c.rules) if r.when.strip()}
@@ -73,6 +75,7 @@ def evaluate_levels(dataset: Dataset, config: MechanismConfig, profiles: dict[st
         row: dict[str, tuple[int | None, bool]] = {}
         for criterion in criteria:
             level: int | None = None
+            blank = False  # a rule could not be decided: a value it reads is blank
             for i, rule in enumerate(criterion.rules):
                 if (criterion.id, i) not in compiled:  # a rule not written yet
                     continue
@@ -80,11 +83,18 @@ def evaluate_levels(dataset: Dataset, config: MechanismConfig, profiles: dict[st
                     hit = compiled[(criterion.id, i)].evaluate(context)
                 except Exception:  # noqa: BLE001 - a blank the rule compares against
                     errors += 1
+                    blank = True
                     continue
                 if hit is True:
                     level = rule.level
                     break
-            row[criterion.id] = (level, False) if level is not None else (criterion.otherwise, criterion.otherwise is not None)
+                blank = blank or not isinstance(hit, bool)  # a bare blank flag evaluates to null
+            if level is not None:
+                row[criterion.id] = (level, False)
+            elif blank and not criterion.otherwise_on_blank:
+                row[criterion.id] = (None, False)
+            else:
+                row[criterion.id] = (criterion.otherwise, criterion.otherwise is not None)
         out.append(row)
     return out, errors
 
