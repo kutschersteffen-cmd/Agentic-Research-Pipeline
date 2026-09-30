@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { StewardshipFlow, StewardshipStream } from "../types";
-import { SOURCE_LABEL, openCount } from "./steward/common";
+import { SOURCE_LABEL, STAGE_TABS, openCount } from "./steward/common";
+
+export { STAGE_TABS };
 import { useReviewer } from "../lib/reviewer";
 import { FlowChart, FlowList } from "./steward/flow";
 import { DraftingStudio } from "./steward/drafting";
@@ -18,19 +20,6 @@ import {
 } from "./steward/studios";
 import type { MetricSource } from "../types";
 
-// One tab per stage of docs/STEWARDSHIP_OPERATING_MODEL.md, Part 2. Stages 1-6
-// are house truth and always show the house program; 7-8 work on a client stream.
-export const STAGE_TABS = [
-  { id: "monitoring", n: 1, label: "Monitoring" },
-  { id: "selection", n: 2, label: "Selection" },
-  { id: "drafting", n: 3, label: "Drafting" },
-  { id: "voting", n: 4, label: "Voting" },
-  { id: "checkpoint", n: 5, label: "Checkpoint" },
-  { id: "tracking", n: 6, label: "Tracking" },
-  { id: "client_policy", n: 7, label: "Client policy" },
-  { id: "reporting", n: 8, label: "Reporting" },
-  { id: "program", n: null, label: "Client program" },
-] as const;
 // "program" is not a stage: it calibrates a client program across stages 2-5 (Part 5).
 const CLIENT_STAGES = new Set(["client_policy", "reporting", "program"]);
 
@@ -110,7 +99,7 @@ function AddStream({ onCreated }: { onCreated: (id: string) => void }) {
   }
   return (
     <section className="card">
-      <h3>Add a client stream</h3>
+      <h2>Add a client stream</h2>
       <p className="help-text">
         A client stream runs the house process with the client's own policy on top. Start from the client's envisioned voting
         policy as a questionnaire (JSON, positions on the issue catalogue), or from the built-in example to try it out.
@@ -147,6 +136,9 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // The overview reads as a list by default (what a committee can follow);
+  // the graph shows the loops between stages for whoever wants them.
+  const [view, setView] = useState<"list" | "graph">("list");
 
   const loadStreams = useCallback(async () => {
     try {
@@ -201,17 +193,10 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
         <button className={tab === "overview" ? "nav-tab active" : "nav-tab"} aria-current={tab === "overview" ? "step" : undefined} onClick={() => openTab("overview")}>
           Overview
         </button>
-        {STAGE_TABS.map((t) => {
+        {STAGE_TABS.filter((t) => !CLIENT_STAGES.has(t.id)).map((t) => {
           const n = openCount(stageFor(t.id));
           return (
             <span key={t.id} className="stepper-item">
-              {t.id === "monitoring" && <span className="stepper-group">House</span>}
-              {t.id === "client_policy" && (
-                <>
-                  <span className="stepper-break" />
-                  <span className="stepper-group">Client</span>
-                </>
-              )}
               <button
                 className={tab === t.id ? "nav-tab active" : "nav-tab"}
                 aria-current={tab === t.id ? "step" : undefined}
@@ -225,6 +210,20 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
             </span>
           );
         })}
+        {/* Client work (stages 7-8 and the program) is one control, not three tabs. */}
+        <select
+          className={CLIENT_STAGES.has(tab) ? "nav-tab active" : "nav-tab"}
+          aria-label="Client stages"
+          value={CLIENT_STAGES.has(tab) ? tab : ""}
+          onChange={(e) => e.target.value && openTab(e.target.value)}
+        >
+          <option value="">Client…</option>
+          {STAGE_TABS.filter((t) => CLIENT_STAGES.has(t.id)).map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.n ? `${t.n} ${t.label}` : t.label}
+            </option>
+          ))}
+        </select>
       </nav>
 
       {error && <p className="error-text" role="alert">{error}</p>}
@@ -260,7 +259,7 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
           {!adding && overviewFlow && (
             <section className="card">
               <div className="section-heading">
-                <h3>{overviewFlow.stream.name}</h3>
+                <h2>{overviewFlow.stream.name}</h2>
                 {mandate && (
                   <span className="chip">
                     {[mandate.vehicle_type, mandate.benchmark, mandate.voting_mode && mandate.voting_mode.replace(/_/g, " ")].filter(Boolean).join(" · ")}
@@ -276,9 +275,18 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
                 ))}
               </div>
               {stream === "house" && <HouseUniverse onChanged={reload} />}
-              <p className="muted">{overviewFlow.data_note} Click a stage to open its studio.</p>
-              <FlowChart flow={overviewFlow} selected="" onSelect={openTab} />
-              <FlowList flow={overviewFlow} selected="" onSelect={openTab} />
+              <div className="toolbar flow-view">
+                <p className="muted">{overviewFlow.data_note} Click a stage to open its studio.</p>
+                <span className="flow-view-switch">
+                  {(["list", "graph"] as const).map((v) => (
+                    <button key={v} className={view === v ? "nav-tab active" : "nav-tab"} aria-pressed={view === v} onClick={() => setView(v)}>
+                      {v === "list" ? "List" : "Graph"}
+                    </button>
+                  ))}
+                </span>
+              </div>
+              {view === "graph" && <FlowChart flow={overviewFlow} selected="" onSelect={openTab} />}
+              <FlowList flow={overviewFlow} selected="" onSelect={openTab} phoneOnly={view === "graph"} />
             </section>
           )}
         </>

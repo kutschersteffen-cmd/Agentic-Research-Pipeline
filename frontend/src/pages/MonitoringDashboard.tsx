@@ -168,7 +168,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
         <div className="dashboard-column">
           <section className={active.length === 0 ? "card card-empty" : "card"}>
             <div className="section-heading">
-              <h3>Currently executing</h3>
+              <h2>Currently executing</h2>
               {active.length === 0 && <span className="muted">{runsKnown ? "Nothing running right now." : "Unknown until runs load."}</span>}
             </div>
             {active.map((r) => {
@@ -203,7 +203,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
 
           <section className={finished.length === 0 ? "card card-empty" : "card"}>
             <div className="section-heading">
-              <h3>Finished runs</h3>
+              <h2>Finished runs</h2>
               <span className="muted">{finished.length > 0 ? "Most recent 25" : runsKnown ? "No finished runs yet." : "Unknown until runs load."}</span>
             </div>
             {finished.length > 0 && (
@@ -247,7 +247,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
         <div className="dashboard-column">
           <section className={openIssues.length === 0 ? "card card-empty" : "card"}>
             <div className="section-heading">
-              <h3>Open engagement issues</h3>
+              <h2>Open engagement issues</h2>
               {openIssues.length === 0 && <span className="muted">{recordsLoaded ? "No open issues." : "Unknown until issues load."}</span>}
               <button className="link-button" onClick={() => onNavigate("engagement")}>
                 Open Engagement &rarr;
@@ -276,7 +276,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
           {votingRuns.length > 0 && (
             <section className="card">
               <div className="section-heading">
-                <h3>Proxy voting runs</h3>
+                <h2>Proxy voting runs</h2>
                 <button className="link-button" onClick={() => onNavigate("voting")}>
                   Open Voting &rarr;
                 </button>

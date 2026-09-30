@@ -230,9 +230,9 @@ export function TrackingStudio({ stage, onChanged }: StudioProps) {
         )}
         {study && (
           <>
-            <h4>
+            <h3>
               {study.company}: {words(study.theme)} ({study.status})
-            </h4>
+            </h3>
             <FlaggedText text={study.text} flags={study.style_flags} />
             <p className="muted">
               {study.provenance} {study.style_flags.length

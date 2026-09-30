@@ -367,7 +367,7 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
   return (
     <>
       <section className="card">
-        <h3>1. Method &amp; theme</h3>
+        <h2>1. Method &amp; theme</h2>
         <label className="field-label">
           Derivation method
           <select value={method} onChange={(e) => setMethod(e.target.value as DerivationMethod)}>
@@ -441,7 +441,7 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
 
       {draft && (
         <section className="card">
-          <h3>2. Review &amp; adjust the drafted taxonomy</h3>
+          <h2>2. Review &amp; adjust the drafted taxonomy</h2>
           <p className="muted">
             {draft.name} v{draft.version} — {draft.source_notes}
           </p>
@@ -539,7 +539,7 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
 
   return (
     <section className="card">
-      <h3>Compare two taxonomies</h3>
+      <h2>Compare two taxonomies</h2>
       <div className="inline-fields">
         <select aria-label="Taxonomy A" value={idA} onChange={(e) => setIdA(e.target.value)}>
           <option value="">Taxonomy A</option>
@@ -584,7 +584,7 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
         </div>
       )}
 
-      <h3>Merge into a new taxonomy</h3>
+      <h2>Merge into a new taxonomy</h2>
       <label className="field-label">
         Merged taxonomy name
         <input value={mergeName} onChange={(e) => setMergeName(e.target.value)} />
@@ -661,7 +661,7 @@ function UniverseBuilderView() {
   return (
     <>
       <section className="card">
-        <h3>1. Find sector/index funds (tool-assisted)</h3>
+        <h2>1. Find sector/index funds (tool-assisted)</h2>
         <label className="field-label">
           Sector or index name
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. S&amp;P 500, US technology sector" />
@@ -678,7 +678,7 @@ function UniverseBuilderView() {
       </section>
 
       <section className="card">
-        <h3>2. Build a company universe from a holdings export</h3>
+        <h2>2. Build a company universe from a holdings export</h2>
         <input aria-label="Holdings export (CSV)" type="file" accept=".csv" onChange={onHoldingsFile} disabled={busy} />
         {error && <p className="error-text" role="alert">{error}</p>}
         {result && (
@@ -776,7 +776,7 @@ function OverlapView() {
   return (
     <>
       <section className="card">
-        <h3>1. Select ETFs/indices to compare</h3>
+        <h2>1. Select ETFs/indices to compare</h2>
         <div className="inline-fields">
           <input aria-label="Fund display name" placeholder="Fund display name" value={fundName} onChange={(e) => setFundName(e.target.value)} />
           <input aria-label="Fund holdings export (CSV)" type="file" accept=".csv" onChange={addFund} disabled={busy || !fundName} />
@@ -824,7 +824,7 @@ function OverlapView() {
 
       {result && (
         <section className="card">
-          <h3>2. Overlap</h3>
+          <h2>2. Overlap</h2>
           <p>
             <strong>Core holdings (in every fund):</strong> {result.core_tickers.join(", ") || "none"}
           </p>
@@ -850,7 +850,7 @@ function OverlapView() {
             </table>
           </div>
 
-          <h4>Holdings inspection</h4>
+          <h3>Holdings inspection</h3>
           <div className="table-wrap">
             <table className="data-table">
               <thead>

@@ -206,9 +206,9 @@ export function EngagementIssuePanel({
   return (
     <section className="card">
       <div className="section-heading">
-        <h3>
+        <h2>
           {record.name} &middot; {issue.theme}
-        </h3>
+        </h2>
         <button className="link-button" onClick={onClose}>
           Close
         </button>
@@ -238,7 +238,7 @@ export function EngagementIssuePanel({
       {error && <p className="error-text" role="alert">{error}</p>}
 
       <div className="panel-section">
-        <h4>Escalation-lever decision</h4>
+        <h3>Escalation-lever decision</h3>
         <p className="help-text">
           The one non-negotiable human checkpoint for escalation — this is the only way an issue's escalation stage
           moves.
@@ -259,7 +259,7 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Milestone &amp; escalation history</h4>
+        <h3>Milestone &amp; escalation history</h3>
         <ul className="timeline">
           {[...issue.milestone_history.map((t) => ({ label: `Milestone -> ${fmt(t.stage)}`, at: t.changed_at, note: t.reason })), ...issue.escalation_history.map((t) => ({ label: `Escalated -> ${fmt(t.stage)}`, at: t.changed_at, note: `${t.decided_by}${t.reason ? `: ${t.reason}` : ""}` }))]
             .sort((a, b) => (a.at < b.at ? -1 : 1))
@@ -277,7 +277,7 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Correspondence</h4>
+        <h3>Correspondence</h3>
         {issue.correspondence.length === 0 && <p className="muted">None logged yet.</p>}
         <ul className="timeline">
           {issue.correspondence.map((c) => (
@@ -292,7 +292,7 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Commitments</h4>
+        <h3>Commitments</h3>
         {issue.commitments.length === 0 && <p className="muted">None logged yet.</p>}
         {issue.commitments.map((c) => (
           <div className="activity-row" key={c.commitment_id}>
@@ -315,7 +315,7 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Research Agent</h4>
+        <h3>Research Agent</h3>
         <button onClick={draftDossier} disabled={busy}>
           {dossier ? "Redraft dossier" : "Draft dossier"}
         </button>
@@ -337,7 +337,7 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Drafting Agent</h4>
+        <h3>Drafting Agent</h3>
         {!dossier && <p className="help-text">Draft a dossier first — the letter/talking points reuse its grounded citations.</p>}
         {dossier && (
           <>
@@ -395,7 +395,7 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Post-meeting summary &amp; validation</h4>
+        <h3>Post-meeting summary &amp; validation</h3>
         <label className="field-label">
           Meeting notes or transcript
           <textarea rows={4} value={notesOrTranscript} onChange={(e) => setNotesOrTranscript(e.target.value)} placeholder="Paste raw notes or a transcript..." />
@@ -434,7 +434,7 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="panel-section">
-        <h4>Contacts</h4>
+        <h3>Contacts</h3>
         {record.contacts.length === 0 && <p className="muted">None on file.</p>}
         <ul className="timeline">
           {record.contacts.map((c) => (

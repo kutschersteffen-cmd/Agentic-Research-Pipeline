@@ -9,6 +9,7 @@ import { REVIEWER_REQUIRED, useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "./ReviewerField";
 import { ProposedTag } from "./ProposedTag";
 import { announce } from "../lib/announce";
+import { useCardKeys } from "../lib/cardKeys";
 
 const VOTE_POSITIONS: VotePosition[] = ["for", "against", "abstain", "withhold"];
 
@@ -273,28 +274,12 @@ export function BallotReview({ runId }: { runId: string }) {
   const byMeeting = [...ballots].sort((a, b) => (a.meeting_date ?? "9999").localeCompare(b.meeting_date ?? "9999"));
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
 
-  // J / K move between proposals. Moving only: deciding stays a click, so a
-  // stray key can never approve or cast anything.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey || (e.key !== "j" && e.key !== "k")) return;
-      if ((e.target as HTMLElement).closest("input, textarea, select, [contenteditable], dialog")) return;
-      const cards = [...document.querySelectorAll<HTMLElement>(".proposal-card")];
-      const at = cards.indexOf(document.activeElement as HTMLElement);
-      const next = cards[e.key === "j" ? at + 1 : Math.max(at - 1, 0)];
-      if (!next) return;
-      e.preventDefault();
-      next.focus();
-      next.scrollIntoView({ block: "start", behavior: "smooth" });
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  useCardKeys(".proposal-card");
 
   return (
     <section className="card">
       <div className="section-heading">
-        <h3>Ballots for {runId}</h3>
+        <h2>Ballots for {runId}</h2>
         <button className="link-button" onClick={load}>
           Refresh
         </button>
@@ -390,9 +375,9 @@ export function BallotReview({ runId }: { runId: string }) {
       )}
       {byMeeting.map((ballot) => (
         <div key={ballot.company_id} className="panel-section">
-          <h4>
+          <h3>
             {ballot.name} <span className="muted">({ballot.company_id})</span>
-          </h4>
+          </h3>
           <p className="meeting-line">{meetingLabel(ballot.meeting_date)}</p>
           {ballot.votes.length === 0 && <p className="muted">No proposals found (no proxy statement available yet).</p>}
           {ballot.votes.map((vote) => (

@@ -64,9 +64,9 @@ export function OutreachDecisions({ items, actor, onDone }: { items: OutreachDec
         return (
           <article key={d.draft_id} className="card position-card">
             <div className="section-heading">
-              <h4>
+              <h3>
                 {d.company} · {words(d.theme)} · {d.type}
-              </h4>
+              </h3>
               <span className={`chip${d.interaction_type === "advocacy_pressure" ? " chip-warn" : ""}`}>{words(d.interaction_type)}</span>
             </div>
             <FlaggedText text={d.text} flags={d.style_flags} />

@@ -62,7 +62,7 @@ export function LevelGridEditor({ config, columns, onChange }: Props) {
 
   return (
     <div className="card">
-      <h3>Level grid</h3>
+      <h2>Level grid</h2>
       <p className="help-text">
         Each criterion gets a level on a fixed scale from the company&apos;s own data: its rules are tried top to bottom and the
         first that holds sets the level. A blank value never matches, so a company that does not disclose falls to the default.
@@ -101,7 +101,7 @@ export function LevelGridEditor({ config, columns, onChange }: Props) {
         level as <code>lvl_&lt;criterion&gt;</code>.
       </p>
 
-      <h4>Clusters</h4>
+      <h3>Clusters</h3>
       <table className="data-table">
         <thead>
           <tr>
@@ -143,7 +143,7 @@ export function LevelGridEditor({ config, columns, onChange }: Props) {
         Add cluster
       </button>
 
-      <h4>Criteria</h4>
+      <h3>Criteria</h3>
       <p className="help-text">
         Conditions are expressions over the table&apos;s columns, e.g. <code>target_coverage_pct &gt;= 65 and net_zero_target</code>.
         Columns: {columns.map((c) => slug(c)).filter(Boolean).join(", ")}

@@ -66,7 +66,7 @@ function BatchSpendChart({ results }: { results: CompanyFinancialsRecord[] }) {
 
   return (
     <section className="card">
-      <h3>Batch overview ({results.length} companies)</h3>
+      <h2>Batch overview ({results.length} companies)</h2>
       <div className="view-toggle">
         <button className={metric === "capex" ? "active" : ""} onClick={() => setMetric("capex")}>
           CapEx
@@ -236,7 +236,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
       {mode === "transition_plan" && <TransitionPlanMethodology />}
 
       <section className="card">
-        <h3>Pipeline</h3>
+        <h2>Pipeline</h2>
         <p className="help-text">
           The steps every item goes through. Optional: click a step to change its settings for this run only; the app&apos;s
           defaults stay as they are.
@@ -246,7 +246,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
 
       {mode === "custom" && (
         <section className="card">
-          <h3>1. Describe what to extract</h3>
+          <h2>1. Describe what to extract</h2>
           <label className="field-label">
             Research request
             <textarea rows={2} value={criteria} onChange={(e) => setCriteria(e.target.value)} />
@@ -260,7 +260,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
 
       {mode === "custom" && schema && (
         <section className="card">
-          <h3>2. Review &amp; edit fields</h3>
+          <h2>2. Review &amp; edit fields</h2>
           {schema.fields.map((f, idx) => (
             <div className="activity-editor" key={f.field_id}>
               <input value={f.name} onChange={(e) => updateField(idx, { name: e.target.value })} />
@@ -300,7 +300,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
 
       {readyForUniverseStep && (
         <section className="card">
-          <h3>{scoringStepNumber}. Score the results (optional)</h3>
+          <h2>{scoringStepNumber}. Score the results (optional)</h2>
           <p className="help-text">
             Attach a Decision Studio framework: once every company is extracted, the run applies its rules as the last step
             and stores the scores and tiers with the run. You can also attach one after the run.
@@ -317,7 +317,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
 
       {readyForUniverseStep && (
         <section className="card">
-          <h3>{universeStepNumber}. Choose the companies</h3>
+          <h2>{universeStepNumber}. Choose the companies</h2>
           <div className="view-toggle" role="group" aria-label="Run on">
             <button className={scope === "batch" ? "active" : ""} aria-pressed={scope === "batch"} onClick={() => setScope("batch")}>
               Batch (list)
@@ -373,7 +373,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
 
       {runId && (
         <section className="card">
-          <h3>{universeStepNumber + 1}. Run progress</h3>
+          <h2>{universeStepNumber + 1}. Run progress</h2>
           <RunProgress runId={runId} runType={profile.runType} />
           <PipelineEditor
             key={runId}

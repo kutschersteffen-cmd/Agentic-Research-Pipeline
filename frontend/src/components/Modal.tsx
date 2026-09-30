@@ -19,7 +19,7 @@ export function Modal({ title, onClose, children, compact = false }: { title: st
     <dialog ref={ref} className={compact ? "modal-panel modal-compact" : "modal-panel"} aria-label={title} onClose={onClose} onClick={(e) => e.target === e.currentTarget && close()}>
       <div className="modal-body">
         <div className="modal-header">
-          <h4>{title}</h4>
+          <h3>{title}</h3>
           <button className="link-button" onClick={close}>
             Close
           </button>

@@ -82,7 +82,7 @@ function IndicatorTable({
         if (rows.length === 0) return null;
         return (
           <div key={cat}>
-            <h4>{CATEGORY_LABELS[cat]}</h4>
+            <h3>{CATEGORY_LABELS[cat]}</h3>
             <div className="table-wrap">
               <table className="data-table">
                 <thead>
@@ -152,7 +152,7 @@ export function TransitionPlanBatchOverview({ results }: { results: TransitionPl
 
   return (
     <section className="card">
-      <h3>Batch overview ({results.length} companies)</h3>
+      <h2>Batch overview ({results.length} companies)</h2>
       <div className="stat-tile-grid">
         <div className="stat-tile">
           <div className="stat-value">{walkTotal > 0 ? `${Math.round((walkDisclosed / walkTotal) * 100)}%` : "—"}</div>

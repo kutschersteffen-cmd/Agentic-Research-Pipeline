@@ -150,7 +150,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
       <p className="help-text">Spot topics nobody has named yet in news, filings and regulatory flow. A candidate needs two independent sources, and nothing reaches the Taxonomy Library until you promote it.</p>
 
       <section className="card">
-        <h3>Run a scan now</h3>
+        <h2>Run a scan now</h2>
         <UniversePicker
           onResolved={(path, count) => {
             setUniversePath(path);
@@ -165,7 +165,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
       </section>
 
       <section className="card">
-        <h3>Recent scans</h3>
+        <h2>Recent scans</h2>
         <button onClick={refreshRecentRuns}>Refresh</button>
         {recentRuns.length === 0 ? (
           <p className="muted">No scans yet — run one above, or enable the automatic schedule below.</p>
@@ -199,7 +199,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
       {selectedRunId && (
         <section className="card">
-          <h3>Candidates — {selectedRunId}</h3>
+          <h2>Candidates — {selectedRunId}</h2>
           <button onClick={() => refreshCandidates(selectedRunId)}>Refresh candidates</button>
           {candidates.length === 0 ? (
             <p className="muted">No candidates for this run (nothing survived the independent-source-minimum and lineage-birth filters).</p>
@@ -348,7 +348,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
       {schedule && (
         <section className="card">
-          <h3>Automatic schedule</h3>
+          <h2>Automatic schedule</h2>
           <label className="checkbox-label">
             <input
               type="checkbox"

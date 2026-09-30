@@ -3,11 +3,11 @@ import { api } from "../api/client";
 import { ConfidenceBadge, VerdictBadge } from "../components/ConfidenceBadge";
 import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
-import type { Citation, ReviewableRunKind, RunManifest } from "../types";
-import { REVIEWER_REQUIRED, useReviewer } from "../lib/reviewer";
+import type { Citation, ReviewDecision, ReviewableRunKind, RunManifest } from "../types";
+import { useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "../components/ReviewerField";
-import { DecisionBar } from "../components/DecisionBar";
-import { ProposedTag } from "../components/ProposedTag";
+import { ReviewControls, decisionBadgeClass, decisionLabel } from "../components/ReviewControls";
+import { useCardKeys } from "../lib/cardKeys";
 
 const REVIEW_KIND_LABEL: Record<ReviewableRunKind, string> = {
   theme: "Thematic universe",
@@ -36,6 +36,17 @@ const SUBMIT_FNS: Record<ReviewableRunKind, (runId: string, body: unknown) => Pr
   tnfd: api.submitTnfdReview,
 };
 
+// Kinds without a per-item history endpoint get no History button.
+const HISTORY_FNS: Partial<Record<ReviewableRunKind, (runId: string, itemKey: string) => Promise<unknown>>> = {
+  extraction: api.getExtractionReviewHistory,
+  financials: api.getFinancialsReviewHistory,
+  transition_plan: api.getTransitionPlanReviewHistory,
+  tnfd: api.getTnfdReviewHistory,
+};
+
+/** "C1:net_zero_target" reads as "C1 · net zero target" when an item carries no name. */
+const readableKey = (key: string) => key.split(":").map((p) => p.replace(/_/g, " ")).join(" · ");
+
 interface Props {
   pendingReview?: { kind: ReviewableRunKind; runId: string } | null;
 }
@@ -59,7 +70,7 @@ function ReviewItemFields({ item, onOpenSource }: { item: Record<string, unknown
     <div>
       <div className="run-progress-header">
         <strong>
-          {(item.name as string | undefined) ?? (item.company_id as string | undefined) ?? (item.item_key as string)}
+          {(item.name as string | undefined) ?? readableKey(item.item_key as string)}
           {item.ticker ? <span className="muted"> ({item.ticker as string})</span> : null}
         </strong>
         <span>
@@ -67,7 +78,6 @@ function ReviewItemFields({ item, onOpenSource }: { item: Record<string, unknown
           {typeof item.confidence === "number" && <ConfidenceBadge value={item.confidence} />}
         </span>
       </div>
-      {Boolean(item.company_id && item.name) && <p className="muted">{item.item_key as string}</p>}
       {typeof item.failed_step_label === "string" && (
         <p className="error-text" role="alert">
           Stopped at {item.failed_step_label}: {String(item.error ?? "")}
@@ -109,12 +119,16 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
   const [error, setError] = useState<string | null>(null);
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
   const [reviewer] = useReviewer();
-  const [deciding, setDeciding] = useState<string | null>(null);
-  const [lastDecided, setLastDecided] = useState<string | null>(null);
+  // Decided items stay in place, collapsed: decisions are append-only and the
+  // latest wins, so "Change" records a new one and the history keeps both.
+  const [decided, setDecided] = useState<Record<string, ReviewDecision>>({});
+  const [reopened, setReopened] = useState<string | null>(null);
+  useCardKeys(".review-item");
 
   async function load() {
     setError(null);
     setItems(null);
+    setDecided({});
     try {
       const all = ((await api.listRuns()) as { runs: RunManifest[] }).runs;
       const flagged = all.filter(
@@ -146,27 +160,11 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function decide(q: QueueItem, decision: "approve" | "reject") {
-    const itemKey = q.item.item_key as string;
-    if (!reviewer.trim()) {
-      setError(REVIEWER_REQUIRED);
-      return;
-    }
-    setDeciding(itemKey);
-    setError(null);
-    try {
-      await SUBMIT_FNS[q.kind](q.runId, { item_key: itemKey, decision, reviewer: reviewer.trim() });
-      setItems((prev) => prev?.filter((p) => p !== q) ?? null);
-      setLastDecided(`${decision === "approve" ? "Approved" : "Rejected"} ${itemKey} as ${reviewer.trim()}.`);
-    } catch (err) {
-      setError(`Could not record the decision on ${itemKey}: ${(err as Error).message}. It is still pending.`);
-    } finally {
-      setDeciding(null);
-    }
-  }
+  const keyOf = (q: QueueItem) => `${q.runId}/${q.item.item_key as string}`;
 
   const shown = (items ?? []).filter((q) => !filter || `${q.kind}/${q.runId}` === filter);
-  const countFor = (r: RunManifest) => (items ?? []).filter((q) => q.runId === r.run_id).length;
+  const countFor = (r: RunManifest) => (items ?? []).filter((q) => q.runId === r.run_id && !decided[keyOf(q)]).length;
+  const open = shown.filter((q) => !decided[keyOf(q)]).length;
 
   return (
     <div className="page">
@@ -177,7 +175,7 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
         <label className="field-label inline-label">
           Show
           <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="">All runs ({items?.length ?? "…"} items)</option>
+            <option value="">All runs ({items ? items.length - Object.keys(decided).length : "…"} items)</option>
             {runs.map((r) => (
               <option key={r.run_id} value={`${r.run_type}/${r.run_id}`}>
                 {REVIEW_KIND_LABEL[r.run_type as ReviewableRunKind]}: {r.run_id} ({countFor(r)})
@@ -191,31 +189,51 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
         {!reviewer.trim() && <ReviewerField compact />}
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
-      <p className="status-text" aria-live="polite">
-        {items === null ? "Loading flagged items…" : lastDecided}
-      </p>
+      {items === null && <p className="status-text">Loading flagged items…</p>}
 
       {shown.length > 0 && (
         <div className="split-review">
           <div className="split-review-main">
             <section className="card">
-              <h3>
-                {shown.length} awaiting a decision
-              </h3>
-              {shown.map((q) => (
-                <div className="review-item proposed" key={`${q.runId}/${q.item.item_key as string}`}>
-                  <ProposedTag />
-                  <p className="muted review-item-source">
-                    {REVIEW_KIND_LABEL[q.kind]} · {q.runId}
-                  </p>
-                  <ReviewItemFields item={q.item} onOpenSource={setActiveSource} />
-                  <DecisionBar
-                    onApprove={() => decide(q, "approve")}
-                    onReject={() => decide(q, "reject")}
-                    disabled={deciding !== null}
-                  />
-                </div>
-              ))}
+              <h2>{open > 0 ? `${open} awaiting a decision` : "All decided"}</h2>
+              <p className="help-text">Press <kbd>J</kbd> / <kbd>K</kbd> to move between items. A decision can be changed; every one is kept.</p>
+              {shown.map((q) => {
+                const k = keyOf(q);
+                const d = decided[k];
+                if (d && reopened !== k) {
+                  return (
+                    <div className="review-item review-item-decided" key={k} tabIndex={-1}>
+                      <strong>{(q.item.name as string | undefined) ?? readableKey(q.item.item_key as string)}</strong>
+                      <span className={decisionBadgeClass(d.decision)}>
+                        {decisionLabel(d)} by {d.reviewer}
+                      </span>
+                      <button className="link-button" onClick={() => setReopened(k)}>
+                        Change
+                      </button>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="review-item proposed" key={k} tabIndex={-1}>
+                    <p className="muted review-item-source">
+                      {REVIEW_KIND_LABEL[q.kind]} · {q.runId}
+                    </p>
+                    <ReviewItemFields item={q.item} onOpenSource={setActiveSource} />
+                    <ReviewControls
+                      runId={q.runId}
+                      itemKey={q.item.item_key as string}
+                      current={d}
+                      reviewer={reviewer}
+                      submitFn={SUBMIT_FNS[q.kind]}
+                      historyFn={HISTORY_FNS[q.kind] ?? null}
+                      onDone={(recorded) => {
+                        setDecided((prev) => ({ ...prev, [k]: recorded }));
+                        setReopened(null);
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </section>
           </div>
           <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />

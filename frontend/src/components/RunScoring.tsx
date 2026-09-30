@@ -147,7 +147,7 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
   return (
     <section className="card">
       <div className="toolbar">
-        <h3>Scoring</h3>
+        <h2>Scoring</h2>
         {decision && (
           <button className="link-button" onClick={rescore}>
             Re-score
@@ -206,13 +206,13 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
             {decision.result.tier_summary.map((tier) => (
               <div key={tier.rank} className="card">
                 <div className="muted">{tier.action}</div>
-                <h3>{tier.name}</h3>
+                <h2>{tier.name}</h2>
                 <p className="decision-kpi-value">{tier.count}</p>
               </div>
             ))}
             <div className="card">
               <div className="muted">Not scored</div>
-              <h3>Gated / insufficient</h3>
+              <h2>Gated / insufficient</h2>
               <p className="decision-kpi-value">
                 {decision.result.excluded_count} / {decision.result.insufficient_count}
               </p>

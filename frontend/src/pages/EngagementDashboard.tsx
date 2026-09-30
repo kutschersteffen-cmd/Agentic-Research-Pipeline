@@ -120,7 +120,7 @@ export function EngagementDashboard() {
       {error && <p className="error-text" role="alert">{error}</p>}
 
       <section className="card">
-        <h3>Open a new issue</h3>
+        <h2>Open a new issue</h2>
         <div className="inline-fields">
           <input aria-label="Company ID" placeholder="Company ID (e.g. AAPL)" value={newCompanyId} onChange={(e) => setNewCompanyId(e.target.value)} />
           <input aria-label="Company name" placeholder="Company name" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} />
@@ -140,7 +140,7 @@ export function EngagementDashboard() {
       </section>
 
       <section className="card">
-        <h3>Trigger &amp; detection scan</h3>
+        <h2>Trigger &amp; detection scan</h2>
         <p className="help-text">
           Screens the given companies against caller-supplied controversy signals (no live data-provider feed is
           wired up — see the architecture doc) and opens a new issue for every signal without an already-open issue
@@ -250,7 +250,7 @@ export function EngagementDashboard() {
 
       <section className="card">
         <div className="section-heading">
-          <h3>Records</h3>
+          <h2>Records</h2>
           <button className="link-button" onClick={load}>
             Refresh
           </button>
@@ -294,9 +294,9 @@ export function EngagementDashboard() {
         (r) =>
           r.issues.length > 0 && (
             <section className="card" key={r.company_id}>
-              <h3>
+              <h2>
                 {r.name} <span className="muted">({r.company_id})</span> issues
-              </h3>
+              </h2>
               <div className="table-wrap">
                 <table className="data-table">
                   <thead>

@@ -14,6 +14,24 @@ export function fmt(v: unknown): string {
 
 export const words = (s: string) => s.replace(/_/g, " ");
 
+// One tab per stage of docs/STEWARDSHIP_OPERATING_MODEL.md, Part 2. Stages 1-6
+// are house truth and always show the house program; 7-8 work on a client stream.
+export const STAGE_TABS = [
+  { id: "monitoring", n: 1, label: "Monitoring" },
+  { id: "selection", n: 2, label: "Selection" },
+  { id: "drafting", n: 3, label: "Drafting" },
+  { id: "voting", n: 4, label: "Voting" },
+  { id: "checkpoint", n: 5, label: "Checkpoint" },
+  { id: "tracking", n: 6, label: "Tracking" },
+  { id: "client_policy", n: 7, label: "Client policy" },
+  { id: "reporting", n: 8, label: "Reporting" },
+  { id: "program", n: null, label: "Client program" },
+] as const;
+
+/** A stage's one name, the same on the tabs, the overview and the start page;
+ * the backend's long title stays as a tooltip. */
+export const stageName = (stage: StewardshipStage) => STAGE_TABS.find((t) => t.id === stage.id)?.label ?? stage.title;
+
 /** Decisions a stage still waits on: every item except policy differences
  * already decided. */
 export const openCount = (stage: StewardshipStage | undefined) =>
@@ -38,9 +56,9 @@ export function StudioHeader({ stage, capabilities, children }: { stage: Steward
   return (
     <section className="card">
       <div className="section-heading">
-        <h3>
-          {stage.number}. {stage.title} studio
-        </h3>
+        <h2 title={stage.title}>
+          {stage.number}. {stageName(stage)}
+        </h2>
         <span className="chip">{stage.layer === "house" ? "House truth" : "Client overlay"}</span>
       </div>
       <p className="help-text">{stage.summary}</p>
@@ -106,7 +124,7 @@ export function Section({ step, title, children, planned }: { step: string; titl
   return (
     <section className={`card studio-section${planned ? " planned" : ""}`}>
       <p className="studio-step">{step}</p>
-      <h3>{title}</h3>
+      <h2>{title}</h2>
       {children}
     </section>
   );

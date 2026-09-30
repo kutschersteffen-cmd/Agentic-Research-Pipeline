@@ -144,7 +144,7 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
     <>
       <section className="card">
         <div className="section-heading">
-          <h3>Client program: {sim.client}</h3>
+          <h2>Client program: {sim.client}</h2>
           <span className="chip">
             {sim.benchmark} · {sim.vehicle}
           </span>
@@ -296,7 +296,7 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
                 </tbody>
               </table>
             </div>
-            <h4>Approved targets</h4>
+            <h3>Approved targets</h3>
             <DataTable rows={watch.targets ?? []} />
             <div className="toolbar">
               <button onClick={() => act("run")} disabled={!actor || busy !== null} title={actor ? undefined : "Enter your name above first"}>
@@ -363,7 +363,7 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
           }))}
           empty="No company qualifies with these settings."
         />
-        <h4>Expected votes that matter: sanctions and differences from the house</h4>
+        <h3>Expected votes that matter: sanctions and differences from the house</h3>
         <DataTable rows={sim.votes.filter((v) => v.sanction || v.house !== v.client)} empty="The client's expected votes match the house." />
       </Section>
       <Section step="1" title="Tilt">

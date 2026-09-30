@@ -118,7 +118,7 @@ function TaxonomyResearcherPanel() {
 
       {schedule && (
         <section className="card">
-          <h3>Automatic schedule</h3>
+          <h2>Automatic schedule</h2>
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -167,7 +167,7 @@ function TaxonomyResearcherPanel() {
       )}
 
       <section className="card">
-        <h3>Run now</h3>
+        <h2>Run now</h2>
         <button onClick={runNow} disabled={busy}>
           Scan now
         </button>
@@ -208,7 +208,7 @@ function TaxonomyResearcherPanel() {
       </section>
 
       <section className="card">
-        <h3>Past runs</h3>
+        <h2>Past runs</h2>
         {pastRuns.length === 0 && <p className="muted">No taxonomy research runs yet.</p>}
         {pastRuns.length > 0 && (
           <div className="table-wrap">
@@ -308,7 +308,7 @@ function CalibrationPanel() {
 
       {schedule && (
         <section className="card">
-          <h3>Automatic schedule</h3>
+          <h2>Automatic schedule</h2>
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -334,7 +334,7 @@ function CalibrationPanel() {
       )}
 
       <section className="card">
-        <h3>Run now</h3>
+        <h2>Run now</h2>
         <button onClick={runNow} disabled={busy}>
           Check now
         </button>
@@ -381,7 +381,7 @@ function CalibrationPanel() {
       </section>
 
       <section className="card">
-        <h3>Past runs</h3>
+        <h2>Past runs</h2>
         {pastRuns.length === 0 && <p className="muted">No calibration runs yet.</p>}
         {pastRuns.length > 0 && (
           <div className="table-wrap">

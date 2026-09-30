@@ -229,6 +229,8 @@ export const api = {
     ),
   getTransitionPlanReviewQueue: (runId: string) => request(`/api/transition-plan/runs/${runId}/review-queue`),
   getTnfdReviewQueue: (runId: string) => request(`/api/tnfd/runs/${runId}/review-queue`),
+  getTnfdReviewHistory: (runId: string, itemKey: string) =>
+    request(`/api/tnfd/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
   submitTnfdReview: (runId: string, body: unknown) =>
     request(`/api/tnfd/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
   submitTransitionPlanReview: (runId: string, body: unknown) =>

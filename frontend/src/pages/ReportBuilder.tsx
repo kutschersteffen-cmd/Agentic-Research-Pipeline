@@ -235,7 +235,7 @@ export function ReportBuilder() {
       <p className="help-text">Draft a report plan from your notes and data, edit it, then render it to PowerPoint, Word or PDF.</p>
 
       <section className="card">
-        <h3>1. Content</h3>
+        <h2>1. Content</h2>
         <label className="field-label">
           Title
           <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Electrification Thematic Review" />
@@ -284,7 +284,7 @@ export function ReportBuilder() {
       </section>
 
       <section className="card">
-        <h3>2. Audience &amp; layout</h3>
+        <h2>2. Audience &amp; layout</h2>
         <div className="inline-fields">
           <div>
             <label className="field-label">
@@ -361,7 +361,7 @@ export function ReportBuilder() {
       {manifest && plan && (
         <section className="card">
           <div className="section-heading">
-            <h3>3. Review &amp; render</h3>
+            <h2>3. Review &amp; render</h2>
             <span className={`status-pill status-${manifest.status}`}>{manifest.status}</span>
           </div>
 
@@ -440,7 +440,7 @@ export function ReportBuilder() {
       )}
 
       <section className="card">
-        <h3>Previous reports</h3>
+        <h2>Previous reports</h2>
         {reports.length === 0 && <p className="muted">No reports generated yet.</p>}
         {reports.length > 0 && (
           <div className="table-wrap">
@@ -492,7 +492,7 @@ export function ReportBuilder() {
     {previewReportId && (
       <aside className="source-panel">
         <div className="source-panel-header">
-          <h4>Preview — {previewTitle}</h4>
+          <h3>Preview — {previewTitle}</h3>
           <button className="link-button" onClick={closePreview}>Close</button>
         </div>
         {previewLoading && <p className="muted">Rendering preview...</p>}

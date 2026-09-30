@@ -342,18 +342,22 @@ a.nav-tab { text-decoration: none; }
 }
 
 .page { max-width: 1200px; }
-.page :is(h1, h2) { margin-top: 0; font-family: var(--font-display); font-size: var(--text-xl); letter-spacing: -0.01em; }
+/* Section headings are h2/h3 under the page's h1; they keep the sizes the
+   old h3/h4 had. */
+:where(h2) { font-size: 1.17em; margin-block: 1em; }
+:where(h3) { font-size: 1em; margin-block: 1.33em; }
+.page h1 { margin-top: 0; font-family: var(--font-display); font-size: var(--text-xl); letter-spacing: -0.01em; }
 
 /* Page header: title, lede and page-level tabs read as one tight group, with
    a wide gap before the working area. The lede is capped at a readable
    measure -- at full width it ran ~180 characters a line. */
-:where(.page, .page-body) > :is(h1, h2) { margin-bottom: var(--s-2); }
-:where(.page, .page-body) > :is(h1, h2) + :is(.help-text, .muted) {
+:where(.page, .page-body) > h1 { margin-bottom: var(--s-2); }
+:where(.page, .page-body) > h1 + :is(.help-text, .muted) {
   max-width: 72ch;
   line-height: 1.55;
   margin: 0 0 var(--s-8);
 }
-:where(.page, .page-body) > :is(h1, h2) + :is(.help-text, .muted):has(+ :is(.sub-nav, .view-toggle)) {
+:where(.page, .page-body) > h1 + :is(.help-text, .muted):has(+ :is(.sub-nav, .view-toggle)) {
   margin-bottom: var(--s-4);
 }
 :where(.page, .page-body) > :is(.sub-nav, .view-toggle) { margin: 0 0 var(--s-8); }
@@ -379,7 +383,7 @@ a.nav-tab { text-decoration: none; }
   padding: 18px 20px;
   margin-bottom: 18px;
 }
-.card h3 { margin-top: 0; font-family: var(--font-display); font-weight: 600; }
+.card h2 { margin-top: 0; font-family: var(--font-display); font-weight: 600; }
 
 .field-label {
   display: block;
@@ -482,7 +486,7 @@ button.secondary:hover:not(:disabled) { background: var(--accent-tint); border-c
 .field-label.inline-label > select { margin-top: 0; width: auto; max-width: 100%; }
 .review-item-source { margin: 0 0 var(--s-1); }
 details.start-run > summary { cursor: pointer; list-style-position: outside; }
-details.start-run > summary h3 { display: inline; margin: 0; }
+details.start-run > summary h2 { display: inline; margin: 0; }
 details.start-run[open] > summary { margin-bottom: var(--s-3); }
 .confirm-list { margin: var(--s-2) 0 var(--s-4); padding-left: 1.2em; line-height: 1.6; }
 .toolbar a, .data-table a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 0.15em; }
@@ -613,7 +617,10 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
 .run-progress-header { display: flex; justify-content: space-between; align-items: center; }
 .run-progress-stats { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: var(--text-sm); }
 
-.review-item { border: 1px solid var(--panel-border); border-radius: var(--r-md); padding: 10px 14px; margin-bottom: 12px; }
+.review-item { border: 1px solid var(--panel-border); border-radius: var(--r-md); padding: 10px 14px; margin-bottom: 12px; scroll-margin-top: 16px; }
+.review-item:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.review-item-decided { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); padding-block: 8px; }
+.review-item-decided .link-button { margin-left: auto; }
 
 /* Proposed, not ratified: the one treatment for any agent output no person
    has decided yet (components/ProposedTag.tsx). Dashed means provisional;
@@ -698,7 +705,7 @@ dialog.modal-panel.modal-compact { width: min(520px, 100% - 32px); height: fit-c
 dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .modal-body { display: flex; flex-direction: column; height: 100%; padding: var(--s-4); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; }
-.modal-header h4 { margin: 0; }
+.modal-header h3 { margin: 0; }
 .modal-iframe { flex: 1; border: none; background: white; border-radius: var(--r-sm); margin-top: 10px; }
 .modal-text {
   flex: 1;
@@ -744,7 +751,7 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   color: var(--muted);
 }
 .source-panel-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-.source-panel-header h4 {
+.source-panel-header h3 {
   margin: 0;
   font-size: var(--text-sm);
   overflow: hidden;
@@ -862,7 +869,7 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
    than holding a full-height box open. */
 .card-empty { padding-block: var(--s-3); }
 .card-empty .section-heading { justify-content: flex-start; flex-wrap: wrap; gap: var(--s-1) var(--s-3); margin: 0; }
-.card-empty .section-heading h3 { font-size: var(--text-md); }
+.card-empty .section-heading h2 { font-size: var(--text-md); }
 .card-empty .section-heading > .link-button { margin-left: auto; }
 .stat-tile-grid {
   display: grid;
@@ -898,7 +905,7 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   justify-content: space-between;
   margin-bottom: 4px;
 }
-.section-heading h3 { margin: 0; }
+.section-heading h2 { margin: 0; }
 
 /* --- Engagement --- */
 
@@ -932,7 +939,7 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .timeline .timeline-meta { color: var(--muted); font-size: var(--text-xs); }
 
 .panel-section { border-top: 1px solid var(--panel-border); padding-top: 14px; margin-top: 14px; }
-.panel-section h4 { margin: 0 0 8px; }
+.panel-section h3 { margin: 0 0 8px; }
 
 .banner {
   border-radius: var(--r-md);
@@ -1076,7 +1083,7 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   margin-bottom: 12px;
 }
 .decision-kpis .card { margin-bottom: 0; }
-.decision-kpis h3 { margin: 2px 0; font-size: var(--text-md); }
+.decision-kpis h2 { margin: 2px 0; font-size: var(--text-md); }
 .decision-kpi-value { font-size: var(--text-xl); margin: 4px 0 0; font-variant-numeric: tabular-nums; }
 
 /* A guess this layer is not confident in is surfaced, never quietly
@@ -1093,7 +1100,7 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 
 .audit-needs-check td { background: color-mix(in srgb, var(--await) 60%, transparent); }
 .audit-stage { margin-bottom: 18px; }
-.audit-stage h4 { margin: 0 0 6px; font-size: var(--text-base); color: var(--muted); }
+.audit-stage h3 { margin: 0 0 6px; font-size: var(--text-base); color: var(--muted); }
 
 .decision-dimension { border: 1px solid var(--panel-border); border-radius: var(--r-md); padding: 10px 12px; margin-bottom: 12px; }
 .decision-dimension-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
@@ -1293,13 +1300,19 @@ mark.style-flag { background: color-mix(in srgb, var(--mid) 30%, transparent); c
 .decision-controls input { flex: 1; min-width: 160px; }
 .decision-controls button { flex: none; }
 
-.flow-list { display: none; }
+.flow-list { display: flex; flex-direction: column; gap: var(--s-4); margin-top: var(--s-3); }
+.flow-list.phone-only { display: none; }
+.flow-list-layer { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s-3); }
+.flow-list .flow-node { width: 100%; }
+.flow-list .flow-band-label { grid-column: 1 / -1; margin: 0; font-size: var(--text-xs); color: var(--muted); }
+.flow-view { justify-content: space-between; flex-wrap: nowrap; align-items: flex-start; }
+.flow-view p { margin: 0; }
+.flow-view-switch { display: flex; gap: var(--s-1); flex: none; }
 @media (max-width: 720px) {
   .stage-detail .inline-fields { flex-wrap: wrap; }
-  .flow-rf, .flow-rf-hint { display: none; }
-  .flow-list { display: flex; flex-direction: column; gap: var(--s-3); margin-top: var(--s-3); }
-  .flow-list .flow-node { width: 100%; margin-top: var(--s-3); }
-  .flow-list .flow-band-label { margin: var(--s-2) 0 0; font-size: var(--text-xs); color: var(--muted); }
+  .flow-rf, .flow-rf-hint, .flow-view-switch { display: none; }
+  .flow-list.phone-only { display: flex; }
+  .flow-list-layer { grid-template-columns: 1fr; }
 }
 .react-flow__node-band[data-id="band-house"] .flow-band-node { justify-content: flex-end; }
 
@@ -1331,7 +1344,7 @@ mark.style-flag { background: color-mix(in srgb, var(--mid) 30%, transparent); c
 .actor-field { max-width: 420px; margin: 0 0 18px; }
 .studio-canvas { height: min(560px, 70vh); margin-top: var(--s-3); }
 .studio-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--s-6); }
-.studio-columns h4, .studio-section h4 { margin: var(--s-4) 0 var(--s-2); }
+.studio-columns h3, .studio-section h3 { margin: var(--s-4) 0 var(--s-2); }
 .row-actions { display: flex; gap: var(--s-2); align-items: center; justify-content: flex-end; white-space: nowrap; }
 .client-picker { flex-wrap: wrap; }
 .client-picker .field-label { margin: 0; }
@@ -1494,6 +1507,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .stepper-break { flex-basis: 100%; height: 0; }
 .stepper-break + .stepper-group { margin-left: 0; min-width: 4.5em; }
 .stepper .nav-tab { display: inline-flex; align-items: center; gap: 6px; }
+.stepper select.nav-tab { width: auto; flex: none; padding-right: 28px; }
 .stepper-num {
   display: inline-grid;
   place-items: center;

@@ -6,13 +6,13 @@ import { DecisionBar } from "./DecisionBar";
 import { ProposedTag } from "./ProposedTag";
 import { announce } from "../lib/announce";
 
-function decisionBadgeClass(decision: string): string {
+export function decisionBadgeClass(decision: string): string {
   if (decision === "approve") return "badge badge-high";
   if (decision === "edit") return "badge badge-mid";
   return "badge badge-low";
 }
 
-function decisionLabel(d: ReviewDecision): string {
+export function decisionLabel(d: ReviewDecision): string {
   if (d.decision === "approve") return "approved";
   if (d.decision === "reject") return "rejected";
   const v = d.edited_value?.value;
@@ -32,11 +32,13 @@ export function ReviewControls({
   itemKey: string;
   current?: ReviewDecision;
   reviewer: string;
-  onDone: () => void;
+  /** Called with the decision just recorded. */
+  onDone: (recorded: ReviewDecision) => void;
   /** Defaults to the scalar Data-Point Extraction Engine's endpoints; pass
    * the segments/spend equivalents when reusing this component elsewhere. */
   submitFn?: (runId: string, body: unknown) => Promise<unknown>;
-  historyFn?: (runId: string, itemKey: string) => Promise<unknown>;
+  /** null: this run kind keeps no per-item history endpoint, so no History button. */
+  historyFn?: ((runId: string, itemKey: string) => Promise<unknown>) | null;
 }) {
   const [busy, setBusy] = useState(false);
   const [comment, setComment] = useState("");
@@ -53,19 +55,20 @@ export function ReviewControls({
     setBusy(true);
     setError(null);
     try {
-      await submitFn(runId, {
+      const recorded = {
         item_key: itemKey,
         decision,
         reviewer: reviewer.trim(),
         edited_value: decision === "edit" ? { value: overrideValue } : null,
         comment: comment || null,
-      });
+      };
+      await submitFn(runId, recorded);
       setComment("");
       setOverrideValue("");
       setShowOverrideInput(false);
       setHistory(null);
       announce(`${decision === "approve" ? "Approved" : decision === "edit" ? "Overridden" : "Rejected"}; recorded against ${reviewer.trim()}.`);
-      onDone();
+      onDone({ ...recorded, decided_at: new Date().toISOString() });
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -74,6 +77,7 @@ export function ReviewControls({
   }
 
   async function loadHistory() {
+    if (!historyFn) return;
     if (history !== null) {
       setHistory(null); // toggle closed
       return;
@@ -103,9 +107,11 @@ export function ReviewControls({
         onReject={() => submit("reject")}
         disabled={busy}
       >
-        <button className="link-button" onClick={loadHistory} aria-expanded={history !== null}>
-          History
-        </button>
+        {historyFn && (
+          <button className="link-button" onClick={loadHistory} aria-expanded={history !== null}>
+            History
+          </button>
+        )}
       </DecisionBar>
       {showOverrideInput && (
         <div className="inline-fields">

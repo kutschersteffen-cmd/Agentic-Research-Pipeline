@@ -2,7 +2,7 @@ import { useMemo, type CSSProperties } from "react";
 import ReactFlow, { Controls, Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
 import type { StewardshipFlow, StewardshipStage } from "../../types";
-import { SOURCE_LABEL, openCount } from "./common";
+import { SOURCE_LABEL, openCount, stageName } from "./common";
 
 // Flowchart layout: the house row (stages 1-6) above the client row (7-8),
 // as in docs/STEWARDSHIP_OPERATING_MODEL.md, Part 2. Drawn with React Flow
@@ -62,10 +62,10 @@ const NODE_TYPES = { stage: StageFlowNode, band: BandNode };
 export function StageNode({ stage, selected, onSelect, style }: { stage: StewardshipStage; selected: boolean; onSelect: (id: string) => void; style?: CSSProperties }) {
   const open = openCount(stage);
   return (
-    <button className={`flow-node flow-${stage.layer}${selected ? " selected" : ""}`} style={style} aria-pressed={selected} onClick={() => onSelect(stage.id)}>
+    <button className={`flow-node flow-${stage.layer}${selected ? " selected" : ""}`} style={style} title={stage.title} onClick={() => onSelect(stage.id)}>
       <span className="flow-node-head">
         <span className="flow-node-number">{stage.number}</span>
-        <span className="flow-node-title">{stage.title}</span>
+        <span className="flow-node-title">{stageName(stage)}</span>
       </span>
       {stage.metrics.slice(0, 3).map((m) => (
         <span key={m.label} className={`flow-node-metric tone-${m.tone}`} title={`${m.label}: ${SOURCE_LABEL[m.source]}`}>
@@ -79,12 +79,13 @@ export function StageNode({ stage, selected, onSelect, style }: { stage: Steward
   );
 }
 
-/** Narrow screens: the same stages as a stacked list, in process order. */
-export function FlowList({ flow, selected, onSelect }: { flow: StewardshipFlow; selected: string; onSelect: (id: string) => void }) {
+/** The stages as a list in process order: the default view, and the only one
+ * on a phone. `phoneOnly` keeps it for phones when the graph is chosen. */
+export function FlowList({ flow, selected, onSelect, phoneOnly }: { flow: StewardshipFlow; selected: string; onSelect: (id: string) => void; phoneOnly?: boolean }) {
   return (
-    <div className="flow-list">
+    <div className={phoneOnly ? "flow-list phone-only" : "flow-list"}>
       {(["house", "client"] as const).map((layer) => (
-        <div key={layer}>
+        <div key={layer} className="flow-list-layer">
           <p className="flow-band-label">{layer === "house" ? "House truth · stages 1–6" : "Client overlay · stages 7–8"}</p>
           {flow.stages
             .filter((s) => s.layer === layer)
