@@ -104,6 +104,21 @@ export function DecisionStudio() {
     setStored(next);
   }
 
+  /** True when nothing unsaved would be lost, or the person agrees to lose it. */
+  function discardOk() {
+    return !unsaved || window.confirm(`Discard the unsaved changes to v${config?.version}? They were never saved, so no version records them.`);
+  }
+
+  useEffect(() => {
+    if (!unsaved) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = ""; // older Chromium shows the prompt only when this is set
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [unsaved]);
+
   const refreshDatasets = useCallback(async () => {
     try {
       setDatasets(await api.listDecisionDatasets());
@@ -143,6 +158,7 @@ export function DecisionStudio() {
   }
 
   async function onUpload(file: File) {
+    if (!discardOk()) return;
     const summary = await guard("Parsing and profiling…", () => api.uploadDecisionDataset(file));
     if (summary) {
       selectDataset(summary);
@@ -159,6 +175,7 @@ export function DecisionStudio() {
   }, [source, joinable.length]);
 
   async function onFromSource() {
+    if (!discardOk()) return;
     const summary = await guard("Building the table…", () =>
       api.decisionDatasetFromSource({
         source,
@@ -188,6 +205,7 @@ export function DecisionStudio() {
   /** Loads a saved framework onto the selected table. Saving afterwards makes
    * a new version of that framework, diffed against the one loaded. */
   async function onApplyTemplate(match: TemplateMatch) {
+    if (!discardOk()) return;
     const envelope = await guard("Loading the template…", () => api.getMechanism(match.config.framework_id, match.config.version));
     if (envelope) {
       loadConfig(envelope.config);
@@ -219,7 +237,9 @@ export function DecisionStudio() {
       // save diff against it and record which rules a person changed.
       setBaseVersion(envelope.config.version);
       refreshTemplates();
-      setSub("mechanism");
+      // A guessed direction silently inverts a ranking, and Profile is
+      // where the guesses are flagged: go there first when there are any.
+      setSub(flagged > 0 ? "profile" : "mechanism");
     }
   }
 
@@ -416,11 +436,8 @@ export function DecisionStudio() {
               {config.name} v{config.version} {unsaved ? "(unsaved changes)" : config.ratified ? "(ratified)" : "(draft)"}
             </span>
           )}
-          {!config && (
-            <button className="link-button" onClick={onDerive}>
-              Derive a mechanism
-            </button>
-          )}
+          {!config && <button onClick={onDerive}>Derive a mechanism</button>}
+          {unsaved && <button onClick={onSave}>Save as new version</button>}
         </div>
       )}
 
@@ -510,7 +527,7 @@ export function DecisionStudio() {
                 </thead>
                 <tbody>
                   {datasets.map((d) => (
-                    <tr key={d.dataset_id} className="clickable-row" {...activatable(() => selectDataset(d))}>
+                    <tr key={d.dataset_id} className="clickable-row" {...activatable(() => discardOk() && selectDataset(d))}>
                       <td>{d.name}</td>
                       <td className="muted">{d.source}</td>
                       <td className="muted">{d.as_of ?? "—"}</td>
@@ -599,7 +616,9 @@ export function DecisionStudio() {
               onSetDirection={setDirection}
             />
           ) : (
-            <p className="muted">Derive a mechanism to edit roles and directions.</p>
+            <p className="muted">
+              Roles and directions are part of the framework. <button onClick={onDerive}>Derive a mechanism</button>
+            </p>
           )}
         </div>
       )}
@@ -617,7 +636,11 @@ export function DecisionStudio() {
           />
         </Suspense>
       )}
-      {sub === "rules" && dataset && !config && <p className="muted">Derive a mechanism first — rules are part of the framework.</p>}
+      {sub === "rules" && dataset && !config && (
+        <p className="muted">
+          Rules are part of the framework. <button onClick={onDerive}>Derive a mechanism</button>
+        </p>
+      )}
 
       {sub === "mechanism" && dataset && config && (
         <>
