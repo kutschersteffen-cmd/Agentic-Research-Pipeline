@@ -70,6 +70,10 @@ export function DecisionStudio() {
   // profiled server-side over every row); null when there are no rules.
   const [calculated, setCalculated] = useState<DatasetSummary | null>(null);
   const [config, setConfig] = useState<MechanismConfig | null>(null);
+  // The version as the server last returned it. Save, ratify, publish and
+  // export all act on that stored version, so an edit on screen that is not
+  // saved yet must not look ratified or be publishable.
+  const [stored, setStored] = useState<MechanismConfig | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [result, setResult] = useState<DecisionResult | null>(null);
   const [comparison, setComparison] = useState<DecisionComparison | null>(null);
@@ -93,6 +97,12 @@ export function DecisionStudio() {
   const [templates, setTemplates] = useState<TemplateMatch[]>([]);
   const scoreTimer = useRef<number | undefined>(undefined);
   const view = calculated ?? dataset;
+  const unsaved = config !== null && JSON.stringify(config) !== JSON.stringify(stored);
+
+  function loadConfig(next: MechanismConfig | null) {
+    setConfig(next);
+    setStored(next);
+  }
 
   const refreshDatasets = useCallback(async () => {
     try {
@@ -167,7 +177,7 @@ export function DecisionStudio() {
   function selectDataset(summary: DatasetSummary) {
     setDataset(summary);
     setCalculated(null);
-    setConfig(null);
+    loadConfig(null);
     setResult(null);
     setAudit([]);
     setComparison(null);
@@ -180,7 +190,7 @@ export function DecisionStudio() {
   async function onApplyTemplate(match: TemplateMatch) {
     const envelope = await guard("Loading the template…", () => api.getMechanism(match.config.framework_id, match.config.version));
     if (envelope) {
-      setConfig(envelope.config);
+      loadConfig(envelope.config);
       setAudit(envelope.audit);
       setBaseVersion(envelope.config.version);
       setSub("mechanism");
@@ -203,7 +213,7 @@ export function DecisionStudio() {
       api.deriveMechanism({ dataset_id: dataset.dataset_id, name: `Framework for ${dataset.name}`, save: true }),
     );
     if (envelope) {
-      setConfig(envelope.config);
+      loadConfig(envelope.config);
       setAudit(envelope.audit);
       // v1 is the proposal as derived. Saving it now is what lets the next
       // save diff against it and record which rules a person changed.
@@ -304,7 +314,7 @@ export function DecisionStudio() {
       api.saveMechanism({ config, base_version: baseVersion ?? undefined, by: reviewer.trim() || undefined }),
     );
     if (envelope) {
-      setConfig(envelope.config);
+      loadConfig(envelope.config);
       setAudit(envelope.audit);
       setBaseVersion(envelope.config.version);
       refreshTemplates();
@@ -315,7 +325,7 @@ export function DecisionStudio() {
     setConfirmingRatify(false);
     if (!config) return;
     const saved = await guard("Ratifying…", () => api.ratifyMechanism(config.framework_id, config.version, by));
-    if (saved) setConfig(saved);
+    if (saved) loadConfig(saved);
   }
 
   async function onPublish(by: string) {
@@ -403,7 +413,7 @@ export function DecisionStudio() {
           {dataset.has_confidence && <span className="badge badge-high">carries per-cell confidence</span>}
           {config && (
             <span className="muted">
-              {config.name} v{config.version} {config.ratified ? "(ratified)" : "(draft)"}
+              {config.name} v{config.version} {unsaved ? "(unsaved changes)" : config.ratified ? "(ratified)" : "(draft)"}
             </span>
           )}
           {!config && (
@@ -842,10 +852,14 @@ export function DecisionStudio() {
               <button className="link-button" onClick={onSave}>
                 Save as new version
               </button>
-              {baseVersion === config.version && (
+              {baseVersion === config.version && !unsaved && (
                 <a href={api.exportMechanismUrl(config.framework_id, config.version)}>Export v{config.version} as template</a>
               )}
-              {config.ratified ? (
+              {unsaved ? (
+                <span className="muted">
+                  Unsaved changes. Save them as a new version to ratify or publish; v{config.version} stays as stored.
+                </span>
+              ) : config.ratified ? (
                 <span className="badge badge-high">
                   Ratified{config.ratified_by ? ` by ${config.ratified_by}` : ""}
                   {config.ratified_at ? ` · ${new Date(config.ratified_at).toLocaleDateString()}` : ""}
@@ -853,7 +867,7 @@ export function DecisionStudio() {
               ) : (
                 <button onClick={() => setConfirmingRatify(true)}>Ratify version {config.version}…</button>
               )}
-              {config.ratified && dataset && (
+              {config.ratified && !unsaved && dataset && (
                 <button onClick={() => setConfirmingPublish(true)}>Publish to stewardship and index…</button>
               )}
             </div>
