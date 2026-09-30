@@ -67,7 +67,7 @@ async def measure(html: str) -> list[Finding]:
             add(b, "overflow", f"ratio={b['sh'] / b['ch']:.2f}")
         if b["sw"] > b["cw"] + _TOL:
             add(b, "overflow_x", f"content {b['sw']}px wide in a {b['cw']}px slot")
-        if b["x"] < safe[0] - _TOL or b["y"] < safe[1] - _TOL or b["x"] + b["w"] > safe[2] + _TOL or b["y"] + b["h"] > safe[3] + _TOL:
+        if b["slot"] != "headline" and (b["x"] < safe[0] - _TOL or b["y"] < safe[1] - _TOL or b["x"] + b["w"] > safe[2] + _TOL or b["y"] + b["h"] > safe[3] + _TOL):
             add(b, "off_grid", "slot box leaves the grid's safe area")
     for i, a in enumerate(boxes):
         for b in boxes[i + 1 :]:

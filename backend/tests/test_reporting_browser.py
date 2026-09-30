@@ -41,3 +41,9 @@ async def test_missing_chromium_raises_install_hint(monkeypatch):
     monkeypatch.setenv("ARP_CHROMIUM_PATH", "/nonexistent/chrome")
     with pytest.raises(BrowserUnavailable, match="playwright install chromium"):
         await measure("<html></html>")
+
+
+async def test_overlong_headline_reports_overflow():
+    deck = Deck(title="T", slides=[SlideContent(headline="word " * 60, layout="bullets", variant="three", slots={"items": ["a"]})])
+    [f] = await measure(render_deck_html(deck, []))
+    assert (f.rule, f.slot, f.slide) == ("overflow", "headline", 0)

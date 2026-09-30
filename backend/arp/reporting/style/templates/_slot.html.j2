@@ -1,4 +1,4 @@
-{% macro headline(slide) %}<h1 class="t-headline">{{ slide.headline }}</h1>{% endmacro %}
+{% macro headline(slide) %}<h1 class="t-headline" data-slide="{{ slide.index }}" data-slot="headline">{{ slide.headline }}</h1>{% endmacro %}
 {% macro slot(s) %}<div class="slot t-{{ s.role }} k-{{ s.kind }}" data-slide="{{ s.slide }}" data-slot="{{ s.name }}" style="left:{{ s.x }}px;top:{{ s.y }}px;width:{{ s.w }}px;height:{{ s.h }}px">
 {%- if s.kind == "list" %}<ul>{% for item in s["items"] %}<li>{{ item }}</li>{% endfor %}</ul>
 {%- elif s.kind == "chart" %}{{ s.svg|safe }}

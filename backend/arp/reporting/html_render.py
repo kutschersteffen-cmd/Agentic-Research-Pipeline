@@ -8,6 +8,10 @@ marked safe -- only the chart SVG we generate ourselves is.
 
 from __future__ import annotations
 
+import base64
+import mimetypes
+from pathlib import Path
+
 from jinja2 import Environment, FileSystemLoader
 
 from arp.reporting.chart_builder import render_chart_svg
@@ -28,6 +32,14 @@ def theme_from_tokens(tokens: Tokens) -> DesignTheme:
     )
 
 
+def _data_uri(path: Path) -> str:
+    # The page has no file origin, so a local path would render blank; inline it.
+    if not path.is_file():
+        raise FileNotFoundError(f"image_path does not exist: {path}")
+    mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    return f"data:{mime};base64,{base64.b64encode(path.read_bytes()).decode()}"
+
+
 def _as_text(v: str | list[str] | None) -> str:
     return " ".join(v) if isinstance(v, list) else (v or "")
 
@@ -45,7 +57,7 @@ def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict
         v["columns"] = slide.table.columns or ds.column_names()
         v["rows"] = [[row.get(c, "") for c in v["columns"]] for row in ds.rows[: slide.table.max_rows]]
     elif spec.kind == "image":
-        v["image"] = slide.image_path
+        v["image"] = _data_uri(Path(slide.image_path)) if slide.image_path else None
     else:
         v["text"] = _as_text(value)
     return v
