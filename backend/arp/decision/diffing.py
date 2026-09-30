@@ -87,7 +87,7 @@ def describe_changes(before: MechanismConfig, after: MechanismConfig, *, by: str
 
 
 def _tier_changes(before: MechanismConfig, after: MechanismConfig, by: str | None) -> list[AuditEntry]:
-    """Tier names and actions are what a decision reads as ("Act now"), so
+    """Tier names and actions are what a decision reads as, so
     renaming one is recorded like any other rule change."""
     old = {t.rank: t for t in before.tiers}
     new = {t.rank: t for t in after.tiers}

@@ -6,7 +6,7 @@
     "why": "first high-cardinality text column -- used to name each row",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665767+00:00",
+    "at": "2026-09-30T17:29:29.409672+00:00",
     "by": null
   },
   {
@@ -16,7 +16,7 @@
     "why": "looks like an identifier -- carried through, never scored",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665773+00:00",
+    "at": "2026-09-30T17:29:29.409678+00:00",
     "by": null
   },
   {
@@ -26,7 +26,7 @@
     "why": "9 levels -- usable as a grouping or a peer cohort",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665777+00:00",
+    "at": "2026-09-30T17:29:29.409684+00:00",
     "by": null
   },
   {
@@ -36,7 +36,7 @@
     "why": "4 levels -- usable as a grouping or a peer cohort",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665785+00:00",
+    "at": "2026-09-30T17:29:29.409687+00:00",
     "by": null
   },
   {
@@ -46,7 +46,7 @@
     "why": "name signals position size, not quality -- used for leverage, not for the score",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665789+00:00",
+    "at": "2026-09-30T17:29:29.409691+00:00",
     "by": null
   },
   {
@@ -56,7 +56,7 @@
     "why": "numeric indicator with spread",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665793+00:00",
+    "at": "2026-09-30T17:29:29.409696+00:00",
     "by": null
   },
   {
@@ -66,7 +66,7 @@
     "why": "name matches intensity, intensit, co2",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665798+00:00",
+    "at": "2026-09-30T17:29:29.409702+00:00",
     "by": null
   },
   {
@@ -76,7 +76,7 @@
     "why": "boolean indicator with spread",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665802+00:00",
+    "at": "2026-09-30T17:29:29.409707+00:00",
     "by": null
   },
   {
@@ -86,7 +86,7 @@
     "why": "name matches reported",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665806+00:00",
+    "at": "2026-09-30T17:29:29.409711+00:00",
     "by": null
   },
   {
@@ -96,7 +96,7 @@
     "why": "boolean indicator with spread",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665815+00:00",
+    "at": "2026-09-30T17:29:29.409721+00:00",
     "by": null
   },
   {
@@ -106,7 +106,7 @@
     "why": "name matches target, validated",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665819+00:00",
+    "at": "2026-09-30T17:29:29.409725+00:00",
     "by": null
   },
   {
@@ -116,7 +116,7 @@
     "why": "ordinal indicator with spread",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665823+00:00",
+    "at": "2026-09-30T17:29:29.409728+00:00",
     "by": null
   },
   {
@@ -126,7 +126,7 @@
     "why": "name matches target, ambition",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665826+00:00",
+    "at": "2026-09-30T17:29:29.409731+00:00",
     "by": null
   },
   {
@@ -136,7 +136,7 @@
     "why": "numeric indicator with spread",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665829+00:00",
+    "at": "2026-09-30T17:29:29.409735+00:00",
     "by": null
   },
   {
@@ -146,7 +146,7 @@
     "why": "name matches disclos",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665833+00:00",
+    "at": "2026-09-30T17:29:29.409738+00:00",
     "by": null
   },
   {
@@ -156,7 +156,7 @@
     "why": "numeric indicator with spread",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665837+00:00",
+    "at": "2026-09-30T17:29:29.409741+00:00",
     "by": null
   },
   {
@@ -166,7 +166,7 @@
     "why": "name matches green, capex",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665842+00:00",
+    "at": "2026-09-30T17:29:29.409744+00:00",
     "by": null
   },
   {
@@ -176,7 +176,7 @@
     "why": "numeric indicator with spread",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665845+00:00",
+    "at": "2026-09-30T17:29:29.409747+00:00",
     "by": null
   },
   {
@@ -186,7 +186,7 @@
     "why": "name matches alignment",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665849+00:00",
+    "at": "2026-09-30T17:29:29.409750+00:00",
     "by": null
   },
   {
@@ -196,7 +196,7 @@
     "why": "ordinal indicator with spread",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665852+00:00",
+    "at": "2026-09-30T17:29:29.409753+00:00",
     "by": null
   },
   {
@@ -206,7 +206,7 @@
     "why": "name matches oversight",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665856+00:00",
+    "at": "2026-09-30T17:29:29.409764+00:00",
     "by": null
   },
   {
@@ -216,7 +216,7 @@
     "why": "numeric indicator with spread",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665859+00:00",
+    "at": "2026-09-30T17:29:29.409767+00:00",
     "by": null
   },
   {
@@ -226,7 +226,7 @@
     "why": "name matches support",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665864+00:00",
+    "at": "2026-09-30T17:29:29.409770+00:00",
     "by": null
   },
   {
@@ -236,7 +236,7 @@
     "why": "numeric indicator with spread",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665871+00:00",
+    "at": "2026-09-30T17:29:29.409775+00:00",
     "by": null
   },
   {
@@ -246,7 +246,7 @@
     "why": "name matches coverage -- but the name also matches the opposite dictionary, so this is worth checking",
     "needs_check": true,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665875+00:00",
+    "at": "2026-09-30T17:29:29.409778+00:00",
     "by": null
   },
   {
@@ -256,7 +256,7 @@
     "why": "binary flag with exclusion-type wording",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665879+00:00",
+    "at": "2026-09-30T17:29:29.409783+00:00",
     "by": null
   },
   {
@@ -266,7 +266,7 @@
     "why": "binary flag with exclusion-type wording",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665882+00:00",
+    "at": "2026-09-30T17:29:29.409786+00:00",
     "by": null
   },
   {
@@ -276,7 +276,7 @@
     "why": "name signals a peer grouping; 4 cohorts over 24 rows -- an indicator's percentile is only meaningful against comparable peers",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665952+00:00",
+    "at": "2026-09-30T17:29:29.409848+00:00",
     "by": null
   },
   {
@@ -286,7 +286,7 @@
     "why": "flag wording -- treated as a modifier so it cannot be averaged away",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.665979+00:00",
+    "at": "2026-09-30T17:29:29.409875+00:00",
     "by": null
   },
   {
@@ -296,7 +296,7 @@
     "why": "severity wording -- a knockout belongs in the tree, not in the average",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.666006+00:00",
+    "at": "2026-09-30T17:29:29.409897+00:00",
     "by": null
   },
   {
@@ -306,7 +306,7 @@
     "why": "no rank correlation at or above 0.72 with any other criterion",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.667957+00:00",
+    "at": "2026-09-30T17:29:29.411445+00:00",
     "by": null
   },
   {
@@ -316,7 +316,7 @@
     "why": "no rank correlation at or above 0.72 with any other criterion",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.667988+00:00",
+    "at": "2026-09-30T17:29:29.411466+00:00",
     "by": null
   },
   {
@@ -326,7 +326,7 @@
     "why": "no rank correlation at or above 0.72 with any other criterion",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.668005+00:00",
+    "at": "2026-09-30T17:29:29.411482+00:00",
     "by": null
   },
   {
@@ -336,7 +336,7 @@
     "why": "rank correlation 0.86-0.98 between Target Ambition, Transition Plan Disclosure, Emissions Data Coverage, Climate Lobbying Alignment, Say On Climate Support (complete linkage at 0.72) -- grouped so the shared signal is counted once",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.668098+00:00",
+    "at": "2026-09-30T17:29:29.411572+00:00",
     "by": null
   },
   {
@@ -346,7 +346,7 @@
     "why": "rank correlation 0.89-0.89 between Green Capex Share, Board Climate Oversight (complete linkage at 0.72) -- grouped so the shared signal is counted once",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.668135+00:00",
+    "at": "2026-09-30T17:29:29.411610+00:00",
     "by": null
   },
   {
@@ -356,7 +356,7 @@
     "why": "5 dimensions weighted by the square root of how many criteria they hold -- a theme measured seven ways counts for more than one measured once, but not seven times more; criteria then split their dimension evenly",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.668140+00:00",
+    "at": "2026-09-30T17:29:29.411615+00:00",
     "by": null
   },
   {
@@ -366,7 +366,7 @@
     "why": "ranks are unaffected by outliers and by the units each indicator is reported in",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.668144+00:00",
+    "at": "2026-09-30T17:29:29.411618+00:00",
     "by": null
   },
   {
@@ -376,7 +376,7 @@
     "why": "no value is invented; an entity below 60% of weight covered is routed to a data-collection outcome instead of being scored",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.668148+00:00",
+    "at": "2026-09-30T17:29:29.411626+00:00",
     "by": null
   },
   {
@@ -386,7 +386,7 @@
     "why": "the rank-correlation floor for grouping two criteria into one dimension. It is a judgement call, so two frameworks derived at different thresholds are not directly comparable",
     "needs_check": false,
     "origin": "derived",
-    "at": "2026-09-30T06:50:20.668157+00:00",
+    "at": "2026-09-30T17:29:29.411633+00:00",
     "by": null
   }
 ]

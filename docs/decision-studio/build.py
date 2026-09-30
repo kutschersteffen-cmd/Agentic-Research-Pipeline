@@ -255,7 +255,7 @@ PAGES["tree"] = dict(
                 ["Minimum dimension score", "30", "Below it → demoted one tier."],
                 ["Minimum criteria in the dimension", "2", "A dimension resting on one Yes/No answer cannot demote."],
             ])),
-        block("Tiers", "Default four: Tier 1 Act now, Tier 2 Prepare and engage, Tier 3 Monitor, Tier 4 Park. Rename, add or remove. Tier 1 is the highest score band.", ""),
+        block("Tiers", "Default four, named Tier 1 to Tier 4, with no actions. Tier 1 is the highest score band. Rename them, add or remove tiers, and give each an action.", ""),
         block("Tier rules (optional)", "A second decision model that <b>replaces steps 2 and 4</b>. Sufficiency and cut-points stay in the engine.", table(
             ["", "Available"], [
                 ["Inputs", "<code>band</code>, <code>score</code>, <code>rank</code>, <code>percentile</code> in cohort, <code>coverage</code>, <code>grounded_coverage</code>, <code>dim_&lt;dimension&gt;</code>, <code>cohort</code>, <code>segment</code>, <code>tier_count</code>, every column."],

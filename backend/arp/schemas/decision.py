@@ -230,14 +230,9 @@ class MechanismConfig(BaseModel):
         "dataset was last loaded; pinned and derived are separate here for exactly that reason.",
     )
     veto: VetoRule = Field(default_factory=VetoRule)
-    tiers: list[TierDefinition] = Field(
-        default_factory=lambda: [
-            TierDefinition(rank=1, name="Tier 1", action="Act now"),
-            TierDefinition(rank=2, name="Tier 2", action="Prepare and engage"),
-            TierDefinition(rank=3, name="Tier 3", action="Monitor"),
-            TierDefinition(rank=4, name="Tier 4", action="Park"),
-        ]
-    )
+    # No default actions: whether Tier 1 (the highest scores) is the one to
+    # act on depends on how the criteria are set up, which only a person knows.
+    tiers: list[TierDefinition] = Field(default_factory=lambda: [TierDefinition(rank=r, name=f"Tier {r}") for r in range(1, 5)])
 
     label_column: str | None = None
     size_column: str | None = None
