@@ -129,6 +129,12 @@ class LevelCriterion(BaseModel):
     enabled: bool = True
     rules: list[LevelRule] = Field(default_factory=list)
     otherwise: int | None = None
+    otherwise_on_blank: bool = Field(
+        default=True,
+        description="Whether `otherwise` also applies when a rule could not be decided because a value it reads is "
+        "blank. False leaves such a row without a level, so missing data counts against coverage instead of earning "
+        "the default; a value that is there but fits no rule still gets `otherwise`.",
+    )
     hint: str = Field(default="", description="What the criterion asks, shown to reviewers next to the level.")
 
 

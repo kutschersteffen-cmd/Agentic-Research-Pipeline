@@ -63,7 +63,7 @@ FUNCS = {
         ("effective_weights", "Python", "Breadth-adjusted → Scope 1+2 intensity 0.150; each Climate Lobbying criterion 0.067."),
         ("entropy_weights", "Python", "Discriminating power → SBTi target 0.212 (highest), emissions data coverage 0.062 (lowest)."),
         ("compute_scores", "Python", "Kanto Heavy Industries → score <b>39.8</b>, coverage 0.933. Scope 3 and SBTi each contribute −8.06."),
-        ("apply_levels → evaluate_levels", "ZEN expressions", "<code>7 when target_ambition_0_5 &gt;= 4</code>, <code>4 when &gt;= 2</code>, otherwise 1 → Alpina 7, Kanto 4, Zenith (blank) 1 via <em>otherwise</em>."),
+        ("apply_levels → evaluate_levels", "ZEN expressions", "<code>7 when target_ambition_0_5 &gt;= 4</code>, <code>4 when &gt;= 2</code>, otherwise 1 → Alpina 7, Kanto 4, Zenith (blank) 1 via <em>otherwise</em>; with <code>otherwise_on_blank: false</code> Zenith gets no level instead."),
     ],
     "tree": [
         ("gate_hit", "Python", "<code>Severe_Controversy_Flag is Yes → exclude</code> → 5 entities excluded before any score counts."),
@@ -150,7 +150,7 @@ CODE = {
         ("decision/weighting.py", "breadth_adjusted_weight", "<code>dimension weight = √(criteria count)</code>, split evenly among its criteria; all weights are then scaled to sum to 1."),
         ("decision/weighting.py", "entropy_weights", "<code>pᵢ = (vᵢ + 1) ÷ Σ(v + 1)</code>, <code>H = −Σ pᵢ ln pᵢ</code>, <code>w ∝ 1 − H ÷ ln n</code>, scaled to sum to 1."),
         ("decision/scoring.py", "compute_scores", "<code>score = Σ wⱼvⱼ ÷ Σ wⱼ</code> over the criteria used. <code>coverage = Σ w(present) ÷ Σ w(all)</code>. <code>contributionⱼ = wⱼ ÷ Σ w(used) × (vⱼ − 50)</code>."),
-        ("decision/levels.py", "evaluate_levels", "Each rule's <code>when</code> is compiled with <code>zen.compile_expression</code>; the first rule that holds sets the level, else <code>otherwise</code>."),
+        ("decision/levels.py", "evaluate_levels", "Each rule's <code>when</code> is compiled with <code>zen.compile_expression</code>; the first rule that holds sets the level, else <code>otherwise</code>, unless a rule was undecided on a blank value and <code>otherwise_on_blank</code> is off."),
     ],
     "tree": [
         ("decision/tree.py", "gate_hit", "Yes/No and text: <code>value == target</code> (is) or <code>≠</code> (is not). Numbers: <code>&lt;</code>, <code>&gt;</code>, <code>==</code>. A blank value never hits."),
@@ -400,7 +400,7 @@ PAGES["mechanism"] = dict(
             ["Part", "Logic"], [
                 ["Scale", "<code>level_min</code>..<code>level_max</code>, default 1–7."],
                 ["Clusters", "Named and weighted by hand."],
-                ["Level rules", "Ordered <code>level</code> + <code>when</code> conditions. The first that holds sets the level; <em>otherwise</em> is the fallback."],
+                ["Level rules", "Ordered <code>level</code> + <code>when</code> conditions. The first that holds sets the level; <em>otherwise</em> is the fallback. <em>Also when a value is blank</em> (per criterion) decides whether a blank value gets the fallback or no level."],
                 ["Blanks", "A comparison with a blank never holds, so missing data never earns a level."],
                 ["Scores", "Cluster = weighted average of its levels; total = weighted average of clusters. Both on the scale."],
                 ["Checks on save", "A condition that does not parse, or a level off the scale, is refused."],

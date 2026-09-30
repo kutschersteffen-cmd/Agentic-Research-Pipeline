@@ -296,10 +296,15 @@ scores that way:
 - **Level criteria.** Each has ordered rules, `level` + `when` (a ZEN
   expression over the columns, by name or slug), and an optional default.
   The first rule that holds sets the level. A comparison against a blank
-  value does not hold, so missing data never earns a level; a criterion
-  with no match and no default has no level, which counts against
-  coverage (or, with `missing = penalise | neutral`, as the bottom or
-  middle of the scale). A rule with an empty condition is not written yet
+  value, or a blank flag, does not hold. When no rule holds the default
+  (`otherwise`) applies. Per criterion, `otherwise_on_blank` decides
+  whether that includes a row where a rule could not be decided because a
+  value is blank: on (the default, which keeps older frameworks' results)
+  the blank gets the default level; off, it gets no level, while a value
+  that is there but fits no rule still gets the default. The studio
+  switches it off for new criteria. A criterion without a level counts
+  against coverage (or, with `missing = penalise | neutral`, as the bottom
+  or middle of the scale). A rule with an empty condition is not written yet
   and is skipped; a condition that does not parse, or a level off the
   scale, is refused on save.
 - **Scores.** Cluster = weighted average of its criteria's levels;
