@@ -37,6 +37,73 @@ def ex(items):
     return "".join(f'<div class="ex-i"><code>{c}</code><p>{r}</p></div>' for c, r in items)
 
 
+
+# Functions each step applies, with an input -> output example. Every
+# example is a real call on the sample table (or the snippet shown).
+FUNCS = {
+    "data": [
+        ("sniff_delimiter", "Python", "<code>Company;Scope 1 (t);Note / A;1.234,5;x, y</code> → <code>';'</code>. The comma inside the note does not win."),
+        ("detect_decimal_comma", "Python", "<code>['1.234,5', '980,0', '12,75']</code> → <code>True</code>, so the column reads 1234.5."),
+        ("parse_delimited", "Python", "<code>Company;Scope 1 (t) / A;1.234,5</code> → <code>[['Company', 'Scope 1 (t)'], ['A', '1.234,5']]</code>"),
+        ("sources.from_&lt;source&gt;", "Python", "One adapter per source (transition plan, extraction, TNFD, joined runs, …) builds the same kind of table."),
+    ],
+    "profile": [
+        ("profile_dataset", "Python", "<code>Scope3_Reported</code> → boolean, coverage 1.0, 2 distinct. <code>Target_Ambition_0_5</code> → ordinal, coverage 0.96. <code>ISIN</code> → identifier."),
+        ("propose_roles", "Python", "<code>Emissions_Data_Coverage_pct</code> → criterion, higher, <b>needs_check</b> (matches both dictionaries). <code>Portfolio_Weight_bps</code> → size."),
+        ("propose_cohort_column", "Python", "→ <code>('Region', '4 cohorts over 24 rows')</code>"),
+    ],
+    "rules": [
+        ("apply_rules → evaluate_rows", "GoRules ZEN", "<code>coal_without_target = coal_expansion_flag and not sbti_validated_target</code> → Yes for Tarn Mining, Vega Power, Kalahari Resources."),
+        ("apply_rules → evaluate_rows", "GoRules ZEN", "<code>capex_ratio = green_capex_share_pct / 100</code> → Nordwind 0.41; Zenith REIT blank (no value). Audit: <em>2 calculated columns</em>, <em>calculated values left blank</em>."),
+    ],
+    "mechanism": [
+        ("spearman · correlation_matrix", "Python", "Target ambition vs plan disclosure → <b>0.948</b>, above the 0.72 threshold."),
+        ("cluster_criteria · name_cluster", "Python", "→ <em>Climate Lobbying group</em> (5 criteria, weight √5 = 2.236) and <em>Green Capex group</em> (2, weight 1.414)."),
+        ("normalise_column", "Python", "Meridian Steel, Scope 1+2 intensity 1,840 t/€m, lower is better, UK cohort of 4 falls back to the whole table → <b>4.35</b>."),
+        ("effective_weights", "Python", "Breadth-adjusted → Scope 1+2 intensity 0.150; each Climate Lobbying criterion 0.067."),
+        ("entropy_weights", "Python", "Discriminating power → SBTi target 0.212 (highest), emissions data coverage 0.062 (lowest)."),
+        ("compute_scores", "Python", "Kanto Heavy Industries → score <b>39.8</b>, coverage 0.933. Scope 3 and SBTi each contribute −8.06."),
+        ("apply_levels → evaluate_levels", "ZEN expressions", "<code>7 when target_ambition_0_5 &gt;= 4</code>, <code>4 when &gt;= 2</code>, otherwise 1 → Alpina 7, Kanto 4, Zenith (blank) 1 via <em>otherwise</em>."),
+    ],
+    "tree": [
+        ("gate_hit", "Python", "<code>Severe_Controversy_Flag is Yes → exclude</code> → 5 entities excluded before any score counts."),
+        ("derive_cuts", "Python", "Quantile → <code>[86.5, 64.6, 34.8]</code>. Natural breaks on the same scores → <code>[92.4, 64.6, 45.1]</code>."),
+        ("dimension_scores · veto_dimensions", "Python", "Kestrel Airlines, Climate Lobbying group 3.0 &lt; 30 → <em>Demoted: Climate Lobbying group below 30</em>."),
+        ("tier_for_score", "Python", "Nordwind Energie, score 74.6 → Tier 2."),
+        ("apply_tier_graph", "GoRules ZEN", "Decision table <code>coal_expansion_flag = true → tier 4, 'Red flag: Coal'</code>, else band → Vega Power Tier 4 with the note. Tarn Mining, excluded by the gate before, is now Tier 4: tier rules replace the gates."),
+    ],
+    "results": [
+        ("rank_ranges · ranks_of", "Python", "Kanto Heavy Industries → rank 12, band <b>11–16</b> across the four specifications."),
+        ("tipping_points", "Python", "Kanto → Scope 3 weight 15.0% → 19.1% flips it to Tier 4; Climate Lobbying 33.6% → 14.4% does too. Smallest change 4.1 points."),
+        ("leverage (apply_mechanism)", "Python", "Vega Power, 47 bps × (100 − 25.1) / 100 → <b>35.2</b>, the highest."),
+        ("apply_overrides", "Python", "Levels mode only: a reviewer's level replaces the rules' level before averaging; the rules' level stays on the result."),
+    ],
+    "movement": [
+        ("compare_results", "Python", "Q3 table where Kanto now reports Scope 3 and has an SBTi target → Kanto Tier 3 → 2, score 39.8 → 72.0, drivers <em>Scope3 Reported +16.1</em>, <em>Sbti Validated Target +16.1</em>."),
+        ("compare_results", "Python", "Same run: Ardent Pharma Tier 2 → 3 with its score unchanged at 70.1 and <b>no drivers</b>. The quantile cut moved 64.6 → 71.0 because Kanto rose. The percentile caveat is returned."),
+    ],
+    "audit": [
+        ("describe_changes", "Python", "Minimum coverage 60 → 75 → <code>('Minimum weight covered (%)', '60 -&gt; 75', origin human, by A. Reviewer)</code>"),
+        ("DecisionStore.save · new_version · ratify", "Python", "v1 derived, v2 with four edits, ratified. Saving over v2 → <em>v2 is ratified and cannot be overwritten</em>. Files in <a href=\"example-framework/v2.json\">example-framework</a>."),
+    ],
+    "output": [
+        ("publish", "Python", "Sample table with <code>id_column='ISIN'</code> → 24 rows: 18 scored, 6 excluded or insufficient."),
+        ("publish", "Python", "Without an id column → <em>No id column to match entities to issuers (looked for company_id, issuer_id, entity_id, id); name one explicitly.</em>"),
+        ("templates.score_run", "Python", "Run finishes → the attached framework scores it and <code>decision.json</code> is written; a failure is recorded, never fails the run."),
+    ],
+}
+
+
+def funcs_block(slug):
+    rows = "".join(
+        f'<tr class="{"zen" if engine != "Python" else ""}"><td><code>{fn}</code></td><td>{engine}</td><td>{ex}</td></tr>' for fn, engine, ex in FUNCS[slug]
+    )
+    return block(
+        "Functions applied",
+        "What runs at this step, in order, with an example. Blue rows run on GoRules ZEN; the rest is Python in <code>backend/arp/decision/</code>.",
+        f'<div class="tw"><table><thead><tr><th>Function</th><th>Engine</th><th>Example</th></tr></thead><tbody>{rows}</tbody></table></div>',
+    )
+
 PAGES = {}
 
 # ---------------------------------------------------------------- 1 Data
@@ -461,7 +528,7 @@ for i, (slug, n, name, you) in enumerate(NODES):
     <p class="lede">{page['lede']}</p>
   </header>
   <div class="cols">
-    <div class="logic">{''.join(page['blocks'])}</div>
+    <div class="logic">{''.join(page['blocks'])}{funcs_block(slug)}</div>
     <aside class="ex"><h2>From the sample table</h2><p class="src">24 companies in <code>example_transition_universe.csv</code>, run through the engine. Lines marked illustration are not from the sample.</p>{ex(page['example'])}</aside>
   </div>
   {pager}
