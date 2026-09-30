@@ -76,7 +76,7 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
           }}
         />
         <button onClick={runNow} disabled={busy || !universePath}>
-          Resolve identity for {companyCount || "..."} companies
+          Resolve identity for {companyCount ? `${companyCount} companies` : "your companies (upload them first)"}
         </button>
         {error && <p className="error-text">{error}</p>}
         {runId && <RunProgress runId={runId} runType="identity" />}
@@ -106,8 +106,8 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
                         <td>{r.resolved_cik ?? "-"}</td>
                         <td>
                           {r.flagged_for_review ? (
-                            <span className="error-text" title={r.rationale}>
-                              ⚠️ needs review
+                            <span className="await-text" title={r.rationale}>
+                              Needs review
                             </span>
                           ) : (
                             "ok"

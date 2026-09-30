@@ -1,4 +1,5 @@
 import "@gorules/jdm-editor/dist/style.css";
+import { useEditorTheme } from "../../lib/editorTheme";
 import { DecisionGraph, JdmConfigProvider, type DecisionGraphType } from "@gorules/jdm-editor";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client";
@@ -294,9 +295,10 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
 // --- 2. Research & Selection: coverage tiers -------------------------------------
 
 function PolicyCanvas({ graph, onChange }: { graph: Record<string, unknown>; onChange: (g: Record<string, unknown>) => void }) {
+  const editorTheme = useEditorTheme();
   return (
     <div className="card rule-canvas studio-canvas">
-      <JdmConfigProvider theme={{ token: { colorPrimary: "#2a2826", fontFamily: "Hanken Grotesk, sans-serif", borderRadius: 6 } }}>
+      <JdmConfigProvider theme={editorTheme}>
         <DecisionGraph
           value={graph as unknown as DecisionGraphType}
           onChange={(next) => {

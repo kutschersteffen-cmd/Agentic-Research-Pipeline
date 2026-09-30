@@ -273,9 +273,10 @@ a.nav-tab { text-decoration: none; }
 
 .app-topbar, .nav-scrim { display: none; }
 
-/* Below 760px the 248px sidebar left ~140px for content. It becomes an
+/* Below 1024px the 248px sidebar left too little for tables and diagrams
+   (~500px at tablet width). It becomes an
    off-canvas drawer behind a sticky top bar that names the current page. */
-@media (max-width: 760px) {
+@media (max-width: 1024px) {
   .app-shell { flex-direction: column; }
   .app-topbar {
     display: flex;
@@ -336,7 +337,7 @@ a.nav-tab { text-decoration: none; }
   .app-main { padding: var(--s-6) var(--s-4) var(--s-12); }
 }
 
-@media (max-width: 760px) and (prefers-reduced-motion: reduce) {
+@media (max-width: 1024px) and (prefers-reduced-motion: reduce) {
   .app-sidebar, .nav-open .app-sidebar { transition: none; }
 }
 
@@ -488,6 +489,8 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
 .clickable-row[aria-current] td:first-child { font-weight: 600; }
 .status-text { font-size: var(--text-sm); color: var(--accent); }
 .error-text { color: var(--low); }
+/* Inline "a person must act" text: the signal colour, at text contrast. */
+.await-text { color: var(--hi-ink); font-weight: 600; }
 /* An inline recovery action inside a message reads as part of the sentence. */
 .error-text .link-button { margin: 0; padding: 0; font-size: inherit; font-weight: 600; }
 /* Same truth at every size: below 560px a run table becomes one card per
@@ -513,6 +516,7 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
 /* A row of fields: controls centre on one line and wrap as a group; a
    checkbox label or a button never squeezes into a word-per-line column. */
 .inline-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.inline-fields + .inline-fields { margin-top: 8px; }
 .inline-fields > :is(input:not([type="checkbox"]), select) { flex: 1 1 12rem; width: auto; min-width: 0; }
 .inline-fields > button, .inline-fields > label:has(> input[type="checkbox"]) { flex: none; white-space: nowrap; }
 .inline-fields > label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 6px; }
@@ -523,7 +527,22 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
    horizontally on its own instead of forcing the whole page to scroll --
    the table keeps natural column widths (no squished/wrapped cells)
    regardless of viewport width. */
-.table-wrap { overflow-x: auto; }
+.table-wrap {
+  overflow-x: auto;
+  /* Scroll shadows: an edge darkens only while more table lies past it, so a
+     clipped column never reads as the end of the data. */
+  background:
+    linear-gradient(to right, var(--panel), var(--panel)) left / 24px 100% no-repeat local,
+    linear-gradient(to left, var(--panel), var(--panel)) right / 24px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 0.16), transparent) left / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 0.16), transparent) right / 12px 100% no-repeat scroll;
+}
+.table-wrap { background-color: var(--panel); }
+/* A table placed straight on the page gets the card frame every other
+   table sits in. */
+:is(.page, .page-body) > .table-wrap { border: 1px solid var(--panel-border); border-radius: var(--r-lg); padding: 0 var(--s-2); margin-bottom: var(--s-6); }
+.data-table td > :is(input:not([type="checkbox"]), select) { min-width: 8rem; }
+.data-table td:first-child { white-space: nowrap; }
 
 .data-table {
   width: 100%;
@@ -548,7 +567,8 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
 .data-table button:not(.link-button, .danger, .danger-outline):hover:not(:disabled) { background: var(--accent-tint); border-color: var(--accent); }
 .data-table .link-button { padding: 0; white-space: nowrap; }
 .chart-bar { fill: var(--text); }
-.bar-chart { max-width: 760px; }
+.bar-chart { max-width: 760px; min-width: 520px; }
+.chart-scroll { overflow-x: auto; }
 .clickable-row { cursor: pointer; }
 .clickable-row:hover { background: var(--well); }
 .detail-cell { background: var(--well); }
@@ -1536,6 +1556,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-card-purpose { color: var(--muted); line-height: 1.45; }
 .hub-card-now { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--muted); min-height: 1.4em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hub-card-foot { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-2); font-family: var(--font-mono); font-size: var(--text-sm); }
+.hub-card-state { white-space: nowrap; }
 .hub-card-state.await { color: var(--hi-ink); }
 .hub-card-state.failed { color: var(--low); }
 .hub-card-go { white-space: nowrap; }
@@ -1592,7 +1613,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-step:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .hub-step-done { border-color: color-mix(in oklch, var(--high) 45%, var(--panel-border)); }
 .hub-step-now { border-color: var(--accent); }
-.hub-step-wait { border-color: var(--await-edge); box-shadow: inset 0 3px 0 var(--await-edge); }
+.hub-step-wait, .hub-step:has(.hub-step-banner) { border-color: var(--await-edge); box-shadow: inset 0 3px 0 var(--await-edge); }
 .hub-step-failed { border-color: var(--low); }
 .hub-step-head { display: flex; align-items: center; gap: 8px; }
 .hub-step-num { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--r-sm); background: var(--well); color: var(--muted); font-family: var(--font-mono); font-weight: 600; }
