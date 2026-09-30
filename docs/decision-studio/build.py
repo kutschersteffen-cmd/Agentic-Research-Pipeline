@@ -37,6 +37,193 @@ def ex(items):
     return "".join(f'<div class="ex-i"><code>{c}</code><p>{r}</p></div>' for c, r in items)
 
 
+
+# Functions each step applies, with an input -> output example. Every
+# example is a real call on the sample table (or the snippet shown).
+FUNCS = {
+    "data": [
+        ("sniff_delimiter", "Python", "<code>Company;Scope 1 (t);Note / A;1.234,5;x, y</code> → <code>';'</code>. The comma inside the note does not win."),
+        ("detect_decimal_comma", "Python", "<code>['1.234,5', '980,0', '12,75']</code> → <code>True</code>, so the column reads 1234.5."),
+        ("parse_delimited", "Python", "<code>Company;Scope 1 (t) / A;1.234,5</code> → <code>[['Company', 'Scope 1 (t)'], ['A', '1.234,5']]</code>"),
+        ("sources.from_&lt;source&gt;", "Python", "One adapter per source (transition plan, extraction, TNFD, joined runs, …) builds the same kind of table."),
+    ],
+    "profile": [
+        ("profile_dataset", "Python", "<code>Scope3_Reported</code> → boolean, coverage 1.0, 2 distinct. <code>Target_Ambition_0_5</code> → ordinal, coverage 0.96. <code>ISIN</code> → identifier."),
+        ("propose_roles", "Python", "<code>Emissions_Data_Coverage_pct</code> → criterion, higher, <b>needs_check</b> (matches both dictionaries). <code>Portfolio_Weight_bps</code> → size."),
+        ("propose_cohort_column", "Python", "→ <code>('Region', '4 cohorts over 24 rows')</code>"),
+    ],
+    "rules": [
+        ("apply_rules → evaluate_rows", "GoRules ZEN", "<code>coal_without_target = coal_expansion_flag and not sbti_validated_target</code> → Yes for Tarn Mining, Vega Power, Kalahari Resources."),
+        ("apply_rules → evaluate_rows", "GoRules ZEN", "<code>capex_ratio = green_capex_share_pct / 100</code> → Nordwind 0.41; Zenith REIT blank (no value). Audit: <em>2 calculated columns</em>, <em>calculated values left blank</em>."),
+    ],
+    "mechanism": [
+        ("spearman · correlation_matrix", "Python", "Target ambition vs plan disclosure → <b>0.948</b>, above the 0.72 threshold."),
+        ("cluster_criteria · name_cluster", "Python", "→ <em>Climate Lobbying group</em> (5 criteria, weight √5 = 2.236) and <em>Green Capex group</em> (2, weight 1.414)."),
+        ("normalise_column", "Python", "Meridian Steel, Scope 1+2 intensity 1,840 t/€m, lower is better, UK cohort of 4 falls back to the whole table → <b>4.35</b>."),
+        ("effective_weights", "Python", "Breadth-adjusted → Scope 1+2 intensity 0.150; each Climate Lobbying criterion 0.067."),
+        ("entropy_weights", "Python", "Discriminating power → SBTi target 0.212 (highest), emissions data coverage 0.062 (lowest)."),
+        ("compute_scores", "Python", "Kanto Heavy Industries → score <b>39.8</b>, coverage 0.933. Scope 3 and SBTi each contribute −8.06."),
+        ("apply_levels → evaluate_levels", "ZEN expressions", "<code>7 when target_ambition_0_5 &gt;= 4</code>, <code>4 when &gt;= 2</code>, otherwise 1 → Alpina 7, Kanto 4, Zenith (blank) 1 via <em>otherwise</em>."),
+    ],
+    "tree": [
+        ("gate_hit", "Python", "<code>Severe_Controversy_Flag is Yes → exclude</code> → 5 entities excluded before any score counts."),
+        ("derive_cuts", "Python", "Quantile → <code>[86.5, 64.6, 34.8]</code>. Natural breaks on the same scores → <code>[92.4, 64.6, 45.1]</code>."),
+        ("dimension_scores · veto_dimensions", "Python", "Kestrel Airlines, Climate Lobbying group 3.0 &lt; 30 → <em>Demoted: Climate Lobbying group below 30</em>."),
+        ("tier_for_score", "Python", "Nordwind Energie, score 74.6 → Tier 2."),
+        ("apply_tier_graph", "GoRules ZEN", "Decision table <code>coal_expansion_flag = true → tier 4, 'Red flag: Coal'</code>, else band → Vega Power Tier 4 with the note. Tarn Mining, excluded by the gate before, is now Tier 4: tier rules replace the gates."),
+    ],
+    "results": [
+        ("rank_ranges · ranks_of", "Python", "Kanto Heavy Industries → rank 12, band <b>11–16</b> across the four specifications."),
+        ("tipping_points", "Python", "Kanto → Scope 3 weight 15.0% → 19.1% flips it to Tier 4; Climate Lobbying 33.6% → 14.4% does too. Smallest change 4.1 points."),
+        ("leverage (apply_mechanism)", "Python", "Vega Power, 47 bps × (100 − 25.1) / 100 → <b>35.2</b>, the highest."),
+        ("apply_overrides", "Python", "Levels mode only: a reviewer's level replaces the rules' level before averaging; the rules' level stays on the result."),
+    ],
+    "movement": [
+        ("compare_results", "Python", "Q3 table where Kanto now reports Scope 3 and has an SBTi target → Kanto Tier 3 → 2, score 39.8 → 72.0, drivers <em>Scope3 Reported +16.1</em>, <em>Sbti Validated Target +16.1</em>."),
+        ("compare_results", "Python", "Same run: Ardent Pharma Tier 2 → 3 with its score unchanged at 70.1 and <b>no drivers</b>. The quantile cut moved 64.6 → 71.0 because Kanto rose. The percentile caveat is returned."),
+    ],
+    "audit": [
+        ("describe_changes", "Python", "Minimum coverage 60 → 75 → <code>('Minimum weight covered (%)', '60 -&gt; 75', origin human, by A. Reviewer)</code>"),
+        ("DecisionStore.save · new_version · ratify", "Python", "v1 derived, v2 with four edits, ratified. Saving over v2 → <em>v2 is ratified and cannot be overwritten</em>. Files in <a href=\"example-framework/v2.json\">example-framework</a>."),
+    ],
+    "output": [
+        ("publish", "Python", "Sample table with <code>id_column='ISIN'</code> → 24 rows: 18 scored, 6 excluded or insufficient."),
+        ("publish", "Python", "Without an id column → <em>No id column to match entities to issuers (looked for company_id, issuer_id, entity_id, id); name one explicitly.</em>"),
+        ("templates.score_run", "Python", "Run finishes → the attached framework scores it and <code>decision.json</code> is written; a failure is recorded, never fails the run."),
+    ],
+}
+
+
+def funcs_block(slug):
+    rows = "".join(
+        f'<tr class="{"zen" if engine != "Python" else ""}"><td><code>{fn}</code></td><td>{engine}</td><td>{ex}</td></tr>' for fn, engine, ex in FUNCS[slug]
+    )
+    return block(
+        "Functions applied",
+        "What runs at this step, in order, with an example. Blue rows run on GoRules ZEN; the rest is Python in <code>backend/arp/decision/</code>.",
+        f'<div class="tw"><table><thead><tr><th>Function</th><th>Engine</th><th>Example</th></tr></thead><tbody>{rows}</tbody></table></div>',
+    )
+
+
+# The code behind each step: a formula in words and symbols, and the exact
+# Python source, read from backend/ at build time so it cannot drift.
+import ast
+import html as _html
+
+ENGINE = Path(__file__).resolve().parents[2] / "backend" / "arp"
+
+
+def _source(file: str, name: str) -> tuple[str, int, int]:
+    """(source, first line, last line) of a function or method; `name` may be
+    "Class.method", or "@pattern" for the single statement starting at the
+    first line containing it."""
+    text = (ENGINE / file).read_text()
+    if name.startswith("@"):
+        lines = text.splitlines()
+        start = next(i for i, ln in enumerate(lines) if name[1:] in ln)
+        return lines[start].strip(), start + 1, start + 1
+    tree = ast.parse(text)
+    cls, _, fn = name.rpartition(".")
+    scope = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == cls).body if cls else tree.body
+    node = next(n for n in scope if isinstance(n, ast.FunctionDef) and n.name == fn)
+    return ast.get_source_segment(text, node, padded=True), node.lineno, node.end_lineno
+
+
+CODE = {
+    "data": [
+        ("decision/parsing.py", "sniff_delimiter", "For each candidate delimiter <i>d</i> over the first 20 lines: <code>score(d) = 10 × share of lines with line 1's column count + columns in line 1</code>. Highest score wins; a candidate must give at least 2 columns."),
+        ("decision/parsing.py", "detect_decimal_comma", "<code>comma-decimal values &gt; dot-decimal values</code> → the column is read with comma decimals."),
+    ],
+    "profile": [
+        ("decision/roles.py", "propose_direction", "<code>lower if Σ weight(lower-keyword hits) &gt; Σ weight(higher-keyword hits), else higher</code>. <b>needs_check</b> when both dictionaries hit, or neither does."),
+        ("decision/roles.py", "propose_cohort_column", "A categorical column with <code>levels ≥ 2</code> and <code>rows ÷ levels ≥ min_cohort</code> (5); a name that signals a peer grouping is preferred."),
+    ],
+    "rules": [
+        ("decision/rules.py", "evaluate_rows", "The graph is checked with <code>zen.ZenEngine().create_decision(graph).validate()</code>, then <code>engine.evaluate_batch(rows)</code> runs it once per row. Each output is flattened into columns."),
+        ("decision/rules.py", "apply_rules", "Every output key that is not already a source column becomes a calculated column; a source-column output is dropped; a failing row gets blanks."),
+    ],
+    "mechanism": [
+        ("decision/normalise.py", "_percentile_ranks", "<code>p = r̄ ÷ (n − 1) × 100</code>, where <i>r̄</i> is the 0-based rank, ties sharing their average rank. One present value → 50."),
+        ("decision/normalise.py", "_linear", "min–max: <code>100 × (clip(v) − lo) ÷ (hi − lo)</code>. z-score: <code>clip(50 + 15 × (clip(v) − mean) ÷ sd, 0, 100)</code>. <i>lo</i>, <i>hi</i> are the <i>w</i> and 1 − <i>w</i> quantiles (<i>w</i> = winsor %)."),
+        ("decision/normalise.py", "spearman", "Pearson correlation of the ranks, over rows where both values exist: <code>ρ = Σ(a − ā)(b − b̄) ÷ √(Σ(a − ā)² · Σ(b − b̄)²)</code>. Fewer than 5 shared rows → 0."),
+        ("decision/cluster.py", "cluster_criteria", "Repeatedly merge the two clusters with the highest <code>min ρ</code> over all cross pairs, while that minimum ≥ the threshold (0.72)."),
+        ("decision/weighting.py", "breadth_adjusted_weight", "<code>dimension weight = √(criteria count)</code>, split evenly among its criteria; all weights are then scaled to sum to 1."),
+        ("decision/weighting.py", "entropy_weights", "<code>pᵢ = (vᵢ + 1) ÷ Σ(v + 1)</code>, <code>H = −Σ pᵢ ln pᵢ</code>, <code>w ∝ 1 − H ÷ ln n</code>, scaled to sum to 1."),
+        ("decision/scoring.py", "compute_scores", "<code>score = Σ wⱼvⱼ ÷ Σ wⱼ</code> over the criteria used. <code>coverage = Σ w(present) ÷ Σ w(all)</code>. <code>contributionⱼ = wⱼ ÷ Σ w(used) × (vⱼ − 50)</code>."),
+        ("decision/levels.py", "evaluate_levels", "Each rule's <code>when</code> is compiled with <code>zen.compile_expression</code>; the first rule that holds sets the level, else <code>otherwise</code>."),
+    ],
+    "tree": [
+        ("decision/tree.py", "gate_hit", "Yes/No and text: <code>value == target</code> (is) or <code>≠</code> (is not). Numbers: <code>&lt;</code>, <code>&gt;</code>, <code>==</code>. A blank value never hits."),
+        ("decision/tree.py", "quantile_positions", "<code>qᵢ = 0.8 − i × 0.6 ÷ (k − 1)</code> for <i>k</i> cuts, so 4 tiers cut at the 0.8, 0.5 and 0.2 quantiles."),
+        ("decision/tree.py", "_natural_breaks", "Cut at the <i>k</i> widest gaps between sorted scores, each band holding at least <code>max(1, 10% of n)</code>; the cut is the gap's midpoint."),
+        ("decision/tree.py", "tier_for_score", "<code>tier = 1 + index of the first cut with score ≥ cut</code>; below every cut → the last tier."),
+        ("decision/tree.py", "veto_dimensions", "Only dimensions with <code>≥ min_criteria</code> (2) active criteria can demote; a dimension score below <code>min_score</code> (30) demotes one tier."),
+        ("decision/rules.py", "apply_tier_graph", "The tier graph runs on GoRules ZEN per scored entity, with <code>band</code>, <code>score</code>, <code>rank</code>, <code>dim_*</code> and every column as input; <code>tier</code>, <code>exclude</code> and <code>note</code> come back."),
+    ],
+    "results": [
+        ("decision/stability.py", "rank_ranges", "<code>band = [min rank, max rank]</code> over the four specifications."),
+        ("decision/mechanism.py", "@leverage=(", "<code>leverage = size × (100 − score) ÷ 100</code>, for scored entities with a size."),
+        ("decision/sensitivity.py", "tipping_points", "For each dimension, scale its weight from 0 up in <code>steps</code>, re-apply the framework, and take the share nearest today's at which the tier changes. None → robust."),
+    ],
+    "movement": [
+        ("decision/compare.py", "compare_results", "Refused unless both results carry the same framework id and version. Then per entity: tier, score and rank before, after and delta."),
+        ("decision/compare.py", "_drivers", "<code>Δcontributionⱼ = contributionⱼ(after) − contributionⱼ(before)</code>; criteria with <code>|Δ| ≥ 0.5</code>, largest first."),
+    ],
+    "audit": [
+        ("decision/diffing.py", "describe_changes", "Field-by-field diff of the edited framework against the version it came from; each difference is one <code>origin=\"human\"</code> entry."),
+        ("storage/decision_store.py", "DecisionStore.save", "Refuses to overwrite a ratified version; otherwise writes <code>vN.json</code> and <code>vN.audit.json</code>."),
+        ("storage/decision_store.py", "DecisionStore.new_version", "<code>version = latest + 1</code>, unratified, with its own audit file."),
+    ],
+    "output": [
+        ("decision/publish.py", "find_id_column", "The first column named <code>company_id</code>, <code>issuer_id</code>, <code>entity_id</code> or <code>id</code> (case-insensitive); none → publishing needs one named."),
+        ("decision/publish.py", "publish", "Freezes one framework version's result on one table, rows matched to issuers by the id column."),
+    ],
+}
+
+
+def code_block(slug):
+    items = []
+    for file, name, formula in CODE[slug]:
+        src, first, last = _source(file, name)
+        label = name.lstrip("@").rstrip("=(") if name.startswith("@") else name
+        where = f"{file}:{first}" if first == last else f"{file}:{first}–{last}"
+        items.append(
+            f'<div class="fn"><div class="fn-h"><code class="fn-name">{_html.escape(label)}</code><span class="fn-where">backend/arp/{where}</span></div>'
+            f'<p class="formula-p">{formula}</p>'
+            f'<details><summary>Python source ({last - first + 1} line{"s" if last > first else ""})</summary><pre class="src"><code>{_html.escape(src)}</code></pre></details></div>'
+        )
+    return block("Code and formulas", "The formula each function applies, and its source as it is in the repository.", "".join(items))
+
+
+SHOTS = {
+    "data": [("01-data.png", "Data tab after loading two tables: the Q2 sample and a Q3 copy.")],
+    "profile": [("02-profile.png", "Profile after Derive: one column flagged, <code>Emissions_Data_Coverage_pct</code> highlighted.")],
+    "rules": [("03-rules.png", "Rules tab: the GoRules JDM canvas with the starter graph (the Row input into an expression box, partly behind the Components panel) and the live preview. The palette still lists Function (JS), which saving refuses.")],
+    "mechanism": [("04-mechanism.png", "Mechanism tab: scoring mode, normalisation, cohort, and the derived dimensions with their weights.")],
+    "tree": [("05-tree.png", "Decision tree tab: gates, cut-points, dimension floor and tiers.")],
+    "results": [
+        ("06-results.png", "Results: tier cards, the score distribution with the quantile cuts 34.8 / 64.6 / 86.5, and the ranked table."),
+        ("06c-explain.png", "Kanto Heavy Industries opened: what moved its score."),
+        ("06b-sensitivity.png", "Kanto's tipping points: Scope 3 at +4.1 points flips it to Tier 4."),
+    ],
+    "movement": [("07-movement.png", "Q3 against Q2 under the same ratified framework: Kanto 3 → 2 with its drivers, and Ardent Pharma 2 → 3 with no driver, because the quantile cut moved.")],
+    "audit": [("08-audit.png", "Audit after ratifying v1: the ratified badge, Publish, and the derived half of the log.")],
+    "output": [("09-publish.png", "Publishing the sample table from the studio fails: it has an ISIN but no id column the engine recognises, and the dialog cannot name one.")],
+}
+
+
+def shots_block(slug):
+    figs = "".join(
+        f'<figure class="shot"><a href="screenshots/{f}"><img src="screenshots/{f}" alt="{_html.escape(_strip_tags(c))}" loading="lazy"></a><figcaption>{c}</figcaption></figure>'
+        for f, c in SHOTS[slug]
+    )
+    return block("In the tool", "Screenshots of Decision Studio running on the sample table, taken with the app as it is on main.", figs)
+
+
+def _strip_tags(text):
+    import re
+    return re.sub(r"<[^>]+>", "", text)
+
 PAGES = {}
 
 # ---------------------------------------------------------------- 1 Data
@@ -461,7 +648,7 @@ for i, (slug, n, name, you) in enumerate(NODES):
     <p class="lede">{page['lede']}</p>
   </header>
   <div class="cols">
-    <div class="logic">{''.join(page['blocks'])}</div>
+    <div class="logic">{''.join(page['blocks'])}{shots_block(slug)}{funcs_block(slug)}{code_block(slug)}</div>
     <aside class="ex"><h2>From the sample table</h2><p class="src">24 companies in <code>example_transition_universe.csv</code>, run through the engine. Lines marked illustration are not from the sample.</p>{ex(page['example'])}</aside>
   </div>
   {pager}

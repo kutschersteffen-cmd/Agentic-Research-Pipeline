@@ -12,7 +12,89 @@
     <p class="lede">The record of every choice, and the actions that fix a framework as a citable version.</p>
   </header>
   <div class="cols">
-    <div class="logic"><section class="block"><h2>One log, two halves</h2><div class="tw"><table><thead><tr><th>Origin</th><th>Written when</th></tr></thead><tbody><tr><td>derived</td><td>The data proposed it: a role, a direction, a grouping, a gate.</td></tr><tr><td>human</td><td>A person changed it. Saving diffs the framework against the version it came from; every difference becomes one entry. Dragging a node is not an edit.</td></tr></tbody></table></div><p class="note">Each entry: stage, item, decision, why, needs check, origin, who, when.</p></section><section class="block"><h2>Stages in the log</h2><p>Roles · Direction · Peer cohorts · Gates · Dimensions · Weighting · Normalisation · Missing data · Sufficiency · Cut-points · Comparability · Rules · Tier rules · Levels · Overrides · Edit · Import</p></section><section class="block"><h2>Actions</h2><div class="tw"><table><thead><tr><th>Action</th><th>What it does</th></tr></thead><tbody><tr><td>Save as new version</td><td>Writes v<i>N</i>+1 with its own audit file. Saving over a ratified version is refused. Also shown above every tab while there are unsaved changes.</td></tr><tr><td>Ratify version <i>N</i>…</td><td>Asks for your name. The version becomes fixed; decisions citing it read it as it is now.</td></tr><tr><td>Export as template</td><td>Downloads one version with its audit trail as <code>arp.decision_template</code> JSON.</td></tr><tr><td>Publish to stewardship and index…</td><td>Only for a ratified version. Freezes its result on this table (see Published tiers).</td></tr></tbody></table></div></section><section class="block"><h2>Unsaved changes</h2><p>Ratify, publish and export act on the stored version, so the screen must never look further along than it is.</p><div class="tw"><table><thead><tr><th>Where</th><th>What happens</th></tr></thead><tbody><tr><td>Header</td><td>Reads <em>(unsaved changes)</em> when the framework on screen differs from the stored version.</td></tr><tr><td>Ratify, publish, export</td><td>Hidden until the changes are saved as a new version.</td></tr><tr><td>Leaving</td><td>Switching table, loading a template, going to another screen or reloading asks first.</td></tr><tr><td>Node drags</td><td>Moving a node on the rule canvas is layout, not an unsaved change.</td></tr></tbody></table></div></section><section class="block"><h2>Where it is stored</h2><div class="tw"><table><thead><tr><th>File</th><th>Holds</th></tr></thead><tbody><tr><td><code>frameworks/&lt;id&gt;/v<i>N</i>.json</code></td><td>The framework version.</td></tr><tr><td><code>v<i>N</i>.audit.json</code></td><td>Derivation and edit trail for that exact version.</td></tr><tr><td><code>latest.json</code></td><td>Pointer to the newest version.</td></tr></tbody></table></div><p class="note">A real example, derived from the sample table, edited and ratified: <a href="example-framework/v1.json">v1.json</a> · <a href="example-framework/v1.audit.json">v1.audit.json</a> · <a href="example-framework/v2.json">v2.json</a> (ratified) · <a href="example-framework/v2.audit.json">v2.audit.json</a> · <a href="example-framework/latest.json">latest.json</a>. The last four entries of v2.audit.json are the human edits.</p></section></div>
+    <div class="logic"><section class="block"><h2>One log, two halves</h2><div class="tw"><table><thead><tr><th>Origin</th><th>Written when</th></tr></thead><tbody><tr><td>derived</td><td>The data proposed it: a role, a direction, a grouping, a gate.</td></tr><tr><td>human</td><td>A person changed it. Saving diffs the framework against the version it came from; every difference becomes one entry. Dragging a node is not an edit.</td></tr></tbody></table></div><p class="note">Each entry: stage, item, decision, why, needs check, origin, who, when.</p></section><section class="block"><h2>Stages in the log</h2><p>Roles · Direction · Peer cohorts · Gates · Dimensions · Weighting · Normalisation · Missing data · Sufficiency · Cut-points · Comparability · Rules · Tier rules · Levels · Overrides · Edit · Import</p></section><section class="block"><h2>Actions</h2><div class="tw"><table><thead><tr><th>Action</th><th>What it does</th></tr></thead><tbody><tr><td>Save as new version</td><td>Writes v<i>N</i>+1 with its own audit file. Saving over a ratified version is refused. Also shown above every tab while there are unsaved changes.</td></tr><tr><td>Ratify version <i>N</i>…</td><td>Asks for your name. The version becomes fixed; decisions citing it read it as it is now.</td></tr><tr><td>Export as template</td><td>Downloads one version with its audit trail as <code>arp.decision_template</code> JSON.</td></tr><tr><td>Publish to stewardship and index…</td><td>Only for a ratified version. Freezes its result on this table (see Published tiers).</td></tr></tbody></table></div></section><section class="block"><h2>Unsaved changes</h2><p>Ratify, publish and export act on the stored version, so the screen must never look further along than it is.</p><div class="tw"><table><thead><tr><th>Where</th><th>What happens</th></tr></thead><tbody><tr><td>Header</td><td>Reads <em>(unsaved changes)</em> when the framework on screen differs from the stored version.</td></tr><tr><td>Ratify, publish, export</td><td>Hidden until the changes are saved as a new version.</td></tr><tr><td>Leaving</td><td>Switching table, loading a template, going to another screen or reloading asks first.</td></tr><tr><td>Node drags</td><td>Moving a node on the rule canvas is layout, not an unsaved change.</td></tr></tbody></table></div></section><section class="block"><h2>Where it is stored</h2><div class="tw"><table><thead><tr><th>File</th><th>Holds</th></tr></thead><tbody><tr><td><code>frameworks/&lt;id&gt;/v<i>N</i>.json</code></td><td>The framework version.</td></tr><tr><td><code>v<i>N</i>.audit.json</code></td><td>Derivation and edit trail for that exact version.</td></tr><tr><td><code>latest.json</code></td><td>Pointer to the newest version.</td></tr></tbody></table></div><p class="note">A real example, derived from the sample table, edited and ratified: <a href="example-framework/v1.json">v1.json</a> · <a href="example-framework/v1.audit.json">v1.audit.json</a> · <a href="example-framework/v2.json">v2.json</a> (ratified) · <a href="example-framework/v2.audit.json">v2.audit.json</a> · <a href="example-framework/latest.json">latest.json</a>. The last four entries of v2.audit.json are the human edits.</p></section><section class="block"><h2>In the tool</h2><p>Screenshots of Decision Studio running on the sample table, taken with the app as it is on main.</p><figure class="shot"><a href="screenshots/08-audit.png"><img src="screenshots/08-audit.png" alt="Audit after ratifying v1: the ratified badge, Publish, and the derived half of the log." loading="lazy"></a><figcaption>Audit after ratifying v1: the ratified badge, Publish, and the derived half of the log.</figcaption></figure></section><section class="block"><h2>Functions applied</h2><p>What runs at this step, in order, with an example. Blue rows run on GoRules ZEN; the rest is Python in <code>backend/arp/decision/</code>.</p><div class="tw"><table><thead><tr><th>Function</th><th>Engine</th><th>Example</th></tr></thead><tbody><tr class=""><td><code>describe_changes</code></td><td>Python</td><td>Minimum coverage 60 → 75 → <code>('Minimum weight covered (%)', '60 -&gt; 75', origin human, by A. Reviewer)</code></td></tr><tr class=""><td><code>DecisionStore.save · new_version · ratify</code></td><td>Python</td><td>v1 derived, v2 with four edits, ratified. Saving over v2 → <em>v2 is ratified and cannot be overwritten</em>. Files in <a href="example-framework/v2.json">example-framework</a>.</td></tr></tbody></table></div></section><section class="block"><h2>Code and formulas</h2><p>The formula each function applies, and its source as it is in the repository.</p><div class="fn"><div class="fn-h"><code class="fn-name">describe_changes</code><span class="fn-where">backend/arp/decision/diffing.py:27–86</span></div><p class="formula-p">Field-by-field diff of the edited framework against the version it came from; each difference is one <code>origin="human"</code> entry.</p><details><summary>Python source (60 lines)</summary><pre class="src"><code>def describe_changes(before: MechanismConfig, after: MechanismConfig, *, by: str | None = None) -&gt; list[AuditEntry]:
+    &quot;&quot;&quot;Every difference between two framework versions, as audit entries
+    marked `origin=&quot;human&quot;`.
+
+    This is the other half of the audit log&#x27;s promise. A derivation trail
+    alone says what the data suggested; without this, a reviewer cannot
+    tell which of the rules in front of them a person then changed -- and
+    that is precisely the distinction the log exists to draw.
+    &quot;&quot;&quot;
+    entries: list[AuditEntry] = []
+
+    for field, label in _SETTING_LABELS.items():
+        old, new = getattr(before, field, None), getattr(after, field, None)
+        if old != new:
+            entries.append(
+                AuditEntry(
+                    stage=&quot;Edit&quot;,
+                    item=label,
+                    decision=f&quot;{_render(old)} -&gt; {_render(new)}&quot;,
+                    why=&quot;changed by hand&quot;,
+                    origin=&quot;human&quot;,
+                    by=by,
+                )
+            )
+
+    old_veto, new_veto = before.veto, after.veto
+    if old_veto != new_veto:
+        entries.append(
+            AuditEntry(
+                stage=&quot;Edit&quot;,
+                item=&quot;Dimension floor&quot;,
+                decision=(
+                    f&quot;{&#x27;on&#x27; if new_veto.enabled else &#x27;off&#x27;}, below {new_veto.min_score:g}, &quot;
+                    f&quot;dimensions with {new_veto.min_criteria}+ criteria&quot;
+                ),
+                why=&quot;changed by hand&quot;,
+                origin=&quot;human&quot;,
+                by=by,
+            )
+        )
+
+    entries.extend(_criteria_changes(before, after, by))
+    entries.extend(_level_changes(before, after, by))
+    entries.extend(_dimension_changes(before, after, by))
+    entries.extend(_gate_changes(before, after, by))
+    entries.extend(_rule_changes(before, after, by))
+    entries.extend(_tier_changes(before, after, by))
+
+    if before.pinned_cuts != after.pinned_cuts:
+        entries.append(
+            AuditEntry(
+                stage=&quot;Edit&quot;,
+                item=&quot;Cut-points&quot;,
+                decision=_render(after.pinned_cuts),
+                why=&quot;pinned by hand -- these now survive a re-run against different data&quot;,
+                origin=&quot;human&quot;,
+                by=by,
+            )
+        )
+    return entries</code></pre></details></div><div class="fn"><div class="fn-h"><code class="fn-name">DecisionStore.save</code><span class="fn-where">backend/arp/storage/decision_store.py:51–63</span></div><p class="formula-p">Refuses to overwrite a ratified version; otherwise writes <code>vN.json</code> and <code>vN.audit.json</code>.</p><details><summary>Python source (13 lines)</summary><pre class="src"><code>    def save(self, config: MechanismConfig, audit: list[AuditEntry] | None = None) -&gt; MechanismConfig:
+        &quot;&quot;&quot;Writes a framework version. Refuses to overwrite a ratified
+        version: re-deriving a framework is a new version, not a silent
+        replacement of the one someone signed off.&quot;&quot;&quot;
+        existing = self.get(config.framework_id, config.version)
+        if existing is not None and existing.ratified:
+            raise ValueError(
+                f&quot;{config.framework_id} v{config.version} is ratified and cannot be overwritten -- create a new version instead.&quot;
+            )
+        self._write(config)
+        if audit is not None:
+            self.save_audit(config.framework_id, config.version, audit)
+        return config</code></pre></details></div><div class="fn"><div class="fn-h"><code class="fn-name">DecisionStore.new_version</code><span class="fn-where">backend/arp/storage/decision_store.py:65–76</span></div><p class="formula-p"><code>version = latest + 1</code>, unratified, with its own audit file.</p><details><summary>Python source (12 lines)</summary><pre class="src"><code>    def new_version(self, config: MechanismConfig, audit: list[AuditEntry] | None = None) -&gt; MechanismConfig:
+        &quot;&quot;&quot;The only way to change a framework. The previous version stays
+        exactly as it was, which is what lets a decision taken last quarter
+        still point at the rules that produced it.&quot;&quot;&quot;
+        current = self.get(config.framework_id)
+        updated = config.model_copy(
+            update={&quot;version&quot;: (current.version + 1) if current else 1, &quot;ratified&quot;: False, &quot;ratified_at&quot;: None, &quot;ratified_by&quot;: None, &quot;created_at&quot;: now_iso()}
+        )
+        self._write(updated)
+        if audit is not None:
+            self.save_audit(updated.framework_id, updated.version, audit)
+        return updated</code></pre></details></div></section></div>
     <aside class="ex"><h2>From the sample table</h2><p class="src">24 companies in <code>example_transition_universe.csv</code>, run through the engine. Lines marked illustration are not from the sample.</p><div class="ex-i"><code>derived · Direction · Scope12_Intensity…</code><p>lower is better, because the name matches intensity, co2.</p></div><div class="ex-i"><code>derived · Dimensions · Climate Lobbying group</code><p>5 criteria grouped, rank correlation 0.86–0.98.</p></div><div class="ex-i"><code>derived · Gates · Severe_Controversy_Flag</code><p>hard exclusion: a knockout belongs in the tree, not the average.</p></div><div class="ex-i"><code>human · Direction</code><p>Illustration: you flip Emissions_Data_Coverage_pct. Logged with your name.</p></div><div class="ex-i"><code>human · Edit · Cut-points</code><p>85, 65, 35, pinned by hand by A. Reviewer (from <a href="example-framework/v2.audit.json">v2.audit.json</a>).</p></div><div class="ex-i"><code>Ratify v2</code><p>v2 fixed. Saving over it is refused: <em>v2 is ratified and cannot be overwritten</em>.</p></div></aside>
   </div>
   <div class="pager"><a href="movement.html">← Movement</a><a href="output.html">Published tiers →</a></div>

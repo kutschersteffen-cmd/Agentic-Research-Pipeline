@@ -12,7 +12,104 @@
     <p class="lede">Applies the same framework version, unchanged, to an earlier table. Holding the framework fixed makes any movement belong to the entities.</p>
   </header>
   <div class="cols">
-    <div class="logic"><section class="block"><h2>What it returns</h2><div class="tw"><table><thead><tr><th>Output</th><th>Meaning</th></tr></thead><tbody><tr><td>Counts</td><td>improved, worsened, unchanged, entered (new in this table), left (gone).</td></tr><tr><td>Per entity</td><td>tier, score, rank and status before and after, with the deltas. A negative tier change is an improvement.</td></tr><tr><td>Drivers</td><td>The criteria whose contribution moved most, largest first.</td></tr></tbody></table></div></section><section class="block"><h2>Guards</h2><div class="tw"><table><thead><tr><th>Situation</th><th>Result</th></tr></thead><tbody><tr><td>Different framework or version on each side</td><td><b>Refused</b> with the reason: the difference would describe the frameworks.</td></tr><tr><td>Percentile scores on both sides</td><td>Returned with a caveat: ranks show movement relative to the field, never absolute improvement.</td></tr><tr><td>A move with no driver</td><td>Empty driver list: the shape of a data problem, not progress.</td></tr></tbody></table></div><p class="note">For period-on-period work, score with min–max or z-score and fixed cut-points so the scale means the same in both tables.</p></section></div>
+    <div class="logic"><section class="block"><h2>What it returns</h2><div class="tw"><table><thead><tr><th>Output</th><th>Meaning</th></tr></thead><tbody><tr><td>Counts</td><td>improved, worsened, unchanged, entered (new in this table), left (gone).</td></tr><tr><td>Per entity</td><td>tier, score, rank and status before and after, with the deltas. A negative tier change is an improvement.</td></tr><tr><td>Drivers</td><td>The criteria whose contribution moved most, largest first.</td></tr></tbody></table></div></section><section class="block"><h2>Guards</h2><div class="tw"><table><thead><tr><th>Situation</th><th>Result</th></tr></thead><tbody><tr><td>Different framework or version on each side</td><td><b>Refused</b> with the reason: the difference would describe the frameworks.</td></tr><tr><td>Percentile scores on both sides</td><td>Returned with a caveat: ranks show movement relative to the field, never absolute improvement.</td></tr><tr><td>A move with no driver</td><td>Empty driver list: the shape of a data problem, not progress.</td></tr></tbody></table></div><p class="note">For period-on-period work, score with min–max or z-score and fixed cut-points so the scale means the same in both tables.</p></section><section class="block"><h2>In the tool</h2><p>Screenshots of Decision Studio running on the sample table, taken with the app as it is on main.</p><figure class="shot"><a href="screenshots/07-movement.png"><img src="screenshots/07-movement.png" alt="Q3 against Q2 under the same ratified framework: Kanto 3 → 2 with its drivers, and Ardent Pharma 2 → 3 with no driver, because the quantile cut moved." loading="lazy"></a><figcaption>Q3 against Q2 under the same ratified framework: Kanto 3 → 2 with its drivers, and Ardent Pharma 2 → 3 with no driver, because the quantile cut moved.</figcaption></figure></section><section class="block"><h2>Functions applied</h2><p>What runs at this step, in order, with an example. Blue rows run on GoRules ZEN; the rest is Python in <code>backend/arp/decision/</code>.</p><div class="tw"><table><thead><tr><th>Function</th><th>Engine</th><th>Example</th></tr></thead><tbody><tr class=""><td><code>compare_results</code></td><td>Python</td><td>Q3 table where Kanto now reports Scope 3 and has an SBTi target → Kanto Tier 3 → 2, score 39.8 → 72.0, drivers <em>Scope3 Reported +16.1</em>, <em>Sbti Validated Target +16.1</em>.</td></tr><tr class=""><td><code>compare_results</code></td><td>Python</td><td>Same run: Ardent Pharma Tier 2 → 3 with its score unchanged at 70.1 and <b>no drivers</b>. The quantile cut moved 64.6 → 71.0 because Kanto rose. The percentile caveat is returned.</td></tr></tbody></table></div></section><section class="block"><h2>Code and formulas</h2><p>The formula each function applies, and its source as it is in the repository.</p><div class="fn"><div class="fn-h"><code class="fn-name">compare_results</code><span class="fn-where">backend/arp/decision/compare.py:9–92</span></div><p class="formula-p">Refused unless both results carry the same framework id and version. Then per entity: tier, score and rank before, after and delta.</p><details><summary>Python source (84 lines)</summary><pre class="src"><code>def compare_results(
+    before: DecisionResult,
+    after: DecisionResult,
+    *,
+    label_before: str = &quot;before&quot;,
+    label_after: str = &quot;after&quot;,
+) -&gt; DecisionComparison:
+    &quot;&quot;&quot;The same framework applied to two snapshots, and what moved.
+
+    Only meaningful with the framework version pinned on both sides: a
+    tier change under two different frameworks says nothing about the
+    company, only about the frameworks. That is checked rather than
+    assumed, and a mismatch is reported instead of quietly compared.
+    &quot;&quot;&quot;
+    comparable = before.framework_id == after.framework_id and before.framework_version == after.framework_version
+    reason = None
+    if not comparable:
+        reason = (
+            f&quot;scored under different frameworks ({before.framework_id} v{before.framework_version} vs. &quot;
+            f&quot;{after.framework_id} v{after.framework_version}) -- any movement shown is a difference between the &quot;
+            &quot;frameworks as much as a change in the entities&quot;
+        )
+
+    before_by_key = {e.entity_key: e for e in before.entities}
+    after_by_key = {e.entity_key: e for e in after.entities}
+    movements: list[EntityMovement] = []
+    improved = worsened = unchanged = 0
+
+    for key, new in after_by_key.items():
+        old = before_by_key.get(key)
+        if old is None:
+            continue
+        tier_delta = (new.tier - old.tier) if (new.tier is not None and old.tier is not None) else None
+        if tier_delta is not None:
+            if tier_delta &lt; 0:
+                improved += 1
+            elif tier_delta &gt; 0:
+                worsened += 1
+            else:
+                unchanged += 1
+        movements.append(
+            EntityMovement(
+                entity_key=key,
+                name=new.name,
+                tier_before=old.tier,
+                tier_after=new.tier,
+                tier_delta=tier_delta,
+                score_before=old.score,
+                score_after=new.score,
+                score_delta=(new.score - old.score) if (new.score is not None and old.score is not None) else None,
+                rank_before=old.rank,
+                rank_after=new.rank,
+                rank_delta=(new.rank - old.rank) if (new.rank is not None and old.rank is not None) else None,
+                status_before=old.status,
+                status_after=new.status,
+                drivers=_drivers(old, new),
+            )
+        )
+
+    caveat = None
+    if before.norm == &quot;percentile&quot; and after.norm == &quot;percentile&quot;:
+        caveat = (
+            &quot;both snapshots were scored on percentile ranks, which measure position within the field. An entity &quot;
+            &quot;that improved in absolute terms shows no movement unless its ordering changed, and an entity that &quot;
+            &quot;stood still can move simply because its peers did. For period-on-period comparison, score on min-max &quot;
+            &quot;or z-score with pinned cut-points so the scale means the same thing in both snapshots.&quot;
+        )
+
+    movements.sort(key=lambda m: (-(abs(m.score_delta) if m.score_delta is not None else -1)))
+    return DecisionComparison(
+        framework_id=after.framework_id,
+        framework_version=after.framework_version,
+        label_before=label_before,
+        label_after=label_after,
+        improved=improved,
+        worsened=worsened,
+        unchanged=unchanged,
+        entered=len([k for k in after_by_key if k not in before_by_key]),
+        left=len([k for k in before_by_key if k not in after_by_key]),
+        movements=movements,
+        comparable=comparable,
+        incomparable_reason=reason,
+        caveat=caveat,
+    )</code></pre></details></div><div class="fn"><div class="fn-h"><code class="fn-name">_drivers</code><span class="fn-where">backend/arp/decision/compare.py:95–109</span></div><p class="formula-p"><code>Δcontributionⱼ = contributionⱼ(after) − contributionⱼ(before)</code>; criteria with <code>|Δ| ≥ 0.5</code>, largest first.</p><details><summary>Python source (15 lines)</summary><pre class="src"><code>def _drivers(old, new) -&gt; list[str]:
+    &quot;&quot;&quot;Which criteria actually moved the score. A tier change with no named
+    driver is the shape of a data problem, not of progress, and the list
+    being empty says so.&quot;&quot;&quot;
+    before_by_column = {c.column: c for c in old.contributions}
+    deltas: list[tuple[float, str]] = []
+    for contribution in new.contributions:
+        previous = before_by_column.get(contribution.column)
+        if previous is None or previous.normalised is None or contribution.normalised is None:
+            continue
+        delta = contribution.contribution - previous.contribution
+        if abs(delta) &gt;= 0.5:
+            deltas.append((abs(delta), f&quot;{pretty(contribution.column)} {&#x27;+&#x27; if delta &gt; 0 else &#x27;&#x27;}{delta:.1f}&quot;))
+    deltas.sort(key=lambda d: -d[0])
+    return [label for _, label in deltas[:_MAX_DRIVERS]]</code></pre></details></div></section></div>
     <aside class="ex"><h2>From the sample table</h2><p class="src">24 companies in <code>example_transition_universe.csv</code>, run through the engine. Lines marked illustration are not from the sample.</p><div class="ex-i"><code>Q2 table + Q3 table, both v1</code><p>Illustration: tier moves with drivers, e.g. a company rising because Scope3_Reported turned Yes.</p></div><div class="ex-i"><code>Q2 by v1, Q3 by v2</code><p>Refused.</p></div><div class="ex-i"><code>percentile on both sides</code><p>Result plus the rank-only caveat.</p></div></aside>
   </div>
   <div class="pager"><a href="results.html">← Results</a><a href="audit.html">Audit →</a></div>
