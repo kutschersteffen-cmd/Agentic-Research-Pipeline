@@ -86,7 +86,7 @@ export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {
           }}
         />
         <button onClick={runNow} disabled={busy || !universePath}>
-          Search for documents across {companyCount || "..."} companies
+          Search for documents across {companyCount ? `${companyCount} companies` : "your companies (upload them first)"}
         </button>
         {error && <p className="error-text">{error}</p>}
         {runId && <RunProgress runId={runId} runType="extraction" />}

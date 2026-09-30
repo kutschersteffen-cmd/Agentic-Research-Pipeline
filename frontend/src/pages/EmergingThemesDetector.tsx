@@ -157,7 +157,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
           }}
         />
         <button onClick={runNow} disabled={busy || !universePath}>
-          Scan for emerging themes across {companyCount || "..."} companies
+          Scan for emerging themes across {companyCount ? `${companyCount} companies` : "your companies (upload them first)"}
         </button>
         {error && <p className="error-text">{error}</p>}
         {runId && <RunProgress runId={runId} runType="emerging_themes" />}

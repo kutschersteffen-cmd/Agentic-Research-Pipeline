@@ -100,7 +100,7 @@ export function VotingRuns({ selectedRunId, onSelectRun }: { selectedRunId: stri
                     <td data-label="Progress">
                       {r.completed_count}/{r.company_count}
                     </td>
-                    <td data-label="Awaiting decision">{r.review_count}</td>
+                    <td data-label="Awaiting decision" className={r.review_count > 0 ? "await-text" : undefined}>{r.review_count}</td>
                     <td data-label="Created">{new Date(r.created_at).toLocaleString()}</td>
                     <td>
                       <a href={`#/voting/${encodeURIComponent(r.run_id)}`} onClick={(e) => e.stopPropagation()}>

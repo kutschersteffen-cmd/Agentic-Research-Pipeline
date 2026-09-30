@@ -364,7 +364,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
           <button onClick={startRun} disabled={busy || !readyToStart || (mode === "tnfd" && !asOf.trim())}>
             {scope === "single"
               ? `Extract ${mode === "custom" ? "" : `${profile.label} `}for ${singleCompany?.name ?? "..."}`
-              : `Extract ${mode === "custom" ? "" : `${profile.label} `}across ${companyCount || "..."} companies`}
+              : `Extract ${mode === "custom" ? "" : `${profile.label} `}across ${companyCount ? `${companyCount} companies` : "your companies (upload them first)"}`}
           </button>
         </section>
       )}

@@ -358,7 +358,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
           )}
 
           <button onClick={startRun} disabled={busy || !universePath}>
-            Run screen against {companyCount || "..."} companies
+            Run screen against {companyCount ? `${companyCount} companies` : "your companies (upload them first)"}
           </button>
         </section>
       )}

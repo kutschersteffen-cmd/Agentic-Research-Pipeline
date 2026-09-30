@@ -42,6 +42,7 @@ export function BarChart({
   const summary = `Bar chart, ${data.length} ${data.length === 1 ? "bar" : "bars"}: ${data.map((d) => `${d.label} ${valueFormatter(d.value)}`).join("; ")}`;
 
   return (
+    <div className="chart-scroll">
     <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg bar-chart" role="img" aria-label={summary}>
       <line x1={labelWidth} y1={0} x2={labelWidth} y2={height} className="chart-axis-line" />
       {data.map((d, i) => {
@@ -62,5 +63,6 @@ export function BarChart({
         );
       })}
     </svg>
+    </div>
   );
 }
