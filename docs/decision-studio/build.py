@@ -104,6 +104,126 @@ def funcs_block(slug):
         f'<div class="tw"><table><thead><tr><th>Function</th><th>Engine</th><th>Example</th></tr></thead><tbody>{rows}</tbody></table></div>',
     )
 
+
+# The code behind each step: a formula in words and symbols, and the exact
+# Python source, read from backend/ at build time so it cannot drift.
+import ast
+import html as _html
+
+ENGINE = Path(__file__).resolve().parents[2] / "backend" / "arp"
+
+
+def _source(file: str, name: str) -> tuple[str, int, int]:
+    """(source, first line, last line) of a function or method; `name` may be
+    "Class.method", or "@pattern" for the single statement starting at the
+    first line containing it."""
+    text = (ENGINE / file).read_text()
+    if name.startswith("@"):
+        lines = text.splitlines()
+        start = next(i for i, ln in enumerate(lines) if name[1:] in ln)
+        return lines[start].strip(), start + 1, start + 1
+    tree = ast.parse(text)
+    cls, _, fn = name.rpartition(".")
+    scope = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == cls).body if cls else tree.body
+    node = next(n for n in scope if isinstance(n, ast.FunctionDef) and n.name == fn)
+    return ast.get_source_segment(text, node, padded=True), node.lineno, node.end_lineno
+
+
+CODE = {
+    "data": [
+        ("decision/parsing.py", "sniff_delimiter", "For each candidate delimiter <i>d</i> over the first 20 lines: <code>score(d) = 10 × share of lines with line 1's column count + columns in line 1</code>. Highest score wins; a candidate must give at least 2 columns."),
+        ("decision/parsing.py", "detect_decimal_comma", "<code>comma-decimal values &gt; dot-decimal values</code> → the column is read with comma decimals."),
+    ],
+    "profile": [
+        ("decision/roles.py", "propose_direction", "<code>lower if Σ weight(lower-keyword hits) &gt; Σ weight(higher-keyword hits), else higher</code>. <b>needs_check</b> when both dictionaries hit, or neither does."),
+        ("decision/roles.py", "propose_cohort_column", "A categorical column with <code>levels ≥ 2</code> and <code>rows ÷ levels ≥ min_cohort</code> (5); a name that signals a peer grouping is preferred."),
+    ],
+    "rules": [
+        ("decision/rules.py", "evaluate_rows", "The graph is checked with <code>zen.ZenEngine().create_decision(graph).validate()</code>, then <code>engine.evaluate_batch(rows)</code> runs it once per row. Each output is flattened into columns."),
+        ("decision/rules.py", "apply_rules", "Every output key that is not already a source column becomes a calculated column; a source-column output is dropped; a failing row gets blanks."),
+    ],
+    "mechanism": [
+        ("decision/normalise.py", "_percentile_ranks", "<code>p = r̄ ÷ (n − 1) × 100</code>, where <i>r̄</i> is the 0-based rank, ties sharing their average rank. One present value → 50."),
+        ("decision/normalise.py", "_linear", "min–max: <code>100 × (clip(v) − lo) ÷ (hi − lo)</code>. z-score: <code>clip(50 + 15 × (clip(v) − mean) ÷ sd, 0, 100)</code>. <i>lo</i>, <i>hi</i> are the <i>w</i> and 1 − <i>w</i> quantiles (<i>w</i> = winsor %)."),
+        ("decision/normalise.py", "spearman", "Pearson correlation of the ranks, over rows where both values exist: <code>ρ = Σ(a − ā)(b − b̄) ÷ √(Σ(a − ā)² · Σ(b − b̄)²)</code>. Fewer than 5 shared rows → 0."),
+        ("decision/cluster.py", "cluster_criteria", "Repeatedly merge the two clusters with the highest <code>min ρ</code> over all cross pairs, while that minimum ≥ the threshold (0.72)."),
+        ("decision/weighting.py", "breadth_adjusted_weight", "<code>dimension weight = √(criteria count)</code>, split evenly among its criteria; all weights are then scaled to sum to 1."),
+        ("decision/weighting.py", "entropy_weights", "<code>pᵢ = (vᵢ + 1) ÷ Σ(v + 1)</code>, <code>H = −Σ pᵢ ln pᵢ</code>, <code>w ∝ 1 − H ÷ ln n</code>, scaled to sum to 1."),
+        ("decision/scoring.py", "compute_scores", "<code>score = Σ wⱼvⱼ ÷ Σ wⱼ</code> over the criteria used. <code>coverage = Σ w(present) ÷ Σ w(all)</code>. <code>contributionⱼ = wⱼ ÷ Σ w(used) × (vⱼ − 50)</code>."),
+        ("decision/levels.py", "evaluate_levels", "Each rule's <code>when</code> is compiled with <code>zen.compile_expression</code>; the first rule that holds sets the level, else <code>otherwise</code>."),
+    ],
+    "tree": [
+        ("decision/tree.py", "gate_hit", "Yes/No and text: <code>value == target</code> (is) or <code>≠</code> (is not). Numbers: <code>&lt;</code>, <code>&gt;</code>, <code>==</code>. A blank value never hits."),
+        ("decision/tree.py", "quantile_positions", "<code>qᵢ = 0.8 − i × 0.6 ÷ (k − 1)</code> for <i>k</i> cuts, so 4 tiers cut at the 0.8, 0.5 and 0.2 quantiles."),
+        ("decision/tree.py", "_natural_breaks", "Cut at the <i>k</i> widest gaps between sorted scores, each band holding at least <code>max(1, 10% of n)</code>; the cut is the gap's midpoint."),
+        ("decision/tree.py", "tier_for_score", "<code>tier = 1 + index of the first cut with score ≥ cut</code>; below every cut → the last tier."),
+        ("decision/tree.py", "veto_dimensions", "Only dimensions with <code>≥ min_criteria</code> (2) active criteria can demote; a dimension score below <code>min_score</code> (30) demotes one tier."),
+        ("decision/rules.py", "apply_tier_graph", "The tier graph runs on GoRules ZEN per scored entity, with <code>band</code>, <code>score</code>, <code>rank</code>, <code>dim_*</code> and every column as input; <code>tier</code>, <code>exclude</code> and <code>note</code> come back."),
+    ],
+    "results": [
+        ("decision/stability.py", "rank_ranges", "<code>band = [min rank, max rank]</code> over the four specifications."),
+        ("decision/mechanism.py", "@leverage=(", "<code>leverage = size × (100 − score) ÷ 100</code>, for scored entities with a size."),
+        ("decision/sensitivity.py", "tipping_points", "For each dimension, scale its weight from 0 up in <code>steps</code>, re-apply the framework, and take the share nearest today's at which the tier changes. None → robust."),
+    ],
+    "movement": [
+        ("decision/compare.py", "compare_results", "Refused unless both results carry the same framework id and version. Then per entity: tier, score and rank before, after and delta."),
+        ("decision/compare.py", "_drivers", "<code>Δcontributionⱼ = contributionⱼ(after) − contributionⱼ(before)</code>; criteria with <code>|Δ| ≥ 0.5</code>, largest first."),
+    ],
+    "audit": [
+        ("decision/diffing.py", "describe_changes", "Field-by-field diff of the edited framework against the version it came from; each difference is one <code>origin=\"human\"</code> entry."),
+        ("storage/decision_store.py", "DecisionStore.save", "Refuses to overwrite a ratified version; otherwise writes <code>vN.json</code> and <code>vN.audit.json</code>."),
+        ("storage/decision_store.py", "DecisionStore.new_version", "<code>version = latest + 1</code>, unratified, with its own audit file."),
+    ],
+    "output": [
+        ("decision/publish.py", "find_id_column", "The first column named <code>company_id</code>, <code>issuer_id</code>, <code>entity_id</code> or <code>id</code> (case-insensitive); none → publishing needs one named."),
+        ("decision/publish.py", "publish", "Freezes one framework version's result on one table, rows matched to issuers by the id column."),
+    ],
+}
+
+
+def code_block(slug):
+    items = []
+    for file, name, formula in CODE[slug]:
+        src, first, last = _source(file, name)
+        label = name.lstrip("@").rstrip("=(") if name.startswith("@") else name
+        where = f"{file}:{first}" if first == last else f"{file}:{first}–{last}"
+        items.append(
+            f'<div class="fn"><div class="fn-h"><code class="fn-name">{_html.escape(label)}</code><span class="fn-where">backend/arp/{where}</span></div>'
+            f'<p class="formula-p">{formula}</p>'
+            f'<details><summary>Python source ({last - first + 1} line{"s" if last > first else ""})</summary><pre class="src"><code>{_html.escape(src)}</code></pre></details></div>'
+        )
+    return block("Code and formulas", "The formula each function applies, and its source as it is in the repository.", "".join(items))
+
+
+SHOTS = {
+    "data": [("01-data.png", "Data tab after loading two tables: the Q2 sample and a Q3 copy.")],
+    "profile": [("02-profile.png", "Profile after Derive: one column flagged, <code>Emissions_Data_Coverage_pct</code> highlighted.")],
+    "rules": [("03-rules.png", "Rules tab: the GoRules JDM canvas with the starter graph (the Row input into an expression box, partly behind the Components panel) and the live preview. The palette still lists Function (JS), which saving refuses.")],
+    "mechanism": [("04-mechanism.png", "Mechanism tab: scoring mode, normalisation, cohort, and the derived dimensions with their weights.")],
+    "tree": [("05-tree.png", "Decision tree tab: gates, cut-points, dimension floor and tiers.")],
+    "results": [
+        ("06-results.png", "Results: tier cards, the score distribution with the quantile cuts 34.8 / 64.6 / 86.5, and the ranked table."),
+        ("06c-explain.png", "Kanto Heavy Industries opened: what moved its score."),
+        ("06b-sensitivity.png", "Kanto's tipping points: Scope 3 at +4.1 points flips it to Tier 4."),
+    ],
+    "movement": [("07-movement.png", "Q3 against Q2 under the same ratified framework: Kanto 3 → 2 with its drivers, and Ardent Pharma 2 → 3 with no driver, because the quantile cut moved.")],
+    "audit": [("08-audit.png", "Audit after ratifying v1: the ratified badge, Publish, and the derived half of the log.")],
+    "output": [("09-publish.png", "Publishing the sample table from the studio fails: it has an ISIN but no id column the engine recognises, and the dialog cannot name one.")],
+}
+
+
+def shots_block(slug):
+    figs = "".join(
+        f'<figure class="shot"><a href="screenshots/{f}"><img src="screenshots/{f}" alt="{_html.escape(_strip_tags(c))}" loading="lazy"></a><figcaption>{c}</figcaption></figure>'
+        for f, c in SHOTS[slug]
+    )
+    return block("In the tool", "Screenshots of Decision Studio running on the sample table, taken with the app as it is on main.", figs)
+
+
+def _strip_tags(text):
+    import re
+    return re.sub(r"<[^>]+>", "", text)
+
 PAGES = {}
 
 # ---------------------------------------------------------------- 1 Data
@@ -528,7 +648,7 @@ for i, (slug, n, name, you) in enumerate(NODES):
     <p class="lede">{page['lede']}</p>
   </header>
   <div class="cols">
-    <div class="logic">{''.join(page['blocks'])}{funcs_block(slug)}</div>
+    <div class="logic">{''.join(page['blocks'])}{shots_block(slug)}{funcs_block(slug)}{code_block(slug)}</div>
     <aside class="ex"><h2>From the sample table</h2><p class="src">24 companies in <code>example_transition_universe.csv</code>, run through the engine. Lines marked illustration are not from the sample.</p>{ex(page['example'])}</aside>
   </div>
   {pager}

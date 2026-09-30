@@ -109,3 +109,21 @@ tr.zen td:nth-child(2) { font-weight: 650; }
 .pager a { font-weight: 600; text-decoration: none; border: 1.5px solid var(--line); border-radius: 6px; padding: 8px 14px; background: var(--panel); }
 .pager a:hover { border-color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* code and formulas */
+.fn { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 12px 16px; display: grid; gap: 6px; min-width: 0; }
+.fn + .fn { margin-top: 8px; }
+.fn-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.fn-name { font-weight: 600; background: none; padding: 0; font-size: 14.5px; }
+.fn-where { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.formula-p { margin: 0; font-size: 14px; }
+details summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+details summary:hover { color: var(--text); }
+pre.src { margin: 8px 0 0; background: var(--well); border-radius: 6px; padding: 12px 14px; overflow-x: auto; font-size: 12.5px; line-height: 1.5; }
+pre.src code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; white-space: pre; }
+
+/* screenshots */
+.shot { margin: 0; display: grid; gap: 6px; }
+.shot + .shot { margin-top: 14px; }
+.shot img { display: block; width: 100%; max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.shot figcaption { font-size: 13px; color: var(--muted); }

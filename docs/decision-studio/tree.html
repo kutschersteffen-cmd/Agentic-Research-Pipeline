@@ -12,7 +12,165 @@
     <p class="lede">Turns scores into tiers in a fixed order. The order is what makes a result reproducible.</p>
   </header>
   <div class="cols">
-    <div class="logic"><section class="block"><h2>The fixed order</h2><ol class="order"><li><b>1 · Sufficiency</b><span>Weight covered below the minimum (default 60%) → routed to data collection, not ranked.</span></li><li><b>2 · Hard gates</b><span>An <em>exclude</em> gate removes the entity before any averaging.</span></li><li><b>3 · Score band</b><span>Cut-points are drawn over the entities still eligible.</span></li><li><b>4 · Modifiers</b><span>Demote gates and the dimension floor move an entity down.</span></li></ol></section><section class="block"><h2>Gates</h2><p>A gate is a decision, not a deduction. A blank value never triggers one.</p><div class="tw"><table><thead><tr><th>Operator</th><th>Meaning</th><th>Works on</th></tr></thead><tbody><tr><td>is</td><td>equals</td><td>Yes/No, text, numbers</td></tr><tr><td>is not</td><td>differs</td><td>Yes/No, text, numbers</td></tr><tr><td>&lt;</td><td>below</td><td>numbers</td></tr><tr><td>&gt;</td><td>above</td><td>numbers</td></tr><tr><td>=</td><td>equals the number</td><td>numbers</td></tr></tbody></table></div><div class="tw"><table><thead><tr><th>Outcome</th><th>Effect</th></tr></thead><tbody><tr><td>Exclude outright</td><td>Out of scoring and tiers. Does shift peers' cut-points (it is removed first).</td></tr><tr><td>Demote one tier</td><td>Scored and banded, then moved one tier down. Several demotions stack.</td></tr><tr><td>Flag only</td><td>Tier unchanged; a note is added.</td></tr></tbody></table></div></section><section class="block"><h2>Cut-points</h2><div class="tw"><table><thead><tr><th>Mode</th><th>How the lines are drawn</th></tr></thead><tbody><tr><td>Quantile <em>(default)</em></td><td>Evenly between the 20th and 80th percentile. For 4 tiers: 80 / 50 / 20.</td></tr><tr><td>Natural breaks</td><td>At the widest gaps between scores. Each band keeps at least 10% of entities. Too few distinct scores → falls back to quantile, and says so.</td></tr><tr><td>Fixed</td><td>Your numbers. They survive a re-run on new data. Changing the tier count re-spaces them evenly.</td></tr></tbody></table></div></section><section class="block"><h2>Dimension floor</h2><p>One strong dimension should not carry an entity that fails elsewhere.</p><div class="tw"><table><thead><tr><th>Setting</th><th>Default</th><th>Effect</th></tr></thead><tbody><tr><td>Enabled</td><td>on</td><td></td></tr><tr><td>Minimum dimension score</td><td>30</td><td>Below it → demoted one tier.</td></tr><tr><td>Minimum criteria in the dimension</td><td>2</td><td>A dimension resting on one Yes/No answer cannot demote.</td></tr></tbody></table></div></section><section class="block"><h2>Tiers</h2><p>Default four, named Tier 1 to Tier 4, with no actions. Tier 1 is the highest score band. Rename them, add or remove tiers, and give each an action.</p></section><section class="block"><h2>Tier rules (optional)</h2><p>A second decision model that <b>replaces steps 2 and 4</b>. Sufficiency and cut-points stay in the engine.</p><div class="tw"><table><thead><tr><th></th><th>Available</th></tr></thead><tbody><tr><td>Inputs</td><td><code>band</code>, <code>score</code>, <code>rank</code>, <code>percentile</code> in cohort, <code>coverage</code>, <code>grounded_coverage</code>, <code>dim_&lt;dimension&gt;</code>, <code>cohort</code>, <code>segment</code>, <code>tier_count</code>, every column.</td></tr><tr><td>Outputs</td><td><code>tier</code> (1..tier count), optional <code>exclude</code>, optional <code>note</code>. Starts as <code>tier = band</code>.</td></tr><tr><td>Red flags</td><td>Tick Yes/No columns; each becomes a first-placed row sending Yes to a chosen tier with the note <em>Red flag: &lt;column&gt;</em>.</td></tr><tr><td>Safety</td><td>Unevaluable row or out-of-range tier → keeps its band, flagged. Moving an entity <em>up</em> is allowed and flagged.</td></tr></tbody></table></div></section><section class="block"><h2>Functions applied</h2><p>What runs at this step, in order, with an example. Blue rows run on GoRules ZEN; the rest is Python in <code>backend/arp/decision/</code>.</p><div class="tw"><table><thead><tr><th>Function</th><th>Engine</th><th>Example</th></tr></thead><tbody><tr class=""><td><code>gate_hit</code></td><td>Python</td><td><code>Severe_Controversy_Flag is Yes → exclude</code> → 5 entities excluded before any score counts.</td></tr><tr class=""><td><code>derive_cuts</code></td><td>Python</td><td>Quantile → <code>[86.5, 64.6, 34.8]</code>. Natural breaks on the same scores → <code>[92.4, 64.6, 45.1]</code>.</td></tr><tr class=""><td><code>dimension_scores · veto_dimensions</code></td><td>Python</td><td>Kestrel Airlines, Climate Lobbying group 3.0 &lt; 30 → <em>Demoted: Climate Lobbying group below 30</em>.</td></tr><tr class=""><td><code>tier_for_score</code></td><td>Python</td><td>Nordwind Energie, score 74.6 → Tier 2.</td></tr><tr class="zen"><td><code>apply_tier_graph</code></td><td>GoRules ZEN</td><td>Decision table <code>coal_expansion_flag = true → tier 4, 'Red flag: Coal'</code>, else band → Vega Power Tier 4 with the note. Tarn Mining, excluded by the gate before, is now Tier 4: tier rules replace the gates.</td></tr></tbody></table></div></section></div>
+    <div class="logic"><section class="block"><h2>The fixed order</h2><ol class="order"><li><b>1 · Sufficiency</b><span>Weight covered below the minimum (default 60%) → routed to data collection, not ranked.</span></li><li><b>2 · Hard gates</b><span>An <em>exclude</em> gate removes the entity before any averaging.</span></li><li><b>3 · Score band</b><span>Cut-points are drawn over the entities still eligible.</span></li><li><b>4 · Modifiers</b><span>Demote gates and the dimension floor move an entity down.</span></li></ol></section><section class="block"><h2>Gates</h2><p>A gate is a decision, not a deduction. A blank value never triggers one.</p><div class="tw"><table><thead><tr><th>Operator</th><th>Meaning</th><th>Works on</th></tr></thead><tbody><tr><td>is</td><td>equals</td><td>Yes/No, text, numbers</td></tr><tr><td>is not</td><td>differs</td><td>Yes/No, text, numbers</td></tr><tr><td>&lt;</td><td>below</td><td>numbers</td></tr><tr><td>&gt;</td><td>above</td><td>numbers</td></tr><tr><td>=</td><td>equals the number</td><td>numbers</td></tr></tbody></table></div><div class="tw"><table><thead><tr><th>Outcome</th><th>Effect</th></tr></thead><tbody><tr><td>Exclude outright</td><td>Out of scoring and tiers. Does shift peers' cut-points (it is removed first).</td></tr><tr><td>Demote one tier</td><td>Scored and banded, then moved one tier down. Several demotions stack.</td></tr><tr><td>Flag only</td><td>Tier unchanged; a note is added.</td></tr></tbody></table></div></section><section class="block"><h2>Cut-points</h2><div class="tw"><table><thead><tr><th>Mode</th><th>How the lines are drawn</th></tr></thead><tbody><tr><td>Quantile <em>(default)</em></td><td>Evenly between the 20th and 80th percentile. For 4 tiers: 80 / 50 / 20.</td></tr><tr><td>Natural breaks</td><td>At the widest gaps between scores. Each band keeps at least 10% of entities. Too few distinct scores → falls back to quantile, and says so.</td></tr><tr><td>Fixed</td><td>Your numbers. They survive a re-run on new data. Changing the tier count re-spaces them evenly.</td></tr></tbody></table></div></section><section class="block"><h2>Dimension floor</h2><p>One strong dimension should not carry an entity that fails elsewhere.</p><div class="tw"><table><thead><tr><th>Setting</th><th>Default</th><th>Effect</th></tr></thead><tbody><tr><td>Enabled</td><td>on</td><td></td></tr><tr><td>Minimum dimension score</td><td>30</td><td>Below it → demoted one tier.</td></tr><tr><td>Minimum criteria in the dimension</td><td>2</td><td>A dimension resting on one Yes/No answer cannot demote.</td></tr></tbody></table></div></section><section class="block"><h2>Tiers</h2><p>Default four, named Tier 1 to Tier 4, with no actions. Tier 1 is the highest score band. Rename them, add or remove tiers, and give each an action.</p></section><section class="block"><h2>Tier rules (optional)</h2><p>A second decision model that <b>replaces steps 2 and 4</b>. Sufficiency and cut-points stay in the engine.</p><div class="tw"><table><thead><tr><th></th><th>Available</th></tr></thead><tbody><tr><td>Inputs</td><td><code>band</code>, <code>score</code>, <code>rank</code>, <code>percentile</code> in cohort, <code>coverage</code>, <code>grounded_coverage</code>, <code>dim_&lt;dimension&gt;</code>, <code>cohort</code>, <code>segment</code>, <code>tier_count</code>, every column.</td></tr><tr><td>Outputs</td><td><code>tier</code> (1..tier count), optional <code>exclude</code>, optional <code>note</code>. Starts as <code>tier = band</code>.</td></tr><tr><td>Red flags</td><td>Tick Yes/No columns; each becomes a first-placed row sending Yes to a chosen tier with the note <em>Red flag: &lt;column&gt;</em>.</td></tr><tr><td>Safety</td><td>Unevaluable row or out-of-range tier → keeps its band, flagged. Moving an entity <em>up</em> is allowed and flagged.</td></tr></tbody></table></div></section><section class="block"><h2>In the tool</h2><p>Screenshots of Decision Studio running on the sample table, taken with the app as it is on main.</p><figure class="shot"><a href="screenshots/05-tree.png"><img src="screenshots/05-tree.png" alt="Decision tree tab: gates, cut-points, dimension floor and tiers." loading="lazy"></a><figcaption>Decision tree tab: gates, cut-points, dimension floor and tiers.</figcaption></figure></section><section class="block"><h2>Functions applied</h2><p>What runs at this step, in order, with an example. Blue rows run on GoRules ZEN; the rest is Python in <code>backend/arp/decision/</code>.</p><div class="tw"><table><thead><tr><th>Function</th><th>Engine</th><th>Example</th></tr></thead><tbody><tr class=""><td><code>gate_hit</code></td><td>Python</td><td><code>Severe_Controversy_Flag is Yes → exclude</code> → 5 entities excluded before any score counts.</td></tr><tr class=""><td><code>derive_cuts</code></td><td>Python</td><td>Quantile → <code>[86.5, 64.6, 34.8]</code>. Natural breaks on the same scores → <code>[92.4, 64.6, 45.1]</code>.</td></tr><tr class=""><td><code>dimension_scores · veto_dimensions</code></td><td>Python</td><td>Kestrel Airlines, Climate Lobbying group 3.0 &lt; 30 → <em>Demoted: Climate Lobbying group below 30</em>.</td></tr><tr class=""><td><code>tier_for_score</code></td><td>Python</td><td>Nordwind Energie, score 74.6 → Tier 2.</td></tr><tr class="zen"><td><code>apply_tier_graph</code></td><td>GoRules ZEN</td><td>Decision table <code>coal_expansion_flag = true → tier 4, 'Red flag: Coal'</code>, else band → Vega Power Tier 4 with the note. Tarn Mining, excluded by the gate before, is now Tier 4: tier rules replace the gates.</td></tr></tbody></table></div></section><section class="block"><h2>Code and formulas</h2><p>The formula each function applies, and its source as it is in the repository.</p><div class="fn"><div class="fn-h"><code class="fn-name">gate_hit</code><span class="fn-where">backend/arp/decision/tree.py:11–44</span></div><p class="formula-p">Yes/No and text: <code>value == target</code> (is) or <code>≠</code> (is not). Numbers: <code>&lt;</code>, <code>&gt;</code>, <code>==</code>. A blank value never hits.</p><details><summary>Python source (34 lines)</summary><pre class="src"><code>def gate_hit(rule: GateRule, dataset: Dataset, profiles: dict[str, ColumnProfile], row_index: int) -&gt; bool:
+    &quot;&quot;&quot;Evaluated against the raw cell, never the normalised score -- a gate
+    is a statement about the world (&quot;this company is expanding coal&quot;), not
+    about where the entity landed on a scale.
+
+    Every type follows the operator and value on screen: `is`/`=` match the
+    value, `is not` is its negation, `&lt;`/`&gt;` compare numbers. A blank cell
+    never triggers a gate, whatever the operator -- &quot;no answer&quot; is not
+    evidence either way.
+    &quot;&quot;&quot;
+    profile = profiles.get(rule.column)
+    if profile is None:
+        return False
+    raw = dataset.rows[row_index].get(rule.column, &quot;&quot;)
+    if is_blank(raw):
+        return False
+    if profile.type == &quot;boolean&quot;:
+        value, target = to_bool(raw), to_bool(rule.value)
+        if value is None or target is None or rule.op in (&quot;lt&quot;, &quot;gt&quot;):
+            return False
+        return value != target if rule.op == &quot;isnot&quot; else value == target
+    if profile.type in (&quot;numeric&quot;, &quot;ordinal&quot;):
+        value = to_number(raw, profile.decimal_comma)
+        threshold = to_number(rule.value, False)
+        if value is None or threshold is None:
+            return False
+        if rule.op == &quot;lt&quot;:
+            return value &lt; threshold
+        if rule.op == &quot;gt&quot;:
+            return value &gt; threshold
+        return value != threshold if rule.op == &quot;isnot&quot; else value == threshold
+    left = str(raw).strip().lower()
+    right = str(rule.value).strip().lower()
+    return left != right if rule.op == &quot;isnot&quot; else left == right</code></pre></details></div><div class="fn"><div class="fn-h"><code class="fn-name">quantile_positions</code><span class="fn-where">backend/arp/decision/tree.py:47–56</span></div><p class="formula-p"><code>qᵢ = 0.8 − i × 0.6 ÷ (k − 1)</code> for <i>k</i> cuts, so 4 tiers cut at the 0.8, 0.5 and 0.2 quantiles.</p><details><summary>Python source (10 lines)</summary><pre class="src"><code>def quantile_positions(cut_count: int) -&gt; list[float]:
+    &quot;&quot;&quot;Descending quantile positions for `cut_count` cut-points, spread
+    evenly between the 20th and 80th percentile -- which for the default
+    four tiers is the 80/50/20 split.&quot;&quot;&quot;
+    if cut_count &lt;= 0:
+        return []
+    if cut_count == 1:
+        return [0.5]
+    step = 0.6 / (cut_count - 1)
+    return [round(0.8 - i * step, 6) for i in range(cut_count)]</code></pre></details></div><div class="fn"><div class="fn-h"><code class="fn-name">_natural_breaks</code><span class="fn-where">backend/arp/decision/tree.py:96–113</span></div><p class="formula-p">Cut at the <i>k</i> widest gaps between sorted scores, each band holding at least <code>max(1, 10% of n)</code>; the cut is the gap's midpoint.</p><details><summary>Python source (18 lines)</summary><pre class="src"><code>def _natural_breaks(present: list[float], cut_count: int) -&gt; list[float] | None:
+    &quot;&quot;&quot;Cuts at the widest gaps in the sorted scores, subject to a minimum
+    band width so a single outlier cannot claim a whole tier to itself.&quot;&quot;&quot;
+    min_band = max(1, int(len(present) * _MIN_BAND_SHARE))
+    gaps = [(present[i] - present[i - 1], i) for i in range(min_band, len(present) - min_band)]
+    if not gaps:
+        return None
+    gaps.sort(key=lambda g: -g[0])
+    picks: list[int] = []
+    for _, i in gaps:
+        if all(abs(p - i) &gt;= min_band for p in picks):
+            picks.append(i)
+        if len(picks) == cut_count:
+            break
+    if len(picks) &lt; cut_count:
+        return None
+    picks.sort(reverse=True)
+    return [round((present[i] + present[i - 1]) / 2, 1) for i in picks]</code></pre></details></div><div class="fn"><div class="fn-h"><code class="fn-name">tier_for_score</code><span class="fn-where">backend/arp/decision/tree.py:116–120</span></div><p class="formula-p"><code>tier = 1 + index of the first cut with score ≥ cut</code>; below every cut → the last tier.</p><details><summary>Python source (5 lines)</summary><pre class="src"><code>def tier_for_score(score: float, cuts: list[float]) -&gt; int:
+    for index, cut in enumerate(cuts):
+        if score &gt;= cut:
+            return index + 1
+    return len(cuts) + 1</code></pre></details></div><div class="fn"><div class="fn-h"><code class="fn-name">veto_dimensions</code><span class="fn-where">backend/arp/decision/tree.py:140–152</span></div><p class="formula-p">Only dimensions with <code>≥ min_criteria</code> (2) active criteria can demote; a dimension score below <code>min_score</code> (30) demotes one tier.</p><details><summary>Python source (13 lines)</summary><pre class="src"><code>def veto_dimensions(config: MechanismConfig, active_columns: list[str]) -&gt; list[str]:
+    &quot;&quot;&quot;Only dimensions measured by at least `veto.min_criteria` criteria
+    can demote. A dimension resting on one yes/no answer would otherwise
+    let a single binary field override the whole framework.&quot;&quot;&quot;
+    if not config.veto.enabled:
+        return []
+    counts: dict[str, int] = {}
+    by_column = {c.column: c for c in config.criteria}
+    for column in active_columns:
+        criterion = by_column.get(column)
+        if criterion:
+            counts[criterion.dimension_id] = counts.get(criterion.dimension_id, 0) + 1
+    return [d.id for d in config.dimensions if counts.get(d.id, 0) &gt;= config.veto.min_criteria]</code></pre></details></div><div class="fn"><div class="fn-h"><code class="fn-name">apply_tier_graph</code><span class="fn-where">backend/arp/decision/rules.py:232–315</span></div><p class="formula-p">The tier graph runs on GoRules ZEN per scored entity, with <code>band</code>, <code>score</code>, <code>rank</code>, <code>dim_*</code> and every column as input; <code>tier</code>, <code>exclude</code> and <code>note</code> come back.</p><details><summary>Python source (84 lines)</summary><pre class="src"><code>def apply_tier_graph(
+    graph: dict[str, Any],
+    entities: list[EntityDecision],
+    contexts: list[dict[str, Any]],
+    bands: list[int | None],
+    config: MechanismConfig,
+) -&gt; list[AuditEntry]:
+    &quot;&quot;&quot;Sets each scored entity&#x27;s final tier from the graph&#x27;s `tier` output,
+    or excludes it on `exclude: true`. A row the graph cannot evaluate, or
+    whose `tier` is not a whole number in range, keeps its band and is
+    flagged -- the same policy calculated columns follow.&quot;&quot;&quot;
+    tiers_by_rank = {t.rank: t for t in config.tiers}
+    lowest = max(tiers_by_rank) if tiers_by_rank else 4
+    targets = [i for i, e in enumerate(entities) if e.status == &quot;scored&quot;]
+    results = evaluate_rows(graph, [contexts[i] for i in targets])
+    failures: list[tuple[str, str]] = []
+    down = up = excluded = 0
+
+    for i, result in zip(targets, results, strict=True):
+        e, band = entities[i], bands[i]
+        if isinstance(result, str):
+            failures.append((e.name, result))
+            e.notes.append(&quot;Tier rules could not be evaluated; band kept&quot;)
+            continue
+        if result.get(&quot;exclude&quot;) is True:
+            e.status, e.tier, e.tier_name, e.tier_action = &quot;excluded&quot;, None, None, None
+            e.rank = e.rank_min = e.rank_max = e.leverage = None
+            e.notes.append(&quot;Excluded by tier rules&quot;)
+            excluded += 1
+        else:
+            tier = result.get(&quot;tier&quot;)
+            if isinstance(tier, bool) or not isinstance(tier, (int, float)) or tier != int(tier) or not 1 &lt;= tier &lt;= lowest:
+                failures.append((e.name, f&quot;`tier` must be a whole number from 1 to {lowest}, got {tier!r}&quot;))
+                e.notes.append(&quot;Tier rules gave no valid tier; band kept&quot;)
+                continue
+            tier = int(tier)
+            if band is not None and tier != band:
+                e.notes.append(f&quot;Tier rules: band {band} -&gt; {tier}&quot;)
+                down += tier &gt; band
+                up += tier &lt; band
+            definition = tiers_by_rank.get(tier)
+            e.tier, e.tier_name, e.tier_action = (
+                tier,
+                definition.name if definition else None,
+                definition.action if definition else None,
+            )
+        note = result.get(&quot;note&quot;)
+        if isinstance(note, str) and note.strip():
+            e.notes.append(note.strip())
+
+    audit = [
+        AuditEntry(
+            stage=&quot;Tier rules&quot;,
+            item=f&quot;{len(targets)} scored entities&quot;,
+            decision=f&quot;{down + up + excluded} changed: {down} moved down, {up} moved up, {excluded} excluded&quot;,
+            why=&quot;the framework&#x27;s tier rules replace the gates and the dimension floor; they ran per entity after the &quot;
+            &quot;score band was drawn, so an exclusion here does not redraw its peers&#x27; cut-points&quot;
+            + (&quot;; moving an entity up is allowed but departs from the band the scores support, so it is flagged&quot; if up else &quot;&quot;),
+            needs_check=up &gt; 0,
+        )
+    ]
+    if failures:
+        name, message = failures[0]
+        audit.append(
+            AuditEntry(
+                stage=&quot;Tier rules&quot;,
+                item=f&quot;{len(failures)} of {len(targets)} entities&quot;,
+                decision=&quot;band kept&quot;,
+                why=f&quot;no valid `tier` from the tier rules -- first: {name}, {message}&quot;,
+                needs_check=True,
+            )
+        )
+    if config.gates:
+        audit.append(
+            AuditEntry(
+                stage=&quot;Tier rules&quot;,
+                item=f&quot;{len(config.gates)} gates&quot;,
+                decision=&quot;not applied&quot;,
+                why=&quot;a framework with tier rules decides exclusions and demotions there; remove the gates or move them &quot;
+                &quot;into the tier rules&quot;,
+                needs_check=True,
+            )
+        )
+    return audit</code></pre></details></div></section></div>
     <aside class="ex"><h2>From the sample table</h2><p class="src">24 companies in <code>example_transition_universe.csv</code>, run through the engine. Lines marked illustration are not from the sample.</p><div class="ex-i"><code>Severe_Controversy_Flag is Yes → exclude</code><p><b>5 excluded</b>: Sable, Tarn, Sunda, Severn Vale, Kalahari.</p></div><div class="ex-i"><code>coverage 37% < 60%</code><p>Zenith REIT → <b>data collection</b>.</p></div><div class="ex-i"><code>quantile cuts 86.5 / 64.6 / 34.8</code><p>Drawn over the 18 still eligible.</p></div><div class="ex-i"><code>Coal_Expansion_Flag is Yes → demote</code><p>Vega Power: Tier 4.</p></div><div class="ex-i"><code>floor: Climate Lobbying group < 30</code><p>Kestrel Airlines, Silverline Autoparts, Brera Fashion demoted to Tier 4.</p></div><div class="ex-i"><code>floor: Green Capex group < 30</code><p>Rheinpfad Logistik demoted to Tier 4.</p></div></aside>
   </div>
   <div class="pager"><a href="mechanism.html">← Mechanism</a><a href="results.html">Results →</a></div>

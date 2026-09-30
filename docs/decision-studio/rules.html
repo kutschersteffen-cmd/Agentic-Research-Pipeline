@@ -12,7 +12,89 @@
     <p class="lede">Adds calculated columns before anything is scored. Drawn on a canvas as a decision model and evaluated once per row.</p>
   </header>
   <div class="cols">
-    <div class="logic"><section class="block"><h2>Node types you can use</h2><p>Only declarative nodes. The schema refuses anything that runs code or loads another graph.</p><div class="tw"><table><thead><tr><th>Node</th><th>What it does</th><th>Example</th></tr></thead><tbody><tr><td>Input</td><td>The row: every column by name or slug (<code>Scope 1 (t)</code> → <code>scope_1_t</code>).</td><td></td></tr><tr><td>Expression</td><td>One output per line. Formulas and AND/OR conditions. Earlier outputs in the same box are <code>$.name</code>.</td><td><code>capex / revenue * 100</code></td></tr><tr><td>Decision table</td><td>Columns combine with AND, rows with OR. First matching row wins.</td><td>sector = Utilities AND coal = Yes → high_risk = true</td></tr><tr><td>Switch</td><td>Sends the row down one branch by condition.</td><td>region = EU → EU rule set</td></tr><tr><td>Output</td><td>Every key that is not already a column becomes a calculated column.</td><td></td></tr><tr><td>Function, Decision (sub-graph)</td><td><b>Refused.</b> Function runs JavaScript; Decision loads another graph.</td><td></td></tr></tbody></table></div></section><section class="block"><h2>Three rules that keep the source in charge</h2><div class="tw"><table><thead><tr><th>Rule</th><th>What happens</th></tr></thead><tbody><tr><td>Never overwrite a source column</td><td>An output named like an existing column is dropped and logged.</td></tr><tr><td>A failing row gets blanks</td><td>Null arithmetic or division by zero leaves that row's calculated values empty. The count and the first error are logged as needs check.</td></tr><tr><td>Server values are the record</td><td>The browser runs the same engine for a live preview. Scoring always re-runs the rules on the server.</td></tr></tbody></table></div></section><section class="block"><h2>What a calculated column can become</h2><p>It is profiled and proposed a job like any other column.</p><div class="tw"><table><thead><tr><th>Output type</th><th>Typical job</th></tr></thead><tbody><tr><td>Number (ratio, share, difference)</td><td>criterion</td></tr><tr><td>Yes/No (AND/OR condition)</td><td>gate: a compound gate needs no second gate system</td></tr><tr><td>Text (category)</td><td>segment or cohort</td></tr></tbody></table></div></section><section class="block"><h2>Functions applied</h2><p>What runs at this step, in order, with an example. Blue rows run on GoRules ZEN; the rest is Python in <code>backend/arp/decision/</code>.</p><div class="tw"><table><thead><tr><th>Function</th><th>Engine</th><th>Example</th></tr></thead><tbody><tr class="zen"><td><code>apply_rules → evaluate_rows</code></td><td>GoRules ZEN</td><td><code>coal_without_target = coal_expansion_flag and not sbti_validated_target</code> → Yes for Tarn Mining, Vega Power, Kalahari Resources.</td></tr><tr class="zen"><td><code>apply_rules → evaluate_rows</code></td><td>GoRules ZEN</td><td><code>capex_ratio = green_capex_share_pct / 100</code> → Nordwind 0.41; Zenith REIT blank (no value). Audit: <em>2 calculated columns</em>, <em>calculated values left blank</em>.</td></tr></tbody></table></div></section></div>
+    <div class="logic"><section class="block"><h2>Node types you can use</h2><p>Only declarative nodes. The schema refuses anything that runs code or loads another graph.</p><div class="tw"><table><thead><tr><th>Node</th><th>What it does</th><th>Example</th></tr></thead><tbody><tr><td>Input</td><td>The row: every column by name or slug (<code>Scope 1 (t)</code> → <code>scope_1_t</code>).</td><td></td></tr><tr><td>Expression</td><td>One output per line. Formulas and AND/OR conditions. Earlier outputs in the same box are <code>$.name</code>.</td><td><code>capex / revenue * 100</code></td></tr><tr><td>Decision table</td><td>Columns combine with AND, rows with OR. First matching row wins.</td><td>sector = Utilities AND coal = Yes → high_risk = true</td></tr><tr><td>Switch</td><td>Sends the row down one branch by condition.</td><td>region = EU → EU rule set</td></tr><tr><td>Output</td><td>Every key that is not already a column becomes a calculated column.</td><td></td></tr><tr><td>Function, Decision (sub-graph)</td><td><b>Refused.</b> Function runs JavaScript; Decision loads another graph.</td><td></td></tr></tbody></table></div></section><section class="block"><h2>Three rules that keep the source in charge</h2><div class="tw"><table><thead><tr><th>Rule</th><th>What happens</th></tr></thead><tbody><tr><td>Never overwrite a source column</td><td>An output named like an existing column is dropped and logged.</td></tr><tr><td>A failing row gets blanks</td><td>Null arithmetic or division by zero leaves that row's calculated values empty. The count and the first error are logged as needs check.</td></tr><tr><td>Server values are the record</td><td>The browser runs the same engine for a live preview. Scoring always re-runs the rules on the server.</td></tr></tbody></table></div></section><section class="block"><h2>What a calculated column can become</h2><p>It is profiled and proposed a job like any other column.</p><div class="tw"><table><thead><tr><th>Output type</th><th>Typical job</th></tr></thead><tbody><tr><td>Number (ratio, share, difference)</td><td>criterion</td></tr><tr><td>Yes/No (AND/OR condition)</td><td>gate: a compound gate needs no second gate system</td></tr><tr><td>Text (category)</td><td>segment or cohort</td></tr></tbody></table></div></section><section class="block"><h2>In the tool</h2><p>Screenshots of Decision Studio running on the sample table, taken with the app as it is on main.</p><figure class="shot"><a href="screenshots/03-rules.png"><img src="screenshots/03-rules.png" alt="Rules tab: the GoRules JDM canvas with the starter graph (the Row input into an expression box, partly behind the Components panel) and the live preview. The palette still lists Function (JS), which saving refuses." loading="lazy"></a><figcaption>Rules tab: the GoRules JDM canvas with the starter graph (the Row input into an expression box, partly behind the Components panel) and the live preview. The palette still lists Function (JS), which saving refuses.</figcaption></figure></section><section class="block"><h2>Functions applied</h2><p>What runs at this step, in order, with an example. Blue rows run on GoRules ZEN; the rest is Python in <code>backend/arp/decision/</code>.</p><div class="tw"><table><thead><tr><th>Function</th><th>Engine</th><th>Example</th></tr></thead><tbody><tr class="zen"><td><code>apply_rules → evaluate_rows</code></td><td>GoRules ZEN</td><td><code>coal_without_target = coal_expansion_flag and not sbti_validated_target</code> → Yes for Tarn Mining, Vega Power, Kalahari Resources.</td></tr><tr class="zen"><td><code>apply_rules → evaluate_rows</code></td><td>GoRules ZEN</td><td><code>capex_ratio = green_capex_share_pct / 100</code> → Nordwind 0.41; Zenith REIT blank (no value). Audit: <em>2 calculated columns</em>, <em>calculated values left blank</em>.</td></tr></tbody></table></div></section><section class="block"><h2>Code and formulas</h2><p>The formula each function applies, and its source as it is in the repository.</p><div class="fn"><div class="fn-h"><code class="fn-name">evaluate_rows</code><span class="fn-where">backend/arp/decision/rules.py:97–118</span></div><p class="formula-p">The graph is checked with <code>zen.ZenEngine().create_decision(graph).validate()</code>, then <code>engine.evaluate_batch(rows)</code> runs it once per row. Each output is flattened into columns.</p><details><summary>Python source (22 lines)</summary><pre class="src"><code>def evaluate_rows(graph: dict[str, Any], contexts: list[dict[str, Any]]) -&gt; list[dict[str, Any] | str]:
+    &quot;&quot;&quot;One result per context: the flattened output, or the error text.
+
+    Raises ValueError for a graph that cannot run at all (a dangling edge,
+    a malformed node). An expression syntax error is not caught here -- the
+    engine reports it per row, and it surfaces as every row failing.
+    &quot;&quot;&quot;
+    content = json.dumps(graph)
+    try:
+        zen.ZenEngine().create_decision(content).validate()
+    except RuntimeError as exc:
+        raise ValueError(f&quot;Rule graph does not compile: {_error_text(exc)}&quot;) from exc
+    # The batch call evaluates in parallel inside the engine: ~4x faster
+    # than a Python loop, which matters because every edit re-scores.
+    engine = zen.ZenEngine({&quot;loader&quot;: lambda _key: content})
+    responses = engine.evaluate_batch([{&quot;key&quot;: &quot;rules&quot;, &quot;context&quot;: c} for c in contexts])
+    return [
+        _flatten(r[&quot;data&quot;].get(&quot;result&quot;) or {})
+        if r.get(&quot;success&quot;)
+        else str((r.get(&quot;error&quot;) or {}).get(&quot;source&quot;) or r.get(&quot;error&quot;))
+        for r in responses
+    ]</code></pre></details></div><div class="fn"><div class="fn-h"><code class="fn-name">apply_rules</code><span class="fn-where">backend/arp/decision/rules.py:121–182</span></div><p class="formula-p">Every output key that is not already a source column becomes a calculated column; a source-column output is dropped; a failing row gets blanks.</p><details><summary>Python source (62 lines)</summary><pre class="src"><code>def apply_rules(dataset: Dataset, graph: dict[str, Any]) -&gt; tuple[Dataset, list[AuditEntry]]:
+    &quot;&quot;&quot;Returns a copy of `dataset` with the graph&#x27;s calculated columns
+    appended, and the audit entries describing what happened.&quot;&quot;&quot;
+    inputs = rule_inputs(dataset)
+    calculated: list[str] = []
+    values: list[dict[str, Any]] = []
+    overwrites: set[str] = set()
+    failures: list[tuple[int, str]] = []
+
+    for i, (context, result) in enumerate(zip(inputs, evaluate_rows(graph, inputs), strict=True)):
+        if isinstance(result, str):
+            failures.append((i, result))
+            values.append({})
+            continue
+        row_values: dict[str, Any] = {}
+        for key, value in result.items():
+            if key in context:
+                if value != context[key]:
+                    overwrites.add(key)
+                continue
+            if key not in calculated:
+                calculated.append(key)
+            row_values[key] = value
+        values.append(row_values)
+
+    rows = [{**row, **{c: _cell(v.get(c)) for c in calculated}} for row, v in zip(dataset.rows, values, strict=True)]
+    augmented = dataset.model_copy(update={&quot;columns&quot;: [*dataset.columns, *calculated], &quot;rows&quot;: rows})
+
+    audit = [
+        AuditEntry(
+            stage=&quot;Rules&quot;,
+            item=&quot;, &quot;.join(calculated) or &quot;-&quot;,
+            decision=f&quot;{len(calculated)} calculated {&#x27;column&#x27; if len(calculated) == 1 else &#x27;columns&#x27;}&quot;,
+            why=&quot;evaluated per row by the framework&#x27;s rule graph before profiling and scoring; they enter criteria &quot;
+            &quot;and gates like any other column&quot;,
+            needs_check=not calculated,
+        )
+    ]
+    if failures:
+        row_index, message = failures[0]
+        audit.append(
+            AuditEntry(
+                stage=&quot;Rules&quot;,
+                item=f&quot;{len(failures)} of {len(inputs)} rows&quot;,
+                decision=&quot;calculated values left blank&quot;,
+                why=f&quot;the graph could not be evaluated for these rows -- first: row {row_index + 1}, {message}. A missing &quot;
+                &quot;input or a division by zero does this; guard it with a condition (revenue &gt; 0 ? capex / revenue : null) &quot;
+                &quot;or let the missing-data policy handle the gap&quot;,
+                needs_check=True,
+            )
+        )
+    if overwrites:
+        audit.append(
+            AuditEntry(
+                stage=&quot;Rules&quot;,
+                item=&quot;, &quot;.join(sorted(overwrites)),
+                decision=&quot;output ignored&quot;,
+                why=&quot;a rule may add columns but never rewrite a source value; give the output a new name&quot;,
+                needs_check=True,
+            )
+        )
+    return augmented, audit</code></pre></details></div></section></div>
     <aside class="ex"><h2>From the sample table</h2><p class="src">24 companies in <code>example_transition_universe.csv</code>, run through the engine. Lines marked illustration are not from the sample.</p><div class="ex-i"><code>coal_expansion_flag and not sbti_validated_target</code><p>New Yes/No column. Yes for Vega Power, Tarn Mining, Kalahari Resources.</p></div><div class="ex-i"><code>green_capex_share_pct / 100</code><p>Zenith REIT has no Green Capex value, so its result is blank and it is logged, not an error.</p></div><div class="ex-i"><code>Portfolio_Weight_bps (as output name)</code><p>Dropped and logged: rules never overwrite a source column.</p></div></aside>
   </div>
   <div class="pager"><a href="profile.html">← Profile</a><a href="mechanism.html">Mechanism →</a></div>
