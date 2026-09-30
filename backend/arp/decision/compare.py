@@ -107,6 +107,7 @@ def compare_results(
         incomparable_reason=reason,
         caveat=caveat,
         cut_points=list(after.effective_cuts),
+        missing_columns=sorted(set(before.missing_columns) | set(after.missing_columns)),
         cuts_moved=cuts_moved,
     )
 

@@ -1912,6 +1912,8 @@ export interface DecisionResult {
   effective_cuts: number[];
   cuts_origin: CutMode;
   effective_weights: Record<string, number>;
+  /** Columns the framework uses that this table lacks; such a result cannot be published. */
+  missing_columns?: string[];
   entities: EntityDecision[];
   tier_summary: TierSummary[];
   histogram: HistogramBin[];
@@ -1975,6 +1977,7 @@ export interface DecisionComparison {
   caveat?: string | null;
   cut_points?: number[];
   cuts_moved?: string | null;
+  missing_columns?: string[];
 }
 
 // ---------------------------------------------------------------- index
@@ -2682,6 +2685,9 @@ export interface PublishedDecision {
   published_by: string;
   published_at: string;
   note: string;
+  cut_points?: number[];
+  /** The first publication of this framework version, whose cut-points were reused. */
+  cuts_held_from?: string | null;
   rows: { entity_id: string; name: string; score: number | null; tier: number | null; tier_name: string | null; rank: number | null; status: string }[];
 }
 

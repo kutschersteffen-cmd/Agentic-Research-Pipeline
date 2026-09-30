@@ -18,7 +18,7 @@ from arp.decision.diffing import describe_changes
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
 from arp.decision.parsing import load_table
 from arp.decision.profiling import profile_dataset
-from arp.decision.publish import publish
+from arp.decision.publish import hold_published_cuts, publish
 from arp.decision.roles import propose_roles, slug
 from arp.decision.rules import apply_rules, rule_inputs
 from arp.decision.sensitivity import tipping_points
@@ -727,8 +727,11 @@ def publish_run(
     if missing:
         raise HTTPException(422, f"Not published: the results lack columns the template scores on: {', '.join(missing)}")
     try:
-        result = _apply(dataset, config, overrides=overrides.load(templates.run_overrides_path(run_store, run_id)))
-        snapshot = publish(dataset, config, result, published_by=req.published_by, note=req.note or f"From run {run_id}")
+        held, held_from = hold_published_cuts(config, store.list_published())
+        result = _apply(dataset, held, overrides=overrides.load(templates.run_overrides_path(run_store, run_id)))
+        snapshot = publish(
+            dataset, config, result, published_by=req.published_by, note=req.note or f"From run {run_id}", cuts_held_from=held_from
+        )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     store.save_dataset(dataset)
@@ -779,9 +782,12 @@ def post_publish(req: PublishRequest, store: DecisionStore = Depends(get_decisio
     confirming at the checkpoint, and an index still needs its own run."""
     dataset = _load_dataset(req.dataset_id, store)
     config = _resolve_config(None, req.framework_id, req.version, store)
+    held, held_from = hold_published_cuts(config, store.list_published())
     try:
-        result = _apply(dataset, config, overrides=overrides.load(store.overrides_path(dataset.dataset_id)))
-        snapshot = publish(dataset, config, result, published_by=req.published_by, id_column=req.id_column, note=req.note)
+        result = _apply(dataset, held, overrides=overrides.load(store.overrides_path(dataset.dataset_id)))
+        snapshot = publish(
+            dataset, config, result, published_by=req.published_by, id_column=req.id_column, note=req.note, cuts_held_from=held_from
+        )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     return store.save_published(snapshot)

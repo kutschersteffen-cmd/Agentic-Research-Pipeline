@@ -151,3 +151,11 @@ def test_holding_cuts_leaves_fixed_cut_points_alone(sample):
     dataset, config, _ = sample
     fixed = config.model_copy(update={"cut_mode": "absolute", "pinned_cuts": [80.0, 60.0, 40.0]})
     assert hold_cuts(fixed, apply_mechanism(dataset, fixed)) is fixed
+
+
+def test_a_comparison_names_columns_either_snapshot_lacks(sample):
+    dataset, config, _ = sample
+    keep = [c for c in dataset.columns if c != "Severe_Controversy_Flag"]
+    earlier = build_dataset("q1", [keep] + [[r[c] for c in keep] for r in dataset.rows])
+    comparison = compare_results(apply_mechanism(earlier, config), apply_mechanism(dataset, config))
+    assert comparison.missing_columns == ["Severe_Controversy_Flag"]

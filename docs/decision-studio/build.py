@@ -89,6 +89,8 @@ FUNCS = {
     "output": [
         ("publish", "Python", "Sample table with <code>id_column='ISIN'</code> → 24 rows: 18 scored, 6 excluded or insufficient."),
         ("publish", "Python", "With no <code>company_id</code>/<code>issuer_id</code>/<code>entity_id</code>/<code>id</code> column the API needs <code>id_column</code> named; the studio's Publish dialog now sends it (default: the reference column, ISIN here)."),
+        ("hold_published_cuts", "Python", "Q2 published first → cut-points 86.5 / 64.6 / 34.8 recorded. Q3 of the same version → tiered on them (<code>cuts_held_from</code> = the Q2 snapshot): Kanto 3 → 2, Ardent Pharma stays in Tier 2."),
+        ("publish", "Python", "A table without <code>Severe_Controversy_Flag</code> → refused: <em>the table lacks columns the framework uses</em>. Scored anyway, Tarn Mining would have been tiered instead of excluded."),
         ("templates.score_run", "Python", "Run finishes → the attached framework scores it and <code>decision.json</code> is written; a failure is recorded, never fails the run."),
     ],
 }
@@ -177,7 +179,8 @@ CODE = {
     ],
     "output": [
         ("decision/publish.py", "find_id_column", "The first column named <code>company_id</code>, <code>issuer_id</code>, <code>entity_id</code> or <code>id</code> (case-insensitive); none → publishing needs one named."),
-        ("decision/publish.py", "publish", "Freezes one framework version's result on one table, rows matched to issuers by the id column."),
+        ("decision/publish.py", "publish", "Freezes one framework version's result on one table, rows matched to issuers by the id column. Refused when <code>result.missing_columns</code> is not empty."),
+        ("decision/publish.py", "hold_published_cuts", "<code>pinned_cuts = cut_points(first snapshot of this version)</code>, unless the framework fixes its own."),
     ],
 }
 
@@ -590,6 +593,7 @@ PAGES["output"] = dict(
                 ["Table", "dataset id and name, as-of date"],
                 ["Matching", "the id column used to match issuers"],
                 ["Sign-off", "published by, published at, note"],
+                ["Cut-points", "the cut-points used, and <code>cuts_held_from</code>: the first publication of this version, whose cut-points later publications reuse"],
                 ["Rows", "entity id, name, score, tier, tier name, rank, rank min/max, status (scored, excluded, insufficient)"],
             ])),
         block("Who reads it", "", table(
@@ -601,7 +605,8 @@ PAGES["output"] = dict(
             ["Route", "What it does"], [
                 ["CSV export", "The ranked outcome from the Results tab."],
                 ["Template on a run", "Attach a framework to an Extraction, Financials, TNFD or Transition Plan run. It is copied into the run folder and scores the run when every company is done (<code>decision.json</code>). A failure there is recorded, never fails the run."],
-                ["Publish from a run", "Stricter than the studio: the version must be ratified, the run finished, and no scored column missing."],
+                ["Publish from a run", "Stricter than the studio: the version must be ratified and the run finished."],
+                ["Missing columns", "Any publication is refused when the table lacks a column the framework uses; the Results tab says which."],
                 ["Template import", "A template file becomes a new framework at v1, as a draft. Ratification does not travel with a file."],
             ])),
     ],

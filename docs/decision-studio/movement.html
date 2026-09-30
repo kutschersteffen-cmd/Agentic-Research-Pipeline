@@ -19,7 +19,7 @@
     with no criterion behind it. Fixed cut-points are left as they are.&quot;&quot;&quot;
     if before.cuts_origin == &quot;absolute&quot;:
         return config
-    return config.model_copy(update={&quot;cut_mode&quot;: &quot;absolute&quot;, &quot;pinned_cuts&quot;: list(before.effective_cuts)})</code></pre></details></div><div class="fn"><div class="fn-h"><code class="fn-name">compare_results</code><span class="fn-where">backend/arp/decision/compare.py:19–111</span></div><p class="formula-p">Refused unless both results carry the same framework id and version. Then per entity: tier, score and rank before, after and delta.</p><details><summary>Python source (93 lines)</summary><pre class="src"><code>def compare_results(
+    return config.model_copy(update={&quot;cut_mode&quot;: &quot;absolute&quot;, &quot;pinned_cuts&quot;: list(before.effective_cuts)})</code></pre></details></div><div class="fn"><div class="fn-h"><code class="fn-name">compare_results</code><span class="fn-where">backend/arp/decision/compare.py:19–112</span></div><p class="formula-p">Refused unless both results carry the same framework id and version. Then per entity: tier, score and rank before, after and delta.</p><details><summary>Python source (94 lines)</summary><pre class="src"><code>def compare_results(
     before: DecisionResult,
     after: DecisionResult,
     *,
@@ -110,8 +110,9 @@
         incomparable_reason=reason,
         caveat=caveat,
         cut_points=list(after.effective_cuts),
+        missing_columns=sorted(set(before.missing_columns) | set(after.missing_columns)),
         cuts_moved=cuts_moved,
-    )</code></pre></details></div><div class="fn"><div class="fn-h"><code class="fn-name">_drivers</code><span class="fn-where">backend/arp/decision/compare.py:114–128</span></div><p class="formula-p"><code>Δcontributionⱼ = contributionⱼ(after) − contributionⱼ(before)</code>; criteria with <code>|Δ| ≥ 0.5</code>, largest first.</p><details><summary>Python source (15 lines)</summary><pre class="src"><code>def _drivers(old, new) -&gt; list[str]:
+    )</code></pre></details></div><div class="fn"><div class="fn-h"><code class="fn-name">_drivers</code><span class="fn-where">backend/arp/decision/compare.py:115–129</span></div><p class="formula-p"><code>Δcontributionⱼ = contributionⱼ(after) − contributionⱼ(before)</code>; criteria with <code>|Δ| ≥ 0.5</code>, largest first.</p><details><summary>Python source (15 lines)</summary><pre class="src"><code>def _drivers(old, new) -&gt; list[str]:
     &quot;&quot;&quot;Which criteria actually moved the score. A tier change with no named
     driver is the shape of a data problem, not of progress, and the list
     being empty says so.&quot;&quot;&quot;

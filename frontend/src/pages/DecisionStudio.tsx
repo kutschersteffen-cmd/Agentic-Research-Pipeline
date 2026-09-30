@@ -750,6 +750,12 @@ export function DecisionStudio() {
 
       {sub === "results" && result && config && (
         <>
+          {!!result.missing_columns?.length && (
+            <p className="decision-check-banner" role="alert">
+              This table lacks columns the framework uses: {result.missing_columns.join(", ")}. A gate on one cannot fire and a
+              criterion drops out, so these results cannot be published.
+            </p>
+          )}
           <div className="decision-kpis">
             {result.tier_summary.map((tier) => (
               <div key={tier.rank} className="card">
@@ -867,6 +873,12 @@ export function DecisionStudio() {
             <>
               {!comparison.comparable && <p className="error-text" role="alert">{comparison.incomparable_reason}</p>}
               {comparison.caveat && <p className="decision-check-banner">{comparison.caveat}</p>}
+              {!!comparison.missing_columns?.length && (
+                <p className="error-text" role="alert">
+                  A snapshot lacks columns the framework uses ({comparison.missing_columns.join(", ")}): gates on them cannot fire,
+                  so movement for the entities they affect is not reliable.
+                </p>
+              )}
               <p>
                 {comparison.label_before} → {comparison.label_after}: <strong>{comparison.improved}</strong> improved,{" "}
                 <strong>{comparison.worsened}</strong> worsened, {comparison.unchanged} unchanged, {comparison.entered} new,{" "}
@@ -986,12 +998,24 @@ export function DecisionStudio() {
                     </option>
                   ))}
                 </select>
+                {!!result?.missing_columns?.length && (
+                  <p className="error-text" role="alert">
+                    This table lacks columns the framework uses ({result.missing_columns.join(", ")}), so publishing will be refused.
+                  </p>
+                )}
+                {config.cut_mode !== "absolute" && (
+                  <p className="help-text">
+                    Cut-points are drawn from the scores. The first publication of version {config.version} fixes them; later
+                    publications of this version reuse them, so a tier changes only when the score does.
+                  </p>
+                )}
               </ConfirmDecision>
             )}
             {published && (
               <p className="status-text" role="status">
                 Published {published.rows.length} entities (matched on <code>{published.id_column}</code>) as{" "}
-                <code>decision.{published.framework_id}</code>. Next: <a href="#/stewardship/selection">use the tiers in coverage rules</a> or{" "}
+                <code>decision.{published.framework_id}</code>
+                {published.cuts_held_from ? ` on the cut-points of its first publication (${published.cut_points?.map((c) => c.toFixed(1)).join(" / ")})` : ""}. Next: <a href="#/stewardship/selection">use the tiers in coverage rules</a> or{" "}
                 <a href="#/index">join the scores in an index</a>.
               </p>
             )}

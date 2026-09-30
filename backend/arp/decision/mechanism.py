@@ -259,6 +259,33 @@ def apply_mechanism(
     are part of the table every later step sees.
     """
     audit = list(derivation_audit or [])
+    from arp.decision.templates import missing_columns
+
+    missing = missing_columns(config, dataset.columns)
+    if missing:
+        audit.append(
+            AuditEntry(
+                stage="Columns",
+                item=", ".join(missing),
+                decision="missing from this table",
+                why="the framework uses these columns: a gate on one cannot fire and a criterion drops out, its weight "
+                "re-spread over the rest. Supply them or change the framework; the result cannot be published",
+                needs_check=True,
+            )
+        )
+    result = _apply_config(dataset, config, audit, with_stability=with_stability, overrides=overrides)
+    result.missing_columns = missing
+    return result
+
+
+def _apply_config(
+    dataset: Dataset,
+    config: MechanismConfig,
+    audit: list[AuditEntry],
+    *,
+    with_stability: bool,
+    overrides: list[LevelOverride] | None,
+) -> DecisionResult:
     if config.rule_graph:
         dataset, rule_audit = apply_rules(dataset, config.rule_graph)
         audit.extend(rule_audit)
