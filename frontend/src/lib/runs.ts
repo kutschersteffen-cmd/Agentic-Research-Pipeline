@@ -6,7 +6,7 @@ export const ACTIVE_STATUSES = new Set(["running", "pending"]);
 // Run types whose flagged items go to the Review Queue.
 export const REVIEWABLE_RUN_TYPES = new Set<string>(["theme", "extraction", "financials", "identity"]);
 
-const RUN_TYPE_LABEL: Record<string, string> = {
+export const RUN_TYPE_LABEL: Record<string, string> = {
   theme: "Thematic universe",
   extraction: "Data extraction",
   discovery: "Document discovery",

@@ -1,4 +1,4 @@
-import { when } from "../lib/runs";
+import { RUN_TYPE_LABEL, runTypeLabel, when } from "../lib/runs";
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { ReviewableRunKind, RunManifest } from "../types";
@@ -16,10 +16,16 @@ interface Props {
 export function RunHistory({ onOpenReview }: Props = {}) {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [filter, setFilter] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
 
   async function load() {
-    const res = (await api.listRuns(filter || undefined)) as { runs: RunManifest[] };
-    setRuns(res.runs);
+    setError(null);
+    try {
+      const res = (await api.listRuns(filter || undefined)) as { runs: RunManifest[] };
+      setRuns(res.runs);
+    } catch (err) {
+      setError(`Runs could not be loaded: ${(err as Error).message}.`);
+    }
   }
 
   useEffect(() => {
@@ -37,16 +43,17 @@ export function RunHistory({ onOpenReview }: Props = {}) {
           Filter by type
           <select value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="">All</option>
-            <option value="theme">Thematic universe</option>
-            <option value="extraction">Extraction</option>
-            <option value="financials">Company financials</option>
-            <option value="discovery">Discovery</option>
-            <option value="taxonomy_research">Taxonomy Researcher</option>
-            <option value="calibration">Calibration</option>
-            <option value="emerging_themes">Emerging themes</option>
+            {Object.entries(RUN_TYPE_LABEL).map(([id, label]) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
+            ))}
           </select>
         </label>
-        <button onClick={load}>Refresh</button>
+        <button className="secondary" onClick={load}>
+          Refresh
+        </button>
+        {error && <p className="error-text" role="alert">{error}</p>}
         <p className="muted">Total estimated spend across {runs.length} runs: ${totalCost.toFixed(2)}</p>
       </section>
 
@@ -59,7 +66,7 @@ export function RunHistory({ onOpenReview }: Props = {}) {
                 <th>Type</th>
                 <th>Status</th>
                 <th>Progress</th>
-                <th>Flagged</th>
+                <th>Awaiting decision</th>
                 <th>Cost</th>
                 <th>Created</th>
                 <th></th>
@@ -70,17 +77,29 @@ export function RunHistory({ onOpenReview }: Props = {}) {
                 const runType = r.run_type;
                 return (
                   <tr key={r.run_id}>
-                    <td>{r.run_id}</td>
-                    <td>{runType}</td>
-                    <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                    <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
-                    <td>{r.review_count}</td>
+                    <td className="mono">{r.run_id}</td>
+                    <td>{runTypeLabel(runType)}</td>
+                    <td>
+                      <span className={`status-pill status-${r.status}`}>{r.status}</span>
+                      {r.error && <div className="run-error">{r.error}</div>}
+                    </td>
+                    <td className="mono">
+                      {r.completed_count}/{r.company_count}
+                      {r.failed_count > 0 && <span className="muted"> · {r.failed_count} companies failed</span>}
+                    </td>
+                    <td className={r.review_count > 0 ? "mono await-text" : "mono"}>{r.review_count}</td>
                     <td>${r.estimated_cost_usd.toFixed(2)}</td>
                     <td className="mono">{when(r.created_at)}</td>
                     <td>
                       <a href={api.exportRunCsvUrl(r.run_id)} target="_blank" rel="noreferrer">
                         CSV
                       </a>
+                      {runType === "proxy_voting" && (
+                        <>
+                          {" "}
+                          <a href={`#/voting/${encodeURIComponent(r.run_id)}`}>Ballot</a>
+                        </>
+                      )}
                       {r.review_count > 0 && isReviewable(runType) && onOpenReview && (
                         <>
                           {" "}

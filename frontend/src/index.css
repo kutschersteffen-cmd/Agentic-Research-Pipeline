@@ -481,6 +481,7 @@ button.secondary:hover:not(:disabled) { background: var(--accent-tint); border-c
 .skip-link:focus { transform: none; }
 .app-main:focus { outline: none; }
 .mono { font-family: var(--font-mono); font-size: 0.95em; }
+.run-error { margin-top: 4px; max-width: 36ch; font-size: var(--text-xs); color: var(--low); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .field-label.inline-label { display: inline-flex; align-items: center; gap: var(--s-2); margin: 0; }
 .field-label.inline-label > select { margin-top: 0; width: auto; max-width: 100%; }
@@ -802,7 +803,7 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   /* Below this width there isn't room for two columns -- the source
      panel drops beneath the results instead of squeezing both unreadably
      narrow; still docked/inline rather than a modal, just stacked. */
-  .split-review { flex-direction: column; }
+  .split-review { flex-direction: column; align-items: stretch; }
   .source-panel { position: static; width: 100%; flex-basis: auto; height: 60vh; }
   /* Stacked, an empty panel is just 60vh of blank page: show it only once a
      source is opened. */
@@ -965,6 +966,16 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 
 .proposal-card { border: 1px solid var(--panel-border); border-radius: var(--r-md); padding: 12px 14px; margin-bottom: 12px; scroll-margin-top: 96px; }
 .proposal-card:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.proposal-card { position: relative; }
+.proposal-flagged { border: 2px solid var(--mid); }
+.proposal-collapse { position: absolute; top: 10px; right: 14px; }
+.proposal-flagged .proposal-header, .proposal-card:has(.proposal-collapse) .proposal-header { padding-right: 48px; }
+/* A routine proposal as one row: number, resolution, the policy's vote, the decision. */
+.proposal-compact { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); padding-block: 8px; margin-bottom: 6px; }
+.proposal-clip { flex: 1 1 240px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proposal-policy { font-size: var(--text-sm); color: var(--muted); }
+.proposal-policy strong { color: var(--text); }
+@media (pointer: coarse) { .kbd-hint { display: none; } }
 .proposal-card .proposal-header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .proposal-text { font-size: var(--text-base); color: var(--text); margin: 6px 0; }
 .recommendation-line { font-size: var(--text-sm); margin: 6px 0; }
