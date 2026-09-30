@@ -1,9 +1,19 @@
 from __future__ import annotations
 
 from arp.decision.roles import pretty
-from arp.schemas.decision import DecisionComparison, DecisionResult, EntityMovement
+from arp.schemas.decision import DecisionComparison, DecisionResult, EntityMovement, MechanismConfig
 
 _MAX_DRIVERS = 3
+
+
+def hold_cuts(config: MechanismConfig, before: DecisionResult) -> MechanismConfig:
+    """The framework with the earlier snapshot's cut-points pinned, for
+    scoring the later one. Quantile or natural-break cuts drawn afresh move
+    with the field, so an entity whose score stood still could change tier
+    with no criterion behind it. Fixed cut-points are left as they are."""
+    if before.cuts_origin == "absolute":
+        return config
+    return config.model_copy(update={"cut_mode": "absolute", "pinned_cuts": list(before.effective_cuts)})
 
 
 def compare_results(
@@ -71,7 +81,14 @@ def compare_results(
             "both snapshots were scored on percentile ranks, which measure position within the field. An entity "
             "that improved in absolute terms shows no movement unless its ordering changed, and an entity that "
             "stood still can move simply because its peers did. For period-on-period comparison, score on min-max "
-            "or z-score with pinned cut-points so the scale means the same thing in both snapshots."
+            "or z-score so the scale means the same thing in both snapshots."
+        )
+
+    cuts_moved = None
+    if before.effective_cuts != after.effective_cuts:
+        cuts_moved = (
+            f"the cut-points moved from {' / '.join(f'{c:.1f}' for c in before.effective_cuts)} to "
+            f"{' / '.join(f'{c:.1f}' for c in after.effective_cuts)}, so a tier can change on an unchanged score"
         )
 
     movements.sort(key=lambda m: (-(abs(m.score_delta) if m.score_delta is not None else -1)))
@@ -89,6 +106,8 @@ def compare_results(
         comparable=comparable,
         incomparable_reason=reason,
         caveat=caveat,
+        cut_points=list(after.effective_cuts),
+        cuts_moved=cuts_moved,
     )
 
 

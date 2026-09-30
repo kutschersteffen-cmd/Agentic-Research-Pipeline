@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 from arp.api.deps import get_decision_store, get_portfolio_store, get_run_store, settings_dep
 from arp.config import Settings
 from arp.decision import overrides, sources, templates
-from arp.decision.compare import compare_results
+from arp.decision.compare import compare_results, hold_cuts
 from arp.decision.dataset import Dataset, build_dataset
 from arp.decision.diffing import describe_changes
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
@@ -751,9 +751,10 @@ def compare(req: CompareRequest, store: DecisionStore = Depends(get_decision_sto
     before = _load_dataset(req.dataset_id_before, store)
     after = _load_dataset(req.dataset_id_after, store)
     config = _resolve_config(req.config, req.framework_id, req.version, store)
+    first = _apply(before, config, overrides=overrides.load(store.overrides_path(before.dataset_id)))
     return compare_results(
-        _apply(before, config, overrides=overrides.load(store.overrides_path(before.dataset_id))),
-        _apply(after, config, overrides=overrides.load(store.overrides_path(after.dataset_id))),
+        first,
+        _apply(after, hold_cuts(config, first), overrides=overrides.load(store.overrides_path(after.dataset_id))),
         label_before=before.as_of or before.name,
         label_after=after.as_of or after.name,
     )

@@ -1971,6 +1971,8 @@ export interface DecisionComparison {
   comparable: boolean;
   incomparable_reason?: string | null;
   caveat?: string | null;
+  cut_points?: number[];
+  cuts_moved?: string | null;
 }
 
 // ---------------------------------------------------------------- index

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from arp.decision.compare import compare_results
+from arp.decision.compare import compare_results, hold_cuts
 from arp.decision.dataset import build_dataset, dataset_from_file
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
 from arp.decision.sensitivity import tipping_points
@@ -115,3 +115,39 @@ def test_entities_entering_and_leaving_are_counted_separately():
     comparison = compare_results(apply_mechanism(before, config), apply_mechanism(after, config))
     assert comparison.entered == 1
     assert comparison.left == 4
+
+
+def _kanto_improves(dataset):
+    rows = [dict(r) for r in dataset.rows]
+    for row in rows:
+        if row["Company"].startswith("Kanto"):
+            row["Scope3_Reported"] = "Yes"
+            row["SBTi_Validated_Target"] = "Yes"
+    return build_dataset("q3", [dataset.columns] + [[r[c] for c in dataset.columns] for r in rows])
+
+
+def test_quantile_cuts_are_held_so_a_tier_change_needs_a_score_change(sample):
+    """Kanto discloses Scope 3 and gets a target; nobody else changes. Drawn
+    afresh, the quantile cuts move with Kanto and push Ardent Pharma down a
+    tier on an identical score -- a movement with no driver. Held at the
+    earlier snapshot's cuts, only Kanto moves."""
+    dataset, config, _ = sample
+    first = apply_mechanism(dataset, config)
+    later = _kanto_improves(dataset)
+
+    redrawn = compare_results(first, apply_mechanism(later, config))
+    ardent = next(m for m in redrawn.movements if m.name.startswith("Ardent"))
+    assert ardent.tier_delta == 1 and ardent.score_delta == 0 and not ardent.drivers
+    assert redrawn.cuts_moved is not None
+
+    held = compare_results(first, apply_mechanism(later, hold_cuts(config, first)))
+    assert held.comparable is True
+    assert held.cut_points == first.effective_cuts
+    assert held.cuts_moved is None
+    assert [m.name for m in held.movements if m.tier_delta] == ["Kanto Heavy Industries"]
+
+
+def test_holding_cuts_leaves_fixed_cut_points_alone(sample):
+    dataset, config, _ = sample
+    fixed = config.model_copy(update={"cut_mode": "absolute", "pinned_cuts": [80.0, 60.0, 40.0]})
+    assert hold_cuts(fixed, apply_mechanism(dataset, fixed)) is fixed

@@ -80,7 +80,7 @@ FUNCS = {
     ],
     "movement": [
         ("compare_results", "Python", "Q3 table where Kanto now reports Scope 3 and has an SBTi target → Kanto Tier 3 → 2, score 39.8 → 72.0, drivers <em>Scope3 Reported +16.1</em>, <em>Sbti Validated Target +16.1</em>."),
-        ("compare_results", "Python", "Same run: Ardent Pharma Tier 2 → 3 with its score unchanged at 70.1 and <b>no drivers</b>. The quantile cut moved 64.6 → 71.0 because Kanto rose. The percentile caveat is returned."),
+        ("hold_cuts", "Python", "The Q3 table is tiered on Q2's cut-points 86.5 / 64.6 / 34.8. Drawn afresh, Kanto's rise would move the middle cut to 71.0 and drop Ardent Pharma to Tier 3 on an unchanged 70.1 with no driver; held, Ardent stays in Tier 2 and only Kanto moves. The percentile caveat is returned."),
     ],
     "audit": [
         ("describe_changes", "Python", "Minimum coverage 60 → 75 → <code>('Minimum weight covered (%)', '60 -&gt; 75', origin human, by A. Reviewer)</code>"),
@@ -166,6 +166,7 @@ CODE = {
         ("decision/sensitivity.py", "tipping_points", "For each dimension, scale its weight from 0 up in <code>steps</code>, re-apply the framework, and take the share nearest today's at which the tier changes. None → robust."),
     ],
     "movement": [
+        ("decision/compare.py", "hold_cuts", "<code>cut_mode = absolute, pinned_cuts = cuts(before)</code> for the later snapshot, unless the framework already pins its cuts."),
         ("decision/compare.py", "compare_results", "Refused unless both results carry the same framework id and version. Then per entity: tier, score and rank before, after and delta."),
         ("decision/compare.py", "_drivers", "<code>Δcontributionⱼ = contributionⱼ(after) − contributionⱼ(before)</code>; criteria with <code>|Δ| ≥ 0.5</code>, largest first."),
     ],
@@ -206,7 +207,7 @@ SHOTS = {
         ("06c-explain.png", "Kanto Heavy Industries opened: what moved its score."),
         ("06b-sensitivity.png", "Kanto's tipping points: Scope 3 at +4.1 points flips it to Tier 4."),
     ],
-    "movement": [("07-movement.png", "Q3 against Q2 under the same ratified framework: Kanto 3 → 2 with its drivers, and Ardent Pharma 2 → 3 with no driver, because the quantile cut moved.")],
+    "movement": [("07-movement.png", "Q3 against Q2 under the same ratified framework, tiered on Q2's cut-points: only Kanto moves, 3 → 2, with its two drivers.")],
     "audit": [("08-audit.png", "Audit after ratifying v1: the ratified badge, Publish, and the derived half of the log.")],
     "output": [("09-publish.png", "The Publish dialog on the sample table: <b>Match issuers by</b> defaults to ISIN, the column the engine marked as a reference.")],
 }
@@ -524,8 +525,9 @@ PAGES["movement"] = dict(
             ["Situation", "Result"], [
                 ["Different framework or version on each side", "<b>Refused</b> with the reason: the difference would describe the frameworks."],
                 ["Percentile scores on both sides", "Returned with a caveat: ranks show movement relative to the field, never absolute improvement."],
+                ["Quantile or natural-break cut-points", "The later table is tiered on the earlier table's cut-points, so a tier changes only when the score does. Cut-points drawn afresh would move with the field."],
                 ["A move with no driver", "Empty driver list: the shape of a data problem, not progress."],
-            ]) + '<p class="note">For period-on-period work, score with min–max or z-score and fixed cut-points so the scale means the same in both tables.</p>'),
+            ]) + '<p class="note">For period-on-period work, score with min–max or z-score so the scores themselves mean the same in both tables.</p>'),
     ],
     example=[
         ("Q2 table + Q3 table, both v1", "Illustration: tier moves with drivers, e.g. a company rising because Scope3_Reported turned Yes."),
