@@ -363,14 +363,18 @@ PAGES["audit"] = dict(
                 ["<code>frameworks/&lt;id&gt;/v<i>N</i>.json</code>", "The framework version."],
                 ["<code>v<i>N</i>.audit.json</code>", "Derivation and edit trail for that exact version."],
                 ["<code>latest.json</code>", "Pointer to the newest version."],
-            ])),
+            ]) + '<p class="note">A real example, derived from the sample table, edited and ratified: '
+            '<a href="example-framework/v1.json">v1.json</a> · <a href="example-framework/v1.audit.json">v1.audit.json</a> · '
+            '<a href="example-framework/v2.json">v2.json</a> (ratified) · <a href="example-framework/v2.audit.json">v2.audit.json</a> · '
+            '<a href="example-framework/latest.json">latest.json</a>. The last four entries of v2.audit.json are the human edits.</p>'),
     ],
     example=[
         ("derived · Direction · Scope12_Intensity…", "lower is better, because the name matches intensity, co2."),
         ("derived · Dimensions · Climate Lobbying group", "5 criteria grouped, rank correlation 0.86–0.98."),
         ("derived · Gates · Severe_Controversy_Flag", "hard exclusion: a knockout belongs in the tree, not the average."),
         ("human · Direction", "Illustration: you flip Emissions_Data_Coverage_pct. Logged with your name."),
-        ("Ratify v2", "v2 fixed. The next edit saves v3."),
+        ("human · Edit · Cut-points", "85, 65, 35, pinned by hand by A. Reviewer (from <a href=\"example-framework/v2.audit.json\">v2.audit.json</a>)."),
+        ("Ratify v2", "v2 fixed. Saving over it is refused: <em>v2 is ratified and cannot be overwritten</em>."),
     ],
 )
 
