@@ -142,7 +142,7 @@
             stage=&quot;Tier rules&quot;,
             item=f&quot;{len(targets)} scored entities&quot;,
             decision=f&quot;{down + up + excluded} changed: {down} moved down, {up} moved up, {excluded} excluded&quot;,
-            why=&quot;the framework&#x27;s tier rules replace the gates and the dimension floor; they ran per entity after the &quot;
+            why=&quot;the framework&#x27;s tier rules replace the demote gates and the dimension floor (exclusion gates ran before scoring); they ran per entity after the &quot;
             &quot;score band was drawn, so an exclusion here does not redraw its peers&#x27; cut-points&quot;
             + (&quot;; moving an entity up is allowed but departs from the band the scores support, so it is flagged&quot; if up else &quot;&quot;),
             needs_check=up &gt; 0,
