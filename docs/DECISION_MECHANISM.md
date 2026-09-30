@@ -239,8 +239,11 @@ says so rather than claiming natural breaks.
 
 **Tier rules (optional, `rules.py`).** A framework may carry a second
 graph, `tier_graph`, edited in the Decision tree tab. It runs per scored
-entity after step 3 and **replaces steps 2 and 4**: the gates and the
-dimension floor are not applied (the audit log says so if gates remain).
+entity after step 3 and **replaces step 4**: demote and flag gates and the
+dimension floor are not applied (the audit log says so if such gates
+remain). **Exclusion gates still apply** in step 2, before any score: a
+knockout is a decision, and switching on tier rules (a red flag, say)
+must not quietly re-admit an excluded entity.
 Each entity arrives with `band` (the tier its score earns from the
 cut-points), `score`, `rank`, `percentile` within its cohort, `coverage`,
 `grounded_coverage`, `dim_<dimension>` scores, `cohort`, `segment`,

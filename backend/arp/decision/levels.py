@@ -203,7 +203,7 @@ def apply_levels(
     excluded_by: list[GateRule | None] = []
     insufficient: list[bool] = []
     for i in range(n):
-        hits = [] if config.tier_graph else [g for g in config.gates if gate_hit(g, dataset, profiles, i)]
+        hits = [g for g in config.gates if (not config.tier_graph or g.outcome == "exclude") and gate_hit(g, dataset, profiles, i)]
         gate_hits.append(hits)
         excluded_by.append(next((g for g in hits if g.outcome == "exclude"), None))
         total, covered, _, _ = rows_scored[i]

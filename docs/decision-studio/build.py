@@ -70,7 +70,7 @@ FUNCS = {
         ("derive_cuts", "Python", "Quantile → <code>[86.5, 64.6, 34.8]</code>. Natural breaks on the same scores → <code>[92.4, 64.6, 45.1]</code>."),
         ("dimension_scores · veto_dimensions", "Python", "Kestrel Airlines, Climate Lobbying group 3.0 &lt; 30 → <em>Demoted: Climate Lobbying group below 30</em>."),
         ("tier_for_score", "Python", "Nordwind Energie, score 74.6 → Tier 2."),
-        ("apply_tier_graph", "GoRules ZEN", "Decision table <code>coal_expansion_flag = true → tier 4, 'Red flag: Coal'</code>, else band → Vega Power Tier 4 with the note. Tarn Mining, excluded by the gate before, is now Tier 4: tier rules replace the gates."),
+        ("apply_tier_graph", "GoRules ZEN", "Decision table <code>coal_expansion_flag = true → tier 4, 'Red flag: Coal'</code>, else band → Vega Power Tier 4 with the note. Tarn Mining stays excluded: exclusion gates run before the tier rules, which replace only the demote gates and the floor."),
     ],
     "results": [
         ("rank_ranges · ranks_of", "Python", "Kanto Heavy Industries → rank 12, band <b>11–16</b> across the four specifications."),
@@ -88,7 +88,7 @@ FUNCS = {
     ],
     "output": [
         ("publish", "Python", "Sample table with <code>id_column='ISIN'</code> → 24 rows: 18 scored, 6 excluded or insufficient."),
-        ("publish", "Python", "Without an id column → <em>No id column to match entities to issuers (looked for company_id, issuer_id, entity_id, id); name one explicitly.</em>"),
+        ("publish", "Python", "With no <code>company_id</code>/<code>issuer_id</code>/<code>entity_id</code>/<code>id</code> column the API needs <code>id_column</code> named; the studio's Publish dialog now sends it (default: the reference column, ISIN here)."),
         ("templates.score_run", "Python", "Run finishes → the attached framework scores it and <code>decision.json</code> is written; a failure is recorded, never fails the run."),
     ],
 }
@@ -208,7 +208,7 @@ SHOTS = {
     ],
     "movement": [("07-movement.png", "Q3 against Q2 under the same ratified framework: Kanto 3 → 2 with its drivers, and Ardent Pharma 2 → 3 with no driver, because the quantile cut moved.")],
     "audit": [("08-audit.png", "Audit after ratifying v1: the ratified badge, Publish, and the derived half of the log.")],
-    "output": [("09-publish.png", "Publishing the sample table from the studio fails: it has an ISIN but no id column the engine recognises, and the dialog cannot name one.")],
+    "output": [("09-publish.png", "The Publish dialog on the sample table: <b>Match issuers by</b> defaults to ISIN, the column the engine marked as a reference.")],
 }
 
 
@@ -449,7 +449,7 @@ PAGES["tree"] = dict(
                 ["Minimum criteria in the dimension", "2", "A dimension resting on one Yes/No answer cannot demote."],
             ])),
         block("Tiers", "Default four, named Tier 1 to Tier 4, with no actions. Tier 1 is the highest score band. Rename them, add or remove tiers, and give each an action.", ""),
-        block("Tier rules (optional)", "A second decision model that <b>replaces steps 2 and 4</b>. Sufficiency and cut-points stay in the engine.", table(
+        block("Tier rules (optional)", "A second decision model that <b>replaces the demote gates and the dimension floor</b>. Sufficiency, exclusion gates and cut-points stay in the engine and run first.", table(
             ["", "Available"], [
                 ["Inputs", "<code>band</code>, <code>score</code>, <code>rank</code>, <code>percentile</code> in cohort, <code>coverage</code>, <code>grounded_coverage</code>, <code>dim_&lt;dimension&gt;</code>, <code>cohort</code>, <code>segment</code>, <code>tier_count</code>, every column."],
                 ["Outputs", "<code>tier</code> (1..tier count), optional <code>exclude</code>, optional <code>note</code>. Starts as <code>tier = band</code>."],

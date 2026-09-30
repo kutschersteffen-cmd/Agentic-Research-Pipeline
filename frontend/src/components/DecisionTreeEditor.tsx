@@ -100,7 +100,7 @@ export function DecisionTreeEditor({
             <p className="help-text">
               Any ticked yes/no column that is <strong>Yes</strong> sends an entity to the chosen tier, whatever its score —
               one flag is enough. A blank answer does not count. This writes rows into the tier rules below
-              {tierRules ? "" : ", which switches this framework to tier rules: the gates stop applying"}.
+              {tierRules ? "" : ", which switches this framework to tier rules: exclusion gates still apply, demote gates and the floor stop"}.
             </p>
             <label className="field-label inline-block">
               Send to tier

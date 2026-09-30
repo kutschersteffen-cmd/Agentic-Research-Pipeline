@@ -33,6 +33,18 @@ import { TIER_STARTER } from "../lib/ruleGraphs";
 // loaded only when the Rules tab opens.
 const RuleGraphEditor = lazy(() => import("../components/RuleGraphEditor"));
 
+// Publishing matches rows to issuers by one column. The engine finds these
+// names on its own; anything else (an ISIN, a ticker) has to be picked.
+const ID_COLUMN_NAMES = ["company_id", "issuer_id", "entity_id", "id"];
+function defaultIdColumn(dataset: DatasetSummary, config: MechanismConfig): string {
+  return (
+    dataset.columns.find((c) => ID_COLUMN_NAMES.includes(c.toLowerCase())) ??
+    dataset.proposals.find((p) => p.role === "reference")?.column ??
+    config.label_column ??
+    dataset.columns[0]
+  );
+}
+
 const withoutLayout = (value: unknown) => JSON.stringify(value, (key, v) => (key === "position" ? undefined : v));
 
 const SUB_TABS = [
@@ -87,6 +99,7 @@ export function DecisionStudio() {
   const [confirmingRatify, setConfirmingRatify] = useState(false);
   const [confirmingPublish, setConfirmingPublish] = useState(false);
   const [published, setPublished] = useState<PublishedDecision | null>(null);
+  const [idColumn, setIdColumn] = useState("");
   const [error, setError] = useState("");
   const [source, setSource] = useState<string>("transition_plan_run");
   const [runId, setRunId] = useState("");
@@ -371,7 +384,7 @@ export function DecisionStudio() {
     setConfirmingPublish(false);
     if (!config || !dataset) return;
     const snapshot = await guard("Publishing…", () =>
-      api.publishDecision({ dataset_id: dataset.dataset_id, framework_id: config.framework_id, version: config.version, published_by: by }),
+      api.publishDecision({ dataset_id: dataset.dataset_id, framework_id: config.framework_id, version: config.version, published_by: by, id_column: idColumn || undefined }),
     );
     if (snapshot) setPublished(snapshot);
   }
@@ -721,14 +734,14 @@ export function DecisionStudio() {
               <div className="toolbar">
                 <h3>Tier rules</h3>
                 <button className="link-button" onClick={() => setConfig({ ...config, tier_graph: TIER_STARTER })}>
-                  Use tier rules instead of gates
+                  Use tier rules instead of demote gates
                 </button>
               </div>
               <p className="help-text">
-                Decide the final tier with a decision table or formulas instead of the gates and dimension floor above —
+                Decide the final tier with a decision table or formulas instead of the demote gates and dimension floor above —
                 for example "coal expansion → worst tier", or "never above Tier 3 below 80% coverage". Each entity&apos;s
                 band, score, rank and columns are available. It starts as <code>tier = band</code>, so nothing changes
-                until you add a rule; the gates above stop applying.
+                until you add a rule. Exclusion gates keep applying first; demote gates and the floor stop.
               </p>
             </div>
           )}
@@ -922,7 +935,10 @@ export function DecisionStudio() {
                 <button onClick={() => setConfirmingRatify(true)}>Ratify version {config.version}…</button>
               )}
               {config.ratified && !unsaved && dataset && (
-                <button onClick={() => setConfirmingPublish(true)}>Publish to stewardship and index…</button>
+                <button onClick={() => {
+                  setIdColumn(defaultIdColumn(dataset, config));
+                  setConfirmingPublish(true);
+                }}>Publish to stewardship and index…</button>
               )}
             </div>
             {confirmingRatify && (
@@ -950,6 +966,16 @@ export function DecisionStudio() {
                   Workflow's coverage rules and Index Construction can then read the tiers and scores. Nothing changes there until a
                   person confirms tiers or runs an index review.
                 </p>
+                <label className="field-label" htmlFor="publish-id-column">
+                  Match issuers by
+                </label>
+                <select id="publish-id-column" value={idColumn} onChange={(e) => setIdColumn(e.target.value)}>
+                  {dataset.columns.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
               </ConfirmDecision>
             )}
             {published && (

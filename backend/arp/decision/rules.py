@@ -301,14 +301,15 @@ def apply_tier_graph(
                 needs_check=True,
             )
         )
-    if config.gates:
+    replaced = [g for g in config.gates if g.outcome != "exclude"]
+    if replaced:
         audit.append(
             AuditEntry(
                 stage="Tier rules",
-                item=f"{len(config.gates)} gates",
+                item=f"{len(replaced)} demote/flag gate{'s' if len(replaced) != 1 else ''}",
                 decision="not applied",
-                why="a framework with tier rules decides exclusions and demotions there; remove the gates or move them "
-                "into the tier rules",
+                why="the tier rules decide demotions here; exclusion gates still apply before scoring. Remove these "
+                "gates or move them into the tier rules",
                 needs_check=True,
             )
         )

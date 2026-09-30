@@ -210,13 +210,29 @@ def test_tier_rules_send_gated_entities_to_the_worst_bucket():
     assert {"band", "score", "rank", "percentile", "dim_transition_plan", "coal_expansion"} <= set(result.tier_inputs[0])
 
 
-def test_tier_rules_replace_gates_and_say_so():
+def test_exclusion_gates_still_apply_with_tier_rules():
+    """A knockout is settled before any score exists, tier rules or not:
+    adding a red flag must not quietly re-admit an excluded entity."""
     data, config = _six_bucket_sample()
     config.tier_graph = worst_bucket_table()
     config.gates = [GateRule(column="Coal_Expansion", op="is", value="Yes", outcome="exclude")]
     result = apply_mechanism(data, config)
-    assert result.excluded_count == 0, "the gate list is not applied alongside tier rules"
-    assert any(a.decision == "not applied" and a.needs_check for a in result.audit)
+    raw = {r["Company"]: r for r in data.rows}
+    coal = [e for e in result.entities if raw[e.entity_key]["Coal_Expansion"] == "Yes"]
+    assert coal and all(e.status == "excluded" and e.tier is None for e in coal)
+    assert result.excluded_count == len(coal)
+    assert not any(a.decision == "not applied" for a in result.audit), "exclude gates are applied, so nothing is reported as dropped"
+
+
+def test_tier_rules_replace_demote_gates_and_say_so():
+    data, config = _six_bucket_sample()
+    config.tier_graph = worst_bucket_table()
+    config.gates = [GateRule(column="Coal_Expansion", op="is", value="Yes", outcome="demote")]
+    result = apply_mechanism(data, config)
+    assert result.excluded_count == 0
+    assert not any(n.startswith("Demoted") for e in result.entities for n in e.notes), "the tier rules decide demotions"
+    entry = next(a for a in result.audit if a.decision == "not applied")
+    assert entry.needs_check and entry.item == "1 demote/flag gate"
 
 
 def test_tier_rules_can_exclude_with_a_note():
