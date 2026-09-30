@@ -317,8 +317,9 @@ def apply_mechanism(
     excluded_by: list[GateRule | None] = []
     insufficient: list[bool] = []
     for i in range(n):
-        # A tier graph replaces gates: it decides exclusions after scoring.
-        hits = [] if config.tier_graph else [g for g in config.gates if gate_hit(g, dataset, profiles, i)]
+        # Exclusions are settled before any score, tier rules or not. A tier
+        # graph replaces only the demote/flag gates (and the floor).
+        hits = [g for g in config.gates if (not config.tier_graph or g.outcome == "exclude") and gate_hit(g, dataset, profiles, i)]
         gate_hits.append(hits)
         excluded_by.append(next((g for g in hits if g.outcome == "exclude"), None))
         coverage = base[i].grounded_coverage if use_grounded else base[i].coverage

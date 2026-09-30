@@ -284,7 +284,7 @@ def apply_tier_graph(
             stage="Tier rules",
             item=f"{len(targets)} scored entities",
             decision=f"{down + up + excluded} changed: {down} moved down, {up} moved up, {excluded} excluded",
-            why="the framework's tier rules replace the gates and the dimension floor; they ran per entity after the "
+            why="the framework's tier rules replace the demote gates and the dimension floor (exclusion gates ran before scoring); they ran per entity after the "
             "score band was drawn, so an exclusion here does not redraw its peers' cut-points"
             + ("; moving an entity up is allowed but departs from the band the scores support, so it is flagged" if up else ""),
             needs_check=up > 0,
@@ -301,14 +301,15 @@ def apply_tier_graph(
                 needs_check=True,
             )
         )
-    if config.gates:
+    replaced = [g for g in config.gates if g.outcome != "exclude"]
+    if replaced:
         audit.append(
             AuditEntry(
                 stage="Tier rules",
-                item=f"{len(config.gates)} gates",
+                item=f"{len(replaced)} demote/flag gate{'s' if len(replaced) != 1 else ''}",
                 decision="not applied",
-                why="a framework with tier rules decides exclusions and demotions there; remove the gates or move them "
-                "into the tier rules",
+                why="the tier rules decide demotions here; exclusion gates still apply before scoring. Remove these "
+                "gates or move them into the tier rules",
                 needs_check=True,
             )
         )

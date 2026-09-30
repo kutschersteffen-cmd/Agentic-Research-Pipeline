@@ -155,7 +155,7 @@ export default function RuleGraphEditor({
               dimension scores (<code>dim_…</code>) and every column. Output <code>tier</code> (1–{result?.tier_summary.length ?? "N"}),
               and optionally <code>exclude</code> (true removes it from the tiers) and <code>note</code>. In a decision
               table the first matching row wins, so put knock-outs first and keep the catch-all{" "}
-              <code>tier = band</code> last. These rules replace the gates and the dimension floor above.
+              <code>tier = band</code> last. These rules replace the demote gates and the dimension floor above; exclusion gates still apply first.
             </p>
           </>
         ) : (
