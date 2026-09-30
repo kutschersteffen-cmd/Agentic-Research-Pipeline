@@ -10,7 +10,9 @@ import { useReviewer } from "../lib/reviewer";
 // reads its live state from the runs list (or, for StewardIQ, the house
 // stewardship flow). Data Engineer has no overview page: its box opens
 // Extraction, which already draws its own pipeline.
-type Step = { label: string; screen: string; href: string; about: string; runTypes?: string[]; stage?: string };
+// `reviewedElsewhere`: the step's flagged items wait on a later step (Match's
+// in the Review Queue), so the dot shows only whether it is running.
+type Step = { label: string; screen: string; href: string; about: string; runTypes?: string[]; stage?: string; reviewedElsewhere?: boolean };
 type Process = { id: string; name: string; purpose: string; href: string; runTypes: string[]; steps: Step[]; icon: ReactElement };
 
 // One icon family on a 48 grid: the same stroke everywhere, and exactly one
@@ -31,12 +33,12 @@ const PROCESSES: Process[] = [
       </svg>
     ),
     steps: [
-      { label: "Monitor", screen: "Steward · Monitoring", href: "#/stewardship/monitoring", stage: "monitoring", about: "Triggers on holdings, checked against house policy." },
-      { label: "Select", screen: "Steward · Selection", href: "#/stewardship/selection", stage: "selection", about: "Which companies the program engages this cycle." },
-      { label: "Engage", screen: "Steward · Drafting", href: "#/stewardship/drafting", stage: "drafting", about: "Dossier, outreach letter and talking points." },
-      { label: "Vote", screen: "Proxy Voting", href: "#/voting", runTypes: ["proxy_voting"], about: "Ballots drafted by the policy, decided by a person." },
+      { label: "Monitoring", screen: "Steward · Monitoring", href: "#/stewardship/monitoring", stage: "monitoring", about: "Triggers on holdings, checked against house policy." },
+      { label: "Selection", screen: "Steward · Selection", href: "#/stewardship/selection", stage: "selection", about: "Which companies the program engages this cycle." },
+      { label: "Drafting", screen: "Steward · Drafting", href: "#/stewardship/drafting", stage: "drafting", about: "Dossier, outreach letter and talking points." },
+      { label: "Voting", screen: "Proxy Voting", href: "#/voting", runTypes: ["proxy_voting"], about: "Ballots drafted by the policy, decided by a person." },
       { label: "Checkpoint", screen: "Steward · Checkpoint", href: "#/stewardship/checkpoint", stage: "checkpoint", about: "Votes decided against the policy, with their reason." },
-      { label: "Track", screen: "Steward · Tracking", href: "#/stewardship/tracking", stage: "tracking", about: "Commitments verified or missed; missed ones escalate." },
+      { label: "Tracking", screen: "Steward · Tracking", href: "#/stewardship/tracking", stage: "tracking", about: "Commitments verified or missed; missed ones escalate." },
     ],
   },
   {
@@ -58,7 +60,7 @@ const PROCESSES: Process[] = [
     steps: [
       { label: "Spot", screen: "Emerging Themes", href: "#/emergingThemes", runTypes: ["emerging_themes"], about: "Candidate themes from filings and news." },
       { label: "Define", screen: "Taxonomy Library", href: "#/taxonomy", runTypes: ["taxonomy_research"], about: "The theme's activities; ratify a version." },
-      { label: "Match", screen: "Thematic Universe", href: "#/theme", runTypes: ["theme"], about: "Companies matched to activities, with cited rationale." },
+      { label: "Match", screen: "Thematic Universe", href: "#/theme", runTypes: ["theme"], reviewedElsewhere: true, about: "Companies matched to activities, with cited rationale." },
       { label: "Review", screen: "Review Queue", href: "#/review", runTypes: ["theme"], about: "Resolve contested classifications." },
     ],
   },
@@ -157,8 +159,9 @@ const DONE = new Set(["completed", "partially_completed"]);
 function stepState(step: Step, runs: RunManifest[] | null, flow: StewardshipFlow | null): StepState {
   if (step.runTypes && runs) {
     const mine = runs.filter((r) => step.runTypes!.includes(r.run_type));
+    // Waiting on a person outranks running: that is what the signal colour is for.
+    if (!step.reviewedElsewhere && mine.some((r) => waitingCount(r) > 0)) return "wait";
     if (mine.some((r) => ACTIVE_STATUSES.has(r.status))) return "now";
-    if (mine.some((r) => waitingCount(r) > 0)) return "wait";
     const latest = mine.sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
     if (latest?.status === "failed") return "failed";
     if (mine.some((r) => DONE.has(r.status))) return "done";
@@ -207,7 +210,9 @@ function ProcessCard({ p, runs, flow }: { p: Process; runs: RunManifest[] | null
   const h = headline(p, runs, flow);
   const last = runs?.filter((r) => p.runTypes.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
   const states = p.steps.map((s) => stepState(s, runs, flow));
-  const at = states.findIndex((st) => st === "wait" || st === "now" || st === "failed");
+  // The step named is the one a person should look at: a wait first, then running or failed.
+  const firstWait = states.indexOf("wait");
+  const at = firstWait >= 0 ? firstWait : states.findIndex((st) => st === "now" || st === "failed");
   const now = at >= 0 ? `Step ${at + 1} of ${p.steps.length} · ${p.steps[at].label}` : !runs ? "" : last ? `Last run ${ago(last.updated_at)}` : "No runs yet";
   return (
     <a className={`hub-card${h.tone ? ` hub-card-${h.tone}` : ""}`} href={p.href} aria-label={`${p.name}: ${h.text}${now ? `. ${now}` : ""}`}>

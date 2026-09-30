@@ -247,7 +247,7 @@ function CompanyResultsView() {
 
       {companyId && documents.length > 0 && (
         <section className="card">
-          <h3>Source documents on file</h3>
+          <h2>Source documents on file</h2>
           <div className="table-wrap">
             <table className="data-table">
               <thead>
@@ -284,7 +284,7 @@ function CompanyResultsView() {
             {kind === "extraction" &&
               extractionRecords.map((r) => (
                 <section className="card" key={r.run_id}>
-                  <h3>Run {r.run_id} — {new Date(r.generated_at).toLocaleString()}</h3>
+                  <h2>Run {r.run_id} — {new Date(r.generated_at).toLocaleString()}</h2>
                   <p>
                     <ConfidenceBadge value={r.overall_confidence} /> {r.needs_review && <span className="badge badge-low">needs review</span>}
                   </p>
@@ -297,18 +297,18 @@ function CompanyResultsView() {
             {kind === "financials" &&
               financialsRecords.map((r) => (
                 <section className="card" key={r.run_id}>
-                  <h3>Run {r.run_id} — {new Date(r.generated_at).toLocaleString()}</h3>
+                  <h2>Run {r.run_id} — {new Date(r.generated_at).toLocaleString()}</h2>
                   <p>
                     <ConfidenceBadge value={r.overall_confidence} /> {r.needs_review && <span className="badge badge-low">needs review</span>}
                   </p>
-                  <h4>Business Segments</h4>
+                  <h3>Business Segments</h3>
                   {r.segments.length === 0 && <p className="muted">No segment reporting evidence found.</p>}
                   {r.segments.map((s, si) => (
                     <SegmentDetail key={si} segment={s} onOpenSource={setActiveSource} />
                   ))}
-                  <h4>CapEx</h4>
+                  <h3>CapEx</h3>
                   <SpendDetail label="CapEx" spend={r.capex} onOpenSource={setActiveSource} />
-                  <h4>R&amp;D</h4>
+                  <h3>R&amp;D</h3>
                   <SpendDetail label="R&D" spend={r.rnd} onOpenSource={setActiveSource} />
                 </section>
               ))}

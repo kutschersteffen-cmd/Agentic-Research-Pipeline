@@ -63,7 +63,7 @@ export function VotingRuns({ selectedRunId, onSelectRun }: { selectedRunId: stri
 
       <section className="card">
         <div className="section-heading">
-          <h3>Runs</h3>
+          <h2>Runs</h2>
           <button className="link-button" onClick={loadRuns}>
             Refresh
           </button>
@@ -120,7 +120,7 @@ export function VotingRuns({ selectedRunId, onSelectRun }: { selectedRunId: stri
           folds away below them. */}
       <details className="card start-run" open={!selectedRunId}>
         <summary>
-          <h3>Start a voting run</h3>
+          <h2>Start a voting run</h2>
         </summary>
         <UniversePicker
           onResolved={(path, count) => {

@@ -148,7 +148,7 @@ export default function RuleGraphEditor({
       <div className="card">
         {tiers ? (
           <>
-            <h3>Tier rules: the final tier, decided after scoring</h3>
+            <h2>Tier rules: the final tier, decided after scoring</h2>
             <p className="help-text">
               Each entity arrives with its <code>band</code> (the tier its score earns from the cut-points), its{" "}
               <code>score</code>, <code>rank</code>, <code>percentile</code> within its cohort, <code>coverage</code>,
@@ -160,7 +160,7 @@ export default function RuleGraphEditor({
           </>
         ) : (
           <>
-            <h3>Rules: calculated columns before anything is scored</h3>
+            <h2>Rules: calculated columns before anything is scored</h2>
             <p className="help-text">
               Drag an <strong>Expression</strong> box for formulas (<code>capex / revenue * 100</code>) or conditions
               (<code>coal_expansion_flag and not sbti_validated_target</code>), a <strong>Decision table</strong> where
@@ -200,7 +200,7 @@ export default function RuleGraphEditor({
 
       <div className="card">
         <div className="toolbar">
-          <h3>Live preview</h3>
+          <h2>Live preview</h2>
           {graph && (
             <button className="link-button" onClick={() => onChange(null)}>
               {tiers ? "Remove tier rules (back to gates)" : "Remove all rules"}

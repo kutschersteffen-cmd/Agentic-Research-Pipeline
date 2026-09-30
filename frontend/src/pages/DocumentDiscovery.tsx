@@ -72,7 +72,7 @@ export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {
       <p className="help-text">Find each company’s investor-relations site and download new annual, sustainability and proxy reports and transcripts, on demand or on a schedule.</p>
 
       <section className="card">
-        <h3>Run now (manual)</h3>
+        <h2>Run now (manual)</h2>
         {pendingUniverse && universePath === pendingUniverse.path && (
           <p className="status-text">
             Using {pendingUniverse.count} companies sent from {pendingUniverse.from}. Upload a different universe below
@@ -144,7 +144,7 @@ export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {
 
       {schedule && (
         <section className="card">
-          <h3>Automatic schedule</h3>
+          <h2>Automatic schedule</h2>
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -178,7 +178,7 @@ export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {
       )}
 
       <section className="card">
-        <h3>New document feed</h3>
+        <h2>New document feed</h2>
         <button onClick={refreshEvents}>Refresh</button>
         <div className="table-wrap">
           <table className="data-table">

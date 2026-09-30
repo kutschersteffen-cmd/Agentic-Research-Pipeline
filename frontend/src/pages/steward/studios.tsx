@@ -257,13 +257,13 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
             </p>
             <div className="studio-columns">
               <div>
-                <h4>Triggers per rule</h4>
+                <h3>Triggers per rule</h3>
                 <DataTable rows={ruleRows} />
               </div>
               <div>
-                <h4>Newly flagged</h4>
+                <h3>Newly flagged</h3>
                 <DataTable rows={preview.newly_flagged.map((c) => ({ company: c.company }))} empty="Nobody new." />
-                <h4>No longer flagged</h4>
+                <h3>No longer flagged</h3>
                 <DataTable rows={preview.no_longer_flagged.map((c) => ({ company: c.company }))} empty="Nobody drops out." />
               </div>
             </div>
@@ -409,15 +409,15 @@ export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
             </p>
             <div className="studio-columns">
               <div>
-                <h4>Tier distribution</h4>
+                <h3>Tier distribution</h3>
                 <DataTable rows={distributionRows} />
               </div>
               <div>
-                <h4>Rules that fired</h4>
+                <h3>Rules that fired</h3>
                 <DataTable rows={Object.entries(preview.rules_fired).map(([rule, companies]) => ({ rule, companies }))} />
               </div>
             </div>
-            <h4>Companies that would move</h4>
+            <h3>Companies that would move</h3>
             <DataTable
               rows={preview.changes.map((c) => ({ company: c.company, from: c.from, to: c.to, why: `${c.reason} (${c.rule})` }))}
               empty="No company would change tier."
@@ -685,11 +685,11 @@ export function VotingStudio({ stage, onChanged }: StudioProps) {
             </p>
             <div className="studio-columns">
               <div>
-                <h4>Vote mix</h4>
+                <h3>Vote mix</h3>
                 <DataTable rows={voteMix} />
               </div>
               <div>
-                <h4>Changes by issue</h4>
+                <h3>Changes by issue</h3>
                 <DataTable
                   rows={Object.keys({ ...preview.affected_by_issue, ...preview.masked_by_issue }).map((i) => ({
                     issue: titles.get(i) ?? i,
@@ -700,7 +700,7 @@ export function VotingStudio({ stage, onChanged }: StudioProps) {
                 />
               </div>
             </div>
-            <h4>Resolutions whose expected vote changes</h4>
+            <h3>Resolutions whose expected vote changes</h3>
             <DataTable
               rows={preview.changed_rows.slice(0, 25).map((r) => ({
                 resolution: r.resolution_id,
@@ -796,7 +796,7 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
       <Section step="Decide" title="Decisions waiting">
         {outreach.length > 0 && (
           <>
-            <h4>Outreach to approve</h4>
+            <h3>Outreach to approve</h3>
             <OutreachDecisions items={outreach} actor={actor} onDone={onChanged} />
           </>
         )}
@@ -805,7 +805,7 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
         )}
         {escalations.length > 0 && (
           <>
-            <h4>Escalations</h4>
+            <h3>Escalations</h3>
             <p className="help-text">
               Live engagements the escalation rules recommend moving up. Escalating moves the engagement to the recommended step and
               records you and the rule; the rules only recommend.
@@ -822,7 +822,7 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
         )}
         {clientItems.length > 0 && (
           <>
-            <h4>Client escalations above the house</h4>
+            <h3>Client escalations above the house</h3>
             <ClientExceptionDecisions items={clientItems} actor={actor} onDone={onChanged} />
           </>
         )}
@@ -899,11 +899,11 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
             </p>
             <div className="studio-columns">
               <div>
-                <h4>Recommendations per rule</h4>
+                <h3>Recommendations per rule</h3>
                 <DataTable rows={ruleRows} empty="No rule recommends anything." />
               </div>
             </div>
-            <h4>Engagements whose recommendation would change</h4>
+            <h3>Engagements whose recommendation would change</h3>
             <DataTable rows={preview.changes} empty="No recommendation would change." />
           </>
         )}
@@ -1127,9 +1127,9 @@ export function ReportingStudio({ stage, streamId }: StudioProps & { streamId: s
         {report === null && !error && <p className="status-text">Loading…</p>}
         {report && (
           <>
-            <h4>
+            <h3>
               {report.client}, as of {report.as_of}
-            </h4>
+            </h3>
             <ul className="planned-list">
               {report.summary.map((line) => (
                 <li key={line}>{line}</li>
@@ -1137,21 +1137,21 @@ export function ReportingStudio({ stage, streamId }: StudioProps & { streamId: s
             </ul>
             <div className="studio-columns">
               <div>
-                <h4>Coverage tiers</h4>
+                <h3>Coverage tiers</h3>
                 <DataTable rows={report.tiers} />
               </div>
               <div>
-                <h4>Expected votes, house against client</h4>
+                <h3>Expected votes, house against client</h3>
                 <DataTable rows={report.votes} empty="The client's voting policy is not built yet (stage 7)." />
               </div>
             </div>
-            <h4>Engagements and escalation</h4>
+            <h3>Engagements and escalation</h3>
             <DataTable rows={report.engagements} empty="No open engagements." />
-            <h4>Client escalations decided by the house</h4>
+            <h3>Client escalations decided by the house</h3>
             <DataTable rows={report.exceptions} empty="None so far." />
-            <h4>Voting policy decisions</h4>
+            <h3>Voting policy decisions</h3>
             <DataTable rows={report.policy_decisions} empty="No difference decided yet (stage 7)." />
-            <h4>Data sources</h4>
+            <h3>Data sources</h3>
             <ul className="planned-list">
               {report.notes.map((line) => (
                 <li key={line}>{line}</li>

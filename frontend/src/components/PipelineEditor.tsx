@@ -541,7 +541,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
 
       {current && (
         <div className="pipeline-detail">
-          <h4>{current.label}</h4>
+          <h3>{current.label}</h3>
           {current.about && <p className="help-text">{current.about}</p>}
 
           {runId && (

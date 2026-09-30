@@ -51,9 +51,9 @@ export function TnfdResultsTable({ results, expanded, onToggleExpanded, onOpenSo
                     )}
                     {r.disclosures.filter((d) => d.disclosed).map((d) => (
                       <div key={d.recommendation_id} className="field-detail">
-                        <h4>
+                        <h3>
                           {pretty(d.recommendation_id)} <GroundedBadge grounded={d.grounded} />
-                        </h4>
+                        </h3>
                         {d.summary && <p>{d.summary}</p>}
                         {d.verifier_notes && <p className="muted">{d.verifier_notes}</p>}
                         <CitationList citations={d.summary_citations} onOpenSource={onOpenSource} />

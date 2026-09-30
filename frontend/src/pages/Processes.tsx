@@ -233,7 +233,7 @@ export function Processes({ selected, onSelect }: { selected: string | null; onS
 
       <section className="card">
         <div className="section-heading">
-          <h3>{process.title}</h3>
+          <h2>{process.title}</h2>
           <span className="chip">{process.cadence}</span>
         </div>
         <p>

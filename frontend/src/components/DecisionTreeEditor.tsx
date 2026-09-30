@@ -61,7 +61,7 @@ export function DecisionTreeEditor({
   return (
     <div>
       <div className="card">
-        <h3>Order of decisions</h3>
+        <h2>Order of decisions</h2>
         <ol className="decision-tree-steps">
           <li>
             <strong>Sufficiency</strong> — below {config.min_coverage_pct}% of{" "}
@@ -90,7 +90,7 @@ export function DecisionTreeEditor({
       </div>
 
       <div className="card">
-        <h3>Red flags</h3>
+        <h2>Red flags</h2>
         {flags === null ? (
           <p className="help-text">
             The tier rules below were built by hand without the standard tier table, so red flags are set there directly.
@@ -140,7 +140,7 @@ export function DecisionTreeEditor({
       <div className="decision-grid">
         <div className="card">
           <div className="toolbar">
-            <h3>Gates</h3>
+            <h2>Gates</h2>
             <button className="link-button" onClick={addGate}>
               Add gate
             </button>
@@ -193,7 +193,7 @@ export function DecisionTreeEditor({
         </div>
 
         <div className="card">
-          <h3>Tier cut-points</h3>
+          <h2>Tier cut-points</h2>
           <label className="field-label">
             Number of tiers
             <input type="number" min={2} max={10} value={config.tiers.length} onChange={(e) => setTierCount(Number(e.target.value))} />
@@ -262,7 +262,7 @@ export function DecisionTreeEditor({
             </div>
           )}
 
-          <h3>Dimension floor</h3>
+          <h2>Dimension floor</h2>
           {tierRules && <p className="decision-check-banner">Not applied while tier rules are in use.</p>}
           <label className="checkbox-label">
             <input type="checkbox" checked={config.veto.enabled} onChange={(e) => set({ veto: { ...config.veto, enabled: e.target.checked } })} />

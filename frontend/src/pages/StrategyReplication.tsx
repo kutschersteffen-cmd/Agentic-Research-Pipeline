@@ -123,7 +123,7 @@ function ProposeStage({
 
   return (
     <section className="card">
-      <h3>1. Propose a strategy</h3>
+      <h2>1. Propose a strategy</h2>
       <p className="help-text">
         Search for candidate "outperformance" papers on a topic, or skip straight to describing your own methodology
         in plain English below — both ways feed the same drafting step, which produces a spec sheet you review
@@ -256,7 +256,7 @@ function ReviewStage({
   return (
     <section className="card">
       <div className="section-heading">
-        <h3>2. Review the spec sheet</h3>
+        <h2>2. Review the spec sheet</h2>
         {state.approved ? <span className="badge badge-high">Approved</span> : <span className="badge badge-mid">Needs approval</span>}
       </div>
       <p className="help-text">
@@ -296,7 +296,7 @@ function ReviewStage({
 
       {state.history.length > 0 && (
         <>
-          <h4>Revision history</h4>
+          <h3>Revision history</h3>
           <table className="data-table">
             <thead>
               <tr>
@@ -406,7 +406,7 @@ function BacktestStage({ specRunId, spec }: { specRunId: string; spec: StrategyS
 
   return (
     <section className="card">
-      <h3>3. Run the backtest &amp; review results</h3>
+      <h2>3. Run the backtest &amp; review results</h2>
 
       <label className="field-label">
         Tickers (comma or newline separated)
@@ -501,13 +501,13 @@ function ResultsView({
       </div>
       <p className="muted">{detail.comparison.verdict_notes}</p>
 
-      <h4>Equity curve (in-sample, display index = 100)</h4>
+      <h3>Equity curve (in-sample, display index = 100)</h3>
       <LineChart dates={dates} series={equitySeries} />
 
-      <h4>Drawdown depth (long-short, 0 = at a new high)</h4>
+      <h3>Drawdown depth (long-short, 0 = at a new high)</h3>
       <LineChart dates={dates} series={drawdownData} valueFormatter={(v) => `${v.toFixed(1)}%`} />
 
-      <h4>Reported vs. measured (long-short)</h4>
+      <h3>Reported vs. measured (long-short)</h3>
       <table className="data-table">
         <thead>
           <tr>
@@ -540,7 +540,7 @@ function ResultsView({
       </table>
 
       <div className="section-heading">
-        <h4>Sanity check</h4>
+        <h3>Sanity check</h3>
         <button onClick={onRunSanityCheck} disabled={busy}>
           {detail.sanity_check ? "Re-run sanity check" : "Run sanity check"}
         </button>
@@ -564,7 +564,7 @@ function ResultsView({
       )}
 
       <div className="section-heading">
-        <h4>Regime breakdown</h4>
+        <h3>Regime breakdown</h3>
         <button onClick={onRunRegimeReport} disabled={busy}>
           {detail.regime_report ? "Re-run regime report" : "Run regime report"}
         </button>

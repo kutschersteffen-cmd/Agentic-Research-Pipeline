@@ -137,7 +137,7 @@ export function MonitoringAlerts() {
   return (
     <>
       <section className="card">
-        <h3>Add a monitoring rule</h3>
+        <h2>Add a monitoring rule</h2>
         <p className="help-text">
           Flag a breach when a figure crosses a threshold, computed by the same engine as Pivot Explorer. Factor, PAI
           and benchmark-relative rules are not available yet.
@@ -184,7 +184,7 @@ export function MonitoringAlerts() {
       </section>
 
       <section className="card">
-        <h3>Rules ({rules.length})</h3>
+        <h2>Rules ({rules.length})</h2>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -222,7 +222,7 @@ export function MonitoringAlerts() {
       </section>
 
       <section className="card">
-        <h3>Alerts ({visibleAlerts.length})</h3>
+        <h2>Alerts ({visibleAlerts.length})</h2>
         <div className="toolbar">
           {STATUS_FILTERS.map((s) => (
             <button key={s} className={s === statusFilter ? "nav-tab active" : "nav-tab"} aria-pressed={s === statusFilter} onClick={() => setStatusFilter(s)}>

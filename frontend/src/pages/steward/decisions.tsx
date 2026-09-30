@@ -25,7 +25,7 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
   return (
     <>
       <div className="section-heading">
-        <h4>Coverage tiers to confirm</h4>
+        <h3>Coverage tiers to confirm</h3>
         <button onClick={() => setConfirmingAll(true)} disabled={busy !== null}>
           {busy === "all" ? "Confirming…" : `Confirm all ${items.length}…`}
         </button>

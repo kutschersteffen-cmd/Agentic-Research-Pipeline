@@ -28,7 +28,7 @@ export function SourcePanel({ source, onClose }: Props) {
   return (
     <div className="source-panel">
       <div className="source-panel-header">
-        <h4 title={source.title}>{source.title}</h4>
+        <h3 title={source.title}>{source.title}</h3>
         <button className="link-button" onClick={onClose}>
           Close
         </button>

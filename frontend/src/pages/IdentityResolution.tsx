@@ -68,7 +68,7 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
       <p className="help-text">Resolve company names to a verified website and CIK before document discovery. Anything ambiguous goes to the Review Queue instead of being guessed.</p>
 
       <section className="card">
-        <h3>Resolve identity</h3>
+        <h2>Resolve identity</h2>
         <UniversePicker
           onResolved={(path, count) => {
             setUniversePath(path);
