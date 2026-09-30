@@ -23,6 +23,7 @@ import type {
   TemplateMatch,
 } from "../types";
 import { activatable } from "../lib/activatable";
+import { setLeaveGuard } from "../lib/leaveGuard";
 import { useReviewer } from "../lib/reviewer";
 import { ConfirmDecision } from "../components/ConfirmDecision";
 import { newDimension } from "../lib/dimensions";
@@ -31,6 +32,8 @@ import { TIER_STARTER } from "../lib/ruleGraphs";
 // The canvas pulls in the JDM editor and, on first use, the 14 MB engine:
 // loaded only when the Rules tab opens.
 const RuleGraphEditor = lazy(() => import("../components/RuleGraphEditor"));
+
+const withoutLayout = (value: unknown) => JSON.stringify(value, (key, v) => (key === "position" ? undefined : v));
 
 const SUB_TABS = [
   { id: "data", label: "1 · Data" },
@@ -99,7 +102,9 @@ export function DecisionStudio() {
   const [templates, setTemplates] = useState<TemplateMatch[]>([]);
   const scoreTimer = useRef<number | undefined>(undefined);
   const view = calculated ?? dataset;
-  const unsaved = config !== null && JSON.stringify(config) !== JSON.stringify(stored);
+  // Node positions on the rule canvas are layout, not rules: the server's
+  // diff ignores them too, so dragging a node is not an unsaved change.
+  const unsaved = config !== null && withoutLayout(config) !== withoutLayout(stored);
 
   function loadConfig(next: MechanismConfig | null) {
     setConfig(next);
@@ -110,6 +115,13 @@ export function DecisionStudio() {
   function discardOk() {
     return !unsaved || window.confirm(`Discard the unsaved changes to v${config?.version}? They were never saved, so no version records them.`);
   }
+
+  // Leaving for another screen of the app unmounts this one and its edits.
+  useEffect(() => {
+    if (!unsaved) return;
+    setLeaveGuard(discardOk);
+    return () => setLeaveGuard(null);
+  });
 
   useEffect(() => {
     if (!unsaved) return;
