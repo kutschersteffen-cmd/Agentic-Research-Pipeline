@@ -7,8 +7,8 @@ import { SOURCE_LABEL, openCount } from "./common";
 // Flowchart layout: the house row (stages 1-6) above the client row (7-8),
 // as in docs/STEWARDSHIP_OPERATING_MODEL.md, Part 2. Drawn with React Flow
 // (the same library the rule editor uses): pan, zoom and fit come with it.
-const NODE_W = 170;
-const NODE_H = 136;
+const NODE_W = 200;
+const NODE_H = 150;
 const GAP = 44;
 const HOUSE_Y = 60;
 const CLIENT_Y = 330;

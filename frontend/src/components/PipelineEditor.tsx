@@ -524,7 +524,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
         </ReactFlow>
       </div>
       <p className="help-text">
-        Dashed arrows are branches: an item takes one of them.
+        Drag the canvas to see every step. Dashed arrows are branches: an item takes one of them.
         {!runId && (changedCount ? ` ${changedCount} setting${changedCount === 1 ? "" : "s"} changed for this run.` : " Click a step to change its settings for this run.")}
         {!runId && changedCount > 0 && (
           <>

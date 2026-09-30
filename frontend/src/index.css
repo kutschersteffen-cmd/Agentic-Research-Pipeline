@@ -427,7 +427,7 @@ input[type="text"]:focus, input:not([type]):focus, input[type="number"]:focus, i
   margin-top: 0;
 }
 textarea { field-sizing: content; min-height: 3lh; max-height: 20lh; resize: vertical; line-height: 1.45; }
-input[type="file"] { color: var(--muted); }
+input[type="file"] { display: block; margin-bottom: var(--s-4); color: var(--muted); }
 input[type="checkbox"] { width: auto; }
 
 button {
@@ -443,7 +443,10 @@ button {
   margin-top: 12px;
 }
 button:hover:not(:disabled) { background: var(--accent-ink); }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Disabled reads as quiet, not as a grey slab louder than the live controls;
+   text stays at the muted contrast (>=4.5:1) so the label is still legible. */
+button:disabled { background: var(--well); color: var(--muted); cursor: not-allowed; }
+button:is(.link-button, .nav-tab, .secondary, .danger-outline):disabled { background: transparent; color: var(--muted); }
 button.danger { background: var(--low); }
 a.button-link, .toolbar a.button-link { display: inline-block; background: var(--accent); color: var(--on-accent); border-radius: var(--r-md); padding: 9px 16px; font-weight: 500; text-decoration: none; }
 a.button-link:hover, .toolbar a.button-link:hover { background: var(--accent-ink); }
@@ -507,7 +510,12 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
   margin-bottom: 12px;
 }
 
-.inline-fields { display: flex; gap: 8px; }
+/* A row of fields: controls centre on one line and wrap as a group; a
+   checkbox label or a button never squeezes into a word-per-line column. */
+.inline-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.inline-fields > :is(input:not([type="checkbox"]), select) { flex: 1 1 12rem; width: auto; min-width: 0; }
+.inline-fields > button, .inline-fields > label:has(> input[type="checkbox"]) { flex: none; white-space: nowrap; }
+.inline-fields > label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 6px; }
 
 .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: var(--text-base); margin: 10px 0; }
 
@@ -531,6 +539,16 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
   border-bottom: 1px solid var(--panel-border);
 }
 .data-table td { padding: 8px; border-bottom: 1px solid var(--panel-border); vertical-align: top; }
+/* Buttons in a table row sit on the row's line (no stacked-form top margin)
+   and a short link such as a code or "Review" never breaks across lines. */
+.data-table button { margin-top: 0; }
+/* A per-row action is quiet and compact: one per row would otherwise stack a
+   column of solid primaries that outweighs the page's real primary action. */
+.data-table button:not(.link-button, .danger, .danger-outline) { padding: 2px 10px; font-size: var(--text-sm); background: transparent; color: var(--accent); border: 1px solid var(--panel-border); }
+.data-table button:not(.link-button, .danger, .danger-outline):hover:not(:disabled) { background: var(--accent-tint); border-color: var(--accent); }
+.data-table .link-button { padding: 0; white-space: nowrap; }
+.chart-bar { fill: var(--text); }
+.bar-chart { max-width: 760px; }
 .clickable-row { cursor: pointer; }
 .clickable-row:hover { background: var(--well); }
 .detail-cell { background: var(--well); }
@@ -1191,8 +1209,9 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .flow-node-head { display: flex; gap: 6px; align-items: baseline; margin-bottom: 3px; }
 .flow-node-number { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); }
 .flow-node-title { font-family: var(--font-display); font-weight: 600; font-size: var(--text-sm); line-height: 1.2; }
-.flow-node-metric { display: flex; align-items: center; gap: 5px; font-size: var(--text-xs); color: var(--muted); min-width: 0; }
-.flow-node-metric-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flow-node-metric { display: flex; align-items: baseline; gap: 5px; font-size: var(--text-xs); color: var(--muted); min-width: 0; line-height: 1.25; }
+/* Two lines, then clip: a metric name must read in full on a zoomed-out graph. */
+.flow-node-metric-label { flex: 1; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .flow-node-metric strong { color: var(--text); font-variant-numeric: tabular-nums; }
 .flow-node-badge {
   position: absolute;
@@ -1330,6 +1349,10 @@ mark.style-flag { background: color-mix(in srgb, var(--mid) 30%, transparent); c
 }
 
 /* Extraction: the pipeline node editor -- start to end, one card per step. */
+/* The canvas opens full size at the left; a fade at the right edge says the
+   pipeline continues and can be dragged into view. */
+.pipeline-rf { position: relative; }
+.pipeline-rf::after { content: ""; position: absolute; inset: 0 0 0 auto; width: 56px; background: linear-gradient(to right, transparent, var(--panel)); pointer-events: none; z-index: 5; }
 .pipeline-rf { height: 480px; background: radial-gradient(var(--panel-border) 1px, transparent 1px) 0 0 / 18px 18px, var(--panel); }
 .pipeline-rf .react-flow__node-step { padding: 0; border: 0; background: none; }
 .pipeline-rf .pipeline-edge .react-flow__edge-path { stroke: var(--high); stroke-width: 1.4; opacity: 0.7; }
@@ -1366,7 +1389,8 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .status-running { --edge: var(--accent); }
 .status-failed { --edge: var(--low); }
 .status-skipped, .status-pending { --edge: var(--panel-border); }
-.status-skipped { opacity: 0.6; }
+/* Switched off: a dashed edge says so; the text stays at full contrast. */
+.status-skipped { border-style: dashed; }
 .pipeline-pill.status-done { background: color-mix(in srgb, var(--high) 12%, var(--panel)); }
 .pipeline-card-head { display: flex; align-items: center; gap: 8px; }
 .pipeline-card-icon { display: inline-flex; padding: 4px; border-radius: var(--r-sm); background: var(--well); color: var(--muted); }
@@ -1576,8 +1600,8 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-step-title { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; line-height: 1.25; }
 .hub-step-banner { padding: 4px 8px; border-radius: var(--r-sm); background: var(--await); border: 1px solid var(--await-edge); font-weight: 600; text-align: center; }
 .hub-step-rows { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: var(--r-sm); background: var(--well); color: var(--muted); }
-.hub-step-rows > span { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 8px; }
-.hub-step-rows b { color: var(--text); font-weight: 600; white-space: nowrap; margin-left: auto; }
+.hub-step-rows > span { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 0 8px; }
+.hub-step-rows b { color: var(--text); font-weight: 600; white-space: nowrap; }
 .hub-step-about { color: var(--muted); line-height: 1.35; }
 .hub-step-foot { margin-top: auto; color: var(--muted); }
 

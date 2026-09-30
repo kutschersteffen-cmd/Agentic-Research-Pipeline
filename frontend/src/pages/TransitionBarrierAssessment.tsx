@@ -197,7 +197,7 @@ export function TransitionBarrierAssessment() {
   const dist = matrix.distribution.overall;
 
   return (
-    <div>
+    <div className="page">
       <h2>Transition Barriers</h2>
       <p className="muted">
         How feasible decarbonisation is for {matrix.sectors.length} hard-to-abate sectors across{" "}
