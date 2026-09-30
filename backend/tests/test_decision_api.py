@@ -104,6 +104,27 @@ def test_saving_edits_records_them_as_human_decisions(client):
     assert any("60 -> 75" in e["decision"] for e in human)
 
 
+def test_deriving_again_adds_a_version_instead_of_a_new_framework(client):
+    """Re-deriving on the same table must not scatter one framework across
+    many: it is a new version of the one already there, and a ratified
+    earlier version stays exactly as it was."""
+    dataset_id = _upload(client)["dataset_id"]
+    first = client.post("/api/decision/mechanisms/derive", json={"dataset_id": dataset_id, "save": True}).json()["config"]
+    client.post(f"/api/decision/mechanisms/{first['framework_id']}/ratify", params={"ratified_by": "A. Novak"})
+
+    again = client.post(
+        "/api/decision/mechanisms/derive", json={"dataset_id": dataset_id, "save": True, "framework_id": first["framework_id"]}
+    ).json()["config"]
+    assert again["framework_id"] == first["framework_id"]
+    assert again["version"] == 2 and not again["ratified"]
+    assert again["name"] == first["name"]
+    assert client.get(f"/api/decision/mechanisms/{first['framework_id']}", params={"version": 1}).json()["config"]["ratified"]
+    assert len(client.get("/api/decision/mechanisms").json()) == 1
+
+    unknown = client.post("/api/decision/mechanisms/derive", json={"dataset_id": dataset_id, "save": True, "framework_id": "fw_nope"})
+    assert unknown.status_code == 404
+
+
 def test_ratified_versions_are_readable_after_later_edits(client):
     dataset_id = _upload(client)["dataset_id"]
     config = client.post("/api/decision/mechanisms/derive", json={"dataset_id": dataset_id, "save": True}).json()["config"]

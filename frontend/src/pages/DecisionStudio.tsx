@@ -23,6 +23,7 @@ import type {
   TemplateMatch,
 } from "../types";
 import { activatable } from "../lib/activatable";
+import { setLeaveGuard } from "../lib/leaveGuard";
 import { useReviewer } from "../lib/reviewer";
 import { ConfirmDecision } from "../components/ConfirmDecision";
 import { newDimension } from "../lib/dimensions";
@@ -31,6 +32,8 @@ import { TIER_STARTER } from "../lib/ruleGraphs";
 // The canvas pulls in the JDM editor and, on first use, the 14 MB engine:
 // loaded only when the Rules tab opens.
 const RuleGraphEditor = lazy(() => import("../components/RuleGraphEditor"));
+
+const withoutLayout = (value: unknown) => JSON.stringify(value, (key, v) => (key === "position" ? undefined : v));
 
 const SUB_TABS = [
   { id: "data", label: "1 · Data" },
@@ -70,6 +73,10 @@ export function DecisionStudio() {
   // profiled server-side over every row); null when there are no rules.
   const [calculated, setCalculated] = useState<DatasetSummary | null>(null);
   const [config, setConfig] = useState<MechanismConfig | null>(null);
+  // The version as the server last returned it. Save, ratify, publish and
+  // export all act on that stored version, so an edit on screen that is not
+  // saved yet must not look ratified or be publishable.
+  const [stored, setStored] = useState<MechanismConfig | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [result, setResult] = useState<DecisionResult | null>(null);
   const [comparison, setComparison] = useState<DecisionComparison | null>(null);
@@ -95,6 +102,36 @@ export function DecisionStudio() {
   const [templates, setTemplates] = useState<TemplateMatch[]>([]);
   const scoreTimer = useRef<number | undefined>(undefined);
   const view = calculated ?? dataset;
+  // Node positions on the rule canvas are layout, not rules: the server's
+  // diff ignores them too, so dragging a node is not an unsaved change.
+  const unsaved = config !== null && withoutLayout(config) !== withoutLayout(stored);
+
+  function loadConfig(next: MechanismConfig | null) {
+    setConfig(next);
+    setStored(next);
+  }
+
+  /** True when nothing unsaved would be lost, or the person agrees to lose it. */
+  function discardOk() {
+    return !unsaved || window.confirm(`Discard the unsaved changes to v${config?.version}? They were never saved, so no version records them.`);
+  }
+
+  // Leaving for another screen of the app unmounts this one and its edits.
+  useEffect(() => {
+    if (!unsaved) return;
+    setLeaveGuard(discardOk);
+    return () => setLeaveGuard(null);
+  });
+
+  useEffect(() => {
+    if (!unsaved) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = ""; // older Chromium shows the prompt only when this is set
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [unsaved]);
 
   const refreshDatasets = useCallback(async () => {
     try {
@@ -135,6 +172,7 @@ export function DecisionStudio() {
   }
 
   async function onUpload(file: File) {
+    if (!discardOk()) return;
     const summary = await guard("Parsing and profiling…", () => api.uploadDecisionDataset(file));
     if (summary) {
       selectDataset(summary);
@@ -152,6 +190,7 @@ export function DecisionStudio() {
   }, [needsRuns, finished]);
 
   async function onFromSource() {
+    if (!discardOk()) return;
     const summary = await guard("Building the table…", () =>
       api.decisionDatasetFromSource({
         source,
@@ -170,7 +209,7 @@ export function DecisionStudio() {
   function selectDataset(summary: DatasetSummary) {
     setDataset(summary);
     setCalculated(null);
-    setConfig(null);
+    loadConfig(null);
     setResult(null);
     setAudit([]);
     setComparison(null);
@@ -181,9 +220,10 @@ export function DecisionStudio() {
   /** Loads a saved framework onto the selected table. Saving afterwards makes
    * a new version of that framework, diffed against the one loaded. */
   async function onApplyTemplate(match: TemplateMatch) {
+    if (!discardOk()) return;
     const envelope = await guard("Loading the template…", () => api.getMechanism(match.config.framework_id, match.config.version));
     if (envelope) {
-      setConfig(envelope.config);
+      loadConfig(envelope.config);
       setAudit(envelope.audit);
       setBaseVersion(envelope.config.version);
       setSub("mechanism");
@@ -202,17 +242,23 @@ export function DecisionStudio() {
 
   async function onDerive() {
     if (!dataset) return;
+    const name = `Framework for ${dataset.name}`;
+    // Deriving again on the same table adds a version to the framework it
+    // already has, rather than starting another one with the same name.
+    const existing = templates.find((t) => t.config.name === name)?.config.framework_id;
     const envelope = await guard("Deriving the mechanism…", () =>
-      api.deriveMechanism({ dataset_id: dataset.dataset_id, name: `Framework for ${dataset.name}`, save: true }),
+      api.deriveMechanism({ dataset_id: dataset.dataset_id, name, save: true, framework_id: existing }),
     );
     if (envelope) {
-      setConfig(envelope.config);
+      loadConfig(envelope.config);
       setAudit(envelope.audit);
-      // v1 is the proposal as derived. Saving it now is what lets the next
-      // save diff against it and record which rules a person changed.
+      // The proposal as derived is already saved. That is what lets the
+      // next save diff against it and record which rules a person changed.
       setBaseVersion(envelope.config.version);
       refreshTemplates();
-      setSub("mechanism");
+      // A guessed direction silently inverts a ranking, and Profile is
+      // where the guesses are flagged: go there first when there are any.
+      setSub(flagged > 0 ? "profile" : "mechanism");
     }
   }
 
@@ -307,7 +353,7 @@ export function DecisionStudio() {
       api.saveMechanism({ config, base_version: baseVersion ?? undefined, by: reviewer.trim() || undefined }),
     );
     if (envelope) {
-      setConfig(envelope.config);
+      loadConfig(envelope.config);
       setAudit(envelope.audit);
       setBaseVersion(envelope.config.version);
       refreshTemplates();
@@ -318,7 +364,7 @@ export function DecisionStudio() {
     setConfirmingRatify(false);
     if (!config) return;
     const saved = await guard("Ratifying…", () => api.ratifyMechanism(config.framework_id, config.version, by));
-    if (saved) setConfig(saved);
+    if (saved) loadConfig(saved);
   }
 
   async function onPublish(by: string) {
@@ -406,14 +452,11 @@ export function DecisionStudio() {
           {dataset.has_confidence && <span className="badge badge-high">carries per-cell confidence</span>}
           {config && (
             <span className="muted">
-              {config.name} v{config.version} {config.ratified ? "(ratified)" : "(draft)"}
+              {config.name} v{config.version} {unsaved ? "(unsaved changes)" : config.ratified ? "(ratified)" : "(draft)"}
             </span>
           )}
-          {!config && (
-            <button className="link-button" onClick={onDerive}>
-              Derive a mechanism
-            </button>
-          )}
+          {!config && <button onClick={onDerive}>Derive a mechanism</button>}
+          {unsaved && <button onClick={onSave}>Save as new version</button>}
         </div>
       )}
 
@@ -515,7 +558,7 @@ export function DecisionStudio() {
                 </thead>
                 <tbody>
                   {datasets.map((d) => (
-                    <tr key={d.dataset_id} className="clickable-row" {...activatable(() => selectDataset(d))}>
+                    <tr key={d.dataset_id} className="clickable-row" {...activatable(() => discardOk() && selectDataset(d))}>
                       <td>{d.name}</td>
                       <td className="muted">{d.source}</td>
                       <td className="muted">{d.as_of ?? "—"}</td>
@@ -604,7 +647,9 @@ export function DecisionStudio() {
               onSetDirection={setDirection}
             />
           ) : (
-            <p className="muted">Derive a mechanism to edit roles and directions.</p>
+            <p className="muted">
+              Roles and directions are part of the framework. <button onClick={onDerive}>Derive a mechanism</button>
+            </p>
           )}
         </div>
       )}
@@ -622,7 +667,11 @@ export function DecisionStudio() {
           />
         </Suspense>
       )}
-      {sub === "rules" && dataset && !config && <p className="muted">Derive a mechanism first — rules are part of the framework.</p>}
+      {sub === "rules" && dataset && !config && (
+        <p className="muted">
+          Rules are part of the framework. <button onClick={onDerive}>Derive a mechanism</button>
+        </p>
+      )}
 
       {sub === "mechanism" && dataset && config && (
         <>
@@ -691,7 +740,7 @@ export function DecisionStudio() {
           <div className="decision-kpis">
             {result.tier_summary.map((tier) => (
               <div key={tier.rank} className="card">
-                <div className="muted">{tier.action}</div>
+                {tier.action && <div className="muted">{tier.action}</div>}
                 <h2>{tier.name}</h2>
                 <p className="decision-kpi-value">{tier.count}</p>
               </div>
@@ -857,10 +906,14 @@ export function DecisionStudio() {
               <button className="link-button" onClick={onSave}>
                 Save as new version
               </button>
-              {baseVersion === config.version && (
+              {baseVersion === config.version && !unsaved && (
                 <a href={api.exportMechanismUrl(config.framework_id, config.version)}>Export v{config.version} as template</a>
               )}
-              {config.ratified ? (
+              {unsaved ? (
+                <span className="muted">
+                  Unsaved changes. Save them as a new version to ratify or publish; v{config.version} stays as stored.
+                </span>
+              ) : config.ratified ? (
                 <span className="badge badge-high">
                   Ratified{config.ratified_by ? ` by ${config.ratified_by}` : ""}
                   {config.ratified_at ? ` · ${new Date(config.ratified_at).toLocaleDateString()}` : ""}
@@ -868,7 +921,7 @@ export function DecisionStudio() {
               ) : (
                 <button onClick={() => setConfirmingRatify(true)}>Ratify version {config.version}…</button>
               )}
-              {config.ratified && dataset && (
+              {config.ratified && !unsaved && dataset && (
                 <button onClick={() => setConfirmingPublish(true)}>Publish to stewardship and index…</button>
               )}
             </div>

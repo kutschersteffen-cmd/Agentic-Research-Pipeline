@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api/client";
+import { canLeave } from "./lib/leaveGuard";
 import { ReviewerField } from "./components/ReviewerField";
 import { ThemeBuilder } from "./pages/ThemeBuilder";
 import { Extraction } from "./pages/Extraction";
@@ -114,8 +115,8 @@ const runItem = (r: RunManifest): PaletteItem => ({
 /** The URL is the source of truth for where you are: `#/<tab>/<param>...`,
  * so refresh, Back and a pasted link all land on the same view -- e.g.
  * `#/voting/<run id>` or `#/review/extraction/<run id>`. */
-function parseHash(): { tab: TabId; params: string[] } {
-  const [tab, ...params] = window.location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+function parseHash(hash = window.location.hash): { tab: TabId; params: string[] } {
+  const [tab, ...params] = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
   return TABS.some((t) => t.id === tab) ? { tab: tab as TabId, params } : { tab: "home", params: [] };
 }
 
@@ -134,9 +135,18 @@ function App() {
   const pendingFor = (to: TabId) => (handoff?.to === to ? handoff : null);
   const [pendingTaxonomyId, setPendingTaxonomyId] = useState<string | null>(null);
 
+  // The hash last shown, so a navigation the open screen refuses can be put back.
+  const shownHash = useRef(window.location.hash);
   useEffect(() => {
     const onHash = () => {
-      setRoute(parseHash());
+      const next = parseHash();
+      if (next.tab !== parseHash(shownHash.current).tab && !canLeave()) {
+        // hashchange cannot be cancelled; replaceState restores the URL without firing it again.
+        history.replaceState(null, "", shownHash.current || "#");
+        return;
+      }
+      shownHash.current = window.location.hash;
+      setRoute(next);
       setNavOpen(false);
       window.scrollTo(0, 0);
     };

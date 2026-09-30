@@ -258,6 +258,11 @@ class DeriveRequest(BaseModel):
     name: str | None = None
     cluster_threshold: float = 0.72
     save: bool = Field(default=False, description="Persist the derived framework as v1 straight away.")
+    framework_id: str | None = Field(
+        default=None,
+        description="With `save`: store the derivation as the next version of this framework instead of starting a "
+        "new one, so deriving again on the same table does not leave a trail of one-version frameworks.",
+    )
 
 
 class MechanismEnvelope(BaseModel):
@@ -269,7 +274,12 @@ class MechanismEnvelope(BaseModel):
 def derive(req: DeriveRequest, store: DecisionStore = Depends(get_decision_store)) -> MechanismEnvelope:
     dataset = _load_dataset(req.dataset_id, store)
     config, audit = derive_mechanism(dataset, name=req.name, cluster_threshold=req.cluster_threshold)
-    if req.save:
+    if req.save and req.framework_id:
+        existing = store.get(req.framework_id)
+        if existing is None:
+            raise HTTPException(404, f"Unknown framework: {req.framework_id}")
+        config = store.new_version(config.model_copy(update={"framework_id": existing.framework_id, "name": existing.name}), audit)
+    elif req.save:
         store.save(config, audit)
     return MechanismEnvelope(config=config, audit=audit)
 

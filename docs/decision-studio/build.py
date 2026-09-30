@@ -113,6 +113,12 @@ PAGES["profile"] = dict(
                 ["Name matches both", "Heavier keyword wins, and the proposal is marked <b>needs check</b>."],
                 ["Name matches neither", "Defaults to higher, marked <b>needs check</b>."],
             ]) + '<p class="note">The dictionaries live in <code>arp/decision/data/role_keywords.json</code> as data, so a house that reports in a third language extends them with an edit, not a code change.</p>'),
+        block("Deriving the framework", "Jobs and directions become editable once a framework exists.", table(
+            ["When", "What happens"], [
+                ["Before deriving", "The profile is read-only. The Profile and Rules tabs show a <b>Derive a mechanism</b> button."],
+                ["After deriving", "The studio lands here when any direction is marked needs check, otherwise on Mechanism."],
+                ["Deriving again", "On the same table, the result is saved as the next version of that table's framework, not as a new one."],
+            ])),
     ],
     example=[
         ("Portfolio_Weight_bps", "<b>size</b>: name signals position size, not quality."),
@@ -255,7 +261,7 @@ PAGES["tree"] = dict(
                 ["Minimum dimension score", "30", "Below it → demoted one tier."],
                 ["Minimum criteria in the dimension", "2", "A dimension resting on one Yes/No answer cannot demote."],
             ])),
-        block("Tiers", "Default four: Tier 1 Act now, Tier 2 Prepare and engage, Tier 3 Monitor, Tier 4 Park. Rename, add or remove. Tier 1 is the highest score band.", ""),
+        block("Tiers", "Default four, named Tier 1 to Tier 4, with no actions. Tier 1 is the highest score band. Rename them, add or remove tiers, and give each an action.", ""),
         block("Tier rules (optional)", "A second decision model that <b>replaces steps 2 and 4</b>. Sufficiency and cut-points stay in the engine.", table(
             ["", "Available"], [
                 ["Inputs", "<code>band</code>, <code>score</code>, <code>rank</code>, <code>percentile</code> in cohort, <code>coverage</code>, <code>grounded_coverage</code>, <code>dim_&lt;dimension&gt;</code>, <code>cohort</code>, <code>segment</code>, <code>tier_count</code>, every column."],
@@ -280,7 +286,7 @@ PAGES["results"] = dict(
     blocks=[
         block("What is on the tab", "", table(
             ["Element", "Shows"], [
-                ["Tier cards", "Count per tier with its action, plus a card for <em>gated / insufficient</em>."],
+                ["Tier cards", "Count per tier, with its action when one is set, plus a card for <em>gated / insufficient</em>."],
                 ["Score distribution", "Histogram with the cut lines, and which cut-point method actually ran."],
                 ["Ranked table", "#, Name, Score, Rank band, Outcome, Coverage, Notes. Order by score or by leverage."],
                 ["Explain (per row)", "Each criterion's normalised value, weight and contribution to the score."],
@@ -353,10 +359,17 @@ PAGES["audit"] = dict(
         block("Stages in the log", "Roles · Direction · Peer cohorts · Gates · Dimensions · Weighting · Normalisation · Missing data · Sufficiency · Cut-points · Comparability · Rules · Tier rules · Levels · Overrides · Edit · Import", ""),
         block("Actions", "", table(
             ["Action", "What it does"], [
-                ["Save as new version", "Writes v<i>N</i>+1 with its own audit file. Saving over a ratified version is refused."],
+                ["Save as new version", "Writes v<i>N</i>+1 with its own audit file. Saving over a ratified version is refused. Also shown above every tab while there are unsaved changes."],
                 ["Ratify version <i>N</i>…", "Asks for your name. The version becomes fixed; decisions citing it read it as it is now."],
                 ["Export as template", "Downloads one version with its audit trail as <code>arp.decision_template</code> JSON."],
                 ["Publish to stewardship and index…", "Only for a ratified version. Freezes its result on this table (see Published tiers)."],
+            ])),
+        block("Unsaved changes", "Ratify, publish and export act on the stored version, so the screen must never look further along than it is.", table(
+            ["Where", "What happens"], [
+                ["Header", "Reads <em>(unsaved changes)</em> when the framework on screen differs from the stored version."],
+                ["Ratify, publish, export", "Hidden until the changes are saved as a new version."],
+                ["Leaving", "Switching table, loading a template, going to another screen or reloading asks first."],
+                ["Node drags", "Moving a node on the rule canvas is layout, not an unsaved change."],
             ])),
         block("Where it is stored", "", table(
             ["File", "Holds"], [

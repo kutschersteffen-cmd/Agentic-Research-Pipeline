@@ -744,7 +744,7 @@ export const api = {
   listDecisionDatasets: () => request<DatasetSummary[]>("/api/decision/datasets"),
   calculatedColumns: (datasetId: string, ruleGraph: RuleGraph) =>
     request<DatasetSummary>(`/api/decision/datasets/${datasetId}/calculated`, { method: "POST", body: JSON.stringify({ rule_graph: ruleGraph }) }),
-  deriveMechanism: (body: { dataset_id: string; name?: string; cluster_threshold?: number; save?: boolean }) =>
+  deriveMechanism: (body: { dataset_id: string; name?: string; cluster_threshold?: number; save?: boolean; framework_id?: string }) =>
     request<MechanismEnvelope>("/api/decision/mechanisms/derive", { method: "POST", body: JSON.stringify(body) }),
   saveMechanism: (body: { config: MechanismConfig; base_version?: number | null; by?: string | null }) =>
     request<MechanismEnvelope>("/api/decision/mechanisms", { method: "POST", body: JSON.stringify(body) }),
