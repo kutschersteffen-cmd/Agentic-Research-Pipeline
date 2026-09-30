@@ -1,0 +1,408 @@
+{
+ "schemaVersion": 2,
+ "generatedAt": "2026-09-30T15:40:18Z",
+ "title": "Design System: Agentic Research Pipeline",
+ "extensions": {
+  "colorMeta": {
+   "ink": {
+    "role": "neutral",
+    "displayName": "Ink",
+    "canonical": "#141414",
+    "tonalRamp": [
+     "color-mix(in oklch, #141414 40%, black)",
+     "color-mix(in oklch, #141414 60%, black)",
+     "color-mix(in oklch, #141414 80%, black)",
+     "color-mix(in oklch, #141414 100%, black)",
+     "color-mix(in oklch, #141414 80%, white)",
+     "color-mix(in oklch, #141414 60%, white)",
+     "color-mix(in oklch, #141414 40%, white)",
+     "color-mix(in oklch, #141414 20%, white)"
+    ]
+   },
+   "signal-orange": {
+    "role": "primary",
+    "displayName": "Signal Orange",
+    "canonical": "#ea4c14",
+    "tonalRamp": [
+     "color-mix(in oklch, #ea4c14 40%, black)",
+     "color-mix(in oklch, #ea4c14 60%, black)",
+     "color-mix(in oklch, #ea4c14 80%, black)",
+     "color-mix(in oklch, #ea4c14 100%, black)",
+     "color-mix(in oklch, #ea4c14 80%, white)",
+     "color-mix(in oklch, #ea4c14 60%, white)",
+     "color-mix(in oklch, #ea4c14 40%, white)",
+     "color-mix(in oklch, #ea4c14 20%, white)"
+    ]
+   },
+   "signal-orange-ink": {
+    "role": "primary",
+    "displayName": "Signal Orange Ink",
+    "canonical": "#b8400f",
+    "tonalRamp": [
+     "color-mix(in oklch, #b8400f 40%, black)",
+     "color-mix(in oklch, #b8400f 60%, black)",
+     "color-mix(in oklch, #b8400f 80%, black)",
+     "color-mix(in oklch, #b8400f 100%, black)",
+     "color-mix(in oklch, #b8400f 80%, white)",
+     "color-mix(in oklch, #b8400f 60%, white)",
+     "color-mix(in oklch, #b8400f 40%, white)",
+     "color-mix(in oklch, #b8400f 20%, white)"
+    ]
+   },
+   "signal-lime": {
+    "role": "primary",
+    "displayName": "Signal Lime (Night)",
+    "canonical": "#c6ff3d",
+    "tonalRamp": [
+     "color-mix(in oklch, #c6ff3d 40%, black)",
+     "color-mix(in oklch, #c6ff3d 60%, black)",
+     "color-mix(in oklch, #c6ff3d 80%, black)",
+     "color-mix(in oklch, #c6ff3d 100%, black)",
+     "color-mix(in oklch, #c6ff3d 80%, white)",
+     "color-mix(in oklch, #c6ff3d 60%, white)",
+     "color-mix(in oklch, #c6ff3d 40%, white)",
+     "color-mix(in oklch, #c6ff3d 20%, white)"
+    ]
+   },
+   "graphite-ground": {
+    "role": "neutral",
+    "displayName": "Graphite Ground",
+    "canonical": "#f3f3f0",
+    "tonalRamp": [
+     "color-mix(in oklch, #f3f3f0 40%, black)",
+     "color-mix(in oklch, #f3f3f0 60%, black)",
+     "color-mix(in oklch, #f3f3f0 80%, black)",
+     "color-mix(in oklch, #f3f3f0 100%, black)",
+     "color-mix(in oklch, #f3f3f0 80%, white)",
+     "color-mix(in oklch, #f3f3f0 60%, white)",
+     "color-mix(in oklch, #f3f3f0 40%, white)",
+     "color-mix(in oklch, #f3f3f0 20%, white)"
+    ]
+   },
+   "panel-white": {
+    "role": "neutral",
+    "displayName": "Panel White",
+    "canonical": "#ffffff",
+    "tonalRamp": [
+     "color-mix(in oklch, #ffffff 40%, black)",
+     "color-mix(in oklch, #ffffff 60%, black)",
+     "color-mix(in oklch, #ffffff 80%, black)",
+     "color-mix(in oklch, #ffffff 100%, black)",
+     "color-mix(in oklch, #ffffff 80%, white)",
+     "color-mix(in oklch, #ffffff 60%, white)",
+     "color-mix(in oklch, #ffffff 40%, white)",
+     "color-mix(in oklch, #ffffff 20%, white)"
+    ]
+   },
+   "hairline": {
+    "role": "neutral",
+    "displayName": "Hairline",
+    "canonical": "#dcdcd7",
+    "tonalRamp": [
+     "color-mix(in oklch, #dcdcd7 40%, black)",
+     "color-mix(in oklch, #dcdcd7 60%, black)",
+     "color-mix(in oklch, #dcdcd7 80%, black)",
+     "color-mix(in oklch, #dcdcd7 100%, black)",
+     "color-mix(in oklch, #dcdcd7 80%, white)",
+     "color-mix(in oklch, #dcdcd7 60%, white)",
+     "color-mix(in oklch, #dcdcd7 40%, white)",
+     "color-mix(in oklch, #dcdcd7 20%, white)"
+    ]
+   },
+   "muted-graphite": {
+    "role": "neutral",
+    "displayName": "Muted Graphite",
+    "canonical": "#5c5c57",
+    "tonalRamp": [
+     "color-mix(in oklch, #5c5c57 40%, black)",
+     "color-mix(in oklch, #5c5c57 60%, black)",
+     "color-mix(in oklch, #5c5c57 80%, black)",
+     "color-mix(in oklch, #5c5c57 100%, black)",
+     "color-mix(in oklch, #5c5c57 80%, white)",
+     "color-mix(in oklch, #5c5c57 60%, white)",
+     "color-mix(in oklch, #5c5c57 40%, white)",
+     "color-mix(in oklch, #5c5c57 20%, white)"
+    ]
+   },
+   "night-ground": {
+    "role": "neutral",
+    "displayName": "Night Ground",
+    "canonical": "#0c0d0f",
+    "tonalRamp": [
+     "color-mix(in oklch, #0c0d0f 40%, black)",
+     "color-mix(in oklch, #0c0d0f 60%, black)",
+     "color-mix(in oklch, #0c0d0f 80%, black)",
+     "color-mix(in oklch, #0c0d0f 100%, black)",
+     "color-mix(in oklch, #0c0d0f 80%, white)",
+     "color-mix(in oklch, #0c0d0f 60%, white)",
+     "color-mix(in oklch, #0c0d0f 40%, white)",
+     "color-mix(in oklch, #0c0d0f 20%, white)"
+    ]
+   },
+   "night-panel": {
+    "role": "neutral",
+    "displayName": "Night Panel",
+    "canonical": "#131417",
+    "tonalRamp": [
+     "color-mix(in oklch, #131417 40%, black)",
+     "color-mix(in oklch, #131417 60%, black)",
+     "color-mix(in oklch, #131417 80%, black)",
+     "color-mix(in oklch, #131417 100%, black)",
+     "color-mix(in oklch, #131417 80%, white)",
+     "color-mix(in oklch, #131417 60%, white)",
+     "color-mix(in oklch, #131417 40%, white)",
+     "color-mix(in oklch, #131417 20%, white)"
+    ]
+   },
+   "night-ink": {
+    "role": "neutral",
+    "displayName": "Night Ink",
+    "canonical": "#e8e8e3",
+    "tonalRamp": [
+     "color-mix(in oklch, #e8e8e3 40%, black)",
+     "color-mix(in oklch, #e8e8e3 60%, black)",
+     "color-mix(in oklch, #e8e8e3 80%, black)",
+     "color-mix(in oklch, #e8e8e3 100%, black)",
+     "color-mix(in oklch, #e8e8e3 80%, white)",
+     "color-mix(in oklch, #e8e8e3 60%, white)",
+     "color-mix(in oklch, #e8e8e3 40%, white)",
+     "color-mix(in oklch, #e8e8e3 20%, white)"
+    ]
+   },
+   "status-high": {
+    "role": "secondary",
+    "displayName": "Status High",
+    "canonical": "oklch(50% 0.150 149)",
+    "tonalRamp": [
+     "color-mix(in oklch, oklch(50% 0.150 149) 40%, black)",
+     "color-mix(in oklch, oklch(50% 0.150 149) 60%, black)",
+     "color-mix(in oklch, oklch(50% 0.150 149) 80%, black)",
+     "color-mix(in oklch, oklch(50% 0.150 149) 100%, black)",
+     "color-mix(in oklch, oklch(50% 0.150 149) 80%, white)",
+     "color-mix(in oklch, oklch(50% 0.150 149) 60%, white)",
+     "color-mix(in oklch, oklch(50% 0.150 149) 40%, white)",
+     "color-mix(in oklch, oklch(50% 0.150 149) 20%, white)"
+    ]
+   },
+   "status-mid": {
+    "role": "secondary",
+    "displayName": "Status Mid",
+    "canonical": "oklch(52% 0.125 70)",
+    "tonalRamp": [
+     "color-mix(in oklch, oklch(52% 0.125 70) 40%, black)",
+     "color-mix(in oklch, oklch(52% 0.125 70) 60%, black)",
+     "color-mix(in oklch, oklch(52% 0.125 70) 80%, black)",
+     "color-mix(in oklch, oklch(52% 0.125 70) 100%, black)",
+     "color-mix(in oklch, oklch(52% 0.125 70) 80%, white)",
+     "color-mix(in oklch, oklch(52% 0.125 70) 60%, white)",
+     "color-mix(in oklch, oklch(52% 0.125 70) 40%, white)",
+     "color-mix(in oklch, oklch(52% 0.125 70) 20%, white)"
+    ]
+   },
+   "status-low": {
+    "role": "secondary",
+    "displayName": "Status Low",
+    "canonical": "oklch(54% 0.174 30)",
+    "tonalRamp": [
+     "color-mix(in oklch, oklch(54% 0.174 30) 40%, black)",
+     "color-mix(in oklch, oklch(54% 0.174 30) 60%, black)",
+     "color-mix(in oklch, oklch(54% 0.174 30) 80%, black)",
+     "color-mix(in oklch, oklch(54% 0.174 30) 100%, black)",
+     "color-mix(in oklch, oklch(54% 0.174 30) 80%, white)",
+     "color-mix(in oklch, oklch(54% 0.174 30) 60%, white)",
+     "color-mix(in oklch, oklch(54% 0.174 30) 40%, white)",
+     "color-mix(in oklch, oklch(54% 0.174 30) 20%, white)"
+    ]
+   }
+  },
+  "typographyMeta": {
+   "display": {
+    "displayName": "Display",
+    "purpose": "Start-page status line only."
+   },
+   "headline": {
+    "displayName": "Headline",
+    "purpose": "Page titles and process card names."
+   },
+   "title": {
+    "displayName": "Title",
+    "purpose": "Card and section headings."
+   },
+   "body": {
+    "displayName": "Body",
+    "purpose": "All running text."
+   },
+   "label": {
+    "displayName": "Label (mono)",
+    "purpose": "Numbers, IDs, step labels, state."
+   }
+  },
+  "themes": {
+   "graphite": {
+    "fontDisplay": "Geist",
+    "fontMono": "Geist Mono",
+    "signal": "#ea4c14"
+   },
+   "night": {
+    "fontDisplay": "Hanken Grotesk",
+    "fontMono": "JetBrains Mono",
+    "signal": "#c6ff3d"
+   }
+  },
+  "shadows": [
+   {
+    "name": "float",
+    "value": "0 2px 6px oklch(20% 0.014 58 / 0.07), 0 8px 24px oklch(20% 0.014 58 / 0.10)",
+    "purpose": "Popovers and hover lift on pipeline cards."
+   },
+   {
+    "name": "overlay",
+    "value": "0 12px 32px oklch(20% 0.014 58 / 0.16)",
+    "purpose": "Modals and the drawer."
+   }
+  ],
+  "motion": [
+   {
+    "name": "ease-standard",
+    "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+    "purpose": "All state transitions."
+   },
+   {
+    "name": "duration-standard",
+    "value": "140ms",
+    "purpose": "Hover, border and lift transitions."
+   }
+  ],
+  "breakpoints": [
+   {
+    "name": "single-column",
+    "value": "640px"
+   },
+   {
+    "name": "drawer",
+    "value": "1024px"
+   },
+   {
+    "name": "cards-two-up",
+    "value": "1100px"
+   }
+  ]
+ },
+ "components": [
+  {
+   "name": "Primary Button",
+   "kind": "button",
+   "refersTo": "button-primary",
+   "description": "The one solid action per area; ink fill.",
+   "html": "<button class=\"ds-btn-primary\">Open review queue</button>",
+   "css": ".ds-btn-primary{background:var(--accent,#141414);color:var(--on-accent,#fff);border:0;border-radius:8px;padding:9px 16px;font:500 15px Geist,system-ui,sans-serif;cursor:pointer;transition:background 140ms cubic-bezier(.4,0,.2,1)}.ds-btn-primary:hover{background:var(--accent-ink,#000)}.ds-btn-primary:focus-visible{outline:2px solid var(--accent,#141414);outline-offset:2px}"
+  },
+  {
+   "name": "Secondary Button",
+   "kind": "button",
+   "refersTo": "button-secondary",
+   "description": "The quiet action beside a primary; hairline border.",
+   "html": "<button class=\"ds-btn-secondary\">Change vote</button>",
+   "css": ".ds-btn-secondary{background:transparent;color:var(--accent,#141414);border:1px solid var(--panel-border,#dcdcd7);border-radius:8px;padding:9px 16px;font:500 15px Geist,system-ui,sans-serif;cursor:pointer}.ds-btn-secondary:hover{background:rgb(20 20 20 / .06);border-color:var(--accent,#141414)}.ds-btn-secondary:focus-visible{outline:2px solid var(--accent,#141414);outline-offset:2px}"
+  },
+  {
+   "name": "Text Input",
+   "kind": "input",
+   "refersTo": "input",
+   "description": "Panel fill, hairline border, 8px radius.",
+   "html": "<input class=\"ds-input\" placeholder=\"run id\">",
+   "css": ".ds-input{background:var(--panel,#fff);color:var(--text,#141414);border:1px solid var(--panel-border,#dcdcd7);border-radius:8px;padding:8px 10px;font:400 15px Geist,system-ui,sans-serif}.ds-input:focus-visible{outline:2px solid var(--accent,#141414);outline-offset:1px}"
+  },
+  {
+   "name": "Needs-you Badge",
+   "kind": "chip",
+   "refersTo": "badge-needs-you",
+   "description": "Signal fill count on 'Needs you' nav items only.",
+   "html": "<span class=\"ds-badge\">13</span>",
+   "css": ".ds-badge{display:inline-block;min-width:1.5rem;text-align:center;background:var(--hi,#ea4c14);color:var(--on-hi,#141414);border-radius:999px;padding:1px 6px;font:600 13px Geist,system-ui,sans-serif}"
+  },
+  {
+   "name": "Status Pill",
+   "kind": "chip",
+   "description": "Run status; outlined in the status colour.",
+   "html": "<span class=\"ds-pill ds-pill-ok\">completed</span> <span class=\"ds-pill ds-pill-fail\">failed</span>",
+   "css": ".ds-pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid;font:500 13px Geist,system-ui,sans-serif}.ds-pill-ok{color:oklch(50% .15 149)}.ds-pill-fail{color:oklch(54% .174 30)}"
+  },
+  {
+   "name": "Card",
+   "kind": "card",
+   "refersTo": "card",
+   "description": "Flat panel on a hairline; no shadow.",
+   "html": "<div class=\"ds-card\"><h3>Recent scans</h3><p>Five runs this week.</p></div>",
+   "css": ".ds-card{background:var(--panel,#fff);border:1px solid var(--panel-border,#dcdcd7);border-radius:12px;padding:18px 20px;font:400 15px Geist,system-ui,sans-serif;color:var(--text,#141414)}.ds-card h3{margin:0 0 8px;font-weight:600;font-size:16px}"
+  },
+  {
+   "name": "Sidebar Nav",
+   "kind": "nav",
+   "refersTo": "nav-item-active",
+   "description": "Active item inverts to ink; waiting items carry the signal badge.",
+   "html": "<nav class=\"ds-nav\"><a class=\"on\">Start</a><a>Review Queue <span>11</span></a><a>Runs</a></nav>",
+   "css": ".ds-nav{display:flex;flex-direction:column;gap:2px;width:220px;font:500 14px Geist,system-ui,sans-serif}.ds-nav a{display:flex;justify-content:space-between;padding:7px 10px;border-radius:8px;color:#141414;cursor:pointer}.ds-nav a:hover{background:#ebebe7}.ds-nav a.on{background:#141414;color:#fff}.ds-nav span{background:#ea4c14;color:#141414;border-radius:999px;padding:1px 6px;font-size:13px}"
+  },
+  {
+   "name": "Process Card",
+   "kind": "custom",
+   "description": "Signature start-page card: icon, purpose, step dots, the step that matters now.",
+   "html": "<a class=\"ds-proc\"><b>StewardIQ</b><span class=\"p\">Engage companies, vote, and track what they commit to.</span><span class=\"dots\"><i class=\"d\"></i><i class=\"d\"></i><i class=\"w\"></i><i></i></span><span class=\"m\">Step 3 of 4 · Vote</span><span class=\"s\">3 waiting on you</span></a>",
+   "css": ".ds-proc{display:flex;flex-direction:column;gap:12px;width:240px;padding:24px;border:1px solid #141414;background:#fff;font:400 15px Geist,system-ui,sans-serif;color:#141414}.ds-proc b{font-size:22px;letter-spacing:-.02em}.ds-proc .p{color:#5c5c57}.ds-proc .dots{display:flex;justify-content:space-between}.ds-proc i{width:12px;height:12px;border-radius:50%;border:2px solid #dcdcd7;box-sizing:border-box}.ds-proc i.d{background:#141414;border:0}.ds-proc i.w{background:#ea4c14;border:0;box-shadow:0 0 0 5px rgb(234 76 20 / .22)}.ds-proc .m{font:13px 'Geist Mono',monospace;color:#5c5c57}.ds-proc .s{font:13px 'Geist Mono',monospace;color:#b8400f}.ds-proc:hover{transform:translateY(-2px);transition:transform 140ms}"
+  }
+ ],
+ "narrative": {
+  "northStar": "The Signal Room",
+  "overview": "ARP is a quiet instrument panel for teams that run long agent pipelines and ratify what the agents propose. Almost everything on screen is ink on a neutral ground: graphite by day, near-black by night. Exactly one colour is allowed to light up, and it lights up for one reason only: a person must act. When nothing waits on anyone, the screen is monochrome.\n\nThe system is precise and restrained. Surfaces are flat and separated by hairlines rather than shadows. Controls are ink, text is set in a workhorse sans with a monospace for data and state, and density is high enough for tables of thousands of companies while staying legible on a projector. Two themes share one structure: **Graphite** (light) and **Night** (dark). The sidebar switch (System / Light / Dark) chooses between them, and every component reads its colours from the same tokens.",
+  "keyCharacteristics": [
+   "Monochrome by default; one signal colour per theme, reserved for \"waiting on a person\".",
+   "Status colours (green / amber / red) describe runs and ratings, never the person-must-act state.",
+   "Flat surfaces with hairline borders; shadows only for things that float.",
+   "Sans for reading, mono for numbers, IDs, labels and state.",
+   "The start page leads with the four processes; everything else is reached from them."
+  ],
+  "rules": [
+   {
+    "name": "The One Signal Rule",
+    "body": "Orange (Graphite) and lime (Night) mean one thing only: a person must act. Never use them for branding, decoration, hover, focus of a normal control, or \"running\". When nothing waits, no signal colour appears anywhere on the screen.",
+    "section": "colors"
+   },
+   {
+    "name": "The Status Is Not The Signal Rule",
+    "body": "Green, amber and red describe runs and ratings. Red marks a failed run and also a Low (L) rating on Transition Barriers; that second use is a deliberate, confirmed exception, because the matrix reads as a traffic light. It never marks something waiting on a person.",
+    "section": "colors"
+   },
+   {
+    "name": "The Icon Accent Rule",
+    "body": "Each process icon has exactly one element drawn in the signal colour, and it only lights up when that process waits on someone. Otherwise the whole icon is ink.",
+    "section": "colors"
+   },
+   {
+    "name": "The Mono Means Data Rule",
+    "body": "Mono is for numbers, IDs, labels and state. Never set a sentence of prose in mono for a \"technical\" feel.",
+    "section": "typography"
+   },
+   {
+    "name": "The Flat-By-Default Rule",
+    "body": "Cards and tables sit flat on a hairline. If you reach for a shadow, the element must float above the page.",
+    "section": "elevation"
+   }
+  ],
+  "dos": [
+   "**Do** read every colour from the tokens (`var(--hi)`, `var(--text)`, …); both themes depend on it.",
+   "**Do** use the signal colour for exactly one meaning: a person must act (see The One Signal Rule).",
+   "**Do** use `--hi-ink` (#b8400f) when orange is text in Graphite.",
+   "**Do** keep text at 13px or larger and at ≥4.5:1 contrast in both themes.",
+   "**Do** put numbers, IDs and state in the mono face.",
+   "**Do** let wide tables scroll inside their frame, with the edge shadow cue."
+  ],
+  "donts": [
+   "**Don't** use orange or lime for anything that doesn't wait on a person: not branding, not \"running\", not hover.",
+   "**Don't** add shadows to flat cards or tables.",
+   "**Don't** use emoji as icons or status markers; draw icons in the shared stroke family.",
+   "**Don't** hard-code colours or fonts in components (third-party editors included); follow the live theme.",
+   "**Don't** fade disabled or switched-off items with opacity; mark them with the well fill or a dashed edge and keep text legible."
+  ]
+ }
+}
