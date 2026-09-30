@@ -123,7 +123,7 @@ export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {
                         <td>
                           {r.homepage_unreachable ? (
                             <span className="error-text" title={r.crawl_error ?? undefined}>
-                              ⚠️ site unreachable{r.crawl_error ? `: ${r.crawl_error}` : ""}
+                              Site unreachable{r.crawl_error ? `: ${r.crawl_error}` : ""}
                             </span>
                           ) : !r.homepage_used ? (
                             <span className="muted">no homepage known</span>

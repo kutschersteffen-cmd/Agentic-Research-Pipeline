@@ -488,6 +488,8 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
 .clickable-row[aria-current] td:first-child { font-weight: 600; }
 .status-text { font-size: var(--text-sm); color: var(--accent); }
 .error-text { color: var(--low); }
+/* Inline "a person must act" text: the signal colour, at text contrast. */
+.await-text { color: var(--hi-ink); font-weight: 600; }
 /* An inline recovery action inside a message reads as part of the sentence. */
 .error-text .link-button { margin: 0; padding: 0; font-size: inherit; font-weight: 600; }
 /* Same truth at every size: below 560px a run table becomes one card per

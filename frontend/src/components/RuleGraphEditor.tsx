@@ -1,4 +1,5 @@
 import "@gorules/jdm-editor/dist/style.css";
+import { useEditorTheme } from "../lib/editorTheme";
 import { DecisionGraph, JdmConfigProvider, type DecisionGraphType, type Simulation } from "@gorules/jdm-editor";
 import { useEffect, useMemo, useState } from "react";
 import { activatable } from "../lib/activatable";
@@ -59,6 +60,7 @@ export default function RuleGraphEditor({
   onChange: (next: RuleGraph | null) => void;
   onSetRole?: (column: string, role: ColumnRole) => void;
 }) {
+  const editorTheme = useEditorTheme();
   const tiers = mode === "tiers";
   const current = graph ?? (tiers ? TIER_STARTER : STARTER);
   const [outcomes, setOutcomes] = useState<RowOutcome[]>([]);
@@ -185,7 +187,7 @@ export default function RuleGraphEditor({
       </div>
 
       <div className="card rule-canvas">
-        <JdmConfigProvider theme={{ token: { colorPrimary: "#2a2826", fontFamily: "Hanken Grotesk, sans-serif", borderRadius: 6 } }}>
+        <JdmConfigProvider theme={editorTheme}>
           <DecisionGraph
             value={current as unknown as DecisionGraphType}
             simulate={trace}
