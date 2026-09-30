@@ -241,7 +241,9 @@ export function StartPage() {
   const all = runs ?? [];
   const active = all.filter((r) => ACTIVE_STATUSES.has(r.status));
   const waitingRuns = all.filter((r) => waitingCount(r) > 0);
-  const waiting = waitingRuns.reduce((n, r) => n + waitingCount(r), 0);
+  // Same count the cards add up: waiting run items plus open stewardship decisions.
+  const decisions = PROCESSES.flatMap((p) => p.steps).reduce((n, s) => n + (s.stage ? openCount(flow?.stages.find((x) => x.id === s.stage)) : 0), 0);
+  const waiting = waitingRuns.reduce((n, r) => n + waitingCount(r), 0) + decisions;
   const failed = all.filter((r) => r.status === "failed" && recent(r.updated_at));
   const today = all.filter((r) => DONE.has(r.status) && isToday(r.updated_at));
   // Waiting on a person first, then running, then failed: the order of what to do.
@@ -258,7 +260,7 @@ export function StartPage() {
             {name ? `, ${name}` : ""}.
           </span>
           <span>
-            {!known ? "Loading runs…" : waiting > 0 ? `${waiting} output${waiting === 1 ? "" : "s"} wait on you.` : "Nothing waits on you."}
+            {!known ? (error ? "Runs could not be loaded." : "Loading runs…") : waiting > 0 ? `${waiting} output${waiting === 1 ? "" : "s"} wait on you.` : "Nothing waits on you."}
           </span>
         </h2>
         <dl className="hub-stats">
