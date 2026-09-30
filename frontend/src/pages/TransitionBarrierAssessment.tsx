@@ -191,14 +191,14 @@ export function TransitionBarrierAssessment() {
     }
   }
 
-  if (error) return <p className="error-text">{error}</p>;
+  if (error) return <p className="error-text" role="alert">{error}</p>;
   if (!matrix) return <p className="muted">Loading the transition barrier matrix...</p>;
 
   const dist = matrix.distribution.overall;
 
   return (
     <div className="page">
-      <h2>Transition Barriers</h2>
+      <h1>Transition Barriers</h1>
       <p className="muted">
         How feasible decarbonisation is for {matrix.sectors.length} hard-to-abate sectors across{" "}
         {matrix.regions.length} regions — {matrix.criteria.length} criteria x {matrix.regions.length} regions ={" "}
@@ -310,7 +310,7 @@ export function TransitionBarrierAssessment() {
           A refresh never rewrites a rating. Anything that looks like a rating change is queued for human review; only
           evidence text and the last-verified date may ever be refreshed automatically.
         </p>
-        {refreshError && <p className="error-text">{refreshError}</p>}
+        {refreshError && <p className="error-text" role="alert">{refreshError}</p>}
         {refreshRunId && <RunProgress runId={refreshRunId} runType="transition_barrier_refresh" />}
       </div>
     </div>

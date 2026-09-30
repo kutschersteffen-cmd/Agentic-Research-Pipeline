@@ -1,3 +1,4 @@
+import { when } from "../lib/runs";
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
@@ -21,15 +22,15 @@ export function BackgroundAgents() {
 
   return (
     <div className="page">
-      <h2>Background Agents</h2>
+      <h1>Background Agents</h1>
       <p className="help-text">Two standing agents that run continuously. Both only propose: a Taxonomy Researcher proposal and a Calibration Agent drift flag each wait for a person to decide.</p>
-      <nav className="sub-nav">
+      <div className="sub-nav" role="tablist" aria-label="Background agents">
         {SUB_TABS.map((t) => (
-          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} aria-pressed={t.id === sub} onClick={() => setSub(t.id)}>
+          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} role="tab" aria-selected={t.id === sub} onClick={() => setSub(t.id)}>
             {t.label}
           </button>
         ))}
-      </nav>
+      </div>
       {sub === "taxonomyResearcher" && <TaxonomyResearcherPanel />}
       {sub === "calibration" && <CalibrationPanel />}
     </div>
@@ -113,7 +114,7 @@ function TaxonomyResearcherPanel() {
         DRAFT version when genuinely new activities surface. Never ratifies — review any proposal below in
         the Taxonomy Library before it's used by a run.
       </p>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
 
       {schedule && (
         <section className="card">
@@ -228,7 +229,7 @@ function TaxonomyResearcherPanel() {
                     <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
                     <td>{r.completed_count}/{r.company_count}</td>
                     <td>{r.review_count}</td>
-                    <td>{new Date(r.created_at).toLocaleString()}</td>
+                    <td className="mono">{when(r.created_at)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -303,7 +304,7 @@ function CalibrationPanel() {
         currently-fetchable documents include one fetched after that verdict was generated. A flag is not a
         claim the verdict is wrong — it never re-runs classification or edits a match itself.
       </p>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
 
       {schedule && (
         <section className="card">
@@ -401,7 +402,7 @@ function CalibrationPanel() {
                     <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
                     <td>{r.completed_count}/{r.company_count}</td>
                     <td>{r.review_count}</td>
-                    <td>{new Date(r.created_at).toLocaleString()}</td>
+                    <td className="mono">{when(r.created_at)}</td>
                   </tr>
                 ))}
               </tbody>

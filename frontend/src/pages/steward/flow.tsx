@@ -138,27 +138,32 @@ export function FlowChart({ flow, selected, onSelect }: { flow: StewardshipFlow;
     [flow],
   );
   return (
-    <div className="flow-rf">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={NODE_TYPES}
-        fitView
-        fitViewOptions={{ padding: 0.06 }}
-        minZoom={0.35}
-        maxZoom={1.6}
-        onNodeClick={(_, node) => node.type === "stage" && onSelect(node.id)}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        nodesFocusable={false}
-        edgesFocusable={false}
-        elementsSelectable={false}
-        zoomOnScroll={false}
-        preventScrolling={false}
-        zoomOnDoubleClick={false}
-      >
-        <Controls showInteractive={false} position="top-right" />
-      </ReactFlow>
-    </div>
+    <>
+      <div className="flow-rf steward-rf">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={NODE_TYPES}
+          // Readable from the start: open at the left edge at a legible size and
+          // pan right, rather than shrinking all eight stages to the card width.
+          defaultViewport={{ x: 16, y: 0, zoom: 1 }}
+          proOptions={{ hideAttribution: true }}
+          minZoom={0.35}
+          maxZoom={1.6}
+          onNodeClick={(_, node) => node.type === "stage" && onSelect(node.id)}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          nodesFocusable={false}
+          edgesFocusable={false}
+          elementsSelectable={false}
+          zoomOnScroll={false}
+          preventScrolling={false}
+          zoomOnDoubleClick={false}
+        >
+          <Controls showInteractive={false} position="bottom-left" />
+        </ReactFlow>
+      </div>
+      <p className="help-text flow-rf-hint">Drag the canvas to see every stage.</p>
+    </>
   );
 }

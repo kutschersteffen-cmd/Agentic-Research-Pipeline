@@ -314,16 +314,16 @@ export function IndexBuilder() {
 
   return (
     <div className="page">
-      <h2>Index Construction</h2>
+      <h1>Index Construction</h1>
       <p className="help-text">Compose screens, selection, weighting, tilts, constraints and the decarbonisation path into one methodology, save it as a versioned calibration, and run a review. Every step is deterministic.</p>
 
-      <nav className="sub-nav">
+      <div className="sub-nav" role="tablist" aria-label="Index Construction steps">
         {SUB_TABS.map((t) => (
-          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} aria-pressed={t.id === sub} onClick={() => setSub(t.id)}>
+          <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} role="tab" aria-selected={t.id === sub} onClick={() => setSub(t.id)}>
             {t.label}
           </button>
         ))}
-      </nav>
+      </div>
 
       {error && <p className="error-text" role="alert">{error}</p>}
       {status && <p className="status-text">{status}</p>}
@@ -938,7 +938,7 @@ function ConstraintsCard({
       </button>
 
       {usesIntegers && solver.method === "waterfall" && (
-        <p className="error-text">
+        <p className="error-text" role="alert">
           Cardinality limits and an enforced floor need integer variables, which the waterfall cannot express. Pick a
           solver-backed objective below, or drop the constraint.
         </p>
@@ -985,7 +985,7 @@ function ConstraintsCard({
       {solver.method !== "waterfall" && (
         <>
           {optimizerAvailable === false && (
-            <p className="error-text">
+            <p className="error-text" role="alert">
               cvxpy is not installed on the server, so this calibration will fall back to the waterfall and record why.
               Install it with <code>pip install -e &quot;.[optimize]&quot;</code>.
             </p>
@@ -1016,7 +1016,7 @@ function ConstraintsCard({
                 published — otherwise a slower machine would produce a different index.
               </p>
               {integerAvailable === false && (
-                <p className="error-text">
+                <p className="error-text" role="alert">
                   No mixed-integer backend is installed on the server, so this calibration will fall back to the
                   deterministic waterfall. Install one with <code>pip install pyscipopt</code>.
                 </p>
@@ -1418,7 +1418,7 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
             <p className="help-text">Every relaxation and data-quality override applied, in order. These belong on the committee pack.</p>
             <ul>
               {result.exceptions.map((e, i) => (
-                <li key={i} className="error-text">
+                <li key={i} className="error-text" role="alert">
                   {e}
                 </li>
               ))}

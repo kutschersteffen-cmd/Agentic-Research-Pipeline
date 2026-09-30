@@ -179,7 +179,7 @@ export default function RuleGraphEditor({
           </p>
         </details>
         {blocked.length > 0 && (
-          <p className="error-text">
+          <p className="error-text" role="alert">
             Not allowed in a framework: {blocked.join(", ")}. Formulas and conditions only — function and sub-decision
             boxes are refused when the framework is scored or saved.
           </p>
@@ -221,7 +221,7 @@ export default function RuleGraphEditor({
         {tiers && inputs.length === 0 ? (
           <p className="muted">Score the table first — tier rules need its results.</p>
         ) : columns.length === 0 && browserError ? (
-          <p className="error-text">Every preview row failed: {browserError}</p>
+          <p className="error-text" role="alert">Every preview row failed: {browserError}</p>
         ) : columns.length === 0 ? (
           <p className="muted">{tiers ? "Score the table first — tier rules need its results." : "No calculated columns yet. Add an expression with a key and a value."}</p>
         ) : (
@@ -262,7 +262,7 @@ export default function RuleGraphEditor({
                     <td>{label}</td>
                     {tiers && <td>{cell(inputs[i]?.band)}</td>}
                     {live && outcome && "error" in outcome ? (
-                      <td colSpan={columns.length} className="error-text">
+                      <td colSpan={columns.length} className="error-text" role="alert">
                         {outcome.error}
                       </td>
                     ) : (

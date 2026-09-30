@@ -222,7 +222,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
 
   return (
     <div className="page">
-      <h2>Extraction</h2>
+      <h1>Extraction</h1>
       <p className="help-text">Extract data points from company disclosures, each checked by a verifier and every citation re-verified against its source. Pick a profile: draft a custom schema, or run one of the built-in ones — Financials, TNFD or Transition Plan.</p>
 
       <div className="view-toggle" role="group" aria-label="Extraction profile">
@@ -369,7 +369,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
         </section>
       )}
 
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
 
       {runId && (
         <section className="card">

@@ -165,7 +165,7 @@ function StepCard({ data }: NodeProps<CardData>) {
         )}
         {data.share !== null && (
           <span className="pipeline-card-bar" aria-hidden>
-            <span style={{ width: `${Math.round(data.share * 100)}%` }} />
+            <span style={{ transform: `scaleX(${data.share})` }} />
           </span>
         )}
         {data.footer && <span className="pipeline-card-footer">{data.footer}</span>}
@@ -432,7 +432,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shape, value, selected, steps, manifest, decision, company, runId, running]);
 
-  if (error) return <p className="error-text">{error}</p>;
+  if (error) return <p className="error-text" role="alert">{error}</p>;
   if (!shape) return <p className="muted">Loading the pipeline…</p>;
 
   const current = shape.nodes.find((n) => n.id === selected);

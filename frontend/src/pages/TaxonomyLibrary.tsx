@@ -65,7 +65,7 @@ export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Taxonomy Library</h2>
+      <h1>Taxonomy Library</h1>
       <p className="help-text">Versioned thematic taxonomies with provenance: draft one from a source, an index’s holdings, news or extracted readings, then review, ratify, compare and merge.</p>
       <nav className="sub-nav">
         {SUB_TABS.map((t) => (
@@ -249,7 +249,7 @@ function LibraryView({
                         fine for testing this pipeline, not for citing. Supply a verified ARP_GICS_REFERENCE_PATH
                         before relying on sub-industry-level GICS output.
                       </p>
-                      {error && <p className="error-text">{error}</p>}
+                      {error && <p className="error-text" role="alert">{error}</p>}
                     </td>
                   </tr>
                 )}
@@ -436,7 +436,7 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
         <button onClick={draftTaxonomy} disabled={busy || !name}>
           Draft &amp; save taxonomy
         </button>
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
       </section>
 
       {draft && (
@@ -596,7 +596,7 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
       <button onClick={merge} disabled={busy || !idA || !idB || idA === idB || !mergeName}>
         Draft merge
       </button>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
 
       {mergeDraft && (
         <div className="detail-cell">
@@ -680,7 +680,7 @@ function UniverseBuilderView() {
       <section className="card">
         <h3>2. Build a company universe from a holdings export</h3>
         <input aria-label="Holdings export (CSV)" type="file" accept=".csv" onChange={onHoldingsFile} disabled={busy} />
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
         {result && (
           <>
             <p className="status-text">
@@ -816,7 +816,7 @@ function OverlapView() {
         <button onClick={compute} disabled={busy || funds.length < 2}>
           Compute holdings overlap
         </button>
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
         {inspecting && (
           <InspectorModal title={`${inspecting.name} holdings (raw)`} text={inspecting.text} onClose={() => setInspecting(null)} />
         )}

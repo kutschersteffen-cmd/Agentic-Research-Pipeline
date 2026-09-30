@@ -64,7 +64,7 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Identity Resolution</h2>
+      <h1>Identity Resolution</h1>
       <p className="help-text">Resolve company names to a verified website and CIK before document discovery. Anything ambiguous goes to the Review Queue instead of being guessed.</p>
 
       <section className="card">
@@ -78,7 +78,7 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
         <button onClick={runNow} disabled={busy || !universePath}>
           Resolve identity for {companyCount ? `${companyCount} companies` : "your companies (upload them first)"}
         </button>
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
         {runId && <RunProgress runId={runId} runType="identity" />}
         {runId && (
           <>

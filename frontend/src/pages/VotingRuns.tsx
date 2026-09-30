@@ -1,3 +1,4 @@
+import { when } from "../lib/runs";
 import { useEffect, useState } from "react";
 import { BallotReview } from "../components/BallotReview";
 import { RunProgress } from "../components/RunProgress";
@@ -48,7 +49,7 @@ export function VotingRuns({ selectedRunId, onSelectRun }: { selectedRunId: stri
 
   return (
     <div className="page">
-      <h2>Proxy Voting</h2>
+      <h1>Proxy Voting</h1>
       <p className="help-text">Agents read each proxy statement and recommend a vote under house policy, checked against open engagement issues. Nothing is cast until a named person decides every proposal.</p>
 
       {selectedRunId && (
@@ -86,22 +87,22 @@ export function VotingRuns({ selectedRunId, onSelectRun }: { selectedRunId: stri
                   <th>Status</th>
                   <th>Progress</th>
                   <th>Awaiting decision</th>
-                  <th>Created</th>
+                  <th>Updated</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
                 {runs.map((r) => (
                   <tr key={r.run_id} className="clickable-row" {...activatable(() => onSelectRun(r.run_id))} aria-current={r.run_id === selectedRunId || undefined}>
-                    <td data-label="Run">{r.run_id}</td>
+                    <td data-label="Run" className="mono">{r.run_id}</td>
                     <td data-label="Status">
                       <span className={`status-pill status-${r.status}`}>{r.status}</span>
                     </td>
-                    <td data-label="Progress">
+                    <td data-label="Progress" className="mono">
                       {r.completed_count}/{r.company_count}
                     </td>
                     <td data-label="Awaiting decision" className={r.review_count > 0 ? "await-text" : undefined}>{r.review_count}</td>
-                    <td data-label="Created">{new Date(r.created_at).toLocaleString()}</td>
+                    <td data-label="Updated" className="mono">{when(r.updated_at)}</td>
                     <td>
                       <a href={`#/voting/${encodeURIComponent(r.run_id)}`} onClick={(e) => e.stopPropagation()}>
                         Open

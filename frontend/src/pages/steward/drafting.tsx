@@ -58,7 +58,7 @@ export function OutreachDecisions({ items, actor, onDone }: { items: OutreachDec
   }
   return (
     <>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
       {items.map((d) => {
         const author = d.authors.some((a) => a.trim().toLowerCase() === actor.trim().toLowerCase());
         return (
@@ -199,7 +199,7 @@ function Compose({ actor, onCreated }: { actor: string; onCreated: () => void })
         </button>
         <span className="muted">The interaction type is proposed on save; the checkpoint can change it.</span>
       </div>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
     </>
   );
 }
@@ -317,7 +317,7 @@ export function DraftingStudio({ stage, onChanged, onOpen }: StudioProps) {
         <Compose actor={actor} onCreated={refresh} />
       </Section>
       <Section step="Review" title="Outreach drafts">
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
         {drafts === null ? (
           <p className="status-text">Loading…</p>
         ) : drafts.length === 0 ? (

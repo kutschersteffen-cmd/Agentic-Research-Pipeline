@@ -93,7 +93,9 @@ export function DecisionStudio() {
   const [includeIndicators, setIncludeIndicators] = useState(false);
   // Joined runs: the company-level runs to combine, and the ones to pick from.
   const [joinIds, setJoinIds] = useState<string[]>([]);
-  const [joinable, setJoinable] = useState<RunManifest[]>([]);
+  // Finished runs, for the run picker and the join list (loaded on first need).
+  const [finished, setFinished] = useState<RunManifest[] | null>(null);
+  const joinable = (finished ?? []).filter((r) => JOINABLE_RUN_TYPES.has(r.run_type)).slice(0, 40);
   const [templates, setTemplates] = useState<TemplateMatch[]>([]);
   const scoreTimer = useRef<number | undefined>(undefined);
   const view = calculated ?? dataset;
@@ -166,13 +168,14 @@ export function DecisionStudio() {
     }
   }
 
+  const needsRuns = source === "joined_runs" || SOURCES.find((s) => s.id === source)?.needsRun;
   useEffect(() => {
-    if (source !== "joined_runs" || joinable.length) return;
+    if (!needsRuns || finished) return;
     api
       .listRuns()
-      .then((res) => setJoinable((res as { runs: RunManifest[] }).runs.filter((r) => JOINABLE_RUN_TYPES.has(r.run_type) && r.completed_count > 0).slice(0, 40)))
+      .then((res) => setFinished((res as { runs: RunManifest[] }).runs.filter((r) => r.completed_count > 0)))
       .catch(() => {});
-  }, [source, joinable.length]);
+  }, [needsRuns, finished]);
 
   async function onFromSource() {
     if (!discardOk()) return;
@@ -410,24 +413,24 @@ export function DecisionStudio() {
 
   return (
     <div className="page">
-      <h2>Decision Studio</h2>
+      <h1>Decision Studio</h1>
       <p className="help-text">Turn any per-company table into a scored, ranked and tiered decision. The numbers are computed deterministically, with no LLM, and every automated choice and edit is recorded.</p>
 
-      <nav className="sub-nav">
+      <div className="sub-nav" role="tablist" aria-label="Decision Studio steps">
         {SUB_TABS.map((tab) => (
           <button
             key={tab.id}
-            className={tab.id === sub ? "nav-tab active" : "nav-tab"} aria-pressed={tab.id === sub}
+            className={tab.id === sub ? "nav-tab active" : "nav-tab"} role="tab" aria-selected={tab.id === sub}
             onClick={() => setSub(tab.id)}
             disabled={tab.id !== "data" && !dataset}
           >
             {tab.label}
           </button>
         ))}
-      </nav>
+      </div>
 
       {status && <p className="status-text">{status}</p>}
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
 
       {dataset && (
         <div className="toolbar decision-context">
@@ -465,7 +468,19 @@ export function DecisionStudio() {
               ))}
             </select>
             {SOURCES.find((s) => s.id === source)?.needsRun && (
-              <input aria-label="Run id" placeholder="run id" value={runId} onChange={(e) => setRunId(e.target.value)} />
+              <>
+                {/* Pick from this type's finished runs, or paste any run id. */}
+                <input aria-label="Run id" placeholder="Pick or paste a run id" list="ds-runs" value={runId} onChange={(e) => setRunId(e.target.value)} />
+                <datalist id="ds-runs">
+                  {(finished ?? [])
+                    .filter((r) => r.run_type === source.replace(/_run$/, ""))
+                    .map((r) => (
+                      <option key={r.run_id} value={r.run_id}>
+                        {`${r.completed_count} companies · ${new Date(r.updated_at).toLocaleDateString()}`}
+                      </option>
+                    ))}
+                </datalist>
+              </>
             )}
             {SOURCES.find((s) => s.id === source)?.needsRegion && (
               <select value={region} onChange={(e) => setRegion(e.target.value)}>
@@ -478,11 +493,11 @@ export function DecisionStudio() {
             )}
             {(source === "transition_plan_run" || source === "joined_runs") && (
               <label>
-                <input type="checkbox" checked={includeIndicators} onChange={(e) => setIncludeIndicators(e.target.checked)} /> one
+                <input type="checkbox" checked={includeIndicators} onChange={(e) => setIncludeIndicators(e.target.checked)} /> One
                 Yes/No column per indicator
               </label>
             )}
-            <button className="link-button" onClick={onFromSource} disabled={source === "joined_runs" && joinIds.length < 2}>
+            <button className="secondary" onClick={onFromSource} disabled={source === "joined_runs" && joinIds.length < 2}>
               Build table
             </button>
           </div>
@@ -825,7 +840,7 @@ export function DecisionStudio() {
 
           {comparison && (
             <>
-              {!comparison.comparable && <p className="error-text">{comparison.incomparable_reason}</p>}
+              {!comparison.comparable && <p className="error-text" role="alert">{comparison.incomparable_reason}</p>}
               {comparison.caveat && <p className="decision-check-banner">{comparison.caveat}</p>}
               <p>
                 {comparison.label_before} → {comparison.label_after}: <strong>{comparison.improved}</strong> improved,{" "}

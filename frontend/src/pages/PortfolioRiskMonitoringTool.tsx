@@ -41,7 +41,7 @@ function Inner({ initialSub, onSendUniverse }: { initialSub?: string; onSendUniv
 
   return (
     <div className="page">
-      <h2>Risk Monitoring</h2>
+      <h1>Risk Monitoring</h1>
       <p className="help-text">Pick a portfolio or group and an as-of date; the selection carries across every tab below.</p>
 
       <PersistentSelectionPane onSendUniverse={onSendUniverse} />

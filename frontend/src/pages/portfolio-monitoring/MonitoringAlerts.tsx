@@ -233,7 +233,7 @@ export function MonitoringAlerts() {
             {evaluating ? "Evaluating..." : "Evaluate now"}
           </button>
         </div>
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
         <div className="table-wrap">
           <table className="data-table">
             <thead>

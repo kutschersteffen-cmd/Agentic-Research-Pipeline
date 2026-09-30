@@ -28,7 +28,7 @@ export function DataLibrary() {
 
   return (
     <div className="page">
-      <h2>Data Library</h2>
+      <h1>Data Library</h1>
       <p className="help-text">Browse every stored extraction and financials result, and every cached document text, across all companies and runs.</p>
       <nav className="sub-nav">
         {SUB_TABS.map((t) => (
@@ -131,7 +131,7 @@ function RunResultsView() {
             <ReviewerField compact />
           </div>
         )}
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
       </section>
 
       {runId && ((kind === "extraction" && extractionResults.length > 0) || (kind === "financials" && financialsResults.length > 0)) && (
@@ -242,7 +242,7 @@ function CompanyResultsView() {
           </select>
         </label>
         {companies.length === 0 && <p className="muted">No {kind} results recorded for any company yet.</p>}
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
       </section>
 
       {companyId && documents.length > 0 && (
@@ -372,7 +372,7 @@ function ParsedDocumentsView() {
         <p className="muted">
           {total} parsed document{total === 1 ? "" : "s"} cached
         </p>
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
       </section>
 
       <section className="card">

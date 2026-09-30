@@ -137,6 +137,11 @@ function useRuns() {
 }
 
 /** The house stewardship flow, loaded once: its stages carry StewardIQ's numbers. */
+/** Open decisions across the StewardIQ stages the start page shows: the
+ * sidebar's Steward Workflow badge uses the same count so the two agree. */
+export const stageDecisions = (flow: StewardshipFlow | null) =>
+  PROCESSES.flatMap((p) => p.steps).reduce((n, s) => n + (s.stage ? openCount(flow?.stages.find((x) => x.id === s.stage)) : 0), 0);
+
 function useHouseFlow() {
   const [flow, setFlow] = useState<StewardshipFlow | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -170,7 +175,7 @@ function headline(p: Process, runs: RunManifest[] | null, flow: StewardshipFlow 
   const waiting = mine.reduce((n, r) => n + waitingCount(r), 0) + p.steps.reduce((n, s) => n + (s.stage ? openCount(flow?.stages.find((x) => x.id === s.stage)) : 0), 0);
   const failed = mine.filter((r) => r.status === "failed").length;
   const running = mine.filter((r) => ACTIVE_STATUSES.has(r.status)).length;
-  if (waiting > 0) return { tone: "await", text: `${waiting} waiting on you` };
+  if (waiting > 0) return { tone: "await", text: `${waiting} waiting on you${failed > 0 ? ` · ${failed} failed` : ""}` };
   if (failed > 0) return { tone: "failed", text: `${failed} failed` };
   if (running > 0) return { tone: "running", text: `${running} running` };
   return { tone: "", text: "Nothing waiting" };
@@ -205,7 +210,7 @@ function ProcessCard({ p, runs, flow }: { p: Process; runs: RunManifest[] | null
   const at = states.findIndex((st) => st === "wait" || st === "now" || st === "failed");
   const now = at >= 0 ? `Step ${at + 1} of ${p.steps.length} · ${p.steps[at].label}` : !runs ? "" : last ? `Last run ${ago(last.updated_at)}` : "No runs yet";
   return (
-    <a className={`hub-card${h.tone ? ` hub-card-${h.tone}` : ""}`} href={p.href}>
+    <a className={`hub-card${h.tone ? ` hub-card-${h.tone}` : ""}`} href={p.href} aria-label={`${p.name}: ${h.text}${now ? `. ${now}` : ""}`}>
       {p.icon}
       <span className="hub-card-text">
         <span className="hub-card-name">{p.name}</span>
@@ -229,6 +234,21 @@ function ProcessCard({ p, runs, flow }: { p: Process; runs: RunManifest[] | null
   );
 }
 
+/** The key to the step dots, shared by the start page and the overviews so
+ * one state always reads the same. */
+function StateLegend() {
+  return (
+    <p className="muted hub-legend">
+      {(["done", "now", "wait", "failed", "idle"] as StepState[]).map((st) => (
+        <span key={st}>
+          <span className={`hub-dot hub-dot-${st}`} aria-hidden />
+          {STATE_LABEL[st]}
+        </span>
+      ))}
+    </p>
+  );
+}
+
 export function StartPage() {
   const { runs, error, retry } = useRuns();
   const { flow } = useHouseFlow();
@@ -242,7 +262,7 @@ export function StartPage() {
   const active = all.filter((r) => ACTIVE_STATUSES.has(r.status));
   const waitingRuns = all.filter((r) => waitingCount(r) > 0);
   // Same count the cards add up: waiting run items plus open stewardship decisions.
-  const decisions = PROCESSES.flatMap((p) => p.steps).reduce((n, s) => n + (s.stage ? openCount(flow?.stages.find((x) => x.id === s.stage)) : 0), 0);
+  const decisions = stageDecisions(flow);
   const waiting = waitingRuns.reduce((n, r) => n + waitingCount(r), 0) + decisions;
   const failed = all.filter((r) => r.status === "failed" && recent(r.updated_at));
   const today = all.filter((r) => DONE.has(r.status) && isToday(r.updated_at));
@@ -254,15 +274,15 @@ export function StartPage() {
   return (
     <div className="page hub hub-start">
       <header className="hub-hero">
-        <h2>
+        <h1>
           <span className="hub-hero-greet">
             {greeting}
             {name ? `, ${name}` : ""}.
           </span>
           <span>
-            {!known ? (error ? "Runs could not be loaded." : "Loading runs…") : waiting > 0 ? `${waiting} output${waiting === 1 ? "" : "s"} wait on you.` : "Nothing waits on you."}
+            {!known ? (error ? "Runs could not be loaded." : "Loading runs…") : waiting > 0 ? waiting === 1 ? "1 decision waits on you." : `${waiting} decisions wait on you.` : "Nothing waits on you."}
           </span>
-        </h2>
+        </h1>
         <dl className="hub-stats">
           <div className={known && waiting > 0 ? "you" : undefined}>
             <dt>waiting on you</dt>
@@ -295,6 +315,7 @@ export function StartPage() {
           <ProcessCard key={p.id} p={p} runs={runs} flow={flow} />
         ))}
       </div>
+      <StateLegend />
       <nav className="hub-now" aria-label="Runs needing attention">
         <span className="hub-now-label">Now</span>
         {chips.map((r) => {
@@ -330,7 +351,7 @@ export function ProcessOverview({ id }: { id: string }) {
       <p className="hub-crumb">
         <a href="#/home">Start</a> › {p.name}
       </p>
-      <h2>{p.name}</h2>
+      <h1>{p.name}</h1>
       <p className="help-text">{p.purpose} Open a step to work in its screen.</p>
       {error && <p className="error-text" role="alert">Runs could not be loaded: {error}. Step states are unknown until the backend responds.</p>}
       {usesFlow && flowError && <p className="error-text" role="alert">The stewardship flow could not be loaded: {flowError}. Stage numbers are unknown.</p>}
@@ -381,9 +402,7 @@ export function ProcessOverview({ id }: { id: string }) {
           );
         })}
       </ol>
-      <p className="muted hub-legend">
-        <span className="hub-key done" /> has a finished run <span className="hub-key now" /> running <span className="hub-key wait" /> waiting on a person <span className="hub-key failed" /> last run failed
-      </p>
+      <StateLegend />
     </div>
   );
 }

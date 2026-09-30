@@ -1,3 +1,4 @@
+import { when } from "../lib/runs";
 import { Fragment, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
@@ -145,7 +146,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Emerging Themes</h2>
+      <h1>Emerging Themes</h1>
       <p className="help-text">Spot topics nobody has named yet in news, filings and regulatory flow. A candidate needs two independent sources, and nothing reaches the Taxonomy Library until you promote it.</p>
 
       <section className="card">
@@ -159,7 +160,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
         <button onClick={runNow} disabled={busy || !universePath}>
           Scan for emerging themes across {companyCount ? `${companyCount} companies` : "your companies (upload them first)"}
         </button>
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
         {runId && <RunProgress runId={runId} runType="emerging_themes" />}
       </section>
 
@@ -185,7 +186,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                   <td>{r.run_id}</td>
                   <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
                   <td>{r.review_count}</td>
-                  <td>{new Date(r.created_at).toLocaleString()}</td>
+                  <td className="mono">{when(r.created_at)}</td>
                   <td>
                     <button onClick={(e) => { e.stopPropagation(); selectRun(r.run_id); }}>View candidates</button>
                   </td>

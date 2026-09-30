@@ -1,16 +1,19 @@
 import { useState } from "react";
 import { api } from "../../api/client";
+import { ConfirmDecision } from "../../components/ConfirmDecision";
 import type { ClientExceptionItem, EscalationDecisionItem, PolicyDifferenceItem, TierChangeItem } from "../../types";
 import { fmt, words } from "./common";
 
 export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[]; actor: string; onDone: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  async function confirm(issuerIds?: string[]) {
+  const [confirmingAll, setConfirmingAll] = useState(false);
+  async function confirm(issuerIds?: string[], by = actor) {
+    setConfirmingAll(false);
     setBusy(issuerIds ? issuerIds[0] : "all");
     setError(null);
     try {
-      await api.confirmTiers({ decided_by: actor, issuer_ids: issuerIds });
+      await api.confirmTiers({ decided_by: by, issuer_ids: issuerIds });
       onDone();
     } catch (err) {
       setError((err as Error).message);
@@ -23,15 +26,28 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
     <>
       <div className="section-heading">
         <h4>Coverage tiers to confirm</h4>
-        <button onClick={() => confirm()} disabled={!actor || busy !== null} title={needName}>
-          {busy === "all" ? "Confirming…" : `Confirm all ${items.length}`}
+        <button onClick={() => setConfirmingAll(true)} disabled={busy !== null}>
+          {busy === "all" ? "Confirming…" : `Confirm all ${items.length}…`}
         </button>
       </div>
+      {confirmingAll && (
+        <ConfirmDecision
+          title={`Confirm all ${items.length} tiers?`}
+          confirmLabel={`Confirm ${items.length} tiers`}
+          onConfirm={(by) => confirm(undefined, by)}
+          onCancel={() => setConfirmingAll(false)}
+        >
+          <p>
+            Each company below moves to its proposed tier and coverage follows from it. Every confirmation is kept; to undo one,
+            confirm a different tier later.
+          </p>
+        </ConfirmDecision>
+      )}
       <p className="muted">
         Proposed by the house coverage rules (a decision table you can edit in the rule editor). A tier only counts once it is
         confirmed; every confirmation is kept, never overwritten.
       </p>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -53,7 +69,7 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
                   {item.reason} <span className="muted">({item.rule})</span>
                 </td>
                 <td>
-                  <button onClick={() => confirm([item.issuer_id])} disabled={!actor || busy !== null} title={needName}>
+                  <button className="secondary" onClick={() => confirm([item.issuer_id])} disabled={!actor || busy !== null} title={needName}>
                     {busy === item.issuer_id ? "Confirming…" : "Confirm"}
                   </button>
                 </td>
@@ -84,7 +100,7 @@ export function EscalationDecisions({ items, actor, onDone }: { items: Escalatio
   }
   return (
     <>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -116,6 +132,7 @@ export function EscalationDecisions({ items, actor, onDone }: { items: Escalatio
                 </td>
                 <td>
                   <button
+                    className="secondary"
                     onClick={() => escalate(item)}
                     disabled={!actor || !item.next || busy !== null}
                     title={actor ? undefined : "Enter your name above first"}
@@ -157,7 +174,7 @@ export function ClientExceptionDecisions({ items, actor, onDone }: { items: Clie
   }
   return (
     <>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -289,7 +306,7 @@ export function PolicyDifference({ item, streamId, actor, onDone }: { item: Poli
           </button>
         </div>
       )}
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
     </div>
   );
 }

@@ -68,7 +68,7 @@ export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {
 
   return (
     <div className="page">
-      <h2>Document Discovery</h2>
+      <h1>Document Discovery</h1>
       <p className="help-text">Find each company’s investor-relations site and download new annual, sustainability and proxy reports and transcripts, on demand or on a schedule.</p>
 
       <section className="card">
@@ -88,7 +88,7 @@ export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {
         <button onClick={runNow} disabled={busy || !universePath}>
           Search for documents across {companyCount ? `${companyCount} companies` : "your companies (upload them first)"}
         </button>
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
         {runId && <RunProgress runId={runId} runType="extraction" />}
         {runId && universePath && onSendUniverse && (
           <div className="toolbar">
@@ -122,7 +122,7 @@ export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {
                         <td>{r.homepage_used ?? "(none known)"}</td>
                         <td>
                           {r.homepage_unreachable ? (
-                            <span className="error-text" title={r.crawl_error ?? undefined}>
+                            <span className="error-text" role="alert" title={r.crawl_error ?? undefined}>
                               Site unreachable{r.crawl_error ? `: ${r.crawl_error}` : ""}
                             </span>
                           ) : !r.homepage_used ? (
