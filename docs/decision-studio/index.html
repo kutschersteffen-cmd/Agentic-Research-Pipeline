@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Decision Studio Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
+<style>
+/* Layout: one horizontal diagram. Eight tabs left to right, grouped by phase,
+   ending in the published output. Exits branch down from the decision tree;
+   a return loop shows revisions making a new version.
+   Tokens are the app's own (frontend/src/index.css): ink monochrome, and
+   peach (amber in dark) only where a person decides. */
+:root {
+  --bg: oklch(98.6% 0.002 60);
+  --panel: oklch(100% 0 0);
+  --line: oklch(90.5% 0.004 60);
+  --well: oklch(96.4% 0.003 60);
+  --text: oklch(19% 0.004 60);
+  --muted: oklch(47% 0.006 60);
+  --ink: oklch(22% 0.004 60);
+  --on-ink: oklch(100% 0 0);
+  --await: #fbe1d1;
+  --await-edge: #c9794a;
+  --await-text: oklch(19% 0.004 60);
+  --mid: oklch(52% 0.125 70);
+  --low: oklch(54% 0.174 30);
+  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-body: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0d10; --panel: #11151a; --line: #262e38; --well: #171c23;
+    --text: #dde2e8; --muted: #95a0ad; --ink: #e8ecf1; --on-ink: #0b0d10;
+    --await: #3a2c07; --await-edge: #ffb000; --await-text: #ffe3a3;
+    --mid: #ff9b42; --low: #ff5f5f;
+    --font-display: "IBM Plex Mono", ui-monospace, monospace;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0d10; --panel: #11151a; --line: #262e38; --well: #171c23;
+  --text: #dde2e8; --muted: #95a0ad; --ink: #e8ecf1; --on-ink: #0b0d10;
+  --await: #3a2c07; --await-edge: #ffb000; --await-text: #ffe3a3;
+  --mid: #ff9b42; --low: #ff5f5f;
+  --font-display: "IBM Plex Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+::selection { background: var(--await); color: var(--await-text); }
+code { font-family: var(--font-mono); font-size: 0.9em; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+.page { max-width: 1440px; margin: 0 auto; padding-inline: 24px; padding-block: 40px 48px; display: grid; gap: 24px; }
+.page > * { min-width: 0; }
+@media (max-width: 600px) { .page { padding-inline: 16px; padding-block: 24px 32px; } }
+
+.head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px 32px; }
+h1 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 2rem; line-height: 1.1; letter-spacing: -0.01em; text-wrap: balance; }
+.key { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13px; color: var(--muted); }
+.key span { display: inline-flex; align-items: center; gap: 7px; }
+.sw { width: 13px; height: 13px; border-radius: 3px; flex: none; }
+.sw-engine { background: var(--panel); border: 1.5px solid var(--ink); }
+.sw-you { background: var(--await); border: 1.5px solid var(--await-edge); }
+.sw-exit { border: 1.5px dashed var(--low); }
+
+/* ---------- the diagram ---------- */
+.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.graph {
+  --gap: 28px;
+  min-width: 1400px; padding: 28px 28px 24px;
+  display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)) minmax(0, 1.15fr);
+  column-gap: var(--gap); row-gap: 0;
+}
+
+.phase { grid-row: 1; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 16px; }
+.p1 { grid-column: 1 / 4; } .p2 { grid-column: 4 / 6; } .p3 { grid-column: 6 / 7; } .p4 { grid-column: 7 / 9; } .p5 { grid-column: 9 / 10; }
+
+.node { grid-row: 2; position: relative; display: grid; gap: 8px; align-content: start; border: 1.5px solid var(--ink); background: var(--panel); border-radius: 8px; padding: 12px 12px 14px; }
+.node.you { background: var(--await); border-color: var(--await-edge); color: var(--await-text); }
+.node .n { font-family: var(--font-mono); font-size: 12px; opacity: 0.7; }
+.node b { font-size: 16px; line-height: 1.2; }
+.node p { margin: 0; font-size: 13px; line-height: 1.4; }
+a.node { color: var(--text); text-decoration: none; transition: transform 140ms cubic-bezier(0.16,1,0.3,1), box-shadow 140ms; }
+a.node:hover { transform: translateY(-2px); box-shadow: 0 6px 18px oklch(20% 0.01 60 / 0.14); }
+.node .more { font-size: 12px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; margin-top: auto; }
+.node.out { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+/* arrow to the next node */
+.node:not(.out)::after {
+  content: ""; position: absolute; top: 26px; right: calc(-1 * var(--gap) + 2px); width: calc(var(--gap) - 12px); height: 2px; background: var(--ink);
+}
+.node:not(.out)::before {
+  content: ""; position: absolute; top: 22px; right: calc(-1 * var(--gap) - 5px); border: 5px solid transparent; border-left: 8px solid var(--ink);
+}
+
+/* row 3: exits under the decision tree, loop under Mechanism..Audit */
+.exits { grid-row: 4; grid-column: 5 / 6; position: relative; display: grid; gap: 8px; padding-top: 30px; }
+.exits::before { content: ""; position: absolute; top: 0; left: 50%; width: 0; height: 24px; border-left: 2px dashed var(--low); }
+.exit { font-size: 12px; font-weight: 600; border: 1.5px dashed var(--low); color: var(--low); border-radius: 6px; padding: 5px 8px; line-height: 1.3; background: var(--panel); }
+.exit.soft { border-color: var(--mid); color: var(--mid); }
+.exit span { display: block; font-weight: 400; color: var(--muted); }
+
+.loop { grid-row: 5; grid-column: 4 / 9; position: relative; margin-top: 18px; height: 34px; border: 2px solid var(--line); border-top: 0; border-radius: 0 0 10px 10px; margin-inline: 12% 12%; }
+.loop::before { content: ""; position: absolute; left: -7px; top: -10px; border: 6px solid transparent; border-bottom: 9px solid var(--line); }
+.loop-label { grid-row: 6; grid-column: 4 / 9; text-align: center; font-size: 12px; color: var(--muted); padding-top: 6px; }
+
+.foot { grid-row: 4 / 7; grid-column: 1 / 4; align-self: end; font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.foot span { font-family: var(--font-mono); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; }
+
+
+/* row 3: a worked example under each node */
+.ex { overflow-wrap: anywhere; grid-row: 3; margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 12px; display: grid; gap: 9px; align-content: start; font-size: 12px; line-height: 1.4; min-width: 0; }
+.ex-h { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.ex-i { display: grid; gap: 2px; }
+.ex-i code { display: block; background: var(--well); border-radius: 4px; padding: 3px 6px; overflow-wrap: anywhere; font-size: 11.5px; }
+.ex-i .r { color: var(--muted); }
+.ex-i .r b { color: var(--text); font-weight: 600; }
+.ex-i .flag { color: var(--await-edge); font-weight: 600; }
+.src { overflow-wrap: anywhere; font-size: 13px; color: var(--muted); margin: 0; max-width: 90ch; }
+.hint { display: none; font-size: 13px; color: var(--muted); margin: 0; }
+@media (max-width: 1460px) { .hint { display: block; } }
+</style>
+</head><body>
+
+<main class="page">
+  <div class="head">
+    <h1>Decision Studio: table in, ratified tiers out</h1>
+    <div class="key" aria-label="Legend">
+      <span><i class="sw sw-engine"></i>The engine computes</span>
+      <span><i class="sw sw-you"></i>You decide</span>
+      <span><i class="sw sw-exit"></i>Leaves the ranking</span>
+    </div>
+  </div>
+  <p class="src">Click any box for its page: every option that step offers, what it does, and an example. Examples are the repo's sample table (<code>backend/arp/decision/sample_data/example_transition_universe.csv</code>, 24 companies) run through the engine with the framework it derives. Movement and Audit show what happens in each case; the sample has no second quarter to compare.</p>
+  <p class="hint">Scroll sideways to follow the flow.</p>
+
+  <div class="scroll" tabindex="0" role="region" aria-label="Decision Studio flow, left to right">
+    <div class="graph">
+      <div class="phase p1">Prepare the table</div>
+      <div class="phase p2">Build the framework</div>
+      <div class="phase p3">Decide</div>
+      <div class="phase p4">Compare and sign off</div>
+      <div class="phase p5">Output</div>
+
+      <a class="node" href="data.html"><span class="n">1</span><b>Data</b><p>Upload CSV, TSV or Excel, or build from a run. Number formats and per-cell confidence carried.</p><span class="more">See the logic →</span></a>
+      <a class="node you" href="profile.html"><span class="n">2</span><b>Profile</b><p>Confirm each column's job and direction. Guessed directions are flagged.</p><span class="more">See the logic →</span></a>
+      <a class="node" href="rules.html"><span class="n">3</span><b>Rules</b><p>Calculated columns: formulas, AND/OR conditions, decision tables.</p><span class="more">See the logic →</span></a>
+      <a class="node you" href="mechanism.html"><span class="n">4</span><b>Mechanism</b><p>Relative or fixed levels. Correlated criteria grouped, weighted, normalised within peers.</p><span class="more">See the logic →</span></a>
+      <a class="node you" href="tree.html"><span class="n">5</span><b>Decision tree</b><p>Sufficiency, gates, cut-points, modifiers, in that fixed order.</p><span class="more">See the logic →</span></a>
+      <a class="node you" href="results.html"><span class="n">6</span><b>Results</b><p>Tier, rank range across 4 specifications, leverage, tipping point.</p><span class="more">See the logic →</span></a>
+      <a class="node" href="movement.html"><span class="n">7</span><b>Movement</b><p>Same framework on an earlier table: tier moves and their drivers.</p><span class="more">See the logic →</span></a>
+      <a class="node you" href="audit.html"><span class="n">8</span><b>Audit</b><p>Derived vs human edits. Save a version, ratify it under your name.</p><span class="more">See the logic →</span></a>
+      <a class="node out" href="output.html"><span class="n">&nbsp;</span><b>Published tiers</b><p>Read by Steward Workflow coverage rules and Index Construction. Also: CSV, template for runs.</p><span class="more">See the logic →</span></a>
+
+      <div class="ex"><span class="ex-h">Example</span><div class="ex-i"><code>example_transition_universe.csv</code><span class="r">Sniffed as comma-delimited: <b>24 rows × 17 columns</b>.</span></div><div class="ex-i"><code>Scope12_Intensity;1.234,5</code><span class="r">A semicolon, comma-decimal export would read as <b>1234.5</b>, not 1.234.</span></div></div>
+      <div class="ex"><span class="ex-h">Example</span><div class="ex-i"><code>Portfolio_Weight_bps</code><span class="r"><b>size</b>: used for leverage, never scored.</span></div><div class="ex-i"><code>Scope12_Intensity_tCO2e_per_mEUR</code><span class="r"><b>lower is better</b>: name matches intensity, co2.</span></div><div class="ex-i"><code>Emissions_Data_Coverage_pct</code><span class="r"><b>higher is better</b> <span class="flag">needs check</span>: name matches both dictionaries.</span></div><div class="ex-i"><code>Severe_Controversy_Flag</code><span class="r"><b>gate</b>: yes/no with exclusion wording.</span></div></div>
+      <div class="ex"><span class="ex-h">Example</span><div class="ex-i"><code>coal_expansion_flag and not sbti_validated_target</code><span class="r">New Yes/No column. <b>Yes</b> for Vega Power, Tarn Mining, Kalahari Resources.</span></div><div class="ex-i"><code>green_capex_share_pct / 100</code><span class="r">Zenith REIT has no value, so its result is <b>blank</b>, not an error.</span></div></div>
+      <div class="ex"><span class="ex-h">Example</span><div class="ex-i"><code>5 criteria, Spearman 0.86–0.98</code><span class="r">Target ambition, plan disclosure, data coverage, lobbying, say-on-climate become one <b>Climate Lobbying group</b>.</span></div><div class="ex-i"><code>weight √5 = 2.24</code><span class="r">Group gets <b>33.6%</b>, 6.7% per criterion. Scope 1+2 intensity alone keeps <b>15%</b>.</span></div><div class="ex-i"><code>cohort = Region, min 5</code><span class="r">UK has 4 companies, so UK values rank against the <b>whole table</b>.</span></div></div>
+      <div class="ex"><span class="ex-h">Example</span><div class="ex-i"><code>Severe_Controversy_Flag is Yes</code><span class="r"><b>5 excluded</b>: Sable, Tarn, Sunda, Severn Vale, Kalahari.</span></div><div class="ex-i"><code>coverage 37% &lt; 60%</code><span class="r">Zenith REIT goes to <b>data collection</b>.</span></div><div class="ex-i"><code>quantile cuts 86.5 / 64.6 / 34.8</code><span class="r">Drawn over the <b>18</b> still eligible.</span></div><div class="ex-i"><code>Coal_Expansion_Flag is Yes</code><span class="r">Vega Power <b>demoted</b> to Tier 4.</span></div></div>
+      <div class="ex"><span class="ex-h">Example</span><div class="ex-i"><code>Lumen Semiconductor</code><span class="r">Score <b>100</b>, rank 1, range 1–1.</span></div><div class="ex-i"><code>Kanto Heavy Industries</code><span class="r">Tier 3, rank 12, <b>range 11–16</b>. Scope 3 weight 15% → 19.1% drops it to Tier 4.</span></div><div class="ex-i"><code>Nordwind Energie</code><span class="r">Tier 2, <b>robust</b>: no weight in range flips it.</span></div><div class="ex-i"><code>47 bps × (100 − 25.1) / 100</code><span class="r">Vega Power leverage <b>35.2</b>, the highest.</span></div></div>
+      <div class="ex"><span class="ex-h">Example</span><div class="ex-i"><code>Q2 table + Q3 table, both v1</code><span class="r">Tier moves, each with the criteria that drove it.</span></div><div class="ex-i"><code>Q2 by v1, Q3 by v2</code><span class="r"><b>Refused</b>: the difference would describe the frameworks.</span></div><div class="ex-i"><code>percentile scores</code><span class="r">Returned with a caveat: ranks cannot show absolute improvement.</span></div></div>
+      <div class="ex"><span class="ex-h">Example</span><div class="ex-i"><code>derived · Direction</code><span class="r">Scope 1+2 intensity lower is better, because the name matches intensity, co2.</span></div><div class="ex-i"><code>human · Direction</code><span class="r">You flip Emissions_Data_Coverage_pct. Logged with your name.</span></div><div class="ex-i"><code>Ratify v2</code><span class="r">v2 is fixed. The next edit saves <b>v3</b>.</span></div></div>
+      <div class="ex"><span class="ex-h">Example</span><div class="ex-i"><code>18 tiered</code><span class="r">Tier 1: <b>4</b> (260 bps) · Tier 2: <b>5</b> (395 bps) · Tier 3: <b>4</b> (151 bps) · Tier 4: <b>5</b> (130 bps).</span></div><div class="ex-i"><code>6 not tiered</code><span class="r">5 excluded by gate, 1 sent to data collection.</span></div></div>
+
+      <div class="exits">
+        <div class="exit soft">Data collection<span>coverage too low</span></div>
+        <div class="exit">Excluded<span>hard gate</span></div>
+      </div>
+
+      <div class="loop" aria-hidden="true"></div>
+      <div class="loop-label">Revise: edit again, save v<i>N</i>+1, ratify. A ratified version is never overwritten.</div>
+
+      <div class="foot"><span>zero LLM calls</span><span>versioned frameworks</span></div>
+    </div>
+  </div>
+</main>
+</body></html>

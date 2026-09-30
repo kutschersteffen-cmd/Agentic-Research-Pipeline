@@ -1,0 +1,212 @@
+{
+  "framework_id": "fw_2438d4730ed6",
+  "version": 1,
+  "name": "Transition engagement priority",
+  "notes": "",
+  "ratified": false,
+  "ratified_at": null,
+  "ratified_by": null,
+  "created_at": "2026-09-30T06:50:20.665719+00:00",
+  "mode": "relative",
+  "level_min": 1,
+  "level_max": 7,
+  "level_criteria": [],
+  "norm": "percentile",
+  "winsor_pct": 5.0,
+  "missing": "renormalise",
+  "weighting": "balanced",
+  "min_coverage_pct": 60.0,
+  "normalise_within": "Region",
+  "min_cohort_size": 5,
+  "require_grounded_coverage": false,
+  "grounded_confidence_min": 0.8,
+  "dimensions": [
+    {
+      "id": "d0",
+      "name": "Scope12 Intensity",
+      "weight": 1.0,
+      "derived_from": [
+        "Scope12_Intensity_tCO2e_per_mEUR"
+      ]
+    },
+    {
+      "id": "d1",
+      "name": "Scope3 Reported",
+      "weight": 1.0,
+      "derived_from": [
+        "Scope3_Reported"
+      ]
+    },
+    {
+      "id": "d2",
+      "name": "Sbti Validated Target",
+      "weight": 1.0,
+      "derived_from": [
+        "SBTi_Validated_Target"
+      ]
+    },
+    {
+      "id": "d3",
+      "name": "Climate Lobbying group",
+      "weight": 2.23606797749979,
+      "derived_from": [
+        "Target_Ambition_0_5",
+        "Transition_Plan_Disclosure_0_100",
+        "Emissions_Data_Coverage_pct",
+        "Climate_Lobbying_Alignment_0_100",
+        "Say_on_Climate_Support_pct"
+      ]
+    },
+    {
+      "id": "d4",
+      "name": "Green Capex group",
+      "weight": 1.4142135623730951,
+      "derived_from": [
+        "Green_Capex_Share_pct",
+        "Board_Climate_Oversight_0_3"
+      ]
+    }
+  ],
+  "criteria": [
+    {
+      "column": "Scope12_Intensity_tCO2e_per_mEUR",
+      "dimension_id": "d0",
+      "weight": 1.0,
+      "enabled": true,
+      "direction": "lower"
+    },
+    {
+      "column": "Scope3_Reported",
+      "dimension_id": "d1",
+      "weight": 1.0,
+      "enabled": true,
+      "direction": "higher"
+    },
+    {
+      "column": "SBTi_Validated_Target",
+      "dimension_id": "d2",
+      "weight": 1.0,
+      "enabled": true,
+      "direction": "higher"
+    },
+    {
+      "column": "Target_Ambition_0_5",
+      "dimension_id": "d3",
+      "weight": 1.0,
+      "enabled": true,
+      "direction": "higher"
+    },
+    {
+      "column": "Transition_Plan_Disclosure_0_100",
+      "dimension_id": "d3",
+      "weight": 1.0,
+      "enabled": true,
+      "direction": "higher"
+    },
+    {
+      "column": "Green_Capex_Share_pct",
+      "dimension_id": "d4",
+      "weight": 1.0,
+      "enabled": true,
+      "direction": "higher"
+    },
+    {
+      "column": "Climate_Lobbying_Alignment_0_100",
+      "dimension_id": "d3",
+      "weight": 1.0,
+      "enabled": true,
+      "direction": "higher"
+    },
+    {
+      "column": "Board_Climate_Oversight_0_3",
+      "dimension_id": "d4",
+      "weight": 1.0,
+      "enabled": true,
+      "direction": "higher"
+    },
+    {
+      "column": "Say_on_Climate_Support_pct",
+      "dimension_id": "d3",
+      "weight": 1.0,
+      "enabled": true,
+      "direction": "higher"
+    },
+    {
+      "column": "Emissions_Data_Coverage_pct",
+      "dimension_id": "d3",
+      "weight": 1.0,
+      "enabled": true,
+      "direction": "higher"
+    }
+  ],
+  "gates": [
+    {
+      "id": "gate_43751e8ed6b6",
+      "column": "Coal_Expansion_Flag",
+      "op": "is",
+      "value": "Yes",
+      "outcome": "demote"
+    },
+    {
+      "id": "gate_293a32ccbfc4",
+      "column": "Severe_Controversy_Flag",
+      "op": "is",
+      "value": "Yes",
+      "outcome": "exclude"
+    }
+  ],
+  "cut_mode": "quantile",
+  "pinned_cuts": null,
+  "veto": {
+    "enabled": true,
+    "min_score": 30.0,
+    "min_criteria": 2
+  },
+  "tiers": [
+    {
+      "rank": 1,
+      "name": "Tier 1",
+      "action": "Act now"
+    },
+    {
+      "rank": 2,
+      "name": "Tier 2",
+      "action": "Prepare and engage"
+    },
+    {
+      "rank": 3,
+      "name": "Tier 3",
+      "action": "Monitor"
+    },
+    {
+      "rank": 4,
+      "name": "Tier 4",
+      "action": "Park"
+    }
+  ],
+  "label_column": "Company",
+  "size_column": "Portfolio_Weight_bps",
+  "segment_column": "Sector",
+  "source_columns": [
+    "Company",
+    "ISIN",
+    "Sector",
+    "Region",
+    "Portfolio_Weight_bps",
+    "Scope12_Intensity_tCO2e_per_mEUR",
+    "Scope3_Reported",
+    "SBTi_Validated_Target",
+    "Target_Ambition_0_5",
+    "Transition_Plan_Disclosure_0_100",
+    "Green_Capex_Share_pct",
+    "Climate_Lobbying_Alignment_0_100",
+    "Board_Climate_Oversight_0_3",
+    "Say_on_Climate_Support_pct",
+    "Emissions_Data_Coverage_pct",
+    "Coal_Expansion_Flag",
+    "Severe_Controversy_Flag"
+  ],
+  "cluster_threshold": 0.72,
+  "rule_graph": null,
+  "tier_graph": null
+}

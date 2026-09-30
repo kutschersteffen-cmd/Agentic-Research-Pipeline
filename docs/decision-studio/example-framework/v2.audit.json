@@ -1,0 +1,432 @@
+[
+  {
+    "stage": "Roles",
+    "item": "Company",
+    "decision": "label",
+    "why": "first high-cardinality text column -- used to name each row",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665767+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "ISIN",
+    "decision": "reference",
+    "why": "looks like an identifier -- carried through, never scored",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665773+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "Sector",
+    "decision": "segment",
+    "why": "9 levels -- usable as a grouping or a peer cohort",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665777+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "Region",
+    "decision": "segment",
+    "why": "4 levels -- usable as a grouping or a peer cohort",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665785+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "Portfolio_Weight_bps",
+    "decision": "size",
+    "why": "name signals position size, not quality -- used for leverage, not for the score",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665789+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "Scope12_Intensity_tCO2e_per_mEUR",
+    "decision": "criterion",
+    "why": "numeric indicator with spread",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665793+00:00",
+    "by": null
+  },
+  {
+    "stage": "Direction",
+    "item": "Scope12_Intensity_tCO2e_per_mEUR",
+    "decision": "lower is better",
+    "why": "name matches intensity, intensit, co2",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665798+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "Scope3_Reported",
+    "decision": "criterion",
+    "why": "boolean indicator with spread",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665802+00:00",
+    "by": null
+  },
+  {
+    "stage": "Direction",
+    "item": "Scope3_Reported",
+    "decision": "higher is better",
+    "why": "name matches reported",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665806+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "SBTi_Validated_Target",
+    "decision": "criterion",
+    "why": "boolean indicator with spread",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665815+00:00",
+    "by": null
+  },
+  {
+    "stage": "Direction",
+    "item": "SBTi_Validated_Target",
+    "decision": "higher is better",
+    "why": "name matches target, validated",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665819+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "Target_Ambition_0_5",
+    "decision": "criterion",
+    "why": "ordinal indicator with spread",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665823+00:00",
+    "by": null
+  },
+  {
+    "stage": "Direction",
+    "item": "Target_Ambition_0_5",
+    "decision": "higher is better",
+    "why": "name matches target, ambition",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665826+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "Transition_Plan_Disclosure_0_100",
+    "decision": "criterion",
+    "why": "numeric indicator with spread",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665829+00:00",
+    "by": null
+  },
+  {
+    "stage": "Direction",
+    "item": "Transition_Plan_Disclosure_0_100",
+    "decision": "higher is better",
+    "why": "name matches disclos",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665833+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "Green_Capex_Share_pct",
+    "decision": "criterion",
+    "why": "numeric indicator with spread",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665837+00:00",
+    "by": null
+  },
+  {
+    "stage": "Direction",
+    "item": "Green_Capex_Share_pct",
+    "decision": "higher is better",
+    "why": "name matches green, capex",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665842+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "Climate_Lobbying_Alignment_0_100",
+    "decision": "criterion",
+    "why": "numeric indicator with spread",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665845+00:00",
+    "by": null
+  },
+  {
+    "stage": "Direction",
+    "item": "Climate_Lobbying_Alignment_0_100",
+    "decision": "higher is better",
+    "why": "name matches alignment",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665849+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "Board_Climate_Oversight_0_3",
+    "decision": "criterion",
+    "why": "ordinal indicator with spread",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665852+00:00",
+    "by": null
+  },
+  {
+    "stage": "Direction",
+    "item": "Board_Climate_Oversight_0_3",
+    "decision": "higher is better",
+    "why": "name matches oversight",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665856+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "Say_on_Climate_Support_pct",
+    "decision": "criterion",
+    "why": "numeric indicator with spread",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665859+00:00",
+    "by": null
+  },
+  {
+    "stage": "Direction",
+    "item": "Say_on_Climate_Support_pct",
+    "decision": "higher is better",
+    "why": "name matches support",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665864+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "Emissions_Data_Coverage_pct",
+    "decision": "criterion",
+    "why": "numeric indicator with spread",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665871+00:00",
+    "by": null
+  },
+  {
+    "stage": "Direction",
+    "item": "Emissions_Data_Coverage_pct",
+    "decision": "higher is better",
+    "why": "name matches coverage -- but the name also matches the opposite dictionary, so this is worth checking",
+    "needs_check": true,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665875+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "Coal_Expansion_Flag",
+    "decision": "gate",
+    "why": "binary flag with exclusion-type wording",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665879+00:00",
+    "by": null
+  },
+  {
+    "stage": "Roles",
+    "item": "Severe_Controversy_Flag",
+    "decision": "gate",
+    "why": "binary flag with exclusion-type wording",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665882+00:00",
+    "by": null
+  },
+  {
+    "stage": "Peer cohorts",
+    "item": "Region",
+    "decision": "normalise within cohort",
+    "why": "name signals a peer grouping; 4 cohorts over 24 rows -- an indicator's percentile is only meaningful against comparable peers",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665952+00:00",
+    "by": null
+  },
+  {
+    "stage": "Gates",
+    "item": "Coal_Expansion_Flag",
+    "decision": "demote one tier",
+    "why": "flag wording -- treated as a modifier so it cannot be averaged away",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.665979+00:00",
+    "by": null
+  },
+  {
+    "stage": "Gates",
+    "item": "Severe_Controversy_Flag",
+    "decision": "hard exclusion",
+    "why": "severity wording -- a knockout belongs in the tree, not in the average",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.666006+00:00",
+    "by": null
+  },
+  {
+    "stage": "Dimensions",
+    "item": "Scope12 Intensity",
+    "decision": "stands alone",
+    "why": "no rank correlation at or above 0.72 with any other criterion",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.667957+00:00",
+    "by": null
+  },
+  {
+    "stage": "Dimensions",
+    "item": "Scope3 Reported",
+    "decision": "stands alone",
+    "why": "no rank correlation at or above 0.72 with any other criterion",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.667988+00:00",
+    "by": null
+  },
+  {
+    "stage": "Dimensions",
+    "item": "Sbti Validated Target",
+    "decision": "stands alone",
+    "why": "no rank correlation at or above 0.72 with any other criterion",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.668005+00:00",
+    "by": null
+  },
+  {
+    "stage": "Dimensions",
+    "item": "Climate Lobbying group",
+    "decision": "5 criteria grouped",
+    "why": "rank correlation 0.86-0.98 between Target Ambition, Transition Plan Disclosure, Emissions Data Coverage, Climate Lobbying Alignment, Say On Climate Support (complete linkage at 0.72) -- grouped so the shared signal is counted once",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.668098+00:00",
+    "by": null
+  },
+  {
+    "stage": "Dimensions",
+    "item": "Green Capex group",
+    "decision": "2 criteria grouped",
+    "why": "rank correlation 0.89-0.89 between Green Capex Share, Board Climate Oversight (complete linkage at 0.72) -- grouped so the shared signal is counted once",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.668135+00:00",
+    "by": null
+  },
+  {
+    "stage": "Weighting",
+    "item": "Preset",
+    "decision": "breadth-adjusted dimensions",
+    "why": "5 dimensions weighted by the square root of how many criteria they hold -- a theme measured seven ways counts for more than one measured once, but not seven times more; criteria then split their dimension evenly",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.668140+00:00",
+    "by": null
+  },
+  {
+    "stage": "Normalisation",
+    "item": "Method",
+    "decision": "percentile rank",
+    "why": "ranks are unaffected by outliers and by the units each indicator is reported in",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.668144+00:00",
+    "by": null
+  },
+  {
+    "stage": "Missing data",
+    "item": "Policy",
+    "decision": "re-weight over what is present",
+    "why": "no value is invented; an entity below 60% of weight covered is routed to a data-collection outcome instead of being scored",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.668148+00:00",
+    "by": null
+  },
+  {
+    "stage": "Comparability",
+    "item": "Cluster threshold",
+    "decision": "0.72",
+    "why": "the rank-correlation floor for grouping two criteria into one dimension. It is a judgement call, so two frameworks derived at different thresholds are not directly comparable",
+    "needs_check": false,
+    "origin": "derived",
+    "at": "2026-09-30T06:50:20.668157+00:00",
+    "by": null
+  },
+  {
+    "stage": "Edit",
+    "item": "Cut-point mode",
+    "decision": "quantile -> absolute",
+    "why": "changed by hand",
+    "needs_check": false,
+    "origin": "human",
+    "at": "2026-09-30T06:50:20.671283+00:00",
+    "by": "A. Reviewer"
+  },
+  {
+    "stage": "Edit",
+    "item": "Dimension floor",
+    "decision": "on, below 25, dimensions with 2+ criteria",
+    "why": "changed by hand",
+    "needs_check": false,
+    "origin": "human",
+    "at": "2026-09-30T06:50:20.671315+00:00",
+    "by": "A. Reviewer"
+  },
+  {
+    "stage": "Edit",
+    "item": "Green Capex Share",
+    "decision": "weight 1 -> 2",
+    "why": "changed by hand",
+    "needs_check": false,
+    "origin": "human",
+    "at": "2026-09-30T06:50:20.671345+00:00",
+    "by": "A. Reviewer"
+  },
+  {
+    "stage": "Edit",
+    "item": "Cut-points",
+    "decision": "85, 65, 35",
+    "why": "pinned by hand -- these now survive a re-run against different data",
+    "needs_check": false,
+    "origin": "human",
+    "at": "2026-09-30T06:50:20.671418+00:00",
+    "by": "A. Reviewer"
+  }
+]
