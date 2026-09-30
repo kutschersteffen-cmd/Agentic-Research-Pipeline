@@ -474,6 +474,12 @@ class DecisionComparison(BaseModel):
         description="A limitation of the comparison that does not invalidate it -- chiefly that a rank-based "
         "normalisation can only show movement relative to the field, never absolute improvement.",
     )
+    cut_points: list[float] = Field(default_factory=list, description="The cut-points the later snapshot was tiered on.")
+    cuts_moved: str | None = Field(
+        default=None,
+        description="Set when the two snapshots were tiered on different cut-points, so a tier can change on an "
+        "unchanged score. The studio and CLI hold the earlier snapshot's cuts, which leaves this empty.",
+    )
 
 
 class PublishedRow(BaseModel):

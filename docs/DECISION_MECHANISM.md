@@ -361,7 +361,7 @@ rank deltas, and the criteria whose contribution moved most. A movement
 with no named driver is the shape of a data problem rather than progress,
 and the empty driver list says so.
 
-Two guards:
+Three guards:
 
 - **Framework mismatch is refused, not silently compared.** A tier change
   under two different frameworks says nothing about the company, only
@@ -370,8 +370,14 @@ Two guards:
   percentile-scored snapshots returns a caveat: an entity that improved in
   absolute terms shows no movement unless its ordering changed, and one
   that stood still can move because its peers did. For period-on-period
-  work, score on min–max or z-score with pinned cut-points so the scale
-  means the same thing in both snapshots.
+  work, score on min–max or z-score so the scale means the same thing in
+  both snapshots.
+- **Cut-points are held.** The later snapshot is tiered on the earlier
+  one's cut-points (`hold_cuts`), unless the framework already pins them.
+  Quantile or natural-break cuts drawn afresh move with the field, so an
+  entity whose score stood still could change tier with no driver. The
+  comparison reports the cut-points used, and `cuts_moved` when a caller
+  compares results tiered on different ones.
 
 ---
 

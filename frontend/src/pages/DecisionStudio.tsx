@@ -872,6 +872,16 @@ export function DecisionStudio() {
                 <strong>{comparison.worsened}</strong> worsened, {comparison.unchanged} unchanged, {comparison.entered} new,{" "}
                 {comparison.left} gone.
               </p>
+              {comparison.cuts_moved ? (
+                <p className="decision-check-banner">{comparison.cuts_moved}</p>
+              ) : (
+                !!comparison.cut_points?.length && (
+                  <p className="muted">
+                    Both snapshots tiered on the same cut-points ({comparison.cut_points.map((c) => c.toFixed(1)).join(" / ")}), so a
+                    tier changes only when the score does.
+                  </p>
+                )
+              )}
               <table className="data-table">
                 <thead>
                   <tr>

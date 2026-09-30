@@ -10,7 +10,7 @@ from arp.cli._shared import _portfolio_store, _run_store
 from arp.config import get_settings
 from arp.decision import sources as decision_sources
 from arp.decision import templates
-from arp.decision.compare import compare_results
+from arp.decision.compare import compare_results, hold_cuts
 from arp.decision.dataset import Dataset, dataset_from_file
 from arp.decision.diffing import describe_changes
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
@@ -238,9 +238,10 @@ def decision_compare(
 
     ds_before, ds_after = _resolve(before), _resolve(after)
     config, _audit = _config(ds_after, framework_id, version, framework_file)
+    first = apply_mechanism(ds_before, config)
     comparison = compare_results(
-        apply_mechanism(ds_before, config),
-        apply_mechanism(ds_after, config),
+        first,
+        apply_mechanism(ds_after, hold_cuts(config, first)),
         label_before=ds_before.as_of or ds_before.name,
         label_after=ds_after.as_of or ds_after.name,
     )
