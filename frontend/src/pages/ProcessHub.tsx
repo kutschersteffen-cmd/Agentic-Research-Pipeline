@@ -13,19 +13,21 @@ import { useReviewer } from "../lib/reviewer";
 type Step = { label: string; screen: string; href: string; about: string; runTypes?: string[]; stage?: string };
 type Process = { id: string; name: string; purpose: string; href: string; runTypes: string[]; steps: Step[]; icon: ReactElement };
 
-const ICON = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+// One icon family on a 48 grid: the same stroke everywhere, and exactly one
+// element per icon in the highlight colour (.hub-ico .hi / .hi-fill).
+const ICON = { width: 52, height: 52, viewBox: "0 0 48 48", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, className: "hub-ico", "aria-hidden": true };
 
 const PROCESSES: Process[] = [
   {
     id: "stewardiq",
     name: "StewardIQ",
-    purpose: "Monitor holdings, engage companies, vote, and track what they commit to.",
+    purpose: "Engage companies, vote, and track what they commit to.",
     href: "#/stewardiq",
     runTypes: ["proxy_voting"],
     icon: (
       <svg {...ICON}>
-        <path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z" />
-        <path d="m9 12 2 2 4-4" />
+        <path d="M24 5 L39 10 V23 C39 32 32.5 39.5 24 43 C15.5 39.5 9 32 9 23 V10 Z" />
+        <path className="hi" d="M16.5 24 L22 29.5 L31.5 19" />
       </svg>
     ),
     steps: [
@@ -40,14 +42,17 @@ const PROCESSES: Process[] = [
   {
     id: "themeMachine",
     name: "Theme Machine",
-    purpose: "Spot emerging themes, define them as taxonomies, and match companies to them.",
+    purpose: "Spot emerging themes and match companies to them.",
     href: "#/themeMachine",
     runTypes: ["emerging_themes", "taxonomy_research", "theme"],
     icon: (
       <svg {...ICON}>
-        <path d="M12 2 2 7l10 5 10-5z" />
-        <path d="m2 17 10 5 10-5" />
-        <path d="m2 12 10 5 10-5" />
+        <circle cx="24" cy="24" r="19" strokeDasharray="2 4" opacity="0.55" />
+        <path d="M24 24 L12.5 14 M24 24 L35.5 14 M24 24 L24 36" />
+        <circle cx="11" cy="12.5" r="3.5" />
+        <circle cx="37" cy="12.5" r="3.5" />
+        <circle cx="24" cy="39.5" r="3.5" />
+        <circle className="hi-fill" cx="24" cy="24" r="5.5" />
       </svg>
     ),
     steps: [
@@ -60,14 +65,14 @@ const PROCESSES: Process[] = [
   {
     id: "dataEngineer",
     name: "Data Engineer",
-    purpose: "Extract data points from disclosures, each verified and cited against its source.",
+    purpose: "Extract data points from disclosures, each cited to its source.",
     href: "#/extraction",
     runTypes: ["extraction", "financials", "tnfd", "transition_plan"],
     icon: (
       <svg {...ICON}>
-        <ellipse cx="12" cy="5" rx="8" ry="3" />
-        <path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" />
-        <path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
+        <path d="M11 5 H29 L37 13 V43 H11 Z" />
+        <path d="M29 5 V13 H37 M16 20 H31 M16 34 H26" />
+        <path className="hi" d="M16 27 H44 M40 23 L44 27 L40 31" />
       </svg>
     ),
     // One per Extraction profile; only drawn as the box's progress strip.
@@ -81,13 +86,14 @@ const PROCESSES: Process[] = [
   {
     id: "designStudio",
     name: "Design Studio",
-    purpose: "Build and ratify scoring templates, then turn the scores into an index.",
+    purpose: "Ratify scoring templates, then build the index.",
     href: "#/designStudio",
     runTypes: ["calibration"],
     icon: (
       <svg {...ICON}>
-        <path d="M3 3v18h18" />
-        <path d="m7 15 4-4 3 3 5-6" />
+        <path d="M6 42 H42 M11 42 V30 H17 V42 M21 42 V21 H27 V42" />
+        <path className="hi-fill" d="M31 42 V12 H37 V42 Z" />
+        <path d="M5 12 H28" strokeDasharray="2 3" opacity="0.6" />
       </svg>
     ),
     steps: [
@@ -188,24 +194,92 @@ function ago(iso: string): string {
   return `${Math.round(min / 1440)} days ago`;
 }
 
-/** One line of run counts, with the runs that need attention folded below it:
- * the start page leads with the processes, so runs stay compact. */
-function RunsSummary({ runs, error, retry }: ReturnType<typeof useRuns>) {
+const STATE_LABEL: Record<StepState, string> = { done: "has a finished run", now: "running", wait: "waiting on a person", failed: "last run failed", idle: "no activity yet" };
+
+/** A process as a card: icon, purpose, its steps as a row of dots, and one
+ * line naming the step that matters now. */
+function ProcessCard({ p, runs, flow }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+  const h = headline(p, runs, flow);
+  const last = runs?.filter((r) => p.runTypes.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
+  const states = p.steps.map((s) => stepState(s, runs, flow));
+  const at = states.findIndex((st) => st === "wait" || st === "now" || st === "failed");
+  const now = at >= 0 ? `Step ${at + 1} of ${p.steps.length} · ${p.steps[at].label}` : !runs ? "" : last ? `Last run ${ago(last.updated_at)}` : "No runs yet";
+  return (
+    <a className={`hub-card${h.tone ? ` hub-card-${h.tone}` : ""}`} href={p.href}>
+      {p.icon}
+      <span className="hub-card-text">
+        <span className="hub-card-name">{p.name}</span>
+        <span className="hub-card-purpose">{p.purpose}</span>
+      </span>
+      <ol className="hub-dots">
+        {p.steps.map((s, i) => (
+          <li key={s.label} className={`hub-dot-${states[i]}`}>
+            <span className="visually-hidden">
+              {s.label}: {STATE_LABEL[states[i]]}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <span className="hub-card-now">{now}</span>
+      <span className="hub-card-foot">
+        <span className={`hub-card-state ${h.tone}`}>{h.text}</span>
+        <span className="hub-card-go">Open →</span>
+      </span>
+    </a>
+  );
+}
+
+export function StartPage() {
+  const { runs, error, retry } = useRuns();
+  const { flow } = useHouseFlow();
+  const [reviewer] = useReviewer();
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const name = reviewer.trim();
+
   const known = runs !== null;
   const all = runs ?? [];
   const active = all.filter((r) => ACTIVE_STATUSES.has(r.status));
   const waitingRuns = all.filter((r) => waitingCount(r) > 0);
-  const waitingItems = waitingRuns.reduce((n, r) => n + waitingCount(r), 0);
+  const waiting = waitingRuns.reduce((n, r) => n + waitingCount(r), 0);
   const failed = all.filter((r) => r.status === "failed" && recent(r.updated_at));
   const today = all.filter((r) => DONE.has(r.status) && isToday(r.updated_at));
-  const rank = (r: RunManifest) => (ACTIVE_STATUSES.has(r.status) ? 0 : waitingCount(r) > 0 ? 1 : 2);
-  const rows = [...new Set([...active, ...waitingRuns, ...failed])]
-    .sort((a, b) => rank(a) - rank(b) || (a.updated_at < b.updated_at ? 1 : -1))
-    .slice(0, 8);
+  // Waiting on a person first, then running, then failed: the order of what to do.
+  const rank = (r: RunManifest) => (waitingCount(r) > 0 && !ACTIVE_STATUSES.has(r.status) ? 0 : ACTIVE_STATUSES.has(r.status) ? 1 : 2);
+  const chips = [...new Set([...waitingRuns, ...active, ...failed])].sort((a, b) => rank(a) - rank(b) || (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 6);
   const n = (v: number) => (known ? v : "—");
 
   return (
-    <section className="hub-runbar" aria-label="Runs">
+    <div className="page hub hub-start">
+      <header className="hub-hero">
+        <h2>
+          <span className="hub-hero-greet">
+            {greeting}
+            {name ? `, ${name}` : ""}.
+          </span>
+          <span>
+            {!known ? "Loading runs…" : waiting > 0 ? `${waiting} output${waiting === 1 ? "" : "s"} wait on you.` : "Nothing waits on you."}
+          </span>
+        </h2>
+        <dl className="hub-stats">
+          <div className={known && waiting > 0 ? "you" : undefined}>
+            <dt>waiting on you</dt>
+            <dd>{n(waiting)}</dd>
+          </div>
+          <div>
+            <dt>running</dt>
+            <dd>{n(active.length)}</dd>
+          </div>
+          <div className={known && failed.length > 0 ? "failed" : undefined}>
+            <dt>failed this week</dt>
+            <dd>{n(failed.length)}</dd>
+          </div>
+          <div>
+            <dt>done today</dt>
+            <dd>{n(today.length)}</dd>
+          </div>
+        </dl>
+      </header>
       {error && (
         <p className="error-text" role="alert">
           Runs could not be loaded: {error}. {known ? "Showing the last answer." : "Counts are unknown until the backend responds."}{" "}
@@ -214,124 +288,29 @@ function RunsSummary({ runs, error, retry }: ReturnType<typeof useRuns>) {
           </button>
         </p>
       )}
-      <dl className="hub-runbar-stats">
-        <div>
-          <dt>running</dt>
-          <dd>{n(active.length)}</dd>
-        </div>
-        <div className={known && waitingItems > 0 ? "awaiting" : undefined}>
-          <dt>waiting on review</dt>
-          <dd>{n(waitingItems)}</dd>
-        </div>
-        <div className={known && failed.length > 0 ? "failed" : undefined}>
-          <dt>failed this week</dt>
-          <dd>{n(failed.length)}</dd>
-        </div>
-        <div>
-          <dt>finished today</dt>
-          <dd>{n(today.length)}</dd>
-        </div>
-      </dl>
-      <a className="hub-runbar-all" href="#/history">
-        All runs →
-      </a>
-      {rows.length > 0 && (
-        <details className="hub-runbar-list">
-          <summary>
-            {rows.length} run{rows.length === 1 ? "" : "s"} need{rows.length === 1 ? "s" : ""} attention
-          </summary>
-          <ul className="hub-runs">
-            {rows.map((r) => {
-              const pct = r.company_count > 0 ? Math.round((r.completed_count / r.company_count) * 100) : 0;
-              const w = waitingCount(r);
-              return (
-                <li key={r.run_id}>
-                  <a className="hub-run" href={runHref(r)}>
-                    <span className="hub-tag">{PROCESS_OF_RUN_TYPE.get(r.run_type)?.name ?? "Other"}</span>
-                    <span className="hub-run-main">
-                      <strong>{runTypeLabel(r.run_type)}</strong>
-                      <span className="muted">
-                        {r.completed_count}/{r.company_count} companies{w > 0 ? ` · ${w} waiting on you` : ""}
-                        {r.status === "failed" && r.error ? ` · ${r.error}` : ""}
-                      </span>
-                    </span>
-                    <span className="progress-bar" aria-hidden>
-                      <span className="progress-bar-fill" style={{ transform: `scaleX(${pct / 100})` }} />
-                    </span>
-                    <span className={w > 0 && !ACTIVE_STATUSES.has(r.status) ? "status-pill hub-pill-await" : `status-pill status-${r.status}`}>
-                      {w > 0 && !ACTIVE_STATUSES.has(r.status) ? "review" : r.status.replace(/_/g, " ")}
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </details>
-      )}
-    </section>
-  );
-}
-
-const STATE_LABEL: Record<StepState, string> = { done: "has a finished run", now: "running", wait: "waiting on a person", failed: "last run failed", idle: "no activity yet" };
-
-/** A process as a large card: its steps as a chain of labelled dots, so where
- * each process stands reads at a glance without opening it. */
-function ProcessCard({ p, runs, flow }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
-  const h = headline(p, runs, flow);
-  const last = runs?.filter((r) => p.runTypes.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
-  return (
-    <a className={`hub-card${h.tone ? ` hub-card-${h.tone}` : ""}`} href={p.href}>
-      <span className="hub-card-top">
-        <span className="hub-card-icon">{p.icon}</span>
-        <span className={`hub-pill ${h.tone}`}>{h.text}</span>
-      </span>
-      <span className="hub-card-name">{p.name}</span>
-      <span className="hub-card-purpose">{p.purpose}</span>
-      <ol className="hub-chain">
-        {p.steps.map((s) => {
-          const st = stepState(s, runs, flow);
-          return (
-            <li key={s.label} className={`hub-chain-${st}`}>
-              <span className="hub-chain-dot" aria-hidden />
-              <span className="hub-chain-label">{s.label}</span>
-              <span className="visually-hidden"> ({STATE_LABEL[st]})</span>
-            </li>
-          );
-        })}
-      </ol>
-      <span className="hub-card-foot">
-        <span className="muted">{!runs ? "" : last ? `Last run ${ago(last.updated_at)}` : "No runs yet"}</span>
-        <span className="hub-card-go">Open {p.name} →</span>
-      </span>
-    </a>
-  );
-}
-
-export function StartPage() {
-  const runsState = useRuns();
-  const { flow } = useHouseFlow();
-  const [reviewer] = useReviewer();
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  return (
-    <div className="page hub hub-start">
-      <header className="hub-hero">
-        <p className="hub-hero-kicker">Agentic Research Pipeline</p>
-        <h2>
-          {greeting}
-          {reviewer.trim() ? `, ${reviewer.trim()}` : ""}
-        </h2>
-        <p className="help-text">Four processes carry the work. Pick one to see its steps, or check the runs below.</p>
-      </header>
       <div className="hub-cards">
         {PROCESSES.map((p) => (
-          <ProcessCard key={p.id} p={p} runs={runsState.runs} flow={flow} />
+          <ProcessCard key={p.id} p={p} runs={runs} flow={flow} />
         ))}
       </div>
-      <p className="muted hub-legend">
-        <span className="hub-key done" /> finished run <span className="hub-key now" /> running <span className="hub-key wait" /> waiting on a person <span className="hub-key failed" /> last run failed
-      </p>
-      <RunsSummary {...runsState} />
+      <nav className="hub-now" aria-label="Runs needing attention">
+        <span className="hub-now-label">Now</span>
+        {chips.map((r) => {
+          const w = waitingCount(r);
+          const state = ACTIVE_STATUSES.has(r.status) ? "now" : w > 0 ? "wait" : "failed";
+          const pct = r.company_count > 0 ? Math.round((r.completed_count / r.company_count) * 100) : 0;
+          return (
+            <a key={r.run_id} className={`hub-chip hub-chip-${state}`} href={runHref(r)}>
+              <span className={`hub-dot hub-dot-${state}`} aria-hidden />
+              {runTypeLabel(r.run_type)} · {state === "now" ? `running ${pct}%` : state === "wait" ? `${w} waiting on you` : "failed"}
+            </a>
+          );
+        })}
+        {known && chips.length === 0 && <span className="muted">Nothing running or waiting.</span>}
+        <a className="hub-now-all" href="#/history">
+          All runs →
+        </a>
+      </nav>
     </div>
   );
 }
