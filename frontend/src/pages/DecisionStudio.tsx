@@ -227,14 +227,18 @@ export function DecisionStudio() {
 
   async function onDerive() {
     if (!dataset) return;
+    const name = `Framework for ${dataset.name}`;
+    // Deriving again on the same table adds a version to the framework it
+    // already has, rather than starting another one with the same name.
+    const existing = templates.find((t) => t.config.name === name)?.config.framework_id;
     const envelope = await guard("Deriving the mechanism…", () =>
-      api.deriveMechanism({ dataset_id: dataset.dataset_id, name: `Framework for ${dataset.name}`, save: true }),
+      api.deriveMechanism({ dataset_id: dataset.dataset_id, name, save: true, framework_id: existing }),
     );
     if (envelope) {
       loadConfig(envelope.config);
       setAudit(envelope.audit);
-      // v1 is the proposal as derived. Saving it now is what lets the next
-      // save diff against it and record which rules a person changed.
+      // The proposal as derived is already saved. That is what lets the
+      // next save diff against it and record which rules a person changed.
       setBaseVersion(envelope.config.version);
       refreshTemplates();
       // A guessed direction silently inverts a ranking, and Profile is
