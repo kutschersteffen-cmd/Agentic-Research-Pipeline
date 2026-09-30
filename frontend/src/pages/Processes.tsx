@@ -216,20 +216,20 @@ export function Processes({ selected, onSelect }: { selected: string | null; onS
 
   return (
     <div className="page">
-      <h2>Processes</h2>
+      <h1>Processes</h1>
       <p className="help-text">
         The team's recurring work, each as the screens that carry it in order. Open a step to work in that screen; a bar at the top
         of it shows the step you're on and links to the next one. A dashed arrow means that handoff is re-entered by hand today.
       </p>
-      {error && <p className="error-text">Run status could not be loaded: {error}. Steps still link to their screens.</p>}
+      {error && <p className="error-text" role="alert">Run status could not be loaded: {error}. Steps still link to their screens.</p>}
 
-      <nav className="sub-nav workflow-tabs" aria-label="Processes">
+      <div className="sub-nav workflow-tabs" role="tablist" aria-label="Processes">
         {PROCESSES.map((p) => (
-          <button key={p.id} className={p.id === process.id ? "nav-tab active" : "nav-tab"} aria-pressed={p.id === process.id} onClick={() => onSelect(p.id)}>
+          <button key={p.id} className={p.id === process.id ? "nav-tab active" : "nav-tab"} role="tab" aria-selected={p.id === process.id} onClick={() => onSelect(p.id)}>
             {p.title}
           </button>
         ))}
-      </nav>
+      </div>
 
       <section className="card">
         <div className="section-heading">

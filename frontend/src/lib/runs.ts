@@ -21,6 +21,11 @@ const RUN_TYPE_LABEL: Record<string, string> = {
   tnfd: "TNFD extraction",
 };
 
+/** A run's timestamp as tables show it: date and minute, no seconds. */
+export function when(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
 export function runTypeLabel(runType: string): string {
   return RUN_TYPE_LABEL[runType] ?? runType.replace(/_/g, " ");
 }

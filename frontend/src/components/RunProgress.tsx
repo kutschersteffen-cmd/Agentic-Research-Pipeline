@@ -117,8 +117,8 @@ export function RunProgress({
           )}
         </div>
       )}
-      {actionError && <p className="error-text">{actionError}</p>}
-      {manifest.error && <p className="error-text">{manifest.error}</p>}
+      {actionError && <p className="error-text" role="alert">{actionError}</p>}
+      {manifest.error && <p className="error-text" role="alert">{manifest.error}</p>}
     </div>
   );
 }

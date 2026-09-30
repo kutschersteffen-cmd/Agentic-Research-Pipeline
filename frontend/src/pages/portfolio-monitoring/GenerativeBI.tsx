@@ -311,7 +311,7 @@ export function GenerativeBI() {
             </button>
           ))}
         </div>
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
       </section>
 
       {saved.length > 0 && (

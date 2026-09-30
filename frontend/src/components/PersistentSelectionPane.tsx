@@ -57,7 +57,7 @@ export function PersistentSelectionPane({ onSendUniverse }: { onSendUniverse?: (
     <section className="card selection-pane">
       {portfoliosError && portfolios.length === 0 ? (
         <div role="alert">
-          <p className="error-text">Portfolios could not be loaded ({portfoliosError}). The backend may be unreachable.</p>
+          <p className="error-text" role="alert">Portfolios could not be loaded ({portfoliosError}). The backend may be unreachable.</p>
           <button onClick={refreshPortfolios}>Retry</button>
         </div>
       ) : portfolios.length === 0 ? (

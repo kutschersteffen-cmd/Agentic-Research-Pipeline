@@ -87,7 +87,7 @@ export function TrackingStudio({ stage, onChanged }: StudioProps) {
         </p>
       </StudioHeader>
       <ActorField actor={actor} onChange={setActor} />
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
       <Section step="Decide" title="Commitments past their target date">
         {due.length === 0 ? (
           <p className="muted">None: every open commitment is within its target date.</p>

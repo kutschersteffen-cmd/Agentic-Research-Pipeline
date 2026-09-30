@@ -12,7 +12,10 @@ export function CommandPalette({ items, onClose }: { items: PaletteItem[]; onClo
   // After Modal's showModal(), which would otherwise focus its Close button.
   useEffect(() => input.current?.focus(), []);
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const matches = items.filter((it) => words.every((w) => `${it.label} ${it.hint ?? ""}`.toLowerCase().includes(w)));
+  const matches = items.filter((it) => {
+    const hay = ` ${it.label} ${it.hint ?? ""}`.toLowerCase().replace(/[^a-z0-9]+/g, " ");
+    return words.every((w) => hay.includes(` ${w.replace(/[^a-z0-9]+/g, " ").trim()}`));
+  });
   const current = Math.min(index, matches.length - 1);
 
   function go(item: PaletteItem | undefined) {
@@ -22,7 +25,7 @@ export function CommandPalette({ items, onClose }: { items: PaletteItem[]; onClo
   }
 
   return (
-    <Modal title="Jump to a screen" onClose={onClose} compact>
+    <Modal title="Jump to a screen or run" onClose={onClose} compact>
       <input
         className="palette-input"
         ref={input}
@@ -30,7 +33,7 @@ export function CommandPalette({ items, onClose }: { items: PaletteItem[]; onClo
         aria-expanded="true"
         aria-controls="palette-list"
         aria-activedescendant={matches.length ? `palette-${current}` : undefined}
-        placeholder="Type a screen, e.g. drafting, review, index"
+        placeholder="Type a screen or run, e.g. drafting, voting, a run id"
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);

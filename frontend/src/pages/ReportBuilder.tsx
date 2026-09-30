@@ -1,3 +1,4 @@
+import { when } from "../lib/runs";
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { Modal } from "../components/Modal";
@@ -230,7 +231,7 @@ export function ReportBuilder() {
   return (
     <div className={previewReportId ? "page split-review" : "page"} style={previewReportId ? { maxWidth: 1560 } : undefined}>
     <div className={previewReportId ? "split-review-main page-body" : "page-body"}>
-      <h2>Presentations &amp; Reports</h2>
+      <h1>Presentations &amp; Reports</h1>
       <p className="help-text">Draft a report plan from your notes and data, edit it, then render it to PowerPoint, Word or PDF.</p>
 
       <section className="card">
@@ -354,7 +355,7 @@ export function ReportBuilder() {
         </label>
 
         <button onClick={draftPlan} disabled={busy}>Draft content plan</button>
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
       </section>
 
       {manifest && plan && (
@@ -434,7 +435,7 @@ export function ReportBuilder() {
               </>
             )}
           </div>
-          {manifest.error && <p className="error-text">{manifest.error}</p>}
+          {manifest.error && <p className="error-text" role="alert">{manifest.error}</p>}
         </section>
       )}
 
@@ -459,7 +460,7 @@ export function ReportBuilder() {
                     <td>{r.title}</td>
                     <td>{r.output_format}</td>
                     <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                    <td>{new Date(r.created_at).toLocaleString()}</td>
+                    <td className="mono">{when(r.created_at)}</td>
                     <td>
                       {r.status === "completed" && (
                         <>
@@ -495,7 +496,7 @@ export function ReportBuilder() {
           <button className="link-button" onClick={closePreview}>Close</button>
         </div>
         {previewLoading && <p className="muted">Rendering preview...</p>}
-        {previewError && <p className="error-text">{previewError}</p>}
+        {previewError && <p className="error-text" role="alert">{previewError}</p>}
         {!previewLoading && !previewError && previewPageCount === 0 && <p className="muted">No pages to show.</p>}
         {!previewLoading && !previewError && previewPageCount > 0 && (
           <div className="preview-thumb-grid">

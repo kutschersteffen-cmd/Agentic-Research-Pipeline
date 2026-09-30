@@ -1,3 +1,4 @@
+import { when } from "../lib/runs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { EngagementRecord, ReviewableRunKind, RunManifest } from "../types";
@@ -104,7 +105,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
 
   return (
     <div className="page">
-      <h2>Dashboard</h2>
+      <h1>Dashboard</h1>
       <p className="help-text">What needs a decision first, then what the agents are doing. Runs refresh every 3 seconds.</p>
       <div aria-live="polite">
         {loadError && (
@@ -227,7 +228,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                         <td data-label="Status"><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
                         <td data-label="Progress">{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
                         <td data-label="Flagged">{r.review_count}</td>
-                        <td data-label="Finished">{new Date(r.updated_at).toLocaleString()}</td>
+                        <td data-label="Finished" className="mono">{when(r.updated_at)}</td>
                         <td>
                           {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && onOpenReview && (
                             <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>

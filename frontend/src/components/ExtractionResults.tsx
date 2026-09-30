@@ -53,7 +53,7 @@ export function SegmentDetail({ segment, onOpenSource }: { segment: BusinessSegm
           </div>
         ) : null
       )}
-      {segment.conflicting_sources && <p className="error-text">Conflicting figures across sources.</p>}
+      {segment.conflicting_sources && <p className="error-text" role="alert">Conflicting figures across sources.</p>}
     </div>
   );
 }
@@ -110,7 +110,7 @@ export function SpendDetail({ label, spend, onOpenSource }: { label: string; spe
         </>
       )}
       {spend.verifier_notes && <p className="muted">{spend.verifier_notes}</p>}
-      {spend.conflicting_sources && <p className="error-text">Conflicting figures across sources.</p>}
+      {spend.conflicting_sources && <p className="error-text" role="alert">Conflicting figures across sources.</p>}
     </div>
   );
 }

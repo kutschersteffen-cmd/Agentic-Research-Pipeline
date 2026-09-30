@@ -100,7 +100,7 @@ export function CompanyProfiles() {
       </label>
 
       {loading && <p className="muted">Loading profile...</p>}
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
 
       {selected && !loading && (
         <>

@@ -182,7 +182,7 @@ function ProposeStage({
       <button onClick={draftSpec} disabled={busy || !paperCitation.trim() || !paperText.trim()}>
         Draft spec sheet
       </button>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
     </section>
   );
 }
@@ -292,7 +292,7 @@ function ReviewStage({
           Approve spec
         </button>
       </div>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
 
       {state.history.length > 0 && (
         <>
@@ -437,7 +437,7 @@ function BacktestStage({ specRunId, spec }: { specRunId: string; spec: StrategyS
       <button onClick={runBacktest} disabled={busy || !pricesRef || tickerList.length === 0}>
         Run backtest
       </button>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
 
       {detail && <ResultsView detail={detail} busy={busy} onRunSanityCheck={runSanityCheck} onRunRegimeReport={runRegimeReport} />}
     </section>
@@ -602,7 +602,7 @@ export function StrategyReplication() {
 
   return (
     <div className="page">
-      <h2>Strategy Replication</h2>
+      <h1>Strategy Replication</h1>
       <p className="help-text">Propose a strategy from a paper or your own description, approve its spec sheet, then backtest it. Nothing runs on real data until you approve the spec.</p>
 
       <ProposeStage onSpecCreated={onSpecCreated} onSpecLoaded={setSpecState} />

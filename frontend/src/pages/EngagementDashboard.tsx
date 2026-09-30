@@ -115,9 +115,9 @@ export function EngagementDashboard() {
 
   return (
     <div className="page">
-      <h2>Engagement</h2>
+      <h1>Engagement</h1>
       <p className="help-text">One record per company: issues, milestones, escalation stage, correspondence and commitments. Nothing here contacts a company or escalates on its own.</p>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
 
       <section className="card">
         <h3>Open a new issue</h3>
