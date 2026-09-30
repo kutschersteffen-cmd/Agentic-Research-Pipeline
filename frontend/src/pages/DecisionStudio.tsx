@@ -740,7 +740,7 @@ export function DecisionStudio() {
           <div className="decision-kpis">
             {result.tier_summary.map((tier) => (
               <div key={tier.rank} className="card">
-                <div className="muted">{tier.action}</div>
+                {tier.action && <div className="muted">{tier.action}</div>}
                 <h3>{tier.name}</h3>
                 <p className="decision-kpi-value">{tier.count}</p>
               </div>
