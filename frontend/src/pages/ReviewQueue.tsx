@@ -196,7 +196,7 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
           <div className="split-review-main">
             <section className="card">
               <h2>{open > 0 ? `${open} awaiting a decision` : "All decided"}</h2>
-              <p className="help-text">Press <kbd>J</kbd> / <kbd>K</kbd> to move between items. A decision can be changed; every one is kept.</p>
+              <p className="help-text"><span className="kbd-hint">Press <kbd>J</kbd> / <kbd>K</kbd> to move between items. </span>A decision can be changed; every one is kept.</p>
               {shown.map((q) => {
                 const k = keyOf(q);
                 const d = decided[k];

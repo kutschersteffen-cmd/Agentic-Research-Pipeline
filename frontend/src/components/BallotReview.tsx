@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { CompanyBallot, VoteRecord, VotePosition, VoteReviewDecision } from "../types";
 import { Modal } from "./Modal";
+import { ConfirmDecision } from "./ConfirmDecision";
 import { DecisionBar } from "./DecisionBar";
 import { CitationList } from "./CitationList";
 import { SourcePanel, type ActiveSource } from "./SourcePanel";
@@ -23,6 +24,11 @@ function meetingLabel(date: string | null | undefined): string {
   const when = days > 1 ? `in ${days} days` : days === 1 ? "tomorrow" : days === 0 ? "today" : `${-days} days ago`;
   return `Meeting ${d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })} · ${when}`;
 }
+
+/** Routine: the policy recommends a vote and nothing flags it for a second
+ * person. Routine proposals read as one row and can be approved as a batch;
+ * flagged ones always get the full card and a decision of their own. */
+const isRoutine = (v: VoteRecord) => Boolean(v.policy_recommendation && !v.policy_recommendation.engagement_alignment_flag);
 
 function itemKey(companyId: string, proposalNumber: string): string {
   return `${companyId}:${proposalNumber}`;
@@ -55,6 +61,7 @@ function ProposalReview({
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(!isRoutine(vote));
 
   const key = itemKey(ballot.company_id, vote.proposal.proposal_number);
   const needsCoSign = rec?.engagement_alignment_flag === true;
@@ -94,8 +101,39 @@ function ProposalReview({
     }
   }
 
+  if (!expanded && rec) {
+    const status = alreadyCast ? `Cast · ${castConfirmationId}` : decision ? `${DECISION_LABEL[decision.decision] ?? decision.decision} by ${decision.reviewer ?? "unknown"}` : null;
+    return (
+      <div className="proposal-card proposal-compact" tabIndex={-1}>
+        <strong className="proposal-num">#{vote.proposal.proposal_number}</strong>
+        <span className="proposal-clip" title={vote.proposal.resolution_text}>
+          {vote.proposal.resolution_text}
+        </span>
+        <span className="proposal-policy">
+          Policy: <strong>{rec.vote}</strong> · {rec.policy_rule_id ?? "LLM judgment"} · {Math.round(rec.confidence * 100)}%
+        </span>
+        {status ? (
+          <span className="muted">{status}</span>
+        ) : (
+          <button className="secondary" onClick={() => submit("approve")} disabled={busy}>
+            Approve: vote {rec.vote}
+          </button>
+        )}
+        <button className="link-button" onClick={() => setExpanded(true)} aria-expanded={false}>
+          Details
+        </button>
+        {error && <p className="error-text" role="alert">{error}</p>}
+      </div>
+    );
+  }
+
   return (
-    <div className="proposal-card" tabIndex={-1}>
+    <div className={needsCoSign ? "proposal-card proposal-flagged" : "proposal-card"} tabIndex={-1}>
+      {isRoutine(vote) && (
+        <button className="link-button proposal-collapse" onClick={() => setExpanded(false)} aria-expanded>
+          Less
+        </button>
+      )}
       <div className="proposal-header">
         <strong>
           #{vote.proposal.proposal_number} &middot; {vote.proposal.type.replace(/_/g, " ")}
@@ -133,7 +171,7 @@ function ProposalReview({
       )}
       {rec?.engagement_alignment_flag && (
         <div className="banner banner-warning">
-          <strong>Needs a second person.</strong> Engagement alignment flag: {rec.engagement_alignment_note}
+          <strong>Needs a second person.</strong> Engagement alignment flag: {rec.engagement_alignment_note || "no note recorded"}
         </div>
       )}
 
@@ -196,6 +234,7 @@ export function BallotReview({ runId }: { runId: string }) {
   const [busy, setBusy] = useState(false);
   const [castResult, setCastResult] = useState<{ count: number; by: string; at: Date } | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [confirmingBatch, setConfirmingBatch] = useState(false);
   const [reviewer] = useReviewer();
 
   async function load() {
@@ -242,6 +281,28 @@ export function BallotReview({ runId }: { runId: string }) {
     }
   }
 
+  // One named person approves every routine, undecided proposal at the policy's
+  // vote. There is no batch endpoint: each is recorded as its own decision, so
+  // the audit trail reads the same as approving them one by one.
+  async function approveRoutine(by: string) {
+    setConfirmingBatch(false);
+    setBusy(true);
+    setError(null);
+    let done = 0;
+    try {
+      for (const r of routine) {
+        await api.submitVotingReview(runId, { item_key: r.key, decision: "approve", reviewer: by, comment: "Approved in a batch at the policy recommendation" });
+        done++;
+      }
+      announce(`${done} routine proposal${done === 1 ? "" : "s"} approved.`);
+    } catch (err) {
+      setError(`Stopped after ${done} of ${routine.length}: ${(err as Error).message}. The rest are still undecided.`);
+    } finally {
+      await load();
+      setBusy(false);
+    }
+  }
+
   // What a cast would send right now, from the same rules the backend applies
   // (arp.voting.pipeline.cast_approved_votes): decided, not rejected, not cast.
   const counts = { approved: 0, overridden: 0, rejected: 0, pending: 0, missingCoSign: 0 };
@@ -268,6 +329,12 @@ export function BallotReview({ runId }: { runId: string }) {
     }
   }
   const castable = counts.approved + counts.overridden;
+  const routine = ballots.flatMap((b) =>
+    b.votes
+      .filter((v) => isRoutine(v))
+      .map((v) => ({ key: itemKey(b.company_id, v.proposal.proposal_number), company: b.name, number: v.proposal.proposal_number, vote: v.policy_recommendation!.vote, rule: v.policy_recommendation!.policy_rule_id }))
+      .filter((r) => !decisions[r.key] && castByKey[r.key] === undefined),
+  );
   const totalProposals = ballots.reduce((sum, b) => sum + b.votes.length, 0);
   const totalCast = Object.keys(castByKey).length;
   // Soonest meeting first: that is the order the deadlines arrive in.
@@ -286,7 +353,7 @@ export function BallotReview({ runId }: { runId: string }) {
       </div>
       <p className="help-text">
         Every proposal needs a decision from a named person; nothing is approved automatically. A proposal with an
-        engagement alignment flag also needs a co-sign. Press <kbd>J</kbd> / <kbd>K</kbd> to move between proposals.
+        engagement alignment flag also needs a co-sign. <span className="kbd-hint">Press <kbd>J</kbd> / <kbd>K</kbd> to move between proposals.</span>
       </p>
       {/* Stays in view while scrolling the ballot: the first deadline, how far
           the decisions have got, and the one button that sends them. */}
@@ -301,6 +368,11 @@ export function BallotReview({ runId }: { runId: string }) {
         </p>
         <div className="toolbar">
           {!reviewer.trim() && <ReviewerField compact />}
+          {routine.length > 0 && (
+            <button className="secondary" onClick={() => setConfirmingBatch(true)} disabled={busy}>
+              Approve {routine.length} routine…
+            </button>
+          )}
           <button onClick={() => (reviewer.trim() ? setConfirming(true) : setError(REVIEWER_REQUIRED))} disabled={busy || castable === 0}>
             Cast {castable} decided vote{castable === 1 ? "" : "s"}…
           </button>
@@ -316,6 +388,43 @@ export function BallotReview({ runId }: { runId: string }) {
         )}
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
+
+      {confirmingBatch && (
+        <ConfirmDecision
+          title={`Approve ${routine.length} routine proposal${routine.length === 1 ? "" : "s"}?`}
+          confirmLabel={`Approve ${routine.length}`}
+          onConfirm={approveRoutine}
+          onCancel={() => setConfirmingBatch(false)}
+        >
+          <p>
+            Each is approved at the policy&apos;s recommended vote and recorded as your decision. Flagged proposals are not included:
+            they still need their own decision and a co-sign. Nothing is cast until you press Cast.
+          </p>
+          <table className="data-table cast-list">
+            <caption className="visually-hidden">Proposals that will be approved</caption>
+            <thead>
+              <tr>
+                <th>Company</th>
+                <th>Proposal</th>
+                <th>Vote</th>
+                <th>Rule</th>
+              </tr>
+            </thead>
+            <tbody>
+              {routine.map((r) => (
+                <tr key={r.key}>
+                  <td>{r.company}</td>
+                  <td>#{r.number}</td>
+                  <td>
+                    <strong>{r.vote}</strong>
+                  </td>
+                  <td className="muted">{r.rule ?? "LLM judgment"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </ConfirmDecision>
+      )}
 
       {confirming && (
         <Modal title="Cast votes?" compact onClose={() => setConfirming(false)}>
@@ -395,7 +504,7 @@ export function BallotReview({ runId }: { runId: string }) {
         </div>
       ))}
       </div>
-      {ballots.length > 0 && <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />}
+      {activeSource && <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />}
       </div>
     </section>
   );
