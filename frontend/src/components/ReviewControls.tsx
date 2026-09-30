@@ -4,6 +4,7 @@ import type { ReviewDecision } from "../types";
 import { REVIEWER_REQUIRED } from "../lib/reviewer";
 import { DecisionBar } from "./DecisionBar";
 import { ProposedTag } from "./ProposedTag";
+import { announce } from "../lib/announce";
 
 function decisionBadgeClass(decision: string): string {
   if (decision === "approve") return "badge badge-high";
@@ -63,6 +64,7 @@ export function ReviewControls({
       setOverrideValue("");
       setShowOverrideInput(false);
       setHistory(null);
+      announce(`${decision === "approve" ? "Approved" : decision === "edit" ? "Overridden" : "Rejected"}; recorded against ${reviewer.trim()}.`);
       onDone();
     } catch (err) {
       setError((err as Error).message);

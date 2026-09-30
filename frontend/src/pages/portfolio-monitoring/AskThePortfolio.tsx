@@ -66,7 +66,7 @@ export function AskThePortfolio() {
           </button>
         ))}
       </div>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
       {answer && !answer.resolvable && <p className="help-text">Could not resolve the question: {answer.clarification_needed}</p>}
       {answer && answer.resolvable && (
         <>

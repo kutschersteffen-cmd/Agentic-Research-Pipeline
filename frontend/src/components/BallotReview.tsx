@@ -8,6 +8,7 @@ import { SourcePanel, type ActiveSource } from "./SourcePanel";
 import { REVIEWER_REQUIRED, useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "./ReviewerField";
 import { ProposedTag } from "./ProposedTag";
+import { announce } from "../lib/announce";
 
 const VOTE_POSITIONS: VotePosition[] = ["for", "against", "abstain", "withhold"];
 
@@ -83,6 +84,7 @@ function ProposalReview({
       });
       setComment("");
       setOverrideOpen(false);
+      announce(`Proposal ${vote.proposal.proposal_number} for ${ballot.name} ${DECISION_LABEL[reviewDecision]}.`);
       onReviewed();
     } catch (err) {
       setError((err as Error).message);
@@ -92,7 +94,7 @@ function ProposalReview({
   }
 
   return (
-    <div className="proposal-card">
+    <div className="proposal-card" tabIndex={-1}>
       <div className="proposal-header">
         <strong>
           #{vote.proposal.proposal_number} &middot; {vote.proposal.type.replace(/_/g, " ")}
@@ -271,6 +273,24 @@ export function BallotReview({ runId }: { runId: string }) {
   const byMeeting = [...ballots].sort((a, b) => (a.meeting_date ?? "9999").localeCompare(b.meeting_date ?? "9999"));
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
 
+  // J / K move between proposals. Moving only: deciding stays a click, so a
+  // stray key can never approve or cast anything.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || (e.key !== "j" && e.key !== "k")) return;
+      if ((e.target as HTMLElement).closest("input, textarea, select, [contenteditable], dialog")) return;
+      const cards = [...document.querySelectorAll<HTMLElement>(".proposal-card")];
+      const at = cards.indexOf(document.activeElement as HTMLElement);
+      const next = cards[e.key === "j" ? at + 1 : Math.max(at - 1, 0)];
+      if (!next) return;
+      e.preventDefault();
+      next.focus();
+      next.scrollIntoView({ block: "start", behavior: "smooth" });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <section className="card">
       <div className="section-heading">
@@ -281,18 +301,27 @@ export function BallotReview({ runId }: { runId: string }) {
       </div>
       <p className="help-text">
         Every proposal needs a decision from a named person; nothing is approved automatically. A proposal with an
-        engagement alignment flag also needs a co-sign.
+        engagement alignment flag also needs a co-sign. Press <kbd>J</kbd> / <kbd>K</kbd> to move between proposals.
       </p>
-      <p className="muted">
-        {totalProposals} proposal{totalProposals === 1 ? "" : "s"} across {ballots.length} compan{ballots.length === 1 ? "y" : "ies"} &middot; {totalCast} cast &middot;{" "}
-        {counts.pending} awaiting a decision
-      </p>
-      <div className="toolbar">
-        <ReviewerField compact />
-        <button onClick={() => (reviewer.trim() ? setConfirming(true) : setError(REVIEWER_REQUIRED))} disabled={busy || castable === 0}>
-          Cast {castable} decided vote{castable === 1 ? "" : "s"}…
-        </button>
+      {/* Stays in view while scrolling the ballot: the first deadline, how far
+          the decisions have got, and the one button that sends them. */}
+      {ballots.length > 0 && (
+      <div className="ballot-bar">
+        <p className="ballot-bar-status">
+          <strong>{meetingLabel(byMeeting.find((b) => b.meeting_date)?.meeting_date)}</strong>
+          <span>
+            {totalProposals - counts.pending} of {totalProposals} decided &middot; {totalCast} cast &middot; {ballots.length}{" "}
+            compan{ballots.length === 1 ? "y" : "ies"}
+          </span>
+        </p>
+        <div className="toolbar">
+          {!reviewer.trim() && <ReviewerField compact />}
+          <button onClick={() => (reviewer.trim() ? setConfirming(true) : setError(REVIEWER_REQUIRED))} disabled={busy || castable === 0}>
+            Cast {castable} decided vote{castable === 1 ? "" : "s"}…
+          </button>
+        </div>
       </div>
+      )}
       <div aria-live="polite">
         {castResult && (
           <div className="banner banner-success">
@@ -353,6 +382,12 @@ export function BallotReview({ runId }: { runId: string }) {
 
       <div className="split-review">
       <div className="split-review-main">
+      {ballots.length === 0 && (
+        <p className="muted">
+          No ballots in this run yet: none of its companies has a proxy statement for an upcoming meeting. Start a new voting run once
+          one is filed.
+        </p>
+      )}
       {byMeeting.map((ballot) => (
         <div key={ballot.company_id} className="panel-section">
           <h4>
@@ -375,7 +410,7 @@ export function BallotReview({ runId }: { runId: string }) {
         </div>
       ))}
       </div>
-      <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
+      {ballots.length > 0 && <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />}
       </div>
     </section>
   );

@@ -158,14 +158,14 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
         ]}
       />
       <ActorField actor={actor} onChange={setActor} />
-      {loadError && <p className="error-text">{loadError}</p>}
+      {loadError && <p className="error-text" role="alert">{loadError}</p>}
       <Section step="Review · Decide" title="Triggers raised">
         <p className="help-text">
           What the active monitoring rules raise on today&apos;s company data. A trigger on the same theme as an open engagement is
           attached to it; any other trigger makes the company a selection candidate. Opening an engagement takes its theme and
           severity from the rule.
         </p>
-        {actionError && <p className="error-text">{actionError}</p>}
+        {actionError && <p className="error-text" role="alert">{actionError}</p>}
         {triggers === null ? (
           <p className="status-text">Loading…</p>
         ) : triggers.length === 0 ? (
@@ -227,7 +227,7 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
         </p>
         {contexts === null ? <p className="status-text">Loading…</p> : <DataTable rows={rows} />}
       </Section>
-      {draft.error && <p className="error-text">{draft.error}</p>}
+      {draft.error && <p className="error-text" role="alert">{draft.error}</p>}
       <Section step="Design" title="Monitoring rules">
         <p className="help-text">
           A decision table where <strong>every</strong> matching row raises a trigger, so one company can raise several. Inputs per
@@ -247,7 +247,7 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
             {draft.previewing ? "Running…" : "Preview against the active rules"}
           </button>
         </div>
-        {draft.previewError && <p className="error-text">{draft.previewError}</p>}
+        {draft.previewError && <p className="error-text" role="alert">{draft.previewError}</p>}
         {preview && (
           <>
             <p className="muted">
@@ -321,7 +321,7 @@ function DecisionInputs() {
   }, []);
   return (
     <Section step="Inputs" title="Tiers published from Decision Studio">
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
       {inputs && inputs.published.length === 0 && (
         <p className="muted">
           Nothing published yet. Ratify a framework in <a href="#/decision">Decision Studio</a> and publish it; its tiers then appear
@@ -382,7 +382,7 @@ export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
       </Section>
       <DecisionInputs />
       <ActorField actor={actor} onChange={setActor} />
-      {draft.error && <p className="error-text">{draft.error}</p>}
+      {draft.error && <p className="error-text" role="alert">{draft.error}</p>}
       <Section step="Design" title="Coverage rules">
         <p className="help-text">
           A decision table, read top to bottom: the <strong>first</strong> row that matches decides the tier. Inputs per company:{" "}
@@ -401,7 +401,7 @@ export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
             {draft.previewing ? "Running…" : "Preview against the active rules"}
           </button>
         </div>
-        {draft.previewError && <p className="error-text">{draft.previewError}</p>}
+        {draft.previewError && <p className="error-text" role="alert">{draft.previewError}</p>}
         {preview && (
           <>
             <p className="muted">
@@ -636,7 +636,7 @@ export function VotingStudio({ stage, onChanged }: StudioProps) {
         />
       </Section>
       <ActorField actor={actor} onChange={setActor} />
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
       <Section step="Design" title="House voting positions">
         <p className="help-text">
           One position per catalogue issue: the vote, what it targets, and the thresholds. Each position compiles into a rule of the
@@ -676,7 +676,7 @@ export function VotingStudio({ stage, onChanged }: StudioProps) {
             {busy ? "Running…" : "Run back-test"}
           </button>
         </div>
-        {previewError && <p className="error-text">{previewError}</p>}
+        {previewError && <p className="error-text" role="alert">{previewError}</p>}
         {preview && (
           <>
             <p className="muted">
@@ -850,7 +850,7 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
             Coverage tiers are set at stage 2 →
           </button>
         </div>
-        {recError && <p className="error-text">{recError}</p>}
+        {recError && <p className="error-text" role="alert">{recError}</p>}
         {recs === null ? (
           <p className="status-text">Loading…</p>
         ) : (
@@ -869,7 +869,7 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
           />
         )}
       </Section>
-      {draft.error && <p className="error-text">{draft.error}</p>}
+      {draft.error && <p className="error-text" role="alert">{draft.error}</p>}
       <Section step="Design" title="Escalation rules and tier caps">
         <p className="help-text">
           Two tables, both read top to bottom with the <strong>first</strong> matching row deciding. <code>tier_caps</code> sets the
@@ -889,7 +889,7 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
             {draft.previewing ? "Running…" : "Preview against the active rules"}
           </button>
         </div>
-        {draft.previewError && <p className="error-text">{draft.previewError}</p>}
+        {draft.previewError && <p className="error-text" role="alert">{draft.previewError}</p>}
         {preview && (
           <>
             <p className="muted">
@@ -1029,12 +1029,12 @@ export function ClientPolicyStudio({ stage, streamId, onChanged }: StudioProps &
             </button>
           </div>
         )}
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
         {[...open, ...differences.filter((d) => d.decision !== null)].map((item) => (
           <PolicyDifference key={item.issue_id} item={item} streamId={streamId} actor={actor} onDone={onChanged} />
         ))}
       </Section>
-      {draft.error && <p className="error-text">{draft.error}</p>}
+      {draft.error && <p className="error-text" role="alert">{draft.error}</p>}
       <Section step="Design" title="The client's escalation rules">
         <p className="help-text">
           The same two tables as the house rules (stage 5), evaluated after them with the house answer under <code>house.*</code>:{" "}
@@ -1062,7 +1062,7 @@ export function ClientPolicyStudio({ stage, streamId, onChanged }: StudioProps &
             {draft.previewing ? "Running…" : "Preview against the house and the client's active rules"}
           </button>
         </div>
-        {draft.previewError && <p className="error-text">{draft.previewError}</p>}
+        {draft.previewError && <p className="error-text" role="alert">{draft.previewError}</p>}
         {preview && (
           <>
             <p className="muted">
@@ -1123,7 +1123,7 @@ export function ReportingStudio({ stage, streamId }: StudioProps & { streamId: s
             Download PowerPoint
           </a>
         </div>
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
         {report === null && !error && <p className="status-text">Loading…</p>}
         {report && (
           <>

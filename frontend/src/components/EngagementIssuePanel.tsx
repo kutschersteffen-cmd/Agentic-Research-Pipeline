@@ -235,7 +235,7 @@ export function EngagementIssuePanel({
         Acting as (used for all sign-offs below)
         <input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="your name / handle" />
       </label>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
 
       <div className="panel-section">
         <h4>Escalation-lever decision</h4>

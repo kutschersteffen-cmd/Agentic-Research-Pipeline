@@ -52,7 +52,7 @@ export function Search() {
 
   return (
     <div className="page">
-      <h2>Search</h2>
+      <h1>Search</h1>
       <section className="card">
         <label className="field-label">
           Query

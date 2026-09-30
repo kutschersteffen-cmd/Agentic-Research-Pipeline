@@ -89,7 +89,7 @@ function WaciCard() {
         </select>
       </label>
       {loading && <p className="muted">Loading...</p>}
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
       {result && <AggregationView result={result} unit={CARBON_INTENSITY_UNIT} />}
       {trend && <TrendView trend={trend} unit={CARBON_INTENSITY_UNIT} />}
     </section>
@@ -124,7 +124,7 @@ function FinancedEmissionsCard() {
         EVIC or Scope 1/2 data are excluded from the number, not treated as zero.
       </p>
       {loading && <p className="muted">Loading...</p>}
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
       {result && (
         <div className="stat-tile-grid">
           <div className="stat-tile">
@@ -192,7 +192,7 @@ function CoverageCard() {
           ))}
         </select>
       </label>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
       {counts && (
         <div className="inline-block">
           {Object.entries(counts).map(([source, count]) => (

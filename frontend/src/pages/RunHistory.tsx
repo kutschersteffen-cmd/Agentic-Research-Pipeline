@@ -1,3 +1,4 @@
+import { when } from "../lib/runs";
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { ReviewableRunKind, RunManifest } from "../types";
@@ -30,7 +31,7 @@ export function RunHistory({ onOpenReview }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Run History</h2>
+      <h1>Run History</h1>
       <section className="card">
         <label className="field-label">
           Filter by type
@@ -75,7 +76,7 @@ export function RunHistory({ onOpenReview }: Props = {}) {
                     <td>{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
                     <td>{r.review_count}</td>
                     <td>${r.estimated_cost_usd.toFixed(2)}</td>
-                    <td>{new Date(r.created_at).toLocaleString()}</td>
+                    <td className="mono">{when(r.created_at)}</td>
                     <td>
                       <a href={api.exportRunCsvUrl(r.run_id)} target="_blank" rel="noreferrer">
                         CSV

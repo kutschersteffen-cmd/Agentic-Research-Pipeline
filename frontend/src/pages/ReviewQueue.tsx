@@ -69,7 +69,7 @@ function ReviewItemFields({ item, onOpenSource }: { item: Record<string, unknown
       </div>
       {Boolean(item.company_id && item.name) && <p className="muted">{item.item_key as string}</p>}
       {typeof item.failed_step_label === "string" && (
-        <p className="error-text">
+        <p className="error-text" role="alert">
           Stopped at {item.failed_step_label}: {String(item.error ?? "")}
         </p>
       )}
@@ -170,7 +170,7 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
 
   return (
     <div className="page">
-      <h2>Review Queue</h2>
+      <h1>Review Queue</h1>
       <p className="help-text">Low-confidence verdicts, ungrounded citations and uncertain calls wait here, lowest confidence first. Nothing flagged reaches an export until a named person approves it.</p>
 
       <div className="toolbar">
@@ -188,7 +188,7 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
         <button className="secondary" onClick={load} disabled={items === null}>
           Refresh
         </button>
-        <ReviewerField compact />
+        {!reviewer.trim() && <ReviewerField compact />}
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
       <p className="status-text" aria-live="polite">

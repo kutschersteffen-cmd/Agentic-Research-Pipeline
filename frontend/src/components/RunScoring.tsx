@@ -37,7 +37,7 @@ export function ScoringTemplatePicker({ runType, fieldNames, value, onChange }: 
     if (selected && selected.missing_columns.length > 0) onChange(null);
   }, [selected, onChange]);
 
-  if (error) return <p className="error-text">{error}</p>;
+  if (error) return <p className="error-text" role="alert">{error}</p>;
   if (!matches) return <p className="status-text">Loading scoring templates…</p>;
   if (matches.length === 0) {
     return <p className="help-text">No scoring templates saved yet. Build one in Decision Studio from an earlier run, then pick it here.</p>;
@@ -178,7 +178,7 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
           <a href="#/stewardship/selection">use the tiers in coverage rules</a> or <a href="#/index">join the scores in an index</a>.
         </p>
       )}
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
 
       {unattached && (
         <>

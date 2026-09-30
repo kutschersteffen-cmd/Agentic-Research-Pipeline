@@ -54,7 +54,7 @@ function HouseUniverse({ onChanged }: { onChanged: () => void }) {
       setError((e as Error).message);
     }
   }
-  if (!info) return error ? <p className="error-text">{error}</p> : null;
+  if (!info) return error ? <p className="error-text" role="alert">{error}</p> : null;
   return (
     <div className="toolbar">
       <span className="muted">Companies covered:</span>
@@ -73,7 +73,7 @@ function HouseUniverse({ onChanged }: { onChanged: () => void }) {
         {info.issuers} companies{info.set_by ? ` · set by ${info.set_by}` : ""}
         {!reviewer.trim() && " · enter your name in the sidebar to change it"}
       </span>
-      {error && <span className="error-text">{error}</span>}
+      {error && <span className="error-text" role="alert">{error}</span>}
     </div>
   );
 }
@@ -131,7 +131,7 @@ function AddStream({ onCreated }: { onCreated: (id: string) => void }) {
         </button>
       </div>
       {!policy && <p className="muted">No file chosen: the stream starts from the example envisioned policy.</p>}
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
     </section>
   );
 }
@@ -191,7 +191,7 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
 
   return (
     <div className="page">
-      <h2>Steward Workflow</h2>
+      <h1>Steward Workflow</h1>
       <p className="help-text">
         The stewardship process end to end. The overview shows every stage with its key numbers and the decisions waiting; each stage
         has its own studio to review its data, design and calibrate its rules, and take its decisions.
@@ -227,7 +227,7 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
         })}
       </nav>
 
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
 
       {tab === "overview" && (
         <>

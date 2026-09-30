@@ -13,7 +13,7 @@ import { DataLibrary } from "./pages/DataLibrary";
 import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
 import { BackgroundAgents } from "./pages/BackgroundAgents";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
-import { ProcessOverview, StartPage } from "./pages/ProcessHub";
+import { ProcessOverview, StartPage, stageDecisions } from "./pages/ProcessHub";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
 import { STAGE_TABS, StewardWorkflow } from "./pages/StewardWorkflow";
@@ -28,6 +28,7 @@ import { IndexBuilder } from "./pages/IndexBuilder";
 import { ProcessBar, Processes } from "./pages/Processes";
 import { NAV_ICONS } from "./components/NavIcons";
 import type { ReviewableRunKind, RunManifest, UniverseHandoff } from "./types";
+import { runTypeLabel } from "./lib/runs";
 
 const TABS = [
   { id: "home", label: "Start" },
@@ -103,6 +104,13 @@ const PALETTE_ITEMS: PaletteItem[] = [
 
 const REVIEWABLE = new Set<string>(["theme", "extraction", "financials", "identity"]);
 
+/** A run in the palette opens where its decisions are made, else in Run History. */
+const runItem = (r: RunManifest): PaletteItem => ({
+  label: `${runTypeLabel(r.run_type)} ${r.run_id}`,
+  hint: "Run",
+  href: r.run_type === "proxy_voting" ? `#/voting/${r.run_id}` : REVIEWABLE.has(r.run_type) ? `#/review/${r.run_type}/${r.run_id}` : "#/history",
+});
+
 /** The URL is the source of truth for where you are: `#/<tab>/<param>...`,
  * so refresh, Back and a pasted link all land on the same view -- e.g.
  * `#/voting/<run id>` or `#/review/extraction/<run id>`. */
@@ -119,6 +127,8 @@ function App() {
   const [route, setRoute] = useState(parseHash);
   const active = route.tab;
   const [waiting, setWaiting] = useState<{ review: number; voting: number } | null>(null);
+  const [openDecisions, setOpenDecisions] = useState(0);
+  const [recentRuns, setRecentRuns] = useState<RunManifest[]>([]);
   // One universe in flight between screens, addressed to one of them.
   const [handoff, setHandoff] = useState<(UniverseHandoff & { to: TabId }) | null>(null);
   const pendingFor = (to: TabId) => (handoff?.to === to ? handoff : null);
@@ -143,8 +153,13 @@ function App() {
         const runs = (res as { runs: RunManifest[] }).runs;
         const sum = (keep: (r: RunManifest) => boolean) => runs.filter(keep).reduce((n, r) => n + r.review_count, 0);
         setWaiting({ review: sum((r) => REVIEWABLE.has(r.run_type)), voting: sum((r) => r.run_type === "proxy_voting") });
+        setRecentRuns([...runs].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 50));
       })
       .catch(() => setWaiting(null));
+    api.getStewardshipFlow("house").then(
+      (flow) => setOpenDecisions(stageDecisions(flow)),
+      () => setOpenDecisions(0),
+    );
   }, [route]);
 
   const hub = hubOf(active);
@@ -205,6 +220,19 @@ function App() {
 
   return (
     <div className={navOpen ? "app-shell nav-open" : "app-shell"}>
+      {/* Routing lives in the hash, so the skip link focuses <main> instead of
+          following an in-page anchor. */}
+      <a
+        className="skip-link"
+        href="#main"
+        onClick={(e) => {
+          e.preventDefault();
+          document.getElementById("main")?.focus();
+        }}
+      >
+        Skip to content
+      </a>
+      <div id="announcer" className="visually-hidden" role="status" aria-live="polite" />
       <header className="app-topbar">
         <button
           ref={menuRef}
@@ -241,7 +269,7 @@ function App() {
               const t = TABS.find((tab) => tab.id === id)!;
               const h = hubOf(id);
               const current = h ? h.tabs.some(([tid]) => tid === active) : id === navIdOf(active);
-              const count = waiting && (id === "review" || id === "voting") ? waiting[id] : 0;
+              const count = id === "stewardship" ? openDecisions : waiting && (id === "review" || id === "voting") ? waiting[id] : 0;
               return (
                 <a
                   key={t.id}
@@ -253,7 +281,7 @@ function App() {
                   <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
                   <span className="nav-tab-label">{h?.label ?? t.label}</span>
                   {count > 0 && (
-                    <span className="nav-count" aria-label={`${count} awaiting a decision`}>
+                    <span className="nav-count" aria-label={`${count} ${count === 1 ? "decision" : "decisions"} waiting on you`}>
                       {count}
                     </span>
                   )}
@@ -277,8 +305,8 @@ function App() {
           })}
         </nav>
       </aside>
-      {paletteOpen && <CommandPalette items={PALETTE_ITEMS} onClose={() => setPaletteOpen(false)} />}
-      <main className="app-main">
+      {paletteOpen && <CommandPalette items={[...PALETTE_ITEMS, ...recentRuns.map(runItem)]} onClose={() => setPaletteOpen(false)} />}
+      <main className="app-main" id="main" tabIndex={-1}>
         <ProcessBar tab={active} sub={route.params[0]} />
         {hub && (
           <nav className="sub-nav hub-nav" aria-label={hub.label}>

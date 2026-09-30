@@ -150,7 +150,7 @@ function SingleDimension() {
       <button onClick={run} disabled={running}>
         {running ? "Running..." : "Run query"}
       </button>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
       {result && (
         <div className="inline-block">
           <AggregationView result={result} />
@@ -276,7 +276,7 @@ function CrossTab() {
       <button onClick={run} disabled={running || trendModeActive}>
         {running ? "Running..." : "Run pivot"}
       </button>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
       {result && (
         <div className="inline-block">
           <PivotTable result={result} />

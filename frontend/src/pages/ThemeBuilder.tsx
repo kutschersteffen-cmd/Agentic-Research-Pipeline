@@ -217,7 +217,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
 
   return (
     <div className="page">
-      <h2>Thematic Universe</h2>
+      <h1>Thematic Universe</h1>
       <p className="help-text">Break a theme into checkable activities, then screen a universe against each one. An advocate, an opponent and an adjudicator argue every call, with grounded citations.</p>
 
       <section className="card">
@@ -363,7 +363,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
         </section>
       )}
 
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
 
       {runId && (
         <section className="card">
