@@ -192,10 +192,17 @@ export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {
               </tr>
             </thead>
             <tbody>
+              {events.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="muted">
+                    No new or updated documents yet. Scheduled scans add a row here for each document they find.
+                  </td>
+                </tr>
+              )}
               {events.map((e) => (
                 <tr key={e.event_id}>
                   <td>{new Date(e.created_at).toLocaleString()}</td>
-                  <td>{e.event_type === "new_document" ? "🆕 new" : "♻️ updated"}</td>
+                  <td>{e.event_type === "new_document" ? "New" : "Updated"}</td>
                   <td>{e.company_name ?? e.company_id}</td>
                   <td>{e.document.doc_type}</td>
                   <td>

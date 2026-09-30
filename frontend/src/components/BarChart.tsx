@@ -1,5 +1,3 @@
-import { SEQUENTIAL_BLUE } from "../lib/palette";
-
 export interface BarDatum {
   label: string;
   value: number;
@@ -19,8 +17,8 @@ function roundedEndBarPath(x: number, y: number, w: number, h: number, r: number
 }
 
 /** Horizontal bar chart: one metric across categories -- magnitude is the
- * job, so this is a single sequential hue, never a categorical rainbow
- * (see dataviz skill: "compare magnitude -> sequential color"). */
+ * job, so every bar is one ink (--text), never a categorical rainbow.
+ * Drawn at its own size rather than stretched, so labels stay body-sized. */
 export function BarChart({
   data,
   valueFormatter = (v: number) => v.toLocaleString(undefined, { maximumFractionDigits: 1 }),
@@ -40,12 +38,11 @@ export function BarChart({
   const barHeight = 18;
   const height = data.length * rowHeight + 8;
   const maxValue = Math.max(...data.map((d) => Math.abs(d.value)), 1);
-  const fill = SEQUENTIAL_BLUE[3];
   // Screen readers get the numbers, not just "a chart".
   const summary = `Bar chart, ${data.length} ${data.length === 1 ? "bar" : "bars"}: ${data.map((d) => `${d.label} ${valueFormatter(d.value)}`).join("; ")}`;
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" role="img" aria-label={summary}>
+    <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg bar-chart" role="img" aria-label={summary}>
       <line x1={labelWidth} y1={0} x2={labelWidth} y2={height} className="chart-axis-line" />
       {data.map((d, i) => {
         const y = i * rowHeight + 4;
@@ -55,7 +52,7 @@ export function BarChart({
             <text x={labelWidth - 8} y={y + barHeight / 2} textAnchor="end" dominantBaseline="middle" className="chart-axis-label">
               {d.label}
             </text>
-            <path d={roundedEndBarPath(labelWidth, y, barWidth, barHeight, 4)} fill={fill}>
+            <path d={roundedEndBarPath(labelWidth, y, barWidth, barHeight, 4)} className="chart-bar">
               <title>{`${d.label}: ${valueFormatter(d.value)}`}</title>
             </path>
             <text x={labelWidth + barWidth + 8} y={y + barHeight / 2} dominantBaseline="middle" className="chart-value-label">

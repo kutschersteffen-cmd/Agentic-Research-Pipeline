@@ -18,6 +18,7 @@ const RUN_TYPE_LABEL: Record<string, string> = {
   financials: "Company financials",
   identity: "Identity resolution",
   emerging_themes: "Emerging themes",
+  tnfd: "TNFD extraction",
 };
 
 export function runTypeLabel(runType: string): string {
