@@ -1,0 +1,3 @@
+{% import "_slot.html.j2" as m %}
+{{ m.headline(slide) }}
+{% for s in slide.slots %}{{ m.slot(s) }}{% endfor %}

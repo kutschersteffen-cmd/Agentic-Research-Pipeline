@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from io import StringIO
 from pathlib import Path
 
 import matplotlib
@@ -201,7 +202,31 @@ def render_chart_image(
     for the still-editable path used for pptx output whenever the chart
     type supports it.
     """
-    theme = theme or DesignTheme()
+    fig = _draw_chart(spec, datasets, theme or DesignTheme(), width_in, height_in)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, facecolor=fig.get_facecolor())
+    plt.close(fig)
+    return out_path
+
+
+def render_chart_svg(
+    spec: ChartSpec, datasets: list[QuantitativeDataset], *, width_px: int, height_px: int, theme: DesignTheme,
+) -> str:
+    """Same drawing as render_chart_image, as an inline-able SVG string for
+    the HTML deck. Text stays <text> (svg.fonttype=none) so the page's font
+    applies; the figure is sized at half the slot's pixels in points so the
+    10pt chart type renders at about 20px on the 1920px canvas.
+    """
+    with plt.rc_context({"svg.fonttype": "none"}):
+        fig = _draw_chart(spec, datasets, theme, width_px / 144, height_px / 144)
+        buf = StringIO()
+        fig.savefig(buf, format="svg", facecolor=fig.get_facecolor())
+        plt.close(fig)
+    svg = buf.getvalue()
+    return svg[svg.index("<svg") :]
+
+
+def _draw_chart(spec: ChartSpec, datasets: list[QuantitativeDataset], theme: DesignTheme, width_in: float, height_in: float):
     ds = _dataset_by_id(datasets, spec.dataset_id)
     plt.rcParams["font.family"] = "sans-serif"
     fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=150)
@@ -281,10 +306,7 @@ def render_chart_image(
     if spec.title:
         ax.set_title(spec.title, color=f"#{theme.ink_primary}", fontsize=14, fontweight="bold", loc="left", pad=12)
     fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, facecolor=fig.get_facecolor())
-    plt.close(fig)
-    return out_path
+    return fig
 
 
 def _apply_legend(ax, theme: DesignTheme) -> None:
@@ -367,6 +389,7 @@ __all__ = [
     "is_native",
     "build_native_chart_data",
     "render_chart_image",
+    "render_chart_svg",
     "render_table_image",
     "style_native_chart",
 ]

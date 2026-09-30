@@ -53,7 +53,7 @@
        "span": 7,
        "row": 6,
        "rows": 2,
-       "max_words": 20,
+       "max_words": 14,
        "max_items": null,
        "type_role": "subhead"
       },

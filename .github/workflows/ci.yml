@@ -58,6 +58,9 @@ jobs:
       - name: Install backend package (dev extras)
         run: pip install -e ".[dev,postgres,opensearch,emerging_themes,object_storage]"
 
+      - name: Install Chromium (HTML deck fit checks)
+        run: python -m playwright install --with-deps chromium
+
       - name: Wait for OpenSearch
         run: |
           for i in $(seq 1 30); do

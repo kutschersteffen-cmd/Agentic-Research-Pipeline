@@ -1,0 +1,65 @@
+"""Deck -> one self-contained HTML document (1920x1080 slides) from the house-style tokens/layouts.
+
+Every slot is an absolutely positioned, fixed-size, overflow:hidden box tagged
+data-slide/data-slot, so browser.measure() can compare what the text needs
+against what the layout allows. Jinja autoescape is on; slot text is never
+marked safe -- only the chart SVG we generate ourselves is.
+"""
+
+from __future__ import annotations
+
+from jinja2 import Environment, FileSystemLoader
+
+from arp.reporting.chart_builder import render_chart_svg
+from arp.reporting.design import DesignTheme
+from arp.reporting.house_style import _STYLE_DIR, Tokens, get_variant, load_tokens, slot_rect
+from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent
+
+_env = Environment(loader=FileSystemLoader(_STYLE_DIR / "templates"), autoescape=True)
+
+
+def theme_from_tokens(tokens: Tokens) -> DesignTheme:
+    c = tokens.color
+    bare = lambda h: h.lstrip("#")  # noqa: E731 -- DesignTheme stores colors without '#'
+    return DesignTheme(
+        accent=bare(c.accent), ink_primary=bare(c.ink), ink_secondary=bare(c.ink_muted), gridline=bare(c.neutral),
+        categorical=[bare(x) for x in c.categorical],
+        font_major=tokens.fonts.heading.split(",")[0], font_minor=tokens.fonts.body.split(",")[0],
+    )
+
+
+def _as_text(v: str | list[str] | None) -> str:
+    return " ".join(v) if isinstance(v, list) else (v or "")
+
+
+def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict[str, QuantitativeDataset], theme: DesignTheme) -> dict:
+    r = slot_rect(tokens, spec)
+    v = {"slide": i, "name": spec.name, "kind": spec.kind, "role": spec.type_role, "x": r.x, "y": r.y, "w": r.w, "h": r.h}
+    value = slide.slots.get(spec.name)
+    if spec.kind == "list":
+        v["items"] = value if isinstance(value, list) else ([value] if value else [])
+    elif spec.kind == "chart" and slide.chart:
+        v["svg"] = render_chart_svg(slide.chart, list(datasets.values()), width_px=int(r.w), height_px=int(r.h), theme=theme)
+    elif spec.kind == "table" and slide.table and slide.table.dataset_id in datasets:
+        ds = datasets[slide.table.dataset_id]
+        v["columns"] = slide.table.columns or ds.column_names()
+        v["rows"] = [[row.get(c, "") for c in v["columns"]] for row in ds.rows[: slide.table.max_rows]]
+    elif spec.kind == "image":
+        v["image"] = slide.image_path
+    else:
+        v["text"] = _as_text(value)
+    return v
+
+
+def render_deck_html(deck: Deck, datasets: list[QuantitativeDataset], tokens: Tokens | None = None) -> str:
+    tokens = tokens or load_tokens()
+    theme = theme_from_tokens(tokens)
+    by_id = {d.dataset_id: d for d in datasets}
+    slides = [
+        {
+            "index": i, "layout": s.layout, "headline": s.headline, "refs": " · ".join(s.source_refs),
+            "slots": [_slot_view(i, s, sp, tokens, by_id, theme) for sp in get_variant(s.layout, s.variant).slots],
+        }
+        for i, s in enumerate(deck.slides)
+    ]
+    return _env.get_template("base.html.j2").render(deck=deck, slides=slides, t=tokens)
