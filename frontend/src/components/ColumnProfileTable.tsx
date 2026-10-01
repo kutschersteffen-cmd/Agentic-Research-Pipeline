@@ -1,11 +1,14 @@
 import { COLUMN_ROLES, type ColumnProfile, type ColumnRole, type Direction, type MechanismConfig, type RoleProposal } from "../types";
 
-function roleOf(config: MechanismConfig, column: string): ColumnRole {
+function roleOf(config: MechanismConfig, column: string, proposal: RoleProposal | undefined): ColumnRole {
   if (config.criteria.some((c) => c.column === column)) return "criterion";
   if (config.gates.some((g) => g.column === column)) return "gate";
   if (config.label_column === column) return "label";
   if (config.size_column === column) return "size";
-  if (config.segment_column === column) return "segment";
+  if (config.segment_column === column || config.normalise_within === column) return "segment";
+  // A reference column is carried through, never scored, so the framework
+  // has no field for it: the engine's proposal is what makes it one.
+  if (proposal?.role === "reference") return "reference";
   return "excluded";
 }
 
@@ -45,7 +48,7 @@ export function ColumnProfileTable({
       <tbody>
         {profiles.map((profile) => {
           const proposal = proposalByColumn.get(profile.name);
-          const role = roleOf(config, profile.name);
+          const role = roleOf(config, profile.name, proposal);
           const isCriterion = role === "criterion";
           return (
             <tr key={profile.name} className={proposal?.needs_check ? "audit-needs-check" : undefined}>
@@ -53,6 +56,7 @@ export function ColumnProfileTable({
                 <strong>{profile.name}</strong>
                 {profile.decimal_comma && <div className="muted">comma decimals detected</div>}
                 {!profile.spread && <div className="muted">single value across all rows</div>}
+                {config.normalise_within === profile.name && <div className="muted">peer cohort (Mechanism tab)</div>}
               </td>
               <td>{profile.type}</td>
               <td>{Math.round(profile.coverage * 100)}%</td>

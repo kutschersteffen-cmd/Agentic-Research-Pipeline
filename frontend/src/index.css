@@ -1197,6 +1197,10 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 
 /* Decision Studio rules: the JDM canvas needs a fixed height to lay out in. */
 .rule-canvas { height: min(640px, 75vh); padding: 0; overflow: hidden; }
+/* Frameworks refuse Function (JavaScript) nodes, so the palette does not offer
+   one. ponytail: positional -- Function is the 5th built-in item in
+   @gorules/jdm-editor 1.52.0 (pinned); recheck when upgrading. */
+.rule-canvas .grl-dg__aside__menu__components > :nth-child(5) { display: none; }
 .rule-variables { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-2); margin: var(--s-2) 0 0; }
 .rule-roles { display: flex; gap: var(--s-2); font-weight: 400; }
 .selected-row { background: var(--accent-tint); }
