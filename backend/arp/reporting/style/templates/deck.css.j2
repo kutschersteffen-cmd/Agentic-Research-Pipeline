@@ -15,13 +15,17 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
 {% for role, ts in t.type.items() %}
 .t-{{ role }} { font-family: var(--font-{{ ts.font }}); font-size: {{ ts.size }}px; line-height: {{ ts.line_height }}; font-weight: {{ ts.weight }}; letter-spacing: {{ ts.tracking }}em; }
 {% endfor %}
-h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; top: {{ t.grid.margin_top }}px; width: {{ t.canvas.width - 2 * t.grid.margin_x }}px; height: {{ t.grid.headline_band - 32 }}px; overflow: hidden; text-wrap: balance; }
+h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; top: {{ t.grid.margin_top }}px; width: {{ t.canvas.width - 2 * t.grid.margin_x }}px; height: {{ (2 * t.type.headline.size * t.type.headline.line_height)|round(0, 'ceil')|int + 8 }}px; overflow: hidden; text-wrap: balance; }  /* 2 lines and descender room: a third line is an overflow */
 /* Recurring mark: a short ink rule above the headline. The accent is not decoration (DESIGN.md's One Signal Rule). */
 .slide::after { content: ""; position: absolute; left: {{ t.grid.margin_x }}px; top: {{ t.grid.margin_top - 32 - t.grid.rule_height }}px; width: {{ t.grid.rule_width }}px; height: {{ t.grid.rule_height }}px; background: var(--ink); }
 .slot { position: absolute; overflow: hidden; overflow-wrap: normal; }
 /* Metric numbers are ink (DESIGN.md). Bottom-aligned so it sits on its label; the padding holds the glyph descent inside the box. */
 .k-number { color: var(--ink); white-space: nowrap; display: flex; align-items: flex-end; padding-bottom: 0.2em; font-variant-numeric: tabular-nums; }
 [data-slot^="label_"] { border-top: 1px solid var(--neutral); padding-top: 16px; font-family: var(--font-mono); font-weight: 500; letter-spacing: 0; }
+/* Figures stand clear of their labels (the crowded rule); one to three in a row get more air, which also fills the body (sparse). */
+.slide:is([data-layout="stat_row"]:not([data-variant="four"]), [data-layout="big_number"]) .k-number { padding-bottom: 0.35em; }
+.slide:is([data-layout="stat_row"]:not([data-variant="four"]), [data-layout="big_number"]) [data-slot^="label_"] { padding-top: {{ t.grid.gutter }}px; }
+.slide[data-layout="stat_row"][data-variant="four"] [data-slot^="label_"] { padding-top: 24px; }
 .slot ul { margin: 0; padding-left: 1.1em; }
 .slot li { margin-bottom: 0.5em; }
 /* Timeline: numbered hollow steps on one rule, like the app's process-card step dots. */
@@ -48,6 +52,10 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
 .slide[data-layout="cards"] ul { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: {{ g }}px; counter-reset: card; }
 [data-density="present"] .slide[data-layout="cards"] .k-list { display: flex; align-items: safe center; }  /* a pitch centres the row; a pre-read reads from the top */
 .slide[data-layout="cards"] ul { width: 100%; }
+{% set body_h = t.canvas.height - t.grid.margin_top - t.grid.headline_band - t.grid.margin_bottom - t.grid.footer_band %}
+/* Filled by layout (the sparse rule): a pitch's cards stand at least 60% of the body tall; a pre-read's run its full height. */
+[data-density="present"] .slide[data-layout="cards"] li { min-height: {{ (body_h * 0.6)|round|int }}px; }
+[data-density="committee"] .slide[data-layout="cards"] ul { height: calc(100% - 24px); }  /* clear of the footer rule, like flow */
 .slide[data-layout="cards"] li { margin: 0; padding: {{ g }}px; border: 1px solid var(--neutral); display: flex; flex-direction: column; counter-increment: card; min-width: 0; }
 /* Footer chrome is the only text under 24px (caption); every index and label in the body is body size or larger. */
 .slide[data-layout="summary"] li::before, .slide[data-layout="split"] .k-list li::before { font: 500 {{ body.size }}px/1 var(--font-mono); letter-spacing: 0; color: var(--ink-muted); }
@@ -61,6 +69,11 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
 /* Steps: numbered nodes on one rule, like the app's process-card step dots; centred in the body. */
 .slide[data-layout="steps"] .k-list { display: flex; align-items: safe center; }
 .slide[data-layout="steps"] ul { width: 100%; }
+/* A pre-read's steps run down the body: each step's text sits in a well-tinted panel under its node. */
+[data-density="committee"] .slide[data-layout="steps"] .k-list { align-items: stretch; padding-bottom: 24px; }
+[data-density="committee"] .slide[data-layout="steps"] .k-list li { padding-bottom: 24px; background: content-box var(--well); }
+[data-density="committee"] .slide[data-layout="steps"] .k-list li > * { padding: 0 24px; }
+[data-density="committee"] .slide[data-layout="steps"] .k-list li > :first-child { padding-top: 24px; }
 .slide[data-layout="steps"] .k-list ul { list-style: none; padding: 0; margin: 0; position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: {{ g }}px; counter-reset: step; }
 .slide[data-layout="steps"] .k-list ul::before { content: ""; position: absolute; left: 0; right: 0; top: 35px; border-top: 2px solid var(--ink-muted); }
 .slide[data-layout="steps"] .k-list li { position: relative; margin: 0; padding-top: 112px; counter-increment: step; text-wrap: pretty; }
@@ -70,7 +83,7 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
 .slide[data-layout="summary"] li, .slide[data-layout="split"] .k-list li { margin: 0; display: grid; grid-template-columns: 112px 1fr; align-items: center; border-top: 1px solid var(--neutral); counter-increment: row; text-wrap: pretty; }
 .slide[data-layout="summary"] li::before, .slide[data-layout="split"] .k-list li::before { content: counter(row, decimal-leading-zero); }
 /* Compare: two mirrored panels under an ink rule; the "Label:" before the first colon heads its panel. */
-.slide[data-layout="compare"] .slot { border-top: 2px solid var(--ink); padding-top: {{ g }}px; text-wrap: pretty; }
+.slide[data-layout="compare"] .slot { border-top: 2px solid var(--ink); padding: {{ g }}px; background: var(--well); text-wrap: pretty; }
 .slide[data-layout="compare"] strong { display: block; margin-bottom: 16px; font: {{ t.type.headline.weight }} {{ t.type.headline.size }}px/{{ t.type.headline.line_height }} var(--font-heading); letter-spacing: {{ t.type.headline.tracking }}em; }
 .slide[data-layout="compare"] span { display: block; }
 [data-density="committee"] .slide[data-layout="compare"] strong { font: {{ t.type.subhead.weight }} {{ t.type.subhead.size }}px/{{ t.type.subhead.line_height }} var(--font-heading); letter-spacing: 0; }
@@ -80,6 +93,9 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
 .eyebrow { position: absolute; margin: 0; left: {{ t.grid.margin_x + t.grid.rule_width + 16 }}px; top: {{ t.grid.margin_top - 32 - t.grid.rule_height // 2 - 18 }}px; height: 36px;
   width: {{ t.canvas.width - 2 * t.grid.margin_x - t.grid.rule_width - 16 }}px; overflow: hidden; white-space: nowrap; {{ mono_label }} }
 [data-slot="takeaway_bar"] { display: flex; align-items: safe flex-end; }
+/* A takeaway under a full-width exhibit sits at the foot of the body, clear of the exhibit (the crowded rule). */
+.slide:is([data-layout="chart_takeaway"][data-variant="full"], [data-layout="table"][data-variant="highlight"]) [data-slot="takeaway"] {
+  display: flex; flex-direction: column; justify-content: safe flex-end; }
 .bar { width: 100%; padding: 14px 24px; background: var(--well); text-wrap: pretty; }
 .bar strong { font-weight: 600; }
 {% for k in c.status %}[data-status="{{ k }}"] { background: color-mix(in oklab, var(--status-{{ k }}) 16%, var(--bg)); }
@@ -110,7 +126,7 @@ ul.deltas { list-style: none; margin: 0; padding: 0; }
 ul.deltas li { display: grid; grid-template-columns: 180px 1fr; column-gap: 24px; align-items: baseline; margin-bottom: 32px; }
 ul.deltas b { font: {{ t.type.headline.weight }} {{ t.type.headline.size }}px/1 var(--font-heading); letter-spacing: {{ t.type.headline.tracking }}em; font-variant-numeric: tabular-nums; }
 /* 2x2: tinted quadrants, axis titles in mono. */
-ul.quadrants { list-style: none; margin: 0; padding: 0; height: calc(100% - 24px); display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 16px; }
+ul.quadrants { list-style: none; margin: 16px 0 0; padding: 0; height: calc(100% - 24px); display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 16px; }
 ul.quadrants li { padding: 16px 20px; min-width: 0; }
 ul.quadrants strong { display: block; font-weight: 600; }
 ul.quadrants small { display: block; font-size: inherit; color: var(--ink-muted); margin-bottom: 8px; }
@@ -120,14 +136,17 @@ ul.quadrants small { display: block; font-size: inherit; color: var(--ink-muted)
 .slide[data-layout="tree"] svg { font-family: var(--font-body); }
 .slide[data-layout="tree"] svg text.branch { font-family: var(--font-mono); font-weight: 500; fill: var(--ink-muted); }
 /* Decisions: numbered boxes, the number in ink. */
-ol.decisions { list-style: none; margin: 0; padding: 0; display: grid; row-gap: 12px; counter-reset: dec; }
-ol.decisions li { margin: 0; display: grid; grid-template-columns: 96px 1fr; align-items: center; padding: 16px 32px; border: 1px solid var(--neutral); counter-increment: dec; }
+ol.decisions { list-style: none; margin: 0; padding: 0; height: calc(100% - 24px); display: grid; grid-auto-rows: 1fr; row-gap: 12px; counter-reset: dec; }
+ol.decisions li { margin: 0; display: grid; grid-template-columns: 96px 1fr; align-items: center; align-content: center; padding: 16px 32px; border: 1px solid var(--neutral); counter-increment: dec; }
 ol.decisions li::before { content: counter(dec); grid-row: span 2; font: {{ t.type.headline.weight }} {{ t.type.headline.size }}px/1 var(--font-heading); font-variant-numeric: tabular-nums; }
 ol.decisions strong { font: {{ t.type.subhead.weight }} {{ t.type.subhead.size }}px/{{ t.type.subhead.line_height }} var(--font-heading); }
 ol.decisions span { color: var(--ink-muted); }
 .slot svg { width: 100%; height: 100%; display: block; }
 .slot img { width: 100%; height: 100%; object-fit: contain; }
 .slot table { width: 100%; border-collapse: collapse; }
+/* Beside its statement, a table's rows share the body height. */
+.slide[data-layout="split"] .k-table { display: flex; flex-direction: column; }
+.slide[data-layout="split"] .k-table table { flex: 1; }
 .slot th, .slot td { text-align: left; padding: 10px 24px 10px 0; border-bottom: 1px solid var(--neutral); font-variant-numeric: tabular-nums; }
 /* Small uppercase mono labels, as in the app. */
 .slot th { font: 500 {{ body.size }}px/{{ t.type.caption.line_height }} var(--font-mono); vertical-align: bottom; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-muted); border-bottom: 2px solid var(--ink); }

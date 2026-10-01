@@ -49,7 +49,7 @@ def test_dated_items_become_steps():
 
 
 def test_legacy_bullets_with_long_items_still_become_cards():
-    deck, _ = direct(D(S(slots={"items": [" ".join(["word"] * 15)] * 3})), density="present")
+    deck, _ = direct(D(S(slots={"items": [" ".join(["word"] * 13)] * 3})), density="present")
     assert layouts(deck) == [("cards", "three")]
 
 
@@ -213,3 +213,30 @@ def test_next_layout_steps_past_the_current_one():
     slide = S("cards", "three", {"items": SHORT})
     assert next_layout(slide, density="present") == ("summary", "default")
     assert next_layout(S("summary", "default", {"items": SHORT}), density="present") is None
+
+
+# ---- carry-overs from the Task 3 review ----
+
+
+def test_legacy_bullets_with_one_or_two_items_stay():
+    for n in (1, 2):
+        deck, findings = direct(D(S(slots={"items": [" ".join(["word"] * 13)] * n})), density="present")
+        assert layouts(deck) == [("bullets", "three")] and findings == []
+
+
+def test_candidate_rejected_when_an_item_exceeds_its_word_limit():
+    items = [" ".join(["word"] * 20)] * 3  # over cards/three's 14 words a card, under its 24 at committee density
+    assert layouts(direct(D(S(slots={"items": items})), density="present")[0]) == [("bullets", "three")]
+    assert layouts(direct(D(S(slots={"items": items})), density="committee")[0]) == [("cards", "three")]
+
+
+def test_next_layout_reaches_decisions_on_the_last_slide():
+    asks = S(slots={"items": ["Agree the pilot sample", "Calibrate with your analysts", "Pick the engagement gaps"]})
+    assert next_layout(asks, "committee", last=True) == ("decisions", "default")
+    assert next_layout(asks, "committee") == ("cards", "three")
+
+
+def test_no_section_with_fewer_than_two_slides_after_it():
+    st = [S("statement", "plain", {"statement": "s"}, headline=f"h{i}") for i in range(10)]
+    deck, _ = direct(D(*st[:3], S("section", "default", {"number": "1", "title": "Part"}), *st[3:]))  # 12 slides, the 7th after the section is the last
+    assert [s.layout for s in deck.slides].count("section") == 1

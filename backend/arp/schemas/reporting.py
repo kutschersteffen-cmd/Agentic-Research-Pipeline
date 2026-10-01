@@ -264,6 +264,7 @@ class SlideContent(BaseModel):
     image_path: str | None = None
     speaker_notes: str = ""
     source_refs: list[str] = Field(default_factory=list)
+    appendix: bool = False  # set by the design check when a dense slide cannot split
 
 
 class Deck(BaseModel):

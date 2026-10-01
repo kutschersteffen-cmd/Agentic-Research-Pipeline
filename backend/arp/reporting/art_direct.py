@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 
 from arp.reporting.house_style import get_variant
-from arp.reporting.slide_fill import _structure_errors
+from arp.reporting.slide_fill import structure_errors
 from arp.schemas.reporting import Deck, Finding, SlideContent
 
 _ORDERED = re.compile(
@@ -96,7 +96,7 @@ def candidates(shape: str, slide: SlideContent, density: str = "committee", last
     elif shape == "table":
         out += ([("table", "highlight"), ("split", "table")] if _texts(slide) else [("table", "compact")])
         out += [("table", "heat")] * bool(slide.table.heat)
-    elif slide.layout == "bullets" and 1 <= n <= 4:  # legacy bullets always move (spec §1); the placeholder has no items
+    elif slide.layout == "bullets" and 3 <= n <= 4:  # legacy bullets move (spec §1); one or two cards would stand alone
         out.append(("cards", "three" if n <= 3 else "four"))
     return list(dict.fromkeys(out))
 
@@ -120,7 +120,8 @@ def relayout(slide: SlideContent, layout: str, variant: str) -> tuple[SlideConte
 
 
 def _fits(slide: SlideContent, density: str, last: bool = False) -> list[SlideContent]:
-    """The candidates that keep every filled slot, hold every list and parse, as moved slides (the current pick excluded)."""
+    """The candidates that keep every filled slot, hold every list within its item and word limits and parse, as moved
+    slides (the current pick is not checked). The word limit matters where no fit stage follows (stewardship decks)."""
     out = []
     for ly, v in candidates(shape_of(slide), slide, density, last):
         if (ly, v) == (slide.layout, slide.variant):
@@ -128,14 +129,17 @@ def _fits(slide: SlideContent, density: str, last: bool = False) -> list[SlideCo
             continue
         moved, dropped = relayout(slide, ly, v)
         spec = get_variant(ly, v).slots
-        full = any(sp.max_items and isinstance(moved.slots.get(sp.name), list) and len(moved.slots[sp.name]) > sp.max_items for sp in spec)
-        if not dropped and not full and not _structure_errors(moved, spec):
+        lists = [(sp, v) for sp in spec if isinstance(v := moved.slots.get(sp.name), list)]
+        full = any(sp.max_items and len(v) > sp.max_items for sp, v in lists)
+        wordy = any(len(t.split()) > ((sp.committee_words if density == "committee" else None) or sp.max_words or 10**6) for sp, v in lists for t in v)
+        if not dropped and not full and not wordy and not structure_errors(moved, spec):
             out.append(moved)
     return out
 
 
-def next_layout(slide: SlideContent, density: str = "committee") -> tuple[str, str] | None:
-    picks = [(s.layout, s.variant) for s in _fits(slide, density)]
+def next_layout(slide: SlideContent, density: str = "committee", last: bool = False) -> tuple[str, str] | None:
+    """The fitting pick after the slide's current layout; `last` marks the deck's last content slide (for decisions)."""
+    picks = [(s.layout, s.variant) for s in _fits(slide, density, last)]
     cur = (slide.layout, slide.variant)
     after = picks[picks.index(cur) + 1:] if cur in picks else picks
     return after[0] if after else None
@@ -157,7 +161,8 @@ def direct(deck: Deck, density: str = "committee", shift: list[Finding] | None =
             where[i] = len(out)
             out.append(s)
             continue
-        if len(deck.slides) >= 12 and since == 6:  # a divider every 5-7 slides: the 7th since the last one becomes one
+        # A divider every 5-7 slides: the 7th since the last one gets one, unless fewer than two content slides follow.
+        if len(deck.slides) >= 12 and since == 6 and sum(j >= i for j in content) >= 2:
             sections, since = sections + 1, 0
             findings.append(Finding(slide=len(out), stage="design", rule="relayout", severity="info",
                                     message=f"section {sections} inserted before {s.headline!r} (a divider every 5-7 slides)"))

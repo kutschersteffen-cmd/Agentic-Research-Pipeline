@@ -29,6 +29,15 @@ def _note(s: SlideContent, marker: str) -> SlideContent:
     return s.model_copy(update={"speaker_notes": f"{s.speaker_notes} {marker}".strip()})
 
 
+def split_list(s: SlideContent, slot: str, i: int) -> list[SlideContent] | None:
+    """Slide `i` as two slides, each with half of `slot`'s items; None when the list cannot split (structured.NO_SPLIT)."""
+    items = s.slots.get(slot)
+    if (s.layout, slot) in NO_SPLIT or not isinstance(items, list) or len(items) < 2:
+        return None
+    h, marker = len(items) // 2, f"[split_from slide {i}]"
+    return [_note(s.model_copy(update={"slots": {**s.slots, slot: items[:h]}}), marker), _note(s.model_copy(update={"slots": {**s.slots, slot: items[h:]}}), marker)]
+
+
 async def _fit_slide(
     deck: Deck, i: int, slot: str, kind: str, ratio: float, request: ReportRequest, llm: LLMClient, usage: LLMUsage | None,
 ) -> tuple[list[SlideContent], list[Finding]]:
@@ -50,11 +59,8 @@ async def _fit_slide(
         kept = {k: v for k, v in s.slots.items() if k in names}
         dropped = [Finding(slide=i, slot=k, stage="fit", rule="slot_dropped", message=f"Slot {k!r} does not exist in {s.layout}/{roomier}; its content was dropped.") for k in s.slots if k not in names]
         return [s.model_copy(update={"variant": roomier, "slots": kept})], dropped
-    items = s.slots.get(slot)
-    if kind == "list" and (s.layout, slot) not in NO_SPLIT and isinstance(items, list) and len(items) >= 2:
-        h = len(items) // 2
-        marker = f"[split_from slide {i}]"
-        return [_note(s.model_copy(update={"slots": {**s.slots, slot: items[:h]}}), marker), _note(s.model_copy(update={"slots": {**s.slots, slot: items[h:]}}), marker)], []
+    if kind == "list" and (halves := split_list(s, slot, i)):
+        return halves, []
     if kind == "table" and s.table:
         ds = next((d for d in request.datasets if d.dataset_id == s.table.dataset_id), None)
         n = min(s.table.max_rows, len(ds.rows) - s.table.row_offset) if ds else 0  # visible rows

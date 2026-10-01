@@ -96,7 +96,8 @@ async def test_applied_qa_edit_replaces_stale_fit_and_lint_findings(tmp_path, fa
     llm = fake_llm({"SlideContent": [_bullets()], "QAResult": [QAResult(edits=[edit])]})
     deck, findings = await house_pipeline.build_house_deck("r1", _REQ, _storyline(1), llm, _store(tmp_path))
     assert deck.slides[1].slots["items"] == ["calm", "b"]
-    assert [f.rule for f in findings] == ["relayout", "slot_dropped", "applied"]  # stale overflow + lint gone; QA's real re-fit finds nothing
+    # Stale overflow + lint gone; QA's real re-fit finds only that two short items leave the body sparse.
+    assert [f.rule for f in findings] == ["slot_dropped", "applied", "sparse"]
 
 
 def test_render_from_plan_rerenders_house_deck_without_llm(tmp_path, fake_llm):
@@ -221,3 +222,41 @@ async def test_approve_after_failed_rerender_rerenders_saved_deck(tmp_path, fake
     manifest = await service.approve_storyline(rid, fake_llm({}))  # no LLM: the saved deck is re-rendered
 
     assert manifest.status == ReportStatus.COMPLETED and store.output_path(rid, "output.pdf").exists()
+
+
+async def test_pipeline_retries_relayout_once(tmp_path, fake_llm, monkeypatch):
+    from arp.reporting import fit
+
+    real = fit.measure
+
+    async def sparse_slide_1(html):  # slide 1 stays sparse in every layout: one retry, then it is kept
+        return [*await real(html), Finding(slide=1, stage="design", rule="sparse", message="0.30 < 0.70")]
+
+    monkeypatch.setattr(fit, "measure", sparse_slide_1)
+    short = SlideContent(headline="x", layout="bullets", variant="three", slots={"items": ["Code checks quotes", "A second model rechecks", "Analysts review"]})
+    llm = fake_llm({"SlideContent": [short], "QAResult": [QAResult(edits=[])]})
+    deck, findings = await house_pipeline.build_house_deck("r1", _REQ, _storyline(1), llm, _store(tmp_path))
+    moves = [f.message for f in findings if f.rule == "relayout"]
+    assert moves == ["bullets/three → cards/three (parallel)", "cards/three → summary/default (sparse)"]
+    assert (deck.slides[1].layout, deck.slides[1].variant) == ("summary", "default")
+    assert [f.rule for f in findings if f.stage == "design" and f.severity == "warn"] == ["sparse"]  # what is left is kept, once
+
+
+async def test_placeholder_reports_sparse_once_and_stops(tmp_path, fake_llm):
+    llm = fake_llm({"QAResult": [QAResult(edits=[])]})  # no SlideContent scripted: the fill fails, a placeholder stands in
+    deck, findings = await house_pipeline.build_house_deck("r1", _REQ, _storyline(1), llm, _store(tmp_path))
+    assert deck.slides[1].slots == {"items": []}
+    assert [(f.slide, f.rule) for f in findings if f.stage == "design"] == [(1, "sparse")]
+
+
+async def test_dense_slide_splits_then_goes_to_the_appendix(tmp_path, fake_llm):
+    req = _REQ.model_copy(update={"layout": _REQ.layout.model_copy(update={"density": "present"})})
+    item = " ".join(["word"] * 15)  # 4 x 15 + the headline: over 60
+    listy = SlideContent(headline="x", layout="summary", variant="default", slots={"items": [item] * 4})
+    prose = SlideContent(headline="x", layout="compare", variant="default", slots={"left": " ".join(["left"] * 35), "right": " ".join(["right"] * 35)})
+    llm = fake_llm({"SlideContent": [listy, prose], "QAResult": [QAResult(edits=[])]})
+    deck, findings = await house_pipeline.build_house_deck("r1", req, _storyline(2), llm, _store(tmp_path))
+    assert [len(s.slots.get("items", [])) for s in deck.slides[1:3]] == [2, 2]  # the list split in two
+    assert deck.slides[3].appendix and not any(s.appendix for s in deck.slides[:3])  # prose cannot split
+    assert [f.slide for f in findings if f.rule == "appendix" and f.severity == "info"] == [3]
+    assert not [f for f in findings if f.rule == "dense"]

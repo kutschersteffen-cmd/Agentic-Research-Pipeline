@@ -1,4 +1,4 @@
-"""House deck build after storyline approval: fill -> art direction -> lint+rewrite -> fit -> visual QA -> PDF + PNGs + PPTX."""
+"""House deck build after storyline approval: fill -> art direction -> lint+rewrite -> fit -> design retry -> visual QA -> PDF + PNGs + PPTX."""
 
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ from pathlib import Path
 from arp.config import Settings
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.adapters import with_run_datasets
-from arp.reporting.art_direct import direct
+from arp.reporting.art_direct import direct, next_layout, relayout
 from arp.reporting.browser import write_pdf, write_pngs
-from arp.reporting.fit import fit_deck
+from arp.reporting.fit import fit_deck, split_list
 from arp.reporting.house_pptx import build_house_pptx
 from arp.reporting.html_render import render_deck_html
 from arp.reporting.lint import lint_and_rewrite, lint_deck
@@ -30,6 +30,47 @@ async def render_house_outputs(report_id: str, deck: Deck, request: ReportReques
     for old in preview.glob("page-*.png"):  # a shorter deck must not keep the old tail
         old.unlink()
     await write_pngs(html, preview)
+
+
+def _measured(f: Finding) -> bool:
+    """Findings that measure() recomputes on every render (data-errors carry a slot; fill's data findings do not)."""
+    return (f.stage == "fit" and f.rule != "slot_dropped") or (f.stage == "design" and f.severity == "warn") or (f.stage == "data" and f.slot is not None)
+
+
+async def design_retry(deck: Deck, request: ReportRequest, llm: LLMClient, findings: list[Finding], usage: LLMUsage | None = None,
+                       ) -> tuple[Deck, list[Finding]]:
+    """Spec §3: one more try for every slide with a warn design finding. A dense slide splits its list or, when it cannot,
+    goes to the appendix; any other gets art_direct's next layout. Then one fit pass and a fresh measure; what is left is kept."""
+    warns: dict[int, set[str]] = {}
+    for f in findings:
+        if f.stage == "design" and f.severity == "warn":
+            warns.setdefault(f.slide, set()).add(f.rule)
+    slides, notes = list(deck.slides), []
+    last = max((i for i, s in enumerate(slides) if i and s.layout != "section"), default=0)
+    for i in sorted(warns, reverse=True):  # a split at i must not shift the slides still to do
+        s, rules = slides[i], warns[i]
+        if not i or s.layout == "section":  # the title and dividers keep their layout
+            continue
+        if "dense" in rules:
+            halves = next(filter(None, (split_list(s, k, i) for k, v in s.slots.items() if isinstance(v, list))), None)
+            if halves:
+                slides[i : i + 1] = halves
+                for f in [*findings, *notes]:
+                    if f.slide > i:
+                        f.slide += 1
+                notes.append(Finding(slide=i, stage="design", rule="split", severity="info", message="dense: the list split over two slides"))
+            else:
+                slides[i] = s.model_copy(update={"appendix": True})
+                notes.append(Finding(slide=i, stage="design", rule="appendix", severity="info", message="dense and nothing to split: moved to the appendix"))
+        elif nxt := next_layout(s, request.layout.density, last=i == last):
+            slides[i] = relayout(s, *nxt)[0]
+            notes.append(Finding(slide=i, stage="design", rule="relayout", severity="info",
+                                 message=f"{s.layout}/{s.variant} → {nxt[0]}/{nxt[1]} ({', '.join(sorted(rules))})"))
+    if not notes:  # nothing to try (a placeholder, say): its findings stand as measured
+        return deck, findings
+    kept = [f for f in findings if not _measured(f)] + notes
+    deck, refit = await fit_deck(deck.model_copy(update={"slides": slides}), request, llm, max_passes=1, usage=usage, shift=kept)
+    return deck, kept + refit
 
 
 async def build_house_deck(
@@ -54,14 +95,16 @@ async def build_house_deck(
     findings += design
     deck, _ = await lint_and_rewrite(deck, request, llm, usage=usage)  # its findings are recomputed on the final deck below
     deck, fit_findings = await fit_deck(deck, request, llm, usage=usage, shift=findings)
-    findings += fit_findings
+    deck, findings = await design_retry(deck, request, llm, findings + fit_findings, usage=usage)
     with tempfile.TemporaryDirectory() as tmp:
         pngs = await write_pngs(render_deck_html(deck, request.datasets, mode=request.layout.theme, density=request.layout.density), Path(tmp))
         deck, qa_findings = await visual_qa(deck, pngs, request, llm, usage=usage, shift=findings)
-    if any(f.rule == "applied" for f in qa_findings):  # QA re-measured the deck: the first fit's measurements are stale
-        findings = [f for f in findings if f.stage != "fit" or f.rule == "slot_dropped"]
+    if any(f.rule == "applied" for f in qa_findings):  # QA re-measured the deck: the earlier measurements are stale
+        findings = [f for f in findings if not _measured(f)]
     # Fit splits moved slides; lint once more on the final deck so every lint finding points at the right slide.
-    findings = [f for f in [*findings, *qa_findings] if f.stage != "lint"] + lint_deck(deck, request)
+    # An appendix slide is dense by definition; its info finding says so.
+    findings = [f for f in [*findings, *qa_findings] if f.stage != "lint" and not (f.rule == "dense" and deck.slides[f.slide].appendix)]
+    findings += lint_deck(deck, request)
     store.save_deck(report_id, deck)
     await render_house_outputs(report_id, deck, request, store)
     store.save_findings(report_id, findings)

@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+
 from arp.reporting.art_direct import direct
 from arp.schemas.reporting import Deck, ReportPlan, SectionLayoutHint, SlideContent
+
+logger = logging.getLogger(__name__)
 
 
 def deck_from_plan(plan: ReportPlan) -> Deck:
@@ -23,4 +27,7 @@ def deck_from_plan(plan: ReportPlan) -> Deck:
             slides.append(SlideContent(**base, layout="table", variant="compact", table=sec.table))
         else:
             slides.append(SlideContent(**base, layout="bullets", variant="five", slots={"items": texts}))
-    return direct(Deck(title=plan.title, subtitle=plan.subtitle, slides=slides))[0]
+    deck, findings = direct(Deck(title=plan.title, subtitle=plan.subtitle, slides=slides))
+    for f in findings:  # this path has no findings channel: the log is where a relayout shows
+        logger.info("art direction, slide %d: %s", f.slide, f.message)
+    return deck

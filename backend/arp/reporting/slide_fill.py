@@ -92,7 +92,7 @@ def validate_slide(slide: SlideContent, datasets: list[QuantitativeDataset]) -> 
             errors.append(f"unknown dataset_id {dataset_id!r}; known: {sorted(by_id)}")
             continue
         errors += [f"dataset {dataset_id!r} has no column {col!r}; columns: {ds.column_names()}" for col in columns if col and col not in ds.column_names()]
-    return errors + _structure_errors(slide, spec.slots)
+    return errors + structure_errors(slide, spec.slots)
 
 
 def _variant_or_none(slide: SlideContent):
@@ -102,7 +102,7 @@ def _variant_or_none(slide: SlideContent):
         return None
 
 
-def _structure_errors(slide: SlideContent, slots) -> list[str]:
+def structure_errors(slide: SlideContent, slots) -> list[str]:
     """Committee layouts' `a :: b` items must parse (the tree must also fit its slot)."""
     errors = []
     for sp in slots:
@@ -145,18 +145,18 @@ async def fill_slide(slide: StorylineSlide, index: int, request: ReportRequest, 
     usage = LLMUsage()
     try:
         content, usage = await llm.complete_structured(system=_system_prompt(request.layout.density), prompt=prompt, output_model=SlideContent)
-        content = content.model_copy(update={"image_path": None})
+        content = content.model_copy(update={"image_path": None, "appendix": False})
         errors = validate_slide(content, request.datasets)
         if errors:
             retry_prompt = prompt + "\nYour previous answer had these errors; fix them:\n- " + "\n- ".join(errors) + "\n"
             content, u2 = await llm.complete_structured(system=_system_prompt(request.layout.density), prompt=retry_prompt, output_model=SlideContent)
-            content = content.model_copy(update={"image_path": None})
+            content = content.model_copy(update={"image_path": None, "appendix": False})
             usage = add_usage(usage, u2)
             errors = validate_slide(content, request.datasets)
     except Exception as exc:  # noqa: BLE001 -- the client retried already; one slide must not fail the deck
         return placeholder, [Finding(slide=index, stage="data", rule="llm_failed", message=str(exc))], usage
     findings = []
-    if errors and _variant_or_none(content) and errors == _structure_errors(content, get_variant(content.layout, content.variant).slots):
+    if errors and _variant_or_none(content) and errors == structure_errors(content, get_variant(content.layout, content.variant).slots):
         # Only the `a :: b` items are malformed: keep the content, as cards (the amendment's fallback).
         content = _as_cards(content)
         findings = [Finding(slide=index, stage="data", rule="bad_structure", message="; ".join(errors) + " (shown as cards)")]
@@ -184,6 +184,6 @@ async def rewrite_slot(
         usage.input_tokens += u.input_tokens
         usage.output_tokens += u.output_tokens
     new = slide.model_copy(update={"slots": {**slide.slots, slot: out.text}})
-    if spec.kind == "list" and (errors := _structure_errors(new, [spec])):
+    if spec.kind == "list" and (errors := structure_errors(new, [spec])):
         raise ValueError(f"rewrite of {slot!r} broke its item format: {'; '.join(errors)}")  # callers keep the old value
     return new

@@ -138,7 +138,7 @@ def test_client_brief_renders_without_an_llm(tmp_path, fake_llm, monkeypatch):
     notes = " ".join(str(v) for s in deck.slides for v in s.slots.values())
     request = ReportRequest(title="x", qualitative_notes=notes, datasets=seen["datasets"], layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK))
     _, fit_findings = asyncio.run(fit_deck(deck, request, fake_llm({})))  # a rewrite call would hit the empty script and fail
-    assert deck.slides and fit_findings == []
+    assert deck.slides and [f for f in fit_findings if f.stage != "design"] == []  # no fit stage here: design warns stay advisory
     # over_word_limit and bold_label do not apply: they steer the LLM's rewrite, and the report's own summary
     # lines are longer than the slot guide and use 'Label: value' form, yet fit the slide (fit_findings is empty).
     assert [f for f in lint_deck(deck, request) if f.rule not in ("over_word_limit", "bold_label")] == []

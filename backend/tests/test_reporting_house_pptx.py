@@ -105,7 +105,7 @@ async def test_html_table_with_more_rows_still_fits():
     from arp.reporting.browser import measure
 
     deck, ds = _table_deck(40, max_rows=8)
-    assert await measure(render_deck_html(deck, ds)) == []
+    assert [f for f in await measure(render_deck_html(deck, ds)) if f.stage == "fit"] == []
 
 
 def _first_words(pdf: str, words: list[str]) -> dict[str, tuple[float, float]]:

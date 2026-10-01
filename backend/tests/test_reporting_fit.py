@@ -49,7 +49,7 @@ async def test_fit_shortens_mild_overflow(fake_llm):
     deck, findings = await fit_deck(_deck(slide), _REQ, llm)
     assert llm.calls == ["SlotRewrite"]
     assert deck.slides[1].slots["left"] == "short"
-    assert findings == []
+    assert [f for f in findings if f.stage != "design"] == []
 
 
 @pytest.mark.asyncio

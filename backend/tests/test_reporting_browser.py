@@ -10,14 +10,14 @@ from tests.fixtures.stress_deck import stress_deck
 async def test_overlong_text_reports_overflow_with_ratio():
     deck = Deck(title="T", slides=[SlideContent(headline="h", layout="bullets", variant="three",
                                                 slots={"items": ["word " * 600]})])
-    [f] = await measure(render_deck_html(deck, []))
+    [f] = [f for f in await measure(render_deck_html(deck, [])) if f.stage == "fit"]
     assert (f.rule, f.slot, f.slide) == ("overflow", "items", 0) and float(f.message.split("=")[1]) > 1.5
 
 
 async def test_unbreakable_token_reports_overflow_x():
     deck = Deck(title="T", slides=[SlideContent(headline="h", layout="quote", variant="default",
                                                 slots={"quote": "https://" + "x" * 300, "attribution": "a"})])
-    assert {f.rule for f in await measure(render_deck_html(deck, []))} == {"overflow_x"}
+    assert {f.rule for f in await measure(render_deck_html(deck, [])) if f.stage == "fit"} == {"overflow_x"}
 
 
 async def test_pdf_has_one_page_per_slide(tmp_path):
@@ -40,7 +40,7 @@ async def test_missing_chromium_raises_install_hint(monkeypatch):
 
 async def test_overlong_headline_reports_overflow():
     deck = Deck(title="T", slides=[SlideContent(headline="word " * 60, layout="bullets", variant="three", slots={"items": ["a"]})])
-    [f] = await measure(render_deck_html(deck, []))
+    [f] = [f for f in await measure(render_deck_html(deck, [])) if f.stage == "fit"]
     assert (f.rule, f.slot, f.slide) == ("overflow", "headline", 0)
 
 
@@ -51,7 +51,9 @@ async def test_stress_deck_max_fits_in_both_modes(mode, fill, density):
     deck, ds = stress_deck(fill, density)
     html = render_deck_html(deck, ds, mode=mode, density=density)
     assert "data:font/" in html
-    assert await measure(html) == []
+    # Every slot at its limit (or one word) is a fit fixture: how much fills the body (sparse, dense, unbalanced) is
+    # the content's doing, but no layout may crowd, set small text or lose its focal point at any fill.
+    assert [f for f in await measure(html) if f.rule not in ("sparse", "dense", "unbalanced")] == []
 
 
 @pytest.mark.parametrize("mode", ["light", "dark"])
@@ -108,7 +110,7 @@ async def test_cards_with_uneven_items_keep_equal_heights(mode):
     html = render_deck_html(deck, [], mode=mode)
     heights = await _computed(html, "[...document.querySelectorAll('[data-slot=items] li')].map(e => e.getBoundingClientRect().height)")
     assert len(heights) == 3 and max(heights) - min(heights) <= 1
-    assert await measure(html) == []
+    assert [f for f in await measure(html) if f.stage == "fit"] == []
 
 
 def test_card_items_split_title_and_body():
@@ -131,7 +133,7 @@ async def test_eyebrow_renders_above_the_headline():
     html = render_deck_html(deck, [])
     eb, h1 = await _computed(html, "['.eyebrow', 'h1'].map(q => document.querySelector(q).getBoundingClientRect()).map(r => [r.top, r.bottom])")
     assert eb[1] <= h1[0] and ">Method<" in html
-    assert await measure(html) == []
+    assert [f for f in await measure(html) if f.stage == "fit"] == []
 
 
 @pytest.mark.parametrize("mode", ["light", "dark"])
@@ -170,5 +172,104 @@ async def test_malformed_structured_slot_renders_as_a_list_and_reports_a_data_fi
     deck = Deck(title="T", slides=[SlideContent(headline="h", layout="matrix2x2", variant="default", slots={"quadrants": quads})])
     html = render_deck_html(deck, [])
     assert "<li>Q0 :: sub :: text :: high</li>" in html
-    [f] = await measure(html)
+    [f] = [f for f in await measure(html) if f.stage != "design"]
     assert (f.stage, f.rule, f.slot, f.slide) == ("data", "bad_structure", "quadrants", 0) and "exactly 4" in f.message
+
+
+# ---- measured design check (spec §3) ----
+
+
+def _design(found, rule=None):
+    return [f for f in found if f.stage == "design" and f.severity == "warn" and rule in (None, f.rule)]
+
+
+def _styled(html: str, css: str) -> str:
+    return html.replace("</head>", f"<style>{css}</style></head>")
+
+
+_TITLE = SlideContent(headline="T", layout="title", variant="plain", slots={"title": "T", "subtitle": "S"})
+_FOUR = ["Code checks every quote", "A second model rechecks", "Analysts review the rest"]
+
+
+@pytest.mark.parametrize("density", ["present", "committee"])
+@pytest.mark.parametrize("mode", ["light", "dark"])
+async def test_sparse_slide_flagged(mode, density):
+    deck = Deck(title="T", slides=[_TITLE, SlideContent(headline="h", layout="bullets", variant="three", slots={"items": _FOUR})])
+    [f] = _design(await measure(render_deck_html(deck, [], mode=mode, density=density)), "sparse")
+    assert f.slide == 1 and f.message.endswith(f"< {0.55 if density == 'present' else 0.70:.2f}")
+
+
+@pytest.mark.parametrize("mode", ["light", "dark"])
+async def test_title_and_section_not_sparse(mode):
+    deck = Deck(title="T", slides=[_TITLE, SlideContent(headline="h", layout="section", variant="default", slots={"number": "1", "title": "Part"})])
+    assert _design(await measure(render_deck_html(deck, [], mode=mode))) == []
+
+
+@pytest.mark.parametrize("mode", ["light", "dark"])
+async def test_small_text_flagged(mode):
+    deck = Deck(title="T", slides=[_TITLE, SlideContent(headline="h", layout="summary", variant="default", slots={"items": _FOUR})])
+    html = _styled(render_deck_html(deck, [], mode=mode), "[data-slot=items] { font-size: 18px !important; }")
+    [f] = _design(await measure(html), "small_text")
+    assert (f.slide, f.slot) == (1, "items") and "18" in f.message
+
+
+@pytest.mark.parametrize("mode", ["light", "dark"])
+async def test_footer_chrome_ignored(mode):
+    deck, ds = stress_deck("min")
+    deck.slides[1].source_refs = ["A source line in the footer"]
+    html = render_deck_html(deck, ds, mode=mode)
+    assert "<footer data-chrome>" in html
+    assert _design(await measure(html), "small_text") == []
+
+
+async def test_no_focal_flagged():
+    deck = Deck(title="T", slides=[_TITLE, SlideContent(headline="h", layout="summary", variant="default", slots={"items": _FOUR})])
+    html = _styled(render_deck_html(deck, []), "h1.t-headline, [data-slot=items] { font-size: 28px !important; }")
+    [f] = _design(await measure(html), "no_focal")
+    assert f.slide == 1
+
+
+async def test_unbalanced_uses_the_rendered_anchor():
+    deck = Deck(title="T", slides=[_TITLE, SlideContent(headline="h", layout="statement", variant="plain", slots={"statement": "Talk outruns walk."})])
+    html = render_deck_html(deck, [], density="present")
+    assert 'data-anchor="middle"' in html and _design(await measure(html), "unbalanced") == []
+    [f] = _design(await measure(_styled(html, "[data-slot=statement] { justify-content: flex-start !important; }")), "unbalanced")
+    assert f.slide == 1
+    cards = Deck(title="T", slides=[_TITLE, SlideContent(headline="h", layout="cards", variant="three", slots={"items": _FOUR})])
+    assert 'data-anchor="middle"' in render_deck_html(cards, [], density="present")  # deck.css centres present cards
+    assert 'data-anchor="top"' in render_deck_html(cards, [], density="committee")
+
+
+async def test_crowded_flagged():
+    deck = Deck(title="T", slides=[_TITLE, SlideContent(headline="h", layout="compare", variant="default", slots={"left": "First pass.", "right": "Second pass."})])
+    html = _styled(render_deck_html(deck, []), "[data-slot=right] { left: 96px !important; top: 340px !important; height: 100px !important; }")
+    assert [f.slide for f in _design(await measure(html), "crowded")] == [1]
+
+
+async def test_dense_counts_headline_and_slots_per_density():
+    words = ["one two three four five six seven eight nine ten eleven twelve thirteen"] * 4  # 52 words + the headline
+    deck = Deck(title="T", slides=[_TITLE, SlideContent(headline="Ten words in this headline make the slide dense now", eyebrow="Not counted at all",
+                                                        layout="summary", variant="default", slots={"items": words})])
+    [f] = _design(await measure(render_deck_html(deck, [], density="present")), "dense")
+    assert f.slide == 1 and f.message.startswith("62 words")
+    assert _design(await measure(render_deck_html(deck, [], density="committee")), "dense") == []
+
+
+def _tpa(fixture):
+    from arp.reporting.art_direct import direct
+
+    req, story, fills = fixture()
+    for s, h in zip(fills, story.slides, strict=True):
+        s.headline = h.headline
+    title = SlideContent(headline=story.title, layout="title", variant="plain", slots={"title": story.title, "subtitle": story.subtitle})
+    return req, direct(Deck(title=story.title, slides=[title, *fills]), req.layout.density)[0]
+
+
+@pytest.mark.parametrize("fixture", ["tpa_pitch", "tpa_pitch_committee"])
+@pytest.mark.parametrize("mode", ["light", "dark"])
+async def test_tpa_v2_layouts_have_no_design_findings(mode, fixture):
+    import importlib
+
+    req, deck = _tpa(getattr(importlib.import_module(f"tests.fixtures.{fixture}"), fixture))
+    found = await measure(render_deck_html(deck, req.datasets, mode=mode, density=req.layout.density))
+    assert found == [], [(f.slide, f.rule, f.slot, f.message) for f in found]

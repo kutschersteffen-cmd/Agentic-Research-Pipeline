@@ -479,11 +479,11 @@
        "span": 6,
        "row": 4,
        "rows": 2,
-       "max_words": 8,
+       "max_words": 6,
        "max_items": null,
        "type_role": "body",
        "type_role_short": "subhead",
-       "short_words": 6
+       "short_words": 3
       },
       {
        "name": "number_2",
@@ -503,11 +503,11 @@
        "span": 6,
        "row": 4,
        "rows": 2,
-       "max_words": 8,
+       "max_words": 6,
        "max_items": null,
        "type_role": "body",
        "type_role_short": "subhead",
-       "short_words": 6
+       "short_words": 3
       },
       {
        "name": "number_3",
@@ -527,11 +527,11 @@
        "span": 6,
        "row": 10,
        "rows": 2,
-       "max_words": 8,
+       "max_words": 6,
        "max_items": null,
        "type_role": "body",
        "type_role_short": "subhead",
-       "short_words": 6
+       "short_words": 3
       },
       {
        "name": "number_4",
@@ -551,11 +551,11 @@
        "span": 6,
        "row": 10,
        "rows": 2,
-       "max_words": 8,
+       "max_words": 6,
        "max_items": null,
        "type_role": "body",
        "type_role_short": "subhead",
-       "short_words": 6
+       "short_words": 3
       }
      ],
      "visual": true
@@ -762,7 +762,7 @@
        "span": 12,
        "row": 10,
        "rows": 2,
-       "max_words": 30,
+       "max_words": 16,
        "max_items": null,
        "type_role": "body"
       }
@@ -829,7 +829,7 @@
        "span": 12,
        "row": 10,
        "rows": 2,
-       "max_words": 30,
+       "max_words": 16,
        "max_items": null,
        "type_role": "body"
       }
@@ -874,7 +874,7 @@
        "span": 12,
        "row": 10,
        "rows": 2,
-       "max_words": 30,
+       "max_words": 16,
        "max_items": null,
        "type_role": "body"
       }
@@ -941,7 +941,7 @@
        "span": 12,
        "row": 10,
        "rows": 2,
-       "max_words": 30,
+       "max_words": 16,
        "max_items": null,
        "type_role": "body"
       }
@@ -975,7 +975,7 @@
        "span": 12,
        "row": 10,
        "rows": 2,
-       "max_words": 30,
+       "max_words": 16,
        "max_items": null,
        "type_role": "body"
       }
@@ -1087,7 +1087,7 @@
        "span": 12,
        "row": 10,
        "rows": 2,
-       "max_words": 30,
+       "max_words": 16,
        "max_items": null,
        "type_role": "body"
       }
