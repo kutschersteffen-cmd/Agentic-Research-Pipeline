@@ -3,9 +3,10 @@ from __future__ import annotations
 import csv
 import io
 import json
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -15,6 +16,7 @@ from arp.decision import overrides, sources, templates
 from arp.decision.compare import compare_results, hold_cuts
 from arp.decision.dataset import Dataset, build_dataset
 from arp.decision.diffing import describe_changes
+from arp.decision.indicator_list import build_framework, parse_indicator_list
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
 from arp.decision.parsing import load_table
 from arp.decision.profiling import profile_dataset
@@ -120,6 +122,18 @@ def _resolve_config(req_config: MechanismConfig | None, framework_id: str | None
 # --- datasets ---
 
 
+async def _save_upload(file: UploadFile, settings: Settings) -> Path:
+    try:
+        name = safe_filename(file.filename)
+    except UnsafeIdentifierError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    dest_dir = settings.frameworks_dir / "_uploads"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_path = dest_dir / name
+    dest_path.write_bytes(await file.read())
+    return dest_path
+
+
 @router.post("/datasets", response_model=DatasetSummary)
 async def upload_dataset(
     file: UploadFile,
@@ -133,14 +147,8 @@ async def upload_dataset(
     browser tab is not reproducible, not citable and not reviewable --
     which is the whole reason this layer lives server-side.
     """
-    try:
-        name = safe_filename(file.filename)
-    except UnsafeIdentifierError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    dest_dir = settings.frameworks_dir / "_uploads"
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    dest_path = dest_dir / name
-    dest_path.write_bytes(await file.read())
+    dest_path = await _save_upload(file, settings)
+    name = dest_path.name
     try:
         matrix = load_table(dest_path)
     except ValueError as exc:
@@ -349,6 +357,26 @@ def import_mechanism(req: ImportRequest, store: DecisionStore = Depends(get_deci
         config, audit = templates.import_template(req.template, by=req.by)
     except (ValueError, ValidationError) as exc:
         raise HTTPException(400, str(exc)) from exc
+    store.save(config, audit)
+    return MechanismEnvelope(config=config, audit=audit)
+
+
+@router.post("/mechanisms/from-indicators", response_model=MechanismEnvelope)
+async def mechanism_from_indicators(
+    file: UploadFile,
+    name: str = Form(...),
+    by: str | None = Form(None),
+    settings: Settings = Depends(settings_dep),
+    store: DecisionStore = Depends(get_decision_store),
+) -> MechanismEnvelope:
+    """An indicator list (one row per indicator) -> a new, unratified
+    framework. Format: docs/decision-studio/indicator-list.md."""
+    dest_path = await _save_upload(file, settings)
+    try:
+        config, audit = build_framework(parse_indicator_list(load_table(dest_path)), name=name)
+    except (ValueError, ValidationError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    audit = [a.model_copy(update={"by": by}) for a in audit]
     store.save(config, audit)
     return MechanismEnvelope(config=config, audit=audit)
 
