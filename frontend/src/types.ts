@@ -1216,10 +1216,11 @@ export interface AudienceProfile {
   focus_areas: string[];
 }
 
-export type OutputFormat = "pptx" | "docx" | "pdf";
+export type OutputFormat = "pptx" | "docx" | "pdf" | "house_deck";
 
 export interface LayoutInstructions {
   output_format: OutputFormat;
+  theme?: "light" | "dark";
   target_length?: number | null;
   max_bullets_per_slide: number;
   include_title_slide: boolean;
@@ -1318,9 +1319,10 @@ export interface ReportRequest {
   audience: AudienceProfile;
   layout: LayoutInstructions;
   template_id?: string | null;
+  goal?: string;
 }
 
-export type ReportStatus = "pending" | "planning" | "plan_ready" | "rendering" | "completed" | "failed";
+export type ReportStatus = "pending" | "planning" | "plan_ready" | "storyline_ready" | "rendering" | "completed" | "failed";
 
 export interface ReportManifest {
   report_id: string;
@@ -1335,6 +1337,28 @@ export interface ReportManifest {
   input_tokens: number;
   output_tokens: number;
   model?: string | null;
+  output_files: string[];
+}
+
+export interface StorylineSlide {
+  headline: string;
+  purpose: string;
+  source_refs: string[];
+}
+
+export interface Storyline {
+  title: string;
+  subtitle: string;
+  slides: StorylineSlide[];
+  approved: boolean;
+}
+
+export interface Finding {
+  slide: number;
+  slot?: string | null;
+  stage: "data" | "lint" | "fit" | "qa";
+  rule: string;
+  message: string;
 }
 
 // ---- Investment Strategy Replication ---------------------------------------

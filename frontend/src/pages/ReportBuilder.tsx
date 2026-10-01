@@ -6,12 +6,15 @@ import type {
   AudienceLevel,
   ChartType,
   ContentItem,
+  Finding,
   OutputFormat,
   QuantitativeDataset,
   ReportManifest,
   ReportPlan,
   ReportSection,
   SectionLayoutHint,
+  Storyline,
+  StorylineSlide,
   TemplateStyleProfile,
   Tone,
 } from "../types";
@@ -20,7 +23,8 @@ import { activatable } from "../lib/activatable";
 
 const AUDIENCE_LEVELS: AudienceLevel[] = ["executive", "technical", "general"];
 const TONES: Tone[] = ["formal", "conversational", "persuasive", "neutral_analytical"];
-const OUTPUT_FORMATS: OutputFormat[] = ["pptx", "docx", "pdf"];
+const OUTPUT_FORMATS: OutputFormat[] = ["pptx", "docx", "pdf", "house_deck"];
+const FORMAT_LABELS: Partial<Record<OutputFormat, string>> = { house_deck: "House deck (PDF + PPTX)" };
 const LAYOUT_HINTS: SectionLayoutHint[] = ["standard", "chart_focus", "text_only", "section_header"];
 
 function narrativeToText(narrative: ContentItem[]): string {
@@ -31,9 +35,25 @@ function textToNarrative(text: string): ContentItem[] {
   return text.split("\n").map((line) => line.trim()).filter(Boolean).map((line) => ({ text: line, bullet: true }));
 }
 
+/** `items` with entry `index` swapped one step by `delta`, or null when that would leave the list. */
+function moved<T>(items: T[], index: number, delta: number): T[] | null {
+  const target = index + delta;
+  if (target < 0 || target >= items.length) return null;
+  const next = [...items];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
+}
+
+function groupBySlide(findings: Finding[]): [number, Finding[]][] {
+  const groups = new Map<number, Finding[]>();
+  for (const f of findings) groups.set(f.slide, [...(groups.get(f.slide) ?? []), f]);
+  return [...groups.entries()].sort((a, b) => a[0] - b[0]);
+}
+
 export function ReportBuilder() {
   // Request inputs
   const [title, setTitle] = useState("");
+  const [goal, setGoal] = useState("");
   const [notes, setNotes] = useState("");
   const [datasets, setDatasets] = useState<QuantitativeDataset[]>([]);
   const [template, setTemplate] = useState<TemplateStyleProfile | null>(null);
@@ -55,6 +75,8 @@ export function ReportBuilder() {
   const [error, setError] = useState<string | null>(null);
   const [manifest, setManifest] = useState<ReportManifest | null>(null);
   const [plan, setPlan] = useState<ReportPlan | null>(null);
+  const [storyline, setStoryline] = useState<Storyline | null>(null);
+  const [findings, setFindings] = useState<Finding[]>([]);
   const [reports, setReports] = useState<ReportManifest[]>([]);
 
   // Preview state -- a docked thumbnail strip + click-to-enlarge modal for
@@ -109,9 +131,12 @@ export function ReportBuilder() {
     setBusy(true);
     setError(null);
     setPlan(null);
+    setStoryline(null);
+    setFindings([]);
     try {
       const req = {
         title,
+        goal,
         qualitative_notes: notes,
         datasets,
         audience: {
@@ -134,8 +159,8 @@ export function ReportBuilder() {
       };
       const m = await api.createReport(req, false);
       setManifest(m);
-      const p = await api.getReportPlan(m.report_id);
-      setPlan(p);
+      if (m.output_format === "house_deck") setStoryline(await api.getStoryline(m.report_id));
+      else setPlan(await api.getReportPlan(m.report_id));
       refreshReports();
     } catch (err) {
       setError((err as Error).message);
@@ -149,8 +174,10 @@ export function ReportBuilder() {
     try {
       const m = await api.getReport(reportId);
       setManifest(m);
-      const p = await api.getReportPlan(reportId).catch(() => null);
-      setPlan(p);
+      const house = m.output_format === "house_deck";
+      setPlan(house ? null : await api.getReportPlan(reportId).catch(() => null));
+      setStoryline(house ? await api.getStoryline(reportId).catch(() => null) : null);
+      setFindings(house ? (await api.getReportFindings(reportId)).findings : []);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -192,17 +219,55 @@ export function ReportBuilder() {
   }
 
   function moveSection(index: number, delta: number) {
-    if (!plan) return;
-    const target = index + delta;
-    if (target < 0 || target >= plan.sections.length) return;
-    const sections = [...plan.sections];
-    [sections[index], sections[target]] = [sections[target], sections[index]];
-    setPlan({ ...plan, sections });
+    const sections = plan && moved(plan.sections, index, delta);
+    if (plan && sections) setPlan({ ...plan, sections });
   }
 
   function removeSection(index: number) {
     if (!plan) return;
     setPlan({ ...plan, sections: plan.sections.filter((_, i) => i !== index) });
+  }
+
+  async function saveStoryline() {
+    if (!manifest || !storyline) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setStoryline(await api.updateStoryline(manifest.report_id, storyline));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function approveAndBuild() {
+    if (!manifest || !storyline) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.updateStoryline(manifest.report_id, storyline); // build exactly what is on screen
+      const m = await api.approveStoryline(manifest.report_id);
+      setManifest(m);
+      setStoryline({ ...storyline, approved: true });
+      setFindings((await api.getReportFindings(m.report_id)).findings);
+      refreshReports();
+    } catch (err) {
+      setError((err as Error).message);
+      api.getReport(manifest.report_id).then(setManifest).catch(() => undefined);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function updateSlide(index: number, patch: Partial<StorylineSlide>) {
+    if (!storyline) return;
+    setStoryline({ ...storyline, slides: storyline.slides.map((s, i) => (i === index ? { ...s, ...patch } : s)) });
+  }
+
+  function moveSlide(index: number, delta: number) {
+    const slides = storyline && moved(storyline.slides, index, delta);
+    if (storyline && slides) setStoryline({ ...storyline, slides });
   }
 
   async function openPreview(reportId: string, title: string) {
@@ -311,12 +376,18 @@ export function ReportBuilder() {
               Output format
               <select value={outputFormat} onChange={(e) => setOutputFormat(e.target.value as OutputFormat)}>
                 {OUTPUT_FORMATS.map((f) => (
-                  <option key={f} value={f}>{f}</option>
+                  <option key={f} value={f}>{FORMAT_LABELS[f] ?? f}</option>
                 ))}
               </select>
             </label>
           </div>
         </div>
+        {outputFormat === "house_deck" && (
+          <label className="field-label">
+            Goal — what should the audience decide or believe?
+            <input type="text" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="Approve the utilities underweight" />
+          </label>
+        )}
         <label className="field-label">
           Audience description
           <input type="text" value={audienceDescription} onChange={(e) => setAudienceDescription(e.target.value)} placeholder="Investment committee, 20 minutes, wants the recommendation up front" />
@@ -354,7 +425,7 @@ export function ReportBuilder() {
           <textarea rows={2} value={freeInstructions} onChange={(e) => setFreeInstructions(e.target.value)} placeholder="lead with the risk section, one chart per slide max..." />
         </label>
 
-        <button onClick={draftPlan} disabled={busy}>Draft content plan</button>
+        <button onClick={draftPlan} disabled={busy}>{outputFormat === "house_deck" ? "Draft storyline" : "Draft content plan"}</button>
         {error && <p className="error-text" role="alert">{error}</p>}
       </section>
 
@@ -436,6 +507,83 @@ export function ReportBuilder() {
             )}
           </div>
           {manifest.error && <p className="error-text" role="alert">{manifest.error}</p>}
+        </section>
+      )}
+
+      {manifest && storyline && (
+        <section className="card">
+          <div className="section-heading">
+            <h2>3. Storyline</h2>
+            <span className={`status-pill status-${manifest.status}`}>{manifest.status}</span>
+          </div>
+          <p className="help-text">One takeaway headline per slide. Read top to bottom, they should tell the whole argument.</p>
+
+          <label className="field-label">
+            Deck title
+            <input type="text" value={storyline.title} disabled={storyline.approved} onChange={(e) => setStoryline({ ...storyline, title: e.target.value })} />
+          </label>
+          <label className="field-label">
+            Subtitle
+            <input type="text" value={storyline.subtitle} disabled={storyline.approved} onChange={(e) => setStoryline({ ...storyline, subtitle: e.target.value })} />
+          </label>
+
+          {storyline.slides.map((slide, i) => (
+            <div className="review-item" key={i}>
+              <input type="text" value={slide.headline} disabled={storyline.approved} onChange={(e) => updateSlide(i, { headline: e.target.value })} placeholder={`Slide ${i + 1} headline`} />
+              <input type="text" value={slide.purpose} disabled={storyline.approved} onChange={(e) => updateSlide(i, { purpose: e.target.value })} placeholder="Purpose (what this slide shows)" />
+              {!storyline.approved && (
+                <div className="toolbar">
+                  <button className="link-button" onClick={() => moveSlide(i, -1)} disabled={i === 0}>&uarr; up</button>
+                  <button className="link-button" onClick={() => moveSlide(i, 1)} disabled={i === storyline.slides.length - 1}>&darr; down</button>
+                  <button className="danger" onClick={() => setStoryline({ ...storyline, slides: storyline.slides.filter((_, j) => j !== i) })}>Remove</button>
+                </div>
+              )}
+            </div>
+          ))}
+
+          <div className="toolbar">
+            {!storyline.approved && (
+              <>
+                <button className="link-button" onClick={() => setStoryline({ ...storyline, slides: [...storyline.slides, { headline: "", purpose: "", source_refs: [] }] })}>
+                  + Add headline
+                </button>
+                <button onClick={saveStoryline} disabled={busy}>Save</button>
+                <button onClick={approveAndBuild} disabled={busy || storyline.slides.length === 0}>{busy ? "Building..." : "Approve & build"}</button>
+              </>
+            )}
+            {manifest.status === "completed" && (
+              <>
+                <button className="link-button" onClick={() => openPreview(manifest.report_id, storyline.title || manifest.title)}>
+                  Preview
+                </button>
+                {manifest.output_files.map((f) => (
+                  <a key={f} className="button-link" href={api.reportDownloadUrl(manifest.report_id, f)} target="_blank" rel="noreferrer">
+                    Download {f.split(".").pop()?.toUpperCase()}
+                  </a>
+                ))}
+              </>
+            )}
+          </div>
+          {manifest.error && <p className="error-text" role="alert">{manifest.error}</p>}
+
+          {findings.length > 0 && (
+            <>
+              <h3>Findings</h3>
+              {groupBySlide(findings).map(([slide, items]) => (
+                <div className="review-item" key={slide}>
+                  <strong>{slide === 0 ? "Title slide" : `Slide ${slide}`}</strong>
+                  <ul>
+                    {items.map((f, j) => (
+                      <li key={j}>
+                        <span className="mono">{f.stage}/{f.rule}</span>
+                        {f.slot && <span className="muted"> [{f.slot}]</span>} — {f.message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </>
+          )}
         </section>
       )}
 
