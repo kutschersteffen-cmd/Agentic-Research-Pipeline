@@ -48,3 +48,11 @@ def test_the_framework_names_every_source_column():
     config, _ = _result()
     header = (TARGETS / "companies.csv").read_text().splitlines()[0].split(",")
     assert sorted(config.source_columns) == sorted(header)
+
+
+def test_each_question_and_the_tier_are_decision_tables():
+    config, _ = _result()
+    tables = [n["name"] for n in config.rule_graph["nodes"] if n["type"] == "decisionTableNode"]
+    assert tables == ["Q2.1.1", "Q2.1.2", "Q2.1.3", "Q2.1.4", "Q2.1.5", "Outcome"]
+    assert all(n["content"]["hitPolicy"] == "first" for n in config.rule_graph["nodes"] if n["type"] == "decisionTableNode")
+    assert [n["type"] for n in config.tier_graph["nodes"]] == ["inputNode", "decisionTableNode", "outputNode"]

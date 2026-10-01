@@ -50,16 +50,16 @@ SBTI = (
     " and number(sbti_near_term_target_year ?? 0) <= 2035 ? 'Yes' : 'No info')"
 )
 
-# Steps 2-5 per question, in order: (source label, expression giving Yes / No / No info).
+# Steps 2-5 per question, in order: (source label, column the normalise node writes).
 WATERFALL = {
-    "Q2.1.1": [("MSCI", step("msci_q2_1_1")), ("TPI", step("tpi_q4l2")), ("WBA", step("wba_targets")), ("CDP", step("cdp_q2_1_1"))],
-    "Q2.1.2": [("MSCI", step("msci_q2_1_2")), ("CA100+", step("ca100_3_1")), ("WBA", step("wba_s12_near_term_aim")), ("CDP", step("cdp_q2_1_2"))],
-    "Q2.1.3": [("MSCI", step("msci_q2_1_3")), ("CA100+", step("ca100_3_2a")), ("WBA", step("wba_s12_covers_95")), ("CDP", step("cdp_q2_1_3"))],
+    "Q2.1.1": [("MSCI", "msci_q2_1_1"), ("TPI", "tpi_q4l2"), ("WBA", "wba_targets"), ("CDP", "cdp_q2_1_1")],
+    "Q2.1.2": [("MSCI", "msci_q2_1_2"), ("CA100+", "ca100_3_1"), ("WBA", "wba_s12_near_term_aim"), ("CDP", "cdp_q2_1_2")],
+    "Q2.1.3": [("MSCI", "msci_q2_1_3"), ("CA100+", "ca100_3_2a"), ("WBA", "wba_s12_covers_95"), ("CDP", "cdp_q2_1_3")],
     "Q2.1.4": [
-        ("MSCI", step("msci_q2_1_4")),
-        ("CA100+/WBA", either("ca100_3_1", "wba_s12_near_term_aim")),  # as the sheet has it; see README
-        ("WBA", step("wba_s3_material_categories")),
-        ("CDP", step("cdp_q2_1_4")),
+        ("MSCI", "msci_q2_1_4"),
+        ("CA100+/WBA", "ca100_3_1_or_wba_s12_near_term_aim"),  # as the sheet has it; see README
+        ("WBA", "wba_s3_material_categories"),
+        ("CDP", "cdp_q2_1_4"),
     ],
 }
 
@@ -72,78 +72,125 @@ COLUMNS = [
     "tpi_cp_alignment_2030", "tpi_cp_alignment_2035",
 ]  # fmt: skip
 
+KNOWN = "'Yes', 'No'"  # a decision-table cell: the source has information
+
 
 def key(q: str) -> str:
     return "q" + q[1:].replace(".", "_").lower()  # Q2.1.1 -> q2_1_1
 
 
-def chain(cases: list[tuple[str, str]], otherwise: str) -> str:
-    out = otherwise
-    for when, then in reversed(cases):
-        out = f"({when} ? {then} : {out})"
-    return out
+def node(node_id: str, kind: str, x: int, **content) -> dict:
+    n = {"id": node_id, "type": kind, "name": node_id, "position": {"x": x, "y": 100}}
+    if content:
+        n["content"] = {"passThrough": True, "inputField": None, "outputPath": None, "executionMode": "single", **content}
+    return n
+
+
+def expressions(node_id: str, x: int, pairs: list[tuple[str, str]]) -> dict:
+    return node(node_id, "expressionNode", x, expressions=[{"id": k, "key": k, "value": v} for k, v in pairs])
+
+
+def table(name: str, x: int, inputs: list[tuple[str, str]], outputs: list[tuple[str, str]], rows: list[dict[str, str]]) -> dict:
+    """A first-hit decision table: the first row whose cells all match wins.
+    `inputs`/`outputs` are (column name, field); a row maps column names to
+    cells, and a column a row leaves out matches anything."""
+    ids = {label: f"c{i}" for i, (label, _) in enumerate([*inputs, *outputs])}
+    n = node(
+        slug_id(name),
+        "decisionTableNode",
+        x,
+        hitPolicy="first",
+        inputs=[{"id": ids[label], "name": label, "field": field} for label, field in inputs],
+        outputs=[{"id": ids[label], "name": label, "field": field} for label, field in outputs],
+        rules=[{"_id": f"r{r}", **{ids[label]: row.get(label, "") for label in ids}} for r, row in enumerate(rows, 1)],
+    )
+    n["name"] = name
+    return n
+
+
+def slug_id(name: str) -> str:
+    return "".join(ch if ch.isalnum() else "_" for ch in name.lower())
+
+
+def chain(*nodes: dict) -> dict:
+    """input -> each node in turn -> output; every node passes its input through."""
+    ordered = [node("in", "inputNode", 0), *nodes, node("out", "outputNode", 300 * (len(nodes) + 1))]
+    edges = [{"id": f"e{i}", "sourceId": a["id"], "targetId": b["id"], "type": "edge"} for i, (a, b) in enumerate(zip(ordered, ordered[1:], strict=False))]
+    return {"nodes": ordered, "edges": edges}
 
 
 def rule_graph() -> dict:
-    ex: list[tuple[str, str]] = [("sbti", SBTI)]
-    for q, steps in WATERFALL.items():
-        k = key(q)
-        ex.append((f"{k}_source", chain([("$.sbti == 'Yes'", "'SBTi'"), *((f"{e} != 'No info'", f"'{s}'") for s, e in steps)], "'none'")))
-        ex.append((k, chain([("$.sbti == 'Yes'", "'Yes'"), *((f"{e} != 'No info'", e) for _, e in steps)], "'No info'")))
-    earlier = [f"$.{key(q)}" for q in WATERFALL]
-    aligned = " or ".join(f"lower(string({c} ?? '')) == '{v}'" for c in ("tpi_cp_alignment_2030", "tpi_cp_alignment_2035") for v in ("1.5 degrees", "below 2 degrees"))
-    tpi_blank = "string(tpi_cp_alignment_2030 ?? '') == '' and string(tpi_cp_alignment_2035 ?? '') == ''"
-    any_no = " or ".join(f"{c} == 'No'" for c in earlier)
-    any_info = " or ".join(f"{c} == 'No info'" for c in earlier)
-    ex += [
-        ("q2_1_5_source", chain([("$.sbti == 'Yes'", "'SBTi'"), (f"{any_no} or {any_info}", "'Q2.1.1-4'"), (tpi_blank, "'none'")], "'TPI'")),
-        ("q2_1_5", chain([("$.sbti == 'Yes'", "'Yes'"), (any_no, "'No'"), (any_info, "'No info'"), (aligned, "'Yes'"), (tpi_blank, "'No info'")], "'No'")),
-    ]
-    answers = "[" + ", ".join(f"$.{key(q)}" for q in QUESTIONS) + "]"
-    ex += [
-        ("yes_count", f"len(filter({answers}, # == 'Yes'))"),
-        ("no_info_count", f"len(filter({answers}, # == 'No info'))"),
-        (
-            "outcome",
-            chain(
-                [
-                    ("$.yes_count == 5", "'aligned'"),
-                    (" and ".join(f"{c} == 'Yes'" for c in earlier), "'not_aligned'"),
-                    ("$.yes_count > 0", "'partial'"),
-                    ("$.no_info_count == 5", "'no_info'"),
-                ],
-                "'none'",
+    sources = sorted({c for steps in WATERFALL.values() for _, c in steps} - {"ca100_3_1_or_wba_s12_near_term_aim"})
+    normalise = expressions(
+        "normalise",
+        300,
+        [
+            ("sbti_answer", SBTI),
+            *((f"{c}_answer", step(c)) for c in sources),
+            ("ca100_3_1_or_wba_s12_near_term_aim_answer", either("ca100_3_1", "wba_s12_near_term_aim")),
+            (
+                "tpi_alignment_answer",
+                " or ".join(f"lower(string({c} ?? '')) == '{v}'" for c in ("tpi_cp_alignment_2030", "tpi_cp_alignment_2035") for v in ("1.5 degrees", "below 2 degrees"))
+                + " ? 'Yes' : (string(tpi_cp_alignment_2030 ?? '') == '' and string(tpi_cp_alignment_2035 ?? '') == '' ? 'No info' : 'No')",
             ),
-        ),
-        (
-            "note",
-            "string($.yes_count) + '/5 Yes'"
-            + "".join(f" + ' · {q} ' + $.{key(q)} + ' (' + $.{key(q)}_source + ')'" for q in QUESTIONS),
-        ),
-    ]
-    return graph("targets", ex)
-
-
-def graph(name: str, expressions: list[tuple[str, str]]) -> dict:
-    def node(node_id: str, kind: str, x: int, **content) -> dict:
-        return {"id": node_id, "type": kind, "name": node_id, "position": {"x": x, "y": 100}, **({"content": content} if content else {})}
-
-    return {
-        "nodes": [
-            node("in", "inputNode", 0),
-            node(name, "expressionNode", 300, expressions=[{"id": k, "key": k, "value": v} for k, v in expressions]),
-            node("out", "outputNode", 700),
         ],
-        "edges": [
-            {"id": "in-calc", "sourceId": "in", "targetId": name, "type": "edge"},
-            {"id": "calc-out", "sourceId": name, "targetId": "out", "type": "edge"},
+    )
+    questions = []
+    for q, steps in WATERFALL.items():
+        inputs = [("SBTi", "sbti_answer"), *((s, f"{c}_answer") for s, c in steps)]
+        rows = [{"SBTi": "'Yes'", "Answer": "'Yes'", "Source": "'SBTi'"}]
+        rows += [{s: KNOWN, "Answer": f"{c}_answer", "Source": f"'{s}'"} for s, c in steps]
+        rows.append({"Answer": "'No info'", "Source": "'none'"})
+        questions.append(table(q, 300 * (len(questions) + 2), inputs, [("Answer", key(q)), ("Source", f"{key(q)}_source")], rows))
+    earlier = list(WATERFALL)
+    q5 = table(
+        "Q2.1.5",
+        1800,
+        [("SBTi", "sbti_answer"), *((q, key(q)) for q in earlier), ("TPI alignment", "tpi_alignment_answer")],
+        [("Answer", "q2_1_5"), ("Source", "q2_1_5_source")],
+        [
+            {"SBTi": "'Yes'", "Answer": "'Yes'", "Source": "'SBTi'"},
+            *({q: "'No'", "Answer": "'No'", "Source": "'Q2.1.1-4'"} for q in earlier),
+            *({q: "'No info'", "Answer": "'No info'", "Source": "'Q2.1.1-4'"} for q in earlier),
+            {"TPI alignment": KNOWN, "Answer": "tpi_alignment_answer", "Source": "'TPI'"},
+            {"Answer": "'No info'", "Source": "'none'"},
         ],
-    }
+    )
+    answers = "[" + ", ".join(key(q) for q in QUESTIONS) + "]"
+    counts = expressions(
+        "counts",
+        2100,
+        [
+            ("yes_count", f"len(filter({answers}, # == 'Yes'))"),
+            ("no_info_count", f"len(filter({answers}, # == 'No info'))"),
+            ("note", "string($.yes_count) + '/5 Yes'" + "".join(f" + ' · {q} ' + {key(q)} + ' (' + {key(q)}_source + ')'" for q in QUESTIONS)),
+        ],
+    )
+    outcome = table(
+        "Outcome",
+        2400,
+        [("Yes answers", "yes_count"), *((q, key(q)) for q in earlier), ("No info answers", "no_info_count")],
+        [("Outcome", "outcome")],
+        [
+            {"Yes answers": "5", "Outcome": "'aligned'"},
+            {**{q: "'Yes'" for q in earlier}, "Outcome": "'not_aligned'"},
+            {"Yes answers": "> 0", "Outcome": "'partial'"},
+            {"No info answers": "5", "Outcome": "'no_info'"},
+            {"Outcome": "'none'"},
+        ],
+    )
+    return chain(normalise, *questions, q5, counts, outcome)
 
 
 def build() -> dict:
     keys = ["aligned", "not_aligned", "partial", "none", "no_info"]
-    tier = chain([(f"outcome == '{k}'", str(i + 1)) for i, k in enumerate(keys[:-1])], "5")
+    tier_table = table(
+        "Tier",
+        300,
+        [("Outcome", "outcome")],
+        [("Tier", "tier"), ("Note", "note")],
+        [{"Outcome": f"'{k}'", "Tier": str(i + 1), "Note": "note"} for i, k in enumerate(keys)],
+    )
     config = MechanismConfig(
         name="Logic of targets (Q2.1)",
         mode="levels",
@@ -155,7 +202,7 @@ def build() -> dict:
             for q, text in QUESTIONS.items()
         ],
         rule_graph=rule_graph(),
-        tier_graph=graph("tier", [("tier", tier), ("note", "note")]),
+        tier_graph=chain(tier_table),
         tiers=[TierDefinition(rank=i + 1, name=t) for i, t in enumerate(TIERS)],
         cut_mode="absolute",
         pinned_cuts=[0, 0, 0, 0],  # the answers set the tier, not the score

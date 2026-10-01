@@ -23,6 +23,21 @@ in this order:
 A source's `Yes` or `No` ends the search. A blank cell means "No info" and passes the question
 to the next source. If every source is blank, the answer is `No info`.
 
+### Where the logic lives
+
+The logic is a chain of nodes:
+
+- **Rules tab (3):**
+  1. `normalise` (expression): turns each source cell into `Yes`, `No` or `No info`, as
+     `<column>_answer`.
+  2. `Q2.1.1` … `Q2.1.5` (decision tables): one table per question. Each row is one source, in
+     priority order, and the first matching row wins (hit policy *first*). The table writes
+     `q2_1_x` (the answer) and `q2_1_x_source` (where it came from). To change the order, move a
+     row. To add a source, add a row.
+  3. `counts` (expression): the number of `Yes` answers and the note.
+  4. `Outcome` (decision table): turns the five answers into one of the five outcomes below.
+- **Decision tree tab (5):** `Tier` (decision table) maps each outcome to its tier.
+
 **Step 1, SBTi:** if `sbti_near_term_status` is "Targets set" and `sbti_near_term_target_year`
 is between 2029 and 2035, every question is answered `Yes`.
 
