@@ -1,0 +1,1365 @@
+{
+  "format": "arp.decision_template",
+  "format_version": 1,
+  "exported_at": "2026-10-01T18:30:16.190811+00:00",
+  "origin": {
+    "framework_id": "fw_3cf897902574",
+    "version": 1,
+    "ratified": false,
+    "ratified_by": null,
+    "ratified_at": null
+  },
+  "required_columns": [
+    "Ind_A_headline_1_Disclosed",
+    "Ind_A_headline_2_Disclosed",
+    "Ind_A_ambition_3_Disclosed",
+    "Ind_A_ambition_4_Disclosed",
+    "Ind_A_ambition_5_Disclosed",
+    "Ind_A_coverage_6_Disclosed",
+    "Ind_A_coverage_7_Disclosed",
+    "Ind_A_coverage_8_Disclosed",
+    "Ind_A_pathway_11_Disclosed",
+    "Ind_A_pathway_12_Disclosed",
+    "Ind_A_offsetting_13_Disclosed",
+    "Ind_A_offsetting_14_Disclosed",
+    "Ind_A_structure_15_Disclosed",
+    "Ind_A_skills_17_Disclosed",
+    "Ind_A_skills_18_Disclosed",
+    "Ind_A_skills_19_Disclosed",
+    "Ind_A_accountability_21_Disclosed",
+    "Ind_A_accountability_22_Disclosed",
+    "Ind_A_incentives_26_Disclosed",
+    "Ind_A_transparency_29_Disclosed",
+    "Ind_A_transparency_30_Disclosed",
+    "Ind_A_management_32_Disclosed",
+    "Ind_A_management_33_Disclosed",
+    "Ind_A_management_34_Disclosed",
+    "Ind_A_management_35_Disclosed",
+    "Ind_A_production_39_Disclosed",
+    "Ind_A_production_40_Disclosed",
+    "Ind_A_planning_41_Disclosed",
+    "Ind_A_planning_42_Disclosed",
+    "Ind_A_planning_43_Disclosed",
+    "Ind_A_planning_44_Disclosed",
+    "Ind_A_engagement_45_Disclosed",
+    "Ind_A_engagement_46_Disclosed",
+    "Ind_A_engagement_47_Disclosed",
+    "Ind_A_engagement_48_Disclosed",
+    "Ind_A_engagement_49_Disclosed",
+    "Ind_A_fossil fuels_50_Disclosed",
+    "Ind_A_fossil fuels_51_Disclosed",
+    "Ind_A_fossil fuels_52_Disclosed",
+    "Ind_A_just transition_53_Disclosed",
+    "Ind_A_just transition_54_Disclosed",
+    "Ind_A_biosphere_55_Disclosed",
+    "Ind_A_biosphere_56_Disclosed",
+    "Ind_A_biosphere_57_Disclosed",
+    "Ind_A_biosphere_58_Disclosed",
+    "Ind_A_emissions_59_Disclosed",
+    "Ind_A_emissions_60_Disclosed",
+    "Ind_A_emissions_61_Disclosed",
+    "Ind_A_emissions_62_Disclosed",
+    "Ind_A_progress_66_Disclosed",
+    "Ind_A_progress_67_Disclosed",
+    "Ind_A_progress_68_Disclosed",
+    "Ind_A_progress_69_Disclosed",
+    "Ind_A_progress_70_Disclosed",
+    "Ind_A_progress_71_Disclosed",
+    "Ind_A_progress_72_Disclosed",
+    "Ind_A_progress_73_Disclosed",
+    "Ind_A_progress_74_Disclosed",
+    "Ind_A_capex_75_Disclosed",
+    "Ind_A_capex_77_Disclosed",
+    "Ind_A_revenues_81_Disclosed",
+    "Ind_A_revenues_83_Disclosed",
+    "Ind_A_engagement_86_Disclosed",
+    "Ind_A_engagement_87_Disclosed"
+  ],
+  "config": {
+    "framework_id": "fw_3cf897902574",
+    "version": 1,
+    "name": "Transition plan (64 indicators)",
+    "notes": "",
+    "ratified": false,
+    "ratified_at": null,
+    "ratified_by": null,
+    "created_at": "2026-10-01T17:32:09.625867+00:00",
+    "mode": "levels",
+    "level_min": 0,
+    "level_max": 1,
+    "level_criteria": [
+      {
+        "id": "Ind_A_headline_1_Disclosed",
+        "name": "Does the company report an absolute GHG emission reduction target for the company?",
+        "dimension_id": "g1",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_headline_1_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_headline_2_Disclosed",
+        "name": "If the company communicates GHG emission intensity targets, does the company show that the company's intensity targets are in line with its absolute emission targets?",
+        "dimension_id": "g1",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_headline_2_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_ambition_3_Disclosed",
+        "name": "Does the company report a company-wide net zero GHG emissions target?",
+        "dimension_id": "g1",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_ambition_3_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_ambition_4_Disclosed",
+        "name": "Does the company state explicitly that it plans to achieve its net zero target until 2040 or 2050 at the latest?",
+        "dimension_id": "g1",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_ambition_4_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_ambition_5_Disclosed",
+        "name": "Does the company state explicitly that it plans to cut its absolute GHG emissions by 50% (by half) until 2030 at the latest?",
+        "dimension_id": "g1",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_ambition_5_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_coverage_6_Disclosed",
+        "name": "Does the company report its absolute emission target for the company's scope 1 GHG emissions?",
+        "dimension_id": "g1",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_coverage_6_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_coverage_7_Disclosed",
+        "name": "Does the company report its absolute emission target for the company's scope 2 GHG emissions?",
+        "dimension_id": "g1",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_coverage_7_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_coverage_8_Disclosed",
+        "name": "Does the company report its absolute emission target for the company's scope 3 GHG emissions?",
+        "dimension_id": "g1",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_coverage_8_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_pathway_11_Disclosed",
+        "name": "Does the company report its GHG emission reduction interim targets for achieving the overall goal?",
+        "dimension_id": "g1",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_pathway_11_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_pathway_12_Disclosed",
+        "name": "Does the company state explicitly that the interim targets are in line with specific 1.5 degrees orderly sector transition pathways, which are based on frontloaded activities and no or limited emission overshoot?",
+        "dimension_id": "g1",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_pathway_12_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_offsetting_13_Disclosed",
+        "name": "If carbon credits and offsets are reported to be used by the company, does the company explicitly state that it will use them exclusively for residual unabatable emissions or beyond value chain mitigation support?",
+        "dimension_id": "g1",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_offsetting_13_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_offsetting_14_Disclosed",
+        "name": "If carbon credits and offsets are reported to be used by the company, does the company state explicitly that carbon credits and offsets will be only used when the company can ensure that the emission reduction or emission avoidance is sustained permanently?",
+        "dimension_id": "g1",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_offsetting_14_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_structure_15_Disclosed",
+        "name": "Does the company explain its governance structure for managing the climate transition?",
+        "dimension_id": "g2",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_structure_15_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_skills_17_Disclosed",
+        "name": "Does the company explain how it ensures that the board members have the required skills to sign off and oversee the climate transition plan implementation?",
+        "dimension_id": "g2",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_skills_17_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_skills_18_Disclosed",
+        "name": "Does the company report its available inhouse skills and additional capacity needs to implement the climate transition plan?",
+        "dimension_id": "g2",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_skills_18_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_skills_19_Disclosed",
+        "name": "Does the company report a strategy on how it aims to fill the additional skill and capacity needs required to implement its climate transition plan?",
+        "dimension_id": "g2",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_skills_19_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_accountability_21_Disclosed",
+        "name": "Does the company report how its board oversees the climate transition plan implementation?",
+        "dimension_id": "g2",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_accountability_21_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_accountability_22_Disclosed",
+        "name": "Does the company report that it ensures that the company's board is informed at least quaterly about the progress against achieving the climate transition plan targets?",
+        "dimension_id": "g2",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_accountability_22_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_incentives_26_Disclosed",
+        "name": "Does the company provide a higher share of remuneration and bonuses that are linked to the successful implementation of the climate transition plan interim targets compared to the general part of variable compensation for executives and managers?",
+        "dimension_id": "g2",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_incentives_26_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_transparency_29_Disclosed",
+        "name": "Does the company report that the climate transition plan targets and information contained in the report have been subject to external assurance and validation?",
+        "dimension_id": "g2",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_transparency_29_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_transparency_30_Disclosed",
+        "name": "Does the company state explicitly that it uses the same organizational boundaries for setting and achieving its climate targets as it does for financial accounting?",
+        "dimension_id": "g2",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_transparency_30_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_management_32_Disclosed",
+        "name": "Does the company provide comprehensive evidence that it fully and completely integrates its climate strategy into its business strategy, product development, operations, financial and human resources, asset management and asset decommissioning?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_management_32_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_management_33_Disclosed",
+        "name": "Does the company report quantitative or quantifiable subtargets in line with their climate targets and their climate key performance indicators?",
+        "dimension_id": "g3",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_management_33_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_management_34_Disclosed",
+        "name": "Does the company report the use of scenario envelopes to set targets and perform sensitivity analysis?",
+        "dimension_id": "g3",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_management_34_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_management_35_Disclosed",
+        "name": "Has the company reported its key assumptions that form the basis of its transition plan?",
+        "dimension_id": "g3",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_management_35_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_production_39_Disclosed",
+        "name": "Does the company report a renewable energy strategy and activities, covering renewable energy build out, procurement and consumption?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_production_39_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_production_40_Disclosed",
+        "name": "Does the company report a strategy and activities for the expansion of and investments in climate solutions and climate solution technologies?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_production_40_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_planning_41_Disclosed",
+        "name": "Does the company report its opex planning to ensure it meets its climate interim targets?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_planning_41_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_planning_42_Disclosed",
+        "name": "Does the company report its capex planning to ensure it meets its climate interim targets?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_planning_42_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_planning_43_Disclosed",
+        "name": "Does the company report its strategy and activities towards net zero aligned (or green) revenues?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_planning_43_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_planning_44_Disclosed",
+        "name": "Does the company report its strategy and activities to align all its Research and Development (R&D) activties with net zero targets?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_planning_44_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_engagement_45_Disclosed",
+        "name": "Does the company report a strategy with specific activities and metrics of success for net zero engagement with its upstream value chain, i.e. with its suppliers?",
+        "dimension_id": "g3",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_engagement_45_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_engagement_46_Disclosed",
+        "name": "Does the company report a strategy with specific activities and metrics of success for net zero engagement with its downstream value chain, i.e. with its customers or investees?",
+        "dimension_id": "g3",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_engagement_46_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_engagement_47_Disclosed",
+        "name": "Does the company report an engagement strategy and activities with specific climate policies that it directly advocates for with policy makers?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_engagement_47_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_engagement_48_Disclosed",
+        "name": "Does the company report a strategy and activities with specific activities and engagement goals for net zero policies with industry associations?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_engagement_48_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_engagement_49_Disclosed",
+        "name": "Does the company report serious consequences and escalation strategies if net zero engagement is ineffective at upstream, downstream, policy maker and industry association level?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_engagement_49_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_fossil fuels_50_Disclosed",
+        "name": "Does the company state explicitly that it stopped or will immediately stop any support or activities in new additional fossil fuel exploration and extention of fossil fuel supply?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_fossil_fuels_50_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_fossil fuels_51_Disclosed",
+        "name": "Does the company report a strategy and activities for the decommissioning and canceling of planned or existing fossil fuel exploration and supply infrastructure?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_fossil_fuels_51_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_fossil fuels_52_Disclosed",
+        "name": "Does the company report a strategy and activities to phase out its use and support of fossil fuel consuming products and technologies?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_fossil_fuels_52_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_just transition_53_Disclosed",
+        "name": "Does the company report a strategy  for a just transition, including monitoring and activities to mitigate adverse impacts of the net zero transition on its own workforce and indirectly affected workers and local communities?",
+        "dimension_id": "g3",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_just_transition_53_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_just transition_54_Disclosed",
+        "name": "Does the company report that it develops specific just transition plans with its own climate transition affected workforce, local communities and relevant stakeholders?",
+        "dimension_id": "g3",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_just_transition_54_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_biosphere_55_Disclosed",
+        "name": "Does the company report a strategy and activities to mitigate adverse impacts on the natural environment and the provision of ecosystem services?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_biosphere_55_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_biosphere_56_Disclosed",
+        "name": "Does the company report a strategy and activities to halt and reverse deforestation by 2025?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_biosphere_56_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_biosphere_57_Disclosed",
+        "name": "Does the company report a strategy and activities to halt and reverse biodiversity loss by 2030?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_biosphere_57_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_biosphere_58_Disclosed",
+        "name": "Does the company report a strategy and activities to significantly reduce water consumption and pollution?",
+        "dimension_id": "g3",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_biosphere_58_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_emissions_59_Disclosed",
+        "name": "Does the company report its scope 1 GHG emissions for the past year?",
+        "dimension_id": "g4",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_emissions_59_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_emissions_60_Disclosed",
+        "name": "Does the company report its scope 2 GHG emissions for the past year?",
+        "dimension_id": "g4",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_emissions_60_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_emissions_61_Disclosed",
+        "name": "Does the company report its scope 3 GHG emissions for the past year?",
+        "dimension_id": "g4",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_emissions_61_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_emissions_62_Disclosed",
+        "name": "Does the company report the coverage of scope 3 categories included, and reasons for the exclusion of categories?",
+        "dimension_id": "g4",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_emissions_62_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_progress_66_Disclosed",
+        "name": "Does the company report its annual progress of reducing GHG emissions to achieve its emission reduction or net zero targets?",
+        "dimension_id": "g4",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_progress_66_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_progress_67_Disclosed",
+        "name": "Does the company report its absolute scope 1 GHG emissions for the past 5 years?",
+        "dimension_id": "g4",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_progress_67_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_progress_68_Disclosed",
+        "name": "Does the company report its absolute scope 2 GHG emissions for the past 5 years?",
+        "dimension_id": "g4",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_progress_68_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_progress_69_Disclosed",
+        "name": "Does the company report its absolute scope 3 GHG emissions for the past 5 years?",
+        "dimension_id": "g4",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_progress_69_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_progress_70_Disclosed",
+        "name": "Does the company report a decline in its scope 1 GHG emission intensity for the past 5 years?",
+        "dimension_id": "g4",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_progress_70_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_progress_71_Disclosed",
+        "name": "Does the company report a decline in its scope 2 GHG intensity for the past 5 years?",
+        "dimension_id": "g4",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_progress_71_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_progress_72_Disclosed",
+        "name": "Does the company report a decline in its scope 3 GHG intensity for the past 5 years?",
+        "dimension_id": "g4",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_progress_72_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_progress_73_Disclosed",
+        "name": "Does the company report the specific drivers and reasons for the company's observed actual GHG emission changes?",
+        "dimension_id": "g4",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_progress_73_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_progress_74_Disclosed",
+        "name": "Does the company report annual progress against its deforestation targets?",
+        "dimension_id": "g4",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_progress_74_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_capex_75_Disclosed",
+        "name": "Does the company report the amount of climate aligned capex that supports its net zero transition?",
+        "dimension_id": "g4",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_capex_75_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_capex_77_Disclosed",
+        "name": "Does the company report the amount of climate transition misaligned capex?",
+        "dimension_id": "g4",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_capex_77_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_revenues_81_Disclosed",
+        "name": "Does the company report the amount of climate transition aligned revenues that support the global net zero transition?",
+        "dimension_id": "g4",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_revenues_81_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_revenues_83_Disclosed",
+        "name": "Does the company report the amount of climate transition misaligned revenues?",
+        "dimension_id": "g4",
+        "weight": 2.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_revenues_83_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_engagement_86_Disclosed",
+        "name": "Does the company assess and report the alignment of its transition plan with its policy positions and its trade association's policy positions and lobbying?",
+        "dimension_id": "g4",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_engagement_86_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      },
+      {
+        "id": "Ind_A_engagement_87_Disclosed",
+        "name": "Does the company report its engagement activities with the companies it invests in its own financial portfolio (including voting and proxy voting) undertaken in the relevant reporting period?",
+        "dimension_id": "g4",
+        "weight": 1.0,
+        "enabled": true,
+        "rules": [
+          {
+            "level": 1,
+            "when": "number(ind_a_engagement_87_disclosed ?? 0) >= 1",
+            "note": ""
+          }
+        ],
+        "otherwise": 0,
+        "otherwise_on_blank": true,
+        "hint": ""
+      }
+    ],
+    "norm": "percentile",
+    "winsor_pct": 5.0,
+    "missing": "renormalise",
+    "weighting": "balanced",
+    "min_coverage_pct": 0.0,
+    "normalise_within": null,
+    "min_cohort_size": 5,
+    "require_grounded_coverage": false,
+    "grounded_confidence_min": 0.8,
+    "dimensions": [
+      {
+        "id": "g1",
+        "name": "Targets",
+        "weight": 1.0,
+        "derived_from": []
+      },
+      {
+        "id": "g2",
+        "name": "Governance",
+        "weight": 1.0,
+        "derived_from": []
+      },
+      {
+        "id": "g3",
+        "name": "Strategy",
+        "weight": 1.0,
+        "derived_from": []
+      },
+      {
+        "id": "g4",
+        "name": "Tracking",
+        "weight": 1.0,
+        "derived_from": []
+      }
+    ],
+    "criteria": [],
+    "gates": [],
+    "cut_mode": "absolute",
+    "pinned_cuts": [
+      0.75,
+      0.5,
+      0.25
+    ],
+    "veto": {
+      "enabled": true,
+      "min_score": 30.0,
+      "min_criteria": 2
+    },
+    "tiers": [
+      {
+        "rank": 1,
+        "name": "Tier 1",
+        "action": ""
+      },
+      {
+        "rank": 2,
+        "name": "Tier 2",
+        "action": ""
+      },
+      {
+        "rank": 3,
+        "name": "Tier 3",
+        "action": ""
+      },
+      {
+        "rank": 4,
+        "name": "Tier 4",
+        "action": ""
+      }
+    ],
+    "label_column": "Company",
+    "size_column": null,
+    "segment_column": null,
+    "source_columns": [
+      "Ind_A_headline_1_Disclosed",
+      "Ind_A_headline_2_Disclosed",
+      "Ind_A_ambition_3_Disclosed",
+      "Ind_A_ambition_4_Disclosed",
+      "Ind_A_ambition_5_Disclosed",
+      "Ind_A_coverage_6_Disclosed",
+      "Ind_A_coverage_7_Disclosed",
+      "Ind_A_coverage_8_Disclosed",
+      "Ind_A_pathway_11_Disclosed",
+      "Ind_A_pathway_12_Disclosed",
+      "Ind_A_offsetting_13_Disclosed",
+      "Ind_A_offsetting_14_Disclosed",
+      "Ind_A_structure_15_Disclosed",
+      "Ind_A_skills_17_Disclosed",
+      "Ind_A_skills_18_Disclosed",
+      "Ind_A_skills_19_Disclosed",
+      "Ind_A_accountability_21_Disclosed",
+      "Ind_A_accountability_22_Disclosed",
+      "Ind_A_incentives_26_Disclosed",
+      "Ind_A_transparency_29_Disclosed",
+      "Ind_A_transparency_30_Disclosed",
+      "Ind_A_management_32_Disclosed",
+      "Ind_A_management_33_Disclosed",
+      "Ind_A_management_34_Disclosed",
+      "Ind_A_management_35_Disclosed",
+      "Ind_A_production_39_Disclosed",
+      "Ind_A_production_40_Disclosed",
+      "Ind_A_planning_41_Disclosed",
+      "Ind_A_planning_42_Disclosed",
+      "Ind_A_planning_43_Disclosed",
+      "Ind_A_planning_44_Disclosed",
+      "Ind_A_engagement_45_Disclosed",
+      "Ind_A_engagement_46_Disclosed",
+      "Ind_A_engagement_47_Disclosed",
+      "Ind_A_engagement_48_Disclosed",
+      "Ind_A_engagement_49_Disclosed",
+      "Ind_A_fossil fuels_50_Disclosed",
+      "Ind_A_fossil fuels_51_Disclosed",
+      "Ind_A_fossil fuels_52_Disclosed",
+      "Ind_A_just transition_53_Disclosed",
+      "Ind_A_just transition_54_Disclosed",
+      "Ind_A_biosphere_55_Disclosed",
+      "Ind_A_biosphere_56_Disclosed",
+      "Ind_A_biosphere_57_Disclosed",
+      "Ind_A_biosphere_58_Disclosed",
+      "Ind_A_emissions_59_Disclosed",
+      "Ind_A_emissions_60_Disclosed",
+      "Ind_A_emissions_61_Disclosed",
+      "Ind_A_emissions_62_Disclosed",
+      "Ind_A_progress_66_Disclosed",
+      "Ind_A_progress_67_Disclosed",
+      "Ind_A_progress_68_Disclosed",
+      "Ind_A_progress_69_Disclosed",
+      "Ind_A_progress_70_Disclosed",
+      "Ind_A_progress_71_Disclosed",
+      "Ind_A_progress_72_Disclosed",
+      "Ind_A_progress_73_Disclosed",
+      "Ind_A_progress_74_Disclosed",
+      "Ind_A_capex_75_Disclosed",
+      "Ind_A_capex_77_Disclosed",
+      "Ind_A_revenues_81_Disclosed",
+      "Ind_A_revenues_83_Disclosed",
+      "Ind_A_engagement_86_Disclosed",
+      "Ind_A_engagement_87_Disclosed"
+    ],
+    "cluster_threshold": 0.72,
+    "rule_graph": null,
+    "tier_graph": null
+  },
+  "audit": [
+    {
+      "stage": "Indicator list",
+      "item": "Scale",
+      "decision": "0-1",
+      "why": "Every indicator's score is its level; lower-is-better indicators are flipped.",
+      "needs_check": false,
+      "origin": "derived",
+      "at": "2026-10-01T17:32:09.761618+00:00",
+      "by": null
+    },
+    {
+      "stage": "Indicator list",
+      "item": "Blank scores",
+      "decision": "count as 0",
+      "why": "A missing score is the bottom of the scale (0 = absent).",
+      "needs_check": false,
+      "origin": "derived",
+      "at": "2026-10-01T17:32:09.761664+00:00",
+      "by": null
+    },
+    {
+      "stage": "Indicator list",
+      "item": "Clusters",
+      "decision": "Targets \u00d71, Governance \u00d71, Strategy \u00d71, Tracking \u00d71",
+      "why": "One cluster per group; group_weight sets its weight, else 1.",
+      "needs_check": false,
+      "origin": "derived",
+      "at": "2026-10-01T17:32:09.761690+00:00",
+      "by": null
+    },
+    {
+      "stage": "Indicator list",
+      "item": "Cut-points",
+      "decision": "0.75, 0.5, 0.25",
+      "why": "Evenly spaced on the scale until the tiers are named.",
+      "needs_check": false,
+      "origin": "derived",
+      "at": "2026-10-01T17:32:09.761700+00:00",
+      "by": null
+    }
+  ]
+}

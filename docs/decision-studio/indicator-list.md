@@ -23,7 +23,8 @@ To test against a real run instead, make a synthetic one: **Data → Or build it
 Create a sample run** (or `arp transition-plan seed-demo`, or `POST /api/transition-plan/demo/seed`).
 It writes a finished transition-plan run over 8 fictional companies with made-up verdicts, no
 documents and no LLM calls (`params.synthetic` is true). Build the table with **One Yes/No column per
-indicator** ticked, then apply the framework above: Northwind Utilities lands in Tier 1, Quiet Shell
+indicator** ticked, then apply the framework above (or import the same framework, already built, from
+[`framework.json`](example-framework/transition-plan/framework.json) under **From a framework file**): Northwind Utilities lands in Tier 1, Quiet Shell
 Ltd in Tier 4.
 
 ## The list
