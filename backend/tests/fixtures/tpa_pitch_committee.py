@@ -50,7 +50,7 @@ FILLS = [
         "total": "34 / 64",
         "left": ["Walk: action under way", "A concrete, checkable activity", "34 of the 64 indicators", "17 in strategy and 15 in tracking"],
         "right": ["Talk: targets and intent", "A target or a general intention", "30 of the 64 indicators", "All 12 target indicators are talk"],
-        "takeaway_bar": "Illustration of the output format: the meters show each category's walk share of the indicator set, not a company score."},
+        "takeaway_bar": "Illustration of the output format: the meters show each category's walk share, not a company score."},
        [TOOL], "A company's profile shows the shares it actually discloses, per category."),
     _s("flow", "default", "Method · assessment pipeline", {
         "items": ["Retrieve :: the 8 most relevant passages per indicator",
@@ -58,7 +58,7 @@ FILLS = [
                   "Verify :: *a different model rechecks each verdict",
                   "Ground :: code matches every quote to the source",
                   "Review :: unverified or disputed verdicts go to analysts"],
-        "takeaway_bar": "The difference from the paper: its tool trusts the model's own sources; here code checks every quote."},
+        "takeaway_bar": "The difference from the paper: its tool trusts the model's sources; here code checks every quote."},
        [TOOL], "A verdict whose quote cannot be found is flagged for review."),
     _s("tree", "default", "Method · verification", {
         "items": ["quote :: Quote found in the source? :: agree :: unverified",
@@ -66,10 +66,10 @@ FILLS = [
                   "accepted :: =Verdict accepted :: high",
                   "disputed :: =Verifier's verdict stands, flagged :: low",
                   "unverified :: =Unverified, to the review queue :: mid"],
-        "takeaway_bar": "Why two models: the second check is independent of the first, so agreement means more than a re-run."},
+        "takeaway_bar": "Why two models: the second check is independent, so agreement means more than a re-run."},
        [TOOL], "If the verifier disagrees, its verdict stands and the indicator is marked for review."),
     _s("cards", "three", "Governance · review", {
-        "items": ["Review queue: indicators without verified evidence, or where the two models disagree",
+        "items": ["Review queue: indicators with no grounded citation, no valid answer, or where the two models disagree",
                   "Analyst decision: approve, edit or reject each flagged verdict, with a comment",
                   "Audit trail: every decision keeps its reviewer, time and full history"]},
        [TOOL], "Nothing uncertain is accepted at face value."),
@@ -78,7 +78,7 @@ FILLS = [
        [TOOL], "Each grid row links back to the passage it rests on.",
        table=TableSpec(dataset_id="ds_outputs", columns=["Output", "Contents"])),
     _s("steps", "four", "Workflow", {
-        "items": ["Export: scores go to Decision Studio as ranked, tiered columns",
+        "items": ["Export: walk and talk counts, walk share, confidence and a review flag per company",
                   "Join: with extraction, financials and TNFD runs on the same companies",
                   "Rank: no model calls, so the same run gives the same ranking",
                   "Engage: use the walk score to pick which plans to question first"]},

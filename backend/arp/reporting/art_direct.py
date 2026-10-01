@@ -129,9 +129,10 @@ def _fits(slide: SlideContent, density: str, last: bool = False) -> list[SlideCo
             continue
         moved, dropped = relayout(slide, ly, v)
         spec = get_variant(ly, v).slots
-        lists = [(sp, v) for sp in spec if isinstance(v := moved.slots.get(sp.name), list)]
-        full = any(sp.max_items and len(v) > sp.max_items for sp, v in lists)
-        wordy = any(len(t.split()) > ((sp.committee_words if density == "committee" else None) or sp.max_words or 10**6) for sp, v in lists for t in v)
+        lists = [(sp, items) for sp in spec if isinstance(items := moved.slots.get(sp.name), list)]
+        full = any(sp.max_items and len(items) > sp.max_items for sp, items in lists)
+        wordy = any(len(t.split()) > ((sp.committee_words if density == "committee" else None) or sp.max_words or 10**6)
+                    for sp, items in lists for t in items)
         if not dropped and not full and not wordy and not structure_errors(moved, spec):
             out.append(moved)
     return out

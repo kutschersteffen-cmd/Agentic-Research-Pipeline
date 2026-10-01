@@ -38,6 +38,19 @@ async def test_missing_chromium_raises_install_hint(monkeypatch):
         await measure("<html></html>")
 
 
+@pytest.mark.parametrize("mode", ["light", "dark"])
+async def test_three_line_headline_overflows_the_two_line_box(mode):
+    words = ["Transition", "plans", "you", "can", "check", "indicator", "by", "indicator"] * 6
+    for n in range(8, 40):  # the first headline that wraps to exactly 3 lines
+        deck = Deck(title="T", slides=[SlideContent(headline=" ".join(words[:n]), layout="bullets", variant="three", slots={"items": ["a"]})])
+        html = render_deck_html(deck, [], mode=mode)
+        lines = await _computed(html, "(() => { const h = document.querySelector('h1'); return Math.round(h.scrollHeight / parseFloat(getComputedStyle(h).lineHeight)); })()")
+        if lines >= 3:
+            break
+    assert lines == 3
+    assert [(f.rule, f.slot) for f in await measure(html) if f.stage == "fit"] == [("overflow", "headline")]
+
+
 async def test_overlong_headline_reports_overflow():
     deck = Deck(title="T", slides=[SlideContent(headline="word " * 60, layout="bullets", variant="three", slots={"items": ["a"]})])
     [f] = [f for f in await measure(render_deck_html(deck, [])) if f.stage == "fit"]
@@ -51,9 +64,8 @@ async def test_stress_deck_max_fits_in_both_modes(mode, fill, density):
     deck, ds = stress_deck(fill, density)
     html = render_deck_html(deck, ds, mode=mode, density=density)
     assert "data:font/" in html
-    # Every slot at its limit (or one word) is a fit fixture: how much fills the body (sparse, dense, unbalanced) is
-    # the content's doing, but no layout may crowd, set small text or lose its focal point at any fill.
-    assert [f for f in await measure(html) if f.rule not in ("sparse", "dense", "unbalanced")] == []
+    # Every slot at its limit (or one word) is sparse or dense by construction; every other rule must hold at any fill.
+    assert [f for f in await measure(html) if f.rule not in ("sparse", "dense")] == []
 
 
 @pytest.mark.parametrize("mode", ["light", "dark"])
@@ -117,15 +129,18 @@ def test_card_items_split_title_and_body():
     deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three",
                                                 slots={"items": ["Grid: 64 rows: per company", "Plain item"]})])
     html = render_deck_html(deck, [])
-    assert "<li><strong>Grid</strong><span>64 rows: per company</span></li>" in html and "<li><span>Plain item</span></li>" in html
+    assert "<li><i>01</i><strong>Grid</strong><span>64 rows: per company</span></li>" in html and "<li><i>02</i><span>Plain item</span></li>" in html
 
 
-async def test_card_text_sits_right_under_its_number():
+@pytest.mark.parametrize("density", ["present", "committee"])
+async def test_card_tile_has_its_number_on_top_and_its_text_at_the_foot(density):
     deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three",
                                                 slots={"items": ["Grid: one line of body text", "Score: another line", "Flags: a third"]})])
-    gaps = await _computed(render_deck_html(deck, [], density="present"),
-                           "[...document.querySelectorAll('[data-slot=items] li')].map(li => li.querySelector('strong').getBoundingClientRect().top - li.getBoundingClientRect().top)")
-    assert max(gaps) < 140  # padding + the mono index; no empty middle
+    html = render_deck_html(deck, [], density=density)
+    assert "<li><i>01</i><strong>Grid</strong>" in html  # the number is text, so the measured content starts with it
+    gaps = await _computed(html, """[...document.querySelectorAll('[data-slot=items] li')].map(li => { const r = li.getBoundingClientRect();
+        return [li.querySelector('i').getBoundingClientRect().top - r.top, r.bottom - li.querySelector('span').getBoundingClientRect().bottom]; })""")
+    assert all(top < 40 and foot < 40 for top, foot in gaps)  # the card's padding at both ends
 
 
 async def test_eyebrow_renders_above_the_headline():
@@ -236,7 +251,7 @@ async def test_unbalanced_uses_the_rendered_anchor():
     [f] = _design(await measure(_styled(html, "[data-slot=statement] { justify-content: flex-start !important; }")), "unbalanced")
     assert f.slide == 1
     cards = Deck(title="T", slides=[_TITLE, SlideContent(headline="h", layout="cards", variant="three", slots={"items": _FOUR})])
-    assert 'data-anchor="middle"' in render_deck_html(cards, [], density="present")  # deck.css centres present cards
+    assert 'data-anchor="middle"' in render_deck_html(cards, [], density="present")  # a pitch's card tiles hold their mass mid-body
     assert 'data-anchor="top"' in render_deck_html(cards, [], density="committee")
 
 

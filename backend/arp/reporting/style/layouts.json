@@ -717,7 +717,7 @@
        "type_role": "subhead",
        "committee_words": 80,
        "type_role_short": "headline",
-       "short_words": 12
+       "short_words": 30
       },
       {
        "name": "right",
@@ -731,7 +731,7 @@
        "type_role": "subhead",
        "committee_words": 80,
        "type_role_short": "headline",
-       "short_words": 12
+       "short_words": 30
       }
      ]
     }
@@ -1108,7 +1108,7 @@
        "kind": "text",
        "col": 1,
        "span": 10,
-       "row": 1,
+       "row": 0,
        "rows": 8,
        "max_words": 40,
        "max_items": null,
@@ -1121,7 +1121,7 @@
        "kind": "text",
        "col": 1,
        "span": 10,
-       "row": 9,
+       "row": 8,
        "rows": 2,
        "max_words": 10,
        "max_items": null,

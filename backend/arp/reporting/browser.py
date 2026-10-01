@@ -20,12 +20,10 @@ from arp.schemas.reporting import Finding
 _TOL = 1.5  # px slack for sub-pixel layout rounding
 
 # One evaluate: every slot's box (fit) plus its content rects -- each line of text (a Range over its text nodes), every
-# table and image, the drawn part of every chart or diagram svg, and every filled or fully bordered box (cards, panels,
-# bars) -- clipped to the slot; and per
+# table and image, and the drawn part of every chart or diagram svg -- clipped to the slot. Boxes, tints and rules are
+# decoration and never count; and per
 # slide the rendered anchor, the word count and the smallest and largest text outside data-chrome (svg text scaled).
 _MEASURE_JS = """() => {
-  const solid = c => !/^(transparent|rgba\\(.*, 0\\))$/.test(c);
-  const boxed = st => solid(st.backgroundColor) || ['Top', 'Right', 'Bottom', 'Left'].every(k => parseFloat(st[`border${k}Width`]) > 0);
   const range = document.createRange();
   const texts = root => { const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), out = [];
     for (let n; (n = w.nextNode());) if (n.textContent.trim()) out.push(n); return out; };
@@ -34,8 +32,7 @@ _MEASURE_JS = """() => {
     const clip = q => { const x0 = Math.max(q.left, r.left), y0 = Math.max(q.top, r.top), x1 = Math.min(q.right, r.right), y1 = Math.min(q.bottom, r.bottom);
       return x1 > x0 && y1 > y0 ? [x0 - s.left, y0 - s.top, x1 - x0, y1 - y0] : null; };
     const rects = texts(el).flatMap(n => { range.selectNodeContents(n); return [...range.getClientRects()].map(clip); });
-    for (const e of [el, ...el.querySelectorAll('*')])
-      if (e.matches('table, img') || (!(e instanceof SVGElement) && boxed(getComputedStyle(e)))) rects.push(clip(e.getBoundingClientRect()));
+    for (const e of el.querySelectorAll('table, img')) rects.push(clip(e.getBoundingClientRect()));
     for (const svg of el.querySelectorAll('svg:not(svg *)')) {  // what is drawn, not the canvas: skip defs and matplotlib's figure patch
       const marks = [...svg.querySelectorAll('path, rect, line, polyline, polygon, circle, ellipse, text, image, use')]
         .filter(e => !e.closest('defs, clipPath, #patch_1')).map(e => e.getBoundingClientRect()).filter(q => q.width || q.height);

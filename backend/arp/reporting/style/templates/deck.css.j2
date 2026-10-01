@@ -49,41 +49,48 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
 .slide[data-layout="split"] [data-slot="statement"], [data-slot="callout"] { text-wrap: pretty; }
 .k-number.t-big_number { font-feature-settings: "tnum"; }
 /* Cards: equal hairline boxes sized to the tallest card; mono index, then the title and its line right under it. */
-.slide[data-layout="cards"] ul { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: {{ g }}px; counter-reset: card; }
-[data-density="present"] .slide[data-layout="cards"] .k-list { display: flex; align-items: safe center; }  /* a pitch centres the row; a pre-read reads from the top */
+.slide[data-layout="cards"] ul { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: {{ g }}px;
+  grid-template-rows: auto 1fr auto auto; }  /* number, air, title, body: a subgrid lines the titles up across the tiles */
 .slide[data-layout="cards"] ul { width: 100%; }
 {% set body_h = t.canvas.height - t.grid.margin_top - t.grid.headline_band - t.grid.margin_bottom - t.grid.footer_band %}
-/* Filled by layout (the sparse rule): a pitch's cards stand at least 60% of the body tall; a pre-read's run its full height. */
-[data-density="present"] .slide[data-layout="cards"] li { min-height: {{ (body_h * 0.6)|round|int }}px; }
+/* Filled by design (the sparse rule): a card is a tile, its number at the top and its text at the foot. A pitch's
+   tiles stand 70% of the body tall, a pre-read's run its full height. */
+[data-density="present"] .slide[data-layout="cards"] ul { min-height: {{ (body_h * 0.7)|round|int }}px; }
 [data-density="committee"] .slide[data-layout="cards"] ul { height: calc(100% - 24px); }  /* clear of the footer rule, like flow */
-.slide[data-layout="cards"] li { margin: 0; padding: {{ g }}px; border: 1px solid var(--neutral); display: flex; flex-direction: column; counter-increment: card; min-width: 0; }
+.slide[data-layout="cards"] li { margin: 0; padding: {{ g }}px; border: 1px solid var(--neutral); display: grid; grid-row: span 4; grid-template-rows: subgrid; min-width: 0; }
+.slide[data-layout="cards"] li > i { grid-row: 1; }
+.slide[data-layout="cards"] li > strong { grid-row: 3; }
+.slide[data-layout="cards"] li > span { grid-row: 4; }
 /* Footer chrome is the only text under 24px (caption); every index and label in the body is body size or larger. */
 .slide[data-layout="summary"] li::before, .slide[data-layout="split"] .k-list li::before { font: 500 {{ body.size }}px/1 var(--font-mono); letter-spacing: 0; color: var(--ink-muted); }
-.slide[data-layout="cards"] li::before { content: counter(card, decimal-leading-zero); padding-bottom: 20px;
-  font: 500 {{ t.type.subhead.size }}px/1 var(--font-mono); letter-spacing: 0; color: var(--ink-muted); }
+.slide[data-layout="cards"] li > i { display: block; padding-bottom: 20px; font: 500 {{ t.type.subhead.size }}px/1 var(--font-mono); font-style: normal; letter-spacing: 0; color: var(--ink-muted); }
 .slide[data-layout="cards"] strong { display: block; font: {{ t.type.subhead.weight }} {{ t.type.subhead.size }}px/{{ t.type.subhead.line_height }} var(--font-heading); text-wrap: balance; }
 .slide[data-layout="steps"] strong { display: block; font-weight: {{ t.type.subhead.weight }}; font-family: var(--font-heading); text-wrap: balance; }
 .slide[data-layout="cards"] li span, .slide[data-layout="steps"] li span { display: block; margin-top: 12px; color: var(--ink-muted); text-wrap: pretty; }
 .slide[data-layout="steps"] li span { font: {{ body.weight }} {{ body.size }}px/{{ body.line_height }} var(--font-body); letter-spacing: 0; }
-.slide[data-layout="cards"] li span:only-child, .slide[data-layout="steps"] li span:only-child { margin-top: 0; color: var(--ink); }
+.slide[data-layout="cards"] li > i + span { margin-top: 0; color: var(--ink); }  /* a body without a title */
+.slide[data-layout="steps"] li span:only-child { margin-top: 0; color: var(--ink); }
 /* Steps: numbered nodes on one rule, like the app's process-card step dots; centred in the body. */
 .slide[data-layout="steps"] .k-list { display: flex; align-items: safe center; }
 .slide[data-layout="steps"] ul { width: 100%; }
-/* A pre-read's steps run down the body: each step's text sits in a well-tinted panel under its node. */
-[data-density="committee"] .slide[data-layout="steps"] .k-list { align-items: stretch; padding-bottom: 24px; }
-[data-density="committee"] .slide[data-layout="steps"] .k-list li { padding-bottom: 24px; background: content-box var(--well); }
-[data-density="committee"] .slide[data-layout="steps"] .k-list li > * { padding: 0 24px; }
-[data-density="committee"] .slide[data-layout="steps"] .k-list li > :first-child { padding-top: 24px; }
 .slide[data-layout="steps"] .k-list ul { list-style: none; padding: 0; margin: 0; position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: {{ g }}px; counter-reset: step; }
 .slide[data-layout="steps"] .k-list ul::before { content: ""; position: absolute; left: 0; right: 0; top: 35px; border-top: 2px solid var(--ink-muted); }
 .slide[data-layout="steps"] .k-list li { position: relative; margin: 0; padding-top: 112px; counter-increment: step; text-wrap: pretty; }
 .slide[data-layout="steps"] .k-list li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 72px; height: 72px; border: 2px solid var(--ink); border-radius: 50%; background: var(--bg); color: var(--ink); font: 500 {{ body.size }}px/68px var(--font-mono); text-align: center; letter-spacing: 0; }
+/* A pre-read's steps run down the body: one row per step sharing the body height, the nodes on a vertical rule. */
+[data-density="committee"] .slide[data-layout="steps"] .k-list { align-items: stretch; padding-bottom: 24px; }
+[data-density="committee"] .slide[data-layout="steps"] .k-list ul { grid-auto-flow: row; grid-auto-rows: 1fr; row-gap: 0; }
+[data-density="committee"] .slide[data-layout="steps"] .k-list ul::before { display: none; }
+[data-density="committee"] .slide[data-layout="steps"] .k-list li { display: flex; flex-direction: column; justify-content: center; padding: 0 0 0 112px; }
+[data-density="committee"] .slide[data-layout="steps"] .k-list li::before { top: 50%; transform: translateY(-50%); }
+[data-density="committee"] .slide[data-layout="steps"] .k-list li:not(:last-child)::after { content: ""; position: absolute; left: 35px; top: calc(50% + 36px); height: calc(100% - 72px); border-left: 2px solid var(--ink-muted); }
 /* Summary and split lists: full-width rows on hairlines that share the body height, mono index in a fixed column. */
 .slide[data-layout="summary"] ul, .slide[data-layout="split"] .k-list ul { list-style: none; margin: 0; padding: 0; height: 100%; display: grid; grid-auto-rows: 1fr; counter-reset: row; border-bottom: 1px solid var(--neutral); }
 .slide[data-layout="summary"] li, .slide[data-layout="split"] .k-list li { margin: 0; display: grid; grid-template-columns: 112px 1fr; align-items: center; border-top: 1px solid var(--neutral); counter-increment: row; text-wrap: pretty; }
 .slide[data-layout="summary"] li::before, .slide[data-layout="split"] .k-list li::before { content: counter(row, decimal-leading-zero); }
 /* Compare: two mirrored panels under an ink rule; the "Label:" before the first colon heads its panel. */
-.slide[data-layout="compare"] .slot { border-top: 2px solid var(--ink); padding: {{ g }}px; background: var(--well); text-wrap: pretty; }
+.slide[data-layout="compare"] .slot { border-top: 2px solid var(--ink); padding-top: {{ g }}px; text-wrap: pretty; }
+.slide[data-layout="compare"] .slot.t-headline { padding-right: 2em; }  /* display type keeps a display measure (about 25 characters) */
 .slide[data-layout="compare"] strong { display: block; margin-bottom: 16px; font: {{ t.type.headline.weight }} {{ t.type.headline.size }}px/{{ t.type.headline.line_height }} var(--font-heading); letter-spacing: {{ t.type.headline.tracking }}em; }
 .slide[data-layout="compare"] span { display: block; }
 [data-density="committee"] .slide[data-layout="compare"] strong { font: {{ t.type.subhead.weight }} {{ t.type.subhead.size }}px/{{ t.type.subhead.line_height }} var(--font-heading); letter-spacing: 0; }
@@ -96,6 +103,7 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
 /* A takeaway under a full-width exhibit sits at the foot of the body, clear of the exhibit (the crowded rule). */
 .slide:is([data-layout="chart_takeaway"][data-variant="full"], [data-layout="table"][data-variant="highlight"]) [data-slot="takeaway"] {
   display: flex; flex-direction: column; justify-content: safe flex-end; }
+.slide[data-layout="table"][data-variant="highlight"] [data-slot="takeaway"] { padding-bottom: 24px; }  /* clear of the footer rule */
 .bar { width: 100%; padding: 14px 24px; background: var(--well); text-wrap: pretty; }
 .bar strong { font-weight: 600; }
 {% for k in c.status %}[data-status="{{ k }}"] { background: color-mix(in oklab, var(--status-{{ k }}) 16%, var(--bg)); }

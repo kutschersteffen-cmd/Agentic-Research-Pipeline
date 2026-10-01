@@ -100,7 +100,8 @@ def slot_role(layout: str, spec, value, density: Density) -> str:
 
 
 def effective_anchor(slide: SlideContent, density: Density) -> str:
-    """Where the body content is meant to sit: the variant's anchor, except that present-density cards are centred (deck.css)."""
+    """Where the body content's mass is meant to sit: the variant's anchor, except that a pitch's card tiles (number at
+    the top, text at the foot, see deck.css) put it in the middle of the body."""
     return "middle" if density == "present" and slide.layout == "cards" else get_variant(slide.layout, slide.variant).anchor
 
 

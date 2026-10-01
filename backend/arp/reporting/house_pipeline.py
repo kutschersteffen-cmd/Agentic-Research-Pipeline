@@ -45,31 +45,34 @@ async def design_retry(deck: Deck, request: ReportRequest, llm: LLMClient, findi
     for f in findings:
         if f.stage == "design" and f.severity == "warn":
             warns.setdefault(f.slide, set()).add(f.rule)
-    slides, notes = list(deck.slides), []
-    last = max((i for i, s in enumerate(slides) if i and s.layout != "section"), default=0)
-    for i in sorted(warns, reverse=True):  # a split at i must not shift the slides still to do
-        s, rules = slides[i], warns[i]
+    slides = list(enumerate(deck.slides))  # (index before the retry, slide)
+    notes: list[Finding] = []
+    last = max((i for i, s in slides if i and s.layout != "section"), default=0)
+    for i in sorted(warns, reverse=True):  # a split at i must not move the slides still to do
+        s, rules = slides[i][1], warns[i]
         if not i or s.layout == "section":  # the title and dividers keep their layout
             continue
         if "dense" in rules:
             halves = next(filter(None, (split_list(s, k, i) for k, v in s.slots.items() if isinstance(v, list))), None)
             if halves:
-                slides[i : i + 1] = halves
-                for f in [*findings, *notes]:
-                    if f.slide > i:
-                        f.slide += 1
+                slides[i : i + 1] = [(i, h) for h in halves]
                 notes.append(Finding(slide=i, stage="design", rule="split", severity="info", message="dense: the list split over two slides"))
             else:
-                slides[i] = s.model_copy(update={"appendix": True})
-                notes.append(Finding(slide=i, stage="design", rule="appendix", severity="info", message="dense and nothing to split: moved to the appendix"))
+                slides[i] = (i, s.model_copy(update={"appendix": True}))
+                notes.append(Finding(slide=i, stage="design", rule="appendix", severity="info",
+                                     message="dense and nothing to split: moved to the appendix at the end of the deck"))
         elif nxt := next_layout(s, request.layout.density, last=i == last):
-            slides[i] = relayout(s, *nxt)[0]
+            slides[i] = (i, relayout(s, *nxt)[0])
             notes.append(Finding(slide=i, stage="design", rule="relayout", severity="info",
                                  message=f"{s.layout}/{s.variant} → {nxt[0]}/{nxt[1]} ({', '.join(sorted(rules))})"))
     if not notes:  # nothing to try (a placeholder, say): its findings stand as measured
         return deck, findings
-    kept = [f for f in findings if not _measured(f)] + notes
-    deck, refit = await fit_deck(deck.model_copy(update={"slides": slides}), request, llm, max_passes=1, usage=usage, shift=kept)
+    slides = [x for x in slides if not x[1].appendix] + [x for x in slides if x[1].appendix]
+    where: dict[int, int] = {}
+    for n, (i, _) in enumerate(slides):
+        where.setdefault(i, n)  # a split slide's findings point at its first half
+    kept = [f.model_copy(update={"slide": where.get(f.slide, f.slide)}) for f in [*findings, *notes] if not _measured(f)]
+    deck, refit = await fit_deck(deck.model_copy(update={"slides": [s for _, s in slides]}), request, llm, max_passes=1, usage=usage, shift=kept)
     return deck, kept + refit
 
 

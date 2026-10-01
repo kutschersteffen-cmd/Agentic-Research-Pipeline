@@ -254,9 +254,10 @@ async def test_dense_slide_splits_then_goes_to_the_appendix(tmp_path, fake_llm):
     item = " ".join(["word"] * 15)  # 4 x 15 + the headline: over 60
     listy = SlideContent(headline="x", layout="summary", variant="default", slots={"items": [item] * 4})
     prose = SlideContent(headline="x", layout="compare", variant="default", slots={"left": " ".join(["left"] * 35), "right": " ".join(["right"] * 35)})
-    llm = fake_llm({"SlideContent": [listy, prose], "QAResult": [QAResult(edits=[])]})
+    llm = fake_llm({"SlideContent": [prose, listy], "QAResult": [QAResult(edits=[])]})
     deck, findings = await house_pipeline.build_house_deck("r1", req, _storyline(2), llm, _store(tmp_path))
     assert [len(s.slots.get("items", [])) for s in deck.slides[1:3]] == [2, 2]  # the list split in two
-    assert deck.slides[3].appendix and not any(s.appendix for s in deck.slides[:3])  # prose cannot split
+    # Prose cannot split: it goes to the appendix, at the end of the deck.
+    assert deck.slides[3].appendix and deck.slides[3].headline == "Point 0 holds." and not any(s.appendix for s in deck.slides[:3])
     assert [f.slide for f in findings if f.rule == "appendix" and f.severity == "info"] == [3]
     assert not [f for f in findings if f.rule == "dense"]

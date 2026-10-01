@@ -61,7 +61,9 @@ def stress_deck(mode: Literal["max", "min", "short"], density: Literal["present"
                 elif s.kind == "chart":
                     slide.chart = ChartSpec(dataset_id="stress", chart_type="column", category_column="cat", value_columns=["a", "b"])
                 elif s.kind == "table":
-                    slide.table = TableSpec(dataset_id="stress", max_rows=8, heat={"a": [15, 25]} if variant.id == "heat" else {})
+                    # Over a two-line takeaway and clear of the footer, table/highlight holds 6 rows and the "+N more rows" line (the crowded rule).
+                    rows = 6 if variant.id == "highlight" else 8
+                    slide.table = TableSpec(dataset_id="stress", max_rows=rows, heat={"a": [15, 25]} if variant.id == "heat" else {})
             slide.slots = slots
             slides.append(slide)
     return Deck(title="Stress", slides=slides), [ds]
