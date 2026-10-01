@@ -10,7 +10,7 @@ export function useEditorTheme() {
     const css = getComputedStyle(root);
     return {
       mode: dark ? ("dark" as const) : ("light" as const),
-      token: { colorPrimary: css.getPropertyValue("--accent").trim(), fontFamily: css.getPropertyValue("--font-display").trim(), borderRadius: 6 },
+      token: { colorPrimary: css.getPropertyValue("--accent").trim(), fontFamily: css.getPropertyValue("--font-display").trim(), borderRadius: 0 },
     };
   };
   const [theme, setTheme] = useState(read);

@@ -20,3 +20,12 @@ export function useCardKeys(selector: string) {
     return () => window.removeEventListener("keydown", onKey);
   }, [selector]);
 }
+
+/** After a decision on `card`, keep the keyboard where the work is: the next
+ * card in `selector` order, else `fallback`. The next card is a different item,
+ * so it stays mounted while the decided one re-renders. */
+export function focusNextCard(card: HTMLElement | null, selector: string, fallback?: string) {
+  const cards = [...document.querySelectorAll<HTMLElement>(selector)];
+  const next = card ? cards[cards.indexOf(card) + 1] : undefined;
+  (next ?? (fallback ? document.querySelector<HTMLElement>(fallback) : null))?.focus();
+}

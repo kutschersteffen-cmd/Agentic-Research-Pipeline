@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../../api/client";
 import { useReviewer } from "../../lib/reviewer";
 import type { MetricSource, StewardPolicyId, StewardPolicyInfo, StewardshipStage } from "../../types";
@@ -97,7 +97,7 @@ export function DataTable({ rows, empty = "Nothing to show." }: { rows: Record<s
   const keys = Object.keys(rows[0]);
   return (
     <div className="table-wrap">
-      <table className="data-table">
+      <table className="data-table stack-on-phone">
         <thead>
           <tr>
             {keys.map((k) => (
@@ -109,7 +109,7 @@ export function DataTable({ rows, empty = "Nothing to show." }: { rows: Record<s
           {rows.map((row, i) => (
             <tr key={i}>
               {keys.map((k) => (
-                <td key={k}>{typeof row[k] === "string" ? words(row[k] as string) : fmt(row[k])}</td>
+                <td key={k} data-label={words(k)}>{typeof row[k] === "string" ? words(row[k] as string) : fmt(row[k])}</td>
               ))}
             </tr>
           ))}
@@ -135,6 +135,10 @@ export function Section({ step, title, children, planned }: { step: string; titl
  * keeps the draft: the draft lives in the studio, not in here. */
 export function RuleEditor({ label, children }: { label: string; children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const openRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (open) openRef.current?.focus();
+  }, [open]);
   if (!open) {
     return (
       <section className="card rule-editor-closed">
@@ -146,14 +150,14 @@ export function RuleEditor({ label, children }: { label: string; children: React
     );
   }
   return (
-    <>
+    <div ref={openRef} tabIndex={-1} className="rule-editor-open" aria-label={`${label} editor`} role="region">
       <div className="toolbar rule-editor-bar">
         <button className="secondary" aria-expanded onClick={() => setOpen(false)}>
           Close the {label} editor
         </button>
       </div>
       {children}
-    </>
+    </div>
   );
 }
 

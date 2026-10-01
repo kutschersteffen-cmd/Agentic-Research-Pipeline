@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
-import { BarChart } from "../components/BarChart";
 import type {
   BarrierCriterionDetail,
   BarrierMatrix,
@@ -229,14 +228,28 @@ export function TransitionBarrierAssessment() {
 
       <div className="card">
         <h2>Ratings by region</h2>
-        <BarChart
-          data={matrix.regions.flatMap((region) =>
-            (["H", "M", "L"] as BarrierRating[]).map((r) => ({
-              label: `${region} ${r}`,
-              value: matrix.distribution[region]?.[r] ?? 0,
-            })),
-          )}
-        />
+        {/* One H/M/L bar per region in the matrix's own traffic-light colours,
+            drawn in HTML so labels stay body-sized at any width. */}
+        <ul className="tb-dist">
+          {matrix.regions.map((region) => {
+            const d = matrix.distribution[region] ?? {};
+            const parts = (["H", "M", "L"] as BarrierRating[]).map((r) => ({ r, n: d[r] ?? 0 }));
+            return (
+              <li key={region}>
+                <span className="tb-dist-region">{region}</span>
+                <span className="tb-dist-bar" aria-label={`${region}: ${parts.map((p) => `${p.n} ${p.r}`).join(", ")}`}>
+                  {parts
+                    .filter((p) => p.n > 0)
+                    .map((p) => (
+                      <span key={p.r} className={`tb-dist-seg ${RATING_CLASS[p.r].split(" ")[1]}`} style={{ flexGrow: p.n }} aria-hidden>
+                        {p.r} {p.n}
+                      </span>
+                    ))}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
       </div>
 
       <div className="section-heading">
@@ -259,16 +272,16 @@ export function TransitionBarrierAssessment() {
       </div>
 
       <div className="table-wrap">
-        <table className="data-table">
+        <table className="data-table tb-matrix">
           <thead>
             <tr>
               <th>Code</th>
-              <th>Sector</th>
-              <th>Pillar</th>
-              <th>Criterion</th>
               {matrix.regions.map((r) => (
                 <th key={r}>{r}</th>
               ))}
+              <th>Criterion</th>
+              <th>Sector</th>
+              <th>Pillar</th>
             </tr>
           </thead>
           <tbody>
@@ -279,12 +292,12 @@ export function TransitionBarrierAssessment() {
                     {c.code}
                   </button>
                 </td>
-                <td>{c.sector}</td>
-                <td>{c.category}</td>
-                <td>{c.criterion}</td>
                 {matrix.regions.map((r) => (
                   <RatingCell key={r} cell={matrix.cells[c.code]?.[r]} onClick={() => openCriterion(c.code)} />
                 ))}
+                <td>{c.criterion}</td>
+                <td>{c.sector}</td>
+                <td>{c.category}</td>
               </tr>
             ))}
           </tbody>

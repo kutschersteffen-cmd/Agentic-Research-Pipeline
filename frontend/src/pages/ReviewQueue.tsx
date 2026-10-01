@@ -7,7 +7,7 @@ import type { Citation, ReviewDecision, ReviewableRunKind, RunManifest } from ".
 import { useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "../components/ReviewerField";
 import { ReviewControls, decisionBadgeClass, decisionLabel } from "../components/ReviewControls";
-import { useCardKeys } from "../lib/cardKeys";
+import { focusNextCard, useCardKeys } from "../lib/cardKeys";
 
 const REVIEW_KIND_LABEL: Record<ReviewableRunKind, string> = {
   theme: "Thematic universe",
@@ -204,6 +204,9 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
                   return (
                     <div className="review-item review-item-decided" key={k} tabIndex={-1}>
                       <strong>{(q.item.name as string | undefined) ?? readableKey(q.item.item_key as string)}</strong>
+                      <span className="muted">
+                        {REVIEW_KIND_LABEL[q.kind]} · <span className="mono">{q.runId}</span>
+                      </span>
                       <span className={decisionBadgeClass(d.decision)}>
                         {decisionLabel(d)} by {d.reviewer}
                       </span>
@@ -214,7 +217,7 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
                   );
                 }
                 return (
-                  <div className="review-item proposed" key={k} tabIndex={-1}>
+                  <div className="review-item proposed" key={k} tabIndex={-1} data-review-key={k}>
                     <p className="muted review-item-source">
                       {REVIEW_KIND_LABEL[q.kind]} · {q.runId}
                     </p>
@@ -232,6 +235,7 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
                       submitFn={SUBMIT_FNS[q.kind]}
                       historyFn={HISTORY_FNS[q.kind] ?? null}
                       onDone={(recorded) => {
+                        focusNextCard(document.querySelector<HTMLElement>(`[data-review-key="${CSS.escape(k)}"]`), ".review-item");
                         setDecided((prev) => ({ ...prev, [k]: recorded }));
                         setReopened(null);
                       }}
