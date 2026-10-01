@@ -1,4 +1,4 @@
-"""House deck build after storyline approval: fill -> lint+rewrite -> fit -> visual QA -> PDF + PNGs + PPTX."""
+"""House deck build after storyline approval: fill -> art direction -> lint+rewrite -> fit -> visual QA -> PDF + PNGs + PPTX."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from pathlib import Path
 from arp.config import Settings
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.adapters import with_run_datasets
+from arp.reporting.art_direct import direct
 from arp.reporting.browser import write_pdf, write_pngs
 from arp.reporting.fit import fit_deck
 from arp.reporting.house_pptx import build_house_pptx
@@ -49,6 +50,8 @@ async def build_house_deck(
         for _, _, u in filled:
             usage.input_tokens += u.input_tokens
             usage.output_tokens += u.output_tokens
+    deck, design = direct(deck, request.layout.density, shift=findings)
+    findings += design
     deck, _ = await lint_and_rewrite(deck, request, llm, usage=usage)  # its findings are recomputed on the final deck below
     deck, fit_findings = await fit_deck(deck, request, llm, usage=usage, shift=findings)
     findings += fit_findings

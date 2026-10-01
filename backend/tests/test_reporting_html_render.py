@@ -16,7 +16,7 @@ def test_deck_from_plan_maps_layout_hints():
     plan = ReportPlan(title="T", sections=[ReportSection(heading="S", layout_hint="section_header"),
                                            ReportSection(heading="C", layout_hint="chart_focus", chart=ChartSpec(dataset_id="d"))])
     d = deck_from_plan(plan)
-    assert [(s.layout, s.variant) for s in d.slides] == [("title", "plain"), ("section", "default"), ("chart_takeaway", "full")]
+    assert [(s.layout, s.variant) for s in d.slides] == [("title", "plain"), ("section", "default"), ("chart_focus", "full")]  # art-directed
 
 
 def test_every_slot_has_data_attributes():

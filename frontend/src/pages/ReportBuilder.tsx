@@ -596,14 +596,22 @@ export function ReportBuilder() {
               {groupBySlide(findings).map(([slide, items]) => (
                 <div className="review-item" key={slide}>
                   <strong>{slide === 0 ? "Title slide" : `Slide ${slide}`}</strong>
-                  <ul>
-                    {items.map((f, j) => (
-                      <li key={j}>
-                        <span className="mono">{f.stage}/{f.rule}</span>
-                        {f.slot && <span className="muted"> [{f.slot}]</span>} — {f.message}
-                      </li>
-                    ))}
-                  </ul>
+                  {[false, true].map((info) => {
+                    const shown = items.filter((f) => (f.severity === "info") === info);
+                    return shown.length > 0 && (
+                      <div key={String(info)} className={info ? "muted" : undefined}>
+                        {info && <span className="mono">Layout changes</span>}
+                        <ul>
+                          {shown.map((f, j) => (
+                            <li key={j}>
+                              <span className="mono">{f.stage}/{f.rule}</span>
+                              {f.slot && <span className="muted"> [{f.slot}]</span>} — {f.message}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </>

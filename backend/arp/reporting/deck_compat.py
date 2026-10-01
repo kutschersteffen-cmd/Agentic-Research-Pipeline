@@ -1,7 +1,8 @@
-"""ReportPlan -> Deck, so existing plans can render through the HTML house deck."""
+"""ReportPlan -> Deck, so existing plans can render through the HTML house deck (art-directed, no LLM)."""
 
 from __future__ import annotations
 
+from arp.reporting.art_direct import direct
 from arp.schemas.reporting import Deck, ReportPlan, SectionLayoutHint, SlideContent
 
 
@@ -22,4 +23,4 @@ def deck_from_plan(plan: ReportPlan) -> Deck:
             slides.append(SlideContent(**base, layout="table", variant="compact", table=sec.table))
         else:
             slides.append(SlideContent(**base, layout="bullets", variant="five", slots={"items": texts}))
-    return Deck(title=plan.title, subtitle=plan.subtitle, slides=slides)
+    return direct(Deck(title=plan.title, subtitle=plan.subtitle, slides=slides))[0]

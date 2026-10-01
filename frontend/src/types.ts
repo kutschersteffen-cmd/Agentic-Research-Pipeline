@@ -1356,9 +1356,10 @@ export interface Storyline {
 export interface Finding {
   slide: number;
   slot?: string | null;
-  stage: "data" | "lint" | "fit" | "qa";
+  stage: "data" | "lint" | "fit" | "qa" | "design";
   rule: string;
   message: string;
+  severity?: "info" | "warn"; // info = a logged change (e.g. a relayout), not a problem
 }
 
 // ---- Investment Strategy Replication ---------------------------------------

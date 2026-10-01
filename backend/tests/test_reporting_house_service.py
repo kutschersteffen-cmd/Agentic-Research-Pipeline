@@ -96,7 +96,7 @@ async def test_applied_qa_edit_replaces_stale_fit_and_lint_findings(tmp_path, fa
     llm = fake_llm({"SlideContent": [_bullets()], "QAResult": [QAResult(edits=[edit])]})
     deck, findings = await house_pipeline.build_house_deck("r1", _REQ, _storyline(1), llm, _store(tmp_path))
     assert deck.slides[1].slots["items"] == ["calm", "b"]
-    assert [f.rule for f in findings] == ["slot_dropped", "applied"]  # stale overflow + lint gone; QA's real re-fit finds nothing
+    assert [f.rule for f in findings] == ["relayout", "slot_dropped", "applied"]  # stale overflow + lint gone; QA's real re-fit finds nothing
 
 
 def test_render_from_plan_rerenders_house_deck_without_llm(tmp_path, fake_llm):
