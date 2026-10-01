@@ -1,0 +1,463 @@
+{
+ "format": "arp.decision_template",
+ "format_version": 1,
+ "exported_at": "2026-10-01T18:48:41.866271+00:00",
+ "origin": {
+  "framework_id": "fw_31044160db08",
+  "version": 1,
+  "ratified": false,
+  "ratified_by": null,
+  "ratified_at": null
+ },
+ "required_columns": [
+  "Company",
+  "sbti_near_term_status",
+  "sbti_near_term_target_year",
+  "msci_q2_1_1",
+  "msci_q2_1_2",
+  "msci_q2_1_3",
+  "msci_q2_1_4",
+  "tpi_q4l2",
+  "ca100_3_1",
+  "ca100_3_2a",
+  "wba_targets",
+  "wba_s12_near_term_aim",
+  "wba_s12_covers_95",
+  "wba_s3_material_categories",
+  "cdp_q2_1_1",
+  "cdp_q2_1_2",
+  "cdp_q2_1_3",
+  "cdp_q2_1_4",
+  "tpi_cp_alignment_2030",
+  "tpi_cp_alignment_2035"
+ ],
+ "config": {
+  "framework_id": "fw_31044160db08",
+  "version": 1,
+  "name": "Logic of targets (Q2.1)",
+  "notes": "",
+  "ratified": false,
+  "ratified_at": null,
+  "ratified_by": null,
+  "created_at": "2026-10-01T18:48:41.665421+00:00",
+  "mode": "levels",
+  "level_min": 0,
+  "level_max": 1,
+  "level_criteria": [
+   {
+    "id": "q2_1_1",
+    "name": "Q2.1.1",
+    "dimension_id": "targets",
+    "weight": 1.0,
+    "enabled": true,
+    "rules": [
+     {
+      "level": 1,
+      "when": "(q2_1_1 == true or lower(string(q2_1_1 ?? '')) == 'yes')",
+      "note": ""
+     }
+    ],
+    "otherwise": 0,
+    "otherwise_on_blank": true,
+    "hint": "Has the company set quantitative GHG emissions-reduction targets?"
+   },
+   {
+    "id": "q2_1_2",
+    "name": "Q2.1.2",
+    "dimension_id": "targets",
+    "weight": 1.0,
+    "enabled": true,
+    "rules": [
+     {
+      "level": 1,
+      "when": "(q2_1_2 == true or lower(string(q2_1_2 ?? '')) == 'yes')",
+      "note": ""
+     }
+    ],
+    "otherwise": 0,
+    "otherwise_on_blank": true,
+    "hint": "Does the company have at least one interim target for 2029-2035?"
+   },
+   {
+    "id": "q2_1_3",
+    "name": "Q2.1.3",
+    "dimension_id": "targets",
+    "weight": 1.0,
+    "enabled": true,
+    "rules": [
+     {
+      "level": 1,
+      "when": "(q2_1_3 == true or lower(string(q2_1_3 ?? '')) == 'yes')",
+      "note": ""
+     }
+    ],
+    "otherwise": 0,
+    "otherwise_on_blank": true,
+    "hint": "Do the interim targets cover at least 95% of Scope 1 and Scope 2 emissions?"
+   },
+   {
+    "id": "q2_1_4",
+    "name": "Q2.1.4",
+    "dimension_id": "targets",
+    "weight": 1.0,
+    "enabled": true,
+    "rules": [
+     {
+      "level": 1,
+      "when": "(q2_1_4 == true or lower(string(q2_1_4 ?? '')) == 'yes')",
+      "note": ""
+     }
+    ],
+    "otherwise": 0,
+    "otherwise_on_blank": true,
+    "hint": "Does the company have Scope 3 targets, where appropriate?"
+   },
+   {
+    "id": "q2_1_5",
+    "name": "Q2.1.5",
+    "dimension_id": "targets",
+    "weight": 1.0,
+    "enabled": true,
+    "rules": [
+     {
+      "level": 1,
+      "when": "(q2_1_5 == true or lower(string(q2_1_5 ?? '')) == 'yes')",
+      "note": ""
+     }
+    ],
+    "otherwise": 0,
+    "otherwise_on_blank": true,
+    "hint": "Are the company's GHG emissions-reduction targets explicitly validated or assessed as aligned with a 1.5°C or well-below-2°C pathway?"
+   }
+  ],
+  "norm": "percentile",
+  "winsor_pct": 5.0,
+  "missing": "renormalise",
+  "weighting": "balanced",
+  "min_coverage_pct": 0.0,
+  "normalise_within": null,
+  "min_cohort_size": 5,
+  "require_grounded_coverage": false,
+  "grounded_confidence_min": 0.8,
+  "dimensions": [
+   {
+    "id": "targets",
+    "name": "Targets",
+    "weight": 1.0,
+    "derived_from": []
+   }
+  ],
+  "criteria": [],
+  "gates": [],
+  "cut_mode": "absolute",
+  "pinned_cuts": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "veto": {
+   "enabled": true,
+   "min_score": 30.0,
+   "min_criteria": 2
+  },
+  "tiers": [
+   {
+    "rank": 1,
+    "name": "Aligned targets",
+    "action": ""
+   },
+   {
+    "rank": 2,
+    "name": "Targets, alignment not shown",
+    "action": ""
+   },
+   {
+    "rank": 3,
+    "name": "Partial targets",
+    "action": ""
+   },
+   {
+    "rank": 4,
+    "name": "No targets",
+    "action": ""
+   },
+   {
+    "rank": 5,
+    "name": "No information",
+    "action": ""
+   }
+  ],
+  "label_column": "Company",
+  "size_column": null,
+  "segment_column": null,
+  "source_columns": [
+   "Company",
+   "sbti_near_term_status",
+   "sbti_near_term_target_year",
+   "msci_q2_1_1",
+   "msci_q2_1_2",
+   "msci_q2_1_3",
+   "msci_q2_1_4",
+   "tpi_q4l2",
+   "ca100_3_1",
+   "ca100_3_2a",
+   "wba_targets",
+   "wba_s12_near_term_aim",
+   "wba_s12_covers_95",
+   "wba_s3_material_categories",
+   "cdp_q2_1_1",
+   "cdp_q2_1_2",
+   "cdp_q2_1_3",
+   "cdp_q2_1_4",
+   "tpi_cp_alignment_2030",
+   "tpi_cp_alignment_2035"
+  ],
+  "cluster_threshold": 0.72,
+  "rule_graph": {
+   "nodes": [
+    {
+     "id": "in",
+     "type": "inputNode",
+     "name": "in",
+     "position": {
+      "x": 0,
+      "y": 100
+     }
+    },
+    {
+     "id": "targets",
+     "type": "expressionNode",
+     "name": "targets",
+     "position": {
+      "x": 300,
+      "y": 100
+     },
+     "content": {
+      "expressions": [
+       {
+        "id": "sbti",
+        "key": "sbti",
+        "value": "(lower(string(sbti_near_term_status ?? '')) == 'targets set' and number(sbti_near_term_target_year ?? 0) >= 2029 and number(sbti_near_term_target_year ?? 0) <= 2035 ? 'Yes' : 'No info')"
+       },
+       {
+        "id": "q2_1_1_source",
+        "key": "q2_1_1_source",
+        "value": "($.sbti == 'Yes' ? 'SBTi' : (((msci_q2_1_1 == true or lower(string(msci_q2_1_1 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_1 == false or lower(string(msci_q2_1_1 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'MSCI' : (((tpi_q4l2 == true or lower(string(tpi_q4l2 ?? '')) == 'yes') ? 'Yes' : ((tpi_q4l2 == false or lower(string(tpi_q4l2 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'TPI' : (((wba_targets == true or lower(string(wba_targets ?? '')) == 'yes') ? 'Yes' : ((wba_targets == false or lower(string(wba_targets ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'WBA' : (((cdp_q2_1_1 == true or lower(string(cdp_q2_1_1 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_1 == false or lower(string(cdp_q2_1_1 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'CDP' : 'none')))))"
+       },
+       {
+        "id": "q2_1_1",
+        "key": "q2_1_1",
+        "value": "($.sbti == 'Yes' ? 'Yes' : (((msci_q2_1_1 == true or lower(string(msci_q2_1_1 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_1 == false or lower(string(msci_q2_1_1 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((msci_q2_1_1 == true or lower(string(msci_q2_1_1 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_1 == false or lower(string(msci_q2_1_1 ?? '')) == 'no') ? 'No' : 'No info')) : (((tpi_q4l2 == true or lower(string(tpi_q4l2 ?? '')) == 'yes') ? 'Yes' : ((tpi_q4l2 == false or lower(string(tpi_q4l2 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((tpi_q4l2 == true or lower(string(tpi_q4l2 ?? '')) == 'yes') ? 'Yes' : ((tpi_q4l2 == false or lower(string(tpi_q4l2 ?? '')) == 'no') ? 'No' : 'No info')) : (((wba_targets == true or lower(string(wba_targets ?? '')) == 'yes') ? 'Yes' : ((wba_targets == false or lower(string(wba_targets ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((wba_targets == true or lower(string(wba_targets ?? '')) == 'yes') ? 'Yes' : ((wba_targets == false or lower(string(wba_targets ?? '')) == 'no') ? 'No' : 'No info')) : (((cdp_q2_1_1 == true or lower(string(cdp_q2_1_1 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_1 == false or lower(string(cdp_q2_1_1 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((cdp_q2_1_1 == true or lower(string(cdp_q2_1_1 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_1 == false or lower(string(cdp_q2_1_1 ?? '')) == 'no') ? 'No' : 'No info')) : 'No info')))))"
+       },
+       {
+        "id": "q2_1_2_source",
+        "key": "q2_1_2_source",
+        "value": "($.sbti == 'Yes' ? 'SBTi' : (((msci_q2_1_2 == true or lower(string(msci_q2_1_2 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_2 == false or lower(string(msci_q2_1_2 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'MSCI' : (((ca100_3_1 == true or lower(string(ca100_3_1 ?? '')) == 'yes') ? 'Yes' : ((ca100_3_1 == false or lower(string(ca100_3_1 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'CA100+' : (((wba_s12_near_term_aim == true or lower(string(wba_s12_near_term_aim ?? '')) == 'yes') ? 'Yes' : ((wba_s12_near_term_aim == false or lower(string(wba_s12_near_term_aim ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'WBA' : (((cdp_q2_1_2 == true or lower(string(cdp_q2_1_2 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_2 == false or lower(string(cdp_q2_1_2 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'CDP' : 'none')))))"
+       },
+       {
+        "id": "q2_1_2",
+        "key": "q2_1_2",
+        "value": "($.sbti == 'Yes' ? 'Yes' : (((msci_q2_1_2 == true or lower(string(msci_q2_1_2 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_2 == false or lower(string(msci_q2_1_2 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((msci_q2_1_2 == true or lower(string(msci_q2_1_2 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_2 == false or lower(string(msci_q2_1_2 ?? '')) == 'no') ? 'No' : 'No info')) : (((ca100_3_1 == true or lower(string(ca100_3_1 ?? '')) == 'yes') ? 'Yes' : ((ca100_3_1 == false or lower(string(ca100_3_1 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((ca100_3_1 == true or lower(string(ca100_3_1 ?? '')) == 'yes') ? 'Yes' : ((ca100_3_1 == false or lower(string(ca100_3_1 ?? '')) == 'no') ? 'No' : 'No info')) : (((wba_s12_near_term_aim == true or lower(string(wba_s12_near_term_aim ?? '')) == 'yes') ? 'Yes' : ((wba_s12_near_term_aim == false or lower(string(wba_s12_near_term_aim ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((wba_s12_near_term_aim == true or lower(string(wba_s12_near_term_aim ?? '')) == 'yes') ? 'Yes' : ((wba_s12_near_term_aim == false or lower(string(wba_s12_near_term_aim ?? '')) == 'no') ? 'No' : 'No info')) : (((cdp_q2_1_2 == true or lower(string(cdp_q2_1_2 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_2 == false or lower(string(cdp_q2_1_2 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((cdp_q2_1_2 == true or lower(string(cdp_q2_1_2 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_2 == false or lower(string(cdp_q2_1_2 ?? '')) == 'no') ? 'No' : 'No info')) : 'No info')))))"
+       },
+       {
+        "id": "q2_1_3_source",
+        "key": "q2_1_3_source",
+        "value": "($.sbti == 'Yes' ? 'SBTi' : (((msci_q2_1_3 == true or lower(string(msci_q2_1_3 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_3 == false or lower(string(msci_q2_1_3 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'MSCI' : (((ca100_3_2a == true or lower(string(ca100_3_2a ?? '')) == 'yes') ? 'Yes' : ((ca100_3_2a == false or lower(string(ca100_3_2a ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'CA100+' : (((wba_s12_covers_95 == true or lower(string(wba_s12_covers_95 ?? '')) == 'yes') ? 'Yes' : ((wba_s12_covers_95 == false or lower(string(wba_s12_covers_95 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'WBA' : (((cdp_q2_1_3 == true or lower(string(cdp_q2_1_3 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_3 == false or lower(string(cdp_q2_1_3 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'CDP' : 'none')))))"
+       },
+       {
+        "id": "q2_1_3",
+        "key": "q2_1_3",
+        "value": "($.sbti == 'Yes' ? 'Yes' : (((msci_q2_1_3 == true or lower(string(msci_q2_1_3 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_3 == false or lower(string(msci_q2_1_3 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((msci_q2_1_3 == true or lower(string(msci_q2_1_3 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_3 == false or lower(string(msci_q2_1_3 ?? '')) == 'no') ? 'No' : 'No info')) : (((ca100_3_2a == true or lower(string(ca100_3_2a ?? '')) == 'yes') ? 'Yes' : ((ca100_3_2a == false or lower(string(ca100_3_2a ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((ca100_3_2a == true or lower(string(ca100_3_2a ?? '')) == 'yes') ? 'Yes' : ((ca100_3_2a == false or lower(string(ca100_3_2a ?? '')) == 'no') ? 'No' : 'No info')) : (((wba_s12_covers_95 == true or lower(string(wba_s12_covers_95 ?? '')) == 'yes') ? 'Yes' : ((wba_s12_covers_95 == false or lower(string(wba_s12_covers_95 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((wba_s12_covers_95 == true or lower(string(wba_s12_covers_95 ?? '')) == 'yes') ? 'Yes' : ((wba_s12_covers_95 == false or lower(string(wba_s12_covers_95 ?? '')) == 'no') ? 'No' : 'No info')) : (((cdp_q2_1_3 == true or lower(string(cdp_q2_1_3 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_3 == false or lower(string(cdp_q2_1_3 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((cdp_q2_1_3 == true or lower(string(cdp_q2_1_3 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_3 == false or lower(string(cdp_q2_1_3 ?? '')) == 'no') ? 'No' : 'No info')) : 'No info')))))"
+       },
+       {
+        "id": "q2_1_4_source",
+        "key": "q2_1_4_source",
+        "value": "($.sbti == 'Yes' ? 'SBTi' : (((msci_q2_1_4 == true or lower(string(msci_q2_1_4 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_4 == false or lower(string(msci_q2_1_4 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'MSCI' : ((((ca100_3_1 == true or lower(string(ca100_3_1 ?? '')) == 'yes') or (wba_s12_near_term_aim == true or lower(string(wba_s12_near_term_aim ?? '')) == 'yes')) ? 'Yes' : (((ca100_3_1 == false or lower(string(ca100_3_1 ?? '')) == 'no') or (wba_s12_near_term_aim == false or lower(string(wba_s12_near_term_aim ?? '')) == 'no')) ? 'No' : 'No info')) != 'No info' ? 'CA100+/WBA' : (((wba_s3_material_categories == true or lower(string(wba_s3_material_categories ?? '')) == 'yes') ? 'Yes' : ((wba_s3_material_categories == false or lower(string(wba_s3_material_categories ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'WBA' : (((cdp_q2_1_4 == true or lower(string(cdp_q2_1_4 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_4 == false or lower(string(cdp_q2_1_4 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'CDP' : 'none')))))"
+       },
+       {
+        "id": "q2_1_4",
+        "key": "q2_1_4",
+        "value": "($.sbti == 'Yes' ? 'Yes' : (((msci_q2_1_4 == true or lower(string(msci_q2_1_4 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_4 == false or lower(string(msci_q2_1_4 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((msci_q2_1_4 == true or lower(string(msci_q2_1_4 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_4 == false or lower(string(msci_q2_1_4 ?? '')) == 'no') ? 'No' : 'No info')) : ((((ca100_3_1 == true or lower(string(ca100_3_1 ?? '')) == 'yes') or (wba_s12_near_term_aim == true or lower(string(wba_s12_near_term_aim ?? '')) == 'yes')) ? 'Yes' : (((ca100_3_1 == false or lower(string(ca100_3_1 ?? '')) == 'no') or (wba_s12_near_term_aim == false or lower(string(wba_s12_near_term_aim ?? '')) == 'no')) ? 'No' : 'No info')) != 'No info' ? (((ca100_3_1 == true or lower(string(ca100_3_1 ?? '')) == 'yes') or (wba_s12_near_term_aim == true or lower(string(wba_s12_near_term_aim ?? '')) == 'yes')) ? 'Yes' : (((ca100_3_1 == false or lower(string(ca100_3_1 ?? '')) == 'no') or (wba_s12_near_term_aim == false or lower(string(wba_s12_near_term_aim ?? '')) == 'no')) ? 'No' : 'No info')) : (((wba_s3_material_categories == true or lower(string(wba_s3_material_categories ?? '')) == 'yes') ? 'Yes' : ((wba_s3_material_categories == false or lower(string(wba_s3_material_categories ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((wba_s3_material_categories == true or lower(string(wba_s3_material_categories ?? '')) == 'yes') ? 'Yes' : ((wba_s3_material_categories == false or lower(string(wba_s3_material_categories ?? '')) == 'no') ? 'No' : 'No info')) : (((cdp_q2_1_4 == true or lower(string(cdp_q2_1_4 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_4 == false or lower(string(cdp_q2_1_4 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((cdp_q2_1_4 == true or lower(string(cdp_q2_1_4 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_4 == false or lower(string(cdp_q2_1_4 ?? '')) == 'no') ? 'No' : 'No info')) : 'No info')))))"
+       },
+       {
+        "id": "q2_1_5_source",
+        "key": "q2_1_5_source",
+        "value": "($.sbti == 'Yes' ? 'SBTi' : ($.q2_1_1 == 'No' or $.q2_1_2 == 'No' or $.q2_1_3 == 'No' or $.q2_1_4 == 'No' or $.q2_1_1 == 'No info' or $.q2_1_2 == 'No info' or $.q2_1_3 == 'No info' or $.q2_1_4 == 'No info' ? 'Q2.1.1-4' : (string(tpi_cp_alignment_2030 ?? '') == '' and string(tpi_cp_alignment_2035 ?? '') == '' ? 'none' : 'TPI')))"
+       },
+       {
+        "id": "q2_1_5",
+        "key": "q2_1_5",
+        "value": "($.sbti == 'Yes' ? 'Yes' : ($.q2_1_1 == 'No' or $.q2_1_2 == 'No' or $.q2_1_3 == 'No' or $.q2_1_4 == 'No' ? 'No' : ($.q2_1_1 == 'No info' or $.q2_1_2 == 'No info' or $.q2_1_3 == 'No info' or $.q2_1_4 == 'No info' ? 'No info' : (lower(string(tpi_cp_alignment_2030 ?? '')) == '1.5 degrees' or lower(string(tpi_cp_alignment_2030 ?? '')) == 'below 2 degrees' or lower(string(tpi_cp_alignment_2035 ?? '')) == '1.5 degrees' or lower(string(tpi_cp_alignment_2035 ?? '')) == 'below 2 degrees' ? 'Yes' : (string(tpi_cp_alignment_2030 ?? '') == '' and string(tpi_cp_alignment_2035 ?? '') == '' ? 'No info' : 'No')))))"
+       },
+       {
+        "id": "yes_count",
+        "key": "yes_count",
+        "value": "len(filter([$.q2_1_1, $.q2_1_2, $.q2_1_3, $.q2_1_4, $.q2_1_5], # == 'Yes'))"
+       },
+       {
+        "id": "no_info_count",
+        "key": "no_info_count",
+        "value": "len(filter([$.q2_1_1, $.q2_1_2, $.q2_1_3, $.q2_1_4, $.q2_1_5], # == 'No info'))"
+       },
+       {
+        "id": "outcome",
+        "key": "outcome",
+        "value": "($.yes_count == 5 ? 'aligned' : ($.q2_1_1 == 'Yes' and $.q2_1_2 == 'Yes' and $.q2_1_3 == 'Yes' and $.q2_1_4 == 'Yes' ? 'not_aligned' : ($.yes_count > 0 ? 'partial' : ($.no_info_count == 5 ? 'no_info' : 'none'))))"
+       },
+       {
+        "id": "note",
+        "key": "note",
+        "value": "string($.yes_count) + '/5 Yes' + ' · Q2.1.1 ' + $.q2_1_1 + ' (' + $.q2_1_1_source + ')' + ' · Q2.1.2 ' + $.q2_1_2 + ' (' + $.q2_1_2_source + ')' + ' · Q2.1.3 ' + $.q2_1_3 + ' (' + $.q2_1_3_source + ')' + ' · Q2.1.4 ' + $.q2_1_4 + ' (' + $.q2_1_4_source + ')' + ' · Q2.1.5 ' + $.q2_1_5 + ' (' + $.q2_1_5_source + ')'"
+       }
+      ]
+     }
+    },
+    {
+     "id": "out",
+     "type": "outputNode",
+     "name": "out",
+     "position": {
+      "x": 700,
+      "y": 100
+     }
+    }
+   ],
+   "edges": [
+    {
+     "id": "in-calc",
+     "sourceId": "in",
+     "targetId": "targets",
+     "type": "edge"
+    },
+    {
+     "id": "calc-out",
+     "sourceId": "targets",
+     "targetId": "out",
+     "type": "edge"
+    }
+   ]
+  },
+  "tier_graph": {
+   "nodes": [
+    {
+     "id": "in",
+     "type": "inputNode",
+     "name": "in",
+     "position": {
+      "x": 0,
+      "y": 100
+     }
+    },
+    {
+     "id": "tier",
+     "type": "expressionNode",
+     "name": "tier",
+     "position": {
+      "x": 300,
+      "y": 100
+     },
+     "content": {
+      "expressions": [
+       {
+        "id": "tier",
+        "key": "tier",
+        "value": "(outcome == 'aligned' ? 1 : (outcome == 'not_aligned' ? 2 : (outcome == 'partial' ? 3 : (outcome == 'none' ? 4 : 5))))"
+       },
+       {
+        "id": "note",
+        "key": "note",
+        "value": "note"
+       }
+      ]
+     }
+    },
+    {
+     "id": "out",
+     "type": "outputNode",
+     "name": "out",
+     "position": {
+      "x": 700,
+      "y": 100
+     }
+    }
+   ],
+   "edges": [
+    {
+     "id": "in-calc",
+     "sourceId": "in",
+     "targetId": "tier",
+     "type": "edge"
+    },
+    {
+     "id": "calc-out",
+     "sourceId": "tier",
+     "targetId": "out",
+     "type": "edge"
+    }
+   ]
+  }
+ },
+ "audit": [
+  {
+   "stage": "Logic of targets",
+   "item": "Step 1",
+   "decision": "SBTi near-term target set for 2029-2035 answers Yes to every question",
+   "why": "Sheet, Step 1.",
+   "needs_check": false,
+   "origin": "human",
+   "at": "2026-10-01T18:48:41.866166+00:00",
+   "by": null
+  },
+  {
+   "stage": "Logic of targets",
+   "item": "No info",
+   "decision": "a blank cell passes to the next source; a Yes or No ends the waterfall",
+   "why": "Sheet: each step runs 'if the previous step returns No info'.",
+   "needs_check": false,
+   "origin": "human",
+   "at": "2026-10-01T18:48:41.866226+00:00",
+   "by": null
+  },
+  {
+   "stage": "Logic of targets",
+   "item": "No source",
+   "decision": "all steps blank -> No info",
+   "why": "Not in the sheet; ruled here.",
+   "needs_check": false,
+   "origin": "human",
+   "at": "2026-10-01T18:48:41.866236+00:00",
+   "by": null
+  },
+  {
+   "stage": "Logic of targets",
+   "item": "Q2.1.5",
+   "decision": "No if Q2.1.1-4 has a No; No info if it has a No info; else TPI 2030 or 2035 alignment",
+   "why": "Sheet: 'Yes only if all previous questions are Yes'; No info propagates (ruled here).",
+   "needs_check": false,
+   "origin": "human",
+   "at": "2026-10-01T18:48:41.866246+00:00",
+   "by": null
+  },
+  {
+   "stage": "Logic of targets",
+   "item": "MSCI and CDP",
+   "decision": "one Yes/No column per question",
+   "why": "Both report per target; the per-target conditions are applied before the table is loaded (README).",
+   "needs_check": false,
+   "origin": "human",
+   "at": "2026-10-01T18:48:41.866253+00:00",
+   "by": null
+  },
+  {
+   "stage": "Logic of targets",
+   "item": "Tiers",
+   "decision": "Aligned targets, Targets, alignment not shown, Partial targets, No targets, No information",
+   "why": "Not in the sheet: 5/5 Yes; Q2.1.1-4 Yes; some Yes; no Yes; all No info.",
+   "needs_check": false,
+   "origin": "human",
+   "at": "2026-10-01T18:48:41.866264+00:00",
+   "by": null
+  }
+ ]
+}
