@@ -157,8 +157,14 @@ _FS, _LH, _PAD = 24, 30, 12  # chart text size: the 24px projector floor, like c
 _BOX_H = 2 * _LH + 2 * _PAD
 
 
-def tree_svg(root: TreeNode, width: float, height: float) -> str:
-    """Left to right by depth; outcomes stacked in order, each question centred on its branches; orthogonal Yes/No connectors."""
+class TreeLayout(NamedTuple):
+    box_w: float
+    nodes: list[tuple[TreeNode, float, float, list[str]]]  # node, left x, centre y, wrapped lines
+    edges: list[tuple[str, float, float, float, float, float]]  # label, x0, y, elbow x, child y, arrow-tip x
+
+
+def tree_layout(root: TreeNode, width: float, height: float) -> TreeLayout:
+    """Left to right by depth; outcomes stacked in order, each question centred on its branches. Shared by the SVG and the pptx."""
     cols, leaves = _depth(root) + 1, list(_leaves(root))
     box_w = min(420, (width - (cols - 1) * 88) / cols)  # 88: the narrowest gap that holds a connector and its label
     gap = (width - cols * box_w) / (cols - 1) if cols > 1 else 0
@@ -166,7 +172,8 @@ def tree_svg(root: TreeNode, width: float, height: float) -> str:
     pitch = min(height / len(leaves), _BOX_H + 72)
     top = (height - pitch * len(leaves)) / 2
     ys = {id(leaf): top + (i + 0.5) * pitch for i, leaf in enumerate(leaves)}
-    out: list[str] = []
+    nodes: list = []
+    edges: list = []
 
     def place(n: TreeNode, depth: int) -> float:
         x = depth * (box_w + gap)
@@ -176,6 +183,20 @@ def tree_svg(root: TreeNode, width: float, height: float) -> str:
         lines = textwrap.wrap(n.text, chars)
         if len(lines) > 2:
             raise ValueError(f"tree node {n.id!r} text is too long for its box: {n.text!r} (two lines of about {chars} characters)")
+        nodes.append((n, x, y, lines))
+        if not n.outcome:
+            x0 = x + box_w
+            edges.extend((label, x0, y, x0 + gap / 2, ys[id(child)], x0 + gap - 6) for label, child in (("Yes", n.yes), ("No", n.no)))
+        return y
+
+    place(root, 0)
+    return TreeLayout(box_w, nodes, edges)
+
+
+def tree_svg(root: TreeNode, width: float, height: float) -> str:
+    box_w, nodes, edges = tree_layout(root, width, height)
+    out: list[str] = []
+    for n, x, y, lines in nodes:
         box = (f'fill="color-mix(in oklab, var(--status-{n.status}) 18%, var(--bg))" stroke="var(--neutral)" stroke-width="1"' if n.outcome
                else 'fill="var(--bg)" stroke="var(--ink)" stroke-width="2"')
         out.append(f'<rect x="{x:.1f}" y="{y - _BOX_H / 2:.1f}" width="{box_w:.1f}" height="{_BOX_H}" {box}/>')
@@ -183,16 +204,10 @@ def tree_svg(root: TreeNode, width: float, height: float) -> str:
         for i, line in enumerate(lines):
             ty = y + (i - (len(lines) - 1) / 2) * _LH + _FS * 0.35
             out.append(f'<text x="{x + box_w / 2:.1f}" y="{ty:.1f}" text-anchor="middle" font-weight="{weight}">{escape(line)}</text>')
-        if not n.outcome:
-            x0, xm = x + box_w, x + box_w + gap / 2
-            for label, child in (("Yes", n.yes), ("No", n.no)):
-                cy = ys[id(child)]
-                out.append(f'<path d="M{x0:.1f},{y:.1f} H{xm:.1f} V{cy:.1f} H{x0 + gap - 6:.1f}" fill="none" stroke="var(--ink-muted)" stroke-width="2"/>')
-                out.append(f'<path d="M{x0 + gap - 14:.1f},{cy - 6:.1f} L{x0 + gap - 4:.1f},{cy:.1f} L{x0 + gap - 14:.1f},{cy + 6:.1f}" fill="none" stroke="var(--ink-muted)" stroke-width="2"/>')
-                out.append(f'<text x="{xm + 8:.1f}" y="{cy - 10:.1f}" class="branch">{label}</text>')
-        return y
-
-    place(root, 0)
+    for label, x0, y, xm, cy, xe in edges:
+        out.append(f'<path d="M{x0:.1f},{y:.1f} H{xm:.1f} V{cy:.1f} H{xe:.1f}" fill="none" stroke="var(--ink-muted)" stroke-width="2"/>')
+        out.append(f'<path d="M{xe - 8:.1f},{cy - 6:.1f} L{xe + 2:.1f},{cy:.1f} L{xe - 8:.1f},{cy + 6:.1f}" fill="none" stroke="var(--ink-muted)" stroke-width="2"/>')
+        out.append(f'<text x="{xm + 8:.1f}" y="{cy - 10:.1f}" class="branch">{label}</text>')
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:.0f} {height:.0f}" font-size="{_FS}" fill="var(--ink)">'
             + "".join(out) + "</svg>")
 

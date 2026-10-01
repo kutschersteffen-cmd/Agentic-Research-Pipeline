@@ -24,7 +24,7 @@ async def render_house_outputs(report_id: str, deck: Deck, request: ReportReques
     """Writes output.pdf, output.pptx and the preview PNGs from `deck`; no LLM, no measuring (fit_deck owns the fit findings)."""
     html = render_deck_html(deck, request.datasets, mode=request.layout.theme, density=request.layout.density)
     await write_pdf(html, store.output_path(report_id, "output.pdf"))
-    build_house_pptx(deck, request.datasets, store.output_path(report_id, "output.pptx"), mode=request.layout.theme)
+    build_house_pptx(deck, request.datasets, store.output_path(report_id, "output.pptx"), mode=request.layout.theme, density=request.layout.density)
     preview = store.preview_dir(report_id)
     for old in preview.glob("page-*.png"):  # a shorter deck must not keep the old tail
         old.unlink()

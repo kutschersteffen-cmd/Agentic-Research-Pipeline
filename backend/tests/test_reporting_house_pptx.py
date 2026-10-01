@@ -177,3 +177,61 @@ def test_pptx_table_header_is_small_uppercase_mono(tmp_path):
     run = table.cell(0, 0).text_frame.paragraphs[0].runs[0]
     assert run.text == "K" and run.font.name == load_tokens().fonts.mono.split(",")[0].strip("'\" ") and not run.font.bold
     assert run._r.rPr.get("spc")
+
+
+def test_pptx_renders_every_v2_variant(tmp_path):
+    deck, ds = stress_deck("min")
+    assert len(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides) == len(deck.slides)
+    deck, ds = stress_deck("max", "committee")
+    assert len(Presentation(build_house_pptx(deck, ds, tmp_path / "e.pptx")).slides) == len(deck.slides)
+
+
+def test_pptx_cards_are_separate_shapes(tmp_path):
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three", slots={"items": ["One: first body", "Two: second", "Three: third"]})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx")).slides[0]
+    cards = [_shapes(s, f"slot:items:{i}") for i in range(3)]
+    assert all(len(c) == 1 for c in cards)
+    assert [p.text for p in cards[0][0].text_frame.paragraphs][-2:] == ["One", "first body"]
+
+
+def test_pptx_short_text_uses_short_role(tmp_path):
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="statement", variant="plain", slots={"statement": "Three short words"})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx")).slides[0]
+    spec = get_variant("statement", "plain").slots[0]
+    assert _shapes(s, "slot:statement")[0].text_frame.paragraphs[0].runs[0].font.size.pt == load_tokens().type[spec.type_role_short].size * 0.75
+
+
+def test_pptx_steps_have_a_connector_line(tmp_path):
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="steps", variant="three", slots={"items": ["A: a", "B: b", "C: c"]})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx")).slides[0]
+    assert len(_shapes(s, "slot:items:line")) == 1 and all(_shapes(s, f"slot:items:{i}") for i in range(3))
+
+
+def test_pptx_committee_patterns_are_native_shapes(tmp_path):
+    items = {"tree": ["q :: Ok? :: a :: b", "a :: =Yes :: high", "b :: =No :: low"],
+             "flow": ["One :: x :: *y", "Two :: z"], "profile": ["A :: 40%", "B :: 80%"]}
+    deck = Deck(title="T", slides=[
+        SlideContent(headline="h", eyebrow="Eb", layout="tree", variant="default", slots={"items": items["tree"], "takeaway_bar": "Why: because"}),
+        SlideContent(headline="h", layout="flow", variant="default", slots={"items": items["flow"], "takeaway_bar": "x"}),
+        SlideContent(headline="h", layout="profile", variant="default", slots={"meters": items["profile"], "total": "1", "left": ["P", "a"], "right": ["Q", "b"], "takeaway_bar": "x"}),
+    ])
+    tree, flow, prof = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx")).slides
+    assert len([sh for sh in tree.shapes if sh.name.startswith("slot:items:node")]) == 3
+    assert len([sh for sh in tree.shapes if sh.name.startswith("slot:items:edge") and not sh.name.endswith("label")]) == 2
+    assert _shapes(tree, "eyebrow")[0].text_frame.text == "EB" and _shapes(tree, "slot:takeaway_bar")
+    assert _shapes(flow, "slot:items:arrow:0")
+    assert len([sh for sh in prof.shapes if sh.name.startswith("slot:meters:") and sh.name.endswith(":fill")]) == 2
+
+
+def test_pptx_malformed_structure_falls_back_to_a_list(tmp_path):
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="flow", variant="default", slots={"items": ["no separators", "at all"], "takeaway_bar": "x"})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx")).slides[0]
+    assert _shapes(s, "slot:items")[0].text_frame.text == "no separators\nat all"
+
+
+def test_pptx_heat_cells_are_tinted(tmp_path):
+    deck, ds = _table_deck(3, max_rows=3)
+    deck.slides[0].variant, deck.slides[0].table.heat = "compact", {"v": [1, 2]}
+    table = _shapes(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides[0], "slot:table")[0].table
+    fills = [str(table.cell(r, 1).fill.fore_color.rgb) for r in (1, 2, 3)]
+    assert len(set(fills)) == 3 and str(table.cell(1, 0).fill.fore_color.rgb).lower() == "ffffff"
