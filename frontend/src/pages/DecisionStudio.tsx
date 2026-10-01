@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import { AuditLogView } from "../components/AuditLogView";
 import { ColumnProfileTable } from "../components/ColumnProfileTable";
@@ -82,12 +82,34 @@ const SOURCES = [
   { id: "replication_runs", label: "Strategy replication runs", entity: "strategy", needsRun: false, needsRegion: false },
 ] as const;
 
+/** "A1, A2, A3 and 61 more": a fit cell has to stay one line on a 64-indicator framework. */
+function columnList(columns: string[]): string {
+  return columns.length <= 3 ? columns.join(", ") : `${columns.slice(0, 3).join(", ")} and ${columns.length - 3} more`;
+}
+
+type Tab = (typeof SUB_TABS)[number]["id"];
+type GuideStep = { title: string; detail: ReactNode; done?: boolean; action?: { label: string; run: () => void; disabled?: boolean } };
+type Scenario = { id: string; label: string; hint: string; steps: GuideStep[] };
+
+/** The step to do now: the first one not done. A step that cannot be
+ * tracked (reading a tab) counts as done once a later step is. */
+function currentStep(steps: GuideStep[]): number {
+  const lastDone = steps.map((s) => !!s.done).lastIndexOf(true);
+  const i = steps.findIndex((s, k) => !s.done && !(s.done === undefined && k < lastDone));
+  return i === -1 ? steps.length : i;
+}
+
 const BARRIER_REGIONS = ["", "European Union", "United States", "China"];
 const JOINABLE_RUN_TYPES = new Set(["transition_plan", "extraction", "financials", "tnfd"]);
 const RUN_TYPE_LABEL: Record<string, string> = { transition_plan: "Transition plan", extraction: "Extraction", financials: "Financials", tnfd: "TNFD" };
 
 export function DecisionStudio() {
-  const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("data");
+  const [sub, setSub] = useState<Tab>("data");
+  // Tabs opened since the table was selected: the guide's "read the
+  // result" steps count as done once their tab has been opened.
+  const [seen, setSeen] = useState<Set<Tab>>(new Set());
+  const [scenarioId, setScenarioId] = useState("table");
+  const [builtFromList, setBuiltFromList] = useState(false);
   const [datasets, setDatasets] = useState<DatasetSummary[]>([]);
   const [dataset, setDataset] = useState<DatasetSummary | null>(null);
   // The table as the framework's rule graph extends it (calculated columns
@@ -228,6 +250,16 @@ export function DecisionStudio() {
     }
   }
 
+  async function onSeedDemoRun() {
+    const seeded = await guard("Creating a sample run…", () => api.seedTransitionPlanDemo());
+    if (seeded) {
+      setRunId(seeded.run_id);
+      setIncludeIndicators(true);
+      setFinished(null); // reload the run picker
+      setStatus(`Created sample run ${seeded.run_id}: ${seeded.company_count} fictional companies, made-up verdicts. Build the table to use it.`);
+    }
+  }
+
   function selectDataset(summary: DatasetSummary) {
     setDataset(summary);
     setCalculated(null);
@@ -236,7 +268,20 @@ export function DecisionStudio() {
     setAudit([]);
     setComparison(null);
     setBaseVersion(null);
-    setSub("profile");
+    setSeen(new Set());
+    // Every route continues with a framework, and that is on this tab.
+    show("ds-framework");
+  }
+
+  function open(tab: Tab) {
+    setSub(tab);
+    setSeen((prev) => (prev.has(tab) ? prev : new Set(prev).add(tab)));
+  }
+
+  /** Opens the Data tab at one of its two sections. */
+  function show(id: "ds-table" | "ds-framework") {
+    setSub("data");
+    requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: "start" }));
   }
 
   /** Loads a saved framework onto the selected table. Saving afterwards makes
@@ -248,7 +293,7 @@ export function DecisionStudio() {
       loadConfig(envelope.config);
       setAudit(envelope.audit);
       setBaseVersion(envelope.config.version);
-      setSub("mechanism");
+      open("results");
     }
   }
 
@@ -266,7 +311,11 @@ export function DecisionStudio() {
     const name = file.name.replace(/\.[^.]+$/, "");
     const envelope = await guard("Building the framework…", () => api.importIndicatorList(file, name, reviewer.trim() || undefined));
     if (envelope) {
-      setStatus(`Built ${envelope.config.name} from ${envelope.config.level_criteria?.length ?? 0} indicators as a draft.`);
+      setBuiltFromList(true);
+      setStatus(
+        `Built ${envelope.config.name} from ${envelope.config.level_criteria?.length ?? 0} indicators as a draft. ` +
+          (dataset ? "Apply it below once its row says fits." : "Next: load the company table it scores."),
+      );
       refreshTemplates();
     }
   }
@@ -289,7 +338,7 @@ export function DecisionStudio() {
       refreshTemplates();
       // A guessed direction silently inverts a ranking, and Profile is
       // where the guesses are flagged: go there first when there are any.
-      setSub(flagged > 0 ? "profile" : "mechanism");
+      open(flagged > 0 ? "profile" : "mechanism");
     }
   }
 
@@ -456,6 +505,176 @@ export function DecisionStudio() {
 
   const flagged = dataset?.proposals.filter((p) => p.needs_check).length ?? 0;
 
+  // What to do next, for each thing a person might arrive with.
+  const hasTable = !!dataset;
+  const hasFramework = !!config;
+  const read = (tab: Tab) => hasFramework && seen.has(tab);
+  const toTable = { label: "Go to the table", run: () => show("ds-table") };
+  const toFramework = { label: "Go to frameworks", run: () => show("ds-framework") };
+  const loadTable: GuideStep = {
+    title: "Load the company table",
+    detail: (
+      <>
+        Upload it under <em>The table to score</em>: one row per company, one column per indicator.
+      </>
+    ),
+    done: hasTable,
+    action: toTable,
+  };
+  const readResults: GuideStep = {
+    title: "Read the outcome on Results",
+    detail: "The tier counts, the ranked list, and why each company landed where it did.",
+    done: read("results") || undefined,
+    action: { label: "Open Results", run: () => open("results"), disabled: !hasFramework },
+  };
+  const ratify: GuideStep = {
+    title: "Save and ratify the version on Audit",
+    detail: "A ratified version is fixed, and only a ratified version can be published to stewardship and index.",
+    done: !!config?.ratified && !unsaved,
+    action: { label: "Open Audit", run: () => open("audit"), disabled: !hasFramework },
+  };
+  const scenarios: Scenario[] = [
+    {
+      id: "table",
+      label: "A company table",
+      hint: "No framework yet. The studio proposes one from the columns.",
+      steps: [
+        loadTable,
+        {
+          title: "Derive a framework from the table",
+          detail: "Every column gets a proposed job (scored, gate, label…) and a direction.",
+          done: hasFramework,
+          action: { label: "Derive a framework", run: onDerive, disabled: !hasTable },
+        },
+        {
+          title: "Check the flagged directions on Profile",
+          detail: "A wrong direction inverts the ranking, and nothing on screen looks wrong.",
+          done: read("profile") || undefined,
+          action: { label: "Open Profile", run: () => open("profile"), disabled: !hasFramework },
+        },
+        readResults,
+        ratify,
+      ],
+    },
+    {
+      id: "framework",
+      label: "A company table and a framework",
+      hint: "Saved here, or a framework file (.json) from another installation.",
+      steps: [
+        loadTable,
+        {
+          title: "Apply the framework",
+          detail: (
+            <>
+              Under <em>The framework that scores it</em>, its row must say <strong>fits</strong>. A file from elsewhere: import
+              it there first.
+            </>
+          ),
+          done: hasFramework,
+          action: toFramework,
+        },
+        readResults,
+        ratify,
+      ],
+    },
+    {
+      id: "indicators",
+      label: "An indicator list",
+      hint: "One row per indicator: id, name, group. Company scores come separately.",
+      steps: [
+        {
+          title: "Build a framework from the list",
+          detail: (
+            <>
+              Under <em>The framework that scores it</em>. It is saved as a draft with four placeholder tiers. Format:{" "}
+              <code>docs/decision-studio/indicator-list.md</code>.
+            </>
+          ),
+          done: builtFromList || hasFramework,
+          action: toFramework,
+        },
+        {
+          title: "Load the company table",
+          detail: "One row per company, one column per indicator, each column named exactly as the indicator id.",
+          done: hasTable,
+          action: toTable,
+        },
+        {
+          title: "Apply the framework you built",
+          detail: (
+            <>
+              Its row says <strong>fits</strong> once the table has every indicator column; otherwise it names the missing ones.
+            </>
+          ),
+          done: hasFramework,
+          action: toFramework,
+        },
+        {
+          title: "Name the tiers on Decision tree",
+          detail: "The list gives them placeholder names, Tier 1 to Tier 4.",
+          done: read("tree"),
+          action: { label: "Open Decision tree", run: () => open("tree"), disabled: !hasFramework },
+        },
+        readResults,
+        ratify,
+      ],
+    },
+    {
+      id: "run",
+      label: "A finished run here",
+      hint: "Transition plan, extraction, financials, TNFD and the other run types.",
+      steps: [
+        {
+          title: "Build the table from the run",
+          detail: (
+            <>
+              Under <em>The table to score</em>, pick the run type and the run. To score single transition-plan indicators,
+              tick <em>One Yes/No column per indicator</em>.
+            </>
+          ),
+          done: hasTable,
+          action: toTable,
+        },
+        {
+          title: "Apply a saved framework, or derive one",
+          detail: "Apply when a saved framework fits the table; derive when none does.",
+          done: hasFramework,
+          action: toFramework,
+        },
+        readResults,
+        ratify,
+      ],
+    },
+    {
+      id: "compare",
+      label: "Two snapshots to compare",
+      hint: "The same companies at two dates, judged by one framework.",
+      steps: [
+        {
+          title: "Load both tables",
+          detail: "Upload each file, or build each from its run.",
+          done: datasets.length >= 2,
+          action: toTable,
+        },
+        {
+          title: "Select the later table and apply the framework",
+          detail: "Use the framework the earlier decision was made with.",
+          done: hasFramework,
+          action: toFramework,
+        },
+        {
+          title: "Compare on Movement",
+          detail: "Pick the earlier table. The framework stays fixed, so a move reflects the companies, not the rules.",
+          done: !!comparison,
+          action: { label: "Open Movement", run: () => open("movement"), disabled: !hasFramework },
+        },
+      ],
+    },
+  ];
+  const scenario = scenarios.find((x) => x.id === scenarioId) ?? scenarios[0];
+  const now = currentStep(scenario.steps);
+  const nextStep = scenario.steps[now];
+
   return (
     <div className="page">
       <h1>Decision Studio</h1>
@@ -466,15 +685,16 @@ export function DecisionStudio() {
           <button
             key={tab.id}
             className={tab.id === sub ? "nav-tab active" : "nav-tab"} role="tab" aria-selected={tab.id === sub}
-            onClick={() => setSub(tab.id)}
+            onClick={() => open(tab.id)}
             disabled={tab.id !== "data" && !dataset}
+            title={tab.id !== "data" && !dataset ? "Load or select a table on the Data tab first" : undefined}
           >
             {tab.label}
           </button>
         ))}
       </div>
 
-      {status && <p className="status-text">{status}</p>}
+      {status && <p className="status-text" role="status">{status}</p>}
       {error && <p className="error-text" role="alert">{error}</p>}
 
       {dataset && (
@@ -483,195 +703,294 @@ export function DecisionStudio() {
             <strong>{dataset.name}</strong> — {dataset.row_count} rows, {dataset.columns.length} columns
           </span>
           {dataset.has_confidence && <span className="badge badge-high">carries per-cell confidence</span>}
-          {config && (
-            <span className="muted">
-              {config.name} v{config.version} {unsaved ? "(unsaved changes)" : config.ratified ? "(ratified)" : "(draft)"}
-            </span>
-          )}
-          {!config && <button onClick={onDerive}>Derive a mechanism</button>}
+          <span className="muted">
+            {config
+              ? `${config.name} v${config.version} ${unsaved ? "(unsaved changes)" : config.ratified ? "(ratified)" : "(draft)"}`
+              : "No framework yet"}
+          </span>
           {unsaved && <button onClick={onSave}>Save as new version</button>}
         </div>
       )}
+      {sub !== "data" && nextStep && (
+        <p className="ds-next">
+          <span>
+            <span className="ds-next-label">Next</span> {nextStep.title}
+          </span>
+          {nextStep.action && (
+            <button className="secondary" onClick={nextStep.action.run} disabled={nextStep.action.disabled}>
+              {nextStep.action.label}
+            </button>
+          )}
+        </p>
+      )}
 
       {sub === "data" && (
-        <div className="card">
-          <h2>Load the data the decision rests on</h2>
-          <p className="help-text">
-            One row per entity, one column per indicator. CSV, TSV or Excel — semicolon delimiters and comma decimals are
-            read correctly, so a German-locale export needs no cleaning first. Parsing happens on the server, where the
-            result can be reproduced and cited.
-          </p>
-          <input aria-label="Dataset file" type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
-
-          <h2>…or build it from a run this system already produced</h2>
-          <div className="inline-fields">
-            <select aria-label="Source run type" value={source} onChange={(e) => setSource(e.target.value)}>
-              {SOURCES.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-            {SOURCES.find((s) => s.id === source)?.needsRun && (
-              <>
-                {/* Pick from this type's finished runs, or paste any run id. */}
-                <input aria-label="Run id" placeholder="Pick or paste a run id" list="ds-runs" value={runId} onChange={(e) => setRunId(e.target.value)} />
-                <datalist id="ds-runs">
-                  {(finished ?? [])
-                    .filter((r) => r.run_type === source.replace(/_run$/, ""))
-                    .map((r) => (
-                      <option key={r.run_id} value={r.run_id}>
-                        {`${r.completed_count} companies · ${new Date(r.updated_at).toLocaleDateString()}`}
-                      </option>
-                    ))}
-                </datalist>
-              </>
-            )}
-            {SOURCES.find((s) => s.id === source)?.needsRegion && (
-              <select value={region} onChange={(e) => setRegion(e.target.value)}>
-                {BARRIER_REGIONS.map((r) => (
-                  <option key={r} value={r}>
-                    {r || "All regions"}
-                  </option>
-                ))}
-              </select>
-            )}
-            {(source === "transition_plan_run" || source === "joined_runs") && (
-              <label>
-                <input type="checkbox" checked={includeIndicators} onChange={(e) => setIncludeIndicators(e.target.checked)} /> One
-                Yes/No column per indicator
-              </label>
-            )}
-            <button className="secondary" onClick={onFromSource} disabled={source === "joined_runs" && joinIds.length < 2}>
-              Build table
-            </button>
-          </div>
-          {source === "joined_runs" && (
-            <div className="join-picker">
-              <p className="help-text">
-                Pick two or more runs. Rows are matched on the company id, or on the name when a run has none; a company
-                missing from a run gets blank cells for that run&apos;s columns. A column two runs share (confidence, review
-                flag) takes each run&apos;s prefix — <code>TP_</code>, <code>Extraction_</code>, <code>Financials_</code>,{" "}
-                <code>TNFD_</code>.
-              </p>
-              {joinable.length === 0 && <p className="muted">No finished Transition Plan, Extraction, Financials or TNFD runs yet.</p>}
-              {joinable.map((r) => (
-                <label key={r.run_id} className="join-run">
-                  <input
-                    type="checkbox"
-                    checked={joinIds.includes(r.run_id)}
-                    onChange={(e) => setJoinIds(e.target.checked ? [...joinIds, r.run_id] : joinIds.filter((id) => id !== r.run_id))}
-                  />
-                  <span>{RUN_TYPE_LABEL[r.run_type] ?? r.run_type}</span>
-                  <code>{r.run_id}</code>
-                  <span className="muted">
-                    {r.completed_count} companies · {new Date(r.created_at).toLocaleDateString()}
-                  </span>
+        <>
+          <section className="card ds-guide" aria-labelledby="ds-guide-title">
+            <h2 id="ds-guide-title">What are you starting with?</h2>
+            <div className="ds-scenarios" role="radiogroup" aria-labelledby="ds-guide-title">
+              {scenarios.map((x) => (
+                <label key={x.id} className="ds-scenario">
+                  <input type="radio" name="ds-scenario" value={x.id} checked={x.id === scenario.id} onChange={() => setScenarioId(x.id)} />
+                  <span className="ds-scenario-label">{x.label}</span>
+                  <span className="ds-scenario-hint">{x.hint}</span>
                 </label>
               ))}
             </div>
-          )}
-          <p className="help-text">
-            One row per {SOURCES.find((s) => s.id === source)?.entity}. Nothing in the engine assumes an entity is a
-            company — a sector in a jurisdiction, a theme and a strategy are scored the same way.
-          </p>
+            <ol className="ds-steps" aria-label={`Steps for: ${scenario.label}`}>
+              {scenario.steps.map((step, i) => {
+                const state = i < now || step.done ? "done" : i === now ? "now" : "later";
+                return (
+                  <li key={step.title} className={`ds-step ds-step-${state}`} aria-current={state === "now" ? "step" : undefined}>
+                    <div className="ds-step-text">
+                      <span>
+                        <strong>{step.title}</strong>
+                        {state === "done" && <span className="ds-step-state"> · done</span>}
+                      </span>
+                      <span className="ds-step-detail">{step.detail}</span>
+                    </div>
+                    {state === "now" && step.action && (
+                      <button onClick={step.action.run} disabled={step.action.disabled}>
+                        {step.action.label}
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+            {now === scenario.steps.length && <p className="status-text">Every step is done for this route.</p>}
+          </section>
 
-          {datasets.length > 0 && (
-            <>
-              <h2>Loaded tables</h2>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Source</th>
-                    <th>As of</th>
-                    <th>Rows</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {datasets.map((d) => (
-                    <tr key={d.dataset_id} className="clickable-row" {...activatable(() => discardOk() && selectDataset(d))}>
-                      <td>{d.name}</td>
-                      <td className="muted">{d.source}</td>
-                      <td className="muted">{d.as_of ?? "—"}</td>
-                      <td>{d.row_count}</td>
-                      <td>{d.dataset_id === dataset?.dataset_id ? "selected" : ""}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
+          <section className="card" id="ds-table" aria-labelledby="ds-table-title">
+            <h2 id="ds-table-title">The table to score</h2>
+            <p className="help-text">
+              One row per company (or sector, theme, strategy), one column per indicator. CSV, TSV or Excel; semicolon
+              delimiters and comma decimals are read correctly, so a German-locale export needs no cleaning.
+            </p>
+            <label className="field-label">
+              Upload a file
+              <input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
+            </label>
 
-          <h2>Scoring templates</h2>
-          <p className="help-text">
-            A saved framework is a template: apply it to the selected table, attach it to an Extraction, Financials, TNFD or Transition Plan run
-            when you start one (the run applies it as its last step), or export it as a file for another installation. An imported template starts as a draft —
-            ratification does not travel with a file.
-          </p>
-          <label className="field-label">
-            Import a template file
-            <input
-              type="file"
-              accept=".json"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) onImportTemplate(file);
-                e.target.value = "";
-              }}
-            />
-          </label>
-          <label className="field-label">
-            Build a framework from an indicator list
-            <input
-              type="file"
-              accept=".csv,.tsv,.txt,.xlsx,.xls"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) onImportIndicatorList(file);
-                e.target.value = "";
-              }}
-            />
-          </label>
-          <p className="help-text">
-            One row per indicator: <code>id</code>, <code>name</code>, <code>group</code>, and optionally weights, direction, critical flags and
-            questions. No company data needed; five questions add the credibility grade. Format: <code>docs/decision-studio/indicator-list.md</code>.
-          </p>
-          {templates.length > 0 && (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Template</th>
-                  <th>Status</th>
-                  <th>Fit to the selected table</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {templates.map((t) => (
-                  <tr key={t.config.framework_id}>
-                    <td>
-                      {t.config.name} v{t.config.version}
-                    </td>
-                    <td className="muted">{t.config.ratified ? `ratified${t.config.ratified_by ? ` by ${t.config.ratified_by}` : ""}` : "draft"}</td>
-                    <td className="muted">
-                      {!dataset ? "select a table" : t.missing_columns.length === 0 ? "fits" : `needs ${t.missing_columns.join(", ")}`}
-                    </td>
-                    <td>
-                      {dataset && t.missing_columns.length === 0 && (
-                        <button className="link-button" onClick={() => onApplyTemplate(t)}>
-                          Apply
-                        </button>
-                      )}{" "}
-                      <a href={api.exportMechanismUrl(t.config.framework_id, t.config.version)}>Export</a>
-                    </td>
-                  </tr>
+            <h3>Or build it from a finished run</h3>
+            <div className="inline-fields">
+              <select aria-label="Source run type" value={source} onChange={(e) => setSource(e.target.value)}>
+                {SOURCES.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
                 ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+              </select>
+              {SOURCES.find((s) => s.id === source)?.needsRun && (
+                <>
+                  {/* Pick from this type's finished runs, or paste any run id. */}
+                  <input aria-label="Run id" placeholder="Pick or paste a run id" list="ds-runs" value={runId} onChange={(e) => setRunId(e.target.value)} />
+                  <datalist id="ds-runs">
+                    {(finished ?? [])
+                      .filter((r) => r.run_type === source.replace(/_run$/, ""))
+                      .map((r) => (
+                        <option key={r.run_id} value={r.run_id}>
+                          {`${r.completed_count} companies · ${new Date(r.updated_at).toLocaleDateString()}`}
+                        </option>
+                      ))}
+                  </datalist>
+                </>
+              )}
+              {SOURCES.find((s) => s.id === source)?.needsRegion && (
+                <select aria-label="Region" value={region} onChange={(e) => setRegion(e.target.value)}>
+                  {BARRIER_REGIONS.map((r) => (
+                    <option key={r} value={r}>
+                      {r || "All regions"}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {(source === "transition_plan_run" || source === "joined_runs") && (
+                <label>
+                  <input type="checkbox" checked={includeIndicators} onChange={(e) => setIncludeIndicators(e.target.checked)} /> One
+                  Yes/No column per indicator
+                </label>
+              )}
+              <button
+                className="secondary"
+                onClick={onFromSource}
+                disabled={(source === "joined_runs" && joinIds.length < 2) || (!!SOURCES.find((s) => s.id === source)?.needsRun && !runId.trim())}
+              >
+                Build the table
+              </button>
+            </div>
+            {source === "transition_plan_run" && (
+              <p className="help-text">
+                Nothing to test with yet?{" "}
+                <button className="link-button" onClick={onSeedDemoRun}>
+                  Create a sample run
+                </button>{" "}
+                with made-up verdicts for 8 fictional companies. No documents or LLM calls.
+              </p>
+            )}
+            {source === "joined_runs" && (
+              <div className="join-picker">
+                <p className="help-text">
+                  Pick two or more runs. Rows are matched on the company id, or on the name when a run has none; a company
+                  missing from a run gets blank cells for that run&apos;s columns. A column two runs share (confidence, review
+                  flag) takes each run&apos;s prefix — <code>TP_</code>, <code>Extraction_</code>, <code>Financials_</code>,{" "}
+                  <code>TNFD_</code>.
+                </p>
+                {joinable.length === 0 && <p className="muted">No finished Transition Plan, Extraction, Financials or TNFD runs yet.</p>}
+                {joinable.map((r) => (
+                  <label key={r.run_id} className="join-run">
+                    <input
+                      type="checkbox"
+                      checked={joinIds.includes(r.run_id)}
+                      onChange={(e) => setJoinIds(e.target.checked ? [...joinIds, r.run_id] : joinIds.filter((id) => id !== r.run_id))}
+                    />
+                    <span>{RUN_TYPE_LABEL[r.run_type] ?? r.run_type}</span>
+                    <code>{r.run_id}</code>
+                    <span className="muted">
+                      {r.completed_count} companies · {new Date(r.created_at).toLocaleDateString()}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <p className="help-text">One row per {SOURCES.find((s) => s.id === source)?.entity} in the table this source builds.</p>
+
+            {datasets.length > 0 && (
+              <>
+                <h3>Tables loaded so far</h3>
+                <p className="help-text">Select one to score it. A framework is applied to the selected table.</p>
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Source</th>
+                        <th>As of</th>
+                        <th>Rows</th>
+                        <th>
+                          <span className="visually-hidden">Selection</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {datasets.map((d) => {
+                        const selected = d.dataset_id === dataset?.dataset_id;
+                        return (
+                          <tr
+                            key={d.dataset_id}
+                            className={selected ? "clickable-row ds-selected" : "clickable-row"}
+                            aria-selected={selected}
+                            {...activatable(() => !selected && discardOk() && selectDataset(d))}
+                          >
+                            <td>{d.name}</td>
+                            <td className="muted">{d.source}</td>
+                            <td className="muted">{d.as_of ?? "—"}</td>
+                            <td>{d.row_count}</td>
+                            <td>{selected ? <strong>Selected</strong> : <span className="ds-row-action">Select</span>}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </section>
+
+          <section className="card" id="ds-framework" aria-labelledby="ds-framework-title">
+            <h2 id="ds-framework-title">The framework that scores it</h2>
+            <p className="help-text">
+              A framework decides which columns count, how they are weighted and where the tiers cut. Each save is a
+              numbered version; a ratified version never changes. A saved framework can also be attached to an Extraction,
+              Financials, TNFD or Transition Plan run when you start it.
+            </p>
+
+            <h3>Apply a saved framework</h3>
+            {!dataset && templates.length > 0 && <p className="help-text">Load or select a table above first; then each framework shows whether it fits.</p>}
+            {templates.length === 0 ? (
+              <p className="muted">No saved frameworks yet. Make one below.</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Framework</th>
+                      <th>Status</th>
+                      <th>Fit to the selected table</th>
+                      <th>
+                        <span className="visually-hidden">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {templates.map((t) => {
+                      const fits = !!dataset && t.missing_columns.length === 0;
+                      return (
+                        <tr key={t.config.framework_id}>
+                          <td>
+                            {t.config.name} v{t.config.version}
+                          </td>
+                          <td className="muted">{t.config.ratified ? `ratified${t.config.ratified_by ? ` by ${t.config.ratified_by}` : ""}` : "draft"}</td>
+                          <td className={fits ? "" : "muted"} title={dataset && !fits ? t.missing_columns.join(", ") : undefined}>
+                            {!dataset ? "—" : fits ? <strong>fits</strong> : `missing ${columnList(t.missing_columns)}`}
+                          </td>
+                          <td className="ds-row-actions">
+                            {fits && (
+                              <button className="secondary" onClick={() => onApplyTemplate(t)}>
+                                Apply
+                              </button>
+                            )}
+                            <a href={api.exportMechanismUrl(t.config.framework_id, t.config.version)}>Export</a>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <h3>Or make a new one</h3>
+            <div className="ds-make">
+              <div className="ds-make-option">
+                <strong>From the selected table</strong>
+                <p className="help-text">Proposes a job and direction for every column; you check and edit them.</p>
+                <button className="secondary" onClick={onDerive} disabled={!dataset}>
+                  Derive a framework
+                </button>
+              </div>
+              <label className="ds-make-option">
+                <strong>From an indicator list</strong>
+                <span className="help-text">
+                  One row per indicator: <code>id</code>, <code>name</code>, <code>group</code>; optionally weights, direction,
+                  critical flags and questions (five questions add the credibility grade). No company data needed.
+                </span>
+                <input
+                  type="file"
+                  accept=".csv,.tsv,.txt,.xlsx,.xls"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) onImportIndicatorList(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              <label className="ds-make-option">
+                <strong>From a framework file</strong>
+                <span className="help-text">A <code>.json</code> exported from another installation. It arrives as a draft: ratification does not travel with a file.</span>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) onImportTemplate(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+          </section>
+        </>
       )}
 
       {sub === "profile" && dataset && (
@@ -696,9 +1015,11 @@ export function DecisionStudio() {
               onSetDirection={setDirection}
             />
           ) : (
-            <p className="muted">
-              Roles and directions are part of the framework. <button onClick={onDerive}>Derive a mechanism</button>
-            </p>
+            <div className="ds-empty">
+              <p className="muted">Jobs and directions belong to a framework, and this table has none yet.</p>
+              <button onClick={onDerive}>Derive a framework</button>
+              <button className="secondary" onClick={() => show("ds-framework")}>Apply a saved one</button>
+            </div>
           )}
         </div>
       )}
@@ -717,9 +1038,11 @@ export function DecisionStudio() {
         </Suspense>
       )}
       {sub === "rules" && dataset && !config && (
-        <p className="muted">
-          Rules are part of the framework. <button onClick={onDerive}>Derive a mechanism</button>
-        </p>
+        <div className="card ds-empty">
+          <p className="muted">Rules belong to a framework, and this table has none yet.</p>
+          <button onClick={onDerive}>Derive a framework</button>
+          <button className="secondary" onClick={() => show("ds-framework")}>Apply a saved one</button>
+        </div>
       )}
 
       {sub === "mechanism" && dataset && config && (
@@ -782,6 +1105,15 @@ export function DecisionStudio() {
             </div>
           )}
         </>
+      )}
+
+      {sub === "results" && config && !result && <p className="status-text">Scoring…</p>}
+      {dataset && !config && ["mechanism", "tree", "results", "movement", "audit"].includes(sub) && (
+        <div className="card ds-empty">
+          <p className="muted">This tab needs a framework, and the selected table has none yet.</p>
+          <button onClick={onDerive}>Derive a framework</button>
+          <button className="secondary" onClick={() => show("ds-framework")}>Apply a saved one</button>
+        </div>
       )}
 
       {sub === "results" && result && config && (

@@ -1,0 +1,65 @@
+id,name,group,weight,scale
+Ind_A_headline_1_Disclosed,Does the company report an absolute GHG emission reduction target for the company?,Targets,1,0-1
+Ind_A_headline_2_Disclosed,"If the company communicates GHG emission intensity targets, does the company show that the company's intensity targets are in line with its absolute emission targets?",Targets,1,0-1
+Ind_A_ambition_3_Disclosed,Does the company report a company-wide net zero GHG emissions target?,Targets,1,0-1
+Ind_A_ambition_4_Disclosed,Does the company state explicitly that it plans to achieve its net zero target until 2040 or 2050 at the latest?,Targets,1,0-1
+Ind_A_ambition_5_Disclosed,Does the company state explicitly that it plans to cut its absolute GHG emissions by 50% (by half) until 2030 at the latest?,Targets,1,0-1
+Ind_A_coverage_6_Disclosed,Does the company report its absolute emission target for the company's scope 1 GHG emissions?,Targets,1,0-1
+Ind_A_coverage_7_Disclosed,Does the company report its absolute emission target for the company's scope 2 GHG emissions?,Targets,1,0-1
+Ind_A_coverage_8_Disclosed,Does the company report its absolute emission target for the company's scope 3 GHG emissions?,Targets,1,0-1
+Ind_A_pathway_11_Disclosed,Does the company report its GHG emission reduction interim targets for achieving the overall goal?,Targets,1,0-1
+Ind_A_pathway_12_Disclosed,"Does the company state explicitly that the interim targets are in line with specific 1.5 degrees orderly sector transition pathways, which are based on frontloaded activities and no or limited emission overshoot?",Targets,1,0-1
+Ind_A_offsetting_13_Disclosed,"If carbon credits and offsets are reported to be used by the company, does the company explicitly state that it will use them exclusively for residual unabatable emissions or beyond value chain mitigation support?",Targets,1,0-1
+Ind_A_offsetting_14_Disclosed,"If carbon credits and offsets are reported to be used by the company, does the company state explicitly that carbon credits and offsets will be only used when the company can ensure that the emission reduction or emission avoidance is sustained permanently?",Targets,1,0-1
+Ind_A_structure_15_Disclosed,Does the company explain its governance structure for managing the climate transition?,Governance,1,0-1
+Ind_A_skills_17_Disclosed,Does the company explain how it ensures that the board members have the required skills to sign off and oversee the climate transition plan implementation?,Governance,1,0-1
+Ind_A_skills_18_Disclosed,Does the company report its available inhouse skills and additional capacity needs to implement the climate transition plan?,Governance,1,0-1
+Ind_A_skills_19_Disclosed,Does the company report a strategy on how it aims to fill the additional skill and capacity needs required to implement its climate transition plan?,Governance,1,0-1
+Ind_A_accountability_21_Disclosed,Does the company report how its board oversees the climate transition plan implementation?,Governance,1,0-1
+Ind_A_accountability_22_Disclosed,Does the company report that it ensures that the company's board is informed at least quaterly about the progress against achieving the climate transition plan targets?,Governance,2,0-1
+Ind_A_incentives_26_Disclosed,Does the company provide a higher share of remuneration and bonuses that are linked to the successful implementation of the climate transition plan interim targets compared to the general part of variable compensation for executives and managers?,Governance,2,0-1
+Ind_A_transparency_29_Disclosed,Does the company report that the climate transition plan targets and information contained in the report have been subject to external assurance and validation?,Governance,1,0-1
+Ind_A_transparency_30_Disclosed,Does the company state explicitly that it uses the same organizational boundaries for setting and achieving its climate targets as it does for financial accounting?,Governance,1,0-1
+Ind_A_management_32_Disclosed,"Does the company provide comprehensive evidence that it fully and completely integrates its climate strategy into its business strategy, product development, operations, financial and human resources, asset management and asset decommissioning?",Strategy,2,0-1
+Ind_A_management_33_Disclosed,Does the company report quantitative or quantifiable subtargets in line with their climate targets and their climate key performance indicators?,Strategy,1,0-1
+Ind_A_management_34_Disclosed,Does the company report the use of scenario envelopes to set targets and perform sensitivity analysis?,Strategy,1,0-1
+Ind_A_management_35_Disclosed,Has the company reported its key assumptions that form the basis of its transition plan?,Strategy,1,0-1
+Ind_A_production_39_Disclosed,"Does the company report a renewable energy strategy and activities, covering renewable energy build out, procurement and consumption?",Strategy,2,0-1
+Ind_A_production_40_Disclosed,Does the company report a strategy and activities for the expansion of and investments in climate solutions and climate solution technologies?,Strategy,2,0-1
+Ind_A_planning_41_Disclosed,Does the company report its opex planning to ensure it meets its climate interim targets?,Strategy,2,0-1
+Ind_A_planning_42_Disclosed,Does the company report its capex planning to ensure it meets its climate interim targets?,Strategy,2,0-1
+Ind_A_planning_43_Disclosed,Does the company report its strategy and activities towards net zero aligned (or green) revenues?,Strategy,2,0-1
+Ind_A_planning_44_Disclosed,Does the company report its strategy and activities to align all its Research and Development (R&D) activties with net zero targets?,Strategy,2,0-1
+Ind_A_engagement_45_Disclosed,"Does the company report a strategy with specific activities and metrics of success for net zero engagement with its upstream value chain, i.e. with its suppliers?",Strategy,1,0-1
+Ind_A_engagement_46_Disclosed,"Does the company report a strategy with specific activities and metrics of success for net zero engagement with its downstream value chain, i.e. with its customers or investees?",Strategy,1,0-1
+Ind_A_engagement_47_Disclosed,Does the company report an engagement strategy and activities with specific climate policies that it directly advocates for with policy makers?,Strategy,2,0-1
+Ind_A_engagement_48_Disclosed,Does the company report a strategy and activities with specific activities and engagement goals for net zero policies with industry associations?,Strategy,2,0-1
+Ind_A_engagement_49_Disclosed,"Does the company report serious consequences and escalation strategies if net zero engagement is ineffective at upstream, downstream, policy maker and industry association level?",Strategy,2,0-1
+Ind_A_fossil fuels_50_Disclosed,Does the company state explicitly that it stopped or will immediately stop any support or activities in new additional fossil fuel exploration and extention of fossil fuel supply?,Strategy,2,0-1
+Ind_A_fossil fuels_51_Disclosed,Does the company report a strategy and activities for the decommissioning and canceling of planned or existing fossil fuel exploration and supply infrastructure?,Strategy,2,0-1
+Ind_A_fossil fuels_52_Disclosed,Does the company report a strategy and activities to phase out its use and support of fossil fuel consuming products and technologies?,Strategy,2,0-1
+Ind_A_just transition_53_Disclosed,"Does the company report a strategy  for a just transition, including monitoring and activities to mitigate adverse impacts of the net zero transition on its own workforce and indirectly affected workers and local communities?",Strategy,1,0-1
+Ind_A_just transition_54_Disclosed,"Does the company report that it develops specific just transition plans with its own climate transition affected workforce, local communities and relevant stakeholders?",Strategy,1,0-1
+Ind_A_biosphere_55_Disclosed,Does the company report a strategy and activities to mitigate adverse impacts on the natural environment and the provision of ecosystem services?,Strategy,2,0-1
+Ind_A_biosphere_56_Disclosed,Does the company report a strategy and activities to halt and reverse deforestation by 2025?,Strategy,2,0-1
+Ind_A_biosphere_57_Disclosed,Does the company report a strategy and activities to halt and reverse biodiversity loss by 2030?,Strategy,2,0-1
+Ind_A_biosphere_58_Disclosed,Does the company report a strategy and activities to significantly reduce water consumption and pollution?,Strategy,2,0-1
+Ind_A_emissions_59_Disclosed,Does the company report its scope 1 GHG emissions for the past year?,Tracking,2,0-1
+Ind_A_emissions_60_Disclosed,Does the company report its scope 2 GHG emissions for the past year?,Tracking,2,0-1
+Ind_A_emissions_61_Disclosed,Does the company report its scope 3 GHG emissions for the past year?,Tracking,2,0-1
+Ind_A_emissions_62_Disclosed,"Does the company report the coverage of scope 3 categories included, and reasons for the exclusion of categories?",Tracking,1,0-1
+Ind_A_progress_66_Disclosed,Does the company report its annual progress of reducing GHG emissions to achieve its emission reduction or net zero targets?,Tracking,2,0-1
+Ind_A_progress_67_Disclosed,Does the company report its absolute scope 1 GHG emissions for the past 5 years?,Tracking,2,0-1
+Ind_A_progress_68_Disclosed,Does the company report its absolute scope 2 GHG emissions for the past 5 years?,Tracking,2,0-1
+Ind_A_progress_69_Disclosed,Does the company report its absolute scope 3 GHG emissions for the past 5 years?,Tracking,2,0-1
+Ind_A_progress_70_Disclosed,Does the company report a decline in its scope 1 GHG emission intensity for the past 5 years?,Tracking,2,0-1
+Ind_A_progress_71_Disclosed,Does the company report a decline in its scope 2 GHG intensity for the past 5 years?,Tracking,2,0-1
+Ind_A_progress_72_Disclosed,Does the company report a decline in its scope 3 GHG intensity for the past 5 years?,Tracking,2,0-1
+Ind_A_progress_73_Disclosed,Does the company report the specific drivers and reasons for the company's observed actual GHG emission changes?,Tracking,1,0-1
+Ind_A_progress_74_Disclosed,Does the company report annual progress against its deforestation targets?,Tracking,2,0-1
+Ind_A_capex_75_Disclosed,Does the company report the amount of climate aligned capex that supports its net zero transition?,Tracking,2,0-1
+Ind_A_capex_77_Disclosed,Does the company report the amount of climate transition misaligned capex?,Tracking,2,0-1
+Ind_A_revenues_81_Disclosed,Does the company report the amount of climate transition aligned revenues that support the global net zero transition?,Tracking,2,0-1
+Ind_A_revenues_83_Disclosed,Does the company report the amount of climate transition misaligned revenues?,Tracking,2,0-1
+Ind_A_engagement_86_Disclosed,Does the company assess and report the alignment of its transition plan with its policy positions and its trade association's policy positions and lobbying?,Tracking,1,0-1
+Ind_A_engagement_87_Disclosed,Does the company report its engagement activities with the companies it invests in its own financial portfolio (including voting and proxy voting) undertaken in the relevant reporting period?,Tracking,1,0-1

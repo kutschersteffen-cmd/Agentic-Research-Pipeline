@@ -20,6 +20,7 @@ from arp.schemas.common import CompanyRef
 from arp.schemas.transition_plan import TransitionPlanIndicator
 from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
+from arp.transition_plan.demo import DEMO_COMPANIES, seed_demo_run
 from arp.transition_plan.indicators import load_indicators
 from arp.transition_plan.pipeline import create_transition_plan_run, execute_transition_plan_run
 from arp.universe import load_company_universe
@@ -70,6 +71,15 @@ async def start_transition_plan_run(
 
     run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings)
     return {"run_id": run_id, "company_count": len(companies)}
+
+
+@router.post("/demo/seed")
+async def seed_demo(run_store: RunStore = Depends(get_run_store)) -> dict:
+    """Writes a finished, synthetic transition plan run (see
+    `arp.transition_plan.demo`): made-up verdicts, no documents, no LLM, no
+    cost. Each call makes a new run with the same verdicts."""
+    run_id = await seed_demo_run(run_store)
+    return {"run_id": run_id, "company_count": len(DEMO_COMPANIES)}
 
 
 @router.get("/runs/{run_id}")

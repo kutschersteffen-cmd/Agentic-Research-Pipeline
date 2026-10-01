@@ -565,6 +565,7 @@ export const api = {
   getCastVotes: (runId: string) => request<{ votes: VoteRecord[] }>(`/api/voting/runs/${runId}/cast`),
   // Portfolio risk & exposure monitoring
   seedPortfolioDemo: () => request<DemoSeedSummary>("/api/portfolio/demo/seed", { method: "POST" }),
+  seedTransitionPlanDemo: () => request<{ run_id: string; company_count: number }>("/api/transition-plan/demo/seed", { method: "POST" }),
   listPortfolios: () => request<PortfolioSummary[]>("/api/portfolio/portfolios"),
   listSecuritiesNeedingReview: () => request<SecurityResolution[]>("/api/portfolio/securities-needing-review"),
   holdingsUniverse: (body: { portfolio_ids: string[]; as_of?: string }) =>
