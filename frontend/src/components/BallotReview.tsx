@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { CompanyBallot, VoteRecord, VotePosition, VoteReviewDecision } from "../types";
 import { Modal } from "./Modal";
@@ -10,7 +10,7 @@ import { REVIEWER_REQUIRED, useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "./ReviewerField";
 import { ProposedTag } from "./ProposedTag";
 import { announce } from "../lib/announce";
-import { useCardKeys } from "../lib/cardKeys";
+import { focusNextCard, useCardKeys } from "../lib/cardKeys";
 import { CommentField } from "./CommentField";
 
 const VOTE_POSITIONS: VotePosition[] = ["for", "against", "abstain", "withhold"];
@@ -62,7 +62,14 @@ function ProposalReview({
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(!isRoutine(vote));
+  const settled = Boolean(decision) || alreadyCast;
+  const cardRef = useRef<HTMLDivElement>(null);
+  // Routine and settled proposals read as one row; a flagged one stays open
+  // until it is decided, then folds too, so the decision visibly lands.
+  const [expanded, setExpanded] = useState(!isRoutine(vote) && !settled);
+  useEffect(() => {
+    if (decision?.decided_at || alreadyCast) setExpanded(false);
+  }, [decision?.decided_at, alreadyCast]);
 
   const key = itemKey(ballot.company_id, vote.proposal.proposal_number);
   const needsCoSign = rec?.engagement_alignment_flag === true;
@@ -97,6 +104,7 @@ function ProposalReview({
       setComment("");
       setOverrideOpen(false);
       announce(`Proposal ${vote.proposal.proposal_number} for ${ballot.name} ${DECISION_LABEL[reviewDecision]}.`);
+      focusNextCard(cardRef.current, ".proposal-card", ".ballot-bar button:last-of-type");
       onReviewed();
     } catch (err) {
       setError((err as Error).message);
@@ -106,9 +114,14 @@ function ProposalReview({
   }
 
   if (!expanded && rec) {
-    const status = alreadyCast ? `Cast · ${castConfirmationId}` : decision ? `${DECISION_LABEL[decision.decision] ?? decision.decision} by ${decision.reviewer ?? "unknown"}` : null;
+    const coSigner = decision?.edited_value?.co_signed_by;
+    const status = alreadyCast
+      ? `Cast · ${castConfirmationId}`
+      : decision
+        ? `${DECISION_LABEL[decision.decision] ?? decision.decision} by ${decision.reviewer ?? "unknown"}${coSigner ? `, co-signed ${coSigner}` : ""}`
+        : null;
     return (
-      <div className="proposal-card proposal-compact" tabIndex={-1}>
+      <div className="proposal-card proposal-compact" tabIndex={-1} ref={cardRef}>
         <strong className="proposal-num">#{vote.proposal.proposal_number}</strong>
         <span className="proposal-clip" title={vote.proposal.resolution_text}>
           {vote.proposal.resolution_text}
@@ -124,7 +137,7 @@ function ProposalReview({
           </button>
         )}
         <button className="link-button" onClick={() => setExpanded(true)} aria-expanded={false}>
-          Details
+          {settled && !alreadyCast ? "Change" : "Details"}
         </button>
         {error && <p className="error-text" role="alert">{error}</p>}
       </div>
@@ -132,8 +145,8 @@ function ProposalReview({
   }
 
   return (
-    <div className={needsCoSign ? "proposal-card proposal-flagged" : "proposal-card"} tabIndex={-1}>
-      {isRoutine(vote) && (
+    <div className={needsCoSign && !settled ? "proposal-card proposal-flagged" : "proposal-card"} tabIndex={-1} ref={cardRef}>
+      {(isRoutine(vote) || settled) && rec && (
         <button className="link-button proposal-collapse" onClick={() => setExpanded(false)} aria-expanded>
           Less
         </button>
@@ -309,6 +322,8 @@ export function BallotReview({ runId }: { runId: string }) {
     } finally {
       await load();
       setBusy(false);
+      // What is left to do after a batch is the flagged items, then Cast.
+      requestAnimationFrame(() => document.querySelector<HTMLElement>(".proposal-flagged, .ballot-bar button:last-of-type")?.focus());
     }
   }
 

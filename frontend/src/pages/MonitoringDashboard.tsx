@@ -101,7 +101,10 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
   return (
     <div className="page">
       <h1>Dashboard</h1>
-      <p className="help-text">What needs a decision first, then what the agents are doing. Runs refresh every 3 seconds.</p>
+      <p className="help-text">
+        How engagements stand and what the agents are doing; runs refresh every 3 seconds. What waits on your decision is on the{" "}
+        <a href="#/home">start page</a>.
+      </p>
       <div aria-live="polite">
         {loadError && (
           <div className="error-text" role="alert">

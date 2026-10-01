@@ -456,7 +456,7 @@ button:hover:not(:disabled) { background: var(--accent-ink); }
 /* Disabled reads as quiet, not as a grey slab louder than the live controls;
    text stays at the muted contrast (>=4.5:1) so the label is still legible. */
 button:disabled { background: var(--well); color: var(--muted); cursor: not-allowed; }
-button:is(.link-button, .nav-tab, .secondary, .danger-outline):disabled { background: transparent; color: var(--muted); }
+button:is(.link-button, .nav-tab, .secondary, .danger-outline):disabled { background: transparent; color: var(--muted); border-color: var(--panel-border); border-style: dashed; }
 button.danger { background: var(--low); }
 a.button-link, .toolbar a.button-link { display: inline-block; background: var(--accent); color: var(--on-accent); border-radius: var(--r-md); padding: 9px 16px; font-weight: 500; text-decoration: none; }
 a.button-link:hover, .toolbar a.button-link:hover { background: var(--accent-ink); }
@@ -589,6 +589,14 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
 .chart-bar { fill: var(--text); }
 .bar-chart { max-width: 760px; min-width: 520px; }
 .chart-scroll { overflow-x: auto; }
+.tb-dist { list-style: none; margin: var(--s-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.tb-dist li { display: grid; grid-template-columns: minmax(7rem, 12rem) 1fr; align-items: center; gap: var(--s-3); }
+.tb-dist-region { font-size: var(--text-sm); }
+.tb-dist-bar { display: flex; height: 28px; gap: 2px; }
+.tb-dist-seg { display: flex; align-items: center; padding: 0 8px; min-width: 2.75rem; color: var(--on-accent); font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; border-radius: 0; white-space: nowrap; }
+@media (max-width: 560px) { .tb-dist li { grid-template-columns: 1fr; gap: 4px; } }
+/* The criterion code stays pinned while the region ratings scroll beside it. */
+.tb-matrix th:first-child, .tb-matrix td:first-child { position: sticky; left: 0; z-index: 1; background: var(--panel); }
 .clickable-row { cursor: pointer; }
 .clickable-row:hover { background: var(--well); }
 .detail-cell { background: var(--well); }
@@ -1345,7 +1353,7 @@ mark.style-flag { background: color-mix(in srgb, var(--mid) 30%, transparent); c
 .flow-view-switch { display: flex; gap: var(--s-1); flex: none; }
 @media (max-width: 720px) {
   .stage-detail .inline-fields { flex-wrap: wrap; }
-  .flow-rf, .flow-rf-hint, .flow-view-switch { display: none; }
+  .steward-rf, .flow-rf-hint, .flow-view-switch { display: none; }
   .flow-list.phone-only { display: flex; }
   .flow-list-layer { grid-template-columns: 1fr; }
 }
@@ -1353,6 +1361,9 @@ mark.style-flag { background: color-mix(in srgb, var(--mid) 30%, transparent); c
 /* The embedded rule editor (JDM) speaks the app's palette: ink node icons,
    no library attribution. */
 .grl-dn__header__icon { background-color: var(--text) !important; color: var(--panel) !important; }
+.grl-dn { --node-border-radius: 0; }
+/* The palette fills a phone screen; rules are edited on a desktop. */
+@media (max-width: 720px) { .grl-dg__aside__menu { display: none; } }
 .react-flow__attribution { display: none; }
 
 /* Steward Workflow: stage studios */
@@ -1458,7 +1469,7 @@ mark.style-flag { background: color-mix(in srgb, var(--mid) 30%, transparent); c
 .pipeline-card { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--r-md); font-size: var(--text-xs); }
 .pipeline-pill {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 10px 14px; border-radius: var(--r-pill);
+  padding: 10px 14px; border-radius: 0;
   text-align: center;
 }
 .pipeline-pill-label { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
@@ -1702,3 +1713,5 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .theme-switch button { flex: 1; padding: 4px 0; font-size: var(--text-xs); font-weight: 500; background: transparent; color: var(--muted); border-radius: 4px; }
 .theme-switch button:hover:not(.on) { background: var(--panel); color: var(--text); }
 .theme-switch button.on { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+
+.rule-editor-open:focus { outline: none; }
