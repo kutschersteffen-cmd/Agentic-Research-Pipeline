@@ -236,8 +236,7 @@ class _Builder:
         cards = [title_body(i) for i in items]
         h = max(2 * g + sub.size + 20 + (self._est_h(c[0], sub, w - 2 * g) if c[0] else 0) + (12 if c[0] else 0)
                 + self._est_h(c[1], ts, w - 2 * g) + 2 for c in cards)
-        h = min(h, r.h)  # never past the slot
-        y = r.y if self.density == "committee" else max(r.y, r.y + (r.h - h) / 2)  # a pitch centres the row; a pre-read reads from the top
+        h, y = min(h, r.h), r.y  # as tall as the tallest card's content, top-aligned, like deck.css (never past the slot)
         for i, c in enumerate(cards):
             paras = [Para(f"{i + 1:02d}", sub.model_copy(update={"weight": 500, "line_height": 1}), self.mono, self.c.ink_muted, after=20)]
             if c[0]:
@@ -248,8 +247,20 @@ class _Builder:
 
     def _steps_items(self, slide, spec, content, items, r, ts):
         g, sub, body, n = self.t.grid.gutter, self.t.type["subhead"], self.t.type["body"], len(items)
-        w = (r.w - (n - 1) * g) / n
         steps = [title_body(i) for i in items]
+        if self.density == "committee":  # deck.css: one row per step sharing the body (less 24px), nodes on a vertical rule
+            row = (r.h - 24) / n
+            self._line(slide, "slot:items:line", (r.x + 36, r.y + row / 2), (r.x + 36, r.y + row * (n - 0.5)), self.c.ink_muted, 2)
+            for i, c in enumerate(steps):
+                y = r.y + i * row
+                self._text(slide, f"slot:items:{i}:node", Rect(r.x, y + row / 2 - 36, 72, 72), [str(i + 1)], body.model_copy(update={"weight": 500}),
+                           font=self.mono, color=self.c.ink, anchor=MSO_ANCHOR.MIDDLE, align=PP_ALIGN.CENTER, fill=self.c.background,
+                           line=(self.c.ink, 2), shape=MSO_SHAPE.OVAL)
+                paras = ([Para(c[0], ts.model_copy(update={"weight": sub.weight}), self.head, self.c.ink)] if c[0] else [])
+                paras.append(Para(c[1], body if c[0] else ts, self.body, self.c.ink_muted if c[0] else self.c.ink, before=12 if c[0] else 0))
+                self._text(slide, f"slot:items:{i}", Rect(r.x + 112, y, r.w - 112, row), paras, ts, font=self.body, color=self.c.ink, anchor=MSO_ANCHOR.MIDDLE)
+            return
+        w = (r.w - (n - 1) * g) / n
         h = 112 + max((self._est_h(c[0], ts, w) + 12 if c[0] else 0) + self._est_h(c[1], body if c[0] else ts, w) for c in steps)
         y = max(r.y, r.y + (r.h - h) / 2)
         self._line(slide, "slot:items:line", (r.x, y + 36), (r.x + r.w, y + 36), self.c.ink_muted, 2)
@@ -342,8 +353,10 @@ class _Builder:
 
     def _decisions(self, slide, spec, content, items, r, ts):
         sub, head, y = self.t.type["subhead"], self.t.type["headline"], r.y
-        for i, (title, detail) in enumerate(structured_view("decisions", "items", items, r)["pairs"]):
-            h = 32 + sub.size * sub.line_height + (self._est_h(detail, ts, r.w - 192) if detail else 0)
+        pairs = structured_view("decisions", "items", items, r)["pairs"]
+        share = (r.h - 24 - 12 * (len(pairs) - 1)) / len(pairs)  # deck.css: the rows share the body, 24px clear of the footer rule
+        for i, (title, detail) in enumerate(pairs):
+            h = max(share, 32 + sub.size * sub.line_height + (self._est_h(detail, ts, r.w - 192) if detail else 0))
             paras = [Para(title, sub, self.head, self.c.ink)] + ([Para(detail, ts, self.body, self.c.ink_muted)] if detail else [])
             self._text(slide, f"slot:items:{i}", Rect(r.x, y, r.w, h), paras, ts, font=self.body, color=self.c.ink, anchor=MSO_ANCHOR.MIDDLE, ml=128, mr=32, line=(self.c.neutral, 1))
             self._text(slide, f"slot:items:{i}:num", Rect(r.x + 32, y, 96, h), [str(i + 1)], head.model_copy(update={"line_height": 1}), font=self.head, color=self.c.ink,

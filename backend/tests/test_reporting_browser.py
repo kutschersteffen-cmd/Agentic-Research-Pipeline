@@ -129,18 +129,17 @@ def test_card_items_split_title_and_body():
     deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three",
                                                 slots={"items": ["Grid: 64 rows: per company", "Plain item"]})])
     html = render_deck_html(deck, [])
-    assert "<li><i>01</i><strong>Grid</strong><span>64 rows: per company</span></li>" in html and "<li><i>02</i><span>Plain item</span></li>" in html
+    assert "<li><strong>Grid</strong><span>64 rows: per company</span></li>" in html and "<li><span>Plain item</span></li>" in html
 
 
 @pytest.mark.parametrize("density", ["present", "committee"])
-async def test_card_tile_has_its_number_on_top_and_its_text_at_the_foot(density):
+async def test_cards_are_content_sized_and_top_aligned(density):
     deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three",
                                                 slots={"items": ["Grid: one line of body text", "Score: another line", "Flags: a third"]})])
-    html = render_deck_html(deck, [], density=density)
-    assert "<li><i>01</i><strong>Grid</strong>" in html  # the number is text, so the measured content starts with it
-    gaps = await _computed(html, """[...document.querySelectorAll('[data-slot=items] li')].map(li => { const r = li.getBoundingClientRect();
-        return [li.querySelector('i').getBoundingClientRect().top - r.top, r.bottom - li.querySelector('span').getBoundingClientRect().bottom]; })""")
-    assert all(top < 40 and foot < 40 for top, foot in gaps)  # the card's padding at both ends
+    got = await _computed(render_deck_html(deck, [], density=density), """[...document.querySelectorAll('[data-slot=items] li')].map(li => {
+        const r = li.getBoundingClientRect(), slot = li.closest('.slot').getBoundingClientRect();
+        return [li.querySelector('strong').getBoundingClientRect().top - r.top, r.bottom - li.querySelector('span').getBoundingClientRect().bottom, r.top - slot.top]; })""")
+    assert all(title < 140 and foot < 40 and top == 0 for title, foot, top in got)  # number, title, body stacked tight from the slot top
 
 
 async def test_eyebrow_renders_above_the_headline():
@@ -251,8 +250,8 @@ async def test_unbalanced_uses_the_rendered_anchor():
     [f] = _design(await measure(_styled(html, "[data-slot=statement] { justify-content: flex-start !important; }")), "unbalanced")
     assert f.slide == 1
     cards = Deck(title="T", slides=[_TITLE, SlideContent(headline="h", layout="cards", variant="three", slots={"items": _FOUR})])
-    assert 'data-anchor="middle"' in render_deck_html(cards, [], density="present")  # a pitch's card tiles hold their mass mid-body
-    assert 'data-anchor="top"' in render_deck_html(cards, [], density="committee")
+    for density in ("present", "committee"):  # deck.css top-aligns cards at either density
+        assert 'data-anchor="top"' in render_deck_html(cards, [], density=density)
 
 
 async def test_crowded_flagged():
@@ -282,9 +281,28 @@ def _tpa(fixture):
 
 @pytest.mark.parametrize("fixture", ["tpa_pitch", "tpa_pitch_committee"])
 @pytest.mark.parametrize("mode", ["light", "dark"])
-async def test_tpa_v2_layouts_have_no_design_findings(mode, fixture):
+async def test_tpa_v2_layouts_have_no_design_findings(mode, fixture, fake_llm):
+    """The pipeline path: art direction, measure, then the one design retry."""
     import importlib
 
+    from arp.reporting.house_pipeline import design_retry
+
     req, deck = _tpa(getattr(importlib.import_module(f"tests.fixtures.{fixture}"), fixture))
+    req = req.model_copy(update={"layout": req.layout.model_copy(update={"theme": mode})})
     found = await measure(render_deck_html(deck, req.datasets, mode=mode, density=req.layout.density))
-    assert found == [], [(f.slide, f.rule, f.slot, f.message) for f in found]
+    deck, findings = await design_retry(deck, req, fake_llm({}), found)  # no LLM call: nothing overflows
+    assert [f for f in findings if f.severity == "warn"] == [], [(f.slide, f.rule, f.slot, f.message) for f in findings]
+
+
+@pytest.mark.parametrize("density", ["present", "committee"])
+async def test_thin_cards_are_sparse_then_pass_after_one_retry(density, fake_llm):
+    from arp.reporting.house_pipeline import design_retry
+    from arp.schemas.reporting import LayoutInstructions, ReportRequest
+
+    req = ReportRequest(title="T", qualitative_notes="", layout=LayoutInstructions(density=density))
+    deck = Deck(title="T", slides=[_TITLE, SlideContent(headline="h", layout="cards", variant="three", slots={"items": _FOUR})])
+    found = await measure(render_deck_html(deck, [], density=density))
+    assert [(f.slide, f.rule) for f in _design(found)] == [(1, "sparse")]
+    deck, findings = await design_retry(deck, req, fake_llm({}), found)
+    assert [(f.rule, f.severity, f.message) for f in findings if f.stage == "design"] == [
+        ("relayout", "info", "cards/three → summary/default (sparse)")]

@@ -225,7 +225,7 @@ def test_legacy_bullets_with_one_or_two_items_stay():
 
 
 def test_candidate_rejected_when_an_item_exceeds_its_word_limit():
-    items = [" ".join(["word"] * 20)] * 3  # over cards/three's 14 words a card, under its 24 at committee density
+    items = [" ".join(["word"] * 22)] * 3  # over cards/three's 14 and summary's 20 words in present, under cards' 24 at committee
     assert layouts(direct(D(S(slots={"items": items})), density="present")[0]) == [("bullets", "three")]
     assert layouts(direct(D(S(slots={"items": items})), density="committee")[0]) == [("cards", "three")]
 

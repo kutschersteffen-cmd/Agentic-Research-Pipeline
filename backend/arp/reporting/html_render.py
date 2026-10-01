@@ -99,12 +99,6 @@ def slot_role(layout: str, spec, value, density: Density) -> str:
     return spec.type_role_short if spec.type_role_short and 0 < words <= (spec.short_words or 0) else spec.type_role
 
 
-def effective_anchor(slide: SlideContent, density: Density) -> str:
-    """Where the body content's mass is meant to sit: the variant's anchor, except that a pitch's card tiles (number at
-    the top, text at the foot, see deck.css) put it in the middle of the body."""
-    return "middle" if density == "present" and slide.layout == "cards" else get_variant(slide.layout, slide.variant).anchor
-
-
 def slide_words(slide: SlideContent) -> int:
     """Words in the headline and every slot (the eyebrow and footer are not counted): the `dense` rule's count."""
     return sum(len(t.split()) for t in [slide.headline, *(t for v in slide.slots.values() for t in ([v] if isinstance(v, str) else v))])
@@ -143,7 +137,7 @@ def render_deck_html(deck: Deck, datasets: list[QuantitativeDataset], tokens: To
     slides = [
         {
             "index": i, "layout": s.layout, "variant": s.variant, "headline": s.headline, "eyebrow": s.eyebrow, "refs": " · ".join(s.source_refs),
-            "anchor": effective_anchor(s, density), "words": slide_words(s),
+            "anchor": get_variant(s.layout, s.variant).anchor, "words": slide_words(s),
             "slots": [_slot_view(i, s, sp, tokens, by_id, theme, density) for sp in get_variant(s.layout, s.variant).slots],
         }
         for i, s in enumerate(deck.slides)

@@ -96,8 +96,8 @@ def candidates(shape: str, slide: SlideContent, density: str = "committee", last
     elif shape == "table":
         out += ([("table", "highlight"), ("split", "table")] if _texts(slide) else [("table", "compact")])
         out += [("table", "heat")] * bool(slide.table.heat)
-    elif slide.layout == "bullets" and 3 <= n <= 4:  # legacy bullets move (spec §1); one or two cards would stand alone
-        out.append(("cards", "three" if n <= 3 else "four"))
+    elif slide.layout in ("bullets", "cards") and 3 <= n <= 4:  # legacy bullets move (spec §1); one or two cards would stand alone
+        out += [("cards", "three" if n <= 3 else "four"), ("summary", "default")]  # summary: where a sparse cards slide goes next
     return list(dict.fromkeys(out))
 
 

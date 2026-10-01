@@ -49,27 +49,19 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
 .slide[data-layout="split"] [data-slot="statement"], [data-slot="callout"] { text-wrap: pretty; }
 .k-number.t-big_number { font-feature-settings: "tnum"; }
 /* Cards: equal hairline boxes sized to the tallest card; mono index, then the title and its line right under it. */
-.slide[data-layout="cards"] ul { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: {{ g }}px;
-  grid-template-rows: auto 1fr auto auto; }  /* number, air, title, body: a subgrid lines the titles up across the tiles */
-.slide[data-layout="cards"] ul { width: 100%; }
-{% set body_h = t.canvas.height - t.grid.margin_top - t.grid.headline_band - t.grid.margin_bottom - t.grid.footer_band %}
-/* Filled by design (the sparse rule): a card is a tile, its number at the top and its text at the foot. A pitch's
-   tiles stand 70% of the body tall, a pre-read's run its full height. */
-[data-density="present"] .slide[data-layout="cards"] ul { min-height: {{ (body_h * 0.7)|round|int }}px; }
-[data-density="committee"] .slide[data-layout="cards"] ul { height: calc(100% - 24px); }  /* clear of the footer rule, like flow */
-.slide[data-layout="cards"] li { margin: 0; padding: {{ g }}px; border: 1px solid var(--neutral); display: grid; grid-row: span 4; grid-template-rows: subgrid; min-width: 0; }
-.slide[data-layout="cards"] li > i { grid-row: 1; }
-.slide[data-layout="cards"] li > strong { grid-row: 3; }
-.slide[data-layout="cards"] li > span { grid-row: 4; }
+.slide[data-layout="cards"] ul { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: {{ g }}px; counter-reset: card; }
+/* Cards are as tall as their content (the tallest sets the row), top-aligned at either density: a thin cards slide is
+   sparse, and the design retry moves it on (spec §3), rather than a box stretching to look full. */
+.slide[data-layout="cards"] li { margin: 0; padding: {{ g }}px; border: 1px solid var(--neutral); display: flex; flex-direction: column; counter-increment: card; min-width: 0; }
+.slide[data-layout="cards"] li::before { content: counter(card, decimal-leading-zero); padding-bottom: 20px;
+  font: 500 {{ t.type.subhead.size }}px/1 var(--font-mono); letter-spacing: 0; color: var(--ink-muted); }
 /* Footer chrome is the only text under 24px (caption); every index and label in the body is body size or larger. */
 .slide[data-layout="summary"] li::before, .slide[data-layout="split"] .k-list li::before { font: 500 {{ body.size }}px/1 var(--font-mono); letter-spacing: 0; color: var(--ink-muted); }
-.slide[data-layout="cards"] li > i { display: block; padding-bottom: 20px; font: 500 {{ t.type.subhead.size }}px/1 var(--font-mono); font-style: normal; letter-spacing: 0; color: var(--ink-muted); }
 .slide[data-layout="cards"] strong { display: block; font: {{ t.type.subhead.weight }} {{ t.type.subhead.size }}px/{{ t.type.subhead.line_height }} var(--font-heading); text-wrap: balance; }
 .slide[data-layout="steps"] strong { display: block; font-weight: {{ t.type.subhead.weight }}; font-family: var(--font-heading); text-wrap: balance; }
 .slide[data-layout="cards"] li span, .slide[data-layout="steps"] li span { display: block; margin-top: 12px; color: var(--ink-muted); text-wrap: pretty; }
 .slide[data-layout="steps"] li span { font: {{ body.weight }} {{ body.size }}px/{{ body.line_height }} var(--font-body); letter-spacing: 0; }
-.slide[data-layout="cards"] li > i + span { margin-top: 0; color: var(--ink); }  /* a body without a title */
-.slide[data-layout="steps"] li span:only-child { margin-top: 0; color: var(--ink); }
+.slide[data-layout="cards"] li span:only-child, .slide[data-layout="steps"] li span:only-child { margin-top: 0; color: var(--ink); }
 /* Steps: numbered nodes on one rule, like the app's process-card step dots; centred in the body. */
 .slide[data-layout="steps"] .k-list { display: flex; align-items: safe center; }
 .slide[data-layout="steps"] ul { width: 100%; }

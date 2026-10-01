@@ -261,3 +261,61 @@ def test_pptx_card_with_longest_item_fits_its_outline(tmp_path):
     b, w = _Builder(t, "light", "present"), (r.w - 2 * t.grid.gutter) / 3 - 2 * t.grid.gutter
     need = 2 * t.grid.gutter + t.type["subhead"].size + 20 + b._est_h("Title here", t.type["subhead"], w) + 12 + b._est_h(words, b._role(spec, "cards", [words]), w)
     assert need <= card.height / _PX <= r.h
+
+
+async def _html_boxes(html: str, selector: str) -> list[list[float]]:
+    from playwright.async_api import async_playwright
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        page = await browser.new_page(viewport={"width": 1920, "height": 1080})
+        await page.set_content(html)
+        await page.evaluate("document.fonts.ready")
+        boxes = await page.evaluate(f"[...document.querySelectorAll({selector!r})].map(e => {{ const r = e.getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; }})")
+        await browser.close()
+    return boxes
+
+
+@pytest.mark.parametrize("density", ["present", "committee"])
+async def test_pptx_cards_match_the_content_sized_html_stack(tmp_path, density):
+    from arp.reporting.house_pptx import _e
+
+    items = ["Review queue: indicators with no grounded citation", "Analyst decision: approve, edit or reject", "Audit trail: reviewer, time and history"]
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three", slots={"items": items})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx", density=density)).slides[0]
+    html = await _html_boxes(render_deck_html(deck, [], density=density), "[data-slot=items] li")
+    for i, (x, y, w, h) in enumerate(html):
+        [card] = _shapes(s, f"slot:items:{i}")
+        assert abs(card.left - _e(x)) <= _e(2) and abs(card.top - _e(y)) <= _e(2) and abs(card.width - _e(w)) <= _e(2)
+        # _est_h keeps 16% width slack for a fallback face (boxes never clip): at most one extra body line.
+        body = load_tokens().type["body"]
+        assert _e(h) - _e(2) <= card.height <= _e(h + body.size * body.line_height + 2)
+
+
+@pytest.mark.parametrize("density", ["present", "committee"])
+async def test_pptx_steps_match_the_html_per_density(tmp_path, density):
+    from arp.reporting.house_pptx import _e
+
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="steps", variant="four", slots={"items": ["A: a", "B: b", "C: c", "D: d"]})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx", density=density)).slides[0]
+    nodes = await _html_boxes(render_deck_html(deck, [], density=density), "[data-slot=items] li")  # each node sits at its li's left edge
+    tops = [_shapes(s, f"slot:items:{i}:node")[0] for i in range(4)]
+    [line] = _shapes(s, "slot:items:line")
+    if density == "committee":  # vertical rows sharing the body, one node per row, the rule running down through them
+        assert len({n.left for n in tops}) == 1 and line.width == 0
+        for (x, y, _, h), n in zip(nodes, tops, strict=True):
+            assert abs(n.left - _e(x)) <= _e(2) and abs(n.top + n.height / 2 - _e(y + h / 2)) <= _e(2)
+    else:  # one horizontal row of nodes on a horizontal rule
+        assert len({n.top for n in tops}) == 1 and line.height == 0
+        assert all(abs(n.left - _e(x)) <= _e(2) for (x, _, _, _), n in zip(nodes, tops, strict=True))
+
+
+async def test_pptx_decision_rows_share_the_body_like_the_html(tmp_path):
+    from arp.reporting.house_pptx import _e
+
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="decisions", variant="default", slots={"items": ["Agree :: the sample", "Review :: the flags"]})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx")).slides[0]
+    html = await _html_boxes(render_deck_html(deck, []), "ol.decisions > li")
+    for i, (_, y, _, h) in enumerate(html):
+        [row] = _shapes(s, f"slot:items:{i}")
+        assert abs(row.top - _e(y)) <= _e(2) and abs(row.height - _e(h)) <= _e(2)
