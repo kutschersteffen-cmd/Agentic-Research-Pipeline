@@ -7,6 +7,7 @@ a bad reference gets one retry with the errors, then a flagged placeholder -- ne
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from pydantic import BaseModel
 
@@ -14,6 +15,8 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.content_planner import _datasets_context
 from arp.reporting.house_style import SlotSpec, get_variant, load_layouts
 from arp.schemas.reporting import Finding, QuantitativeDataset, ReportRequest, SlideContent, StorylineSlide
+
+WRITING_GUIDE = (Path(__file__).parent / "style" / "writing.md").read_text()
 
 _FILLED_ELSEWHERE = {"chart": "set `chart`", "table": "set `table`", "image": "set `image_path`"}
 
@@ -54,7 +57,7 @@ def _system_prompt() -> str:
         f"- {ly.id}/{v.id} [{ly.purpose}]: " + "; ".join(_slot_desc(s) for s in v.slots)
         for ly in load_layouts().values() for v in ly.variants
     ]
-    return _RULES + "\n".join(lines) + "\n"
+    return _RULES + "\n".join(lines) + "\n\n" + WRITING_GUIDE
 
 
 def validate_slide(slide: SlideContent, datasets: list[QuantitativeDataset]) -> list[str]:

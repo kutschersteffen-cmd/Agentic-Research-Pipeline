@@ -1,6 +1,6 @@
-"""House deck build after storyline approval: fill -> render+measure -> PDF + PNGs.
+"""House deck build after storyline approval: fill -> lint+rewrite -> render+measure -> PDF + PNGs.
 
-Later stages (write-check, fit loop, visual QA, PPTX) slot in between fill and output.
+Later stages (fit loop, visual QA, PPTX) slot in between fill and output.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ import asyncio
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.browser import measure, write_pdf, write_pngs
 from arp.reporting.html_render import render_deck_html
+from arp.reporting.lint import lint_and_rewrite
 from arp.reporting.slide_fill import fill_slide
 from arp.schemas.reporting import Deck, Finding, ReportRequest, SlideContent, Storyline
 from arp.storage.reporting_store import ReportingStore
@@ -40,6 +41,8 @@ async def build_house_deck(
         for _, _, u in filled:
             usage.input_tokens += u.input_tokens
             usage.output_tokens += u.output_tokens
+    deck, lint_findings = await lint_and_rewrite(deck, request, llm, usage=usage)
+    findings += lint_findings
     store.save_deck(report_id, deck)
     findings += await render_house_outputs(report_id, deck, request, store)
     store.save_findings(report_id, findings)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.content_planner import _datasets_context
+from arp.reporting.slide_fill import WRITING_GUIDE
 from arp.schemas.reporting import ReportRequest, Storyline
 
 _SYSTEM = """\
@@ -22,7 +23,8 @@ separately and does not count).
 - Every claim must be grounded in the notes or datasets -- never invent \
 numbers, companies or facts. source_refs name the dataset ids or note topics used.
 - Match the audience's level and tone.
-"""
+""" + "\n" + WRITING_GUIDE
+
 
 
 async def draft_storyline(request: ReportRequest, llm: LLMClient) -> tuple[Storyline, LLMUsage]:
