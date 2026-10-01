@@ -9,6 +9,7 @@ import typer
 from arp.cli._shared import _registry, _run_store
 from arp.config import get_settings
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
+from arp.transition_plan.demo import DEMO_COMPANIES, seed_demo_run
 from arp.transition_plan.indicators import load_indicators
 from arp.transition_plan.pipeline import run_transition_plan_assessment
 from arp.universe import load_company_universe
@@ -26,6 +27,15 @@ def transition_plan_indicators(out: Path = typer.Option(None, help="Write the 64
     for i in indicators:
         typer.echo(f"{i.number:>2}. [{i.category.value}/{i.walk_or_talk.value}] {i.question}")
 
+
+
+@transition_plan_app.command("seed-demo")
+def transition_plan_seed_demo() -> None:
+    """Writes a finished, synthetic transition plan run over 8 fictional
+    companies (see arp/transition_plan/demo.py): made-up verdicts, no
+    documents, no LLM. For trying Decision Studio and the results screens."""
+    run_id = asyncio.run(seed_demo_run(_run_store()))
+    typer.echo(f"Synthetic run {run_id}: {len(DEMO_COMPANIES)} companies (see runs/{run_id}/)")
 
 
 @transition_plan_app.command("run")
