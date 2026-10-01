@@ -147,3 +147,31 @@ async def test_headline_findings_never_rewritten(fake_llm):
     out, findings = await lint_and_rewrite(_deck(_slide(headline="Leverage drives returns", left="ok")), _req(), llm)
     assert llm.calls == []
     assert [(f.slide, f.slot, f.rule) for f in findings] == [(1, "headline", "stock_ai_word")]
+
+
+def test_stock_ai_word_flags_inflections():
+    assert _rules(_lint_one("This leverages scale")) == {"stock_ai_word"}
+    assert _rules(_lint_one("It fosters, unlocks and showcases")) == {"stock_ai_word"}
+
+
+async def test_title_slot_reported_once_as_headline_and_never_rewritten(fake_llm):
+    t = "Leverage " + "word " * 13
+    deck = Deck(title=t, slides=[SlideContent(headline=t, layout="title", variant="plain", slots={"title": t, "subtitle": "S"})])
+    llm = fake_llm({})
+    out, findings = await lint_and_rewrite(deck, _req(), llm)
+    assert llm.calls == [] and out.slides[0].slots["title"] == t
+    assert {(f.slot, f.rule) for f in findings} == {("headline", "stock_ai_word")} and len(findings) == 1
+
+
+async def test_rewrite_error_keeps_finding_and_deck(fake_llm):
+    llm = fake_llm({"SlotRewrite": [SlotRewrite(text="fine")]})
+    deck = _deck(_slide(left="ok", bogus="We leverage scale"), _slide(left="We leverage scale"))
+    out, findings = await lint_and_rewrite(deck, _req(), llm, max_rounds=1)
+    assert [(f.slide, f.slot) for f in findings] == [(1, "bogus")] and out.slides[2].slots["left"] == "fine"
+
+
+async def test_rewrite_result_normalised_to_slot_shape(fake_llm):
+    llm = fake_llm({"SlotRewrite": [SlotRewrite(text="We use scale"), SlotRewrite(text=["We use", "scale"])]})
+    deck = _deck(_slide("bullets", "five", items=["We leverage scale"]), _slide(left="We leverage scale"))
+    out, findings = await lint_and_rewrite(deck, _req(), llm)
+    assert out.slides[1].slots["items"] == ["We use scale"] and out.slides[2].slots["left"] == "We use scale" and findings == []

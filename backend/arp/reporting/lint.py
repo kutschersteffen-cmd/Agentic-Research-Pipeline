@@ -53,8 +53,9 @@ def over_word_limit(deck: Deck, request: ReportRequest) -> list[Finding]:
 
 
 _STOCK = re.compile(
-    r"\b(?:leverag(?:e|ed|ing)(?!\s+(?:loans?|ratios?|buyouts?))|delve|robust|seamless|landscape|pivotal|tapestry|unlock|empower|holistic"
-    r"|synergy|cutting-edge|game-changer|navigate|realm|foster|underscore|showcase|testament|crucial|vibrant|elevate|streamline|paradigm)\b",
+    r"\b(?:leverag(?:e|es|ed|ing)(?!\s+(?:loans?|ratios?|buyouts?))|(?:delv|showcas|underscor|elevat|streamlin|navigat)(?:e|es|ed|ing)"
+    r"|(?:unlock|empower|foster)(?:s|ed|ing)?|robust|seamless|landscape|pivotal|tapestry|holistic|synergy|cutting-edge"
+    r"|game-changer|realm|testament|crucial|vibrant|paradigm)\b",
     re.I,
 )
 _NOT_X_BUT_Y = re.compile(r"\bnot (just |only |merely )?[^.;]{1,60}?,? but\b", re.I)
@@ -164,7 +165,10 @@ RULES: dict[str, Callable[[Deck, ReportRequest], list[Finding]]] = {
 
 
 def lint_deck(deck: Deck, request: ReportRequest) -> list[Finding]:
-    return [f for rule in RULES.values() for f in rule(deck, request)]
+    # Slide 0's `title` slot is the approved storyline title, same text as the headline: lint it once, as the headline.
+    first = deck.slides[0].model_copy(update={"slots": {k: v for k, v in deck.slides[0].slots.items() if k != "title"}})
+    view = deck.model_copy(update={"slides": [first, *deck.slides[1:]]})
+    return [f for rule in RULES.values() for f in rule(view, request)]
 
 
 async def lint_and_rewrite(
@@ -181,7 +185,16 @@ async def lint_and_rewrite(
             break
         slides = list(deck.slides)
         for (i, slot), msgs in todo.items():
-            slides[i] = await rewrite_slot(slides[i], slot, " ".join(dict.fromkeys(msgs)), request, llm, usage)
+            try:
+                new = await rewrite_slot(slides[i], slot, " ".join(dict.fromkeys(msgs)), request, llm, usage)
+            except (ValueError, KeyError):
+                continue  # unknown slot/variant: keep the finding, keep the deck
+            text, old = new.slots[slot], slides[i].slots[slot]
+            if isinstance(old, list) and isinstance(text, str):
+                text = [text]
+            elif isinstance(old, str) and isinstance(text, list):
+                text = " ".join(text)
+            slides[i] = new.model_copy(update={"slots": {**new.slots, slot: text}})
         deck = deck.model_copy(update={"slides": slides})
         findings = lint_deck(deck, request)
     return deck, findings
