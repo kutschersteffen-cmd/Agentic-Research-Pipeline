@@ -201,8 +201,8 @@ def code_block(slug):
 
 SHOTS = {
     "data": [("01-data.png", "Data tab after loading two tables: the Q2 sample and a Q3 copy.")],
-    "profile": [("02-profile.png", "Profile after Derive: one column flagged, <code>Emissions_Data_Coverage_pct</code> highlighted.")],
-    "rules": [("03-rules.png", "Rules tab: the GoRules JDM canvas with the starter graph (the Row input into an expression box, partly behind the Components panel) and the live preview. The palette still lists Function (JS), which saving refuses.")],
+    "profile": [("02-profile.png", "Profile after Derive: one column flagged, <code>Emissions_Data_Coverage_pct</code> highlighted. ISIN shows as <em>reference</em>, Region as <em>segment</em> marked as the peer cohort.")],
+    "rules": [("03-rules.png", "Rules tab: the GoRules JDM canvas with the starter graph (the Row input into an expression box, partly behind the Components panel) and the live preview. The palette offers only the node types a framework accepts; Function (JavaScript) is hidden.")],
     "mechanism": [("04-mechanism.png", "Mechanism tab: scoring mode, normalisation, cohort, and the derived dimensions with their weights.")],
     "tree": [("05-tree.png", "Decision tree tab: gates, cut-points, dimension floor and tiers.")],
     "results": [
