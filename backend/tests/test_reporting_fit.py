@@ -4,7 +4,7 @@ from arp.reporting.browser import measure
 from arp.reporting.fit import fit_deck
 from arp.reporting.html_render import render_deck_html
 from arp.reporting.slide_fill import SlotRewrite
-from arp.schemas.reporting import Deck, ReportRequest, SlideContent
+from arp.schemas.reporting import ColumnKind, DatasetColumn, Deck, QuantitativeDataset, ReportRequest, SlideContent, TableSpec
 
 _REQ = ReportRequest(title="T", qualitative_notes="")
 
@@ -64,7 +64,7 @@ async def test_fit_splits_long_list(fake_llm):
 async def test_fit_gives_up_after_three_passes(fake_llm):
     slide = _bullets("five", [_sentence(30)] * 40)
     deck, findings = await fit_deck(_deck(slide), _REQ, fake_llm({}))
-    assert len(deck.slides) - 1 <= 8  # content slides
+    assert len(deck.slides) - 1 <= 8  # content slides: the title slide is not counted
     assert "overflow" in {f.rule for f in findings}
 
 
@@ -74,3 +74,31 @@ async def test_fit_reports_dropped_slot_on_variant_switch(fake_llm):
     deck, findings = await fit_deck(_deck(slide), _REQ, fake_llm({}), max_passes=1)
     assert deck.slides[1].variant == "five"
     assert any(f.rule == "slot_dropped" and f.slot == "extra" for f in findings)
+
+
+@pytest.mark.asyncio
+async def test_fit_splits_long_table_without_duplicate_rows(fake_llm):
+    ds = QuantitativeDataset(
+        dataset_id="d", name="d", columns=[DatasetColumn(name="a", kind=ColumnKind.NUMBER)], rows=[{"a": k} for k in range(40)],
+    )
+    req = ReportRequest(title="T", qualitative_notes="", datasets=[ds])
+    slide = SlideContent(headline="Headline", layout="table", variant="compact", table=TableSpec(dataset_id="d", max_rows=40))
+    deck, _ = await fit_deck(_deck(slide), req, fake_llm({}), max_passes=1)
+    parts = deck.slides[1:]
+    assert len(parts) == 2 and {s.headline for s in parts} == {"Headline"}
+    shown = [r for s in parts for r in range(s.table.row_offset, s.table.row_offset + s.table.max_rows)]
+    assert shown == list(range(40))
+
+
+@pytest.mark.asyncio
+async def test_fit_falls_through_to_roomier_when_rewrite_fails(fake_llm, monkeypatch):
+    import arp.reporting.fit as fit
+
+    async def boom(*a, **k):
+        raise ValueError("bad slot")
+
+    monkeypatch.setattr(fit, "rewrite_slot", boom)
+    slide = _bullets("three", [_sentence(48)] * 5)  # mild overflow, so the rewrite is tried first
+    assert 1 < float((await _overflow_ratio(slide))[0].message.removeprefix("ratio=")) <= 1.6
+    deck, _ = await fit_deck(_deck(slide), _REQ, fake_llm({}), max_passes=1)
+    assert deck.slides[1].variant == "five"

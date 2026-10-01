@@ -143,13 +143,12 @@ class ReportingService:
         self.store.save_manifest(manifest)
         try:
             # ponytail: asyncio.run, so this sync path can't be called from inside a running loop; make it async if that's needed.
-            fit = asyncio.run(render_house_outputs(report_id, deck, request, self.store))
+            asyncio.run(render_house_outputs(report_id, deck, request, self.store))
         except Exception as exc:  # noqa: BLE001
             manifest.status = ReportStatus.FAILED
             manifest.error = str(exc)
             self.store.save_manifest(manifest)
             raise
-        self.store.save_findings(report_id, [f for f in self.store.load_findings(report_id) if f.stage != "fit"] + fit)
         return self._completed(manifest, "output.pdf")
 
     @staticmethod

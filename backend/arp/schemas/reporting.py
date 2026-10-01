@@ -187,6 +187,7 @@ class ChartSpec(BaseModel):
 class TableSpec(BaseModel):
     dataset_id: str
     columns: list[str] = Field(default_factory=list, description="Subset/order of dataset columns to include. Empty = all columns.")
+    row_offset: int = Field(default=0, ge=0, description="First dataset row shown; a split table slide continues from here.")
     max_rows: int = Field(default=20, description="Renderer truncates to this many rows; a truncation note is added if the dataset has more.")
 
 

@@ -6,7 +6,7 @@ Headline overflow is never rewritten (the headline is approved); overflow_x and 
 
 from __future__ import annotations
 
-from math import floor
+from math import ceil, floor
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.browser import measure
@@ -37,10 +37,11 @@ async def _fit_slide(
         try:
             new = await rewrite_slot(s, slot, f"Shorten to at most {limit} words. Keep every number.", request, llm, usage)
         except (ValueError, KeyError):
-            return [s], []  # keep the finding, as lint does
-        # Re-lint only this slot; never start another lint rewrite from here.
-        view = deck.model_copy(update={"slides": [*deck.slides[:i], new, *deck.slides[i + 1 :]]})
-        return [new], [f for f in lint_deck(view, request) if f.slide == i and f.slot == slot]
+            pass  # fall through to roomier/split rather than retry the same failing call next pass
+        else:
+            # Re-lint only this slot; never start another lint rewrite from here.
+            view = deck.model_copy(update={"slides": [*deck.slides[:i], new, *deck.slides[i + 1 :]]})
+            return [new], [f for f in lint_deck(view, request) if f.slide == i and f.slot == slot]
     roomier = get_variant(s.layout, s.variant).roomier
     if roomier:
         names = {sp.name for sp in get_variant(s.layout, roomier).slots}
@@ -52,7 +53,17 @@ async def _fit_slide(
         h = len(items) // 2
         marker = f"[split_from slide {i}]"
         return [_note(s.model_copy(update={"slots": {**s.slots, slot: items[:h]}}), marker), _note(s.model_copy(update={"slots": {**s.slots, slot: items[h:]}}), marker)], []
-    # ponytail: table slides are not split (TableSpec has no row offset); they are reported. Add an offset field to split them.
+    if kind == "table" and s.table:
+        ds = next((d for d in request.datasets if d.dataset_id == s.table.dataset_id), None)
+        n = min(s.table.max_rows, len(ds.rows) - s.table.row_offset) if ds else 0  # visible rows
+        if n >= 2:
+            first = ceil(n / 2)
+            marker = f"[split_from slide {i}]"
+            t = s.table
+            return [
+                _note(s.model_copy(update={"table": t.model_copy(update={"max_rows": first})}), marker),
+                _note(s.model_copy(update={"table": t.model_copy(update={"row_offset": t.row_offset + first, "max_rows": n - first})}), marker),
+            ], []
     return [s], []
 
 

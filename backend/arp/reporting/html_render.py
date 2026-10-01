@@ -69,7 +69,7 @@ def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict
     elif spec.kind == "table" and slide.table and slide.table.dataset_id in datasets:
         ds = datasets[slide.table.dataset_id]
         v["columns"] = slide.table.columns or ds.column_names()
-        v["rows"] = [[row.get(c, "") for c in v["columns"]] for row in ds.rows[: slide.table.max_rows]]
+        v["rows"] = [[row.get(c, "") for c in v["columns"]] for row in ds.rows[slide.table.row_offset : slide.table.row_offset + slide.table.max_rows]]
     elif spec.kind == "image":
         v["image"] = _data_uri(Path(slide.image_path)) if slide.image_path else None
     else:
