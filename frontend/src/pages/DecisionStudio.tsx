@@ -262,6 +262,15 @@ export function DecisionStudio() {
     }
   }
 
+  async function onImportIndicatorList(file: File) {
+    const name = file.name.replace(/\.[^.]+$/, "");
+    const envelope = await guard("Building the framework…", () => api.importIndicatorList(file, name, reviewer.trim() || undefined));
+    if (envelope) {
+      setStatus(`Built ${envelope.config.name} from ${envelope.config.level_criteria?.length ?? 0} indicators as a draft.`);
+      refreshTemplates();
+    }
+  }
+
   async function onDerive() {
     if (!dataset) return;
     const name = `Framework for ${dataset.name}`;
@@ -613,6 +622,22 @@ export function DecisionStudio() {
               }}
             />
           </label>
+          <label className="field-label">
+            Build a framework from an indicator list
+            <input
+              type="file"
+              accept=".csv,.tsv,.txt,.xlsx,.xls"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onImportIndicatorList(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <p className="help-text">
+            One row per indicator: <code>id</code>, <code>name</code>, <code>group</code>, and optionally weights, direction, critical flags and
+            questions. No company data needed; five questions add the credibility grade. Format: <code>docs/decision-studio/indicator-list.md</code>.
+          </p>
           {templates.length > 0 && (
             <table className="data-table">
               <thead>
