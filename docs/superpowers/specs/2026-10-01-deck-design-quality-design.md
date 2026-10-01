@@ -151,7 +151,7 @@ The skill reads the runtime's `design.md`, so the two cannot drift apart.
 
 This comes from the user's reference deck *Transition Plan Credibility*. The 50-slide committee deck was reviewed in session.
 
-**Density modes.** `LayoutInstructions.density: Literal["present", "committee"] = "present"` is chosen per request, like `theme`.
+**Density modes.** `LayoutInstructions.density: Literal["present", "committee"] = "committee"` is chosen per request, like `theme`. **Consulting style is the primary direction** (user, 2026-10-01): committee is the default, and the reference deck *Transition Plan Credibility* is the benchmark for content per slide, exhibits and flow. Present mode remains for short pitches.
 
 | | present (editorial) | committee (pre-read) |
 |---|---|---|

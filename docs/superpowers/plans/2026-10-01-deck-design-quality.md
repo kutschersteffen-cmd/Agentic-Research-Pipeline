@@ -296,7 +296,7 @@ The approved spec amendment adds two density modes and 7 committee layouts. The 
   - Cards: a bold short title with the body directly under the number, so the card has no empty middle. A colon-less item renders as body-size text, not a 36px title.
   - `compare` panels: content anchored to the top, a larger type step for short prose, and panels that size to their content.
 - Add the schema fields:
-  - `LayoutInstructions.density` (`"present"` | `"committee"`, default `"present"`)
+  - `LayoutInstructions.density` (`"present"` | `"committee"`, default `"committee"`)
   - `SlideContent.eyebrow`
   - the `takeaway_bar` slot
 - Render density with a `data-density` attribute on `<body>` so CSS can switch type steps. Committee mode uses the body role and is never below 24px.
