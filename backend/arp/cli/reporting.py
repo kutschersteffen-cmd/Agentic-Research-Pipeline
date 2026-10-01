@@ -195,7 +195,7 @@ def reporting_render(report_id: str, out: Path = typer.Option(..., help="Where t
 
 @reporting_app.command("approve")
 def reporting_approve(report_id: str) -> None:
-    """House deck: approves the drafted storyline and builds the deck (PDF + slide previews)."""
+    """House deck: approves the drafted storyline and builds the deck: output.pdf, output.pptx and slide previews."""
     store = _reporting_store()
     try:
         manifest = asyncio.run(ReportingService(store).approve_storyline(report_id, build_llm_client(get_settings())))

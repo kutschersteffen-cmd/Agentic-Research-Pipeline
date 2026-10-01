@@ -12,6 +12,7 @@ from pypdf import PdfReader
 
 from arp.config import Settings
 from arp.reporting.fit import fit_deck
+from arp.reporting.lint import lint_deck
 from arp.reporting.service import ReportingService
 from arp.reporting.visual_qa import QAResult
 from arp.schemas.common import RunManifest
@@ -132,5 +133,12 @@ def test_client_brief_renders_without_an_llm(tmp_path, fake_llm, monkeypatch):
 
     deck = seen["deck"]
     assert out.exists() and len(PdfReader(out.with_suffix(".pdf")).pages) == len(deck.slides)
-    request = ReportRequest(title="x", qualitative_notes="", datasets=seen["datasets"], layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK))
+    # The text is hand-written from the report's own numbers, so the notes are that same text: this checks the
+    # style rules (stock words, dashes, openers) and leaves number_not_in_source nothing to disagree with.
+    notes = " ".join(str(v) for s in deck.slides for v in s.slots.values())
+    request = ReportRequest(title="x", qualitative_notes=notes, datasets=seen["datasets"], layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK))
     _, fit_findings = asyncio.run(fit_deck(deck, request, fake_llm({})))  # a rewrite call would hit the empty script and fail
+    assert deck.slides and fit_findings == []
+    # over_word_limit and bold_label do not apply: they steer the LLM's rewrite, and the report's own summary
+    # lines are longer than the slot guide and use 'Label: value' form, yet fit the slide (fit_findings is empty).
+    assert [f for f in lint_deck(deck, request) if f.rule not in ("over_word_limit", "bold_label")] == []

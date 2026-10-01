@@ -129,7 +129,7 @@ Turns qualitative findings and uploaded CSV/XLSX datasets into a pptx/docx/pdf f
 
 **House decks.** With `output_format=house_deck` the tool builds a slide deck in the app's own design system (`reporting/style/tokens.json`, Geist and Hanken Grotesk embedded, rules in `DESIGN.md`) instead of a `ReportPlan`. `LayoutInstructions.theme` is `light` or `dark`.
 
-1. **Storyline.** `create_and_plan` makes one LLM call for a draft storyline (a headline and a purpose per slide) and stops at `STORYLINE_READY`. People edit it with `GET`/`PUT /api/reports/{id}/storyline`, or `arp report plan`.
+1. **Storyline.** `create_and_plan` makes one LLM call for a draft storyline (a headline and a purpose per slide) and stops at `STORYLINE_READY`. `arp report plan` drafts it; people edit it in the UI or with `PUT /api/reports/{id}/storyline` (there is no CLI edit command).
 2. **Approve.** `POST /api/reports/{id}/storyline/approve` or `arp report approve <id>` runs the build in `house_pipeline.py`: fill each slide (`slide_fill.py`, headlines are kept as approved), lint and rewrite (`lint.py`), fit to the layout (`fit.py`), render PNGs, one vision QA call (`visual_qa.py`), then write `output.pdf` and `output.pptx` (`house_pptx.py`).
 3. **Findings.** Every stage's findings are saved in `findings.json` (`GET /api/reports/{id}/findings`); files download with `GET /api/reports/{id}/download?file=`.
 4. **Re-run.** `rerun` (`arp report rerun <id>`, or `ReportScheduler` via `arp report schedule`) makes a new report from an approved storyline, reloads the datasets behind its `run_refs` (`adapters.py`) and sets `rerun_of`. If a number in an approved headline is no longer in the data it stops at `STORYLINE_READY` for a person to fix.
