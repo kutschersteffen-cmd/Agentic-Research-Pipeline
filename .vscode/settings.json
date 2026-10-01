@@ -5,6 +5,15 @@
   "python.testing.pytestArgs": ["backend/tests"],
   "python.analysis.extraPaths": ["backend"],
   "python.envFile": "${workspaceFolder}/backend/.env",
+  // UTF-8 text I/O regardless of the OS locale. Without it, Python on a
+  // Western-European Windows install defaults to cp1252, and a store file
+  // written as UTF-8 reads back as mojibake ("Munchener Ruck" gains an A-tilde)
+  // with no error raised. arp/storage/atomic_io.py names its own encoding; this
+  // covers the CLI and ingestion paths that still use a plain open(), and
+  // applies to the integrated terminal, the test runner and the debugger alike.
+  "terminal.integrated.env.windows": { "PYTHONUTF8": "1" },
+  "terminal.integrated.env.linux": { "PYTHONUTF8": "1" },
+  "terminal.integrated.env.osx": { "PYTHONUTF8": "1" },
   "ruff.nativeServer": "on",
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff",

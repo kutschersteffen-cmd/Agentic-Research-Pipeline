@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from arp.schemas.emerging_themes import EmergingThemeCandidate, LineageEvent, TopicCluster
-from arp.storage.atomic_io import atomic_write_text
+from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.safe_path import safe_id
 
@@ -46,7 +46,7 @@ class TopicStateStore:
         path = self._period_path(period)
         if not path.exists():
             return None
-        return [TopicCluster.model_validate(row) for row in json.loads(path.read_text())]
+        return [TopicCluster.model_validate(row) for row in json.loads(read_text_utf8(path))]
 
     def list_periods(self) -> list[str]:
         if not self.periods_dir.exists():

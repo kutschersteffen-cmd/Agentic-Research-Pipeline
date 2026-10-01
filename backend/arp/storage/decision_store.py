@@ -6,7 +6,7 @@ from pathlib import Path
 from arp.decision.dataset import Dataset
 from arp.schemas.common import now_iso
 from arp.schemas.decision import AuditEntry, MechanismConfig, PublishedDecision
-from arp.storage.atomic_io import atomic_write_text
+from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.safe_path import safe_id
 
 
@@ -92,20 +92,20 @@ class DecisionStore:
         path = self._audit_path(framework_id, version)
         if not path.exists():
             return []
-        return [AuditEntry.model_validate(row) for row in json.loads(path.read_text())]
+        return [AuditEntry.model_validate(row) for row in json.loads(read_text_utf8(path))]
 
     def get(self, framework_id: str, version: int | None = None) -> MechanismConfig | None:
         if version is None:
             pointer = self._latest_pointer_path(framework_id)
             if not pointer.exists():
                 return None
-            version = json.loads(pointer.read_text()).get("latest_version")
+            version = json.loads(read_text_utf8(pointer)).get("latest_version")
             if version is None:
                 return None
         path = self._version_path(framework_id, version)
         if not path.exists():
             return None
-        return MechanismConfig.model_validate_json(path.read_text())
+        return MechanismConfig.model_validate_json(read_text_utf8(path))
 
     def list_versions(self, framework_id: str) -> list[int]:
         d = self.frameworks_dir / safe_id(framework_id, label="framework_id")
@@ -150,7 +150,7 @@ class DecisionStore:
         path = self.dataset_path(dataset_id)
         if not path.exists():
             return None
-        return Dataset.model_validate_json(path.read_text())
+        return Dataset.model_validate_json(read_text_utf8(path))
 
     def overrides_path(self, dataset_id: str) -> Path:
         """Reviewers' level overrides on this table (arp.decision.overrides)."""
@@ -160,7 +160,7 @@ class DecisionStore:
         d = self.frameworks_dir / "_datasets"
         if not d.exists():
             return []
-        datasets = [Dataset.model_validate_json(p.read_text()) for p in d.glob("*.json")]
+        datasets = [Dataset.model_validate_json(read_text_utf8(p)) for p in d.glob("*.json")]
         return sorted(datasets, key=lambda ds: ds.created_at, reverse=True)
 
     # --- published results ---
@@ -179,14 +179,14 @@ class DecisionStore:
 
     def get_published(self, snapshot_id: str) -> PublishedDecision | None:
         path = self._published_dir() / f"{safe_id(snapshot_id, label='snapshot_id')}.json"
-        return PublishedDecision.model_validate_json(path.read_text()) if path.exists() else None
+        return PublishedDecision.model_validate_json(read_text_utf8(path)) if path.exists() else None
 
     def list_published(self) -> list[PublishedDecision]:
         d = self.frameworks_dir / "_published"
         if not d.exists():
             return []
         return sorted(
-            (PublishedDecision.model_validate_json(p.read_text()) for p in d.glob("*.json")),
+            (PublishedDecision.model_validate_json(read_text_utf8(p)) for p in d.glob("*.json")),
             key=lambda s: s.published_at,
             reverse=True,
         )

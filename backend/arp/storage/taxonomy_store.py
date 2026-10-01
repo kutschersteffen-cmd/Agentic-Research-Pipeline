@@ -8,7 +8,7 @@ from pathlib import Path
 from arp.schemas.common import now_iso
 from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyStatus
 from arp.schemas.thematic import ThemeDefinition
-from arp.storage.atomic_io import atomic_write_text, write_text_exclusive
+from arp.storage.atomic_io import atomic_write_text, read_text_utf8, write_text_exclusive
 from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import safe_id
 
@@ -134,11 +134,11 @@ class TaxonomyStore:
             pointer_path = self._latest_pointer_path(taxonomy_id)
             if not pointer_path.exists():
                 return None
-            version = json.loads(pointer_path.read_text())["latest_version"]
+            version = json.loads(read_text_utf8(pointer_path))["latest_version"]
         path = self._version_path(taxonomy_id, version)
         if not path.exists():
             return None
-        return Taxonomy.model_validate_json(path.read_text())
+        return Taxonomy.model_validate_json(read_text_utf8(path))
 
     def list_versions(self, taxonomy_id: str) -> list[Taxonomy]:
         d = self.taxonomies_dir / safe_id(taxonomy_id, label="taxonomy_id")
@@ -147,7 +147,7 @@ class TaxonomyStore:
         versions = []
         for p in d.glob("v*.json"):
             try:
-                versions.append(Taxonomy.model_validate_json(p.read_text()))
+                versions.append(Taxonomy.model_validate_json(read_text_utf8(p)))
             except (json.JSONDecodeError, ValueError):
                 continue
         return sorted(versions, key=lambda t: t.version)

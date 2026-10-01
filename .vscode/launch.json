@@ -9,6 +9,7 @@
       "args": ["arp.api.main:app", "--port", "8000"],
       "cwd": "${workspaceFolder}/backend",
       "envFile": "${workspaceFolder}/backend/.env",
+      "env": { "PYTHONUTF8": "1" },
       "justMyCode": true,
       "console": "integratedTerminal"
     },
@@ -20,6 +21,7 @@
       "args": ["${file}", "-v"],
       "cwd": "${workspaceFolder}/backend",
       "envFile": "${workspaceFolder}/backend/.env",
+      "env": { "PYTHONUTF8": "1" },
       "justMyCode": false,
       "console": "integratedTerminal"
     },

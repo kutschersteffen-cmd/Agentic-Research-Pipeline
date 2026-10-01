@@ -16,7 +16,7 @@ from arp.schemas.portfolio import (
     SecurityResolution,
 )
 from arp.schemas.portfolio_monitoring import AlertRule
-from arp.storage.atomic_io import atomic_write_text
+from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import safe_id
@@ -82,7 +82,7 @@ class PortfolioStore:
     def _read_json(path: Path) -> dict:
         if not path.exists():
             return {}
-        return json.loads(path.read_text())
+        return json.loads(read_text_utf8(path))
 
     def _write_json(self, path: Path, data: dict) -> None:
         self.portfolios_dir.mkdir(parents=True, exist_ok=True)

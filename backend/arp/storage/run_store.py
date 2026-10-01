@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from arp.schemas.common import JobStatus, RunManifest, now_iso
-from arp.storage.atomic_io import atomic_write_text
+from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.locks import KeyedLock
 from arp.storage.postgres_projection_config import ProjectionConfig
@@ -95,7 +95,7 @@ class RunStore:
         path = self.manifest_path(run_id)
         if not path.exists():
             return None
-        return RunManifest.model_validate_json(path.read_text())
+        return RunManifest.model_validate_json(read_text_utf8(path))
 
     def list_runs(self, run_type: str | None = None) -> list[RunManifest]:
         manifests: list[RunManifest] = []
@@ -106,7 +106,7 @@ class RunStore:
             if not mp.exists():
                 continue
             try:
-                m = RunManifest.model_validate_json(mp.read_text())
+                m = RunManifest.model_validate_json(read_text_utf8(mp))
             except (OSError, ValueError):  # ValueError covers pydantic's own JSON errors
                 continue
             if run_type and m.run_type != run_type:

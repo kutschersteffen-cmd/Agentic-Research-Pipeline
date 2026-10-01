@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from arp.schemas.index import ConstructionSpec, IndexCalibration, IndexState, ReviewResult
-from arp.storage.atomic_io import atomic_write_text
+from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.safe_path import safe_id
 
 
@@ -111,7 +111,7 @@ class IndexStore:
         pointer = self._calibration_dir(calibration_id) / "latest.json"
         if not pointer.exists():
             return None
-        return int(json.loads(pointer.read_text())["latest_version"])
+        return int(json.loads(read_text_utf8(pointer))["latest_version"])
 
     def get_calibration(self, calibration_id: str, version: int | None = None) -> IndexCalibration | None:
         if version is None:
@@ -121,13 +121,13 @@ class IndexStore:
         path = self._calibration_dir(calibration_id) / f"v{int(version)}.json"
         if not path.exists():
             return None
-        return IndexCalibration.model_validate_json(path.read_text())
+        return IndexCalibration.model_validate_json(read_text_utf8(path))
 
     def list_calibration_versions(self, calibration_id: str) -> list[IndexCalibration]:
         directory = self._calibration_dir(calibration_id)
         versions = []
         for path in sorted(directory.glob("v*.json"), key=lambda p: int(p.stem[1:])):
-            versions.append(IndexCalibration.model_validate_json(path.read_text()))
+            versions.append(IndexCalibration.model_validate_json(read_text_utf8(path)))
         return versions
 
     def resolve_for_date(self, calibration_id: str, review_date: str) -> IndexCalibration | None:
@@ -178,7 +178,7 @@ class IndexStore:
         path = self._index_dir(index_id, "reviews") / f"{safe_id(review_date, label='review_date')}.json"
         if not path.exists():
             return None
-        return ReviewResult.model_validate_json(path.read_text())
+        return ReviewResult.model_validate_json(read_text_utf8(path))
 
     def list_review_dates(self, index_id: str) -> list[str]:
         return sorted(p.stem for p in self._index_dir(index_id, "reviews").glob("*.json"))
@@ -192,7 +192,7 @@ class IndexStore:
         if not earlier:
             return None
         path = self._index_dir(index_id, "state") / f"{earlier[-1]}.json"
-        return IndexState.model_validate_json(path.read_text())
+        return IndexState.model_validate_json(read_text_utf8(path))
 
     def list_indices(self) -> list[str]:
         if not self.indices_dir.exists():

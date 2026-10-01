@@ -27,7 +27,11 @@ def read_jsonl(path: Path) -> list[dict]:
     if not path.exists():
         return []
     rows: list[dict] = []
-    with path.open() as f:
+    # encoding is explicit for the same reason as in atomic_io: the
+    # locale default is cp1252 on Western-European Windows, and a
+    # UnicodeDecodeError is not a json.JSONDecodeError, so a non-ASCII
+    # byte would propagate past the skip below and take out the whole read.
+    with path.open(encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -47,5 +51,5 @@ def append_jsonl(path: Path, row: dict) -> None:
     guaranteed to land in one piece, which is what produces the torn
     lines read_jsonl tolerates."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a") as f:
+    with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")

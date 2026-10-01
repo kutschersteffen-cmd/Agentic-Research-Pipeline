@@ -5,7 +5,7 @@ from pathlib import Path
 
 from arp.schemas.common import now_iso
 from arp.schemas.reporting import Deck, Finding, ReportManifest, ReportPlan, ReportRequest, Storyline, TemplateStyleProfile
-from arp.storage.atomic_io import atomic_write_text
+from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.safe_path import safe_id
 
 
@@ -50,7 +50,7 @@ class ReportingStore:
         path = self.manifest_path(report_id)
         if not path.exists():
             return None
-        return ReportManifest.model_validate_json(path.read_text())
+        return ReportManifest.model_validate_json(read_text_utf8(path))
 
     def save_request(self, report_id: str, request: ReportRequest) -> None:
         atomic_write_text(self.request_path(report_id), request.model_dump_json(indent=2))
@@ -59,7 +59,7 @@ class ReportingStore:
         path = self.request_path(report_id)
         if not path.exists():
             return None
-        return ReportRequest.model_validate_json(path.read_text())
+        return ReportRequest.model_validate_json(read_text_utf8(path))
 
     def save_plan(self, report_id: str, plan: ReportPlan) -> None:
         atomic_write_text(self.plan_path(report_id), plan.model_dump_json(indent=2))
@@ -68,7 +68,7 @@ class ReportingStore:
         path = self.plan_path(report_id)
         if not path.exists():
             return None
-        return ReportPlan.model_validate_json(path.read_text())
+        return ReportPlan.model_validate_json(read_text_utf8(path))
 
     # House deck: storyline.json (approved by a human), deck.json (filled slides), findings.json.
 
@@ -77,21 +77,21 @@ class ReportingStore:
 
     def load_storyline(self, report_id: str) -> Storyline | None:
         path = self.report_dir(report_id) / "storyline.json"
-        return Storyline.model_validate_json(path.read_text()) if path.exists() else None
+        return Storyline.model_validate_json(read_text_utf8(path)) if path.exists() else None
 
     def save_deck(self, report_id: str, deck: Deck) -> None:
         atomic_write_text(self.report_dir(report_id) / "deck.json", deck.model_dump_json(indent=2))
 
     def load_deck(self, report_id: str) -> Deck | None:
         path = self.report_dir(report_id) / "deck.json"
-        return Deck.model_validate_json(path.read_text()) if path.exists() else None
+        return Deck.model_validate_json(read_text_utf8(path)) if path.exists() else None
 
     def save_findings(self, report_id: str, findings: list[Finding]) -> None:
         atomic_write_text(self.report_dir(report_id) / "findings.json", json.dumps([f.model_dump() for f in findings], indent=2))
 
     def load_findings(self, report_id: str) -> list[Finding]:
         path = self.report_dir(report_id) / "findings.json"
-        return [Finding.model_validate(f) for f in json.loads(path.read_text())] if path.exists() else []
+        return [Finding.model_validate(f) for f in json.loads(read_text_utf8(path))] if path.exists() else []
 
     def list_reports(self) -> list[ReportManifest]:
         manifests: list[ReportManifest] = []
@@ -102,7 +102,7 @@ class ReportingStore:
             if not mp.exists():
                 continue
             try:
-                manifests.append(ReportManifest.model_validate_json(mp.read_text()))
+                manifests.append(ReportManifest.model_validate_json(read_text_utf8(mp)))
             except (json.JSONDecodeError, OSError, ValueError):
                 continue
         return manifests
@@ -127,7 +127,7 @@ class ReportingStore:
         path = self.template_style_path(template_id)
         if not path.exists():
             return None
-        return TemplateStyleProfile.model_validate_json(path.read_text())
+        return TemplateStyleProfile.model_validate_json(read_text_utf8(path))
 
     def list_template_styles(self) -> list[TemplateStyleProfile]:
         styles: list[TemplateStyleProfile] = []
@@ -138,7 +138,7 @@ class ReportingStore:
             if not sp.exists():
                 continue
             try:
-                styles.append(TemplateStyleProfile.model_validate_json(sp.read_text()))
+                styles.append(TemplateStyleProfile.model_validate_json(read_text_utf8(sp)))
             except (json.JSONDecodeError, OSError, ValueError):
                 continue
         return styles

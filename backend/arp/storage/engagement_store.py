@@ -18,7 +18,7 @@ from arp.schemas.engagement import (
     MilestoneStage,
     TriggerSource,
 )
-from arp.storage.atomic_io import atomic_write_text
+from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.locks import KeyedLock
 from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.safe_path import safe_id
@@ -85,7 +85,7 @@ class EngagementStore:
         path = self._record_path(company_id)
         if not path.exists():
             return None
-        return EngagementRecord.model_validate_json(path.read_text())
+        return EngagementRecord.model_validate_json(read_text_utf8(path))
 
     def get_or_create(self, company_id: str, name: str, sector: str | None = None) -> EngagementRecord:
         with self.lock(company_id):

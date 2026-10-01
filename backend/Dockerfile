@@ -56,8 +56,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && useradd --create-home --uid 1000 --shell /usr/sbin/nologin arp
 
 COPY --from=builder /opt/venv /opt/venv
+# PYTHONUTF8=1 pins text I/O to UTF-8 regardless of the image's locale, so a
+# file written here reads back identically on a developer's machine and vice
+# versa. The stores name their encoding themselves (arp/storage/atomic_io.py);
+# this covers the CLI and ingestion paths that still use a plain open().
 ENV PATH="/opt/venv/bin:${PATH}" \
     PYTHONUNBUFFERED=1 \
+    PYTHONUTF8=1 \
     PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
 
 # House decks render through headless Chromium (arp/reporting/browser.py); a
