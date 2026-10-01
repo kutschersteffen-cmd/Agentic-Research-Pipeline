@@ -5,12 +5,14 @@ import json
 import shutil
 from pathlib import Path
 
+import click
 import typer
 
 from arp.cli._shared import _reporting_store
 from arp.config import get_settings
 from arp.llm.factory import build_llm_client
 from arp.reporting.datasets import parse_tabular_upload
+from arp.reporting.scheduler import ReportScheduler
 from arp.reporting.service import ReportingService
 from arp.reporting.style_profile import ingest_template
 from arp.schemas.reporting import (
@@ -20,6 +22,7 @@ from arp.schemas.reporting import (
     QuantitativeDataset,
     ReportPlan,
     ReportRequest,
+    RunRef,
 )
 from arp.storage.reporting_store import ReportingStore
 
@@ -62,15 +65,24 @@ def _build_request(
     target_length: int | None,
     layout_notes: str,
     include_appendix: bool,
+    goal: str = "",
+    theme: str = "light",
+    run_ref: list[str] = (),
 ) -> ReportRequest:
     datasets = [QuantitativeDataset.model_validate_json(p.read_text()) for p in data]
+    try:
+        run_refs = [RunRef(kind=kind, ref_id=ref_id) for kind, _, ref_id in (r.partition(":") for r in run_ref)]
+    except ValueError as exc:
+        raise typer.BadParameter(f"--run-ref takes kind:id, kind one of decision|run ({exc})") from exc
     return ReportRequest(
         title=title,
+        goal=goal,
+        run_refs=run_refs,
         qualitative_notes=notes.read_text(),
         datasets=datasets,
         audience=AudienceProfile(level=audience_level, description=audience_description),
         layout=LayoutInstructions(
-            output_format=format, target_length=target_length, free_instructions=layout_notes, include_appendix=include_appendix
+            output_format=format, target_length=target_length, free_instructions=layout_notes, include_appendix=include_appendix, theme=theme,
         ),
         template_id=template_id,
     )
@@ -108,6 +120,9 @@ def reporting_plan(
     target_length: int = _REQUEST_OPTIONS["target_length"],
     layout_notes: str = _REQUEST_OPTIONS["layout_notes"],
     include_appendix: bool = _REQUEST_OPTIONS["include_appendix"],
+    goal: str = typer.Option("", help="House deck: the decision or question the deck serves."),
+    theme: str = typer.Option("light", click_type=click.Choice(["light", "dark"]), metavar="light|dark", help="House deck colour mode."),
+    run_ref: list[str] = typer.Option([], help="House deck: pipeline output to load as data, kind:id (kind is decision or run); repeatable."),
 ) -> None:
     """Drafts a ReportPlan (the one LLM call) and stops -- does not render.
     Review/edit the written plan JSON by hand, then either push your edits
@@ -120,9 +135,17 @@ def reporting_plan(
         title=title, notes=notes, data=data, template_id=template_id, format=format,
         audience_level=audience_level, audience_description=audience_description,
         target_length=target_length, layout_notes=layout_notes, include_appendix=include_appendix,
+        goal=goal, theme=theme, run_ref=run_ref,
     )
-    service = ReportingService(store)
+    service = ReportingService(store, settings)
     manifest = asyncio.run(service.create_and_plan(request, llm))
+    if format == OutputFormat.HOUSE_DECK:
+        storyline = store.load_storyline(manifest.report_id)
+        out.write_text(storyline.model_dump_json(indent=2))
+        for i, s in enumerate(storyline.slides, 1):
+            typer.echo(f"{i}. {s.headline}")
+        typer.echo(f"Storyline written to {out}. When the headlines are right: arp report approve {manifest.report_id}")
+        return
     plan = store.load_plan(manifest.report_id)
     out.write_text(plan.model_dump_json(indent=2))
     typer.echo(f"Report {manifest.report_id} planned ({len(plan.sections)} section(s)). Plan written to {out}")
@@ -185,6 +208,53 @@ def reporting_render(report_id: str, out: Path = typer.Option(..., help="Where t
     typer.echo(f"Report {manifest.report_id} rendered to {out}")
 
 
+@reporting_app.command("approve")
+def reporting_approve(report_id: str) -> None:
+    """House deck: approves the drafted storyline and builds the deck: output.pdf, output.pptx and slide previews."""
+    store = _reporting_store()
+    try:
+        manifest = asyncio.run(ReportingService(store).approve_storyline(report_id, build_llm_client(get_settings())))
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    findings = store.load_findings(report_id)
+    typer.echo(f"Report {report_id} built: {', '.join(manifest.output_files)} ({len(findings)} finding(s))")
+    for f in findings:
+        typer.echo(f"  slide {f.slide}{f' [{f.slot}]' if f.slot else ''} {f.stage}/{f.rule}: {f.message}")
+
+
+@reporting_app.command("rerun")
+def reporting_rerun(report_id: str) -> None:
+    """House deck: re-runs an approved storyline on fresh pipeline data, as a new report."""
+    settings = get_settings()
+    try:
+        manifest = asyncio.run(ReportingService(_reporting_store(), settings).rerun(report_id, build_llm_client(settings)))
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"Report {manifest.report_id}: {manifest.status.value}")
+
+
+@reporting_app.command("schedule")
+def reporting_schedule(
+    every_hours: int = typer.Option(None, min=1, help="Re-run interval in hours (default 720, about monthly)."),
+    add: list[str] = typer.Option([], help="Report id to re-run on the schedule; repeatable."),
+    remove: list[str] = typer.Option([], help="Report id to take off the schedule; repeatable."),
+    enable: bool = typer.Option(None, "--enable/--disable"),
+) -> None:
+    """Edits the periodic re-run schedule. The API server process owns the scheduler and picks this up on start."""
+    settings = get_settings()
+    scheduler = ReportScheduler(settings, llm_factory=lambda: build_llm_client(settings))
+    config = scheduler.load_config()
+    if every_hours is not None:
+        config.interval_hours = every_hours
+    if enable is not None:
+        config.enabled = enable
+    config.report_ids = [r for r in dict.fromkeys([*config.report_ids, *add]) if r not in remove]
+    scheduler.save_config(config)
+    typer.echo(f"Schedule saved: enabled={config.enabled}, every {config.interval_hours}h, reports={', '.join(config.report_ids) or 'none'}")
+
+
 @reporting_app.command("run")
 def reporting_run(
     title: str = _REQUEST_OPTIONS["title"],
@@ -212,7 +282,11 @@ def reporting_run(
         target_length=target_length, layout_notes=layout_notes, include_appendix=include_appendix,
     )
     service = ReportingService(store)
-    manifest = asyncio.run(service.run(request, llm))
+    try:
+        manifest = asyncio.run(service.run(request, llm))
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     if manifest.status.value == "failed":
         typer.echo(f"Failed: {manifest.error}", err=True)
         raise typer.Exit(1)

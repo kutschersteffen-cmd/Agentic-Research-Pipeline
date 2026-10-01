@@ -17,6 +17,7 @@ from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.portfolio.monitoring.scheduler import PortfolioMonitoringScheduler
+from arp.reporting.scheduler import ReportScheduler
 from arp.stewardship.process import StreamStore
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
@@ -190,6 +191,11 @@ def get_calibration_scheduler() -> CalibrationAgentScheduler:
 @lru_cache
 def get_portfolio_monitoring_scheduler() -> PortfolioMonitoringScheduler:
     return PortfolioMonitoringScheduler(get_settings(), get_portfolio_store())
+
+
+@lru_cache
+def get_report_scheduler() -> ReportScheduler:
+    return ReportScheduler(get_settings(), llm_factory=get_llm_client)
 
 
 @lru_cache

@@ -11,7 +11,7 @@ from arp.reporting.datasets import parse_tabular_upload
 from arp.reporting.preview import ensure_preview_images
 from arp.reporting.service import ReportingService
 from arp.reporting.style_profile import ingest_template
-from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest
+from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest, ReportStatus, Storyline
 from arp.storage.reporting_store import ReportingStore
 
 router = APIRouter(prefix="/api/reports", tags=["reporting"])
@@ -96,7 +96,7 @@ async def create_report(
     llm = get_llm_client()
     service = ReportingService(store)
     manifest = await service.create_and_plan(request, llm)
-    if render:
+    if render and manifest.status == ReportStatus.PLAN_READY:  # a house deck waits for storyline approval instead
         manifest = service.render_from_plan(manifest.report_id)
     return manifest.model_dump(mode="json")
 
@@ -131,6 +131,61 @@ def update_plan(report_id: str, plan: ReportPlan, store: ReportingStore = Depend
     return plan.model_dump(mode="json")
 
 
+# ---- House deck: storyline approval and findings ------------------------------
+
+
+def _unapproved_storyline(store: ReportingStore, report_id: str) -> Storyline:
+    _get_manifest_or_404(store, report_id)
+    storyline = store.load_storyline(report_id)
+    if storyline is None:
+        raise HTTPException(404, "No storyline drafted for this report")
+    if storyline.approved:
+        raise HTTPException(409, "Storyline already approved")
+    return storyline
+
+
+@router.get("/{report_id}/storyline")
+def get_storyline(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> dict:
+    _get_manifest_or_404(store, report_id)
+    storyline = store.load_storyline(report_id)
+    if storyline is None:
+        raise HTTPException(404, "No storyline drafted for this report")
+    return storyline.model_dump(mode="json")
+
+
+@router.put("/{report_id}/storyline")
+def update_storyline(report_id: str, storyline: Storyline, store: ReportingStore = Depends(get_reporting_store)) -> dict:
+    _unapproved_storyline(store, report_id)
+    if not storyline.slides or any(not s.headline.strip() for s in storyline.slides):
+        raise HTTPException(422, "Storyline needs at least one slide and no blank headlines")
+    storyline.approved = False  # only POST .../approve approves
+    store.save_storyline(report_id, storyline)
+    return storyline.model_dump(mode="json")
+
+
+@router.post("/{report_id}/storyline/approve")
+async def approve_storyline(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> dict:
+    """Approves the stored storyline and builds the house deck (one LLM call per slide, then PDF + previews).
+    409 once approved, unless the last build failed before a deck existed (then this retries it)."""
+    _get_manifest_or_404(store, report_id)
+    storyline = store.load_storyline(report_id)
+    if storyline is None:
+        raise HTTPException(404, "No storyline drafted for this report")
+    if not storyline.slides:
+        raise HTTPException(422, "Storyline has no slides")
+    try:
+        manifest = await ReportingService(store).approve_storyline(report_id, get_llm_client())
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    return manifest.model_dump(mode="json")
+
+
+@router.get("/{report_id}/findings")
+def get_findings(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> dict:
+    _get_manifest_or_404(store, report_id)
+    return {"findings": [f.model_dump(mode="json") for f in store.load_findings(report_id)]}
+
+
 @router.post("/{report_id}/render")
 def render_report(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> dict:
     service = ReportingService(store)
@@ -142,14 +197,18 @@ def render_report(report_id: str, store: ReportingStore = Depends(get_reporting_
 
 
 @router.get("/{report_id}/download")
-def download_report(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> FileResponse:
+def download_report(report_id: str, file: str | None = None, store: ReportingStore = Depends(get_reporting_store)) -> FileResponse:
+    """`file` picks one of manifest.output_files (e.g. a house deck's output.pptx); default is output_filename."""
     manifest = _get_manifest_or_404(store, report_id)
     if manifest.output_filename is None:
         raise HTTPException(409, "Report has not been rendered yet")
-    path = store.output_path(report_id, manifest.output_filename)
+    if file is not None and file not in manifest.output_files:
+        raise HTTPException(404, "No such output file for this report")
+    filename = file or manifest.output_filename
+    path = store.output_path(report_id, filename)
     if not path.exists():
         raise HTTPException(404, "Output file missing on disk")
-    ext = manifest.output_filename.rsplit(".", 1)[-1]
+    ext = filename.rsplit(".", 1)[-1]
     return FileResponse(
         path,
         filename=f"{manifest.title or report_id}.{ext}",

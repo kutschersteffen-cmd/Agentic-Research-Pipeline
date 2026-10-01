@@ -39,6 +39,7 @@ class DesignTheme:
     ink_secondary: str = INK_SECONDARY
     ink_muted: str = INK_MUTED
     gridline: str = GRIDLINE
+    surface: str = "FCFCFB"  # chart background, and the gap colour between pie wedges / around scatter dots
     categorical: list[str] = field(default_factory=lambda: list(CATEGORICAL_PALETTE))
     sequential: list[str] = field(default_factory=lambda: list(SEQUENTIAL_RAMP))
     font_major: str = "Calibri"

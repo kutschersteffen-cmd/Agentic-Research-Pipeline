@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import logging
 from pathlib import Path
@@ -157,6 +158,7 @@ class LangChainAnthropicClient(LLMClient):
         max_validation_retries: int = 2,
         temperature: float = 0.0,
         max_tokens: int = 8192,
+        images: list[bytes] | None = None,
     ) -> tuple[T, LLMUsage]:
         schema = output_model.model_json_schema()
         prompt_version = hashlib.sha256(system.encode()).hexdigest()[:12]
@@ -167,6 +169,7 @@ class LangChainAnthropicClient(LLMClient):
             schema_name=output_model.__name__,
             schema_json=schema,
             temperature=temperature,
+            image_hashes=[hashlib.sha256(b).hexdigest() for b in images] if images else None,
         )
         cached = self.cache.get(cache_key)
         if cached is not None:
@@ -199,7 +202,13 @@ class LangChainAnthropicClient(LLMClient):
             # no-op (no cache entry, no write premium) -- see _CACHE_CONTROL.
             system_content = [{"type": "text", "text": system, "cache_control": _CACHE_CONTROL}]
 
-        messages: list[BaseMessage] = [SystemMessage(content=system_content), HumanMessage(content=prompt)]
+        human: str | list[dict] = prompt
+        if images:
+            human = [
+                *({"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": base64.b64encode(b).decode()}} for b in images),
+                {"type": "text", "text": prompt},
+            ]
+        messages: list[BaseMessage] = [SystemMessage(content=system_content), HumanMessage(content=human)]
         total_input_tokens = 0
         total_output_tokens = 0
         total_cache_read_tokens = 0

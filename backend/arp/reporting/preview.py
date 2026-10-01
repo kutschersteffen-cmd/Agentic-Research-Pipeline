@@ -32,7 +32,7 @@ def ensure_preview_images(source_path: Path, preview_dir: Path, output_format: O
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        if output_format == OutputFormat.PDF:
+        if output_format in (OutputFormat.PDF, OutputFormat.HOUSE_DECK):  # house deck: a fallback, write_pngs normally made them
             pdf_path = source_path
         else:
             _run(["soffice", "--headless", "--convert-to", "pdf", "--outdir", str(tmp_path), str(source_path)])

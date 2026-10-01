@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from io import StringIO
 from pathlib import Path
 
 import matplotlib
@@ -109,7 +110,7 @@ def _as_float_or_zero(value) -> float:
         return 0.0
 
 
-def style_native_chart(chart, spec: ChartSpec, theme: DesignTheme) -> None:
+def style_native_chart(chart, spec: ChartSpec, theme: DesignTheme, min_pt: float = 0) -> None:
     """Applies the design theme to a just-built native pptx chart: series
     colors from theme.categorical in fixed slot order (never auto-cycled
     by PowerPoint's own default scheme), a legend only when there's more
@@ -118,6 +119,7 @@ def style_native_chart(chart, spec: ChartSpec, theme: DesignTheme) -> None:
     "color follows the entity" rules the dataviz skill specifies for any
     chart, applied here through python-pptx's chart object model.
     """
+    size = lambda pt: Pt(max(pt, min_pt))  # noqa: E731 -- min_pt lifts text for projector decks; 0 keeps the legacy sizes
     plot = chart.plots[0]
     is_pie = spec.chart_type in _PIE_TYPES
     series_list = list(plot.series)
@@ -132,7 +134,7 @@ def style_native_chart(chart, spec: ChartSpec, theme: DesignTheme) -> None:
         plot.data_labels.show_percentage = True
         plot.data_labels.show_category_name = True
         plot.data_labels.show_value = False  # python-pptx defaults this True; category name + percentage alone is the point, the raw value is redundant clutter
-        plot.data_labels.font.size = Pt(11)
+        plot.data_labels.font.size = size(11)
         plot.data_labels.font.color.rgb = RGBColor.from_string(theme.ink_primary)
     else:
         for i, series in enumerate(series_list):
@@ -155,18 +157,18 @@ def style_native_chart(chart, spec: ChartSpec, theme: DesignTheme) -> None:
     if chart.has_legend:
         chart.legend.position = XL_LEGEND_POSITION.BOTTOM
         chart.legend.include_in_layout = False
-        chart.legend.font.size = Pt(11)
+        chart.legend.font.size = size(11)
         chart.legend.font.color.rgb = RGBColor.from_string(theme.ink_secondary)
 
     if spec.title:
-        chart.chart_title.text_frame.paragraphs[0].font.size = Pt(14)
+        chart.chart_title.text_frame.paragraphs[0].font.size = size(14)
         chart.chart_title.text_frame.paragraphs[0].font.bold = True
         chart.chart_title.text_frame.paragraphs[0].font.color.rgb = RGBColor.from_string(theme.ink_primary)
 
     if not is_pie:
         for axis in (plot.chart.category_axis, plot.chart.value_axis):
             axis.format.line.color.rgb = RGBColor.from_string(theme.gridline)
-            axis.tick_labels.font.size = Pt(10)
+            axis.tick_labels.font.size = size(10)
             axis.tick_labels.font.color.rgb = RGBColor.from_string(theme.ink_muted)
         value_axis = plot.chart.value_axis
         if value_axis.has_major_gridlines:
@@ -201,12 +203,36 @@ def render_chart_image(
     for the still-editable path used for pptx output whenever the chart
     type supports it.
     """
-    theme = theme or DesignTheme()
+    fig = _draw_chart(spec, datasets, theme or DesignTheme(), width_in, height_in)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, facecolor=fig.get_facecolor())
+    plt.close(fig)
+    return out_path
+
+
+def render_chart_svg(
+    spec: ChartSpec, datasets: list[QuantitativeDataset], *, width_px: int, height_px: int, theme: DesignTheme,
+) -> str:
+    """Same drawing as render_chart_image, as an inline-able SVG string for
+    the HTML deck. Text stays <text> (svg.fonttype=none) so the page's font
+    applies; the figure is sized at 1/2.4 of the slot's pixels in points so
+    the 10pt chart type renders at 24px on the 1920px canvas (projector floor).
+    """
+    with plt.rc_context({"svg.fonttype": "none"}):
+        fig = _draw_chart(spec, datasets, theme, width_px / 172.8, height_px / 172.8)
+        buf = StringIO()
+        fig.savefig(buf, format="svg", transparent=True)  # the slide's own background shows through
+        plt.close(fig)
+    svg = buf.getvalue()
+    return svg[svg.index("<svg") :]
+
+
+def _draw_chart(spec: ChartSpec, datasets: list[QuantitativeDataset], theme: DesignTheme, width_in: float, height_in: float):
     ds = _dataset_by_id(datasets, spec.dataset_id)
     plt.rcParams["font.family"] = "sans-serif"
     fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=150)
-    fig.patch.set_facecolor("#FCFCFB")
-    ax.set_facecolor("#FCFCFB")
+    fig.patch.set_facecolor(f"#{theme.surface}")
+    ax.set_facecolor(f"#{theme.surface}")
 
     if spec.chart_type == ChartType.HEATMAP:
         _render_heatmap(ax, spec, ds, theme)
@@ -219,7 +245,7 @@ def render_chart_image(
             y_col = _column(ds, y_col, label="value_columns")
             xs = [row.get(x_col) for row in ds.rows]
             ys = [row.get(y_col) for row in ds.rows]
-            ax.scatter(xs, ys, label=y_col, s=64, color=_hex01(categorical_color(theme, i)), edgecolors="white", linewidths=0.8)
+            ax.scatter(xs, ys, label=y_col, s=64, color=_hex01(categorical_color(theme, i)), edgecolors=f"#{theme.surface}", linewidths=0.8)
         ax.set_xlabel(x_col, color=f"#{theme.ink_secondary}")
         if len(spec.value_columns or []) > 1:
             _apply_legend(ax, theme)
@@ -231,7 +257,7 @@ def render_chart_image(
         if spec.chart_type in _PIE_TYPES:
             values = [_as_float_or_zero(row.get(value_cols[0])) for row in ds.rows]
             colors = [_hex01(categorical_color(theme, i)) for i in range(len(categories))]
-            wedge_kwargs = {"wedgeprops": {"width": 0.4, "edgecolor": "#FCFCFB", "linewidth": 2}} if spec.chart_type == ChartType.DOUGHNUT else {"wedgeprops": {"edgecolor": "#FCFCFB", "linewidth": 2}}
+            wedge_kwargs = {"wedgeprops": {"width": 0.4, "edgecolor": f"#{theme.surface}", "linewidth": 2}} if spec.chart_type == ChartType.DOUGHNUT else {"wedgeprops": {"edgecolor": f"#{theme.surface}", "linewidth": 2}}
             ax.pie(
                 values, labels=categories, autopct="%1.0f%%", colors=colors, textprops={"color": f"#{theme.ink_primary}", "fontsize": 10},
                 pctdistance=0.8 if spec.chart_type == ChartType.DOUGHNUT else 0.6, **wedge_kwargs,
@@ -281,10 +307,7 @@ def render_chart_image(
     if spec.title:
         ax.set_title(spec.title, color=f"#{theme.ink_primary}", fontsize=14, fontweight="bold", loc="left", pad=12)
     fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, facecolor=fig.get_facecolor())
-    plt.close(fig)
-    return out_path
+    return fig
 
 
 def _apply_legend(ax, theme: DesignTheme) -> None:
@@ -320,7 +343,7 @@ def _render_heatmap(ax, spec: ChartSpec, ds: QuantitativeDataset, theme: DesignT
         spine.set_visible(False)
     cbar = ax.figure.colorbar(im, ax=ax)
     cbar.outline.set_visible(False)
-    cbar.ax.tick_params(colors=f"#{theme.ink_muted}", labelsize=9)
+    cbar.ax.tick_params(colors=f"#{theme.ink_muted}", labelsize=10)
 
 
 def _render_waterfall(ax, spec: ChartSpec, ds: QuantitativeDataset, theme: DesignTheme) -> None:
@@ -367,6 +390,7 @@ __all__ = [
     "is_native",
     "build_native_chart_data",
     "render_chart_image",
+    "render_chart_svg",
     "render_table_image",
     "style_native_chart",
 ]

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from arp.schemas.common import now_iso
-from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest, TemplateStyleProfile
+from arp.schemas.reporting import Deck, Finding, ReportManifest, ReportPlan, ReportRequest, Storyline, TemplateStyleProfile
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.safe_path import safe_id
 
@@ -69,6 +69,29 @@ class ReportingStore:
         if not path.exists():
             return None
         return ReportPlan.model_validate_json(path.read_text())
+
+    # House deck: storyline.json (approved by a human), deck.json (filled slides), findings.json.
+
+    def save_storyline(self, report_id: str, storyline: Storyline) -> None:
+        atomic_write_text(self.report_dir(report_id) / "storyline.json", storyline.model_dump_json(indent=2))
+
+    def load_storyline(self, report_id: str) -> Storyline | None:
+        path = self.report_dir(report_id) / "storyline.json"
+        return Storyline.model_validate_json(path.read_text()) if path.exists() else None
+
+    def save_deck(self, report_id: str, deck: Deck) -> None:
+        atomic_write_text(self.report_dir(report_id) / "deck.json", deck.model_dump_json(indent=2))
+
+    def load_deck(self, report_id: str) -> Deck | None:
+        path = self.report_dir(report_id) / "deck.json"
+        return Deck.model_validate_json(path.read_text()) if path.exists() else None
+
+    def save_findings(self, report_id: str, findings: list[Finding]) -> None:
+        atomic_write_text(self.report_dir(report_id) / "findings.json", json.dumps([f.model_dump() for f in findings], indent=2))
+
+    def load_findings(self, report_id: str) -> list[Finding]:
+        path = self.report_dir(report_id) / "findings.json"
+        return [Finding.model_validate(f) for f in json.loads(path.read_text())] if path.exists() else []
 
     def list_reports(self) -> list[ReportManifest]:
         manifests: list[ReportManifest] = []

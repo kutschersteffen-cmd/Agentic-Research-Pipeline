@@ -44,6 +44,11 @@ dependencies = [
     "python-docx>=1.1,<2.0",
     "matplotlib>=3.8,<4.0",
     "reportlab>=4.0,<5.0",
+    # HTML house deck (arp/reporting/html_render.py, browser.py): jinja2
+    # templates, rendered to pdf/png and fit-measured in headless Chromium.
+    # CI and dev install the browser with `python -m playwright install chromium`.
+    "jinja2>=3.1,<4.0",
+    "playwright>=1.45,<2.0",
     # Decision Studio rule graphs (arp/decision/rules.py): GoRules ZEN, MIT.
     # Pinned exactly, in lockstep with frontend/package.json's
     # @gorules/zen-engine-wasm32-wasi: the browser previews a rule with the
@@ -135,6 +140,7 @@ include = ["arp*"]
 "arp.transition_plan" = ["data/*.json"]
 "arp.replication" = ["data/*.json"]
 "arp.decision" = ["data/*.json", "sample_data/*.csv"]
+"arp.reporting" = ["style/*.json", "style/*.md", "style/templates/*.j2", "style/fonts/*/*.ttf", "style/fonts/*/*.txt"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

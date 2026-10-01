@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -43,6 +44,7 @@ class OutputFormat(StrEnum):
     PPTX = "pptx"
     DOCX = "docx"
     PDF = "pdf"
+    HOUSE_DECK = "house_deck"
 
 
 class LayoutInstructions(BaseModel):
@@ -53,6 +55,7 @@ class LayoutInstructions(BaseModel):
     """
 
     output_format: OutputFormat = OutputFormat.PPTX
+    theme: Literal["light", "dark"] = Field(default="light", description="House deck colour mode; mirrors the app's light/dark themes.")
     target_length: int | None = Field(
         default=None, description="Target slide count (pptx) or section count (docx/pdf). None lets the planner decide."
     )
@@ -184,6 +187,7 @@ class ChartSpec(BaseModel):
 class TableSpec(BaseModel):
     dataset_id: str
     columns: list[str] = Field(default_factory=list, description="Subset/order of dataset columns to include. Empty = all columns.")
+    row_offset: int = Field(default=0, ge=0, description="First dataset row shown; a split table slide continues from here.")
     max_rows: int = Field(default=20, description="Renderer truncates to this many rows; a truncation note is added if the dataset has more.")
 
 
@@ -234,6 +238,59 @@ class ReportPlan(BaseModel):
     sections: list[ReportSection] = Field(default_factory=list)
 
 
+# ---- House deck (HTML-first) -------------------------------------------------
+
+
+class SlideContent(BaseModel):
+    """One house-deck slide. `layout`/`variant` pick a VariantSpec from the
+    layout library; `slots` fill its named text/list slots. The headline is
+    not a slot -- it always renders in the fixed headline band."""
+
+    headline: str
+    layout: str
+    variant: str
+    slots: dict[str, str | list[str]] = Field(default_factory=dict)
+    chart: ChartSpec | None = None
+    table: TableSpec | None = None
+    image_path: str | None = None
+    speaker_notes: str = ""
+    source_refs: list[str] = Field(default_factory=list)
+
+
+class Deck(BaseModel):
+    title: str
+    subtitle: str = ""
+    slides: list[SlideContent]
+
+
+class StorylineSlide(BaseModel):
+    headline: str
+    purpose: str
+    source_refs: list[str] = Field(default_factory=list)
+
+
+class Storyline(BaseModel):
+    title: str
+    subtitle: str = ""
+    slides: list[StorylineSlide]
+    approved: bool = False
+
+
+class Finding(BaseModel):
+    """One problem found while building a house deck (data check, lint, fit or QA)."""
+
+    slide: int
+    slot: str | None = None
+    stage: Literal["data", "lint", "fit", "qa"]
+    rule: str
+    message: str
+
+
+class RunRef(BaseModel):
+    kind: Literal["decision", "run"]
+    ref_id: str
+
+
 # ---- Request / run record ---------------------------------------------------
 
 
@@ -244,6 +301,8 @@ class ReportRequest(BaseModel):
     audience: AudienceProfile = Field(default_factory=AudienceProfile)
     layout: LayoutInstructions = Field(default_factory=LayoutInstructions)
     template_id: str | None = Field(default=None, description="A previously ingested TemplateStyleProfile.template_id, pptx only.")
+    goal: str = ""
+    run_refs: list[RunRef] = Field(default_factory=list)
 
 
 class ReportStatus(StrEnum):
@@ -251,6 +310,8 @@ class ReportStatus(StrEnum):
     PLANNING = "planning"
     PLAN_READY = "plan_ready"
     """Plan drafted and persisted, awaiting render (a human may edit the plan first)."""
+    STORYLINE_READY = "storyline_ready"
+    """House deck only: storyline drafted, awaiting human approval before slides are built."""
     RENDERING = "rendering"
     COMPLETED = JobStatus.COMPLETED.value
     FAILED = JobStatus.FAILED.value
@@ -269,3 +330,5 @@ class ReportManifest(BaseModel):
     input_tokens: int = 0
     output_tokens: int = 0
     model: str | None = None
+    output_files: list[str] = Field(default_factory=list)
+    rerun_of: str | None = Field(default=None, description="The report this one was re-run from (ReportingService.rerun).")

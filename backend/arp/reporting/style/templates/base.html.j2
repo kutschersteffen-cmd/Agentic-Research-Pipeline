@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ deck.title }}</title>
+<style>
+{% include "deck.css.j2" %}
+</style>
+</head>
+<body>
+{% for slide in slides %}
+<section class="slide" data-slide="{{ slide.index }}" data-layout="{{ slide.layout }}">
+{% include slide.layout ~ ".html.j2" %}
+<footer><span>{{ slide.refs }}</span><span>{{ slide.index + 1 }}</span></footer>
+</section>
+{% endfor %}
+</body>
+</html>

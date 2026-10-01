@@ -144,7 +144,7 @@ class _AlwaysInvalidLLM:
     it would otherwise raise, so this test can exercise the graph's own
     isolation of that failure to a single indicator."""
 
-    async def complete_structured(self, *, system, prompt, output_model, max_validation_retries=2, temperature=0.0):
+    async def complete_structured(self, *, system, prompt, output_model, max_validation_retries=2, temperature=0.0, images=None):
         raise ValidationError.from_exception_data(
             output_model.__name__, [{"type": "missing", "loc": ("verdict",), "input": None}]
         )
@@ -176,7 +176,7 @@ class _ValidAnswerInvalidVerifierLLM:
     isolation for the _verify node that _AlwaysInvalidLLM exercises for
     _answer."""
 
-    async def complete_structured(self, *, system, prompt, output_model, max_validation_retries=2, temperature=0.0):
+    async def complete_structured(self, *, system, prompt, output_model, max_validation_retries=2, temperature=0.0, images=None):
         from arp.llm.base import LLMUsage
 
         if output_model.__name__ == "IndicatorAnswerDraft":

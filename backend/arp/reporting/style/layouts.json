@@ -1,0 +1,697 @@
+{
+ "layouts": [
+  {
+   "id": "title",
+   "purpose": "Opening slide: deck title and optional key figure.",
+   "variants": [
+    {
+     "id": "plain",
+     "slots": [
+      {
+       "name": "title",
+       "kind": "text",
+       "col": 0,
+       "span": 10,
+       "row": 3,
+       "rows": 3,
+       "max_words": 10,
+       "max_items": null,
+       "type_role": "headline"
+      },
+      {
+       "name": "subtitle",
+       "kind": "text",
+       "col": 0,
+       "span": 10,
+       "row": 6,
+       "rows": 2,
+       "max_words": 20,
+       "max_items": null,
+       "type_role": "subhead"
+      }
+     ],
+     "roomier": null
+    },
+    {
+     "id": "key_figure",
+     "slots": [
+      {
+       "name": "title",
+       "kind": "text",
+       "col": 0,
+       "span": 7,
+       "row": 2,
+       "rows": 4,
+       "max_words": 10,
+       "max_items": null,
+       "type_role": "headline"
+      },
+      {
+       "name": "subtitle",
+       "kind": "text",
+       "col": 0,
+       "span": 7,
+       "row": 6,
+       "rows": 2,
+       "max_words": 14,
+       "max_items": null,
+       "type_role": "subhead"
+      },
+      {
+       "name": "key_figure",
+       "kind": "number",
+       "col": 8,
+       "span": 4,
+       "row": 3,
+       "rows": 5,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      }
+     ],
+     "roomier": null
+    }
+   ]
+  },
+  {
+   "id": "section",
+   "purpose": "Divider between parts of the story.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "title",
+       "kind": "text",
+       "col": 0,
+       "span": 10,
+       "row": 4,
+       "rows": 3,
+       "max_words": 8,
+       "max_items": null,
+       "type_role": "headline"
+      },
+      {
+       "name": "subtitle",
+       "kind": "text",
+       "col": 0,
+       "span": 10,
+       "row": 7,
+       "rows": 2,
+       "max_words": 16,
+       "max_items": null,
+       "type_role": "subhead"
+      }
+     ],
+     "roomier": null
+    }
+   ]
+  },
+  {
+   "id": "big_number",
+   "purpose": "One to three headline figures with labels.",
+   "variants": [
+    {
+     "id": "one",
+     "slots": [
+      {
+       "name": "number_1",
+       "kind": "number",
+       "col": 0,
+       "span": 12,
+       "row": 1,
+       "rows": 6,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_1",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 7,
+       "rows": 3,
+       "max_words": 12,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "roomier": null
+    },
+    {
+     "id": "two",
+     "slots": [
+      {
+       "name": "number_1",
+       "kind": "number",
+       "col": 0,
+       "span": 6,
+       "row": 1,
+       "rows": 6,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_1",
+       "kind": "text",
+       "col": 0,
+       "span": 6,
+       "row": 7,
+       "rows": 3,
+       "max_words": 12,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "number_2",
+       "kind": "number",
+       "col": 6,
+       "span": 6,
+       "row": 1,
+       "rows": 6,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_2",
+       "kind": "text",
+       "col": 6,
+       "span": 6,
+       "row": 7,
+       "rows": 3,
+       "max_words": 12,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "roomier": null
+    },
+    {
+     "id": "three",
+     "slots": [
+      {
+       "name": "number_1",
+       "kind": "number",
+       "col": 0,
+       "span": 4,
+       "row": 1,
+       "rows": 6,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_1",
+       "kind": "text",
+       "col": 0,
+       "span": 4,
+       "row": 7,
+       "rows": 3,
+       "max_words": 12,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "number_2",
+       "kind": "number",
+       "col": 4,
+       "span": 4,
+       "row": 1,
+       "rows": 6,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_2",
+       "kind": "text",
+       "col": 4,
+       "span": 4,
+       "row": 7,
+       "rows": 3,
+       "max_words": 12,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "number_3",
+       "kind": "number",
+       "col": 8,
+       "span": 4,
+       "row": 1,
+       "rows": 6,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_3",
+       "kind": "text",
+       "col": 8,
+       "span": 4,
+       "row": 7,
+       "rows": 3,
+       "max_words": 12,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "roomier": null
+    }
+   ]
+  },
+  {
+   "id": "chart_takeaway",
+   "purpose": "A chart with the one-sentence takeaway.",
+   "variants": [
+    {
+     "id": "chart_left",
+     "slots": [
+      {
+       "name": "chart",
+       "kind": "chart",
+       "col": 0,
+       "span": 8,
+       "row": 0,
+       "rows": 12,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "caption"
+      },
+      {
+       "name": "takeaway",
+       "kind": "text",
+       "col": 8,
+       "span": 4,
+       "row": 0,
+       "rows": 12,
+       "max_words": 40,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "roomier": "full"
+    },
+    {
+     "id": "chart_right",
+     "slots": [
+      {
+       "name": "chart",
+       "kind": "chart",
+       "col": 4,
+       "span": 8,
+       "row": 0,
+       "rows": 12,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "caption"
+      },
+      {
+       "name": "takeaway",
+       "kind": "text",
+       "col": 0,
+       "span": 4,
+       "row": 0,
+       "rows": 12,
+       "max_words": 40,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "roomier": "full"
+    },
+    {
+     "id": "full",
+     "slots": [
+      {
+       "name": "chart",
+       "kind": "chart",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 9,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "caption"
+      },
+      {
+       "name": "takeaway",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 9,
+       "rows": 3,
+       "max_words": 40,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "roomier": null
+    }
+   ]
+  },
+  {
+   "id": "two_column",
+   "purpose": "Two side-by-side blocks: text and text, or text and chart.",
+   "variants": [
+    {
+     "id": "text_text",
+     "slots": [
+      {
+       "name": "left",
+       "kind": "text",
+       "col": 0,
+       "span": 6,
+       "row": 0,
+       "rows": 12,
+       "max_words": 50,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "right",
+       "kind": "text",
+       "col": 6,
+       "span": 6,
+       "row": 0,
+       "rows": 12,
+       "max_words": 50,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "roomier": null
+    },
+    {
+     "id": "text_chart",
+     "slots": [
+      {
+       "name": "text",
+       "kind": "text",
+       "col": 0,
+       "span": 5,
+       "row": 0,
+       "rows": 12,
+       "max_words": 50,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "chart",
+       "kind": "chart",
+       "col": 5,
+       "span": 7,
+       "row": 0,
+       "rows": 12,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "caption"
+      }
+     ],
+     "roomier": null
+    }
+   ]
+  },
+  {
+   "id": "table",
+   "purpose": "A data table, optionally with a takeaway.",
+   "variants": [
+    {
+     "id": "compact",
+     "slots": [
+      {
+       "name": "table",
+       "kind": "table",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 12,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "caption"
+      }
+     ],
+     "roomier": null
+    },
+    {
+     "id": "highlight",
+     "slots": [
+      {
+       "name": "table",
+       "kind": "table",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 9,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "caption"
+      },
+      {
+       "name": "takeaway",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 9,
+       "rows": 3,
+       "max_words": 30,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "roomier": null
+    }
+   ]
+  },
+  {
+   "id": "bullets",
+   "purpose": "Short bullet list.",
+   "variants": [
+    {
+     "id": "three",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 10,
+       "row": 0,
+       "rows": 12,
+       "max_words": 18,
+       "max_items": 3,
+       "type_role": "body"
+      }
+     ],
+     "roomier": "five"
+    },
+    {
+     "id": "five",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 10,
+       "row": 0,
+       "rows": 12,
+       "max_words": 12,
+       "max_items": 5,
+       "type_role": "body"
+      }
+     ],
+     "roomier": null
+    }
+   ]
+  },
+  {
+   "id": "timeline",
+   "purpose": "Sequence of dated steps.",
+   "variants": [
+    {
+     "id": "three",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 12,
+       "max_words": 14,
+       "max_items": 3,
+       "type_role": "body"
+      }
+     ],
+     "roomier": "six"
+    },
+    {
+     "id": "six",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 12,
+       "max_words": 10,
+       "max_items": 6,
+       "type_role": "body"
+      }
+     ],
+     "roomier": null
+    }
+   ]
+  },
+  {
+   "id": "quote",
+   "purpose": "A pull quote with attribution.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "quote",
+       "kind": "text",
+       "col": 1,
+       "span": 10,
+       "row": 2,
+       "rows": 6,
+       "max_words": 40,
+       "max_items": null,
+       "type_role": "subhead"
+      },
+      {
+       "name": "attribution",
+       "kind": "text",
+       "col": 1,
+       "span": 10,
+       "row": 8,
+       "rows": 2,
+       "max_words": 10,
+       "max_items": null,
+       "type_role": "caption"
+      }
+     ],
+     "roomier": null
+    }
+   ]
+  },
+  {
+   "id": "matrix",
+   "purpose": "Two-by-two grid of short statements.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "top_left",
+       "kind": "text",
+       "col": 0,
+       "span": 6,
+       "row": 0,
+       "rows": 6,
+       "max_words": 25,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "top_right",
+       "kind": "text",
+       "col": 6,
+       "span": 6,
+       "row": 0,
+       "rows": 6,
+       "max_words": 25,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "bottom_left",
+       "kind": "text",
+       "col": 0,
+       "span": 6,
+       "row": 6,
+       "rows": 6,
+       "max_words": 25,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "bottom_right",
+       "kind": "text",
+       "col": 6,
+       "span": 6,
+       "row": 6,
+       "rows": 6,
+       "max_words": 25,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "roomier": null
+    }
+   ]
+  },
+  {
+   "id": "image",
+   "purpose": "An image with a caption.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "image",
+       "kind": "image",
+       "col": 0,
+       "span": 8,
+       "row": 0,
+       "rows": 12,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "caption",
+       "kind": "text",
+       "col": 8,
+       "span": 4,
+       "row": 0,
+       "rows": 12,
+       "max_words": 30,
+       "max_items": null,
+       "type_role": "caption"
+      }
+     ],
+     "roomier": null
+    }
+   ]
+  },
+  {
+   "id": "summary",
+   "purpose": "Closing recap and next steps.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 12,
+       "max_words": 20,
+       "max_items": 4,
+       "type_role": "body"
+      }
+     ],
+     "roomier": null
+    }
+   ]
+  }
+ ]
+}

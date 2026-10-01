@@ -1,0 +1,39 @@
+{{ font_faces|safe }}
+:root {
+  --ink: {{ c.ink }}; --ink-muted: {{ c.ink_muted }}; --neutral: {{ c.neutral }};
+  --accent: {{ c.accent }}; --bg: {{ c.background }};
+  {#- font stacks are trusted config; quotes must not be HTML-escaped inside <style> #}
+  --font-heading: {{ fonts.heading|safe }}; --font-body: {{ fonts.body|safe }}; --font-mono: {{ fonts.mono|safe }};
+  color-scheme: {{ mode }};
+}
+@page { size: {{ t.canvas.width }}px {{ t.canvas.height }}px; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+.slide { position: relative; overflow: hidden; width: {{ t.canvas.width }}px; height: {{ t.canvas.height }}px; background: var(--bg); page-break-after: always; break-after: page; }
+.slide:last-child { page-break-after: auto; break-after: auto; }
+{% for role, ts in t.type.items() %}
+.t-{{ role }} { font-family: var(--font-{{ ts.font }}); font-size: {{ ts.size }}px; line-height: {{ ts.line_height }}; font-weight: {{ ts.weight }}; letter-spacing: {{ ts.tracking }}em; }
+{% endfor %}
+h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; top: {{ t.grid.margin_top }}px; width: {{ t.canvas.width - 2 * t.grid.margin_x }}px; height: {{ t.grid.headline_band - 32 }}px; overflow: hidden; text-wrap: balance; }
+/* Recurring mark: a short ink rule above the headline. The accent is not decoration (DESIGN.md's One Signal Rule). */
+.slide::after { content: ""; position: absolute; left: {{ t.grid.margin_x }}px; top: {{ t.grid.margin_top - 32 - t.grid.rule_height }}px; width: {{ t.grid.rule_width }}px; height: {{ t.grid.rule_height }}px; background: var(--ink); }
+.slot { position: absolute; overflow: hidden; overflow-wrap: normal; }
+/* Metric numbers are ink (DESIGN.md). Bottom-aligned so it sits on its label; the padding holds the glyph descent inside the box. */
+.k-number { color: var(--ink); white-space: nowrap; display: flex; align-items: flex-end; padding-bottom: 0.2em; font-variant-numeric: tabular-nums; }
+[data-slot^="label_"] { border-top: 1px solid var(--neutral); padding-top: 16px; font-family: var(--font-mono); }
+.slot ul { margin: 0; padding-left: 1.1em; }
+.slot li { margin-bottom: 0.5em; }
+/* Timeline: numbered hollow steps on one rule, like the app's process-card step dots. */
+.slide[data-layout="timeline"] .k-list ul { list-style: none; padding: 0; position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: {{ t.grid.gutter }}px; counter-reset: step; }
+.slide[data-layout="timeline"] .k-list ul::before { content: ""; position: absolute; left: 0; right: 0; top: 27px; border-top: 2px solid var(--ink-muted); }
+.slide[data-layout="timeline"] .k-list li { position: relative; margin: 0; padding-top: 84px; counter-increment: step; }
+.slide[data-layout="timeline"] .k-list li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 56px; height: 56px; border: 2px solid var(--ink); border-radius: 50%; background: var(--bg); color: var(--ink); font: 500 {{ t.type.caption.size + 4 }}px/52px var(--font-mono); text-align: center; letter-spacing: 0; }
+.slot svg { width: 100%; height: 100%; display: block; }
+.slot img { width: 100%; height: 100%; object-fit: contain; }
+.slot table { width: 100%; border-collapse: collapse; }
+.slot th, .slot td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--neutral); font-variant-numeric: tabular-nums; }
+/* Small uppercase mono labels, as in the app. */
+.slot th { font: 500 {{ t.type.caption.size }}px/{{ t.type.caption.line_height }} var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-muted); border-bottom: 2px solid var(--ink); }
+.slot .more { margin: 8px 0 0; color: var(--ink-muted); }
+.k-chart svg text { font-family: var(--font-body) !important; }
+footer { position: absolute; left: {{ t.grid.margin_x }}px; right: {{ t.grid.margin_x }}px; top: {{ t.canvas.height - t.grid.margin_bottom - t.grid.footer_band }}px; height: {{ t.grid.footer_band }}px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--neutral); color: var(--ink-muted); font: 500 {{ t.type.caption.size }}px/{{ t.type.caption.line_height }} var(--font-mono); }

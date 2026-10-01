@@ -33,14 +33,12 @@ from pydantic import BaseModel, Field, model_validator
 
 from arp.engagement.orchestrator import is_stalled
 from arp.index.weighting import apply_tilts, normalise
-from arp.reporting.deck_builder import build_deck
 from arp.schemas.engagement import EngagementRecord, IssueStatus
 from arp.schemas.index import IndexCandidate, MetricTilt
 from arp.schemas.reporting import (
     ChartSpec,
     ChartType,
     ContentItem,
-    LayoutInstructions,
     ReportPlan,
     ReportSection,
     SectionLayoutHint,
@@ -49,7 +47,7 @@ from arp.schemas.reporting import (
 from arp.stewardship import escalation, monitoring
 from arp.stewardship.backtest import build_contexts, proposed_policy
 from arp.stewardship.benchmark import SAMPLE, BenchmarkStore, as_universe
-from arp.stewardship.client_report import _dataset, _w
+from arp.stewardship.client_report import _dataset, _w, render_plan
 from arp.stewardship.policies import PolicyStore
 from arp.stewardship.policy_graph import evaluate as evaluate_votes
 from arp.stewardship.policy_graph import generate
@@ -356,7 +354,7 @@ def simulate(root: Path, stream: dict, records: list[EngagementRecord], sla_days
     }
 
 
-def build_proposal(sim: dict, out_path: Path) -> Path:
+def build_proposal(sim: dict, out_path: Path, pdf: bool = True) -> Path:
     k, p = sim["kpis"], sim["params"]
 
     def text(*lines: str) -> list[ContentItem]:
@@ -471,7 +469,7 @@ def build_proposal(sim: dict, out_path: Path) -> Path:
     plan = ReportPlan(
         title=f"{sim['client']}: stewardship program proposal", subtitle=f"Benchmark {sim['benchmark']}", sections=sections
     )
-    return build_deck(plan, datasets, LayoutInstructions(include_appendix=True), None, out_path)
+    return render_plan(plan, datasets, out_path, pdf)
 
 
 # --- Approval and monitoring (5.5) --------------------------------------------

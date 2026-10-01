@@ -1,14 +1,20 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
-from arp.llm.base import LLMClient
+from arp.config import Settings
+from arp.llm.base import LLMClient, LLMUsage
+from arp.reporting.adapters import with_run_datasets
 from arp.reporting.content_planner import draft_report_plan
 from arp.reporting.deck_builder import build_deck
 from arp.reporting.design import theme_from_template
+from arp.reporting.house_pipeline import build_house_deck, render_house_outputs
+from arp.reporting.lint import lint_deck
 from arp.reporting.pdf_builder import build_pdf
 from arp.reporting.report_builder import build_docx
-from arp.schemas.reporting import OutputFormat, ReportManifest, ReportPlan, ReportRequest, ReportStatus
+from arp.reporting.storyline import draft_storyline
+from arp.schemas.reporting import Deck, OutputFormat, ReportManifest, ReportPlan, ReportRequest, ReportStatus, SlideContent
 from arp.storage.reporting_store import ReportingStore
 
 _EXTENSION = {OutputFormat.PPTX: "pptx", OutputFormat.DOCX: "docx", OutputFormat.PDF: "pdf"}
@@ -25,8 +31,9 @@ class ReportingService:
     every other pipeline in this codebase.
     """
 
-    def __init__(self, store: ReportingStore) -> None:
+    def __init__(self, store: ReportingStore, settings: Settings | None = None) -> None:
         self.store = store
+        self.settings = settings  # for run_refs; None reads get_settings() when a request has any
 
     async def create_and_plan(self, request: ReportRequest, llm: LLMClient) -> ReportManifest:
         manifest = ReportManifest(title=request.title, output_format=request.layout.output_format, template_id=request.template_id)
@@ -34,30 +41,126 @@ class ReportingService:
         self.store.save_request(manifest.report_id, request)
         self.store.save_manifest(manifest)
 
+        house = request.layout.output_format == OutputFormat.HOUSE_DECK
         template_style = self.store.load_template_style(request.template_id) if request.template_id else None
         try:
-            plan, usage = await draft_report_plan(request, llm, template_style)
+            if house:  # the storyline is drafted on the run data, so load it first (and keep it for the build)
+                request = with_run_datasets(request, self.settings)
+                self.store.save_request(manifest.report_id, request)
+                draft, usage = await draft_storyline(request, llm)
+            else:
+                draft, usage = await draft_report_plan(request, llm, template_style)
         except Exception as exc:  # noqa: BLE001 -- persisted as a manifest field for API/CLI/UI visibility, not swallowed
             manifest.status = ReportStatus.FAILED
             manifest.error = str(exc)
             self.store.save_manifest(manifest)
             raise
 
-        self.store.save_plan(manifest.report_id, plan)
-        manifest.status = ReportStatus.PLAN_READY
+        if house:
+            self.store.save_storyline(manifest.report_id, draft)
+            manifest.status = ReportStatus.STORYLINE_READY
+        else:
+            self.store.save_plan(manifest.report_id, draft)
+            manifest.status = ReportStatus.PLAN_READY
         manifest.input_tokens = usage.input_tokens
         manifest.output_tokens = usage.output_tokens
         manifest.model = usage.model
         self.store.save_manifest(manifest)
         return manifest
 
+    async def approve_storyline(self, report_id: str, llm: LLMClient) -> ReportManifest:
+        """House deck: approves the stored storyline and builds the deck from it.
+        The approval is persisted before the build. A build that failed before deck.json was written
+        can be approved again (the retry); a FAILED report with a deck re-renders it (no LLM)."""
+        manifest = self.store.load_manifest(report_id)
+        storyline = self.store.load_storyline(report_id)
+        request = self.store.load_request(report_id)
+        if manifest is None or storyline is None or request is None:
+            raise ValueError(f"No storyline drafted for report {report_id!r}")
+        if manifest.status == ReportStatus.FAILED and self.store.load_deck(report_id) is not None:
+            return await self._rerender(manifest)
+        retry = manifest.status == ReportStatus.FAILED
+        if storyline.approved and not retry:
+            raise ValueError("Storyline already approved")
+        if not storyline.slides:
+            raise ValueError("Storyline has no slides")
+        storyline.approved = True
+        self.store.save_storyline(report_id, storyline)
+        manifest.status = ReportStatus.RENDERING
+        self.store.save_manifest(manifest)
+        usage = LLMUsage()
+        try:
+            await build_house_deck(report_id, request, storyline, llm, self.store, usage, self.settings)
+        except Exception as exc:  # noqa: BLE001
+            manifest.status = ReportStatus.FAILED
+            manifest.error = str(exc)
+            self.store.save_manifest(manifest)
+            raise
+        finally:
+            manifest.input_tokens += usage.input_tokens
+            manifest.output_tokens += usage.output_tokens
+        return self._completed(manifest, "output.pdf", ["output.pdf", "output.pptx"])
+
+    async def rerun(self, report_id: str, llm: LLMClient) -> ReportManifest:
+        """A new report from the request and approved storyline of the newest completed report in `report_id`'s
+        lineage (itself or its re-runs), on freshly loaded run data; the source is untouched. If the fresh data no
+        longer backs a headline number, the new storyline goes back for approval (STORYLINE_READY, findings saved)
+        instead of being built; once a person approves and it completes, later re-runs start from it."""
+        for old in self.lineage(report_id):
+            if old.status == ReportStatus.COMPLETED:
+                storyline = self.store.load_storyline(old.report_id)
+                if storyline is not None and storyline.approved and self.store.load_deck(old.report_id) is not None:
+                    break
+        else:
+            raise ValueError(f"No completed report with an approved storyline in {report_id!r}'s lineage")
+        request = with_run_datasets(self.store.load_request(old.report_id), self.settings)
+        storyline = storyline.model_copy(update={"approved": False})
+        manifest = ReportManifest(
+            title=old.title, output_format=old.output_format, template_id=old.template_id,
+            status=ReportStatus.STORYLINE_READY, rerun_of=old.report_id,
+        )
+        self.store.save_request(manifest.report_id, request)
+        self.store.save_storyline(manifest.report_id, storyline)
+        self.store.save_manifest(manifest)
+        # Headlines only, numbered like the built deck (slide 0 is the title).
+        heads = Deck(title=storyline.title, slides=[SlideContent(headline=h, layout="", variant="") for h in [storyline.title, *(s.headline for s in storyline.slides)]])
+        stale = [f for f in lint_deck(heads, request) if f.rule == "number_not_in_source" and f.slot == "headline"]
+        if stale:
+            self.store.save_findings(manifest.report_id, stale)
+            return manifest
+        return await self.approve_storyline(manifest.report_id, llm)
+
+    def lineage(self, report_id: str) -> list[ReportManifest]:
+        """`report_id` and its re-runs (and theirs), newest first."""
+        reports = {m.report_id: m for m in self.store.list_reports()}  # never creates a dir, unlike load_manifest
+        if report_id not in reports:
+            raise ValueError(f"Unknown report_id {report_id!r}")
+
+        def in_lineage(m: ReportManifest | None) -> bool:
+            while m is not None and m.report_id != report_id:
+                m = reports.get(m.rerun_of)
+            return m is not None
+
+        return sorted(filter(in_lineage, reports.values()), key=lambda m: m.created_at, reverse=True)
+
+    def _completed(self, manifest: ReportManifest, filename: str, files: list[str] | None = None) -> ReportManifest:
+        manifest.status = ReportStatus.COMPLETED
+        manifest.output_filename = filename
+        manifest.output_files = files or [filename]
+        manifest.error = None
+        self.store.save_manifest(manifest)
+        return manifest
+
     def render_from_plan(self, report_id: str) -> ReportManifest:
         """Renders whatever plan is currently persisted for this report --
         the LLM-drafted one, or a human-edited version saved over it via
-        ReportingStore.save_plan. Never calls the model."""
+        ReportingStore.save_plan. Never calls the model. A house deck
+        re-renders its stored deck.json instead."""
         manifest = self.store.load_manifest(report_id)
         if manifest is None:
             raise ValueError(f"Unknown report_id {report_id!r}")
+        if manifest.output_format == OutputFormat.HOUSE_DECK:
+            return self._rerender_house_deck(manifest)
         plan = self.store.load_plan(report_id)
         if plan is None:
             raise ValueError(f"No plan drafted yet for report {report_id!r} -- call create_and_plan first")
@@ -79,11 +182,27 @@ class ReportingService:
             self.store.save_manifest(manifest)
             raise
 
-        manifest.status = ReportStatus.COMPLETED
-        manifest.output_filename = filename
-        manifest.error = None
+        return self._completed(manifest, filename)
+
+    def _rerender_house_deck(self, manifest: ReportManifest) -> ReportManifest:
+        # ponytail: asyncio.run, so this sync path can't be called from inside a running loop; make it async if that's needed.
+        return asyncio.run(self._rerender(manifest))
+
+    async def _rerender(self, manifest: ReportManifest) -> ReportManifest:
+        report_id = manifest.report_id
+        deck, request = self.store.load_deck(report_id), self.store.load_request(report_id)
+        if deck is None or request is None:
+            raise ValueError(f"No deck built yet for report {report_id!r} -- approve the storyline first")
+        manifest.status = ReportStatus.RENDERING
         self.store.save_manifest(manifest)
-        return manifest
+        try:
+            await render_house_outputs(report_id, deck, request, self.store)
+        except Exception as exc:  # noqa: BLE001
+            manifest.status = ReportStatus.FAILED
+            manifest.error = str(exc)
+            self.store.save_manifest(manifest)
+            raise
+        return self._completed(manifest, "output.pdf", ["output.pdf", "output.pptx"])
 
     @staticmethod
     def _render(output_format: OutputFormat, plan: ReportPlan, datasets, layout, template_style, out_path: Path) -> Path:
@@ -104,5 +223,7 @@ class ReportingService:
         """Convenience end-to-end path (plan + render in one call) for the
         CLI and a single-request API flow. Equivalent to
         create_and_plan(...) followed immediately by render_from_plan(...)."""
+        if request.layout.output_format == OutputFormat.HOUSE_DECK:  # checked before the storyline call is spent
+            raise ValueError("A house deck needs its storyline approved: use `arp report plan --format house_deck`, then `arp report approve`.")
         manifest = await self.create_and_plan(request, llm)
         return self.render_from_plan(manifest.report_id)

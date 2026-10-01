@@ -86,7 +86,7 @@ import type {
   TrendPoint,
 } from "../types";
 import type { DecisionInput, PublishedDecision } from "../types";
-import type { QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, TemplateStyleProfile } from "../types";
+import type { Finding, QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, Storyline, TemplateStyleProfile } from "../types";
 import type { PaperCandidate, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
 import type {
   BarrierCriterionDetail,
@@ -659,7 +659,14 @@ export const api = {
   updateReportPlan: (reportId: string, plan: ReportPlan) =>
     request<ReportPlan>(`/api/reports/${encodeURIComponent(reportId)}/plan`, { method: "PUT", body: JSON.stringify(plan) }),
   renderReport: (reportId: string) => request<ReportManifest>(`/api/reports/${encodeURIComponent(reportId)}/render`, { method: "POST" }),
-  reportDownloadUrl: (reportId: string) => `${API_BASE}/api/reports/${encodeURIComponent(reportId)}/download`,
+  getStoryline: (reportId: string) => request<Storyline>(`/api/reports/${encodeURIComponent(reportId)}/storyline`),
+  updateStoryline: (reportId: string, storyline: Storyline) =>
+    request<Storyline>(`/api/reports/${encodeURIComponent(reportId)}/storyline`, { method: "PUT", body: JSON.stringify(storyline) }),
+  approveStoryline: (reportId: string) =>
+    request<ReportManifest>(`/api/reports/${encodeURIComponent(reportId)}/storyline/approve`, { method: "POST" }),
+  getReportFindings: (reportId: string) => request<{ findings: Finding[] }>(`/api/reports/${encodeURIComponent(reportId)}/findings`),
+  reportDownloadUrl: (reportId: string, file?: string) =>
+    `${API_BASE}/api/reports/${encodeURIComponent(reportId)}/download${buildQuery({ file })}`,
   getReportPreview: (reportId: string) => request<{ page_count: number }>(`/api/reports/${encodeURIComponent(reportId)}/preview`),
   reportPreviewPageUrl: (reportId: string, page: number) => `${API_BASE}/api/reports/${encodeURIComponent(reportId)}/preview/${page}`,
 

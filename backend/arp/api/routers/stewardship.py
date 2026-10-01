@@ -532,7 +532,7 @@ def get_client_report_pptx(
     stream = _stream_or_404(streams, stream_id)
     report = client_report(streams.root, stream, engagements.list_all(), settings.engagement_sla_days)
     tmp = Path(tempfile.mkdtemp(prefix="arp_client_report_"))
-    path = build_pptx(report, tmp / f"{stream_id}-stewardship-report.pptx")
+    path = build_pptx(report, tmp / f"{stream_id}-stewardship-report.pptx", pdf=False)  # tmp is deleted: no PDF
     background.add_task(shutil.rmtree, tmp, ignore_errors=True)
     return FileResponse(
         path,
@@ -612,7 +612,7 @@ def get_program_proposal(
     stream = _stream_or_404(streams, stream_id)
     sim = simulate(streams.root, stream, engagements.list_all(), settings.engagement_sla_days)
     tmp = Path(tempfile.mkdtemp(prefix="arp_program_"))
-    path = build_proposal(sim, tmp / f"{stream_id}-program-proposal.pptx")
+    path = build_proposal(sim, tmp / f"{stream_id}-program-proposal.pptx", pdf=False)  # tmp is deleted: no PDF
     background.add_task(shutil.rmtree, tmp, ignore_errors=True)
     return FileResponse(
         path,

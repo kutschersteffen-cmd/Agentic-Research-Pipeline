@@ -46,6 +46,10 @@ class Settings(BaseSettings):
         "cacheable-prefix minimum it's a documented no-op, not a wasted write.",
     )
 
+    chromium_path: str | None = Field(
+        default=None, description="Chromium binary for the HTML deck renderer; unset = Playwright's own browser (python -m playwright install chromium)."
+    )
+
     # Paths (all file-based storage lives under these)
     runs_dir: Path = Field(default=REPO_ROOT / "runs")
     taxonomies_dir: Path = Field(default=REPO_ROOT / "taxonomies")

@@ -68,7 +68,7 @@ def test_program_runs_on_an_uploaded_benchmark_and_says_the_scores_are_placehold
     assert sim["targets"] and all(t["reason"].startswith("Placeholder CLTI") for t in sim["targets"])
     assert sum(h["portfolio_pct"] for h in sim["holdings"]) == pytest.approx(100, abs=0.01)
     deck = build_proposal(sim, tmp_path / "p.pptx")
-    first = [s for s in pptx.Presentation(deck).slides][2]  # title, agenda, then the one-pager
+    first = [s for s in pptx.Presentation(deck).slides][1]  # title, then the one-pager
     assert "placeholders" in " ".join(sh.text_frame.text for sh in first.shapes if sh.has_text_frame)
 
 
