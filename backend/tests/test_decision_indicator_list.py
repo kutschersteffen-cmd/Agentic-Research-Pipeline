@@ -161,3 +161,8 @@ def test_the_preset_graphs_lay_their_nodes_out_side_by_side():
     for graph in (config.rule_graph, config.tier_graph):
         xs = [n["position"]["x"] for n in graph["nodes"]]
         assert len(set(xs)) == len(xs)
+
+
+def test_the_grade_note_is_the_only_tier_note():
+    r = _deck_result()
+    assert [len([n for n in r[c].notes if n.startswith("Tier rules")]) for c in ("Shell", "RWE", "Enel")] == [0, 0, 0]

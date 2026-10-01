@@ -809,14 +809,19 @@ export function DecisionStudio() {
             </div>
           </div>
 
-          <div className="card">
-            <h2>Score distribution and where the tiers cut</h2>
-            <ScoreDistribution bins={result.histogram} cuts={result.effective_cuts} tiers={config.tiers} />
-            <p className="help-text">
-              Cut-points ({result.cuts_origin}) drawn over the {result.scored_count} entities still eligible after gates
-              and sufficiency.
-            </p>
-          </div>
+          {config.tier_graph && result.effective_cuts.length > 1 && new Set(result.effective_cuts).size === 1 ? (
+            // Every score lands in one band and the tier rules grade it (e.g. the credibility preset).
+            <p className="help-text">Tiers here come from the tier rules, not from score cut-points; see each entity's note.</p>
+          ) : (
+            <div className="card">
+              <h2>Score distribution and where the tiers cut</h2>
+              <ScoreDistribution bins={result.histogram} cuts={result.effective_cuts} tiers={config.tiers} />
+              <p className="help-text">
+                Cut-points ({result.cuts_origin}) drawn over the {result.scored_count} entities still eligible after gates
+                and sufficiency.
+              </p>
+            </div>
+          )}
 
           <div className="card">
             <div className="toolbar">
