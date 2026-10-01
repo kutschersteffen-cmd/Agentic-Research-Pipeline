@@ -1208,7 +1208,8 @@
        "type_role": "body"
       }
      ],
-     "roomier": null
+     "roomier": null,
+     "visual": true
     },
     {
      "id": "two",
@@ -1258,7 +1259,8 @@
        "type_role": "body"
       }
      ],
-     "roomier": null
+     "roomier": null,
+     "visual": true
     },
     {
      "id": "three",
@@ -1330,7 +1332,8 @@
        "type_role": "body"
       }
      ],
-     "roomier": null
+     "roomier": null,
+     "visual": true
     }
    ]
   },
@@ -1545,7 +1548,8 @@
        "type_role": "body"
       }
      ],
-     "roomier": "six"
+     "roomier": "six",
+     "visual": true
     },
     {
      "id": "six",
@@ -1562,7 +1566,8 @@
        "type_role": "body"
       }
      ],
-     "roomier": null
+     "roomier": null,
+     "visual": true
     }
    ]
   },

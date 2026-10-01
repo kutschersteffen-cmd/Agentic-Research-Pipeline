@@ -69,7 +69,7 @@ Every layout follows three rules:
 
 **Rhythm rules across the deck:**
 - never the same layout on three consecutive slides
-- at least one visual slide (chart, numbers or steps) in every three content slides
+- at least one visual slide in every three content slides; a visual slide is a chart, numbers, steps, or a structured card or row set
 - a `section` divider every 5–7 slides in decks of 12 or more
 
 When a rule breaks, the next layout that fits the same content shape is used.

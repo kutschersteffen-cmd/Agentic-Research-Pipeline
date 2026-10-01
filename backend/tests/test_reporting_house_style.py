@@ -48,7 +48,7 @@ def test_short_role_is_a_larger_type_step():
 
 def test_visual_flag_on_visual_layouts():
     ly = load_layouts()
-    assert all(v.visual for lid in ("stat_row", "steps", "chart_focus", "cards") for v in ly[lid].variants)
+    assert all(v.visual for lid in ("stat_row", "steps", "chart_focus", "cards", "big_number", "timeline") for v in ly[lid].variants)
     assert get_variant("split", "chart").visual and not get_variant("split", "list").visual
     assert not any(v.visual for v in ly["statement"].variants)
 

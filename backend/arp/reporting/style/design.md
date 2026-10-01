@@ -94,7 +94,7 @@ Every change is logged as an info finding, for example "bullets/three → cards/
 
 The title slide and section dividers are left out of every rule below.
 - Never the same layout on three slides in a row.
-- At least one visual slide (a chart, numbers, steps, cards, a flow, a heat table or a diagram) in every three content slides.
+- At least one visual slide in every three content slides. A visual slide is a chart, numbers (stat row or big number), steps (steps or a timeline), or a structured card or row set (cards, a flow, a profile, a heat table or a diagram).
 - In decks of 12 slides or more, a section divider every 5 to 7 slides. One is inserted before the seventh content slide since the last divider, unless fewer than two content slides follow.
 
 When a pick breaks a rule, the art director takes the next pick for the same content that keeps both rules. The design retry follows the same rhythm rules.
