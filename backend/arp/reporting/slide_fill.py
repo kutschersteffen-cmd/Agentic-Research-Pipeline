@@ -87,6 +87,7 @@ def validate_slide(slide: SlideContent, datasets: list[QuantitativeDataset]) -> 
         refs.append((c.dataset_id, [c.category_column, c.x_column, c.y_column, c.value_column, *c.value_columns]))
     if slide.table:
         refs.append((slide.table.dataset_id, [*slide.table.columns, *slide.table.heat]))
+        errors += [f"heat {col!r}: low {lo:g} is above high {hi:g}" for col, (lo, hi) in slide.table.heat.items() if lo > hi]
     for dataset_id, columns in refs:
         ds = by_id.get(dataset_id)
         if ds is None:

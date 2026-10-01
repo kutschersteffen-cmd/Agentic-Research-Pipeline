@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -194,7 +194,7 @@ class TableSpec(BaseModel):
     columns: list[str] = Field(default_factory=list, description="Subset/order of dataset columns to include. Empty = all columns.")
     row_offset: int = Field(default=0, ge=0, description="First dataset row shown; a split table slide continues from here.")
     max_rows: int = Field(default=20, description="Renderer truncates to this many rows; a truncation note is added if the dataset has more.")
-    heat: dict[str, list[float]] = Field(
+    heat: dict[str, Annotated[list[float], Field(min_length=2, max_length=2)]] = Field(
         default_factory=dict, description="table/heat only: column -> [low, high]; a number under low is tinted low, under high mid, else high."
     )
 

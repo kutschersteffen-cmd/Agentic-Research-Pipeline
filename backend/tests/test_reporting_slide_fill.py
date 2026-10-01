@@ -151,3 +151,23 @@ async def test_fill_prompt_includes_design_rules(fake_llm):
     await fill_slide(_STORY, 1, _REQ, llm)
     assert "## Content to layout" in llm.systems[0] and "## Rhythm" in llm.systems[0]
     assert "## Review checklist" not in llm.systems[0]
+
+
+def test_table_heat_needs_exactly_low_and_high():
+    from pydantic import ValidationError
+
+    from arp.schemas.reporting import TableSpec
+
+    with pytest.raises(ValidationError):
+        TableSpec(dataset_id="d", heat={"s": [50]})
+
+
+async def test_fill_slide_with_inverted_heat_retries_then_placeholder(fake_llm):
+    from arp.schemas.reporting import TableSpec
+
+    bad = SlideContent(headline="x", layout="table", variant="heat", table=TableSpec(dataset_id="ds_w", heat={"weight": [5, 1]}))
+    assert any("low 5" in e for e in slide_fill.validate_slide(bad, [_DS]))
+    llm = fake_llm({"SlideContent": [bad, bad]})
+    slide, findings, _ = await fill_slide(_STORY, 1, _REQ, llm)
+    assert llm.calls == ["SlideContent", "SlideContent"] and "weight" in llm.prompts[1]
+    assert findings[0].rule == "bad_reference" and slide.layout == "bullets"
