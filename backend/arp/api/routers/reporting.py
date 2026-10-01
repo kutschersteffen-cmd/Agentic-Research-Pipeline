@@ -156,8 +156,8 @@ def get_storyline(report_id: str, store: ReportingStore = Depends(get_reporting_
 @router.put("/{report_id}/storyline")
 def update_storyline(report_id: str, storyline: Storyline, store: ReportingStore = Depends(get_reporting_store)) -> dict:
     _unapproved_storyline(store, report_id)
-    if not storyline.slides:
-        raise HTTPException(422, "Storyline has no slides")
+    if not storyline.slides or any(not s.headline.strip() for s in storyline.slides):
+        raise HTTPException(422, "Storyline needs at least one slide and no blank headlines")
     storyline.approved = False  # only POST .../approve approves
     store.save_storyline(report_id, storyline)
     return storyline.model_dump(mode="json")
@@ -165,10 +165,18 @@ def update_storyline(report_id: str, storyline: Storyline, store: ReportingStore
 
 @router.post("/{report_id}/storyline/approve")
 async def approve_storyline(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> dict:
-    """Approves the stored storyline and builds the house deck (one LLM call per slide, then PDF + previews)."""
-    if not _unapproved_storyline(store, report_id).slides:
+    """Approves the stored storyline and builds the house deck (one LLM call per slide, then PDF + previews).
+    409 once approved, unless the last build failed before a deck existed (then this retries it)."""
+    _get_manifest_or_404(store, report_id)
+    storyline = store.load_storyline(report_id)
+    if storyline is None:
+        raise HTTPException(404, "No storyline drafted for this report")
+    if not storyline.slides:
         raise HTTPException(422, "Storyline has no slides")
-    manifest = await ReportingService(store).approve_storyline(report_id, get_llm_client())
+    try:
+        manifest = await ReportingService(store).approve_storyline(report_id, get_llm_client())
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
     return manifest.model_dump(mode="json")
 
 

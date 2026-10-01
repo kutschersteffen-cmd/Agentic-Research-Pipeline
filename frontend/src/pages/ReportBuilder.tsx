@@ -63,6 +63,7 @@ export function ReportBuilder() {
   const [audienceDescription, setAudienceDescription] = useState("");
   const [focusAreas, setFocusAreas] = useState("");
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("pptx");
+  const [deckTheme, setDeckTheme] = useState<"light" | "dark">("light");
   const [targetLength, setTargetLength] = useState<string>("");
   const [maxBullets, setMaxBullets] = useState(6);
   const [includeTitleSlide, setIncludeTitleSlide] = useState(true);
@@ -147,6 +148,7 @@ export function ReportBuilder() {
         },
         layout: {
           output_format: outputFormat,
+          theme: deckTheme,
           target_length: targetLength ? Number(targetLength) : null,
           max_bullets_per_slide: maxBullets,
           include_title_slide: includeTitleSlide,
@@ -246,7 +248,7 @@ export function ReportBuilder() {
     setBusy(true);
     setError(null);
     try {
-      await api.updateStoryline(manifest.report_id, storyline); // build exactly what is on screen
+      if (!storyline.approved) await api.updateStoryline(manifest.report_id, storyline); // build exactly what is on screen
       const m = await api.approveStoryline(manifest.report_id);
       setManifest(m);
       setStoryline({ ...storyline, approved: true });
@@ -255,6 +257,7 @@ export function ReportBuilder() {
     } catch (err) {
       setError((err as Error).message);
       api.getReport(manifest.report_id).then(setManifest).catch(() => undefined);
+      api.getStoryline(manifest.report_id).then(setStoryline).catch(() => undefined);
     } finally {
       setBusy(false);
     }
@@ -381,6 +384,18 @@ export function ReportBuilder() {
               </select>
             </label>
           </div>
+          {outputFormat === "house_deck" && (
+            <div>
+              <span className="field-label">Deck colours</span>
+              <div className="theme-switch" role="group" aria-label="Deck colour theme" style={{ margin: 0, width: 160 }}>
+                {(["light", "dark"] as const).map((m) => (
+                  <button key={m} type="button" className={deckTheme === m ? "on" : undefined} aria-pressed={deckTheme === m} onClick={() => setDeckTheme(m)}>
+                    {m === "light" ? "Light" : "Dark"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         {outputFormat === "house_deck" && (
           <label className="field-label">
@@ -548,8 +563,17 @@ export function ReportBuilder() {
                   + Add headline
                 </button>
                 <button onClick={saveStoryline} disabled={busy}>Save</button>
-                <button onClick={approveAndBuild} disabled={busy || storyline.slides.length === 0}>{busy ? "Building..." : "Approve & build"}</button>
+                <button
+                  onClick={approveAndBuild}
+                  disabled={busy || storyline.slides.length === 0 || storyline.slides.some((s) => !s.headline.trim())}
+                  title={storyline.slides.some((s) => !s.headline.trim()) ? "Every slide needs a headline" : undefined}
+                >
+                  {busy ? "Building..." : "Approve & build"}
+                </button>
               </>
+            )}
+            {storyline.approved && manifest.status === "failed" && (
+              <button onClick={approveAndBuild} disabled={busy}>{busy ? "Building..." : "Retry build"}</button>
             )}
             {manifest.status === "completed" && (
               <>

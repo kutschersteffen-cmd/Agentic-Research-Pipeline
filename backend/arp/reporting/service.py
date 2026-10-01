@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from arp.llm.base import LLMClient
+from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.content_planner import draft_report_plan
 from arp.reporting.deck_builder import build_deck
 from arp.reporting.design import theme_from_template
@@ -64,13 +64,15 @@ class ReportingService:
 
     async def approve_storyline(self, report_id: str, llm: LLMClient) -> ReportManifest:
         """House deck: approves the stored storyline and builds the deck from it.
-        The approval is persisted before the build, so a crash mid-build can't be approved twice."""
+        The approval is persisted before the build. A build that failed before deck.json was written
+        can be approved again (the retry); once a deck exists, re-render it instead."""
         manifest = self.store.load_manifest(report_id)
         storyline = self.store.load_storyline(report_id)
         request = self.store.load_request(report_id)
         if manifest is None or storyline is None or request is None:
             raise ValueError(f"No storyline drafted for report {report_id!r}")
-        if storyline.approved:
+        retry = manifest.status == ReportStatus.FAILED and self.store.load_deck(report_id) is None
+        if storyline.approved and not retry:
             raise ValueError("Storyline already approved")
         if not storyline.slides:
             raise ValueError("Storyline has no slides")
@@ -78,13 +80,17 @@ class ReportingService:
         self.store.save_storyline(report_id, storyline)
         manifest.status = ReportStatus.RENDERING
         self.store.save_manifest(manifest)
+        usage = LLMUsage()
         try:
-            await build_house_deck(report_id, request, storyline, llm, self.store)
+            await build_house_deck(report_id, request, storyline, llm, self.store, usage)
         except Exception as exc:  # noqa: BLE001
             manifest.status = ReportStatus.FAILED
             manifest.error = str(exc)
             self.store.save_manifest(manifest)
             raise
+        finally:
+            manifest.input_tokens += usage.input_tokens
+            manifest.output_tokens += usage.output_tokens
         return self._completed(manifest, "output.pdf")  # + output.pptx once the PPTX export lands
 
     def _completed(self, manifest: ReportManifest, filename: str) -> ReportManifest:

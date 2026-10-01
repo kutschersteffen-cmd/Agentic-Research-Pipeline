@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 
-from arp.llm.base import LLMClient
+from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.browser import measure, write_pdf, write_pngs
 from arp.reporting.html_render import render_deck_html
 from arp.reporting.slide_fill import fill_slide
@@ -27,12 +27,19 @@ async def render_house_outputs(report_id: str, deck: Deck, request: ReportReques
     return findings
 
 
-async def build_house_deck(report_id: str, request: ReportRequest, storyline: Storyline, llm: LLMClient, store: ReportingStore) -> tuple[Deck, list[Finding]]:
+async def build_house_deck(
+    report_id: str, request: ReportRequest, storyline: Storyline, llm: LLMClient, store: ReportingStore, usage: LLMUsage | None = None,
+) -> tuple[Deck, list[Finding]]:
+    """`usage`, when given, is incremented in place with every LLM call's tokens (later stages add theirs too)."""
     # Slide 0 is the title slide, so storyline slide i renders (and is reported) as slide i + 1.
     filled = await asyncio.gather(*(fill_slide(s, i, request, llm) for i, s in enumerate(storyline.slides, 1)))
     title = SlideContent(headline=storyline.title, layout="title", variant="plain", slots={"title": storyline.title, "subtitle": storyline.subtitle})
     deck = Deck(title=storyline.title, subtitle=storyline.subtitle, slides=[title, *(content for content, _, _ in filled)])
     findings = [f for _, fs, _ in filled for f in fs]
+    if usage is not None:
+        for _, _, u in filled:
+            usage.input_tokens += u.input_tokens
+            usage.output_tokens += u.output_tokens
     store.save_deck(report_id, deck)
     findings += await render_house_outputs(report_id, deck, request, store)
     store.save_findings(report_id, findings)

@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from arp.api.deps import get_reporting_store
 from arp.api.routers import reporting as reporting_router
+from arp.reporting.browser import BrowserUnavailable
 from arp.reporting.service import ReportingService
 from arp.schemas.reporting import (
     LayoutInstructions,
@@ -71,6 +72,7 @@ async def test_house_deck_end_to_end_writes_pdf_png_and_findings(tmp_path, fake_
     assert [s.headline for s in deck.slides] == ["Deck", "Point 0 holds.", "Point 1 holds.", "Point 2 holds."]
     assert any(f.rule == "bad_reference" and f.slide == 3 for f in store.load_findings(rid))
     assert store.load_storyline(rid).approved
+    assert (manifest.input_tokens, manifest.output_tokens) == (50, 50)  # storyline + 3 fills + 1 retry
 
 
 def test_render_from_plan_rerenders_house_deck_without_llm(tmp_path, fake_llm):
@@ -90,11 +92,26 @@ async def test_approve_build_failure_marks_manifest_failed(tmp_path, fake_llm, m
     store = _store(tmp_path)
     service = ReportingService(store)
     manifest = await service.create_and_plan(_REQ, fake_llm({"Storyline": [_storyline(1)]}))
-    with pytest.raises(Exception):  # noqa: B017 -- BrowserUnavailable; only the persisted state matters here
+    with pytest.raises(BrowserUnavailable):
         await service.approve_storyline(manifest.report_id, fake_llm({"SlideContent": [_bullets()]}))
     after = store.load_manifest(manifest.report_id)
     assert after.status == ReportStatus.FAILED and after.error
     assert store.load_storyline(manifest.report_id).approved  # never built twice
+
+
+async def test_approve_can_retry_after_fill_failure(tmp_path, fake_llm):
+    store = _store(tmp_path)
+    service = ReportingService(store)
+    manifest = await service.create_and_plan(_REQ, fake_llm({"Storyline": [_storyline(1)]}))
+    with pytest.raises(AssertionError):  # the fake has no SlideContent scripted: the fill stage blows up
+        await service.approve_storyline(manifest.report_id, fake_llm({}))
+    assert store.load_manifest(manifest.report_id).status == ReportStatus.FAILED and store.load_deck(manifest.report_id) is None
+
+    manifest = await service.approve_storyline(manifest.report_id, fake_llm({"SlideContent": [_bullets()]}))
+
+    assert manifest.status == ReportStatus.COMPLETED
+    with pytest.raises(ValueError, match="already approved"):  # a built deck blocks re-approval
+        await service.approve_storyline(manifest.report_id, fake_llm({}))
 
 
 @pytest.fixture
@@ -103,7 +120,8 @@ def store(tmp_path) -> ReportingStore:
 
 
 @pytest.fixture
-def client(store) -> TestClient:
+def client(store, fake_llm, monkeypatch) -> TestClient:
+    monkeypatch.setattr(reporting_router, "get_llm_client", lambda: fake_llm({}))  # no API key in tests
     app = FastAPI()
     app.include_router(reporting_router.router)
     app.dependency_overrides[get_reporting_store] = lambda: store
@@ -130,6 +148,9 @@ def test_put_storyline_saves_edits_and_rejects_empty(client, store):
     got = client.get(f"/api/reports/{rid}/storyline").json()
     assert len(got["slides"]) == 2 and got["approved"] is False
     assert client.put(f"/api/reports/{rid}/storyline", json=_storyline(0).model_dump()).status_code == 422
+    blank = _storyline(2)
+    blank.slides[1].headline = "   "
+    assert client.put(f"/api/reports/{rid}/storyline", json=blank.model_dump()).status_code == 422
     assert client.get(f"/api/reports/{rid}/findings").json() == {"findings": []}
 
 
