@@ -44,9 +44,10 @@ async def test_overlong_headline_reports_overflow():
     assert (f.rule, f.slot, f.slide) == ("overflow", "headline", 0)
 
 
+@pytest.mark.parametrize("fill", ["max", "short"])
 @pytest.mark.parametrize("mode", ["light", "dark"])
-async def test_stress_deck_max_fits_in_both_modes(mode):
-    deck, ds = stress_deck("max")
+async def test_stress_deck_max_fits_in_both_modes(mode, fill):
+    deck, ds = stress_deck(fill)
     html = render_deck_html(deck, ds, mode=mode)
     assert "data:font/" in html
     assert await measure(html) == []
@@ -75,3 +76,42 @@ async def test_big_numbers_are_ink_and_labels_and_table_headers_mono(mode):
     rgb = f"rgb({int(ink[:2], 16)}, {int(ink[2:4], 16)}, {int(ink[4:], 16)})"
     assert colours == [rgb] * 3
     assert mono[0][0].startswith('"Geist Mono"') and mono[1] == [mono[0][0], "uppercase"]
+
+
+async def _computed(html: str, js: str):
+    from playwright.async_api import async_playwright
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        page = await browser.new_page(viewport={"width": 1920, "height": 1080})
+        await page.set_content(html)
+        await page.evaluate("document.fonts.ready")
+        out = await page.evaluate(js)
+        await browser.close()
+    return out
+
+
+@pytest.mark.parametrize("mode", ["light", "dark"])
+async def test_table_text_at_least_24px(mode):
+    deck, ds = stress_deck("max")
+    deck.slides = [s for s in deck.slides if (s.layout, s.variant) == ("table", "compact")]
+    html = render_deck_html(deck, ds, mode=mode)
+    sizes = await _computed(html, "[...document.querySelectorAll('.slot th, .slot td')].map(e => parseFloat(getComputedStyle(e).fontSize))")
+    assert sizes and min(sizes) >= 24
+
+
+@pytest.mark.parametrize("mode", ["light", "dark"])
+async def test_cards_with_uneven_items_keep_equal_heights(mode):
+    items = ["Three word item", "Eight words: " + "dolore " * 6, "Twelve words in this one: " + "dolore " * 7]
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three", slots={"items": items})])
+    html = render_deck_html(deck, [], mode=mode)
+    heights = await _computed(html, "[...document.querySelectorAll('[data-slot=items] li')].map(e => e.getBoundingClientRect().height)")
+    assert len(heights) == 3 and max(heights) - min(heights) <= 1
+    assert await measure(html) == []
+
+
+def test_card_items_split_title_and_body():
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three",
+                                                slots={"items": ["Grid: 64 rows: per company", "Plain title"]})])
+    html = render_deck_html(deck, [])
+    assert "<strong>Grid</strong><span>64 rows: per company</span>" in html and "<strong>Plain title</strong>" in html

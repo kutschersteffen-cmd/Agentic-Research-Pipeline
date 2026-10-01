@@ -20,7 +20,7 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
 .slot { position: absolute; overflow: hidden; overflow-wrap: normal; }
 /* Metric numbers are ink (DESIGN.md). Bottom-aligned so it sits on its label; the padding holds the glyph descent inside the box. */
 .k-number { color: var(--ink); white-space: nowrap; display: flex; align-items: flex-end; padding-bottom: 0.2em; font-variant-numeric: tabular-nums; }
-[data-slot^="label_"] { border-top: 1px solid var(--neutral); padding-top: 16px; font-family: var(--font-mono); }
+[data-slot^="label_"] { border-top: 1px solid var(--neutral); padding-top: 16px; font-family: var(--font-mono); font-weight: 500; letter-spacing: 0; }
 .slot ul { margin: 0; padding-left: 1.1em; }
 .slot li { margin-bottom: 0.5em; }
 /* Timeline: numbered hollow steps on one rule, like the app's process-card step dots. */
@@ -28,12 +28,51 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
 .slide[data-layout="timeline"] .k-list ul::before { content: ""; position: absolute; left: 0; right: 0; top: 27px; border-top: 2px solid var(--ink-muted); }
 .slide[data-layout="timeline"] .k-list li { position: relative; margin: 0; padding-top: 84px; counter-increment: step; }
 .slide[data-layout="timeline"] .k-list li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 56px; height: 56px; border: 2px solid var(--ink); border-radius: 50%; background: var(--bg); color: var(--ink); font: 500 {{ t.type.caption.size + 4 }}px/52px var(--font-mono); text-align: center; letter-spacing: 0; }
+{% set g = t.grid.gutter %}{% set body = t.type.body %}
+/* ---- v2 layouts. Whitespace is placed, not left over: anchors push the mass to where the layout means it.
+   "safe" alignment lets overflow spill at the bottom, where scrollHeight (and so browser.measure) sees it. ---- */
+.slide[data-layout="title"] [data-slot="title"], .slide[data-layout="section"] [data-slot="title"],
+.slide[data-layout="statement"][data-variant="support"] [data-slot="statement"], .slide[data-layout="quote"] [data-slot="quote"] {
+  display: flex; flex-direction: column; justify-content: safe flex-end; padding-bottom: .2em; text-wrap: balance; }
+.slide[data-layout="statement"][data-variant="plain"] [data-slot="statement"] { display: flex; flex-direction: column; justify-content: safe center; text-wrap: balance; }
+.slide[data-layout="title"] [data-slot="subtitle"], .slide[data-layout="section"] [data-slot="subtitle"] { border-top: 1px solid var(--neutral); padding-top: {{ g }}px; color: var(--ink-muted); }
+.slide[data-layout="statement"] [data-slot="support"] { padding-top: {{ g }}px; color: var(--ink-muted); text-wrap: pretty; }
+/* The section number and every other label are mono (the Mono Means Data rule); Geist Mono ships in 500 only. */
+.slide[data-layout="section"] [data-slot="number"], [data-slot="attribution"] { font-family: var(--font-mono); font-weight: 500; letter-spacing: 0; color: var(--ink-muted); }
+[data-slot="attribution"] { padding-top: {{ g }}px; }
+[data-slot="attribution"]::before { content: "— "; }
+.slide[data-layout="split"] [data-slot="statement"], [data-slot="callout"] { text-wrap: pretty; }
+.k-number.t-big_number { font-feature-settings: "tnum"; }
+/* Cards: equal hairline boxes; mono index on top, title and one line settle to the bottom. */
+.slide[data-layout="cards"] ul { list-style: none; margin: 0; padding: 0; height: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: {{ g }}px; counter-reset: card; }
+.slide[data-layout="cards"] li { margin: 0; padding: {{ g }}px; border: 1px solid var(--neutral); display: flex; flex-direction: column; counter-increment: card; min-width: 0; }
+/* Footer chrome is the only text under 24px (caption); every index and label in the body is body size or larger. */
+.slide[data-layout="summary"] li::before, .slide[data-layout="split"] .k-list li::before { font: 500 {{ body.size }}px/1 var(--font-mono); letter-spacing: 0; color: var(--ink-muted); }
+.slide[data-layout="cards"] li::before { content: counter(card, decimal-leading-zero); margin-bottom: auto; padding-bottom: {{ g }}px;
+  font: 500 {{ t.type.headline.size }}px/1 var(--font-mono); letter-spacing: 0; color: var(--ink-muted); }
+.slide[data-layout="cards"] strong, .slide[data-layout="steps"] strong { display: block; font-weight: {{ t.type.subhead.weight }}; font-family: var(--font-heading); text-wrap: balance; }
+.slide[data-layout="cards"] li span, .slide[data-layout="steps"] li span { display: block; margin-top: 12px; font: {{ body.weight }} {{ body.size }}px/{{ body.line_height }} var(--font-body); letter-spacing: 0; color: var(--ink-muted); text-wrap: pretty; }
+/* Steps: numbered nodes on one rule, like the app's process-card step dots; centred in the body. */
+.slide[data-layout="steps"] .k-list { display: flex; align-items: safe center; }
+.slide[data-layout="steps"] ul { width: 100%; }
+.slide[data-layout="steps"] .k-list ul { list-style: none; padding: 0; margin: 0; position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: {{ g }}px; counter-reset: step; }
+.slide[data-layout="steps"] .k-list ul::before { content: ""; position: absolute; left: 0; right: 0; top: 35px; border-top: 2px solid var(--ink-muted); }
+.slide[data-layout="steps"] .k-list li { position: relative; margin: 0; padding-top: 112px; counter-increment: step; text-wrap: pretty; }
+.slide[data-layout="steps"] .k-list li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 72px; height: 72px; border: 2px solid var(--ink); border-radius: 50%; background: var(--bg); color: var(--ink); font: 500 {{ body.size }}px/68px var(--font-mono); text-align: center; letter-spacing: 0; }
+/* Summary and split lists: full-width rows on hairlines that share the body height, mono index in a fixed column. */
+.slide[data-layout="summary"] ul, .slide[data-layout="split"] .k-list ul { list-style: none; margin: 0; padding: 0; height: 100%; display: grid; grid-auto-rows: 1fr; counter-reset: row; border-bottom: 1px solid var(--neutral); }
+.slide[data-layout="summary"] li, .slide[data-layout="split"] .k-list li { margin: 0; display: grid; grid-template-columns: 112px 1fr; align-items: center; border-top: 1px solid var(--neutral); counter-increment: row; text-wrap: pretty; }
+.slide[data-layout="summary"] li::before, .slide[data-layout="split"] .k-list li::before { content: counter(row, decimal-leading-zero); }
+/* Compare: two mirrored panels under an ink rule; the "Label:" before the first colon heads its panel. */
+.slide[data-layout="compare"] .slot { border-top: 2px solid var(--ink); padding-top: {{ g }}px; text-wrap: pretty; }
+.slide[data-layout="compare"] strong { display: block; margin-bottom: 16px; font: {{ t.type.headline.weight }} {{ t.type.headline.size }}px/{{ t.type.headline.line_height }} var(--font-heading); letter-spacing: {{ t.type.headline.tracking }}em; }
+.slide[data-layout="compare"] span { display: block; }
 .slot svg { width: 100%; height: 100%; display: block; }
 .slot img { width: 100%; height: 100%; object-fit: contain; }
 .slot table { width: 100%; border-collapse: collapse; }
-.slot th, .slot td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--neutral); font-variant-numeric: tabular-nums; }
+.slot th, .slot td { text-align: left; padding: 10px 24px 10px 0; border-bottom: 1px solid var(--neutral); font-variant-numeric: tabular-nums; }
 /* Small uppercase mono labels, as in the app. */
-.slot th { font: 500 {{ t.type.caption.size }}px/{{ t.type.caption.line_height }} var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-muted); border-bottom: 2px solid var(--ink); }
+.slot th { font: 500 {{ body.size }}px/{{ t.type.caption.line_height }} var(--font-mono); vertical-align: bottom; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-muted); border-bottom: 2px solid var(--ink); }
 .slot .more { margin: 8px 0 0; color: var(--ink-muted); }
 .k-chart svg text { font-family: var(--font-body) !important; }
 footer { position: absolute; left: {{ t.grid.margin_x }}px; right: {{ t.grid.margin_x }}px; top: {{ t.canvas.height - t.grid.margin_bottom - t.grid.footer_band }}px; height: {{ t.grid.footer_band }}px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--neutral); color: var(--ink-muted); font: 500 {{ t.type.caption.size }}px/{{ t.type.caption.line_height }} var(--font-mono); }

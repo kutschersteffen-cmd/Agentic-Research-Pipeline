@@ -281,9 +281,10 @@ class Finding(BaseModel):
 
     slide: int
     slot: str | None = None
-    stage: Literal["data", "lint", "fit", "qa"]
+    stage: Literal["data", "lint", "fit", "qa", "design"]
     rule: str
     message: str
+    severity: Literal["info", "warn"] = "warn"  # info = logged change (e.g. a relayout), not a problem
 
 
 class RunRef(BaseModel):

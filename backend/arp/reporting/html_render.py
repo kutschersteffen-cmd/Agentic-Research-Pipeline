@@ -20,6 +20,7 @@ from arp.reporting.house_style import _STYLE_DIR, Mode, Tokens, get_variant, loa
 from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent, TableSpec
 
 _env = Environment(loader=FileSystemLoader(_STYLE_DIR / "templates"), autoescape=True)
+_env.filters["title_body"] = lambda text: text.split(": ", 1)  # "Title: body" -> [title, body]; no colon -> [text]
 
 
 def theme_from_tokens(tokens: Tokens, mode: Mode = "light") -> DesignTheme:
@@ -67,8 +68,11 @@ def table_view(spec: TableSpec, ds: QuantitativeDataset) -> tuple[list[str], lis
 
 def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict[str, QuantitativeDataset], theme: DesignTheme) -> dict:
     r = slot_rect(tokens, spec)
-    v = {"slide": i, "name": spec.name, "kind": spec.kind, "role": spec.type_role, "x": r.x, "y": r.y, "w": r.w, "h": r.h}
     value = slide.slots.get(spec.name)
+    # Fill by design: short content steps up to the slot's larger fixed role; it never scales freely.
+    words = max((len(t.split()) for t in value), default=0) if isinstance(value, list) else len((value or "").split())
+    role = spec.type_role_short if spec.type_role_short and 0 < words <= (spec.short_words or 0) else spec.type_role
+    v = {"slide": i, "name": spec.name, "kind": spec.kind, "role": role, "x": r.x, "y": r.y, "w": r.w, "h": r.h}
     if spec.kind == "list":
         v["items"] = value if isinstance(value, list) else ([value] if value else [])
     elif spec.kind == "chart" and slide.chart:
@@ -88,7 +92,7 @@ def render_deck_html(deck: Deck, datasets: list[QuantitativeDataset], tokens: To
     by_id = {d.dataset_id: d for d in datasets}
     slides = [
         {
-            "index": i, "layout": s.layout, "headline": s.headline, "refs": " · ".join(s.source_refs),
+            "index": i, "layout": s.layout, "variant": s.variant, "headline": s.headline, "refs": " · ".join(s.source_refs),
             "slots": [_slot_view(i, s, sp, tokens, by_id, theme) for sp in get_variant(s.layout, s.variant).slots],
         }
         for i, s in enumerate(deck.slides)

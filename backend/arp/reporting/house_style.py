@@ -97,12 +97,17 @@ class SlotSpec(BaseModel):
     max_words: int | None = None  # per item for list slots
     max_items: int | None = None
     type_role: str
+    # Fill by design: at most `short_words` words (longest item, for lists) renders one step up, in `type_role_short`.
+    type_role_short: str | None = None
+    short_words: int | None = None
 
 
 class VariantSpec(BaseModel):
     id: str
     slots: list[SlotSpec]
     roomier: str | None = None
+    anchor: Literal["top", "middle", "bottom"] = "top"  # where the content's mass is meant to sit in the body area
+    visual: bool = False  # a chart, numbers or steps: counts toward the deck's visual rhythm
 
 
 class LayoutSpec(BaseModel):

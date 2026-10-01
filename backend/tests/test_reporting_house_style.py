@@ -11,7 +11,45 @@ def _overlap(a, b):
 
 def test_layouts_cover_spec_library():
     assert set(load_layouts()) == {"title", "section", "big_number", "chart_takeaway", "two_column", "table",
-                                   "bullets", "timeline", "quote", "matrix", "image", "summary"}
+                                   "bullets", "timeline", "quote", "matrix", "image", "summary",
+                                   "statement", "cards", "steps", "stat_row", "split", "chart_focus", "compare"}
+
+
+def test_v2_layouts_present():
+    assert {"statement", "cards", "steps", "stat_row", "split", "chart_focus", "compare"} <= set(load_layouts())
+
+
+def test_list_layouts_share_items_slot():
+    for lid in ("cards", "steps", "summary", "bullets", "timeline"):
+        for v in load_layouts()[lid].variants:
+            assert [s.name for s in v.slots if s.kind == "list"] == ["items"]
+
+
+def test_short_text_steps_up_type_role():
+    from arp.reporting.html_render import render_deck_html
+    from arp.schemas.reporting import Deck, SlideContent
+
+    def html(text):
+        return render_deck_html(Deck(title="T", slides=[SlideContent(headline="h", layout="statement", variant="plain",
+                                                                     slots={"statement": text})]), [])
+    assert 'data-role="big_number"' in html("Short claim.")
+    assert 'data-role="big_number"' not in html("word " * 20)
+
+
+def test_short_role_is_a_larger_type_step():
+    t = load_tokens()
+    for layout in load_layouts().values():
+        for v in layout.variants:
+            for s in v.slots:
+                if s.type_role_short:
+                    assert s.short_words and t.type[s.type_role_short].size > t.type[s.type_role].size, (layout.id, v.id, s.name)
+
+
+def test_visual_flag_on_visual_layouts():
+    ly = load_layouts()
+    assert all(v.visual for lid in ("stat_row", "steps", "chart_focus", "cards") for v in ly[lid].variants)
+    assert get_variant("split", "chart").visual and not get_variant("split", "list").visual
+    assert not any(v.visual for v in ly["statement"].variants)
 
 
 def test_type_scale_has_exactly_five_sizes():
@@ -73,3 +111,11 @@ def test_house_colours_meet_wcag_aa_in_both_modes(mode):
     assert _contrast(c.ink, c.background) >= 4.5 and _contrast(c.ink_muted, c.background) >= 4.5  # text
     assert _contrast(c.accent, c.background) >= 3  # large figures and marks only
     assert all(_contrast(x, c.background) >= 3 for x in c.categorical), c.categorical  # chart marks
+
+
+def test_title_slide_title_is_big_number_and_section_has_number():
+    t = load_tokens()
+    for v in load_layouts()["title"].variants:
+        title = next(s for s in v.slots if s.name == "title")
+        assert t.type[title.type_role].size >= t.type["big_number"].size
+    assert "number" in {s.name for s in get_variant("section", "default").slots}

@@ -1,8 +1,11 @@
 {% macro headline(slide) %}<h1 class="t-headline" data-slide="{{ slide.index }}" data-slot="headline">{{ slide.headline }}</h1>{% endmacro %}
-{% macro slot(s) %}<div class="slot t-{{ s.role }} k-{{ s.kind }}" data-slide="{{ s.slide }}" data-slot="{{ s.name }}" style="left:{{ s.x }}px;top:{{ s.y }}px;width:{{ s.w }}px;height:{{ s.h }}px">
-{%- if s.kind == "list" %}<ul>{% for item in s["items"] %}<li>{{ item }}</li>{% endfor %}</ul>
+{#- split: cards/steps items and compare panels render "Title: body" as <strong>title</strong><span>body</span> #}
+{% macro slot(s, split=False) %}<div class="slot t-{{ s.role }} k-{{ s.kind }}" data-slide="{{ s.slide }}" data-slot="{{ s.name }}" data-role="{{ s.role }}" style="left:{{ s.x }}px;top:{{ s.y }}px;width:{{ s.w }}px;height:{{ s.h }}px">
+{%- if s.kind == "list" and split %}<ul>{% for item in s["items"] %}{% set p = item|title_body %}<li><strong>{{ p[0] }}</strong>{% if p|length > 1 %}<span>{{ p[1] }}</span>{% endif %}</li>{% endfor %}</ul>
+{%- elif s.kind == "list" %}<ul>{% for item in s["items"] %}<li>{{ item }}</li>{% endfor %}</ul>
 {%- elif s.kind == "chart" %}{{ s.svg|safe }}
 {%- elif s.kind == "table" %}<table><thead><tr>{% for c in s.columns %}<th>{{ c }}</th>{% endfor %}</tr></thead><tbody>{% for row in s.rows %}<tr>{% for c in row %}<td>{{ c }}</td>{% endfor %}</tr>{% endfor %}</tbody></table>{% if s.more %}<p class="more">+{{ s.more }} more rows</p>{% endif %}
 {%- elif s.kind == "image" %}{% if s.image %}<img src="{{ s.image }}" alt="">{% endif %}
+{%- elif split and s.text|title_body|length > 1 %}{% set p = s.text|title_body %}<strong>{{ p[0] }}</strong><span>{{ p[1] }}</span>
 {%- else %}{{ s.text }}{% endif -%}
 </div>{% endmacro %}
