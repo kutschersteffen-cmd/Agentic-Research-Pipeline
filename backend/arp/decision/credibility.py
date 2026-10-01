@@ -62,8 +62,11 @@ def apply_preset(config: MechanismConfig, specs: list[IndicatorSpec], audit: lis
     answers = "[" + ", ".join(f"$.{k}_answer" for k in q) + "]"
     critical = "[" + ", ".join(level_expr(s) for s in indicators if s.critical) + "]"
     at_zero, at_low = f"len(filter({critical}, # == {lo}))", f"len(filter({critical}, # <= {lo + 1}))"
-    negative = " or ".join(f"{slug(s.id)} == true" for s in specs if s.outlook == "Negative") or "false"
-    watch = " or ".join(f"{slug(s.id)} == true" for s in specs if s.outlook == "Watch") or "false"
+    def said_yes(s: IndicatorSpec) -> str:  # boolean when the column profiles as Yes/No, text when it does not
+        return f"({slug(s.id)} == true or lower(string({slug(s.id)} ?? '')) == 'yes')"
+
+    negative = " or ".join(said_yes(s) for s in specs if s.outlook == "Negative") or "false"
+    watch = " or ".join(said_yes(s) for s in specs if s.outlook == "Watch") or "false"
     ex += [
         ("no_count", f"len(filter({answers}, # == 'No'))"),
         ("yes_count", f"len(filter({answers}, # == 'Yes'))"),
@@ -102,6 +105,8 @@ def apply_preset(config: MechanismConfig, specs: list[IndicatorSpec], audit: lis
     for view in sorted({v for s in indicators for v in s.views}):
         weighted = [(s.views[view], level_expr(s)) for s in indicators if s.views.get(view, 0) > 0]
         total = sum(w for w, _ in weighted)
+        if not total:
+            continue
         ex.append((f"view_{slug(view)}_pct", f"({' + '.join(f'{w:g} * {v}' for w, v in weighted)}) / {hi * total:g} * 100"))
     audit += [
         AuditEntry(stage="Indicator list", item="Critical indicators", decision=", ".join(s.id for s in indicators if s.critical) or "none", why="A critical at the bottom of the scale caps the grade."),

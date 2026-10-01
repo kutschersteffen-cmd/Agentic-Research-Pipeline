@@ -105,11 +105,11 @@ def test_the_deck_is_reproduced():
 def test_a_critical_column_of_only_zeros_and_ones_still_fires():
     rows = list(csv.reader((DECK / "companies.csv").open()))
     a3 = rows[0].index("A3")
-    for row, value in zip(rows[1:], ["0", "1", "1"], strict=True):
+    for row, value in zip(rows[1:], ["1", "1", "0"], strict=True):  # Enel is A on the deck's data
         row[a3] = value
     config, _ = build_framework(parse_indicator_list(load_table(DECK / "indicators.csv")), name="Credibility")
-    shell = next(e for e in apply_mechanism(build_dataset("t", rows), config).entities if e.name == "Shell")
-    assert shell.tier_name == "D Not credible"
+    enel = next(e for e in apply_mechanism(build_dataset("t", rows), config).entities if e.name == "Enel")
+    assert enel.tier_name == "D Not credible"
 
 
 def test_a_blank_score_counts_as_zero():
@@ -126,3 +126,31 @@ def test_views_are_reported_when_the_list_has_them():
         s.views = {"Disclosure": 1.0} if s.id.startswith("G") else {}
     config, _ = build_framework(specs, name="Credibility")
     assert "view_disclosure_pct" in json.dumps(config.rule_graph)
+
+
+def test_an_event_column_with_odd_text_still_fires():
+    rows = list(csv.reader((DECK / "companies.csv").open()))
+    col = rows[0].index("targets_weakened")
+    for row, value in zip(rows[1:], ["Yes", "Unknown", "No"], strict=True):
+        row[col] = value
+    config, _ = build_framework(parse_indicator_list(load_table(DECK / "indicators.csv")), name="Credibility")
+    shell = next(e for e in apply_mechanism(build_dataset("t", rows), config).entities if e.name == "Shell")
+    assert "Outlook Negative" in shell.notes[-1]
+
+
+def test_a_view_with_no_relevance_is_left_out():
+    specs = parse_indicator_list(load_table(DECK / "indicators.csv"))
+    for s in specs:
+        s.views = {"Empty": 0.0}
+    config, _ = build_framework(specs, name="Credibility")
+    assert "view_empty_pct" not in json.dumps(config.rule_graph)
+
+
+def test_an_event_id_that_cannot_be_read_is_refused():
+    with pytest.raises(ValueError, match="2nd"):
+        build_framework(parse_indicator_list([["id", "name", "group", "kind", "outlook"], ["A1", "x", "G", "", ""], ["2nd", "y", "E", "event", "Watch"]]), name="T")
+
+
+def test_an_unrecognised_critical_value_names_the_row():
+    with pytest.raises(ValueError, match="row 1: 'critical'"):
+        parse_indicator_list([["id", "name", "group", "critical"], ["A1", "x", "G", "red flag"]])

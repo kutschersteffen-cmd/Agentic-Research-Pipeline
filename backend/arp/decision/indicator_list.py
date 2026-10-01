@@ -57,7 +57,10 @@ def parse_indicator_list(matrix: list[list[str]]) -> list[IndicatorSpec]:
                 raise fail(f"'direction' must be higher or lower, got {row['direction']!r}")
             fields["direction"] = row["direction"].lower()
         if row.get("critical"):
-            fields["critical"] = to_bool(row["critical"]) == 1
+            critical = to_bool(row["critical"])
+            if critical is None:
+                raise fail(f"'critical' must be yes or no, got {row['critical']!r}")
+            fields["critical"] = critical == 1
         if row.get("question"):
             fields["question"] = row["question"]
         kind = (row.get("kind") or "indicator").lower()
@@ -92,6 +95,9 @@ def build_framework(specs: list[IndicatorSpec], *, name: str) -> tuple[Mechanism
     if not indicators:
         raise ValueError("The indicator list has no indicators, only events.")
     lo, hi = indicators[0].scale_min, indicators[0].scale_max
+    for s in specs:
+        if not re.fullmatch(r"[a-z_]\w*", slug(s.id)):
+            raise ValueError(f"Indicator id {s.id!r} must start with a letter to be read in a rule.")
     groups: dict[str, Dimension] = {}
     weighted: set[str] = set()  # groups whose first non-blank group_weight is taken
     for s in indicators:
@@ -102,9 +108,6 @@ def build_framework(specs: list[IndicatorSpec], *, name: str) -> tuple[Mechanism
             weighted.add(s.group)
     criteria = []
     for s in indicators:
-        key = slug(s.id)
-        if not re.fullmatch(r"[a-z_]\w*", key):
-            raise ValueError(f"Indicator id {s.id!r} must start with a letter to be read in a rule.")
         value = level_expr(s)
         criteria.append(
             LevelCriterion(
