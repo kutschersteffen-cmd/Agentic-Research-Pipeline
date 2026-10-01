@@ -146,3 +146,47 @@ The skill reads the runtime's `design.md`, so the two cannot drift apart.
 - New fonts or colours (DESIGN.md is locked).
 - Animations.
 - Changing the storyline step.
+
+## Amendment (2026-10-01): two densities and committee patterns
+
+This comes from the user's reference deck *Transition Plan Credibility*. The 50-slide committee deck was reviewed in session.
+
+**Density modes.** `LayoutInstructions.density: Literal["present", "committee"] = "present"` is chosen per request, like `theme`.
+
+| | present (editorial) | committee (pre-read) |
+|---|---|---|
+| Words per content slide | 30–60 | 80–150 (hard cap 180; above it, split) |
+| Headline | full-sentence takeaway, at most 2 lines | full-sentence takeaway, at most 2 lines (about 20 words) |
+| Eyebrow (small uppercase mono kicker) | optional | on every content slide |
+| Takeaway bar (tinted box with a bold label, e.g. "Engagement ask:") | no | allowed on any content slide |
+| Body type | larger role steps | body role 24px minimum (projector floor unchanged) |
+
+**Schema additions:**
+- `SlideContent.eyebrow: str = ""`
+- slot `takeaway_bar`, text of at most 30 words, as `Label: text`, on committee variants
+- a headline over 2 lines is a fit finding: `overflow` on `headline`, which measure already catches
+
+**New layouts.** Structured content is encoded as plain list items, so the LLM can write it, and parsed deterministically. A parse error becomes a `data` finding, and the slide falls back to `cards`.
+
+| Layout | Pattern (reference slide) | Item format |
+|---|---|---|
+| `flow` | numbered stage columns with boxes, arrows between stages, an optional `PREFERRED` tag (7) | `items`: `Stage title :: box 1 :: box 2 …`, with `*` before a box to mark it preferred |
+| `profile` | per-dimension bar meters + total, "What holds up" and "What breaks" panels, takeaway bar (11–13) | `meters`: `Label :: 54%`; `total` text; `left`/`right` lists with titles |
+| `scatter_zone` | scatter with a shaded target zone, a diagonal, and signed delta callouts (9) | `chart` (scatter) + `zone` `x0,x1,y0,y1` + `items`: `+11 :: explanation` |
+| `table/heat` | score cells tinted by status thresholds (8, 10, 14) | `TableSpec` + `heat: {column: [low, high]}`. Status tints only: high / mid / low from DESIGN.md |
+| `matrix2x2` | tinted quadrants with title, subtitle and text, axis labels, side panel (24) | `quadrants` list of 4 `Title :: sub :: text :: status`, `x_axis`, `y_axis`, optional `items` side panel |
+| `tree` | yes/no decision tree into outcome boxes (46–48) | `items`: `id :: question :: yes_id :: no_id` or `id :: =outcome :: status` |
+| `decisions` | numbered decision list (27) | `items`: `Decision :: one-line detail` |
+
+**Colour.** Rating and status tints use DESIGN.md's status colours: high, mid, low and neutral. The reference deck's teal, navy and gold branding is not adopted. Ink plus status tints only.
+
+**Art director.**
+- In committee mode, the art director prefers exhibit + commentary layouts (`split`, `profile`, `table/heat`, `scatter_zone`) and adds a takeaway bar when the slide-fill output supplies one.
+- In present mode it behaves as before.
+- Rhythm rules apply in both modes.
+
+**Design check.**
+- `sparse` uses 55% in present mode and 70% in committee mode.
+- A new rule, `dense`, fails when a slide's word count exceeds the mode's cap (60 in present, 180 in committee). The fix order on `dense` is: split, then move the slide to the appendix (`appendix=True`).
+
+Out of scope still: images and new fonts.
