@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 
+from arp.decision.credibility import apply_preset, level_expr
 from arp.decision.parsing import is_blank, to_bool, to_number
 from arp.decision.roles import slug
 from arp.schemas.decision import AuditEntry, Dimension, IndicatorSpec, LevelCriterion, LevelRule, MechanismConfig
@@ -104,8 +105,7 @@ def build_framework(specs: list[IndicatorSpec], *, name: str) -> tuple[Mechanism
         key = slug(s.id)
         if not re.fullmatch(r"[a-z_]\w*", key):
             raise ValueError(f"Indicator id {s.id!r} must start with a letter to be read in a rule.")
-        score = f"number({key} ?? 0)"  # blank = bottom of the scale (deck: 0 = absent)
-        value = f"{hi} - {score}" if s.direction == "lower" else score
+        value = level_expr(s)
         criteria.append(
             LevelCriterion(
                 id=s.id,
@@ -142,6 +142,8 @@ def build_framework(specs: list[IndicatorSpec], *, name: str) -> tuple[Mechanism
         entry("Cut-points", ", ".join(f"{c:g}" for c in config.pinned_cuts), "Evenly spaced on the scale until the tiers are named."),
     ]
     questions = sorted({s.question for s in indicators if s.question})
-    if questions and len(questions) != 5:
+    if len(questions) == 5:
+        config = apply_preset(config, specs, audit)
+    elif questions:
         audit.append(entry("Credibility preset", "skipped", f"The list names {len(questions)} questions; the preset needs exactly five questions."))
     return config, audit

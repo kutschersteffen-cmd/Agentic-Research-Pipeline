@@ -3,6 +3,8 @@ exists (docs/superpowers/specs/2026-10-01-credibility-from-indicator-list.md).""
 
 from __future__ import annotations
 
+import csv
+import json
 from pathlib import Path
 
 import pytest
@@ -79,3 +81,48 @@ def test_lower_is_better_flips_the_level():
 def test_a_list_without_five_questions_skips_the_preset_and_says_why():
     _, audit = build_framework(parse_indicator_list([["id", "name", "group", "question"], ["A1", "x", "G", "Q1"]]), name="T")
     assert any(a.item == "Credibility preset" and a.decision == "skipped" and "five questions" in a.why for a in audit)
+
+
+def test_a_blank_lower_is_better_score_is_the_bottom_of_the_scale():
+    config, _ = build_framework(parse_indicator_list([["id", "name", "group", "direction"], ["X", "x", "G", "lower"]]), name="T")
+    data = build_dataset("t", [["Company", "X"], ["a", ""], ["b", "1"]])
+    assert [c.normalised for e in apply_mechanism(data, config).entities for c in e.contributions] == [0, 2]
+
+
+def _deck_result():
+    config, _ = build_framework(parse_indicator_list(load_table(DECK / "indicators.csv")), name="Credibility")
+    return {e.name: e for e in apply_mechanism(dataset_from_file(DECK / "companies.csv"), config).entities}
+
+
+def test_the_deck_is_reproduced():
+    r = _deck_result()
+    assert [r[c].tier_name for c in ("Shell", "RWE", "Enel")] == ["D Not credible", "B Credible, gaps", "A Credible"]
+    assert r["Shell"].notes[-1] == "Not credible (4 No, 0 Yes) · Outlook Negative · Escalate: voting sanctions, support climate resolutions"
+    assert r["RWE"].notes[-1] == "Partly credible (0 No, 0 Yes) · Outlook Watch · Engage on flagged issue"
+    assert r["Enel"].notes[-1] == "Partly credible (0 No, 1 Yes) · Outlook Watch · Maintain + targeted ask"
+
+
+def test_a_critical_column_of_only_zeros_and_ones_still_fires():
+    rows = list(csv.reader((DECK / "companies.csv").open()))
+    a3 = rows[0].index("A3")
+    for row, value in zip(rows[1:], ["0", "1", "1"], strict=True):
+        row[a3] = value
+    config, _ = build_framework(parse_indicator_list(load_table(DECK / "indicators.csv")), name="Credibility")
+    shell = next(e for e in apply_mechanism(build_dataset("t", rows), config).entities if e.name == "Shell")
+    assert shell.tier_name == "D Not credible"
+
+
+def test_a_blank_score_counts_as_zero():
+    rows = list(csv.reader((DECK / "companies.csv").open()))
+    rows[3][rows[0].index("A3")] = ""  # Enel's medium-term target
+    config, _ = build_framework(parse_indicator_list(load_table(DECK / "indicators.csv")), name="Credibility")
+    enel = next(e for e in apply_mechanism(build_dataset("t", rows), config).entities if e.name == "Enel")
+    assert enel.tier_name == "D Not credible" and enel.notes[-1].startswith("Not credible (1 No")
+
+
+def test_views_are_reported_when_the_list_has_them():
+    specs = parse_indicator_list(load_table(DECK / "indicators.csv"))
+    for s in specs:
+        s.views = {"Disclosure": 1.0} if s.id.startswith("G") else {}
+    config, _ = build_framework(specs, name="Credibility")
+    assert "view_disclosure_pct" in json.dumps(config.rule_graph)
