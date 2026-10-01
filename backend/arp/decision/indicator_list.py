@@ -8,7 +8,8 @@ from __future__ import annotations
 import re
 
 from arp.decision.parsing import is_blank, to_bool, to_number
-from arp.schemas.decision import IndicatorSpec
+from arp.decision.roles import slug
+from arp.schemas.decision import AuditEntry, Dimension, IndicatorSpec, LevelCriterion, LevelRule, MechanismConfig
 
 _SCALE = re.compile(r"^\s*(-?\d+)\s*[-–]\s*(-?\d+)\s*$")
 
@@ -80,3 +81,67 @@ def parse_indicator_list(matrix: list[list[str]]) -> list[IndicatorSpec]:
     if len(scales) > 1:
         raise ValueError(f"All indicators must share one scale; found {', '.join(f'{a}-{b}' for a, b in sorted(scales))}.")
     return specs
+
+
+def build_framework(specs: list[IndicatorSpec], *, name: str) -> tuple[MechanismConfig, list[AuditEntry]]:
+    """A levels-mode draft: the score is the level (flipped for lower is
+    better), one cluster per group. Tiers stay `Tier 1`..`Tier 4` on evenly
+    spaced cut-points until the analyst names them."""
+    indicators = [s for s in specs if s.kind == "indicator"]
+    if not indicators:
+        raise ValueError("The indicator list has no indicators, only events.")
+    lo, hi = indicators[0].scale_min, indicators[0].scale_max
+    groups: dict[str, Dimension] = {}
+    weighted: set[str] = set()  # groups whose first non-blank group_weight is taken
+    for s in indicators:
+        if s.group not in groups:
+            groups[s.group] = Dimension(id=f"g{len(groups) + 1}", name=s.group)
+        if s.group_weight is not None and s.group not in weighted:
+            groups[s.group].weight = s.group_weight
+            weighted.add(s.group)
+    criteria = []
+    for s in indicators:
+        key = slug(s.id)
+        if not re.fullmatch(r"[a-z_]\w*", key):
+            raise ValueError(f"Indicator id {s.id!r} must start with a letter to be read in a rule.")
+        score = f"number({key} ?? 0)"  # blank = bottom of the scale (deck: 0 = absent)
+        value = f"{hi} - {score}" if s.direction == "lower" else score
+        criteria.append(
+            LevelCriterion(
+                id=s.id,
+                name=s.name,
+                dimension_id=groups[s.group].id,
+                weight=s.weight,
+                rules=[LevelRule(level=k, when=f"{value} >= {k}") for k in range(hi, lo, -1)],
+                otherwise=lo,
+                otherwise_on_blank=True,
+                hint=s.question or "",
+            )
+        )
+    config = MechanismConfig(
+        name=name,
+        mode="levels",
+        level_min=lo,
+        level_max=hi,
+        level_criteria=criteria,
+        dimensions=list(groups.values()),
+        label_column="Company",
+        source_columns=[s.id for s in specs],
+        min_coverage_pct=0,
+        cut_mode="absolute",
+        pinned_cuts=[lo + (hi - lo) * k / 4 for k in (3, 2, 1)],
+    )
+
+    def entry(item: str, decision: str, why: str) -> AuditEntry:
+        return AuditEntry(stage="Indicator list", item=item, decision=decision, why=why, origin="derived")
+
+    audit = [
+        entry("Scale", f"{lo}-{hi}", "Every indicator's score is its level; lower-is-better indicators are flipped."),
+        entry("Blank scores", f"count as {lo}", "A missing score is the bottom of the scale (0 = absent)."),
+        entry("Clusters", ", ".join(f"{d.name} ×{d.weight:g}" for d in config.dimensions), "One cluster per group; group_weight sets its weight, else 1."),
+        entry("Cut-points", ", ".join(f"{c:g}" for c in config.pinned_cuts), "Evenly spaced on the scale until the tiers are named."),
+    ]
+    questions = sorted({s.question for s in indicators if s.question})
+    if questions and len(questions) != 5:
+        audit.append(entry("Credibility preset", "skipped", f"The list names {len(questions)} questions; the preset needs exactly five questions."))
+    return config, audit
