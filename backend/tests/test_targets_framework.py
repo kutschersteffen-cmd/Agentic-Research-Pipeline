@@ -14,7 +14,7 @@ TARGETS = Path(__file__).resolve().parents[2] / "docs/decision-studio/example-fr
 
 
 def _result():
-    config, _ = import_template(json.loads((TARGETS / "framework.json").read_text()))
+    config, _ = import_template(json.loads((TARGETS / "framework.json").read_text(encoding="utf-8")))
     return config, apply_mechanism(dataset_from_file(TARGETS / "companies.csv"), config)
 
 
@@ -46,7 +46,7 @@ def test_the_note_names_each_answer_and_its_source():
 
 def test_the_framework_names_every_source_column():
     config, _ = _result()
-    header = (TARGETS / "companies.csv").read_text().splitlines()[0].split(",")
+    header = (TARGETS / "companies.csv").read_text(encoding="utf-8").splitlines()[0].split(",")
     assert sorted(config.source_columns) == sorted(header)
 
 

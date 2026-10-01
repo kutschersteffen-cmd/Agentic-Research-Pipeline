@@ -28,9 +28,14 @@ def _get_model():
 
 def embed_texts(texts: list[str]) -> np.ndarray:
     """Returns an (n, EMBED_DIM) float32 matrix, one row per text, in
-    input order. Lazily imports and loads fastembed's ONNX model on
-    first call -- this function is only reached when hybrid retrieval is
-    enabled, so the model download/load never happens on a default run.
+    input order. Lazily imports and loads fastembed's ONNX model on first
+    call, so nothing is downloaded by merely importing this module.
+
+    Note that a default run *does* reach here: `hybrid_retrieval_enabled`
+    defaults to True (see arp/config.py), so the first extraction or
+    theme-matching run on a fresh machine pays a one-off model download
+    (~120MB for EMBED_MODEL_NAME) before its first batch of chunks. Set
+    `ARP_HYBRID_RETRIEVAL_ENABLED=false` for a fully offline first run.
     """
     if not texts:
         return np.zeros((0, EMBED_DIM), dtype=np.float32)

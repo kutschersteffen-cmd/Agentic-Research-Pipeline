@@ -69,7 +69,7 @@ Windows / corporate proxy / VS Code + conda: see
 ```bash
 # Backend
 cd backend
-python3 -m venv .venv && source .venv/bin/activate   # Python 3.11+
+python3 -m venv .venv && source .venv/bin/activate   # Python 3.11
 pip install -e ".[dev]"
 cp .env.example .env            # fill in ARP_ANTHROPIC_API_KEY
 pytest -q                       # no API key or network required
@@ -80,6 +80,31 @@ cd frontend && npm install
 cp .env.example .env            # VITE_API_BASE
 npm run dev                                   # UI on :5173
 ```
+
+`[dev]` is enough to run the app, but **not** enough for a green test suite —
+the reporting tests render through headless Chromium and a few storage tests
+need the optional backends. For the full suite, as CI installs it:
+
+```bash
+pip install -e ".[dev,postgres,opensearch,object_storage,emerging_themes]"
+python -m playwright install chromium
+```
+
+Budget **~1.8 GB** and around ten minutes: `docling` pulls in torch,
+torchvision, transformers, onnxruntime and opencv (217 packages for `[dev]`
+alone). Nothing is downloaded at import time — `docling` and `fastembed` are
+both imported lazily — but they are hard dependencies, so the install pays for
+them regardless.
+
+No conda needed. `environment.yml` and `scripts/windows/setup.ps1` use it to
+supply Python 3.11 and Node 22, but any 3.11 interpreter works; `uv venv
+--python 3.11` fetches one in seconds if the system Python is a different
+version. Python 3.11 is what CI and `environment.yml` pin and the only version
+verified here.
+
+On a first extraction or theme-matching run, hybrid retrieval downloads a
+~120 MB embedding model (it is on by default); `ARP_HYBRID_RETRIEVAL_ENABLED=false`
+keeps a first run fully offline.
 
 Docker is an alternative to both:
 

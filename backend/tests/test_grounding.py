@@ -125,3 +125,48 @@ def test_grounded_citation_from_non_local_document_has_no_filename():
     assert result.company_id == "c1"
     assert result.source_filename is None
     assert result.page is None
+
+
+def test_one_document_is_normalized_once_however_many_citations_check_it():
+    """The grounding hot path: `_normalize_with_offsets` walks the whole
+    source text character by character, and `_find_match` calls it once per
+    citation. Without the cache an extraction grounding twenty citations
+    against one filing normalized that filing twenty times -- measured at
+    531ms per pass on a 2.1MB 10-K, so ~10s of identical work per company.
+
+    Asserted via cache_info rather than by timing, so it cannot flake on a
+    slow or loaded machine."""
+    from arp.grounding import _find_match, _normalize_with_offsets
+
+    source = "The Company invested EUR 120 million in renewable capacity during fiscal 2024. " * 200
+    quotes = [
+        "invested EUR 120 million in renewable capacity",
+        "renewable capacity during fiscal 2024",
+        "The Company invested EUR 120 million",
+    ]
+    _normalize_with_offsets.cache_clear()
+
+    verdicts = [_find_match(q, source, 0.92)[0] for q in quotes]
+
+    assert all(verdicts), "these quotes are all verbatim substrings"
+    info = _normalize_with_offsets.cache_info()
+    assert info.misses == 1, "the document should be normalized exactly once"
+    assert info.hits == len(quotes) - 1
+
+
+def test_the_cache_does_not_change_a_verdict_or_its_offset():
+    """A cached normalization must be indistinguishable from a fresh one --
+    same grounding verdict and the same resolved offset into the original
+    text, since page/sheet resolution is derived from that offset."""
+    from arp.grounding import _find_match, _normalize_with_offsets
+
+    source = "Intro paragraph.\n\n  Green  capex  reached EUR 1.2bn  in 2024.\n\nOutro."
+    quote = "Green capex reached EUR 1.2bn in 2024."
+
+    _normalize_with_offsets.cache_clear()
+    first = _find_match(quote, source, 0.92)
+    second = _find_match(quote, source, 0.92)  # served from cache
+
+    assert first == second
+    assert first[0] is True
+    assert source[first[1] :].startswith("Green")

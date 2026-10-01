@@ -30,8 +30,13 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    # Bound to the loopback interface, not every interface. A bare "8000:8000"
+    # publishes on 0.0.0.0, and there is no authentication in front of this API
+    # yet (see docs/CORPORATE_READINESS_PLAN.md), so anyone who could route to
+    # the host could start runs that spend API credit, launch crawls and read
+    # every ingested document. Widen this only together with auth.
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     env_file:
       - backend/.env
     volumes:
@@ -51,19 +56,27 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE: http://localhost:8000
+    # Loopback too, for the same reason: the UI drives that unauthenticated API.
     ports:
-      - "5173:80"
+      - "127.0.0.1:5173:80"
     depends_on:
       - backend
 
   postgres:
     image: pgvector/pgvector:pg16
+    # Loopback-only, like the app containers above. These dev services ship
+    # with fixed throwaway credentials (arp/arp here, arp/arp12345 for minio)
+    # and OpenSearch runs with its security plugin off, so publishing them on
+    # 0.0.0.0 hands anyone on the network an open database, search cluster and
+    # object store. Reach them from the host as 127.0.0.1 exactly as before;
+    # container-to-container traffic goes over the compose network and is
+    # unaffected by this.
     environment:
       POSTGRES_USER: arp
       POSTGRES_PASSWORD: arp
       POSTGRES_DB: arp
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - arp_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -81,7 +94,7 @@ services:
       - DISABLE_SECURITY_PLUGIN=true
       - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
     ports:
-      - "9200:9200"
+      - "127.0.0.1:9200:9200"
     volumes:
       - arp_opensearch_data:/usr/share/opensearch/data
     healthcheck:
@@ -97,7 +110,7 @@ services:
       - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
       - 'OPENSEARCH_HOSTS=["http://opensearch:9200"]'
     ports:
-      - "5601:5601"
+      - "127.0.0.1:5601:5601"
     depends_on:
       opensearch:
         condition: service_healthy
@@ -109,8 +122,8 @@ services:
       MINIO_ROOT_USER: arp
       MINIO_ROOT_PASSWORD: arp12345
     ports:
-      - "9000:9000"   # S3 API
-      - "9001:9001"   # Web console
+      - "127.0.0.1:9000:9000"   # S3 API
+      - "127.0.0.1:9001:9001"   # Web console
     volumes:
       - arp_minio_data:/data
     healthcheck:
