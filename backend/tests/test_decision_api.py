@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from arp.config import Settings
 from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
 
+DECK = Path(__file__).resolve().parents[2] / "docs/decision-studio/example-framework/credibility"
 SAMPLE = Path(__file__).resolve().parents[1] / "arp" / "decision" / "sample_data" / "example_transition_universe.csv"
 
 
@@ -321,3 +323,43 @@ def test_score_applies_an_inline_rule_graph_and_refuses_code(client):
     config["rule_graph"]["nodes"][1]["type"] = "functionNode"
     refused = client.post("/api/decision/score", json={"dataset_id": dataset_id, "config": config})
     assert refused.status_code == 422
+
+
+def upload(client, path: Path) -> str:
+    response = client.post("/api/decision/datasets", files={"file": (path.name, path.read_bytes(), "text/csv")})
+    assert response.status_code == 200, response.text
+    return response.json()["dataset_id"]
+
+
+def from_indicators(client) -> str:
+    files = {"file": ("indicators.csv", (DECK / "indicators.csv").read_bytes(), "text/csv")}
+    response = client.post("/api/decision/mechanisms/from-indicators", files=files, data={"name": "Credibility"})
+    assert response.status_code == 200, response.text
+    return response.json()["config"]["framework_id"]
+
+
+def test_an_indicator_list_becomes_a_saved_draft(client):
+    files = {"file": ("indicators.csv", (DECK / "indicators.csv").read_bytes(), "text/csv")}
+    env = client.post("/api/decision/mechanisms/from-indicators", files=files, data={"name": "Credibility"}).json()
+    assert env["config"]["version"] == 1 and not env["config"]["ratified"] and env["config"]["mode"] == "levels"
+    companies = upload(client, DECK / "companies.csv")
+    result = client.post("/api/decision/score", json={"dataset_id": companies, "framework_id": env["config"]["framework_id"]}).json()
+    assert [e["tier_name"] for e in result["entities"]] == ["D Not credible", "B Credible, gaps", "A Credible"]
+
+
+def test_a_bad_indicator_list_is_refused_and_nothing_saved(client):
+    before = len(client.get("/api/decision/mechanisms").json())
+    r = client.post("/api/decision/mechanisms/from-indicators", files={"file": ("x.csv", b"id,name\nA1,x\n", "text/csv")}, data={"name": "x"})
+    assert r.status_code == 400 and "group" in r.json()["detail"]
+    assert len(client.get("/api/decision/mechanisms").json()) == before
+
+
+def test_a_company_table_missing_an_indicator_is_flagged(client, tmp_path):
+    framework_id = from_indicators(client)
+    rows = list(csv.reader((DECK / "companies.csv").open()))
+    c1 = rows[0].index("C1")
+    path = tmp_path / "gap.csv"
+    with path.open("w", newline="") as fh:
+        csv.writer(fh).writerows([r[:c1] + r[c1 + 1 :] for r in rows])
+    result = client.post("/api/decision/score", json={"dataset_id": upload(client, path), "framework_id": framework_id}).json()
+    assert "C1" in result["missing_columns"]

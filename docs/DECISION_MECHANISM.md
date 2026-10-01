@@ -342,6 +342,19 @@ run. Each file holds the overrides in force and the history of every change,
 removals included, with who and why. The relative mode has no levels to set;
 an override given to it is not applied, and the audit log says so.
 
+### 3l. Frameworks from an indicator list (`indicator_list.py`, `credibility.py`)
+
+A framework can start from a list of indicators, one row per indicator, before any company
+data exists. `parse_indicator_list` reads the list (id, name, group, and optionally weight,
+scale, direction, critical, question, views and outlook events). `build_framework` turns it
+into a levels-mode draft: one criterion per indicator, one cluster per group, and blank
+scores counted as the bottom of the scale. When the list names exactly five questions, the
+credibility preset (`credibility.apply_preset`) adds a rule graph and a tier graph. These
+reproduce the Stewardship Committee deck's grading: five-question verdict, class tree,
+red-flag cap, outlook and action. On the deck's example files the grades come out as Shell D,
+RWE B and Enel A. Entry point: `POST /api/decision/mechanisms/from-indicators`. List format and
+rules: [decision-studio/indicator-list.md](decision-studio/indicator-list.md).
+
 ---
 
 ## 4. Sensitivity: how much do the weights matter (`sensitivity.py`)
@@ -559,6 +572,8 @@ backend/arp/decision/
   rules.py         rule graph (GoRules JDM) -> calculated columns, via ZEN
   levels.py        levels mode: level grids, fixed-scale cluster and total scores
   templates.py     template fit, export/import, attachment to runs
+  indicator_list.py  indicator list -> levels-mode draft framework
+  credibility.py   the credibility preset: five questions, class, cap, outlook, action
   sample_data/example_transition_universe.csv
 backend/arp/schemas/decision.py      every type named in this document
 backend/arp/storage/decision_store.py  versioned frameworks + datasets

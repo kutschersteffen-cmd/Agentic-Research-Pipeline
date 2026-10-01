@@ -262,6 +262,15 @@ export function DecisionStudio() {
     }
   }
 
+  async function onImportIndicatorList(file: File) {
+    const name = file.name.replace(/\.[^.]+$/, "");
+    const envelope = await guard("Building the framework…", () => api.importIndicatorList(file, name, reviewer.trim() || undefined));
+    if (envelope) {
+      setStatus(`Built ${envelope.config.name} from ${envelope.config.level_criteria?.length ?? 0} indicators as a draft.`);
+      refreshTemplates();
+    }
+  }
+
   async function onDerive() {
     if (!dataset) return;
     const name = `Framework for ${dataset.name}`;
@@ -613,6 +622,22 @@ export function DecisionStudio() {
               }}
             />
           </label>
+          <label className="field-label">
+            Build a framework from an indicator list
+            <input
+              type="file"
+              accept=".csv,.tsv,.txt,.xlsx,.xls"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onImportIndicatorList(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <p className="help-text">
+            One row per indicator: <code>id</code>, <code>name</code>, <code>group</code>, and optionally weights, direction, critical flags and
+            questions. No company data needed; five questions add the credibility grade. Format: <code>docs/decision-studio/indicator-list.md</code>.
+          </p>
           {templates.length > 0 && (
             <table className="data-table">
               <thead>
@@ -784,14 +809,19 @@ export function DecisionStudio() {
             </div>
           </div>
 
-          <div className="card">
-            <h2>Score distribution and where the tiers cut</h2>
-            <ScoreDistribution bins={result.histogram} cuts={result.effective_cuts} tiers={config.tiers} />
-            <p className="help-text">
-              Cut-points ({result.cuts_origin}) drawn over the {result.scored_count} entities still eligible after gates
-              and sufficiency.
-            </p>
-          </div>
+          {config.tier_graph && result.effective_cuts.length > 1 && new Set(result.effective_cuts).size === 1 ? (
+            // Every score lands in one band and the tier rules grade it (e.g. the credibility preset).
+            <p className="help-text">Tiers here come from the tier rules, not from score cut-points; see each entity's note.</p>
+          ) : (
+            <div className="card">
+              <h2>Score distribution and where the tiers cut</h2>
+              <ScoreDistribution bins={result.histogram} cuts={result.effective_cuts} tiers={config.tiers} />
+              <p className="help-text">
+                Cut-points ({result.cuts_origin}) drawn over the {result.scored_count} entities still eligible after gates
+                and sufficiency.
+              </p>
+            </div>
+          )}
 
           <div className="card">
             <div className="toolbar">

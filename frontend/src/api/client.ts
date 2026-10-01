@@ -772,6 +772,13 @@ export const api = {
     `${API_BASE}/api/decision/mechanisms/${frameworkId}/export${buildQuery({ version: version ? String(version) : undefined })}`,
   importMechanism: (template: unknown, by?: string) =>
     request<MechanismEnvelope>("/api/decision/mechanisms/import", { method: "POST", body: JSON.stringify({ template, by }) }),
+  importIndicatorList: (file: File, name: string, by?: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("name", name);
+    if (by) form.append("by", by);
+    return request<MechanismEnvelope>("/api/decision/mechanisms/from-indicators", { method: "POST", body: form });
+  },
   matchTemplates: (body: { run_type?: RunScoringKind; field_names?: string[]; columns?: string[] }) =>
     request<TemplateMatch[]>("/api/decision/templates/match", { method: "POST", body: JSON.stringify(body) }),
   attachRunFramework: (runId: string, frameworkId: string, version?: number) =>
