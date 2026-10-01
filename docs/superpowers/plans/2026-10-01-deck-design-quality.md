@@ -284,3 +284,55 @@ async def test_tpa_pitch_acceptance(tmp_path, fake_llm):
 - [ ] **Step 3: Write `design.md` and the skill** in plain human wording, applying the humanizer rules. Wire both prompts.
 - [ ] **Step 4: Run** `python -m pytest -q` and compare against the baseline of 8 missing-dependency failures. Also run `ruff check .`, then the frontend build. Then rebuild the TPA pitch in both modes to scratch `design-v2/final-{light,dark}.pdf` and look at the PNGs.
 - [ ] **Step 5: Commit** with message `feat(reporting): shared design rules, deck-design skill, TPA acceptance`. The controller sends the final PDFs to the user for the spec's acceptance sign-off.
+
+---
+
+## Plan revision after the spec amendment (2026-10-01)
+
+The approved spec amendment adds two density modes and 7 committee layouts. The user's gate verdict on the first v2 round was "revise". Changes per task:
+
+**Task 1 gets revision round R1** (same files; it also creates `tests/fixtures/tpa_pitch_committee.py`).
+- Fix the gate findings:
+  - Cards: a bold short title with the body directly under the number, so the card has no empty middle. A colon-less item renders as body-size text, not a 36px title.
+  - `compare` panels: content anchored to the top, a larger type step for short prose, and panels that size to their content.
+- Add the schema fields:
+  - `LayoutInstructions.density` (`"present"` | `"committee"`, default `"present"`)
+  - `SlideContent.eyebrow`
+  - the `takeaway_bar` slot
+- Render density with a `data-density` attribute on `<body>` so CSS can switch type steps. Committee mode uses the body role and is never below 24px.
+- Add the HTML layouts `flow`, `profile`, `scatter_zone`, `table/heat`, `matrix2x2`, `tree` and `decisions`, with the item formats given in the amendment. Put their parsers in `arp/reporting/structured.py`:
+  - `parse_flow(items) -> list[Stage]`
+  - `parse_meters`
+  - `parse_quadrants`
+  - `parse_tree(items) -> TreeNode`
+  - `parse_deltas`
+
+  Each parser raises `ValueError` with a readable message.
+- Draw the decision tree as an SVG: nodes laid out left to right by depth, with orthogonal connectors labelled Yes and No. Support at most 4 levels; deeper trees raise `ValueError`.
+- Tests:
+  - one parser test per format, valid and invalid
+  - a stress-deck slide per new variant, with zero fit findings in both modes and both densities
+  - the eyebrow renders above the headline
+  - the takeaway bar renders as a tinted box with a bold label
+  - status tints use only the DESIGN.md status tokens
+- Fixture: `tpa_pitch_committee()` holds the same 10 headlines with committee-density fills, about 80–150 words per slide, eyebrows and takeaway bars. It uses `profile` (one illustrative profile built from the indicator **structure** only: walk 34, talk 30 and the category counts, never invented company scores), `flow` (assessment pipeline: retrieve → answer → verify → ground → review), `table/heat`, `matrix2x2` (walk/talk × barrier headroom, following METHODOLOGY's ambition-vs-headroom framing) and `decisions`.
+- Render to scratch `design-v2/r1/tpa-present-{light,dark}.pdf` and `tpa-committee-{light,dark}.pdf`. **STOP: user gate again.**
+
+**Task 2** (PPTX) also covers the 7 new layouts, `eyebrow` and `takeaway_bar`:
+- flow arrows as connector lines
+- the tree as native shapes and connectors
+- meters as two rectangles each
+- heat cells as filled table cells
+
+**Task 3** (art director) is density-aware:
+- In committee mode it prefers `split`, `profile`, `table/heat` and `scatter_zone` for exhibit-plus-text content.
+- It maps ordered lists of 4–6 stages that have sub-boxes to `flow`.
+- Decision-like lists (imperatives) at the end of the deck go to `decisions`.
+- Tests for each.
+
+**Task 4** (design check) adds:
+- density-dependent `sparse` thresholds: 0.55 in present mode, 0.70 in committee mode
+- the `dense` rule: words per slide over 60 in present mode or 180 in committee mode. Its fix order is a split via `fit`, then `appendix=True` with an info finding.
+- the headline 2-line cap, enforced through the existing `overflow` on `headline`. The headline box height becomes 2 lines.
+
+**Task 5:** `design.md` documents both densities and the 7 new layouts. The acceptance test covers both TPA fixtures.
