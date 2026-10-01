@@ -193,9 +193,10 @@
        "rows": 12,
        "max_words": 14,
        "max_items": 3,
-       "type_role": "subhead",
-       "type_role_short": "headline",
-       "short_words": 4
+       "type_role": "body",
+       "committee_words": 24,
+       "type_role_short": "subhead",
+       "short_words": 8
       }
      ],
      "visual": true
@@ -212,9 +213,10 @@
        "rows": 12,
        "max_words": 10,
        "max_items": 4,
-       "type_role": "subhead",
-       "type_role_short": "headline",
-       "short_words": 3
+       "type_role": "body",
+       "committee_words": 18,
+       "type_role_short": "subhead",
+       "short_words": 6
       }
      ],
      "visual": true
@@ -577,6 +579,7 @@
        "max_words": 30,
        "max_items": null,
        "type_role": "subhead",
+       "committee_words": 60,
        "type_role_short": "headline",
        "short_words": 8
       },
@@ -607,6 +610,7 @@
        "max_words": 30,
        "max_items": null,
        "type_role": "subhead",
+       "committee_words": 60,
        "type_role_short": "headline",
        "short_words": 8
       },
@@ -636,6 +640,7 @@
        "max_words": 30,
        "max_items": null,
        "type_role": "subhead",
+       "committee_words": 60,
        "type_role_short": "headline",
        "short_words": 8
       },
@@ -649,6 +654,7 @@
        "max_words": 16,
        "max_items": 4,
        "type_role": "body",
+       "committee_words": 24,
        "type_role_short": "subhead",
        "short_words": 8
       }
@@ -709,6 +715,7 @@
        "max_words": 40,
        "max_items": null,
        "type_role": "subhead",
+       "committee_words": 80,
        "type_role_short": "headline",
        "short_words": 12
       },
@@ -722,8 +729,278 @@
        "max_words": 40,
        "max_items": null,
        "type_role": "subhead",
+       "committee_words": 80,
        "type_role_short": "headline",
        "short_words": 12
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "flow",
+   "purpose": "Numbered stages left to right, each with 1-3 boxes. items: 'Stage title :: box :: *preferred box'.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 10,
+       "max_words": 17,
+       "max_items": 5,
+       "type_role": "body"
+      },
+      {
+       "name": "takeaway_bar",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 10,
+       "rows": 2,
+       "max_words": 30,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "visual": true
+    }
+   ]
+  },
+  {
+   "id": "profile",
+   "purpose": "One entity's profile: meters 'Label :: 54%', a total, and two panels (left/right: first item is the panel title).",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "meters",
+       "kind": "list",
+       "col": 0,
+       "span": 4,
+       "row": 0,
+       "rows": 8,
+       "max_words": 6,
+       "max_items": 6,
+       "type_role": "body"
+      },
+      {
+       "name": "total",
+       "kind": "number",
+       "col": 0,
+       "span": 4,
+       "row": 8,
+       "rows": 2,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "headline"
+      },
+      {
+       "name": "left",
+       "kind": "list",
+       "col": 4,
+       "span": 4,
+       "row": 0,
+       "rows": 10,
+       "max_words": 12,
+       "max_items": 4,
+       "type_role": "body"
+      },
+      {
+       "name": "right",
+       "kind": "list",
+       "col": 8,
+       "span": 4,
+       "row": 0,
+       "rows": 10,
+       "max_words": 12,
+       "max_items": 4,
+       "type_role": "body"
+      },
+      {
+       "name": "takeaway_bar",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 10,
+       "rows": 2,
+       "max_words": 30,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "visual": true
+    }
+   ]
+  },
+  {
+   "id": "scatter_zone",
+   "purpose": "A scatter (chart.zone, chart.diagonal) with signed callouts. items: '+11 :: explanation'.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "chart",
+       "kind": "chart",
+       "col": 0,
+       "span": 7,
+       "row": 0,
+       "rows": 10,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "caption"
+      },
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 7,
+       "span": 5,
+       "row": 0,
+       "rows": 10,
+       "max_words": 16,
+       "max_items": 3,
+       "type_role": "body"
+      },
+      {
+       "name": "takeaway_bar",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 10,
+       "rows": 2,
+       "max_words": 30,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "visual": true
+    }
+   ]
+  },
+  {
+   "id": "matrix2x2",
+   "purpose": "Four tinted quadrants with axis titles and a side panel. quadrants: 'Title :: subtitle :: text :: high|mid|low|neutral'.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "x_axis",
+       "kind": "text",
+       "col": 1,
+       "span": 7,
+       "row": 0,
+       "rows": 1,
+       "max_words": 6,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "y_axis",
+       "kind": "text",
+       "col": 0,
+       "span": 1,
+       "row": 1,
+       "rows": 9,
+       "max_words": 4,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "quadrants",
+       "kind": "list",
+       "col": 1,
+       "span": 7,
+       "row": 1,
+       "rows": 9,
+       "max_words": 20,
+       "max_items": 4,
+       "type_role": "body"
+      },
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 8,
+       "span": 4,
+       "row": 0,
+       "rows": 10,
+       "max_words": 12,
+       "max_items": 4,
+       "type_role": "body"
+      },
+      {
+       "name": "takeaway_bar",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 10,
+       "rows": 2,
+       "max_words": 30,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "visual": true
+    }
+   ]
+  },
+  {
+   "id": "tree",
+   "purpose": "A yes/no decision tree into outcomes. items: 'id :: question :: yes_id :: no_id' or 'id :: =outcome :: status'.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 10,
+       "max_words": 12,
+       "max_items": 11,
+       "type_role": "body"
+      },
+      {
+       "name": "takeaway_bar",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 10,
+       "rows": 2,
+       "max_words": 30,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "visual": true
+    }
+   ]
+  },
+  {
+   "id": "decisions",
+   "purpose": "Numbered decisions to take. items: 'Decision :: one-line detail'.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 12,
+       "max_words": 20,
+       "max_items": 5,
+       "type_role": "body"
       }
      ]
     }
@@ -777,6 +1054,45 @@
        "short_words": 14
       }
      ]
+    },
+    {
+     "id": "heat",
+     "slots": [
+      {
+       "name": "table",
+       "kind": "table",
+       "col": 0,
+       "span": 8,
+       "row": 0,
+       "rows": 10,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "commentary",
+       "kind": "text",
+       "col": 8,
+       "span": 4,
+       "row": 0,
+       "rows": 10,
+       "max_words": 60,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "takeaway_bar",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 10,
+       "rows": 2,
+       "max_words": 30,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "visual": true
     }
    ]
   },
@@ -833,6 +1149,7 @@
        "max_words": 20,
        "max_items": 4,
        "type_role": "subhead",
+       "committee_words": 30,
        "type_role_short": "headline",
        "short_words": 8
       }

@@ -58,6 +58,8 @@ class Colors(BaseModel):
     accent: str
     background: str
     categorical: list[str]
+    well: str  # recessed tint: takeaway bars, flow columns
+    status: dict[str, str]  # high / mid / low / neutral, DESIGN.md's status colours; only tinted, never the signal
 
 
 class Fonts(BaseModel):
@@ -96,6 +98,7 @@ class SlotSpec(BaseModel):
     rows: int
     max_words: int | None = None  # per item for list slots
     max_items: int | None = None
+    committee_words: int | None = None  # max_words at committee density, where prose sets at body size; None = max_words
     type_role: str
     # Fill by design: at most `short_words` words (longest item, for lists) renders one step up, in `type_role_short`.
     type_role_short: str | None = None

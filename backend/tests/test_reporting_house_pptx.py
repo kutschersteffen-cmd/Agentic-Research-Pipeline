@@ -98,7 +98,7 @@ def test_html_table_more_rows_caption():
     deck, ds = _table_deck(10, max_rows=3, row_offset=2)
     assert "+5 more rows" in render_deck_html(deck, ds)
     deck, ds = _table_deck(5, max_rows=3, row_offset=2)
-    assert "more rows" not in render_deck_html(deck, ds).split("<body>", 1)[1]
+    assert "more rows" not in render_deck_html(deck, ds).split("<body ", 1)[1]
 
 
 async def test_html_table_with_more_rows_still_fits():

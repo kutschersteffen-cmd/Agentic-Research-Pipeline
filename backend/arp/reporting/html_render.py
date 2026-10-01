@@ -10,14 +10,21 @@ from __future__ import annotations
 
 import base64
 import mimetypes
+import re
 from pathlib import Path
+from typing import Literal
 
 from jinja2 import Environment, FileSystemLoader
 
 from arp.reporting.chart_builder import render_chart_svg
 from arp.reporting.design import DesignTheme
 from arp.reporting.house_style import _STYLE_DIR, Mode, Tokens, get_variant, load_tokens, slot_rect
+from arp.reporting.structured import parse_deltas, parse_flow, parse_meters, parse_quadrants, parse_tree, tree_svg
 from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent, TableSpec
+
+Density = Literal["present", "committee"]
+# Committee prose sets at body size; these layouts keep their display type at either density.
+_DISPLAY_LAYOUTS = {"title", "section", "quote", "statement"}
 
 _env = Environment(loader=FileSystemLoader(_STYLE_DIR / "templates"), autoescape=True)
 _env.filters["title_body"] = lambda text: text.split(": ", 1)  # "Title: body" -> [title, body]; no colon -> [text]
@@ -66,19 +73,54 @@ def table_view(spec: TableSpec, ds: QuantitativeDataset) -> tuple[list[str], lis
     return columns, [[row.get(c, "") for c in columns] for row in ds.rows[spec.row_offset : end]], max(0, len(ds.rows) - end)
 
 
-def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict[str, QuantitativeDataset], theme: DesignTheme) -> dict:
+def _heat(spec: TableSpec, columns: list[str], rows: list[list]) -> list[list[str]]:
+    """Per cell: the status its number falls in (under low, under high, else high); '' for untinted cells."""
+    def status(col: str, value) -> str:
+        low, high = spec.heat[col]
+        m = re.fullmatch(r"\s*(-?\d+(?:\.\d+)?)\s*%?\s*", str(value))
+        return "" if m is None else "low" if float(m[1]) < low else "mid" if float(m[1]) < high else "high"
+    return [[status(c, v) if c in spec.heat else "" for c, v in zip(columns, row, strict=True)] for row in rows]
+
+
+def structured_view(layout: str, name: str, items: list[str], r) -> dict:
+    """Parsed view of a committee layout's structured list slot (ValueError on a malformed item)."""
+    if (layout, name) == ("flow", "items"):
+        return {"stages": parse_flow(items)}
+    if (layout, name) == ("profile", "meters"):
+        return {"meters": parse_meters(items)}
+    if (layout, name) == ("scatter_zone", "items"):
+        return {"deltas": parse_deltas(items)}
+    if (layout, name) == ("matrix2x2", "quadrants"):
+        return {"quadrants": parse_quadrants(items)}
+    if (layout, name) == ("tree", "items"):
+        return {"svg": tree_svg(parse_tree(items), r.w, r.h)}
+    if (layout, name) == ("decisions", "items"):
+        return {"pairs": [[p.strip() for p in (t.split("::", 1) + [""])[:2]] for t in items]}
+    if (layout, name) in {("profile", "left"), ("profile", "right"), ("matrix2x2", "items")}:
+        return {"panel": items[:1], "items": items[1:]}  # the first item titles the panel
+    return {}
+
+
+def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict[str, QuantitativeDataset], theme: DesignTheme,
+               density: Density) -> dict:
     r = slot_rect(tokens, spec)
     value = slide.slots.get(spec.name)
-    # Fill by design: short content steps up to the slot's larger fixed role; it never scales freely.
-    words = max((len(t.split()) for t in value), default=0) if isinstance(value, list) else len((value or "").split())
-    role = spec.type_role_short if spec.type_role_short and 0 < words <= (spec.short_words or 0) else spec.type_role
+    if density == "committee" and slide.layout not in _DISPLAY_LAYOUTS and spec.kind in ("text", "list"):
+        role = "body" if spec.type_role in ("subhead", "headline") else spec.type_role
+    else:
+        # Fill by design: short content steps up to the slot's larger fixed role; it never scales freely.
+        words = max((len(t.split()) for t in value), default=0) if isinstance(value, list) else len((value or "").split())
+        role = spec.type_role_short if spec.type_role_short and 0 < words <= (spec.short_words or 0) else spec.type_role
     v = {"slide": i, "name": spec.name, "kind": spec.kind, "role": role, "x": r.x, "y": r.y, "w": r.w, "h": r.h}
     if spec.kind == "list":
         v["items"] = value if isinstance(value, list) else ([value] if value else [])
+        if v["items"]:
+            v |= structured_view(slide.layout, spec.name, v["items"], r)
     elif spec.kind == "chart" and slide.chart:
         v["svg"] = render_chart_svg(slide.chart, list(datasets.values()), width_px=int(r.w), height_px=int(r.h), theme=theme)
     elif spec.kind == "table" and slide.table and slide.table.dataset_id in datasets:
         v["columns"], v["rows"], v["more"] = table_view(slide.table, datasets[slide.table.dataset_id])
+        v["heat"] = _heat(slide.table, v["columns"], v["rows"]) if slide.table.heat else None
     elif spec.kind == "image":
         v["image"] = _data_uri(Path(slide.image_path)) if slide.image_path else None
     else:
@@ -86,18 +128,19 @@ def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict
     return v
 
 
-def render_deck_html(deck: Deck, datasets: list[QuantitativeDataset], tokens: Tokens | None = None, mode: Mode = "light") -> str:
+def render_deck_html(deck: Deck, datasets: list[QuantitativeDataset], tokens: Tokens | None = None, mode: Mode = "light",
+                     density: Density = "committee") -> str:
     tokens = tokens or load_tokens()
     theme = theme_from_tokens(tokens, mode)
     by_id = {d.dataset_id: d for d in datasets}
     slides = [
         {
-            "index": i, "layout": s.layout, "variant": s.variant, "headline": s.headline, "refs": " · ".join(s.source_refs),
-            "slots": [_slot_view(i, s, sp, tokens, by_id, theme) for sp in get_variant(s.layout, s.variant).slots],
+            "index": i, "layout": s.layout, "variant": s.variant, "headline": s.headline, "eyebrow": s.eyebrow, "refs": " · ".join(s.source_refs),
+            "slots": [_slot_view(i, s, sp, tokens, by_id, theme, density) for sp in get_variant(s.layout, s.variant).slots],
         }
         for i, s in enumerate(deck.slides)
     ]
     fonts = {"heading": tokens.heading_font(mode), "body": tokens.fonts.body, "mono": tokens.fonts.mono or tokens.fonts.body}
     return _env.get_template("base.html.j2").render(
-        deck=deck, slides=slides, t=tokens, c=tokens.colors(mode), fonts=fonts, mode=mode, font_faces=_font_faces(list(fonts.values())),
+        deck=deck, slides=slides, t=tokens, c=tokens.colors(mode), fonts=fonts, mode=mode, density=density, font_faces=_font_faces(list(fonts.values())),
     )

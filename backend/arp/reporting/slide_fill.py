@@ -13,7 +13,8 @@ from pydantic import BaseModel
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.content_planner import _datasets_context
-from arp.reporting.house_style import SlotSpec, get_variant, load_layouts
+from arp.reporting.house_style import SlotSpec, get_variant, load_layouts, load_tokens, slot_rect
+from arp.reporting.html_render import structured_view
 from arp.schemas.reporting import Finding, QuantitativeDataset, ReportRequest, SlideContent, StorylineSlide
 
 WRITING_GUIDE = (Path(__file__).parent / "style" / "writing.md").read_text()
@@ -83,13 +84,20 @@ def validate_slide(slide: SlideContent, datasets: list[QuantitativeDataset]) -> 
         c = slide.chart
         refs.append((c.dataset_id, [c.category_column, c.x_column, c.y_column, c.value_column, *c.value_columns]))
     if slide.table:
-        refs.append((slide.table.dataset_id, slide.table.columns))
+        refs.append((slide.table.dataset_id, [*slide.table.columns, *slide.table.heat]))
     for dataset_id, columns in refs:
         ds = by_id.get(dataset_id)
         if ds is None:
             errors.append(f"unknown dataset_id {dataset_id!r}; known: {sorted(by_id)}")
             continue
         errors += [f"dataset {dataset_id!r} has no column {col!r}; columns: {ds.column_names()}" for col in columns if col and col not in ds.column_names()]
+    for sp in spec.slots:  # committee layouts' `a :: b` items must parse
+        items = slide.slots.get(sp.name)
+        if sp.kind == "list" and isinstance(items, list) and items:
+            try:
+                structured_view(slide.layout, sp.name, items, slot_rect(load_tokens(), sp))
+            except ValueError as e:
+                errors.append(str(e))
     return errors
 
 

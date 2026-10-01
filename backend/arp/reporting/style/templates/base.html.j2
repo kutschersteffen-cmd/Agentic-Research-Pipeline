@@ -7,7 +7,7 @@
 {% include "deck.css.j2" %}
 </style>
 </head>
-<body>
+<body data-density="{{ density }}">
 {% for slide in slides %}
 <section class="slide" data-slide="{{ slide.index }}" data-layout="{{ slide.layout }}" data-variant="{{ slide.variant }}">
 {% include slide.layout ~ ".html.j2" %}

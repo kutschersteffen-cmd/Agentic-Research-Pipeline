@@ -106,3 +106,15 @@ async def test_fill_slide_llm_failure_is_flagged_placeholder(fake_llm):
     slide, findings, _ = await fill_slide(_STORY, 2, _REQ, fake_llm({}))  # nothing scripted: the call raises
     assert slide.layout == "bullets" and slide.headline == _STORY.headline
     assert [(f.slide, f.stage, f.rule) for f in findings] == [(2, "data", "llm_failed")]
+
+
+def test_validate_slide_reports_structured_item_errors_and_heat_columns():
+    from arp.schemas.reporting import TableSpec
+
+    flow = SlideContent(headline="h", layout="flow", variant="default", slots={"items": ["only one stage"]})
+    assert any("flow" in e for e in slide_fill.validate_slide(flow, []))
+    tree = SlideContent(headline="h", layout="tree", variant="default", slots={"items": ["q :: Q? :: a :: nope", "a :: =A :: high"]})
+    assert any("unknown node 'nope'" in e for e in slide_fill.validate_slide(tree, []))
+    ds = QuantitativeDataset(dataset_id="d", name="D", columns=[DatasetColumn(name="k", kind=ColumnKind.CATEGORY)], rows=[{"k": "a"}])
+    heat = SlideContent(headline="h", layout="table", variant="heat", table=TableSpec(dataset_id="d", heat={"zz": [1, 2]}))
+    assert any("no column 'zz'" in e for e in slide_fill.validate_slide(heat, [ds]))

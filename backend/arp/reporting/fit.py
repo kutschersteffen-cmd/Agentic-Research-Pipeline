@@ -74,7 +74,7 @@ async def fit_deck(
     """`shift`, when given, holds earlier findings on this deck: a split moves those after it down, in place."""
     extra: list[Finding] = []
     for _ in range(max_passes):
-        found = await measure(render_deck_html(deck, request.datasets, mode=request.layout.theme))
+        found = await measure(render_deck_html(deck, request.datasets, mode=request.layout.theme, density=request.layout.density))
         todo: dict[int, tuple[str, float]] = {}
         for f in found:
             if f.rule == "overflow" and f.slot not in (None, "headline"):
@@ -92,4 +92,4 @@ async def fit_deck(
                     f.slide += len(new) - 1
             extra += fs
         deck = deck.model_copy(update={"slides": slides})
-    return deck, extra + await measure(render_deck_html(deck, request.datasets, mode=request.layout.theme))
+    return deck, extra + await measure(render_deck_html(deck, request.datasets, mode=request.layout.theme, density=request.layout.density))

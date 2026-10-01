@@ -22,7 +22,7 @@ from arp.storage.reporting_store import ReportingStore
 
 async def render_house_outputs(report_id: str, deck: Deck, request: ReportRequest, store: ReportingStore) -> None:
     """Writes output.pdf, output.pptx and the preview PNGs from `deck`; no LLM, no measuring (fit_deck owns the fit findings)."""
-    html = render_deck_html(deck, request.datasets, mode=request.layout.theme)
+    html = render_deck_html(deck, request.datasets, mode=request.layout.theme, density=request.layout.density)
     await write_pdf(html, store.output_path(report_id, "output.pdf"))
     build_house_pptx(deck, request.datasets, store.output_path(report_id, "output.pptx"), mode=request.layout.theme)
     preview = store.preview_dir(report_id)
@@ -53,7 +53,7 @@ async def build_house_deck(
     deck, fit_findings = await fit_deck(deck, request, llm, usage=usage, shift=findings)
     findings += fit_findings
     with tempfile.TemporaryDirectory() as tmp:
-        pngs = await write_pngs(render_deck_html(deck, request.datasets, mode=request.layout.theme), Path(tmp))
+        pngs = await write_pngs(render_deck_html(deck, request.datasets, mode=request.layout.theme, density=request.layout.density), Path(tmp))
         deck, qa_findings = await visual_qa(deck, pngs, request, llm, usage=usage, shift=findings)
     if any(f.rule == "applied" for f in qa_findings):  # QA re-measured the deck: the first fit's measurements are stale
         findings = [f for f in findings if f.stage != "fit" or f.rule == "slot_dropped"]

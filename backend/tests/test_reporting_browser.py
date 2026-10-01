@@ -44,11 +44,12 @@ async def test_overlong_headline_reports_overflow():
     assert (f.rule, f.slot, f.slide) == ("overflow", "headline", 0)
 
 
+@pytest.mark.parametrize("density", ["present", "committee"])
 @pytest.mark.parametrize("fill", ["max", "short"])
 @pytest.mark.parametrize("mode", ["light", "dark"])
-async def test_stress_deck_max_fits_in_both_modes(mode, fill):
-    deck, ds = stress_deck(fill)
-    html = render_deck_html(deck, ds, mode=mode)
+async def test_stress_deck_max_fits_in_both_modes(mode, fill, density):
+    deck, ds = stress_deck(fill, density)
+    html = render_deck_html(deck, ds, mode=mode, density=density)
     assert "data:font/" in html
     assert await measure(html) == []
 
@@ -112,6 +113,53 @@ async def test_cards_with_uneven_items_keep_equal_heights(mode):
 
 def test_card_items_split_title_and_body():
     deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three",
-                                                slots={"items": ["Grid: 64 rows: per company", "Plain title"]})])
+                                                slots={"items": ["Grid: 64 rows: per company", "Plain item"]})])
     html = render_deck_html(deck, [])
-    assert "<strong>Grid</strong><span>64 rows: per company</span>" in html and "<strong>Plain title</strong>" in html
+    assert "<li><strong>Grid</strong><span>64 rows: per company</span></li>" in html and "<li><span>Plain item</span></li>" in html
+
+
+async def test_card_text_sits_right_under_its_number():
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three",
+                                                slots={"items": ["Grid: one line of body text", "Score: another line", "Flags: a third"]})])
+    gaps = await _computed(render_deck_html(deck, [], density="present"),
+                           "[...document.querySelectorAll('[data-slot=items] li')].map(li => li.querySelector('strong').getBoundingClientRect().top - li.getBoundingClientRect().top)")
+    assert max(gaps) < 140  # padding + the mono index; no empty middle
+
+
+async def test_eyebrow_renders_above_the_headline():
+    deck = Deck(title="T", slides=[SlideContent(headline="Headline", eyebrow="Method", layout="cards", variant="three", slots={"items": ["a"]})])
+    html = render_deck_html(deck, [])
+    eb, h1 = await _computed(html, "['.eyebrow', 'h1'].map(q => document.querySelector(q).getBoundingClientRect()).map(r => [r.top, r.bottom])")
+    assert eb[1] <= h1[0] and ">Method<" in html
+    assert await measure(html) == []
+
+
+@pytest.mark.parametrize("mode", ["light", "dark"])
+async def test_takeaway_bar_is_a_tinted_box_with_a_bold_label(mode):
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="flow", variant="default",
+                                                slots={"items": ["A :: a", "B :: b"], "takeaway_bar": "Engagement ask: restore a target"})])
+    html = render_deck_html(deck, [], mode=mode)
+    bar_bg, page_bg, label = await _computed(html, """[getComputedStyle(document.querySelector('[data-slot=takeaway_bar] .bar')).backgroundColor,
+        getComputedStyle(document.querySelector('section')).backgroundColor,
+        document.querySelector('[data-slot=takeaway_bar] .bar strong').textContent]""")
+    assert bar_bg != page_bg and label == "Engagement ask:"
+
+
+def test_density_is_on_the_body_and_committee_never_steps_up():
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="split", variant="list",
+                                                slots={"statement": "Short claim.", "items": ["a", "b"]})])
+    assert '<body data-density="committee">' in render_deck_html(deck, [])
+    committee, present = render_deck_html(deck, [], density="committee"), render_deck_html(deck, [], density="present")
+    assert 'data-slot="statement" data-role="body"' in committee and 'data-slot="statement" data-role="headline"' in present
+
+
+def test_heat_cells_get_status_from_thresholds():
+    ds = QuantitativeDataset(dataset_id="d", name="D", columns=[DatasetColumn(name="k", kind=ColumnKind.CATEGORY), DatasetColumn(name="v")],
+                             rows=[{"k": "a", "v": "40%"}, {"k": "b", "v": 55}, {"k": "c", "v": 80}, {"k": "d", "v": "n/a"}])
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="table", variant="heat",
+                                                table=TableSpec(dataset_id="d", heat={"v": [50, 70]}))])
+    html = render_deck_html(deck, [ds])
+    assert [s for s in ("low", "mid", "high") if f'data-status="{s}"' in html] == ["low", "mid", "high"]
+    assert html.count("<td data-status=") == 3  # the category column and the non-number are not tinted
+    for k in ("high", "mid", "low", "neutral"):
+        assert f"--status-{k}:" in html

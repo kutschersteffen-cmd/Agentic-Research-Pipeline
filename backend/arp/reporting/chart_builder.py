@@ -246,6 +246,16 @@ def _draw_chart(spec: ChartSpec, datasets: list[QuantitativeDataset], theme: Des
             xs = [row.get(x_col) for row in ds.rows]
             ys = [row.get(y_col) for row in ds.rows]
             ax.scatter(xs, ys, label=y_col, s=64, color=_hex01(categorical_color(theme, i)), edgecolors=f"#{theme.surface}", linewidths=0.8)
+        if spec.zone:  # the target zone sits behind the points, in the hairline tone; add_patch widens the view to it
+            x0, x1, y0, y1 = spec.zone
+            ax.add_patch(plt.Rectangle((x0, y0), x1 - x0, y1 - y0, color=f"#{theme.gridline}", lw=0, zorder=0))
+        if spec.diagonal:
+            ax.axline((0, 0), slope=1, color=f"#{theme.ink_muted}", ls=(0, (4, 3)), lw=1, zorder=1)
+        if spec.category_column and spec.value_columns:  # label each point with its category
+            y_col = _column(ds, spec.value_columns[0], label="value_columns")
+            for row in ds.rows:
+                ax.annotate(str(row.get(spec.category_column, "")), (row.get(x_col), row.get(y_col)), xytext=(8, 6),
+                            textcoords="offset points", color=f"#{theme.ink_primary}")
         ax.set_xlabel(x_col, color=f"#{theme.ink_secondary}")
         if len(spec.value_columns or []) > 1:
             _apply_legend(ax, theme)

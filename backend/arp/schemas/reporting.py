@@ -56,6 +56,9 @@ class LayoutInstructions(BaseModel):
 
     output_format: OutputFormat = OutputFormat.PPTX
     theme: Literal["light", "dark"] = Field(default="light", description="House deck colour mode; mirrors the app's light/dark themes.")
+    density: Literal["present", "committee"] = Field(
+        default="committee", description="House deck: 'committee' is a pre-read (80-150 words a slide, body-size text); 'present' is a pitch (30-60 words, larger type steps)."
+    )
     target_length: int | None = Field(
         default=None, description="Target slide count (pptx) or section count (docx/pdf). None lets the planner decide."
     )
@@ -182,6 +185,8 @@ class ChartSpec(BaseModel):
     y_column: str | None = Field(default=None, description="heatmap only: the row-axis category column (category_column is the column axis).")
     value_column: str | None = Field(default=None, description="heatmap only: the numeric cell value column.")
     notes: str = Field(default="", description="Caption/takeaway text rendered under the chart.")
+    zone: list[float] | None = Field(default=None, min_length=4, max_length=4, description="scatter only: shaded target zone x0, x1, y0, y1 in data units.")
+    diagonal: bool = Field(default=False, description="scatter only: dashed y = x line (e.g. ambition equals delivery).")
 
 
 class TableSpec(BaseModel):
@@ -189,6 +194,9 @@ class TableSpec(BaseModel):
     columns: list[str] = Field(default_factory=list, description="Subset/order of dataset columns to include. Empty = all columns.")
     row_offset: int = Field(default=0, ge=0, description="First dataset row shown; a split table slide continues from here.")
     max_rows: int = Field(default=20, description="Renderer truncates to this many rows; a truncation note is added if the dataset has more.")
+    heat: dict[str, list[float]] = Field(
+        default_factory=dict, description="table/heat only: column -> [low, high]; a number under low is tinted low, under high mid, else high."
+    )
 
 
 class ContentItem(BaseModel):
@@ -247,6 +255,7 @@ class SlideContent(BaseModel):
     not a slot -- it always renders in the fixed headline band."""
 
     headline: str
+    eyebrow: str = ""  # small uppercase mono kicker above the headline (committee slides)
     layout: str
     variant: str
     slots: dict[str, str | list[str]] = Field(default_factory=dict)

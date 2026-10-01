@@ -12,7 +12,8 @@ def _overlap(a, b):
 def test_layouts_cover_spec_library():
     assert set(load_layouts()) == {"title", "section", "big_number", "chart_takeaway", "two_column", "table",
                                    "bullets", "timeline", "quote", "matrix", "image", "summary",
-                                   "statement", "cards", "steps", "stat_row", "split", "chart_focus", "compare"}
+                                   "statement", "cards", "steps", "stat_row", "split", "chart_focus", "compare",
+                                   "flow", "profile", "scatter_zone", "matrix2x2", "tree", "decisions"}
 
 
 def test_v2_layouts_present():
@@ -119,3 +120,36 @@ def test_title_slide_title_is_big_number_and_section_has_number():
         title = next(s for s in v.slots if s.name == "title")
         assert t.type[title.type_role].size >= t.type["big_number"].size
     assert "number" in {s.name for s in get_variant("section", "default").slots}
+
+
+def test_committee_layouts_and_heat_table_present():
+    ly = load_layouts()
+    assert {"flow", "profile", "scatter_zone", "matrix2x2", "tree", "decisions"} <= set(ly)
+    assert "heat" in {v.id for v in ly["table"].variants}
+    for lid, vid in (("flow", "default"), ("profile", "default"), ("scatter_zone", "default"), ("table", "heat"), ("matrix2x2", "default")):
+        assert "takeaway_bar" in {s.name for s in get_variant(lid, vid).slots}
+
+
+def test_status_tints_are_the_design_md_status_tokens():
+    import yaml
+
+    from arp.reporting.house_style import _STYLE_DIR
+
+    front = yaml.safe_load((_STYLE_DIR.parents[3] / "DESIGN.md").read_text().split("---")[1])["colors"]
+    t = load_tokens()
+    assert t.color.status == {k: front[f"status-{k}"] for k in ("high", "mid", "low", "neutral")}
+    assert t.color_dark.status == {"high": front["night-high"], "mid": front["night-mid"], "low": front["night-low"], "neutral": front["night-muted"]}
+    assert (t.color.well, t.color_dark.well) == (front["well-grey"], front["night-well"])
+
+
+def test_committee_words_only_raise_limits():
+    for layout in load_layouts().values():
+        for v in layout.variants:
+            for s in v.slots:
+                assert s.committee_words is None or s.committee_words > s.max_words, (layout.id, v.id, s.name)
+
+
+def test_density_defaults_to_committee():
+    from arp.schemas.reporting import LayoutInstructions
+
+    assert LayoutInstructions().density == "committee"
