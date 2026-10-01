@@ -4,7 +4,16 @@ from arp.reporting.browser import measure
 from arp.reporting.fit import fit_deck
 from arp.reporting.html_render import render_deck_html
 from arp.reporting.slide_fill import SlotRewrite
-from arp.schemas.reporting import ColumnKind, DatasetColumn, Deck, QuantitativeDataset, ReportRequest, SlideContent, TableSpec
+from arp.schemas.reporting import (
+    ColumnKind,
+    DatasetColumn,
+    Deck,
+    Finding,
+    QuantitativeDataset,
+    ReportRequest,
+    SlideContent,
+    TableSpec,
+)
 
 _REQ = ReportRequest(title="T", qualitative_notes="")
 
@@ -95,10 +104,21 @@ async def test_fit_falls_through_to_roomier_when_rewrite_fails(fake_llm, monkeyp
     import arp.reporting.fit as fit
 
     async def boom(*a, **k):
-        raise ValueError("bad slot")
+        raise RuntimeError("LLM down")
 
     monkeypatch.setattr(fit, "rewrite_slot", boom)
     slide = _bullets("three", [_sentence(48)] * 5)  # mild overflow, so the rewrite is tried first
     assert 1 < float((await _overflow_ratio(slide))[0].message.removeprefix("ratio=")) <= 1.6
     deck, _ = await fit_deck(_deck(slide), _REQ, fake_llm({}), max_passes=1)
     assert deck.slides[1].variant == "five"
+
+
+@pytest.mark.asyncio
+async def test_fit_split_shifts_later_findings(fake_llm):
+    deck = _deck(_bullets("five", [_sentence(60)] * 10))
+    deck.slides.append(_bullets("three", ["ok"]))
+    after = Finding(slide=2, stage="data", rule="bad_reference", message="m")
+    on_split = Finding(slide=1, stage="data", rule="bad_reference", message="m")
+    out, _ = await fit_deck(deck, _REQ, fake_llm({}), max_passes=1, shift=[after, on_split])
+    assert len(out.slides) == 4 and out.slides[3].slots["items"] == ["ok"]
+    assert (after.slide, on_split.slide) == (3, 1)

@@ -19,6 +19,8 @@ from arp.schemas.reporting import Finding, QuantitativeDataset, ReportRequest, S
 WRITING_GUIDE = (Path(__file__).parent / "style" / "writing.md").read_text()
 
 _FILLED_ELSEWHERE = {"chart": "set `chart`", "table": "set `table`", "image": "set `image_path`"}
+# There is no image upload, so any image_path the model sets is invented (and would be read from local disk):
+# image variants are left out of the prompt, rejected by validate_slide, and image_path is always dropped.
 
 _RULES = """\
 You build one slide of an investment-research deck. The headline is fixed; \
@@ -28,8 +30,8 @@ Rules:
 - `layout` and `variant` must be one of the pairs listed below, and `slots` \
 may only use that variant's text/list/number slot names. Respect each slot's \
 word and item limits (list limits are per item).
-- chart/table/image slots are not filled through `slots`: set `chart` or \
-`table` (a real dataset_id and real column names) or `image_path` instead.
+- chart/table slots are not filled through `slots`: set `chart` or \
+`table` (a real dataset_id and real column names) instead. Never set `image_path`.
 - Use only facts and numbers from the notes and datasets. Never invent any.
 - Put detail that does not fit in `speaker_notes`.
 
@@ -55,7 +57,7 @@ def _slot_desc(s: SlotSpec) -> str:
 def _system_prompt() -> str:
     lines = [
         f"- {ly.id}/{v.id} [{ly.purpose}]: " + "; ".join(_slot_desc(s) for s in v.slots)
-        for ly in load_layouts().values() for v in ly.variants
+        for ly in load_layouts().values() for v in ly.variants if not any(s.kind == "image" for s in v.slots)
     ]
     return _RULES + "\n".join(lines) + "\n\n" + WRITING_GUIDE
 
@@ -65,6 +67,8 @@ def validate_slide(slide: SlideContent, datasets: list[QuantitativeDataset]) -> 
         spec = get_variant(slide.layout, slide.variant)
     except KeyError as e:
         return [e.args[0]]
+    if any(s.kind == "image" for s in spec.slots):
+        return [f"{slide.layout}/{slide.variant} needs an image and none is available; pick another layout"]
     fillable = [s.name for s in spec.slots if s.kind not in _FILLED_ELSEWHERE]
     errors = [f"slot {n!r} is not in {slide.layout}/{slide.variant}; allowed: {fillable}" for n in slide.slots if n not in fillable]
     kinds = {s.kind for s in spec.slots}
@@ -101,16 +105,22 @@ def _prompt(slide: StorylineSlide, index: int, request: ReportRequest) -> str:
 
 
 async def fill_slide(slide: StorylineSlide, index: int, request: ReportRequest, llm: LLMClient) -> tuple[SlideContent, list[Finding], LLMUsage]:
+    placeholder = SlideContent(headline=slide.headline, layout="bullets", variant="three", slots={"items": []}, source_refs=slide.source_refs)
     prompt = _prompt(slide, index, request)
-    content, usage = await llm.complete_structured(system=_system_prompt(), prompt=prompt, output_model=SlideContent)
-    errors = validate_slide(content, request.datasets)
-    if errors:
-        retry_prompt = prompt + "\nYour previous answer had these errors; fix them:\n- " + "\n- ".join(errors) + "\n"
-        content, u2 = await llm.complete_structured(system=_system_prompt(), prompt=retry_prompt, output_model=SlideContent)
-        usage = add_usage(usage, u2)
+    usage = LLMUsage()
+    try:
+        content, usage = await llm.complete_structured(system=_system_prompt(), prompt=prompt, output_model=SlideContent)
+        content = content.model_copy(update={"image_path": None})
         errors = validate_slide(content, request.datasets)
+        if errors:
+            retry_prompt = prompt + "\nYour previous answer had these errors; fix them:\n- " + "\n- ".join(errors) + "\n"
+            content, u2 = await llm.complete_structured(system=_system_prompt(), prompt=retry_prompt, output_model=SlideContent)
+            content = content.model_copy(update={"image_path": None})
+            usage = add_usage(usage, u2)
+            errors = validate_slide(content, request.datasets)
+    except Exception as exc:  # noqa: BLE001 -- the client retried already; one slide must not fail the deck
+        return placeholder, [Finding(slide=index, stage="data", rule="llm_failed", message=str(exc))], usage
     if errors:
-        placeholder = SlideContent(headline=slide.headline, layout="bullets", variant="three", slots={"items": []}, source_refs=slide.source_refs)
         return placeholder, [Finding(slide=index, stage="data", rule="bad_reference", message="; ".join(errors))], usage
     # The headline is the approved storyline's, never the model's rewrite of it.
     return content.model_copy(update={"headline": slide.headline, "source_refs": slide.source_refs or content.source_refs}), [], usage

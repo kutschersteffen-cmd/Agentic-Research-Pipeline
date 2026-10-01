@@ -13,7 +13,7 @@ from arp.reporting.browser import write_pdf, write_pngs
 from arp.reporting.fit import fit_deck
 from arp.reporting.house_pptx import build_house_pptx
 from arp.reporting.html_render import render_deck_html
-from arp.reporting.lint import lint_and_rewrite
+from arp.reporting.lint import lint_and_rewrite, lint_deck
 from arp.reporting.slide_fill import fill_slide
 from arp.reporting.visual_qa import visual_qa
 from arp.schemas.reporting import Deck, Finding, ReportRequest, SlideContent, Storyline
@@ -49,18 +49,16 @@ async def build_house_deck(
         for _, _, u in filled:
             usage.input_tokens += u.input_tokens
             usage.output_tokens += u.output_tokens
-    deck, lint_findings = await lint_and_rewrite(deck, request, llm, usage=usage)
-    findings += lint_findings
-    deck, fit_findings = await fit_deck(deck, request, llm, usage=usage)
+    deck, _ = await lint_and_rewrite(deck, request, llm, usage=usage)  # its findings are recomputed on the final deck below
+    deck, fit_findings = await fit_deck(deck, request, llm, usage=usage, shift=findings)
     findings += fit_findings
     with tempfile.TemporaryDirectory() as tmp:
         pngs = await write_pngs(render_deck_html(deck, request.datasets, mode=request.layout.theme), Path(tmp))
-        deck, qa_findings = await visual_qa(deck, pngs, request, llm, usage=usage)
+        deck, qa_findings = await visual_qa(deck, pngs, request, llm, usage=usage, shift=findings)
     if any(f.rule == "applied" for f in qa_findings):  # QA re-measured the deck: the first fit's measurements are stale
         findings = [f for f in findings if f.stage != "fit" or f.rule == "slot_dropped"]
-    edited = {(f.slide, f.slot) for f in qa_findings if f.rule == "applied" and f.slot}
-    findings = [f for f in findings if f.stage != "lint" or (f.slide, f.slot) not in edited]  # QA's re-lint replaces them
-    findings += qa_findings
+    # Fit splits moved slides; lint once more on the final deck so every lint finding points at the right slide.
+    findings = [f for f in [*findings, *qa_findings] if f.stage != "lint"] + lint_deck(deck, request)
     store.save_deck(report_id, deck)
     await render_house_outputs(report_id, deck, request, store)
     store.save_findings(report_id, findings)

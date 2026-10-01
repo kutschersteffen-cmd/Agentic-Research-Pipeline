@@ -70,11 +70,11 @@ async def test_rewrite_slot_unknown_slot_is_value_error(fake_llm):
         await rewrite_slot(slide, "nope", "shorter", _REQ, fake_llm({}))
 
 
-def test_system_prompt_lists_every_variant():
+def test_system_prompt_lists_every_variant_but_image():
     prompt = slide_fill._system_prompt()
     for ly in load_layouts().values():
         for v in ly.variants:
-            assert f"{ly.id}/{v.id}" in prompt
+            assert (f"{ly.id}/{v.id}" in prompt) != any(s.kind == "image" for s in v.slots)
 
 
 async def test_rewrite_slot_replaces_only_that_slot(fake_llm):
@@ -82,3 +82,27 @@ async def test_rewrite_slot_replaces_only_that_slot(fake_llm):
     before = SlideContent(headline="h", layout="two_column", variant="text_text", slots={"left": "long text", "right": "keep"})
     after = await rewrite_slot(before, "left", "make it shorter", _REQ, llm)
     assert after.slots == {"left": "shorter", "right": "keep"} and before.slots["left"] == "long text"
+
+
+async def test_fill_slide_drops_model_image_path_without_reading_it(fake_llm, monkeypatch):
+    def no_read(*a, **k):
+        raise AssertionError("a file was read")
+
+    monkeypatch.setattr("pathlib.Path.read_bytes", no_read)
+    llm = fake_llm({"SlideContent": [_chart_slide("weight").model_copy(update={"image_path": "/etc/passwd"})]})
+    slide, findings, _ = await fill_slide(_STORY, 1, _REQ, llm)
+    assert slide.image_path is None and findings == []
+
+
+async def test_fill_slide_rejects_image_layout_and_prompt_omits_it(fake_llm):
+    image = SlideContent(headline="h", layout="image", variant="default", slots={"caption": "c"}, image_path="/etc/passwd")
+    llm = fake_llm({"SlideContent": [image, image]})
+    slide, findings, _ = await fill_slide(_STORY, 1, _REQ, llm)
+    assert findings[0].rule == "bad_reference" and slide.image_path is None
+    assert "image/default" not in slide_fill._system_prompt()
+
+
+async def test_fill_slide_llm_failure_is_flagged_placeholder(fake_llm):
+    slide, findings, _ = await fill_slide(_STORY, 2, _REQ, fake_llm({}))  # nothing scripted: the call raises
+    assert slide.layout == "bullets" and slide.headline == _STORY.headline
+    assert [(f.slide, f.stage, f.rule) for f in findings] == [(2, "data", "llm_failed")]

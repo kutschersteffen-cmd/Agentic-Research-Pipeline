@@ -621,6 +621,8 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
 .status-cancelled { color: var(--neutral); border-color: var(--neutral); }
 /* Stalled is an SLA breach needing a nudge, distinct from a failed run. */
 .status-stalled { color: var(--mid); border-color: var(--mid); border-style: dashed; }
+/* A house-deck storyline (or a stopped scheduled re-run) waits on a person to approve it: the signal. */
+.status-storyline_ready { color: var(--hi-ink); border-color: var(--await-edge); }
 
 .progress-bar { background: var(--well); border-radius: var(--r-pill); height: 8px; overflow: hidden; margin: 8px 0; }
 /* Scaled, not resized: the fill animates on the compositor as polls land. */

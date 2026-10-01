@@ -9,6 +9,7 @@ from arp.config import Settings
 from arp.llm.base import LLMClient
 from arp.orchestration.interval_scheduler import IntervalScheduler
 from arp.reporting.service import ReportingService
+from arp.schemas.reporting import ReportStatus
 from arp.storage.reporting_store import ReportingStore
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,10 @@ class ReportScheduler(IntervalScheduler):
         llm = self._llm_factory()
         for report_id in config.report_ids:
             try:
-                await self.service.rerun(report_id, llm)
+                waiting = next((m for m in self.service.lineage(report_id) if m.rerun_of and m.status == ReportStatus.STORYLINE_READY), None)
+                if waiting is None:
+                    waiting = await self.service.rerun(report_id, llm)
+                if waiting.status == ReportStatus.STORYLINE_READY:  # warned every tick until a person acts
+                    logger.warning("Scheduled re-run of report %s is waiting for storyline approval as report %s", report_id, waiting.report_id)
             except Exception:  # noqa: BLE001 - one broken report must not stop the others
                 logger.exception("Scheduled re-run of report %s failed", report_id)

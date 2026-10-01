@@ -175,3 +175,9 @@ async def test_rewrite_result_normalised_to_slot_shape(fake_llm):
     deck = _deck(_slide("bullets", "five", items=["We leverage scale"]), _slide(left="We leverage scale"))
     out, findings = await lint_and_rewrite(deck, _req(), llm)
     assert out.slides[1].slots["items"] == ["We use scale"] and out.slides[2].slots["left"] == "We use scale" and findings == []
+
+
+async def test_rewrite_llm_failure_keeps_finding_and_deck(fake_llm):
+    deck = _deck(_slide(left="We leverage scale"))
+    out, findings = await lint_and_rewrite(deck, _req(), fake_llm({}), max_rounds=1)  # nothing scripted: the call raises
+    assert _rules(findings) == {"stock_ai_word"} and out == deck

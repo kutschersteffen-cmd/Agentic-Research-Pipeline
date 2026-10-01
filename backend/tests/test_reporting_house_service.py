@@ -8,6 +8,7 @@ from arp.api.deps import get_reporting_store
 from arp.api.routers import reporting as reporting_router
 from arp.reporting import house_pipeline
 from arp.reporting.browser import BrowserUnavailable
+from arp.reporting.lint import lint_deck
 from arp.reporting.service import ReportingService
 from arp.reporting.visual_qa import QAEdit, QAResult
 from arp.schemas.reporting import (
@@ -87,7 +88,7 @@ async def test_applied_qa_edit_replaces_stale_fit_and_lint_findings(tmp_path, fa
         Finding(slide=1, slot="items", stage="lint", rule="exclamation", message="old"),
     ]
 
-    async def fake_fit(deck, request, llm, max_passes=3, usage=None):
+    async def fake_fit(deck, request, llm, max_passes=3, usage=None, shift=None):
         return deck, list(stale)
 
     monkeypatch.setattr(house_pipeline, "fit_deck", fake_fit)
@@ -122,12 +123,18 @@ async def test_approve_build_failure_marks_manifest_failed(tmp_path, fake_llm, m
     assert store.load_storyline(manifest.report_id).approved  # never built twice
 
 
-async def test_approve_can_retry_after_fill_failure(tmp_path, fake_llm):
+async def test_approve_can_retry_after_fill_failure(tmp_path, fake_llm, monkeypatch):
     store = _store(tmp_path)
     service = ReportingService(store)
     manifest = await service.create_and_plan(_REQ, fake_llm({"Storyline": [_storyline(1)]}))
-    with pytest.raises(AssertionError):  # the fake has no SlideContent scripted: the fill stage blows up
-        await service.approve_storyline(manifest.report_id, fake_llm({}))
+
+    async def boom(*a, **k):
+        raise RuntimeError("fill blew up")
+
+    with monkeypatch.context() as m:
+        m.setattr(house_pipeline, "fill_slide", boom)
+        with pytest.raises(RuntimeError):
+            await service.approve_storyline(manifest.report_id, fake_llm({}))
     assert store.load_manifest(manifest.report_id).status == ReportStatus.FAILED and store.load_deck(manifest.report_id) is None
 
     manifest = await service.approve_storyline(manifest.report_id, fake_llm({"SlideContent": [_bullets()]}))
@@ -189,3 +196,28 @@ def test_download_rejects_file_not_in_output_files(client, store):
     assert client.get(f"/api/reports/{rid}/download?file=output.pptx").status_code == 404
     assert client.get(f"/api/reports/{rid}/download?file=manifest.json").status_code == 404
     assert client.get(f"/api/reports/{rid}/download?file=output.pdf").status_code == 200
+
+
+async def test_findings_follow_a_fit_split_and_lint_matches_final_deck(tmp_path, fake_llm):
+    long = SlideContent(headline="x", layout="bullets", variant="five", slots={"items": [" ".join(f"w{k}" for k in range(60))] * 10})
+    bad = SlideContent(headline="x", layout="nope", variant="nope")
+    llm = fake_llm({"SlideContent": [long, bad, bad], "QAResult": [QAResult(edits=[])]})  # lint rewrites fail: unscripted
+    deck, findings = await house_pipeline.build_house_deck("r1", _REQ, _storyline(2), llm, _store(tmp_path))
+    last = len(deck.slides) - 1
+    assert last > 2 and deck.slides[last].headline == "Point 1 holds."  # slide 1 was split
+    assert [f.slide for f in findings if f.rule == "bad_reference"] == [last]
+    assert [f for f in findings if f.stage == "lint"] == lint_deck(deck, _REQ)
+
+
+async def test_approve_after_failed_rerender_rerenders_saved_deck(tmp_path, fake_llm):
+    store = _store(tmp_path)
+    service = ReportingService(store)
+    manifest = await service.create_and_plan(_REQ, fake_llm({"Storyline": [_storyline(1)]}))
+    await service.approve_storyline(manifest.report_id, fake_llm({"SlideContent": [_bullets()]}))
+    rid = manifest.report_id
+    store.save_manifest(manifest.model_copy(update={"status": ReportStatus.FAILED, "error": "render failed"}))  # as a failed re-render leaves it
+    store.output_path(rid, "output.pdf").unlink()
+
+    manifest = await service.approve_storyline(rid, fake_llm({}))  # no LLM: the saved deck is re-rendered
+
+    assert manifest.status == ReportStatus.COMPLETED and store.output_path(rid, "output.pdf").exists()

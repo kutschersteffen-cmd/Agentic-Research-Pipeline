@@ -36,7 +36,7 @@ async def _fit_slide(
         limit = floor(_words(s.slots[slot]) / ratio * 0.9)
         try:
             new = await rewrite_slot(s, slot, f"Shorten to at most {limit} words. Keep every number.", request, llm, usage)
-        except (ValueError, KeyError):
+        except Exception:  # noqa: BLE001 -- unknown slot or a failed call
             pass  # fall through to roomier/split rather than retry the same failing call next pass
         else:
             # Re-lint only this slot; never start another lint rewrite from here.
@@ -69,7 +69,9 @@ async def _fit_slide(
 
 async def fit_deck(
     deck: Deck, request: ReportRequest, llm: LLMClient, max_passes: int = 3, usage: LLMUsage | None = None,
+    shift: list[Finding] | None = None,
 ) -> tuple[Deck, list[Finding]]:
+    """`shift`, when given, holds earlier findings on this deck: a split moves those after it down, in place."""
     extra: list[Finding] = []
     for _ in range(max_passes):
         found = await measure(render_deck_html(deck, request.datasets, mode=request.layout.theme))
@@ -85,6 +87,9 @@ async def fit_deck(
             kind = next((sp.kind for sp in get_variant(slides[i].layout, slides[i].variant).slots if sp.name == slot), "")
             new, fs = await _fit_slide(deck.model_copy(update={"slides": slides}), i, slot, kind, ratio, request, llm, usage)
             slides[i : i + 1] = new
+            for f in [*(shift or []), *extra]:
+                if f.slide > i:
+                    f.slide += len(new) - 1
             extra += fs
         deck = deck.model_copy(update={"slides": slides})
     return deck, extra + await measure(render_deck_html(deck, request.datasets, mode=request.layout.theme))

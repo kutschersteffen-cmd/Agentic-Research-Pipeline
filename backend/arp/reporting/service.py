@@ -44,7 +44,9 @@ class ReportingService:
         house = request.layout.output_format == OutputFormat.HOUSE_DECK
         template_style = self.store.load_template_style(request.template_id) if request.template_id else None
         try:
-            if house:
+            if house:  # the storyline is drafted on the run data, so load it first (and keep it for the build)
+                request = with_run_datasets(request, self.settings)
+                self.store.save_request(manifest.report_id, request)
                 draft, usage = await draft_storyline(request, llm)
             else:
                 draft, usage = await draft_report_plan(request, llm, template_style)
@@ -69,13 +71,15 @@ class ReportingService:
     async def approve_storyline(self, report_id: str, llm: LLMClient) -> ReportManifest:
         """House deck: approves the stored storyline and builds the deck from it.
         The approval is persisted before the build. A build that failed before deck.json was written
-        can be approved again (the retry); once a deck exists, re-render it instead."""
+        can be approved again (the retry); a FAILED report with a deck re-renders it (no LLM)."""
         manifest = self.store.load_manifest(report_id)
         storyline = self.store.load_storyline(report_id)
         request = self.store.load_request(report_id)
         if manifest is None or storyline is None or request is None:
             raise ValueError(f"No storyline drafted for report {report_id!r}")
-        retry = manifest.status == ReportStatus.FAILED and self.store.load_deck(report_id) is None
+        if manifest.status == ReportStatus.FAILED and self.store.load_deck(report_id) is not None:
+            return await self._rerender(manifest)
+        retry = manifest.status == ReportStatus.FAILED
         if storyline.approved and not retry:
             raise ValueError("Storyline already approved")
         if not storyline.slides:
@@ -102,17 +106,8 @@ class ReportingService:
         lineage (itself or its re-runs), on freshly loaded run data; the source is untouched. If the fresh data no
         longer backs a headline number, the new storyline goes back for approval (STORYLINE_READY, findings saved)
         instead of being built; once a person approves and it completes, later re-runs start from it."""
-        reports = {m.report_id: m for m in self.store.list_reports()}  # never creates a dir, unlike load_manifest
-        if report_id not in reports:
-            raise ValueError(f"Unknown report_id {report_id!r}")
-
-        def in_lineage(m: ReportManifest | None) -> bool:
-            while m is not None and m.report_id != report_id:
-                m = reports.get(m.rerun_of)
-            return m is not None
-
-        for old in sorted(reports.values(), key=lambda m: m.created_at, reverse=True):
-            if old.status == ReportStatus.COMPLETED and in_lineage(old):
+        for old in self.lineage(report_id):
+            if old.status == ReportStatus.COMPLETED:
                 storyline = self.store.load_storyline(old.report_id)
                 if storyline is not None and storyline.approved and self.store.load_deck(old.report_id) is not None:
                     break
@@ -134,6 +129,19 @@ class ReportingService:
             self.store.save_findings(manifest.report_id, stale)
             return manifest
         return await self.approve_storyline(manifest.report_id, llm)
+
+    def lineage(self, report_id: str) -> list[ReportManifest]:
+        """`report_id` and its re-runs (and theirs), newest first."""
+        reports = {m.report_id: m for m in self.store.list_reports()}  # never creates a dir, unlike load_manifest
+        if report_id not in reports:
+            raise ValueError(f"Unknown report_id {report_id!r}")
+
+        def in_lineage(m: ReportManifest | None) -> bool:
+            while m is not None and m.report_id != report_id:
+                m = reports.get(m.rerun_of)
+            return m is not None
+
+        return sorted(filter(in_lineage, reports.values()), key=lambda m: m.created_at, reverse=True)
 
     def _completed(self, manifest: ReportManifest, filename: str, files: list[str] | None = None) -> ReportManifest:
         manifest.status = ReportStatus.COMPLETED
@@ -177,6 +185,10 @@ class ReportingService:
         return self._completed(manifest, filename)
 
     def _rerender_house_deck(self, manifest: ReportManifest) -> ReportManifest:
+        # ponytail: asyncio.run, so this sync path can't be called from inside a running loop; make it async if that's needed.
+        return asyncio.run(self._rerender(manifest))
+
+    async def _rerender(self, manifest: ReportManifest) -> ReportManifest:
         report_id = manifest.report_id
         deck, request = self.store.load_deck(report_id), self.store.load_request(report_id)
         if deck is None or request is None:
@@ -184,8 +196,7 @@ class ReportingService:
         manifest.status = ReportStatus.RENDERING
         self.store.save_manifest(manifest)
         try:
-            # ponytail: asyncio.run, so this sync path can't be called from inside a running loop; make it async if that's needed.
-            asyncio.run(render_house_outputs(report_id, deck, request, self.store))
+            await render_house_outputs(report_id, deck, request, self.store)
         except Exception as exc:  # noqa: BLE001
             manifest.status = ReportStatus.FAILED
             manifest.error = str(exc)
@@ -212,5 +223,7 @@ class ReportingService:
         """Convenience end-to-end path (plan + render in one call) for the
         CLI and a single-request API flow. Equivalent to
         create_and_plan(...) followed immediately by render_from_plan(...)."""
+        if request.layout.output_format == OutputFormat.HOUSE_DECK:  # checked before the storyline call is spent
+            raise ValueError("A house deck needs its storyline approved: use `arp report plan --format house_deck`, then `arp report approve`.")
         manifest = await self.create_and_plan(request, llm)
         return self.render_from_plan(manifest.report_id)

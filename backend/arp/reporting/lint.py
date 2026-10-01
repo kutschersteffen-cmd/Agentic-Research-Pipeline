@@ -187,8 +187,8 @@ async def lint_and_rewrite(
         for (i, slot), msgs in todo.items():
             try:
                 new = await rewrite_slot(slides[i], slot, " ".join(dict.fromkeys(msgs)), request, llm, usage)
-            except (ValueError, KeyError):
-                continue  # unknown slot/variant: keep the finding, keep the deck
+            except Exception:  # noqa: BLE001 -- unknown slot/variant or a failed call: keep the finding, keep the deck
+                continue
             text, old = new.slots[slot], slides[i].slots[slot]
             if isinstance(old, list) and isinstance(text, str):
                 text = [text]
