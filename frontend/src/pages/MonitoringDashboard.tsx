@@ -94,11 +94,6 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
   );
 
   const votingRuns = useMemo(() => runs.filter((r) => r.run_type === "proxy_voting"), [runs]);
-  const pendingVoteReviews = useMemo(() => votingRuns.reduce((sum, r) => sum + r.review_count, 0), [votingRuns]);
-  const flaggedForReview = useMemo(
-    () => runs.filter((r) => REVIEWABLE_RUN_TYPES.has(r.run_type)).reduce((sum, r) => sum + r.review_count, 0),
-    [runs],
-  );
 
   const runsKnown = lastRefreshed !== null;
   const show = (known: boolean, n: number) => (known ? n : "—");
@@ -128,22 +123,6 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
       </div>
 
       <dl className="dashboard-grid">
-        <div className={`stat-tile stat-tile-action${runsKnown && pendingVoteReviews > 0 ? " awaiting" : ""}`}>
-          <dt className="stat-label">Ballot items awaiting decision</dt>
-          <dd className="stat-value">
-            <button className="stat-link" onClick={() => onNavigate("voting")} disabled={!runsKnown}>
-              {show(runsKnown, pendingVoteReviews)}
-            </button>
-          </dd>
-        </div>
-        <div className={`stat-tile stat-tile-action${runsKnown && flaggedForReview > 0 ? " awaiting" : ""}`}>
-          <dt className="stat-label">Flagged items awaiting review</dt>
-          <dd className="stat-value">
-            <button className="stat-link" onClick={() => onNavigate("review")} disabled={!runsKnown}>
-              {show(runsKnown, flaggedForReview)}
-            </button>
-          </dd>
-        </div>
         <div className="stat-tile">
           <dt className="stat-label">Escalated beyond private engagement</dt>
           <dd className={recordsLoaded && escalatedIssues.length > 0 ? "stat-value stat-low" : "stat-value"}>{show(recordsLoaded, escalatedIssues.length)}</dd>
@@ -186,8 +165,8 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                     <div className="activity-meta">
                       <span>{runTypeLabel(r.run_type)}</span>
                       <span>{r.completed_count}/{r.company_count} companies</span>
-                      <span>{r.failed_count} failed</span>
-                      <span>{r.review_count} flagged</span>
+                      {r.failed_count > 0 && <span>{r.failed_count} failed</span>}
+                      <span>{r.review_count} awaiting</span>
                       <span>${r.estimated_cost_usd.toFixed(2)}</span>
                       {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && onOpenReview && (
                         <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
@@ -215,7 +194,7 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                       <th>Type</th>
                       <th>Status</th>
                       <th>Progress</th>
-                      <th>Flagged</th>
+                      <th>Awaiting</th>
                       <th>Finished</th>
                       <th></th>
                     </tr>
@@ -223,13 +202,17 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
                   <tbody>
                     {finished.map((r) => (
                       <tr key={r.run_id}>
-                        <td data-label="Run">{r.run_id}</td>
+                        <td data-label="Run" className="mono">{r.run_id}</td>
                         <td data-label="Type">{runTypeLabel(r.run_type)}</td>
                         <td data-label="Status"><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
-                        <td data-label="Progress">{r.completed_count}/{r.company_count} ({r.failed_count} failed)</td>
-                        <td data-label="Flagged">{r.review_count}</td>
+                        <td data-label="Progress" className="mono">
+                          {r.completed_count}/{r.company_count}
+                          {r.failed_count > 0 && <span className="muted"> · {r.failed_count} failed</span>}
+                        </td>
+                        <td data-label="Awaiting" className="mono">{r.review_count}</td>
                         <td data-label="Finished" className="mono">{when(r.updated_at)}</td>
                         <td>
+                          {r.run_type === "proxy_voting" && <a href={`#/voting/${encodeURIComponent(r.run_id)}`}>Ballot</a>}
                           {r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type) && onOpenReview && (
                             <button className="link-button" style={{ marginTop: 0 }} onClick={() => onOpenReview(r.run_type as ReviewableRunKind, r.run_id)}>
                               Review

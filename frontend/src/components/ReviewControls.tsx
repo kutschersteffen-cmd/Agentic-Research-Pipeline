@@ -5,6 +5,7 @@ import { REVIEWER_REQUIRED } from "../lib/reviewer";
 import { DecisionBar } from "./DecisionBar";
 import { ProposedTag } from "./ProposedTag";
 import { announce } from "../lib/announce";
+import { CommentField } from "./CommentField";
 
 export function decisionBadgeClass(decision: string): string {
   if (decision === "approve") return "badge badge-high";
@@ -126,13 +127,7 @@ export function ReviewControls({
           </button>
         </div>
       )}
-      <textarea
-        rows={1}
-        aria-label="Comment (optional)"
-        placeholder="Comment (optional)"
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-      />
+      <CommentField value={comment} onChange={setComment} />
       {error && <p className="error-text" role="alert">{error}</p>}
       {history !== null && (
         <ul className="review-history">

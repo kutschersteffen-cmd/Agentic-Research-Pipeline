@@ -219,6 +219,11 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
                       {REVIEW_KIND_LABEL[q.kind]} · {q.runId}
                     </p>
                     <ReviewItemFields item={q.item} onOpenSource={setActiveSource} />
+                    {d && (
+                      <button className="link-button" onClick={() => setReopened(null)}>
+                        Keep the current decision
+                      </button>
+                    )}
                     <ReviewControls
                       runId={q.runId}
                       itemKey={q.item.item_key as string}
@@ -236,7 +241,7 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
               })}
             </section>
           </div>
-          <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
+          {activeSource && <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />}
         </div>
       )}
       {items !== null && shown.length === 0 && !error && (

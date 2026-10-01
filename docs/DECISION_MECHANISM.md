@@ -296,10 +296,15 @@ scores that way:
 - **Level criteria.** Each has ordered rules, `level` + `when` (a ZEN
   expression over the columns, by name or slug), and an optional default.
   The first rule that holds sets the level. A comparison against a blank
-  value does not hold, so missing data never earns a level; a criterion
-  with no match and no default has no level, which counts against
-  coverage (or, with `missing = penalise | neutral`, as the bottom or
-  middle of the scale). A rule with an empty condition is not written yet
+  value, or a blank flag, does not hold. When no rule holds the default
+  (`otherwise`) applies. Per criterion, `otherwise_on_blank` decides
+  whether that includes a row where a rule could not be decided because a
+  value is blank: on (the default, which keeps older frameworks' results)
+  the blank gets the default level; off, it gets no level, while a value
+  that is there but fits no rule still gets the default. The studio
+  switches it off for new criteria. A criterion without a level counts
+  against coverage (or, with `missing = penalise | neutral`, as the bottom
+  or middle of the scale). A rule with an empty condition is not written yet
   and is skipped; a condition that does not parse, or a level off the
   scale, is refused on save.
 - **Scores.** Cluster = weighted average of its criteria's levels;
@@ -490,6 +495,17 @@ A saved framework is a template. Three things make it usable as one:
   version must be ratified, the run must have finished (tiers from half a
   run would be frozen as if they covered the universe), and no column the
   template scores on may be missing.
+- **Two guards on every publication.** A table that lacks a column the
+  framework uses is flagged on the result (`missing_columns`, and a
+  needs-check audit entry): a gate on that column cannot fire and a
+  criterion drops out with its weight re-spread, so such a result is never
+  published, from the studio or from a run. And the first publication of a
+  framework version fixes its cut-points: later publications of the same
+  version are tiered on them (`hold_published_cuts`), and the snapshot
+  records `cut_points` and `cuts_held_from`. Quantile cut-points drawn
+  afresh would move with the field and re-tier entities whose scores stood
+  still. A framework with fixed cut-points is left as it is; a new version
+  draws its own.
 
 In the UI, the Extraction screen has an optional "Score the results" step for every profile (custom schema, Financials, TNFD,
 Transition Plan) and a

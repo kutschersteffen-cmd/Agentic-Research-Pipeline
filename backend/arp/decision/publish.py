@@ -19,6 +19,22 @@ def find_id_column(dataset: Dataset) -> str | None:
     return next((by_lower[c] for c in ID_COLUMNS if c in by_lower), None)
 
 
+def hold_published_cuts(config: MechanismConfig, snapshots: list[PublishedDecision]) -> tuple[MechanismConfig, str | None]:
+    """The framework with its first publication's cut-points pinned, and
+    that snapshot's id. Quantile or natural-break cuts drawn afresh move with
+    the field, so a later table would re-tier entities whose scores stood
+    still. Fixed cut-points, or a version never published, are left alone."""
+    if config.cut_mode == "absolute":
+        return config, None
+    earlier = [
+        s for s in snapshots if s.framework_id == config.framework_id and s.framework_version == config.version and s.cut_points
+    ]
+    if not earlier:
+        return config, None
+    first = min(earlier, key=lambda s: s.published_at)
+    return config.model_copy(update={"cut_mode": "absolute", "pinned_cuts": list(first.cut_points)}), first.snapshot_id
+
+
 def publish(
     dataset: Dataset,
     config: MechanismConfig,
@@ -27,9 +43,15 @@ def publish(
     published_by: str,
     id_column: str | None = None,
     note: str = "",
+    cuts_held_from: str | None = None,
 ) -> PublishedDecision:
     if not config.ratified:
         raise ValueError(f"{config.name} v{config.version} is not ratified; only a ratified framework can be published.")
+    if result.missing_columns:
+        raise ValueError(
+            f"Not published: the table lacks columns the framework uses ({', '.join(result.missing_columns)}); "
+            "a gate on one cannot fire and a criterion drops out."
+        )
     if not published_by.strip():
         raise ValueError("Publishing needs published_by.")
     column = id_column or find_id_column(dataset)
@@ -63,6 +85,8 @@ def publish(
         id_column=column,
         published_by=published_by.strip(),
         note=note,
+        cut_points=list(result.effective_cuts),
+        cuts_held_from=cuts_held_from,
         rows=rows,
     )
 

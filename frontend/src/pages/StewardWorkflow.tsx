@@ -235,6 +235,7 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
               <button
                 key={s.stream_id}
                 className={s.stream_id === stream && !adding ? "nav-tab active" : "nav-tab"}
+                aria-pressed={s.stream_id === stream && !adding}
                 onClick={() => {
                   setAdding(false);
                   setStream(s.stream_id);
@@ -243,7 +244,7 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
                 {s.name}
               </button>
             ))}
-            <button className={adding ? "nav-tab active" : "nav-tab"} onClick={() => setAdding(true)}>
+            <button className={adding ? "nav-tab active" : "nav-tab"} aria-pressed={adding} onClick={() => setAdding(true)}>
               + Client stream
             </button>
           </nav>
@@ -256,6 +257,7 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
               }}
             />
           )}
+          {!adding && !overviewFlow && !error && <p className="status-text">Loading stages…</p>}
           {!adding && overviewFlow && (
             <section className="card">
               <div className="section-heading">
@@ -267,14 +269,18 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
                 )}
                 {loading && <span className="muted">Refreshing…</span>}
               </div>
-              <div className="chip-row source-legend">
-                {(Object.keys(SOURCE_LABEL) as MetricSource[]).map((s) => (
-                  <span key={s} className="chip">
-                    <span className={`source-dot source-${s}`} /> {SOURCE_LABEL[s]}
-                  </span>
-                ))}
-              </div>
-              {stream === "house" && <HouseUniverse onChanged={reload} />}
+              {/* Where the numbers come from is reference, not work: folded. */}
+              <details className="data-sources">
+                <summary>Data sources{stream === "house" ? " and companies covered" : ""}</summary>
+                <div className="chip-row source-legend">
+                  {(Object.keys(SOURCE_LABEL) as MetricSource[]).map((s) => (
+                    <span key={s} className="chip">
+                      <span className={`source-dot source-${s}`} /> {SOURCE_LABEL[s]}
+                    </span>
+                  ))}
+                </div>
+                {stream === "house" && <HouseUniverse onChanged={reload} />}
+              </details>
               <div className="toolbar flow-view">
                 <p className="muted">{overviewFlow.data_note} Click a stage to open its studio.</p>
                 <span className="flow-view-switch">

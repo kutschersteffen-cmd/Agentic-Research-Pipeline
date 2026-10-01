@@ -330,7 +330,7 @@ export function StartPage() {
           return (
             <a key={r.run_id} className={`hub-chip hub-chip-${state}`} href={runHref(r)}>
               <span className={`hub-dot hub-dot-${state}`} aria-hidden />
-              {runTypeLabel(r.run_type)} · {state === "now" ? `running ${pct}%` : state === "wait" ? `${w} waiting on you` : "failed"}
+              {runTypeLabel(r.run_type)} <span className="hub-chip-id">{r.run_id}</span> · {state === "now" ? `running ${pct}%` : state === "wait" ? `${w} waiting on you` : "failed"}
             </a>
           );
         })}

@@ -4,7 +4,8 @@ import { useEffect, useRef, type ReactNode } from "react";
  * background, Escape-to-close and focus return. Clicking the backdrop also
  * closes it -- the dialog itself has no padding, so a click whose target is
  * the dialog element can only have landed on the backdrop. */
-export function Modal({ title, onClose, children, compact = false }: { title: string; onClose: () => void; children: ReactNode; compact?: boolean }) {
+/** `noClose`: the dialog has its own cancel button, so the header link would be a second way out saying the same thing. Esc still closes. */
+export function Modal({ title, onClose, children, compact = false, noClose = false }: { title: string; onClose: () => void; children: ReactNode; compact?: boolean; noClose?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   // Every close goes through dialog.close() so the browser returns focus to
   // the opener; the resulting close event is what calls onClose.
@@ -20,9 +21,11 @@ export function Modal({ title, onClose, children, compact = false }: { title: st
       <div className="modal-body">
         <div className="modal-header">
           <h3>{title}</h3>
-          <button className="link-button" onClick={close}>
-            Close
-          </button>
+          {!noClose && (
+            <button className="link-button" onClick={close}>
+              Close
+            </button>
+          )}
         </div>
         {children}
       </div>

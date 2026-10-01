@@ -61,9 +61,11 @@ export function VotingRuns({ selectedRunId, onSelectRun }: { selectedRunId: stri
         </>
       )}
 
-      <section className="card">
-        <div className="section-heading">
-          <h2>Runs</h2>
+      <details className="card start-run" open={!selectedRunId}>
+        <summary>
+          <h2>All voting runs</h2>
+        </summary>
+        <div className="toolbar">
           <button className="link-button" onClick={loadRuns}>
             Refresh
           </button>
@@ -114,7 +116,7 @@ export function VotingRuns({ selectedRunId, onSelectRun }: { selectedRunId: stri
             </table>
           </div>
         )}
-      </section>
+      </details>
 
       {/* Once a run is open the ballots are the work; starting another run
           folds away below them. */}

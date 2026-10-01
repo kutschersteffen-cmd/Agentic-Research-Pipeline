@@ -63,7 +63,7 @@ FUNCS = {
         ("effective_weights", "Python", "Breadth-adjusted → Scope 1+2 intensity 0.150; each Climate Lobbying criterion 0.067."),
         ("entropy_weights", "Python", "Discriminating power → SBTi target 0.212 (highest), emissions data coverage 0.062 (lowest)."),
         ("compute_scores", "Python", "Kanto Heavy Industries → score <b>39.8</b>, coverage 0.933. Scope 3 and SBTi each contribute −8.06."),
-        ("apply_levels → evaluate_levels", "ZEN expressions", "<code>7 when target_ambition_0_5 &gt;= 4</code>, <code>4 when &gt;= 2</code>, otherwise 1 → Alpina 7, Kanto 4, Zenith (blank) 1 via <em>otherwise</em>."),
+        ("apply_levels → evaluate_levels", "ZEN expressions", "<code>7 when target_ambition_0_5 &gt;= 4</code>, <code>4 when &gt;= 2</code>, otherwise 1 → Alpina 7, Kanto 4, Zenith (blank) 1 via <em>otherwise</em>; with <code>otherwise_on_blank: false</code> Zenith gets no level instead."),
     ],
     "tree": [
         ("gate_hit", "Python", "<code>Severe_Controversy_Flag is Yes → exclude</code> → 5 entities excluded before any score counts."),
@@ -89,6 +89,8 @@ FUNCS = {
     "output": [
         ("publish", "Python", "Sample table with <code>id_column='ISIN'</code> → 24 rows: 18 scored, 6 excluded or insufficient."),
         ("publish", "Python", "With no <code>company_id</code>/<code>issuer_id</code>/<code>entity_id</code>/<code>id</code> column the API needs <code>id_column</code> named; the studio's Publish dialog now sends it (default: the reference column, ISIN here)."),
+        ("hold_published_cuts", "Python", "Q2 published first → cut-points 86.5 / 64.6 / 34.8 recorded. Q3 of the same version → tiered on them (<code>cuts_held_from</code> = the Q2 snapshot): Kanto 3 → 2, Ardent Pharma stays in Tier 2."),
+        ("publish", "Python", "A table without <code>Severe_Controversy_Flag</code> → refused: <em>the table lacks columns the framework uses</em>. Scored anyway, Tarn Mining would have been tiered instead of excluded."),
         ("templates.score_run", "Python", "Run finishes → the attached framework scores it and <code>decision.json</code> is written; a failure is recorded, never fails the run."),
     ],
 }
@@ -150,7 +152,7 @@ CODE = {
         ("decision/weighting.py", "breadth_adjusted_weight", "<code>dimension weight = √(criteria count)</code>, split evenly among its criteria; all weights are then scaled to sum to 1."),
         ("decision/weighting.py", "entropy_weights", "<code>pᵢ = (vᵢ + 1) ÷ Σ(v + 1)</code>, <code>H = −Σ pᵢ ln pᵢ</code>, <code>w ∝ 1 − H ÷ ln n</code>, scaled to sum to 1."),
         ("decision/scoring.py", "compute_scores", "<code>score = Σ wⱼvⱼ ÷ Σ wⱼ</code> over the criteria used. <code>coverage = Σ w(present) ÷ Σ w(all)</code>. <code>contributionⱼ = wⱼ ÷ Σ w(used) × (vⱼ − 50)</code>."),
-        ("decision/levels.py", "evaluate_levels", "Each rule's <code>when</code> is compiled with <code>zen.compile_expression</code>; the first rule that holds sets the level, else <code>otherwise</code>."),
+        ("decision/levels.py", "evaluate_levels", "Each rule's <code>when</code> is compiled with <code>zen.compile_expression</code>; the first rule that holds sets the level, else <code>otherwise</code>, unless a rule was undecided on a blank value and <code>otherwise_on_blank</code> is off."),
     ],
     "tree": [
         ("decision/tree.py", "gate_hit", "Yes/No and text: <code>value == target</code> (is) or <code>≠</code> (is not). Numbers: <code>&lt;</code>, <code>&gt;</code>, <code>==</code>. A blank value never hits."),
@@ -177,7 +179,8 @@ CODE = {
     ],
     "output": [
         ("decision/publish.py", "find_id_column", "The first column named <code>company_id</code>, <code>issuer_id</code>, <code>entity_id</code> or <code>id</code> (case-insensitive); none → publishing needs one named."),
-        ("decision/publish.py", "publish", "Freezes one framework version's result on one table, rows matched to issuers by the id column."),
+        ("decision/publish.py", "publish", "Freezes one framework version's result on one table, rows matched to issuers by the id column. Refused when <code>result.missing_columns</code> is not empty."),
+        ("decision/publish.py", "hold_published_cuts", "<code>pinned_cuts = cut_points(first snapshot of this version)</code>, unless the framework fixes its own."),
     ],
 }
 
@@ -198,8 +201,8 @@ def code_block(slug):
 
 SHOTS = {
     "data": [("01-data.png", "Data tab after loading two tables: the Q2 sample and a Q3 copy.")],
-    "profile": [("02-profile.png", "Profile after Derive: one column flagged, <code>Emissions_Data_Coverage_pct</code> highlighted.")],
-    "rules": [("03-rules.png", "Rules tab: the GoRules JDM canvas with the starter graph (the Row input into an expression box, partly behind the Components panel) and the live preview. The palette still lists Function (JS), which saving refuses.")],
+    "profile": [("02-profile.png", "Profile after Derive: one column flagged, <code>Emissions_Data_Coverage_pct</code> highlighted. ISIN shows as <em>reference</em>, Region as <em>segment</em> marked as the peer cohort.")],
+    "rules": [("03-rules.png", "Rules tab: the GoRules JDM canvas with the starter graph (the Row input into an expression box, partly behind the Components panel) and the live preview. The palette offers only the node types a framework accepts; Function (JavaScript) is hidden.")],
     "mechanism": [("04-mechanism.png", "Mechanism tab: scoring mode, normalisation, cohort, and the derived dimensions with their weights.")],
     "tree": [("05-tree.png", "Decision tree tab: gates, cut-points, dimension floor and tiers.")],
     "results": [
@@ -400,7 +403,7 @@ PAGES["mechanism"] = dict(
             ["Part", "Logic"], [
                 ["Scale", "<code>level_min</code>..<code>level_max</code>, default 1–7."],
                 ["Clusters", "Named and weighted by hand."],
-                ["Level rules", "Ordered <code>level</code> + <code>when</code> conditions. The first that holds sets the level; <em>otherwise</em> is the fallback."],
+                ["Level rules", "Ordered <code>level</code> + <code>when</code> conditions. The first that holds sets the level; <em>otherwise</em> is the fallback. <em>Also when a value is blank</em> (per criterion) decides whether a blank value gets the fallback or no level."],
                 ["Blanks", "A comparison with a blank never holds, so missing data never earns a level."],
                 ["Scores", "Cluster = weighted average of its levels; total = weighted average of clusters. Both on the scale."],
                 ["Checks on save", "A condition that does not parse, or a level off the scale, is refused."],
@@ -590,6 +593,7 @@ PAGES["output"] = dict(
                 ["Table", "dataset id and name, as-of date"],
                 ["Matching", "the id column used to match issuers"],
                 ["Sign-off", "published by, published at, note"],
+                ["Cut-points", "the cut-points used, and <code>cuts_held_from</code>: the first publication of this version, whose cut-points later publications reuse"],
                 ["Rows", "entity id, name, score, tier, tier name, rank, rank min/max, status (scored, excluded, insufficient)"],
             ])),
         block("Who reads it", "", table(
@@ -601,7 +605,8 @@ PAGES["output"] = dict(
             ["Route", "What it does"], [
                 ["CSV export", "The ranked outcome from the Results tab."],
                 ["Template on a run", "Attach a framework to an Extraction, Financials, TNFD or Transition Plan run. It is copied into the run folder and scores the run when every company is done (<code>decision.json</code>). A failure there is recorded, never fails the run."],
-                ["Publish from a run", "Stricter than the studio: the version must be ratified, the run finished, and no scored column missing."],
+                ["Publish from a run", "Stricter than the studio: the version must be ratified and the run finished."],
+                ["Missing columns", "Any publication is refused when the table lacks a column the framework uses; the Results tab says which."],
                 ["Template import", "A template file becomes a new framework at v1, as a draft. Ratification does not travel with a file."],
             ])),
     ],

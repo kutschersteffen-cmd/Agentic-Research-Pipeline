@@ -16,6 +16,7 @@ import type {
   DecisionResult,
   Direction,
   EntityDecision,
+  EntityMovement,
   EntitySensitivity,
   MechanismConfig,
   AuditEntry,
@@ -36,6 +37,14 @@ const RuleGraphEditor = lazy(() => import("../components/RuleGraphEditor"));
 // Publishing matches rows to issuers by one column. The engine finds these
 // names on its own; anything else (an ISIN, a ticker) has to be picked.
 const ID_COLUMN_NAMES = ["company_id", "issuer_id", "entity_id", "id"];
+/** A Movement row worth showing: the entity changed status, or it was scored
+ * in the later table and its tier or score moved. Entities excluded or short
+ * of data in both tables are left out: their scores are not used. */
+function movedOrChangedStatus(m: EntityMovement): boolean {
+  if (m.status_before !== m.status_after) return true;
+  return m.status_after === "scored" && (m.tier_delta !== 0 || (m.score_delta ?? 0) !== 0);
+}
+
 function defaultIdColumn(dataset: DatasetSummary, config: MechanismConfig): string {
   return (
     dataset.columns.find((c) => ID_COLUMN_NAMES.includes(c.toLowerCase())) ??
@@ -326,6 +335,8 @@ export function DecisionStudio() {
       label_column: config.label_column === column ? null : config.label_column,
       size_column: config.size_column === column ? null : config.size_column,
       segment_column: config.segment_column === column ? null : config.segment_column,
+      // Leaving the segment job also stops the column being the peer cohort.
+      normalise_within: config.normalise_within === column && role !== "segment" ? null : config.normalise_within,
     };
     const proposal = view?.proposals.find((p) => p.column === column);
     if (role === "criterion") {
@@ -392,7 +403,7 @@ export function DecisionStudio() {
   async function onExplain(entity: EntityDecision) {
     if (!dataset || !config) return;
     const rows = await guard("Testing how far the weights can move…", () =>
-      api.decisionSensitivity({ dataset_id: dataset.dataset_id, config, entity_keys: [entity.entity_key], steps: 9 }),
+      api.decisionSensitivity({ dataset_id: dataset.dataset_id, config, entity_keys: [entity.entity_key] }),
     );
     if (rows && rows.length > 0) setSensitivity(rows[0]);
   }
@@ -750,6 +761,12 @@ export function DecisionStudio() {
 
       {sub === "results" && result && config && (
         <>
+          {!!result.missing_columns?.length && (
+            <p className="decision-check-banner" role="alert">
+              This table lacks columns the framework uses: {result.missing_columns.join(", ")}. A gate on one cannot fire and a
+              criterion drops out, so these results cannot be published.
+            </p>
+          )}
           <div className="decision-kpis">
             {result.tier_summary.map((tier) => (
               <div key={tier.rank} className="card">
@@ -867,6 +884,12 @@ export function DecisionStudio() {
             <>
               {!comparison.comparable && <p className="error-text" role="alert">{comparison.incomparable_reason}</p>}
               {comparison.caveat && <p className="decision-check-banner">{comparison.caveat}</p>}
+              {!!comparison.missing_columns?.length && (
+                <p className="error-text" role="alert">
+                  A snapshot lacks columns the framework uses ({comparison.missing_columns.join(", ")}): gates on them cannot fire,
+                  so movement for the entities they affect is not reliable.
+                </p>
+              )}
               <p>
                 {comparison.label_before} → {comparison.label_after}: <strong>{comparison.improved}</strong> improved,{" "}
                 <strong>{comparison.worsened}</strong> worsened, {comparison.unchanged} unchanged, {comparison.entered} new,{" "}
@@ -894,7 +917,7 @@ export function DecisionStudio() {
                 </thead>
                 <tbody>
                   {comparison.movements
-                    .filter((m) => m.tier_delta !== 0 || (m.score_delta ?? 0) !== 0)
+                    .filter(movedOrChangedStatus)
                     .map((movement) => (
                       <tr key={movement.entity_key}>
                         <td>{movement.name}</td>
@@ -911,7 +934,11 @@ export function DecisionStudio() {
                             ? `${movement.rank_delta > 0 ? "+" : ""}${movement.rank_delta}`
                             : "—"}
                         </td>
-                        <td className="muted">{movement.drivers.join(", ") || "no single criterion moved much"}</td>
+                        <td className="muted">
+                          {movement.status_before !== movement.status_after
+                            ? `${movement.status_before ?? "not in the table"} → ${movement.status_after ?? "not in the table"}`
+                            : movement.drivers.join(", ") || "no single criterion moved much"}
+                        </td>
                       </tr>
                     ))}
                 </tbody>
@@ -986,12 +1013,24 @@ export function DecisionStudio() {
                     </option>
                   ))}
                 </select>
+                {!!result?.missing_columns?.length && (
+                  <p className="error-text" role="alert">
+                    This table lacks columns the framework uses ({result.missing_columns.join(", ")}), so publishing will be refused.
+                  </p>
+                )}
+                {config.cut_mode !== "absolute" && (
+                  <p className="help-text">
+                    Cut-points are drawn from the scores. The first publication of version {config.version} fixes them; later
+                    publications of this version reuse them, so a tier changes only when the score does.
+                  </p>
+                )}
               </ConfirmDecision>
             )}
             {published && (
               <p className="status-text" role="status">
                 Published {published.rows.length} entities (matched on <code>{published.id_column}</code>) as{" "}
-                <code>decision.{published.framework_id}</code>. Next: <a href="#/stewardship/selection">use the tiers in coverage rules</a> or{" "}
+                <code>decision.{published.framework_id}</code>
+                {published.cuts_held_from ? ` on the cut-points of its first publication (${published.cut_points?.map((c) => c.toFixed(1)).join(" / ")})` : ""}. Next: <a href="#/stewardship/selection">use the tiers in coverage rules</a> or{" "}
                 <a href="#/index">join the scores in an index</a>.
               </p>
             )}

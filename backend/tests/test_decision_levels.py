@@ -72,7 +72,7 @@ def test_levels_come_from_the_first_matching_rule_and_average_on_the_scale():
     assert beta.score == pytest.approx(4.5), "a cluster without a level drops out of the average"
 
 
-def test_a_blank_value_never_earns_a_level():
+def test_otherwise_fills_a_blank_by_default():
     gamma = _by_name(apply_mechanism(_dataset(), _config()))["Gamma"]
     coverage = gamma.contributions[0]
     assert coverage.normalised == 1 and coverage.imputed is True, "falls through both rules to the default"
@@ -125,3 +125,25 @@ def test_edits_to_the_grid_are_audited():
     after = before.model_copy(update={"level_criteria": [changed, *before.level_criteria[1:]]})
     entries = describe_changes(before, after, by="ana")
     assert any(e.item == "Target coverage" and "90" in e.decision and e.by == "ana" for e in entries)
+
+
+def test_otherwise_can_leave_a_blank_without_a_level():
+    """Per criterion: `otherwise_on_blank=False` keeps the default for a
+    value that is there but fits no rule, and leaves a blank value blank --
+    missing data then counts against coverage instead of earning a level."""
+    config = _config()
+    config.level_criteria[0].otherwise_on_blank = False
+    config.level_criteria[1].otherwise_on_blank = False
+    result = _by_name(apply_mechanism(_dataset(), config))
+    gamma = result["Gamma"]
+    assert gamma.contributions[0].normalised is None, "coverage not disclosed: no level"
+    assert gamma.contributions[1].normalised == 2 and gamma.contributions[1].imputed, "Net zero is 'No', not blank: the default still applies"
+    assert gamma.score == pytest.approx(2.0)
+    assert gamma.coverage < _by_name(apply_mechanism(_dataset(), _config()))["Gamma"].coverage
+
+    rows = [*ROWS, ["Delta", "d", "10", "Yes", "Yes"]]
+    delta = _by_name(apply_mechanism(_dataset(rows), config))["Delta"]
+    assert delta.contributions[0].normalised == 1, "a value below every rule still gets the default"
+
+    entries = describe_changes(_config(), config, by="A. Reviewer")
+    assert any("no longer fills blank values" in e.decision for e in entries)

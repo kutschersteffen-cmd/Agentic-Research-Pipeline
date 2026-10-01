@@ -129,6 +129,12 @@ class LevelCriterion(BaseModel):
     enabled: bool = True
     rules: list[LevelRule] = Field(default_factory=list)
     otherwise: int | None = None
+    otherwise_on_blank: bool = Field(
+        default=True,
+        description="Whether `otherwise` also applies when a rule could not be decided because a value it reads is "
+        "blank. False leaves such a row without a level, so missing data counts against coverage instead of earning "
+        "the default; a value that is there but fits no rule still gets `otherwise`.",
+    )
     hint: str = Field(default="", description="What the criterion asks, shown to reviewers next to the level.")
 
 
@@ -396,6 +402,11 @@ class DecisionResult(BaseModel):
     effective_cuts: list[float] = Field(default_factory=list)
     cuts_origin: CutMode = "quantile"
     effective_weights: dict[str, float] = Field(default_factory=dict)
+    missing_columns: list[str] = Field(
+        default_factory=list,
+        description="Columns the framework uses that this table lacks. A gate on one cannot fire and a criterion "
+        "drops out, so the result is flagged and cannot be published.",
+    )
 
     entities: list[EntityDecision] = Field(default_factory=list)
     tier_summary: list[TierSummary] = Field(default_factory=list)
@@ -475,6 +486,9 @@ class DecisionComparison(BaseModel):
         "normalisation can only show movement relative to the field, never absolute improvement.",
     )
     cut_points: list[float] = Field(default_factory=list, description="The cut-points the later snapshot was tiered on.")
+    missing_columns: list[str] = Field(
+        default_factory=list, description="Columns the framework uses that either snapshot lacks; movement there is not reliable."
+    )
     cuts_moved: str | None = Field(
         default=None,
         description="Set when the two snapshots were tiered on different cut-points, so a tier can change on an "
@@ -511,4 +525,10 @@ class PublishedDecision(BaseModel):
     published_by: str
     published_at: str = Field(default_factory=now_iso)
     note: str = ""
+    cut_points: list[float] = Field(default_factory=list, description="The cut-points the tiers were drawn with.")
+    cuts_held_from: str | None = Field(
+        default=None,
+        description="The snapshot whose cut-points were reused. Every later publication of a framework version is "
+        "tiered on its first publication's cut-points, so a tier only changes when the score does.",
+    )
     rows: list[PublishedRow] = Field(default_factory=list)

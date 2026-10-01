@@ -37,7 +37,7 @@ export function LevelGridEditor({ config, columns, onChange }: Props) {
     set({
       level_criteria: [
         ...criteria,
-        { id, name: `Criterion ${criteria.length + 1}`, dimension_id: config.dimensions[0]?.id ?? "", weight: 1, enabled: true, rules: [], otherwise: levelMin },
+        { id, name: `Criterion ${criteria.length + 1}`, dimension_id: config.dimensions[0]?.id ?? "", weight: 1, enabled: true, rules: [], otherwise: levelMin, otherwise_on_blank: false },
       ],
     });
   }
@@ -234,7 +234,16 @@ export function LevelGridEditor({ config, columns, onChange }: Props) {
                 </td>
                 <td className="muted" colSpan={3}>
                   Otherwise — when no rule holds. &ldquo;none&rdquo; leaves the criterion without a level, which counts against
-                  coverage.
+                  coverage.{" "}
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={criterion.otherwise_on_blank ?? true}
+                      disabled={criterion.otherwise == null}
+                      onChange={(e) => setCriterion(criterion.id, { otherwise_on_blank: e.target.checked })}
+                    />{" "}
+                    Also when a value is blank
+                  </label>
                 </td>
               </tr>
             </tbody>
