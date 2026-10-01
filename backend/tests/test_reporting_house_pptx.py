@@ -220,6 +220,8 @@ def test_pptx_committee_patterns_are_native_shapes(tmp_path):
     assert len([sh for sh in tree.shapes if sh.name.startswith("slot:items:edge") and not sh.name.endswith("label")]) == 2
     assert _shapes(tree, "eyebrow")[0].text_frame.text == "EB" and _shapes(tree, "slot:takeaway_bar")
     assert _shapes(flow, "slot:items:arrow:0")
+    col, box = _shapes(flow, "slot:items:0")[0], _shapes(flow, "slot:items:0:box:0")[0]
+    assert box.top - col.top < col.height / 2 and col.height == _shapes(flow, "slot:items:1")[0].height  # boxes under the title, equal panels
     assert len([sh for sh in prof.shapes if sh.name.startswith("slot:meters:") and sh.name.endswith(":fill")]) == 2
 
 

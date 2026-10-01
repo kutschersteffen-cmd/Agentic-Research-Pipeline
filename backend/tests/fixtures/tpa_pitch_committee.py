@@ -53,11 +53,11 @@ FILLS = [
         "takeaway_bar": "Illustration of the output format: the meters show each category's walk share, not a company score."},
        [TOOL], "A company's profile shows the shares it actually discloses, per category."),
     _s("flow", "default", "Method · assessment pipeline", {
-        "items": ["Retrieve :: the 8 most relevant passages per indicator",
-                  "Answer :: YES, NO or NA :: up to 200 words, verbatim quotes",
-                  "Verify :: *a different model rechecks each verdict",
-                  "Ground :: code matches every quote to the source",
-                  "Review :: unverified or disputed verdicts go to analysts"],
+        "items": ["Retrieve :: BM25 ranks the report's passages :: top 8 kept per indicator :: local embeddings can be fused in",
+                  "Answer :: YES, NO or NA per indicator :: up to 200 words of reasoning :: verbatim quotes as evidence",
+                  "Verify :: *a different model rechecks each verdict :: it can overrule the first answer :: disagreement flags review",
+                  "Ground :: code matches every quote to the source :: similarity 0.92 or higher passes :: otherwise marked unverified",
+                  "Review :: no grounded quote or a disputed verdict :: an analyst approves, edits or rejects :: every decision is logged"],
         "takeaway_bar": "The difference from the paper: its tool trusts the model's sources; here code checks every quote."},
        [TOOL], "A verdict whose quote cannot be found is flagged for review."),
     _s("tree", "default", "Method · verification", {
@@ -104,6 +104,7 @@ FILLS = [
 def tpa_pitch_committee() -> tuple[ReportRequest, Storyline, list[SlideContent]]:
     req, story, _ = tpa_pitch()
     notes = req.qualitative_notes + "\nWalk share by category (walk / indicators): Target 0%, Governance 22%, Strategy 71%, Tracking 79%, all 53%."
+    notes += "\nRetrieval ranks passages by BM25, optionally fused with local embeddings. A quote counts as grounded at a normalised similarity of 0.92 or higher."
     req = req.model_copy(update={"qualitative_notes": notes, "datasets": [*req.datasets, counts], "layout": req.layout.model_copy(update={"density": "committee"})})
     return req, story, [f.model_copy(deep=True) for f in FILLS]
 

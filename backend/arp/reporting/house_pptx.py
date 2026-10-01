@@ -305,16 +305,21 @@ class _Builder:
 
     def _flow_items(self, slide, spec, content, items, r, ts):
         st = structured_view("flow", "items", items, r)["stages"]
-        n, col_h, body = len(st), r.h, self.t.type["body"]
+        n, body = len(st), self.t.type["body"]
         w = (r.w - (n - 1) * 48) / n
         badge_h, badge_w = body.size * self.t.type["caption"].line_height, 9 * body.size * 0.72 + 16
+        cols = []
         for i, stage in enumerate(st):
+            hs = [self._est_h(t, ts, w - 72) + 24 + (badge_h + 8 if pref else 0) for t, pref in stage.boxes]
+            title_h = self._est_h(f"{i + 1} {stage.title}", ts, w - 40)
+            cols.append((hs, title_h))
+        # Panels share the tallest stage's height and boxes sit under each title, as deck.css.j2: no stretch to the slot's foot.
+        col_h = min(r.h, max(20 + th + 12 + sum(hs) + 12 * (len(hs) - 1) + 20 for hs, th in cols))
+        for i, (stage, (hs, title_h)) in enumerate(zip(st, cols, strict=True)):
             x = r.x + i * (w + 48)
             self._text(slide, f"slot:items:{i}", Rect(x, r.y, w, col_h), [Para(f"{i + 1} {stage.title}", ts.model_copy(update={"weight": 600}))], ts, font=self.body,
                        color=self.c.ink, ml=20, mr=20, pad_top=20, fill=self.c.well)
-            hs = [self._est_h(t, ts, w - 72) + 24 + (badge_h + 8 if pref else 0) for t, pref in stage.boxes]
-            title_h = self._est_h(f"{i + 1} {stage.title}", ts, w - 40)
-            y = max(r.y + 20 + title_h + 12, r.y + col_h - 20 - sum(hs) - 12 * (len(hs) - 1))  # boxes sit at the stage's foot, as deck.css.j2
+            y = r.y + 20 + title_h + 12
             for j, ((text, pref), h) in enumerate(zip(stage.boxes, hs, strict=True)):
                 self._text(slide, f"slot:items:{i}:box:{j}", Rect(x + 20, y, w - 40, h), [text], ts.model_copy(update={"weight": 400}), font=self.body, color=self.c.ink,
                            ml=16, mr=16, pad_top=12 + (badge_h + 8 if pref else 0), fill=self.c.background, line=(self.c.ink, 2) if pref else (self.c.neutral, 1))
@@ -323,7 +328,8 @@ class _Builder:
                                body.model_copy(update={"weight": 500, "tracking": 0.06}), font=self.mono, color=self.c.background, wrap=False, ml=8, fill=self.c.ink)
                 y += h + 12
             if i < n - 1:
-                self._line(slide, f"slot:items:arrow:{i}", (x + w + 12, r.y + col_h / 2), (x + w + 36, r.y + col_h / 2), self.c.ink_muted, 2, arrow=True)
+                ay = r.y + 20 + ts.size * ts.line_height / 2  # level with the stage titles, as deck.css.j2
+                self._line(slide, f"slot:items:arrow:{i}", (x + w + 12, ay), (x + w + 36, ay), self.c.ink_muted, 2, arrow=True)
 
     def _meters(self, slide, spec, content, items, r, ts):
         y = r.y

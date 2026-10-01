@@ -773,6 +773,7 @@
        "row": 0,
        "rows": 10,
        "max_words": 17,
+       "committee_words": 21,
        "max_items": 5,
        "type_role": "body"
       },

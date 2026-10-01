@@ -327,3 +327,12 @@ async def test_thin_cards_are_sparse_then_pass_after_one_retry(density, fake_llm
     deck, findings = await design_retry(deck, req, fake_llm({}), found)
     assert [(f.rule, f.severity, f.message) for f in findings if f.stage == "design"] == [
         ("relayout", "info", "cards/three → cards/rows (sparse)")]
+
+
+async def test_short_flow_reports_sparse_instead_of_stretching():
+    deck = Deck(title="T", slides=[_TITLE, SlideContent(headline="h", layout="flow", variant="default",
+                                                        slots={"items": ["A :: a", "B :: b", "C :: c"], "takeaway_bar": "x"})])
+    html = render_deck_html(deck, [], density="committee")
+    h2, box = await _computed(html, "['ol.flow h2', 'ol.flow p'].map(q => document.querySelector(q).getBoundingClientRect().bottom)")
+    assert box - h2 < 80  # the box sits under its stage title, not at the slot's foot
+    assert [(f.slide, f.rule) for f in _design(await measure(html))] == [(1, "sparse")]
