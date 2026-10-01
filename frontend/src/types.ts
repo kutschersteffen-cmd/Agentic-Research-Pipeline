@@ -1221,6 +1221,7 @@ export type OutputFormat = "pptx" | "docx" | "pdf" | "house_deck";
 export interface LayoutInstructions {
   output_format: OutputFormat;
   theme?: "light" | "dark";
+  density?: "committee" | "present";
   target_length?: number | null;
   max_bullets_per_slide: number;
   include_title_slide: boolean;

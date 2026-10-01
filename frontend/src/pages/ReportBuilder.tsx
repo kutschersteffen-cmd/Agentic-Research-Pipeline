@@ -64,6 +64,7 @@ export function ReportBuilder() {
   const [focusAreas, setFocusAreas] = useState("");
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("pptx");
   const [deckTheme, setDeckTheme] = useState<"light" | "dark">("light");
+  const [deckDensity, setDeckDensity] = useState<"committee" | "present">("committee");
   const [targetLength, setTargetLength] = useState<string>("");
   const [maxBullets, setMaxBullets] = useState(6);
   const [includeTitleSlide, setIncludeTitleSlide] = useState(true);
@@ -149,6 +150,7 @@ export function ReportBuilder() {
         layout: {
           output_format: outputFormat,
           theme: deckTheme,
+          density: deckDensity,
           target_length: targetLength ? Number(targetLength) : null,
           max_bullets_per_slide: maxBullets,
           include_title_slide: includeTitleSlide,
@@ -391,6 +393,18 @@ export function ReportBuilder() {
                 {(["light", "dark"] as const).map((m) => (
                   <button key={m} type="button" className={deckTheme === m ? "on" : undefined} aria-pressed={deckTheme === m} onClick={() => setDeckTheme(m)}>
                     {m === "light" ? "Light" : "Dark"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {outputFormat === "house_deck" && (
+            <div>
+              <span className="field-label">Deck density</span>
+              <div className="theme-switch" role="group" aria-label="Deck density" style={{ margin: 0, width: 260 }}>
+                {(["committee", "present"] as const).map((d) => (
+                  <button key={d} type="button" className={deckDensity === d ? "on" : undefined} aria-pressed={deckDensity === d} onClick={() => setDeckDensity(d)}>
+                    {d === "committee" ? "Committee" : "Presentation"}
                   </button>
                 ))}
               </div>
