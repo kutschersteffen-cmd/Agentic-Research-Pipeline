@@ -232,6 +232,17 @@ class _Builder:
 
     def _cards_items(self, slide, spec, content, items, r, ts):
         g, sub, n = self.t.grid.gutter, self.t.type["subhead"], len(items)
+        if content.variant == "rows":  # deck.css cards/rows: rows share the slot, a hairline above each, the mono number mid-row
+            h, body = r.h / n, self.t.type["body"]
+            for i, (title, text) in enumerate(title_body(t) for t in items):
+                y = r.y + i * h
+                self._rule(slide, f"slot:items:{i}:rule", Rect(r.x, y, r.w, 1), self.c.neutral)
+                self._text(slide, f"slot:items:{i}:index", Rect(r.x, y, 112, h), [f"{i + 1:02d}"], body.model_copy(update={"weight": 500, "line_height": 1}),
+                           font=self.mono, color=self.c.ink_muted, anchor=MSO_ANCHOR.MIDDLE)
+                paras = ([Para(title, sub, self.head, self.c.ink)] if title else [])
+                paras.append(Para(text, ts.model_copy(update={"weight": 400}), self.body, self.c.ink_muted if title else self.c.ink, before=12 if title else 0))
+                self._text(slide, f"slot:items:{i}", Rect(r.x + 112, y, r.w - 112, h), paras, ts, font=self.body, color=self.c.ink, anchor=MSO_ANCHOR.MIDDLE)
+            return
         w = (r.w - (n - 1) * g) / n
         cards = [title_body(i) for i in items]
         h = max(2 * g + sub.size + 20 + (self._est_h(c[0], sub, w - 2 * g) if c[0] else 0) + (12 if c[0] else 0)

@@ -179,7 +179,7 @@
   },
   {
    "id": "cards",
-   "purpose": "Parallel points as cards; write each item as 'Short title: one line'.",
+   "purpose": "Parallel points as cards; write each item as 'Short title: one line'. Variant rows sets the same items as full-width numbered rows sharing the body.",
    "variants": [
     {
      "id": "three",
@@ -219,6 +219,27 @@
        "short_words": 6
       }
      ],
+     "visual": true
+    },
+    {
+     "id": "rows",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 12,
+       "max_words": 20,
+       "max_items": 4,
+       "type_role": "body",
+       "committee_words": 30,
+       "type_role_short": "subhead",
+       "short_words": 8
+      }
+     ],
+     "anchor": "middle",
      "visual": true
     }
    ]

@@ -2,6 +2,7 @@ import pytest
 from pypdf import PdfReader
 
 from arp.reporting.browser import BrowserUnavailable, measure, write_pdf, write_pngs
+from arp.reporting.house_style import get_variant
 from arp.reporting.html_render import render_deck_html
 from arp.schemas.reporting import ColumnKind, DatasetColumn, Deck, QuantitativeDataset, SlideContent, TableSpec
 from tests.fixtures.stress_deck import stress_deck
@@ -292,6 +293,11 @@ async def test_tpa_v2_layouts_have_no_design_findings(mode, fixture, fake_llm):
     found = await measure(render_deck_html(deck, req.datasets, mode=mode, density=req.layout.density))
     deck, findings = await design_retry(deck, req, fake_llm({}), found)  # no LLM call: nothing overflows
     assert [f for f in findings if f.severity == "warn"] == [], [(f.slide, f.rule, f.slot, f.message) for f in findings]
+    # The rhythm binds the final deck: no layout three times running, a visual slide in every three content slides.
+    content = [s for s in deck.slides[1:] if s.layout != "section"]
+    assert all(len({s.layout for s in deck.slides[i : i + 3]}) > 1 for i in range(len(deck.slides) - 2)), [s.layout for s in deck.slides]
+    assert all(any(get_variant(s.layout, s.variant).visual for s in content[i : i + 3]) for i in range(len(content) - 2)), \
+        [(s.layout, s.variant) for s in content]
 
 
 @pytest.mark.parametrize("density", ["present", "committee"])
@@ -305,4 +311,4 @@ async def test_thin_cards_are_sparse_then_pass_after_one_retry(density, fake_llm
     assert [(f.slide, f.rule) for f in _design(found)] == [(1, "sparse")]
     deck, findings = await design_retry(deck, req, fake_llm({}), found)
     assert [(f.rule, f.severity, f.message) for f in findings if f.stage == "design"] == [
-        ("relayout", "info", "cards/three → summary/default (sparse)")]
+        ("relayout", "info", "cards/three → cards/rows (sparse)")]

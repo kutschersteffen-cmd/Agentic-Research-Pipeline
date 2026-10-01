@@ -57,6 +57,11 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
   font: 500 {{ t.type.subhead.size }}px/1 var(--font-mono); letter-spacing: 0; color: var(--ink-muted); }
 /* Footer chrome is the only text under 24px (caption); every index and label in the body is body size or larger. */
 .slide[data-layout="summary"] li::before, .slide[data-layout="split"] .k-list li::before { font: 500 {{ body.size }}px/1 var(--font-mono); letter-spacing: 0; color: var(--ink-muted); }
+/* cards/rows: the same items as full-width numbered rows sharing the body, like decisions; hairlines between rows. */
+.slide[data-layout="cards"][data-variant="rows"] ul { grid-auto-flow: row; grid-auto-rows: 1fr; height: 100%; }  /* the footer rule closes the last row */
+.slide[data-layout="cards"][data-variant="rows"] li { position: relative; justify-content: center; padding: 16px 0 16px 112px; border: 0; border-top: 1px solid var(--neutral); }
+.slide[data-layout="cards"][data-variant="rows"] li::before { position: absolute; left: 0; top: 50%; transform: translateY(-50%); padding: 0;
+  font: 500 {{ body.size }}px/1 var(--font-mono); }
 .slide[data-layout="cards"] strong { display: block; font: {{ t.type.subhead.weight }} {{ t.type.subhead.size }}px/{{ t.type.subhead.line_height }} var(--font-heading); text-wrap: balance; }
 .slide[data-layout="steps"] strong { display: block; font-weight: {{ t.type.subhead.weight }}; font-family: var(--font-heading); text-wrap: balance; }
 .slide[data-layout="cards"] li span, .slide[data-layout="steps"] li span { display: block; margin-top: 12px; color: var(--ink-muted); text-wrap: pretty; }

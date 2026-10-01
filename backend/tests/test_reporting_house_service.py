@@ -237,8 +237,8 @@ async def test_pipeline_retries_relayout_once(tmp_path, fake_llm, monkeypatch):
     llm = fake_llm({"SlideContent": [short], "QAResult": [QAResult(edits=[])]})
     deck, findings = await house_pipeline.build_house_deck("r1", _REQ, _storyline(1), llm, _store(tmp_path))
     moves = [f.message for f in findings if f.rule == "relayout"]
-    assert moves == ["bullets/three → cards/three (parallel)", "cards/three → summary/default (sparse)"]
-    assert (deck.slides[1].layout, deck.slides[1].variant) == ("summary", "default")
+    assert moves == ["bullets/three → cards/three (parallel)", "cards/three → cards/rows (sparse)"]
+    assert (deck.slides[1].layout, deck.slides[1].variant) == ("cards", "rows")
     assert [f.rule for f in findings if f.stage == "design" and f.severity == "warn"] == ["sparse"]  # what is left is kept, once
 
 
@@ -261,3 +261,24 @@ async def test_dense_slide_splits_then_goes_to_the_appendix(tmp_path, fake_llm):
     assert deck.slides[3].appendix and deck.slides[3].headline == "Point 0 holds." and not any(s.appendix for s in deck.slides[:3])
     assert [f.slide for f in findings if f.rule == "appendix" and f.severity == "info"] == [3]
     assert not [f for f in findings if f.rule == "dense"]
+
+
+def _sparse(i: int) -> Finding:
+    return Finding(slide=i, stage="design", rule="sparse", message="0.20 < 0.70")
+
+
+async def test_design_retry_keeps_the_rhythm(fake_llm):
+    from arp.schemas.reporting import Deck
+
+    items = {"items": ["Code checks quotes", "A second model rechecks", "Analysts review"]}
+    title = SlideContent(headline="T", layout="title", variant="plain", slots={"title": "T"})
+    cards = SlideContent(headline="x", layout="cards", variant="three", slots=items)
+    statement = SlideContent(headline="x", layout="statement", variant="plain", slots={"statement": "Talk outruns walk."})
+    # cards/rows would make three cards in a row; summary keeps a visual in every window of three
+    deck, findings = await house_pipeline.design_retry(Deck(title="T", slides=[title, cards, cards, cards]), _REQ, fake_llm({}), [_sparse(2)])
+    assert (deck.slides[2].layout, deck.slides[2].variant) == ("summary", "default")
+    assert [f.message for f in findings if f.rule == "relayout"] == ["cards/three → summary/default (sparse)"]
+    # rows would be a third cards slide, summary would leave three slides without a visual: the slide and its warn stay
+    stuck = Deck(title="T", slides=[title, statement, statement, cards, cards, cards])
+    deck, findings = await house_pipeline.design_retry(stuck, _REQ, fake_llm({}), [_sparse(3)])
+    assert deck == stuck and [(f.slide, f.rule, f.severity) for f in findings] == [(3, "sparse", "warn")]

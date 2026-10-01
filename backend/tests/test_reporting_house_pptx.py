@@ -319,3 +319,16 @@ async def test_pptx_decision_rows_share_the_body_like_the_html(tmp_path):
     for i, (_, y, _, h) in enumerate(html):
         [row] = _shapes(s, f"slot:items:{i}")
         assert abs(row.top - _e(y)) <= _e(2) and abs(row.height - _e(h)) <= _e(2)
+
+
+@pytest.mark.parametrize("density", ["present", "committee"])
+async def test_pptx_card_rows_match_the_html(tmp_path, density):
+    from arp.reporting.house_pptx import _e
+
+    items = ["Review queue: indicators with no grounded citation", "Analyst decision: approve, edit or reject", "Audit trail: reviewer, time and history"]
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="rows", slots={"items": items})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx", density=density)).slides[0]
+    for i, (x, y, w, h) in enumerate(await _html_boxes(render_deck_html(deck, [], density=density), "[data-slot=items] li")):
+        [row], [rule] = _shapes(s, f"slot:items:{i}"), _shapes(s, f"slot:items:{i}:rule")
+        assert abs(rule.top - _e(y)) <= _e(2) and abs(row.top - _e(y)) <= _e(2) and abs(row.height - _e(h)) <= _e(2)
+        assert abs(row.left - _e(x + 112)) <= _e(2) and abs(row.left + row.width - _e(x + w)) <= _e(2)

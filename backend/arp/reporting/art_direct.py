@@ -82,7 +82,7 @@ def candidates(shape: str, slide: SlideContent, density: str = "committee", last
         k = sum(1 for key, v in slide.slots.items() if _NUM.fullmatch(key) and v)
         out += [("stat_row", _N[k])] + [("big_number", _N[k])] * (k <= 3)
     elif shape == "parallel":
-        out += [("cards", _N[n]), ("summary", "default")]
+        out += [("cards", _N[n]), ("cards", "rows"), ("summary", "default")]
     elif shape == "ordered":
         out += [("steps", _N[n]), ("timeline", "three" if n == 3 else "six")]
     elif shape == "statement":
@@ -97,7 +97,7 @@ def candidates(shape: str, slide: SlideContent, density: str = "committee", last
         out += ([("table", "highlight"), ("split", "table")] if _texts(slide) else [("table", "compact")])
         out += [("table", "heat")] * bool(slide.table.heat)
     elif slide.layout in ("bullets", "cards") and 3 <= n <= 4:  # legacy bullets move (spec §1); one or two cards would stand alone
-        out += [("cards", "three" if n <= 3 else "four"), ("summary", "default")]  # summary: where a sparse cards slide goes next
+        out += [("cards", "three" if n <= 3 else "four"), ("cards", "rows"), ("summary", "default")]  # where a sparse cards slide goes next
     return list(dict.fromkeys(out))
 
 
@@ -138,23 +138,37 @@ def _fits(slide: SlideContent, density: str, last: bool = False) -> list[SlideCo
     return out
 
 
-def next_layout(slide: SlideContent, density: str = "committee", last: bool = False) -> tuple[str, str] | None:
-    """The fitting pick after the slide's current layout; `last` marks the deck's last content slide (for decisions)."""
+def next_layouts(slide: SlideContent, density: str = "committee", last: bool = False) -> list[tuple[str, str]]:
+    """The fitting picks after the slide's current layout, in order; `last` marks the deck's last content slide (for decisions)."""
     picks = [(s.layout, s.variant) for s in _fits(slide, density, last)]
     cur = (slide.layout, slide.variant)
-    after = picks[picks.index(cur) + 1:] if cur in picks else picks
-    return after[0] if after else None
+    return picks[picks.index(cur) + 1:] if cur in picks else picks
+
+
+def next_layout(slide: SlideContent, density: str = "committee", last: bool = False) -> tuple[str, str] | None:
+    return next(iter(next_layouts(slide, density, last)), None)
 
 
 def _visual(s: SlideContent) -> bool:
     return get_variant(s.layout, s.variant).visual
 
 
+def rhythm_break(slides: list[SlideContent], i: int) -> str | None:
+    """The rhythm rule slide i breaks, if any: a run of one layout three slides long through it, or a window of three
+    content slides (title and sections aside) through it without a visual slide. Used by direct() and the design retry."""
+    if any(len({s.layout for s in slides[a : a + 3]}) == 1 for a in range(max(0, i - 2), min(i, len(slides) - 3) + 1)):
+        return "rhythm: no layout three times in a row"
+    content = [j for j, s in enumerate(slides) if j and s.layout != "section"]
+    k = content.index(i)
+    if any(not any(_visual(slides[j]) for j in content[a : a + 3]) for a in range(max(0, k - 2), min(k, len(content) - 3) + 1)):
+        return "rhythm: a visual slide in every three"
+    return None
+
+
 def direct(deck: Deck, density: str = "committee", shift: list[Finding] | None = None) -> tuple[Deck, list[Finding]]:
     """One pass, left to right. `shift`, when given, holds earlier findings on this deck: an inserted section moves them, in place."""
     content = [i for i, s in enumerate(deck.slides) if i and s.layout != "section"]
     out, findings, where = deck.slides[:1], [], {0: 0}
-    vis: list[bool] = []
     since = sections = 0
     for i, s in enumerate(deck.slides[1:], 1):
         if s.layout == "section":
@@ -174,18 +188,13 @@ def direct(deck: Deck, density: str = "committee", shift: list[Finding] | None =
         if why == "other":  # only two rules move unshaped content
             why = "legacy bullets" if s.layout == "bullets" else "committee pattern"
         pick = opts[0]
-        prev = [p.layout for p in out[-2:]]
-        if len(prev) == 2 and prev[0] == prev[1] == pick.layout:
-            pick, why = next((o for o in opts if o.layout != prev[0]), pick), "rhythm: no layout three times in a row"
-        if len(vis) >= 2 and not vis[-1] and not vis[-2] and not _visual(pick):
-            pick, why = next((o for o in opts if _visual(o) and not (len(prev) == 2 and prev[0] == prev[1] == o.layout)), pick), \
-                "rhythm: a visual slide in every three"
+        if broken := rhythm_break([*out, pick], len(out)):  # the first pick that keeps both rules, else the first pick
+            pick, why = next((o for o in opts if not rhythm_break([*out, o], len(out))), pick), broken
         if (pick.layout, pick.variant) != (s.layout, s.variant):
             findings.append(Finding(slide=len(out), stage="design", rule="relayout", severity="info",
                                     message=f"{s.layout}/{s.variant} → {pick.layout}/{pick.variant} ({why})"))
         where[i] = len(out)
         out.append(pick)
-        vis.append(_visual(pick))
         since += 1
     for f in shift or []:
         f.slide = where.get(f.slide, f.slide)

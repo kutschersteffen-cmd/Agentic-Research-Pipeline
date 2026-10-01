@@ -209,9 +209,14 @@ def test_committee_imperatives_at_end_go_to_decisions():
     assert layouts(deck)[-1] == ("cards", "three")
 
 
+def test_parallel_items_go_cards_then_rows_then_summary():
+    assert candidates("parallel", S(slots={"items": SHORT}), "present") == [("cards", "three"), ("cards", "rows"), ("summary", "default")]
+
+
 def test_next_layout_steps_past_the_current_one():
     slide = S("cards", "three", {"items": SHORT})
-    assert next_layout(slide, density="present") == ("summary", "default")
+    assert next_layout(slide, density="present") == ("cards", "rows")  # still visual: a sparse cards slide keeps the rhythm
+    assert next_layout(S("cards", "rows", {"items": SHORT}), density="present") == ("summary", "default")
     assert next_layout(S("summary", "default", {"items": SHORT}), density="present") is None
 
 

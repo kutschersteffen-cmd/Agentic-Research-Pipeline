@@ -9,7 +9,7 @@ from pathlib import Path
 from arp.config import Settings
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.adapters import with_run_datasets
-from arp.reporting.art_direct import direct, next_layout, relayout
+from arp.reporting.art_direct import direct, next_layouts, relayout, rhythm_break
 from arp.reporting.browser import write_pdf, write_pngs
 from arp.reporting.fit import fit_deck, split_list
 from arp.reporting.house_pptx import build_house_pptx
@@ -40,7 +40,8 @@ def _measured(f: Finding) -> bool:
 async def design_retry(deck: Deck, request: ReportRequest, llm: LLMClient, findings: list[Finding], usage: LLMUsage | None = None,
                        ) -> tuple[Deck, list[Finding]]:
     """Spec §3: one more try for every slide with a warn design finding. A dense slide splits its list or, when it cannot,
-    goes to the appendix; any other gets art_direct's next layout. Then one fit pass and a fresh measure; what is left is kept."""
+    goes to the appendix; any other gets art_direct's next layout that keeps the rhythm. Then one fit pass and a fresh measure;
+    what is left is kept."""
     warns: dict[int, set[str]] = {}
     for f in findings:
         if f.stage == "design" and f.severity == "warn":
@@ -61,10 +62,15 @@ async def design_retry(deck: Deck, request: ReportRequest, llm: LLMClient, findi
                 slides[i] = (i, s.model_copy(update={"appendix": True}))
                 notes.append(Finding(slide=i, stage="design", rule="appendix", severity="info",
                                      message="dense and nothing to split: moved to the appendix at the end of the deck"))
-        elif nxt := next_layout(s, request.layout.density, last=i == last):
-            slides[i] = (i, relayout(s, *nxt)[0])
-            notes.append(Finding(slide=i, stage="design", rule="relayout", severity="info",
-                                 message=f"{s.layout}/{s.variant} → {nxt[0]}/{nxt[1]} ({', '.join(sorted(rules))})"))
+        else:  # the first next layout that keeps the deck's rhythm; none means the slide stays, with its warn
+            deck_now = [x for _, x in slides]
+            for ly, v in next_layouts(s, request.layout.density, last=i == last):
+                moved = relayout(s, ly, v)[0]
+                if not rhythm_break([*deck_now[:i], moved, *deck_now[i + 1 :]], i):
+                    slides[i] = (i, moved)
+                    notes.append(Finding(slide=i, stage="design", rule="relayout", severity="info",
+                                         message=f"{s.layout}/{s.variant} → {ly}/{v} ({', '.join(sorted(rules))})"))
+                    break
     if not notes:  # nothing to try (a placeholder, say): its findings stand as measured
         return deck, findings
     slides = [x for x in slides if not x[1].appendix] + [x for x in slides if x[1].appendix]
