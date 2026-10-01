@@ -235,3 +235,29 @@ def test_pptx_heat_cells_are_tinted(tmp_path):
     table = _shapes(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides[0], "slot:table")[0].table
     fills = [str(table.cell(r, 1).fill.fore_color.rgb) for r in (1, 2, 3)]
     assert len(set(fills)) == 3 and str(table.cell(1, 0).fill.fore_color.rgb).lower() == "ffffff"
+
+
+def _card_body_pt(density, items, tmp_path):
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three", slots={"items": items})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / f"{density}.pptx", density=density)).slides[0]
+    return _shapes(s, "slot:items:0")[0].text_frame.paragraphs[-1].runs[0].font.size.pt
+
+
+def test_pptx_committee_prose_is_body_and_present_short_text_steps_up(tmp_path):
+    t, spec = load_tokens(), get_variant("cards", "three").slots[0]
+    short = ["Two words", "Two words", "Two words"]
+    assert _card_body_pt("committee", short, tmp_path) == t.type["body"].size * 0.75
+    assert _card_body_pt("present", short, tmp_path) == t.type[spec.type_role_short].size * 0.75
+
+
+def test_pptx_card_with_longest_item_fits_its_outline(tmp_path):
+    from arp.reporting.house_pptx import _Builder
+
+    spec = get_variant("cards", "three").slots[0]
+    words = " ".join(["dolore"] * spec.max_words)
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three", slots={"items": [f"Title here: {words}"] * 3})])
+    t, r = load_tokens(), slot_rect(load_tokens(), spec)
+    card = _shapes(Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx", density="present")).slides[0], "slot:items:0")[0]
+    b, w = _Builder(t, "light", "present"), (r.w - 2 * t.grid.gutter) / 3 - 2 * t.grid.gutter
+    need = 2 * t.grid.gutter + t.type["subhead"].size + 20 + b._est_h("Title here", t.type["subhead"], w) + 12 + b._est_h(words, b._role(spec, "cards", [words]), w)
+    assert need <= card.height / _PX <= r.h

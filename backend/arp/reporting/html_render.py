@@ -24,10 +24,18 @@ from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent, Table
 
 Density = Literal["present", "committee"]
 # Committee prose sets at body size; these layouts keep their display type at either density.
-_DISPLAY_LAYOUTS = {"title", "section", "quote", "statement"}
+DISPLAY_LAYOUTS = {"title", "section", "quote", "statement"}
 
 _env = Environment(loader=FileSystemLoader(_STYLE_DIR / "templates"), autoescape=True)
-_env.filters["title_body"] = lambda text: text.split(": ", 1)  # "Title: body" -> [title, body]; no colon -> [text]
+
+
+def title_body(item: str) -> tuple[str, str]:
+    """"Title: body" -> (title, body); no colon -> ("", item)."""
+    title, sep, body = item.partition(": ")
+    return (title, body) if sep else ("", item)
+
+
+_env.filters["title_body"] = title_body
 
 
 def theme_from_tokens(tokens: Tokens, mode: Mode = "light") -> DesignTheme:
@@ -73,7 +81,7 @@ def table_view(spec: TableSpec, ds: QuantitativeDataset) -> tuple[list[str], lis
     return columns, [[row.get(c, "") for c in columns] for row in ds.rows[spec.row_offset : end]], max(0, len(ds.rows) - end)
 
 
-def _heat(spec: TableSpec, columns: list[str], rows: list[list]) -> list[list[str]]:
+def heat_cells(spec: TableSpec, columns: list[str], rows: list[list]) -> list[list[str]]:
     """Per cell: the status its number falls in (under low, under high, else high); '' for untinted cells."""
     def status(col: str, value) -> str:
         low, high = spec.heat[col]
@@ -82,16 +90,20 @@ def _heat(spec: TableSpec, columns: list[str], rows: list[list]) -> list[list[st
     return [[status(c, v) if c in spec.heat else "" for c, v in zip(columns, row, strict=True)] for row in rows]
 
 
+def slot_role(layout: str, spec, value, density: Density) -> str:
+    """The type role a slot sets in: committee prose at body size; otherwise short content steps up to type_role_short. Shared with the pptx."""
+    if density == "committee" and layout not in DISPLAY_LAYOUTS and spec.kind in ("text", "list"):
+        return "body" if spec.type_role in ("subhead", "headline") else spec.type_role
+    # Fill by design: short content steps up to the slot's larger fixed role; it never scales freely.
+    words = max((len(t.split()) for t in value), default=0) if isinstance(value, list) else len((value or "").split())
+    return spec.type_role_short if spec.type_role_short and 0 < words <= (spec.short_words or 0) else spec.type_role
+
+
 def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict[str, QuantitativeDataset], theme: DesignTheme,
                density: Density) -> dict:
     r = slot_rect(tokens, spec)
     value = slide.slots.get(spec.name)
-    if density == "committee" and slide.layout not in _DISPLAY_LAYOUTS and spec.kind in ("text", "list"):
-        role = "body" if spec.type_role in ("subhead", "headline") else spec.type_role
-    else:
-        # Fill by design: short content steps up to the slot's larger fixed role; it never scales freely.
-        words = max((len(t.split()) for t in value), default=0) if isinstance(value, list) else len((value or "").split())
-        role = spec.type_role_short if spec.type_role_short and 0 < words <= (spec.short_words or 0) else spec.type_role
+    role = slot_role(slide.layout, spec, value, density)
     v = {"slide": i, "name": spec.name, "kind": spec.kind, "role": role, "x": r.x, "y": r.y, "w": r.w, "h": r.h}
     if spec.kind == "list":
         v["items"] = value if isinstance(value, list) else ([value] if value else [])
@@ -104,7 +116,7 @@ def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict
         v["svg"] = render_chart_svg(slide.chart, list(datasets.values()), width_px=int(r.w), height_px=int(r.h), theme=theme)
     elif spec.kind == "table" and slide.table and slide.table.dataset_id in datasets:
         v["columns"], v["rows"], v["more"] = table_view(slide.table, datasets[slide.table.dataset_id])
-        v["heat"] = _heat(slide.table, v["columns"], v["rows"]) if slide.table.heat else None
+        v["heat"] = heat_cells(slide.table, v["columns"], v["rows"]) if slide.table.heat else None
     elif spec.kind == "image":
         v["image"] = _data_uri(Path(slide.image_path)) if slide.image_path else None
     else:

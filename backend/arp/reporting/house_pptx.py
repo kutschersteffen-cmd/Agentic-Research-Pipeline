@@ -9,22 +9,22 @@ from __future__ import annotations
 
 import math
 import tempfile
-import textwrap
+from functools import cache
 from pathlib import Path
 from typing import NamedTuple
 
 from lxml import etree
-from PIL import Image
+from PIL import Image, ImageFont
 from pptx import Presentation
 from pptx.dml.color import RGBColor
-from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE
+from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE, MSO_SHAPE_TYPE
 from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.oxml.ns import qn
 from pptx.util import Emu, Pt
 
 from arp.reporting.chart_builder import build_native_chart_data, is_native, render_chart_image, style_native_chart
-from arp.reporting.house_style import Mode, Rect, Tokens, TypeStyle, get_variant, load_tokens, slot_rect
-from arp.reporting.html_render import _DISPLAY_LAYOUTS, Density, _heat, table_view, theme_from_tokens
+from arp.reporting.house_style import _STYLE_DIR, Mode, Rect, Tokens, TypeStyle, get_variant, load_tokens, slot_rect
+from arp.reporting.html_render import Density, heat_cells, slot_role, table_view, theme_from_tokens, title_body
 from arp.reporting.structured import _BOX_H, parse_tree, structured_view, tree_layout
 from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent
 
@@ -56,6 +56,11 @@ def _srgb(color: str) -> tuple[float, float, float]:
     return tuple(min(1, max(0, 12.92 * v if v <= 0.0031308 else 1.055 * v ** (1 / 2.4) - 0.055)) for v in lin)
 
 
+@cache
+def _font(size: int, weight: int) -> ImageFont.FreeTypeFont:
+    return ImageFont.truetype(str(_STYLE_DIR / "fonts" / "geist" / f"Geist-{600 if weight >= 600 else 400}.ttf"), size)
+
+
 class Para(NamedTuple):
     """One paragraph; fields left None take the shape's defaults. `text` may be [(run, bold)] for mixed weight."""
 
@@ -81,15 +86,17 @@ class _Builder:
         return "#" + "".join(f"{round(v * 255):02x}" for v in mix)
 
     def _est_h(self, text: str, ts: TypeStyle, w: float) -> float:
-        """Wrapped text height; ponytail: average-advance estimate (as structured.py's), a measured wrap if a face runs wide."""
-        return max(1, len(textwrap.wrap(text, max(1, int(w / (ts.size * 0.52)))))) * ts.size * ts.line_height
+        """Wrapped height, measured with the bundled Geist; 16% off the width so a wider fallback face still fits (boxes never clip)."""
+        font, lines, line = _font(ts.size, ts.weight), 1, ""
+        for word in text.split():
+            if line and font.getlength(f"{line} {word}") > w * 0.84:
+                lines, line = lines + 1, word
+            else:
+                line = f"{line} {word}".strip()
+        return lines * ts.size * ts.line_height
 
     def _role(self, spec, layout: str, value) -> TypeStyle:
-        """The HTML's role choice: committee prose sets at body size; otherwise short content steps up to type_role_short."""
-        if self.density == "committee" and layout not in _DISPLAY_LAYOUTS and spec.kind in ("text", "list"):
-            return self.t.type["body" if spec.type_role in ("subhead", "headline") else spec.type_role]
-        words = max((len(x.split()) for x in value), default=0) if isinstance(value, list) else len((value or "").split())
-        return self.t.type[spec.type_role_short if spec.type_role_short and 0 < words <= (spec.short_words or 0) else spec.type_role]
+        return self.t.type[slot_role(layout, spec, value, self.density)]
 
     def _line(self, slide, name: str, p1: tuple[float, float], p2: tuple[float, float], color: str, px: float, *, elbow=False, arrow=False) -> None:
         ln = slide.shapes.add_connector(MSO_CONNECTOR.ELBOW if elbow else MSO_CONNECTOR.STRAIGHT, _e(p1[0]), _e(p1[1]), _e(p2[0]), _e(p2[1]))
@@ -123,7 +130,7 @@ class _Builder:
             shape.fill.fore_color.rgb = _rgb(fill)
         if line:
             shape.line.color.rgb, shape.line.width = _rgb(line[0]), Emu(_e(line[1]))
-        elif shape.shape_type != 17:  # autoshapes get the theme's outline unless told otherwise; text boxes have none
+        elif shape.shape_type != MSO_SHAPE_TYPE.TEXT_BOX:  # autoshapes get the theme's outline unless told otherwise; text boxes have none
             shape.line.fill.background()
         tf = shape.text_frame
         tf.word_wrap, tf.vertical_anchor, tf.auto_size = wrap, anchor, MSO_AUTO_SIZE.NONE
@@ -162,7 +169,7 @@ class _Builder:
             return
         ts, mono = self.t.type[spec.type_role], _family(self.t.fonts.mono or self.t.fonts.body)
         cap = self.t.type["caption"]
-        heat = _heat(slide_content.table, columns, rows) if slide_content.table.heat else None
+        heat = heat_cells(slide_content.table, columns, rows) if slide_content.table.heat else None
         n = len(rows) + 1
         shape = slide.shapes.add_table(n, max(len(columns), 1), _e(r.x), _e(r.y), _e(r.w), _e(_ROW_PX * n))
         shape.name = f"slot:{spec.name}"
@@ -226,31 +233,32 @@ class _Builder:
     def _cards_items(self, slide, spec, content, items, r, ts):
         g, sub, n = self.t.grid.gutter, self.t.type["subhead"], len(items)
         w = (r.w - (n - 1) * g) / n
-        cards = [i.split(": ", 1) for i in items]
-        h = max(2 * g + sub.size + 20 + (self._est_h(c[0], sub, w - 2 * g) if len(c) > 1 else 0) + (12 if len(c) > 1 else 0)
-                + self._est_h(c[-1], ts, w - 2 * g) + 2 for c in cards)
+        cards = [title_body(i) for i in items]
+        h = max(2 * g + sub.size + 20 + (self._est_h(c[0], sub, w - 2 * g) if c[0] else 0) + (12 if c[0] else 0)
+                + self._est_h(c[1], ts, w - 2 * g) + 2 for c in cards)
+        h = min(h, r.h)  # never past the slot
         y = r.y if self.density == "committee" else max(r.y, r.y + (r.h - h) / 2)  # a pitch centres the row; a pre-read reads from the top
         for i, c in enumerate(cards):
             paras = [Para(f"{i + 1:02d}", sub.model_copy(update={"weight": 500, "line_height": 1}), self.mono, self.c.ink_muted, after=20)]
-            if len(c) > 1:
+            if c[0]:
                 paras.append(Para(c[0], sub, self.head, self.c.ink, after=0))
-            paras.append(Para(c[-1], ts.model_copy(update={"weight": 400}), self.body, self.c.ink_muted if len(c) > 1 else self.c.ink, before=12 if len(c) > 1 else 0))
+            paras.append(Para(c[1], ts.model_copy(update={"weight": 400}), self.body, self.c.ink_muted if c[0] else self.c.ink, before=12 if c[0] else 0))
             self._text(slide, f"slot:items:{i}", Rect(r.x + i * (w + g), y, w, h), paras, ts, font=self.body, color=self.c.ink,
                        ml=g, mr=g, pad_top=g, line=(self.c.neutral, 1))
 
     def _steps_items(self, slide, spec, content, items, r, ts):
         g, sub, body, n = self.t.grid.gutter, self.t.type["subhead"], self.t.type["body"], len(items)
         w = (r.w - (n - 1) * g) / n
-        steps = [i.split(": ", 1) for i in items]
-        h = 112 + max((self._est_h(c[0], ts, w) + 12 if len(c) > 1 else 0) + self._est_h(c[-1], body if len(c) > 1 else ts, w) for c in steps)
+        steps = [title_body(i) for i in items]
+        h = 112 + max((self._est_h(c[0], ts, w) + 12 if c[0] else 0) + self._est_h(c[1], body if c[0] else ts, w) for c in steps)
         y = max(r.y, r.y + (r.h - h) / 2)
         self._line(slide, "slot:items:line", (r.x, y + 36), (r.x + r.w, y + 36), self.c.ink_muted, 2)
         for i, c in enumerate(steps):
             x = r.x + i * (w + g)
             self._text(slide, f"slot:items:{i}:node", Rect(x, y, 72, 72), [str(i + 1)], body.model_copy(update={"weight": 500}), font=self.mono, color=self.c.ink,
                        anchor=MSO_ANCHOR.MIDDLE, align=PP_ALIGN.CENTER, fill=self.c.background, line=(self.c.ink, 2), shape=MSO_SHAPE.OVAL)
-            paras = ([Para(c[0], ts.model_copy(update={"weight": sub.weight}), self.head, self.c.ink)] if len(c) > 1 else [])
-            paras.append(Para(c[-1], body if len(c) > 1 else ts, self.body, self.c.ink_muted if len(c) > 1 else self.c.ink, before=12 if len(c) > 1 else 0))
+            paras = ([Para(c[0], ts.model_copy(update={"weight": sub.weight}), self.head, self.c.ink)] if c[0] else [])
+            paras.append(Para(c[1], body if c[0] else ts, self.body, self.c.ink_muted if c[0] else self.c.ink, before=12 if c[0] else 0))
             self._text(slide, f"slot:items:{i}", Rect(x, y + 112, w, h - 112), paras, ts, font=self.body, color=self.c.ink)
 
     def _rows_items(self, slide, spec, content, items, r, ts):
@@ -344,11 +352,11 @@ class _Builder:
 
     def _compare(self, slide, spec, r, text, ts):
         """Two mirrored panels under an ink rule; the "Label:" before the first colon heads its panel."""
-        g, p = self.t.grid.gutter, text.split(": ", 1)
+        g, p = self.t.grid.gutter, title_body(text)
         head = self.t.type["subhead" if self.density == "committee" else "headline"]
         self._rule(slide, f"slot:{spec.name}:rule", Rect(r.x, r.y, r.w, 2), self.c.ink)
-        paras = ([Para(p[0], head.model_copy(update={"tracking": 0}) if self.density == "committee" else head, self.head, self.c.ink, after=16)] if len(p) > 1 else [])
-        paras.append(Para(p[-1], ts.model_copy(update={"weight": 400}), self.body, self.c.ink))
+        paras = ([Para(p[0], head.model_copy(update={"tracking": 0}) if self.density == "committee" else head, self.head, self.c.ink, after=16)] if p[0] else [])
+        paras.append(Para(p[1], ts.model_copy(update={"weight": 400}), self.body, self.c.ink))
         self._text(slide, f"slot:{spec.name}", r, paras, ts, font=self.body, color=self.c.ink, pad_top=g + 2)
 
     _COMPOSITE = {("cards", "items"): _cards_items, ("steps", "items"): _steps_items, ("summary", "items"): _rows_items, ("split", "items"): _rows_items,
@@ -398,9 +406,9 @@ class _Builder:
                 self._compare(slide, spec, r, text, ts)
             elif spec.name == "takeaway_bar" and text:
                 self._frame(slide, spec.name, r)
-                p = text.split(": ", 1)
-                h = self._est_h(text, ts, r.w - 48) + 28
-                self._text(slide, f"{name}:bar", Rect(r.x, r.y + r.h - h, r.w, h), [Para([(p[0] + ":", True), (" " + p[1], False)] if len(p) > 1 else p[0])], ts,
+                p = title_body(text)
+                h = min(self._est_h(text, ts, r.w - 48) + 28, r.h)
+                self._text(slide, f"{name}:bar", Rect(r.x, r.y + r.h - h, r.w, h), [Para([(p[0] + ":", True), (" " + p[1], False)] if p[0] else p[1])], ts,
                            font=body, color=self.c.ink, anchor=MSO_ANCHOR.MIDDLE, ml=24, mr=24, fill=self.c.well)
             elif spec.name in ("x_axis", "y_axis"):  # mono labels; the y axis reads bottom to top
                 self._text(slide, name, r, [text.upper()], ts.model_copy(update={"weight": 500, "tracking": 0.06}), font=self.mono, color=mute, align=PP_ALIGN.CENTER,
