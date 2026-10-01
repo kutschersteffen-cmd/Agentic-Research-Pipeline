@@ -1,9 +1,9 @@
 {
  "format": "arp.decision_template",
  "format_version": 1,
- "exported_at": "2026-10-01T18:48:41.866271+00:00",
+ "exported_at": "2026-10-01T19:41:56.157582+00:00",
  "origin": {
-  "framework_id": "fw_31044160db08",
+  "framework_id": "fw_84c3266b502c",
   "version": 1,
   "ratified": false,
   "ratified_by": null,
@@ -32,14 +32,14 @@
   "tpi_cp_alignment_2035"
  ],
  "config": {
-  "framework_id": "fw_31044160db08",
+  "framework_id": "fw_84c3266b502c",
   "version": 1,
   "name": "Logic of targets (Q2.1)",
   "notes": "",
   "ratified": false,
   "ratified_at": null,
   "ratified_by": null,
-  "created_at": "2026-10-01T18:48:41.665421+00:00",
+  "created_at": "2026-10-01T19:41:56.157071+00:00",
   "mode": "levels",
   "level_min": 0,
   "level_max": 1,
@@ -226,89 +226,898 @@
      }
     },
     {
-     "id": "targets",
+     "id": "normalise",
      "type": "expressionNode",
-     "name": "targets",
+     "name": "normalise",
      "position": {
       "x": 300,
       "y": 100
      },
      "content": {
+      "passThrough": true,
+      "inputField": null,
+      "outputPath": null,
+      "executionMode": "single",
       "expressions": [
        {
-        "id": "sbti",
-        "key": "sbti",
+        "id": "sbti_answer",
+        "key": "sbti_answer",
         "value": "(lower(string(sbti_near_term_status ?? '')) == 'targets set' and number(sbti_near_term_target_year ?? 0) >= 2029 and number(sbti_near_term_target_year ?? 0) <= 2035 ? 'Yes' : 'No info')"
        },
        {
-        "id": "q2_1_1_source",
-        "key": "q2_1_1_source",
-        "value": "($.sbti == 'Yes' ? 'SBTi' : (((msci_q2_1_1 == true or lower(string(msci_q2_1_1 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_1 == false or lower(string(msci_q2_1_1 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'MSCI' : (((tpi_q4l2 == true or lower(string(tpi_q4l2 ?? '')) == 'yes') ? 'Yes' : ((tpi_q4l2 == false or lower(string(tpi_q4l2 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'TPI' : (((wba_targets == true or lower(string(wba_targets ?? '')) == 'yes') ? 'Yes' : ((wba_targets == false or lower(string(wba_targets ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'WBA' : (((cdp_q2_1_1 == true or lower(string(cdp_q2_1_1 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_1 == false or lower(string(cdp_q2_1_1 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'CDP' : 'none')))))"
+        "id": "ca100_3_1_answer",
+        "key": "ca100_3_1_answer",
+        "value": "((ca100_3_1 == true or lower(string(ca100_3_1 ?? '')) == 'yes') ? 'Yes' : ((ca100_3_1 == false or lower(string(ca100_3_1 ?? '')) == 'no') ? 'No' : 'No info'))"
        },
        {
-        "id": "q2_1_1",
-        "key": "q2_1_1",
-        "value": "($.sbti == 'Yes' ? 'Yes' : (((msci_q2_1_1 == true or lower(string(msci_q2_1_1 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_1 == false or lower(string(msci_q2_1_1 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((msci_q2_1_1 == true or lower(string(msci_q2_1_1 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_1 == false or lower(string(msci_q2_1_1 ?? '')) == 'no') ? 'No' : 'No info')) : (((tpi_q4l2 == true or lower(string(tpi_q4l2 ?? '')) == 'yes') ? 'Yes' : ((tpi_q4l2 == false or lower(string(tpi_q4l2 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((tpi_q4l2 == true or lower(string(tpi_q4l2 ?? '')) == 'yes') ? 'Yes' : ((tpi_q4l2 == false or lower(string(tpi_q4l2 ?? '')) == 'no') ? 'No' : 'No info')) : (((wba_targets == true or lower(string(wba_targets ?? '')) == 'yes') ? 'Yes' : ((wba_targets == false or lower(string(wba_targets ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((wba_targets == true or lower(string(wba_targets ?? '')) == 'yes') ? 'Yes' : ((wba_targets == false or lower(string(wba_targets ?? '')) == 'no') ? 'No' : 'No info')) : (((cdp_q2_1_1 == true or lower(string(cdp_q2_1_1 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_1 == false or lower(string(cdp_q2_1_1 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((cdp_q2_1_1 == true or lower(string(cdp_q2_1_1 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_1 == false or lower(string(cdp_q2_1_1 ?? '')) == 'no') ? 'No' : 'No info')) : 'No info')))))"
+        "id": "ca100_3_2a_answer",
+        "key": "ca100_3_2a_answer",
+        "value": "((ca100_3_2a == true or lower(string(ca100_3_2a ?? '')) == 'yes') ? 'Yes' : ((ca100_3_2a == false or lower(string(ca100_3_2a ?? '')) == 'no') ? 'No' : 'No info'))"
        },
        {
-        "id": "q2_1_2_source",
-        "key": "q2_1_2_source",
-        "value": "($.sbti == 'Yes' ? 'SBTi' : (((msci_q2_1_2 == true or lower(string(msci_q2_1_2 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_2 == false or lower(string(msci_q2_1_2 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'MSCI' : (((ca100_3_1 == true or lower(string(ca100_3_1 ?? '')) == 'yes') ? 'Yes' : ((ca100_3_1 == false or lower(string(ca100_3_1 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'CA100+' : (((wba_s12_near_term_aim == true or lower(string(wba_s12_near_term_aim ?? '')) == 'yes') ? 'Yes' : ((wba_s12_near_term_aim == false or lower(string(wba_s12_near_term_aim ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'WBA' : (((cdp_q2_1_2 == true or lower(string(cdp_q2_1_2 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_2 == false or lower(string(cdp_q2_1_2 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'CDP' : 'none')))))"
+        "id": "cdp_q2_1_1_answer",
+        "key": "cdp_q2_1_1_answer",
+        "value": "((cdp_q2_1_1 == true or lower(string(cdp_q2_1_1 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_1 == false or lower(string(cdp_q2_1_1 ?? '')) == 'no') ? 'No' : 'No info'))"
        },
        {
-        "id": "q2_1_2",
-        "key": "q2_1_2",
-        "value": "($.sbti == 'Yes' ? 'Yes' : (((msci_q2_1_2 == true or lower(string(msci_q2_1_2 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_2 == false or lower(string(msci_q2_1_2 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((msci_q2_1_2 == true or lower(string(msci_q2_1_2 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_2 == false or lower(string(msci_q2_1_2 ?? '')) == 'no') ? 'No' : 'No info')) : (((ca100_3_1 == true or lower(string(ca100_3_1 ?? '')) == 'yes') ? 'Yes' : ((ca100_3_1 == false or lower(string(ca100_3_1 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((ca100_3_1 == true or lower(string(ca100_3_1 ?? '')) == 'yes') ? 'Yes' : ((ca100_3_1 == false or lower(string(ca100_3_1 ?? '')) == 'no') ? 'No' : 'No info')) : (((wba_s12_near_term_aim == true or lower(string(wba_s12_near_term_aim ?? '')) == 'yes') ? 'Yes' : ((wba_s12_near_term_aim == false or lower(string(wba_s12_near_term_aim ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((wba_s12_near_term_aim == true or lower(string(wba_s12_near_term_aim ?? '')) == 'yes') ? 'Yes' : ((wba_s12_near_term_aim == false or lower(string(wba_s12_near_term_aim ?? '')) == 'no') ? 'No' : 'No info')) : (((cdp_q2_1_2 == true or lower(string(cdp_q2_1_2 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_2 == false or lower(string(cdp_q2_1_2 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((cdp_q2_1_2 == true or lower(string(cdp_q2_1_2 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_2 == false or lower(string(cdp_q2_1_2 ?? '')) == 'no') ? 'No' : 'No info')) : 'No info')))))"
+        "id": "cdp_q2_1_2_answer",
+        "key": "cdp_q2_1_2_answer",
+        "value": "((cdp_q2_1_2 == true or lower(string(cdp_q2_1_2 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_2 == false or lower(string(cdp_q2_1_2 ?? '')) == 'no') ? 'No' : 'No info'))"
        },
        {
-        "id": "q2_1_3_source",
-        "key": "q2_1_3_source",
-        "value": "($.sbti == 'Yes' ? 'SBTi' : (((msci_q2_1_3 == true or lower(string(msci_q2_1_3 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_3 == false or lower(string(msci_q2_1_3 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'MSCI' : (((ca100_3_2a == true or lower(string(ca100_3_2a ?? '')) == 'yes') ? 'Yes' : ((ca100_3_2a == false or lower(string(ca100_3_2a ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'CA100+' : (((wba_s12_covers_95 == true or lower(string(wba_s12_covers_95 ?? '')) == 'yes') ? 'Yes' : ((wba_s12_covers_95 == false or lower(string(wba_s12_covers_95 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'WBA' : (((cdp_q2_1_3 == true or lower(string(cdp_q2_1_3 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_3 == false or lower(string(cdp_q2_1_3 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'CDP' : 'none')))))"
+        "id": "cdp_q2_1_3_answer",
+        "key": "cdp_q2_1_3_answer",
+        "value": "((cdp_q2_1_3 == true or lower(string(cdp_q2_1_3 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_3 == false or lower(string(cdp_q2_1_3 ?? '')) == 'no') ? 'No' : 'No info'))"
        },
        {
-        "id": "q2_1_3",
-        "key": "q2_1_3",
-        "value": "($.sbti == 'Yes' ? 'Yes' : (((msci_q2_1_3 == true or lower(string(msci_q2_1_3 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_3 == false or lower(string(msci_q2_1_3 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((msci_q2_1_3 == true or lower(string(msci_q2_1_3 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_3 == false or lower(string(msci_q2_1_3 ?? '')) == 'no') ? 'No' : 'No info')) : (((ca100_3_2a == true or lower(string(ca100_3_2a ?? '')) == 'yes') ? 'Yes' : ((ca100_3_2a == false or lower(string(ca100_3_2a ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((ca100_3_2a == true or lower(string(ca100_3_2a ?? '')) == 'yes') ? 'Yes' : ((ca100_3_2a == false or lower(string(ca100_3_2a ?? '')) == 'no') ? 'No' : 'No info')) : (((wba_s12_covers_95 == true or lower(string(wba_s12_covers_95 ?? '')) == 'yes') ? 'Yes' : ((wba_s12_covers_95 == false or lower(string(wba_s12_covers_95 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((wba_s12_covers_95 == true or lower(string(wba_s12_covers_95 ?? '')) == 'yes') ? 'Yes' : ((wba_s12_covers_95 == false or lower(string(wba_s12_covers_95 ?? '')) == 'no') ? 'No' : 'No info')) : (((cdp_q2_1_3 == true or lower(string(cdp_q2_1_3 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_3 == false or lower(string(cdp_q2_1_3 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((cdp_q2_1_3 == true or lower(string(cdp_q2_1_3 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_3 == false or lower(string(cdp_q2_1_3 ?? '')) == 'no') ? 'No' : 'No info')) : 'No info')))))"
+        "id": "cdp_q2_1_4_answer",
+        "key": "cdp_q2_1_4_answer",
+        "value": "((cdp_q2_1_4 == true or lower(string(cdp_q2_1_4 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_4 == false or lower(string(cdp_q2_1_4 ?? '')) == 'no') ? 'No' : 'No info'))"
        },
        {
-        "id": "q2_1_4_source",
-        "key": "q2_1_4_source",
-        "value": "($.sbti == 'Yes' ? 'SBTi' : (((msci_q2_1_4 == true or lower(string(msci_q2_1_4 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_4 == false or lower(string(msci_q2_1_4 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'MSCI' : ((((ca100_3_1 == true or lower(string(ca100_3_1 ?? '')) == 'yes') or (wba_s12_near_term_aim == true or lower(string(wba_s12_near_term_aim ?? '')) == 'yes')) ? 'Yes' : (((ca100_3_1 == false or lower(string(ca100_3_1 ?? '')) == 'no') or (wba_s12_near_term_aim == false or lower(string(wba_s12_near_term_aim ?? '')) == 'no')) ? 'No' : 'No info')) != 'No info' ? 'CA100+/WBA' : (((wba_s3_material_categories == true or lower(string(wba_s3_material_categories ?? '')) == 'yes') ? 'Yes' : ((wba_s3_material_categories == false or lower(string(wba_s3_material_categories ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'WBA' : (((cdp_q2_1_4 == true or lower(string(cdp_q2_1_4 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_4 == false or lower(string(cdp_q2_1_4 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? 'CDP' : 'none')))))"
+        "id": "msci_q2_1_1_answer",
+        "key": "msci_q2_1_1_answer",
+        "value": "((msci_q2_1_1 == true or lower(string(msci_q2_1_1 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_1 == false or lower(string(msci_q2_1_1 ?? '')) == 'no') ? 'No' : 'No info'))"
        },
        {
-        "id": "q2_1_4",
-        "key": "q2_1_4",
-        "value": "($.sbti == 'Yes' ? 'Yes' : (((msci_q2_1_4 == true or lower(string(msci_q2_1_4 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_4 == false or lower(string(msci_q2_1_4 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((msci_q2_1_4 == true or lower(string(msci_q2_1_4 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_4 == false or lower(string(msci_q2_1_4 ?? '')) == 'no') ? 'No' : 'No info')) : ((((ca100_3_1 == true or lower(string(ca100_3_1 ?? '')) == 'yes') or (wba_s12_near_term_aim == true or lower(string(wba_s12_near_term_aim ?? '')) == 'yes')) ? 'Yes' : (((ca100_3_1 == false or lower(string(ca100_3_1 ?? '')) == 'no') or (wba_s12_near_term_aim == false or lower(string(wba_s12_near_term_aim ?? '')) == 'no')) ? 'No' : 'No info')) != 'No info' ? (((ca100_3_1 == true or lower(string(ca100_3_1 ?? '')) == 'yes') or (wba_s12_near_term_aim == true or lower(string(wba_s12_near_term_aim ?? '')) == 'yes')) ? 'Yes' : (((ca100_3_1 == false or lower(string(ca100_3_1 ?? '')) == 'no') or (wba_s12_near_term_aim == false or lower(string(wba_s12_near_term_aim ?? '')) == 'no')) ? 'No' : 'No info')) : (((wba_s3_material_categories == true or lower(string(wba_s3_material_categories ?? '')) == 'yes') ? 'Yes' : ((wba_s3_material_categories == false or lower(string(wba_s3_material_categories ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((wba_s3_material_categories == true or lower(string(wba_s3_material_categories ?? '')) == 'yes') ? 'Yes' : ((wba_s3_material_categories == false or lower(string(wba_s3_material_categories ?? '')) == 'no') ? 'No' : 'No info')) : (((cdp_q2_1_4 == true or lower(string(cdp_q2_1_4 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_4 == false or lower(string(cdp_q2_1_4 ?? '')) == 'no') ? 'No' : 'No info')) != 'No info' ? ((cdp_q2_1_4 == true or lower(string(cdp_q2_1_4 ?? '')) == 'yes') ? 'Yes' : ((cdp_q2_1_4 == false or lower(string(cdp_q2_1_4 ?? '')) == 'no') ? 'No' : 'No info')) : 'No info')))))"
+        "id": "msci_q2_1_2_answer",
+        "key": "msci_q2_1_2_answer",
+        "value": "((msci_q2_1_2 == true or lower(string(msci_q2_1_2 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_2 == false or lower(string(msci_q2_1_2 ?? '')) == 'no') ? 'No' : 'No info'))"
        },
        {
-        "id": "q2_1_5_source",
-        "key": "q2_1_5_source",
-        "value": "($.sbti == 'Yes' ? 'SBTi' : ($.q2_1_1 == 'No' or $.q2_1_2 == 'No' or $.q2_1_3 == 'No' or $.q2_1_4 == 'No' or $.q2_1_1 == 'No info' or $.q2_1_2 == 'No info' or $.q2_1_3 == 'No info' or $.q2_1_4 == 'No info' ? 'Q2.1.1-4' : (string(tpi_cp_alignment_2030 ?? '') == '' and string(tpi_cp_alignment_2035 ?? '') == '' ? 'none' : 'TPI')))"
+        "id": "msci_q2_1_3_answer",
+        "key": "msci_q2_1_3_answer",
+        "value": "((msci_q2_1_3 == true or lower(string(msci_q2_1_3 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_3 == false or lower(string(msci_q2_1_3 ?? '')) == 'no') ? 'No' : 'No info'))"
        },
        {
-        "id": "q2_1_5",
-        "key": "q2_1_5",
-        "value": "($.sbti == 'Yes' ? 'Yes' : ($.q2_1_1 == 'No' or $.q2_1_2 == 'No' or $.q2_1_3 == 'No' or $.q2_1_4 == 'No' ? 'No' : ($.q2_1_1 == 'No info' or $.q2_1_2 == 'No info' or $.q2_1_3 == 'No info' or $.q2_1_4 == 'No info' ? 'No info' : (lower(string(tpi_cp_alignment_2030 ?? '')) == '1.5 degrees' or lower(string(tpi_cp_alignment_2030 ?? '')) == 'below 2 degrees' or lower(string(tpi_cp_alignment_2035 ?? '')) == '1.5 degrees' or lower(string(tpi_cp_alignment_2035 ?? '')) == 'below 2 degrees' ? 'Yes' : (string(tpi_cp_alignment_2030 ?? '') == '' and string(tpi_cp_alignment_2035 ?? '') == '' ? 'No info' : 'No')))))"
+        "id": "msci_q2_1_4_answer",
+        "key": "msci_q2_1_4_answer",
+        "value": "((msci_q2_1_4 == true or lower(string(msci_q2_1_4 ?? '')) == 'yes') ? 'Yes' : ((msci_q2_1_4 == false or lower(string(msci_q2_1_4 ?? '')) == 'no') ? 'No' : 'No info'))"
        },
+       {
+        "id": "tpi_q4l2_answer",
+        "key": "tpi_q4l2_answer",
+        "value": "((tpi_q4l2 == true or lower(string(tpi_q4l2 ?? '')) == 'yes') ? 'Yes' : ((tpi_q4l2 == false or lower(string(tpi_q4l2 ?? '')) == 'no') ? 'No' : 'No info'))"
+       },
+       {
+        "id": "wba_s12_covers_95_answer",
+        "key": "wba_s12_covers_95_answer",
+        "value": "((wba_s12_covers_95 == true or lower(string(wba_s12_covers_95 ?? '')) == 'yes') ? 'Yes' : ((wba_s12_covers_95 == false or lower(string(wba_s12_covers_95 ?? '')) == 'no') ? 'No' : 'No info'))"
+       },
+       {
+        "id": "wba_s12_near_term_aim_answer",
+        "key": "wba_s12_near_term_aim_answer",
+        "value": "((wba_s12_near_term_aim == true or lower(string(wba_s12_near_term_aim ?? '')) == 'yes') ? 'Yes' : ((wba_s12_near_term_aim == false or lower(string(wba_s12_near_term_aim ?? '')) == 'no') ? 'No' : 'No info'))"
+       },
+       {
+        "id": "wba_s3_material_categories_answer",
+        "key": "wba_s3_material_categories_answer",
+        "value": "((wba_s3_material_categories == true or lower(string(wba_s3_material_categories ?? '')) == 'yes') ? 'Yes' : ((wba_s3_material_categories == false or lower(string(wba_s3_material_categories ?? '')) == 'no') ? 'No' : 'No info'))"
+       },
+       {
+        "id": "wba_targets_answer",
+        "key": "wba_targets_answer",
+        "value": "((wba_targets == true or lower(string(wba_targets ?? '')) == 'yes') ? 'Yes' : ((wba_targets == false or lower(string(wba_targets ?? '')) == 'no') ? 'No' : 'No info'))"
+       },
+       {
+        "id": "ca100_3_1_or_wba_s12_near_term_aim_answer",
+        "key": "ca100_3_1_or_wba_s12_near_term_aim_answer",
+        "value": "(((ca100_3_1 == true or lower(string(ca100_3_1 ?? '')) == 'yes') or (wba_s12_near_term_aim == true or lower(string(wba_s12_near_term_aim ?? '')) == 'yes')) ? 'Yes' : (((ca100_3_1 == false or lower(string(ca100_3_1 ?? '')) == 'no') or (wba_s12_near_term_aim == false or lower(string(wba_s12_near_term_aim ?? '')) == 'no')) ? 'No' : 'No info'))"
+       },
+       {
+        "id": "tpi_alignment_answer",
+        "key": "tpi_alignment_answer",
+        "value": "lower(string(tpi_cp_alignment_2030 ?? '')) == '1.5 degrees' or lower(string(tpi_cp_alignment_2030 ?? '')) == 'below 2 degrees' or lower(string(tpi_cp_alignment_2035 ?? '')) == '1.5 degrees' or lower(string(tpi_cp_alignment_2035 ?? '')) == 'below 2 degrees' ? 'Yes' : (string(tpi_cp_alignment_2030 ?? '') == '' and string(tpi_cp_alignment_2035 ?? '') == '' ? 'No info' : 'No')"
+       }
+      ]
+     }
+    },
+    {
+     "id": "q2_1_1",
+     "type": "decisionTableNode",
+     "name": "Q2.1.1",
+     "position": {
+      "x": 600,
+      "y": 100
+     },
+     "content": {
+      "passThrough": true,
+      "inputField": null,
+      "outputPath": null,
+      "executionMode": "single",
+      "hitPolicy": "first",
+      "inputs": [
+       {
+        "id": "c0",
+        "name": "SBTi",
+        "field": "sbti_answer"
+       },
+       {
+        "id": "c1",
+        "name": "MSCI",
+        "field": "msci_q2_1_1_answer"
+       },
+       {
+        "id": "c2",
+        "name": "TPI",
+        "field": "tpi_q4l2_answer"
+       },
+       {
+        "id": "c3",
+        "name": "WBA",
+        "field": "wba_targets_answer"
+       },
+       {
+        "id": "c4",
+        "name": "CDP",
+        "field": "cdp_q2_1_1_answer"
+       }
+      ],
+      "outputs": [
+       {
+        "id": "c5",
+        "name": "Answer",
+        "field": "q2_1_1"
+       },
+       {
+        "id": "c6",
+        "name": "Source",
+        "field": "q2_1_1_source"
+       }
+      ],
+      "rules": [
+       {
+        "_id": "r1",
+        "c0": "'Yes'",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "'Yes'",
+        "c6": "'SBTi'"
+       },
+       {
+        "_id": "r2",
+        "c0": "",
+        "c1": "'Yes', 'No'",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "msci_q2_1_1_answer",
+        "c6": "'MSCI'"
+       },
+       {
+        "_id": "r3",
+        "c0": "",
+        "c1": "",
+        "c2": "'Yes', 'No'",
+        "c3": "",
+        "c4": "",
+        "c5": "tpi_q4l2_answer",
+        "c6": "'TPI'"
+       },
+       {
+        "_id": "r4",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "'Yes', 'No'",
+        "c4": "",
+        "c5": "wba_targets_answer",
+        "c6": "'WBA'"
+       },
+       {
+        "_id": "r5",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "'Yes', 'No'",
+        "c5": "cdp_q2_1_1_answer",
+        "c6": "'CDP'"
+       },
+       {
+        "_id": "r6",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "'No info'",
+        "c6": "'none'"
+       }
+      ]
+     }
+    },
+    {
+     "id": "q2_1_2",
+     "type": "decisionTableNode",
+     "name": "Q2.1.2",
+     "position": {
+      "x": 900,
+      "y": 100
+     },
+     "content": {
+      "passThrough": true,
+      "inputField": null,
+      "outputPath": null,
+      "executionMode": "single",
+      "hitPolicy": "first",
+      "inputs": [
+       {
+        "id": "c0",
+        "name": "SBTi",
+        "field": "sbti_answer"
+       },
+       {
+        "id": "c1",
+        "name": "MSCI",
+        "field": "msci_q2_1_2_answer"
+       },
+       {
+        "id": "c2",
+        "name": "CA100+",
+        "field": "ca100_3_1_answer"
+       },
+       {
+        "id": "c3",
+        "name": "WBA",
+        "field": "wba_s12_near_term_aim_answer"
+       },
+       {
+        "id": "c4",
+        "name": "CDP",
+        "field": "cdp_q2_1_2_answer"
+       }
+      ],
+      "outputs": [
+       {
+        "id": "c5",
+        "name": "Answer",
+        "field": "q2_1_2"
+       },
+       {
+        "id": "c6",
+        "name": "Source",
+        "field": "q2_1_2_source"
+       }
+      ],
+      "rules": [
+       {
+        "_id": "r1",
+        "c0": "'Yes'",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "'Yes'",
+        "c6": "'SBTi'"
+       },
+       {
+        "_id": "r2",
+        "c0": "",
+        "c1": "'Yes', 'No'",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "msci_q2_1_2_answer",
+        "c6": "'MSCI'"
+       },
+       {
+        "_id": "r3",
+        "c0": "",
+        "c1": "",
+        "c2": "'Yes', 'No'",
+        "c3": "",
+        "c4": "",
+        "c5": "ca100_3_1_answer",
+        "c6": "'CA100+'"
+       },
+       {
+        "_id": "r4",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "'Yes', 'No'",
+        "c4": "",
+        "c5": "wba_s12_near_term_aim_answer",
+        "c6": "'WBA'"
+       },
+       {
+        "_id": "r5",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "'Yes', 'No'",
+        "c5": "cdp_q2_1_2_answer",
+        "c6": "'CDP'"
+       },
+       {
+        "_id": "r6",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "'No info'",
+        "c6": "'none'"
+       }
+      ]
+     }
+    },
+    {
+     "id": "q2_1_3",
+     "type": "decisionTableNode",
+     "name": "Q2.1.3",
+     "position": {
+      "x": 1200,
+      "y": 100
+     },
+     "content": {
+      "passThrough": true,
+      "inputField": null,
+      "outputPath": null,
+      "executionMode": "single",
+      "hitPolicy": "first",
+      "inputs": [
+       {
+        "id": "c0",
+        "name": "SBTi",
+        "field": "sbti_answer"
+       },
+       {
+        "id": "c1",
+        "name": "MSCI",
+        "field": "msci_q2_1_3_answer"
+       },
+       {
+        "id": "c2",
+        "name": "CA100+",
+        "field": "ca100_3_2a_answer"
+       },
+       {
+        "id": "c3",
+        "name": "WBA",
+        "field": "wba_s12_covers_95_answer"
+       },
+       {
+        "id": "c4",
+        "name": "CDP",
+        "field": "cdp_q2_1_3_answer"
+       }
+      ],
+      "outputs": [
+       {
+        "id": "c5",
+        "name": "Answer",
+        "field": "q2_1_3"
+       },
+       {
+        "id": "c6",
+        "name": "Source",
+        "field": "q2_1_3_source"
+       }
+      ],
+      "rules": [
+       {
+        "_id": "r1",
+        "c0": "'Yes'",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "'Yes'",
+        "c6": "'SBTi'"
+       },
+       {
+        "_id": "r2",
+        "c0": "",
+        "c1": "'Yes', 'No'",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "msci_q2_1_3_answer",
+        "c6": "'MSCI'"
+       },
+       {
+        "_id": "r3",
+        "c0": "",
+        "c1": "",
+        "c2": "'Yes', 'No'",
+        "c3": "",
+        "c4": "",
+        "c5": "ca100_3_2a_answer",
+        "c6": "'CA100+'"
+       },
+       {
+        "_id": "r4",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "'Yes', 'No'",
+        "c4": "",
+        "c5": "wba_s12_covers_95_answer",
+        "c6": "'WBA'"
+       },
+       {
+        "_id": "r5",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "'Yes', 'No'",
+        "c5": "cdp_q2_1_3_answer",
+        "c6": "'CDP'"
+       },
+       {
+        "_id": "r6",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "'No info'",
+        "c6": "'none'"
+       }
+      ]
+     }
+    },
+    {
+     "id": "q2_1_4",
+     "type": "decisionTableNode",
+     "name": "Q2.1.4",
+     "position": {
+      "x": 1500,
+      "y": 100
+     },
+     "content": {
+      "passThrough": true,
+      "inputField": null,
+      "outputPath": null,
+      "executionMode": "single",
+      "hitPolicy": "first",
+      "inputs": [
+       {
+        "id": "c0",
+        "name": "SBTi",
+        "field": "sbti_answer"
+       },
+       {
+        "id": "c1",
+        "name": "MSCI",
+        "field": "msci_q2_1_4_answer"
+       },
+       {
+        "id": "c2",
+        "name": "CA100+/WBA",
+        "field": "ca100_3_1_or_wba_s12_near_term_aim_answer"
+       },
+       {
+        "id": "c3",
+        "name": "WBA",
+        "field": "wba_s3_material_categories_answer"
+       },
+       {
+        "id": "c4",
+        "name": "CDP",
+        "field": "cdp_q2_1_4_answer"
+       }
+      ],
+      "outputs": [
+       {
+        "id": "c5",
+        "name": "Answer",
+        "field": "q2_1_4"
+       },
+       {
+        "id": "c6",
+        "name": "Source",
+        "field": "q2_1_4_source"
+       }
+      ],
+      "rules": [
+       {
+        "_id": "r1",
+        "c0": "'Yes'",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "'Yes'",
+        "c6": "'SBTi'"
+       },
+       {
+        "_id": "r2",
+        "c0": "",
+        "c1": "'Yes', 'No'",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "msci_q2_1_4_answer",
+        "c6": "'MSCI'"
+       },
+       {
+        "_id": "r3",
+        "c0": "",
+        "c1": "",
+        "c2": "'Yes', 'No'",
+        "c3": "",
+        "c4": "",
+        "c5": "ca100_3_1_or_wba_s12_near_term_aim_answer",
+        "c6": "'CA100+/WBA'"
+       },
+       {
+        "_id": "r4",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "'Yes', 'No'",
+        "c4": "",
+        "c5": "wba_s3_material_categories_answer",
+        "c6": "'WBA'"
+       },
+       {
+        "_id": "r5",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "'Yes', 'No'",
+        "c5": "cdp_q2_1_4_answer",
+        "c6": "'CDP'"
+       },
+       {
+        "_id": "r6",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "'No info'",
+        "c6": "'none'"
+       }
+      ]
+     }
+    },
+    {
+     "id": "q2_1_5",
+     "type": "decisionTableNode",
+     "name": "Q2.1.5",
+     "position": {
+      "x": 1800,
+      "y": 100
+     },
+     "content": {
+      "passThrough": true,
+      "inputField": null,
+      "outputPath": null,
+      "executionMode": "single",
+      "hitPolicy": "first",
+      "inputs": [
+       {
+        "id": "c0",
+        "name": "SBTi",
+        "field": "sbti_answer"
+       },
+       {
+        "id": "c1",
+        "name": "Q2.1.1",
+        "field": "q2_1_1"
+       },
+       {
+        "id": "c2",
+        "name": "Q2.1.2",
+        "field": "q2_1_2"
+       },
+       {
+        "id": "c3",
+        "name": "Q2.1.3",
+        "field": "q2_1_3"
+       },
+       {
+        "id": "c4",
+        "name": "Q2.1.4",
+        "field": "q2_1_4"
+       },
+       {
+        "id": "c5",
+        "name": "TPI alignment",
+        "field": "tpi_alignment_answer"
+       }
+      ],
+      "outputs": [
+       {
+        "id": "c6",
+        "name": "Answer",
+        "field": "q2_1_5"
+       },
+       {
+        "id": "c7",
+        "name": "Source",
+        "field": "q2_1_5_source"
+       }
+      ],
+      "rules": [
+       {
+        "_id": "r1",
+        "c0": "'Yes'",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "",
+        "c6": "'Yes'",
+        "c7": "'SBTi'"
+       },
+       {
+        "_id": "r2",
+        "c0": "",
+        "c1": "'No'",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "",
+        "c6": "'No'",
+        "c7": "'Q2.1.1-4'"
+       },
+       {
+        "_id": "r3",
+        "c0": "",
+        "c1": "",
+        "c2": "'No'",
+        "c3": "",
+        "c4": "",
+        "c5": "",
+        "c6": "'No'",
+        "c7": "'Q2.1.1-4'"
+       },
+       {
+        "_id": "r4",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "'No'",
+        "c4": "",
+        "c5": "",
+        "c6": "'No'",
+        "c7": "'Q2.1.1-4'"
+       },
+       {
+        "_id": "r5",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "'No'",
+        "c5": "",
+        "c6": "'No'",
+        "c7": "'Q2.1.1-4'"
+       },
+       {
+        "_id": "r6",
+        "c0": "",
+        "c1": "'No info'",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "",
+        "c6": "'No info'",
+        "c7": "'Q2.1.1-4'"
+       },
+       {
+        "_id": "r7",
+        "c0": "",
+        "c1": "",
+        "c2": "'No info'",
+        "c3": "",
+        "c4": "",
+        "c5": "",
+        "c6": "'No info'",
+        "c7": "'Q2.1.1-4'"
+       },
+       {
+        "_id": "r8",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "'No info'",
+        "c4": "",
+        "c5": "",
+        "c6": "'No info'",
+        "c7": "'Q2.1.1-4'"
+       },
+       {
+        "_id": "r9",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "'No info'",
+        "c5": "",
+        "c6": "'No info'",
+        "c7": "'Q2.1.1-4'"
+       },
+       {
+        "_id": "r10",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "'Yes', 'No'",
+        "c6": "tpi_alignment_answer",
+        "c7": "'TPI'"
+       },
+       {
+        "_id": "r11",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "",
+        "c6": "'No info'",
+        "c7": "'none'"
+       }
+      ]
+     }
+    },
+    {
+     "id": "counts",
+     "type": "expressionNode",
+     "name": "counts",
+     "position": {
+      "x": 2100,
+      "y": 100
+     },
+     "content": {
+      "passThrough": true,
+      "inputField": null,
+      "outputPath": null,
+      "executionMode": "single",
+      "expressions": [
        {
         "id": "yes_count",
         "key": "yes_count",
-        "value": "len(filter([$.q2_1_1, $.q2_1_2, $.q2_1_3, $.q2_1_4, $.q2_1_5], # == 'Yes'))"
+        "value": "len(filter([q2_1_1, q2_1_2, q2_1_3, q2_1_4, q2_1_5], # == 'Yes'))"
        },
        {
         "id": "no_info_count",
         "key": "no_info_count",
-        "value": "len(filter([$.q2_1_1, $.q2_1_2, $.q2_1_3, $.q2_1_4, $.q2_1_5], # == 'No info'))"
-       },
-       {
-        "id": "outcome",
-        "key": "outcome",
-        "value": "($.yes_count == 5 ? 'aligned' : ($.q2_1_1 == 'Yes' and $.q2_1_2 == 'Yes' and $.q2_1_3 == 'Yes' and $.q2_1_4 == 'Yes' ? 'not_aligned' : ($.yes_count > 0 ? 'partial' : ($.no_info_count == 5 ? 'no_info' : 'none'))))"
+        "value": "len(filter([q2_1_1, q2_1_2, q2_1_3, q2_1_4, q2_1_5], # == 'No info'))"
        },
        {
         "id": "note",
         "key": "note",
-        "value": "string($.yes_count) + '/5 Yes' + ' · Q2.1.1 ' + $.q2_1_1 + ' (' + $.q2_1_1_source + ')' + ' · Q2.1.2 ' + $.q2_1_2 + ' (' + $.q2_1_2_source + ')' + ' · Q2.1.3 ' + $.q2_1_3 + ' (' + $.q2_1_3_source + ')' + ' · Q2.1.4 ' + $.q2_1_4 + ' (' + $.q2_1_4_source + ')' + ' · Q2.1.5 ' + $.q2_1_5 + ' (' + $.q2_1_5_source + ')'"
+        "value": "string($.yes_count) + '/5 Yes' + ' · Q2.1.1 ' + q2_1_1 + ' (' + q2_1_1_source + ')' + ' · Q2.1.2 ' + q2_1_2 + ' (' + q2_1_2_source + ')' + ' · Q2.1.3 ' + q2_1_3 + ' (' + q2_1_3_source + ')' + ' · Q2.1.4 ' + q2_1_4 + ' (' + q2_1_4_source + ')' + ' · Q2.1.5 ' + q2_1_5 + ' (' + q2_1_5_source + ')'"
+       }
+      ]
+     }
+    },
+    {
+     "id": "outcome",
+     "type": "decisionTableNode",
+     "name": "Outcome",
+     "position": {
+      "x": 2400,
+      "y": 100
+     },
+     "content": {
+      "passThrough": true,
+      "inputField": null,
+      "outputPath": null,
+      "executionMode": "single",
+      "hitPolicy": "first",
+      "inputs": [
+       {
+        "id": "c0",
+        "name": "Yes answers",
+        "field": "yes_count"
+       },
+       {
+        "id": "c1",
+        "name": "Q2.1.1",
+        "field": "q2_1_1"
+       },
+       {
+        "id": "c2",
+        "name": "Q2.1.2",
+        "field": "q2_1_2"
+       },
+       {
+        "id": "c3",
+        "name": "Q2.1.3",
+        "field": "q2_1_3"
+       },
+       {
+        "id": "c4",
+        "name": "Q2.1.4",
+        "field": "q2_1_4"
+       },
+       {
+        "id": "c5",
+        "name": "No info answers",
+        "field": "no_info_count"
+       }
+      ],
+      "outputs": [
+       {
+        "id": "c6",
+        "name": "Outcome",
+        "field": "outcome"
+       }
+      ],
+      "rules": [
+       {
+        "_id": "r1",
+        "c0": "5",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "",
+        "c6": "'aligned'"
+       },
+       {
+        "_id": "r2",
+        "c0": "",
+        "c1": "'Yes'",
+        "c2": "'Yes'",
+        "c3": "'Yes'",
+        "c4": "'Yes'",
+        "c5": "",
+        "c6": "'not_aligned'"
+       },
+       {
+        "_id": "r3",
+        "c0": "> 0",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "",
+        "c6": "'partial'"
+       },
+       {
+        "_id": "r4",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "5",
+        "c6": "'no_info'"
+       },
+       {
+        "_id": "r5",
+        "c0": "",
+        "c1": "",
+        "c2": "",
+        "c3": "",
+        "c4": "",
+        "c5": "",
+        "c6": "'none'"
        }
       ]
      }
@@ -318,21 +1127,63 @@
      "type": "outputNode",
      "name": "out",
      "position": {
-      "x": 700,
+      "x": 2700,
       "y": 100
      }
     }
    ],
    "edges": [
     {
-     "id": "in-calc",
+     "id": "e0",
      "sourceId": "in",
-     "targetId": "targets",
+     "targetId": "normalise",
      "type": "edge"
     },
     {
-     "id": "calc-out",
-     "sourceId": "targets",
+     "id": "e1",
+     "sourceId": "normalise",
+     "targetId": "q2_1_1",
+     "type": "edge"
+    },
+    {
+     "id": "e2",
+     "sourceId": "q2_1_1",
+     "targetId": "q2_1_2",
+     "type": "edge"
+    },
+    {
+     "id": "e3",
+     "sourceId": "q2_1_2",
+     "targetId": "q2_1_3",
+     "type": "edge"
+    },
+    {
+     "id": "e4",
+     "sourceId": "q2_1_3",
+     "targetId": "q2_1_4",
+     "type": "edge"
+    },
+    {
+     "id": "e5",
+     "sourceId": "q2_1_4",
+     "targetId": "q2_1_5",
+     "type": "edge"
+    },
+    {
+     "id": "e6",
+     "sourceId": "q2_1_5",
+     "targetId": "counts",
+     "type": "edge"
+    },
+    {
+     "id": "e7",
+     "sourceId": "counts",
+     "targetId": "outcome",
+     "type": "edge"
+    },
+    {
+     "id": "e8",
+     "sourceId": "outcome",
      "targetId": "out",
      "type": "edge"
     }
@@ -351,23 +1202,67 @@
     },
     {
      "id": "tier",
-     "type": "expressionNode",
-     "name": "tier",
+     "type": "decisionTableNode",
+     "name": "Tier",
      "position": {
       "x": 300,
       "y": 100
      },
      "content": {
-      "expressions": [
+      "passThrough": true,
+      "inputField": null,
+      "outputPath": null,
+      "executionMode": "single",
+      "hitPolicy": "first",
+      "inputs": [
        {
-        "id": "tier",
-        "key": "tier",
-        "value": "(outcome == 'aligned' ? 1 : (outcome == 'not_aligned' ? 2 : (outcome == 'partial' ? 3 : (outcome == 'none' ? 4 : 5))))"
+        "id": "c0",
+        "name": "Outcome",
+        "field": "outcome"
+       }
+      ],
+      "outputs": [
+       {
+        "id": "c1",
+        "name": "Tier",
+        "field": "tier"
        },
        {
-        "id": "note",
-        "key": "note",
-        "value": "note"
+        "id": "c2",
+        "name": "Note",
+        "field": "note"
+       }
+      ],
+      "rules": [
+       {
+        "_id": "r1",
+        "c0": "'aligned'",
+        "c1": "1",
+        "c2": "note"
+       },
+       {
+        "_id": "r2",
+        "c0": "'not_aligned'",
+        "c1": "2",
+        "c2": "note"
+       },
+       {
+        "_id": "r3",
+        "c0": "'partial'",
+        "c1": "3",
+        "c2": "note"
+       },
+       {
+        "_id": "r4",
+        "c0": "'none'",
+        "c1": "4",
+        "c2": "note"
+       },
+       {
+        "_id": "r5",
+        "c0": "'no_info'",
+        "c1": "5",
+        "c2": "note"
        }
       ]
      }
@@ -377,20 +1272,20 @@
      "type": "outputNode",
      "name": "out",
      "position": {
-      "x": 700,
+      "x": 600,
       "y": 100
      }
     }
    ],
    "edges": [
     {
-     "id": "in-calc",
+     "id": "e0",
      "sourceId": "in",
      "targetId": "tier",
      "type": "edge"
     },
     {
-     "id": "calc-out",
+     "id": "e1",
      "sourceId": "tier",
      "targetId": "out",
      "type": "edge"
@@ -406,7 +1301,7 @@
    "why": "Sheet, Step 1.",
    "needs_check": false,
    "origin": "human",
-   "at": "2026-10-01T18:48:41.866166+00:00",
+   "at": "2026-10-01T19:41:56.157534+00:00",
    "by": null
   },
   {
@@ -416,7 +1311,7 @@
    "why": "Sheet: each step runs 'if the previous step returns No info'.",
    "needs_check": false,
    "origin": "human",
-   "at": "2026-10-01T18:48:41.866226+00:00",
+   "at": "2026-10-01T19:41:56.157548+00:00",
    "by": null
   },
   {
@@ -426,7 +1321,7 @@
    "why": "Not in the sheet; ruled here.",
    "needs_check": false,
    "origin": "human",
-   "at": "2026-10-01T18:48:41.866236+00:00",
+   "at": "2026-10-01T19:41:56.157554+00:00",
    "by": null
   },
   {
@@ -436,7 +1331,7 @@
    "why": "Sheet: 'Yes only if all previous questions are Yes'; No info propagates (ruled here).",
    "needs_check": false,
    "origin": "human",
-   "at": "2026-10-01T18:48:41.866246+00:00",
+   "at": "2026-10-01T19:41:56.157558+00:00",
    "by": null
   },
   {
@@ -446,7 +1341,7 @@
    "why": "Both report per target; the per-target conditions are applied before the table is loaded (README).",
    "needs_check": false,
    "origin": "human",
-   "at": "2026-10-01T18:48:41.866253+00:00",
+   "at": "2026-10-01T19:41:56.157564+00:00",
    "by": null
   },
   {
@@ -456,7 +1351,7 @@
    "why": "Not in the sheet: 5/5 Yes; Q2.1.1-4 Yes; some Yes; no Yes; all No info.",
    "needs_check": false,
    "origin": "human",
-   "at": "2026-10-01T18:48:41.866264+00:00",
+   "at": "2026-10-01T19:41:56.157576+00:00",
    "by": null
   }
  ]
