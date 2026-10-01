@@ -118,7 +118,8 @@ def structure_errors(slide: SlideContent, slots) -> list[str]:
 
 
 def _as_cards(slide: SlideContent) -> SlideContent:
-    """Fallback for a structure error: every list item becomes a card ("a :: b :: c" -> "a: b; c"); text slots go to the notes."""
+    """Fallback for a structure error: every list item becomes a card ("a :: b :: c" -> "a: b; c"), at most four (the rest fold
+    into the fourth); text slots go to the notes."""
     items, notes = [], [slide.speaker_notes]
     for v in slide.slots.values():
         if isinstance(v, list):
@@ -126,6 +127,7 @@ def _as_cards(slide: SlideContent) -> SlideContent:
             items += [p[0] + (": " + "; ".join(p[1:]) if len(p) > 1 else "") for p in parts if p]
         elif v:
             notes.append(v)
+    items = items[:3] + ["; ".join(items[3:])] if len(items) > 4 else items
     return slide.model_copy(update={"layout": "cards", "variant": "three" if len(items) <= 3 else "four", "slots": {"items": items},
                                     "chart": None, "table": None, "speaker_notes": " ".join(filter(None, notes))})
 
@@ -160,8 +162,9 @@ async def fill_slide(slide: StorylineSlide, index: int, request: ReportRequest, 
     findings = []
     if errors and _variant_or_none(content) and errors == structure_errors(content, get_variant(content.layout, content.variant).slots):
         # Only the `a :: b` items are malformed: keep the content, as cards (the amendment's fallback).
+        dropped = ", chart/table dropped" if content.chart or content.table else ""
         content = _as_cards(content)
-        findings = [Finding(slide=index, stage="data", rule="bad_structure", message="; ".join(errors) + " (shown as cards)")]
+        findings = [Finding(slide=index, stage="data", rule="bad_structure", message="; ".join(errors) + f" (shown as cards{dropped})")]
     elif errors:
         return placeholder, [Finding(slide=index, stage="data", rule="bad_reference", message="; ".join(errors))], usage
     # The headline is the approved storyline's, never the model's rewrite of it.

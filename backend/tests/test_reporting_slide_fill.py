@@ -171,3 +171,13 @@ async def test_fill_slide_with_inverted_heat_retries_then_placeholder(fake_llm):
     slide, findings, _ = await fill_slide(_STORY, 1, _REQ, llm)
     assert llm.calls == ["SlideContent", "SlideContent"] and "weight" in llm.prompts[1]
     assert findings[0].rule == "bad_reference" and slide.layout == "bullets"
+
+
+async def test_cards_fallback_caps_at_four_and_says_the_chart_was_dropped(fake_llm):
+    bad = SlideContent(headline="x", layout="scatter_zone", variant="default", slots={"items": ["A :: a", "B :: b", "C :: c", "D :: d", "E"]},
+                       chart=ChartSpec(dataset_id="ds_w", chart_type="scatter", x_column="weight", y_column="weight"))
+    assert slide_fill.validate_slide(bad, [_DS]) == slide_fill.structure_errors(bad, slide_fill.get_variant("scatter_zone", "default").slots)
+    slide, findings, _ = await fill_slide(_STORY, 1, _REQ, fake_llm({"SlideContent": [bad, bad]}))
+    assert (slide.layout, slide.variant) == ("cards", "four") and slide.chart is None
+    assert slide.slots["items"] == ["A: a", "B: b", "C: c", "D: d; E"]
+    assert findings[0].rule == "bad_structure" and "chart/table dropped" in findings[0].message
