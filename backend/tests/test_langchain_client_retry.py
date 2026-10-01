@@ -112,9 +112,11 @@ async def test_validation_failure_retry_sends_tool_result_not_plain_text(tmp_pat
 
 
 async def test_no_tool_use_retry_can_stay_plain_text(tmp_path):
-    """When the model's response has no matching tool call at all (rare,
-    given tool_choice is forced), there's no tool_use_id needing a
-    tool_result -- a plain-text nudge is valid in that case."""
+    """When the model's response has no matching tool call at all, there's
+    no tool_use_id needing a tool_result -- a plain-text nudge is valid in
+    that case. This is the path that makes `tool_choice: auto` safe: the
+    tool is advertised rather than forced, so a model answering in prose is
+    possible and gets re-prompted instead of silently returning nothing."""
     first_response = _message("tu_1", {"value": 1})
     first_response.content = []  # no blocks at all -- model said nothing usable
     second_response = _message("tu_2", {"value": 7})
@@ -152,59 +154,18 @@ def _temperature_kwarg(call: dict) -> float | None:
     return (call.get("extra_body") or {}).get("temperature")
 
 
-async def test_temperature_is_actually_sent_to_the_model(tmp_path):
-    """The previous raw-SDK implementation declared `temperature` on its
-    signature but never forwarded it to the API call at all -- confirm the
-    new client actually wires it through."""
-    client, fake = _client_with_responses(tmp_path, [_message("tu_1", {"value": 1})])
-    await client.complete_structured(system="sys", prompt="prompt", output_model=_Target, temperature=0.3)
-    assert _temperature_kwarg(fake.messages.calls[0]) == 0.3
+# `test_temperature_is_actually_sent_to_the_model` and
+# `test_temperature_unsupported_model_falls_back_and_sticks` used to live
+# here. Both asserted the old contract -- send `temperature`, and recover
+# when a model rejects it -- which no longer holds: every model this
+# codebase targets rejects an explicit non-default `temperature`, so the
+# client never sends it and there is no rejection left to recover from.
+# `test_temperature_is_never_sent` below is their replacement.
 
 
 def _bad_request(message: str) -> BadRequestError:
     response = httpx.Response(status_code=400, request=httpx.Request("POST", "https://api.anthropic.com/v1/messages"))
     return BadRequestError(message, response=response, body=None)
-
-
-async def test_temperature_unsupported_model_falls_back_and_sticks(tmp_path):
-    """Some model/account combinations reject an explicit `temperature`
-    outright ("temperature is deprecated for this model") -- a real error
-    hit against the live API. The client must recover by retrying once
-    without temperature, then skip sending it on every later call on this
-    same instance rather than repeating the failed attempt each time."""
-
-    class _FlakyMessages(_FakeMessages):
-        def __init__(self, responses: list[Message]) -> None:
-            super().__init__(responses)
-            self._served = 0
-
-        async def create(self, **kwargs):
-            self.calls.append(kwargs)
-            if _temperature_kwarg(kwargs) is not None:
-                raise _bad_request("`temperature` is deprecated for this model.")
-            response = self._responses[self._served]
-            self._served += 1
-            return response
-
-    client = LangChainAnthropicClient(api_key="test", model="test-model", cache_dir=tmp_path, cache_enabled=False)
-    fake = _FakeAsyncClient([_message("tu_1", {"value": 1})])
-    fake.messages = _FlakyMessages([_message("tu_1", {"value": 1})])
-    client._chat._async_client = fake
-
-    instance, _usage = await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)
-    assert instance.value == 1
-    assert client._temperature_unsupported is True
-    # One failed attempt (with temperature) + one successful retry (without).
-    assert len(fake.messages.calls) == 2
-    assert _temperature_kwarg(fake.messages.calls[0]) is not None
-    assert _temperature_kwarg(fake.messages.calls[1]) is None
-
-    # A second call on the same client instance must not repeat the failed attempt.
-    fake.messages._responses.append(_message("tu_2", {"value": 2}))
-    instance2, _usage2 = await client.complete_structured(system="sys", prompt="prompt2", output_model=_Target)
-    assert instance2.value == 2
-    assert len(fake.messages.calls) == 3
-    assert _temperature_kwarg(fake.messages.calls[2]) is None
 
 
 async def test_system_prompt_gets_cache_control_by_default(tmp_path):
@@ -339,4 +300,59 @@ async def test_unrelated_bad_request_is_not_swallowed(tmp_path):
     except BadRequestError:
         pass
     # No blind backoff retries against a non-transient, non-temperature 400.
+    assert len(fake.messages.calls) == 1
+
+
+async def test_the_tool_is_offered_not_forced(tmp_path):
+    """`tool_choice` must stay "auto". Forcing a specific tool is rejected
+    outright by the current model generation -- `tool_choice: type "tool"
+    and "any" are not supported for this model`, a 400 on claude-opus-5-5
+    and claude-sonnet-5-5 -- and because every agent in this codebase
+    reaches the API through this one method, a forced choice here fails all
+    ~60 call sites at once the moment ARP_LLM_MODEL is bumped."""
+    client, fake = _client_with_responses(tmp_path, [_message("tu_1", {"value": 1})])
+
+    await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)
+
+    tool_choice = fake.messages.calls[0]["tool_choice"]
+    assert tool_choice == {"type": "auto"}, "a forced tool_choice 400s on current models"
+    # Still exactly one tool, so "auto" has only one thing it can choose.
+    assert [t["name"] for t in fake.messages.calls[0]["tools"]] == ["emit_result"]
+
+
+async def test_temperature_is_never_sent(tmp_path):
+    """No model this codebase targets accepts an explicit `temperature` any
+    more: sonnet-5, opus-5 and opus-5-5 reject a non-default value with a
+    400, and langchain-anthropic rejects it for sonnet-5-5 client-side with
+    a ValueError. Sending it and recovering on rejection cost one wasted
+    round-trip per client instance, silently."""
+    client, fake = _client_with_responses(tmp_path, [_message("tu_1", {"value": 1})])
+
+    await client.complete_structured(system="sys", prompt="prompt", output_model=_Target, temperature=0.0)
+
+    # Via the helper, not `"temperature" not in call`: langchain-anthropic
+    # relocates the parameter into `extra_body` on anthropic>=1, so the naive
+    # check passes whether or not it was actually sent.
+    assert _temperature_kwarg(fake.messages.calls[0]) is None
+    # The parameter stays in the signature (LLMClient contract + cache key),
+    # so passing a non-default value must not start sending it either.
+    client2, fake2 = _client_with_responses(tmp_path, [_message("tu_2", {"value": 2})])
+    await client2.complete_structured(system="sys", prompt="p", output_model=_Target, temperature=0.7)
+    assert _temperature_kwarg(fake2.messages.calls[0]) is None
+
+
+async def test_a_successful_call_costs_exactly_one_request(tmp_path):
+    """Pins the request count for a clean call at one.
+
+    Not a regression test for the wasted round-trip -- it cannot be, since
+    the fake here accepts `temperature` happily and so never provoked the
+    400 that the real API returns. What it guards against is a future
+    change reintroducing any send-then-recover step ahead of the first
+    useful request."""
+    client, fake = _client_with_responses(tmp_path, [_message("tu_1", {"value": 42})])
+
+    instance, usage = await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)
+
+    assert instance.value == 42
+    assert usage.attempts == 1
     assert len(fake.messages.calls) == 1

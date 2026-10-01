@@ -41,10 +41,11 @@ _CACHE_CONTROL = {"type": "ephemeral", "ttl": "1h"}
 # BadRequestError (400) is excluded even though it's an APIStatusError: a
 # malformed-request rejection (e.g. an unsupported parameter) will never
 # succeed on retry, so blindly backing off and re-sending the identical
-# request five times just burns quota before failing anyway. The one
-# recoverable case -- a model/account combination that rejects an
-# explicit `temperature` -- is handled explicitly below, once per client
-# instance, rather than through this generic transient-error retry.
+# request five times just burns quota before failing anyway. There is no
+# longer a recoverable case to carve out: the one that existed -- a model
+# rejecting an explicit `temperature` -- is gone now that `temperature` is
+# never sent (see `_bind`), so a 400 here is unambiguously a bug to fix
+# rather than a parameter to retry without.
 _RETRYABLE = (APIStatusError, APITimeoutError, ConnectionError)
 _NOT_RETRYABLE = (BadRequestError,)
 
@@ -110,9 +111,13 @@ def _format_validation_errors(exc: ValidationError) -> str:
 class LangChainAnthropicClient(LLMClient):
     """LLMClient backed by langchain-anthropic's ChatAnthropic.
 
-    Structured output is obtained the same way as before: forcing a single
-    tool call whose input schema is the target Pydantic model's JSON
-    schema, rather than trusting the model to emit clean JSON in prose.
+    Structured output comes from offering exactly one tool whose input
+    schema is the target Pydantic model's JSON schema, rather than trusting
+    the model to emit clean JSON in prose. The tool is offered, not forced
+    (`tool_choice: auto`): the current model generation rejects a forced
+    `tool_choice` outright -- see `_bind` -- and the validation-retry loop
+    re-prompts if a model answers in prose anyway, so a single advertised
+    tool is enough without the 400.
     Pydantic validation errors are fed back to the model as a tool-result
     error for a bounded number of self-correction turns -- LangChain's
     message types (SystemMessage/HumanMessage/AIMessage/ToolMessage)
@@ -142,12 +147,6 @@ class LangChainAnthropicClient(LLMClient):
         self.cache = DiskLLMCache(cache_dir, enabled=cache_enabled, refresh=cache_refresh)
         self._max_network_retries = max_network_retries
         self._prompt_cache_enabled = prompt_cache_enabled
-        # Set the first time this model/account combination rejects an
-        # explicit `temperature` with a 400 ("temperature is deprecated
-        # for this model") -- some model configurations fix temperature
-        # internally and reject the field outright. Sticky per instance so
-        # only the first call in a run pays for the failed attempt.
-        self._temperature_unsupported = False
 
     async def complete_structured(
         self,
@@ -188,13 +187,39 @@ class LangChainAnthropicClient(LLMClient):
             "input_schema": schema,
         }
 
-        def _bind(with_temperature: bool):
+        def _bind():
+            # `temperature` is deliberately not sent. No model this codebase
+            # targets accepts it any more: claude-sonnet-5, claude-opus-5 and
+            # claude-opus-5-5 reject a non-default value with a 400, and
+            # langchain-anthropic rejects it for claude-sonnet-5-5 client-side
+            # with a ValueError. It used to be sent and then retried without
+            # it on rejection, which meant *every* client instance burned one
+            # round-trip on a request that could never succeed -- the retry
+            # was silent, so this looked like it worked. These models fix
+            # sampling internally, so dropping it changes nothing about
+            # determinism; the disk cache is what makes a run reproducible.
+            # The parameter stays in the signature: it is part of the
+            # LLMClient contract and of the cache key, and a caller pointing
+            # this at an older model that does accept it can reinstate the
+            # bind here.
             extra = {"max_tokens": max_tokens}
-            if with_temperature:
-                extra["temperature"] = temperature
-            return self._chat.bind_tools([tool], tool_choice={"type": "tool", "name": _TOOL_NAME}).bind(**extra)
+            # tool_choice is "auto", not {"type": "tool"}: forcing a specific
+            # tool is rejected outright by the current model generation
+            # (`tool_choice: type "tool" and "any" are not supported for this
+            # model` -- a 400 on claude-opus-5-5 and claude-sonnet-5-5), which
+            # would fail every call site in this codebase at once the moment
+            # ARP_LLM_MODEL is bumped. "auto" plus a single tool whose
+            # description says to emit the result is enough in practice --
+            # verified calling the tool on sonnet-5, opus-5, sonnet-5-5 and
+            # opus-5-5 -- and the loop below still re-prompts if a model
+            # answers in prose instead, so the guarantee does not rest on the
+            # model's goodwill. Deliberately not `strict: True`: it would
+            # require additionalProperties/required on every nested $def of
+            # 60-odd Pydantic schemas, and the validation-retry loop below
+            # already covers malformed arguments.
+            return self._chat.bind_tools([tool], tool_choice={"type": "auto"}).bind(**extra)
 
-        bound = _bind(with_temperature=not self._temperature_unsupported)
+        bound = _bind()
 
         system_content: str | list[dict] = system
         if self._prompt_cache_enabled and system:
@@ -216,16 +241,7 @@ class LangChainAnthropicClient(LLMClient):
         last_error: ValidationError | None = None
 
         for attempt in range(1, max_validation_retries + 2):
-            try:
-                ai_message = await self._call_with_backoff(bound, messages)
-            except BadRequestError as exc:
-                if self._temperature_unsupported or "temperature" not in str(exc).lower():
-                    raise
-                # First-ever hit of this: remember it for every later call
-                # on this client instance and retry once without it.
-                self._temperature_unsupported = True
-                bound = _bind(with_temperature=False)
-                ai_message = await self._call_with_backoff(bound, messages)
+            ai_message = await self._call_with_backoff(bound, messages)
             usage_meta = ai_message.usage_metadata or {}
             total_input_tokens += usage_meta.get("input_tokens", 0)
             total_output_tokens += usage_meta.get("output_tokens", 0)
