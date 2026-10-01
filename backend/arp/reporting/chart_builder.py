@@ -214,11 +214,11 @@ def render_chart_svg(
 ) -> str:
     """Same drawing as render_chart_image, as an inline-able SVG string for
     the HTML deck. Text stays <text> (svg.fonttype=none) so the page's font
-    applies; the figure is sized at half the slot's pixels in points so the
-    10pt chart type renders at about 20px on the 1920px canvas.
+    applies; the figure is sized at 1/2.4 of the slot's pixels in points so
+    the 10pt chart type renders at 24px on the 1920px canvas (projector floor).
     """
     with plt.rc_context({"svg.fonttype": "none"}):
-        fig = _draw_chart(spec, datasets, theme, width_px / 144, height_px / 144)
+        fig = _draw_chart(spec, datasets, theme, width_px / 172.8, height_px / 172.8)
         buf = StringIO()
         fig.savefig(buf, format="svg", transparent=True)  # the slide's own background shows through
         plt.close(fig)
@@ -230,8 +230,8 @@ def _draw_chart(spec: ChartSpec, datasets: list[QuantitativeDataset], theme: Des
     ds = _dataset_by_id(datasets, spec.dataset_id)
     plt.rcParams["font.family"] = "sans-serif"
     fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=150)
-    fig.patch.set_facecolor("#FCFCFB")
-    ax.set_facecolor("#FCFCFB")
+    fig.patch.set_facecolor(f"#{theme.surface}")
+    ax.set_facecolor(f"#{theme.surface}")
 
     if spec.chart_type == ChartType.HEATMAP:
         _render_heatmap(ax, spec, ds, theme)
@@ -244,7 +244,7 @@ def _draw_chart(spec: ChartSpec, datasets: list[QuantitativeDataset], theme: Des
             y_col = _column(ds, y_col, label="value_columns")
             xs = [row.get(x_col) for row in ds.rows]
             ys = [row.get(y_col) for row in ds.rows]
-            ax.scatter(xs, ys, label=y_col, s=64, color=_hex01(categorical_color(theme, i)), edgecolors="white", linewidths=0.8)
+            ax.scatter(xs, ys, label=y_col, s=64, color=_hex01(categorical_color(theme, i)), edgecolors=f"#{theme.surface}", linewidths=0.8)
         ax.set_xlabel(x_col, color=f"#{theme.ink_secondary}")
         if len(spec.value_columns or []) > 1:
             _apply_legend(ax, theme)
@@ -256,7 +256,7 @@ def _draw_chart(spec: ChartSpec, datasets: list[QuantitativeDataset], theme: Des
         if spec.chart_type in _PIE_TYPES:
             values = [_as_float_or_zero(row.get(value_cols[0])) for row in ds.rows]
             colors = [_hex01(categorical_color(theme, i)) for i in range(len(categories))]
-            wedge_kwargs = {"wedgeprops": {"width": 0.4, "edgecolor": "#FCFCFB", "linewidth": 2}} if spec.chart_type == ChartType.DOUGHNUT else {"wedgeprops": {"edgecolor": "#FCFCFB", "linewidth": 2}}
+            wedge_kwargs = {"wedgeprops": {"width": 0.4, "edgecolor": f"#{theme.surface}", "linewidth": 2}} if spec.chart_type == ChartType.DOUGHNUT else {"wedgeprops": {"edgecolor": f"#{theme.surface}", "linewidth": 2}}
             ax.pie(
                 values, labels=categories, autopct="%1.0f%%", colors=colors, textprops={"color": f"#{theme.ink_primary}", "fontsize": 10},
                 pctdistance=0.8 if spec.chart_type == ChartType.DOUGHNUT else 0.6, **wedge_kwargs,
@@ -342,7 +342,7 @@ def _render_heatmap(ax, spec: ChartSpec, ds: QuantitativeDataset, theme: DesignT
         spine.set_visible(False)
     cbar = ax.figure.colorbar(im, ax=ax)
     cbar.outline.set_visible(False)
-    cbar.ax.tick_params(colors=f"#{theme.ink_muted}", labelsize=9)
+    cbar.ax.tick_params(colors=f"#{theme.ink_muted}", labelsize=10)
 
 
 def _render_waterfall(ax, spec: ChartSpec, ds: QuantitativeDataset, theme: DesignTheme) -> None:

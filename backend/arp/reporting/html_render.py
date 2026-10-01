@@ -16,19 +16,19 @@ from jinja2 import Environment, FileSystemLoader
 
 from arp.reporting.chart_builder import render_chart_svg
 from arp.reporting.design import DesignTheme
-from arp.reporting.house_style import _STYLE_DIR, Tokens, get_variant, load_tokens, slot_rect
+from arp.reporting.house_style import _STYLE_DIR, Mode, Tokens, get_variant, load_tokens, slot_rect
 from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent
 
 _env = Environment(loader=FileSystemLoader(_STYLE_DIR / "templates"), autoescape=True)
 
 
-def theme_from_tokens(tokens: Tokens) -> DesignTheme:
-    c = tokens.color
+def theme_from_tokens(tokens: Tokens, mode: Mode = "light") -> DesignTheme:
+    c = tokens.colors(mode)
     bare = lambda h: h.lstrip("#")  # noqa: E731 -- DesignTheme stores colors without '#'
     return DesignTheme(
         accent=bare(c.accent), ink_primary=bare(c.ink), ink_secondary=bare(c.ink_muted), ink_muted=bare(c.ink_muted), gridline=bare(c.neutral),
-        categorical=[bare(x) for x in c.categorical],
-        font_major=tokens.fonts.heading.split(",")[0], font_minor=tokens.fonts.body.split(",")[0],
+        surface=bare(c.background), categorical=[bare(x) for x in c.categorical],
+        font_major=tokens.heading_font(mode).split(",")[0], font_minor=tokens.fonts.body.split(",")[0],
     )
 
 
@@ -40,10 +40,10 @@ def _data_uri(path: Path) -> str:
     return f"data:{mime};base64,{base64.b64encode(path.read_bytes()).decode()}"
 
 
-def _font_faces(tokens: Tokens) -> str:
-    # Files are style/fonts/<dir>/<FamilyWithoutSpaces>-<weight>.(woff2|ttf), e.g. SourceSerif4-600.ttf.
+def _font_faces(stacks: list[str]) -> str:
+    # Files are style/fonts/<dir>/<FamilyWithoutSpaces>-<weight>.(woff2|ttf), e.g. HankenGrotesk-600.ttf.
     faces = []
-    for family in dict.fromkeys(f.split(",")[0].strip().strip("'\"") for f in (tokens.fonts.heading, tokens.fonts.body)):
+    for family in dict.fromkeys(f.split(",")[0].strip().strip("'\"") for f in stacks):
         for path in sorted((_STYLE_DIR / "fonts").glob(f"*/{family.replace(' ', '')}-*")):
             weight, ext = path.stem.rsplit("-", 1)[1], path.suffix[1:]
             if weight.isdigit() and ext in ("woff2", "ttf"):
@@ -77,9 +77,9 @@ def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict
     return v
 
 
-def render_deck_html(deck: Deck, datasets: list[QuantitativeDataset], tokens: Tokens | None = None) -> str:
+def render_deck_html(deck: Deck, datasets: list[QuantitativeDataset], tokens: Tokens | None = None, mode: Mode = "light") -> str:
     tokens = tokens or load_tokens()
-    theme = theme_from_tokens(tokens)
+    theme = theme_from_tokens(tokens, mode)
     by_id = {d.dataset_id: d for d in datasets}
     slides = [
         {
@@ -88,4 +88,7 @@ def render_deck_html(deck: Deck, datasets: list[QuantitativeDataset], tokens: To
         }
         for i, s in enumerate(deck.slides)
     ]
-    return _env.get_template("base.html.j2").render(deck=deck, slides=slides, t=tokens, font_faces=_font_faces(tokens))
+    fonts = {"heading": tokens.heading_font(mode), "body": tokens.fonts.body, "mono": tokens.fonts.mono or tokens.fonts.body}
+    return _env.get_template("base.html.j2").render(
+        deck=deck, slides=slides, t=tokens, c=tokens.colors(mode), fonts=fonts, mode=mode, font_faces=_font_faces(list(fonts.values())),
+    )

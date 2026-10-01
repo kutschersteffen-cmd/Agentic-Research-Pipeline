@@ -55,6 +55,7 @@ class LayoutInstructions(BaseModel):
     """
 
     output_format: OutputFormat = OutputFormat.PPTX
+    theme: Literal["light", "dark"] = Field(default="light", description="House deck colour mode; mirrors the app's light/dark themes.")
     target_length: int | None = Field(
         default=None, description="Target slide count (pptx) or section count (docx/pdf). None lets the planner decide."
     )

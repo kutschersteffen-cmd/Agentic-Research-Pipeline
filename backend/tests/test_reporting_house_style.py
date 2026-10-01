@@ -55,3 +55,21 @@ def test_bullets_and_quote_slot_names_are_fixed():
     for v in load_layouts()["bullets"].variants:
         assert [s.name for s in v.slots if s.kind == "list"] == ["items"]
     assert {s.name for s in get_variant("quote", "default").slots} == {"quote", "attribution"}
+
+
+def _contrast(a: str, b: str) -> float:
+    def lum(h):
+        c = [int(h.lstrip("#")[i : i + 2], 16) / 255 for i in (0, 2, 4)]
+        c = [x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+    hi, lo = sorted((lum(a), lum(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+@pytest.mark.parametrize("mode", ["light", "dark"])
+def test_house_colours_meet_wcag_aa_in_both_modes(mode):
+    c = load_tokens().colors(mode)
+    assert _contrast(c.ink, c.background) >= 4.5 and _contrast(c.ink_muted, c.background) >= 4.5  # text
+    assert _contrast(c.accent, c.background) >= 3  # large figures and marks only
+    assert all(_contrast(x, c.background) >= 3 for x in c.categorical), c.categorical  # chart marks

@@ -37,7 +37,8 @@ class TypeStyle(BaseModel):
     size: int
     line_height: float
     weight: int
-    font: str
+    font: Literal["heading", "body"]
+    tracking: float = 0.0  # letter-spacing in em
 
 
 class TypeScale(BaseModel):
@@ -57,20 +58,31 @@ class Colors(BaseModel):
     accent: str
     background: str
     categorical: list[str]
-    band: str | None = None  # full-bleed fill behind the headline band; None = no band
 
 
 class Fonts(BaseModel):
     heading: str
     body: str
+    heading_dark: str | None = None  # dark mode's heading face; None = heading
+    mono: str | None = None  # footer/source line (the app's label face); None = body
+
+
+Mode = Literal["light", "dark"]
 
 
 class Tokens(BaseModel):
     canvas: Canvas
     grid: Grid
     type: dict[str, TypeStyle]
-    color: Colors
+    color: Colors  # light mode
+    color_dark: Colors
     fonts: Fonts
+
+    def colors(self, mode: Mode) -> Colors:
+        return self.color_dark if mode == "dark" else self.color
+
+    def heading_font(self, mode: Mode) -> str:
+        return (self.fonts.heading_dark if mode == "dark" else None) or self.fonts.heading
 
 
 class SlotSpec(BaseModel):

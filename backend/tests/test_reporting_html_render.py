@@ -45,22 +45,55 @@ def test_missing_image_raises(tmp_path):
         render_deck_html(deck, [])
 
 
-def _tokens_with_fonts(heading: str, body: str):
+def _tokens_with_fonts(**fonts):
     from arp.reporting.house_style import load_tokens
 
     t = load_tokens()
-    return t.model_copy(update={"fonts": t.fonts.model_copy(update={"heading": heading, "body": body})})
+    return t.model_copy(update={"fonts": t.fonts.model_copy(update=fonts)})
+
+
+_ONE = Deck(title="T", slides=[SlideContent(headline="h", layout="bullets", variant="three", slots={"items": ["a"]})])
 
 
 def test_token_font_with_a_file_is_embedded_as_data_uri():
-    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="bullets", variant="three", slots={"items": ["a"]})])
-    html = render_deck_html(deck, [], tokens=_tokens_with_fonts("'Source Serif 4', Georgia, serif", "Source Sans 3, Arial, sans-serif"))
-    assert "--font-heading: 'Source Serif 4', Georgia, serif" in html  # quotes not HTML-escaped inside <style>
-    assert html.count("@font-face") == 3  # SourceSerif4-600, SourceSans3-400/600
-    assert "font-family: 'Source Serif 4'; font-weight: 600" in html and "src: url(data:font/ttf;base64," in html
+    html = render_deck_html(_ONE, [], tokens=_tokens_with_fonts(heading="Geist, Arial, sans-serif", body="Geist, Arial", mono=None))
+    assert "--font-heading: Geist, Arial, sans-serif" in html
+    assert html.count("@font-face") == 2  # Geist-400/600, deduplicated across heading and body
+    assert "font-family: 'Geist'; font-weight: 600" in html and "src: url(data:font/ttf;base64," in html
+
+
+def test_quoted_font_token_is_not_html_escaped_inside_style():
+    html = render_deck_html(_ONE, [], tokens=_tokens_with_fonts(heading="'Geist', Arial"))
+    assert "--font-heading: 'Geist', Arial" in html
 
 
 def test_token_font_without_a_file_falls_back_without_font_face():
-    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="bullets", variant="three", slots={"items": ["a"]})])
-    html = render_deck_html(deck, [], tokens=_tokens_with_fonts("No Such Face, Arial, sans-serif", "Helvetica Neue, Arial"))
+    html = render_deck_html(_ONE, [], tokens=_tokens_with_fonts(heading="No Such Face, Arial, sans-serif", heading_dark=None,
+                                                                 body="Helvetica Neue, Arial", mono=None))
     assert "@font-face" not in html and "No Such Face, Arial, sans-serif" in html
+
+
+def test_dark_mode_uses_dark_ground_lime_accent_and_dark_heading_font():
+    from arp.reporting.house_style import load_tokens
+
+    t = load_tokens()
+    light, dark = render_deck_html(_ONE, []), render_deck_html(_ONE, [], mode="dark")
+    assert f"--bg: {t.color.background};" in light and f"--accent: {t.color.accent};" in light
+    assert f"--bg: {t.color_dark.background};" in dark and "--accent: #c6ff3d;" in dark
+    assert "font-family: 'Hanken Grotesk'" in dark and "font-family: 'Hanken Grotesk'" not in light
+
+
+def test_chart_svg_uses_dark_ink_and_projector_sized_text():
+    import re
+
+    from arp.reporting.chart_builder import render_chart_svg
+    from arp.reporting.house_style import load_tokens
+    from arp.reporting.html_render import theme_from_tokens
+    from tests.fixtures.stress_deck import stress_deck
+
+    deck, ds = stress_deck("min")
+    spec = next(s.chart for s in deck.slides if s.chart)
+    svg = render_chart_svg(spec, ds, width_px=1200, height_px=600, theme=theme_from_tokens(load_tokens(), "dark"))
+    assert f"fill: {load_tokens().color_dark.ink_muted.lower()}" in svg
+    scale = 1200 / float(re.search(r'width="([\d.]+)pt"', svg).group(1))
+    assert min(float(x) for x in re.findall(r"font-size: ([\d.]+)px", svg)) * scale >= 24
