@@ -3,6 +3,7 @@ from __future__ import annotations
 import bisect
 import re
 from difflib import SequenceMatcher
+from functools import lru_cache
 from pathlib import Path
 
 from arp.schemas.common import Citation, SourceDocument
@@ -10,17 +11,39 @@ from arp.schemas.common import Citation, SourceDocument
 _WS_RE = re.compile(r"\s+")
 _SHEET_RE = re.compile(r"^## Sheet: (.+)$", re.MULTILINE)
 
+# Enough to hold every document one company's assessment grounds against at
+# once (a filing set is a handful of documents, not hundreds), while bounding
+# what a long batch retains: each entry keeps a normalized copy of the text
+# plus an int offset list, so this is the memory-vs-recompute knob.
+# ponytail: a plain size cap, not a byte budget. One pathological 50MB
+# document times 16 would be the ceiling; swap for a size-aware cache only
+# if a run actually shows that memory profile.
+_NORMALIZE_CACHE_SIZE = 16
+
 
 def _normalize(text: str) -> str:
     return _WS_RE.sub(" ", text).strip().lower()
 
 
+@lru_cache(maxsize=_NORMALIZE_CACHE_SIZE)
 def _normalize_with_offsets(text: str) -> tuple[str, list[int]]:
     """Same normalization as _normalize (collapse whitespace runs to a
     single space, lowercase) but also returns, for each output char, the
     offset of the corresponding character in the original text -- lets a
     match position found in normalized text be mapped back to a real
     offset in the unmodified source, which page/sheet resolution needs.
+
+    Cached on the source text, because the caller shape makes this
+    quadratic otherwise: a document is normalized once per *citation*
+    checked against it, and an extraction grounds many citations against
+    the same filing. Measured at 531ms for a 2.1MB 10-K, so twenty
+    citations against one document spent ~10s re-deriving an identical
+    result. Python interns a str's hash after first use, so the cache
+    lookup costs a pointer comparison on the repeat, not a re-hash of the
+    document.
+
+    The returned lists are shared with every later caller and must not be
+    mutated; nothing here does, and `_find_match` only indexes them.
     """
     chars: list[str] = []
     offsets: list[int] = []

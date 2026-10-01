@@ -226,4 +226,8 @@ def build() -> dict:
 
 
 if __name__ == "__main__":
-    (HERE / "framework.json").write_text(json.dumps(build(), indent=1, ensure_ascii=False) + "\n")
+    # encoding is explicit because ensure_ascii=False emits raw UTF-8 (this
+    # framework uses U+00B7 and U+00B0): without it the file is written in
+    # the platform locale, which on Windows means cp1252 bytes that every
+    # reader here then decodes as UTF-8.
+    (HERE / "framework.json").write_text(json.dumps(build(), indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
