@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../../api/client";
 import { ConfirmDecision } from "../../components/ConfirmDecision";
+import { announce } from "../../lib/announce";
 import type { ClientExceptionItem, EscalationDecisionItem, PolicyDifferenceItem, TierChangeItem } from "../../types";
 import { fmt, words } from "./common";
 
@@ -14,6 +15,7 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
     setError(null);
     try {
       await api.confirmTiers({ decided_by: by, issuer_ids: issuerIds });
+      announce(issuerIds ? "Tier confirmed." : `${items.length} tiers confirmed.`);
       onDone();
     } catch (err) {
       setError((err as Error).message);
@@ -91,6 +93,7 @@ export function EscalationDecisions({ items, actor, onDone }: { items: Escalatio
     setError(null);
     try {
       await api.escalateEngagementIssue(item.company_id, item.issue_id, { stage: item.next, decided_by: actor, reason: item.reason });
+      announce(`Escalated ${item.company} to ${words(item.next)}.`);
       onDone();
     } catch (err) {
       setError((err as Error).message);
@@ -165,6 +168,7 @@ export function ClientExceptionDecisions({ items, actor, onDone }: { items: Clie
         decision,
         decided_by: actor,
       });
+      announce(`${decision === "adopt" ? "Adopted" : "Kept the house step for"} ${item.company}.`);
       onDone();
     } catch (err) {
       setError((err as Error).message);
@@ -247,6 +251,7 @@ export function PolicyDifference({ item, streamId, actor, onDone }: { item: Poli
     setError(null);
     try {
       await api.recordPolicyDecision(streamId, { issue_id: item.issue_id, decision: choice, decided_by: actor, note: note || undefined });
+      announce(`Recorded "${words(choice)}" on ${item.title}.`);
       onDone();
     } catch (err) {
       setError((err as Error).message);

@@ -38,11 +38,11 @@ export function RunHistory({ onOpenReview }: Props = {}) {
   return (
     <div className="page">
       <h1>Run History</h1>
-      <section className="card">
-        <label className="field-label">
-          Filter by type
+      <div className="toolbar">
+        <label className="field-label inline-label">
+          Show
           <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="">All</option>
+            <option value="">All run types</option>
             {Object.entries(RUN_TYPE_LABEL).map(([id, label]) => (
               <option key={id} value={id}>
                 {label}
@@ -53,9 +53,11 @@ export function RunHistory({ onOpenReview }: Props = {}) {
         <button className="secondary" onClick={load}>
           Refresh
         </button>
-        {error && <p className="error-text" role="alert">{error}</p>}
-        <p className="muted">Total estimated spend across {runs.length} runs: ${totalCost.toFixed(2)}</p>
-      </section>
+        <span className="muted">
+          {runs.length} runs · estimated spend <span className="mono">${totalCost.toFixed(2)}</span>
+        </span>
+      </div>
+      {error && <p className="error-text" role="alert">{error}</p>}
 
       <section className="card">
         <div className="table-wrap">

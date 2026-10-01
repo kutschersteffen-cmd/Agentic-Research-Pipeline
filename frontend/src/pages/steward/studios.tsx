@@ -26,7 +26,7 @@ import type {
   VotingPosition,
   VotingPreview,
 } from "../../types";
-import { ActorField, DataTable, Planned, Section, StudioHeader, VersionsPanel, useActor, usePolicy, words } from "./common";
+import { ActorField, DataTable, Planned, RuleEditor, Section, StudioHeader, VersionsPanel, useActor, usePolicy, words } from "./common";
 import { ClientExceptionDecisions, EscalationDecisions, PolicyDifference, TierDecisions } from "./decisions";
 import { OutreachDecisions } from "./drafting";
 
@@ -228,66 +228,68 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
         {contexts === null ? <p className="status-text">Loading…</p> : <DataTable rows={rows} />}
       </Section>
       {draft.error && <p className="error-text" role="alert">{draft.error}</p>}
-      <Section step="Design" title="Monitoring rules">
-        <p className="help-text">
-          A decision table where <strong>every</strong> matching row raises a trigger, so one company can raise several. Inputs per
-          company: scores (<code>issuer.score.clti</code>, <code>issuer.score.nature</code>, placeholders), controversies
-          (<code>issuer.controversy.*</code>), climate flags, <code>issuer.pay.misalignment_years</code> and{" "}
-          <code>holding.change_pct</code> (any company field can be added as a column). Outputs: <code>type</code> (controversy,
-          score_change, holding_change, vote_outcome, commitment_missed, engagement_stalled, calendar or manual), <code>theme</code>,{" "}
-          <code>severity</code> (low, medium, high), <code>rule</code> and <code>reason</code>. Open the table with{" "}
-          <em>Edit Table</em>.
-        </p>
-        <p className="muted">{draft.editing}</p>
-        {graph && <PolicyCanvas graph={graph} onChange={draft.setGraph} />}
-      </Section>
-      <Section step="Calibrate" title="What this draft would raise">
-        <div className="toolbar">
-          <button onClick={draft.runPreview} disabled={!graph || draft.previewing}>
-            {draft.previewing ? "Running…" : "Preview against the active rules"}
-          </button>
-        </div>
-        {draft.previewError && <p className="error-text" role="alert">{draft.previewError}</p>}
-        {preview && (
-          <>
-            <p className="muted">
-              {preview.companies} companies (synthetic sample). This draft raises {preview.triggers_candidate} triggers on{" "}
-              {preview.flagged_candidate} companies ({Math.round((100 * preview.flagged_candidate) / preview.companies)}%); the active
-              rules raise {preview.triggers_active} on {preview.flagged_active}.
-            </p>
-            <div className="studio-columns">
-              <div>
-                <h3>Triggers per rule</h3>
-                <DataTable rows={ruleRows} />
+      <RuleEditor label="monitoring rules">
+        <Section step="Design" title="Monitoring rules">
+          <p className="help-text">
+            A decision table where <strong>every</strong> matching row raises a trigger, so one company can raise several. Inputs per
+            company: scores (<code>issuer.score.clti</code>, <code>issuer.score.nature</code>, placeholders), controversies
+            (<code>issuer.controversy.*</code>), climate flags, <code>issuer.pay.misalignment_years</code> and{" "}
+            <code>holding.change_pct</code> (any company field can be added as a column). Outputs: <code>type</code> (controversy,
+            score_change, holding_change, vote_outcome, commitment_missed, engagement_stalled, calendar or manual), <code>theme</code>,{" "}
+            <code>severity</code> (low, medium, high), <code>rule</code> and <code>reason</code>. Open the table with{" "}
+            <em>Edit Table</em>.
+          </p>
+          <p className="muted">{draft.editing}</p>
+          {graph && <PolicyCanvas graph={graph} onChange={draft.setGraph} />}
+        </Section>
+        <Section step="Calibrate" title="What this draft would raise">
+          <div className="toolbar">
+            <button onClick={draft.runPreview} disabled={!graph || draft.previewing}>
+              {draft.previewing ? "Running…" : "Preview against the active rules"}
+            </button>
+          </div>
+          {draft.previewError && <p className="error-text" role="alert">{draft.previewError}</p>}
+          {preview && (
+            <>
+              <p className="muted">
+                {preview.companies} companies (synthetic sample). This draft raises {preview.triggers_candidate} triggers on{" "}
+                {preview.flagged_candidate} companies ({Math.round((100 * preview.flagged_candidate) / preview.companies)}%); the active
+                rules raise {preview.triggers_active} on {preview.flagged_active}.
+              </p>
+              <div className="studio-columns">
+                <div>
+                  <h3>Triggers per rule</h3>
+                  <DataTable rows={ruleRows} />
+                </div>
+                <div>
+                  <h3>Newly flagged</h3>
+                  <DataTable rows={preview.newly_flagged.map((c) => ({ company: c.company }))} empty="Nobody new." />
+                  <h3>No longer flagged</h3>
+                  <DataTable rows={preview.no_longer_flagged.map((c) => ({ company: c.company }))} empty="Nobody drops out." />
+                </div>
               </div>
-              <div>
-                <h3>Newly flagged</h3>
-                <DataTable rows={preview.newly_flagged.map((c) => ({ company: c.company }))} empty="Nobody new." />
-                <h3>No longer flagged</h3>
-                <DataTable rows={preview.no_longer_flagged.map((c) => ({ company: c.company }))} empty="Nobody drops out." />
-              </div>
-            </div>
-          </>
-        )}
-      </Section>
-      <Section step="Versions" title="Save and activate">
-        {info && graph && (
-          <VersionsPanel
-            policyId="monitoring_rules"
-            info={info}
-            workingCopy={graph}
-            dirty={draft.dirty}
-            actor={actor}
-            onSaved={draft.reload}
-            onLoad={draft.load}
-            onActivated={() => {
-              draft.reload();
-              loadTriggers();
-              onChanged();
-            }}
-          />
-        )}
-      </Section>
+            </>
+          )}
+        </Section>
+        <Section step="Versions" title="Save and activate">
+          {info && graph && (
+            <VersionsPanel
+              policyId="monitoring_rules"
+              info={info}
+              workingCopy={graph}
+              dirty={draft.dirty}
+              actor={actor}
+              onSaved={draft.reload}
+              onLoad={draft.load}
+              onActivated={() => {
+                draft.reload();
+                loadTriggers();
+                onChanged();
+              }}
+            />
+          )}
+        </Section>
+      </RuleEditor>
     </>
   );
 }
@@ -383,65 +385,67 @@ export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
       <DecisionInputs />
       <ActorField actor={actor} onChange={setActor} />
       {draft.error && <p className="error-text" role="alert">{draft.error}</p>}
-      <Section step="Design" title="Coverage rules">
-        <p className="help-text">
-          A decision table, read top to bottom: the <strong>first</strong> row that matches decides the tier. Inputs per company:{" "}
-          <code>holding.index_weight_pct</code>, <code>holding.aum_held_eur_m</code>, <code>history.escalated</code>,{" "}
-          <code>history.open_engagements</code>, <code>issuer.climate.high_emitter</code>,{" "}
-          <code>issuer.nature.high_impact_sector</code> (any company field can be added as a column). Outputs: <code>tier</code>{" "}
-          (priority_bilateral, thematic_collaborative, scaled_baseline or systemic), <code>rule</code> and <code>reason</code>. Open
-          the table with <em>Edit Table</em>.
-        </p>
-        <p className="muted">{draft.editing}</p>
-        {graph && <PolicyCanvas graph={graph} onChange={draft.setGraph} />}
-      </Section>
-      <Section step="Calibrate" title="What this draft would change">
-        <div className="toolbar">
-          <button onClick={draft.runPreview} disabled={!graph || draft.previewing}>
-            {draft.previewing ? "Running…" : "Preview against the active rules"}
-          </button>
-        </div>
-        {draft.previewError && <p className="error-text" role="alert">{draft.previewError}</p>}
-        {preview && (
-          <>
-            <p className="muted">
-              {preview.companies} companies (synthetic sample). {preview.changes.length} would change tier.
-            </p>
-            <div className="studio-columns">
-              <div>
-                <h3>Tier distribution</h3>
-                <DataTable rows={distributionRows} />
+      <RuleEditor label="coverage rules">
+        <Section step="Design" title="Coverage rules">
+          <p className="help-text">
+            A decision table, read top to bottom: the <strong>first</strong> row that matches decides the tier. Inputs per company:{" "}
+            <code>holding.index_weight_pct</code>, <code>holding.aum_held_eur_m</code>, <code>history.escalated</code>,{" "}
+            <code>history.open_engagements</code>, <code>issuer.climate.high_emitter</code>,{" "}
+            <code>issuer.nature.high_impact_sector</code> (any company field can be added as a column). Outputs: <code>tier</code>{" "}
+            (priority_bilateral, thematic_collaborative, scaled_baseline or systemic), <code>rule</code> and <code>reason</code>. Open
+            the table with <em>Edit Table</em>.
+          </p>
+          <p className="muted">{draft.editing}</p>
+          {graph && <PolicyCanvas graph={graph} onChange={draft.setGraph} />}
+        </Section>
+        <Section step="Calibrate" title="What this draft would change">
+          <div className="toolbar">
+            <button onClick={draft.runPreview} disabled={!graph || draft.previewing}>
+              {draft.previewing ? "Running…" : "Preview against the active rules"}
+            </button>
+          </div>
+          {draft.previewError && <p className="error-text" role="alert">{draft.previewError}</p>}
+          {preview && (
+            <>
+              <p className="muted">
+                {preview.companies} companies (synthetic sample). {preview.changes.length} would change tier.
+              </p>
+              <div className="studio-columns">
+                <div>
+                  <h3>Tier distribution</h3>
+                  <DataTable rows={distributionRows} />
+                </div>
+                <div>
+                  <h3>Rules that fired</h3>
+                  <DataTable rows={Object.entries(preview.rules_fired).map(([rule, companies]) => ({ rule, companies }))} />
+                </div>
               </div>
-              <div>
-                <h3>Rules that fired</h3>
-                <DataTable rows={Object.entries(preview.rules_fired).map(([rule, companies]) => ({ rule, companies }))} />
-              </div>
-            </div>
-            <h3>Companies that would move</h3>
-            <DataTable
-              rows={preview.changes.map((c) => ({ company: c.company, from: c.from, to: c.to, why: `${c.reason} (${c.rule})` }))}
-              empty="No company would change tier."
+              <h3>Companies that would move</h3>
+              <DataTable
+                rows={preview.changes.map((c) => ({ company: c.company, from: c.from, to: c.to, why: `${c.reason} (${c.rule})` }))}
+                empty="No company would change tier."
+              />
+            </>
+          )}
+        </Section>
+        <Section step="Versions" title="Save and activate">
+          {info && graph && (
+            <VersionsPanel
+              policyId="coverage_rules"
+              info={info}
+              workingCopy={graph}
+              dirty={draft.dirty}
+              actor={actor}
+              onSaved={draft.reload}
+              onLoad={draft.load}
+              onActivated={() => {
+                draft.reload();
+                onChanged();
+              }}
             />
-          </>
-        )}
-      </Section>
-      <Section step="Versions" title="Save and activate">
-        {info && graph && (
-          <VersionsPanel
-            policyId="coverage_rules"
-            info={info}
-            workingCopy={graph}
-            dirty={draft.dirty}
-            actor={actor}
-            onSaved={draft.reload}
-            onLoad={draft.load}
-            onActivated={() => {
-              draft.reload();
-              onChanged();
-            }}
-          />
-        )}
-      </Section>
+          )}
+        </Section>
+      </RuleEditor>
     </>
   );
 }
@@ -637,108 +641,110 @@ export function VotingStudio({ stage, onChanged }: StudioProps) {
       </Section>
       <ActorField actor={actor} onChange={setActor} />
       {error && <p className="error-text" role="alert">{error}</p>}
-      <Section step="Design" title="House voting positions">
-        <p className="help-text">
-          One position per catalogue issue: the vote, what it targets, and the thresholds. Each position compiles into a rule of the
-          house voting graph.
-        </p>
-        <p className="muted">
-          Editing {baseVersion === null ? "…" : `a copy of v${baseVersion}`} · {changedCount} position{changedCount === 1 ? "" : "s"} changed
-        </p>
-        <nav className="sub-nav" aria-label="Issue categories">
-          {(catalogue?.categories ?? []).map((c) => (
-            <button key={c} className={c === category ? "nav-tab active" : "nav-tab"} onClick={() => setCategory(c)}>
-              {words(c)}
-            </button>
-          ))}
-        </nav>
-        {policy && catalogue ? (
-          issues.map((issue) => {
-            const position = positions.get(issue.issue_id);
-            return position ? (
-              <PositionEditor
-                key={`${baseVersion}-${issue.issue_id}`}
-                issue={issue}
-                position={position}
-                active={activeById.get(issue.issue_id)}
-                actions={catalogue.position_actions}
-                onChange={update}
-              />
-            ) : null;
-          })
-        ) : (
-          <p className="status-text">Loading…</p>
-        )}
-      </Section>
-      <Section step="Calibrate" title="Back-test against the active policy">
-        <div className="toolbar">
-          <button onClick={runPreview} disabled={!policy || busy}>
-            {busy ? "Running…" : "Run back-test"}
-          </button>
-        </div>
-        {previewError && <p className="error-text" role="alert">{previewError}</p>}
-        {preview && (
-          <>
-            <p className="muted">
-              {preview.resolutions} resolutions (synthetic sample): this draft changes the expected vote on{" "}
-              <strong>{preview.changed}</strong>.
-            </p>
-            <div className="studio-columns">
-              <div>
-                <h3>Vote mix</h3>
-                <DataTable rows={voteMix} />
-              </div>
-              <div>
-                <h3>Changes by issue</h3>
-                <DataTable
-                  rows={Object.keys({ ...preview.affected_by_issue, ...preview.masked_by_issue }).map((i) => ({
-                    issue: titles.get(i) ?? i,
-                    "votes changed": preview.affected_by_issue[i] ?? 0,
-                    masked: preview.masked_by_issue[i] ?? 0,
-                  }))}
-                  empty="No position change reaches a vote."
+      <RuleEditor label="voting positions">
+        <Section step="Design" title="House voting positions">
+          <p className="help-text">
+            One position per catalogue issue: the vote, what it targets, and the thresholds. Each position compiles into a rule of the
+            house voting graph.
+          </p>
+          <p className="muted">
+            Editing {baseVersion === null ? "…" : `a copy of v${baseVersion}`} · {changedCount} position{changedCount === 1 ? "" : "s"} changed
+          </p>
+          <nav className="sub-nav" aria-label="Issue categories">
+            {(catalogue?.categories ?? []).map((c) => (
+              <button key={c} className={c === category ? "nav-tab active" : "nav-tab"} onClick={() => setCategory(c)}>
+                {words(c)}
+              </button>
+            ))}
+          </nav>
+          {policy && catalogue ? (
+            issues.map((issue) => {
+              const position = positions.get(issue.issue_id);
+              return position ? (
+                <PositionEditor
+                  key={`${baseVersion}-${issue.issue_id}`}
+                  issue={issue}
+                  position={position}
+                  active={activeById.get(issue.issue_id)}
+                  actions={catalogue.position_actions}
+                  onChange={update}
                 />
-              </div>
-            </div>
-            <h3>Resolutions whose expected vote changes</h3>
-            <DataTable
-              rows={preview.changed_rows.slice(0, 25).map((r) => ({
-                resolution: r.resolution_id,
-                category: r.category,
-                active: r.base_vote,
-                "this draft": r.other_vote,
-                because: r.issues.map((i) => titles.get(i) ?? i).join(", "),
-              }))}
-              empty="None."
-            />
-            {Object.keys(preview.unused_parameters).length > 0 && (
+              ) : null;
+            })
+          ) : (
+            <p className="status-text">Loading…</p>
+          )}
+        </Section>
+        <Section step="Calibrate" title="Back-test against the active policy">
+          <div className="toolbar">
+            <button onClick={runPreview} disabled={!policy || busy}>
+              {busy ? "Running…" : "Run back-test"}
+            </button>
+          </div>
+          {previewError && <p className="error-text" role="alert">{previewError}</p>}
+          {preview && (
+            <>
               <p className="muted">
-                Not part of any vote rule (preferences or process steps):{" "}
-                {Object.entries(preview.unused_parameters)
-                  .map(([i, ps]) => `${titles.get(i) ?? i}: ${ps.map(words).join(", ")}`)
-                  .join(" · ")}
+                {preview.resolutions} resolutions (synthetic sample): this draft changes the expected vote on{" "}
+                <strong>{preview.changed}</strong>.
               </p>
-            )}
-          </>
-        )}
-      </Section>
-      <Section step="Versions" title="Save and activate">
-        {info && policy && (
-          <VersionsPanel
-            policyId="house_voting"
-            info={info}
-            workingCopy={policy}
-            dirty={changedCount > 0}
-            actor={actor}
-            onSaved={reload}
-            onLoad={load}
-            onActivated={() => {
-              reload();
-              onChanged();
-            }}
-          />
-        )}
-      </Section>
+              <div className="studio-columns">
+                <div>
+                  <h3>Vote mix</h3>
+                  <DataTable rows={voteMix} />
+                </div>
+                <div>
+                  <h3>Changes by issue</h3>
+                  <DataTable
+                    rows={Object.keys({ ...preview.affected_by_issue, ...preview.masked_by_issue }).map((i) => ({
+                      issue: titles.get(i) ?? i,
+                      "votes changed": preview.affected_by_issue[i] ?? 0,
+                      masked: preview.masked_by_issue[i] ?? 0,
+                    }))}
+                    empty="No position change reaches a vote."
+                  />
+                </div>
+              </div>
+              <h3>Resolutions whose expected vote changes</h3>
+              <DataTable
+                rows={preview.changed_rows.slice(0, 25).map((r) => ({
+                  resolution: r.resolution_id,
+                  category: r.category,
+                  active: r.base_vote,
+                  "this draft": r.other_vote,
+                  because: r.issues.map((i) => titles.get(i) ?? i).join(", "),
+                }))}
+                empty="None."
+              />
+              {Object.keys(preview.unused_parameters).length > 0 && (
+                <p className="muted">
+                  Not part of any vote rule (preferences or process steps):{" "}
+                  {Object.entries(preview.unused_parameters)
+                    .map(([i, ps]) => `${titles.get(i) ?? i}: ${ps.map(words).join(", ")}`)
+                    .join(" · ")}
+                </p>
+              )}
+            </>
+          )}
+        </Section>
+        <Section step="Versions" title="Save and activate">
+          {info && policy && (
+            <VersionsPanel
+              policyId="house_voting"
+              info={info}
+              workingCopy={policy}
+              dirty={changedCount > 0}
+              actor={actor}
+              onSaved={reload}
+              onLoad={load}
+              onActivated={() => {
+                reload();
+                onChanged();
+              }}
+            />
+          )}
+        </Section>
+      </RuleEditor>
     </>
   );
 }
@@ -862,7 +868,7 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
               tier: r.tier ?? "none",
               "step now": r.current,
               recommended: r.escalate ? r.recommended : "hold",
-              "tier cap": r.max_step + (r.promote_tier ? " · promote" : ""),
+              "highest step for tier": r.max_step + (r.promote_tier ? " · promote the tier" : ""),
               why: `${r.reason} (${r.rule})`,
             }))}
             empty="No open engagements."
@@ -870,62 +876,64 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
         )}
       </Section>
       {draft.error && <p className="error-text" role="alert">{draft.error}</p>}
-      <Section step="Design" title="Escalation rules and tier caps">
-        <p className="help-text">
-          Two tables, both read top to bottom with the <strong>first</strong> matching row deciding. <code>tier_caps</code> sets the
-          highest ladder step per coverage tier (<code>tier.max_step</code>, 0-6). <code>escalation_rules</code> sets how many steps
-          up an engagement should move (<code>escalate_by</code>) with <code>rule</code> and <code>reason</code>. Its inputs:{" "}
-          <code>triggers.high_same_theme</code>, <code>triggers.same_theme</code>, <code>engagement.commitments_missed</code>,{" "}
-          <code>engagement.months_at_step</code>, <code>engagement.stalled</code>, <code>engagement.step_index</code>,{" "}
-          <code>tier.tier</code>, <code>tier.max_step</code> and any company field under <code>issuer</code>. The ladder:{" "}
-          {LADDER.map((step, i) => `${i} ${words(step)}`).join(" · ")}.
-        </p>
-        <p className="muted">{draft.editing}</p>
-        {graph && <PolicyCanvas graph={graph} onChange={draft.setGraph} />}
-      </Section>
-      <Section step="Calibrate" title="What this draft would recommend">
-        <div className="toolbar">
-          <button onClick={draft.runPreview} disabled={!graph || draft.previewing}>
-            {draft.previewing ? "Running…" : "Preview against the active rules"}
-          </button>
-        </div>
-        {draft.previewError && <p className="error-text" role="alert">{draft.previewError}</p>}
-        {preview && (
-          <>
-            <p className="muted">
-              {preview.engagements} open engagements. This draft recommends {preview.escalations_candidate} escalations and{" "}
-              {preview.promotions_candidate} tier promotions; the active rules recommend {preview.escalations_active} and{" "}
-              {preview.promotions_active}.
-            </p>
-            <div className="studio-columns">
-              <div>
-                <h3>Recommendations per rule</h3>
-                <DataTable rows={ruleRows} empty="No rule recommends anything." />
+      <RuleEditor label="escalation rules">
+        <Section step="Design" title="Escalation rules and tier caps">
+          <p className="help-text">
+            Two tables, both read top to bottom with the <strong>first</strong> matching row deciding. <code>tier_caps</code> sets the
+            highest ladder step per coverage tier (<code>tier.max_step</code>, 0-6). <code>escalation_rules</code> sets how many steps
+            up an engagement should move (<code>escalate_by</code>) with <code>rule</code> and <code>reason</code>. Its inputs:{" "}
+            <code>triggers.high_same_theme</code>, <code>triggers.same_theme</code>, <code>engagement.commitments_missed</code>,{" "}
+            <code>engagement.months_at_step</code>, <code>engagement.stalled</code>, <code>engagement.step_index</code>,{" "}
+            <code>tier.tier</code>, <code>tier.max_step</code> and any company field under <code>issuer</code>. The ladder:{" "}
+            {LADDER.map((step, i) => `${i} ${words(step)}`).join(" · ")}.
+          </p>
+          <p className="muted">{draft.editing}</p>
+          {graph && <PolicyCanvas graph={graph} onChange={draft.setGraph} />}
+        </Section>
+        <Section step="Calibrate" title="What this draft would recommend">
+          <div className="toolbar">
+            <button onClick={draft.runPreview} disabled={!graph || draft.previewing}>
+              {draft.previewing ? "Running…" : "Preview against the active rules"}
+            </button>
+          </div>
+          {draft.previewError && <p className="error-text" role="alert">{draft.previewError}</p>}
+          {preview && (
+            <>
+              <p className="muted">
+                {preview.engagements} open engagements. This draft recommends {preview.escalations_candidate} escalations and{" "}
+                {preview.promotions_candidate} tier promotions; the active rules recommend {preview.escalations_active} and{" "}
+                {preview.promotions_active}.
+              </p>
+              <div className="studio-columns">
+                <div>
+                  <h3>Recommendations per rule</h3>
+                  <DataTable rows={ruleRows} empty="No rule recommends anything." />
+                </div>
               </div>
-            </div>
-            <h3>Engagements whose recommendation would change</h3>
-            <DataTable rows={preview.changes} empty="No recommendation would change." />
-          </>
-        )}
-      </Section>
-      <Section step="Versions" title="Save and activate">
-        {info && graph && (
-          <VersionsPanel
-            policyId="escalation_rules"
-            info={info}
-            workingCopy={graph}
-            dirty={draft.dirty}
-            actor={actor}
-            onSaved={draft.reload}
-            onLoad={draft.load}
-            onActivated={() => {
-              draft.reload();
-              loadRecs();
-              onChanged();
-            }}
-          />
-        )}
-      </Section>
+              <h3>Engagements whose recommendation would change</h3>
+              <DataTable rows={preview.changes} empty="No recommendation would change." />
+            </>
+          )}
+        </Section>
+        <Section step="Versions" title="Save and activate">
+          {info && graph && (
+            <VersionsPanel
+              policyId="escalation_rules"
+              info={info}
+              workingCopy={graph}
+              dirty={draft.dirty}
+              actor={actor}
+              onSaved={draft.reload}
+              onLoad={draft.load}
+              onActivated={() => {
+                draft.reload();
+                loadRecs();
+                onChanged();
+              }}
+            />
+          )}
+        </Section>
+      </RuleEditor>
       <Section step="Design" title="Other checkpoint rules" planned>
         <Planned
           items={[
@@ -1035,62 +1043,64 @@ export function ClientPolicyStudio({ stage, streamId, onChanged }: StudioProps &
         ))}
       </Section>
       {draft.error && <p className="error-text" role="alert">{draft.error}</p>}
-      <Section step="Design" title="The client's escalation rules">
-        <p className="help-text">
-          The same two tables as the house rules (stage 5), evaluated after them with the house answer under <code>house.*</code>:{" "}
-          <code>house.escalate_by</code>, <code>house.max_step</code>, <code>house.recommended_step</code>, <code>house.rule</code>,{" "}
-          <code>house.reason</code>. Version 0 returns the house answer unchanged; a client rule overrides it where the client wants
-          more. Where the client&apos;s step is above the house&apos;s on a live engagement, the house decides at stage 5 whether to
-          adopt it. Give trigger-based rules a wait at each step (<code>engagement.months_at_step</code>), otherwise one condition
-          keeps asking for the next step.
-        </p>
-        <div className="toolbar">
-          <span className="muted">{draft.editing}</span>
-          <button
-            className="secondary"
-            onClick={async () => draft.setGraph(await api.getClientEscalationExample())}
-            title="A client that escalates climate engagements with CLTI laggards one step further than the house"
-          >
-            Start from the example client rules
-          </button>
-        </div>
-        {graph && <PolicyCanvas graph={graph} onChange={draft.setGraph} />}
-      </Section>
-      <Section step="Calibrate" title="Client against house">
-        <div className="toolbar">
-          <button onClick={draft.runPreview} disabled={!graph || draft.previewing}>
-            {draft.previewing ? "Running…" : "Preview against the house and the client's active rules"}
-          </button>
-        </div>
-        {draft.previewError && <p className="error-text" role="alert">{draft.previewError}</p>}
-        {preview && (
-          <>
-            <p className="muted">
-              {preview.engagements} open engagements. This draft goes above the house on {preview.higher_candidate}; the client&apos;s
-              active rules on {preview.higher_active}.
-            </p>
-            <DataTable rows={preview.rows} />
-          </>
-        )}
-      </Section>
-      <Section step="Versions" title="Save and activate the client's escalation rules">
-        {info && graph && (
-          <VersionsPanel
-            policyId="escalation_rules"
-            stream={streamId}
-            info={info}
-            workingCopy={graph}
-            dirty={draft.dirty}
-            actor={actor}
-            onSaved={draft.reload}
-            onLoad={draft.load}
-            onActivated={() => {
-              draft.reload();
-              onChanged();
-            }}
-          />
-        )}
-      </Section>
+      <RuleEditor label="client's escalation rules">
+        <Section step="Design" title="The client's escalation rules">
+          <p className="help-text">
+            The same two tables as the house rules (stage 5), evaluated after them with the house answer under <code>house.*</code>:{" "}
+            <code>house.escalate_by</code>, <code>house.max_step</code>, <code>house.recommended_step</code>, <code>house.rule</code>,{" "}
+            <code>house.reason</code>. Version 0 returns the house answer unchanged; a client rule overrides it where the client wants
+            more. Where the client&apos;s step is above the house&apos;s on a live engagement, the house decides at stage 5 whether to
+            adopt it. Give trigger-based rules a wait at each step (<code>engagement.months_at_step</code>), otherwise one condition
+            keeps asking for the next step.
+          </p>
+          <div className="toolbar">
+            <span className="muted">{draft.editing}</span>
+            <button
+              className="secondary"
+              onClick={async () => draft.setGraph(await api.getClientEscalationExample())}
+              title="A client that escalates climate engagements with CLTI laggards one step further than the house"
+            >
+              Start from the example client rules
+            </button>
+          </div>
+          {graph && <PolicyCanvas graph={graph} onChange={draft.setGraph} />}
+        </Section>
+        <Section step="Calibrate" title="Client against house">
+          <div className="toolbar">
+            <button onClick={draft.runPreview} disabled={!graph || draft.previewing}>
+              {draft.previewing ? "Running…" : "Preview against the house and the client's active rules"}
+            </button>
+          </div>
+          {draft.previewError && <p className="error-text" role="alert">{draft.previewError}</p>}
+          {preview && (
+            <>
+              <p className="muted">
+                {preview.engagements} open engagements. This draft goes above the house on {preview.higher_candidate}; the client&apos;s
+                active rules on {preview.higher_active}.
+              </p>
+              <DataTable rows={preview.rows} />
+            </>
+          )}
+        </Section>
+        <Section step="Versions" title="Save and activate the client's escalation rules">
+          {info && graph && (
+            <VersionsPanel
+              policyId="escalation_rules"
+              stream={streamId}
+              info={info}
+              workingCopy={graph}
+              dirty={draft.dirty}
+              actor={actor}
+              onSaved={draft.reload}
+              onLoad={draft.load}
+              onActivated={() => {
+                draft.reload();
+                onChanged();
+              }}
+            />
+          )}
+        </Section>
+      </RuleEditor>
     </>
   );
 }

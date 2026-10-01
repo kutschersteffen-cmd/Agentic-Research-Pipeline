@@ -11,6 +11,7 @@ import { ReviewerField } from "./ReviewerField";
 import { ProposedTag } from "./ProposedTag";
 import { announce } from "../lib/announce";
 import { useCardKeys } from "../lib/cardKeys";
+import { CommentField } from "./CommentField";
 
 const VOTE_POSITIONS: VotePosition[] = ["for", "against", "abstain", "withhold"];
 
@@ -65,6 +66,9 @@ function ProposalReview({
 
   const key = itemKey(ballot.company_id, vote.proposal.proposal_number);
   const needsCoSign = rec?.engagement_alignment_flag === true;
+  // A flagged vote is decided only with a second, different person's name;
+  // until then every decision button waits.
+  const coSignOk = !needsCoSign || (coSignedBy.trim() !== "" && coSignedBy.trim().toLowerCase() !== reviewer.trim().toLowerCase());
 
   async function submit(reviewDecision: "approve" | "edit" | "reject") {
     if (!reviewer.trim()) {
@@ -188,14 +192,19 @@ function ProposalReview({
             </p>
           )}
           {needsCoSign && (
-            <input
-              aria-label="Co-signed by"
-              placeholder="Co-signed by (required: alignment flag)"
-              value={coSignedBy}
-              onChange={(e) => setCoSignedBy(e.target.value)}
-            />
+            <label className="field-label">
+              Co-signer: a second person who agrees with this decision
+              <input value={coSignedBy} onChange={(e) => setCoSignedBy(e.target.value)} />
+            </label>
           )}
-          <textarea rows={1} aria-label="Comment (optional)" placeholder="Comment (optional)" value={comment} onChange={(e) => setComment(e.target.value)} />
+          {needsCoSign && !coSignOk && (
+            <p className="muted">
+              {coSignedBy.trim()
+                ? "The co-signer must be someone other than you."
+                : "Waiting for a co-signer. Leave it undecided until they can sign: an undecided vote is never cast."}
+            </p>
+          )}
+          <CommentField value={comment} onChange={setComment} />
           <DecisionBar
             approveLabel={rec ? `Approve: vote ${rec.vote}` : "Approve"}
             onApprove={() => submit("approve")}
@@ -203,7 +212,7 @@ function ProposalReview({
             overrideOpen={overrideOpen}
             onReject={() => submit("reject")}
             rejectLabel="Reject (do not cast)"
-            disabled={busy}
+            disabled={busy || !coSignOk}
           />
           {overrideOpen && (
             <div className="inline-fields">
@@ -400,6 +409,7 @@ export function BallotReview({ runId }: { runId: string }) {
             Each is approved at the policy&apos;s recommended vote and recorded as your decision. Flagged proposals are not included:
             they still need their own decision and a co-sign. Nothing is cast until you press Cast.
           </p>
+          <div className="table-wrap">
           <table className="data-table cast-list">
             <caption className="visually-hidden">Proposals that will be approved</caption>
             <thead>
@@ -423,11 +433,12 @@ export function BallotReview({ runId }: { runId: string }) {
               ))}
             </tbody>
           </table>
+          </div>
         </ConfirmDecision>
       )}
 
       {confirming && (
-        <Modal title="Cast votes?" compact onClose={() => setConfirming(false)}>
+        <Modal title="Cast votes?" compact noClose onClose={() => setConfirming(false)}>
           <p>
             This sends <strong>{castable}</strong> vote{castable === 1 ? "" : "s"} to the ballot platform. Cast votes cannot be recalled from here.
           </p>
@@ -487,7 +498,8 @@ export function BallotReview({ runId }: { runId: string }) {
           <h3>
             {ballot.name} <span className="muted">({ballot.company_id})</span>
           </h3>
-          <p className="meeting-line">{meetingLabel(ballot.meeting_date)}</p>
+          {/* With one company the bar above already shows its meeting. */}
+          {ballots.length > 1 && <p className="meeting-line">{meetingLabel(ballot.meeting_date)}</p>}
           {ballot.votes.length === 0 && <p className="muted">No proposals found (no proxy statement available yet).</p>}
           {ballot.votes.map((vote) => (
             <ProposalReview

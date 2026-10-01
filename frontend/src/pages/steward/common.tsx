@@ -59,7 +59,7 @@ export function StudioHeader({ stage, capabilities, children }: { stage: Steward
         <h2 title={stage.title}>
           {stage.number}. {stageName(stage)}
         </h2>
-        <span className="chip">{stage.layer === "house" ? "House truth" : "Client overlay"}</span>
+        <span className="chip">{stage.layer === "house" ? "House policy" : "Client overlay"}</span>
       </div>
       <p className="help-text">{stage.summary}</p>
       <div className="chip-row" aria-label="What this studio does">
@@ -127,6 +127,33 @@ export function Section({ step, title, children, planned }: { step: string; titl
       <h2>{title}</h2>
       {children}
     </section>
+  );
+}
+
+/** The rule editor (design, preview, versions) stays folded until someone
+ * means to change the rules, so a studio opens on its decisions. Closing it
+ * keeps the draft: the draft lives in the studio, not in here. */
+export function RuleEditor({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return (
+      <section className="card rule-editor-closed">
+        <button className="secondary" aria-expanded={false} onClick={() => setOpen(true)}>
+          Edit {label}…
+        </button>
+        <span className="muted">Change the rules, preview the effect against the active ones, then save a version.</span>
+      </section>
+    );
+  }
+  return (
+    <>
+      <div className="toolbar rule-editor-bar">
+        <button className="secondary" aria-expanded onClick={() => setOpen(false)}>
+          Close the {label} editor
+        </button>
+      </div>
+      {children}
+    </>
   );
 }
 

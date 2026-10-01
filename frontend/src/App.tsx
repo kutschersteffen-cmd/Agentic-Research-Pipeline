@@ -154,8 +154,16 @@ function App() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  // Counts on the "Needs you" items, refreshed on every navigation. Failure
-  // leaves them off rather than showing a zero nobody measured.
+  // A decision anywhere (see lib/announce) refreshes the counts below.
+  const [decidedAt, setDecidedAt] = useState(0);
+  useEffect(() => {
+    const onDecided = () => setDecidedAt(Date.now());
+    window.addEventListener("arp:decided", onDecided);
+    return () => window.removeEventListener("arp:decided", onDecided);
+  }, []);
+
+  // Counts on the "Needs you" items, refreshed on every navigation and after
+  // every decision. Failure leaves them off rather than showing a zero nobody measured.
   useEffect(() => {
     api
       .listRuns()
@@ -170,9 +178,13 @@ function App() {
       (flow) => setOpenDecisions(stageDecisions(flow)),
       () => setOpenDecisions(0),
     );
-  }, [route]);
+  }, [route, decidedAt]);
 
   const hub = hubOf(active);
+  // The tab title names the screen, for browser tabs and screen readers.
+  useEffect(() => {
+    document.title = `${hub?.label ?? TABS.find((t) => t.id === active)!.label} · ARP`;
+  }, [active, hub]);
 
   const pendingReview =
     active === "review" && route.params.length === 2 && REVIEWABLE.has(route.params[0])
@@ -191,7 +203,7 @@ function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Below 760px the sidebar is an off-canvas drawer; on desktop navOpen is
+  // Below 1024px the sidebar is an off-canvas drawer; on desktop navOpen is
   // ignored by the CSS.
   const [navOpen, setNavOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
