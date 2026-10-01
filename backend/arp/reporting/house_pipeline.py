@@ -9,6 +9,7 @@ import asyncio
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.browser import measure, write_pdf, write_pngs
+from arp.reporting.fit import fit_deck
 from arp.reporting.html_render import render_deck_html
 from arp.reporting.lint import lint_and_rewrite
 from arp.reporting.slide_fill import fill_slide
@@ -43,7 +44,9 @@ async def build_house_deck(
             usage.output_tokens += u.output_tokens
     deck, lint_findings = await lint_and_rewrite(deck, request, llm, usage=usage)
     findings += lint_findings
+    deck, fit_findings = await fit_deck(deck, request, llm, usage=usage)
+    findings += fit_findings
     store.save_deck(report_id, deck)
-    findings += await render_house_outputs(report_id, deck, request, store)
+    await render_house_outputs(report_id, deck, request, store)
     store.save_findings(report_id, findings)
     return deck, findings
