@@ -154,3 +154,10 @@ def test_an_event_id_that_cannot_be_read_is_refused():
 def test_an_unrecognised_critical_value_names_the_row():
     with pytest.raises(ValueError, match="row 1: 'critical'"):
         parse_indicator_list([["id", "name", "group", "critical"], ["A1", "x", "G", "red flag"]])
+
+
+def test_the_preset_graphs_lay_their_nodes_out_side_by_side():
+    config, _ = build_framework(parse_indicator_list(load_table(DECK / "indicators.csv")), name="Credibility")
+    for graph in (config.rule_graph, config.tier_graph):
+        xs = [n["position"]["x"] for n in graph["nodes"]]
+        assert len(set(xs)) == len(xs)

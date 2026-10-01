@@ -23,14 +23,14 @@ def level_expr(spec: IndicatorSpec) -> str:
 
 
 def _graph(name: str, expressions: list[tuple[str, str]]) -> dict:
-    def node(node_id: str, kind: str, **content) -> dict:
-        return {"id": node_id, "type": kind, "name": node_id, "position": {"x": 0, "y": 0}, **({"content": content} if content else {})}
+    def node(node_id: str, kind: str, x: int, **content) -> dict:
+        return {"id": node_id, "type": kind, "name": node_id, "position": {"x": x, "y": 100}, **({"content": content} if content else {})}
 
     return {
         "nodes": [
-            node("in", "inputNode"),
-            node(name, "expressionNode", expressions=[{"id": k, "key": k, "value": v} for k, v in expressions]),
-            node("out", "outputNode"),
+            node("in", "inputNode", 0),
+            node(name, "expressionNode", 300, expressions=[{"id": k, "key": k, "value": v} for k, v in expressions]),
+            node("out", "outputNode", 700),
         ],
         "edges": [
             {"id": "in-calc", "sourceId": "in", "targetId": name, "type": "edge"},
