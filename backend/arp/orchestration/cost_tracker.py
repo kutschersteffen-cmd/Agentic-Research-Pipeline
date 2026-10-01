@@ -8,7 +8,9 @@ from arp.llm.base import LLMUsage
 # entries here had drifted (e.g. claude-sonnet-5 was listed at $3/$15,
 # actually $2/$10).
 _PRICE_PER_MILLION_TOKENS: dict[str, tuple[float, float]] = {
+    "claude-opus-5-5": (4.0, 20.0),
     "claude-opus-5": (5.0, 25.0),
+    "claude-sonnet-5-5": (2.0, 10.0),
     "claude-sonnet-5": (2.0, 10.0),
     "claude-fable-5": (10.0, 50.0),
     "claude-haiku-4-5-20251001": (1.0, 5.0),
@@ -20,6 +22,12 @@ _DEFAULT_PRICE = (3.0, 15.0)
 # always writes with a 1h TTL.
 _CACHE_READ_MULTIPLIER = 0.1
 _CACHE_WRITE_MULTIPLIER = 2.0  # 1h TTL; would be 1.25 for the 5m default
+# One multiplier for every model is an approximation that is exact for the
+# $2/MTok Sonnets (cache reads $0.20) and overstates claude-opus-5-5, whose
+# reads are also $0.20 against a $4 input rate -- a 0.05 multiplier, so its
+# cache-read share reads about 2x high here. Left as one constant on purpose:
+# this figure is the informational estimate on a run manifest, never billing,
+# and a per-model cache rate is more structure than that warrants.
 
 
 def estimate_cost_usd(model: str, usage: LLMUsage) -> float:
