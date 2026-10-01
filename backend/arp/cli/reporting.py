@@ -123,6 +123,13 @@ def reporting_plan(
     )
     service = ReportingService(store)
     manifest = asyncio.run(service.create_and_plan(request, llm))
+    if format == OutputFormat.HOUSE_DECK:
+        storyline = store.load_storyline(manifest.report_id)
+        out.write_text(storyline.model_dump_json(indent=2))
+        for i, s in enumerate(storyline.slides, 1):
+            typer.echo(f"{i}. {s.headline}")
+        typer.echo(f"Storyline written to {out}. When the headlines are right: arp report approve {manifest.report_id}")
+        return
     plan = store.load_plan(manifest.report_id)
     out.write_text(plan.model_dump_json(indent=2))
     typer.echo(f"Report {manifest.report_id} planned ({len(plan.sections)} section(s)). Plan written to {out}")
@@ -183,6 +190,21 @@ def reporting_render(report_id: str, out: Path = typer.Option(..., help="Where t
         raise typer.Exit(1)
     _copy_rendered_output(store, manifest, out)
     typer.echo(f"Report {manifest.report_id} rendered to {out}")
+
+
+@reporting_app.command("approve")
+def reporting_approve(report_id: str) -> None:
+    """House deck: approves the drafted storyline and builds the deck (PDF + slide previews)."""
+    store = _reporting_store()
+    try:
+        manifest = asyncio.run(ReportingService(store).approve_storyline(report_id, build_llm_client(get_settings())))
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    findings = store.load_findings(report_id)
+    typer.echo(f"Report {report_id} built: {', '.join(manifest.output_files)} ({len(findings)} finding(s))")
+    for f in findings:
+        typer.echo(f"  slide {f.slide}{f' [{f.slot}]' if f.slot else ''} {f.stage}/{f.rule}: {f.message}")
 
 
 @reporting_app.command("run")

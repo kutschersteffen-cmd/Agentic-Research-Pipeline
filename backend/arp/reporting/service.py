@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 from arp.llm.base import LLMClient
 from arp.reporting.content_planner import draft_report_plan
 from arp.reporting.deck_builder import build_deck
 from arp.reporting.design import theme_from_template
+from arp.reporting.house_pipeline import build_house_deck, render_house_outputs
 from arp.reporting.pdf_builder import build_pdf
 from arp.reporting.report_builder import build_docx
+from arp.reporting.storyline import draft_storyline
 from arp.schemas.reporting import OutputFormat, ReportManifest, ReportPlan, ReportRequest, ReportStatus
 from arp.storage.reporting_store import ReportingStore
 
@@ -34,30 +37,74 @@ class ReportingService:
         self.store.save_request(manifest.report_id, request)
         self.store.save_manifest(manifest)
 
+        house = request.layout.output_format == OutputFormat.HOUSE_DECK
         template_style = self.store.load_template_style(request.template_id) if request.template_id else None
         try:
-            plan, usage = await draft_report_plan(request, llm, template_style)
+            if house:
+                draft, usage = await draft_storyline(request, llm)
+            else:
+                draft, usage = await draft_report_plan(request, llm, template_style)
         except Exception as exc:  # noqa: BLE001 -- persisted as a manifest field for API/CLI/UI visibility, not swallowed
             manifest.status = ReportStatus.FAILED
             manifest.error = str(exc)
             self.store.save_manifest(manifest)
             raise
 
-        self.store.save_plan(manifest.report_id, plan)
-        manifest.status = ReportStatus.PLAN_READY
+        if house:
+            self.store.save_storyline(manifest.report_id, draft)
+            manifest.status = ReportStatus.STORYLINE_READY
+        else:
+            self.store.save_plan(manifest.report_id, draft)
+            manifest.status = ReportStatus.PLAN_READY
         manifest.input_tokens = usage.input_tokens
         manifest.output_tokens = usage.output_tokens
         manifest.model = usage.model
         self.store.save_manifest(manifest)
         return manifest
 
+    async def approve_storyline(self, report_id: str, llm: LLMClient) -> ReportManifest:
+        """House deck: approves the stored storyline and builds the deck from it.
+        The approval is persisted before the build, so a crash mid-build can't be approved twice."""
+        manifest = self.store.load_manifest(report_id)
+        storyline = self.store.load_storyline(report_id)
+        request = self.store.load_request(report_id)
+        if manifest is None or storyline is None or request is None:
+            raise ValueError(f"No storyline drafted for report {report_id!r}")
+        if storyline.approved:
+            raise ValueError("Storyline already approved")
+        if not storyline.slides:
+            raise ValueError("Storyline has no slides")
+        storyline.approved = True
+        self.store.save_storyline(report_id, storyline)
+        manifest.status = ReportStatus.RENDERING
+        self.store.save_manifest(manifest)
+        try:
+            await build_house_deck(report_id, request, storyline, llm, self.store)
+        except Exception as exc:  # noqa: BLE001
+            manifest.status = ReportStatus.FAILED
+            manifest.error = str(exc)
+            self.store.save_manifest(manifest)
+            raise
+        return self._completed(manifest, "output.pdf")  # + output.pptx once the PPTX export lands
+
+    def _completed(self, manifest: ReportManifest, filename: str) -> ReportManifest:
+        manifest.status = ReportStatus.COMPLETED
+        manifest.output_filename = filename
+        manifest.output_files = [filename]
+        manifest.error = None
+        self.store.save_manifest(manifest)
+        return manifest
+
     def render_from_plan(self, report_id: str) -> ReportManifest:
         """Renders whatever plan is currently persisted for this report --
         the LLM-drafted one, or a human-edited version saved over it via
-        ReportingStore.save_plan. Never calls the model."""
+        ReportingStore.save_plan. Never calls the model. A house deck
+        re-renders its stored deck.json instead."""
         manifest = self.store.load_manifest(report_id)
         if manifest is None:
             raise ValueError(f"Unknown report_id {report_id!r}")
+        if manifest.output_format == OutputFormat.HOUSE_DECK:
+            return self._rerender_house_deck(manifest)
         plan = self.store.load_plan(report_id)
         if plan is None:
             raise ValueError(f"No plan drafted yet for report {report_id!r} -- call create_and_plan first")
@@ -79,11 +126,25 @@ class ReportingService:
             self.store.save_manifest(manifest)
             raise
 
-        manifest.status = ReportStatus.COMPLETED
-        manifest.output_filename = filename
-        manifest.error = None
+        return self._completed(manifest, filename)
+
+    def _rerender_house_deck(self, manifest: ReportManifest) -> ReportManifest:
+        report_id = manifest.report_id
+        deck, request = self.store.load_deck(report_id), self.store.load_request(report_id)
+        if deck is None or request is None:
+            raise ValueError(f"No deck built yet for report {report_id!r} -- approve the storyline first")
+        manifest.status = ReportStatus.RENDERING
         self.store.save_manifest(manifest)
-        return manifest
+        try:
+            # ponytail: asyncio.run, so this sync path can't be called from inside a running loop; make it async if that's needed.
+            fit = asyncio.run(render_house_outputs(report_id, deck, request, self.store))
+        except Exception as exc:  # noqa: BLE001
+            manifest.status = ReportStatus.FAILED
+            manifest.error = str(exc)
+            self.store.save_manifest(manifest)
+            raise
+        self.store.save_findings(report_id, [f for f in self.store.load_findings(report_id) if f.stage != "fit"] + fit)
+        return self._completed(manifest, "output.pdf")
 
     @staticmethod
     def _render(output_format: OutputFormat, plan: ReportPlan, datasets, layout, template_style, out_path: Path) -> Path:
