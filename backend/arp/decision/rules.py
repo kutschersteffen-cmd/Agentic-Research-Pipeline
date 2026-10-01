@@ -249,6 +249,8 @@ def apply_tier_graph(
 
     for i, result in zip(targets, results, strict=True):
         e, band = entities[i], bands[i]
+        note = result.get("note") if isinstance(result, dict) else None
+        note = note.strip() if isinstance(note, str) else ""
         if isinstance(result, str):
             failures.append((e.name, result))
             e.notes.append("Tier rules could not be evaluated; band kept")
@@ -266,7 +268,8 @@ def apply_tier_graph(
                 continue
             tier = int(tier)
             if band is not None and tier != band:
-                e.notes.append(f"Tier rules: band {band} -> {tier}")
+                if not note:  # the rules' own note explains the tier; the move is still counted below
+                    e.notes.append(f"Tier rules: band {band} -> {tier}")
                 down += tier > band
                 up += tier < band
             definition = tiers_by_rank.get(tier)
@@ -275,9 +278,8 @@ def apply_tier_graph(
                 definition.name if definition else None,
                 definition.action if definition else None,
             )
-        note = result.get("note")
-        if isinstance(note, str) and note.strip():
-            e.notes.append(note.strip())
+        if note:
+            e.notes.append(note)
 
     audit = [
         AuditEntry(

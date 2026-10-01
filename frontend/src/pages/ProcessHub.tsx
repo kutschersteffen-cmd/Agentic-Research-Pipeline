@@ -392,7 +392,9 @@ export function ProcessOverview({ id }: { id: string }) {
                 )}
                 {stage && stage.metrics.length > 0 && (
                   <span className="hub-step-rows">
-                    {stage.metrics.slice(0, 2).map((m) => (
+                    {/* The same three the Steward Workflow stage card shows, so the
+                        number behind the "decisions open" banner is on screen. */}
+                    {stage.metrics.slice(0, 3).map((m) => (
                       <span key={m.label}>
                         {m.label}
                         <b>{m.value}</b>

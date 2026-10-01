@@ -138,6 +138,26 @@ class LevelCriterion(BaseModel):
     hint: str = Field(default="", description="What the criterion asks, shown to reviewers next to the level.")
 
 
+class IndicatorSpec(BaseModel):
+    """One row of an indicator list: a framework's criterion described
+    before any company data exists. `id` is the company-table column that
+    will hold the indicator's score."""
+
+    id: str
+    name: str
+    group: str
+    weight: float = Field(default=1.0, ge=0.0)
+    group_weight: float | None = Field(default=None, ge=0.0)
+    scale_min: int = 0
+    scale_max: int = 3
+    direction: Direction = "higher"
+    critical: bool = False
+    question: str | None = None
+    views: dict[str, float] = Field(default_factory=dict, description="Relevance 0-3 of the indicator to each view.")
+    kind: Literal["indicator", "event"] = "indicator"
+    outlook: Literal["Negative", "Watch"] | None = Field(default=None, description="Events only: what a Yes sets.")
+
+
 class GateRule(BaseModel):
     """A rule evaluated *before* the score exists. A knockout is a
     decision, not a deduction -- an excluded entity never reaches the

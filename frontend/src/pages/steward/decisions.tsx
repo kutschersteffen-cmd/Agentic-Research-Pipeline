@@ -51,7 +51,7 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
       </p>
       {error && <p className="error-text" role="alert">{error}</p>}
       <div className="table-wrap">
-        <table className="data-table">
+        <table className="data-table stack-on-phone">
           <thead>
             <tr>
               <th>Company</th>
@@ -63,11 +63,11 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
           <tbody>
             {items.map((item) => (
               <tr key={item.issuer_id}>
-                <td>{item.company}</td>
-                <td>
+                <td data-label="Company">{item.company}</td>
+                <td data-label="Tier">
                   {item.current} → <strong>{item.proposed}</strong>
                 </td>
-                <td>
+                <td data-label="Why (rule that fired)">
                   {item.reason} <span className="muted">({item.rule})</span>
                 </td>
                 <td>
@@ -105,7 +105,7 @@ export function EscalationDecisions({ items, actor, onDone }: { items: Escalatio
     <>
       {error && <p className="error-text" role="alert">{error}</p>}
       <div className="table-wrap">
-        <table className="data-table">
+        <table className="data-table stack-on-phone">
           <thead>
             <tr>
               <th>Company</th>
@@ -118,10 +118,10 @@ export function EscalationDecisions({ items, actor, onDone }: { items: Escalatio
           <tbody>
             {items.map((item) => (
               <tr key={item.issue_id}>
-                <td>{item.company}</td>
-                <td>{words(item.theme)}</td>
-                <td>{item.reason}</td>
-                <td>
+                <td data-label="Company">{item.company}</td>
+                <td data-label="Theme">{words(item.theme)}</td>
+                <td data-label="Why (rule)">{item.reason}</td>
+                <td data-label="Escalation step">
                   {item.next ? (
                     <>
                       {words(item.current)} → <strong>{words(item.next)}</strong>
@@ -180,7 +180,7 @@ export function ClientExceptionDecisions({ items, actor, onDone }: { items: Clie
     <>
       {error && <p className="error-text" role="alert">{error}</p>}
       <div className="table-wrap">
-        <table className="data-table">
+        <table className="data-table stack-on-phone">
           <thead>
             <tr>
               <th>Client</th>
@@ -194,11 +194,11 @@ export function ClientExceptionDecisions({ items, actor, onDone }: { items: Clie
           <tbody>
             {items.map((item) => (
               <tr key={`${item.stream_id}-${item.issue_id}`}>
-                <td>{item.client}</td>
-                <td>{item.company}</td>
-                <td>{words(item.theme)}</td>
-                <td>{item.reason}</td>
-                <td>
+                <td data-label="Client">{item.client}</td>
+                <td data-label="Company">{item.company}</td>
+                <td data-label="Theme">{words(item.theme)}</td>
+                <td data-label="Why (client rule)">{item.reason}</td>
+                <td data-label="Step">
                   now {words(item.current)} · house {words(item.house)} · client <strong>{words(item.client_step)}</strong>
                 </td>
                 <td>

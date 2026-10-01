@@ -28,6 +28,7 @@ export function RunProgress({
   const [manifest, setManifest] = useState<RunManifest | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const timerRef = useRef<number | undefined>(undefined);
   const cancelledRef = useRef(false);
 
@@ -36,11 +37,16 @@ export function RunProgress({
       const m = (await api.getRun(runId)) as RunManifest;
       if (cancelledRef.current) return;
       setManifest(m);
+      setLoadError(null);
       if (m.status === "running" || m.status === "pending") {
         timerRef.current = window.setTimeout(poll, pollMs);
       }
-    } catch {
-      if (!cancelledRef.current) timerRef.current = window.setTimeout(poll, pollMs * 2);
+    } catch (err) {
+      // Say so instead of "Loading…" forever; keep retrying in the background,
+      // slower, in case the backend comes back.
+      if (cancelledRef.current) return;
+      setLoadError((err as Error).message);
+      timerRef.current = window.setTimeout(poll, pollMs * 4);
     }
   }
 
@@ -81,7 +87,18 @@ export function RunProgress({
     }
   }
 
-  if (!manifest) return <p>Loading run status...</p>;
+  if (!manifest) {
+    return loadError ? (
+      <p className="error-text" role="alert">
+        Run status could not be loaded: {loadError}.{" "}
+        <button className="link-button" onClick={() => { if (timerRef.current) window.clearTimeout(timerRef.current); poll(); }}>
+          Retry
+        </button>
+      </p>
+    ) : (
+      <p className="status-text">Loading run status…</p>
+    );
+  }
 
   const pct = manifest.company_count > 0 ? Math.round((manifest.completed_count / manifest.company_count) * 100) : 0;
   const canCancel = manifest.status === "running" || manifest.status === "pending";
