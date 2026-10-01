@@ -15,9 +15,9 @@ class Settings(BaseSettings):
 
     # LLM
     anthropic_api_key: str | None = Field(default=None)
-    llm_model: str = Field(default="claude-sonnet-5")
+    llm_model: str = Field(default="claude-sonnet-5-5")
     llm_verifier_model: str = Field(
-        default="claude-opus-5",
+        default="claude-opus-5-5",
         description="Model used for every independent Verifier/Kritiker call (extraction, financials), "
         "deliberately different from llm_model. An extractor and a verifier that run on the same model can "
         "repeat the same failure mode instead of catching it -- correlated errors the Advocate/Opposing/"
