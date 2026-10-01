@@ -1,11 +1,10 @@
-"""House deck build after storyline approval: fill -> lint+rewrite -> render+measure -> PDF + PNGs.
-
-Later stages (fit loop, visual QA, PPTX) slot in between fill and output.
-"""
+"""House deck build after storyline approval: fill -> lint+rewrite -> fit -> visual QA -> PDF + PNGs + PPTX."""
 
 from __future__ import annotations
 
 import asyncio
+import tempfile
+from pathlib import Path
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.browser import write_pdf, write_pngs
@@ -14,6 +13,7 @@ from arp.reporting.house_pptx import build_house_pptx
 from arp.reporting.html_render import render_deck_html
 from arp.reporting.lint import lint_and_rewrite
 from arp.reporting.slide_fill import fill_slide
+from arp.reporting.visual_qa import visual_qa
 from arp.schemas.reporting import Deck, Finding, ReportRequest, SlideContent, Storyline
 from arp.storage.reporting_store import ReportingStore
 
@@ -46,6 +46,12 @@ async def build_house_deck(
     findings += lint_findings
     deck, fit_findings = await fit_deck(deck, request, llm, usage=usage)
     findings += fit_findings
+    with tempfile.TemporaryDirectory() as tmp:
+        pngs = await write_pngs(render_deck_html(deck, request.datasets, mode=request.layout.theme), Path(tmp))
+        deck, qa_findings = await visual_qa(deck, pngs, request, llm, usage=usage)
+    if any(f.rule == "applied" for f in qa_findings):  # QA re-measured the deck: the first fit's measurements are stale
+        findings = [f for f in findings if f.stage != "fit" or f.rule == "slot_dropped"]
+    findings += qa_findings
     store.save_deck(report_id, deck)
     await render_house_outputs(report_id, deck, request, store)
     store.save_findings(report_id, findings)

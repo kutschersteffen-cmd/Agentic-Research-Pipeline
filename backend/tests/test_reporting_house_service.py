@@ -8,6 +8,7 @@ from arp.api.deps import get_reporting_store
 from arp.api.routers import reporting as reporting_router
 from arp.reporting.browser import BrowserUnavailable
 from arp.reporting.service import ReportingService
+from arp.reporting.visual_qa import QAResult
 from arp.schemas.reporting import (
     LayoutInstructions,
     OutputFormat,
@@ -59,9 +60,10 @@ async def test_house_deck_end_to_end_writes_pdf_png_and_findings(tmp_path, fake_
     service = ReportingService(store)
     manifest = await service.create_and_plan(_REQ, fake_llm({"Storyline": [_storyline(3)]}))
     bad = SlideContent(headline="x", layout="nope", variant="nope")
-    llm = fake_llm({"SlideContent": [_bullets(), _bullets(), bad, bad]})
+    llm = fake_llm({"SlideContent": [_bullets(), _bullets(), bad, bad], "QAResult": [QAResult(edits=[])]})
 
     manifest = await service.approve_storyline(manifest.report_id, llm)
+    assert llm.calls[-1] == "QAResult" and len(llm.images[-1]) == 4  # one QA call, one PNG per slide
 
     rid = manifest.report_id
     assert manifest.status == ReportStatus.COMPLETED and manifest.output_filename == "output.pdf"
@@ -73,7 +75,7 @@ async def test_house_deck_end_to_end_writes_pdf_png_and_findings(tmp_path, fake_
     assert [s.headline for s in deck.slides] == ["Deck", "Point 0 holds.", "Point 1 holds.", "Point 2 holds."]
     assert any(f.rule == "bad_reference" and f.slide == 3 for f in store.load_findings(rid))
     assert store.load_storyline(rid).approved
-    assert (manifest.input_tokens, manifest.output_tokens) == (50, 50)  # storyline + 3 fills + 1 retry
+    assert (manifest.input_tokens, manifest.output_tokens) == (60, 60)  # storyline + 3 fills + 1 retry + QA
 
 
 def test_render_from_plan_rerenders_house_deck_without_llm(tmp_path, fake_llm):

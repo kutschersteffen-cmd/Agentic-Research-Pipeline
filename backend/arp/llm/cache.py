@@ -26,19 +26,20 @@ class DiskLLMCache:
 
     @staticmethod
     def make_key(
-        *, model: str, system: str, prompt: str, schema_name: str, schema_json: dict, temperature: float = 0.0
+        *, model: str, system: str, prompt: str, schema_name: str, schema_json: dict, temperature: float = 0.0,
+        image_hashes: list[str] | None = None,
     ) -> str:
-        payload = json.dumps(
-            {
-                "model": model,
-                "system": system,
-                "prompt": prompt,
-                "schema": schema_name,
-                "schema_json": schema_json,
-                "temperature": temperature,
-            },
-            sort_keys=True,
-        )
+        fields = {
+            "model": model,
+            "system": system,
+            "prompt": prompt,
+            "schema": schema_name,
+            "schema_json": schema_json,
+            "temperature": temperature,
+        }
+        if image_hashes:  # absent for text-only calls, so their existing keys stay valid
+            fields["image_hashes"] = image_hashes
+        payload = json.dumps(fields, sort_keys=True)
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     def get(self, key: str) -> dict[str, Any] | None:

@@ -46,12 +46,14 @@ class LLMClient(ABC):
         max_validation_retries: int = 2,
         temperature: float = 0.0,
         max_tokens: int = 8192,
+        images: list[bytes] | None = None,
     ) -> tuple[T, LLMUsage]:
         """Call the model and return a validated instance of `output_model`.
 
         Implementations must retry (re-prompting with the validation error)
         up to `max_validation_retries` times if the model's output fails
         Pydantic validation, and must separately retry on transient
-        network/rate-limit errors.
+        network/rate-limit errors. `images` (PNG bytes) are shown to the
+        model before the prompt text.
         """
         raise NotImplementedError
