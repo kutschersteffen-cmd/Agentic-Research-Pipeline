@@ -3,15 +3,18 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+from arp.config import Settings
 from arp.llm.base import LLMClient, LLMUsage
+from arp.reporting.adapters import with_run_datasets
 from arp.reporting.content_planner import draft_report_plan
 from arp.reporting.deck_builder import build_deck
 from arp.reporting.design import theme_from_template
 from arp.reporting.house_pipeline import build_house_deck, render_house_outputs
+from arp.reporting.lint import lint_deck
 from arp.reporting.pdf_builder import build_pdf
 from arp.reporting.report_builder import build_docx
 from arp.reporting.storyline import draft_storyline
-from arp.schemas.reporting import OutputFormat, ReportManifest, ReportPlan, ReportRequest, ReportStatus
+from arp.schemas.reporting import Deck, OutputFormat, ReportManifest, ReportPlan, ReportRequest, ReportStatus, SlideContent
 from arp.storage.reporting_store import ReportingStore
 
 _EXTENSION = {OutputFormat.PPTX: "pptx", OutputFormat.DOCX: "docx", OutputFormat.PDF: "pdf"}
@@ -28,8 +31,9 @@ class ReportingService:
     every other pipeline in this codebase.
     """
 
-    def __init__(self, store: ReportingStore) -> None:
+    def __init__(self, store: ReportingStore, settings: Settings | None = None) -> None:
         self.store = store
+        self.settings = settings  # for run_refs; None reads get_settings() when a request has any
 
     async def create_and_plan(self, request: ReportRequest, llm: LLMClient) -> ReportManifest:
         manifest = ReportManifest(title=request.title, output_format=request.layout.output_format, template_id=request.template_id)
@@ -82,7 +86,7 @@ class ReportingService:
         self.store.save_manifest(manifest)
         usage = LLMUsage()
         try:
-            await build_house_deck(report_id, request, storyline, llm, self.store, usage)
+            await build_house_deck(report_id, request, storyline, llm, self.store, usage, self.settings)
         except Exception as exc:  # noqa: BLE001
             manifest.status = ReportStatus.FAILED
             manifest.error = str(exc)
@@ -92,6 +96,27 @@ class ReportingService:
             manifest.input_tokens += usage.input_tokens
             manifest.output_tokens += usage.output_tokens
         return self._completed(manifest, "output.pdf", ["output.pdf", "output.pptx"])
+
+    async def rerun(self, report_id: str, llm: LLMClient) -> ReportManifest:
+        """A new report from `report_id`'s request and approved storyline, on freshly loaded run data; the original
+        is untouched. If the fresh data no longer backs a headline number, the new storyline goes back for approval
+        (STORYLINE_READY, findings saved) instead of being built."""
+        old, request, storyline = self.store.load_manifest(report_id), self.store.load_request(report_id), self.store.load_storyline(report_id)
+        if old is None or request is None or storyline is None or not storyline.approved:
+            raise ValueError(f"No approved storyline for report {report_id!r}")
+        request = with_run_datasets(request, self.settings)
+        storyline = storyline.model_copy(update={"approved": False})
+        manifest = ReportManifest(title=old.title, output_format=old.output_format, template_id=old.template_id, status=ReportStatus.STORYLINE_READY)
+        self.store.save_request(manifest.report_id, request)
+        self.store.save_storyline(manifest.report_id, storyline)
+        self.store.save_manifest(manifest)
+        # Headlines only, numbered like the built deck (slide 0 is the title).
+        heads = Deck(title=storyline.title, slides=[SlideContent(headline=h, layout="", variant="") for h in [storyline.title, *(s.headline for s in storyline.slides)]])
+        stale = [f for f in lint_deck(heads, request) if f.rule == "number_not_in_source" and f.slot == "headline"]
+        if stale:
+            self.store.save_findings(manifest.report_id, stale)
+            return manifest
+        return await self.approve_storyline(manifest.report_id, llm)
 
     def _completed(self, manifest: ReportManifest, filename: str, files: list[str] | None = None) -> ReportManifest:
         manifest.status = ReportStatus.COMPLETED

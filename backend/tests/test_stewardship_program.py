@@ -69,7 +69,7 @@ def test_invalid_calibration_is_rejected():
 def test_proposal_deck_has_every_section(stream, tmp_path):
     streams, s = stream
     deck = pptx.Presentation(build_proposal(simulate(streams.root, s, [], 45), tmp_path / "p.pptx"))
-    titles = [x.shapes.title.text for x in deck.slides]
+    titles = [sh.text_frame.text for x in deck.slides for sh in x.shapes if sh.has_text_frame]
     for heading in ("Engagement targets", "Escalation: house and client steps", "Feasibility against the house program"):
         assert heading in titles
 

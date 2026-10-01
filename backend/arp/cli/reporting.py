@@ -11,6 +11,7 @@ from arp.cli._shared import _reporting_store
 from arp.config import get_settings
 from arp.llm.factory import build_llm_client
 from arp.reporting.datasets import parse_tabular_upload
+from arp.reporting.scheduler import ReportScheduler
 from arp.reporting.service import ReportingService
 from arp.reporting.style_profile import ingest_template
 from arp.schemas.reporting import (
@@ -205,6 +206,38 @@ def reporting_approve(report_id: str) -> None:
     typer.echo(f"Report {report_id} built: {', '.join(manifest.output_files)} ({len(findings)} finding(s))")
     for f in findings:
         typer.echo(f"  slide {f.slide}{f' [{f.slot}]' if f.slot else ''} {f.stage}/{f.rule}: {f.message}")
+
+
+@reporting_app.command("rerun")
+def reporting_rerun(report_id: str) -> None:
+    """House deck: re-runs an approved storyline on fresh pipeline data, as a new report."""
+    settings = get_settings()
+    try:
+        manifest = asyncio.run(ReportingService(_reporting_store(), settings).rerun(report_id, build_llm_client(settings)))
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"Report {manifest.report_id}: {manifest.status.value}")
+
+
+@reporting_app.command("schedule")
+def reporting_schedule(
+    every_hours: int = typer.Option(None, help="Re-run interval in hours (default 720, about monthly)."),
+    add: list[str] = typer.Option([], help="Report id to re-run on the schedule; repeatable."),
+    remove: list[str] = typer.Option([], help="Report id to take off the schedule; repeatable."),
+    enable: bool = typer.Option(None, "--enable/--disable"),
+) -> None:
+    """Edits the periodic re-run schedule. The API server process owns the scheduler and picks this up on start."""
+    settings = get_settings()
+    scheduler = ReportScheduler(settings, llm_factory=lambda: build_llm_client(settings))
+    config = scheduler.load_config()
+    if every_hours is not None:
+        config.interval_hours = every_hours
+    if enable is not None:
+        config.enabled = enable
+    config.report_ids = [r for r in dict.fromkeys([*config.report_ids, *add]) if r not in remove]
+    scheduler.save_config(config)
+    typer.echo(f"Schedule saved: enabled={config.enabled}, every {config.interval_hours}h, reports={', '.join(config.report_ids) or 'none'}")
 
 
 @reporting_app.command("run")
