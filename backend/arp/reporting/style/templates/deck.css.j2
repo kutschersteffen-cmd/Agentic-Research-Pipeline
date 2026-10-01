@@ -18,10 +18,9 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
 /* Recurring mark: a short ink rule above the headline. The accent is not decoration (DESIGN.md's One Signal Rule). */
 .slide::after { content: ""; position: absolute; left: {{ t.grid.margin_x }}px; top: {{ t.grid.margin_top - 32 - t.grid.rule_height }}px; width: {{ t.grid.rule_width }}px; height: {{ t.grid.rule_height }}px; background: var(--ink); }
 .slot { position: absolute; overflow: hidden; overflow-wrap: normal; }
-/* The slide's one focal element. Bottom-aligned so it sits on its label; the padding holds the glyph descent inside the box. */
+/* Metric numbers are ink (DESIGN.md). Bottom-aligned so it sits on its label; the padding holds the glyph descent inside the box. */
 .k-number { color: var(--ink); white-space: nowrap; display: flex; align-items: flex-end; padding-bottom: 0.2em; font-variant-numeric: tabular-nums; }
-[data-slot="number_1"], [data-slot="key_figure"] { color: var(--accent); }  /* one signal per slide: only the first figure */
-[data-slot^="label_"] { border-top: 1px solid var(--neutral); padding-top: 16px; }
+[data-slot^="label_"] { border-top: 1px solid var(--neutral); padding-top: 16px; font-family: var(--font-mono); }
 .slot ul { margin: 0; padding-left: 1.1em; }
 .slot li { margin-bottom: 0.5em; }
 /* Timeline: numbered hollow steps on one rule, like the app's process-card step dots. */
@@ -33,7 +32,8 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
 .slot img { width: 100%; height: 100%; object-fit: contain; }
 .slot table { width: 100%; border-collapse: collapse; }
 .slot th, .slot td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--neutral); font-variant-numeric: tabular-nums; }
-.slot th { font-weight: 600; color: var(--ink-muted); border-bottom: 2px solid var(--ink); }
+/* Small uppercase mono labels, as in the app. */
+.slot th { font: 500 {{ t.type.caption.size }}px/{{ t.type.caption.line_height }} var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-muted); border-bottom: 2px solid var(--ink); }
 .slot .more { margin: 8px 0 0; color: var(--ink-muted); }
 .k-chart svg text { font-family: var(--font-body) !important; }
 footer { position: absolute; left: {{ t.grid.margin_x }}px; right: {{ t.grid.margin_x }}px; top: {{ t.canvas.height - t.grid.margin_bottom - t.grid.footer_band }}px; height: {{ t.grid.footer_band }}px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--neutral); color: var(--ink-muted); font: 500 {{ t.type.caption.size }}px/{{ t.type.caption.line_height }} var(--font-mono); }

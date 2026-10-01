@@ -3,7 +3,7 @@ from pypdf import PdfReader
 
 from arp.reporting.browser import BrowserUnavailable, measure, write_pdf, write_pngs
 from arp.reporting.html_render import render_deck_html
-from arp.schemas.reporting import Deck, SlideContent
+from arp.schemas.reporting import ColumnKind, DatasetColumn, Deck, QuantitativeDataset, SlideContent, TableSpec
 from tests.fixtures.stress_deck import stress_deck
 
 
@@ -53,19 +53,25 @@ async def test_stress_deck_max_fits_in_both_modes(mode):
 
 
 @pytest.mark.parametrize("mode", ["light", "dark"])
-async def test_only_the_first_big_number_carries_the_accent(mode):
+async def test_big_numbers_are_ink_and_labels_and_table_headers_mono(mode):
     from playwright.async_api import async_playwright
 
     from arp.reporting.house_style import load_tokens
 
-    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="big_number", variant="three",
-                                                slots={f"number_{i}": f"{i}%" for i in (1, 2, 3)})])
+    ds = QuantitativeDataset(dataset_id="d", name="D", columns=[DatasetColumn(name="k", kind=ColumnKind.CATEGORY)], rows=[{"k": "r"}])
+    deck = Deck(title="T", slides=[
+        SlideContent(headline="h", layout="big_number", variant="three", slots={**{f"number_{i}": f"{i}%" for i in (1, 2, 3)}, "label_1": "a"}),
+        SlideContent(headline="h", layout="table", variant="compact", table=TableSpec(dataset_id="d")),
+    ])
     async with async_playwright() as p:
         browser = await p.chromium.launch()
         page = await browser.new_page()
-        await page.set_content(render_deck_html(deck, [], mode=mode))
+        await page.set_content(render_deck_html(deck, [ds], mode=mode))
         colours = await page.evaluate("[...document.querySelectorAll('.k-number')].map(e => getComputedStyle(e).color)")
+        mono = await page.evaluate("""['[data-slot=label_1]', '.slot th'].map(q => {
+            const s = getComputedStyle(document.querySelector(q)); return [s.fontFamily, s.textTransform]; })""")
         await browser.close()
-    accent = load_tokens().colors(mode).accent.lstrip("#")
-    rgb = f"rgb({int(accent[:2], 16)}, {int(accent[2:4], 16)}, {int(accent[4:], 16)})"
-    assert len(colours) == 3 and colours.count(rgb) == 1 and colours[0] == rgb
+    ink = load_tokens().colors(mode).ink.lstrip("#")
+    rgb = f"rgb({int(ink[:2], 16)}, {int(ink[2:4], 16)}, {int(ink[4:], 16)})"
+    assert colours == [rgb] * 3
+    assert mono[0][0].startswith('"Geist Mono"') and mono[1] == [mono[0][0], "uppercase"]

@@ -62,14 +62,15 @@ def test_pptx_escapes_nothing_and_keeps_literal_text(tmp_path):
 
 
 @pytest.mark.parametrize("mode", ["light", "dark"])
-def test_pptx_follows_mode_and_gives_only_the_first_figure_the_accent(tmp_path, mode):
+def test_pptx_follows_mode_and_metric_numbers_are_ink(tmp_path, mode):
     t = load_tokens()
     c = t.colors(mode)
     deck = Deck(title="T", slides=[SlideContent(headline="h", layout="big_number", variant="two",
                                                 slots={"number_1": "1", "label_1": "a", "number_2": "2", "label_2": "b"})])
     s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx", mode=mode)).slides[0]
     font = lambda n: _shapes(s, n)[0].text_frame.paragraphs[0].runs[0].font  # noqa: E731
-    assert _rgb(font("slot:number_1")) == c.accent.lstrip("#").lower() and _rgb(font("slot:number_2")) == c.ink.lstrip("#").lower()
+    assert _rgb(font("slot:number_1")) == _rgb(font("slot:number_2")) == c.ink.lstrip("#").lower()
+    assert font("slot:label_1").name == t.fonts.mono.split(",")[0].strip("'\" ")
     assert str(s.background.fill.fore_color.rgb).lower() == c.background.lstrip("#").lower()
     assert font("headline").name == t.heading_font(mode).split(",")[0].strip("'\" ")
     assert (font("headline").size.pt, font("slot:number_1").size.pt) == (t.type["headline"].size * 0.75, t.type["big_number"].size * 0.75)
@@ -87,7 +88,7 @@ def test_pptx_table_window_and_more_rows_caption(tmp_path):
     deck, ds = _table_deck(10, max_rows=3, row_offset=2)
     s = Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides[0]
     table = _shapes(s, "slot:table")[0].table
-    assert [table.cell(r, 0).text for r in range(4)] == ["k", "r2", "r3", "r4"]
+    assert [table.cell(r, 0).text for r in range(4)] == ["K", "r2", "r3", "r4"]
     assert _shapes(s, "slot:table:more")[0].text_frame.text == "+5 more rows"
     deck, ds = _table_deck(5, max_rows=3, row_offset=2)
     assert not _shapes(Presentation(build_house_pptx(deck, ds, tmp_path / "e.pptx")).slides[0], "slot:table:more")
@@ -160,3 +161,19 @@ def test_pptx_image_is_letterboxed_inside_its_slot(tmp_path):
     shown_h = pic.height / (1 - pic.crop_top - pic.crop_bottom)
     assert shown_w / shown_h == pytest.approx(4, rel=1e-3)  # aspect kept; the short side is padded, not stretched
     assert pic.crop_top < 0 and pic.crop_left == 0
+
+
+def test_pptx_title_and_section_show_the_title_once(tmp_path):
+    deck = Deck(title="T", slides=[SlideContent(headline="Deck", layout="title", variant="plain", slots={"title": "Deck", "subtitle": "S"}),
+                                   SlideContent(headline="Part", layout="section", variant="default", slots={"title": "Part"})])
+    prs = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx"))
+    for slide, text in zip(prs.slides, ["Deck", "Part"], strict=True):
+        assert not _shapes(slide, "headline") and [sh.text_frame.text for sh in slide.shapes if sh.has_text_frame].count(text) == 1
+
+
+def test_pptx_table_header_is_small_uppercase_mono(tmp_path):
+    deck, ds = _table_deck(3, max_rows=3)
+    table = _shapes(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides[0], "slot:table")[0].table
+    run = table.cell(0, 0).text_frame.paragraphs[0].runs[0]
+    assert run.text == "K" and run.font.name == load_tokens().fonts.mono.split(",")[0].strip("'\" ") and not run.font.bold
+    assert run._r.rPr.get("spc")

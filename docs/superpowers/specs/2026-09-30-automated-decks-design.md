@@ -125,8 +125,8 @@ It returns edits in the slide-fill schema and runs the fit loop once more. There
 - **Canvas:** 16:9, 1920×1080, 12-column grid, fixed outer margins, fixed headline band.
 - **Type:** 5 sizes (headline, subhead, body, caption, big number). Two open-licence fonts are
   embedded in the PDF and named in the `.pptx`. Line lengths are capped per slot.
-- **Colour:** ink, muted neutral, one accent (used only for the slide's focal element), and the existing
-  CVD-safe chart palette. Both themes must pass WCAG AA contrast, per PRODUCT.md's projector rule.
+- **Colour:** ink, muted neutral, and the existing CVD-safe chart palette. Metric numbers are ink;
+  the signal colour means "a person must act" (DESIGN.md) and does not appear on slides. Both themes must pass WCAG AA contrast, per PRODUCT.md's projector rule.
 - **Recurring elements:** headline position, accent rule, footer with source line and page number.
 
 The look is designed once. The impeccable and ui-ux-pro-max skills produce 3 visual directions,

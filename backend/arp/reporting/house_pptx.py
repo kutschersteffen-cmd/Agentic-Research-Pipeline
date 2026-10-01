@@ -25,7 +25,6 @@ from arp.reporting.html_render import table_view, theme_from_tokens
 from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent
 
 _PX = 9525  # EMU per px
-_ACCENT_SLOTS = {"number_1", "key_figure"}  # DESIGN.md one-signal rule, same as deck.css.j2
 _ROW_PX = 46  # table row: caption line + 2x10px padding, as in the HTML
 
 
@@ -92,7 +91,8 @@ class _Builder:
         columns, rows, more = table_view(slide_content.table, ds)
         if not columns:
             return
-        ts = self.t.type[spec.type_role]
+        ts, mono = self.t.type[spec.type_role], _family(self.t.fonts.mono or self.t.fonts.body)
+        cap = self.t.type["caption"]
         n = len(rows) + 1
         shape = slide.shapes.add_table(n, max(len(columns), 1), _e(r.x), _e(r.y), _e(r.w), _e(_ROW_PX * n))
         shape.name = f"slot:{spec.name}"
@@ -111,9 +111,14 @@ class _Builder:
                 cell.margin_top = cell.margin_bottom = _e(10)
                 cell.vertical_anchor = MSO_ANCHOR.MIDDLE
                 run = cell.text_frame.paragraphs[0].add_run()
-                run.text = str(value)
                 f = run.font
-                f.name, f.size, f.bold = _family(self.t.fonts.body), Pt(ts.size * 0.75), ri == 0
+                if ri == 0:  # small uppercase mono header, as deck.css.j2
+                    run.text = str(value).upper()
+                    f.name, f.size, f.bold = mono, Pt(cap.size * 0.75), False
+                    run._r.get_or_add_rPr().set("spc", str(round(0.08 * cap.size * 0.75 * 100)))
+                else:
+                    run.text = str(value)
+                    f.name, f.size, f.bold = _family(self.t.fonts.body), Pt(ts.size * 0.75), False
                 f.color.rgb = _rgb(self.c.ink_muted if ri == 0 else self.c.ink)
                 tcPr = cell._tc.get_or_add_tcPr()
                 # a:tcPr takes lnL, lnR, lnT, lnB (then the fill); the table style's default grid is switched off on three sides.
@@ -167,12 +172,11 @@ class _Builder:
         else:
             text = " ".join(value) if isinstance(value, list) else (value or "")
             if spec.kind == "number":
-                color = self.c.accent if spec.name in _ACCENT_SLOTS else self.c.ink
-                # bottom-aligned on its label, like the HTML; the descent padding is 0.2em
-                self._text(slide, name, Rect(r.x, r.y, r.w, r.h), [text], ts, font=body, color=color, wrap=False, anchor=MSO_ANCHOR.BOTTOM)
+                # Metric numbers are ink (DESIGN.md); bottom-aligned on its label, like the HTML; the descent padding is 0.2em
+                self._text(slide, name, Rect(r.x, r.y, r.w, r.h), [text], ts, font=body, color=self.c.ink, wrap=False, anchor=MSO_ANCHOR.BOTTOM)
             elif spec.name.startswith("label_"):
                 self._rule(slide, f"{name}:rule", Rect(r.x, r.y, r.w, 1), self.c.neutral)
-                self._text(slide, name, r, [text], ts, font=body, color=self.c.ink, pad_top=16)
+                self._text(slide, name, r, [text], ts, font=_family(self.t.fonts.mono or self.t.fonts.body), color=self.c.ink, pad_top=16)
             else:
                 self._text(slide, name, r, [text] if text else [], ts, font=body, color=self.c.ink)
 
@@ -182,8 +186,9 @@ class _Builder:
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = _rgb(self.c.background)
         self._rule(slide, "accent_rule", Rect(g.margin_x, g.margin_top - 32 - g.rule_height, g.rule_width, g.rule_height), self.c.ink)
-        self._text(slide, "headline", Rect(g.margin_x, g.margin_top, t.canvas.width - 2 * g.margin_x, g.headline_band - 32), [content.headline], t.type["headline"],
-                   font=_family(t.heading_font(self.mode)), color=self.c.ink)
+        if content.layout not in ("title", "section"):  # those show the title in their own slot, as in the HTML
+            self._text(slide, "headline", Rect(g.margin_x, g.margin_top, t.canvas.width - 2 * g.margin_x, g.headline_band - 32), [content.headline], t.type["headline"],
+                       font=_family(t.heading_font(self.mode)), color=self.c.ink)
         for spec in get_variant(content.layout, content.variant).slots:
             self._slot(slide, i, spec, content, datasets)
         top, mono = t.canvas.height - g.margin_bottom - g.footer_band, _family(t.fonts.mono or t.fonts.body)
