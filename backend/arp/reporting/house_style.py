@@ -7,6 +7,7 @@ geometry (layouts); renderers and the fit/lint stages read it from here.
 from __future__ import annotations
 
 import json
+import re
 from functools import cache
 from pathlib import Path
 from typing import Literal, NamedTuple
@@ -161,3 +162,9 @@ def get_variant(layout: str, variant: str) -> VariantSpec:
         if v.id == variant:
             return v
     raise KeyError(f"unknown variant {layout}/{variant}; known: {[v.id for v in ly.variants]}")
+
+
+def design_sections(names: list[str] | None = None, skip: tuple[str, ...] = ()) -> str:
+    """The `## ` sections of style/design.md (all of them when `names` is None), in file order, minus `skip`."""
+    parts = re.split(r"(?m)^(?=## )", (_STYLE_DIR / "design.md").read_text())[1:]
+    return "".join(p for p in parts if (h := p.split("\n", 1)[0][3:].strip()) not in skip and (names is None or h in names)).strip()

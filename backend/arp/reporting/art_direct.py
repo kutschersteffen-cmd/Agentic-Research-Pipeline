@@ -120,7 +120,7 @@ def relayout(slide: SlideContent, layout: str, variant: str) -> tuple[SlideConte
 
 
 def _fits(slide: SlideContent, density: str, last: bool = False) -> list[SlideContent]:
-    """The candidates that keep every filled slot, hold every list within its item and word limits and parse, as moved
+    """The candidates that keep every filled slot, hold every slot within its item and word limits and parse, as moved
     slides (the current pick is not checked). The word limit matters where no fit stage follows (stewardship decks)."""
     out = []
     for ly, v in candidates(shape_of(slide), slide, density, last):
@@ -131,8 +131,9 @@ def _fits(slide: SlideContent, density: str, last: bool = False) -> list[SlideCo
         spec = get_variant(ly, v).slots
         lists = [(sp, items) for sp in spec if isinstance(items := moved.slots.get(sp.name), list)]
         full = any(sp.max_items and len(items) > sp.max_items for sp, items in lists)
+        texts = [(sp, [t]) for sp in spec if isinstance(t := moved.slots.get(sp.name), str)]
         wordy = any(len(t.split()) > ((sp.committee_words if density == "committee" else None) or sp.max_words or 10**6)
-                    for sp, items in lists for t in items)
+                    for sp, items in [*lists, *texts] for t in items)
         if not dropped and not full and not wordy and not structure_errors(moved, spec):
             out.append(moved)
     return out

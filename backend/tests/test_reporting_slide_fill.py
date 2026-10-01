@@ -144,3 +144,10 @@ def test_slide_fill_does_not_import_the_renderer():
 
     code = "import sys, arp.reporting.slide_fill; print('arp.reporting.html_render' in sys.modules)"
     assert subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip() == "False"
+
+
+async def test_fill_prompt_includes_design_rules(fake_llm):
+    llm = fake_llm({"SlideContent": [_chart_slide("weight")]})
+    await fill_slide(_STORY, 1, _REQ, llm)
+    assert "## Content to layout" in llm.systems[0] and "## Rhythm" in llm.systems[0]
+    assert "## Review checklist" not in llm.systems[0]

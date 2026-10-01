@@ -245,3 +245,9 @@ def test_no_section_with_fewer_than_two_slides_after_it():
     st = [S("statement", "plain", {"statement": "s"}, headline=f"h{i}") for i in range(10)]
     deck, _ = direct(D(*st[:3], S("section", "default", {"number": "1", "title": "Part"}), *st[3:]))  # 12 slides, the 7th after the section is the last
     assert [s.layout for s in deck.slides].count("section") == 1
+
+
+def test_a_text_over_the_target_slots_word_limit_skips_that_layout():
+    words = " ".join(["word"] * 25)  # chart_short by shape, but chart_focus's callout holds 24
+    slide = S("chart_takeaway", "chart_left", {"takeaway": words}, chart=BAR)
+    assert layouts(direct(D(slide), density="present")[0]) == [("split", "chart")]

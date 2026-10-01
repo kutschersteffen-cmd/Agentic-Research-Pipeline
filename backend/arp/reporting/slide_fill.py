@@ -13,11 +13,12 @@ from pydantic import BaseModel
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.content_planner import _datasets_context
-from arp.reporting.house_style import SlotSpec, get_variant, load_layouts, load_tokens, slot_rect
+from arp.reporting.house_style import SlotSpec, design_sections, get_variant, load_layouts, load_tokens, slot_rect
 from arp.reporting.structured import structured_view
 from arp.schemas.reporting import Finding, QuantitativeDataset, ReportRequest, SlideContent, StorylineSlide
 
 WRITING_GUIDE = (Path(__file__).parent / "style" / "writing.md").read_text()
+DESIGN_RULES = design_sections(skip=("Review checklist",))  # the checklist is visual QA's
 
 _FILLED_ELSEWHERE = {"chart": "set `chart`", "table": "set `table`", "image": "set `image_path`"}
 # There is no image upload, so any image_path the model sets is invented (and would be read from local disk):
@@ -61,7 +62,7 @@ def _system_prompt(density: str = "committee") -> str:
         f"- {ly.id}/{v.id} [{ly.purpose}]: " + "; ".join(_slot_desc(s, density) for s in v.slots)
         for ly in load_layouts().values() for v in ly.variants if not any(s.kind == "image" for s in v.slots)
     ]
-    return _RULES + "\n".join(lines) + "\n\n" + WRITING_GUIDE
+    return _RULES + "\n".join(lines) + "\n\n" + DESIGN_RULES + "\n\n" + WRITING_GUIDE
 
 
 def validate_slide(slide: SlideContent, datasets: list[QuantitativeDataset]) -> list[str]:
