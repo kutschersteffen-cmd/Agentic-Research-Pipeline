@@ -51,6 +51,8 @@ async def build_house_deck(
         deck, qa_findings = await visual_qa(deck, pngs, request, llm, usage=usage)
     if any(f.rule == "applied" for f in qa_findings):  # QA re-measured the deck: the first fit's measurements are stale
         findings = [f for f in findings if f.stage != "fit" or f.rule == "slot_dropped"]
+    edited = {(f.slide, f.slot) for f in qa_findings if f.rule == "applied" and f.slot}
+    findings = [f for f in findings if f.stage != "lint" or (f.slide, f.slot) not in edited]  # QA's re-lint replaces them
     findings += qa_findings
     store.save_deck(report_id, deck)
     await render_house_outputs(report_id, deck, request, store)

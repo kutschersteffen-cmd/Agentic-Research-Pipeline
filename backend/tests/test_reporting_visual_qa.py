@@ -31,11 +31,13 @@ async def test_qa_ignores_headline_edits_and_invalid_variants(tmp_path, fake_llm
         QAEdit(slide=1, variant="nope", reason="r"),
         QAEdit(slide=1, slot="nope", text="x", reason="r"),
         QAEdit(slide=9, variant="five", reason="r"),
+        QAEdit(slide=0, layout="bullets", variant="three", reason="r"),  # would drop the title slot
+        QAEdit(slide=1, layout="big_number", variant="one", slot="number_1", text="5", reason="r"),  # not a text/list slot
     ]
     llm = fake_llm({"QAResult": [QAResult(edits=edits)]})
     deck, findings = await visual_qa(_deck(), _pngs(tmp_path, 2), _REQ, llm)
     assert deck == _deck()
-    assert [f.rule for f in findings] == ["invalid_edit"] * 5
+    assert [f.rule for f in findings] == ["invalid_edit"] * 7
 
 
 async def test_qa_runs_exactly_once(tmp_path, fake_llm):
@@ -46,6 +48,22 @@ async def test_qa_runs_exactly_once(tmp_path, fake_llm):
     assert deck.slides[1].variant == "five" and deck.slides[1].slots["items"] == ["Revenue grew 37%", "b"]
     assert any(f.rule == "applied" and f.message == "lone bullet" for f in findings)
     assert any(f.stage == "lint" and f.rule == "number_not_in_source" for f in findings)  # QA text is re-linted
+
+
+async def test_qa_reports_slots_dropped_by_a_variant_change(tmp_path, fake_llm):
+    two = SlideContent(headline="H", layout="two_column", variant="text_text", slots={"left": "l", "right": ""})
+    deck = Deck(title="T", slides=[_deck().slides[0], two])
+    llm = fake_llm({"QAResult": [QAResult(edits=[QAEdit(slide=1, layout="bullets", variant="three", slot="items", text=["l"], reason="r")])]})
+    deck, findings = await visual_qa(deck, _pngs(tmp_path, 2), _REQ, llm)
+    assert deck.slides[1].slots == {"items": ["l"]}
+    assert [(f.rule, f.slot) for f in findings if f.stage == "qa"] == [("applied", "items"), ("slot_dropped", "left")]  # empty "right": no finding
+
+
+async def test_qa_truncated_prompt_lists_only_shown_slides(tmp_path, fake_llm):
+    llm = fake_llm({"QAResult": [QAResult(edits=[QAEdit(slide=21, variant="five", reason="r")])]})
+    deck, findings = await visual_qa(_deck(22), _pngs(tmp_path, 22), _REQ, llm)
+    assert '"slide": 19' in llm.prompts[0] and '"slide": 20' not in llm.prompts[0]
+    assert deck == _deck(22) and [f.rule for f in findings] == ["qa_truncated", "invalid_edit"]
 
 
 async def test_qa_truncates_and_survives_failure(tmp_path, fake_llm):

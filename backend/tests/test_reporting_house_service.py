@@ -6,10 +6,12 @@ from fastapi.testclient import TestClient
 
 from arp.api.deps import get_reporting_store
 from arp.api.routers import reporting as reporting_router
+from arp.reporting import house_pipeline
 from arp.reporting.browser import BrowserUnavailable
 from arp.reporting.service import ReportingService
-from arp.reporting.visual_qa import QAResult
+from arp.reporting.visual_qa import QAEdit, QAResult
 from arp.schemas.reporting import (
+    Finding,
     LayoutInstructions,
     OutputFormat,
     ReportManifest,
@@ -76,6 +78,24 @@ async def test_house_deck_end_to_end_writes_pdf_png_and_findings(tmp_path, fake_
     assert any(f.rule == "bad_reference" and f.slide == 3 for f in store.load_findings(rid))
     assert store.load_storyline(rid).approved
     assert (manifest.input_tokens, manifest.output_tokens) == (60, 60)  # storyline + 3 fills + 1 retry + QA
+
+
+async def test_applied_qa_edit_replaces_stale_fit_and_lint_findings(tmp_path, fake_llm, monkeypatch):
+    stale = [
+        Finding(slide=1, slot="items", stage="fit", rule="overflow", message="ratio=1.2"),
+        Finding(slide=1, slot="items", stage="fit", rule="slot_dropped", message="kept"),
+        Finding(slide=1, slot="items", stage="lint", rule="exclamation", message="old"),
+    ]
+
+    async def fake_fit(deck, request, llm, max_passes=3, usage=None):
+        return deck, list(stale)
+
+    monkeypatch.setattr(house_pipeline, "fit_deck", fake_fit)
+    edit = QAEdit(slide=1, slot="items", text=["calm", "b"], reason="tidy")
+    llm = fake_llm({"SlideContent": [_bullets()], "QAResult": [QAResult(edits=[edit])]})
+    deck, findings = await house_pipeline.build_house_deck("r1", _REQ, _storyline(1), llm, _store(tmp_path))
+    assert deck.slides[1].slots["items"] == ["calm", "b"]
+    assert [f.rule for f in findings] == ["slot_dropped", "applied"]  # stale overflow + lint gone; QA's real re-fit finds nothing
 
 
 def test_render_from_plan_rerenders_house_deck_without_llm(tmp_path, fake_llm):

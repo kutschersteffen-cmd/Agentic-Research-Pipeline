@@ -41,28 +41,28 @@ class QAResult(BaseModel):
     edits: list[QAEdit]
 
 
-def _prompt(deck: Deck) -> str:
-    slides = [{"slide": i, **s.model_dump(include={"headline", "layout", "variant", "slots"})} for i, s in enumerate(deck.slides)]
+def _prompt(deck: Deck, n: int) -> str:
+    slides = [{"slide": i, **s.model_dump(include={"headline", "layout", "variant", "slots"})} for i, s in enumerate(deck.slides[:n])]
     layouts = {ly.id: {v.id: [sp.name for sp in v.slots] for v in ly.variants} for ly in load_layouts().values()}
     return f"Slides:\n{json.dumps(slides)}\n\nLayouts (layout -> variant -> slots):\n{json.dumps(layouts)}"
 
 
-def _apply(deck: Deck, e: QAEdit) -> tuple[Deck, str | None]:
-    """The edited deck, or the unchanged deck plus why the edit was rejected."""
-    if not 0 <= e.slide < len(deck.slides):
-        return deck, f"no slide {e.slide}"
+def _apply(deck: Deck, e: QAEdit, seen: int) -> tuple[Deck, str | None, list[str]]:
+    """The edited deck and the slots it dropped, or the unchanged deck plus why the edit was rejected."""
+    if not 0 <= e.slide < seen:
+        return deck, f"no slide {e.slide} was shown", []
     s = deck.slides[e.slide]
-    if e.slot == "headline" or (e.slide == 0 and e.slot == "title"):
-        return deck, "headlines are never edited"
     layout, variant = e.layout or s.layout, e.variant or s.variant
+    if e.slot == "headline" or (e.slide == 0 and (e.slot == "title" or (layout, variant) != (s.layout, s.variant))):
+        return deck, "headlines (and the title slide's layout) are never edited", []
     try:
         specs = {sp.name: sp.kind for sp in get_variant(layout, variant).slots}
     except KeyError as exc:
-        return deck, str(exc)
-    if (e.slot is None) != (e.text is None) or (e.slot is not None and e.slot not in specs):
-        return deck, f"slot {e.slot!r} with text {e.text!r} does not fit {layout}/{variant}"
+        return deck, str(exc), []
+    if (e.slot is None) != (e.text is None) or (e.slot is not None and specs.get(e.slot) not in ("text", "list")):
+        return deck, f"slot {e.slot!r} with text {e.text!r} does not fit {layout}/{variant}", []
     if e.slot is None and (layout, variant) == (s.layout, s.variant):
-        return deck, "edit changes nothing"
+        return deck, "edit changes nothing", []
     slots = {k: v for k, v in s.slots.items() if k in specs}
     if e.slot is not None:
         text = e.text
@@ -72,7 +72,8 @@ def _apply(deck: Deck, e: QAEdit) -> tuple[Deck, str | None]:
             text = " ".join(text)
         slots[e.slot] = text
     new = s.model_copy(update={"layout": layout, "variant": variant, "slots": slots})
-    return deck.model_copy(update={"slides": [*deck.slides[: e.slide], new, *deck.slides[e.slide + 1 :]]}), None
+    dropped = [k for k, v in s.slots.items() if k not in specs and v]
+    return deck.model_copy(update={"slides": [*deck.slides[: e.slide], new, *deck.slides[e.slide + 1 :]]}), None, dropped
 
 
 async def visual_qa(
@@ -84,7 +85,7 @@ async def visual_qa(
         pngs = pngs[:_MAX_IMAGES]
     try:
         result, u = await llm.complete_structured(
-            system=_SYSTEM, prompt=_prompt(deck), output_model=QAResult, images=[p.read_bytes() for p in pngs],
+            system=_SYSTEM, prompt=_prompt(deck, len(pngs)), output_model=QAResult, images=[p.read_bytes() for p in pngs],
         )
     except Exception as exc:  # QA is advisory: a failed call never fails the deck
         return deck, [*findings, Finding(slide=0, stage="qa", rule="qa_failed", message=str(exc))]
@@ -93,11 +94,12 @@ async def visual_qa(
         usage.output_tokens += u.output_tokens
     edited: set[tuple[int, str]] = set()
     for e in result.edits:
-        deck, why = _apply(deck, e)
+        deck, why, dropped = _apply(deck, e, len(pngs))
         if why:
             findings.append(Finding(slide=e.slide, slot=e.slot, stage="qa", rule="invalid_edit", message=why))
             continue
         findings.append(Finding(slide=e.slide, slot=e.slot, stage="qa", rule="applied", message=e.reason))
+        findings += [Finding(slide=e.slide, slot=k, stage="qa", rule="slot_dropped", message=f"Slot {k!r} does not exist in the new layout/variant; its content was dropped.") for k in dropped]
         if e.slot is not None:
             edited.add((e.slide, e.slot))
     if not any(f.rule == "applied" for f in findings):
