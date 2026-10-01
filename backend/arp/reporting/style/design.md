@@ -102,6 +102,7 @@ When a pick breaks a rule, the art director takes the next pick for the same con
 ## Focal point and whitespace
 
 - The largest type on a slide is a number, a statement, a chart or a diagram, never a paragraph. It is at least 1.6 times the 28px body size.
+- In present decks the headline does not count: the focal element sits below it. A chart, table or diagram drawn as an image is the focal element itself; a list of cards or summary rows sets its index at headline size. In committee decks the headline is the focal element, so the check is skipped.
 - Fill by design. When content is short, the layout steps up to a larger fixed type role (body 28px to subhead 36px; a statement of six words or fewer to display size). Type never shrinks below its role, and no slide text goes under 24px except the footer.
 - Whitespace is planned. The content spans at least 55% of the body height in present decks and 70% in committee decks. A slide that uses only its top third is a design failure.
 - Content sits on its anchor. Layouts anchored to the middle may drift at most 20% of the body height from the centre.
@@ -115,7 +116,7 @@ The measured design check runs on every rendered slide:
 | `sparse` | content spans less than 55% (present) or 70% (committee) of the body height |
 | `unbalanced` | content is more than 20% of the body height off its middle anchor |
 | `small_text` | any slide text is under 24px |
-| `no_focal` | the largest text is under 1.6 times the body size |
+| `no_focal` | present decks only: with no chart, table or diagram, the largest text below the headline is under 1.6 times the body size |
 | `crowded` | two blocks are closer than the 32px gutter |
 | `dense` | the slide holds more than 60 (present) or 180 (committee) words |
 

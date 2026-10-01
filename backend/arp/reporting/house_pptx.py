@@ -233,26 +233,32 @@ class _Builder:
     def _frame(self, slide, name: str, r: Rect) -> None:
         self._box(slide, f"slot:{name}", r)
 
+    def _index(self, role: str) -> tuple[TypeStyle, str]:
+        """A list's mono index: at headline size and in ink in a present deck, its focal element (deck.css.j2)."""
+        if self.density == "present":
+            return self.t.type["headline"].model_copy(update={"weight": 500, "line_height": 1, "tracking": 0}), self.c.ink
+        return self.t.type[role].model_copy(update={"weight": 500, "line_height": 1}), self.c.ink_muted
+
     def _cards_items(self, slide, spec, content, items, r, ts):
         g, sub, n = self.t.grid.gutter, self.t.type["subhead"], len(items)
         if content.variant == "rows":  # deck.css cards/rows: rows share the slot, a hairline above each, the mono number mid-row
-            h, body = r.h / n, self.t.type["body"]
+            h = r.h / n
             for i, (title, text) in enumerate(title_body(t) for t in items):
                 y = r.y + i * h
                 self._rule(slide, f"slot:items:{i}:rule", Rect(r.x, y, r.w, 1), self.c.neutral)
-                self._text(slide, f"slot:items:{i}:index", Rect(r.x, y, 112, h), [f"{i + 1:02d}"], body.model_copy(update={"weight": 500, "line_height": 1}),
-                           font=self.mono, color=self.c.ink_muted, anchor=MSO_ANCHOR.MIDDLE)
+                idx, idx_color = self._index("body")
+                self._text(slide, f"slot:items:{i}:index", Rect(r.x, y, 112, h), [f"{i + 1:02d}"], idx, font=self.mono, color=idx_color, anchor=MSO_ANCHOR.MIDDLE)
                 paras = ([Para(title, sub, self.head, self.c.ink)] if title else [])
                 paras.append(Para(text, ts.model_copy(update={"weight": 400}), self.body, self.c.ink_muted if title else self.c.ink, before=12 if title else 0))
                 self._text(slide, f"slot:items:{i}", Rect(r.x + 112, y, r.w - 112, h), paras, ts, font=self.body, color=self.c.ink, anchor=MSO_ANCHOR.MIDDLE)
             return
         w = (r.w - (n - 1) * g) / n
-        cards = [title_body(i) for i in items]
-        h = max(2 * g + sub.size + 20 + (self._est_h(c[0], sub, w - 2 * g) if c[0] else 0) + (12 if c[0] else 0)
+        cards, (idx, idx_color) = [title_body(i) for i in items], self._index("subhead")
+        h = max(2 * g + idx.size + 20 + (self._est_h(c[0], sub, w - 2 * g) if c[0] else 0) + (12 if c[0] else 0)
                 + self._est_h(c[1], ts, w - 2 * g) + 2 for c in cards)
         h, y = min(h, r.h), r.y  # as tall as the tallest card's content, top-aligned, like deck.css (never past the slot)
         for i, c in enumerate(cards):
-            paras = [Para(f"{i + 1:02d}", sub.model_copy(update={"weight": 500, "line_height": 1}), self.mono, self.c.ink_muted, after=20)]
+            paras = [Para(f"{i + 1:02d}", idx, self.mono, idx_color, after=20)]
             if c[0]:
                 paras.append(Para(c[0], sub, self.head, self.c.ink, after=0))
             paras.append(Para(c[1], ts.model_copy(update={"weight": 400}), self.body, self.c.ink_muted if c[0] else self.c.ink, before=12 if c[0] else 0))
@@ -292,8 +298,8 @@ class _Builder:
         for i, text in enumerate(items):
             y = r.y + i * h
             self._rule(slide, f"slot:items:{i}:rule", Rect(r.x, y, r.w, 1), self.c.neutral)
-            self._text(slide, f"slot:items:{i}:index", Rect(r.x, y, 112, h), [f"{i + 1:02d}"], body.model_copy(update={"weight": 500}), font=self.mono,
-                       color=self.c.ink_muted, anchor=MSO_ANCHOR.MIDDLE)
+            idx, idx_color = self._index("body") if content.layout == "summary" else (body.model_copy(update={"weight": 500}), self.c.ink_muted)
+            self._text(slide, f"slot:items:{i}:index", Rect(r.x, y, 112, h), [f"{i + 1:02d}"], idx, font=self.mono, color=idx_color, anchor=MSO_ANCHOR.MIDDLE)
             self._text(slide, f"slot:items:{i}", Rect(r.x + 112, y, r.w - 112, h), [text], ts, font=self.body, color=self.c.ink, anchor=MSO_ANCHOR.MIDDLE)
         self._rule(slide, "slot:items:rule", Rect(r.x, r.y + r.h - 1, r.w, 1), self.c.neutral)
 

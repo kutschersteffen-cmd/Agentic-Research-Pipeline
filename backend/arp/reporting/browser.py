@@ -22,7 +22,7 @@ _TOL = 1.5  # px slack for sub-pixel layout rounding
 # One evaluate: every slot's box (fit) plus its content rects -- each line of text (a Range over its text nodes), every
 # table and image, and the drawn part of every chart or diagram svg -- clipped to the slot. Boxes, tints and rules are
 # decoration and never count; and per
-# slide the rendered anchor, the word count and the smallest and largest text outside data-chrome (svg text scaled).
+# slide the rendered anchor, the word count, the smallest text and the largest outside the headline, all outside data-chrome (svg text scaled).
 _MEASURE_JS = """() => {
   const range = document.createRange();
   const texts = root => { const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), out = [];
@@ -54,7 +54,8 @@ _MEASURE_JS = """() => {
     }
     sizes.sort((a, b) => a[0] - b[0]);
     return {slide: +sec.dataset.slide, layout: sec.dataset.layout, anchor: sec.dataset.anchor, words: +sec.dataset.words,
-            min: sizes[0] ?? null, max: sizes.at(-1) ?? null};
+            min: sizes[0] ?? null, max: sizes.filter(z => z[1] !== 'headline').at(-1) ?? null,
+            exhibit: !!sec.querySelector('[data-slot]:not([data-slot=headline]) :is(svg, img, table)')};
   });
   return {density: document.body.dataset.density, slots, slides};
 }"""
@@ -145,8 +146,9 @@ def _design(got: dict, tokens) -> list[Finding]:
                     add("unbalanced", f"content centre {off:.2f} of the body height off its middle anchor > 0.20")
         if sl["min"] and sl["min"][0] < 24 - 0.5:
             add("small_text", f"{sl['min'][0]:.0f}px text < 24px", sl["min"][1])
-        if sl["max"] and sl["max"][0] / tokens.type["body"].size < 1.6:
-            add("no_focal", f"largest text {sl['max'][0]:.0f}px is under 1.6x the {tokens.type['body'].size}px body")
+        # Present only: a committee slide's headline is its focal element. The headline is never the present focal element.
+        if got["density"] == "present" and not sl["exhibit"] and sl["max"] and sl["max"][0] / tokens.type["body"].size < 1.6:
+            add("no_focal", f"largest text below the headline {sl['max'][0]:.0f}px is under 1.6x the {tokens.type['body'].size}px body")
         ext = {k: (min(x for x, _, _, _ in rs), min(y for _, y, _, _ in rs), max(x + w for x, _, w, _ in rs), max(y + h for _, y, _, h in rs))
                for k, rs in body.items()}
         for a, b in [(a, b) for n, a in enumerate(ext) for b in list(ext)[n + 1 :]]:

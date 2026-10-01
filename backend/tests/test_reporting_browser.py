@@ -65,8 +65,9 @@ async def test_stress_deck_max_fits_in_both_modes(mode, fill, density):
     deck, ds = stress_deck(fill, density)
     html = render_deck_html(deck, ds, mode=mode, density=density)
     assert "data:font/" in html
-    # Every slot at its limit (or one word) is sparse or dense by construction; every other rule must hold at any fill.
-    assert [f for f in await measure(html) if f.rule not in ("sparse", "dense")] == []
+    # Every slot at its limit (or one word) is sparse or dense by construction, and a present text-only layout has no focal
+    # element unless its content brings one (no_focal); every other rule must hold at any fill.
+    assert [f for f in await measure(html) if f.rule not in ("sparse", "dense", "no_focal")] == []
 
 
 @pytest.mark.parametrize("mode", ["light", "dark"])
@@ -248,11 +249,14 @@ async def test_footer_chrome_ignored(mode):
     assert _design(await measure(html), "small_text") == []
 
 
-async def test_no_focal_flagged():
-    deck = Deck(title="T", slides=[_TITLE, SlideContent(headline="h", layout="summary", variant="default", slots={"items": _FOUR})])
-    html = _styled(render_deck_html(deck, []), "h1.t-headline, [data-slot=items] { font-size: 28px !important; }")
-    [f] = _design(await measure(html), "no_focal")
+async def test_no_focal_in_present_ignores_the_headline_and_is_skipped_in_committee():
+    deck = Deck(title="T", slides=[_TITLE, SlideContent(headline="h", layout="bullets", variant="three", slots={"items": _FOUR})])
+    [f] = _design(await measure(render_deck_html(deck, [], density="present")), "no_focal")  # the 56px headline is not the focal element
     assert f.slide == 1
+    committee = _styled(render_deck_html(deck, [], density="committee"), "h1.t-headline, [data-slot=items] { font-size: 28px !important; }")
+    assert _design(await measure(committee), "no_focal") == []  # the headline is the committee slide's focal element
+    summary = deck.model_copy(update={"slides": [_TITLE, deck.slides[1].model_copy(update={"layout": "summary", "variant": "default"})]})
+    assert _design(await measure(render_deck_html(summary, [], density="present")), "no_focal") == []  # its index is set at headline size
 
 
 async def test_unbalanced_uses_the_rendered_anchor():
