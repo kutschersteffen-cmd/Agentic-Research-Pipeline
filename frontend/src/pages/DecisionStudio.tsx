@@ -250,6 +250,16 @@ export function DecisionStudio() {
     }
   }
 
+  async function onSeedDemoRun() {
+    const seeded = await guard("Creating a sample run…", () => api.seedTransitionPlanDemo());
+    if (seeded) {
+      setRunId(seeded.run_id);
+      setIncludeIndicators(true);
+      setFinished(null); // reload the run picker
+      setStatus(`Created sample run ${seeded.run_id}: ${seeded.company_count} fictional companies, made-up verdicts. Build the table to use it.`);
+    }
+  }
+
   function selectDataset(summary: DatasetSummary) {
     setDataset(summary);
     setCalculated(null);
@@ -809,6 +819,15 @@ export function DecisionStudio() {
                 Build the table
               </button>
             </div>
+            {source === "transition_plan_run" && (
+              <p className="help-text">
+                Nothing to test with yet?{" "}
+                <button className="link-button" onClick={onSeedDemoRun}>
+                  Create a sample run
+                </button>{" "}
+                with made-up verdicts for 8 fictional companies. No documents or LLM calls.
+              </p>
+            )}
             {source === "joined_runs" && (
               <div className="join-picker">
                 <p className="help-text">
