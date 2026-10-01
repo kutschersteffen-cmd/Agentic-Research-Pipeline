@@ -163,3 +163,12 @@ def test_heat_cells_get_status_from_thresholds():
     assert html.count("<td data-status=") == 3  # the category column and the non-number are not tinted
     for k in ("high", "mid", "low", "neutral"):
         assert f"--status-{k}:" in html
+
+
+async def test_malformed_structured_slot_renders_as_a_list_and_reports_a_data_finding():
+    quads = [f"Q{i} :: sub :: text :: high" for i in range(4)][:2]  # the reviewer's case: half a 2x2
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="matrix2x2", variant="default", slots={"quadrants": quads})])
+    html = render_deck_html(deck, [])
+    assert "<li>Q0 :: sub :: text :: high</li>" in html
+    [f] = await measure(html)
+    assert (f.stage, f.rule, f.slot, f.slide) == ("data", "bad_structure", "quadrants", 0) and "exactly 4" in f.message

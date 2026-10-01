@@ -22,7 +22,7 @@ _TOL = 1.5  # px slack for sub-pixel layout rounding
 _SLOTS_JS = """() => [...document.querySelectorAll('[data-slot]')].map(el => {
   const s = el.closest('section').getBoundingClientRect(), r = el.getBoundingClientRect();
   return {slide: +el.dataset.slide, slot: el.dataset.slot, x: r.left - s.left, y: r.top - s.top, w: r.width, h: r.height,
-          sh: el.scrollHeight, ch: el.clientHeight, sw: el.scrollWidth, cw: el.clientWidth};
+          sh: el.scrollHeight, ch: el.clientHeight, sw: el.scrollWidth, cw: el.clientWidth, err: el.dataset.error || null};
 })"""
 
 
@@ -63,6 +63,8 @@ async def measure(html: str) -> list[Finding]:
         out.append(Finding(slide=b["slide"], slot=b["slot"], stage="fit", rule=rule, message=msg))
 
     for b in boxes:
+        if b["err"]:  # a structured slot that did not parse and was drawn as a plain list
+            out.append(Finding(slide=b["slide"], slot=b["slot"], stage="data", rule="bad_structure", message=b["err"]))
         if b["sh"] > b["ch"] + _TOL:
             add(b, "overflow", f"ratio={b['sh'] / b['ch']:.2f}")
         if b["sw"] > b["cw"] + _TOL:

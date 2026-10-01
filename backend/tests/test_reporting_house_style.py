@@ -153,3 +153,9 @@ def test_density_defaults_to_committee():
     from arp.schemas.reporting import LayoutInstructions
 
     assert LayoutInstructions().density == "committee"
+
+
+def test_tpa_pitch_fixture_is_a_present_deck():
+    from tests.fixtures.tpa_pitch import tpa_pitch
+
+    assert tpa_pitch()[0].layout.density == "present"

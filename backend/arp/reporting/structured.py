@@ -15,6 +15,9 @@ from typing import NamedTuple
 STATUSES = ("high", "mid", "low", "neutral")
 MAX_TREE_DEPTH = 4  # questions on the longest path; the outcome column is one more
 MAX_TREE_OUTCOMES = 6  # what fits one above the other in the slot
+# (layout, slot) pairs whose items carry structure: fit never splits them in half (a half 2x2 or tree is not one).
+NO_SPLIT = {("flow", "items"), ("profile", "meters"), ("profile", "left"), ("profile", "right"), ("scatter_zone", "items"),
+            ("matrix2x2", "quadrants"), ("matrix2x2", "items"), ("tree", "items")}
 
 
 def _parts(item: str) -> list[str]:
@@ -192,3 +195,22 @@ def tree_svg(root: TreeNode, width: float, height: float) -> str:
     place(root, 0)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:.0f} {height:.0f}" font-size="{_FS}" fill="var(--ink)">'
             + "".join(out) + "</svg>")
+
+
+def structured_view(layout: str, name: str, items: list[str], r) -> dict:
+    """Parsed view of a committee layout's structured list slot (ValueError on a malformed item)."""
+    if (layout, name) == ("flow", "items"):
+        return {"stages": parse_flow(items)}
+    if (layout, name) == ("profile", "meters"):
+        return {"meters": parse_meters(items)}
+    if (layout, name) == ("scatter_zone", "items"):
+        return {"deltas": parse_deltas(items)}
+    if (layout, name) == ("matrix2x2", "quadrants"):
+        return {"quadrants": parse_quadrants(items)}
+    if (layout, name) == ("tree", "items"):
+        return {"svg": tree_svg(parse_tree(items), r.w, r.h)}
+    if (layout, name) == ("decisions", "items"):
+        return {"pairs": [[p.strip() for p in (t.split("::", 1) + [""])[:2]] for t in items]}
+    if (layout, name) in {("profile", "left"), ("profile", "right"), ("matrix2x2", "items")}:
+        return {"panel": items[:1], "items": items[1:]}  # the first item titles the panel
+    return {}

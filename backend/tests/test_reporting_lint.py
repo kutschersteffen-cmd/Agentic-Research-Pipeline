@@ -199,3 +199,11 @@ def test_bold_label_skips_layouts_whose_item_format_is_a_label():
     bullets = SlideContent(headline="h", layout="bullets", variant="three", slots={"items": ["Queue: flagged items", "Audit: full history"]})
     found = lint_deck(Deck(title="T", slides=[cards, flow, bullets]), _req())
     assert [f.slide for f in found if f.rule == "bold_label"] == [2]
+
+
+async def test_lint_rewrite_keeps_structured_items_when_the_rewrite_breaks_their_format(fake_llm):
+    items = ["Retrieve :: " + "word " * 20, "Answer :: verdict"]  # the first item is over the flow word limit
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="flow", variant="default", slots={"items": items})])
+    llm = fake_llm({"SlotRewrite": [SlotRewrite(text=["Retrieve passages", "Answer verdict"])] * 3})
+    out, findings = await lint_and_rewrite(deck, _req(), llm)
+    assert out.slides[0].slots["items"] == items and any(f.rule == "over_word_limit" for f in findings)

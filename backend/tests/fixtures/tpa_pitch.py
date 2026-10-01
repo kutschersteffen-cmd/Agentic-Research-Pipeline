@@ -109,5 +109,5 @@ def tpa_pitch() -> tuple[ReportRequest, Storyline, list[SlideContent]]:
     req = ReportRequest(title=story.title, qualitative_notes=NOTES, datasets=[cats, outs],
         goal="The client commissions a pilot of Transition Plan Assessment on its holdings",
         audience=AudienceProfile(level=AudienceLevel.EXECUTIVE, tone=Tone.PERSUASIVE, description="Client investment and stewardship leads"),
-        layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK, theme="light"))
+        layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK, theme="light", density="present"))
     return req, story, [f.model_copy(deep=True) for f in fills]

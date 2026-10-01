@@ -118,3 +118,29 @@ def test_validate_slide_reports_structured_item_errors_and_heat_columns():
     ds = QuantitativeDataset(dataset_id="d", name="D", columns=[DatasetColumn(name="k", kind=ColumnKind.CATEGORY)], rows=[{"k": "a"}])
     heat = SlideContent(headline="h", layout="table", variant="heat", table=TableSpec(dataset_id="d", heat={"zz": [1, 2]}))
     assert any("no column 'zz'" in e for e in slide_fill.validate_slide(heat, [ds]))
+
+
+async def test_rewrite_slot_rejects_a_rewrite_that_breaks_the_item_format(fake_llm):
+    slide = SlideContent(headline="h", layout="flow", variant="default", slots={"items": ["A :: a", "B :: b"]})
+    with pytest.raises(ValueError, match="flow"):
+        await rewrite_slot(slide, "items", "Shorten", _REQ, fake_llm({"SlotRewrite": [SlotRewrite(text=["A a", "B b"])]}))
+
+
+async def test_fill_slide_falls_back_to_cards_keeping_content_on_a_structure_error(fake_llm):
+    bad = SlideContent(headline="x", layout="flow", variant="default", slots={"items": ["Retrieve :: passages"], "takeaway_bar": "Why: because"})
+    slide, findings, _ = await fill_slide(_STORY, 1, _REQ, fake_llm({"SlideContent": [bad, bad]}))
+    assert (findings[0].stage, findings[0].rule) == ("data", "bad_structure") and "flow" in findings[0].message
+    assert (slide.layout, slide.slots["items"]) == ("cards", ["Retrieve: passages"]) and "Why: because" in slide.speaker_notes
+
+
+def test_system_prompt_shows_the_density_word_limits():
+    assert "statement (text, max 60 words)" in slide_fill._system_prompt("committee")
+    assert "statement (text, max 30 words)" in slide_fill._system_prompt("present")
+
+
+def test_slide_fill_does_not_import_the_renderer():
+    import subprocess
+    import sys
+
+    code = "import sys, arp.reporting.slide_fill; print('arp.reporting.html_render' in sys.modules)"
+    assert subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip() == "False"

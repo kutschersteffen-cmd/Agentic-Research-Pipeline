@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.content_planner import _datasets_context
 from arp.reporting.house_style import SlotSpec, get_variant, load_layouts, load_tokens, slot_rect
-from arp.reporting.html_render import structured_view
+from arp.reporting.structured import structured_view
 from arp.schemas.reporting import Finding, QuantitativeDataset, ReportRequest, SlideContent, StorylineSlide
 
 WRITING_GUIDE = (Path(__file__).parent / "style" / "writing.md").read_text()
@@ -48,16 +48,17 @@ class SlotRewrite(BaseModel):
     text: str | list[str]
 
 
-def _slot_desc(s: SlotSpec) -> str:
+def _slot_desc(s: SlotSpec, density: str = "committee") -> str:
     if s.kind in _FILLED_ELSEWHERE:
         return f"{s.name} ({s.kind}; {_FILLED_ELSEWHERE[s.kind]})"
-    limits = [f"max {s.max_words} words" if s.max_words else "", f"max {s.max_items} items" if s.max_items else ""]
+    words = (s.committee_words if density == "committee" else None) or s.max_words  # the limit lint enforces
+    limits = [f"max {words} words" if words else "", f"max {s.max_items} items" if s.max_items else ""]
     return f"{s.name} ({', '.join([s.kind, *filter(None, limits)])})"
 
 
-def _system_prompt() -> str:
+def _system_prompt(density: str = "committee") -> str:
     lines = [
-        f"- {ly.id}/{v.id} [{ly.purpose}]: " + "; ".join(_slot_desc(s) for s in v.slots)
+        f"- {ly.id}/{v.id} [{ly.purpose}]: " + "; ".join(_slot_desc(s, density) for s in v.slots)
         for ly in load_layouts().values() for v in ly.variants if not any(s.kind == "image" for s in v.slots)
     ]
     return _RULES + "\n".join(lines) + "\n\n" + WRITING_GUIDE
@@ -91,7 +92,20 @@ def validate_slide(slide: SlideContent, datasets: list[QuantitativeDataset]) -> 
             errors.append(f"unknown dataset_id {dataset_id!r}; known: {sorted(by_id)}")
             continue
         errors += [f"dataset {dataset_id!r} has no column {col!r}; columns: {ds.column_names()}" for col in columns if col and col not in ds.column_names()]
-    for sp in spec.slots:  # committee layouts' `a :: b` items must parse
+    return errors + _structure_errors(slide, spec.slots)
+
+
+def _variant_or_none(slide: SlideContent):
+    try:
+        return get_variant(slide.layout, slide.variant)
+    except KeyError:
+        return None
+
+
+def _structure_errors(slide: SlideContent, slots) -> list[str]:
+    """Committee layouts' `a :: b` items must parse (the tree must also fit its slot)."""
+    errors = []
+    for sp in slots:
         items = slide.slots.get(sp.name)
         if sp.kind == "list" and isinstance(items, list) and items:
             try:
@@ -99,6 +113,19 @@ def validate_slide(slide: SlideContent, datasets: list[QuantitativeDataset]) -> 
             except ValueError as e:
                 errors.append(str(e))
     return errors
+
+
+def _as_cards(slide: SlideContent) -> SlideContent:
+    """Fallback for a structure error: every list item becomes a card ("a :: b :: c" -> "a: b; c"); text slots go to the notes."""
+    items, notes = [], [slide.speaker_notes]
+    for v in slide.slots.values():
+        if isinstance(v, list):
+            parts = [[p.strip().lstrip("*=").strip() for p in t.split("::") if p.strip()] for t in v]
+            items += [p[0] + (": " + "; ".join(p[1:]) if len(p) > 1 else "") for p in parts if p]
+        elif v:
+            notes.append(v)
+    return slide.model_copy(update={"layout": "cards", "variant": "three" if len(items) <= 3 else "four", "slots": {"items": items},
+                                    "chart": None, "table": None, "speaker_notes": " ".join(filter(None, notes))})
 
 
 def _prompt(slide: StorylineSlide, index: int, request: ReportRequest) -> str:
@@ -117,21 +144,26 @@ async def fill_slide(slide: StorylineSlide, index: int, request: ReportRequest, 
     prompt = _prompt(slide, index, request)
     usage = LLMUsage()
     try:
-        content, usage = await llm.complete_structured(system=_system_prompt(), prompt=prompt, output_model=SlideContent)
+        content, usage = await llm.complete_structured(system=_system_prompt(request.layout.density), prompt=prompt, output_model=SlideContent)
         content = content.model_copy(update={"image_path": None})
         errors = validate_slide(content, request.datasets)
         if errors:
             retry_prompt = prompt + "\nYour previous answer had these errors; fix them:\n- " + "\n- ".join(errors) + "\n"
-            content, u2 = await llm.complete_structured(system=_system_prompt(), prompt=retry_prompt, output_model=SlideContent)
+            content, u2 = await llm.complete_structured(system=_system_prompt(request.layout.density), prompt=retry_prompt, output_model=SlideContent)
             content = content.model_copy(update={"image_path": None})
             usage = add_usage(usage, u2)
             errors = validate_slide(content, request.datasets)
     except Exception as exc:  # noqa: BLE001 -- the client retried already; one slide must not fail the deck
         return placeholder, [Finding(slide=index, stage="data", rule="llm_failed", message=str(exc))], usage
-    if errors:
+    findings = []
+    if errors and _variant_or_none(content) and errors == _structure_errors(content, get_variant(content.layout, content.variant).slots):
+        # Only the `a :: b` items are malformed: keep the content, as cards (the amendment's fallback).
+        content = _as_cards(content)
+        findings = [Finding(slide=index, stage="data", rule="bad_structure", message="; ".join(errors) + " (shown as cards)")]
+    elif errors:
         return placeholder, [Finding(slide=index, stage="data", rule="bad_reference", message="; ".join(errors))], usage
     # The headline is the approved storyline's, never the model's rewrite of it.
-    return content.model_copy(update={"headline": slide.headline, "source_refs": slide.source_refs or content.source_refs}), [], usage
+    return content.model_copy(update={"headline": slide.headline, "source_refs": slide.source_refs or content.source_refs}), findings, usage
 
 
 async def rewrite_slot(
@@ -143,12 +175,15 @@ async def rewrite_slot(
         raise ValueError(f"slot {slot!r} is not in {slide.layout}/{slide.variant}")
     prompt = (
         f"Deck: {request.title}\nSlide headline: {slide.headline}\n"
-        f"Slot {_slot_desc(spec)} currently holds: {json.dumps(slide.slots.get(slot))}\n"
+        f"Slot {_slot_desc(spec, request.layout.density)} currently holds: {json.dumps(slide.slots.get(slot))}\n"
         f"Instruction: {instruction}\n"
         f"Return only the replacement in `text`{' as a list of items' if spec.kind == 'list' else ''}. Keep every fact; invent none."
     )
-    out, u = await llm.complete_structured(system=_system_prompt(), prompt=prompt, output_model=SlotRewrite)
+    out, u = await llm.complete_structured(system=_system_prompt(request.layout.density), prompt=prompt, output_model=SlotRewrite)
     if usage is not None:
         usage.input_tokens += u.input_tokens
         usage.output_tokens += u.output_tokens
-    return slide.model_copy(update={"slots": {**slide.slots, slot: out.text}})
+    new = slide.model_copy(update={"slots": {**slide.slots, slot: out.text}})
+    if spec.kind == "list" and (errors := _structure_errors(new, [spec])):
+        raise ValueError(f"rewrite of {slot!r} broke its item format: {'; '.join(errors)}")  # callers keep the old value
+    return new

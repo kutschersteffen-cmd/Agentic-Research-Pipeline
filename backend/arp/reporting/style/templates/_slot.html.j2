@@ -1,7 +1,7 @@
 {% macro headline(slide) %}{% if slide.eyebrow %}<p class="eyebrow" data-slide="{{ slide.index }}" data-slot="eyebrow">{{ slide.eyebrow }}</p>{% endif %}<h1 class="t-headline" data-slide="{{ slide.index }}" data-slot="headline">{{ slide.headline }}</h1>{% endmacro %}
 {#- split: cards/steps items and compare panels render "Title: body" as <strong>title</strong><span>body</span>;
     a colon-less card or step item is body text (<span>), a colon-less compare panel plain text. #}
-{% macro slot(s, split=False) %}<div class="slot t-{{ s.role }} k-{{ s.kind }}" data-slide="{{ s.slide }}" data-slot="{{ s.name }}" data-role="{{ s.role }}" style="left:{{ s.x }}px;top:{{ s.y }}px;width:{{ s.w }}px;height:{{ s.h }}px">
+{% macro slot(s, split=False) %}<div class="slot t-{{ s.role }} k-{{ s.kind }}" data-slide="{{ s.slide }}" data-slot="{{ s.name }}" data-role="{{ s.role }}"{% if s.error %} data-error="{{ s.error }}"{% endif %} style="left:{{ s.x }}px;top:{{ s.y }}px;width:{{ s.w }}px;height:{{ s.h }}px">
 {%- if s.stages %}<ol class="flow">{% for st in s.stages %}<li><h2><span>{{ loop.index }}</span> {{ st.title }}</h2>{% for text, preferred in st.boxes %}<p{% if preferred %} class="preferred"{% endif %}>{% if preferred %}<em>Preferred</em>{% endif %}{{ text }}</p>{% endfor %}</li>{% endfor %}</ol>
 {%- elif s.meters %}<ul class="meters">{% for m in s.meters %}<li><span>{{ m.label }}</span><b>{{ m.pct|round|int }}%</b><i style="--pct:{{ m.pct }}%"></i></li>{% endfor %}</ul>
 {%- elif s.deltas %}<ul class="deltas">{% for d in s.deltas %}<li><b>{{ d.value }}</b><span>{{ d.text }}</span></li>{% endfor %}</ul>

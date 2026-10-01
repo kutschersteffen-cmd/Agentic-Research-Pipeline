@@ -19,7 +19,7 @@ from jinja2 import Environment, FileSystemLoader
 from arp.reporting.chart_builder import render_chart_svg
 from arp.reporting.design import DesignTheme
 from arp.reporting.house_style import _STYLE_DIR, Mode, Tokens, get_variant, load_tokens, slot_rect
-from arp.reporting.structured import parse_deltas, parse_flow, parse_meters, parse_quadrants, parse_tree, tree_svg
+from arp.reporting.structured import structured_view
 from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent, TableSpec
 
 Density = Literal["present", "committee"]
@@ -82,25 +82,6 @@ def _heat(spec: TableSpec, columns: list[str], rows: list[list]) -> list[list[st
     return [[status(c, v) if c in spec.heat else "" for c, v in zip(columns, row, strict=True)] for row in rows]
 
 
-def structured_view(layout: str, name: str, items: list[str], r) -> dict:
-    """Parsed view of a committee layout's structured list slot (ValueError on a malformed item)."""
-    if (layout, name) == ("flow", "items"):
-        return {"stages": parse_flow(items)}
-    if (layout, name) == ("profile", "meters"):
-        return {"meters": parse_meters(items)}
-    if (layout, name) == ("scatter_zone", "items"):
-        return {"deltas": parse_deltas(items)}
-    if (layout, name) == ("matrix2x2", "quadrants"):
-        return {"quadrants": parse_quadrants(items)}
-    if (layout, name) == ("tree", "items"):
-        return {"svg": tree_svg(parse_tree(items), r.w, r.h)}
-    if (layout, name) == ("decisions", "items"):
-        return {"pairs": [[p.strip() for p in (t.split("::", 1) + [""])[:2]] for t in items]}
-    if (layout, name) in {("profile", "left"), ("profile", "right"), ("matrix2x2", "items")}:
-        return {"panel": items[:1], "items": items[1:]}  # the first item titles the panel
-    return {}
-
-
 def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict[str, QuantitativeDataset], theme: DesignTheme,
                density: Density) -> dict:
     r = slot_rect(tokens, spec)
@@ -115,7 +96,10 @@ def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict
     if spec.kind == "list":
         v["items"] = value if isinstance(value, list) else ([value] if value else [])
         if v["items"]:
-            v |= structured_view(slide.layout, spec.name, v["items"], r)
+            try:
+                v |= structured_view(slide.layout, spec.name, v["items"], r)
+            except ValueError as e:  # never fail the deck: show the items as a list; browser.measure reports data-error
+                v["error"] = str(e)
     elif spec.kind == "chart" and slide.chart:
         v["svg"] = render_chart_svg(slide.chart, list(datasets.values()), width_px=int(r.w), height_px=int(r.h), theme=theme)
     elif spec.kind == "table" and slide.table and slide.table.dataset_id in datasets:

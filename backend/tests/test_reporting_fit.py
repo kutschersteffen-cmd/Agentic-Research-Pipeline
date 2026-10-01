@@ -122,3 +122,34 @@ async def test_fit_split_shifts_later_findings(fake_llm):
     out, _ = await fit_deck(deck, _REQ, fake_llm({}), max_passes=1, shift=[after, on_split])
     assert len(out.slides) == 4 and out.slides[3].slots["items"] == ["ok"]
     assert (after.slide, on_split.slide) == (3, 1)
+
+
+_QUADS = [f"Q{i} :: sub :: " + _sentence(40) + f" :: {s}" for i, s in enumerate(["low", "high", "mid", "neutral"])]
+
+
+@pytest.mark.asyncio
+async def test_fit_never_splits_a_structured_slot(fake_llm):
+    slide = SlideContent(headline="h", layout="matrix2x2", variant="default", slots={"quadrants": _QUADS, "x_axis": "x", "y_axis": "y"})
+    deck, findings = await fit_deck(_deck(slide), _REQ, fake_llm({}))  # any rewrite call would fail the fake: overflow is far past mild
+    assert len(deck.slides) == 2 and deck.slides[1].slots["quadrants"] == _QUADS
+    assert any(f.rule == "overflow" and f.slot == "quadrants" for f in findings)
+
+
+@pytest.mark.asyncio
+async def test_fit_keeps_a_structured_slot_when_its_rewrite_breaks_the_format(fake_llm):
+    items = [f"Stage {i} :: " + _sentence(12) + " :: " + _sentence(12) for i in range(5)]
+    slide = SlideContent(headline="h", layout="flow", variant="default", slots={"items": items})
+    llm = fake_llm({"SlotRewrite": [SlotRewrite(text=["Stage one without separators", "Stage two"])] * 3})
+    deck, findings = await fit_deck(_deck(slide), _REQ, llm)
+    assert deck.slides[1].slots["items"] == items
+    assert any(f.rule == "overflow" and f.slot == "items" for f in findings)
+
+
+@pytest.mark.asyncio
+async def test_fit_never_rewrites_the_title_slide_title(fake_llm):
+    long_title = _sentence(11)  # a mild overflow, which on any other slot would be shortened
+    deck = Deck(title="T", slides=[SlideContent(headline=long_title, layout="title", variant="plain", slots={"title": long_title, "subtitle": "S"})])
+    llm = fake_llm({})
+    out, findings = await fit_deck(deck, _REQ, llm)
+    assert out.slides[0].slots["title"] == long_title and llm.calls == []
+    assert any(f.slide == 0 and f.slot == "title" and f.rule == "overflow" for f in findings)
