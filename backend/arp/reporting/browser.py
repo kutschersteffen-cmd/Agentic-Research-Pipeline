@@ -133,7 +133,9 @@ def _design(got: dict, tokens) -> list[Finding]:
         body = {b["slot"]: b["rects"] for b in got["slots"] if b["slide"] == i and b["slot"] not in ("headline", "eyebrow") and b["rects"]}
         rects = [r for rs in body.values() for r in rs]
         if i and sl["layout"] != "section":  # the title and section slides are display slides, exempt from both
-            span = (max(y + h for _, y, _, h in rects) - min(y for _, y, _, _ in rects)) / body_h if rects else 0.0
+            # The takeaway bar is pinned to the body's foot (a footer-band element): left out of the span, kept in the other rules.
+            ys = [r for k, rs in body.items() if k != "takeaway_bar" for r in rs]
+            span = (max(y + h for _, y, _, h in ys) - min(y for _, y, _, _ in ys)) / body_h if ys else 0.0
             if span < SPARSE[got["density"]]:
                 add("sparse", f"content spans {span:.2f} of the body height < {SPARSE[got['density']]:.2f}")
             if rects and sl["anchor"] == "middle":

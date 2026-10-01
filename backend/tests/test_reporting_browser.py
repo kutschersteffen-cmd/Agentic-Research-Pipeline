@@ -215,6 +215,17 @@ async def test_sparse_slide_flagged(mode, density):
 
 
 @pytest.mark.parametrize("mode", ["light", "dark"])
+async def test_committee_short_heat_table_with_a_takeaway_bar_is_sparse(mode):
+    """The bar sits in the footer band, so it does not stretch the measured span."""
+    ds = QuantitativeDataset(dataset_id="d", name="D", columns=[DatasetColumn(name="k", kind=ColumnKind.CATEGORY), DatasetColumn(name="v")],
+                             rows=[{"k": "a", "v": 40}, {"k": "b", "v": 80}])
+    deck = Deck(title="T", slides=[_TITLE, SlideContent(headline="h", layout="table", variant="heat", table=TableSpec(dataset_id="d", heat={"v": [50, 70]}),
+                                                        slots={"commentary": "Two rows.", "takeaway_bar": "So what: little here"})])
+    [f] = _design(await measure(render_deck_html(deck, [ds], mode=mode, density="committee")), "sparse")
+    assert f.slide == 1
+
+
+@pytest.mark.parametrize("mode", ["light", "dark"])
 async def test_title_and_section_not_sparse(mode):
     deck = Deck(title="T", slides=[_TITLE, SlideContent(headline="h", layout="section", variant="default", slots={"number": "1", "title": "Part"})])
     assert _design(await measure(render_deck_html(deck, [], mode=mode))) == []

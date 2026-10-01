@@ -169,9 +169,9 @@ def tree_layout(root: TreeNode, width: float, height: float) -> TreeLayout:
     box_w = min(420, (width - (cols - 1) * 88) / cols)  # 88: the narrowest gap that holds a connector and its label
     gap = (width - cols * box_w) / (cols - 1) if cols > 1 else 0
     chars = int((box_w - 2 * _PAD) / (_FS * 0.52))  # ponytail: average-advance estimate, a measured wrap if a face runs wide
-    pitch = min(height / len(leaves), _BOX_H + 72)
-    top = (height - pitch * len(leaves)) / 2
-    ys = {id(leaf): top + (i + 0.5) * pitch for i, leaf in enumerate(leaves)}
+    # Outcomes spread from the slot's top to its bottom, so the tree fills the body (a lone outcome is centred).
+    pitch = (height - _BOX_H) / (len(leaves) - 1) if len(leaves) > 1 else 0
+    ys = {id(leaf): (_BOX_H / 2 + i * pitch if pitch else height / 2) for i, leaf in enumerate(leaves)}
     nodes: list = []
     edges: list = []
 

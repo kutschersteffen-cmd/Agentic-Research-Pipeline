@@ -106,14 +106,13 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
 {% for k in c.status %}[data-status="{{ k }}"] { background: color-mix(in oklab, var(--status-{{ k }}) 16%, var(--bg)); }
 {% endfor %}
 /* Flow: numbered stage columns on the well tint, boxes centred in each, a chevron between stages. */
-ol.flow { list-style: none; margin: 0; padding: 0; height: calc(100% - 24px); display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: 48px; }
+ol.flow { list-style: none; margin: 0; padding: 0; height: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: 48px; }
 ol.flow > li { position: relative; display: flex; flex-direction: column; gap: 12px; padding: 20px; background: var(--well); min-width: 0; }
 ol.flow > li:not(:last-child)::after { content: ""; position: absolute; right: -32px; top: 50%; width: 14px; height: 14px; border-top: 2px solid var(--ink-muted); border-right: 2px solid var(--ink-muted); transform: translateY(-50%) rotate(45deg); }
 ol.flow h2 { margin: 0; font-weight: 600; font-size: inherit; text-wrap: balance; }
 ol.flow h2 span { font-family: var(--font-mono); font-weight: 500; color: var(--ink-muted); }
 ol.flow p { margin: 0; padding: 12px 16px; background: var(--bg); border: 1px solid var(--neutral); text-wrap: pretty; }
 ol.flow p:first-of-type { margin-top: auto; }
-ol.flow p:last-of-type { margin-bottom: auto; }
 ol.flow p.preferred { border: 2px solid var(--ink); }
 ol.flow em { display: table; margin-bottom: 8px; padding: 0 8px; background: var(--ink); color: var(--bg); font-style: normal; {{ mono_label }} color: var(--bg); }
 /* Profile: meters in ink on a hairline track, a total, two panels. */
@@ -149,9 +148,10 @@ ol.decisions span { color: var(--ink-muted); }
 .slot svg { width: 100%; height: 100%; display: block; }
 .slot img { width: 100%; height: 100%; object-fit: contain; }
 .slot table { width: 100%; border-collapse: collapse; }
-/* Beside its statement, a table's rows share the body height. */
-.slide[data-layout="split"] .k-table { display: flex; flex-direction: column; }
+/* Beside its statement or commentary, a table's rows share the body height; a heat row grows to at most twice its 46px. */
+.slide:is([data-layout="split"], [data-layout="table"][data-variant="heat"]) .k-table { display: flex; flex-direction: column; }
 .slide[data-layout="split"] .k-table table { flex: 1; }
+.slide[data-layout="table"][data-variant="heat"] .k-table table { flex: 0 1 calc(var(--rows) * 92px); }
 .slot th, .slot td { text-align: left; padding: 10px 24px 10px 0; border-bottom: 1px solid var(--neutral); font-variant-numeric: tabular-nums; }
 /* Small uppercase mono labels, as in the app. */
 .slot th { font: 500 {{ body.size }}px/{{ t.type.caption.line_height }} var(--font-mono); vertical-align: bottom; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-muted); border-bottom: 2px solid var(--ink); }

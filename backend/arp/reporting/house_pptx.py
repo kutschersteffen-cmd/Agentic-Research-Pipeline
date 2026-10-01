@@ -171,12 +171,15 @@ class _Builder:
         cap = self.t.type["caption"]
         heat = heat_cells(slide_content.table, columns, rows) if slide_content.table.heat else None
         n = len(rows) + 1
-        shape = slide.shapes.add_table(n, max(len(columns), 1), _e(r.x), _e(r.y), _e(r.w), _e(_ROW_PX * n))
+        row_px, heat_slide = _ROW_PX, (slide_content.layout, slide_content.variant) == ("table", "heat")
+        if slide_content.layout == "split" or heat_slide:  # rows share the height (a heat row at most doubles), as deck.css.j2
+            row_px = max(_ROW_PX, min(2 * _ROW_PX if heat_slide else math.inf, (r.h - (ts.size * ts.line_height + 8 if more else 0)) / n))
+        shape = slide.shapes.add_table(n, max(len(columns), 1), _e(r.x), _e(r.y), _e(r.w), _e(row_px * n))
         shape.name = f"slot:{spec.name}"
         tbl = shape.table
         tbl.horz_banding = False
         for row in tbl.rows:
-            row.height = _e(_ROW_PX)
+            row.height = _e(row_px)
         for i, col in enumerate(tbl.columns):
             col.width = _e(r.w / len(columns)) if i < len(columns) - 1 else _e(r.w) - _e(r.w / len(columns)) * (len(columns) - 1)
         for ri, values in enumerate([columns, *rows]):
@@ -208,7 +211,7 @@ class _Builder:
                     tcPr.insert(i, ln)
         shape.left, shape.top, shape.width, shape.height = _e(r.x), _e(r.y), _e(r.w), _e(r.h)
         if more:
-            y = min(r.y + _ROW_PX * n + 8, r.y + r.h - ts.size * ts.line_height)
+            y = min(r.y + row_px * n + 8, r.y + r.h - ts.size * ts.line_height)
             self._text(slide, f"slot:{spec.name}:more", Rect(r.x, y, r.w, ts.size * ts.line_height), [f"+{more} more rows"], ts,
                        font=_family(self.t.fonts.body), color=self.c.ink_muted)
 
@@ -296,7 +299,7 @@ class _Builder:
 
     def _flow_items(self, slide, spec, content, items, r, ts):
         st = structured_view("flow", "items", items, r)["stages"]
-        n, col_h, body = len(st), r.h - 24, self.t.type["body"]
+        n, col_h, body = len(st), r.h, self.t.type["body"]
         w = (r.w - (n - 1) * 48) / n
         badge_h, badge_w = body.size * self.t.type["caption"].line_height, 9 * body.size * 0.72 + 16
         for i, stage in enumerate(st):
@@ -305,7 +308,7 @@ class _Builder:
                        color=self.c.ink, ml=20, mr=20, pad_top=20, fill=self.c.well)
             hs = [self._est_h(t, ts, w - 72) + 24 + (badge_h + 8 if pref else 0) for t, pref in stage.boxes]
             title_h = self._est_h(f"{i + 1} {stage.title}", ts, w - 40)
-            y = max(r.y + 20 + title_h + 12, r.y + (col_h - sum(hs) - 12 * (len(hs) - 1)) / 2)
+            y = max(r.y + 20 + title_h + 12, r.y + col_h - 20 - sum(hs) - 12 * (len(hs) - 1))  # boxes sit at the stage's foot, as deck.css.j2
             for j, ((text, pref), h) in enumerate(zip(stage.boxes, hs, strict=True)):
                 self._text(slide, f"slot:items:{i}:box:{j}", Rect(x + 20, y, w - 40, h), [text], ts.model_copy(update={"weight": 400}), font=self.body, color=self.c.ink,
                            ml=16, mr=16, pad_top=12 + (badge_h + 8 if pref else 0), fill=self.c.background, line=(self.c.ink, 2) if pref else (self.c.neutral, 1))
