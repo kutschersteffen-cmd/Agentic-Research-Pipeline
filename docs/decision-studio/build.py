@@ -238,7 +238,7 @@ PAGES["data"] = dict(
             ["Route", "What it does", "When to use it"], [
                 ["Upload a file", "CSV, TSV, TXT, XLSX or XLS. Parsed on the server.", "A table from outside the system: a vendor export, a spreadsheet."],
                 ["Build from a run", "Turns one of this system's runs into a table through a source adapter (below).", "Scoring what the pipeline already produced."],
-                ["Apply a template", "Loads a saved framework onto the selected table. The list shows each template's fit: <em>fits</em>, or <em>needs</em> and the missing columns.", "Repeating last quarter's decision on this quarter's data."],
+                ["Apply a template", "Loads a saved framework onto the selected table. The list shows each framework's fit: <em>fits</em>, or <em>missing</em> and the first missing columns. Opens Results.", "Repeating last quarter's decision on this quarter's data."],
             ])),
         block("Source adapters", "Each adapter names what one row is. Three of them are not companies: the engine scores rows.", table(
             ["Source", "One row per", "Columns it produces"], [
@@ -306,7 +306,7 @@ PAGES["profile"] = dict(
             ]) + '<p class="note">The dictionaries live in <code>arp/decision/data/role_keywords.json</code> as data, so a house that reports in a third language extends them with an edit, not a code change.</p>'),
         block("Deriving the framework", "Jobs and directions become editable once a framework exists.", table(
             ["When", "What happens"], [
-                ["Before deriving", "The profile is read-only. The Profile and Rules tabs show a <b>Derive a mechanism</b> button."],
+                ["Before deriving", "The profile is read-only. The Profile and Rules tabs offer <b>Derive a framework</b> and <b>Apply a saved one</b>."],
                 ["After deriving", "The studio lands here when any direction is marked needs check, otherwise on Mechanism."],
                 ["Deriving again", "On the same table, the result is saved as the next version of that table's framework, not as a new one."],
             ])),
