@@ -50,3 +50,22 @@ async def test_stress_deck_max_fits_in_both_modes(mode):
     html = render_deck_html(deck, ds, mode=mode)
     assert "data:font/" in html
     assert await measure(html) == []
+
+
+@pytest.mark.parametrize("mode", ["light", "dark"])
+async def test_only_the_first_big_number_carries_the_accent(mode):
+    from playwright.async_api import async_playwright
+
+    from arp.reporting.house_style import load_tokens
+
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="big_number", variant="three",
+                                                slots={f"number_{i}": f"{i}%" for i in (1, 2, 3)})])
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        page = await browser.new_page()
+        await page.set_content(render_deck_html(deck, [], mode=mode))
+        colours = await page.evaluate("[...document.querySelectorAll('.k-number')].map(e => getComputedStyle(e).color)")
+        await browser.close()
+    accent = load_tokens().colors(mode).accent.lstrip("#")
+    rgb = f"rgb({int(accent[:2], 16)}, {int(accent[2:4], 16)}, {int(accent[4:], 16)})"
+    assert len(colours) == 3 and colours.count(rgb) == 1 and colours[0] == rgb

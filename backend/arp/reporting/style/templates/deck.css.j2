@@ -19,7 +19,8 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
 .slide::after { content: ""; position: absolute; left: {{ t.grid.margin_x }}px; top: {{ t.grid.margin_top - 32 - t.grid.rule_height }}px; width: {{ t.grid.rule_width }}px; height: {{ t.grid.rule_height }}px; background: var(--ink); }
 .slot { position: absolute; overflow: hidden; overflow-wrap: normal; }
 /* The slide's one focal element. Bottom-aligned so it sits on its label; the padding holds the glyph descent inside the box. */
-.k-number { color: var(--accent); white-space: nowrap; display: flex; align-items: flex-end; padding-bottom: 0.2em; font-variant-numeric: tabular-nums; }
+.k-number { color: var(--ink); white-space: nowrap; display: flex; align-items: flex-end; padding-bottom: 0.2em; font-variant-numeric: tabular-nums; }
+[data-slot="number_1"], [data-slot="key_figure"] { color: var(--accent); }  /* one signal per slide: only the first figure */
 [data-slot^="label_"] { border-top: 1px solid var(--neutral); padding-top: 16px; }
 .slot ul { margin: 0; padding-left: 1.1em; }
 .slot li { margin-bottom: 0.5em; }

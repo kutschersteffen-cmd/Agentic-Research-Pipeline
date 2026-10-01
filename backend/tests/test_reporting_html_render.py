@@ -23,7 +23,8 @@ def test_every_slot_has_data_attributes():
     deck, ds = stress_deck("min")
     html = render_deck_html(deck, ds)
     expected = sum(len(get_variant(s.layout, s.variant).slots) for s in deck.slides)
-    assert html.count("data-slot=") - html.count('data-slot="headline"') == expected
+    body = html.split("<body>", 1)[1]  # the stylesheet also names slots
+    assert body.count("data-slot=") - body.count('data-slot="headline"') == expected
 
 
 _PNG = (b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
