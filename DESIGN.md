@@ -26,7 +26,7 @@ colors:
   signal-lime: "#c6ff3d"
   signal-lime-wash: "#33420c"
   night-high: "#26c281"
-  night-mid: "#ff9b42"
+  night-mid: "#f2c94c"
   night-low: "#ff4d4d"
 typography:
   display:
@@ -57,9 +57,9 @@ typography:
     fontWeight: 500
     lineHeight: 1.3
 rounded:
-  sm: "6px"
-  md: "8px"
-  lg: "12px"
+  sm: "2px"
+  md: "0"
+  lg: "0"
   pill: "999px"
 spacing:
   s-1: "4px"
@@ -143,7 +143,9 @@ A near-monochrome palette with one reserved signal per theme and a small set of 
 - **Muted Graphite** (#5c5c57 / #9a9ba0): secondary text and labels; ≥4.5:1 on ground, panel and well.
 
 ### Named Rules
-**The One Signal Rule.** Orange (Graphite) and lime (Night) mean one thing only: a person must act. Never use them for branding, decoration, hover, focus of a normal control, or "running". When nothing waits, no signal colour appears anywhere on the screen.
+**The One Signal Rule.** Orange (Graphite) and lime (Night) mean one thing only: a person must act. Never use them for branding, decoration, hover, focus of a normal control, or "running". When nothing waits, no signal colour appears anywhere on the screen. Keyboard focus is an ink outline. A proposed item's box is neutral and dashed; only its "Proposed" tag carries the signal, so a queue never turns into a wall of orange. The flagged vote that needs a second person takes the signal border.
+
+**Provenance Is Not Status.** Where a number came from (live, synthetic sample, portfolio holdings, not built) is shown with monochrome marks: filled, half, ring, dashed ring. Metric numbers are ink. Green, amber and red stay for status.
 
 **The Status Is Not The Signal Rule.** Green, amber and red describe runs and ratings. Red marks a failed run and also a Low (L) rating on Transition Barriers; that second use is a deliberate, confirmed exception, because the matrix reads as a traffic light. It never marks something waiting on a person.
 
@@ -183,7 +185,7 @@ The system is flat. Depth comes from tonal layering (ground → panel → well) 
 
 ## Shapes
 
-Gently rounded and consistent: 6px for small controls and badges, 8px for buttons and inputs, 12px for cards and framed tables, full pills for status and count badges. Start-page process cards and run chips are square-cornered, which sets the start page apart as the instrument panel. Borders are always 1px hairlines; a 1.5px dashed edge marks a switched-off or pending pipeline step.
+Square, like the start page, on every screen: cards, framed tables, inputs and buttons have square corners; small badges keep a 2px hint; status and count badges stay full pills. Page titles use the start page's display voice (tight tracking, one step below its hero), table headers and section labels are small uppercase mono, and stat tiles show a big tabular number over a mono label. Borders are always 1px hairlines; a 1.5px dashed edge marks a switched-off or pending pipeline step.
 
 ## Components
 
@@ -202,14 +204,14 @@ Gently rounded and consistent: 6px for small controls and badges, 8px for button
 - **Run chip (start page):** square, hairline border, mono label, a leading state dot; the signal border marks runs waiting on you.
 
 ### Cards / Containers
-- **Corner Style:** 12px (square on the start page).
+- **Corner Style:** square.
 - **Background:** panel white / Night panel.
 - **Shadow Strategy:** none (see Elevation).
 - **Border:** 1px hairline; a card that waits on you takes an ink border on the start page.
 - **Internal Padding:** 18px × 20px (28px × 24px on start-page cards).
 
 ### Inputs / Fields
-- **Style:** panel fill, hairline border, 8px radius, 8px × 10px padding.
+- **Style:** panel fill, hairline border, square, 8px × 10px padding.
 - **Rows:** fields in a row centre on one line and wrap as a group; checkbox labels and buttons never break mid-label.
 - **Native controls:** checkboxes follow the accent; file pickers get a themed button.
 

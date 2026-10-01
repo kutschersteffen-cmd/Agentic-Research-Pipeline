@@ -22,7 +22,7 @@ export function ConfirmDecision({
   const [reviewer] = useReviewer();
   const name = reviewer.trim();
   return (
-    <Modal title={title} compact onClose={onCancel}>
+    <Modal title={title} compact noClose onClose={onCancel}>
       {children}
       {name ? <p className="muted">Recorded against the name you entered: {name} (not verified by a login)</p> : <ReviewerField />}
       <div className="toolbar">

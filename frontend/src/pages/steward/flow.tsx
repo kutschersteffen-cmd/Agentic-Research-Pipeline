@@ -24,7 +24,7 @@ const POSITIONS: Record<string, { x: number; y: number }> = {
   reporting: { x: X(5), y: CLIENT_Y },
 };
 const BANDS = [
-  { id: "band-house", label: "House truth · stages 1–6 use house policies only", x: -20, y: HOUSE_Y - 44, w: X(6) - GAP + 40, h: NODE_H + 76 },
+  { id: "band-house", label: "House policy · stages 1–6 use house policies only", x: -20, y: HOUSE_Y - 44, w: X(6) - GAP + 40, h: NODE_H + 76 },
   { id: "band-client", label: "Client overlay · stages 7–8", x: X(4) - 20, y: CLIENT_Y - 44, w: 2 * NODE_W + GAP + 40, h: NODE_H + 76 },
 ];
 
@@ -86,7 +86,7 @@ export function FlowList({ flow, selected, onSelect, phoneOnly }: { flow: Stewar
     <div className={phoneOnly ? "flow-list phone-only" : "flow-list"}>
       {(["house", "client"] as const).map((layer) => (
         <div key={layer} className="flow-list-layer">
-          <p className="flow-band-label">{layer === "house" ? "House truth · stages 1–6" : "Client overlay · stages 7–8"}</p>
+          <p className="flow-band-label">{layer === "house" ? "House policy · stages 1–6" : "Client overlay · stages 7–8"}</p>
           {flow.stages
             .filter((s) => s.layer === layer)
             .map((stage) => (
@@ -145,9 +145,10 @@ export function FlowChart({ flow, selected, onSelect }: { flow: StewardshipFlow;
           nodes={nodes}
           edges={edges}
           nodeTypes={NODE_TYPES}
-          // Readable from the start: open at the left edge at a legible size and
-          // pan right, rather than shrinking all eight stages to the card width.
-          defaultViewport={{ x: 16, y: 0, zoom: 1 }}
+          // The graph is the optional overview (the list is the default
+          // reading view), so it opens with every stage in frame.
+          fitView
+          fitViewOptions={{ padding: 0.04 }}
           proOptions={{ hideAttribution: true }}
           minZoom={0.35}
           maxZoom={1.6}
@@ -164,7 +165,7 @@ export function FlowChart({ flow, selected, onSelect }: { flow: StewardshipFlow;
           <Controls showInteractive={false} position="bottom-left" />
         </ReactFlow>
       </div>
-      <p className="help-text flow-rf-hint">Drag the canvas to see every stage.</p>
+      <p className="help-text flow-rf-hint">Zoom in with the controls; the List view reads at full size.</p>
     </>
   );
 }

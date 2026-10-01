@@ -57,10 +57,12 @@
 
   --topbar-h: 53px; /* mobile top bar: 44px target + padding + hairline */
 
-  /* Three radii, replacing nine. */
-  --r-sm: 6px;
-  --r-md: 8px;
-  --r-lg: 12px;
+  /* The start page's square, ruled instrument-panel look runs through every
+     page: cards, tables, inputs and buttons are square; only small badges
+     keep a hint of rounding, and status/count pills stay full pills. */
+  --r-sm: 2px;
+  --r-md: 0;
+  --r-lg: 0;
   --r-pill: 999px;
 
   /* Elevation is for things that genuinely float. Flat surfaces keep
@@ -102,7 +104,7 @@
     --hi-ink: #c6ff3d;
     --on-hi: #0c0d0f;
     --high: #26c281;
-    --mid: #ff9b42;
+    --mid: #f2c94c;
     --low: #ff4d4d;
     --neutral: #9a9ba0;
     --shadow-md: 0 2px 6px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
@@ -130,7 +132,7 @@
   --hi-ink: #c6ff3d;
   --on-hi: #0c0d0f;
   --high: #26c281;
-  --mid: #ff9b42;
+  --mid: #f2c94c;
   --low: #ff4d4d;
   --neutral: #9a9ba0;
   --shadow-md: 0 2px 6px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
@@ -346,7 +348,8 @@ a.nav-tab { text-decoration: none; }
    old h3/h4 had. */
 :where(h2) { font-size: 1.17em; margin-block: 1em; }
 :where(h3) { font-size: 1em; margin-block: 1.33em; }
-.page h1 { margin-top: 0; font-family: var(--font-display); font-size: var(--text-xl); letter-spacing: -0.01em; }
+/* Page titles use the start page's display voice, one step down from its hero. */
+.page h1 { margin-top: 0; font-family: var(--font-display); font-size: clamp(1.75rem, 1.25rem + 1.4vw, 2.5rem); font-weight: 600; line-height: 1.05; letter-spacing: -0.03em; text-wrap: balance; }
 
 /* Page header: title, lede and page-level tabs read as one tight group, with
    a wide gap before the working area. The lede is capped at a readable
@@ -383,7 +386,7 @@ a.nav-tab { text-decoration: none; }
   padding: 18px 20px;
   margin-bottom: 18px;
 }
-.card h2 { margin-top: 0; font-family: var(--font-display); font-weight: 600; }
+.card h2 { margin-top: 0; font-family: var(--font-display); font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
 
 .field-label {
   display: block;
@@ -432,7 +435,9 @@ input[type="text"]:focus, input:not([type]):focus, input[type="number"]:focus, i
   margin-top: 0;
 }
 textarea { field-sizing: content; min-height: 3lh; max-height: 20lh; resize: vertical; line-height: 1.45; }
-input[type="file"] { display: block; margin-bottom: var(--s-4); color: var(--muted); }
+/* :not([hidden]) -- embedded editors (the JDM rule editor) hide their own
+   file inputs with the attribute, which a bare display rule would undo. */
+input[type="file"]:not([hidden]) { display: block; margin-bottom: var(--s-4); color: var(--muted); }
 input[type="checkbox"] { width: auto; }
 
 button {
@@ -481,6 +486,8 @@ button.secondary:hover:not(:disabled) { background: var(--accent-tint); border-c
 .skip-link:focus { transform: none; }
 .app-main:focus { outline: none; }
 .mono { font-family: var(--font-mono); font-size: 0.95em; }
+/* IDs, dates and counts in a table cell never break mid-value. */
+td.mono { white-space: nowrap; }
 .run-error { margin-top: 4px; max-width: 36ch; font-size: var(--text-xs); color: var(--low); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .field-label.inline-label { display: inline-flex; align-items: center; gap: var(--s-2); margin: 0; }
@@ -562,6 +569,10 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
 .data-table th {
   text-align: left;
   color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   font-weight: 500;
   padding: 8px;
   border-bottom: 1px solid var(--panel-border);
@@ -625,11 +636,12 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
 
 /* Proposed, not ratified: the one treatment for any agent output no person
    has decided yet (components/ProposedTag.tsx). Dashed means provisional;
-   it turns solid, with a name, once someone decides. */
+   it turns solid, with a name, once someone decides. The box stays neutral
+   so a queue of them is not a wall of signal; only the tag carries it. */
 .proposed {
-  border: 1px dashed var(--await-edge);
+  border: 1px dashed var(--muted);
   border-radius: var(--r-md);
-  background: color-mix(in srgb, var(--await) 35%, var(--panel));
+  background: var(--panel);
 }
 .recommendation-line.proposed { padding: var(--s-2) var(--s-3); }
 .proposed-tag {
@@ -814,10 +826,10 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 
 /* KPI strip: one ruled panel, cells divided by hairlines (the 1px gap shows
    the border colour through) -- depth from rules, not six nested boxes.
-   A fixed column count so six figures never wrap 5 + 1. */
+   What waits on a person lives on the start page; these four are monitoring. */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
   background: var(--panel-border);
   border: 1px solid var(--panel-border);
@@ -834,16 +846,12 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   border-radius: 0;
   padding: var(--s-4);
 }
-.dashboard-grid .stat-value { font-size: var(--text-xl); margin: 0; line-height: 1.1; }
 .dashboard-grid .stat-label { line-height: 1.35; }
 .stat-value.stat-low { color: var(--low); }
 .stat-value.stat-mid { color: var(--mid); }
 /* The two tiles that need a person lead the row and go somewhere. */
 /* Read from the back of a committee room: the two figures that need a
    person are the largest on the screen. */
-.dashboard-grid .stat-tile-action .stat-value { font-size: 2.25rem; font-weight: 600; }
-.dashboard-grid .stat-tile-action .stat-label { color: var(--text); font-weight: 500; }
-.dashboard-grid .stat-tile-action.awaiting { background: var(--await); box-shadow: inset 3px 0 0 var(--await-edge); }
 .stat-link {
   all: unset;
   cursor: pointer;
@@ -855,7 +863,7 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .stat-link:hover:not(:disabled) { color: var(--accent-ink); }
 .stat-link:disabled { color: var(--muted); text-decoration: none; cursor: default; }
 .stat-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
-@media (max-width: 1100px) { .dashboard-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 1100px) { .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .dashboard-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--s-6); align-items: start; }
@@ -878,14 +886,18 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   gap: 10px;
   margin: 12px 0;
 }
+/* Stat tiles read like the start page's stats: a big number over a small mono label. */
 .stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   background: var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: var(--r-lg);
-  padding: 12px 14px;
+  padding: 16px 18px 14px;
 }
-.stat-tile .stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--text-lg); font-weight: 500; display: block; }
-.stat-tile .stat-label { color: var(--muted); font-size: var(--text-xs); }
+.stat-tile .stat-value { order: 1; margin: 0; font-size: 2rem; font-weight: 500; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; display: block; }
+.stat-tile .stat-label { order: 2; color: var(--muted); font-family: var(--font-mono); font-size: var(--text-xs); }
 
 .activity-row {
   display: flex;
@@ -967,12 +979,14 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .proposal-card { border: 1px solid var(--panel-border); border-radius: var(--r-md); padding: 12px 14px; margin-bottom: 12px; scroll-margin-top: 96px; }
 .proposal-card:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .proposal-card { position: relative; }
-.proposal-flagged { border: 2px solid var(--mid); }
+.proposal-flagged { border: 2px solid var(--hi); }
 .proposal-collapse { position: absolute; top: 10px; right: 14px; }
 .proposal-flagged .proposal-header, .proposal-card:has(.proposal-collapse) .proposal-header { padding-right: 48px; }
 /* A routine proposal as one row: number, resolution, the policy's vote, the decision. */
 .proposal-compact { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); padding-block: 8px; margin-bottom: 6px; }
 .proposal-clip { flex: 1 1 240px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* On a phone there is no hover to read a clipped resolution: show it whole. */
+@media (max-width: 560px) { .proposal-clip { flex-basis: 100%; white-space: normal; overflow: visible; } }
 .proposal-policy { font-size: var(--text-sm); color: var(--muted); }
 .proposal-policy strong { color: var(--text); }
 @media (pointer: coarse) { .kbd-hint { display: none; } }
@@ -983,6 +997,8 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .ballot-bar-status { display: flex; flex-direction: column; gap: 2px; margin: 0; font-size: var(--text-sm); }
 .ballot-bar-status span { color: var(--muted); font-family: var(--font-mono); font-size: var(--text-xs); }
 .ballot-bar .toolbar { margin: 0; }
+/* On a phone the bar's two actions share one row instead of two full-width ones. */
+@media (max-width: 560px) { .ballot-bar .toolbar { flex-wrap: nowrap; width: 100%; } .ballot-bar .toolbar button { flex: 1 1 0; width: auto; padding-inline: 8px; } }
 @media (max-width: 1024px) { .ballot-bar { top: var(--topbar-h); } .proposal-card { scroll-margin-top: 190px; } }
 .meeting-line { margin: 0 0 var(--s-2); font-size: var(--text-sm); font-weight: 600; color: var(--text); }
 .supporting-data { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); margin: var(--s-2) 0; font-size: var(--text-sm); }
@@ -1231,17 +1247,17 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   width: 100%;
   height: 100%;
   border: 1px solid var(--panel-border);
-  border-radius: 10px;
+  border-radius: var(--r-lg);
   background: var(--well);
   padding: 6px 12px;
   display: flex;
   align-items: flex-end;
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-family: var(--font-display);
   color: var(--muted);
 }
 .react-flow__node-band[data-id="band-client"] .flow-band-node { background: var(--accent-tint); }
-.flow-band-label { font-size: 11px; fill: var(--muted); font-family: var(--font-display); }
+.flow-band-label { font-size: var(--text-xs); fill: var(--muted); font-family: var(--font-display); }
 .flow-node {
   position: relative;
   display: flex;
@@ -1278,16 +1294,20 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   font-size: var(--text-xs);
   font-weight: 600;
 }
-.tone-good strong { color: var(--high); }
-.tone-warn strong { color: var(--mid); }
+/* Metric numbers are ink: green/amber here read as health, when they only
+   said which data source a number came from. Red stays for a miss. */
 .tone-bad strong { color: var(--low); }
 
-.source-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex: none; }
-.source-live { background: var(--high); }
-.source-sample { background: var(--mid); }
-.source-portfolio { background: var(--accent); }
-.source-not_built { background: transparent; border: 1px solid var(--neutral); }
+/* Where a number came from, in ink only: filled = live, half = synthetic
+   sample, ring = portfolio holdings, dashed = not built yet. */
+.source-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; box-sizing: border-box; border: 1.5px solid var(--text); }
+.source-live { background: var(--text); }
+.source-sample { background: linear-gradient(90deg, var(--text) 50%, transparent 50%); }
+.source-portfolio { background: transparent; }
+.source-not_built { background: transparent; border: 1.5px dashed var(--muted); }
 .source-legend .chip { display: inline-flex; align-items: center; gap: 5px; }
+.data-sources { margin: var(--s-2) 0 var(--s-3); }
+.data-sources > summary { cursor: pointer; font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 
 .metric-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--s-3); margin: var(--s-3) 0; }
 .draft-text { white-space: pre-wrap; background: var(--well); padding: 10px 12px; border-radius: var(--r-md); }
@@ -1330,6 +1350,10 @@ mark.style-flag { background: color-mix(in srgb, var(--mid) 30%, transparent); c
   .flow-list-layer { grid-template-columns: 1fr; }
 }
 .react-flow__node-band[data-id="band-house"] .flow-band-node { justify-content: flex-end; }
+/* The embedded rule editor (JDM) speaks the app's palette: ink node icons,
+   no library attribution. */
+.grl-dn__header__icon { background-color: var(--text) !important; color: var(--panel) !important; }
+.react-flow__attribution { display: none; }
 
 /* Steward Workflow: stage studios */
 .workflow-tabs { flex-wrap: wrap; }
@@ -1415,7 +1439,7 @@ mark.style-flag { background: color-mix(in srgb, var(--mid) 30%, transparent); c
 .pipeline-rf::after { content: ""; position: absolute; inset: 0 0 0 auto; width: 56px; background: linear-gradient(to right, transparent, var(--panel)); pointer-events: none; z-index: 5; }
 .pipeline-rf { height: 480px; background: radial-gradient(var(--panel-border) 1px, transparent 1px) 0 0 / 18px 18px, var(--panel); }
 .pipeline-rf .react-flow__node-step { padding: 0; border: 0; background: none; }
-.pipeline-rf .pipeline-edge .react-flow__edge-path { stroke: var(--high); stroke-width: 1.4; opacity: 0.7; }
+.pipeline-rf .pipeline-edge .react-flow__edge-path { stroke: var(--neutral); stroke-width: 1.4; }
 .pipeline-rf .pipeline-edge.conditional .react-flow__edge-path { stroke-dasharray: 5 4; }
 .pipeline-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-3); margin-top: var(--s-2); }
 .pipeline-company select { min-width: 16rem; }
@@ -1438,7 +1462,7 @@ mark.style-flag { background: color-mix(in srgb, var(--mid) 30%, transparent); c
   text-align: center;
 }
 .pipeline-pill-label { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
-.pipeline-pill-sub { font-size: 11px; color: var(--muted); line-height: 1.3; }
+.pipeline-pill-sub { font-size: var(--text-xs); color: var(--muted); line-height: 1.3; }
 /* Beats the global button:hover fill: a card stays a card under the pointer. */
 button.pipeline-card:hover:not(:disabled), button.pipeline-pill:hover:not(:disabled) { background: var(--panel); box-shadow: var(--shadow-md); }
 button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in srgb, var(--high) 12%, var(--panel)); }
@@ -1456,7 +1480,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .pipeline-card-icon { display: inline-flex; padding: 4px; border-radius: var(--r-sm); background: var(--well); color: var(--muted); }
 .status-done .pipeline-card-icon { color: var(--high); }
 .status-failed .pipeline-card-icon { color: var(--low); }
-.pipeline-card-title { flex: 1; font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.pipeline-card-title { flex: 1; font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
 .pipeline-card-spinner { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--panel-border); border-top-color: var(--accent); animation: pipeline-spin 0.9s linear infinite; }
 @keyframes pipeline-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .pipeline-card-spinner { animation: none; } }
@@ -1471,7 +1495,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .pipeline-card-row.changed > span:last-child { font-weight: 700; }
 .pipeline-card-bar { height: 4px; border-radius: var(--r-pill); background: var(--well); overflow: hidden; }
 .pipeline-card-bar > span { display: block; width: 100%; height: 100%; background: var(--high); transform-origin: left; transition: transform var(--dur) var(--ease); }
-.pipeline-card-footer { color: var(--muted); font-size: 11px; }
+.pipeline-card-footer { color: var(--muted); font-size: var(--text-xs); }
 .pipeline-detail { margin-top: var(--s-3); padding: var(--s-3) var(--s-4); border: 1px solid var(--panel-border); border-radius: var(--r-md); }
 .pipeline-detail .toolbar { align-items: center; flex-wrap: wrap; }
 .pipeline-setting { display: grid; grid-template-columns: 12rem minmax(0, 18rem); gap: var(--s-1) var(--s-3); align-items: center; margin-top: var(--s-2); }
@@ -1586,7 +1610,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 }
 .hub-card-await { border-color: var(--text); }
 .hub-card:hover { border-color: var(--text); transform: translateY(-2px); }
-.hub-card:focus-visible { outline: 2px solid var(--hi); outline-offset: 3px; }
+.hub-card:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .hub-card, .hub-card:hover { transition: none; transform: none; } }
 .hub-ico { display: block; color: var(--text); }
 .hub-ico .hi-fill { fill: currentColor; }
@@ -1621,7 +1645,8 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-now-label { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-right: var(--s-2); }
 .hub-chip { text-transform: none; display: inline-flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 14px; border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none; font-family: var(--font-mono); font-size: var(--text-sm); }
 .hub-chip:hover { border-color: var(--text); }
-.hub-chip:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; }
+.hub-chip-id { color: var(--muted); }
+.hub-chip:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .hub-chip-wait { border-color: var(--hi); }
 .hub-now-all { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text); }
 
@@ -1656,7 +1681,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-step-head { display: flex; align-items: center; gap: 8px; }
 .hub-step-num { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--r-sm); background: var(--well); color: var(--muted); font-family: var(--font-mono); font-weight: 600; }
 .hub-step-done .hub-step-num { background: var(--text); color: var(--panel); }
-.hub-step-title { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; line-height: 1.25; }
+.hub-step-title { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; line-height: 1.25; }
 .hub-step-banner { padding: 4px 8px; border-radius: var(--r-sm); background: var(--await); border: 1px solid var(--await-edge); font-weight: 600; text-align: center; }
 .hub-step-rows { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: var(--r-sm); background: var(--well); color: var(--muted); }
 .hub-step-rows > span { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 0 8px; }
