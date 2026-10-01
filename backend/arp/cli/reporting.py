@@ -5,6 +5,7 @@ import json
 import shutil
 from pathlib import Path
 
+import click
 import typer
 
 from arp.cli._shared import _reporting_store
@@ -21,6 +22,7 @@ from arp.schemas.reporting import (
     QuantitativeDataset,
     ReportPlan,
     ReportRequest,
+    RunRef,
 )
 from arp.storage.reporting_store import ReportingStore
 
@@ -63,15 +65,24 @@ def _build_request(
     target_length: int | None,
     layout_notes: str,
     include_appendix: bool,
+    goal: str = "",
+    theme: str = "light",
+    run_ref: list[str] = (),
 ) -> ReportRequest:
     datasets = [QuantitativeDataset.model_validate_json(p.read_text()) for p in data]
+    try:
+        run_refs = [RunRef(kind=kind, ref_id=ref_id) for kind, _, ref_id in (r.partition(":") for r in run_ref)]
+    except ValueError as exc:
+        raise typer.BadParameter(f"--run-ref takes kind:id, kind one of decision|run ({exc})") from exc
     return ReportRequest(
         title=title,
+        goal=goal,
+        run_refs=run_refs,
         qualitative_notes=notes.read_text(),
         datasets=datasets,
         audience=AudienceProfile(level=audience_level, description=audience_description),
         layout=LayoutInstructions(
-            output_format=format, target_length=target_length, free_instructions=layout_notes, include_appendix=include_appendix
+            output_format=format, target_length=target_length, free_instructions=layout_notes, include_appendix=include_appendix, theme=theme,
         ),
         template_id=template_id,
     )
@@ -109,6 +120,9 @@ def reporting_plan(
     target_length: int = _REQUEST_OPTIONS["target_length"],
     layout_notes: str = _REQUEST_OPTIONS["layout_notes"],
     include_appendix: bool = _REQUEST_OPTIONS["include_appendix"],
+    goal: str = typer.Option("", help="House deck: the decision or question the deck serves."),
+    theme: str = typer.Option("light", click_type=click.Choice(["light", "dark"]), metavar="light|dark", help="House deck colour mode."),
+    run_ref: list[str] = typer.Option([], help="House deck: pipeline output to load as data, kind:id (kind is decision or run); repeatable."),
 ) -> None:
     """Drafts a ReportPlan (the one LLM call) and stops -- does not render.
     Review/edit the written plan JSON by hand, then either push your edits
@@ -121,8 +135,9 @@ def reporting_plan(
         title=title, notes=notes, data=data, template_id=template_id, format=format,
         audience_level=audience_level, audience_description=audience_description,
         target_length=target_length, layout_notes=layout_notes, include_appendix=include_appendix,
+        goal=goal, theme=theme, run_ref=run_ref,
     )
-    service = ReportingService(store)
+    service = ReportingService(store, settings)
     manifest = asyncio.run(service.create_and_plan(request, llm))
     if format == OutputFormat.HOUSE_DECK:
         storyline = store.load_storyline(manifest.report_id)
@@ -267,7 +282,11 @@ def reporting_run(
         target_length=target_length, layout_notes=layout_notes, include_appendix=include_appendix,
     )
     service = ReportingService(store)
-    manifest = asyncio.run(service.run(request, llm))
+    try:
+        manifest = asyncio.run(service.run(request, llm))
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     if manifest.status.value == "failed":
         typer.echo(f"Failed: {manifest.error}", err=True)
         raise typer.Exit(1)

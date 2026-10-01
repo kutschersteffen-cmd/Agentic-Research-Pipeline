@@ -57,7 +57,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:${PATH}" \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+
+# House decks render through headless Chromium (arp/reporting/browser.py); a
+# shared path so the non-root arp user finds the browser root installed.
+RUN python -m playwright install --with-deps chromium
 
 WORKDIR /app
 COPY --from=builder /app/backend ./backend
