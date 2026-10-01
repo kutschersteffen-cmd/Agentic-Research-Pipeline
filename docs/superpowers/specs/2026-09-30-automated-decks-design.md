@@ -17,6 +17,7 @@ person wrote it. The only manual step is approving a one-page storyline.
 | Output | PDF (primary, exact) and editable `.pptx` (close, not pixel-identical) |
 | Human involvement | Approve the storyline (one headline per slide). Everything after that is automatic |
 | Language | English |
+| Visual direction | The app's own style from `DESIGN.md` (monochrome ground, Geist type, signal orange light / signal lime dark). Every deck renders in light **or** dark mode, chosen per request (decided 2026-10-01) |
 | Rendering approach | HTML-first. Chromium renders and measures; the `.pptx` is built from a matching master |
 
 Unchanged constraints from the repo: every number traces to supplied data or notes. Stewardship
