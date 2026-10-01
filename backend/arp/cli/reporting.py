@@ -222,7 +222,7 @@ def reporting_rerun(report_id: str) -> None:
 
 @reporting_app.command("schedule")
 def reporting_schedule(
-    every_hours: int = typer.Option(None, help="Re-run interval in hours (default 720, about monthly)."),
+    every_hours: int = typer.Option(None, min=1, help="Re-run interval in hours (default 720, about monthly)."),
     add: list[str] = typer.Option([], help="Report id to re-run on the schedule; repeatable."),
     remove: list[str] = typer.Option([], help="Report id to take off the schedule; repeatable."),
     enable: bool = typer.Option(None, "--enable/--disable"),

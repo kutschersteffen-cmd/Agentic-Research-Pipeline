@@ -46,9 +46,11 @@ def load_run_datasets(refs: list[RunRef], settings: Settings) -> list[Quantitati
     return [_load(r, settings) for r in refs]
 
 
-def with_run_datasets(request: ReportRequest, settings: Settings | None = None) -> ReportRequest:
-    """`request` with its run_refs' datasets freshly loaded, replacing any earlier copy of them."""
-    if not request.run_refs:
+def with_run_datasets(request: ReportRequest, settings: Settings | None = None, only_missing: bool = False) -> ReportRequest:
+    """`request` with its run_refs' datasets freshly loaded, replacing any earlier copy of them.
+    `only_missing` returns `request` as is when it already holds every one of them."""
+    have = {d.dataset_id for d in request.datasets}
+    if not request.run_refs or only_missing and all(f"{r.kind}_{r.ref_id}" in have for r in request.run_refs):
         return request
     fresh = load_run_datasets(request.run_refs, settings or get_settings())
     ids = {d.dataset_id for d in fresh}

@@ -98,15 +98,32 @@ class ReportingService:
         return self._completed(manifest, "output.pdf", ["output.pdf", "output.pptx"])
 
     async def rerun(self, report_id: str, llm: LLMClient) -> ReportManifest:
-        """A new report from `report_id`'s request and approved storyline, on freshly loaded run data; the original
-        is untouched. If the fresh data no longer backs a headline number, the new storyline goes back for approval
-        (STORYLINE_READY, findings saved) instead of being built."""
-        old, request, storyline = self.store.load_manifest(report_id), self.store.load_request(report_id), self.store.load_storyline(report_id)
-        if old is None or request is None or storyline is None or not storyline.approved:
-            raise ValueError(f"No approved storyline for report {report_id!r}")
-        request = with_run_datasets(request, self.settings)
+        """A new report from the request and approved storyline of the newest completed report in `report_id`'s
+        lineage (itself or its re-runs), on freshly loaded run data; the source is untouched. If the fresh data no
+        longer backs a headline number, the new storyline goes back for approval (STORYLINE_READY, findings saved)
+        instead of being built; once a person approves and it completes, later re-runs start from it."""
+        reports = {m.report_id: m for m in self.store.list_reports()}  # never creates a dir, unlike load_manifest
+        if report_id not in reports:
+            raise ValueError(f"Unknown report_id {report_id!r}")
+
+        def in_lineage(m: ReportManifest | None) -> bool:
+            while m is not None and m.report_id != report_id:
+                m = reports.get(m.rerun_of)
+            return m is not None
+
+        for old in sorted(reports.values(), key=lambda m: m.created_at, reverse=True):
+            if old.status == ReportStatus.COMPLETED and in_lineage(old):
+                storyline = self.store.load_storyline(old.report_id)
+                if storyline is not None and storyline.approved and self.store.load_deck(old.report_id) is not None:
+                    break
+        else:
+            raise ValueError(f"No completed report with an approved storyline in {report_id!r}'s lineage")
+        request = with_run_datasets(self.store.load_request(old.report_id), self.settings)
         storyline = storyline.model_copy(update={"approved": False})
-        manifest = ReportManifest(title=old.title, output_format=old.output_format, template_id=old.template_id, status=ReportStatus.STORYLINE_READY)
+        manifest = ReportManifest(
+            title=old.title, output_format=old.output_format, template_id=old.template_id,
+            status=ReportStatus.STORYLINE_READY, rerun_of=old.report_id,
+        )
         self.store.save_request(manifest.report_id, request)
         self.store.save_storyline(manifest.report_id, storyline)
         self.store.save_manifest(manifest)

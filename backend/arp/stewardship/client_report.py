@@ -137,7 +137,7 @@ def _dataset(name: str, rows: list[dict], numeric: set[str] = frozenset()) -> Qu
     )
 
 
-def build_pptx(report: dict, out_path: Path) -> Path:
+def build_pptx(report: dict, out_path: Path, pdf: bool = True) -> Path:
     def text(*lines: str) -> list[ContentItem]:
         return [ContentItem(text=t) for t in lines]
 
@@ -202,13 +202,16 @@ def build_pptx(report: dict, out_path: Path) -> Path:
         )
     )
     plan = ReportPlan(title=f"{report['client']}: stewardship report", subtitle=f"As of {report['as_of']}", sections=sections)
-    return render_plan(plan, datasets, out_path)
+    return render_plan(plan, datasets, out_path, pdf)
 
 
-def render_plan(plan: ReportPlan, datasets: list[QuantitativeDataset], out_path: Path) -> Path:
-    """House-renders a hand-built plan, no LLM: the pptx at `out_path` and a PDF next to it."""
+def render_plan(plan: ReportPlan, datasets: list[QuantitativeDataset], out_path: Path, pdf: bool = True) -> Path:
+    """House-renders a hand-built plan, no LLM: the pptx at `out_path`, and with `pdf` a PDF next to it
+    (that one needs Chromium, so skip it where the PDF is not kept)."""
     deck = deck_from_plan(plan)
     build_house_pptx(deck, datasets, out_path)
+    if not pdf:
+        return out_path
     # ponytail: asyncio.run, so callers must be sync (the routes are plain `def`); make this async if one isn't.
     asyncio.run(write_pdf(render_deck_html(deck, datasets), out_path.with_suffix(".pdf")))
     return out_path

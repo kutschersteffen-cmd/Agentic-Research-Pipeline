@@ -1,11 +1,15 @@
 import json
 
+import pytest
+
 from arp.config import Settings
+from arp.reporting import adapters
 from arp.reporting.scheduler import ReportScheduleConfig, ReportScheduler
 from arp.reporting.service import ReportingService
 from arp.reporting.visual_qa import QAResult
 from arp.schemas.common import RunManifest
 from arp.schemas.reporting import (
+    Deck,
     LayoutInstructions,
     OutputFormat,
     ReportManifest,
@@ -32,6 +36,7 @@ def _setup(tmp_path, share: float) -> tuple[Settings, ReportingStore, str]:
     store.save_manifest(m)
     store.save_request(m.report_id, request)
     store.save_storyline(m.report_id, Storyline(title="Deck", slides=[StorylineSlide(headline="Acme revenue reached 42.5.", purpose="p")], approved=True))
+    store.save_deck(m.report_id, Deck(title="Deck", slides=[]))
     runs.results_path("run_1").write_text(json.dumps({"company": "Acme", "revenue": share}) + "\n")  # the data moves on
     return s, store, m.report_id
 
@@ -41,9 +46,12 @@ def _llm(fake_llm):
     return fake_llm({"SlideContent": [fill], "QAResult": [QAResult(edits=[])]})
 
 
-async def test_rerun_reuses_storyline_with_fresh_data(tmp_path, fake_llm):
+async def test_rerun_reuses_storyline_with_fresh_data(tmp_path, fake_llm, monkeypatch):
     s, store, rid = _setup(tmp_path, 42.5)
     llm = _llm(fake_llm)
+    loads = []
+    real = adapters.load_run_datasets
+    monkeypatch.setattr(adapters, "load_run_datasets", lambda *a: loads.append(1) or real(*a))
     new = await ReportingService(store, s).rerun(rid, llm)
     assert new.report_id != rid and new.status == ReportStatus.COMPLETED
     assert "Storyline" not in llm.calls
@@ -51,6 +59,27 @@ async def test_rerun_reuses_storyline_with_fresh_data(tmp_path, fake_llm):
     assert store.load_manifest(rid).status == ReportStatus.COMPLETED  # original untouched
     [ds] = store.load_request(new.report_id).datasets
     assert ds.rows == [{"company": "Acme", "revenue": 42.5}]
+    assert len(loads) == 1 and new.rerun_of == rid  # adapters read once per rerun
+
+
+async def test_rerun_of_unknown_id_raises_without_creating_a_dir(tmp_path):
+    s, store, _ = _setup(tmp_path, 42.5)
+    with pytest.raises(ValueError, match="rpt_nope"):
+        await ReportingService(store, s).rerun("rpt_nope", None)
+    assert not (s.reports_dir / "rpt_nope").exists()
+
+
+async def test_rerun_after_reapproval_starts_from_the_approved_rerun(tmp_path, fake_llm):
+    s, store, rid = _setup(tmp_path, 51.0)
+    service = ReportingService(store, s)
+    stopped = await service.rerun(rid, fake_llm({}))
+    assert stopped.status == ReportStatus.STORYLINE_READY
+    fixed = Storyline(title="Deck", slides=[StorylineSlide(headline="Acme revenue reached 51.", purpose="p")])
+    store.save_storyline(stopped.report_id, fixed)  # a person edits the headline, then approves
+    await service.approve_storyline(stopped.report_id, _llm(fake_llm))
+    nxt = await service.rerun(rid, _llm(fake_llm))
+    assert nxt.status == ReportStatus.COMPLETED and nxt.rerun_of == stopped.report_id
+    assert store.load_storyline(nxt.report_id).slides[0].headline == "Acme revenue reached 51."
 
 
 async def test_rerun_stops_when_headline_number_no_longer_in_data(tmp_path, fake_llm):

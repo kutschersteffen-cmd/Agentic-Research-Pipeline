@@ -331,3 +331,4 @@ class ReportManifest(BaseModel):
     output_tokens: int = 0
     model: str | None = None
     output_files: list[str] = Field(default_factory=list)
+    rerun_of: str | None = Field(default=None, description="The report this one was re-run from (ReportingService.rerun).")

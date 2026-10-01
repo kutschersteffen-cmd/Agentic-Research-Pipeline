@@ -354,7 +354,7 @@ def simulate(root: Path, stream: dict, records: list[EngagementRecord], sla_days
     }
 
 
-def build_proposal(sim: dict, out_path: Path) -> Path:
+def build_proposal(sim: dict, out_path: Path, pdf: bool = True) -> Path:
     k, p = sim["kpis"], sim["params"]
 
     def text(*lines: str) -> list[ContentItem]:
@@ -469,7 +469,7 @@ def build_proposal(sim: dict, out_path: Path) -> Path:
     plan = ReportPlan(
         title=f"{sim['client']}: stewardship program proposal", subtitle=f"Benchmark {sim['benchmark']}", sections=sections
     )
-    return render_plan(plan, datasets, out_path)
+    return render_plan(plan, datasets, out_path, pdf)
 
 
 # --- Approval and monitoring (5.5) --------------------------------------------

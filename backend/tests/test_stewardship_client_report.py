@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import shutil
+from pathlib import Path
 
 import pytest
 
@@ -34,6 +36,23 @@ def test_stewardship_client_report_uses_house_renderer_without_llm(tmp_path, mon
     out = build_pptx(client_report(streams.root, stream, [], sla_days=45), tmp_path / "r.pptx")
     assert out == tmp_path / "r.pptx" and out.exists() and (tmp_path / "r.pdf").exists()
     assert "Data sources" in _texts(out)
+
+
+def test_pptx_endpoint_skips_the_pdf_and_the_browser(tmp_path, monkeypatch):
+    from fastapi import BackgroundTasks
+
+    import arp.stewardship.client_report as cr
+    from arp.api.routers.stewardship import get_client_report_pptx
+    from arp.config import Settings
+    from arp.storage.engagement_store import EngagementStore
+
+    monkeypatch.setattr(cr, "write_pdf", lambda *a: pytest.fail("the endpoint deletes its temp dir; no PDF"))
+    streams, stream = _stream(tmp_path, built=False)
+    tasks = BackgroundTasks()
+    resp = get_client_report_pptx(stream["stream_id"], tasks, Settings(), streams, EngagementStore(tmp_path / "eng"))
+    out = Path(resp.path)
+    assert out.suffix == ".pptx" and out.exists() and not list(out.parent.glob("*.pdf"))
+    shutil.rmtree(out.parent)
 
 
 def test_report_of_a_new_stream_says_what_is_still_in_review(tmp_path):

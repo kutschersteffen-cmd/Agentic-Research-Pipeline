@@ -36,8 +36,9 @@ async def build_house_deck(
     settings: Settings | None = None,
 ) -> tuple[Deck, list[Finding]]:
     """`usage`, when given, is incremented in place with every LLM call's tokens (later stages add theirs too)."""
-    if request.run_refs:  # persisted, so a later re-render sees the same data the deck was built from
-        request = with_run_datasets(request, settings)
+    loaded = with_run_datasets(request, settings, only_missing=True)  # a rerun has loaded them already
+    if loaded is not request:  # persisted, so a later re-render sees the same data the deck was built from
+        request = loaded
         store.save_request(report_id, request)
     # Slide 0 is the title slide, so storyline slide i renders (and is reported) as slide i + 1.
     filled = await asyncio.gather(*(fill_slide(s, i, request, llm) for i, s in enumerate(storyline.slides, 1)))
