@@ -20,8 +20,7 @@ then `output.pdf`, `output.pptx` and one PNG per slide.
   `arp report approve <report_id>` builds the deck. The API flow is the same: create the report, then
   `POST /api/reports/{id}/storyline/approve`.
 - Density is `layout.density` on the request: `committee` (the default, a consulting-style pre-read) or `present`
-  (a short spoken pitch). `arp report plan` has no density option, so it always builds committee decks; use the API
-  for a present deck. Theme is `layout.theme` (`--theme light|dark` on the CLI).
+  (a short spoken pitch); on the CLI, `--density present|committee`. Theme is `layout.theme` (`--theme light|dark`).
 - Without an API key, script the model the way `backend/tests/test_reporting_golden_briefs.py` does: a fake LLM
   that returns a `Storyline`, one `SlideContent` per slide and `QAResult(edits=[])`, passed to
   `ReportingService.create_and_plan` and `approve_storyline`. The TPA fixtures in `backend/tests/fixtures/`

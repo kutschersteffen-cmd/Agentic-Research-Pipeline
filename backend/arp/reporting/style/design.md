@@ -41,7 +41,7 @@ What it does badly, and what our rules prevent:
 
 ## Layouts
 
-List items in the committee layouts use `::` between parts. A malformed item is a data finding and the slide falls back to cards.
+List items in the committee layouts use `::` between parts. Write each format exactly as shown. A malformed item costs the slide its structure: at fill time the slide falls back to cards, and an item that breaks later is drawn as a plain list. Either way it is reported as a data finding.
 
 - `title`: the opening slide. Deck title, subtitle and an optional key figure.
 - `section`: a divider with a section number and title. Exempt from rhythm and from the sparse check.
@@ -143,9 +143,9 @@ These four pairs come from the transition plan assessment pitch, from its first 
    Before: `bullets/three` with "Each verdict cites a verbatim passage from the company's own report.", "Code checks every quote against the source document before the verdict counts." and "A verdict whose quote cannot be found is flagged for review." The list filled the top third and left the rest of the slide empty.
    After: `cards/three` with items such as "Quote: each verdict cites a verbatim passage from the company's report". When the cards still look thin, the retry sets the same items as `cards/rows`, which share the full body height.
 
-2. A chart with a takeaway became a full-width exhibit.
-   Before: `chart_takeaway/chart_left`, a small bar chart of walk and talk indicators per category with a long takeaway beside it.
-   After: `chart_focus` with the chart across the slide and one callout of 24 words or fewer: "Strategy and tracking hold 32 of the 34 walk indicators; target indicators are all talk." A longer takeaway goes to `split/chart` instead.
+2. A chart with a takeaway became a claim beside its evidence.
+   Before: `chart_takeaway/chart_left`, a bar chart of walk and talk indicators per category with the takeaway "Strategy and tracking hold most walk indicators, 17 and 15. Target indicators are all talk, so a plan built on targets scores low on walk."
+   After: `split/chart`, the same takeaway as the statement on the left and the chart filling the right. At 25 words the takeaway is one word over the `chart_focus` callout limit of 24; a takeaway of 24 words or fewer would get the full-width chart with a one-line callout instead.
 
 3. Two big numbers became a profile.
    Before: `big_number/two`, "64 indicators" and "4 categories". The numbers were large and said nothing about how the indicators split.
