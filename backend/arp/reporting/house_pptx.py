@@ -90,6 +90,8 @@ class _Builder:
 
     def _table(self, slide, spec, r: Rect, slide_content: SlideContent, ds: QuantitativeDataset) -> None:
         columns, rows, more = table_view(slide_content.table, ds)
+        if not columns:
+            return
         ts = self.t.type[spec.type_role]
         n = len(rows) + 1
         shape = slide.shapes.add_table(n, max(len(columns), 1), _e(r.x), _e(r.y), _e(r.w), _e(_ROW_PX * n))
@@ -133,7 +135,8 @@ class _Builder:
             raise FileNotFoundError(f"image_path does not exist: {path}")
         pic = slide.shapes.add_picture(str(path), _e(r.x), _e(r.y), _e(r.w), _e(r.h))
         pic.name = f"slot:{spec.name}"
-        w, h = Image.open(path).size
+        with Image.open(path) as im:
+            w, h = im.size
         # object-fit: contain, keeping the frame at slot_rect: negative crop pads the short side.
         if w / h > r.w / r.h:
             pic.crop_top = pic.crop_bottom = -((r.h * w / r.w / h) - 1) / 2
@@ -148,7 +151,7 @@ class _Builder:
                 kind, data = build_native_chart_data(content.chart, list(datasets.values()))
                 frame = slide.shapes.add_chart(kind, _e(r.x), _e(r.y), _e(r.w), _e(r.h), data)
                 frame.name = name
-                style_native_chart(frame.chart, content.chart, self.theme)
+                style_native_chart(frame.chart, content.chart, self.theme, min_pt=18)  # 24px floor on the 1920px canvas
             else:
                 with tempfile.TemporaryDirectory() as tmp:
                     img = render_chart_image(content.chart, list(datasets.values()), Path(tmp) / "c.png", width_in=r.w / 96, height_in=r.h / 96, theme=self.theme)

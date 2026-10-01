@@ -134,3 +134,29 @@ async def test_pptx_matches_pdf_text_positions(tmp_path):
     assert set(a) == set(b) == set(words)
     for w in words:
         assert abs(a[w][0] - b[w][0]) <= 12 and abs(a[w][1] - b[w][1]) <= 12, (w, a[w], b[w])
+
+
+def test_pptx_native_chart_text_is_projector_sized(tmp_path):
+    deck, ds = stress_deck("min")
+    slide = next(s for s in deck.slides if s.layout == "chart_takeaway")
+    slide.chart = slide.chart.model_copy(update={"title": "A title"})
+    prs = Presentation(build_house_pptx(Deck(title="T", slides=[slide]), ds, tmp_path / "d.pptx"))
+    chart = _shapes(prs.slides[0], "slot:chart")[0].chart
+    sizes = [int(v) for v in chart._chartSpace.xpath(".//@sz")]
+    assert sizes and min(sizes) >= 1800  # 18pt = 24px on the 1920px canvas
+
+
+def test_pptx_image_is_letterboxed_inside_its_slot(tmp_path):
+    from PIL import Image
+
+    img = tmp_path / "wide.png"
+    Image.new("RGB", (400, 100), "red").save(img)
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="image", variant="default", slots={"caption": "c"}, image_path=str(img))])
+    pic = _shapes(Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx")).slides[0], "slot:image")[0]
+    spec = next(s for s in get_variant("image", "default").slots if s.name == "image")
+    r = slot_rect(load_tokens(), spec)
+    assert (pic.left, pic.top, pic.width, pic.height) == tuple(round(v * _PX) for v in r)
+    shown_w = pic.width / (1 - pic.crop_left - pic.crop_right)
+    shown_h = pic.height / (1 - pic.crop_top - pic.crop_bottom)
+    assert shown_w / shown_h == pytest.approx(4, rel=1e-3)  # aspect kept; the short side is padded, not stretched
+    assert pic.crop_top < 0 and pic.crop_left == 0

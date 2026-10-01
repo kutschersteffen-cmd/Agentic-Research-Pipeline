@@ -110,7 +110,7 @@ def _as_float_or_zero(value) -> float:
         return 0.0
 
 
-def style_native_chart(chart, spec: ChartSpec, theme: DesignTheme) -> None:
+def style_native_chart(chart, spec: ChartSpec, theme: DesignTheme, min_pt: float = 0) -> None:
     """Applies the design theme to a just-built native pptx chart: series
     colors from theme.categorical in fixed slot order (never auto-cycled
     by PowerPoint's own default scheme), a legend only when there's more
@@ -119,6 +119,7 @@ def style_native_chart(chart, spec: ChartSpec, theme: DesignTheme) -> None:
     "color follows the entity" rules the dataviz skill specifies for any
     chart, applied here through python-pptx's chart object model.
     """
+    size = lambda pt: Pt(max(pt, min_pt))  # noqa: E731 -- min_pt lifts text for projector decks; 0 keeps the legacy sizes
     plot = chart.plots[0]
     is_pie = spec.chart_type in _PIE_TYPES
     series_list = list(plot.series)
@@ -133,7 +134,7 @@ def style_native_chart(chart, spec: ChartSpec, theme: DesignTheme) -> None:
         plot.data_labels.show_percentage = True
         plot.data_labels.show_category_name = True
         plot.data_labels.show_value = False  # python-pptx defaults this True; category name + percentage alone is the point, the raw value is redundant clutter
-        plot.data_labels.font.size = Pt(11)
+        plot.data_labels.font.size = size(11)
         plot.data_labels.font.color.rgb = RGBColor.from_string(theme.ink_primary)
     else:
         for i, series in enumerate(series_list):
@@ -156,18 +157,18 @@ def style_native_chart(chart, spec: ChartSpec, theme: DesignTheme) -> None:
     if chart.has_legend:
         chart.legend.position = XL_LEGEND_POSITION.BOTTOM
         chart.legend.include_in_layout = False
-        chart.legend.font.size = Pt(11)
+        chart.legend.font.size = size(11)
         chart.legend.font.color.rgb = RGBColor.from_string(theme.ink_secondary)
 
     if spec.title:
-        chart.chart_title.text_frame.paragraphs[0].font.size = Pt(14)
+        chart.chart_title.text_frame.paragraphs[0].font.size = size(14)
         chart.chart_title.text_frame.paragraphs[0].font.bold = True
         chart.chart_title.text_frame.paragraphs[0].font.color.rgb = RGBColor.from_string(theme.ink_primary)
 
     if not is_pie:
         for axis in (plot.chart.category_axis, plot.chart.value_axis):
             axis.format.line.color.rgb = RGBColor.from_string(theme.gridline)
-            axis.tick_labels.font.size = Pt(10)
+            axis.tick_labels.font.size = size(10)
             axis.tick_labels.font.color.rgb = RGBColor.from_string(theme.ink_muted)
         value_axis = plot.chart.value_axis
         if value_axis.has_major_gridlines:
