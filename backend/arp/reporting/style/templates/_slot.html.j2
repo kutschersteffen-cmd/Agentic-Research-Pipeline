@@ -2,7 +2,7 @@
 {% macro slot(s) %}<div class="slot t-{{ s.role }} k-{{ s.kind }}" data-slide="{{ s.slide }}" data-slot="{{ s.name }}" style="left:{{ s.x }}px;top:{{ s.y }}px;width:{{ s.w }}px;height:{{ s.h }}px">
 {%- if s.kind == "list" %}<ul>{% for item in s["items"] %}<li>{{ item }}</li>{% endfor %}</ul>
 {%- elif s.kind == "chart" %}{{ s.svg|safe }}
-{%- elif s.kind == "table" %}<table><thead><tr>{% for c in s.columns %}<th>{{ c }}</th>{% endfor %}</tr></thead><tbody>{% for row in s.rows %}<tr>{% for c in row %}<td>{{ c }}</td>{% endfor %}</tr>{% endfor %}</tbody></table>
+{%- elif s.kind == "table" %}<table><thead><tr>{% for c in s.columns %}<th>{{ c }}</th>{% endfor %}</tr></thead><tbody>{% for row in s.rows %}<tr>{% for c in row %}<td>{{ c }}</td>{% endfor %}</tr>{% endfor %}</tbody></table>{% if s.more %}<p class="more">+{{ s.more }} more rows</p>{% endif %}
 {%- elif s.kind == "image" %}{% if s.image %}<img src="{{ s.image }}" alt="">{% endif %}
 {%- else %}{{ s.text }}{% endif -%}
 </div>{% endmacro %}

@@ -65,7 +65,8 @@ async def test_house_deck_end_to_end_writes_pdf_png_and_findings(tmp_path, fake_
 
     rid = manifest.report_id
     assert manifest.status == ReportStatus.COMPLETED and manifest.output_filename == "output.pdf"
-    assert manifest.output_files == ["output.pdf"]  # + output.pptx once Task 7 lands
+    assert manifest.output_files == ["output.pdf", "output.pptx"]
+    assert store.output_path(rid, "output.pptx").exists()
     assert store.output_path(rid, "output.pdf").exists()
     assert len(list(store.preview_dir(rid).glob("page-*.png"))) == 4  # title + 3
     deck = store.load_deck(rid)

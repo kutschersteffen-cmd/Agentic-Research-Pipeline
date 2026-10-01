@@ -91,12 +91,12 @@ class ReportingService:
         finally:
             manifest.input_tokens += usage.input_tokens
             manifest.output_tokens += usage.output_tokens
-        return self._completed(manifest, "output.pdf")  # + output.pptx once the PPTX export lands
+        return self._completed(manifest, "output.pdf", ["output.pdf", "output.pptx"])
 
-    def _completed(self, manifest: ReportManifest, filename: str) -> ReportManifest:
+    def _completed(self, manifest: ReportManifest, filename: str, files: list[str] | None = None) -> ReportManifest:
         manifest.status = ReportStatus.COMPLETED
         manifest.output_filename = filename
-        manifest.output_files = [filename]
+        manifest.output_files = files or [filename]
         manifest.error = None
         self.store.save_manifest(manifest)
         return manifest
@@ -149,7 +149,7 @@ class ReportingService:
             manifest.error = str(exc)
             self.store.save_manifest(manifest)
             raise
-        return self._completed(manifest, "output.pdf")
+        return self._completed(manifest, "output.pdf", ["output.pdf", "output.pptx"])
 
     @staticmethod
     def _render(output_format: OutputFormat, plan: ReportPlan, datasets, layout, template_style, out_path: Path) -> Path:

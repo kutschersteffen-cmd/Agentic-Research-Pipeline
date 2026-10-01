@@ -17,7 +17,7 @@ from jinja2 import Environment, FileSystemLoader
 from arp.reporting.chart_builder import render_chart_svg
 from arp.reporting.design import DesignTheme
 from arp.reporting.house_style import _STYLE_DIR, Mode, Tokens, get_variant, load_tokens, slot_rect
-from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent
+from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent, TableSpec
 
 _env = Environment(loader=FileSystemLoader(_STYLE_DIR / "templates"), autoescape=True)
 
@@ -58,6 +58,13 @@ def _as_text(v: str | list[str] | None) -> str:
     return " ".join(v) if isinstance(v, list) else (v or "")
 
 
+def table_view(spec: TableSpec, ds: QuantitativeDataset) -> tuple[list[str], list[list], int]:
+    """Columns, the visible row window, and how many rows lie beyond it; shared with the pptx export."""
+    columns = spec.columns or ds.column_names()
+    end = spec.row_offset + spec.max_rows
+    return columns, [[row.get(c, "") for c in columns] for row in ds.rows[spec.row_offset : end]], max(0, len(ds.rows) - end)
+
+
 def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict[str, QuantitativeDataset], theme: DesignTheme) -> dict:
     r = slot_rect(tokens, spec)
     v = {"slide": i, "name": spec.name, "kind": spec.kind, "role": spec.type_role, "x": r.x, "y": r.y, "w": r.w, "h": r.h}
@@ -67,9 +74,7 @@ def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict
     elif spec.kind == "chart" and slide.chart:
         v["svg"] = render_chart_svg(slide.chart, list(datasets.values()), width_px=int(r.w), height_px=int(r.h), theme=theme)
     elif spec.kind == "table" and slide.table and slide.table.dataset_id in datasets:
-        ds = datasets[slide.table.dataset_id]
-        v["columns"] = slide.table.columns or ds.column_names()
-        v["rows"] = [[row.get(c, "") for c in v["columns"]] for row in ds.rows[slide.table.row_offset : slide.table.row_offset + slide.table.max_rows]]
+        v["columns"], v["rows"], v["more"] = table_view(slide.table, datasets[slide.table.dataset_id])
     elif spec.kind == "image":
         v["image"] = _data_uri(Path(slide.image_path)) if slide.image_path else None
     else:
