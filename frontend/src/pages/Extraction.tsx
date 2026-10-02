@@ -5,13 +5,14 @@ import { UniversePicker } from "../components/UniversePicker";
 import { ExtractionResultsTable, FinancialsResultsTable } from "../components/ExtractionResults";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { BarChart } from "../components/BarChart";
-import type { CompanyFinancialsRecord, DataPointSchema, ExtractionProfile, ExtractionRecord, FieldDefinition, ReviewDecision, RunScoringKind, StepSettings, TnfdRecord, TransitionPlanAssessmentRecord, UniverseHandoff } from "../types";
+import type { CompanyFinancialsRecord, DataPointSchema, ExtractionProfile, ExtractionRecord, ReviewDecision, RunScoringKind, StepSettings, TnfdRecord, TransitionPlanAssessmentRecord, UniverseHandoff } from "../types";
 import { useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "../components/ReviewerField";
 import { RunScoringPanel, ScoringTemplatePicker } from "../components/RunScoring";
 import { TransitionPlanBatchOverview, TransitionPlanMethodology, TransitionPlanResultsTable } from "../components/TransitionPlanResults";
 import { TnfdResultsTable } from "../components/TnfdResults";
 import { PipelineEditor } from "../components/PipelineEditor";
+import { SchemaFieldsEditor } from "../components/SchemaFieldsEditor";
 
 const DEFAULT_CRITERIA =
   "Green capex: total green/sustainable capital expenditure in USD/EUR millions for the most recent fiscal " +
@@ -156,12 +157,6 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     }
   }
 
-  function updateField(idx: number, patch: Partial<FieldDefinition>) {
-    if (!schema) return;
-    const fields = schema.fields.map((f, i) => (i === idx ? { ...f, ...patch } : f));
-    setSchema({ ...schema, fields });
-  }
-
   /** One company typed in, as a one-row universe; its id is the ticker, or the name when there is none. */
   const singleCompany = single.name.trim()
     ? {
@@ -265,40 +260,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
       {mode === "custom" && schema && (
         <section className="card">
           <h2>2. Review &amp; edit fields</h2>
-          {schema.fields.map((f, idx) => (
-            <div className="activity-editor" key={f.field_id}>
-              <input value={f.name} onChange={(e) => updateField(idx, { name: e.target.value })} />
-              <label className="field-label">
-                Description
-                <textarea rows={2} value={f.description} onChange={(e) => updateField(idx, { description: e.target.value })} />
-              </label>
-              <label className="field-label">
-                Extraction instructions
-                <textarea
-                  rows={3}
-                  value={f.extraction_instructions}
-                  onChange={(e) => updateField(idx, { extraction_instructions: e.target.value })}
-                />
-              </label>
-              <div className="field-label">Data type / unit</div>
-              <div className="inline-fields">
-                <span>{f.data_type}</span>
-                <input
-                  aria-label="Unit"
-                  placeholder="unit"
-                  value={f.unit ?? ""}
-                  onChange={(e) => updateField(idx, { unit: e.target.value })}
-                />
-              </div>
-              <label className="field-label">
-                Seed keywords (comma-separated)
-                <input
-                  value={f.seed_keywords.join(", ")}
-                  onChange={(e) => updateField(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
-                />
-              </label>
-            </div>
-          ))}
+          <SchemaFieldsEditor fields={schema.fields} onChange={(fields) => setSchema({ ...schema, fields })} />
         </section>
       )}
 
