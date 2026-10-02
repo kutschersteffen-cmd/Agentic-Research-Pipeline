@@ -37,21 +37,35 @@ automatically.
 
 ## Tabs
 
-Companies → **Identify** → **Documents** → Schema (Custom only) → Extract & verify → Scoring → Run → Results
+Two levels. Top level: Companies → **Identify** → **Documents** → Schema (Custom only) → **Extract**.
 
-| Tab | Contents |
+The three process steps (Identify, Documents, Extract) each have inner tabs, with **Review** always last:
+
+| Top tab | Inner tabs | Contents |
+|---|---|---|
+| Companies | none | Batch (`UniversePicker`) or single company, reporting period (TNFD only) |
+| Identify | **Run** · **Review** | Run: start the identity run, results table, handover control. Review: the flagged companies, approve or edit website and CIK. |
+| Documents | **Run** · **Review** | Run: start the discovery run, results table, handover control. Review: companies with no documents or an unreachable site, with a tick per company for what carries forward. |
+| Schema | none | Research request, draft button, field editor (Custom only) |
+| Extract | **Setup** · **Run** · **Review** | Setup: `PipelineEditor` settings, `ScoringTemplatePicker` (optional), **Start extraction**. Run: `RunProgress`, per-item flow chart, stop and restart, CSV. Review: results table with the review controls and source panel, charts, `RunScoringPanel`. |
+
+The old Scoring, Run and Results top-level tabs are folded into Extract, so the bar stays at five tabs
+(four for the built-in profiles). The Review tab on each step shows a count badge (reusing `.tab-badge`)
+of items waiting on a person, and a ⏸ when the step is holding for review.
+
+### What each Review tab reuses
+
+| Step | Review source |
 |---|---|
-| Companies | Batch (`UniversePicker`) or single company, reporting period (TNFD only) |
-| Identify | Identity stage: run, results table, approve or edit flagged rows, handover control |
-| Documents | Discovery stage: run, results table, tick companies to carry forward, handover control |
-| Schema | Research request, draft button, field editor (Custom only) |
-| Extract & verify | `PipelineEditor` for this run's extraction and verification settings |
-| Scoring | `ScoringTemplatePicker` (optional) and **Start extraction** |
-| Run | `RunProgress`, per-item flow chart, stop and restart, refresh, CSV |
-| Results | Charts, results table, source panel, `RunScoringPanel` |
+| Identify | `api.getIdentityReviewQueue` and `api.submitIdentityReview` (the Review Queue page's identity handling) |
+| Documents | No review queue exists for discovery runs. Review is the per-company tick list over `api.getDiscoveryResults`; the accepted rows become the carried-over list |
+| Extract | The existing results tables and the profile's review endpoints (`submit*Review`), unchanged |
 
-Tabs are numbered from the visible list, which removes the step-number arithmetic. Run and Results stay
-disabled until an extraction run exists. Inactive tabs stay mounted and hidden (`hidden` attribute),
+Reviewer name uses the existing `ReviewerField` and `useReviewer`. The Review tab renders the same
+components the Review Queue page uses, so decisions made in either place show up in both.
+
+Tabs are numbered from the visible list, which removes the step-number arithmetic. Inner tabs that need a
+run (Extract Run and Review) stay disabled until one exists. Inactive tabs stay mounted and hidden (`hidden` attribute),
 because `UniversePicker` and `SchemaFieldsEditor` keep local state. Tabs use `role="tablist"`,
 `aria-selected` and arrow-key navigation. Switching profile resets to Companies, as `switchMode` already
 clears the run.
@@ -102,6 +116,35 @@ State meanings:
 5. Re-running a stage marks every later stage `stale`. A stale stage keeps its results visible but cannot
    hand over until it is re-run or the user confirms "use anyway".
 
+## Current runs panel (on every tab)
+
+Every tab, top-level and inner, shows a **Current runs** panel under the flow chart, so what is running
+and what ran is never hidden. One component, `FlowRuns.tsx`, fed by `api.listRuns(runType)` and polled
+while any listed run is `running` or `pending`.
+
+| Tab | Runs shown |
+|---|---|
+| Identify (Run, Review) | `identity` runs |
+| Documents (Run, Review) | `discovery` runs |
+| Extract (Setup, Run, Review) | The profile's extraction runs: `extraction`, `financials`, `tnfd` or `transition_plan` |
+| Companies, Schema | All three kinds, compact, so the user sees the whole flow's activity |
+
+Only runs started from this flow session, plus any run opened from Run History, are listed. The newest
+run is first, and a running run is pinned above the rest. Each row shows:
+
+| Detail | Source (`RunManifest`) |
+|---|---|
+| Run id, type, started time | `run_id`, `run_type`, `created_at` |
+| Status and progress | `status`, `completed_count` of `company_count`, `failed_count`, `review_count` |
+| Input | The universe (file name and count) and, for extraction, the schema name from `params` |
+| Cost | `estimated_cost_usd`, `input_tokens` and `output_tokens`, `model` |
+| Error | `error`, when set |
+| Actions | **Stop** (`api.cancelRun`) while running, **Open** (selects that run in its tab), **Review →** when `review_count > 0` |
+
+Selecting a row makes it the run the tab shows. Starting a new run selects it. The panel is collapsed to
+a one-line summary ("1 running · 3 done") when the user collapses it, and the choice is remembered per tab
+in `localStorage`, with the panel open when storage fails.
+
 ## Flow chart (overview)
 
 A chart above the tab bar, always visible, showing the whole pipeline at stage level. It reuses ReactFlow
@@ -112,7 +155,9 @@ Nodes, left to right:
 
 `Companies → Identify → Documents → Extract & verify → Scoring → Results`
 
-(Schema appears as a node between Documents and Extract & verify for Custom only.)
+(Schema appears as a node between Documents and Extract & verify for Custom only.) The last three nodes are
+steps inside the Extract tab: a click on Extract & verify opens Extract › Setup, Scoring opens Setup, and
+Results opens Extract › Review.
 
 Each node card shows:
 
@@ -132,14 +177,14 @@ The **Extract & verify** node shows **the schema in use**:
 | TNFD | "TNFD: 14 recommendations + core metrics" |
 | Transition Plan | "Transition Plan: 64 indicators" |
 
-Clicking a node switches to its tab. A line between two nodes is dashed when the stage in between is
+Clicking a node switches to its tab (a node in `review` state opens that step's Review tab). A line between two nodes is dashed when the stage in between is
 skipped, and highlighted when a handover is waiting on the user.
 
 **Stop** calls `api.cancelRun(runId)` on the stage's run (a cooperative stop: no further companies start).
 After a stop the stage is `review` with the partial results and can be continued or re-run.
 **Start** starts the stage's run, or, for Extract & verify, `api.startExtraction`.
 
-The per-item chart in `PipelineEditor` stays on the Extract & verify and Run tabs. Because Identify and
+The per-item chart in `PipelineEditor` stays on the Extract tab's Setup and Run inner tabs. Because Identify and
 Documents now run as checkpoints, the extraction run starts with `pre_identity_enabled`,
 `pre_content_search_enabled` and `pre_document_mgmt_enabled` set to `false` (see below).
 `parse_index` stays inline.
@@ -162,6 +207,9 @@ documents" no longer appears for those.
 | `frontend/src/pages/IdentityResolution.tsx`, `DocumentDiscovery.tsx` | Become thin wrappers around the stage components, so the "Onboard issuers" hub keeps working with no duplicated logic. |
 | `frontend/src/lib/stagedFlow.ts` | New. `useStagedFlow()` hook and the handover rules. Pure logic, unit-testable. |
 | `frontend/src/components/StageFlowChart.tsx` | New. The overview chart. |
+| `frontend/src/components/FlowRuns.tsx` | New. The Current runs panel, filtered by run type. |
+| `frontend/src/components/StepTabs.tsx` | New. The two-level tab bar with Review badges and arrow-key handling. |
+| `frontend/src/components/IdentityReview.tsx` | New, small. The identity review list, taken from the Review Queue page's identity handling so both screens share it. |
 | `frontend/src/pages/Extraction.tsx` | Hosts the tab bar, the chart and the hook. Existing cards move into tabs unchanged. |
 | `frontend/src/index.css` | A few lines for the tab bar and stage card extras. The `.sub-nav` and `.nav-tab` styles are reused. |
 
@@ -179,6 +227,14 @@ To confirm while planning:
 
 If any of these fail, the plan lists a minimal backend change. None is expected.
 
+## Open question for review
+
+Documents have no review queue, so the Documents Review tab records a person's decision only as which
+companies end up in the carried-over list. The repo's stance is that every automated suggestion is
+reviewed by a person before it counts. If you want that decision logged with a reviewer name and time, as
+the other review kinds are, that needs a small backend addition (a discovery review endpoint).
+Default in this spec: **no backend, list-only**.
+
 ## Out of scope
 
 - Scheduled discovery (stays on its own page).
@@ -191,5 +247,7 @@ If any of these fail, the plan lists a minimal backend change. None is expected.
 - Unit test for `stagedFlow.ts`: manual hold, automatic advance on clean, automatic hold on flagged,
   skip pass-through, stale marking on re-run.
 - `tsc` and a production build.
+- Browser check that every tab shows its Current runs panel with the right run type, that a running run is
+  pinned and Stop works, and that each step's Review tab shows its flagged items and badge.
 - Browser check: Custom flow end to end in manual mode; one built-in profile in automatic mode; a flagged
   company holding the flow; Stop mid-run then Continue; the chart showing the drafted schema's name.
