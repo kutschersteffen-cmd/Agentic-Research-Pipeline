@@ -142,6 +142,48 @@
   color-scheme: dark;
 }
 
+/* Skins: three alternate palettes drawn from VoltAgent/awesome-design-md
+   (Linear, Notion, Stripe). A skin pins its own light/dark ground, so it wins
+   over both the system setting and the Light/Dark switch; "Graphite/Night"
+   stays the default. The "waiting on a person" colour keeps its role: it is
+   --hi in every skin, and never the same hue as --accent. */
+:root[data-skin="linear"] {
+  --bg: #010102; --panel: #0f1011; --panel-border: #23252a; --well: #141516;
+  --text: #f7f8f8; --muted: #9096a0;
+  --accent: #f7f8f8; --accent-ink: #ffffff; --accent-tint: rgb(247 248 248 / 0.08);
+  --sidebar-bg: #0a0b0c; --on-accent: #010102;
+  --await: #1f2147; --await-edge: #828fff; --hi: #828fff; --hi-ink: #a3adff; --on-hi: #010102;
+  --high: #27a644; --mid: #f2c94c; --low: #ff6369; --neutral: #9096a0;
+  --r-sm: 4px; --r-md: 6px; --r-lg: 8px;
+  --shadow-md: 0 2px 6px rgb(0 0 0 / 0.5), 0 8px 24px rgb(0 0 0 / 0.6);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.7);
+  color-scheme: dark;
+}
+:root[data-skin="notion"] {
+  --bg: #f6f5f4; --panel: #ffffff; --panel-border: #e5e3df; --well: #f0eeec;
+  --text: #1a1a1a; --muted: #5d5b54;
+  --accent: #5645d4; --accent-ink: #3a2a99; --accent-tint: rgb(86 69 212 / 0.08);
+  --sidebar-bg: #f0eeec; --on-accent: #ffffff;
+  --await: #ffe8d4; --await-edge: #dd5b00; --hi: #dd5b00; --hi-ink: #a84400; --on-hi: #1a1a1a;
+  --high: #168a2f; --mid: #8f5200; --low: #c92a2a; --neutral: #5d5b54;
+  --r-sm: 4px; --r-md: 8px; --r-lg: 12px;
+  --shadow-md: 0 2px 6px rgb(55 53 47 / 0.08), 0 8px 24px rgb(55 53 47 / 0.10);
+  --shadow-lg: 0 12px 32px rgb(55 53 47 / 0.16);
+  color-scheme: light;
+}
+:root[data-skin="stripe"] {
+  --bg: #f6f9fc; --panel: #ffffff; --panel-border: #e3e8ee; --well: #edf2f8;
+  --text: #0d253d; --muted: #52627a;
+  --accent: #533afd; --accent-ink: #2e2b8c; --accent-tint: rgb(83 58 253 / 0.08);
+  --sidebar-bg: #ffffff; --on-accent: #ffffff;
+  --await: #fde3ec; --await-edge: #ea2261; --hi: #ea2261; --hi-ink: #c01048; --on-hi: #ffffff;
+  --high: #108c3a; --mid: #9b6829; --low: #b3261e; --neutral: #52627a;
+  --r-sm: 4px; --r-md: 4px; --r-lg: 6px;
+  --shadow-md: 0 3px 6px rgb(0 55 112 / 0.08), 0 8px 24px rgb(0 55 112 / 0.10);
+  --shadow-lg: 0 15px 35px rgb(0 55 112 / 0.18);
+  color-scheme: light;
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -1754,6 +1796,8 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .theme-switch button { flex: 1; padding: 4px 0; font-size: var(--text-xs); font-weight: 500; background: transparent; color: var(--muted); border-radius: 4px; }
 .theme-switch button:hover:not(.on) { background: var(--panel); color: var(--text); }
 .theme-switch button.on { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.skin-switch { display: flex; align-items: center; gap: var(--s-2); margin: 0 10px var(--s-3); font-size: var(--text-xs); color: var(--muted); }
+.skin-switch select { flex: 1; padding: 4px 6px; font-size: var(--text-xs); }
 
 .rule-editor-open:focus { outline: none; }
 

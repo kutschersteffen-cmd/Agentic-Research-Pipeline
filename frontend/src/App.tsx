@@ -20,7 +20,7 @@ import { VotingRuns } from "./pages/VotingRuns";
 import { STAGE_TABS, StewardWorkflow } from "./pages/StewardWorkflow";
 import { PortfolioRiskMonitoringTool, SUB_TABS as RISK_TABS } from "./pages/PortfolioRiskMonitoringTool";
 import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
-import { ThemeSwitch } from "./components/ThemeSwitch";
+import { SkinSwitch, ThemeSwitch } from "./components/ThemeSwitch";
 import { ReportBuilder } from "./pages/ReportBuilder";
 import { StrategyReplication } from "./pages/StrategyReplication";
 import { Search } from "./pages/Search";
@@ -285,6 +285,7 @@ function App() {
           <kbd>{/Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘K" : "Ctrl K"}</kbd>
         </button>
         <ThemeSwitch />
+        <SkinSwitch />
         <nav className="app-nav">
           {NAV_GROUPS.map((group, i) => {
             const links = group.ids.map((id) => {

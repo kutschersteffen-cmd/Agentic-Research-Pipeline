@@ -41,3 +41,44 @@ export function ThemeSwitch() {
     </div>
   );
 }
+
+// Skin: Default keeps Graphite/Night; the rest are palettes from awesome-design-md.
+const SKIN_KEY = "arp.skin";
+const SKINS = { default: "Default", linear: "Linear", notion: "Notion", stripe: "Stripe" } as const;
+type Skin = keyof typeof SKINS;
+
+function readSkin(): Skin {
+  try {
+    const k = localStorage.getItem(SKIN_KEY);
+    return k === "linear" || k === "notion" || k === "stripe" ? k : "default";
+  } catch {
+    return "default";
+  }
+}
+
+export function SkinSwitch() {
+  const [skin, setSkin] = useState<Skin>(readSkin);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (skin === "default") delete root.dataset.skin;
+    else root.dataset.skin = skin;
+    try {
+      if (skin === "default") localStorage.removeItem(SKIN_KEY);
+      else localStorage.setItem(SKIN_KEY, skin);
+    } catch {
+      // Storage blocked: the choice holds for this page only.
+    }
+  }, [skin]);
+
+  return (
+    <label className="skin-switch">
+      <span>Skin</span>
+      <select value={skin} onChange={(e) => setSkin(e.target.value as Skin)}>
+        {(Object.keys(SKINS) as Skin[]).map((k) => (
+          <option key={k} value={k}>{SKINS[k]}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
