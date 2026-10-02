@@ -137,6 +137,13 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     setActiveSource(null);
   }
 
+  function clearResults() {
+    setExtractionResults([]);
+    setFinancialsResults([]);
+    setTnfdResults([]);
+    setTransitionResults([]);
+  }
+
   async function draft() {
     setBusy(true);
     setError(null);
@@ -181,10 +188,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
         step_settings: Object.keys(stepSettings).length ? stepSettings : undefined,
       });
       setRunId(res.run_id);
-      setExtractionResults([]);
-      setFinancialsResults([]);
-      setTnfdResults([]);
-      setTransitionResults([]);
+      clearResults();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -314,7 +318,6 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
         </section>
       )}
 
-
       {readyForUniverseStep && (
         <section className="card">
           <h2>{universeStepNumber}. Choose the companies</h2>
@@ -381,10 +384,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
             runId={runId}
             onRestarted={(next) => {
               setRunId(next);
-              setExtractionResults([]);
-              setFinancialsResults([]);
-              setTnfdResults([]);
-              setTransitionResults([]);
+              clearResults();
             }}
           />
           <div className="toolbar">
