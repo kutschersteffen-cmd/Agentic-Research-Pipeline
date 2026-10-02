@@ -94,7 +94,7 @@ const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boo
   { label: "Research", ids: ["theme", "identity"] },
   { label: "Portfolio", ids: ["portfolio-monitoring"] },
   { label: "Output", ids: ["reporting", "history"] },
-  { label: "More tools", ids: ["decision", "taxonomy", "emergingThemes", "strategyReplication", "index"], collapsed: true },
+  { label: "More tools", ids: ["decision", "taxonomy", "emergingThemes", "strategyReplication", "index", "game"], collapsed: true },
 ];
 
 // Everything the command palette can jump to: every screen (under its hub's

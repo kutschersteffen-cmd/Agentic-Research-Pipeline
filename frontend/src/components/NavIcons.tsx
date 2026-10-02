@@ -182,4 +182,9 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <path d="M4 20 V10 M10 20 V4 M16 20 V13 M22 20 V7" />
     </svg>
   ),
+  game: (
+    <svg {...ICON_PROPS}>
+      <path d="M12 3 17 19l-5-3-5 3Z" />
+    </svg>
+  ),
 };
