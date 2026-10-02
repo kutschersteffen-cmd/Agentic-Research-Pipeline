@@ -1793,3 +1793,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .ds-empty { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
 .ds-empty > p { flex: 1 1 100%; margin: 0 0 var(--s-1); }
 .ds-empty > button { margin-top: 0; }
+
+.flow-runs .toolbar h2 { margin: 0; margin-right: auto; }
+.flow-runs.compact .data-table :is(th, td):nth-child(n+6):nth-child(-n+7) { display: none; }
+.flow-runs .selected-row td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
