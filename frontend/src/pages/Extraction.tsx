@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
-import type { CompanyFinancialsRecord, DataPointSchema, ExtractionProfile, ExtractionRecord, ReviewDecision, RunManifest, RunScoringKind, StepSettings, TnfdRecord, TransitionPlanAssessmentRecord, UniverseHandoff } from "../types";
+import type { CompanyFinancialsRecord, DataPointSchema, ExtractionProfile, ExtractionRecord, ReviewDecision, RunManifest, StepSettings, TnfdRecord, TransitionPlanAssessmentRecord, UniverseHandoff } from "../types";
 import { useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "../components/ReviewerField";
 import { RunScoringPanel, ScoringTemplatePicker } from "../components/RunScoring";
@@ -16,6 +16,7 @@ import { ReviewTiles } from "../components/ReviewTiles";
 import { IdentityStage } from "../components/IdentityStage";
 import { DocumentsStage } from "../components/DocumentsStage";
 import { ACTIVE_STATUSES } from "../lib/runs";
+import { PROFILE_META } from "../lib/jobs";
 import {
   STAGES,
   extractInputs,
@@ -48,30 +49,6 @@ const DEFAULT_CRITERIA =
 
 type Mode = ExtractionProfile;
 
-const PROFILES: { id: Mode; label: string; runType: RunScoringKind; about: string }[] = [
-  { id: "custom", label: "Custom schema", runType: "extraction", about: "" },
-  {
-    id: "financials",
-    label: "Financials",
-    runType: "financials",
-    about:
-      "Pulls disclosed business segments (name, description, revenue, operating income, assets), total CapEx, and total R&D — each with a grounded description and any disclosed category breakdown — in a single combined pass per company: one document fetch, one extractor call, one independent verifier call.",
-  },
-  {
-    id: "tnfd",
-    label: "TNFD",
-    runType: "tnfd",
-    about:
-      "Checks each of the 14 TNFD recommendations for a disclosure and extracts the core global metrics, each with citations re-verified against the source. Rules can read each recommendation as a Yes/No column (e.g. Governance_A_Disclosed).",
-  },
-  {
-    id: "transition_plan",
-    label: "Transition Plan",
-    runType: "transition_plan",
-    about:
-      "Scores each company’s climate transition disclosures against the 64 indicators of Colesanti Senni et al. (2024), separating “talk” (targets) from “walk” (verifiable activity). Rules can read each indicator as a Yes/No column (Ind_<identifier>_Disclosed).",
-  },
-];
 type Sub = "setup" | "run" | "review";
 type Inner = "identify" | "documents" | "extract";
 
@@ -126,7 +103,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const [transitionResults, setTransitionResults] = useState<TransitionPlanAssessmentRecord[]>([]);
   const [transitionReviewDecisions, setTransitionReviewDecisions] = useState<Record<string, ReviewDecision>>({});
 
-  const profile = PROFILES.find((p) => p.id === mode)!;
+  const profile = PROFILE_META[mode];
 
   function switchMode(next: Mode) {
     if (next === mode) return;
@@ -347,8 +324,8 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
       <p className="help-text">Extract data points from company disclosures, each checked by a verifier and every citation re-verified against its source. Pick a profile: draft a custom schema, or run one of the built-in ones — Financials, TNFD or Transition Plan.</p>
 
       <div className="view-toggle" role="group" aria-label="Extraction profile">
-        {PROFILES.map((p) => (
-          <button key={p.id} className={mode === p.id ? "active" : ""} aria-pressed={mode === p.id} onClick={() => switchMode(p.id)}>
+        {(Object.entries(PROFILE_META) as [Mode, (typeof PROFILE_META)[Mode]][]).map(([id, p]) => (
+          <button key={id} className={mode === id ? "active" : ""} aria-pressed={mode === id} onClick={() => switchMode(id)}>
             {p.label}
           </button>
         ))}
