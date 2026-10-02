@@ -104,6 +104,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   function changeJobs(next: Job[]) {
     const ids = next.map((j) => j.id);
     setJobs(next);
+    if (!next.some((j) => j.profile === "custom")) setTab((t) => (t === "schema" ? "overview" : t));
     if (ids.join() !== jobs.map((j) => j.id).join()) {
       dispatch({ type: "jobsChanged", jobIds: ids });
       const keep = <T,>(m: Record<string, T>) => Object.fromEntries(Object.entries(m).filter(([k]) => ids.includes(k)));
@@ -120,9 +121,9 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     if (!r.error) changeJobs(r.jobs);
   }
   const patchSettings = (id: string, p: Partial<JobSettings>) => setSettings((s) => ({ ...s, [id]: { ...(s[id] ?? NO_SETTINGS), ...p } }));
-  /** Start-all uses `extractStarted` (clears stale); a per-job restart uses `extractRestarted` (keeps it). */
-  const restarted = (job: Job, runId: string, type: "extractStarted" | "extractRestarted" = "extractRestarted") => {
-    dispatch({ type, job: job.id, runId });
+  /** A started or restarted job keeps the stale flag; Start-all clears it once every job started. */
+  const restarted = (job: Job, runId: string) => {
+    dispatch({ type: "extractRestarted", job: job.id, runId });
     setRunProfiles((m) => ({ ...m, [runId]: job.profile }));
   };
 
@@ -149,7 +150,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
       decision_framework_id: s.templateId ?? undefined,
       step_settings: Object.keys(step).length ? step : undefined,
     });
-    restarted(job, res.run_id, "extractStarted");
+    restarted(job, res.run_id);
     return res.run_id;
   }
 
@@ -170,6 +171,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     try {
       const { started, errors } = await startJobs(toStart, startOne);
       setStartErrors(errors);
+      if (!Object.keys(errors).length) dispatch({ type: "staleCleared" });
       if (Object.keys(started).length) setSub((s) => ({ ...s, extract: "run" }));
     } finally {
       startingRef.current = false;
@@ -270,7 +272,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const jobTypes = [...new Set(jobs.map(jobRunType))];
   const allTypes = ["identity", "discovery", ...jobTypes];
   const tabRunTypes = { overview: allTypes, companies: allTypes, schema: allTypes, identify: ["identity"], documents: ["discovery"], extract: jobTypes }[tab];
-  const overviewSelected = (overviewRun && overviewRun in runProfiles ? overviewRun : null) ?? latestExtractRun(flow);
+  const overviewSelected = (overviewRun && Object.values(flow.extractRuns).includes(overviewRun) ? overviewRun : null) ?? latestExtractRun(flow);
   const tabRunId =
     tab === "identify" || tab === "documents" ? flow[tab].runId
     : tab === "extract" ? (reviewJob ? extractRuns[reviewJob.id] : null)

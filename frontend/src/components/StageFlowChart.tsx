@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import ReactFlow, { Controls, Handle, MarkerType, Position, getNodesBounds, useReactFlow, useStore, type Edge, type Node, type NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
 import { layoutPipeline } from "../lib/pipelineLayout";
-import { extractInputs, latestExtractRun, type FlowAction, type FlowState, type FlowStep, type Handover, type StageId, type StageState } from "../lib/stagedFlow";
+import { extractInputs, type FlowAction, type FlowState, type FlowStep, type Handover, type StageId, type StageState } from "../lib/stagedFlow";
 import type { ExtractionProfile, PipelineShape } from "../types";
 
 const CARD_W = 214;
@@ -221,14 +221,15 @@ export function StageFlowChart({ flow, profile, extract, height = 260, counts, o
         case "schema":
           return plain("Schema", stageState(id), null, () => onOpen("schema"));
         case "extract": {
-          const running = extract.status === "running";
+          const runIds = extract.jobs.filter((j) => j.status === "running").flatMap((j) => flow.extractRuns[j.id] ?? []);
+          const running = runIds.length > 0;
           return {
             ...plain("Extract & verify", extract.status, reuses ? `reuses stored documents for ${reuses.count} companies` : null, () => onOpen("extract", extract.status === "review" ? "review" : "setup")),
-            lines: extract.jobs.map((j) => ({ id: j.id, text: j.label, word: [STATE_WORD[j.status], j.counts].filter(Boolean).join(" · "), warn: !j.ready })),
-            startLabel: running ? null : START_STATES.has(extract.status) ? "Start" : "Run again",
+            lines: extract.jobs.map((j) => ({ id: j.id, text: j.label, word: [j.status === "ready" ? "Ready to start" : STATE_WORD[j.status], j.counts].filter(Boolean).join(" · "), warn: !j.ready })),
+            startLabel: running ? null : START_STATES.has(extract.status) || extract.startable > 0 ? "Start" : "Run again",
             startDisabled: extract.startable === 0,
             onStart: () => onStart("extract"),
-            onStop: running && latestExtractRun(flow) ? () => onStop(latestExtractRun(flow)!) : null,
+            onStop: running ? () => runIds.forEach(onStop) : null,
           };
         }
         case "scoring":

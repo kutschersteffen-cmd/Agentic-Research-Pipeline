@@ -287,3 +287,17 @@ test("matchesTile follows the tile semantics", () => {
   assert.equal(editedText(d("edit", 5)), "5");
   assert.equal(editedText(d("approve")), undefined);
 });
+
+test("jobsChanged keeps stale while a run survives, clears it when none does", () => {
+  const stale = run(initialFlow, ...twoRuns, started);
+  assert.equal(stale.extractStale, true);
+  assert.equal(run(stale, { type: "jobsChanged", jobIds: ["financials", "custom:2"] }).extractStale, true);
+  assert.equal(run(stale, { type: "jobsChanged", jobIds: ["custom:2"] }).extractStale, false);
+});
+
+test("staleCleared clears the stale flag only", () => {
+  const stale = run(initialFlow, ...twoRuns, started);
+  const s = run(stale, { type: "staleCleared" });
+  assert.equal(s.extractStale, false);
+  assert.deepEqual(s.extractRuns, stale.extractRuns);
+});

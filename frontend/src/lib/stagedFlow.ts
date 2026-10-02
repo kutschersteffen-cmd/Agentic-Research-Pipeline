@@ -41,6 +41,8 @@ export type FlowAction =
   | { type: "extractStarted"; job: string; runId: string }
   /** One job's run restarted from a step: the inputs did not change, so a stale flag stays. */
   | { type: "extractRestarted"; job: string; runId: string }
+  /** Every job of a stale re-run started, so nothing old is left looking current. */
+  | { type: "staleCleared" }
   | { type: "jobsChanged"; jobIds: string[] };
 
 export const STAGES: StageId[] = ["identify", "documents"];
@@ -156,8 +158,12 @@ export function flowReducer(s: FlowState, a: FlowAction): FlowState {
       return { ...s, extractRuns: { ...s.extractRuns, [a.job]: a.runId }, runIds: [...s.runIds, a.runId], extractStale: false };
     case "extractRestarted":
       return { ...s, extractRuns: { ...s.extractRuns, [a.job]: a.runId }, runIds: [...s.runIds, a.runId] };
-    case "jobsChanged":
-      return { ...s, extractRuns: Object.fromEntries(Object.entries(s.extractRuns).filter(([k]) => a.jobIds.includes(k))), extractStale: false };
+    case "staleCleared":
+      return { ...s, extractStale: false };
+    case "jobsChanged": {
+      const kept = Object.fromEntries(Object.entries(s.extractRuns).filter(([k]) => a.jobIds.includes(k)));
+      return { ...s, extractRuns: kept, extractStale: s.extractStale && Object.keys(kept).length > 0 };
+    }
   }
 }
 
