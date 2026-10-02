@@ -190,12 +190,13 @@ export function StageFlowChart({ flow, profile, extract, height = 260, counts, o
           return plain("Schema", stageState(id), null, () => onOpen("schema"));
         case "extract": {
           const running = extract.status === "running";
-          const canStart = extract.jobs.some((j) => j.ready && j.status === "idle");
+          const anyReady = extract.jobs.some((j) => j.ready);
+          const canStart = extract.jobs.some((j) => j.ready && (j.status === "idle" || j.status === "stale"));
           return {
             ...plain("Extract & verify", extract.status, reuses ? `reuses stored documents for ${reuses.count} companies` : null, () => onOpen("extract", extract.status === "review" ? "review" : "setup")),
             lines: extract.jobs.map((j) => ({ id: j.id, text: j.label, word: [STATE_WORD[j.status], j.counts].filter(Boolean).join(" · "), warn: !j.ready })),
             startLabel: running ? null : START_STATES.has(extract.status) ? "Start" : "Run again",
-            startDisabled: !canStart && START_STATES.has(extract.status),
+            startDisabled: START_STATES.has(extract.status) ? !canStart : !anyReady,
             onStart: () => onStart("extract"),
             onStop: running && latestExtractRun(flow) ? () => onStop(latestExtractRun(flow)!) : null,
           };
