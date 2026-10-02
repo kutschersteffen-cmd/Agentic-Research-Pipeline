@@ -31,6 +31,7 @@ export function CompaniesPanel({
   const [scope, setScope] = useState<"batch" | "single">("batch");
   const [single, setSingle] = useState({ name: "", ticker: "", website: "" });
   const [busy, setBusy] = useState(false);
+  const [readyOpen, setReadyOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [readyRows, setReadyRows] = useState<(CompanyRef & { readiness: Readiness })[]>([]);
 
@@ -140,9 +141,9 @@ export function CompaniesPanel({
             Re-check ready companies too
           </label>
           {readyRows.length > 0 && (
-            <details>
+            <details onToggle={(e) => setReadyOpen(e.currentTarget.open)}>
               <summary>Ready companies ({readyRows.length})</summary>
-              <div className="table-wrap">
+              {readyOpen && <div className="table-wrap">
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -165,7 +166,7 @@ export function CompaniesPanel({
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </div>}
             </details>
           )}
           <p className="help-text">Embeddings are reused when cached.</p>

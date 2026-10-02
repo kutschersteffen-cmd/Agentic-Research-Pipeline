@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { ACTIVE_STATUSES, runTypeLabel, when } from "../lib/runs";
 import { runEndedAt, runScope } from "../lib/stagedFlow";
@@ -47,13 +47,16 @@ export function FlowRuns(p: {
   const typesKey = runTypes.join(",");
   const idsKey = runIds.join(",");
 
+  const seq = useRef(0);
   const load = useCallback(async () => {
+    const mySeq = ++seq.current;
     try {
       const wanted = new Set(idsKey ? idsKey.split(",") : []);
       const results = await Promise.all(
         (typesKey ? typesKey.split(",") : []).map((t) => api.listRuns(t) as Promise<{ runs: RunManifest[] }>),
       );
       const mine = results.flatMap((res) => res.runs).filter((r) => wanted.has(r.run_id));
+      if (mySeq !== seq.current) return; // a newer request owns the list
       mine.sort((a, b) => {
         const live = Number(ACTIVE_STATUSES.has(b.status)) - Number(ACTIVE_STATUSES.has(a.status));
         return live || b.created_at.localeCompare(a.created_at);
@@ -61,6 +64,7 @@ export function FlowRuns(p: {
       setRuns(mine);
       setError(null);
     } catch (err) {
+      if (mySeq !== seq.current) return;
       setError(`Runs could not be loaded: ${(err as Error).message}.`);
     }
   }, [typesKey, idsKey]);

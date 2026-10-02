@@ -77,7 +77,12 @@ def document_readiness(
     """Splits a company list into `ready` (documents already on disk or
     registered, so identity resolution and discovery can be skipped) and
     `onboard`. Read-only."""
-    companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
+    try:
+        companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
+    except FileNotFoundError as exc:
+        raise HTTPException(400, f"Universe file not found: {req.universe_path}") from exc
+    except ValueError as exc:  # unsupported type, bad JSON, or rows that fail CompanyRef validation
+        raise HTTPException(400, f"Universe file could not be read: {exc}") from exc
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
     stored = store.readiness_by_company([c.company_id for c in companies])

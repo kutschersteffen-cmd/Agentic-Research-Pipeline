@@ -19,6 +19,7 @@ import { ACTIVE_STATUSES } from "../lib/runs";
 import {
   STAGES,
   extractInputs,
+  pendingOnboard,
   flowReducer,
   initialFlow,
   mergeCompanies,
@@ -160,6 +161,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   }
 
   const inputs = extractInputs(flow);
+  const leftOut = pendingOnboard(flow);
   const inputCount = inputs.length === 1 ? inputs[0].count : mergeCompanies(inputs).length;
   const schemaInfo = schemaLabel(mode, schema);
   const canStart = inputs.length > 0 && schemaInfo.ready && (mode !== "tnfd" || !!asOf.trim());
@@ -455,6 +457,9 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
                 ? `Runs on ${inputCount} companies with ${schemaInfo.label}.`
                 : "No companies handed over yet: carry them through Identify and Documents, or skip those stages."}
             </p>
+            {inputs.length > 0 && leftOut > 0 && (
+              <p className="await-text">{leftOut} companies are still onboarding and will be left out</p>
+            )}
             {flow.extractStale && <p className="await-text">Inputs changed since this run</p>}
             <button onClick={startRun} disabled={busy || !canStart}>
               Start extraction

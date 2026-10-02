@@ -58,3 +58,14 @@ def test_endpoint_requires_input(tmp_path):
     with pytest.raises(HTTPException) as exc_info:
         document_readiness(ReadinessRequest(), settings, DocumentContentStore(tmp_path / "store"))
     assert exc_info.value.status_code == 400
+
+
+@pytest.mark.parametrize("name, content", [("missing.csv", None), ("bad.txt", "x"), ("bad.json", "{not json")])
+def test_endpoint_rejects_unreadable_universe(tmp_path, name, content):
+    settings = Settings(anthropic_api_key="unused", documents_dir=tmp_path / "docs")
+    path = tmp_path / name
+    if content is not None:
+        path.write_text(content)
+    with pytest.raises(HTTPException) as exc_info:
+        document_readiness(ReadinessRequest(universe_path=str(path)), settings, DocumentContentStore(tmp_path / "store"))
+    assert exc_info.value.status_code == 400
