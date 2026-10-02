@@ -28,6 +28,7 @@ class FakeLLMClient:
         self._script = {k: list(v) for k, v in script.items()}
         self.calls: list[str] = []
         self.prompts: list[str] = []
+        self.systems: list[str] = []
         self.images: list[list[bytes] | None] = []
 
     async def complete_structured(self, *, system, prompt, output_model, max_validation_retries=2, temperature=0.0, max_tokens=8192, images=None):
@@ -36,6 +37,7 @@ class FakeLLMClient:
         name = output_model.__name__
         self.calls.append(name)
         self.prompts.append(prompt)
+        self.systems.append(system)
         self.images.append(images)
         queue = self._script.get(name)
         if not queue:

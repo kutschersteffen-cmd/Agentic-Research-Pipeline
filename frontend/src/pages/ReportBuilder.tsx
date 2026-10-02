@@ -64,6 +64,7 @@ export function ReportBuilder() {
   const [focusAreas, setFocusAreas] = useState("");
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("pptx");
   const [deckTheme, setDeckTheme] = useState<"light" | "dark">("light");
+  const [deckDensity, setDeckDensity] = useState<"committee" | "present">("committee");
   const [targetLength, setTargetLength] = useState<string>("");
   const [maxBullets, setMaxBullets] = useState(6);
   const [includeTitleSlide, setIncludeTitleSlide] = useState(true);
@@ -149,6 +150,7 @@ export function ReportBuilder() {
         layout: {
           output_format: outputFormat,
           theme: deckTheme,
+          density: deckDensity,
           target_length: targetLength ? Number(targetLength) : null,
           max_bullets_per_slide: maxBullets,
           include_title_slide: includeTitleSlide,
@@ -396,6 +398,18 @@ export function ReportBuilder() {
               </div>
             </div>
           )}
+          {outputFormat === "house_deck" && (
+            <div>
+              <span className="field-label">Deck density</span>
+              <div className="theme-switch" role="group" aria-label="Deck density" style={{ margin: 0, width: 260 }}>
+                {(["committee", "present"] as const).map((d) => (
+                  <button key={d} type="button" className={deckDensity === d ? "on" : undefined} aria-pressed={deckDensity === d} onClick={() => setDeckDensity(d)}>
+                    {d === "committee" ? "Committee" : "Presentation"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         {outputFormat === "house_deck" && (
           <label className="field-label">
@@ -596,14 +610,22 @@ export function ReportBuilder() {
               {groupBySlide(findings).map(([slide, items]) => (
                 <div className="review-item" key={slide}>
                   <strong>{slide === 0 ? "Title slide" : `Slide ${slide}`}</strong>
-                  <ul>
-                    {items.map((f, j) => (
-                      <li key={j}>
-                        <span className="mono">{f.stage}/{f.rule}</span>
-                        {f.slot && <span className="muted"> [{f.slot}]</span>} — {f.message}
-                      </li>
-                    ))}
-                  </ul>
+                  {[false, true].map((info) => {
+                    const shown = items.filter((f) => (f.severity === "info") === info);
+                    return shown.length > 0 && (
+                      <div key={String(info)} className={info ? "muted" : undefined}>
+                        {info && <span className="mono">Layout changes</span>}
+                        <ul>
+                          {shown.map((f, j) => (
+                            <li key={j}>
+                              <span className="mono">{f.stage}/{f.rule}</span>
+                              {f.slot && <span className="muted"> [{f.slot}]</span>} — {f.message}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </>

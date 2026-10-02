@@ -1,7 +1,8 @@
 """Fit loop: render the deck, measure it, and fix each overflowing slide with one action per pass.
 
 Order of actions: shorten the slot (mild overflow), switch to the variant's `roomier` one, split a long list.
-Headline overflow is never rewritten (the headline is approved); overflow_x and anything left over is reported.
+Headline and title-slide title overflow is never rewritten (both are approved); structured lists (structured.NO_SPLIT)
+are never split; overflow_x and anything left over is reported.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from arp.reporting.house_style import get_variant
 from arp.reporting.html_render import render_deck_html
 from arp.reporting.lint import lint_deck
 from arp.reporting.slide_fill import rewrite_slot
+from arp.reporting.structured import NO_SPLIT
 from arp.schemas.reporting import Deck, Finding, ReportRequest, SlideContent
 
 _MILD = 1.6
@@ -25,6 +27,15 @@ def _words(v: str | list[str]) -> int:
 
 def _note(s: SlideContent, marker: str) -> SlideContent:
     return s.model_copy(update={"speaker_notes": f"{s.speaker_notes} {marker}".strip()})
+
+
+def split_list(s: SlideContent, slot: str, i: int) -> list[SlideContent] | None:
+    """Slide `i` as two slides, each with half of `slot`'s items; None when the list cannot split (structured.NO_SPLIT)."""
+    items = s.slots.get(slot)
+    if (s.layout, slot) in NO_SPLIT or not isinstance(items, list) or len(items) < 2:
+        return None
+    h, marker = len(items) // 2, f"[split_from slide {i}]"
+    return [_note(s.model_copy(update={"slots": {**s.slots, slot: items[:h]}}), marker), _note(s.model_copy(update={"slots": {**s.slots, slot: items[h:]}}), marker)]
 
 
 async def _fit_slide(
@@ -48,11 +59,8 @@ async def _fit_slide(
         kept = {k: v for k, v in s.slots.items() if k in names}
         dropped = [Finding(slide=i, slot=k, stage="fit", rule="slot_dropped", message=f"Slot {k!r} does not exist in {s.layout}/{roomier}; its content was dropped.") for k in s.slots if k not in names]
         return [s.model_copy(update={"variant": roomier, "slots": kept})], dropped
-    items = s.slots.get(slot)
-    if kind == "list" and isinstance(items, list) and len(items) >= 2:
-        h = len(items) // 2
-        marker = f"[split_from slide {i}]"
-        return [_note(s.model_copy(update={"slots": {**s.slots, slot: items[:h]}}), marker), _note(s.model_copy(update={"slots": {**s.slots, slot: items[h:]}}), marker)], []
+    if kind == "list" and (halves := split_list(s, slot, i)):
+        return halves, []
     if kind == "table" and s.table:
         ds = next((d for d in request.datasets if d.dataset_id == s.table.dataset_id), None)
         n = min(s.table.max_rows, len(ds.rows) - s.table.row_offset) if ds else 0  # visible rows
@@ -74,10 +82,11 @@ async def fit_deck(
     """`shift`, when given, holds earlier findings on this deck: a split moves those after it down, in place."""
     extra: list[Finding] = []
     for _ in range(max_passes):
-        found = await measure(render_deck_html(deck, request.datasets, mode=request.layout.theme))
+        found = await measure(render_deck_html(deck, request.datasets, mode=request.layout.theme, density=request.layout.density))
         todo: dict[int, tuple[str, float]] = {}
         for f in found:
-            if f.rule == "overflow" and f.slot not in (None, "headline"):
+            title = deck.slides[f.slide].layout == "title" and f.slot == "title"  # the approved storyline title, like the headline
+            if f.rule == "overflow" and f.slot not in (None, "headline") and not title:
                 todo.setdefault(f.slide, (f.slot, float(f.message.removeprefix("ratio="))))
         if not todo:
             break
@@ -92,4 +101,4 @@ async def fit_deck(
                     f.slide += len(new) - 1
             extra += fs
         deck = deck.model_copy(update={"slides": slides})
-    return deck, extra + await measure(render_deck_html(deck, request.datasets, mode=request.layout.theme))
+    return deck, extra + await measure(render_deck_html(deck, request.datasets, mode=request.layout.theme, density=request.layout.density))

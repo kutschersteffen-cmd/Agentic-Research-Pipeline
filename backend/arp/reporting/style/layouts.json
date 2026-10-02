@@ -11,26 +11,26 @@
        "name": "title",
        "kind": "text",
        "col": 0,
-       "span": 10,
-       "row": 3,
-       "rows": 3,
-       "max_words": 10,
+       "span": 12,
+       "row": 0,
+       "rows": 10,
+       "max_words": 9,
        "max_items": null,
-       "type_role": "headline"
+       "type_role": "big_number"
       },
       {
        "name": "subtitle",
        "kind": "text",
        "col": 0,
-       "span": 10,
-       "row": 6,
+       "span": 9,
+       "row": 10,
        "rows": 2,
-       "max_words": 20,
+       "max_words": 10,
        "max_items": null,
        "type_role": "subhead"
       }
      ],
-     "roomier": null
+     "anchor": "bottom"
     },
     {
      "id": "key_figure",
@@ -39,21 +39,21 @@
        "name": "title",
        "kind": "text",
        "col": 0,
-       "span": 7,
-       "row": 2,
-       "rows": 4,
-       "max_words": 10,
+       "span": 8,
+       "row": 0,
+       "rows": 10,
+       "max_words": 6,
        "max_items": null,
-       "type_role": "headline"
+       "type_role": "big_number"
       },
       {
        "name": "subtitle",
        "kind": "text",
        "col": 0,
-       "span": 7,
-       "row": 6,
+       "span": 8,
+       "row": 10,
        "rows": 2,
-       "max_words": 14,
+       "max_words": 9,
        "max_items": null,
        "type_role": "subhead"
       },
@@ -62,14 +62,14 @@
        "kind": "number",
        "col": 8,
        "span": 4,
-       "row": 3,
-       "rows": 5,
+       "row": 6,
+       "rows": 4,
        "max_words": null,
        "max_items": null,
        "type_role": "big_number"
       }
      ],
-     "roomier": null
+     "anchor": "bottom"
     }
    ]
   },
@@ -81,29 +81,1101 @@
      "id": "default",
      "slots": [
       {
+       "name": "number",
+       "kind": "text",
+       "col": 0,
+       "span": 3,
+       "row": 0,
+       "rows": 2,
+       "max_words": 1,
+       "max_items": null,
+       "type_role": "headline"
+      },
+      {
        "name": "title",
        "kind": "text",
        "col": 0,
-       "span": 10,
-       "row": 4,
-       "rows": 3,
+       "span": 12,
+       "row": 2,
+       "rows": 7,
        "max_words": 8,
        "max_items": null,
-       "type_role": "headline"
+       "type_role": "headline",
+       "type_role_short": "big_number",
+       "short_words": 5
       },
       {
        "name": "subtitle",
        "kind": "text",
        "col": 0,
-       "span": 10,
-       "row": 7,
-       "rows": 2,
+       "span": 9,
+       "row": 9,
+       "rows": 3,
        "max_words": 16,
        "max_items": null,
        "type_role": "subhead"
       }
      ],
-     "roomier": null
+     "anchor": "bottom"
+    }
+   ]
+  },
+  {
+   "id": "statement",
+   "purpose": "One big claim, optionally with a support line.",
+   "variants": [
+    {
+     "id": "support",
+     "slots": [
+      {
+       "name": "statement",
+       "kind": "text",
+       "col": 0,
+       "span": 11,
+       "row": 0,
+       "rows": 8,
+       "max_words": 24,
+       "max_items": null,
+       "type_role": "headline",
+       "type_role_short": "big_number",
+       "short_words": 6
+      },
+      {
+       "name": "support",
+       "kind": "text",
+       "col": 0,
+       "span": 8,
+       "row": 8,
+       "rows": 4,
+       "max_words": 30,
+       "max_items": null,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 12
+      }
+     ],
+     "anchor": "middle"
+    },
+    {
+     "id": "plain",
+     "slots": [
+      {
+       "name": "statement",
+       "kind": "text",
+       "col": 0,
+       "span": 11,
+       "row": 0,
+       "rows": 12,
+       "max_words": 30,
+       "max_items": null,
+       "type_role": "headline",
+       "type_role_short": "big_number",
+       "short_words": 6
+      }
+     ],
+     "anchor": "middle"
+    }
+   ]
+  },
+  {
+   "id": "cards",
+   "purpose": "Parallel points as cards; write each item as 'Short title: one line'. Variant rows sets the same items as full-width numbered rows sharing the body.",
+   "variants": [
+    {
+     "id": "three",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 12,
+       "max_words": 14,
+       "max_items": 3,
+       "type_role": "body",
+       "committee_words": 24,
+       "type_role_short": "subhead",
+       "short_words": 8
+      }
+     ],
+     "visual": true
+    },
+    {
+     "id": "four",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 12,
+       "max_words": 10,
+       "max_items": 4,
+       "type_role": "body",
+       "committee_words": 18,
+       "type_role_short": "subhead",
+       "short_words": 6
+      }
+     ],
+     "visual": true
+    },
+    {
+     "id": "rows",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 12,
+       "max_words": 20,
+       "max_items": 4,
+       "type_role": "body",
+       "committee_words": 30,
+       "type_role_short": "subhead",
+       "short_words": 8
+      }
+     ],
+     "anchor": "middle",
+     "visual": true
+    }
+   ]
+  },
+  {
+   "id": "steps",
+   "purpose": "A sequence or process as numbered steps on a line.",
+   "variants": [
+    {
+     "id": "three",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 12,
+       "max_words": 16,
+       "max_items": 3,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 8
+      }
+     ],
+     "anchor": "middle",
+     "visual": true
+    },
+    {
+     "id": "four",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 12,
+       "max_words": 14,
+       "max_items": 4,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 6
+      }
+     ],
+     "anchor": "middle",
+     "visual": true
+    },
+    {
+     "id": "five",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 12,
+       "max_words": 12,
+       "max_items": 5,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 5
+      }
+     ],
+     "anchor": "middle",
+     "visual": true
+    }
+   ]
+  },
+  {
+   "id": "stat_row",
+   "purpose": "One to four key figures, each with a short label.",
+   "variants": [
+    {
+     "id": "one",
+     "slots": [
+      {
+       "name": "number_1",
+       "kind": "number",
+       "col": 0,
+       "span": 12,
+       "row": 1,
+       "rows": 6,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_1",
+       "kind": "text",
+       "col": 0,
+       "span": 8,
+       "row": 7,
+       "rows": 4,
+       "max_words": 16,
+       "max_items": null,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 12
+      }
+     ],
+     "anchor": "middle",
+     "visual": true
+    },
+    {
+     "id": "two",
+     "slots": [
+      {
+       "name": "number_1",
+       "kind": "number",
+       "col": 0,
+       "span": 6,
+       "row": 1,
+       "rows": 6,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_1",
+       "kind": "text",
+       "col": 0,
+       "span": 6,
+       "row": 7,
+       "rows": 4,
+       "max_words": 14,
+       "max_items": null,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 10
+      },
+      {
+       "name": "number_2",
+       "kind": "number",
+       "col": 6,
+       "span": 6,
+       "row": 1,
+       "rows": 6,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_2",
+       "kind": "text",
+       "col": 6,
+       "span": 6,
+       "row": 7,
+       "rows": 4,
+       "max_words": 14,
+       "max_items": null,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 10
+      }
+     ],
+     "anchor": "middle",
+     "visual": true
+    },
+    {
+     "id": "three",
+     "slots": [
+      {
+       "name": "number_1",
+       "kind": "number",
+       "col": 0,
+       "span": 4,
+       "row": 1,
+       "rows": 6,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_1",
+       "kind": "text",
+       "col": 0,
+       "span": 4,
+       "row": 7,
+       "rows": 4,
+       "max_words": 12,
+       "max_items": null,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 8
+      },
+      {
+       "name": "number_2",
+       "kind": "number",
+       "col": 4,
+       "span": 4,
+       "row": 1,
+       "rows": 6,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_2",
+       "kind": "text",
+       "col": 4,
+       "span": 4,
+       "row": 7,
+       "rows": 4,
+       "max_words": 12,
+       "max_items": null,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 8
+      },
+      {
+       "name": "number_3",
+       "kind": "number",
+       "col": 8,
+       "span": 4,
+       "row": 1,
+       "rows": 6,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_3",
+       "kind": "text",
+       "col": 8,
+       "span": 4,
+       "row": 7,
+       "rows": 4,
+       "max_words": 12,
+       "max_items": null,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 8
+      }
+     ],
+     "anchor": "middle",
+     "visual": true
+    },
+    {
+     "id": "four",
+     "slots": [
+      {
+       "name": "number_1",
+       "kind": "number",
+       "col": 0,
+       "span": 6,
+       "row": 0,
+       "rows": 4,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_1",
+       "kind": "text",
+       "col": 0,
+       "span": 6,
+       "row": 4,
+       "rows": 2,
+       "max_words": 6,
+       "max_items": null,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 3
+      },
+      {
+       "name": "number_2",
+       "kind": "number",
+       "col": 6,
+       "span": 6,
+       "row": 0,
+       "rows": 4,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_2",
+       "kind": "text",
+       "col": 6,
+       "span": 6,
+       "row": 4,
+       "rows": 2,
+       "max_words": 6,
+       "max_items": null,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 3
+      },
+      {
+       "name": "number_3",
+       "kind": "number",
+       "col": 0,
+       "span": 6,
+       "row": 6,
+       "rows": 4,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_3",
+       "kind": "text",
+       "col": 0,
+       "span": 6,
+       "row": 10,
+       "rows": 2,
+       "max_words": 6,
+       "max_items": null,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 3
+      },
+      {
+       "name": "number_4",
+       "kind": "number",
+       "col": 6,
+       "span": 6,
+       "row": 6,
+       "rows": 4,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "big_number"
+      },
+      {
+       "name": "label_4",
+       "kind": "text",
+       "col": 6,
+       "span": 6,
+       "row": 10,
+       "rows": 2,
+       "max_words": 6,
+       "max_items": null,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 3
+      }
+     ],
+     "visual": true
+    }
+   ]
+  },
+  {
+   "id": "split",
+   "purpose": "A claim on the left, its evidence (chart, table or list) on the right.",
+   "variants": [
+    {
+     "id": "chart",
+     "slots": [
+      {
+       "name": "statement",
+       "kind": "text",
+       "col": 0,
+       "span": 4,
+       "row": 0,
+       "rows": 12,
+       "max_words": 30,
+       "max_items": null,
+       "type_role": "subhead",
+       "committee_words": 60,
+       "type_role_short": "headline",
+       "short_words": 8
+      },
+      {
+       "name": "chart",
+       "kind": "chart",
+       "col": 4,
+       "span": 8,
+       "row": 0,
+       "rows": 12,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "caption"
+      }
+     ],
+     "visual": true
+    },
+    {
+     "id": "table",
+     "slots": [
+      {
+       "name": "statement",
+       "kind": "text",
+       "col": 0,
+       "span": 4,
+       "row": 0,
+       "rows": 12,
+       "max_words": 30,
+       "max_items": null,
+       "type_role": "subhead",
+       "committee_words": 60,
+       "type_role_short": "headline",
+       "short_words": 8
+      },
+      {
+       "name": "table",
+       "kind": "table",
+       "col": 4,
+       "span": 8,
+       "row": 0,
+       "rows": 12,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ]
+    },
+    {
+     "id": "list",
+     "slots": [
+      {
+       "name": "statement",
+       "kind": "text",
+       "col": 0,
+       "span": 4,
+       "row": 0,
+       "rows": 12,
+       "max_words": 30,
+       "max_items": null,
+       "type_role": "subhead",
+       "committee_words": 60,
+       "type_role_short": "headline",
+       "short_words": 8
+      },
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 4,
+       "span": 8,
+       "row": 0,
+       "rows": 12,
+       "max_words": 16,
+       "max_items": 4,
+       "type_role": "body",
+       "committee_words": 24,
+       "type_role_short": "subhead",
+       "short_words": 8
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "chart_focus",
+   "purpose": "One full-width chart with a one-sentence callout.",
+   "variants": [
+    {
+     "id": "full",
+     "slots": [
+      {
+       "name": "callout",
+       "kind": "text",
+       "col": 0,
+       "span": 8,
+       "row": 0,
+       "rows": 2,
+       "max_words": 24,
+       "max_items": null,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 10
+      },
+      {
+       "name": "chart",
+       "kind": "chart",
+       "col": 0,
+       "span": 12,
+       "row": 2,
+       "rows": 10,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "caption"
+      }
+     ],
+     "visual": true
+    }
+   ]
+  },
+  {
+   "id": "compare",
+   "purpose": "Two mirrored panels: before/after, us/them; start each with 'Label: '.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "left",
+       "kind": "text",
+       "col": 0,
+       "span": 6,
+       "row": 0,
+       "rows": 12,
+       "max_words": 40,
+       "max_items": null,
+       "type_role": "subhead",
+       "committee_words": 80,
+       "type_role_short": "headline",
+       "short_words": 30
+      },
+      {
+       "name": "right",
+       "kind": "text",
+       "col": 6,
+       "span": 6,
+       "row": 0,
+       "rows": 12,
+       "max_words": 40,
+       "max_items": null,
+       "type_role": "subhead",
+       "committee_words": 80,
+       "type_role_short": "headline",
+       "short_words": 30
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "flow",
+   "purpose": "Numbered stages left to right, each with 1-3 boxes. items: 'Stage title :: box :: *preferred box'.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 10,
+       "max_words": 17,
+       "committee_words": 21,
+       "max_items": 5,
+       "type_role": "body"
+      },
+      {
+       "name": "takeaway_bar",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 10,
+       "rows": 2,
+       "max_words": 16,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "visual": true
+    }
+   ]
+  },
+  {
+   "id": "profile",
+   "purpose": "One entity's profile: meters 'Label :: 54%', a total, and two panels (left/right: first item is the panel title).",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "meters",
+       "kind": "list",
+       "col": 0,
+       "span": 4,
+       "row": 0,
+       "rows": 8,
+       "max_words": 6,
+       "max_items": 6,
+       "type_role": "body"
+      },
+      {
+       "name": "total",
+       "kind": "number",
+       "col": 0,
+       "span": 4,
+       "row": 8,
+       "rows": 2,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "headline"
+      },
+      {
+       "name": "left",
+       "kind": "list",
+       "col": 4,
+       "span": 4,
+       "row": 0,
+       "rows": 10,
+       "max_words": 12,
+       "max_items": 4,
+       "type_role": "body"
+      },
+      {
+       "name": "right",
+       "kind": "list",
+       "col": 8,
+       "span": 4,
+       "row": 0,
+       "rows": 10,
+       "max_words": 12,
+       "max_items": 4,
+       "type_role": "body"
+      },
+      {
+       "name": "takeaway_bar",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 10,
+       "rows": 2,
+       "max_words": 16,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "visual": true
+    }
+   ]
+  },
+  {
+   "id": "scatter_zone",
+   "purpose": "A scatter (chart.zone, chart.diagonal) with signed callouts. items: '+11 :: explanation'.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "chart",
+       "kind": "chart",
+       "col": 0,
+       "span": 7,
+       "row": 0,
+       "rows": 10,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "caption"
+      },
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 7,
+       "span": 5,
+       "row": 0,
+       "rows": 10,
+       "max_words": 16,
+       "max_items": 3,
+       "type_role": "body"
+      },
+      {
+       "name": "takeaway_bar",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 10,
+       "rows": 2,
+       "max_words": 16,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "visual": true
+    }
+   ]
+  },
+  {
+   "id": "matrix2x2",
+   "purpose": "Four tinted quadrants with axis titles and a side panel. quadrants: 'Title :: subtitle :: text :: high|mid|low|neutral'.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "x_axis",
+       "kind": "text",
+       "col": 1,
+       "span": 7,
+       "row": 0,
+       "rows": 1,
+       "max_words": 6,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "y_axis",
+       "kind": "text",
+       "col": 0,
+       "span": 1,
+       "row": 1,
+       "rows": 9,
+       "max_words": 4,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "quadrants",
+       "kind": "list",
+       "col": 1,
+       "span": 7,
+       "row": 1,
+       "rows": 9,
+       "max_words": 20,
+       "max_items": 4,
+       "type_role": "body"
+      },
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 8,
+       "span": 4,
+       "row": 0,
+       "rows": 10,
+       "max_words": 12,
+       "max_items": 4,
+       "type_role": "body"
+      },
+      {
+       "name": "takeaway_bar",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 10,
+       "rows": 2,
+       "max_words": 16,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "visual": true
+    }
+   ]
+  },
+  {
+   "id": "tree",
+   "purpose": "A yes/no decision tree into outcomes. items: 'id :: question :: yes_id :: no_id' or 'id :: =outcome :: status'.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 10,
+       "max_words": 12,
+       "max_items": 11,
+       "type_role": "body"
+      },
+      {
+       "name": "takeaway_bar",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 10,
+       "rows": 2,
+       "max_words": 16,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "visual": true
+    }
+   ]
+  },
+  {
+   "id": "decisions",
+   "purpose": "Numbered decisions to take. items: 'Decision :: one-line detail'.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 12,
+       "max_words": 20,
+       "max_items": 5,
+       "type_role": "body"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "table",
+   "purpose": "A data table, optionally with a takeaway.",
+   "variants": [
+    {
+     "id": "compact",
+     "slots": [
+      {
+       "name": "table",
+       "kind": "table",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 12,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ]
+    },
+    {
+     "id": "highlight",
+     "slots": [
+      {
+       "name": "table",
+       "kind": "table",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 10,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "takeaway",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 10,
+       "rows": 2,
+       "max_words": 30,
+       "max_items": null,
+       "type_role": "body",
+       "type_role_short": "subhead",
+       "short_words": 14
+      }
+     ]
+    },
+    {
+     "id": "heat",
+     "slots": [
+      {
+       "name": "table",
+       "kind": "table",
+       "col": 0,
+       "span": 8,
+       "row": 0,
+       "rows": 10,
+       "max_words": null,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "commentary",
+       "kind": "text",
+       "col": 8,
+       "span": 4,
+       "row": 0,
+       "rows": 10,
+       "max_words": 60,
+       "max_items": null,
+       "type_role": "body"
+      },
+      {
+       "name": "takeaway_bar",
+       "kind": "text",
+       "col": 0,
+       "span": 12,
+       "row": 10,
+       "rows": 2,
+       "max_words": 16,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "visual": true
+    }
+   ]
+  },
+  {
+   "id": "quote",
+   "purpose": "A pull quote with attribution.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "quote",
+       "kind": "text",
+       "col": 1,
+       "span": 10,
+       "row": 0,
+       "rows": 8,
+       "max_words": 40,
+       "max_items": null,
+       "type_role": "subhead",
+       "type_role_short": "headline",
+       "short_words": 20
+      },
+      {
+       "name": "attribution",
+       "kind": "text",
+       "col": 1,
+       "span": 10,
+       "row": 8,
+       "rows": 2,
+       "max_words": 10,
+       "max_items": null,
+       "type_role": "body"
+      }
+     ],
+     "anchor": "middle"
+    }
+   ]
+  },
+  {
+   "id": "summary",
+   "purpose": "Closing recap and next steps.",
+   "variants": [
+    {
+     "id": "default",
+     "slots": [
+      {
+       "name": "items",
+       "kind": "list",
+       "col": 0,
+       "span": 12,
+       "row": 0,
+       "rows": 12,
+       "max_words": 20,
+       "max_items": 4,
+       "type_role": "subhead",
+       "committee_words": 30,
+       "type_role_short": "headline",
+       "short_words": 8
+      }
+     ]
     }
    ]
   },
@@ -137,7 +1209,8 @@
        "type_role": "body"
       }
      ],
-     "roomier": null
+     "roomier": null,
+     "visual": true
     },
     {
      "id": "two",
@@ -187,7 +1260,8 @@
        "type_role": "body"
       }
      ],
-     "roomier": null
+     "roomier": null,
+     "visual": true
     },
     {
      "id": "three",
@@ -259,7 +1333,8 @@
        "type_role": "body"
       }
      ],
-     "roomier": null
+     "roomier": null,
+     "visual": true
     }
    ]
   },
@@ -416,57 +1491,6 @@
    ]
   },
   {
-   "id": "table",
-   "purpose": "A data table, optionally with a takeaway.",
-   "variants": [
-    {
-     "id": "compact",
-     "slots": [
-      {
-       "name": "table",
-       "kind": "table",
-       "col": 0,
-       "span": 12,
-       "row": 0,
-       "rows": 12,
-       "max_words": null,
-       "max_items": null,
-       "type_role": "caption"
-      }
-     ],
-     "roomier": null
-    },
-    {
-     "id": "highlight",
-     "slots": [
-      {
-       "name": "table",
-       "kind": "table",
-       "col": 0,
-       "span": 12,
-       "row": 0,
-       "rows": 9,
-       "max_words": null,
-       "max_items": null,
-       "type_role": "caption"
-      },
-      {
-       "name": "takeaway",
-       "kind": "text",
-       "col": 0,
-       "span": 12,
-       "row": 9,
-       "rows": 3,
-       "max_words": 30,
-       "max_items": null,
-       "type_role": "body"
-      }
-     ],
-     "roomier": null
-    }
-   ]
-  },
-  {
    "id": "bullets",
    "purpose": "Short bullet list.",
    "variants": [
@@ -525,7 +1549,8 @@
        "type_role": "body"
       }
      ],
-     "roomier": "six"
+     "roomier": "six",
+     "visual": true
     },
     {
      "id": "six",
@@ -542,41 +1567,8 @@
        "type_role": "body"
       }
      ],
-     "roomier": null
-    }
-   ]
-  },
-  {
-   "id": "quote",
-   "purpose": "A pull quote with attribution.",
-   "variants": [
-    {
-     "id": "default",
-     "slots": [
-      {
-       "name": "quote",
-       "kind": "text",
-       "col": 1,
-       "span": 10,
-       "row": 2,
-       "rows": 6,
-       "max_words": 40,
-       "max_items": null,
-       "type_role": "subhead"
-      },
-      {
-       "name": "attribution",
-       "kind": "text",
-       "col": 1,
-       "span": 10,
-       "row": 8,
-       "rows": 2,
-       "max_words": 10,
-       "max_items": null,
-       "type_role": "caption"
-      }
-     ],
-     "roomier": null
+     "roomier": null,
+     "visual": true
     }
    ]
   },
@@ -663,29 +1655,6 @@
        "rows": 12,
        "max_words": 30,
        "max_items": null,
-       "type_role": "caption"
-      }
-     ],
-     "roomier": null
-    }
-   ]
-  },
-  {
-   "id": "summary",
-   "purpose": "Closing recap and next steps.",
-   "variants": [
-    {
-     "id": "default",
-     "slots": [
-      {
-       "name": "items",
-       "kind": "list",
-       "col": 0,
-       "span": 12,
-       "row": 0,
-       "rows": 12,
-       "max_words": 20,
-       "max_items": 4,
        "type_role": "body"
       }
      ],

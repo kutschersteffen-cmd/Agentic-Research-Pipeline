@@ -181,3 +181,29 @@ async def test_rewrite_llm_failure_keeps_finding_and_deck(fake_llm):
     deck = _deck(_slide(left="We leverage scale"))
     out, findings = await lint_and_rewrite(deck, _req(), fake_llm({}), max_rounds=1)  # nothing scripted: the call raises
     assert _rules(findings) == {"stock_ai_word"} and out == deck
+
+
+def test_word_limit_follows_density():
+    from arp.schemas.reporting import LayoutInstructions
+
+    slide = SlideContent(headline="h", layout="split", variant="list", slots={"statement": "word " * 40, "items": ["a"]})
+    deck = Deck(title="T", slides=[slide])
+    present = _req().model_copy(update={"layout": LayoutInstructions(density="present")})
+    assert any(f.slot == "statement" and f.rule == "over_word_limit" for f in lint_deck(deck, present))
+    assert not any(f.slot == "statement" and f.rule == "over_word_limit" for f in lint_deck(deck, _req()))  # committee: 60
+
+
+def test_bold_label_skips_layouts_whose_item_format_is_a_label():
+    cards = SlideContent(headline="h", layout="cards", variant="three", slots={"items": ["Queue: flagged items", "Audit: full history"]})
+    flow = SlideContent(headline="h", layout="flow", variant="default", slots={"items": ["Retrieve :: passages", "Answer :: verdict"]})
+    bullets = SlideContent(headline="h", layout="bullets", variant="three", slots={"items": ["Queue: flagged items", "Audit: full history"]})
+    found = lint_deck(Deck(title="T", slides=[cards, flow, bullets]), _req())
+    assert [f.slide for f in found if f.rule == "bold_label"] == [2]
+
+
+async def test_lint_rewrite_keeps_structured_items_when_the_rewrite_breaks_their_format(fake_llm):
+    items = ["Retrieve :: " + "word " * 20, "Answer :: verdict"]  # the first item is over the flow word limit
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="flow", variant="default", slots={"items": items})])
+    llm = fake_llm({"SlotRewrite": [SlotRewrite(text=["Retrieve passages", "Answer verdict"])] * 3})
+    out, findings = await lint_and_rewrite(deck, _req(), llm)
+    assert out.slides[0].slots["items"] == items and any(f.rule == "over_word_limit" for f in findings)

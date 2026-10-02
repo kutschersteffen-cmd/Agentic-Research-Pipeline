@@ -1,8 +1,20 @@
-{% macro headline(slide) %}<h1 class="t-headline" data-slide="{{ slide.index }}" data-slot="headline">{{ slide.headline }}</h1>{% endmacro %}
-{% macro slot(s) %}<div class="slot t-{{ s.role }} k-{{ s.kind }}" data-slide="{{ s.slide }}" data-slot="{{ s.name }}" style="left:{{ s.x }}px;top:{{ s.y }}px;width:{{ s.w }}px;height:{{ s.h }}px">
-{%- if s.kind == "list" %}<ul>{% for item in s["items"] %}<li>{{ item }}</li>{% endfor %}</ul>
+{% macro headline(slide) %}{% if slide.eyebrow %}<p class="eyebrow" data-slide="{{ slide.index }}" data-slot="eyebrow">{{ slide.eyebrow }}</p>{% endif %}<h1 class="t-headline" data-slide="{{ slide.index }}" data-slot="headline">{{ slide.headline }}</h1>{% endmacro %}
+{#- split: cards/steps items and compare panels render "Title: body" as <strong>title</strong><span>body</span>;
+    a colon-less card or step item is body text (<span>), a colon-less compare panel plain text. #}
+{% macro slot(s, split=False) %}<div class="slot t-{{ s.role }} k-{{ s.kind }}" data-slide="{{ s.slide }}" data-slot="{{ s.name }}" data-role="{{ s.role }}"{% if s.error %} data-error="{{ s.error }}"{% endif %} style="left:{{ s.x }}px;top:{{ s.y }}px;width:{{ s.w }}px;height:{{ s.h }}px">
+{%- if s.stages %}<ol class="flow">{% for st in s.stages %}<li><h2><span>{{ loop.index }}</span> {{ st.title }}</h2>{% for text, preferred in st.boxes %}<p{% if preferred %} class="preferred"{% endif %}>{% if preferred %}<em>Preferred</em>{% endif %}{{ text }}</p>{% endfor %}</li>{% endfor %}</ol>
+{%- elif s.meters %}<ul class="meters">{% for m in s.meters %}<li><span>{{ m.label }}</span><b>{{ m.pct|round|int }}%</b><i style="--pct:{{ m.pct }}%"></i></li>{% endfor %}</ul>
+{%- elif s.deltas %}<ul class="deltas">{% for d in s.deltas %}<li><b>{{ d.value }}</b><span>{{ d.text }}</span></li>{% endfor %}</ul>
+{%- elif s.quadrants %}<ul class="quadrants">{% for q in s.quadrants %}<li data-status="{{ q.status }}"><strong>{{ q.title }}</strong><small>{{ q.sub }}</small><span>{{ q.text }}</span></li>{% endfor %}</ul>
+{%- elif s.pairs %}<ol class="decisions">{% for title, detail in s.pairs %}<li><strong>{{ title }}</strong>{% if detail %}<span>{{ detail }}</span>{% endif %}</li>{% endfor %}</ol>
+{%- elif s.panel %}<div class="panel"><h2>{{ s.panel[0] }}</h2><ul>{% for item in s["items"] %}<li>{{ item }}</li>{% endfor %}</ul></div>
+{%- elif s.kind == "list" and s.svg %}{{ s.svg|safe }}
+{%- elif s.kind == "list" and split %}<ul>{% for item in s["items"] %}{% set p = item|title_body %}<li>{% if p[0] %}<strong>{{ p[0] }}</strong><span>{{ p[1] }}</span>{% else %}<span>{{ p[1] }}</span>{% endif %}</li>{% endfor %}</ul>
+{%- elif s.kind == "list" %}<ul>{% for item in s["items"] %}<li>{{ item }}</li>{% endfor %}</ul>
 {%- elif s.kind == "chart" %}{{ s.svg|safe }}
-{%- elif s.kind == "table" %}<table><thead><tr>{% for c in s.columns %}<th>{{ c }}</th>{% endfor %}</tr></thead><tbody>{% for row in s.rows %}<tr>{% for c in row %}<td>{{ c }}</td>{% endfor %}</tr>{% endfor %}</tbody></table>{% if s.more %}<p class="more">+{{ s.more }} more rows</p>{% endif %}
+{%- elif s.kind == "table" %}<table style="--rows: {{ s.rows|length + 1 }}"><thead><tr>{% for c in s.columns %}<th>{{ c }}</th>{% endfor %}</tr></thead><tbody>{% for row in s.rows %}{% set ri = loop.index0 %}<tr>{% for c in row %}<td{% if s.heat and s.heat[ri][loop.index0] %} data-status="{{ s.heat[ri][loop.index0] }}"{% endif %}>{{ c }}</td>{% endfor %}</tr>{% endfor %}</tbody></table>{% if s.more %}<p class="more">+{{ s.more }} more rows</p>{% endif %}
 {%- elif s.kind == "image" %}{% if s.image %}<img src="{{ s.image }}" alt="">{% endif %}
+{%- elif s.name == "takeaway_bar" and s.text %}{% set p = s.text|title_body %}<div class="bar">{% if p[0] %}<strong>{{ p[0] }}:</strong> {{ p[1] }}{% else %}{{ p[1] }}{% endif %}</div>
+{%- elif split and (s.text|title_body)[0] %}{% set p = s.text|title_body %}<strong>{{ p[0] }}</strong><span>{{ p[1] }}</span>
 {%- else %}{{ s.text }}{% endif -%}
 </div>{% endmacro %}

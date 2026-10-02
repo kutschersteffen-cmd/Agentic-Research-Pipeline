@@ -7,11 +7,11 @@
 {% include "deck.css.j2" %}
 </style>
 </head>
-<body>
+<body data-density="{{ density }}">
 {% for slide in slides %}
-<section class="slide" data-slide="{{ slide.index }}" data-layout="{{ slide.layout }}">
+<section class="slide" data-slide="{{ slide.index }}" data-layout="{{ slide.layout }}" data-variant="{{ slide.variant }}" data-anchor="{{ slide.anchor }}" data-words="{{ slide.words }}">
 {% include slide.layout ~ ".html.j2" %}
-<footer><span>{{ slide.refs }}</span><span>{{ slide.index + 1 }}</span></footer>
+<footer data-chrome><span>{{ slide.refs }}</span><span>{{ slide.index + 1 }}</span></footer>
 </section>
 {% endfor %}
 </body>

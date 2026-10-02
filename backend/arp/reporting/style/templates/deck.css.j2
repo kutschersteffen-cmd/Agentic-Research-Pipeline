@@ -1,7 +1,8 @@
 {{ font_faces|safe }}
 :root {
   --ink: {{ c.ink }}; --ink-muted: {{ c.ink_muted }}; --neutral: {{ c.neutral }};
-  --accent: {{ c.accent }}; --bg: {{ c.background }};
+  --accent: {{ c.accent }}; --bg: {{ c.background }}; --well: {{ c.well }};
+  {% for k, v in c.status.items() %}--status-{{ k }}: {{ v }}; {% endfor %}
   {#- font stacks are trusted config; quotes must not be HTML-escaped inside <style> #}
   --font-heading: {{ fonts.heading|safe }}; --font-body: {{ fonts.body|safe }}; --font-mono: {{ fonts.mono|safe }};
   color-scheme: {{ mode }};
@@ -14,13 +15,17 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
 {% for role, ts in t.type.items() %}
 .t-{{ role }} { font-family: var(--font-{{ ts.font }}); font-size: {{ ts.size }}px; line-height: {{ ts.line_height }}; font-weight: {{ ts.weight }}; letter-spacing: {{ ts.tracking }}em; }
 {% endfor %}
-h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; top: {{ t.grid.margin_top }}px; width: {{ t.canvas.width - 2 * t.grid.margin_x }}px; height: {{ t.grid.headline_band - 32 }}px; overflow: hidden; text-wrap: balance; }
+h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; top: {{ t.grid.margin_top }}px; width: {{ t.canvas.width - 2 * t.grid.margin_x }}px; height: {{ (2 * t.type.headline.size * t.type.headline.line_height)|round(0, 'ceil')|int + 8 }}px; overflow: hidden; text-wrap: balance; }  /* 2 lines and descender room: a third line is an overflow */
 /* Recurring mark: a short ink rule above the headline. The accent is not decoration (DESIGN.md's One Signal Rule). */
 .slide::after { content: ""; position: absolute; left: {{ t.grid.margin_x }}px; top: {{ t.grid.margin_top - 32 - t.grid.rule_height }}px; width: {{ t.grid.rule_width }}px; height: {{ t.grid.rule_height }}px; background: var(--ink); }
 .slot { position: absolute; overflow: hidden; overflow-wrap: normal; }
 /* Metric numbers are ink (DESIGN.md). Bottom-aligned so it sits on its label; the padding holds the glyph descent inside the box. */
 .k-number { color: var(--ink); white-space: nowrap; display: flex; align-items: flex-end; padding-bottom: 0.2em; font-variant-numeric: tabular-nums; }
-[data-slot^="label_"] { border-top: 1px solid var(--neutral); padding-top: 16px; font-family: var(--font-mono); }
+[data-slot^="label_"] { border-top: 1px solid var(--neutral); padding-top: 16px; font-family: var(--font-mono); font-weight: 500; letter-spacing: 0; }
+/* Figures stand clear of their labels (the crowded rule); one to three in a row get more air, which also fills the body (sparse). */
+.slide:is([data-layout="stat_row"]:not([data-variant="four"]), [data-layout="big_number"]) .k-number { padding-bottom: 0.35em; }
+.slide:is([data-layout="stat_row"]:not([data-variant="four"]), [data-layout="big_number"]) [data-slot^="label_"] { padding-top: {{ t.grid.gutter }}px; }
+.slide[data-layout="stat_row"][data-variant="four"] [data-slot^="label_"] { padding-top: 24px; }
 .slot ul { margin: 0; padding-left: 1.1em; }
 .slot li { margin-bottom: 0.5em; }
 /* Timeline: numbered hollow steps on one rule, like the app's process-card step dots. */
@@ -28,12 +33,129 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
 .slide[data-layout="timeline"] .k-list ul::before { content: ""; position: absolute; left: 0; right: 0; top: 27px; border-top: 2px solid var(--ink-muted); }
 .slide[data-layout="timeline"] .k-list li { position: relative; margin: 0; padding-top: 84px; counter-increment: step; }
 .slide[data-layout="timeline"] .k-list li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 56px; height: 56px; border: 2px solid var(--ink); border-radius: 50%; background: var(--bg); color: var(--ink); font: 500 {{ t.type.caption.size + 4 }}px/52px var(--font-mono); text-align: center; letter-spacing: 0; }
+{% set g = t.grid.gutter %}{% set body = t.type.body %}
+/* ---- v2 layouts. Whitespace is placed, not left over: anchors push the mass to where the layout means it.
+   "safe" alignment lets overflow spill at the bottom, where scrollHeight (and so browser.measure) sees it. ---- */
+.slide[data-layout="title"] [data-slot="title"], .slide[data-layout="section"] [data-slot="title"],
+.slide[data-layout="statement"][data-variant="support"] [data-slot="statement"], .slide[data-layout="quote"] [data-slot="quote"] {
+  display: flex; flex-direction: column; justify-content: safe flex-end; padding-bottom: .2em; text-wrap: balance; }
+.slide[data-layout="statement"][data-variant="plain"] [data-slot="statement"] { display: flex; flex-direction: column; justify-content: safe center; text-wrap: balance; }
+.slide[data-layout="title"] [data-slot="subtitle"], .slide[data-layout="section"] [data-slot="subtitle"] { border-top: 1px solid var(--neutral); padding-top: {{ g }}px; color: var(--ink-muted); }
+.slide[data-layout="statement"] [data-slot="support"] { padding-top: {{ g }}px; color: var(--ink-muted); text-wrap: pretty; }
+/* The section number and every other label are mono (the Mono Means Data rule); Geist Mono ships in 500 only. */
+.slide[data-layout="section"] [data-slot="number"], [data-slot="attribution"] { font-family: var(--font-mono); font-weight: 500; letter-spacing: 0; color: var(--ink-muted); }
+[data-slot="attribution"] { padding-top: {{ g }}px; }
+[data-slot="attribution"]::before { content: "— "; }
+.slide[data-layout="split"] [data-slot="statement"], [data-slot="callout"] { text-wrap: pretty; }
+.k-number.t-big_number { font-feature-settings: "tnum"; }
+/* Cards: equal hairline boxes sized to the tallest card; mono index, then the title and its line right under it. */
+.slide[data-layout="cards"] ul { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: {{ g }}px; counter-reset: card; }
+/* Cards are as tall as their content (the tallest sets the row), top-aligned at either density: a thin cards slide is
+   sparse, and the design retry moves it on (spec §3), rather than a box stretching to look full. */
+.slide[data-layout="cards"] li { margin: 0; padding: {{ g }}px; border: 1px solid var(--neutral); display: flex; flex-direction: column; counter-increment: card; min-width: 0; }
+.slide[data-layout="cards"] li::before { content: counter(card, decimal-leading-zero); padding-bottom: 20px;
+  font: 500 {{ t.type.subhead.size }}px/1 var(--font-mono); letter-spacing: 0; color: var(--ink-muted); }
+/* Footer chrome is the only text under 24px (caption); every index and label in the body is body size or larger. */
+.slide[data-layout="summary"] li::before, .slide[data-layout="split"] .k-list li::before { font: 500 {{ body.size }}px/1 var(--font-mono); letter-spacing: 0; color: var(--ink-muted); }
+/* cards/rows: the same items as full-width numbered rows sharing the body, like decisions; hairlines between rows. */
+.slide[data-layout="cards"][data-variant="rows"] ul { grid-auto-flow: row; grid-auto-rows: 1fr; height: 100%; }  /* the footer rule closes the last row */
+.slide[data-layout="cards"][data-variant="rows"] li { position: relative; justify-content: center; padding: 16px 0 16px 112px; border: 0; border-top: 1px solid var(--neutral); }
+.slide[data-layout="cards"][data-variant="rows"] li::before { position: absolute; left: 0; top: 50%; transform: translateY(-50%); padding: 0;
+  font: 500 {{ body.size }}px/1 var(--font-mono); }
+/* A present slide's focal element (spec §3): with no number, statement or exhibit, a list's index is set at headline size. */
+[data-density="present"] .slide:is([data-layout="cards"], [data-layout="summary"]) li::before { font-size: {{ t.type.headline.size }}px; color: var(--ink); }
+.slide[data-layout="cards"] strong { display: block; font: {{ t.type.subhead.weight }} {{ t.type.subhead.size }}px/{{ t.type.subhead.line_height }} var(--font-heading); text-wrap: balance; }
+.slide[data-layout="steps"] strong { display: block; font-weight: {{ t.type.subhead.weight }}; font-family: var(--font-heading); text-wrap: balance; }
+.slide[data-layout="cards"] li span, .slide[data-layout="steps"] li span { display: block; margin-top: 12px; color: var(--ink-muted); text-wrap: pretty; }
+.slide[data-layout="steps"] li span { font: {{ body.weight }} {{ body.size }}px/{{ body.line_height }} var(--font-body); letter-spacing: 0; }
+.slide[data-layout="cards"] li span:only-child, .slide[data-layout="steps"] li span:only-child { margin-top: 0; color: var(--ink); }
+/* Steps: numbered nodes on one rule, like the app's process-card step dots; centred in the body. */
+.slide[data-layout="steps"] .k-list { display: flex; align-items: safe center; }
+.slide[data-layout="steps"] ul { width: 100%; }
+.slide[data-layout="steps"] .k-list ul { list-style: none; padding: 0; margin: 0; position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: {{ g }}px; counter-reset: step; }
+.slide[data-layout="steps"] .k-list ul::before { content: ""; position: absolute; left: 0; right: 0; top: 35px; border-top: 2px solid var(--ink-muted); }
+.slide[data-layout="steps"] .k-list li { position: relative; margin: 0; padding-top: 112px; counter-increment: step; text-wrap: pretty; }
+.slide[data-layout="steps"] .k-list li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 72px; height: 72px; border: 2px solid var(--ink); border-radius: 50%; background: var(--bg); color: var(--ink); font: 500 {{ body.size }}px/68px var(--font-mono); text-align: center; letter-spacing: 0; }
+/* A pre-read's steps run down the body: one row per step sharing the body height, the nodes on a vertical rule. */
+[data-density="committee"] .slide[data-layout="steps"] .k-list { align-items: stretch; padding-bottom: 24px; }
+[data-density="committee"] .slide[data-layout="steps"] .k-list ul { grid-auto-flow: row; grid-auto-rows: 1fr; row-gap: 0; }
+[data-density="committee"] .slide[data-layout="steps"] .k-list ul::before { display: none; }
+[data-density="committee"] .slide[data-layout="steps"] .k-list li { display: flex; flex-direction: column; justify-content: center; padding: 0 0 0 112px; }
+[data-density="committee"] .slide[data-layout="steps"] .k-list li::before { top: 50%; transform: translateY(-50%); }
+[data-density="committee"] .slide[data-layout="steps"] .k-list li:not(:last-child)::after { content: ""; position: absolute; left: 35px; top: calc(50% + 36px); height: calc(100% - 72px); border-left: 2px solid var(--ink-muted); }
+/* Summary and split lists: full-width rows on hairlines that share the body height, mono index in a fixed column. */
+.slide[data-layout="summary"] ul, .slide[data-layout="split"] .k-list ul { list-style: none; margin: 0; padding: 0; height: 100%; display: grid; grid-auto-rows: 1fr; counter-reset: row; border-bottom: 1px solid var(--neutral); }
+.slide[data-layout="summary"] li, .slide[data-layout="split"] .k-list li { margin: 0; display: grid; grid-template-columns: 112px 1fr; align-items: center; border-top: 1px solid var(--neutral); counter-increment: row; text-wrap: pretty; }
+.slide[data-layout="summary"] li::before, .slide[data-layout="split"] .k-list li::before { content: counter(row, decimal-leading-zero); }
+/* Compare: two mirrored panels under an ink rule; the "Label:" before the first colon heads its panel. */
+.slide[data-layout="compare"] .slot { border-top: 2px solid var(--ink); padding-top: {{ g }}px; text-wrap: pretty; }
+.slide[data-layout="compare"] .slot.t-headline { padding-right: 2em; }  /* display type keeps a display measure (about 25 characters) */
+.slide[data-layout="compare"] strong { display: block; margin-bottom: 16px; font: {{ t.type.headline.weight }} {{ t.type.headline.size }}px/{{ t.type.headline.line_height }} var(--font-heading); letter-spacing: {{ t.type.headline.tracking }}em; }
+.slide[data-layout="compare"] span { display: block; }
+[data-density="committee"] .slide[data-layout="compare"] strong { font: {{ t.type.subhead.weight }} {{ t.type.subhead.size }}px/{{ t.type.subhead.line_height }} var(--font-heading); letter-spacing: 0; }
+
+/* ---- Committee patterns. Ink plus DESIGN.md's status tints only; a tint is the status colour mixed into the ground. ---- */
+{% set mono_label %}font: 500 {{ body.size }}px/{{ t.type.caption.line_height }} var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-muted);{% endset %}
+.eyebrow { position: absolute; margin: 0; left: {{ t.grid.margin_x + t.grid.rule_width + 16 }}px; top: {{ t.grid.margin_top - 32 - t.grid.rule_height // 2 - 18 }}px; height: 36px;
+  width: {{ t.canvas.width - 2 * t.grid.margin_x - t.grid.rule_width - 16 }}px; overflow: hidden; white-space: nowrap; {{ mono_label }} }
+[data-slot="takeaway_bar"] { display: flex; align-items: safe flex-end; }
+/* A takeaway under a full-width exhibit sits at the foot of the body, clear of the exhibit (the crowded rule). */
+.slide:is([data-layout="chart_takeaway"][data-variant="full"], [data-layout="table"][data-variant="highlight"]) [data-slot="takeaway"] {
+  display: flex; flex-direction: column; justify-content: safe flex-end; }
+.slide[data-layout="table"][data-variant="highlight"] [data-slot="takeaway"] { padding-bottom: 24px; }  /* clear of the footer rule */
+.bar { width: 100%; padding: 14px 24px; background: var(--well); text-wrap: pretty; }
+.bar strong { font-weight: 600; }
+{% for k in c.status %}[data-status="{{ k }}"] { background: color-mix(in oklab, var(--status-{{ k }}) 16%, var(--bg)); }
+{% endfor %}
+/* Flow: numbered stage columns on the well tint, boxes centred in each, a chevron between stages. */
+ol.flow { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; column-gap: 48px; }
+ol.flow > li { position: relative; display: flex; flex-direction: column; gap: 12px; padding: 20px; background: var(--well); min-width: 0; }
+ol.flow > li:not(:last-child)::after { content: ""; position: absolute; right: -32px; top: calc(20px + 0.5lh); width: 14px; height: 14px; border-top: 2px solid var(--ink-muted); border-right: 2px solid var(--ink-muted); transform: translateY(-50%) rotate(45deg); }
+ol.flow h2 { margin: 0; font-weight: 600; font-size: inherit; text-wrap: balance; }
+ol.flow h2 span { font-family: var(--font-mono); font-weight: 500; color: var(--ink-muted); }
+ol.flow p { margin: 0; padding: 12px 16px; background: var(--bg); border: 1px solid var(--neutral); text-wrap: pretty; }
+ol.flow p.preferred { border: 2px solid var(--ink); }
+ol.flow em { display: table; margin-bottom: 8px; padding: 0 8px; background: var(--ink); color: var(--bg); font-style: normal; {{ mono_label }} color: var(--bg); }
+/* Profile: meters in ink on a hairline track, a total, two panels. */
+ul.meters { list-style: none; margin: 0; padding: 0; }
+ul.meters li { display: grid; grid-template-columns: 1fr auto; row-gap: 8px; margin: 0 0 14px; }
+ul.meters b { font-family: var(--font-mono); font-weight: 500; }
+ul.meters i { grid-column: 1 / -1; height: 10px; background: var(--neutral); position: relative; }
+ul.meters i::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--pct); background: var(--ink); }
+.panel { height: calc(100% - 24px); padding: 20px 24px; border: 1px solid var(--neutral); }
+.panel h2 { margin: 0 0 12px; font: {{ t.type.subhead.weight }} {{ t.type.subhead.size }}px/{{ t.type.subhead.line_height }} var(--font-heading); }
+.panel ul { margin: 0; padding-left: 1.1em; }
+.panel li { margin-bottom: .4em; text-wrap: pretty; }
+/* Scatter callouts: a signed number in ink beside its explanation. */
+ul.deltas { list-style: none; margin: 0; padding: 0; }
+ul.deltas li { display: grid; grid-template-columns: 180px 1fr; column-gap: 24px; align-items: baseline; margin-bottom: 32px; }
+ul.deltas b { font: {{ t.type.headline.weight }} {{ t.type.headline.size }}px/1 var(--font-heading); letter-spacing: {{ t.type.headline.tracking }}em; font-variant-numeric: tabular-nums; }
+/* 2x2: tinted quadrants, axis titles in mono. */
+ul.quadrants { list-style: none; margin: 16px 0 0; padding: 0; height: calc(100% - 24px); display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 16px; }
+ul.quadrants li { padding: 16px 20px; min-width: 0; }
+ul.quadrants strong { display: block; font-weight: 600; }
+ul.quadrants small { display: block; font-size: inherit; color: var(--ink-muted); margin-bottom: 8px; }
+[data-slot="x_axis"], [data-slot="y_axis"] { {{ mono_label }} text-align: center; }
+[data-slot="y_axis"] { writing-mode: vertical-rl; transform: rotate(180deg); }
+/* Tree: drawn as SVG in structured.py; its text follows the deck fonts. */
+.slide[data-layout="tree"] svg { font-family: var(--font-body); }
+.slide[data-layout="tree"] svg text.branch { font-family: var(--font-mono); font-weight: 500; fill: var(--ink-muted); }
+/* Decisions: numbered boxes, the number in ink. */
+ol.decisions { list-style: none; margin: 0; padding: 0; height: calc(100% - 24px); display: grid; grid-auto-rows: 1fr; row-gap: 12px; counter-reset: dec; }
+ol.decisions li { margin: 0; display: grid; grid-template-columns: 96px 1fr; align-items: center; align-content: center; padding: 16px 32px; border: 1px solid var(--neutral); counter-increment: dec; }
+ol.decisions li::before { content: counter(dec); grid-row: span 2; font: {{ t.type.headline.weight }} {{ t.type.headline.size }}px/1 var(--font-heading); font-variant-numeric: tabular-nums; }
+ol.decisions strong { font: {{ t.type.subhead.weight }} {{ t.type.subhead.size }}px/{{ t.type.subhead.line_height }} var(--font-heading); }
+ol.decisions span { color: var(--ink-muted); }
 .slot svg { width: 100%; height: 100%; display: block; }
 .slot img { width: 100%; height: 100%; object-fit: contain; }
 .slot table { width: 100%; border-collapse: collapse; }
-.slot th, .slot td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--neutral); font-variant-numeric: tabular-nums; }
+/* Beside its statement or commentary, a table's rows share the body height; a heat row grows to at most twice its 46px. */
+.slide:is([data-layout="split"], [data-layout="table"][data-variant="heat"]) .k-table { display: flex; flex-direction: column; }
+.slide[data-layout="split"] .k-table table { flex: 1; }
+.slide[data-layout="table"][data-variant="heat"] .k-table table { flex: 0 1 calc(var(--rows) * 92px); }
+.slot th, .slot td { text-align: left; padding: 10px 24px 10px 0; border-bottom: 1px solid var(--neutral); font-variant-numeric: tabular-nums; }
 /* Small uppercase mono labels, as in the app. */
-.slot th { font: 500 {{ t.type.caption.size }}px/{{ t.type.caption.line_height }} var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-muted); border-bottom: 2px solid var(--ink); }
+.slot th { font: 500 {{ body.size }}px/{{ t.type.caption.line_height }} var(--font-mono); vertical-align: bottom; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-muted); border-bottom: 2px solid var(--ink); }
 .slot .more { margin: 8px 0 0; color: var(--ink-muted); }
 .k-chart svg text { font-family: var(--font-body) !important; }
 footer { position: absolute; left: {{ t.grid.margin_x }}px; right: {{ t.grid.margin_x }}px; top: {{ t.canvas.height - t.grid.margin_bottom - t.grid.footer_band }}px; height: {{ t.grid.footer_band }}px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--neutral); color: var(--ink-muted); font: 500 {{ t.type.caption.size }}px/{{ t.type.caption.line_height }} var(--font-mono); }

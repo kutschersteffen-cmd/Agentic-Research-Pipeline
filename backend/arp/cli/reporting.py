@@ -68,6 +68,7 @@ def _build_request(
     goal: str = "",
     theme: str = "light",
     run_ref: list[str] = (),
+    density: str = "committee",
 ) -> ReportRequest:
     datasets = [QuantitativeDataset.model_validate_json(p.read_text()) for p in data]
     try:
@@ -83,6 +84,7 @@ def _build_request(
         audience=AudienceProfile(level=audience_level, description=audience_description),
         layout=LayoutInstructions(
             output_format=format, target_length=target_length, free_instructions=layout_notes, include_appendix=include_appendix, theme=theme,
+            density=density,
         ),
         template_id=template_id,
     )
@@ -122,6 +124,8 @@ def reporting_plan(
     include_appendix: bool = _REQUEST_OPTIONS["include_appendix"],
     goal: str = typer.Option("", help="House deck: the decision or question the deck serves."),
     theme: str = typer.Option("light", click_type=click.Choice(["light", "dark"]), metavar="light|dark", help="House deck colour mode."),
+    density: str = typer.Option("committee", click_type=click.Choice(["present", "committee"]), metavar="present|committee",
+                                help="House deck density: a committee pre-read or a short spoken pitch."),
     run_ref: list[str] = typer.Option([], help="House deck: pipeline output to load as data, kind:id (kind is decision or run); repeatable."),
 ) -> None:
     """Drafts a ReportPlan (the one LLM call) and stops -- does not render.
@@ -135,7 +139,7 @@ def reporting_plan(
         title=title, notes=notes, data=data, template_id=template_id, format=format,
         audience_level=audience_level, audience_description=audience_description,
         target_length=target_length, layout_notes=layout_notes, include_appendix=include_appendix,
-        goal=goal, theme=theme, run_ref=run_ref,
+        goal=goal, theme=theme, run_ref=run_ref, density=density,
     )
     service = ReportingService(store, settings)
     manifest = asyncio.run(service.create_and_plan(request, llm))
