@@ -219,6 +219,8 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   // The chart and the review tiles need the extract run's status; load the results once it ends.
   const startRef = useRef(startRun);
   startRef.current = startRun;
+  const flowRef = useRef(flow);
+  flowRef.current = flow;
   const refreshRef = useRef(refreshResults);
   refreshRef.current = refreshResults;
   useEffect(() => {
@@ -287,8 +289,22 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   );
   const onStart = useCallback((step: StageId | "extract") => {
     if (step === "extract") startRef.current();
-    else (step === "identify" ? identifyRef : documentsRef).current?.start();
+    // Skip means the stage does not run.
+    else if (flowRef.current[step].state !== "skipped") (step === "identify" ? identifyRef : documentsRef).current?.start();
   }, []);
+
+  // Automatic handover advances the tab once, when the stage turns done; a later manual tab change stays.
+  const { identify, documents } = flow;
+  const prevState = useRef({ identify: identify.state, documents: documents.state });
+  useEffect(() => {
+    const now = { identify, documents };
+    for (const id of STAGES) {
+      if (now[id].state === "done" && prevState.current[id] !== "done" && now[id].handover === "auto") {
+        setTab(id === "identify" ? "documents" : mode === "custom" ? "schema" : "extract");
+      }
+    }
+    prevState.current = { identify: identify.state, documents: documents.state };
+  }, [identify, documents, mode]);
   const onStop = useCallback((id: string) => {
     api.cancelRun(id).catch((err) => setError(`Run could not be stopped: ${(err as Error).message}`));
   }, []);
@@ -349,6 +365,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
         selected={tabRunId}
         onSelect={(id) => openRun(id)}
         onReview={(r) => openRun(r.run_id, "review")}
+        onRerun={(r) => (r.run_type === "identity" ? onStart("identify") : r.run_type === "discovery" ? onStart("documents") : openTab("extract", "run"))}
         compact={tab === "companies" || tab === "schema"}
         storageKey={`flowRuns:${tab}`}
       />

@@ -163,7 +163,7 @@ export function StageFlowChart({ flow, profile, extract, counts, onOpen, onStart
         counts: counts[id] ?? null,
         note: st.note,
         handover: st.handover,
-        startLabel: st.state === "running" ? null : START_STATES.has(st.state) ? "Start" : "Run again",
+        startLabel: st.state === "running" || st.state === "skipped" ? null : START_STATES.has(st.state) ? "Start" : "Run again",
         startDisabled: false,
         onStart: () => onStart(id),
         onStop: st.state === "running" && st.runId ? () => onStop(st.runId!) : null,
