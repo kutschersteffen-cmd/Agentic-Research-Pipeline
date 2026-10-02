@@ -1,18 +1,38 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
-import { UniversePicker } from "../components/UniversePicker";
-import { ExtractionResultsTable, FinancialsResultsTable } from "../components/ExtractionResults";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
-import { BarChart } from "../components/BarChart";
-import type { CompanyFinancialsRecord, DataPointSchema, ExtractionProfile, ExtractionRecord, ReviewDecision, RunScoringKind, StepSettings, TnfdRecord, TransitionPlanAssessmentRecord, UniverseHandoff } from "../types";
+import type { CompanyFinancialsRecord, DataPointSchema, ExtractionProfile, ExtractionRecord, ReviewDecision, RunManifest, RunScoringKind, StepSettings, TnfdRecord, TransitionPlanAssessmentRecord, UniverseHandoff } from "../types";
 import { useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "../components/ReviewerField";
 import { RunScoringPanel, ScoringTemplatePicker } from "../components/RunScoring";
-import { TransitionPlanBatchOverview, TransitionPlanMethodology, TransitionPlanResultsTable } from "../components/TransitionPlanResults";
-import { TnfdResultsTable } from "../components/TnfdResults";
+import { TransitionPlanBatchOverview, TransitionPlanMethodology } from "../components/TransitionPlanResults";
 import { PipelineEditor } from "../components/PipelineEditor";
 import { SchemaFieldsEditor } from "../components/SchemaFieldsEditor";
+import { StepTabs, type StepTab } from "../components/StepTabs";
+import { StageFlowChart, schemaLabel } from "../components/StageFlowChart";
+import { FlowRuns } from "../components/FlowRuns";
+import { ReviewTiles } from "../components/ReviewTiles";
+import { IdentityStage } from "../components/IdentityStage";
+import { DocumentsStage } from "../components/DocumentsStage";
+import { ACTIVE_STATUSES } from "../lib/runs";
+import {
+  STAGES,
+  extractInputs,
+  flowReducer,
+  initialFlow,
+  mergeCompanies,
+  reviewCounts,
+  stageInput,
+  type FlowStep,
+  type Stage,
+  type StageHandle,
+  type StageId,
+  type StageState,
+} from "../lib/stagedFlow";
+import { BatchSpendChart } from "./extraction/BatchSpendChart";
+import { CompaniesPanel } from "./extraction/CompaniesPanel";
+import { ResultsTable } from "./extraction/ResultsTable";
 
 const DEFAULT_CRITERIA =
   "Green capex: total green/sustainable capital expenditure in USD/EUR millions for the most recent fiscal " +
@@ -50,41 +70,15 @@ const PROFILES: { id: Mode; label: string; runType: RunScoringKind; about: strin
       "Scores each company’s climate transition disclosures against the 64 indicators of Colesanti Senni et al. (2024), separating “talk” (targets) from “walk” (verifiable activity). Rules can read each indicator as a Yes/No column (Ind_<identifier>_Disclosed).",
   },
 ];
+type Sub = "setup" | "run" | "review";
+type Inner = "identify" | "documents" | "extract";
 
-/** Batch-level CapEx/R&D comparison across every company in the run --
- * companies with no disclosed value for the chosen metric are left out of
- * the chart (never charted as 0, which would misreport "no disclosure" as
- * "zero spend") and counted separately instead. Figures are charted exactly
- * as reported per company, in whatever currency each company discloses in
- * -- same as the table below -- rather than fabricating an FX conversion. */
-function BatchSpendChart({ results }: { results: CompanyFinancialsRecord[] }) {
-  const [metric, setMetric] = useState<"capex" | "rnd">("capex");
-  const withValue = results.filter((r) => r[metric].total.value != null);
-  const currencies = new Set(withValue.map((r) => r.currency ?? "unknown"));
-  const chartData = [...withValue]
-    .sort((a, b) => (b[metric].total.value ?? 0) - (a[metric].total.value ?? 0))
-    .map((r) => ({ label: r.name, value: r[metric].total.value ?? 0 }));
+const MARK: Partial<Record<StageState, StepTab["mark"]>> = { done: "done", ready: "waiting", review: "waiting", failed: "attention", stale: "attention" };
 
-  return (
-    <section className="card">
-      <h2>Batch overview ({results.length} companies)</h2>
-      <div className="view-toggle">
-        <button className={metric === "capex" ? "active" : ""} onClick={() => setMetric("capex")}>
-          CapEx
-        </button>
-        <button className={metric === "rnd" ? "active" : ""} onClick={() => setMetric("rnd")}>
-          R&amp;D
-        </button>
-      </div>
-      <p className="help-text">
-        {withValue.length} of {results.length} companies disclosed a {metric === "capex" ? "CapEx" : "R&D"} total
-        {results.length > withValue.length && ` (${results.length - withValue.length} not disclosed, excluded from the chart)`}.
-        {currencies.size > 1 && " Figures are shown exactly as each company reports them — currencies are not converted; see the table below for each company's currency."}
-      </p>
-      <BarChart data={chartData} valueFormatter={(v) => v.toLocaleString(undefined, { maximumFractionDigits: 0 })} />
-    </section>
-  );
-}
+const stageTabs = (st: Stage): StepTab[] => [
+  { id: "run", label: "Run" },
+  { id: "review", label: "Review", badge: st.state === "review" ? st.flagged : null, mark: st.state === "review" ? "waiting" : null },
+];
 
 interface Props {
   pendingUniverse?: UniverseHandoff | null;
@@ -96,14 +90,18 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const [mode, setMode] = useState<Mode>(initialProfile);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [universePath, setUniversePath] = useState<string | null>(pendingUniverse?.path ?? null);
-  const [companyCount, setCompanyCount] = useState(pendingUniverse?.count ?? 0);
-  const [scope, setScope] = useState<"batch" | "single">("batch");
-  const [single, setSingle] = useState({ name: "", ticker: "", website: "" });
-  const [runId, setRunId] = useState<string | null>(null);
+  const [flow, dispatch] = useReducer(flowReducer, initialFlow, (init) =>
+    pendingUniverse ? flowReducer(init, { type: "companies", output: { path: pendingUniverse.path, count: pendingUniverse.count } }) : init,
+  );
+  const [tab, setTab] = useState<FlowStep>("companies");
+  const [sub, setSub] = useState<Record<Inner, Sub>>({ identify: "run", documents: "run", extract: "setup" });
+  const [manifest, setManifest] = useState<RunManifest | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [reviewer] = useReviewer();
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
+  const identifyRef = useRef<StageHandle>(null);
+  const documentsRef = useRef<StageHandle>(null);
+  const runId = flow.extractRunId;
 
   // Custom-schema mode only
   const [criteria, setCriteria] = useState(DEFAULT_CRITERIA);
@@ -130,7 +128,9 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   function switchMode(next: Mode) {
     if (next === mode) return;
     setMode(next);
-    setRunId(null);
+    dispatch({ type: "profileChanged" });
+    setTab("companies");
+    setSub((s) => ({ ...s, extract: "setup" }));
     setError(null);
     setTemplateId(null);
     setStepSettings({});
@@ -157,33 +157,37 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     }
   }
 
-  /** One company typed in, as a one-row universe; its id is the ticker, or the name when there is none. */
-  const singleCompany = single.name.trim()
-    ? {
-        company_id: (single.ticker.trim() || single.name.trim()).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
-        name: single.name.trim(),
-        ticker: single.ticker.trim() || null,
-        website: single.website.trim() || null,
-      }
-    : null;
-  const readyToStart = scope === "batch" ? !!universePath : !!singleCompany;
+  const inputs = extractInputs(flow);
+  const inputCount = inputs.length === 1 ? inputs[0].count : mergeCompanies(inputs).length;
+  const schemaInfo = schemaLabel(mode, schema);
+  const canStart = inputs.length > 0 && schemaInfo.ready && (mode !== "tnfd" || !!asOf.trim());
 
   async function startRun() {
-    if (!readyToStart) return;
-    if (mode === "custom" && !schema) return;
+    if (!canStart) {
+      setError(inputs.length ? "Finish the schema (and the TNFD reporting period) first." : "Nothing to extract yet: carry the companies through Identify and Documents, or skip those stages.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
+      // Identify and Documents ran as checkpoints, so the run must not repeat them; a skipped stage keeps the user's setting.
+      const settings: StepSettings = {
+        ...stepSettings,
+        ...(flow.identify.state !== "skipped" ? { pre_identity_enabled: false } : {}),
+        ...(flow.documents.state !== "skipped" ? { pre_content_search_enabled: false, pre_document_mgmt_enabled: false } : {}),
+      };
       const res = await api.startExtraction({
         profile: mode,
         datapoint_schema: mode === "custom" ? schema : undefined,
         as_of: mode === "tnfd" ? asOf : undefined,
-        ...(scope === "batch" ? { universe_path: universePath } : { companies: [singleCompany] }),
+        ...(inputs.length === 1 ? { universe_path: inputs[0].path } : { companies: mergeCompanies(inputs) }),
         decision_framework_id: templateId ?? undefined,
-        step_settings: Object.keys(stepSettings).length ? stepSettings : undefined,
+        step_settings: Object.keys(settings).length ? settings : undefined,
       });
-      setRunId(res.run_id);
+      dispatch({ type: "extractStarted", runId: res.run_id });
       clearResults();
+      setTab("extract");
+      setSub((s) => ({ ...s, extract: "run" }));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -212,12 +216,110 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     }
   }
 
-  const scoringStepNumber = mode === "custom" ? 3 : 1;
-  const universeStepNumber = scoringStepNumber + 1;
+  // The chart and the review tiles need the extract run's status; load the results once it ends.
+  const startRef = useRef(startRun);
+  startRef.current = startRun;
+  const refreshRef = useRef(refreshResults);
+  refreshRef.current = refreshResults;
+  useEffect(() => {
+    if (!runId) return;
+    let live = true;
+    let timer: number | undefined;
+    async function poll() {
+      try {
+        const m = (await api.getRun(runId!)) as RunManifest;
+        if (!live) return;
+        setManifest(m);
+        if (!ACTIVE_STATUSES.has(m.status)) {
+          refreshRef.current().catch(() => {});
+          return;
+        }
+      } catch {
+        // keep polling; RunProgress shows the load error
+      }
+      if (live) timer = window.setTimeout(poll, 2500);
+    }
+    poll();
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  }, [runId]);
+
+  const run = manifest && manifest.run_id === runId ? manifest : null;
+  const results = { custom: extractionResults, financials: financialsResults, tnfd: tnfdResults, transition_plan: transitionResults };
+  const decisionMaps = { custom: extractionReviewDecisions, financials: financialsReviewDecisions, transition_plan: transitionReviewDecisions };
+  const decisions = mode === "tnfd" ? [] : Object.values(decisionMaps[mode]);
+  const tiles = reviewCounts(Math.max(0, (run?.review_count ?? 0) - decisions.length), decisions, run?.review_count ?? 0);
+  const extractStatus: StageState =
+    !runId ? "idle"
+    : !run || ACTIVE_STATUSES.has(run.status) ? "running"
+    : flow.extractStale ? "stale"
+    : run.status === "failed" ? "failed"
+    : run.status === "completed" && tiles.pending === 0 ? "done"
+    : "review";
+  const extractCounts = run ? `${run.completed_count} of ${run.company_count} extracted` : null;
+
+  const extract = useMemo(
+    () => ({ schemaLabel: schemaInfo.label, ready: schemaInfo.ready, status: extractStatus, counts: extractCounts }),
+    [schemaInfo.label, schemaInfo.ready, extractStatus, extractCounts],
+  );
+  const counts = useMemo(() => {
+    const out: Partial<Record<StageId | "companies", string>> = {};
+    if (flow.ready || flow.onboard) out.companies = `${flow.ready?.count ?? 0} ready · ${flow.onboard?.count ?? 0} to onboard`;
+    else if (flow.companies) out.companies = `${flow.companies.count} companies`;
+    for (const id of STAGES) {
+      const st = flow[id];
+      const input = stageInput(flow, id);
+      if (st.state === "done" && st.output) out[id] = `${st.output.count} carried forward`;
+      else if (input && st.state !== "skipped") out[id] = `${input.count} companies`;
+    }
+    return out;
+  }, [flow]);
+
+  const openTab = useCallback(
+    (step: FlowStep, s?: Sub) => {
+      setTab(step);
+      if (!s || (step !== "identify" && step !== "documents" && step !== "extract")) return;
+      setSub((prev) => ({ ...prev, [step]: step === "extract" && s !== "setup" && !runId ? "setup" : s }));
+    },
+    [runId],
+  );
+  const onStart = useCallback((step: StageId | "extract") => {
+    if (step === "extract") startRef.current();
+    else (step === "identify" ? identifyRef : documentsRef).current?.start();
+  }, []);
+  const onStop = useCallback((id: string) => {
+    api.cancelRun(id).catch((err) => setError(`Run could not be stopped: ${(err as Error).message}`));
+  }, []);
+  const onContinue = useCallback((stage: StageId) => (stage === "identify" ? identifyRef : documentsRef).current?.carryOn(), []);
+
   const fieldNames = schema?.fields.map((f) => f.name) ?? [];
-  const readyForUniverseStep = mode !== "custom" || schema != null;
-  const resultCount = { custom: extractionResults, financials: financialsResults, tnfd: tnfdResults, transition_plan: transitionResults }[mode].length;
   const toggleExpanded = (companyId: string) => setExpanded(expanded === companyId ? null : companyId);
+  const allAuto = STAGES.some((id) => flow[id].handover === "auto") && STAGES.every((id) => flow[id].handover !== "manual");
+
+  const steps: StepTab[] = [
+    { id: "companies", label: "Companies", mark: flow.readinessNote ? "attention" : flow.companies ? "done" : null },
+    { id: "identify", label: "Identify", mark: MARK[flow.identify.state] },
+    { id: "documents", label: "Documents", mark: MARK[flow.documents.state] },
+    ...(mode === "custom" ? [{ id: "schema", label: "Schema", mark: schema ? ("done" as const) : null }] : []),
+    { id: "extract", label: "Extract", mark: MARK[extractStatus] },
+  ];
+  const topTabs = steps.map((t, i) => ({ ...t, label: `${i + 1}. ${t.label}` }));
+  const extractTabs: StepTab[] = [
+    { id: "setup", label: "Setup" },
+    { id: "run", label: "Run", disabled: !runId },
+    { id: "review", label: "Review", disabled: !runId, badge: tiles.pending, mark: extractStatus === "review" ? "waiting" : null },
+  ];
+  const tabRunTypes = { companies: ["identity", "discovery", profile.runType], schema: ["identity", "discovery", profile.runType], identify: ["identity"], documents: ["discovery"], extract: [profile.runType] }[tab];
+  const tabRunId = tab === "identify" || tab === "documents" ? flow[tab].runId : tab === "extract" ? runId : null;
+  const openRun = (id: string, s: Sub = "run") => {
+    if (id === runId) openTab("extract", s);
+    else for (const st of STAGES) if (flow[st].runId === id) openTab(st, s);
+  };
+  const innerTabs = (id: Inner, tabs: StepTab[], label: string) => (
+    <StepTabs label={label} tabs={tabs} active={sub[id]} onSelect={(v) => setSub((s) => ({ ...s, [id]: v as Sub }))} />
+  );
 
   return (
     <div className="page">
@@ -234,192 +336,170 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
       {profile.about && <p className="help-text">{profile.about}</p>}
       {mode === "transition_plan" && <TransitionPlanMethodology />}
 
-      <section className="card">
-        <h2>Pipeline</h2>
-        <p className="help-text">
-          The steps every item goes through. Optional: click a step to change its settings for this run only; the app&apos;s
-          defaults stay as they are.
-        </p>
-        <PipelineEditor profile={mode} value={stepSettings} onChange={setStepSettings} />
-      </section>
-
-      {mode === "custom" && (
-        <section className="card">
-          <h2>1. Describe what to extract</h2>
-          <label className="field-label">
-            Research request
-            <textarea rows={2} value={criteria} onChange={(e) => setCriteria(e.target.value)} />
-          </label>
-          <button onClick={draft} disabled={busy}>
-            Draft extraction schema
-          </button>
-          <p className="help-text">Or skip this and build a schema entirely by hand before starting a run.</p>
-        </section>
-      )}
-
-      {mode === "custom" && schema && (
-        <section className="card">
-          <h2>2. Review &amp; edit fields</h2>
-          <SchemaFieldsEditor fields={schema.fields} onChange={(fields) => setSchema({ ...schema, fields })} />
-        </section>
-      )}
-
-      {readyForUniverseStep && (
-        <section className="card">
-          <h2>{scoringStepNumber}. Score the results (optional)</h2>
-          <p className="help-text">
-            Attach a Decision Studio framework: once every company is extracted, the run applies its rules as the last step
-            and stores the scores and tiers with the run. You can also attach one after the run.
-          </p>
-          <ScoringTemplatePicker
-            runType={profile.runType}
-            fieldNames={mode === "custom" ? fieldNames : undefined}
-            value={templateId}
-            onChange={setTemplateId}
-          />
-        </section>
-      )}
-
-      {readyForUniverseStep && (
-        <section className="card">
-          <h2>{universeStepNumber}. Choose the companies</h2>
-          <div className="view-toggle" role="group" aria-label="Run on">
-            <button className={scope === "batch" ? "active" : ""} aria-pressed={scope === "batch"} onClick={() => setScope("batch")}>
-              Batch (list)
-            </button>
-            <button className={scope === "single" ? "active" : ""} aria-pressed={scope === "single"} onClick={() => setScope("single")}>
-              Single company
-            </button>
-          </div>
-          {scope === "batch" && pendingUniverse && universePath === pendingUniverse.path && (
-            <p className="status-text">
-              Using {pendingUniverse.count} companies sent from {pendingUniverse.from}. Upload a different
-              universe below to replace it.
-            </p>
-          )}
-          {mode === "tnfd" && (
-            <label className="field-label">
-              Reporting period
-              <input value={asOf} onChange={(e) => setAsOf(e.target.value)} placeholder="FY2025" />
-            </label>
-          )}
-          {scope === "batch" ? (
-            <UniversePicker
-              onResolved={(path, count) => {
-                setUniversePath(path);
-                setCompanyCount(count);
-              }}
-            />
-          ) : (
-            <div className="inline-fields">
-              <label className="field-label">
-                Company name
-                <input value={single.name} onChange={(e) => setSingle({ ...single, name: e.target.value })} placeholder="BASF SE" />
-              </label>
-              <label className="field-label">
-                Ticker (optional)
-                <input value={single.ticker} onChange={(e) => setSingle({ ...single, ticker: e.target.value })} placeholder="BAS" />
-              </label>
-              <label className="field-label">
-                Website (optional)
-                <input value={single.website} onChange={(e) => setSingle({ ...single, website: e.target.value })} placeholder="basf.com" />
-              </label>
-            </div>
-          )}
-          <button onClick={startRun} disabled={busy || !readyToStart || (mode === "tnfd" && !asOf.trim())}>
-            {scope === "single"
-              ? `Extract ${mode === "custom" ? "" : `${profile.label} `}for ${singleCompany?.name ?? "..."}`
-              : `Extract ${mode === "custom" ? "" : `${profile.label} `}across ${companyCount ? `${companyCount} companies` : "your companies (upload them first)"}`}
-          </button>
-        </section>
-      )}
+      <label className="checkbox-label">
+        <input type="checkbox" checked={allAuto} onChange={(e) => dispatch({ type: "allAuto", on: e.target.checked })} />
+        Run all automatically
+      </label>
+      <StageFlowChart flow={flow} profile={mode} extract={extract} counts={counts} onOpen={openTab} onStart={onStart} onStop={onStop} onContinue={onContinue} dispatch={dispatch} />
+      <StepTabs label="Extraction steps" tabs={topTabs} active={tab} onSelect={(id) => setTab(id as FlowStep)} />
+      <FlowRuns
+        key={tab}
+        runTypes={tabRunTypes}
+        runIds={flow.runIds}
+        selected={tabRunId}
+        onSelect={(id) => openRun(id)}
+        onReview={(r) => openRun(r.run_id, "review")}
+        compact={tab === "companies" || tab === "schema"}
+        storageKey={`flowRuns:${tab}`}
+      />
 
       {error && <p className="error-text" role="alert">{error}</p>}
 
-      {runId && (
+      <div role="tabpanel" aria-label="Companies" hidden={tab !== "companies"}>
+        <CompaniesPanel flow={flow} dispatch={dispatch} pendingUniverse={pendingUniverse} tnfd={mode === "tnfd"} asOf={asOf} onAsOf={setAsOf} />
+      </div>
+
+      <div role="tabpanel" aria-label="Identify" hidden={tab !== "identify"}>
+        {innerTabs("identify", stageTabs(flow.identify), "Identify")}
         <section className="card">
-          <h2>{universeStepNumber + 1}. Run progress</h2>
-          <RunProgress runId={runId} runType={profile.runType} />
-          <PipelineEditor
-            key={runId}
-            profile={mode}
-            runId={runId}
-            onRestarted={(next) => {
-              setRunId(next);
-              clearResults();
-            }}
+          <IdentityStage
+            ref={identifyRef}
+            input={stageInput(flow, "identify")}
+            stage={flow.identify}
+            dispatch={dispatch}
+            view={sub.identify === "review" ? "review" : "run"}
+            reviewer={reviewer}
+            onOpenSource={setActiveSource}
           />
-          <div className="toolbar">
-            <button onClick={refreshResults}>Refresh results</button>
-            <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
-              Export CSV
-            </a>
-            <ReviewerField compact />
-          </div>
-
-          {mode === "financials" && financialsResults.length > 0 && <BatchSpendChart results={financialsResults} />}
-          {mode === "transition_plan" && transitionResults.length > 0 && <TransitionPlanBatchOverview results={transitionResults} />}
-
-          {resultCount > 0 && (
-            <div className="split-review">
-              <div className="split-review-main">
-                {mode === "custom" && (
-                  <ExtractionResultsTable
-                    results={extractionResults}
-                    runId={runId}
-                    expanded={expanded}
-                    onToggleExpanded={toggleExpanded}
-                    reviewDecisions={extractionReviewDecisions}
-                    reviewer={reviewer}
-                    onReviewDone={refreshResults}
-                    onOpenSource={setActiveSource}
-                  />
-                )}
-
-                {mode === "financials" && (
-                  <FinancialsResultsTable
-                    results={financialsResults}
-                    runId={runId}
-                    expanded={expanded}
-                    onToggleExpanded={toggleExpanded}
-                    reviewDecisions={financialsReviewDecisions}
-                    reviewer={reviewer}
-                    onReviewDone={refreshResults}
-                    onOpenSource={setActiveSource}
-                  />
-                )}
-
-                {mode === "tnfd" && (
-                  <TnfdResultsTable results={tnfdResults} expanded={expanded} onToggleExpanded={toggleExpanded} onOpenSource={setActiveSource} />
-                )}
-
-                {mode === "transition_plan" && (
-                  <TransitionPlanResultsTable
-                    runId={runId}
-                    results={transitionResults}
-                    reviewDecisions={transitionReviewDecisions}
-                    reviewer={reviewer}
-                    onReviewed={refreshResults}
-                    onOpenSource={setActiveSource}
-                    expanded={expanded}
-                    onToggleExpanded={toggleExpanded}
-                  />
-                )}
-              </div>
-              <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
-            </div>
-          )}
         </section>
+        {activeSource && <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />}
+      </div>
+
+      <div role="tabpanel" aria-label="Documents" hidden={tab !== "documents"}>
+        {innerTabs("documents", stageTabs(flow.documents), "Documents")}
+        <section className="card">
+          <DocumentsStage ref={documentsRef} input={stageInput(flow, "documents")} stage={flow.documents} dispatch={dispatch} view={sub.documents === "review" ? "review" : "run"} />
+        </section>
+      </div>
+
+      {mode === "custom" && (
+        <div role="tabpanel" aria-label="Schema" hidden={tab !== "schema"}>
+          <section className="card">
+            <h2>Describe what to extract</h2>
+            <label className="field-label">
+              Research request
+              <textarea rows={2} value={criteria} onChange={(e) => setCriteria(e.target.value)} />
+            </label>
+            <button onClick={draft} disabled={busy}>
+              Draft extraction schema
+            </button>
+            <p className="help-text">Or skip this and build a schema entirely by hand before starting a run.</p>
+          </section>
+          {schema && (
+            <section className="card">
+              <h2>Review &amp; edit fields</h2>
+              <SchemaFieldsEditor fields={schema.fields} onChange={(fields) => setSchema({ ...schema, fields })} />
+            </section>
+          )}
+        </div>
       )}
 
-      {runId && (
-        <RunScoringPanel
-          key={runId}
-          runId={runId}
-          runType={profile.runType}
-          fieldNames={mode === "custom" ? fieldNames : undefined}
-        />
-      )}
+      <div role="tabpanel" aria-label="Extract" hidden={tab !== "extract"}>
+        {innerTabs("extract", extractTabs, "Extract")}
+
+        <div hidden={sub.extract !== "setup"}>
+          <section className="card">
+            <h2>Pipeline</h2>
+            <p className="help-text">
+              The steps every item goes through. Optional: click a step to change its settings for this run only; the app&apos;s
+              defaults stay as they are.
+            </p>
+            <PipelineEditor profile={mode} value={stepSettings} onChange={setStepSettings} />
+          </section>
+          <section className="card">
+            <h2>Score the results (optional)</h2>
+            <p className="help-text">
+              Attach a Decision Studio framework: once every company is extracted, the run applies its rules as the last step
+              and stores the scores and tiers with the run. You can also attach one after the run.
+            </p>
+            <ScoringTemplatePicker
+              runType={profile.runType}
+              fieldNames={mode === "custom" ? fieldNames : undefined}
+              value={templateId}
+              onChange={setTemplateId}
+            />
+          </section>
+          <section className="card">
+            <h2>Start extraction</h2>
+            <p className="help-text">
+              {inputs.length
+                ? `Runs on ${inputCount} companies with ${schemaInfo.label}.`
+                : "No companies handed over yet: carry them through Identify and Documents, or skip those stages."}
+            </p>
+            {flow.extractStale && <p className="await-text">Inputs changed since this run</p>}
+            <button onClick={startRun} disabled={busy || !canStart}>
+              Start extraction
+            </button>
+          </section>
+        </div>
+
+        {runId && (
+          <div hidden={sub.extract !== "run"}>
+            <section className="card">
+              <h2>Run progress</h2>
+              <RunProgress runId={runId} runType={profile.runType} />
+              <PipelineEditor
+                key={runId}
+                profile={mode}
+                runId={runId}
+                onRestarted={(next) => {
+                  dispatch({ type: "extractStarted", runId: next });
+                  clearResults();
+                }}
+              />
+              <div className="toolbar">
+                <button onClick={refreshResults}>Refresh results</button>
+                <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
+                  Export CSV
+                </a>
+                <ReviewerField compact />
+              </div>
+            </section>
+          </div>
+        )}
+
+        {runId && (
+          <div hidden={sub.extract !== "review"}>
+            {/* TNFD has no review decisions, so no tiles. */}
+            {mode !== "tnfd" && <ReviewTiles counts={tiles} active={null} onSelect={() => {}} />}
+            {mode === "financials" && financialsResults.length > 0 && <BatchSpendChart results={financialsResults} />}
+            {mode === "transition_plan" && transitionResults.length > 0 && <TransitionPlanBatchOverview results={transitionResults} />}
+
+            {results[mode].length > 0 && (
+              <section className="card">
+                <div className="split-review">
+                  <div className="split-review-main">
+                    <ResultsTable
+                      mode={mode}
+                      runId={runId}
+                      results={results}
+                      decisions={decisionMaps}
+                      expanded={expanded}
+                      onToggleExpanded={toggleExpanded}
+                      reviewer={reviewer}
+                      onReviewed={refreshResults}
+                      onOpenSource={setActiveSource}
+                    />
+                  </div>
+                  <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
+                </div>
+              </section>
+            )}
+
+            <RunScoringPanel key={runId} runId={runId} runType={profile.runType} fieldNames={mode === "custom" ? fieldNames : undefined} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
