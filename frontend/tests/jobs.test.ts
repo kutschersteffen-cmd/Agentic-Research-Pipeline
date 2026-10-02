@@ -51,6 +51,11 @@ test("jobsToStart skips unready and started", () => {
   assert.deepEqual(ids(jobsToStart(jobs, { financials: "r1" })), ["tnfd", "custom:2"]);
 });
 
+test("jobsToStart re-runs every ready job when stale", () => {
+  const jobs = [b("financials"), b("tnfd"), cu("custom:1"), cu("custom:2", schema("X"))];
+  assert.deepEqual(ids(jobsToStart(jobs, { financials: "r1", tnfd: "r2" }, true)), ["financials", "tnfd", "custom:2"]);
+});
+
 test("startJobs continues after a failure", async () => {
   const jobs = [b("financials"), b("tnfd"), cu("custom:1", schema("X"))];
   const order: string[] = [];

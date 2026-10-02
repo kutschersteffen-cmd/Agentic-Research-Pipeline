@@ -106,7 +106,12 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     setJobs(next);
     if (ids.join() !== jobs.map((j) => j.id).join()) {
       dispatch({ type: "jobsChanged", jobIds: ids });
-      setSettings((s) => Object.fromEntries(Object.entries(s).filter(([k]) => ids.includes(k))));
+      const keep = <T,>(m: Record<string, T>) => Object.fromEntries(Object.entries(m).filter(([k]) => ids.includes(k)));
+      setSettings(keep);
+      setStartErrors(keep);
+      setStatuses(keep);
+      setPending(keep);
+      setFrameworks(keep);
     }
   }
   function toggle(profile: ExtractionProfile) {
@@ -115,15 +120,16 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     if (!r.error) changeJobs(r.jobs);
   }
   const patchSettings = (id: string, p: Partial<JobSettings>) => setSettings((s) => ({ ...s, [id]: { ...(s[id] ?? NO_SETTINGS), ...p } }));
-  const restarted = (job: Job, runId: string) => {
-    dispatch({ type: "extractStarted", job: job.id, runId });
+  /** Start-all uses `extractStarted` (clears stale); a per-job restart uses `extractRestarted` (keeps it). */
+  const restarted = (job: Job, runId: string, type: "extractStarted" | "extractRestarted" = "extractRestarted") => {
+    dispatch({ type, job: job.id, runId });
     setRunProfiles((m) => ({ ...m, [runId]: job.profile }));
   };
 
   const inputs = extractInputs(flow);
   const leftOut = pendingOnboard(flow);
   const inputCount = inputs.length === 1 ? inputs[0].count : mergeCompanies(inputs).length;
-  const toStart = jobsToStart(jobs, flow.extractRuns);
+  const toStart = jobsToStart(jobs, flow.extractRuns, flow.extractStale);
   const canStart = inputs.length > 0 && toStart.length > 0;
 
   async function startOne(job: Job): Promise<string> {
@@ -143,11 +149,13 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
       decision_framework_id: s.templateId ?? undefined,
       step_settings: Object.keys(step).length ? step : undefined,
     });
-    restarted(job, res.run_id);
+    restarted(job, res.run_id, "extractStarted");
     return res.run_id;
   }
 
+  const startingRef = useRef(false);
   async function startAll() {
+    if (startingRef.current) return; // a second Start while the first is still starting jobs
     if (!inputs.length) {
       setError("Nothing to extract yet: carry the companies through Identify and Documents, or skip those stages.");
       return;
@@ -156,12 +164,17 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
       setError("Every ready job already has a run: restart one in Extract › Run, or finish a Custom schema.");
       return;
     }
+    startingRef.current = true;
     setBusy(true);
     setError(null);
-    const { started, errors } = await startJobs(toStart, startOne);
-    setStartErrors(errors);
-    setBusy(false);
-    if (Object.keys(started).length) setSub((s) => ({ ...s, extract: "run" }));
+    try {
+      const { started, errors } = await startJobs(toStart, startOne);
+      setStartErrors(errors);
+      if (Object.keys(started).length) setSub((s) => ({ ...s, extract: "run" }));
+    } finally {
+      startingRef.current = false;
+      setBusy(false);
+    }
   }
   const startRef = useRef(startAll);
   startRef.current = startAll;
@@ -169,19 +182,21 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   flowRef.current = flow;
 
   const { extractRuns, extractStale } = flow;
+  const startable = toStart.length;
   const extract = useMemo(() => {
     const lines = jobs.map((j) => {
-      const r = j.id in extractRuns ? statuses[j.id] ?? { status: "running" as const, counts: null } : { status: "idle" as const, counts: null };
+      // A ready job without a run waits to start ("ready"); one that cannot start yet stays "idle".
+      const r: JobStatus = j.id in extractRuns ? statuses[j.id] ?? { status: "running", counts: null } : { status: jobReady(j) ? "ready" : "idle", counts: null };
       const status: StageState =
-        r.status === "idle" || r.status === "running" ? r.status
+        !(j.id in extractRuns) || r.status === "running" ? r.status
         : extractStale ? "stale"
         : r.status === "done" && (pending[j.id] ?? 0) > 0 ? "review"
         : r.status;
-      const scoring = status === "idle" || status === "running" ? null : frameworks[j.id] ?? null;
+      const scoring = !(j.id in extractRuns) || status === "running" ? null : frameworks[j.id] ?? null;
       return { id: j.id, label: jobLabel(j), status, counts: r.counts, ready: jobReady(j), scoring };
     });
-    return { jobs: lines, status: worstStatus(lines.map((l) => l.status)) };
-  }, [jobs, extractRuns, extractStale, statuses, pending, frameworks]);
+    return { jobs: lines, status: worstStatus(lines.map((l) => l.status)), startable: busy || !inputCount ? 0 : startable };
+  }, [jobs, extractRuns, extractStale, statuses, pending, frameworks, busy, inputCount, startable]);
   const extractStatus = extract.status;
 
   const counts = useMemo(() => {

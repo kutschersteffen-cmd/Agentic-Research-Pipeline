@@ -120,6 +120,15 @@ test("stale with any run", () => {
   assert.equal(s.extractStale, true);
 });
 
+test("extractRestarted keeps stale; extractStarted clears it", () => {
+  const stale = run(initialFlow, { type: "extractStarted", job: "tnfd", runId: "r2" }, started);
+  const s = run(stale, { type: "extractRestarted", job: "tnfd", runId: "r3" });
+  assert.equal(s.extractStale, true);
+  assert.deepEqual(s.extractRuns, { tnfd: "r3" });
+  assert.deepEqual(s.runIds, [...stale.runIds, "r3"]);
+  assert.equal(run(s, { type: "extractStarted", job: "tnfd", runId: "r4" }).extractStale, false);
+});
+
 const skipBoth: FlowAction[] = [
   { type: "setHandover", stage: "identify", handover: "skip" },
   { type: "setHandover", stage: "documents", handover: "skip" },

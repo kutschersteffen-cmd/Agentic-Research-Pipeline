@@ -1526,6 +1526,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .pipeline-card-footer { color: var(--muted); font-size: var(--text-xs); }
 /* Extraction: stage overview chart. Reuses .flow-rf and .pipeline-card; adds what they lack. */
 .stage-rf { height: 260px; margin-top: 0; }
+.stage-rf .react-flow__controls { display: flex; } /* a row in the corner: the fitted chart is short */
 .stage-card { padding: 0; gap: 0; }
 .stage-card-main { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; width: 100%; font: inherit; color: inherit; text-align: left; background: none; border: 0; cursor: pointer; }
 .stage-card-main:hover:not(:disabled) { background: none; }

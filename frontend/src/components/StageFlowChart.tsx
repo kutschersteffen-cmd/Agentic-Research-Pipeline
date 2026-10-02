@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import ReactFlow, { Controls, Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "reactflow";
+import { useEffect, useMemo, useState } from "react";
+import ReactFlow, { Controls, Handle, MarkerType, Position, getNodesBounds, useReactFlow, useStore, type Edge, type Node, type NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
 import { layoutPipeline } from "../lib/pipelineLayout";
 import { extractInputs, latestExtractRun, type FlowAction, type FlowState, type FlowStep, type Handover, type StageId, type StageState } from "../lib/stagedFlow";
@@ -9,7 +9,8 @@ const CARD_W = 214;
 const COL_W = CARD_W + 56;
 
 export interface JobLine { id: string; label: string; status: StageState; counts: string | null; ready: boolean; scoring: string | null }
-export interface ExtractNodeInfo { jobs: JobLine[]; status: StageState }
+/** `startable`: how many runs Start would launch now (0 disables Start / Run again). */
+export interface ExtractNodeInfo { jobs: JobLine[]; status: StageState; startable: number }
 
 type NodeId = "companies" | StageId | "schema" | "extract" | "scoring" | "results";
 type Sub = "setup" | "run" | "review";
@@ -117,6 +118,37 @@ function StageCard({ data }: NodeProps<CardData>) {
 }
 
 const NODE_TYPES = { stage: StageCard };
+const FIT = { padding: 0.05 };
+const MIN_ZOOM = 0.3;
+
+/** Reports the measured nodes' width / height once React Flow has sized them, and refits when that changes. */
+function FitAspect({ onAspect }: { onAspect: (a: number) => void }) {
+  const key = useStore((st) => {
+    const ns = Array.from(st.nodeInternals.values());
+    if (!ns.length || ns.some((n) => !n.width)) return "";
+    const r = getNodesBounds(ns);
+    return `${Math.round(r.width)}x${Math.round(r.height)}`;
+  });
+  const box = useStore((st) => `${st.width}x${st.height}`);
+  const { fitView, getViewport, setViewport } = useReactFlow();
+  useEffect(() => {
+    if (!key) return;
+    const [w, h] = key.split("x").map(Number);
+    onAspect(w / h);
+  }, [key, onAspect]);
+  // Refit once the box has taken its new size.
+  useEffect(() => {
+    if (!key) return;
+    const t = requestAnimationFrame(() => {
+      fitView(FIT);
+      // Too wide to fit (a phone): start at the left edge, Companies first, and let the user pan.
+      const v = getViewport();
+      if (v.zoom <= MIN_ZOOM) setViewport({ ...v, x: 8 });
+    });
+    return () => cancelAnimationFrame(t);
+  }, [key, box, fitView, getViewport, setViewport]);
+  return null;
+}
 
 interface Props {
   flow: FlowState;
@@ -190,13 +222,11 @@ export function StageFlowChart({ flow, profile, extract, height = 260, counts, o
           return plain("Schema", stageState(id), null, () => onOpen("schema"));
         case "extract": {
           const running = extract.status === "running";
-          const anyReady = extract.jobs.some((j) => j.ready);
-          const canStart = extract.jobs.some((j) => j.ready && (j.status === "idle" || j.status === "stale"));
           return {
             ...plain("Extract & verify", extract.status, reuses ? `reuses stored documents for ${reuses.count} companies` : null, () => onOpen("extract", extract.status === "review" ? "review" : "setup")),
             lines: extract.jobs.map((j) => ({ id: j.id, text: j.label, word: [STATE_WORD[j.status], j.counts].filter(Boolean).join(" · "), warn: !j.ready })),
             startLabel: running ? null : START_STATES.has(extract.status) ? "Start" : "Run again",
-            startDisabled: START_STATES.has(extract.status) ? !canStart : !anyReady,
+            startDisabled: extract.startable === 0,
             onStart: () => onStart("extract"),
             onStop: running && latestExtractRun(flow) ? () => onStop(latestExtractRun(flow)!) : null,
           };
@@ -249,23 +279,27 @@ export function StageFlowChart({ flow, profile, extract, height = 260, counts, o
     return { nodes, edges };
   }, [flow, profile, extract, counts, onOpen, onOpenJob, onStart, onStop, onContinue, dispatch]);
 
+  // The box takes the content's aspect ratio, capped at `height`, so a wide, short chart leaves no empty band.
+  const [aspect, setAspect] = useState<number | null>(null);
   return (
-    <div className="flow-rf stage-rf" style={{ height }}>
+    <div className="flow-rf stage-rf" style={aspect ? { width: "100%", height: "auto", aspectRatio: aspect, maxHeight: height, minHeight: 180 } : { height }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={NODE_TYPES}
         fitView
+        fitViewOptions={FIT}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
         zoomOnScroll={false}
         preventScrolling={false}
         proOptions={{ hideAttribution: true }}
-        minZoom={0.3}
+        minZoom={MIN_ZOOM}
         maxZoom={1.2}
       >
-        <Controls showInteractive={false} />
+        <Controls showInteractive={false} fitViewOptions={FIT} />
+        <FitAspect onAspect={setAspect} />
       </ReactFlow>
     </div>
   );
