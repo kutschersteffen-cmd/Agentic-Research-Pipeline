@@ -48,10 +48,17 @@ async def upload_document(
         safe_name = safe_filename(file.filename)
     except UnsafeIdentifierError as exc:
         raise HTTPException(400, str(exc)) from exc
+    data = await file.read(settings.max_upload_bytes + 1)
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
     dest_dir = settings.documents_dir / safe_company_id / doc_type.value
     dest_dir.mkdir(parents=True, exist_ok=True)
-    dest_path = dest_dir / safe_name
-    dest_path.write_bytes(await file.read())
+    # Never overwrite an earlier upload: a repeated name gets "-2", "-3", ...
+    dest_path, n = dest_dir / safe_name, 1
+    while dest_path.exists():
+        n += 1
+        dest_path = dest_dir / f"{Path(safe_name).stem}-{n}{Path(safe_name).suffix}"
+    dest_path.write_bytes(data)
     return {"path": str(dest_path)}
 
 
@@ -162,7 +169,10 @@ def get_cached_document_text(row_id: int, store: DocumentContentStore = Depends(
 
 @router.get("/{company_id}")
 def list_documents(company_id: str, settings: Settings = Depends(settings_dep)) -> dict:
-    company_dir = settings.documents_dir / company_id
+    try:
+        company_dir = settings.documents_dir / safe_id(company_id, label="company_id")
+    except UnsafeIdentifierError as exc:
+        raise HTTPException(400, str(exc)) from exc
     if not company_dir.exists():
         return {"documents": []}
     docs = []

@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     taxonomies_dir: Path = Field(default=REPO_ROOT / "taxonomies")
     portfolios_dir: Path = Field(default=REPO_ROOT / "portfolios")
     documents_dir: Path = Field(default=REPO_ROOT / "data" / "documents")
+    max_upload_bytes: int = Field(default=100_000_000, description="Largest manual document upload accepted, in bytes.")
     cache_dir: Path = Field(default=REPO_ROOT / "backend" / ".cache")
     document_store_dir: Path = Field(
         default=REPO_ROOT / "backend" / ".document_store",

@@ -194,3 +194,21 @@ async def test_enriched_universe_approve_without_edit_uses_agents_own_resolved_f
     record_review_decision(run_store, run_id, "acme", "approve", "reviewer1", None)
     universe = enriched_universe(run_store, run_id)
     assert len(universe) == 0  # no website/cik was ever resolved -- approving doesn't invent one
+
+
+async def test_enriched_universe_reads_generic_override_value(tmp_path, fake_llm):
+    """The review controls send one free-text override as {"value": ...}: digits are a CIK, anything else a website."""
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+
+    async def edited(value: str) -> CompanyRef:
+        run_id = await run_identity_resolution(
+            [CompanyRef(company_id="acme", name="Acme")], llm=_uncertain_llm_script(fake_llm), settings=settings,
+            run_store=run_store, edgar=_FakeEdgar(), search_client=_NullSearch(),
+        )
+        record_review_decision(run_store, run_id, "acme", "edit", "reviewer1", {"value": value})
+        [company] = enriched_universe(run_store, run_id)
+        return company
+
+    assert (await edited(" https://real-acme.example.com ")).website == "https://real-acme.example.com"
+    assert (await edited("0000320193")).cik == "0000320193"
