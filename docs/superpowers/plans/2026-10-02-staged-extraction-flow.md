@@ -250,7 +250,7 @@ Reducer rules (from the spec's Stage model):
   - A company `<select>`.
   - One `<input type="file" multiple>` per type: `"10-K"` "Annual report", `"sustainability_report"` "Sustainability report", `"DEF-14A"` "Proxy statement", `"earnings_transcript"` "Earnings transcript", `"investor_presentation"` "Investor presentation", `"other"` "Other".
   - Uploads each file in turn and shows a per-file result, including the server's error message on failure.
-  - The company list comes from `api.getRunCompanies`, or failing that from the discovery results (`company_id`, `name`).
+  - The company list comes from the discovery results (`company_id`, `name`). `api.getRunCompanies` is extraction-only, so it is not used here. Upload is offered once a discovery run has results.
 - `DocumentsStage` Run view:
   - Start calls `api.startDiscoveryRun({ universe_path: input.path })` and dispatches `runStarted`.
   - Shows `RunProgress runType="discovery"`, then `DocumentUpload`, then the results table.
