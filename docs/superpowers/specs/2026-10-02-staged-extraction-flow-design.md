@@ -19,6 +19,8 @@ automatically.
 | Handover between stages | Per-stage toggle: **Manual** (default), **Automatic**, or **Skip** |
 | Automatic handover | Continues only when nothing is flagged or failed; otherwise holds and says why |
 | Overview | A flow chart above the tabs: every stage, its state, the schema in use, start and stop |
+| Own documents | The Documents stage also accepts manual uploads by document type, next to discovery |
+| Override marking | Review tabs show whether a value is system-extracted or human-edited |
 | Backend | No new endpoints expected (see "Backend check") |
 | Profiles | Custom, Financials, TNFD and Transition Plan keep working; the profile toggle stays above the tabs |
 
@@ -45,7 +47,7 @@ The three process steps (Identify, Documents, Extract) each have inner tabs, wit
 |---|---|---|
 | Companies | none | Batch (`UniversePicker`) or single company, reporting period (TNFD only) |
 | Identify | **Run** · **Review** | Run: start the identity run, results table, handover control. Review: the flagged companies, approve or edit website and CIK. |
-| Documents | **Run** · **Review** | Run: start the discovery run, results table, handover control. Review: companies with no documents or an unreachable site, with a tick per company for what carries forward. |
+| Documents | **Run** · **Review** | Run: start the discovery run, **add documents by hand** (see below), results table, handover control. Review: companies with no documents or an unreachable site, with a tick per company for what carries forward. |
 | Schema | none | Research request, draft button, field editor (Custom only) |
 | Extract | **Setup** · **Run** · **Review** | Setup: `PipelineEditor` settings, `ScoringTemplatePicker` (optional), **Start extraction**. Run: `RunProgress`, per-item flow chart, stop and restart, CSV. Review: results table with the review controls and source panel, charts, `RunScoringPanel`. |
 
@@ -116,6 +118,43 @@ State meanings:
 5. Re-running a stage marks every later stage `stale`. A stale stage keeps its results visible but cannot
    hand over until it is re-run or the user confirms "use anyway".
 
+## Manual documents (Documents stage)
+
+Some companies' reports are not on a crawlable site, or the team already has the files. The Documents
+tab Run view gets an **Add documents** area beside the discovery run, so a company can be filled by
+discovery, by upload, or both.
+
+- One drop zone per document type, using the existing `DocType` values: annual report (10-K),
+  sustainability report, proxy (DEF-14A), earnings transcript, investor presentation, other.
+- A company picker (from the Documents stage's input list) decides whom the files belong to.
+- Each file goes to the existing `POST /api/documents/upload` (`company_id`, `doc_type`, `file`). That
+  endpoint already stores it where discovery writes, so extraction cannot tell the two apart. No backend change.
+- The results table counts uploaded files with discovered ones and marks the source of each ("uploaded" or
+  "discovered"), so a company whose crawl found nothing but has uploads is **not** flagged.
+- New client method: `api.uploadDocument(companyId, docType, file)`.
+
+Not included: categories that have no `DocType` today (for example controversies or green revenue).
+Adding them is a separate change to the `DocType` enum and its consumers.
+
+## Review status tiles and override marking
+
+**Status tiles.** The top of every Review tab (Identify, Documents, Extract) shows a row of tiles:
+**Pending**, **Approved**, **Edited**, **Rejected**, **Flagged**, each with a count; clicking a tile filters the
+list below it. Counts come from the data each Review tab already loads: the review queue and, for
+Extract, `ReviewDecision` records (`approve`, `edit`, `reject`). The same counts feed the Review tab's badge.
+
+**System vs override.** Wherever a review table shows a value, a marker says where it came from:
+
+| Marker | Meaning | Source |
+|---|---|---|
+| System | The value the pipeline extracted or resolved | The record's own value |
+| Edited | A person replaced it | `ReviewDecision.decision === "edit"`, showing `edited_value`, `reviewer` and `decided_at` |
+
+An edited value displays the edited value, with the system value one click away ("was: …"), so a reviewer
+can see what a person changed and undo by approving the original. The marker uses the shared
+`ProposedTag`-style badge rather than a new component, and never relies on colour alone (it carries the
+words System or Edited). Documents Review marks "uploaded" in the same place.
+
 ## Current runs panel (on every tab)
 
 Every tab, top-level and inner, shows a **Current runs** panel under the flow chart, so what is running
@@ -138,8 +177,14 @@ run is first, and a running run is pinned above the rest. Each row shows:
 | Status and progress | `status`, `completed_count` of `company_count`, `failed_count`, `review_count` |
 | Input | The universe (file name and count) and, for extraction, the schema name from `params` |
 | Cost | `estimated_cost_usd`, `input_tokens` and `output_tokens`, `model` |
+| Ended | `updated_at` once `status` is no longer running or pending, shown beside started time |
 | Error | `error`, when set |
-| Actions | **Stop** (`api.cancelRun`) while running, **Open** (selects that run in its tab), **Review →** when `review_count > 0` |
+| Actions | **Stop** (`api.cancelRun`) while running, **Rerun** when finished, **Open** (selects that run in its tab), **Review →** when `review_count > 0` |
+
+A **Batch / Single** filter above the list separates runs started on a list from runs started on one company
+(`params`: a `universe_path` means batch, a `companies` array of one means single). **Rerun** starts a new run
+with the same `params` (the same call that started it) and selects the new run; for Extract it reuses
+`PipelineEditor`'s existing restart. Reruns never overwrite the old run, which stays in the list.
 
 Selecting a row makes it the run the tab shows. Starting a new run selects it. The panel is collapsed to
 a one-line summary ("1 running · 3 done") when the user collapses it, and the choice is remembered per tab
@@ -207,10 +252,13 @@ documents" no longer appears for those.
 | `frontend/src/pages/IdentityResolution.tsx`, `DocumentDiscovery.tsx` | Become thin wrappers around the stage components, so the "Onboard issuers" hub keeps working with no duplicated logic. |
 | `frontend/src/lib/stagedFlow.ts` | New. `useStagedFlow()` hook and the handover rules. Pure logic, unit-testable. |
 | `frontend/src/components/StageFlowChart.tsx` | New. The overview chart. |
+| `frontend/src/components/DocumentUpload.tsx` | New. Per-type drop zones and the company picker for the Documents tab. |
+| `frontend/src/components/ReviewTiles.tsx` | New, small. The status tile row and the System / Edited marker, shared by the three Review tabs. |
 | `frontend/src/components/FlowRuns.tsx` | New. The Current runs panel, filtered by run type. |
 | `frontend/src/components/StepTabs.tsx` | New. The two-level tab bar with Review badges and arrow-key handling. |
 | `frontend/src/components/IdentityReview.tsx` | New, small. The identity review list, taken from the Review Queue page's identity handling so both screens share it. |
 | `frontend/src/pages/Extraction.tsx` | Hosts the tab bar, the chart and the hook. Existing cards move into tabs unchanged. |
+| `frontend/src/api/client.ts` | Adds `uploadDocument`. |
 | `frontend/src/index.css` | A few lines for the tab bar and stage card extras. The `.sub-nav` and `.nav-tab` styles are reused. |
 
 ## Backend check
@@ -224,6 +272,7 @@ To confirm while planning:
 2. Discovery runs write downloaded documents where the extraction's document registry reads them from.
    `_document_mgmt` uses `settings.documents_dir`, which suggests yes.
 3. `step_settings` accepts the three `pre_*_enabled` flags per run.
+4. A started run's `params` is enough to rerun it for identity and discovery runs; if not, the panel's Rerun uses the inputs the flow still holds and is disabled for runs started elsewhere.
 
 If any of these fail, the plan lists a minimal backend change. None is expected.
 
@@ -247,6 +296,9 @@ Default in this spec: **no backend, list-only**.
 - Unit test for `stagedFlow.ts`: manual hold, automatic advance on clean, automatic hold on flagged,
   skip pass-through, stale marking on re-run.
 - `tsc` and a production build.
+- Upload one file of each type for a company the crawl finds nothing for, and confirm it is counted, marked "uploaded" and not flagged.
+- Edit one value in Extract Review and confirm the tile counts, the Edited marker and the "was" value.
+- Rerun a finished run from the panel and confirm a new row appears with the old one kept.
 - Browser check that every tab shows its Current runs panel with the right run type, that a running run is
   pinned and Stop works, and that each step's Review tab shows its flagged items and badge.
 - Browser check: Custom flow end to end in manual mode; one built-in profile in automatic mode; a flagged
