@@ -227,7 +227,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const extractTabs: StepTab[] = [
     { id: "setup", label: "Setup" },
     { id: "run", label: "Run", disabled: !runId },
-    { id: "review", label: "Review", disabled: !runId, badge: pending, mark: extractStatus === "review" ? "waiting" : null },
+    { id: "review", label: "Review", disabled: !runId, badge: runId ? pending : 0, mark: extractStatus === "review" ? "waiting" : null },
   ];
   const tabRunTypes = { companies: ["identity", "discovery", profile.runType], schema: ["identity", "discovery", profile.runType], identify: ["identity"], documents: ["discovery"], extract: [profile.runType] }[tab];
   const tabRunId = tab === "identify" || tab === "documents" ? flow[tab].runId : tab === "extract" ? runId : null;

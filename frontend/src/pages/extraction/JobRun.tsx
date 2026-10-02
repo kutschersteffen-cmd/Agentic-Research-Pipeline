@@ -17,7 +17,7 @@ function statusOf(run: RunManifest | null): JobStatus {
   if (run.status === "completed") return { status: "done", counts };
   if (run.status === "cancelled") return { status: "review", counts };
   if (run.status === "failed") return { status: "failed", counts };
-  return { status: run.review_count > 0 || !(run.failed_count > 0) ? "review" : "failed", counts };
+  return { status: "review", counts };
 }
 
 /** One job's run progress, pipeline editor (restart) and CSV export; reports its status upward when it changes. */
