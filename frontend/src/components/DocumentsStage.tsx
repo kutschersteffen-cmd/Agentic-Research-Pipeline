@@ -6,8 +6,8 @@ import { DocumentUpload } from "./DocumentUpload";
 import { UniversePicker } from "./UniversePicker";
 import {
   autoContinueDue,
-  companiesToCheck,
   docRows,
+  flagReason,
   type DocRow,
   type FlowAction,
   type StageHandle,
@@ -23,6 +23,26 @@ const FINISHED = ["review", "ready", "done", "stale", "failed"];
 const HANDOVERS: [Handover, string][] = [["manual", "Manual"], ["auto", "Automatic"], ["skip", "Skip"]];
 
 const marker = (r: DocRow) => (r.flagged ? "None" : r.uploaded ? "Uploaded" : "Discovered");
+const PAGE = 1000;
+
+/** Every discovery result of a run, paged by the endpoint's `total`. */
+async function allResults(runId: string): Promise<DiscoveryCompanyResult[]> {
+  const all: DiscoveryCompanyResult[] = [];
+  for (;;) {
+    const res = (await api.getDiscoveryResults(runId, all.length, PAGE)) as { total: number; results: DiscoveryCompanyResult[] };
+    all.push(...res.results);
+    if (res.results.length === 0 || all.length >= res.total) return all;
+  }
+}
+
+/** Full company records plus on-disk file counts for a list, in one readiness call. */
+async function readiness(body: { companies: CompanyRef[] } | { universe_path: string }) {
+  const res = await api.documentReadiness(body);
+  const records = new Map<string, CompanyRef>([...res.ready.map(({ readiness: _r, ...c }) => c), ...res.onboard].map((c) => [c.company_id, c]));
+  const companies = Object.keys(res.readiness).flatMap((id) => records.get(id) ?? []);
+  const onDisk = Object.fromEntries(Object.entries(res.readiness).map(([id, r]) => [id, r.on_disk]));
+  return { companies, onDisk };
+}
 
 export function DocumentsStage({
   input,
@@ -40,8 +60,9 @@ export function DocumentsStage({
   const [picked, setPicked] = useState<StageOutput | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [companies, setCompanies] = useState<CompanyRef[]>([]);
   const [results, setResults] = useState<DiscoveryCompanyResult[]>([]);
-  const [onFile, setOnFile] = useState<Record<string, number>>({});
+  const [onDisk, setOnDisk] = useState<Record<string, number>>({});
   const [uploaded, setUploaded] = useState<Set<string>>(new Set());
   const [decisions, setDecisions] = useState<Record<string, boolean>>({});
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
@@ -54,35 +75,31 @@ export function DocumentsStage({
 
   const source = input ?? picked;
   const { runId } = stage;
-  const rows = docRows(results, onFile, uploaded);
+  const rows = docRows(companies, results, onDisk, uploaded);
   const isTicked = (r: DocRow) => decisions[r.companyId] ?? !r.flagged;
 
-  async function checkFiles(ids: string[]) {
-    const entries = await Promise.all(
-      ids.map(async (id) => {
-        const res = (await api.listDocuments(id)) as { documents: unknown[] };
-        return [id, res.documents.length] as const;
-      }),
-    );
-    setOnFile((o) => ({ ...o, ...Object.fromEntries(entries) }));
-    return Object.fromEntries(entries);
-  }
-
-  /** Loads discovery results, then checks stored files for companies that found none. Returns the flagged count. */
+  /** Loads the input list with its on-disk counts and every discovery result. Returns the flagged count. */
   async function load(id: string): Promise<number> {
-    const res = (await api.getDiscoveryResults(id)) as { results: DiscoveryCompanyResult[] };
-    setResults(res.results);
-    const files = await checkFiles(companiesToCheck(res.results, uploadedRef.current));
+    const [list, res] = await Promise.all([
+      source ? readiness(input?.companies ? { companies: input.companies } : { universe_path: source.path }) : null,
+      allResults(id),
+    ]);
+    // No source (e.g. its upstream stage was rerun): fall back to the companies the run reported.
+    const cos = list?.companies ?? res.map((r) => ({ company_id: r.company_id, name: r.name }));
+    setCompanies(cos);
+    setResults(res);
+    setOnDisk(list?.onDisk ?? {});
     setLoadedFor(id);
-    return docRows(res.results, files, uploadedRef.current).filter((r) => r.flagged).length;
+    return docRows(cos, res, list?.onDisk ?? {}, uploadedRef.current).filter((r) => r.flagged).length;
   }
 
   async function start() {
     if (!source) return;
     setBusy(true);
     setError(null);
+    setCompanies([]);
     setResults([]);
-    setOnFile({});
+    setOnDisk({});
     setUploaded(new Set());
     setDecisions({});
     setLoadedFor(null);
@@ -96,9 +113,10 @@ export function DocumentsStage({
     }
   }
 
-  // RunProgress has no status callback, so watch the run here until it ends.
+  // RunProgress has no status callback, so watch the run here until it ends (a stale stage's run may still be going).
+  const watching = stage.state === "running" || (stage.state === "stale" && finishedRef.current !== runId);
   useEffect(() => {
-    if (!runId || stage.state !== "running") return;
+    if (!runId || !watching) return;
     let live = true;
     let timer: number | undefined;
     async function poll() {
@@ -109,13 +127,13 @@ export function DocumentsStage({
           if (finishedRef.current !== runId) {
             finishedRef.current = runId;
             loadedRef.current = runId;
-            let flagged = 0;
             try {
-              flagged = await load(runId!);
+              const flagged = await load(runId!);
+              dispatch({ type: "runFinished", stage: "documents", status: m.status, flagged, failed: m.failed_count });
             } catch (err) {
               setError(`Couldn't load results: ${(err as Error).message}`);
+              dispatch({ type: "runFinished", stage: "documents", status: m.status, flagged: 0, failed: 0, note: "Couldn't check documents" });
             }
-            dispatch({ type: "runFinished", stage: "documents", status: m.status, flagged, failed: m.failed_count });
           }
           return;
         }
@@ -130,7 +148,7 @@ export function DocumentsStage({
       window.clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId, stage.state]);
+  }, [runId, watching]);
 
   // A remount (or switching back to a finished run) still shows the results.
   useEffect(() => {
@@ -142,8 +160,11 @@ export function DocumentsStage({
 
   async function onUploaded(id: string) {
     setUploaded((u) => new Set(u).add(id));
+    const company = companies.find((c) => c.company_id === id);
+    if (!company) return;
     try {
-      await checkFiles([id]);
+      const { onDisk: fresh } = await readiness({ companies: [company] });
+      setOnDisk((o) => ({ ...o, ...fresh }));
     } catch (err) {
       setError(`Couldn't re-check documents: ${(err as Error).message}`);
     }
@@ -154,15 +175,13 @@ export function DocumentsStage({
     setError(null);
     try {
       const keep = new Set(rows.filter(isTicked).map((r) => r.companyId));
-      const companies: CompanyRef[] = input?.companies
-        ? input.companies.filter((c) => keep.has(c.company_id))
-        : rows.filter(isTicked).map((r) => ({ company_id: r.companyId, name: r.name }));
-      if (companies.length === 0) {
-        dispatch({ type: "handedOver", stage: "documents", output: { path: "", count: 0, companies } });
+      const kept = companies.filter((c) => keep.has(c.company_id));
+      if (kept.length === 0) {
+        dispatch({ type: "handedOver", stage: "documents", output: { path: "", count: 0, companies: kept } });
         return;
       }
-      const res = await api.universeFromCompanies(companies, "documents_ready");
-      dispatch({ type: "handedOver", stage: "documents", output: { path: res.path, count: res.company_count, companies } });
+      const res = await api.universeFromCompanies(kept, "documents_ready");
+      dispatch({ type: "handedOver", stage: "documents", output: { path: res.path, count: res.company_count, companies: kept } });
     } catch (err) {
       setError(`Failed: ${(err as Error).message}`);
     } finally {
@@ -253,14 +272,14 @@ export function DocumentsStage({
       {skipped ? (
         <p className="status-text">Skipped — the list passes straight to Extract.</p>
       ) : (
-        <button onClick={start} disabled={busy || !source || stage.state === "running"}>
+        <button onClick={start} disabled={busy || !source?.path || !source.count || stage.state === "running"}>
           Search for documents across {source?.count ? `${source.count} companies` : "your companies (upload them first)"}
         </button>
       )}
       {runId && !skipped && (
         <>
           <RunProgress runId={runId} runType="discovery" />
-          {results.length > 0 && <DocumentUpload companies={results.map((r) => ({ company_id: r.company_id, name: r.name }))} onUploaded={onUploaded} />}
+          {companies.length > 0 && <DocumentUpload companies={companies} onUploaded={onUploaded} />}
           {rows.length > 0 && (
             <div className="table-wrap">
               <table className="data-table">
@@ -276,7 +295,7 @@ export function DocumentsStage({
                     <tr key={r.companyId}>
                       <td>{r.name}</td>
                       <td>{r.onFile}</td>
-                      <td>{r.flagged ? <span className="await-text">{marker(r)}</span> : marker(r)}</td>
+                      <td>{r.flagged ? <span className="await-text">{flagReason(r)}</span> : marker(r)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -284,6 +303,12 @@ export function DocumentsStage({
             </div>
           )}
         </>
+      )}
+      {stage.state === "stale" && stage.output && (
+        <div className="toolbar">
+          <span className="await-text">Inputs changed since this stage ran.</span>
+          <button className="secondary" onClick={() => dispatch({ type: "useAnyway", stage: "documents" })}>Use anyway</button>
+        </div>
       )}
       {footer}
     </div>

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  autoContinueDue, companiesToCheck, docRows, extractInputs, flowReducer, initialFlow, mergeCompanies,
+  autoContinueDue, docRows, extractInputs, flagReason, pendingOnboard, flowReducer, initialFlow, mergeCompanies,
   editedText, matchesTile, reviewCounts, runEndedAt, runScope, stageInput, valueOrigin,
 } from "../src/lib/stagedFlow.ts";
 import type { FlowAction, FlowState, StageOutput } from "../src/lib/stagedFlow.ts";
@@ -13,8 +13,8 @@ const co = (id: string): CompanyRef => ({ company_id: id, name: id });
 const dec = (decision: ReviewDecision["decision"]): ReviewDecision => ({ item_key: "k", decision, decided_at: "" });
 const manifest = (status: RunManifest["status"], company_count: number) =>
   ({ status, company_count, updated_at: "2026-01-01T00:00:00Z" }) as RunManifest;
-const disc = (id: string, n: number) =>
-  ({ company_id: id, name: id, documents_found: Array(n).fill({}) }) as unknown as DiscoveryCompanyResult;
+const disc = (id: string, n: number, extra: Partial<DiscoveryCompanyResult> = {}) =>
+  ({ company_id: id, name: id, documents_found: Array(n).fill({}), homepage_unreachable: false, ...extra }) as unknown as DiscoveryCompanyResult;
 const finish = (flagged: number, failed = 0, status: "completed" | "cancelled" | "failed" = "completed"): FlowAction =>
   ({ type: "runFinished", stage: "identify", status, flagged, failed });
 const started: FlowAction = { type: "runStarted", stage: "identify", runId: "r1" };
@@ -160,14 +160,66 @@ test("runScope and runEndedAt", () => {
   assert.equal(runEndedAt(manifest("completed", 1)), "2026-01-01T00:00:00Z");
 });
 
-test("companiesToCheck skips companies with documents", () => {
-  assert.deepEqual(companiesToCheck([disc("a", 0), disc("b", 2), disc("c", 0)], new Set(["b"])).sort(), ["a", "b", "c"]);
-});
-
 test("docRows flags only empty companies", () => {
-  const rows = docRows([disc("a", 0), disc("b", 0)], { a: 2 }, new Set());
+  const rows = docRows([co("a"), co("b")], [disc("a", 0), disc("b", 0)], { a: 2 }, new Set());
   assert.equal(rows[0].flagged, false);
   assert.equal(rows[1].flagged, true);
+});
+
+test("docRows keeps companies with no discovery result", () => {
+  const rows = docRows([co("a"), co("b"), co("c")], [disc("a", 3)], { b: 1, c: 0 }, new Set(["b"]));
+  assert.deepEqual(rows.map((r) => [r.companyId, r.discovered, r.onFile, r.flagged]),
+    [["a", 3, 3, false], ["b", 0, 1, false], ["c", 0, 0, true]]);
+  assert.equal(rows[1].uploaded, true);
+  assert.equal(flagReason(rows[2]), "No discovery result");
+});
+
+test("flagReason reads the crawl diagnostics", () => {
+  const [down, nohome, used] = docRows([co("a"), co("b"), co("c")], [
+    disc("a", 0, { homepage_unreachable: true, crawl_error: "timeout" }),
+    disc("b", 0, { homepage_used: null }),
+    disc("c", 0, { homepage_used: "https://c.com" }),
+  ], {}, new Set());
+  assert.equal(flagReason(down), "Site unreachable: timeout");
+  assert.equal(flagReason(nohome), "No documents · no homepage known");
+  assert.equal(flagReason(used), "No documents found on https://c.com");
+});
+
+test("recheck with nothing to onboard keeps stages", () => {
+  const s = run(initialFlow, { type: "companies", output: out("all.csv", 50) }, { type: "recheckReady", on: true },
+    { type: "readiness", ready: out("ready.csv", 50), onboard: out("onb.csv", 0) });
+  assert.equal(s.identify.state, "idle");
+  assert.equal(s.documents.state, "idle");
+});
+
+test("useAnyway needs an output", () => {
+  const s = run({ ...initialFlow, documents: { ...initialFlow.documents, state: "stale" } },
+    { type: "useAnyway", stage: "documents" });
+  assert.equal(s.documents.state, "stale");
+});
+
+test("a stale running stage stays stale when its run finishes", () => {
+  const s = run(initialFlow, started, { type: "companies", output: out("n.csv", 1) }, finish(2));
+  assert.equal(s.identify.state, "stale");
+  assert.equal(s.identify.flagged, 2);
+  assert.equal(s.identify.note, "2 companies need review");
+});
+
+test("runFinished notes", () => {
+  assert.equal(run(initialFlow, started, finish(2, 1)).identify.note, "2 need review · 1 failed");
+  assert.equal(run(initialFlow, started, finish(0, 3)).identify.note, "3 failed");
+  const c = run(initialFlow, started, { type: "runFinished", stage: "identify", status: "completed", flagged: 0, failed: 0, note: "Couldn't check documents" });
+  assert.equal(c.identify.state, "review");
+  assert.equal(c.identify.note, "Couldn't check documents");
+});
+
+test("pendingOnboard counts the share not yet handed over", () => {
+  assert.equal(pendingOnboard(withReady), 0); // both stages skipped
+  const s = run(initialFlow, { type: "companies", output: out("all.csv", 50) },
+    { type: "readiness", ready: out("ready.csv", 32), onboard: out("onb.csv", 18) });
+  assert.equal(pendingOnboard(s), 18);
+  assert.equal(pendingOnboard(run(s, { type: "handedOver", stage: "identify", output: out("i", 18) },
+    { type: "handedOver", stage: "documents", output: out("d", 17) })), 0);
 });
 
 test("recheck un-skips auto-skipped stages", () => {

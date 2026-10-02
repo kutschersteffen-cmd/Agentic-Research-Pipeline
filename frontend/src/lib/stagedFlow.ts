@@ -33,7 +33,8 @@ export type FlowAction =
   | { type: "setHandover"; stage: StageId; handover: Handover }
   | { type: "allAuto"; on: boolean }
   | { type: "runStarted"; stage: StageId; runId: string }
-  | { type: "runFinished"; stage: StageId; status: JobStatus; flagged: number; failed: number }
+  /** `note` set = the results couldn't be checked; the stage holds for review with that note. */
+  | { type: "runFinished"; stage: StageId; status: JobStatus; flagged: number; failed: number; note?: string }
   | { type: "handedOver"; stage: StageId; output: StageOutput }
   | { type: "useAnyway"; stage: StageId }
   | { type: "extractStarted"; runId: string }
@@ -92,7 +93,7 @@ export function flowReducer(s: FlowState, a: FlowAction): FlowState {
         onboard,
         readinessNote: failed ? "Couldn't check stored documents; all companies will be onboarded" : null,
       };
-      if (onboard?.count === 0) {
+      if (!s.recheckReady && onboard?.count === 0) {
         for (const id of STAGES) {
           if (s[id].state === "idle") next[id] = { ...s[id], state: "skipped", note: "Nothing to onboard" };
         }
@@ -126,13 +127,16 @@ export function flowReducer(s: FlowState, a: FlowAction): FlowState {
       return next;
     }
     case "runFinished": {
-      const bad = a.flagged + a.failed;
       const [state, note]: [StageState, string | null] =
         a.status === "failed" ? ["failed", "Run failed"]
         : a.status === "cancelled" ? ["review", "Stopped"]
-        : bad > 0 ? ["review", `${bad} companies need review`]
+        : a.note ? ["review", a.note]
+        : a.failed === 0 && a.flagged > 0 ? ["review", `${a.flagged} companies need review`]
+        : a.failed > 0 ? ["review", [a.flagged && `${a.flagged} need review`, `${a.failed} failed`].filter(Boolean).join(" · ")]
         : ["ready", null];
-      return { ...s, [a.stage]: { ...s[a.stage], state, note, flagged: a.flagged } };
+      const st = s[a.stage];
+      // A run that finishes after its inputs changed stays stale; only its counts update.
+      return { ...s, [a.stage]: { ...st, state: st.state === "stale" ? "stale" : state, note, flagged: a.flagged } };
     }
     case "handedOver": {
       const st = s[a.stage];
@@ -144,7 +148,7 @@ export function flowReducer(s: FlowState, a: FlowAction): FlowState {
       };
     }
     case "useAnyway":
-      return s[a.stage].state === "stale" ? { ...s, [a.stage]: { ...s[a.stage], state: "done" } } : s;
+      return s[a.stage].state === "stale" && s[a.stage].output != null ? { ...s, [a.stage]: { ...s[a.stage], state: "done" } } : s;
     case "extractStarted":
       return { ...s, extractRunId: a.runId, runIds: [...s.runIds, a.runId], extractStale: false };
     case "profileChanged":
@@ -163,6 +167,9 @@ function onboardedShare(s: FlowState): StageOutput | null {
   if (s.documents.state === "done") return s.documents.output;
   return s.documents.state === "skipped" ? stageInput(s, "documents") : null;
 }
+
+/** How many onboarding companies Extract would leave out right now (their share isn't handed over yet). */
+export const pendingOnboard = (s: FlowState): number => (onboardedShare(s) ? 0 : stageInput(s, "identify")?.count ?? 0);
 
 export function extractInputs(s: FlowState): StageOutput[] {
   const share = onboardedShare(s);
@@ -208,24 +215,50 @@ export const runScope = (m: RunManifest): "batch" | "single" => (m.company_count
 export const runEndedAt = (m: RunManifest): string | null =>
   m.status === "running" || m.status === "pending" ? null : m.updated_at;
 
-export function companiesToCheck(results: DiscoveryCompanyResult[], uploaded: Set<string>): string[] {
-  const empty = results.filter((r) => r.documents_found.length === 0).map((r) => r.company_id);
-  return [...new Set([...empty, ...uploaded])];
+export interface DocRow {
+  companyId: string;
+  name: string;
+  discovered: number;
+  onFile: number;
+  uploaded: boolean;
+  flagged: boolean;
+  searched: boolean;
+  homepageUsed: string | null;
+  crawlError: string | null;
+  unreachable: boolean;
 }
 
-export interface DocRow { companyId: string; name: string; discovered: number; onFile: number; uploaded: boolean; flagged: boolean }
-
-export function docRows(results: DiscoveryCompanyResult[], onFile: Record<string, number>, uploaded: Set<string>): DocRow[] {
-  return results.map((r) => {
-    const discovered = r.documents_found.length;
-    const files = onFile[r.company_id] ?? discovered;
+/** One row per input company; discovery results are left-joined, so a company with no result row reads 0 discovered. */
+export function docRows(
+  companies: CompanyRef[],
+  results: DiscoveryCompanyResult[],
+  onDisk: Record<string, number>,
+  uploaded: Set<string>,
+): DocRow[] {
+  const byId = new Map(results.map((r) => [r.company_id, r]));
+  return companies.map((c) => {
+    const r = byId.get(c.company_id);
+    const discovered = r?.documents_found.length ?? 0;
+    const files = onDisk[c.company_id] ?? discovered;
     return {
-      companyId: r.company_id,
-      name: r.name,
+      companyId: c.company_id,
+      name: c.name,
       discovered,
       onFile: files,
-      uploaded: uploaded.has(r.company_id),
+      uploaded: uploaded.has(c.company_id),
       flagged: discovered === 0 && files === 0,
+      searched: r != null,
+      homepageUsed: r?.homepage_used ?? null,
+      crawlError: r?.crawl_error ?? null,
+      unreachable: r?.homepage_unreachable ?? false,
     };
   });
+}
+
+/** Why a flagged row found nothing, from the crawl diagnostics. */
+export function flagReason(r: DocRow): string {
+  if (!r.searched) return "No discovery result";
+  if (r.unreachable || r.crawlError) return `Site unreachable: ${r.crawlError ?? "no response"}`;
+  if (!r.homepageUsed) return "No documents · no homepage known";
+  return `No documents found on ${r.homepageUsed}`;
 }

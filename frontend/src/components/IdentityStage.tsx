@@ -61,9 +61,10 @@ export function IdentityStage({
     }
   }
 
-  // RunProgress has no status callback, so watch the run here until it ends.
+  // RunProgress has no status callback, so watch the run here until it ends (a stale stage's run may still be going).
+  const watching = stage.state === "running" || (stage.state === "stale" && finishedRef.current !== runId);
   useEffect(() => {
-    if (!runId || stage.state !== "running") return;
+    if (!runId || !watching) return;
     let live = true;
     let timer: number | undefined;
     async function poll() {
@@ -89,7 +90,7 @@ export function IdentityStage({
       window.clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId, stage.state]);
+  }, [runId, watching]);
 
   async function carryOn() {
     if (!runId) return;
@@ -172,7 +173,7 @@ export function IdentityStage({
       {skipped ? (
         <p className="status-text">Skipped — the list passes straight to Documents.</p>
       ) : (
-        <button onClick={start} disabled={busy || !source || stage.state === "running"}>
+        <button onClick={start} disabled={busy || !source?.path || !source.count || stage.state === "running"}>
           Resolve identity for {source?.count ? `${source.count} companies` : "your companies (upload them first)"}
         </button>
       )}
@@ -220,6 +221,12 @@ export function IdentityStage({
             Anything flagged for review must be approved (or edited with a corrected website/CIK) in the Review view before it's included in the list carried forward.
           </p>
         </>
+      )}
+      {stage.state === "stale" && stage.output && (
+        <div className="toolbar">
+          <span className="await-text">Inputs changed since this stage ran.</span>
+          <button className="secondary" onClick={() => dispatch({ type: "useAnyway", stage: "identify" })}>Use anyway</button>
+        </div>
       )}
       {footer}
     </div>
