@@ -4,20 +4,32 @@ import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import type { ExtractionProfile, StepSettings, UniverseHandoff } from "../types";
 import { useReviewer } from "../lib/reviewer";
 import { ScoringTemplatePicker } from "../components/RunScoring";
-import { TransitionPlanMethodology } from "../components/TransitionPlanResults";
 import { PipelineEditor } from "../components/PipelineEditor";
 import { StepTabs, type StepTab } from "../components/StepTabs";
 import { StageFlowChart } from "../components/StageFlowChart";
 import { FlowRuns } from "../components/FlowRuns";
 import { IdentityStage } from "../components/IdentityStage";
 import { DocumentsStage } from "../components/DocumentsStage";
-import { PROFILE_META, addCustomJob, initialJobs, jobLabel, jobReady, type CustomJob, type Job } from "../lib/jobs";
+import {
+  initialJobs,
+  jobLabel,
+  jobReady,
+  jobRunType,
+  jobsToStart,
+  startJobs,
+  startsText,
+  toggleProfile,
+  worstStatus,
+  type Job,
+  type JobSettings,
+} from "../lib/jobs";
 import {
   STAGES,
   extractInputs,
   pendingOnboard,
   flowReducer,
   initialFlow,
+  latestExtractRun,
   mergeCompanies,
   stageInput,
   type FlowStep,
@@ -30,13 +42,16 @@ import { JobReview } from "./extraction/JobReview";
 import { JobRun, type JobStatus } from "./extraction/JobRun";
 import { CompaniesPanel } from "./extraction/CompaniesPanel";
 import { DEFAULT_CRITERIA, SchemaPanel } from "./extraction/SchemaPanel";
-
-type Mode = ExtractionProfile;
+import { Overview } from "./extraction/Overview";
+import { ScoringSummary } from "./extraction/ScoringSummary";
 
 type Sub = "setup" | "run" | "review";
 type Inner = "identify" | "documents" | "extract";
+type Tab = FlowStep | "overview";
 
 const MARK: Partial<Record<StageState, StepTab["mark"]>> = { done: "done", ready: "waiting", review: "waiting", failed: "attention", stale: "attention" };
+const NO_SETTINGS: JobSettings = { stepSettings: {}, templateId: null };
+const noop = () => {};
 
 const stageTabs = (st: Stage): StepTab[] => [
   { id: "run", label: "Run" },
@@ -46,111 +61,129 @@ const stageTabs = (st: Stage): StepTab[] => [
 interface Props {
   pendingUniverse?: UniverseHandoff | null;
   /** The profile the screen opens on, e.g. the Transition Plan menu item. */
-  initialProfile?: Mode;
+  initialProfile?: ExtractionProfile;
 }
 
 export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props = {}) {
-  const [mode, setMode] = useState<Mode>(initialProfile);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flow, dispatch] = useReducer(flowReducer, initialFlow, (init) =>
     pendingUniverse ? flowReducer(init, { type: "companies", output: { path: pendingUniverse.path, count: pendingUniverse.count } }) : init,
   );
-  const [tab, setTab] = useState<FlowStep>("companies");
+  const [tab, setTab] = useState<Tab>("overview");
   const [sub, setSub] = useState<Record<Inner, Sub>>({ identify: "run", documents: "run", extract: "setup" });
   const [reviewer] = useReviewer();
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
   const identifyRef = useRef<StageHandle>(null);
   const documentsRef = useRef<StageHandle>(null);
-  const runId = flow.extractRuns[mode] ?? null;
 
-  // Custom-schema mode only
   const [jobs, setJobs] = useState<Job[]>(() => initialJobs(initialProfile, "custom:1", DEFAULT_CRITERIA));
   const customCounter = useRef(1);
   const nextCustomId = useCallback(() => `custom:${++customCounter.current}`, []);
-  const [templateId, setTemplateId] = useState<string | null>(null);
-  const [stepSettings, setStepSettings] = useState<StepSettings>({});
+  const [pickerError, setPickerError] = useState<string | null>(null);
+  const [settings, setSettings] = useState<Record<string, JobSettings>>({});
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [statuses, setStatuses] = useState<Record<string, JobStatus>>({});
+  const [pending, setPending] = useState<Record<string, number>>({});
+  const [frameworks, setFrameworks] = useState<Record<string, string | null>>({});
+  const [startErrors, setStartErrors] = useState<Record<string, string>>({});
+  // Each extraction run's profile, for the Overview's per-company steps of an older run.
+  const [runProfiles, setRunProfiles] = useState<Record<string, ExtractionProfile>>({});
+  const [overviewRun, setOverviewRun] = useState<string | null>(null);
 
-  // TNFD profile only
+  // TNFD jobs only
   const [asOf, setAsOf] = useState(`FY${new Date().getFullYear() - 1}`);
 
-  const profile = PROFILE_META[mode];
+  const hasCustom = jobs.some((j) => j.profile === "custom");
+  const runJobs = jobs.filter((j) => j.id in flow.extractRuns);
+  const activeJob = jobs.find((j) => j.id === activeJobId) ?? jobs[0];
+  const reviewJob = runJobs.find((j) => j.id === activeJobId) ?? runJobs[0] ?? null;
+  const hasRuns = runJobs.length > 0;
 
-  function switchMode(next: Mode) {
-    if (next === mode) return;
-    setMode(next);
-    if (next === "custom" && !jobs.some((j) => j.profile === "custom")) setJobs(addCustomJob(jobs, nextCustomId(), DEFAULT_CRITERIA));
-    dispatch({ type: "jobsChanged", jobIds: [next] });
-    setTab("companies");
-    setSub((s) => ({ ...s, extract: "setup" }));
-    setError(null);
-    setTemplateId(null);
-    setStepSettings({});
-    setActiveSource(null);
+  /** Every change to the job list goes through here; a changed set of jobs drops the removed jobs' runs and settings. */
+  function changeJobs(next: Job[]) {
+    const ids = next.map((j) => j.id);
+    setJobs(next);
+    if (ids.join() !== jobs.map((j) => j.id).join()) {
+      dispatch({ type: "jobsChanged", jobIds: ids });
+      setSettings((s) => Object.fromEntries(Object.entries(s).filter(([k]) => ids.includes(k))));
+    }
   }
+  function toggle(profile: ExtractionProfile) {
+    const r = toggleProfile(jobs, profile, nextCustomId);
+    setPickerError(r.error);
+    if (!r.error) changeJobs(r.jobs);
+  }
+  const patchSettings = (id: string, p: Partial<JobSettings>) => setSettings((s) => ({ ...s, [id]: { ...(s[id] ?? NO_SETTINGS), ...p } }));
+  const restarted = (job: Job, runId: string) => {
+    dispatch({ type: "extractStarted", job: job.id, runId });
+    setRunProfiles((m) => ({ ...m, [runId]: job.profile }));
+  };
 
   const inputs = extractInputs(flow);
   const leftOut = pendingOnboard(flow);
   const inputCount = inputs.length === 1 ? inputs[0].count : mergeCompanies(inputs).length;
-  // Temporary bridge until the multi-profile picker: the page runs one job, the first custom one in Custom mode.
-  const firstCustom = jobs.find((j): j is CustomJob => j.profile === "custom");
-  const schema = firstCustom?.schema ?? null;
-  const currentJob: Job = useMemo(
-    () => (mode === "custom" && firstCustom ? firstCustom : { id: mode, profile: mode } as Job),
-    [mode, firstCustom],
-  );
-  const schemaReady = jobReady(currentJob);
-  const canStart = inputs.length > 0 && schemaReady && (mode !== "tnfd" || !!asOf.trim());
+  const toStart = jobsToStart(jobs, flow.extractRuns);
+  const canStart = inputs.length > 0 && toStart.length > 0;
 
-  async function startRun() {
-    if (!canStart) {
-      setError(inputs.length ? "Finish the schema (and the TNFD reporting period) first." : "Nothing to extract yet: carry the companies through Identify and Documents, or skip those stages.");
+  async function startOne(job: Job): Promise<string> {
+    if (job.profile === "tnfd" && !asOf.trim()) throw new Error("Set the TNFD reporting period on Companies first.");
+    const s = settings[job.id] ?? NO_SETTINGS;
+    // Identify and Documents ran as checkpoints, so the run must not repeat them; a skipped stage keeps the user's setting.
+    const step: StepSettings = {
+      ...s.stepSettings,
+      ...(flow.identify.state !== "skipped" ? { pre_identity_enabled: false } : {}),
+      ...(flow.documents.state !== "skipped" ? { pre_content_search_enabled: false, pre_document_mgmt_enabled: false } : {}),
+    };
+    const res = await api.startExtraction({
+      profile: job.profile,
+      datapoint_schema: job.profile === "custom" ? job.schema : undefined,
+      as_of: job.profile === "tnfd" ? asOf : undefined,
+      ...(inputs.length === 1 ? { universe_path: inputs[0].path } : { companies: mergeCompanies(inputs) }),
+      decision_framework_id: s.templateId ?? undefined,
+      step_settings: Object.keys(step).length ? step : undefined,
+    });
+    restarted(job, res.run_id);
+    return res.run_id;
+  }
+
+  async function startAll() {
+    if (!inputs.length) {
+      setError("Nothing to extract yet: carry the companies through Identify and Documents, or skip those stages.");
+      return;
+    }
+    if (!toStart.length) {
+      setError("Every ready job already has a run: restart one in Extract › Run, or finish a Custom schema.");
       return;
     }
     setBusy(true);
     setError(null);
-    try {
-      // Identify and Documents ran as checkpoints, so the run must not repeat them; a skipped stage keeps the user's setting.
-      const settings: StepSettings = {
-        ...stepSettings,
-        ...(flow.identify.state !== "skipped" ? { pre_identity_enabled: false } : {}),
-        ...(flow.documents.state !== "skipped" ? { pre_content_search_enabled: false, pre_document_mgmt_enabled: false } : {}),
-      };
-      const res = await api.startExtraction({
-        profile: mode,
-        datapoint_schema: mode === "custom" ? schema : undefined,
-        as_of: mode === "tnfd" ? asOf : undefined,
-        ...(inputs.length === 1 ? { universe_path: inputs[0].path } : { companies: mergeCompanies(inputs) }),
-        decision_framework_id: templateId ?? undefined,
-        step_settings: Object.keys(settings).length ? settings : undefined,
-      });
-      dispatch({ type: "extractStarted", job: mode, runId: res.run_id });
-      setTab("extract");
-      setSub((s) => ({ ...s, extract: "run" }));
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    const { started, errors } = await startJobs(toStart, startOne);
+    setStartErrors(errors);
+    setBusy(false);
+    if (Object.keys(started).length) setSub((s) => ({ ...s, extract: "run" }));
   }
-
-  const [runStatus, setRunStatus] = useState<JobStatus>({ status: "running", counts: null });
-  const [pending, setPending] = useState(0);
-  const extractStatus: StageState =
-    !runId ? "idle"
-    : flow.extractStale && runStatus.status !== "running" ? "stale"
-    : runStatus.status === "done" && pending > 0 ? "review"
-    : runStatus.status;
-  const extractCounts = runId ? runStatus.counts : null;
-  const startRef = useRef(startRun);
-  startRef.current = startRun;
+  const startRef = useRef(startAll);
+  startRef.current = startAll;
   const flowRef = useRef(flow);
   flowRef.current = flow;
 
-  const extract = useMemo(
-    () => ({ jobs: [{ id: currentJob.id, label: jobLabel(currentJob), status: extractStatus, counts: extractCounts, ready: schemaReady, scoring: null }], status: extractStatus }),
-    [currentJob, schemaReady, extractStatus, extractCounts],
-  );
+  const { extractRuns, extractStale } = flow;
+  const extract = useMemo(() => {
+    const lines = jobs.map((j) => {
+      const r = j.id in extractRuns ? statuses[j.id] ?? { status: "running" as const, counts: null } : { status: "idle" as const, counts: null };
+      const status: StageState =
+        r.status === "idle" || r.status === "running" ? r.status
+        : extractStale ? "stale"
+        : r.status === "done" && (pending[j.id] ?? 0) > 0 ? "review"
+        : r.status;
+      const scoring = status === "idle" || status === "running" ? null : frameworks[j.id] ?? null;
+      return { id: j.id, label: jobLabel(j), status, counts: r.counts, ready: jobReady(j), scoring };
+    });
+    return { jobs: lines, status: worstStatus(lines.map((l) => l.status)) };
+  }, [jobs, extractRuns, extractStale, statuses, pending, frameworks]);
+  const extractStatus = extract.status;
+
   const counts = useMemo(() => {
     const out: Partial<Record<StageId | "companies", string>> = {};
     if (flow.ready || flow.onboard) out.companies = `${flow.ready?.count ?? 0} ready · ${flow.onboard?.count ?? 0} to onboard`;
@@ -168,16 +201,23 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     (step: FlowStep, s?: Sub) => {
       setTab(step);
       if (!s || (step !== "identify" && step !== "documents" && step !== "extract")) return;
-      setSub((prev) => ({ ...prev, [step]: step === "extract" && s !== "setup" && !runId ? "setup" : s }));
+      setSub((prev) => ({ ...prev, [step]: step === "extract" && s !== "setup" && !hasRuns ? "setup" : s }));
     },
-    [runId],
+    [hasRuns],
   );
-  const openJob = useCallback(() => openTab("extract", "review"), [openTab]); // one job today; the job id matters once several run
+  const openJob = useCallback(
+    (id: string) => {
+      setActiveJobId(id);
+      openTab("extract", "review");
+    },
+    [openTab],
+  );
   const onStart = useCallback((step: StageId | "extract") => {
     if (step === "extract") startRef.current();
     // Skip means the stage does not run.
     else if (flowRef.current[step].state !== "skipped") (step === "identify" ? identifyRef : documentsRef).current?.start();
   }, []);
+  const onFramework = useCallback((id: string, name: string | null) => setFrameworks((m) => (m[id] === name ? m : { ...m, [id]: name })), []);
 
   // Automatic handover advances the tab once, when the stage turns done; a later manual tab change stays.
   const { identify, documents } = flow;
@@ -186,79 +226,131 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     const now = { identify, documents };
     for (const id of STAGES) {
       if (now[id].state === "done" && prevState.current[id] !== "done" && now[id].handover === "auto") {
-        setTab(id === "identify" ? "documents" : mode === "custom" ? "schema" : "extract");
+        setTab(id === "identify" ? "documents" : hasCustom ? "schema" : "extract");
       }
     }
     prevState.current = { identify: identify.state, documents: documents.state };
-  }, [identify, documents, mode]);
+  }, [identify, documents, hasCustom]);
   const onStop = useCallback((id: string) => {
     api.cancelRun(id).catch((err) => setError(`Run could not be stopped: ${(err as Error).message}`));
   }, []);
   const onContinue = useCallback((stage: StageId) => (stage === "identify" ? identifyRef : documentsRef).current?.carryOn(), []);
 
-  const fieldNames = schema?.fields.map((f) => f.name) ?? [];
   const allAuto = STAGES.some((id) => flow[id].handover === "auto") && STAGES.every((id) => flow[id].handover !== "manual");
+  const totalPending = runJobs.reduce((n, j) => n + (pending[j.id] ?? 0), 0);
 
   const steps: StepTab[] = [
     { id: "companies", label: "Companies", mark: flow.readinessNote ? "attention" : flow.companies ? "done" : null },
     { id: "identify", label: "Identify", mark: MARK[flow.identify.state] },
     { id: "documents", label: "Documents", mark: MARK[flow.documents.state] },
-    ...(mode === "custom" ? [{ id: "schema", label: "Schema", mark: schema ? ("done" as const) : null }] : []),
+    ...(hasCustom ? [{ id: "schema", label: "Schema", mark: jobs.every(jobReady) ? ("done" as const) : null }] : []),
     { id: "extract", label: "Extract", mark: MARK[extractStatus] },
   ];
-  const topTabs = steps.map((t, i) => ({ ...t, label: `${i + 1}. ${t.label}` }));
+  const topTabs: StepTab[] = [{ id: "overview", label: "Overview" }, ...steps.map((t, i) => ({ ...t, label: `${i + 1}. ${t.label}` }))];
   const extractTabs: StepTab[] = [
     { id: "setup", label: "Setup" },
-    { id: "run", label: "Run", disabled: !runId },
-    { id: "review", label: "Review", disabled: !runId, badge: runId ? pending : 0, mark: extractStatus === "review" ? "waiting" : null },
+    { id: "run", label: "Run", disabled: !hasRuns },
+    { id: "review", label: "Review", disabled: !hasRuns, badge: totalPending, mark: runJobs.some((j) => extract.jobs.find((l) => l.id === j.id)?.status === "review") ? "waiting" : null },
   ];
-  const tabRunTypes = { companies: ["identity", "discovery", profile.runType], schema: ["identity", "discovery", profile.runType], identify: ["identity"], documents: ["discovery"], extract: [profile.runType] }[tab];
-  const tabRunId = tab === "identify" || tab === "documents" ? flow[tab].runId : tab === "extract" ? runId : null;
+  const jobTypes = [...new Set(jobs.map(jobRunType))];
+  const allTypes = ["identity", "discovery", ...jobTypes];
+  const tabRunTypes = { overview: allTypes, companies: allTypes, schema: allTypes, identify: ["identity"], documents: ["discovery"], extract: jobTypes }[tab];
+  const overviewSelected = (overviewRun && overviewRun in runProfiles ? overviewRun : null) ?? latestExtractRun(flow);
+  const tabRunId =
+    tab === "identify" || tab === "documents" ? flow[tab].runId
+    : tab === "extract" ? (reviewJob ? extractRuns[reviewJob.id] : null)
+    : tab === "overview" ? overviewSelected
+    : null;
+  const jobOfRun = (id: string) => jobs.find((j) => extractRuns[j.id] === id);
   const openRun = (id: string, s: Sub = "run") => {
-    if (id === runId) openTab("extract", s);
-    else for (const st of STAGES) if (flow[st].runId === id) openTab(st, s);
+    const job = jobOfRun(id);
+    if (job) {
+      setActiveJobId(job.id);
+      openTab("extract", s);
+    } else for (const st of STAGES) if (flow[st].runId === id) openTab(st, s);
   };
   const innerTabs = (id: Inner, tabs: StepTab[], label: string) => (
     <StepTabs label={label} tabs={tabs} active={sub[id]} onSelect={(v) => setSub((s) => ({ ...s, [id]: v as Sub }))} />
   );
+  const jobSwitch = (list: Job[], current: string | undefined, label: string) => (
+    <div className="view-toggle job-switch" role="group" aria-label={label}>
+      {list.map((j) => (
+        <button key={j.id} className={j.id === current ? "active" : ""} aria-pressed={j.id === current} onClick={() => setActiveJobId(j.id)}>
+          {jobLabel(j)}
+          {startErrors[j.id] ? " — failed to start" : ""}
+        </button>
+      ))}
+    </div>
+  );
+
+  const runsPanel = (
+    <FlowRuns
+      key={tab}
+      runTypes={tabRunTypes}
+      runIds={flow.runIds}
+      selected={tabRunId}
+      onSelect={(id) => (tab === "overview" && id in runProfiles ? setOverviewRun(id) : openRun(id))}
+      onReview={(r) => openRun(r.run_id, "review")}
+      onRerun={(r) => (r.run_type === "identity" ? onStart("identify") : r.run_type === "discovery" ? onStart("documents") : openRun(r.run_id, "run"))}
+      compact={tab === "companies" || tab === "schema"}
+      storageKey={`flowRuns:${tab}`}
+    />
+  );
+  const s = settings[activeJob.id] ?? NO_SETTINGS;
 
   return (
     <div className="page">
       <h1>Extraction</h1>
-      <p className="help-text">Extract data points from company disclosures, each checked by a verifier and every citation re-verified against its source. Pick a profile: draft a custom schema, or run one of the built-in ones — Financials, TNFD or Transition Plan.</p>
+      <p className="help-text">Extract data points from company disclosures, each checked by a verifier and every citation re-verified against its source. Pick one or more profiles: your own Custom schemas, or the built-in Financials, TNFD and Transition Plan. Each runs as its own extraction on the same companies.</p>
 
-      <div className="view-toggle" role="group" aria-label="Extraction profile">
-        {(Object.entries(PROFILE_META) as [Mode, (typeof PROFILE_META)[Mode]][]).map(([id, p]) => (
-          <button key={id} className={mode === id ? "active" : ""} aria-pressed={mode === id} onClick={() => switchMode(id)}>
-            {p.label}
+      <StepTabs label="Extraction steps" tabs={topTabs} active={tab} onSelect={(id) => setTab(id as Tab)} />
+      {tab !== "overview" && (
+        <>
+          <button type="button" className="link-button" onClick={() => setTab("overview")}>
+            ← Overview
           </button>
-        ))}
-      </div>
-      {profile.about && <p className="help-text">{profile.about}</p>}
-      {mode === "transition_plan" && <TransitionPlanMethodology />}
-
-      <label className="checkbox-label">
-        <input type="checkbox" checked={allAuto} onChange={(e) => dispatch({ type: "allAuto", on: e.target.checked })} />
-        Run all automatically
-      </label>
-      <StageFlowChart flow={flow} profile={mode} extract={extract} counts={counts} onOpen={openTab} onOpenJob={openJob} onStart={onStart} onStop={onStop} onContinue={onContinue} dispatch={dispatch} />
-      <StepTabs label="Extraction steps" tabs={topTabs} active={tab} onSelect={(id) => setTab(id as FlowStep)} />
-      <FlowRuns
-        key={tab}
-        runTypes={tabRunTypes}
-        runIds={flow.runIds}
-        selected={tabRunId}
-        onSelect={(id) => openRun(id)}
-        onReview={(r) => openRun(r.run_id, "review")}
-        onRerun={(r) => (r.run_type === "identity" ? onStart("identify") : r.run_type === "discovery" ? onStart("documents") : openTab("extract", "run"))}
-        compact={tab === "companies" || tab === "schema"}
-        storageKey={`flowRuns:${tab}`}
-      />
+          {runsPanel}
+        </>
+      )}
 
       {error && <p className="error-text" role="alert">{error}</p>}
 
+      <div role="tabpanel" aria-label="Overview" hidden={tab !== "overview"}>
+        <Overview
+          jobs={jobs}
+          onToggle={toggle}
+          pickerError={pickerError}
+          allAuto={allAuto}
+          onAllAuto={(on) => dispatch({ type: "allAuto", on })}
+          chart={
+            <StageFlowChart
+              flow={flow}
+              profile={hasCustom ? "custom" : jobs[0].profile}
+              extract={extract}
+              height={420}
+              counts={counts}
+              onOpen={openTab}
+              onOpenJob={openJob}
+              onStart={onStart}
+              onStop={onStop}
+              onContinue={onContinue}
+              dispatch={dispatch}
+            />
+          }
+          scoring={<ScoringSummary rows={runJobs.map((j) => ({ job: j, runId: extractRuns[j.id], status: extract.jobs.find((l) => l.id === j.id)!.status }))} onOpen={openJob} onFramework={onFramework} />}
+          runs={tab === "overview" ? runsPanel : <></>}
+          selectedRunId={overviewSelected}
+          selectedProfile={overviewSelected ? runProfiles[overviewSelected] ?? null : null}
+          onRestarted={(next) => {
+            const job = overviewSelected ? jobOfRun(overviewSelected) : undefined;
+            if (job) restarted(job, next);
+            setOverviewRun(next);
+          }}
+        />
+      </div>
+
       <div role="tabpanel" aria-label="Companies" hidden={tab !== "companies"}>
-        <CompaniesPanel flow={flow} dispatch={dispatch} pendingUniverse={pendingUniverse} tnfd={mode === "tnfd"} asOf={asOf} onAsOf={setAsOf} />
+        <CompaniesPanel flow={flow} dispatch={dispatch} pendingUniverse={pendingUniverse} tnfd={jobs.some((j) => j.profile === "tnfd")} asOf={asOf} onAsOf={setAsOf} />
       </div>
 
       <div role="tabpanel" aria-label="Identify" hidden={tab !== "identify"}>
@@ -284,9 +376,9 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
         </section>
       </div>
 
-      {mode === "custom" && (
+      {hasCustom && (
         <div role="tabpanel" aria-label="Schema" hidden={tab !== "schema"}>
-          <SchemaPanel jobs={jobs} onChange={setJobs} nextCustomId={nextCustomId} defaultRequest={DEFAULT_CRITERIA} />
+          <SchemaPanel jobs={jobs} onChange={changeJobs} nextCustomId={nextCustomId} defaultRequest={DEFAULT_CRITERIA} />
         </div>
       )}
 
@@ -294,13 +386,19 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
         {innerTabs("extract", extractTabs, "Extract")}
 
         <div hidden={sub.extract !== "setup"}>
-          <section className="card">
-            <h2>Pipeline</h2>
-            <p className="help-text">
-              The steps every item goes through. Optional: click a step to change its settings for this run only; the app&apos;s
-              defaults stay as they are.
+          {jobSwitch(jobs, activeJob.id, "Job to set up")}
+          {jobs.map((j) => startErrors[j.id] && (
+            <p key={j.id} className="error-text" role="alert">
+              {jobLabel(j)} did not start: {startErrors[j.id]}
             </p>
-            <PipelineEditor profile={mode} value={stepSettings} onChange={setStepSettings} />
+          ))}
+          <section className="card">
+            <h2>Pipeline: {jobLabel(activeJob)}</h2>
+            <p className="help-text">
+              The steps every item goes through. Optional: click a step to change its settings for this job&apos;s run only; the
+              app&apos;s defaults stay as they are.
+            </p>
+            <PipelineEditor key={activeJob.id} profile={activeJob.profile} value={s.stepSettings} onChange={(v) => patchSettings(activeJob.id, { stepSettings: v })} />
           </section>
           <section className="card">
             <h2>Score the results (optional)</h2>
@@ -309,45 +407,48 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
               and stores the scores and tiers with the run. You can also attach one after the run.
             </p>
             <ScoringTemplatePicker
-              runType={profile.runType}
-              fieldNames={mode === "custom" ? fieldNames : undefined}
-              value={templateId}
-              onChange={setTemplateId}
+              key={activeJob.id}
+              runType={jobRunType(activeJob)}
+              fieldNames={activeJob.profile === "custom" ? activeJob.schema?.fields.map((f) => f.name) ?? [] : undefined}
+              value={s.templateId}
+              onChange={(v) => patchSettings(activeJob.id, { templateId: v })}
             />
           </section>
           <section className="card">
             <h2>Start extraction</h2>
             <p className="help-text">
               {inputs.length
-                ? `Runs on ${inputCount} companies with ${jobLabel(currentJob)}.`
+                ? startsText(toStart.length, inputCount)
                 : "No companies handed over yet: carry them through Identify and Documents, or skip those stages."}
             </p>
-            {inputs.length > 0 && leftOut > 0 && (
-              <p className="await-text">{leftOut} companies are still onboarding and will be left out</p>
-            )}
+            {inputs.length > 0 && leftOut > 0 && <p className="await-text">{leftOut} companies are still onboarding and will be left out</p>}
             {flow.extractStale && <p className="await-text">Inputs changed since this run</p>}
-            <button onClick={startRun} disabled={busy || !canStart}>
+            <button onClick={startAll} disabled={busy || !canStart}>
               Start extraction
             </button>
           </section>
         </div>
 
-        {runId && (
-          <div hidden={sub.extract !== "run"}>
+        <div hidden={sub.extract !== "run"}>
+          {runJobs.map((j) => (
             <JobRun
-              job={currentJob}
-              runId={runId}
-              onRestarted={(next) => dispatch({ type: "extractStarted", job: mode, runId: next })}
-              onStatus={setRunStatus}
+              key={`${j.id}:${extractRuns[j.id]}`}
+              job={j}
+              runId={extractRuns[j.id]}
+              onRestarted={(next) => restarted(j, next)}
+              onStatus={(st) => setStatuses((m) => ({ ...m, [j.id]: st }))}
             />
-          </div>
-        )}
+          ))}
+        </div>
 
-        {runId && (
-          <div hidden={sub.extract !== "review"}>
-            <JobReview job={currentJob} runId={runId} reviewer={reviewer} onSourceOpen={() => {}} onPending={setPending} />
-          </div>
-        )}
+        <div hidden={sub.extract !== "review"}>
+          {hasRuns && jobSwitch(runJobs, reviewJob?.id, "Job to review")}
+          {runJobs.map((j) => (
+            <div key={`${j.id}:${extractRuns[j.id]}`} hidden={j.id !== reviewJob?.id}>
+              <JobReview job={j} runId={extractRuns[j.id]} reviewer={reviewer} onSourceOpen={noop} onPending={(n) => setPending((m) => ({ ...m, [j.id]: n }))} />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

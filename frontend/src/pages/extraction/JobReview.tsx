@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
 import { ReviewTiles } from "../../components/ReviewTiles";
 import { RunScoringPanel } from "../../components/RunScoring";
@@ -69,7 +69,9 @@ export function JobReview(p: {
   const decisionMaps = { custom: extractionDecisions, financials: financialsDecisions, transition_plan: transitionDecisions };
   const decisions = mode === "tnfd" ? [] : Object.values(decisionMaps[mode]);
   const tiles = reviewCounts(Math.max(0, (run?.review_count ?? 0) - decisions.length), decisions, run?.review_count ?? 0);
-  useEffect(() => onPending?.(tiles.pending), [onPending, tiles.pending]);
+  const report = useRef(onPending);
+  report.current = onPending;
+  useEffect(() => report.current?.(tiles.pending), [tiles.pending]);
   const openSource = (s: ActiveSource) => {
     setActiveSource(s);
     onSourceOpen(s);

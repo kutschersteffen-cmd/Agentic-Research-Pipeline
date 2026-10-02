@@ -8,7 +8,7 @@ export type Job = BuiltInJob | CustomJob;
 export interface JobSettings { stepSettings: StepSettings; templateId: string | null }
 
 export const PROFILE_META: Record<ExtractionProfile, { label: string; runType: RunScoringKind; about: string }> = {
-  custom: { label: "Custom schema", runType: "extraction", about: "" },
+  custom: { label: "Custom schema", runType: "extraction", about: "Your own fields: describe what to extract on the Schema tab and draft a schema from it. Add several schemas to run each one separately." },
   financials: {
     label: "Financials",
     runType: "financials",

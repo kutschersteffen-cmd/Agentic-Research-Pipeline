@@ -4,7 +4,7 @@ import { PipelineEditor } from "../../components/PipelineEditor";
 import { ReviewerField } from "../../components/ReviewerField";
 import { RunProgress } from "../../components/RunProgress";
 import { ACTIVE_STATUSES } from "../../lib/runs";
-import { jobRunType, type Job } from "../../lib/jobs";
+import { jobLabel, jobRunType, type Job } from "../../lib/jobs";
 import type { StageState } from "../../lib/stagedFlow";
 import type { RunManifest } from "../../types";
 import { useRunManifest } from "./useRunManifest";
@@ -12,8 +12,8 @@ import { useRunManifest } from "./useRunManifest";
 export interface JobStatus { status: StageState; counts: string | null }
 
 function statusOf(run: RunManifest | null): JobStatus {
-  if (!run || ACTIVE_STATUSES.has(run.status)) return { status: "running", counts: run ? `${run.completed_count} of ${run.company_count} extracted` : null };
-  const counts = `${run.completed_count} of ${run.company_count} extracted`;
+  if (!run || ACTIVE_STATUSES.has(run.status)) return { status: "running", counts: run ? `${run.completed_count}/${run.company_count}` : null };
+  const counts = `${run.completed_count}/${run.company_count}`;
   if (run.status === "completed") return { status: "done", counts };
   if (run.status === "cancelled") return { status: "review", counts };
   if (run.status === "failed") return { status: "failed", counts };
@@ -35,7 +35,7 @@ export function JobRun(p: { job: Job; runId: string; onRestarted: (runId: string
   }, [status, counts]);
   return (
     <section className="card">
-      <h2>Run progress</h2>
+      <h2>{jobLabel(job)}: run progress</h2>
       <RunProgress runId={runId} runType={jobRunType(job)} />
       <PipelineEditor key={runId} profile={job.profile} runId={runId} onRestarted={onRestarted} />
       <div className="toolbar">

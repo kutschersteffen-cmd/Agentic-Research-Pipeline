@@ -1531,13 +1531,19 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .stage-card-main:hover:not(:disabled) { background: none; }
 .stage-card-state { font-weight: 600; }
 .stage-card-jobs { display: flex; flex-direction: column; gap: 2px; padding: 0 12px 8px; }
-.stage-job-line { display: flex; flex-direction: column; align-items: flex-start; width: 100%; padding: 3px 6px; font: inherit; font-size: var(--text-xs); text-align: left; background: none; border: 0; border-radius: var(--r-sm); cursor: pointer; }
+.stage-job-line { color: var(--text); display: flex; flex-direction: column; align-items: flex-start; width: 100%; padding: 3px 6px; font: inherit; font-size: var(--text-xs); text-align: left; background: none; border: 0; border-radius: var(--r-sm); cursor: pointer; }
 .stage-job-line.warn { color: var(--mid); font-weight: 600; }
 .stage-job-label { font-weight: 600; overflow-wrap: anywhere; }
 .stage-job-word { color: var(--muted); }
 .stage-card-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 10px; }
 .stage-card-actions button { padding: 3px 10px; font-size: var(--text-xs); }
 .stage-mode-chip { border-radius: var(--r-pill); }
+/* Extraction overview: profile picker and the per-job switch (wraps on a phone). */
+.profile-picker { border: 0; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
+.profile-option { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.profile-option input { margin-top: 4px; flex: none; }
+.profile-option .help-text { display: block; margin: 2px 0 0; }
+.job-switch { flex-wrap: wrap; row-gap: 4px; }
 .status-review { --edge: var(--await-edge); background: var(--await); }
 .status-stale { --edge: var(--neutral); border-style: dashed; color: var(--muted); }
 .stage-card.status-review:hover, .stage-card.status-stale:hover { box-shadow: var(--shadow-md); }

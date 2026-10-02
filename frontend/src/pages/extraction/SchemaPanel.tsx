@@ -55,7 +55,7 @@ export function SchemaPanel({ jobs, onChange, nextCustomId, defaultRequest }: Pr
             Research request
             <textarea rows={2} value={j.request} placeholder={defaultRequest} onChange={(e) => patch(j.id, { request: e.target.value })} />
           </label>
-          <button onClick={() => draft(j)} disabled={busy[j.id]}>
+          <button onClick={() => draft(j)} disabled={busy[j.id] || !j.request.trim()}>
             Draft extraction schema
           </button>{" "}
           <button onClick={() => remove(j.id)}>Remove</button>
