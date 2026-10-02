@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   autoContinueDue, companiesToCheck, docRows, extractInputs, flowReducer, initialFlow, mergeCompanies,
-  reviewCounts, runEndedAt, runScope, stageInput, valueOrigin,
+  editedText, matchesTile, reviewCounts, runEndedAt, runScope, stageInput, valueOrigin,
 } from "../src/lib/stagedFlow.ts";
 import type { FlowAction, FlowState, StageOutput } from "../src/lib/stagedFlow.ts";
 import type { CompanyRef, DiscoveryCompanyResult, ReviewDecision, RunManifest } from "../src/types.ts";
@@ -186,4 +186,20 @@ test("leaving skip clears note", () => {
     { type: "setHandover", stage: "identify", handover: "manual" });
   assert.equal(s.identify.state, "idle");
   assert.equal(s.identify.note, null);
+});
+
+test("matchesTile follows the tile semantics", () => {
+  const d = (decision: ReviewDecision["decision"], value?: unknown) =>
+    ({ item_key: "k", decision, decided_at: "t", edited_value: value === undefined ? null : { value } }) as ReviewDecision;
+  assert.equal(matchesTile(null, false), true);
+  assert.equal(matchesTile("flagged", true, d("approve")), true);
+  assert.equal(matchesTile("flagged", false), false);
+  assert.equal(matchesTile("pending", true), true);
+  assert.equal(matchesTile("pending", true, d("reject")), false);
+  assert.equal(matchesTile("pending", false), false);
+  assert.equal(matchesTile("edited", true, d("edit")), true);
+  assert.equal(matchesTile("approved", true, d("edit")), false);
+  assert.equal(matchesTile("rejected", true), false);
+  assert.equal(editedText(d("edit", 5)), "5");
+  assert.equal(editedText(d("approve")), undefined);
 });

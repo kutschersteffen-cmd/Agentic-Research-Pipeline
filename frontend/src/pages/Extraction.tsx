@@ -25,6 +25,7 @@ import {
   reviewCounts,
   stageInput,
   type FlowStep,
+  type ReviewTileCounts,
   type Stage,
   type StageHandle,
   type StageId,
@@ -89,6 +90,7 @@ interface Props {
 export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props = {}) {
   const [mode, setMode] = useState<Mode>(initialProfile);
   const [busy, setBusy] = useState(false);
+  const [tileFilter, setTileFilter] = useState<keyof ReviewTileCounts | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flow, dispatch] = useReducer(flowReducer, initialFlow, (init) =>
     pendingUniverse ? flowReducer(init, { type: "companies", output: { path: pendingUniverse.path, count: pendingUniverse.count } }) : init,
@@ -488,7 +490,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
         {runId && (
           <div hidden={sub.extract !== "review"}>
             {/* TNFD has no review decisions, so no tiles. */}
-            {mode !== "tnfd" && <ReviewTiles counts={tiles} active={null} onSelect={() => {}} />}
+            {mode !== "tnfd" && <ReviewTiles counts={tiles} active={tileFilter} onSelect={setTileFilter} />}
             {mode === "financials" && financialsResults.length > 0 && <BatchSpendChart results={financialsResults} />}
             {mode === "transition_plan" && transitionResults.length > 0 && <TransitionPlanBatchOverview results={transitionResults} />}
 
@@ -506,6 +508,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
                       reviewer={reviewer}
                       onReviewed={refreshResults}
                       onOpenSource={setActiveSource}
+                      filter={tileFilter}
                     />
                   </div>
                   <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />

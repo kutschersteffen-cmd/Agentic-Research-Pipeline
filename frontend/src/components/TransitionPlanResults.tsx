@@ -8,6 +8,13 @@ import { BarChart } from "./BarChart";
 import type { IndicatorAssessment, IndicatorCategory, ReviewDecision, TransitionPlanAssessmentRecord, TransitionPlanIndicatorDef } from "../types";
 import { activatable } from "../lib/activatable";
 import { ProposedTag } from "./ProposedTag";
+import { OriginTag } from "./ReviewTiles";
+import { editedText, matchesTile, type ReviewTileCounts } from "../lib/stagedFlow";
+
+type TileFilter = keyof ReviewTileCounts | null;
+// Items are indicators; flagged = needs_review.
+const indicatorShown = (i: IndicatorAssessment, d: Record<string, ReviewDecision>, filter: TileFilter) =>
+  matchesTile(filter, i.needs_review, d[i.identifier]);
 
 const CATEGORY_LABELS: Record<IndicatorCategory, string> = {
   target: "Target",
@@ -34,7 +41,8 @@ function IndicatorDetail({
   const itemKey = `${indicator.identifier}`;
   return (
     <div className="field-detail">
-      <p>{indicator.answer}</p>
+      <p>{editedText(reviewDecisions[itemKey]) ?? indicator.answer}</p>
+      <OriginTag decision={reviewDecisions[itemKey]} systemValue={indicator.answer} />
       {indicator.verifier_notes && <p className="muted">{indicator.verifier_notes}</p>}
       <CitationList citations={indicator.citations} onOpenSource={onOpenSource} />
       <ReviewControls
@@ -57,7 +65,9 @@ function IndicatorTable({
   reviewDecisions,
   onReviewed,
   onOpenSource,
+  filter,
 }: {
+  filter: TileFilter;
   record: TransitionPlanAssessmentRecord;
   runId: string;
   reviewer: string;
@@ -78,7 +88,7 @@ function IndicatorTable({
         ))}
       </div>
       {categories.map((cat) => {
-        const rows = record.indicators.filter((i) => i.category === cat);
+        const rows = record.indicators.filter((i) => i.category === cat && indicatorShown(i, reviewDecisions, filter));
         if (rows.length === 0) return null;
         return (
           <div key={cat}>
@@ -220,10 +230,13 @@ interface ResultsProps {
   onOpenSource: (s: ActiveSource) => void;
   expanded: string | null;
   onToggleExpanded: (companyId: string) => void;
+  filter?: TileFilter;
 }
 
 /** One row per company; expanding a row shows its 64 indicators by category. */
-export function TransitionPlanResultsTable({ runId, results, reviewDecisions, reviewer, onReviewed, onOpenSource, expanded, onToggleExpanded }: ResultsProps) {
+export function TransitionPlanResultsTable({ runId, results, reviewDecisions, reviewer, onReviewed, onOpenSource, expanded, onToggleExpanded, filter = null }: ResultsProps) {
+  const shown = results.filter((r) => r.indicators.some((i) => indicatorShown(i, reviewDecisions, filter)));
+  if (results.length > 0 && shown.length === 0) return <p className="muted">No items match this filter.</p>;
   return (
     <div className="table-wrap">
       <table className="data-table">
@@ -238,7 +251,7 @@ export function TransitionPlanResultsTable({ runId, results, reviewDecisions, re
           </tr>
         </thead>
         <tbody>
-          {results.map((r) => (
+          {shown.map((r) => (
             <Fragment key={r.company_id}>
               <tr className="clickable-row" {...activatable(() => onToggleExpanded(r.company_id), expanded === r.company_id)}>
                 <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
@@ -265,6 +278,7 @@ export function TransitionPlanResultsTable({ runId, results, reviewDecisions, re
                       reviewDecisions={reviewDecisions}
                       onReviewed={onReviewed}
                       onOpenSource={onOpenSource}
+                      filter={filter}
                     />
                   </td>
                 </tr>

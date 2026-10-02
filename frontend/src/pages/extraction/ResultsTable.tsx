@@ -2,6 +2,7 @@ import { ExtractionResultsTable, FinancialsResultsTable } from "../../components
 import type { ActiveSource } from "../../components/SourcePanel";
 import { TnfdResultsTable } from "../../components/TnfdResults";
 import { TransitionPlanResultsTable } from "../../components/TransitionPlanResults";
+import type { ReviewTileCounts } from "../../lib/stagedFlow";
 import type { CompanyFinancialsRecord, ExtractionProfile, ExtractionRecord, ReviewDecision, TnfdRecord, TransitionPlanAssessmentRecord } from "../../types";
 
 type Decisions = Record<string, ReviewDecision>;
@@ -17,8 +18,9 @@ export function ResultsTable(p: {
   reviewer: string;
   onReviewed: () => void;
   onOpenSource: (s: ActiveSource) => void;
+  filter?: keyof ReviewTileCounts | null;
 }) {
-  const { runId, expanded, onToggleExpanded, reviewer, onOpenSource } = p;
+  const { runId, expanded, onToggleExpanded, reviewer, onOpenSource, filter } = p;
   switch (p.mode) {
     case "custom":
       return (
@@ -31,6 +33,7 @@ export function ResultsTable(p: {
           reviewer={reviewer}
           onReviewDone={p.onReviewed}
           onOpenSource={onOpenSource}
+          filter={filter}
         />
       );
     case "financials":
@@ -44,6 +47,7 @@ export function ResultsTable(p: {
           reviewer={reviewer}
           onReviewDone={p.onReviewed}
           onOpenSource={onOpenSource}
+          filter={filter}
         />
       );
     case "tnfd":
@@ -59,6 +63,7 @@ export function ResultsTable(p: {
           onOpenSource={onOpenSource}
           expanded={expanded}
           onToggleExpanded={onToggleExpanded}
+          filter={filter}
         />
       );
   }
