@@ -1530,7 +1530,11 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .stage-card-main { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; width: 100%; font: inherit; color: inherit; text-align: left; background: none; border: 0; cursor: pointer; }
 .stage-card-main:hover:not(:disabled) { background: none; }
 .stage-card-state { font-weight: 600; }
-.stage-card-line.warn { color: var(--mid); font-weight: 600; }
+.stage-card-jobs { display: flex; flex-direction: column; gap: 2px; padding: 0 12px 8px; }
+.stage-job-line { display: flex; flex-direction: column; align-items: flex-start; width: 100%; padding: 3px 6px; font: inherit; font-size: var(--text-xs); text-align: left; background: none; border: 0; border-radius: var(--r-sm); cursor: pointer; }
+.stage-job-line.warn { color: var(--mid); font-weight: 600; }
+.stage-job-label { font-weight: 600; overflow-wrap: anywhere; }
+.stage-job-word { color: var(--muted); }
 .stage-card-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 10px; }
 .stage-card-actions button { padding: 3px 10px; font-size: var(--text-xs); }
 .stage-mode-chip { border-radius: var(--r-pill); }

@@ -1,3 +1,4 @@
+import type { StageState } from "./stagedFlow";
 import type { DataPointSchema, ExtractionProfile, RunScoringKind, StepSettings } from "../types";
 
 export type BuiltIn = "financials" | "tnfd" | "transition_plan";
@@ -80,4 +81,11 @@ export async function startJobs(jobs: Job[], start: (j: Job) => Promise<string>)
 
 export function initialJobs(profile: ExtractionProfile, customId: string, request: string): Job[] {
   return [profile === "custom" ? { id: customId, profile, schema: null, request } : { id: profile, profile }];
+}
+
+const URGENCY: StageState[] = ["failed", "review", "stale", "running", "ready", "done", "skipped", "idle"];
+
+/** The card state for several jobs: the most urgent one wins; no jobs is idle. */
+export function worstStatus(states: StageState[]): StageState {
+  return URGENCY.find((s) => states.includes(s)) ?? "idle";
 }

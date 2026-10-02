@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { jobLabel, jobsToStart, removeJob, startJobs, startsText, toggleProfile } from "../src/lib/jobs.ts";
+import { jobLabel, jobsToStart, removeJob, startJobs, startsText, toggleProfile, worstStatus } from "../src/lib/jobs.ts";
 import type { BuiltInJob, CustomJob, Job } from "../src/lib/jobs.ts";
 import type { DataPointSchema } from "../src/types.ts";
 
@@ -67,4 +67,10 @@ test("startJobs continues after a failure", async () => {
 test("startsText", () => {
   assert.equal(startsText(3, 50), "Starts 3 runs × 50 companies");
   assert.equal(startsText(1, 1), "Starts 1 run × 1 company");
+});
+
+test("worstStatus picks the most urgent state", () => {
+  assert.equal(worstStatus(["done", "running"]), "running");
+  assert.equal(worstStatus(["review", "failed"]), "failed");
+  assert.equal(worstStatus([]), "idle");
 });

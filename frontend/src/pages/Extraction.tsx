@@ -10,13 +10,13 @@ import { TransitionPlanBatchOverview, TransitionPlanMethodology } from "../compo
 import { PipelineEditor } from "../components/PipelineEditor";
 import { SchemaFieldsEditor } from "../components/SchemaFieldsEditor";
 import { StepTabs, type StepTab } from "../components/StepTabs";
-import { StageFlowChart, schemaLabel } from "../components/StageFlowChart";
+import { StageFlowChart } from "../components/StageFlowChart";
 import { FlowRuns } from "../components/FlowRuns";
 import { ReviewTiles } from "../components/ReviewTiles";
 import { IdentityStage } from "../components/IdentityStage";
 import { DocumentsStage } from "../components/DocumentsStage";
 import { ACTIVE_STATUSES } from "../lib/runs";
-import { PROFILE_META } from "../lib/jobs";
+import { PROFILE_META, jobLabel, jobReady, type Job } from "../lib/jobs";
 import {
   STAGES,
   extractInputs,
@@ -140,8 +140,12 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const inputs = extractInputs(flow);
   const leftOut = pendingOnboard(flow);
   const inputCount = inputs.length === 1 ? inputs[0].count : mergeCompanies(inputs).length;
-  const schemaInfo = schemaLabel(mode, schema);
-  const canStart = inputs.length > 0 && schemaInfo.ready && (mode !== "tnfd" || !!asOf.trim());
+  const currentJob: Job = useMemo(
+    () => (mode === "custom" ? { id: "custom:1", profile: "custom", schema, request: "" } : { id: mode, profile: mode }),
+    [mode, schema],
+  );
+  const schemaReady = jobReady(currentJob);
+  const canStart = inputs.length > 0 && schemaReady && (mode !== "tnfd" || !!asOf.trim());
 
   async function startRun() {
     if (!canStart) {
@@ -244,8 +248,8 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const extractCounts = run ? `${run.completed_count} of ${run.company_count} extracted` : null;
 
   const extract = useMemo(
-    () => ({ schemaLabel: schemaInfo.label, ready: schemaInfo.ready, status: extractStatus, counts: extractCounts }),
-    [schemaInfo.label, schemaInfo.ready, extractStatus, extractCounts],
+    () => ({ jobs: [{ id: currentJob.id, label: jobLabel(currentJob), status: extractStatus, counts: extractCounts, ready: schemaReady, scoring: null }], status: extractStatus }),
+    [currentJob, schemaReady, extractStatus, extractCounts],
   );
   const counts = useMemo(() => {
     const out: Partial<Record<StageId | "companies", string>> = {};
@@ -268,6 +272,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     },
     [runId],
   );
+  const openJob = useCallback(() => openTab("extract", "review"), [openTab]); // one job today; the job id matters once several run
   const onStart = useCallback((step: StageId | "extract") => {
     if (step === "extract") startRef.current();
     // Skip means the stage does not run.
@@ -337,7 +342,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
         <input type="checkbox" checked={allAuto} onChange={(e) => dispatch({ type: "allAuto", on: e.target.checked })} />
         Run all automatically
       </label>
-      <StageFlowChart flow={flow} profile={mode} extract={extract} counts={counts} onOpen={openTab} onStart={onStart} onStop={onStop} onContinue={onContinue} dispatch={dispatch} />
+      <StageFlowChart flow={flow} profile={mode} extract={extract} counts={counts} onOpen={openTab} onOpenJob={openJob} onStart={onStart} onStop={onStop} onContinue={onContinue} dispatch={dispatch} />
       <StepTabs label="Extraction steps" tabs={topTabs} active={tab} onSelect={(id) => setTab(id as FlowStep)} />
       <FlowRuns
         key={tab}
@@ -431,7 +436,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
             <h2>Start extraction</h2>
             <p className="help-text">
               {inputs.length
-                ? `Runs on ${inputCount} companies with ${schemaInfo.label}.`
+                ? `Runs on ${inputCount} companies with ${jobLabel(currentJob)}.`
                 : "No companies handed over yet: carry them through Identify and Documents, or skip those stages."}
             </p>
             {inputs.length > 0 && leftOut > 0 && (

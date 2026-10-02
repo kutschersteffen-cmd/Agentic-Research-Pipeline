@@ -2,31 +2,17 @@ import { useMemo } from "react";
 import ReactFlow, { Controls, Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
 import { layoutPipeline } from "../lib/pipelineLayout";
-import { when } from "../lib/runs";
 import { extractInputs, latestExtractRun, type FlowAction, type FlowState, type FlowStep, type Handover, type StageId, type StageState } from "../lib/stagedFlow";
-import type { DataPointSchema, ExtractionProfile, PipelineShape } from "../types";
+import type { ExtractionProfile, PipelineShape } from "../types";
 
 const CARD_W = 214;
 const COL_W = CARD_W + 56;
 
-export interface ExtractNodeInfo { schemaLabel: string; ready: boolean; status: StageState; counts: string | null }
+export interface JobLine { id: string; label: string; status: StageState; counts: string | null; ready: boolean; scoring: string | null }
+export interface ExtractNodeInfo { jobs: JobLine[]; status: StageState }
 
 type NodeId = "companies" | StageId | "schema" | "extract" | "scoring" | "results";
 type Sub = "setup" | "run" | "review";
-
-/** The schema line on the Extract card, and whether Extract can start with it. */
-// oxlint-disable-next-line react/only-export-components -- pure helper the parent calls beside the component
-export function schemaLabel(profile: ExtractionProfile, schema: DataPointSchema | null): { label: string; ready: boolean } {
-  switch (profile) {
-    case "financials": return { label: "Financials: segments, CapEx, R&D", ready: true };
-    case "tnfd": return { label: "TNFD: 14 recommendations + core metrics", ready: true };
-    case "transition_plan": return { label: "Transition Plan: 64 indicators", ready: true };
-    default:
-      return schema
-        ? { label: `${schema.name} · ${schema.fields.length} fields · ${when(schema.created_at)}`, ready: true }
-        : { label: "No schema yet", ready: false };
-  }
-}
 
 const STATE_WORD: Record<StageState, string> = {
   idle: "Not started",
@@ -55,7 +41,8 @@ const HANDOVER_WORD: Record<Handover, string> = { manual: "Manual", auto: "Autom
 interface CardData {
   label: string;
   state: StageState;
-  line: { text: string; warn: boolean } | null;
+  lines: { id: string; text: string; word: string; warn: boolean }[];
+  onOpenJob: (id: string) => void;
   counts: string | null;
   note: string | null;
   handover: Handover | null;
@@ -80,10 +67,19 @@ function StageCard({ data }: NodeProps<CardData>) {
             {data.state === "running" && <span className="pipeline-card-spinner" aria-hidden />}
           </span>
           <span className="stage-card-state">{STATE_WORD[data.state]}</span>
-          {data.line && <span className={`stage-card-line${data.line.warn ? " warn" : ""}`}>{data.line.text}</span>}
           {data.counts && <span className="pipeline-card-footer">{data.counts}</span>}
           {data.note && <span className="pipeline-card-footer">{data.note}</span>}
         </button>
+        {data.lines.length > 0 && (
+          <div className="stage-card-jobs">
+            {data.lines.map((l) => (
+              <button type="button" key={l.id} className={`nodrag stage-job-line${l.warn ? " warn" : ""}`} onClick={() => data.onOpenJob(l.id)}>
+                <span className="stage-job-label">{l.text}</span>
+                <span className="stage-job-word">{l.word}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {(data.handover || data.startLabel || data.onStop || data.onContinue) && (
           <div className="stage-card-actions">
             {data.handover && (
@@ -126,8 +122,10 @@ interface Props {
   flow: FlowState;
   profile: ExtractionProfile;
   extract: ExtractNodeInfo;
+  height?: number;
   counts: Partial<Record<StageId | "companies", string>>;
   onOpen: (step: FlowStep, sub?: Sub) => void;
+  onOpenJob: (jobId: string) => void;
   onStart: (step: StageId | "extract") => void;
   onStop: (runId: string) => void;
   onContinue: (stage: StageId) => void;
@@ -135,7 +133,7 @@ interface Props {
 }
 
 /** Every stage on one line: state, counts, handover mode, schema and the run controls. Read-only canvas. */
-export function StageFlowChart({ flow, profile, extract, counts, onOpen, onStart, onStop, onContinue, dispatch }: Props) {
+export function StageFlowChart({ flow, profile, extract, height = 260, counts, onOpen, onOpenJob, onStart, onStop, onContinue, dispatch }: Props) {
   const { nodes, edges } = useMemo(() => {
     const ids: NodeId[] = ["companies", "identify", "documents", ...(profile === "custom" ? (["schema"] as const) : []), "extract", "scoring", "results"];
     const links = ids.slice(1).map((target, i) => ({ source: ids[i], target }));
@@ -149,7 +147,7 @@ export function StageFlowChart({ flow, profile, extract, counts, onOpen, onStart
     const stageState = (id: NodeId): StageState => {
       if (id === "identify" || id === "documents") return flow[id].state;
       if (id === "companies") return flow.companies ? "done" : "idle";
-      if (id === "schema") return extract.ready ? "done" : "idle";
+      if (id === "schema") return extract.jobs.every((j) => j.ready) ? "done" : "idle";
       if (id === "extract") return extract.status;
       return id === "results" && extract.status === "done" ? "done" : "idle";
     };
@@ -159,7 +157,7 @@ export function StageFlowChart({ flow, profile, extract, counts, onOpen, onStart
       return {
         label: id === "identify" ? "Identify" : "Documents",
         state: st.state,
-        line: null,
+        lines: [], onOpenJob,
         counts: counts[id] ?? null,
         note: st.note,
         handover: st.handover,
@@ -174,9 +172,12 @@ export function StageFlowChart({ flow, profile, extract, counts, onOpen, onStart
     };
 
     const plain = (label: string, state: StageState, countsLine: string | null, open: () => void): CardData => ({
-      label, state, line: null, counts: countsLine, note: null, handover: null,
+      label, state, lines: [], onOpenJob, counts: countsLine, note: null, handover: null,
       startLabel: null, startDisabled: false, onStart: () => {}, onStop: null, onContinue: null, onCycle: () => {}, onOpen: open,
     });
+
+    const jobLines = (pick: (j: JobLine) => string | null) =>
+      extract.jobs.filter((j) => j.status !== "idle" && pick(j)).map((j) => ({ id: j.id, text: j.label, word: pick(j)!, warn: false }));
 
     const data = (id: NodeId): CardData => {
       switch (id) {
@@ -189,19 +190,20 @@ export function StageFlowChart({ flow, profile, extract, counts, onOpen, onStart
           return plain("Schema", stageState(id), null, () => onOpen("schema"));
         case "extract": {
           const running = extract.status === "running";
+          const canStart = extract.jobs.some((j) => j.ready && j.status === "idle");
           return {
-            ...plain("Extract & verify", extract.status, [extract.counts, reuses ? `reuses stored documents for ${reuses.count} companies` : null].filter(Boolean).join(" · ") || null, () => onOpen("extract", extract.status === "review" ? "review" : "setup")),
-            line: { text: extract.schemaLabel, warn: !extract.ready },
+            ...plain("Extract & verify", extract.status, reuses ? `reuses stored documents for ${reuses.count} companies` : null, () => onOpen("extract", extract.status === "review" ? "review" : "setup")),
+            lines: extract.jobs.map((j) => ({ id: j.id, text: j.label, word: [STATE_WORD[j.status], j.counts].filter(Boolean).join(" · "), warn: !j.ready })),
             startLabel: running ? null : START_STATES.has(extract.status) ? "Start" : "Run again",
-            startDisabled: !extract.ready,
+            startDisabled: !canStart && START_STATES.has(extract.status),
             onStart: () => onStart("extract"),
             onStop: running && latestExtractRun(flow) ? () => onStop(latestExtractRun(flow)!) : null,
           };
         }
         case "scoring":
-          return plain("Scoring", stageState(id), null, () => onOpen("extract", "setup"));
+          return { ...plain("Scoring", stageState(id), null, () => onOpen("extract", "setup")), lines: jobLines((j) => j.scoring) };
         default:
-          return plain("Results", stageState(id), null, () => onOpen("extract", "review"));
+          return { ...plain("Results", stageState(id), null, () => onOpen("extract", "review")), lines: jobLines((j) => j.counts) };
       }
     };
 
@@ -244,10 +246,10 @@ export function StageFlowChart({ flow, profile, extract, counts, onOpen, onStart
       });
     }
     return { nodes, edges };
-  }, [flow, profile, extract, counts, onOpen, onStart, onStop, onContinue, dispatch]);
+  }, [flow, profile, extract, counts, onOpen, onOpenJob, onStart, onStop, onContinue, dispatch]);
 
   return (
-    <div className="flow-rf stage-rf">
+    <div className="flow-rf stage-rf" style={{ height }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
