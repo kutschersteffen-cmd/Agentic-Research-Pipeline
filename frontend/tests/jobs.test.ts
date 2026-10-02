@@ -79,3 +79,9 @@ test("worstStatus picks the most urgent state", () => {
   assert.equal(worstStatus(["review", "failed"]), "failed");
   assert.equal(worstStatus([]), "idle");
 });
+
+test("stale retry skips jobs already re-run on the new inputs", () => {
+  const jobs = [b("financials"), b("tnfd"), cu("custom:2", schema("X"))];
+  const runs = { financials: "r3", tnfd: "r2", "custom:2": "r4" };
+  assert.deepEqual(ids(jobsToStart(jobs, runs, true, ["financials", "custom:2"])), ["tnfd"]);
+});

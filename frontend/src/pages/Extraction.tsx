@@ -130,7 +130,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const inputs = extractInputs(flow);
   const leftOut = pendingOnboard(flow);
   const inputCount = inputs.length === 1 ? inputs[0].count : mergeCompanies(inputs).length;
-  const toStart = jobsToStart(jobs, flow.extractRuns, flow.extractStale);
+  const toStart = jobsToStart(jobs, flow.extractRuns, flow.extractStale, flow.freshJobs);
   const canStart = inputs.length > 0 && toStart.length > 0;
 
   async function startOne(job: Job): Promise<string> {
@@ -183,7 +183,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const flowRef = useRef(flow);
   flowRef.current = flow;
 
-  const { extractRuns, extractStale } = flow;
+  const { extractRuns, extractStale, freshJobs } = flow;
   const startable = toStart.length;
   const extract = useMemo(() => {
     const lines = jobs.map((j) => {
@@ -191,14 +191,14 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
       const r: JobStatus = j.id in extractRuns ? statuses[j.id] ?? { status: "running", counts: null } : { status: jobReady(j) ? "ready" : "idle", counts: null };
       const status: StageState =
         !(j.id in extractRuns) || r.status === "running" ? r.status
-        : extractStale ? "stale"
+        : extractStale && !freshJobs.includes(j.id) ? "stale"
         : r.status === "done" && (pending[j.id] ?? 0) > 0 ? "review"
         : r.status;
       const scoring = !(j.id in extractRuns) || status === "running" ? null : frameworks[j.id] ?? null;
       return { id: j.id, label: jobLabel(j), status, counts: r.counts, ready: jobReady(j), scoring };
     });
     return { jobs: lines, status: worstStatus(lines.map((l) => l.status)), startable: busy || !inputCount ? 0 : startable };
-  }, [jobs, extractRuns, extractStale, statuses, pending, frameworks, busy, inputCount, startable]);
+  }, [jobs, extractRuns, extractStale, freshJobs, statuses, pending, frameworks, busy, inputCount, startable]);
   const extractStatus = extract.status;
 
   const counts = useMemo(() => {

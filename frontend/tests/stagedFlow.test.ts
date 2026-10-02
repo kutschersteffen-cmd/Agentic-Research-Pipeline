@@ -301,3 +301,14 @@ test("staleCleared clears the stale flag only", () => {
   assert.equal(s.extractStale, false);
   assert.deepEqual(s.extractRuns, stale.extractRuns);
 });
+
+test("restarts while stale are remembered as fresh; new staleness resets them", () => {
+  const stale = run(initialFlow, ...twoRuns, started);
+  const s = run(stale, { type: "extractRestarted", job: "financials", runId: "r3" });
+  assert.deepEqual(s.freshJobs, ["financials"]);
+  assert.equal(s.extractStale, true);
+  assert.deepEqual(run(s, started).freshJobs, []);
+  assert.deepEqual(run(s, { type: "staleCleared" }).freshJobs, []);
+  assert.deepEqual(run(s, { type: "jobsChanged", jobIds: ["tnfd"] }).freshJobs, []);
+  assert.deepEqual(run(initialFlow, ...twoRuns, { type: "extractRestarted", job: "tnfd", runId: "r9" }).freshJobs, []);
+});

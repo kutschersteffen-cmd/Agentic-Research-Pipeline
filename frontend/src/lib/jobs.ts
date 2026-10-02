@@ -59,8 +59,8 @@ export function removeJob(jobs: Job[], id: string): { jobs: Job[]; error: string
 }
 
 /** Ready jobs without a run; when the inputs changed (`stale`), every ready job runs again on the new inputs. */
-export function jobsToStart(jobs: Job[], extractRuns: Record<string, string>, stale = false): Job[] {
-  return jobs.filter((j) => jobReady(j) && (stale || !(j.id in extractRuns)));
+export function jobsToStart(jobs: Job[], extractRuns: Record<string, string>, stale = false, fresh: string[] = []): Job[] {
+  return jobs.filter((j) => jobReady(j) && (stale ? !fresh.includes(j.id) : !(j.id in extractRuns)));
 }
 
 export function startsText(jobCount: number, companyCount: number): string {

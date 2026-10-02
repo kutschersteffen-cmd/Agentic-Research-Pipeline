@@ -25,6 +25,8 @@ export interface FlowState {
   /** Extraction run id per job id. */
   extractRuns: Record<string, string>;
   extractStale: boolean;
+  /** Jobs re-run since the inputs went stale; a retry skips them. */
+  freshJobs: string[];
   runIds: string[];
 }
 export type FlowAction =
@@ -62,6 +64,7 @@ export const initialFlow: FlowState = {
   documents: idleStage,
   extractRuns: {},
   extractStale: false,
+  freshJobs: [],
   runIds: [],
 };
 
@@ -69,7 +72,7 @@ const later = (stage: StageId): StageId[] => STAGES.slice(STAGES.indexOf(stage) 
 
 /** Marks every stage matching `pick` as stale, and the extract with it. */
 function stale(s: FlowState, pick: (st: Stage, id: StageId) => boolean): FlowState {
-  const next = { ...s, extractStale: Object.keys(s.extractRuns).length > 0 };
+  const next = { ...s, extractStale: Object.keys(s.extractRuns).length > 0, freshJobs: [] };
   for (const id of STAGES) if (pick(s[id], id)) next[id] = { ...s[id], state: "stale" };
   return next;
 }
@@ -155,14 +158,16 @@ export function flowReducer(s: FlowState, a: FlowAction): FlowState {
     case "useAnyway":
       return s[a.stage].state === "stale" && s[a.stage].output != null ? { ...s, [a.stage]: { ...s[a.stage], state: "done" } } : s;
     case "extractStarted":
-      return { ...s, extractRuns: { ...s.extractRuns, [a.job]: a.runId }, runIds: [...s.runIds, a.runId], extractStale: false };
-    case "extractRestarted":
-      return { ...s, extractRuns: { ...s.extractRuns, [a.job]: a.runId }, runIds: [...s.runIds, a.runId] };
+      return { ...s, extractRuns: { ...s.extractRuns, [a.job]: a.runId }, runIds: [...s.runIds, a.runId], extractStale: false, freshJobs: [] };
+    case "extractRestarted": {
+      const fresh = s.extractStale && !s.freshJobs.includes(a.job) ? [...s.freshJobs, a.job] : s.freshJobs;
+      return { ...s, extractRuns: { ...s.extractRuns, [a.job]: a.runId }, runIds: [...s.runIds, a.runId], freshJobs: fresh };
+    }
     case "staleCleared":
-      return { ...s, extractStale: false };
+      return { ...s, extractStale: false, freshJobs: [] };
     case "jobsChanged": {
       const kept = Object.fromEntries(Object.entries(s.extractRuns).filter(([k]) => a.jobIds.includes(k)));
-      return { ...s, extractRuns: kept, extractStale: s.extractStale && Object.keys(kept).length > 0 };
+      return { ...s, extractRuns: kept, extractStale: s.extractStale && Object.keys(kept).length > 0, freshJobs: s.freshJobs.filter((j) => a.jobIds.includes(j)) };
     }
   }
 }
