@@ -48,6 +48,7 @@ const STATE_CLASS: Record<StageState, string> = {
   stale: "status-stale",
   failed: "status-failed",
 };
+const START_STATES = new Set<StageState>(["idle", "ready", "stale"]);
 const NEXT_HANDOVER: Record<Handover, Handover> = { manual: "auto", auto: "skip", skip: "manual" };
 const HANDOVER_WORD: Record<Handover, string> = { manual: "Manual", auto: "Automatic", skip: "Skip" };
 
@@ -107,7 +108,7 @@ function StageCard({ data }: NodeProps<CardData>) {
             )}
             {data.onContinue && (
               <button type="button" className="nodrag" onClick={data.onContinue}>
-                Continue
+                Continue →
               </button>
             )}
           </div>
@@ -162,13 +163,13 @@ export function StageFlowChart({ flow, profile, extract, counts, onOpen, onStart
         counts: counts[id] ?? null,
         note: st.note,
         handover: st.handover,
-        startLabel: st.state === "running" ? null : st.state === "idle" ? "Start" : "Run again",
+        startLabel: st.state === "running" ? null : START_STATES.has(st.state) ? "Start" : "Run again",
         startDisabled: false,
         onStart: () => onStart(id),
         onStop: st.state === "running" && st.runId ? () => onStop(st.runId!) : null,
         onContinue: st.state === "ready" && st.handover === "manual" ? () => onContinue(id) : null,
         onCycle: () => dispatch({ type: "setHandover", stage: id, handover: NEXT_HANDOVER[st.handover] }),
-        onOpen: () => onOpen(id, st.state === "review" ? "review" : st.state === "running" ? "run" : "setup"),
+        onOpen: () => onOpen(id, st.state === "review" ? "review" : "run"),
       };
     };
 
@@ -189,9 +190,9 @@ export function StageFlowChart({ flow, profile, extract, counts, onOpen, onStart
         case "extract": {
           const running = extract.status === "running";
           return {
-            ...plain("Extract & verify", extract.status, [extract.counts, reuses ? `reuses stored documents for ${reuses.count} companies` : null].filter(Boolean).join(" · ") || null, () => onOpen("extract", "setup")),
+            ...plain("Extract & verify", extract.status, [extract.counts, reuses ? `reuses stored documents for ${reuses.count} companies` : null].filter(Boolean).join(" · ") || null, () => onOpen("extract", extract.status === "review" ? "review" : "setup")),
             line: { text: extract.schemaLabel, warn: !extract.ready },
-            startLabel: running ? null : extract.status === "idle" ? "Start" : "Run again",
+            startLabel: running ? null : START_STATES.has(extract.status) ? "Start" : "Run again",
             startDisabled: !extract.ready,
             onStart: () => onStart("extract"),
             onStop: running && flow.extractRunId ? () => onStop(flow.extractRunId!) : null,
