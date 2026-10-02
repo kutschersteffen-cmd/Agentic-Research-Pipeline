@@ -65,16 +65,20 @@ function stale(s: FlowState, pick: (st: Stage, id: StageId) => boolean): FlowSta
   return next;
 }
 
+/** A stage auto-skipped for "Nothing to onboard" is not a user choice, so a new input revives it. */
+function unskip(s: FlowState): FlowState {
+  const next = { ...s };
+  for (const id of STAGES) {
+    const st = s[id];
+    if (st.state === "skipped" && st.handover !== "skip") next[id] = { ...st, state: "idle", note: null };
+  }
+  return next;
+}
+
 export function flowReducer(s: FlowState, a: FlowAction): FlowState {
   switch (a.type) {
     case "companies": {
-      const next = stale({ ...s, companies: a.output, ready: null, onboard: null, readinessNote: null }, (st) => st.runId != null);
-      // A stage auto-skipped for "Nothing to onboard" is not a user choice, so a new list revives it.
-      for (const id of STAGES) {
-        const st = next[id];
-        if (st.state === "skipped" && st.handover !== "skip") next[id] = { ...st, state: "idle", note: null };
-      }
-      return next;
+      return unskip(stale({ ...s, companies: a.output, ready: null, onboard: null, readinessNote: null }, (st) => st.runId != null));
     }
     case "readiness": {
       const failed = a.ready == null && a.onboard == null;
@@ -93,14 +97,16 @@ export function flowReducer(s: FlowState, a: FlowAction): FlowState {
       return next;
     }
     case "recheckReady":
-      return stale({ ...s, recheckReady: a.on }, (st) => st.runId != null);
+      return unskip(stale({ ...s, recheckReady: a.on }, (st) => st.runId != null));
     case "setHandover":
       return {
         ...s,
         [a.stage]: {
           ...s[a.stage],
           handover: a.handover,
-          state: a.handover === "skip" ? "skipped" : s[a.stage].state === "skipped" ? "idle" : s[a.stage].state,
+          ...(a.handover === "skip"
+            ? { state: "skipped" as const }
+            : s[a.stage].state === "skipped" ? { state: "idle" as const, note: null } : {}),
         },
       };
     case "allAuto": {

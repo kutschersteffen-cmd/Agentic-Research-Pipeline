@@ -169,3 +169,21 @@ test("docRows flags only empty companies", () => {
   assert.equal(rows[0].flagged, false);
   assert.equal(rows[1].flagged, true);
 });
+
+test("recheck un-skips auto-skipped stages", () => {
+  const s = run(initialFlow, { type: "companies", output: out("all.csv", 50) },
+    { type: "readiness", ready: out("ready.csv", 50), onboard: out("onb.csv", 0) },
+    { type: "recheckReady", on: true });
+  assert.equal(s.identify.state, "idle");
+  assert.equal(s.documents.state, "idle");
+  assert.equal(stageInput(s, "identify")?.path, "all.csv");
+});
+
+test("leaving skip clears note", () => {
+  const s = run(initialFlow, { type: "companies", output: out("all.csv", 5) },
+    { type: "readiness", ready: out("r", 5), onboard: out("o", 0) },
+    { type: "setHandover", stage: "identify", handover: "skip" },
+    { type: "setHandover", stage: "identify", handover: "manual" });
+  assert.equal(s.identify.state, "idle");
+  assert.equal(s.identify.note, null);
+});
