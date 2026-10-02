@@ -1,21 +1,17 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { api } from "../api/client";
-import { RunProgress } from "../components/RunProgress";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
-import type { CompanyFinancialsRecord, DataPointSchema, ExtractionProfile, ExtractionRecord, ReviewDecision, RunManifest, StepSettings, TnfdRecord, TransitionPlanAssessmentRecord, UniverseHandoff } from "../types";
+import type { DataPointSchema, ExtractionProfile, StepSettings, UniverseHandoff } from "../types";
 import { useReviewer } from "../lib/reviewer";
-import { ReviewerField } from "../components/ReviewerField";
-import { RunScoringPanel, ScoringTemplatePicker } from "../components/RunScoring";
-import { TransitionPlanBatchOverview, TransitionPlanMethodology } from "../components/TransitionPlanResults";
+import { ScoringTemplatePicker } from "../components/RunScoring";
+import { TransitionPlanMethodology } from "../components/TransitionPlanResults";
 import { PipelineEditor } from "../components/PipelineEditor";
 import { SchemaFieldsEditor } from "../components/SchemaFieldsEditor";
 import { StepTabs, type StepTab } from "../components/StepTabs";
 import { StageFlowChart } from "../components/StageFlowChart";
 import { FlowRuns } from "../components/FlowRuns";
-import { ReviewTiles } from "../components/ReviewTiles";
 import { IdentityStage } from "../components/IdentityStage";
 import { DocumentsStage } from "../components/DocumentsStage";
-import { ACTIVE_STATUSES } from "../lib/runs";
 import { PROFILE_META, jobLabel, jobReady, type Job } from "../lib/jobs";
 import {
   STAGES,
@@ -24,18 +20,16 @@ import {
   flowReducer,
   initialFlow,
   mergeCompanies,
-  reviewCounts,
   stageInput,
   type FlowStep,
-  type ReviewTileCounts,
   type Stage,
   type StageHandle,
   type StageId,
   type StageState,
 } from "../lib/stagedFlow";
-import { BatchSpendChart } from "./extraction/BatchSpendChart";
+import { JobReview } from "./extraction/JobReview";
+import { JobRun, type JobStatus } from "./extraction/JobRun";
 import { CompaniesPanel } from "./extraction/CompaniesPanel";
-import { ResultsTable } from "./extraction/ResultsTable";
 
 const DEFAULT_CRITERIA =
   "Green capex: total green/sustainable capital expenditure in USD/EUR millions for the most recent fiscal " +
@@ -68,15 +62,12 @@ interface Props {
 export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props = {}) {
   const [mode, setMode] = useState<Mode>(initialProfile);
   const [busy, setBusy] = useState(false);
-  const [tileFilter, setTileFilter] = useState<keyof ReviewTileCounts | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flow, dispatch] = useReducer(flowReducer, initialFlow, (init) =>
     pendingUniverse ? flowReducer(init, { type: "companies", output: { path: pendingUniverse.path, count: pendingUniverse.count } }) : init,
   );
   const [tab, setTab] = useState<FlowStep>("companies");
   const [sub, setSub] = useState<Record<Inner, Sub>>({ identify: "run", documents: "run", extract: "setup" });
-  const [manifest, setManifest] = useState<RunManifest | null>(null);
-  const [expanded, setExpanded] = useState<string | null>(null);
   const [reviewer] = useReviewer();
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
   const identifyRef = useRef<StageHandle>(null);
@@ -86,22 +77,11 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   // Custom-schema mode only
   const [criteria, setCriteria] = useState(DEFAULT_CRITERIA);
   const [schema, setSchema] = useState<DataPointSchema | null>(null);
-  const [extractionResults, setExtractionResults] = useState<ExtractionRecord[]>([]);
-  const [extractionReviewDecisions, setExtractionReviewDecisions] = useState<Record<string, ReviewDecision>>({});
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [stepSettings, setStepSettings] = useState<StepSettings>({});
 
-  // Financials mode only
-  const [financialsResults, setFinancialsResults] = useState<CompanyFinancialsRecord[]>([]);
-  const [financialsReviewDecisions, setFinancialsReviewDecisions] = useState<Record<string, ReviewDecision>>({});
-
   // TNFD profile only
   const [asOf, setAsOf] = useState(`FY${new Date().getFullYear() - 1}`);
-  const [tnfdResults, setTnfdResults] = useState<TnfdRecord[]>([]);
-
-  // Transition Plan profile only
-  const [transitionResults, setTransitionResults] = useState<TransitionPlanAssessmentRecord[]>([]);
-  const [transitionReviewDecisions, setTransitionReviewDecisions] = useState<Record<string, ReviewDecision>>({});
 
   const profile = PROFILE_META[mode];
 
@@ -114,15 +94,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     setError(null);
     setTemplateId(null);
     setStepSettings({});
-    setExpanded(null);
     setActiveSource(null);
-  }
-
-  function clearResults() {
-    setExtractionResults([]);
-    setFinancialsResults([]);
-    setTnfdResults([]);
-    setTransitionResults([]);
   }
 
   async function draft() {
@@ -170,7 +142,6 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
         step_settings: Object.keys(settings).length ? settings : undefined,
       });
       dispatch({ type: "extractStarted", job: mode, runId: res.run_id });
-      clearResults();
       setTab("extract");
       setSub((s) => ({ ...s, extract: "run" }));
     } catch (err) {
@@ -180,72 +151,18 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     }
   }
 
-  async function refreshResults() {
-    if (!runId) return;
-    if (mode === "custom") {
-      const res = (await api.getExtractionResults(runId)) as { results: ExtractionRecord[] };
-      setExtractionResults(res.results);
-      const decisionsRes = (await api.getExtractionReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
-      setExtractionReviewDecisions(decisionsRes.decisions);
-    } else if (mode === "financials") {
-      const res = (await api.getFinancialsResults(runId)) as { results: CompanyFinancialsRecord[] };
-      setFinancialsResults(res.results);
-      const decisionsRes = (await api.getFinancialsReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
-      setFinancialsReviewDecisions(decisionsRes.decisions);
-    } else if (mode === "tnfd") {
-      setTnfdResults((await api.getTnfdResults(runId)).results);
-    } else {
-      setTransitionResults((await api.getTransitionPlanResults(runId)).results);
-      const decisionsRes = (await api.getTransitionPlanReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
-      setTransitionReviewDecisions(decisionsRes.decisions);
-    }
-  }
-
-  // The chart and the review tiles need the extract run's status; load the results once it ends.
+  const [runStatus, setRunStatus] = useState<JobStatus>({ status: "running", counts: null });
+  const [pending, setPending] = useState(0);
+  const extractStatus: StageState =
+    !runId ? "idle"
+    : flow.extractStale && runStatus.status !== "running" ? "stale"
+    : runStatus.status === "done" && pending > 0 ? "review"
+    : runStatus.status;
+  const extractCounts = runId ? runStatus.counts : null;
   const startRef = useRef(startRun);
   startRef.current = startRun;
   const flowRef = useRef(flow);
   flowRef.current = flow;
-  const refreshRef = useRef(refreshResults);
-  refreshRef.current = refreshResults;
-  useEffect(() => {
-    if (!runId) return;
-    let live = true;
-    let timer: number | undefined;
-    async function poll() {
-      try {
-        const m = (await api.getRun(runId!)) as RunManifest;
-        if (!live) return;
-        setManifest(m);
-        if (!ACTIVE_STATUSES.has(m.status)) {
-          refreshRef.current().catch(() => {});
-          return;
-        }
-      } catch {
-        // keep polling; RunProgress shows the load error
-      }
-      if (live) timer = window.setTimeout(poll, 2500);
-    }
-    poll();
-    return () => {
-      live = false;
-      window.clearTimeout(timer);
-    };
-  }, [runId]);
-
-  const run = manifest && manifest.run_id === runId ? manifest : null;
-  const results = { custom: extractionResults, financials: financialsResults, tnfd: tnfdResults, transition_plan: transitionResults };
-  const decisionMaps = { custom: extractionReviewDecisions, financials: financialsReviewDecisions, transition_plan: transitionReviewDecisions };
-  const decisions = mode === "tnfd" ? [] : Object.values(decisionMaps[mode]);
-  const tiles = reviewCounts(Math.max(0, (run?.review_count ?? 0) - decisions.length), decisions, run?.review_count ?? 0);
-  const extractStatus: StageState =
-    !runId ? "idle"
-    : !run || ACTIVE_STATUSES.has(run.status) ? "running"
-    : flow.extractStale ? "stale"
-    : run.status === "failed" ? "failed"
-    : run.status === "completed" && tiles.pending === 0 ? "done"
-    : "review";
-  const extractCounts = run ? `${run.completed_count} of ${run.company_count} extracted` : null;
 
   const extract = useMemo(
     () => ({ jobs: [{ id: currentJob.id, label: jobLabel(currentJob), status: extractStatus, counts: extractCounts, ready: schemaReady, scoring: null }], status: extractStatus }),
@@ -297,7 +214,6 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const onContinue = useCallback((stage: StageId) => (stage === "identify" ? identifyRef : documentsRef).current?.carryOn(), []);
 
   const fieldNames = schema?.fields.map((f) => f.name) ?? [];
-  const toggleExpanded = (companyId: string) => setExpanded(expanded === companyId ? null : companyId);
   const allAuto = STAGES.some((id) => flow[id].handover === "auto") && STAGES.every((id) => flow[id].handover !== "manual");
 
   const steps: StepTab[] = [
@@ -311,7 +227,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const extractTabs: StepTab[] = [
     { id: "setup", label: "Setup" },
     { id: "run", label: "Run", disabled: !runId },
-    { id: "review", label: "Review", disabled: !runId, badge: tiles.pending, mark: extractStatus === "review" ? "waiting" : null },
+    { id: "review", label: "Review", disabled: !runId, badge: pending, mark: extractStatus === "review" ? "waiting" : null },
   ];
   const tabRunTypes = { companies: ["identity", "discovery", profile.runType], schema: ["identity", "discovery", profile.runType], identify: ["identity"], documents: ["discovery"], extract: [profile.runType] }[tab];
   const tabRunId = tab === "identify" || tab === "documents" ? flow[tab].runId : tab === "extract" ? runId : null;
@@ -451,59 +367,18 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
 
         {runId && (
           <div hidden={sub.extract !== "run"}>
-            <section className="card">
-              <h2>Run progress</h2>
-              <RunProgress runId={runId} runType={profile.runType} />
-              <PipelineEditor
-                key={runId}
-                profile={mode}
-                runId={runId}
-                onRestarted={(next) => {
-                  dispatch({ type: "extractStarted", job: mode, runId: next });
-                  clearResults();
-                }}
-              />
-              <div className="toolbar">
-                <button onClick={refreshResults}>Refresh results</button>
-                <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
-                  Export CSV
-                </a>
-                <ReviewerField compact />
-              </div>
-            </section>
+            <JobRun
+              job={currentJob}
+              runId={runId}
+              onRestarted={(next) => dispatch({ type: "extractStarted", job: mode, runId: next })}
+              onStatus={setRunStatus}
+            />
           </div>
         )}
 
         {runId && (
           <div hidden={sub.extract !== "review"}>
-            {/* TNFD has no review decisions, so no tiles. */}
-            {mode !== "tnfd" && <ReviewTiles counts={tiles} active={tileFilter} onSelect={setTileFilter} />}
-            {mode === "financials" && financialsResults.length > 0 && <BatchSpendChart results={financialsResults} />}
-            {mode === "transition_plan" && transitionResults.length > 0 && <TransitionPlanBatchOverview results={transitionResults} />}
-
-            {results[mode].length > 0 && (
-              <section className="card">
-                <div className="split-review">
-                  <div className="split-review-main">
-                    <ResultsTable
-                      mode={mode}
-                      runId={runId}
-                      results={results}
-                      decisions={decisionMaps}
-                      expanded={expanded}
-                      onToggleExpanded={toggleExpanded}
-                      reviewer={reviewer}
-                      onReviewed={refreshResults}
-                      onOpenSource={setActiveSource}
-                      filter={tileFilter}
-                    />
-                  </div>
-                  <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
-                </div>
-              </section>
-            )}
-
-            <RunScoringPanel key={runId} runId={runId} runType={profile.runType} fieldNames={mode === "custom" ? fieldNames : undefined} />
+            <JobReview job={currentJob} runId={runId} reviewer={reviewer} onSourceOpen={() => {}} onPending={setPending} />
           </div>
         )}
       </div>
