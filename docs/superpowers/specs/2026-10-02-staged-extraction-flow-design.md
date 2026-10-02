@@ -21,7 +21,8 @@ automatically.
 | Overview | A flow chart above the tabs: every stage, its state, the schema in use, start and stop |
 | Own documents | The Documents stage also accepts manual uploads by document type, next to discovery |
 | Override marking | Review tabs show whether a value is system-extracted or human-edited |
-| Backend | No new endpoints expected (see "Backend check") |
+| Stored documents | Companies with documents already on file skip Identify and Documents and go straight to Extract; a switch sends them through again |
+| Backend | One new endpoint, `POST /api/documents/readiness` (see "Reuse of stored documents"); everything else uses existing endpoints |
 | Profiles | Custom, Financials, TNFD and Transition Plan keep working; the profile toggle stays above the tabs |
 
 ## Current state (what this changes)
@@ -45,7 +46,7 @@ The three process steps (Identify, Documents, Extract) each have inner tabs, wit
 
 | Top tab | Inner tabs | Contents |
 |---|---|---|
-| Companies | none | Batch (`UniversePicker`) or single company, reporting period (TNFD only) |
+| Companies | none | Batch (`UniversePicker`) or single company, reporting period (TNFD only), and the readiness split (ready vs to onboard) |
 | Identify | **Run** · **Review** | Run: start the identity run, results table, handover control. Review: the flagged companies, approve or edit website and CIK. |
 | Documents | **Run** · **Review** | Run: start the discovery run, **add documents by hand** (see below), results table, handover control. Review: companies with no documents or an unreachable site, with a tick per company for what carries forward. |
 | Schema | none | Research request, draft button, field editor (Custom only) |
@@ -117,6 +118,45 @@ State meanings:
 4. A **Run all automatically** switch above the tabs sets both stages to Automatic. It is off by default.
 5. Re-running a stage marks every later stage `stale`. A stale stage keeps its results visible but cannot
    hand over until it is re-run or the user confirms "use anyway".
+
+## Reuse of stored documents
+
+A new schema is often run over companies whose documents are already downloaded, parsed and embedded.
+The backend already reuses that work. Parsed text is cached by file content (`parsed_content`, keyed on
+`content_key` and `parser_version`), and chunk embeddings by chunk and model (`chunk_embeddings`). So a
+second run only pays for the extraction calls. The flow must not undo this by sending those companies
+through Identify and Documents again.
+
+**Readiness check.** When a company list is set on the Companies tab, the page calls
+`POST /api/documents/readiness` with the same `universe_path` or `companies` the other runs take. It
+returns, per company:
+
+| Field | Meaning |
+|---|---|
+| `on_disk` | Files under `documents_dir/<company_id>/` |
+| `registered` | Rows in the document registry (`documents`) for the company, which includes EDGAR filings not on disk |
+| `parsed` | Registered documents whose `content_key` has a `parsed_content` row (any parser version) |
+| `doc_types` | Distinct document types on file |
+| `last_seen_at` | Newest registry `last_seen_at` |
+| `ready` | `on_disk + registered > 0` |
+
+It also returns the list split into `ready` and `onboard` company records, in one grouped query (ids
+batched under SQLite's parameter limit), so a 4,000-company list is one call.
+
+**Default: ready companies skip the stages.** Identify and Documents get only the `onboard` share.
+Extract gets `ready` plus whatever Documents hands over, merged and de-duplicated by `company_id`. With
+nothing to onboard, Identify and Documents show "Nothing to onboard" and are passed through.
+
+**Re-check switch.** "Re-check ready companies too" (off by default) sends the whole list through the
+stages, for example for a new reporting year. The Companies tab shows each ready company's document
+types and last-seen date so the user can judge freshness.
+
+**Embeddings status is not reported.** Checking it would mean re-chunking every document. The page says
+"embeddings reused when cached" instead. If the parser version changed since a document was parsed, the
+inline Parse & index step re-parses it, and the company still skips Identify and Documents.
+
+**Failure.** If the readiness call fails, every company is treated as `onboard`, with the note
+"Couldn't check stored documents; all companies will be onboarded", so nothing is skipped by mistake.
 
 ## Manual documents (Documents stage)
 
@@ -200,6 +240,10 @@ Nodes, left to right:
 
 `Companies → Identify → Documents → Extract & verify → Scoring → Results`
 
+The Companies node shows "32 ready · 18 to onboard" and a dashed edge straight to Extract & verify
+carrying the ready share. Identify and Documents count only the onboard share, and Extract & verify adds
+"reuses stored documents for 32 companies".
+
 (Schema appears as a node between Documents and Extract & verify for Custom only.) The last three nodes are
 steps inside the Extract tab: a click on Extract & verify opens Extract › Setup, Scoring opens Setup, and
 Results opens Extract › Review.
@@ -261,6 +305,14 @@ documents" no longer appears for those.
 | `frontend/src/api/client.ts` | Adds `uploadDocument`. |
 | `frontend/src/index.css` | A few lines for the tab bar and stage card extras. The `.sub-nav` and `.nav-tab` styles are reused. |
 
+## Backend addition
+
+`POST /api/documents/readiness` in `backend/arp/api/routers/documents.py`. Body:
+`{ universe_path?: str, companies?: CompanyRef[] }`. Response:
+`{ ready: [{...CompanyRef, readiness}], onboard: [CompanyRef], readiness: {company_id: {...}} }`.
+It reads through a new `DocumentContentStore.readiness_by_company(company_ids)` that delegates to
+`DocumentRegistry`. Read-only, no schema change.
+
 ## Backend check
 
 The design relies on existing endpoints: `startIdentityRun`, `getIdentityResults`, `getEnrichedUniverse`,
@@ -296,6 +348,7 @@ Default in this spec: **no backend, list-only**.
 - Unit test for `stagedFlow.ts`: manual hold, automatic advance on clean, automatic hold on flagged,
   skip pass-through, stale marking on re-run.
 - `tsc` and a production build.
+- Readiness: a list where some companies have documents on file gives the right ready / onboard split. Ready companies skip Identify and Documents and appear in the extraction input. The re-check switch sends everyone through. A failed readiness call onboards everyone.
 - Upload one file of each type for a company the crawl finds nothing for, and confirm it is counted, marked "uploaded" and not flagged.
 - Edit one value in Extract Review and confirm the tile counts, the Edited marker and the "was" value.
 - Rerun a finished run from the panel and confirm a new row appears with the old one kept.
