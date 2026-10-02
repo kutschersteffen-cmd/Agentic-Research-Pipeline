@@ -1,0 +1,251 @@
+import { useEffect, useState } from "react";
+import { ConfidenceBadge, VerdictBadge } from "./ConfidenceBadge";
+import { CitationList } from "./CitationList";
+import type { ActiveSource } from "./SourcePanel";
+import { ReviewControls, decisionBadgeClass, decisionLabel } from "./ReviewControls";
+import { api } from "../api/client";
+import { focusNextCard, useCardKeys } from "../lib/cardKeys";
+import type { ReviewTileCounts } from "../lib/stagedFlow";
+import type { Citation, ReviewDecision, ReviewableRunKind } from "../types";
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const REVIEW_KIND_LABEL: Record<ReviewableRunKind, string> = {
+  theme: "Thematic universe",
+  extraction: "Data-point extraction",
+  financials: "Company financials",
+  identity: "Identity resolution",
+  transition_plan: "Transition plan",
+  tnfd: "TNFD",
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const QUEUE_FNS: Record<ReviewableRunKind, (runId: string) => Promise<unknown>> = {
+  theme: api.getThemeReviewQueue,
+  extraction: api.getExtractionReviewQueue,
+  financials: api.getFinancialsReviewQueue,
+  identity: api.getIdentityReviewQueue,
+  transition_plan: api.getTransitionPlanReviewQueue,
+  tnfd: api.getTnfdReviewQueue,
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const SUBMIT_FNS: Record<ReviewableRunKind, (runId: string, body: unknown) => Promise<unknown>> = {
+  theme: api.submitThemeReview,
+  extraction: api.submitExtractionReview,
+  financials: api.submitFinancialsReview,
+  identity: api.submitIdentityReview,
+  transition_plan: api.submitTransitionPlanReview,
+  tnfd: api.submitTnfdReview,
+};
+
+// Kinds without a per-item history endpoint get no History button.
+// eslint-disable-next-line react-refresh/only-export-components
+export const HISTORY_FNS: Partial<Record<ReviewableRunKind, (runId: string, itemKey: string) => Promise<unknown>>> = {
+  extraction: api.getExtractionReviewHistory,
+  financials: api.getFinancialsReviewHistory,
+  transition_plan: api.getTransitionPlanReviewHistory,
+  tnfd: api.getTnfdReviewHistory,
+};
+
+/** "C1:net_zero_target" reads as "C1 · net zero target" when an item carries no name. */
+const readableKey = (key: string) => key.split(":").map((p) => p.replace(/_/g, " ")).join(" · ");
+
+
+function isCitationArray(v: unknown): v is Citation[] {
+  return Array.isArray(v) && v.every((c) => c && typeof c === "object" && "quote" in c && "doc_type" in c);
+}
+
+/** Renders whatever a pending review item happens to carry: the fields
+ * every run kind's flagged payload tends to share (item identity, a
+ * confidence/verdict, citations) get the same badges/CitationList used
+ * everywhere else in the app; anything kind-specific that doesn't map to a
+ * known field stays available, just tucked behind "Full record" instead of
+ * dominating the card the way a top-level JSON.stringify dump used to. */
+export function ReviewItemFields({ item, onOpenSource }: { item: Record<string, unknown>; onOpenSource: (s: ActiveSource) => void }) {
+  const known = new Set(["item_key", "queued_at", "company_id", "name", "ticker", "confidence", "verdict", "citations", "adjudicator_rationale", "rationale", "failed_step_label", "error"]);
+  const rest = Object.fromEntries(Object.entries(item).filter(([k]) => !known.has(k)));
+  const hasRest = Object.keys(rest).length > 0;
+
+  return (
+    <div>
+      <div className="run-progress-header">
+        <strong>
+          {(item.name as string | undefined) ?? readableKey(item.item_key as string)}
+          {item.ticker ? <span className="muted"> ({item.ticker as string})</span> : null}
+        </strong>
+        <span>
+          {typeof item.verdict === "string" && <VerdictBadge verdict={item.verdict} />}{" "}
+          {typeof item.confidence === "number" && <ConfidenceBadge value={item.confidence} />}
+        </span>
+      </div>
+      {typeof item.failed_step_label === "string" && (
+        <p className="error-text" role="alert">
+          Stopped at {item.failed_step_label}: {String(item.error ?? "")}
+        </p>
+      )}
+      {Boolean(item.adjudicator_rationale || item.rationale) && <p>{(item.adjudicator_rationale ?? item.rationale) as string}</p>}
+      {isCitationArray(item.citations) && (
+        <>
+          <p className="muted">Citations:</p>
+          <CitationList citations={item.citations} onOpenSource={onOpenSource} />
+        </>
+      )}
+      {hasRest && (
+        <details className="inline-block">
+          <summary className="muted" style={{ cursor: "pointer" }}>
+            Full record
+          </summary>
+          <pre className="review-json">{JSON.stringify(rest, null, 2)}</pre>
+        </details>
+      )}
+    </div>
+  );
+}
+
+export interface QueueItem {
+  kind: ReviewableRunKind;
+  runId: string;
+  item: Record<string, unknown>;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const keyOf = (q: QueueItem) => `${q.runId}/${q.item.item_key as string}`;
+
+/** The review cards themselves: decided items stay in place, collapsed, and
+ * "Change" reopens one. Decision state is owned by the caller. */
+export function ReviewItems({
+  items,
+  decided,
+  reviewer,
+  onOpenSource,
+  onDecided,
+}: {
+  items: QueueItem[];
+  decided: Record<string, ReviewDecision>;
+  reviewer: string;
+  onOpenSource: (s: ActiveSource) => void;
+  onDecided: (key: string, recorded: ReviewDecision) => void;
+}) {
+  const [reopened, setReopened] = useState<string | null>(null);
+  return (
+    <>
+      {items.map((q) => {
+        const k = keyOf(q);
+        const d = decided[k];
+        if (d && reopened !== k) {
+          return (
+            <div className="review-item review-item-decided" key={k} tabIndex={-1}>
+              <strong>{(q.item.name as string | undefined) ?? readableKey(q.item.item_key as string)}</strong>
+              <span className="muted">
+                {REVIEW_KIND_LABEL[q.kind]} · <span className="mono">{q.runId}</span>
+              </span>
+              <span className={decisionBadgeClass(d.decision)}>
+                {decisionLabel(d)} by {d.reviewer}
+              </span>
+              <button className="link-button" onClick={() => setReopened(k)}>
+                Change
+              </button>
+            </div>
+          );
+        }
+        return (
+          <div className="review-item proposed" key={k} tabIndex={-1} data-review-key={k}>
+            <p className="muted review-item-source">
+              {REVIEW_KIND_LABEL[q.kind]} · {q.runId}
+            </p>
+            <ReviewItemFields item={q.item} onOpenSource={onOpenSource} />
+            {d && (
+              <button className="link-button" onClick={() => setReopened(null)}>
+                Keep the current decision
+              </button>
+            )}
+            <ReviewControls
+              runId={q.runId}
+              itemKey={q.item.item_key as string}
+              current={d}
+              reviewer={reviewer}
+              submitFn={SUBMIT_FNS[q.kind]}
+              historyFn={HISTORY_FNS[q.kind] ?? null}
+              onDone={(recorded) => {
+                focusNextCard(document.querySelector<HTMLElement>(`[data-review-key="${CSS.escape(k)}"]`), ".review-item");
+                onDecided(k, recorded);
+                setReopened(null);
+              }}
+            />
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+const FILTER_DECISION = { approved: "approve", edited: "edit", rejected: "reject" } as const;
+
+/** One run's flagged items with their review controls. `filter` narrows the
+ * list to a status tile; `onCounts` reports the pending count and the
+ * decisions made so a parent can render tiles. */
+export function RunReviewList({
+  kind,
+  runId,
+  reviewer,
+  onOpenSource,
+  filter = null,
+  onCounts,
+}: {
+  kind: ReviewableRunKind;
+  runId: string;
+  reviewer: string;
+  onOpenSource: (s: ActiveSource) => void;
+  filter?: keyof ReviewTileCounts | null;
+  onCounts?: (pending: number, decisions: ReviewDecision[]) => void;
+}) {
+  const [items, setItems] = useState<QueueItem[] | null>(null);
+  const [decided, setDecided] = useState<Record<string, ReviewDecision>>({});
+  const [error, setError] = useState<string | null>(null);
+  useCardKeys(".review-item");
+
+  useEffect(() => {
+    let live = true;
+    setItems(null);
+    setDecided({});
+    setError(null);
+    (QUEUE_FNS[kind](runId) as Promise<{ pending: Record<string, unknown>[] }>)
+      .then((res) => live && setItems(res.pending.map((item) => ({ kind, runId, item }))))
+      .catch((err: Error) => {
+        if (!live) return;
+        setError(`Flagged items could not be loaded: ${err.message}.`);
+        setItems([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [kind, runId]);
+
+  useEffect(() => {
+    if (items === null) return;
+    onCounts?.(items.filter((q) => !decided[keyOf(q)]).length, Object.values(decided));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, decided]);
+
+  const shown = (items ?? []).filter((q) => {
+    const d = decided[keyOf(q)];
+    if (filter === null || filter === "flagged") return true;
+    if (filter === "pending") return !d;
+    return d?.decision === FILTER_DECISION[filter];
+  });
+
+  return (
+    <div>
+      {error && <p className="error-text" role="alert">{error}</p>}
+      {items === null && <p className="status-text">Loading flagged items…</p>}
+      {items !== null && shown.length === 0 && !error && <p className="muted">Nothing to show here.</p>}
+      <ReviewItems
+        items={shown}
+        decided={decided}
+        reviewer={reviewer}
+        onOpenSource={onOpenSource}
+        onDecided={(k, recorded) => setDecided((prev) => ({ ...prev, [k]: recorded }))}
+      />
+    </div>
+  );
+}

@@ -23,6 +23,15 @@ export interface CompanyRef {
   sector?: string | null;
 }
 
+export interface Readiness {
+  on_disk: number;
+  registered: number;
+  parsed: number;
+  doc_types: string[];
+  last_seen_at: string | null;
+  ready: boolean;
+}
+
 /** A saved company universe handed from one screen to the next; `from` names the sender. */
 export interface UniverseHandoff {
   path: string;

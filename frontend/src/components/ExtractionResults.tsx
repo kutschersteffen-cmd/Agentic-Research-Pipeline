@@ -7,6 +7,11 @@ import type { ActiveSource } from "./SourcePanel";
 import type { BusinessSegment, CompanyFinancialsRecord, ExtractedField, ExtractionRecord, ReviewDecision, SpendSummary } from "../types";
 import { activatable } from "../lib/activatable";
 import { ProposedTag } from "./ProposedTag";
+import { OriginTag } from "./ReviewTiles";
+import { editedText, matchesTile, type ReviewTileCounts } from "../lib/stagedFlow";
+
+type TileFilter = keyof ReviewTileCounts | null;
+const NO_MATCH = <p className="muted">No items match this filter.</p>;
 
 // Shared between Extraction.tsx (a run just started in this browser session)
 // and DataLibrary.tsx (any past run, picked by run_id) -- both render the
@@ -124,6 +129,7 @@ interface ExtractionResultsTableProps {
   reviewer: string;
   onReviewDone: () => void;
   onOpenSource: (s: ActiveSource) => void;
+  filter?: TileFilter;
 }
 
 export function ExtractionResultsTable({
@@ -135,8 +141,14 @@ export function ExtractionResultsTable({
   reviewer,
   onReviewDone,
   onOpenSource,
+  filter = null,
 }: ExtractionResultsTableProps) {
   if (results.length === 0) return null;
+  // Items are fields; a field is flagged when its record needs review.
+  const shownFields = (r: ExtractionRecord) =>
+    r.fields.filter((f) => matchesTile(filter, r.needs_review, reviewDecisions[`${r.company_id}:${f.field_id}`]));
+  const shown = results.filter((r) => shownFields(r).length > 0);
+  if (shown.length === 0) return NO_MATCH;
   return (
     <div className="table-wrap">
       <table className="data-table">
@@ -149,22 +161,24 @@ export function ExtractionResultsTable({
           </tr>
         </thead>
         <tbody>
-          {results.map((r) => (
+          {shown.map((r) => (
             <Fragment key={r.company_id}>
               <tr className="clickable-row" {...activatable(() => onToggleExpanded(r.company_id), expanded === r.company_id)}>
                 <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
-                <td>{r.fields.map((f) => `${f.field_name}=${f.value ?? "—"}`).join(", ")}</td>
+                <td>{r.fields.map((f) => `${f.field_name}=${editedText(reviewDecisions[`${r.company_id}:${f.field_id}`]) ?? f.value ?? "—"}`).join(", ")}</td>
                 <td><ConfidenceBadge value={r.overall_confidence} /></td>
                 <td>{r.needs_review ? <ProposedTag /> : ""}</td>
               </tr>
               {expanded === r.company_id && (
                 <tr>
                   <td colSpan={4} className="detail-cell">
-                    {r.fields.map((f) => {
+                    {shownFields(r).map((f) => {
                       const itemKey = `${r.company_id}:${f.field_id}`;
+                      const d = reviewDecisions[itemKey];
                       return (
                         <div key={f.field_id}>
-                          <FieldDetail field={f} onOpenSource={onOpenSource} />
+                          <FieldDetail field={editedText(d) === undefined ? f : { ...f, value: editedText(d)! }} onOpenSource={onOpenSource} />
+                          <OriginTag decision={d} systemValue={String(f.value ?? "—")} />
                           <ReviewControls
                             runId={runId}
                             itemKey={itemKey}
@@ -195,6 +209,7 @@ interface FinancialsResultsTableProps {
   reviewer: string;
   onReviewDone: () => void;
   onOpenSource: (s: ActiveSource) => void;
+  filter?: TileFilter;
 }
 
 export function FinancialsResultsTable({
@@ -206,8 +221,12 @@ export function FinancialsResultsTable({
   reviewer,
   onReviewDone,
   onOpenSource,
+  filter = null,
 }: FinancialsResultsTableProps) {
   if (results.length === 0) return null;
+  // Items are companies; flagged = needs_review.
+  const shown = results.filter((r) => matchesTile(filter, r.needs_review, reviewDecisions[r.company_id]));
+  if (shown.length === 0) return NO_MATCH;
   return (
     <div className="table-wrap">
       <table className="data-table">
@@ -222,7 +241,7 @@ export function FinancialsResultsTable({
           </tr>
         </thead>
         <tbody>
-          {results.map((r) => (
+          {shown.map((r) => (
             <Fragment key={r.company_id}>
               <tr className="clickable-row" {...activatable(() => onToggleExpanded(r.company_id), expanded === r.company_id)}>
                 <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
@@ -248,6 +267,13 @@ export function FinancialsResultsTable({
                     <h3>R&amp;D</h3>
                     <SpendDetail label="R&D" spend={r.rnd} onOpenSource={onOpenSource} />
 
+                    {editedText(reviewDecisions[r.company_id]) !== undefined && (
+                      <p><strong>Edited value:</strong> {editedText(reviewDecisions[r.company_id])}</p>
+                    )}
+                    <OriginTag
+                      decision={reviewDecisions[r.company_id]}
+                      systemValue={`CapEx ${fmtAmount(r.capex.total.value)}, R&D ${fmtAmount(r.rnd.total.value)}`}
+                    />
                     <ReviewControls
                       runId={runId}
                       itemKey={r.company_id}

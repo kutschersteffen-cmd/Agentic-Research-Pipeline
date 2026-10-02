@@ -1,425 +1,472 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { api } from "../api/client";
-import { RunProgress } from "../components/RunProgress";
-import { UniversePicker } from "../components/UniversePicker";
-import { ExtractionResultsTable, FinancialsResultsTable } from "../components/ExtractionResults";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
-import { BarChart } from "../components/BarChart";
-import type { CompanyFinancialsRecord, DataPointSchema, ExtractionProfile, ExtractionRecord, ReviewDecision, RunScoringKind, StepSettings, TnfdRecord, TransitionPlanAssessmentRecord, UniverseHandoff } from "../types";
+import type { ExtractionProfile, StepSettings, UniverseHandoff } from "../types";
 import { useReviewer } from "../lib/reviewer";
-import { ReviewerField } from "../components/ReviewerField";
-import { RunScoringPanel, ScoringTemplatePicker } from "../components/RunScoring";
-import { TransitionPlanBatchOverview, TransitionPlanMethodology, TransitionPlanResultsTable } from "../components/TransitionPlanResults";
-import { TnfdResultsTable } from "../components/TnfdResults";
+import { ScoringTemplatePicker } from "../components/RunScoring";
 import { PipelineEditor } from "../components/PipelineEditor";
-import { SchemaFieldsEditor } from "../components/SchemaFieldsEditor";
+import { StepTabs, type StepTab } from "../components/StepTabs";
+import { StageFlowChart } from "../components/StageFlowChart";
+import { FlowRuns } from "../components/FlowRuns";
+import { IdentityStage } from "../components/IdentityStage";
+import { DocumentsStage } from "../components/DocumentsStage";
+import {
+  initialJobs,
+  jobLabel,
+  jobReady,
+  jobRunType,
+  jobsToStart,
+  startJobs,
+  startsText,
+  toggleProfile,
+  worstStatus,
+  type Job,
+  type JobSettings,
+} from "../lib/jobs";
+import {
+  STAGES,
+  extractInputs,
+  pendingOnboard,
+  flowReducer,
+  initialFlow,
+  latestExtractRun,
+  mergeCompanies,
+  stageInput,
+  type FlowStep,
+  type Stage,
+  type StageHandle,
+  type StageId,
+  type StageState,
+} from "../lib/stagedFlow";
+import { JobReview } from "./extraction/JobReview";
+import { JobRun, type JobStatus } from "./extraction/JobRun";
+import { CompaniesPanel } from "./extraction/CompaniesPanel";
+import { DEFAULT_CRITERIA, SchemaPanel } from "./extraction/SchemaPanel";
+import { Overview } from "./extraction/Overview";
+import { ScoringSummary } from "./extraction/ScoringSummary";
 
-const DEFAULT_CRITERIA =
-  "Green capex: total green/sustainable capital expenditure in USD/EUR millions for the most recent fiscal " +
-  "year, and as a % of total capex. Separately capture: (a) whether reported per the EU Taxonomy (eligible vs " +
-  "aligned) vs. a self-defined/internal definition -- both if disclosed, clearly labeled; (b) breakdown by EU " +
-  "Taxonomy environmental objective (climate mitigation, adaptation, water, circular economy, pollution, " +
-  "biodiversity) where disclosed; (c) the company's own stated definition/methodology as a separate string " +
-  "field with its own citation; (d) prior-year comparative figure; (e) forward-looking green capex " +
-  "targets/guidance as a SEPARATE field from the actual reported figure -- extraction_instructions must " +
-  "explicitly forbid conflating a target with an actual reported number.";
+type Sub = "setup" | "run" | "review";
+type Inner = "identify" | "documents" | "extract";
+type Tab = FlowStep | "overview";
 
-type Mode = ExtractionProfile;
+const MARK: Partial<Record<StageState, StepTab["mark"]>> = { done: "done", ready: "waiting", review: "waiting", failed: "attention", stale: "attention" };
+const NO_SETTINGS: JobSettings = { stepSettings: {}, templateId: null };
+const noop = () => {};
 
-const PROFILES: { id: Mode; label: string; runType: RunScoringKind; about: string }[] = [
-  { id: "custom", label: "Custom schema", runType: "extraction", about: "" },
-  {
-    id: "financials",
-    label: "Financials",
-    runType: "financials",
-    about:
-      "Pulls disclosed business segments (name, description, revenue, operating income, assets), total CapEx, and total R&D — each with a grounded description and any disclosed category breakdown — in a single combined pass per company: one document fetch, one extractor call, one independent verifier call.",
-  },
-  {
-    id: "tnfd",
-    label: "TNFD",
-    runType: "tnfd",
-    about:
-      "Checks each of the 14 TNFD recommendations for a disclosure and extracts the core global metrics, each with citations re-verified against the source. Rules can read each recommendation as a Yes/No column (e.g. Governance_A_Disclosed).",
-  },
-  {
-    id: "transition_plan",
-    label: "Transition Plan",
-    runType: "transition_plan",
-    about:
-      "Scores each company’s climate transition disclosures against the 64 indicators of Colesanti Senni et al. (2024), separating “talk” (targets) from “walk” (verifiable activity). Rules can read each indicator as a Yes/No column (Ind_<identifier>_Disclosed).",
-  },
+const stageTabs = (st: Stage): StepTab[] => [
+  { id: "run", label: "Run" },
+  { id: "review", label: "Review", badge: st.state === "review" ? st.flagged : null, mark: st.state === "review" ? "waiting" : null },
 ];
-
-/** Batch-level CapEx/R&D comparison across every company in the run --
- * companies with no disclosed value for the chosen metric are left out of
- * the chart (never charted as 0, which would misreport "no disclosure" as
- * "zero spend") and counted separately instead. Figures are charted exactly
- * as reported per company, in whatever currency each company discloses in
- * -- same as the table below -- rather than fabricating an FX conversion. */
-function BatchSpendChart({ results }: { results: CompanyFinancialsRecord[] }) {
-  const [metric, setMetric] = useState<"capex" | "rnd">("capex");
-  const withValue = results.filter((r) => r[metric].total.value != null);
-  const currencies = new Set(withValue.map((r) => r.currency ?? "unknown"));
-  const chartData = [...withValue]
-    .sort((a, b) => (b[metric].total.value ?? 0) - (a[metric].total.value ?? 0))
-    .map((r) => ({ label: r.name, value: r[metric].total.value ?? 0 }));
-
-  return (
-    <section className="card">
-      <h2>Batch overview ({results.length} companies)</h2>
-      <div className="view-toggle">
-        <button className={metric === "capex" ? "active" : ""} onClick={() => setMetric("capex")}>
-          CapEx
-        </button>
-        <button className={metric === "rnd" ? "active" : ""} onClick={() => setMetric("rnd")}>
-          R&amp;D
-        </button>
-      </div>
-      <p className="help-text">
-        {withValue.length} of {results.length} companies disclosed a {metric === "capex" ? "CapEx" : "R&D"} total
-        {results.length > withValue.length && ` (${results.length - withValue.length} not disclosed, excluded from the chart)`}.
-        {currencies.size > 1 && " Figures are shown exactly as each company reports them — currencies are not converted; see the table below for each company's currency."}
-      </p>
-      <BarChart data={chartData} valueFormatter={(v) => v.toLocaleString(undefined, { maximumFractionDigits: 0 })} />
-    </section>
-  );
-}
 
 interface Props {
   pendingUniverse?: UniverseHandoff | null;
   /** The profile the screen opens on, e.g. the Transition Plan menu item. */
-  initialProfile?: Mode;
+  initialProfile?: ExtractionProfile;
 }
 
 export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props = {}) {
-  const [mode, setMode] = useState<Mode>(initialProfile);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [universePath, setUniversePath] = useState<string | null>(pendingUniverse?.path ?? null);
-  const [companyCount, setCompanyCount] = useState(pendingUniverse?.count ?? 0);
-  const [scope, setScope] = useState<"batch" | "single">("batch");
-  const [single, setSingle] = useState({ name: "", ticker: "", website: "" });
-  const [runId, setRunId] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [flow, dispatch] = useReducer(flowReducer, initialFlow, (init) =>
+    pendingUniverse ? flowReducer(init, { type: "companies", output: { path: pendingUniverse.path, count: pendingUniverse.count } }) : init,
+  );
+  const [tab, setTab] = useState<Tab>("overview");
+  const [sub, setSub] = useState<Record<Inner, Sub>>({ identify: "run", documents: "run", extract: "setup" });
   const [reviewer] = useReviewer();
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
+  const identifyRef = useRef<StageHandle>(null);
+  const documentsRef = useRef<StageHandle>(null);
 
-  // Custom-schema mode only
-  const [criteria, setCriteria] = useState(DEFAULT_CRITERIA);
-  const [schema, setSchema] = useState<DataPointSchema | null>(null);
-  const [extractionResults, setExtractionResults] = useState<ExtractionRecord[]>([]);
-  const [extractionReviewDecisions, setExtractionReviewDecisions] = useState<Record<string, ReviewDecision>>({});
-  const [templateId, setTemplateId] = useState<string | null>(null);
-  const [stepSettings, setStepSettings] = useState<StepSettings>({});
+  const [jobs, setJobs] = useState<Job[]>(() => initialJobs(initialProfile, "custom:1", DEFAULT_CRITERIA));
+  const customCounter = useRef(1);
+  const nextCustomId = useCallback(() => `custom:${++customCounter.current}`, []);
+  const [pickerError, setPickerError] = useState<string | null>(null);
+  const [settings, setSettings] = useState<Record<string, JobSettings>>({});
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [statuses, setStatuses] = useState<Record<string, JobStatus>>({});
+  const [pending, setPending] = useState<Record<string, number>>({});
+  const [frameworks, setFrameworks] = useState<Record<string, string | null>>({});
+  const [startErrors, setStartErrors] = useState<Record<string, string>>({});
+  // Each extraction run's profile, for the Overview's per-company steps of an older run.
+  const [runProfiles, setRunProfiles] = useState<Record<string, ExtractionProfile>>({});
+  const [overviewRun, setOverviewRun] = useState<string | null>(null);
 
-  // Financials mode only
-  const [financialsResults, setFinancialsResults] = useState<CompanyFinancialsRecord[]>([]);
-  const [financialsReviewDecisions, setFinancialsReviewDecisions] = useState<Record<string, ReviewDecision>>({});
-
-  // TNFD profile only
+  // TNFD jobs only
   const [asOf, setAsOf] = useState(`FY${new Date().getFullYear() - 1}`);
-  const [tnfdResults, setTnfdResults] = useState<TnfdRecord[]>([]);
 
-  // Transition Plan profile only
-  const [transitionResults, setTransitionResults] = useState<TransitionPlanAssessmentRecord[]>([]);
-  const [transitionReviewDecisions, setTransitionReviewDecisions] = useState<Record<string, ReviewDecision>>({});
+  const hasCustom = jobs.some((j) => j.profile === "custom");
+  const runJobs = jobs.filter((j) => j.id in flow.extractRuns);
+  const activeJob = jobs.find((j) => j.id === activeJobId) ?? jobs[0];
+  const reviewJob = runJobs.find((j) => j.id === activeJobId) ?? runJobs[0] ?? null;
+  const hasRuns = runJobs.length > 0;
 
-  const profile = PROFILES.find((p) => p.id === mode)!;
+  /** Every change to the job list goes through here; a changed set of jobs drops the removed jobs' runs and settings. */
+  function changeJobs(next: Job[]) {
+    const ids = next.map((j) => j.id);
+    setJobs(next);
+    if (!next.some((j) => j.profile === "custom")) setTab((t) => (t === "schema" ? "overview" : t));
+    if (ids.join() !== jobs.map((j) => j.id).join()) {
+      dispatch({ type: "jobsChanged", jobIds: ids });
+      const keep = <T,>(m: Record<string, T>) => Object.fromEntries(Object.entries(m).filter(([k]) => ids.includes(k)));
+      setSettings(keep);
+      setStartErrors(keep);
+      setStatuses(keep);
+      setPending(keep);
+      setFrameworks(keep);
+    }
+  }
+  function toggle(profile: ExtractionProfile) {
+    const r = toggleProfile(jobs, profile, nextCustomId);
+    setPickerError(r.error);
+    if (!r.error) changeJobs(r.jobs);
+  }
+  const patchSettings = (id: string, p: Partial<JobSettings>) => setSettings((s) => ({ ...s, [id]: { ...(s[id] ?? NO_SETTINGS), ...p } }));
+  /** A started or restarted job keeps the stale flag; Start-all clears it once every job started. */
+  const restarted = (job: Job, runId: string) => {
+    dispatch({ type: "extractRestarted", job: job.id, runId });
+    setRunProfiles((m) => ({ ...m, [runId]: job.profile }));
+  };
 
-  function switchMode(next: Mode) {
-    if (next === mode) return;
-    setMode(next);
-    setRunId(null);
-    setError(null);
-    setTemplateId(null);
-    setStepSettings({});
-    setExpanded(null);
-    setActiveSource(null);
+  const inputs = extractInputs(flow);
+  const leftOut = pendingOnboard(flow);
+  const inputCount = inputs.length === 1 ? inputs[0].count : mergeCompanies(inputs).length;
+  const toStart = jobsToStart(jobs, flow.extractRuns, flow.extractStale, flow.freshJobs);
+  const canStart = inputs.length > 0 && toStart.length > 0;
+
+  async function startOne(job: Job): Promise<string> {
+    if (job.profile === "tnfd" && !asOf.trim()) throw new Error("Set the TNFD reporting period on Companies first.");
+    const s = settings[job.id] ?? NO_SETTINGS;
+    // Identify and Documents ran as checkpoints, so the run must not repeat them; a skipped stage keeps the user's setting.
+    const step: StepSettings = {
+      ...s.stepSettings,
+      ...(flow.identify.state !== "skipped" ? { pre_identity_enabled: false } : {}),
+      ...(flow.documents.state !== "skipped" ? { pre_content_search_enabled: false, pre_document_mgmt_enabled: false } : {}),
+    };
+    const res = await api.startExtraction({
+      profile: job.profile,
+      datapoint_schema: job.profile === "custom" ? job.schema : undefined,
+      as_of: job.profile === "tnfd" ? asOf : undefined,
+      ...(inputs.length === 1 ? { universe_path: inputs[0].path } : { companies: mergeCompanies(inputs) }),
+      decision_framework_id: s.templateId ?? undefined,
+      step_settings: Object.keys(step).length ? step : undefined,
+    });
+    restarted(job, res.run_id);
+    return res.run_id;
   }
 
-  function clearResults() {
-    setExtractionResults([]);
-    setFinancialsResults([]);
-    setTnfdResults([]);
-    setTransitionResults([]);
-  }
-
-  async function draft() {
+  const startingRef = useRef(false);
+  async function startAll() {
+    if (startingRef.current) return; // a second Start while the first is still starting jobs
+    if (!inputs.length) {
+      setError("Nothing to extract yet: carry the companies through Identify and Documents, or skip those stages.");
+      return;
+    }
+    if (!toStart.length) {
+      setError("Every ready job already has a run: restart one in Extract › Run, or finish a Custom schema.");
+      return;
+    }
+    startingRef.current = true;
     setBusy(true);
     setError(null);
     try {
-      setSchema((await api.draftSchema(criteria)) as DataPointSchema);
-    } catch (err) {
-      setError((err as Error).message);
+      const { started, errors } = await startJobs(toStart, startOne);
+      setStartErrors(errors);
+      if (!Object.keys(errors).length) dispatch({ type: "staleCleared" });
+      if (Object.keys(started).length) setSub((s) => ({ ...s, extract: "run" }));
     } finally {
+      startingRef.current = false;
       setBusy(false);
     }
   }
+  const startRef = useRef(startAll);
+  startRef.current = startAll;
+  const flowRef = useRef(flow);
+  flowRef.current = flow;
 
-  /** One company typed in, as a one-row universe; its id is the ticker, or the name when there is none. */
-  const singleCompany = single.name.trim()
-    ? {
-        company_id: (single.ticker.trim() || single.name.trim()).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""),
-        name: single.name.trim(),
-        ticker: single.ticker.trim() || null,
-        website: single.website.trim() || null,
+  const { extractRuns, extractStale, freshJobs } = flow;
+  const startable = toStart.length;
+  const extract = useMemo(() => {
+    const lines = jobs.map((j) => {
+      // A ready job without a run waits to start ("ready"); one that cannot start yet stays "idle".
+      const r: JobStatus = j.id in extractRuns ? statuses[j.id] ?? { status: "running", counts: null } : { status: jobReady(j) ? "ready" : "idle", counts: null };
+      const status: StageState =
+        !(j.id in extractRuns) || r.status === "running" ? r.status
+        : extractStale && !freshJobs.includes(j.id) ? "stale"
+        : r.status === "done" && (pending[j.id] ?? 0) > 0 ? "review"
+        : r.status;
+      const scoring = !(j.id in extractRuns) || status === "running" ? null : frameworks[j.id] ?? null;
+      return { id: j.id, label: jobLabel(j), status, counts: r.counts, ready: jobReady(j), scoring };
+    });
+    return { jobs: lines, status: worstStatus(lines.map((l) => l.status)), startable: busy || !inputCount ? 0 : startable };
+  }, [jobs, extractRuns, extractStale, freshJobs, statuses, pending, frameworks, busy, inputCount, startable]);
+  const extractStatus = extract.status;
+
+  const counts = useMemo(() => {
+    const out: Partial<Record<StageId | "companies", string>> = {};
+    if (flow.ready || flow.onboard) out.companies = `${flow.ready?.count ?? 0} ready · ${flow.onboard?.count ?? 0} to onboard`;
+    else if (flow.companies) out.companies = `${flow.companies.count} companies`;
+    for (const id of STAGES) {
+      const st = flow[id];
+      const input = stageInput(flow, id);
+      if (st.state === "done" && st.output) out[id] = `${st.output.count} carried forward`;
+      else if (input && st.state !== "skipped") out[id] = `${input.count} companies`;
+    }
+    return out;
+  }, [flow]);
+
+  const openTab = useCallback(
+    (step: FlowStep, s?: Sub) => {
+      setTab(step);
+      if (!s || (step !== "identify" && step !== "documents" && step !== "extract")) return;
+      setSub((prev) => ({ ...prev, [step]: step === "extract" && s !== "setup" && !hasRuns ? "setup" : s }));
+    },
+    [hasRuns],
+  );
+  const openJob = useCallback(
+    (id: string) => {
+      setActiveJobId(id);
+      openTab("extract", "review");
+    },
+    [openTab],
+  );
+  const onStart = useCallback((step: StageId | "extract") => {
+    if (step === "extract") startRef.current();
+    // Skip means the stage does not run.
+    else if (flowRef.current[step].state !== "skipped") (step === "identify" ? identifyRef : documentsRef).current?.start();
+  }, []);
+  const onFramework = useCallback((id: string, name: string | null) => setFrameworks((m) => (m[id] === name ? m : { ...m, [id]: name })), []);
+
+  // Automatic handover advances the tab once, when the stage turns done; a later manual tab change stays.
+  const { identify, documents } = flow;
+  const prevState = useRef({ identify: identify.state, documents: documents.state });
+  useEffect(() => {
+    const now = { identify, documents };
+    for (const id of STAGES) {
+      if (now[id].state === "done" && prevState.current[id] !== "done" && now[id].handover === "auto") {
+        setTab(id === "identify" ? "documents" : hasCustom ? "schema" : "extract");
       }
+    }
+    prevState.current = { identify: identify.state, documents: documents.state };
+  }, [identify, documents, hasCustom]);
+  const onStop = useCallback((id: string) => {
+    api.cancelRun(id).catch((err) => setError(`Run could not be stopped: ${(err as Error).message}`));
+  }, []);
+  const onContinue = useCallback((stage: StageId) => (stage === "identify" ? identifyRef : documentsRef).current?.carryOn(), []);
+
+  const allAuto = STAGES.some((id) => flow[id].handover === "auto") && STAGES.every((id) => flow[id].handover !== "manual");
+  const totalPending = runJobs.reduce((n, j) => n + (pending[j.id] ?? 0), 0);
+
+  const steps: StepTab[] = [
+    { id: "companies", label: "Companies", mark: flow.readinessNote ? "attention" : flow.companies ? "done" : null },
+    { id: "identify", label: "Identify", mark: MARK[flow.identify.state] },
+    { id: "documents", label: "Documents", mark: MARK[flow.documents.state] },
+    ...(hasCustom ? [{ id: "schema", label: "Schema", mark: jobs.every(jobReady) ? ("done" as const) : null }] : []),
+    { id: "extract", label: "Extract", mark: MARK[extractStatus] },
+  ];
+  const topTabs: StepTab[] = [{ id: "overview", label: "Overview" }, ...steps.map((t, i) => ({ ...t, label: `${i + 1}. ${t.label}` }))];
+  const extractTabs: StepTab[] = [
+    { id: "setup", label: "Setup" },
+    { id: "run", label: "Run", disabled: !hasRuns },
+    { id: "review", label: "Review", disabled: !hasRuns, badge: totalPending, mark: runJobs.some((j) => extract.jobs.find((l) => l.id === j.id)?.status === "review") ? "waiting" : null },
+  ];
+  const jobTypes = [...new Set(jobs.map(jobRunType))];
+  const allTypes = ["identity", "discovery", ...jobTypes];
+  const tabRunTypes = { overview: allTypes, companies: allTypes, schema: allTypes, identify: ["identity"], documents: ["discovery"], extract: jobTypes }[tab];
+  const overviewSelected = (overviewRun && Object.values(flow.extractRuns).includes(overviewRun) ? overviewRun : null) ?? latestExtractRun(flow);
+  const tabRunId =
+    tab === "identify" || tab === "documents" ? flow[tab].runId
+    : tab === "extract" ? (reviewJob ? extractRuns[reviewJob.id] : null)
+    : tab === "overview" ? overviewSelected
     : null;
-  const readyToStart = scope === "batch" ? !!universePath : !!singleCompany;
+  const jobOfRun = (id: string) => jobs.find((j) => extractRuns[j.id] === id);
+  const openRun = (id: string, s: Sub = "run") => {
+    const job = jobOfRun(id);
+    if (job) {
+      setActiveJobId(job.id);
+      openTab("extract", s);
+    } else for (const st of STAGES) if (flow[st].runId === id) openTab(st, s);
+  };
+  const innerTabs = (id: Inner, tabs: StepTab[], label: string) => (
+    <StepTabs label={label} tabs={tabs} active={sub[id]} onSelect={(v) => setSub((s) => ({ ...s, [id]: v as Sub }))} />
+  );
+  const jobSwitch = (list: Job[], current: string | undefined, label: string) => (
+    <div className="view-toggle job-switch" role="group" aria-label={label}>
+      {list.map((j) => (
+        <button key={j.id} className={j.id === current ? "active" : ""} aria-pressed={j.id === current} onClick={() => setActiveJobId(j.id)}>
+          {jobLabel(j)}
+          {startErrors[j.id] ? " — failed to start" : ""}
+        </button>
+      ))}
+    </div>
+  );
 
-  async function startRun() {
-    if (!readyToStart) return;
-    if (mode === "custom" && !schema) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await api.startExtraction({
-        profile: mode,
-        datapoint_schema: mode === "custom" ? schema : undefined,
-        as_of: mode === "tnfd" ? asOf : undefined,
-        ...(scope === "batch" ? { universe_path: universePath } : { companies: [singleCompany] }),
-        decision_framework_id: templateId ?? undefined,
-        step_settings: Object.keys(stepSettings).length ? stepSettings : undefined,
-      });
-      setRunId(res.run_id);
-      clearResults();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function refreshResults() {
-    if (!runId) return;
-    if (mode === "custom") {
-      const res = (await api.getExtractionResults(runId)) as { results: ExtractionRecord[] };
-      setExtractionResults(res.results);
-      const decisionsRes = (await api.getExtractionReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
-      setExtractionReviewDecisions(decisionsRes.decisions);
-    } else if (mode === "financials") {
-      const res = (await api.getFinancialsResults(runId)) as { results: CompanyFinancialsRecord[] };
-      setFinancialsResults(res.results);
-      const decisionsRes = (await api.getFinancialsReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
-      setFinancialsReviewDecisions(decisionsRes.decisions);
-    } else if (mode === "tnfd") {
-      setTnfdResults((await api.getTnfdResults(runId)).results);
-    } else {
-      setTransitionResults((await api.getTransitionPlanResults(runId)).results);
-      const decisionsRes = (await api.getTransitionPlanReviewDecisions(runId)) as { decisions: Record<string, ReviewDecision> };
-      setTransitionReviewDecisions(decisionsRes.decisions);
-    }
-  }
-
-  const scoringStepNumber = mode === "custom" ? 3 : 1;
-  const universeStepNumber = scoringStepNumber + 1;
-  const fieldNames = schema?.fields.map((f) => f.name) ?? [];
-  const readyForUniverseStep = mode !== "custom" || schema != null;
-  const resultCount = { custom: extractionResults, financials: financialsResults, tnfd: tnfdResults, transition_plan: transitionResults }[mode].length;
-  const toggleExpanded = (companyId: string) => setExpanded(expanded === companyId ? null : companyId);
+  const runsPanel = (
+    <FlowRuns
+      key={tab}
+      runTypes={tabRunTypes}
+      runIds={flow.runIds}
+      selected={tabRunId}
+      onSelect={(id) => (tab === "overview" && id in runProfiles ? setOverviewRun(id) : openRun(id))}
+      onReview={(r) => openRun(r.run_id, "review")}
+      onRerun={(r) => (r.run_type === "identity" ? onStart("identify") : r.run_type === "discovery" ? onStart("documents") : openRun(r.run_id, "run"))}
+      compact={tab === "companies" || tab === "schema"}
+      storageKey={`flowRuns:${tab}`}
+    />
+  );
+  const s = settings[activeJob.id] ?? NO_SETTINGS;
 
   return (
     <div className="page">
       <h1>Extraction</h1>
-      <p className="help-text">Extract data points from company disclosures, each checked by a verifier and every citation re-verified against its source. Pick a profile: draft a custom schema, or run one of the built-in ones — Financials, TNFD or Transition Plan.</p>
+      <p className="help-text">Extract data points from company disclosures, each checked by a verifier and every citation re-verified against its source. Pick one or more profiles: your own Custom schemas, or the built-in Financials, TNFD and Transition Plan. Each runs as its own extraction on the same companies.</p>
 
-      <div className="view-toggle" role="group" aria-label="Extraction profile">
-        {PROFILES.map((p) => (
-          <button key={p.id} className={mode === p.id ? "active" : ""} aria-pressed={mode === p.id} onClick={() => switchMode(p.id)}>
-            {p.label}
+      <StepTabs label="Extraction steps" tabs={topTabs} active={tab} onSelect={(id) => setTab(id as Tab)} />
+      {tab !== "overview" && (
+        <>
+          <button type="button" className="link-button" onClick={() => setTab("overview")}>
+            ← Overview
           </button>
-        ))}
-      </div>
-      {profile.about && <p className="help-text">{profile.about}</p>}
-      {mode === "transition_plan" && <TransitionPlanMethodology />}
-
-      <section className="card">
-        <h2>Pipeline</h2>
-        <p className="help-text">
-          The steps every item goes through. Optional: click a step to change its settings for this run only; the app&apos;s
-          defaults stay as they are.
-        </p>
-        <PipelineEditor profile={mode} value={stepSettings} onChange={setStepSettings} />
-      </section>
-
-      {mode === "custom" && (
-        <section className="card">
-          <h2>1. Describe what to extract</h2>
-          <label className="field-label">
-            Research request
-            <textarea rows={2} value={criteria} onChange={(e) => setCriteria(e.target.value)} />
-          </label>
-          <button onClick={draft} disabled={busy}>
-            Draft extraction schema
-          </button>
-          <p className="help-text">Or skip this and build a schema entirely by hand before starting a run.</p>
-        </section>
-      )}
-
-      {mode === "custom" && schema && (
-        <section className="card">
-          <h2>2. Review &amp; edit fields</h2>
-          <SchemaFieldsEditor fields={schema.fields} onChange={(fields) => setSchema({ ...schema, fields })} />
-        </section>
-      )}
-
-      {readyForUniverseStep && (
-        <section className="card">
-          <h2>{scoringStepNumber}. Score the results (optional)</h2>
-          <p className="help-text">
-            Attach a Decision Studio framework: once every company is extracted, the run applies its rules as the last step
-            and stores the scores and tiers with the run. You can also attach one after the run.
-          </p>
-          <ScoringTemplatePicker
-            runType={profile.runType}
-            fieldNames={mode === "custom" ? fieldNames : undefined}
-            value={templateId}
-            onChange={setTemplateId}
-          />
-        </section>
-      )}
-
-      {readyForUniverseStep && (
-        <section className="card">
-          <h2>{universeStepNumber}. Choose the companies</h2>
-          <div className="view-toggle" role="group" aria-label="Run on">
-            <button className={scope === "batch" ? "active" : ""} aria-pressed={scope === "batch"} onClick={() => setScope("batch")}>
-              Batch (list)
-            </button>
-            <button className={scope === "single" ? "active" : ""} aria-pressed={scope === "single"} onClick={() => setScope("single")}>
-              Single company
-            </button>
-          </div>
-          {scope === "batch" && pendingUniverse && universePath === pendingUniverse.path && (
-            <p className="status-text">
-              Using {pendingUniverse.count} companies sent from {pendingUniverse.from}. Upload a different
-              universe below to replace it.
-            </p>
-          )}
-          {mode === "tnfd" && (
-            <label className="field-label">
-              Reporting period
-              <input value={asOf} onChange={(e) => setAsOf(e.target.value)} placeholder="FY2025" />
-            </label>
-          )}
-          {scope === "batch" ? (
-            <UniversePicker
-              onResolved={(path, count) => {
-                setUniversePath(path);
-                setCompanyCount(count);
-              }}
-            />
-          ) : (
-            <div className="inline-fields">
-              <label className="field-label">
-                Company name
-                <input value={single.name} onChange={(e) => setSingle({ ...single, name: e.target.value })} placeholder="BASF SE" />
-              </label>
-              <label className="field-label">
-                Ticker (optional)
-                <input value={single.ticker} onChange={(e) => setSingle({ ...single, ticker: e.target.value })} placeholder="BAS" />
-              </label>
-              <label className="field-label">
-                Website (optional)
-                <input value={single.website} onChange={(e) => setSingle({ ...single, website: e.target.value })} placeholder="basf.com" />
-              </label>
-            </div>
-          )}
-          <button onClick={startRun} disabled={busy || !readyToStart || (mode === "tnfd" && !asOf.trim())}>
-            {scope === "single"
-              ? `Extract ${mode === "custom" ? "" : `${profile.label} `}for ${singleCompany?.name ?? "..."}`
-              : `Extract ${mode === "custom" ? "" : `${profile.label} `}across ${companyCount ? `${companyCount} companies` : "your companies (upload them first)"}`}
-          </button>
-        </section>
+          {runsPanel}
+        </>
       )}
 
       {error && <p className="error-text" role="alert">{error}</p>}
 
-      {runId && (
-        <section className="card">
-          <h2>{universeStepNumber + 1}. Run progress</h2>
-          <RunProgress runId={runId} runType={profile.runType} />
-          <PipelineEditor
-            key={runId}
-            profile={mode}
-            runId={runId}
-            onRestarted={(next) => {
-              setRunId(next);
-              clearResults();
-            }}
-          />
-          <div className="toolbar">
-            <button onClick={refreshResults}>Refresh results</button>
-            <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
-              Export CSV
-            </a>
-            <ReviewerField compact />
-          </div>
-
-          {mode === "financials" && financialsResults.length > 0 && <BatchSpendChart results={financialsResults} />}
-          {mode === "transition_plan" && transitionResults.length > 0 && <TransitionPlanBatchOverview results={transitionResults} />}
-
-          {resultCount > 0 && (
-            <div className="split-review">
-              <div className="split-review-main">
-                {mode === "custom" && (
-                  <ExtractionResultsTable
-                    results={extractionResults}
-                    runId={runId}
-                    expanded={expanded}
-                    onToggleExpanded={toggleExpanded}
-                    reviewDecisions={extractionReviewDecisions}
-                    reviewer={reviewer}
-                    onReviewDone={refreshResults}
-                    onOpenSource={setActiveSource}
-                  />
-                )}
-
-                {mode === "financials" && (
-                  <FinancialsResultsTable
-                    results={financialsResults}
-                    runId={runId}
-                    expanded={expanded}
-                    onToggleExpanded={toggleExpanded}
-                    reviewDecisions={financialsReviewDecisions}
-                    reviewer={reviewer}
-                    onReviewDone={refreshResults}
-                    onOpenSource={setActiveSource}
-                  />
-                )}
-
-                {mode === "tnfd" && (
-                  <TnfdResultsTable results={tnfdResults} expanded={expanded} onToggleExpanded={toggleExpanded} onOpenSource={setActiveSource} />
-                )}
-
-                {mode === "transition_plan" && (
-                  <TransitionPlanResultsTable
-                    runId={runId}
-                    results={transitionResults}
-                    reviewDecisions={transitionReviewDecisions}
-                    reviewer={reviewer}
-                    onReviewed={refreshResults}
-                    onOpenSource={setActiveSource}
-                    expanded={expanded}
-                    onToggleExpanded={toggleExpanded}
-                  />
-                )}
-              </div>
-              <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
-            </div>
-          )}
-        </section>
-      )}
-
-      {runId && (
-        <RunScoringPanel
-          key={runId}
-          runId={runId}
-          runType={profile.runType}
-          fieldNames={mode === "custom" ? fieldNames : undefined}
+      <div role="tabpanel" aria-label="Overview" hidden={tab !== "overview"}>
+        <Overview
+          jobs={jobs}
+          onToggle={toggle}
+          pickerError={pickerError}
+          allAuto={allAuto}
+          onAllAuto={(on) => dispatch({ type: "allAuto", on })}
+          chart={
+            <StageFlowChart
+              flow={flow}
+              profile={hasCustom ? "custom" : jobs[0].profile}
+              extract={extract}
+              height={420}
+              counts={counts}
+              onOpen={openTab}
+              onOpenJob={openJob}
+              onStart={onStart}
+              onStop={onStop}
+              onContinue={onContinue}
+              dispatch={dispatch}
+            />
+          }
+          scoring={<ScoringSummary rows={runJobs.map((j) => ({ job: j, runId: extractRuns[j.id], status: extract.jobs.find((l) => l.id === j.id)!.status }))} onOpen={openJob} onFramework={onFramework} />}
+          runs={tab === "overview" ? runsPanel : <></>}
+          selectedRunId={overviewSelected}
+          selectedProfile={overviewSelected ? runProfiles[overviewSelected] ?? null : null}
+          onRestarted={(next) => {
+            const job = overviewSelected ? jobOfRun(overviewSelected) : undefined;
+            if (job) restarted(job, next);
+            setOverviewRun(next);
+          }}
         />
+      </div>
+
+      <div role="tabpanel" aria-label="Companies" hidden={tab !== "companies"}>
+        <CompaniesPanel flow={flow} dispatch={dispatch} pendingUniverse={pendingUniverse} tnfd={jobs.some((j) => j.profile === "tnfd")} asOf={asOf} onAsOf={setAsOf} />
+      </div>
+
+      <div role="tabpanel" aria-label="Identify" hidden={tab !== "identify"}>
+        {innerTabs("identify", stageTabs(flow.identify), "Identify")}
+        <section className="card">
+          <IdentityStage
+            ref={identifyRef}
+            input={stageInput(flow, "identify")}
+            stage={flow.identify}
+            dispatch={dispatch}
+            view={sub.identify === "review" ? "review" : "run"}
+            reviewer={reviewer}
+            onOpenSource={setActiveSource}
+          />
+        </section>
+        {activeSource && <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />}
+      </div>
+
+      <div role="tabpanel" aria-label="Documents" hidden={tab !== "documents"}>
+        {innerTabs("documents", stageTabs(flow.documents), "Documents")}
+        <section className="card">
+          <DocumentsStage ref={documentsRef} input={stageInput(flow, "documents")} stage={flow.documents} dispatch={dispatch} view={sub.documents === "review" ? "review" : "run"} />
+        </section>
+      </div>
+
+      {hasCustom && (
+        <div role="tabpanel" aria-label="Schema" hidden={tab !== "schema"}>
+          <SchemaPanel jobs={jobs} onChange={changeJobs} nextCustomId={nextCustomId} defaultRequest={DEFAULT_CRITERIA} />
+        </div>
       )}
+
+      <div role="tabpanel" aria-label="Extract" hidden={tab !== "extract"}>
+        {innerTabs("extract", extractTabs, "Extract")}
+
+        <div hidden={sub.extract !== "setup"}>
+          {jobSwitch(jobs, activeJob.id, "Job to set up")}
+          {jobs.map((j) => startErrors[j.id] && (
+            <p key={j.id} className="error-text" role="alert">
+              {jobLabel(j)} did not start: {startErrors[j.id]}
+            </p>
+          ))}
+          <section className="card">
+            <h2>Pipeline: {jobLabel(activeJob)}</h2>
+            <p className="help-text">
+              The steps every item goes through. Optional: click a step to change its settings for this job&apos;s run only; the
+              app&apos;s defaults stay as they are.
+            </p>
+            <PipelineEditor key={activeJob.id} profile={activeJob.profile} value={s.stepSettings} onChange={(v) => patchSettings(activeJob.id, { stepSettings: v })} />
+          </section>
+          <section className="card">
+            <h2>Score the results (optional)</h2>
+            <p className="help-text">
+              Attach a Decision Studio framework: once every company is extracted, the run applies its rules as the last step
+              and stores the scores and tiers with the run. You can also attach one after the run.
+            </p>
+            <ScoringTemplatePicker
+              key={activeJob.id}
+              runType={jobRunType(activeJob)}
+              fieldNames={activeJob.profile === "custom" ? activeJob.schema?.fields.map((f) => f.name) ?? [] : undefined}
+              value={s.templateId}
+              onChange={(v) => patchSettings(activeJob.id, { templateId: v })}
+            />
+          </section>
+          <section className="card">
+            <h2>Start extraction</h2>
+            <p className="help-text">
+              {inputs.length
+                ? startsText(toStart.length, inputCount)
+                : "No companies handed over yet: carry them through Identify and Documents, or skip those stages."}
+            </p>
+            {inputs.length > 0 && leftOut > 0 && <p className="await-text">{leftOut} companies are still onboarding and will be left out</p>}
+            {flow.extractStale && <p className="await-text">Inputs changed since this run</p>}
+            <button onClick={startAll} disabled={busy || !canStart}>
+              Start extraction
+            </button>
+          </section>
+        </div>
+
+        <div hidden={sub.extract !== "run"}>
+          {runJobs.map((j) => (
+            <JobRun
+              key={`${j.id}:${extractRuns[j.id]}`}
+              job={j}
+              runId={extractRuns[j.id]}
+              onRestarted={(next) => restarted(j, next)}
+              onStatus={(st) => setStatuses((m) => ({ ...m, [j.id]: st }))}
+            />
+          ))}
+        </div>
+
+        <div hidden={sub.extract !== "review"}>
+          {hasRuns && jobSwitch(runJobs, reviewJob?.id, "Job to review")}
+          {runJobs.map((j) => (
+            <div key={`${j.id}:${extractRuns[j.id]}`} hidden={j.id !== reviewJob?.id}>
+              <JobReview job={j} runId={extractRuns[j.id]} reviewer={reviewer} onSourceOpen={noop} onPending={(n) => setPending((m) => ({ ...m, [j.id]: n }))} />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

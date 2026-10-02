@@ -5,12 +5,14 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from arp.api.deps import get_document_content_store, settings_dep
 from arp.config import Settings
-from arp.schemas.common import DocType
+from arp.schemas.common import CompanyRef, DocType
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_filename, safe_id
+from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -51,6 +53,52 @@ async def upload_document(
     dest_path = dest_dir / safe_name
     dest_path.write_bytes(await file.read())
     return {"path": str(dest_path)}
+
+
+class ReadinessRequest(BaseModel):
+    companies: list[CompanyRef] | None = None
+    universe_path: str | None = None
+
+
+def _files_on_disk(documents_dir: Path, company_id: str) -> int:
+    try:
+        company_dir = documents_dir / safe_id(company_id, label="company_id")
+    except UnsafeIdentifierError:
+        return 0
+    return sum(1 for f in company_dir.rglob("*") if f.is_file()) if company_dir.is_dir() else 0
+
+
+@router.post("/readiness")
+def document_readiness(
+    req: ReadinessRequest,
+    settings: Settings = Depends(settings_dep),
+    store: DocumentContentStore = Depends(get_document_content_store),
+) -> dict:
+    """Splits a company list into `ready` (documents already on disk or
+    registered, so identity resolution and discovery can be skipped) and
+    `onboard`. Read-only."""
+    try:
+        companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
+    except FileNotFoundError as exc:
+        raise HTTPException(400, f"Universe file not found: {req.universe_path}") from exc
+    except ValueError as exc:  # unsupported type, bad JSON, or rows that fail CompanyRef validation
+        raise HTTPException(400, f"Universe file could not be read: {exc}") from exc
+    if not companies:
+        raise HTTPException(400, "Provide either `companies` or `universe_path`.")
+    stored = store.readiness_by_company([c.company_id for c in companies])
+    empty = {"registered": 0, "parsed": 0, "doc_types": [], "last_seen_at": None}
+    readiness: dict[str, dict] = {}
+    ready, onboard = [], []
+    for c in companies:
+        r = {**empty, **stored.get(c.company_id, {}), "on_disk": _files_on_disk(settings.documents_dir, c.company_id)}
+        r["ready"] = r["on_disk"] + r["registered"] > 0
+        readiness[c.company_id] = r
+        row = c.model_dump(mode="json")
+        if r["ready"]:
+            ready.append({**row, "readiness": r})
+        else:
+            onboard.append(row)
+    return {"ready": ready, "onboard": onboard, "readiness": readiness}
 
 
 @router.get("/{company_id}/{doc_type}/{filename}/raw")

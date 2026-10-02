@@ -1,66 +1,18 @@
-import { useState } from "react";
-import { api } from "../api/client";
-import { RunProgress } from "../components/RunProgress";
-import { UniversePicker } from "../components/UniversePicker";
-import type { IdentityResolutionResult } from "../types";
+import { useReducer, useState } from "react";
+import { IdentityStage } from "../components/IdentityStage";
+import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
+import { flowReducer, initialFlow } from "../lib/stagedFlow";
+import { useReviewer } from "../lib/reviewer";
 
 interface Props {
   onSendToDiscovery?: (path: string, count: number) => void;
 }
 
 export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
-  const [universePath, setUniversePath] = useState<string | null>(null);
-  const [companyCount, setCompanyCount] = useState(0);
-  const [runId, setRunId] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<IdentityResolutionResult[]>([]);
-  const [sendBusy, setSendBusy] = useState(false);
-  const [sendStatus, setSendStatus] = useState("");
-  const [sentUniverse, setSentUniverse] = useState<{ path: string; count: number } | null>(null);
-
-  async function refreshResults() {
-    if (!runId) return;
-    const res = (await api.getIdentityResults(runId)) as { results: IdentityResolutionResult[] };
-    setResults(res.results);
-  }
-
-  async function runNow() {
-    if (!universePath) return;
-    setBusy(true);
-    setError(null);
-    setResults([]);
-    setSentUniverse(null);
-    try {
-      const res = await api.startIdentityRun({ universe_path: universePath });
-      setRunId(res.run_id);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function sendToDiscovery() {
-    if (!runId) return;
-    setSendBusy(true);
-    setSendStatus("");
-    setSentUniverse(null);
-    try {
-      const enriched = await api.getEnrichedUniverse(runId);
-      if (enriched.companies.length === 0) {
-        setSendStatus("No resolved (or approved) companies yet — nothing to send.");
-        return;
-      }
-      const res = await api.universeFromCompanies(enriched.companies, "identity_resolved");
-      setSendStatus(`Saved ${res.company_count} companies as a universe.`);
-      setSentUniverse({ path: res.path, count: res.company_count });
-    } catch (err) {
-      setSendStatus(`Failed: ${(err as Error).message}`);
-    } finally {
-      setSendBusy(false);
-    }
-  }
+  const [flow, dispatch] = useReducer(flowReducer, initialFlow);
+  const [reviewer] = useReviewer();
+  const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
+  const out = flow.identify.state === "done" ? flow.identify.output : null;
 
   return (
     <div className="page">
@@ -69,74 +21,14 @@ export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
 
       <section className="card">
         <h2>Resolve identity</h2>
-        <UniversePicker
-          onResolved={(path, count) => {
-            setUniversePath(path);
-            setCompanyCount(count);
-          }}
-        />
-        <button onClick={runNow} disabled={busy || !universePath}>
-          Resolve identity for {companyCount ? `${companyCount} companies` : "your companies (upload them first)"}
-        </button>
-        {error && <p className="error-text" role="alert">{error}</p>}
-        {runId && <RunProgress runId={runId} runType="identity" />}
-        {runId && (
-          <>
-            <button onClick={refreshResults}>Refresh results</button>
-            {results.length > 0 && (
-              <div className="table-wrap">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Company</th>
-                      <th>Verdict</th>
-                      <th>Confidence</th>
-                      <th>Resolved website</th>
-                      <th>Resolved CIK</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((r) => (
-                      <tr key={r.company_id}>
-                        <td>{r.input_name}</td>
-                        <td>{r.verdict}</td>
-                        <td>{r.confidence.toFixed(2)}</td>
-                        <td>{r.resolved_website ?? "-"}</td>
-                        <td>{r.resolved_cik ?? "-"}</td>
-                        <td>
-                          {r.flagged_for_review ? (
-                            <span className="await-text" title={r.rationale}>
-                              Needs review
-                            </span>
-                          ) : (
-                            "ok"
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <div className="toolbar">
-              <button onClick={sendToDiscovery} disabled={sendBusy}>
-                Send resolved companies to Document Discovery
-              </button>
-              {sentUniverse && (
-                <button onClick={() => onSendToDiscovery?.(sentUniverse.path, sentUniverse.count)}>
-                  Go to Document Discovery &rarr;
-                </button>
-              )}
-            </div>
-            {sendStatus && <p className="status-text">{sendStatus}</p>}
-            <p className="muted">
-              Anything flagged for review must be approved (or edited with a corrected website/CIK) via the Review
-              Queue tab before it's included in the sent universe.
-            </p>
-          </>
+        <IdentityStage input={null} stage={flow.identify} dispatch={dispatch} view="run" reviewer={reviewer} onOpenSource={setActiveSource} />
+        {out && (
+          <div className="toolbar">
+            <button onClick={() => onSendToDiscovery?.(out.path, out.count)}>Go to Document Discovery &rarr;</button>
+          </div>
         )}
       </section>
+      {activeSource && <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />}
     </div>
   );
 }
