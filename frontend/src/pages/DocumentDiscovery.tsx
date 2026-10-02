@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { api } from "../api/client";
-import { RunProgress } from "../components/RunProgress";
+import { DocumentsStage } from "../components/DocumentsStage";
+import { flowReducer, initialFlow, type StageOutput } from "../lib/stagedFlow";
 import { UniversePicker } from "../components/UniversePicker";
-import type { DiscoveryCompanyResult, DiscoveryScheduleConfig, DocumentEvent, UniverseHandoff } from "../types";
+import type { DiscoveryScheduleConfig, DocumentEvent, UniverseHandoff } from "../types";
 
 interface Props {
   pendingUniverse?: UniverseHandoff | null;
@@ -10,12 +11,12 @@ interface Props {
 }
 
 export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {}) {
-  const [universePath, setUniversePath] = useState<string | null>(pendingUniverse?.path ?? null);
-  const [companyCount, setCompanyCount] = useState(pendingUniverse?.count ?? 0);
-  const [runId, setRunId] = useState<string | null>(null);
+  const [flow, dispatch] = useReducer(flowReducer, initialFlow);
+  const [replaced, setReplaced] = useState<StageOutput | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<DiscoveryCompanyResult[]>([]);
+  const input = replaced ?? (pendingUniverse ? { path: pendingUniverse.path, count: pendingUniverse.count } : null);
+  const out = flow.documents.state === "done" ? flow.documents.output : null;
 
   const [schedule, setSchedule] = useState<DiscoveryScheduleConfig | null>(null);
   const [events, setEvents] = useState<DocumentEvent[]>([]);
@@ -30,27 +31,6 @@ export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {
   async function refreshEvents() {
     const res = (await api.getDiscoveryEvents()) as { events: DocumentEvent[] };
     setEvents(res.events.slice().reverse());
-  }
-
-  async function refreshResults() {
-    if (!runId) return;
-    const res = (await api.getDiscoveryResults(runId)) as { results: DiscoveryCompanyResult[] };
-    setResults(res.results);
-  }
-
-  async function runNow() {
-    if (!universePath) return;
-    setBusy(true);
-    setError(null);
-    setResults([]);
-    try {
-      const res = await api.startDiscoveryRun({ universe_path: universePath });
-      setRunId(res.run_id);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
   }
 
   async function saveSchedule() {
@@ -73,72 +53,27 @@ export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {
 
       <section className="card">
         <h2>Run now (manual)</h2>
-        {pendingUniverse && universePath === pendingUniverse.path && (
-          <p className="status-text">
-            Using {pendingUniverse.count} companies sent from {pendingUniverse.from}. Upload a different universe below
-            to replace it.
-          </p>
+        {pendingUniverse && (
+          <>
+            <p className="status-text">
+              Using {pendingUniverse.count} companies sent from {pendingUniverse.from}. Upload a different universe below
+              to replace it.
+            </p>
+            <UniversePicker onResolved={(path, count) => setReplaced({ path, count })} />
+          </>
         )}
-        <UniversePicker
-          onResolved={(path, count) => {
-            setUniversePath(path);
-            setCompanyCount(count);
-          }}
-        />
-        <button onClick={runNow} disabled={busy || !universePath}>
-          Search for documents across {companyCount ? `${companyCount} companies` : "your companies (upload them first)"}
-        </button>
+        <DocumentsStage input={input} stage={flow.documents} dispatch={dispatch} view="run" />
         {error && <p className="error-text" role="alert">{error}</p>}
-        {runId && <RunProgress runId={runId} runType="extraction" />}
-        {runId && universePath && onSendUniverse && (
+        {out && onSendUniverse && (
           <div className="toolbar">
-            <span className="muted">Next, with the same {companyCount} companies:</span>
-            <button className="secondary" onClick={() => onSendUniverse("extraction", universePath, companyCount)}>
+            <span className="muted">Next, with the same {out.count} companies:</span>
+            <button className="secondary" onClick={() => onSendUniverse("extraction", out.path, out.count)}>
               Extraction &rarr;
             </button>
-            <button className="secondary" onClick={() => onSendUniverse("transitionPlan", universePath, companyCount)}>
+            <button className="secondary" onClick={() => onSendUniverse("transitionPlan", out.path, out.count)}>
               Transition Plan &rarr;
             </button>
           </div>
-        )}
-        {runId && (
-          <>
-            <button onClick={refreshResults}>Refresh results</button>
-            {results.length > 0 && (
-              <div className="table-wrap">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Company</th>
-                      <th>Homepage used</th>
-                      <th>Status</th>
-                      <th>Documents found</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((r) => (
-                      <tr key={r.company_id}>
-                        <td>{r.name}</td>
-                        <td>{r.homepage_used ?? "(none known)"}</td>
-                        <td>
-                          {r.homepage_unreachable ? (
-                            <span className="error-text" role="alert" title={r.crawl_error ?? undefined}>
-                              Site unreachable{r.crawl_error ? `: ${r.crawl_error}` : ""}
-                            </span>
-                          ) : !r.homepage_used ? (
-                            <span className="muted">no homepage known</span>
-                          ) : (
-                            "ok"
-                          )}
-                        </td>
-                        <td>{r.documents_found.length}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
         )}
       </section>
 
@@ -167,7 +102,7 @@ export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {
             <input
               value={schedule.universe_path ?? ""}
               onChange={(e) => setSchedule({ ...schedule, universe_path: e.target.value })}
-              placeholder={universePath ?? "runs/_universes/your_file.csv"}
+              placeholder={input?.path ?? "runs/_universes/your_file.csv"}
             />
           </label>
           <button onClick={saveSchedule} disabled={busy}>

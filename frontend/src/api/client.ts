@@ -85,7 +85,7 @@ import type {
   TransitionPlanIndicatorDef,
   TrendPoint,
 } from "../types";
-import type { DecisionInput, PublishedDecision, Readiness } from "../types";
+import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
 import type { Finding, QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, Storyline, TemplateStyleProfile } from "../types";
 import type { PaperCandidate, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
 import type {
@@ -250,6 +250,13 @@ export const api = {
 
   // Documents
   listDocuments: (companyId: string) => request(`/api/documents/${companyId}`),
+  uploadDocument: (companyId: string, docType: DocType, file: File) => {
+    const form = new FormData();
+    form.append("company_id", companyId);
+    form.append("doc_type", docType);
+    form.append("file", file);
+    return request<{ path: string }>("/api/documents/upload", { method: "POST", headers: {}, body: form });
+  },
   documentRawUrl: (companyId: string, docType: string, filename: string) =>
     `${API_BASE}/api/documents/${encodeURIComponent(companyId)}/${encodeURIComponent(docType)}/${encodeURIComponent(filename)}/raw`,
   documentReadiness: (body: { universe_path?: string; companies?: unknown[] }) =>
