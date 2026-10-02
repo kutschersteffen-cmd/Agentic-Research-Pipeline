@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { api } from "../api/client";
 import { RunProgress } from "./RunProgress";
 import { ReviewTiles } from "./ReviewTiles";
 import { RunReviewList } from "./RunReviewList";
 import type { ActiveSource } from "./SourcePanel";
 import { UniversePicker } from "./UniversePicker";
-import { autoContinueDue, reviewCounts, type FlowAction, type Handover, type Stage, type StageOutput, type ReviewTileCounts } from "../lib/stagedFlow";
+import { autoContinueDue, reviewCounts, type FlowAction, type StageHandle, type Handover, type Stage, type StageOutput, type ReviewTileCounts } from "../lib/stagedFlow";
 import type { CompanyRef, IdentityResolutionResult, JobStatus, ReviewDecision, RunManifest } from "../types";
 
 const FINAL: JobStatus[] = ["completed", "partially_completed", "failed", "cancelled"];
@@ -18,11 +18,13 @@ export function IdentityStage({
   view,
   reviewer,
   onOpenSource,
+  ref,
 }: {
   input: StageOutput | null;
   stage: Stage;
   dispatch: (a: FlowAction) => void;
   view: "run" | "review";
+  ref?: Ref<StageHandle>;
   reviewer: string;
   onOpenSource: (s: ActiveSource) => void;
 }) {
@@ -107,6 +109,9 @@ export function IdentityStage({
       setBusy(false);
     }
   }
+
+  // No deps: the handle always calls this render's start / carryOn.
+  useImperativeHandle(ref, () => ({ start, carryOn }));
 
   const due = autoContinueDue(stage);
   useEffect(() => {

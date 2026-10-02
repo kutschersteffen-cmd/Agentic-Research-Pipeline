@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { api } from "../api/client";
 import { RunProgress } from "./RunProgress";
 import { ReviewTiles } from "./ReviewTiles";
@@ -10,6 +10,7 @@ import {
   docRows,
   type DocRow,
   type FlowAction,
+  type StageHandle,
   type Handover,
   type ReviewTileCounts,
   type Stage,
@@ -28,11 +29,13 @@ export function DocumentsStage({
   stage,
   dispatch,
   view,
+  ref,
 }: {
   input: StageOutput | null;
   stage: Stage;
   dispatch: (a: FlowAction) => void;
   view: "run" | "review";
+  ref?: Ref<StageHandle>;
 }) {
   const [picked, setPicked] = useState<StageOutput | null>(null);
   const [busy, setBusy] = useState(false);
@@ -166,6 +169,9 @@ export function DocumentsStage({
       setBusy(false);
     }
   }
+
+  // No deps: the handle always calls this render's start / carryOn.
+  useImperativeHandle(ref, () => ({ start, carryOn }));
 
   const due = autoContinueDue(stage) && runId != null && loadedFor === runId;
   useEffect(() => {

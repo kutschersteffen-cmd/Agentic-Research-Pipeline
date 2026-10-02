@@ -41,6 +41,9 @@ export type FlowAction =
 
 export const STAGES: StageId[] = ["identify", "documents"];
 
+/** What a mounted stage component lets its parent trigger (the overview chart's Start / Continue). */
+export interface StageHandle { start(): void; carryOn(): void }
+
 const idleStage: Stage = { handover: "manual", state: "idle", runId: null, output: null, flagged: 0, note: null };
 
 export const initialFlow: FlowState = {
