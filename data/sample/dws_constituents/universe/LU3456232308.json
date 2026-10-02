@@ -1,0 +1,7535 @@
+[
+ {
+  "company_id": "GB00BGLP8L22",
+  "name": "IMI PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 6376403.7
+ },
+ {
+  "company_id": "GB00BYQ0JC66",
+  "name": "BEAZLEY PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 6201489.800000001
+ },
+ {
+  "company_id": "GB0009465807",
+  "name": "WEIR PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 5816973.199999999
+ },
+ {
+  "company_id": "FR0011726835",
+  "name": "GAZTRANSPORT & TECHNIGAZ SA",
+  "sector": "Energie",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 5769470.9
+ },
+ {
+  "company_id": "CH1169360919",
+  "name": "ACCELLERON N AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 5490538.2
+ },
+ {
+  "company_id": "BMG4593F1389",
+  "name": "HISCOX LTD",
+  "sector": "Finanzen",
+  "country": "Bermudas",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 5171420.9
+ },
+ {
+  "company_id": "CH0018294154",
+  "name": "PSP SWISS PROPERTY AG",
+  "sector": "Immobilien",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 5162555.800000001
+ },
+ {
+  "company_id": "NO0003053605",
+  "name": "STOREBRAND",
+  "sector": "Finanzen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 5128328.899999999
+ },
+ {
+  "company_id": "DE0007500001",
+  "name": "THYSSENKRUPP AG",
+  "sector": "Material",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 5072032.899999999
+ },
+ {
+  "company_id": "LU0075646355",
+  "name": "SUBSEA",
+  "sector": "Energie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4960920.6
+ },
+ {
+  "company_id": "GB0003718474",
+  "name": "GAMES WORKSHOP GROUP PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4852679.6
+ },
+ {
+  "company_id": "CY0200352116",
+  "name": "FRONTLINE PLC",
+  "sector": "Energie",
+  "country": "Bermudas",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4821916.2
+ },
+ {
+  "company_id": "DK0010311471",
+  "name": "AL SYDBANK",
+  "sector": "Finanzen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4786540.3
+ },
+ {
+  "company_id": "GB0007669376",
+  "name": "ST.JAMES PLACE PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4689447.8
+ },
+ {
+  "company_id": "IE0002424939",
+  "name": "DCC ENERGY PLC",
+  "sector": "Energie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4661871.399999999
+ },
+ {
+  "company_id": "FR0012757854",
+  "name": "SPIE SA",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4645621.4
+ },
+ {
+  "company_id": "DK0010287663",
+  "name": "NKT",
+  "sector": "Industrieunternehmen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4630280.7
+ },
+ {
+  "company_id": "FR0010908533",
+  "name": "EDENRED",
+  "sector": "Finanzen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4367190.4
+ },
+ {
+  "company_id": "IT0005541336",
+  "name": "LOTTOMATICA GROUP",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4324558.3
+ },
+ {
+  "company_id": "BE0003851681",
+  "name": "AEDIFICA NV",
+  "sector": "Immobilien",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4270030.2
+ },
+ {
+  "company_id": "GB00BF4HYT85",
+  "name": "LION FINANCE GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4191132.4000000004
+ },
+ {
+  "company_id": "FI0009005870",
+  "name": "KONECRANES",
+  "sector": "Industrieunternehmen",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4167323.1
+ },
+ {
+  "company_id": "BE0003764785",
+  "name": "ACKERMANS & VAN HAAREN NV",
+  "sector": "Industrieunternehmen",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4162785.3000000003
+ },
+ {
+  "company_id": "DK0060854669",
+  "name": "RINGKJOBING LANDBOBANK",
+  "sector": "Finanzen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4149677.3
+ },
+ {
+  "company_id": "IT0005495657",
+  "name": "SAIPEM",
+  "sector": "Energie",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4138723.3999999994
+ },
+ {
+  "company_id": "NL0010801007",
+  "name": "IMCD",
+  "sector": "Industrieunternehmen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4111298.4000000004
+ },
+ {
+  "company_id": "GB00BYT1DJ19",
+  "name": "ICG PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4053579.0
+ },
+ {
+  "company_id": "DK0010307958",
+  "name": "JYSKE BANK",
+  "sector": "Finanzen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4034358.3
+ },
+ {
+  "company_id": "AT0000730007",
+  "name": "ANDRITZ AG",
+  "sector": "Industrieunternehmen",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3972517.0999999996
+ },
+ {
+  "company_id": "GB00BF8Q6K64",
+  "name": "ABERDEEN GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3884098.2
+ },
+ {
+  "company_id": "GB0000961622",
+  "name": "BALFOUR BEATTY PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3843251.5
+ },
+ {
+  "company_id": "SE0000120669",
+  "name": "SSAB CLASS B",
+  "sector": "Material",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3838943.2
+ },
+ {
+  "company_id": "AT0000969985",
+  "name": "AT & S AUSTRIA TECHNOLOGIE & SYSTE",
+  "sector": "Informationstechnologie",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3793380.8000000003
+ },
+ {
+  "company_id": "DK0060542181",
+  "name": "ISS",
+  "sector": "Industrieunternehmen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3737164.9000000004
+ },
+ {
+  "company_id": "DE000A0D6554",
+  "name": "NORDEX",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3723411.0
+ },
+ {
+  "company_id": "GB0000811801",
+  "name": "BARRATT REDROW PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3713383.9
+ },
+ {
+  "company_id": "GB00BJFFLV09",
+  "name": "CRODA INTERNATIONAL PLC",
+  "sector": "Material",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3689196.0
+ },
+ {
+  "company_id": "ES0105025003",
+  "name": "MERLIN PROPERTIES REIT",
+  "sector": "Immobilien",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3678865.0
+ },
+ {
+  "company_id": "FR0000044448",
+  "name": "NEXANS SA",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3672594.5
+ },
+ {
+  "company_id": "GB00BTQGS779",
+  "name": "METLEN ENERGY & METALS PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3660719.5
+ },
+ {
+  "company_id": "JE00B8KF9B49",
+  "name": "WPP PLC",
+  "sector": "Kommunikationsdienste",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3603489.3000000003
+ },
+ {
+  "company_id": "GB00B06QFB75",
+  "name": "IG GROUP HOLDINGS PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3597921.8
+ },
+ {
+  "company_id": "GB0005576813",
+  "name": "HOWDEN JOINERY GROUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3587800.7
+ },
+ {
+  "company_id": "FR0010411983",
+  "name": "SCOR",
+  "sector": "Finanzen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3551783.8
+ },
+ {
+  "company_id": "CH1169151003",
+  "name": "GEORG FISCHER AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3540883.8000000003
+ },
+ {
+  "company_id": "DE000A12DM80",
+  "name": "SCOUT24 N",
+  "sector": "Kommunikationsdienste",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3512567.8000000003
+ },
+ {
+  "company_id": "SE0000202624",
+  "name": "GETINGE CLASS B",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3501781.4
+ },
+ {
+  "company_id": "GB0006825383",
+  "name": "PERSIMMON PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3495678.8000000003
+ },
+ {
+  "company_id": "BE0974320526",
+  "name": "UMICORE SA",
+  "sector": "Material",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3487489.9000000004
+ },
+ {
+  "company_id": "AT0000937503",
+  "name": "VOESTALPINE AG",
+  "sector": "Material",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3485637.9
+ },
+ {
+  "company_id": "GB00BVFNZH21",
+  "name": "ROTORK PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3485385.5
+ },
+ {
+  "company_id": "SE0025158629",
+  "name": "MYCRONIC",
+  "sector": "Informationstechnologie",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3431421.8
+ },
+ {
+  "company_id": "GB0001367019",
+  "name": "BRITISH LAND REIT",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3410843.9
+ },
+ {
+  "company_id": "GB00B1KJJ408",
+  "name": "WHITBREAD PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3399724.8000000003
+ },
+ {
+  "company_id": "CH1548235246",
+  "name": "SWISSQUOTE GROUP HOLDING SA",
+  "sector": "Finanzen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3355632.0
+ },
+ {
+  "company_id": "NL0000360618",
+  "name": "SBM OFFSHORE",
+  "sector": "Energie",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3321474.8
+ },
+ {
+  "company_id": "CH0012138605",
+  "name": "ADECCO GROUP AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3309288.9
+ },
+ {
+  "company_id": "GB00B4WFW713",
+  "name": "LONDONMETRIC PROPERTY REIT PLC",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3286122.3
+ },
+ {
+  "company_id": "GB00BD3VFW73",
+  "name": "CONVATEC GROUP PLC",
+  "sector": "Gesundheitswesen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3238786.6
+ },
+ {
+  "company_id": "CH0360674466",
+  "name": "GALENICA AG",
+  "sector": "Gesundheitswesen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3236203.6
+ },
+ {
+  "company_id": "GB0031743007",
+  "name": "BURBERRY GROUP PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3199528.8
+ },
+ {
+  "company_id": "GB0003096442",
+  "name": "RS GROUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3143009.6
+ },
+ {
+  "company_id": "GB00BVYVFW23",
+  "name": "AUTOTRADER GROUP PLC",
+  "sector": "Kommunikationsdienste",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3133386.3
+ },
+ {
+  "company_id": "IT0003261697",
+  "name": "AZIMUT HOLDING",
+  "sector": "Finanzen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3127741.8000000003
+ },
+ {
+  "company_id": "NO0010631567",
+  "name": "SPAREBANK  SR-NORGE",
+  "sector": "Finanzen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3091642.5
+ },
+ {
+  "company_id": "NL0000852564",
+  "name": "AALBERTS",
+  "sector": "Industrieunternehmen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3077540.4
+ },
+ {
+  "company_id": "GB00BMWC6P49",
+  "name": "MONDI PLC",
+  "sector": "Material",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3073421.1999999997
+ },
+ {
+  "company_id": "JE00BJ1DLW90",
+  "name": "MAN GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3069501.9
+ },
+ {
+  "company_id": "FR0013227113",
+  "name": "SOITEC SA",
+  "sector": "Informationstechnologie",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3065256.1
+ },
+ {
+  "company_id": "SE0015192067",
+  "name": "NORDNET",
+  "sector": "Finanzen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3057147.5
+ },
+ {
+  "company_id": "GB00B17BBQ50",
+  "name": "INVESTEC PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3056213.4
+ },
+ {
+  "company_id": "DE000A0WMPJ6",
+  "name": "AIXTRON",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3026660.8
+ },
+ {
+  "company_id": "GB00BG49KP99",
+  "name": "TRITAX BIG BOX REIT PLC",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2996449.3000000003
+ },
+ {
+  "company_id": "SE0012454072",
+  "name": "AVANZA BANK HOLDING",
+  "sector": "Finanzen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2992021.0
+ },
+ {
+  "company_id": "CH0319416936",
+  "name": "FLUGHAFEN ZUERICH AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2979680.9
+ },
+ {
+  "company_id": "CH0435377954",
+  "name": "SIG GROUP N AG",
+  "sector": "Material",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2961088.6
+ },
+ {
+  "company_id": "GB00BGDT3G23",
+  "name": "RIGHTMOVE PLC",
+  "sector": "Kommunikationsdienste",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2914227.4
+ },
+ {
+  "company_id": "ES0130960018",
+  "name": "ENAGAS SA",
+  "sector": "Versorgungsunternehmen",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2877436.8
+ },
+ {
+  "company_id": "SE0014990966",
+  "name": "LAGERCRANTZ GROUP CLASS B",
+  "sector": "Informationstechnologie",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2837006.2
+ },
+ {
+  "company_id": "NL0014559478",
+  "name": "TECHNIP ENERGIES",
+  "sector": "Energie",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2828987.9
+ },
+ {
+  "company_id": "FI4000074984",
+  "name": "VALMET CORP",
+  "sector": "Industrieunternehmen",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2825120.4
+ },
+ {
+  "company_id": "IE0000669501",
+  "name": "GLANBIA PLC",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Irland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2803639.0
+ },
+ {
+  "company_id": "BE0003867844",
+  "name": "KBC ANCORA NV",
+  "sector": "Finanzen",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2786755.0
+ },
+ {
+  "company_id": "GB00BV9FP302",
+  "name": "COMPUTACENTER PLC",
+  "sector": "Informationstechnologie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2770640.3000000003
+ },
+ {
+  "company_id": "ES0180907000",
+  "name": "UNICAJA BANCO SA",
+  "sector": "Finanzen",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2756538.0999999996
+ },
+ {
+  "company_id": "BE0974349814",
+  "name": "WAREHOUSES DE PAUW NV",
+  "sector": "Immobilien",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2686999.1999999997
+ },
+ {
+  "company_id": "SE0028329433",
+  "name": "OCTAVE INTELLIGENCE SDR PLC",
+  "sector": "Informationstechnologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2666046.0
+ },
+ {
+  "company_id": "CH1431598916",
+  "name": "INFICON HOLDING AG",
+  "sector": "Informationstechnologie",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2644883.3
+ },
+ {
+  "company_id": "NL0000379121",
+  "name": "RANDSTAD",
+  "sector": "Industrieunternehmen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2641315.8
+ },
+ {
+  "company_id": "GB00BTQHVY80",
+  "name": "JOHNSON MATTHEY PLC",
+  "sector": "Material",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2600321.9
+ },
+ {
+  "company_id": "IT0001031084",
+  "name": "BANCA GENERALI",
+  "sector": "Finanzen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2579590.8
+ },
+ {
+  "company_id": "DK0061802139",
+  "name": "ALK-ABELLO CLASS B",
+  "sector": "Gesundheitswesen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2579366.5999999996
+ },
+ {
+  "company_id": "DE000LEG1110",
+  "name": "LEG IMMOBILIEN N",
+  "sector": "Immobilien",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2564301.9
+ },
+ {
+  "company_id": "GB00BVGBY890",
+  "name": "ZEGONA COMMUNICATIONS PLC",
+  "sector": "Kommunikationsdienste",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2558926.2
+ },
+ {
+  "company_id": "DE0006766504",
+  "name": "AURUBIS AG",
+  "sector": "Material",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2554256.3000000003
+ },
+ {
+  "company_id": "CH0012453913",
+  "name": "TEMENOS AG",
+  "sector": "Informationstechnologie",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2536366.9
+ },
+ {
+  "company_id": "GB00BP0RGD03",
+  "name": "BERKELEY GROUP HOLDINGS (THE)",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2488399.9
+ },
+ {
+  "company_id": "SE0000379190",
+  "name": "CASTELLUM",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2488216.1
+ },
+ {
+  "company_id": "GB0004300496",
+  "name": "PAN AFRICAN RESOURCES PLC",
+  "sector": "Material",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2485456.5
+ },
+ {
+  "company_id": "GB0008782301",
+  "name": "TAYLOR WIMPEY PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2469387.9
+ },
+ {
+  "company_id": "SE0014504817",
+  "name": "LOOMIS CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2444938.7
+ },
+ {
+  "company_id": "SE0022419784",
+  "name": "SECTRA CLASS B",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2424581.0
+ },
+ {
+  "company_id": "FR0013506730",
+  "name": "VALLOUREC SA",
+  "sector": "Energie",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2400219.9000000004
+ },
+ {
+  "company_id": "JE00BSBJ5M88",
+  "name": "ROSEBANK INDUSTRIES PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2381289.0
+ },
+ {
+  "company_id": "DE000RENK730",
+  "name": "RENK GROUP AG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2381059.1
+ },
+ {
+  "company_id": "GB00B1VNSX38",
+  "name": "DRAX GROUP PLC",
+  "sector": "Versorgungsunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2351520.6
+ },
+ {
+  "company_id": "IT0001233417",
+  "name": "A2A",
+  "sector": "Versorgungsunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2337042.8
+ },
+ {
+  "company_id": "GB0002318888",
+  "name": "CRANSWICK PLC",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2318341.8000000003
+ },
+ {
+  "company_id": "DE000TUAG505",
+  "name": "TUI N AG",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2304500.8
+ },
+ {
+  "company_id": "ES0132105018",
+  "name": "ACERINOX",
+  "sector": "Material",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2299118.0
+ },
+ {
+  "company_id": "CH0012100191",
+  "name": "TECAN GROUP AG",
+  "sector": "Gesundheitswesen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2296335.2
+ },
+ {
+  "company_id": "NO0003055501",
+  "name": "NORDIC SEMICONDUCTOR",
+  "sector": "Informationstechnologie",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2291436.6
+ },
+ {
+  "company_id": "DE0005470306",
+  "name": "CTS EVENTIM AG",
+  "sector": "Kommunikationsdienste",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2289600.4
+ },
+ {
+  "company_id": "IM00B5VQMV65",
+  "name": "ENTAIN PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2289407.6
+ },
+ {
+  "company_id": "FR0010313833",
+  "name": "ARKEMA SA",
+  "sector": "Material",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2278266.5
+ },
+ {
+  "company_id": "FR0012435121",
+  "name": "ELIS SA",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2272876.5999999996
+ },
+ {
+  "company_id": "FR0000051807",
+  "name": "TELEPERFORMANCE",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2210743.6
+ },
+ {
+  "company_id": "CH0008837566",
+  "name": "ALLREAL HOLDING AG",
+  "sector": "Immobilien",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2209618.2
+ },
+ {
+  "company_id": "GB0004270301",
+  "name": "HILL AND SMITH PLC",
+  "sector": "Material",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2205808.4000000004
+ },
+ {
+  "company_id": "GB0004657408",
+  "name": "MITIE GROUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2202454.3000000003
+ },
+ {
+  "company_id": "SE0005127818",
+  "name": "SAGAX CLASS B",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2189079.1
+ },
+ {
+  "company_id": "CH0360826991",
+  "name": "COMET HOLDING AG",
+  "sector": "Informationstechnologie",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2188495.9
+ },
+ {
+  "company_id": "NL0000337319",
+  "name": "BAM GROEP KONINKLIJKE NV",
+  "sector": "Industrieunternehmen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2178293.1
+ },
+ {
+  "company_id": "SE0011337708",
+  "name": "AAK",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2177058.9
+ },
+ {
+  "company_id": "NO0010736879",
+  "name": "VEND MARKETPLACES",
+  "sector": "Kommunikationsdienste",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2172777.9000000004
+ },
+ {
+  "company_id": "GB0007973794",
+  "name": "SERCO GROUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2155591.2
+ },
+ {
+  "company_id": "CH1429326825",
+  "name": "SIEGFRIED HOLDING AG",
+  "sector": "Gesundheitswesen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2146692.0
+ },
+ {
+  "company_id": "IT0001250932",
+  "name": "HERA",
+  "sector": "Versorgungsunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2131671.8000000003
+ },
+ {
+  "company_id": "CH0038388911",
+  "name": "SULZER AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2128419.7
+ },
+ {
+  "company_id": "IT0005278236",
+  "name": "PIRELLI & C",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2123742.3000000003
+ },
+ {
+  "company_id": "DK0010234467",
+  "name": "FLSMIDTH AND CO CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2107895.4
+ },
+ {
+  "company_id": "GB0033986497",
+  "name": "ITV PLC",
+  "sector": "Kommunikationsdienste",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2086087.0
+ },
+ {
+  "company_id": "JE00BVSYJW51",
+  "name": "B&M EUROPEAN VALUE RETAIL PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2083989.2000000002
+ },
+ {
+  "company_id": "DE0005158703",
+  "name": "BECHTLE AG",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2082520.5999999999
+ },
+ {
+  "company_id": "NO0010234552",
+  "name": "AKER",
+  "sector": "Industrieunternehmen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2079582.4000000001
+ },
+ {
+  "company_id": "DE000KGX8881",
+  "name": "KION GROUP AG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2078972.2000000002
+ },
+ {
+  "company_id": "IT0005282865",
+  "name": "REPLY",
+  "sector": "Informationstechnologie",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2065259.2
+ },
+ {
+  "company_id": "GB0000904986",
+  "name": "BELLWAY PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2061879.0
+ },
+ {
+  "company_id": "SE0017832488",
+  "name": "FASTIGHETS BALDER CLASS B",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2059612.4
+ },
+ {
+  "company_id": "IL0011284465",
+  "name": "PLUS500",
+  "sector": "Finanzen",
+  "country": "Israel",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2055620.0999999999
+ },
+ {
+  "company_id": "GB00BYZDVK82",
+  "name": "SOFTCAT PLC",
+  "sector": "Informationstechnologie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2055542.1
+ },
+ {
+  "company_id": "DE000A3E5D64",
+  "name": "FUCHS PREF",
+  "sector": "Material",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2054655.7000000002
+ },
+ {
+  "company_id": "BE0974400328",
+  "name": "AZELIS GROUP NV",
+  "sector": "Industrieunternehmen",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2051600.6
+ },
+ {
+  "company_id": "JE00BMDZN391",
+  "name": "TP ICAP GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2032745.6
+ },
+ {
+  "company_id": "GB00B0LCW083",
+  "name": "HIKMA PHARMACEUTICALS PLC",
+  "sector": "Gesundheitswesen",
+  "country": "Jordanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2028804.8000000003
+ },
+ {
+  "company_id": "GB0009697037",
+  "name": "BABCOCK INTERNATIONAL GROUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2027479.6999999997
+ },
+ {
+  "company_id": "SE0007491303",
+  "name": "BRAVIDA HOLDING",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2024799.3
+ },
+ {
+  "company_id": "GB0004866223",
+  "name": "KELLER GROUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2018709.1
+ },
+ {
+  "company_id": "NL0015000LU4",
+  "name": "IVECO GROUP NV",
+  "sector": "Industrieunternehmen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2006344.2999999998
+ },
+ {
+  "company_id": "CH0030380734",
+  "name": "HUBER & SUHNER AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2005174.5999999999
+ },
+ {
+  "company_id": "CH0225173167",
+  "name": "CEMBRA MONEY BANK AG",
+  "sector": "Finanzen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2003691.5
+ },
+ {
+  "company_id": "CH1386220409",
+  "name": "SUNRISE N CLASS A LTD",
+  "sector": "Kommunikationsdienste",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2001223.7000000002
+ },
+ {
+  "company_id": "IT0001078911",
+  "name": "INTERPUMP GROUP",
+  "sector": "Industrieunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1992010.6
+ },
+ {
+  "company_id": "DE000A0Z2ZZ5",
+  "name": "FREENET AG",
+  "sector": "Kommunikationsdienste",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1991497.4999999998
+ },
+ {
+  "company_id": "IT0004764699",
+  "name": "BRUNELLO CUCINELLI",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1988295.8
+ },
+ {
+  "company_id": "CH1176493729",
+  "name": "BACHEM HOLDING AG",
+  "sector": "Gesundheitswesen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1982855.0
+ },
+ {
+  "company_id": "GB00BNHSJN34",
+  "name": "QUILTER PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1982828.6
+ },
+ {
+  "company_id": "FI4000552526",
+  "name": "MANDATUM",
+  "sector": "Finanzen",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1978221.1
+ },
+ {
+  "company_id": "FR0013176526",
+  "name": "VALEO",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1965747.5
+ },
+ {
+  "company_id": "IT0003115950",
+  "name": "DELONGHI",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1962084.2999999998
+ },
+ {
+  "company_id": "CH0126673539",
+  "name": "DKSH HOLDING AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1946895.5999999999
+ },
+ {
+  "company_id": "FR0013269123",
+  "name": "RUBIS",
+  "sector": "Versorgungsunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1945163.7
+ },
+ {
+  "company_id": "NL0009432491",
+  "name": "KONINKLIJKE VOPAK",
+  "sector": "Energie",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1934907.0
+ },
+ {
+  "company_id": "DK0060634707",
+  "name": "ROYAL UNIBREW",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1927241.3
+ },
+ {
+  "company_id": "NL0006237562",
+  "name": "ARCADIS NV",
+  "sector": "Industrieunternehmen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1925487.0
+ },
+ {
+  "company_id": "GB00B61TVQ02",
+  "name": "INCHCAPE PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1925120.2
+ },
+ {
+  "company_id": "CH0011108872",
+  "name": "MOBIMO HOLDING AG",
+  "sector": "Immobilien",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1917308.5999999999
+ },
+ {
+  "company_id": "GB00BMBVGQ36",
+  "name": "HARBOUR ENERGY PLC",
+  "sector": "Energie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1903824.9
+ },
+ {
+  "company_id": "CH0012335540",
+  "name": "VONTOBEL HOLDING AG",
+  "sector": "Finanzen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1899995.0
+ },
+ {
+  "company_id": "FI0009000459",
+  "name": "HUHTAMAKI",
+  "sector": "Material",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1897037.5
+ },
+ {
+  "company_id": "GB00BNTJ3546",
+  "name": "ALLFUNDS GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1875746.1
+ },
+ {
+  "company_id": "GB00BYT18307",
+  "name": "TBC BANK GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Georgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1871571.9
+ },
+ {
+  "company_id": "IT0005366767",
+  "name": "NEXI",
+  "sector": "Finanzen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1870959.5999999999
+ },
+ {
+  "company_id": "CH0014786500",
+  "name": "VALIANT HOLDING AG",
+  "sector": "Finanzen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1868447.9
+ },
+ {
+  "company_id": "GB00BYRJ5J14",
+  "name": "PRIMARY HEALTH PROPERTIES REIT PLC",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1865160.7
+ },
+ {
+  "company_id": "GB00B0WMWD03",
+  "name": "QINETIQ GROUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1845068.4
+ },
+ {
+  "company_id": "NO0003078800",
+  "name": "TGS",
+  "sector": "Energie",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1819802.9
+ },
+ {
+  "company_id": "ES0171996087",
+  "name": "GRIFOLS CLASS A",
+  "sector": "Gesundheitswesen",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1814840.1
+ },
+ {
+  "company_id": "DE000KSAG888",
+  "name": "K+S N AG",
+  "sector": "Material",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1810468.1
+ },
+ {
+  "company_id": "SE0006993770",
+  "name": "AXFOOD",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1810428.5
+ },
+ {
+  "company_id": "CH0239229302",
+  "name": "SFS GROUP AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1796395.6
+ },
+ {
+  "company_id": "GB00BNNTLN49",
+  "name": "PENNON GROUP PLC",
+  "sector": "Versorgungsunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1781915.1
+ },
+ {
+  "company_id": "GB00B7KR2P84",
+  "name": "EASYJET",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1779879.6
+ },
+ {
+  "company_id": "NO0006390301",
+  "name": "SPAREBANK  SMNS",
+  "sector": "Finanzen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1778513.8
+ },
+ {
+  "company_id": "GB00B63QSB39",
+  "name": "GREGGS PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1774362.7
+ },
+ {
+  "company_id": "NO0013697029",
+  "name": "KONGSBERG MARITIME",
+  "sector": "Industrieunternehmen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1772134.2
+ },
+ {
+  "company_id": "FR0000071946",
+  "name": "ALTEN SA",
+  "sector": "Informationstechnologie",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1757756.7999999998
+ },
+ {
+  "company_id": "GB00BZ3CNK81",
+  "name": "TORM PLC CLASS A",
+  "sector": "Energie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1756890.0
+ },
+ {
+  "company_id": "GB0007323586",
+  "name": "RENISHAW PLC",
+  "sector": "Informationstechnologie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1754576.2
+ },
+ {
+  "company_id": "GB0006928617",
+  "name": "UNITE GROUP PLC",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1738725.3
+ },
+ {
+  "company_id": "GB00BP92CJ43",
+  "name": "TATE AND LYLE PLC",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1737913.1
+ },
+ {
+  "company_id": "GB00B62G9D36",
+  "name": "SHAFTESBURY CAPITAL PLC",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1728123.9
+ },
+ {
+  "company_id": "CH0012142631",
+  "name": "CLARIANT AG",
+  "sector": "Material",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1722053.9
+ },
+ {
+  "company_id": "DK0063855168",
+  "name": "ROCKWOOL CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1714492.0
+ },
+ {
+  "company_id": "DE000A2LQ884",
+  "name": "AUTO1 GROUP",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1713423.7
+ },
+ {
+  "company_id": "DE000FTG1111",
+  "name": "FLATEXDEGIRO N",
+  "sector": "Finanzen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1711570.0999999999
+ },
+ {
+  "company_id": "SE0023615638",
+  "name": "ASMODEE GROUP CLASS B",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1702830.2999999998
+ },
+ {
+  "company_id": "FR0000050809",
+  "name": "SOPRA STERIA GROUP SA",
+  "sector": "Informationstechnologie",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1702702.4000000001
+ },
+ {
+  "company_id": "SE0014960373",
+  "name": "SWECO CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1701351.2000000002
+ },
+ {
+  "company_id": "FR0013451333",
+  "name": "FDJ UNITED",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1690977.0
+ },
+ {
+  "company_id": "GB00BRJQ8J25",
+  "name": "HAMMERSON REIT PLC",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1687904.3
+ },
+ {
+  "company_id": "AT0000908504",
+  "name": "VIENNA INSURANCE GROUP AG",
+  "sector": "Finanzen",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1685314.6
+ },
+ {
+  "company_id": "SE0007692850",
+  "name": "CAMURUS",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1677023.0999999999
+ },
+ {
+  "company_id": "DE0005773303",
+  "name": "FRAPORT AG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1668998.7
+ },
+ {
+  "company_id": "AT0000A3EPA4",
+  "name": "AMS-OSRAM AG",
+  "sector": "Informationstechnologie",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1668876.0999999999
+ },
+ {
+  "company_id": "DE0006969603",
+  "name": "PUMA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1647565.0999999999
+ },
+ {
+  "company_id": "FI4000571013",
+  "name": "HIAB OYJ",
+  "sector": "Industrieunternehmen",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1642188.0
+ },
+ {
+  "company_id": "GB0002652740",
+  "name": "DERWENT LONDON REIT PLC",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1629234.4
+ },
+ {
+  "company_id": "DK0015998017",
+  "name": "BAVARIAN NORDIC",
+  "sector": "Gesundheitswesen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1626798.6
+ },
+ {
+  "company_id": "GB00BJVQC708",
+  "name": "HELIOS TOWERS PLC",
+  "sector": "Kommunikationsdienste",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1623876.5
+ },
+ {
+  "company_id": "ES0182870214",
+  "name": "SACYR",
+  "sector": "Industrieunternehmen",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1620177.2
+ },
+ {
+  "company_id": "GB00BFZNLB60",
+  "name": "AJ BELL PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1595593.5
+ },
+ {
+  "company_id": "SGXZ69436764",
+  "name": "BW LPG LTD",
+  "sector": "Energie",
+  "country": "Singapur",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1591409.5
+ },
+ {
+  "company_id": "GB0008085614",
+  "name": "MORGAN SINDALL GROUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1590051.8
+ },
+ {
+  "company_id": "DE000A2NB601",
+  "name": "JENOPTIK N AG",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1580417.9000000001
+ },
+ {
+  "company_id": "SE0007074281",
+  "name": "HEXPOL CLASS B",
+  "sector": "Material",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1570038.3
+ },
+ {
+  "company_id": "SE0016101844",
+  "name": "SINCH",
+  "sector": "Informationstechnologie",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1564278.9
+ },
+ {
+  "company_id": "SE0011090018",
+  "name": "HOLMEN CLASS B",
+  "sector": "Material",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1558149.5
+ },
+ {
+  "company_id": "DK0060257814",
+  "name": "ZEALAND PHARMA",
+  "sector": "Gesundheitswesen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1543757.0
+ },
+ {
+  "company_id": "NL0009269109",
+  "name": "KONINKLIJKE HEIJMANS DUTCH CERTIFI",
+  "sector": "Industrieunternehmen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1539394.7
+ },
+ {
+  "company_id": "FI0009002422",
+  "name": "OUTOKUMPU",
+  "sector": "Material",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1523707.2000000002
+ },
+ {
+  "company_id": "ES0105027009",
+  "name": "LOGISTA INTEGRAL SA",
+  "sector": "Industrieunternehmen",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1522247.8
+ },
+ {
+  "company_id": "GB00BM8Q5M07",
+  "name": "JD SPORTS FASHION PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1517059.7000000002
+ },
+ {
+  "company_id": "DE0008303504",
+  "name": "TAG IMMOBILIEN AG",
+  "sector": "Immobilien",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1503504.4000000001
+ },
+ {
+  "company_id": "DE000TKMS001",
+  "name": "TKMS AG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1502329.0
+ },
+ {
+  "company_id": "FO0000000179",
+  "name": "BAKKAFROST",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "F\u00e4r\u00f6er Inseln",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1493446.7000000002
+ },
+ {
+  "company_id": "GB00B1FW5029",
+  "name": "HOCHSCHILD MINING PLC",
+  "sector": "Material",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1482792.4000000001
+ },
+ {
+  "company_id": "DE0005909006",
+  "name": "BILFINGER",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1481595.7
+ },
+ {
+  "company_id": "NO0010209331",
+  "name": "PROTECTOR FORSIKRING",
+  "sector": "Finanzen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1478867.6
+ },
+ {
+  "company_id": "CH0002432174",
+  "name": "BUCHER INDUSTRIES AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1478082.0
+ },
+ {
+  "company_id": "GB00BLDRH360",
+  "name": "OSB GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1473952.8
+ },
+ {
+  "company_id": "ES0184262212",
+  "name": "VISCOFAN SA",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1473560.1
+ },
+ {
+  "company_id": "NL0000852523",
+  "name": "TKH GROUP",
+  "sector": "Industrieunternehmen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1467735.8
+ },
+ {
+  "company_id": "NO0003079709",
+  "name": "KITRON",
+  "sector": "Informationstechnologie",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1457737.5999999999
+ },
+ {
+  "company_id": "DK0010272632",
+  "name": "GN STORE NORD",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1452462.1
+ },
+ {
+  "company_id": "FR0000121204",
+  "name": "WENDEL",
+  "sector": "Finanzen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1449187.5
+ },
+ {
+  "company_id": "ES0183746314",
+  "name": "VIDRALA",
+  "sector": "Material",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1447006.8
+ },
+ {
+  "company_id": "CH1486524122",
+  "name": "DORMAKABA HOLDING AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1443071.2
+ },
+ {
+  "company_id": "CH0012829898",
+  "name": "EMMI AG",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1433276.5
+ },
+ {
+  "company_id": "BE0003816338",
+  "name": "CMB.TECH NV",
+  "sector": "Energie",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1419091.9
+ },
+ {
+  "company_id": "DE000AUM0V10",
+  "name": "AUMOVIO N",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1412480.0
+ },
+ {
+  "company_id": "FR001400Q9V2",
+  "name": "EXOSENS SA",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1405118.9
+ },
+ {
+  "company_id": "FI0009005318",
+  "name": "NOKIAN RENKAAT",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1400167.5999999999
+ },
+ {
+  "company_id": "IE00B00MZ448",
+  "name": "GRAFTON GROUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Irland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1398373.3
+ },
+ {
+  "company_id": "LU0569974404",
+  "name": "APERAM SA",
+  "sector": "Material",
+  "country": "Luxemburg",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1397519.7999999998
+ },
+ {
+  "company_id": "SE0006422390",
+  "name": "THULE GROUP",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1392000.7
+ },
+ {
+  "company_id": "AT0000821103",
+  "name": "UNIQA INSURANCE GROUP AG",
+  "sector": "Finanzen",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1390973.5
+ },
+ {
+  "company_id": "GB0006650450",
+  "name": "OXFORD INSTRUMENTS PLC",
+  "sector": "Informationstechnologie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1381891.4000000001
+ },
+ {
+  "company_id": "FI0009000277",
+  "name": "TIETO",
+  "sector": "Informationstechnologie",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1375090.1
+ },
+ {
+  "company_id": "NL0011821392",
+  "name": "SIGNIFY",
+  "sector": "Industrieunternehmen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1373063.9
+ },
+ {
+  "company_id": "DE0005089031",
+  "name": "UNITED INTERNET AG",
+  "sector": "Kommunikationsdienste",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1373020.5999999999
+ },
+ {
+  "company_id": "SE0000171100",
+  "name": "SSAB CLASS A",
+  "sector": "Material",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1371169.6
+ },
+ {
+  "company_id": "IT0001206769",
+  "name": "SOL",
+  "sector": "Material",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1371077.1
+ },
+ {
+  "company_id": "NO0012470089",
+  "name": "TOMRA SYSTEMS",
+  "sector": "Industrieunternehmen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1366498.5
+ },
+ {
+  "company_id": "IT0004931058",
+  "name": "MAIRE SPA",
+  "sector": "Industrieunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1364135.7
+ },
+ {
+  "company_id": "NO0011082075",
+  "name": "HOEGH AUTOLINERS",
+  "sector": "Industrieunternehmen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1360090.1
+ },
+ {
+  "company_id": "FI0009004824",
+  "name": "KEMIRA",
+  "sector": "Material",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1359046.2999999998
+ },
+ {
+  "company_id": "GB00B4YZN328",
+  "name": "COATS GROUP PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1356222.9
+ },
+ {
+  "company_id": "BE0003470755",
+  "name": "SOLVAY SA",
+  "sector": "Material",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1343317.5999999999
+ },
+ {
+  "company_id": "AT0000831706",
+  "name": "WIENERBERGER AG",
+  "sector": "Material",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1335307.7
+ },
+ {
+  "company_id": "CH0002178181",
+  "name": "STADLER RAIL AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1326365.5
+ },
+ {
+  "company_id": "GB00BJDQQ870",
+  "name": "WATCHES OF SWITZERLAND GROUP PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1319877.3
+ },
+ {
+  "company_id": "SE0017615644",
+  "name": "ALLEIMA",
+  "sector": "Material",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1312932.1
+ },
+ {
+  "company_id": "IT0004056880",
+  "name": "AMPLIFON",
+  "sector": "Gesundheitswesen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1309274.5
+ },
+ {
+  "company_id": "GB0002869419",
+  "name": "BIG YELLOW GROUP PLC",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1308294.6
+ },
+ {
+  "company_id": "PTSON0AM0001",
+  "name": "SONAE SA",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Portugal",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1295660.8
+ },
+ {
+  "company_id": "GB00B3FLWH99",
+  "name": "BODYCOTE PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1293448.2
+ },
+ {
+  "company_id": "FR0000077919",
+  "name": "JCDECAUX",
+  "sector": "Kommunikationsdienste",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1286669.3
+ },
+ {
+  "company_id": "NO0010571680",
+  "name": "WALLENIUS WILHELMSEN",
+  "sector": "Industrieunternehmen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1280498.2
+ },
+ {
+  "company_id": "DE0006305006",
+  "name": "DEUTZ AG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1279219.5
+ },
+ {
+  "company_id": "GB00B45C9X44",
+  "name": "CHEMRING GROUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1269589.8
+ },
+ {
+  "company_id": "BMG5361W1047",
+  "name": "LANCASHIRE HOLDINGS",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1269355.5
+ },
+ {
+  "company_id": "GB00BGBN7C04",
+  "name": "SSP GROUP PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1262237.8
+ },
+ {
+  "company_id": "GB0002074580",
+  "name": "GENUS PLC",
+  "sector": "Gesundheitswesen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1256370.4000000001
+ },
+ {
+  "company_id": "GB0002018363",
+  "name": "CLARKSON PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1249282.9000000001
+ },
+ {
+  "company_id": "CY0106002112",
+  "name": "ATALAYA MINING COPPER SA",
+  "sector": "Material",
+  "country": "Zypern",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1249122.6
+ },
+ {
+  "company_id": "GB00B4Y7R145",
+  "name": "CURRYS PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1247017.7
+ },
+ {
+  "company_id": "CH0022268228",
+  "name": "EFG INTERNATIONAL AG",
+  "sector": "Finanzen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1242400.1
+ },
+ {
+  "company_id": "NL0000302636",
+  "name": "VAN LANSCHOT KEMPEN NV",
+  "sector": "Finanzen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1238317.3
+ },
+ {
+  "company_id": "SE0000163628",
+  "name": "ELEKTA CLASS B",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1231197.6
+ },
+ {
+  "company_id": "SE0025010671",
+  "name": "BUFAB",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1229781.7
+ },
+ {
+  "company_id": "GB00B3MBS747",
+  "name": "OCADO GROUP PLC",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1225747.8
+ },
+ {
+  "company_id": "DK0060700516",
+  "name": "PER AARSLEFF HOLDING CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1221099.7
+ },
+ {
+  "company_id": "SE0018012635",
+  "name": "WIHLBORGS FASTIGHETER",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1214242.4000000001
+ },
+ {
+  "company_id": "IE0003864109",
+  "name": "GREENCORE GROUP PLC",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Irland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1209531.6
+ },
+ {
+  "company_id": "IE00BWY4ZF18",
+  "name": "CAIRN HOMES PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Irland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1207161.7
+ },
+ {
+  "company_id": "DK0060946788",
+  "name": "AMBU CLASS B",
+  "sector": "Gesundheitswesen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1206858.6
+ },
+ {
+  "company_id": "GB00B135BJ46",
+  "name": "SAVILLS PLC",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1204987.4
+ },
+ {
+  "company_id": "DK0061804770",
+  "name": "H. LUNDBECK CLASS B",
+  "sector": "Gesundheitswesen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1201769.2
+ },
+ {
+  "company_id": "DE000WCH8881",
+  "name": "WACKER CHEMIE AG",
+  "sector": "Material",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1196885.4000000001
+ },
+ {
+  "company_id": "GG00B1W3VF54",
+  "name": "SIRIUS REAL ESTATE LIMITED",
+  "sector": "Immobilien",
+  "country": "Guernsey",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1195286.4
+ },
+ {
+  "company_id": "SE0006288015",
+  "name": "GRANGES",
+  "sector": "Material",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1195053.0
+ },
+ {
+  "company_id": "DK0060952919",
+  "name": "NETCOMPANY GROUP",
+  "sector": "Informationstechnologie",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1189239.2
+ },
+ {
+  "company_id": "GB00BYX5K988",
+  "name": "SIGMAROC PLC",
+  "sector": "Material",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1186538.3
+ },
+ {
+  "company_id": "SE0014401378",
+  "name": "ADDLIFE CLASS B",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1183329.0
+ },
+ {
+  "company_id": "DE0006202005",
+  "name": "SALZGITTER AG",
+  "sector": "Material",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1182210.2
+ },
+ {
+  "company_id": "NO0012851874",
+  "name": "DOF GROUP",
+  "sector": "Energie",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1180619.0
+ },
+ {
+  "company_id": "CH0019396990",
+  "name": "YPSOMED HOLDING AG",
+  "sector": "Gesundheitswesen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1174244.2
+ },
+ {
+  "company_id": "GB00B1722W11",
+  "name": "JET2 PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1168721.5
+ },
+ {
+  "company_id": "JE00BF50RG45",
+  "name": "YELLOW CAKE PLC",
+  "sector": "Energie",
+  "country": "Jersey",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1167925.8
+ },
+ {
+  "company_id": "DE000A3E00M1",
+  "name": "IONOS GROUP N",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1165630.5999999999
+ },
+ {
+  "company_id": "FR001400T0D6",
+  "name": "CANAL+ SA",
+  "sector": "Kommunikationsdienste",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1164626.9000000001
+ },
+ {
+  "company_id": "CH0496451508",
+  "name": "SOFTWAREONE HOLDING AG",
+  "sector": "Informationstechnologie",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1160464.0999999999
+ },
+ {
+  "company_id": "CH0025536027",
+  "name": "BURCKHARDT COMPRESSION HOLDING AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1158057.2
+ },
+ {
+  "company_id": "IT0005599938",
+  "name": "FINCANTIERI",
+  "sector": "Industrieunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1154332.2
+ },
+ {
+  "company_id": "GB00BF4HYV08",
+  "name": "GEORGIA CAPITAL PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1147249.5
+ },
+ {
+  "company_id": "GB00B2NGPM57",
+  "name": "PARAGON BANKING GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1142854.1
+ },
+ {
+  "company_id": "SE0000195810",
+  "name": "BURE EQUITY",
+  "sector": "Finanzen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1141371.4000000001
+ },
+ {
+  "company_id": "SE0009778848",
+  "name": "MEDICOVER CLASS B",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1140124.1
+ },
+ {
+  "company_id": "SE0000862997",
+  "name": "BILLERUD AKTIEBOLAG",
+  "sector": "Material",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1138697.9
+ },
+ {
+  "company_id": "FR0000121121",
+  "name": "EURAZEO",
+  "sector": "Finanzen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1132334.2000000002
+ },
+ {
+  "company_id": "CH0100837282",
+  "name": "KARDEX HOLDING AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1126732.4
+ },
+ {
+  "company_id": "SE0009997018",
+  "name": "HMS NETWORKS",
+  "sector": "Informationstechnologie",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1125230.2
+ },
+ {
+  "company_id": "CH0238627142",
+  "name": "BOSSARD HOLDING AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1123292.3
+ },
+ {
+  "company_id": "BMG0670A1099",
+  "name": "AUTOSTORE HOLDINGS LTD",
+  "sector": "Industrieunternehmen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1116887.6
+ },
+ {
+  "company_id": "GB0004915632",
+  "name": "KIER GROUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1112401.2
+ },
+ {
+  "company_id": "FR0010667147",
+  "name": "COFACE SA",
+  "sector": "Finanzen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1106032.7000000002
+ },
+ {
+  "company_id": "JE00BYVQYS01",
+  "name": "INTERNATIONAL WORKPLACE GROUP PLC",
+  "sector": "Immobilien",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1105625.3
+ },
+ {
+  "company_id": "BE0003874915",
+  "name": "FAGRON NV",
+  "sector": "Gesundheitswesen",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1105550.0
+ },
+ {
+  "company_id": "LU0088087324",
+  "name": "SES SA FDR",
+  "sector": "Kommunikationsdienste",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1105361.4
+ },
+ {
+  "company_id": "NL0011872650",
+  "name": "BASIC-FIT",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1103719.4000000001
+ },
+ {
+  "company_id": "SE0016589188",
+  "name": "ELECTROLUX CLASS B",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1102986.9
+ },
+ {
+  "company_id": "GB00BND88V85",
+  "name": "BRIDGEPOINT GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1096558.3
+ },
+ {
+  "company_id": "GB00BN3ZZ526",
+  "name": "VOLUTION GROUP PLCINARY",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1094955.0999999999
+ },
+ {
+  "company_id": "SE0009806607",
+  "name": "MUNTERS GROUP",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1092287.7
+ },
+ {
+  "company_id": "GB0007958233",
+  "name": "SENIOR PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1087403.7
+ },
+ {
+  "company_id": "DE0005677108",
+  "name": "ELMOS SEMICONDUCTOR",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1087289.8
+ },
+ {
+  "company_id": "GB00B7N0K053",
+  "name": "PREMIER FOODS PLC",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1086663.0999999999
+ },
+ {
+  "company_id": "GB00BK9RKT01",
+  "name": "TRAVIS PERKINS PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1083340.3
+ },
+ {
+  "company_id": "DK0015250344",
+  "name": "ALM BRAND",
+  "sector": "Finanzen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1072348.5
+ },
+ {
+  "company_id": "GB0006640972",
+  "name": "4IMPRINT GROUP PLC",
+  "sector": "Kommunikationsdienste",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1071493.9000000001
+ },
+ {
+  "company_id": "AT0000818802",
+  "name": "DO & CO AKTIENGESELLSCHAFT",
+  "sector": "Industrieunternehmen",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1065904.2
+ },
+ {
+  "company_id": "SE0007100359",
+  "name": "PANDOX CLASS B",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1065590.8
+ },
+ {
+  "company_id": "IT0005331019",
+  "name": "CAREL",
+  "sector": "Industrieunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1062329.9
+ },
+ {
+  "company_id": "FI4000571054",
+  "name": "KALMAR CORPORATION CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1060010.9
+ },
+ {
+  "company_id": "DE000A1K0235",
+  "name": "SUSS MICROTEC N",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1058962.4
+ },
+ {
+  "company_id": "DE0006335003",
+  "name": "KRONES AG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1054230.7
+ },
+ {
+  "company_id": "IT0003121677",
+  "name": "CREDITO EMILIANO",
+  "sector": "Finanzen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1053605.1
+ },
+ {
+  "company_id": "ES0137650018",
+  "name": "FLUIDRA SA",
+  "sector": "Industrieunternehmen",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1053221.7
+ },
+ {
+  "company_id": "SE0000106205",
+  "name": "PEAB CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1049012.7
+ },
+ {
+  "company_id": "NL0015001KT6",
+  "name": "FRENI BREMBO NV",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1048152.4
+ },
+ {
+  "company_id": "NO0006000801",
+  "name": "SPAREBANK  NORD-NORGE",
+  "sector": "Finanzen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1048096.9
+ },
+ {
+  "company_id": "SE0001664707",
+  "name": "CATENA",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1047416.2000000001
+ },
+ {
+  "company_id": "IT0005162406",
+  "name": "TECHNOGYM",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1043519.3
+ },
+ {
+  "company_id": "IT0003027817",
+  "name": "IREN",
+  "sector": "Versorgungsunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1038578.0000000001
+ },
+ {
+  "company_id": "LI0355147575",
+  "name": "LIECHTENSTEINISCHE LANDESBANK",
+  "sector": "Finanzen",
+  "country": "Liechtenstein",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1032835.1
+ },
+ {
+  "company_id": "SE0016797732",
+  "name": "STORSKOGEN GROUP CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1009179.0
+ },
+ {
+  "company_id": "FR001400J770",
+  "name": "AIR FRANCE-KLM SA",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1007138.6000000001
+ },
+ {
+  "company_id": "SE0017160773",
+  "name": "NCAB GROUP",
+  "sector": "Informationstechnologie",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1000958.5999999999
+ },
+ {
+  "company_id": "SE0007666110",
+  "name": "ATTENDO",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 998838.4999999999
+ },
+ {
+  "company_id": "SE0000117970",
+  "name": "NCC CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 997962.3999999999
+ },
+ {
+  "company_id": "FR0000121709",
+  "name": "SEB SA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 997675.9
+ },
+ {
+  "company_id": "SE0000584948",
+  "name": "CLAS OHLSON CLASS B",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 990943.1
+ },
+ {
+  "company_id": "FR0000121147",
+  "name": "FORVIA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 981778.2000000001
+ },
+ {
+  "company_id": "ES0139140174",
+  "name": "COLONIAL SFL SOCIMI SA",
+  "sector": "Immobilien",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 980125.6000000001
+ },
+ {
+  "company_id": "SE0023135298",
+  "name": "NOBA BANK GROUP",
+  "sector": "Finanzen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 976462.8
+ },
+ {
+  "company_id": "ES0121975009",
+  "name": "CONSTRUCCIONES Y AUXILIAR DE FERRO",
+  "sector": "Industrieunternehmen",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 973269.6
+ },
+ {
+  "company_id": "SE0022060521",
+  "name": "KINNEVIK CLASS B",
+  "sector": "Finanzen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 972992.2
+ },
+ {
+  "company_id": "ES0178165017",
+  "name": "TECNICAS REUNIDAS SA",
+  "sector": "Energie",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 968145.3
+ },
+ {
+  "company_id": "DE000WAF3001",
+  "name": "SILTRONIC N AG",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 963950.4
+ },
+ {
+  "company_id": "FR0000031577",
+  "name": "VIRBAC SA",
+  "sector": "Gesundheitswesen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 961048.2
+ },
+ {
+  "company_id": "NO0010715139",
+  "name": "SCATEC",
+  "sector": "Versorgungsunternehmen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 961039.9
+ },
+ {
+  "company_id": "BE0165385973",
+  "name": "MELEXIS NV",
+  "sector": "Informationstechnologie",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 959982.5
+ },
+ {
+  "company_id": "FI4000507124",
+  "name": "PUUILO",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 958240.7
+ },
+ {
+  "company_id": "NL0010583399",
+  "name": "CORBION NV CLASS C",
+  "sector": "Material",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 949080.2
+ },
+ {
+  "company_id": "GB00B04V1276",
+  "name": "GRAINGER PLC",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 945756.0
+ },
+ {
+  "company_id": "GB00B1N7Z094",
+  "name": "SAFESTORE HOLDINGS PLC",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 930689.2000000001
+ },
+ {
+  "company_id": "CH0024590272",
+  "name": "ALSO HOLDING AG",
+  "sector": "Informationstechnologie",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 930640.2
+ },
+ {
+  "company_id": "IT0005176406",
+  "name": "ENAV SPA",
+  "sector": "Industrieunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 928748.8
+ },
+ {
+  "company_id": "FR0000050353",
+  "name": "LISI SA",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 928721.5
+ },
+ {
+  "company_id": "SE0022062196",
+  "name": "AQ GROUP",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 924925.2000000001
+ },
+ {
+  "company_id": "ES0105630315",
+  "name": "CIE AUTOMOTIVE SA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 924542.9
+ },
+ {
+  "company_id": "SE0007640156",
+  "name": "SCANDIC HOTELS GROUP",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 921782.6
+ },
+ {
+  "company_id": "GB00BD45SH49",
+  "name": "INTEGRAFIN HOLDINGS",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 918721.3
+ },
+ {
+  "company_id": "ES0165386014",
+  "name": "SOLARIA ENERGIA Y MEDIO AMBIENTE S",
+  "sector": "Versorgungsunternehmen",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 918252.9
+ },
+ {
+  "company_id": "GB00BF5H9P87",
+  "name": "GREAT PORTLAND ESTATES PLC",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 914637.3999999999
+ },
+ {
+  "company_id": "IT0000076486",
+  "name": "DANIELI & C OFFICINE MECCANICHE SA",
+  "sector": "Industrieunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 912876.4
+ },
+ {
+  "company_id": "IT0003492391",
+  "name": "DIASORIN",
+  "sector": "Gesundheitswesen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 912346.2000000001
+ },
+ {
+  "company_id": "DE000SHA0100",
+  "name": "SCHAEFFLER N AG",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 907556.0
+ },
+ {
+  "company_id": "FR0000062671",
+  "name": "EXAIL TECHNOLOGIES SA",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 907393.8
+ },
+ {
+  "company_id": "CH0371153492",
+  "name": "LANDIS+GYR GROUP AG",
+  "sector": "Informationstechnologie",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 904989.2
+ },
+ {
+  "company_id": "BE0003853703",
+  "name": "MONTEA NV",
+  "sector": "Immobilien",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 901392.9
+ },
+ {
+  "company_id": "GB00BP6S8Z30",
+  "name": "OXFORD NANOPORE TECHNOLOGIES PLC",
+  "sector": "Gesundheitswesen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 898985.1
+ },
+ {
+  "company_id": "GB00BY7QYJ50",
+  "name": "MOLTEN VENTURES PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 896601.4
+ },
+ {
+  "company_id": "GB00BG12Y042",
+  "name": "ENERGEAN PLC",
+  "sector": "Energie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 894306.1
+ },
+ {
+  "company_id": "NO0004822503",
+  "name": "ATEA",
+  "sector": "Informationstechnologie",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 889184.7000000001
+ },
+ {
+  "company_id": "CH0017875789",
+  "name": "JUNGFRAUBAHN HOLDING AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 886594.5
+ },
+ {
+  "company_id": "BE0974258874",
+  "name": "BEKAERT (D) SA",
+  "sector": "Material",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 883768.3
+ },
+ {
+  "company_id": "PTREL0AM0008",
+  "name": "REN REDES ENERGETICAS NACIONAIS SA",
+  "sector": "Versorgungsunternehmen",
+  "country": "Portugal",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 882335.6
+ },
+ {
+  "company_id": "GB00B41H7391",
+  "name": "ZIGUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 876555.1
+ },
+ {
+  "company_id": "IT0001157020",
+  "name": "ERG",
+  "sector": "Versorgungsunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 875006.1000000001
+ },
+ {
+  "company_id": "NO0010735343",
+  "name": "EUROPRIS",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 874480.6
+ },
+ {
+  "company_id": "DK0010253921",
+  "name": "SCHOUW AND CO",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 873351.2999999999
+ },
+ {
+  "company_id": "NO0010379266",
+  "name": "BLUENORD",
+  "sector": "Energie",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 870709.2
+ },
+ {
+  "company_id": "GB0002418548",
+  "name": "ELEMENTIS PLC",
+  "sector": "Material",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 870627.9
+ },
+ {
+  "company_id": "GB00BF345X11",
+  "name": "SUPERMARKET INCOME REIT PLC",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 870154.0
+ },
+ {
+  "company_id": "GB0004161021",
+  "name": "HAYS",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 865759.1000000001
+ },
+ {
+  "company_id": "DK0060055861",
+  "name": "CHEMOMETEC",
+  "sector": "Gesundheitswesen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 865412.7
+ },
+ {
+  "company_id": "LU1704650164",
+  "name": "BEFESA SA",
+  "sector": "Industrieunternehmen",
+  "country": "Luxemburg",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 864730.5
+ },
+ {
+  "company_id": "SE0010323311",
+  "name": "BIOARCTIC CLASS B",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 861666.2999999999
+ },
+ {
+  "company_id": "LU1673108939",
+  "name": "AROUNDTOWN SA",
+  "sector": "Immobilien",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 860395.2
+ },
+ {
+  "company_id": "SE0024171458",
+  "name": "ASKER HEALTHCARE GROUP",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 858379.1
+ },
+ {
+  "company_id": "NL0015000K93",
+  "name": "EUROCOMMERCIAL PROPERTIES",
+  "sector": "Immobilien",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 852877.6
+ },
+ {
+  "company_id": "GB0003452173",
+  "name": "FIRSTGROUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 852125.1000000001
+ },
+ {
+  "company_id": "GB00BZ0D6727",
+  "name": "KAINOS GROUP PLC",
+  "sector": "Informationstechnologie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 847556.4
+ },
+ {
+  "company_id": "GB00BMH18Q19",
+  "name": "BYTES TECHNOLOGY GROUP PLC",
+  "sector": "Informationstechnologie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 847054.8999999999
+ },
+ {
+  "company_id": "GB00B1CKQ739",
+  "name": "DUNELM GROUP PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 846920.7000000001
+ },
+ {
+  "company_id": "FR0000073298",
+  "name": "IPSOS SA",
+  "sector": "Kommunikationsdienste",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 844073.5
+ },
+ {
+  "company_id": "NL0012044747",
+  "name": "REDCARE PHARMACY NV",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 837238.5
+ },
+ {
+  "company_id": "FR0000120966",
+  "name": "BIC SA",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 833533.7000000001
+ },
+ {
+  "company_id": "DE0005313704",
+  "name": "CARL ZEISS MEDITEC AG",
+  "sector": "Gesundheitswesen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 830094.7
+ },
+ {
+  "company_id": "NL0015001W49",
+  "name": "PLUXEE",
+  "sector": "Finanzen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 828851.3
+ },
+ {
+  "company_id": "DE0006219934",
+  "name": "JUNGHEINRICH PREF AG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 828798.0
+ },
+ {
+  "company_id": "DE0007493991",
+  "name": "STROEER",
+  "sector": "Kommunikationsdienste",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 827620.1
+ },
+ {
+  "company_id": "ES0129743318",
+  "name": "ELECNOR",
+  "sector": "Industrieunternehmen",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 826967.9
+ },
+ {
+  "company_id": "DK0061412772",
+  "name": "CADELER",
+  "sector": "Industrieunternehmen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 826056.9
+ },
+ {
+  "company_id": "FI4000312251",
+  "name": "LUMO KODIT OYJ",
+  "sector": "Immobilien",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 825943.4
+ },
+ {
+  "company_id": "GB00BQS10J50",
+  "name": "GAMMA COMMUNICATIONS",
+  "sector": "Kommunikationsdienste",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 825725.7000000001
+ },
+ {
+  "company_id": "CH0023868554",
+  "name": "IMPLENIA AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 821472.4
+ },
+ {
+  "company_id": "SE0009663826",
+  "name": "AMBEA",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 818321.7000000001
+ },
+ {
+  "company_id": "NO0010716582",
+  "name": "AKER SOLUTIONS",
+  "sector": "Energie",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 814861.2000000001
+ },
+ {
+  "company_id": "SE0017780133",
+  "name": "WALLENSTAM CLASS B",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 814190.0
+ },
+ {
+  "company_id": "BMG671801022",
+  "name": "ODFJELL DRILLING",
+  "sector": "Energie",
+  "country": "Bermudas",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 814030.5
+ },
+ {
+  "company_id": "BE0003699130",
+  "name": "GIMV NV",
+  "sector": "Finanzen",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 809989.4
+ },
+ {
+  "company_id": "SE0009858152",
+  "name": "BONESUPPORT HOLDING",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 806285.0
+ },
+ {
+  "company_id": "BE0974413453",
+  "name": "DEME GROUP NV",
+  "sector": "Industrieunternehmen",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 805823.7000000001
+ },
+ {
+  "company_id": "DE000A41YHG1",
+  "name": "ALZCHEM GROUP N AG",
+  "sector": "Material",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 798234.5
+ },
+ {
+  "company_id": "CH0000816824",
+  "name": "OC OERLIKON CORPORATION",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 791091.4
+ },
+ {
+  "company_id": "SE0011166974",
+  "name": "FABEGE",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 790990.5
+ },
+ {
+  "company_id": "GB00B132NW22",
+  "name": "ASHMORE GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 789702.1
+ },
+ {
+  "company_id": "NO0010791353",
+  "name": "MPC CONTAINER SHIPS",
+  "sector": "Industrieunternehmen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 788090.2000000001
+ },
+ {
+  "company_id": "DE0005470405",
+  "name": "LANXESS AG",
+  "sector": "Material",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 786254.7999999999
+ },
+ {
+  "company_id": "SE0017072259",
+  "name": "INTEA FASTIGHETER CLASS B",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 783049.5
+ },
+ {
+  "company_id": "GB0002148343",
+  "name": "RATHBONES GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 781412.5
+ },
+ {
+  "company_id": "AT0000741053",
+  "name": "EVN AG",
+  "sector": "Versorgungsunternehmen",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 774639.1
+ },
+ {
+  "company_id": "GB00BM8NFJ84",
+  "name": "BREEDON GROUP PLC",
+  "sector": "Material",
+  "country": "Jersey",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 773550.4
+ },
+ {
+  "company_id": "NO0003096208",
+  "name": "LEROY SEAFOOD GROUP",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 771865.5
+ },
+ {
+  "company_id": "GB0009390070",
+  "name": "VOLEX PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 771030.9
+ },
+ {
+  "company_id": "SE0023950795",
+  "name": "ROKO CLASS B",
+  "sector": "Finanzen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 766418.3
+ },
+ {
+  "company_id": "DE0005550636",
+  "name": "DRAEGERWERK PREF AG",
+  "sector": "Gesundheitswesen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 762467.7
+ },
+ {
+  "company_id": "SE0001662230",
+  "name": "HUSQVARNA CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 757833.2000000001
+ },
+ {
+  "company_id": "FR0005691656",
+  "name": "TRIGANO SA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 757151.7
+ },
+ {
+  "company_id": "GB00BJ62K685",
+  "name": "PETS AT HOME PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 757024.6
+ },
+ {
+  "company_id": "FR001400TL40",
+  "name": "LOUIS HACHETTE GROUP SA",
+  "sector": "Kommunikationsdienste",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 752228.0
+ },
+ {
+  "company_id": "ES0176252718",
+  "name": "MELIA HOTELS INTERNATIONAL SA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 749519.5
+ },
+ {
+  "company_id": "BE0003878957",
+  "name": "VGP NV",
+  "sector": "Immobilien",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 745713.0
+ },
+ {
+  "company_id": "FI0009007264",
+  "name": "BITTIUM",
+  "sector": "Informationstechnologie",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 745528.8999999999
+ },
+ {
+  "company_id": "IT0001207098",
+  "name": "ACEA",
+  "sector": "Versorgungsunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 744310.2000000001
+ },
+ {
+  "company_id": "CH0030486770",
+  "name": "DAETWYLER HOLDING INC",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 738758.9
+ },
+ {
+  "company_id": "DE000A2YN900",
+  "name": "TEAMVIEWER",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 738629.8
+ },
+ {
+  "company_id": "IE00BD6JX574",
+  "name": "GLENVEAGH PROPERTIES PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Irland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 734690.2999999999
+ },
+ {
+  "company_id": "LU0061462528",
+  "name": "RTL GROUP SA",
+  "sector": "Kommunikationsdienste",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 733939.7
+ },
+ {
+  "company_id": "IT0005119810",
+  "name": "AVIO",
+  "sector": "Industrieunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 730873.2
+ },
+ {
+  "company_id": "DE000SAFH001",
+  "name": "SAF-HOLLAND",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Luxemburg",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 729453.6
+ },
+ {
+  "company_id": "GB00B82YXW83",
+  "name": "VESUVIUS",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 726661.2000000001
+ },
+ {
+  "company_id": "DE000A1PHFF7",
+  "name": "HUGO BOSS N AG",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 726552.8
+ },
+ {
+  "company_id": "ES0105079000",
+  "name": "GRENERGY RENOVABLES",
+  "sector": "Versorgungsunternehmen",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 725955.7000000001
+ },
+ {
+  "company_id": "SE0018012494",
+  "name": "MODERN TIMES GROUP MTG CLASS B",
+  "sector": "Kommunikationsdienste",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 724749.4
+ },
+ {
+  "company_id": "AT0000APOST4",
+  "name": "OSTERREICHISCHE POST AG",
+  "sector": "Industrieunternehmen",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 723383.6
+ },
+ {
+  "company_id": "SE0023615885",
+  "name": "EMBRACER GROUP CLASS B",
+  "sector": "Kommunikationsdienste",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 723223.7
+ },
+ {
+  "company_id": "PTZON0AM0006",
+  "name": "NOS SGPS SA",
+  "sector": "Kommunikationsdienste",
+  "country": "Portugal",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 721423.3
+ },
+ {
+  "company_id": "FR0010282822",
+  "name": "VUSION SA",
+  "sector": "Informationstechnologie",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 721323.9
+ },
+ {
+  "company_id": "CH0212255803",
+  "name": "BURKHALTER HOLDING AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 720346.8
+ },
+ {
+  "company_id": "SE0022726485",
+  "name": "BETSSON CLASS B",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 720069.7
+ },
+ {
+  "company_id": "IE00BJ5FQX74",
+  "name": "UNIPHAR PLC",
+  "sector": "Gesundheitswesen",
+  "country": "Irland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 717712.7999999999
+ },
+ {
+  "company_id": "ES0169501022",
+  "name": "PHARMA MAR SA",
+  "sector": "Gesundheitswesen",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 716599.7
+ },
+ {
+  "company_id": "DK0060083210",
+  "name": "DAMPSKIBSSELSKABET NORDEN",
+  "sector": "Industrieunternehmen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 716421.5
+ },
+ {
+  "company_id": "CH1425684714",
+  "name": "ARYZTA AG",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 714108.2999999999
+ },
+ {
+  "company_id": "NL0000888691",
+  "name": "AMG CRITICAL MATERIALS NV",
+  "sector": "Material",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 711988.2999999999
+ },
+ {
+  "company_id": "CH0003541510",
+  "name": "FORBO HOLDING AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 710189.7
+ },
+ {
+  "company_id": "GB00B1QH8P22",
+  "name": "FRASERS GROUP PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 709674.0
+ },
+ {
+  "company_id": "DE000A3E5D56",
+  "name": "FUCHS N",
+  "sector": "Material",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 707339.2000000001
+ },
+ {
+  "company_id": "GB0000055888",
+  "name": "DISCOVERIE GROUP",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 706729.9
+ },
+ {
+  "company_id": "GB00BYN59130",
+  "name": "DOMINOS PIZZA GROUP PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 705932.5
+ },
+ {
+  "company_id": "ES0157261019",
+  "name": "LABORATORIOS FARMACEUTICOS ROVI",
+  "sector": "Gesundheitswesen",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 705195.3
+ },
+ {
+  "company_id": "CH0006372897",
+  "name": "INTERROLL HOLDING AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 703322.6
+ },
+ {
+  "company_id": "GB00B2863827",
+  "name": "CVS GROUP PLC",
+  "sector": "Gesundheitswesen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 701380.5
+ },
+ {
+  "company_id": "IM00B7S9G985",
+  "name": "PLAYTECH PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Isle of Man",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 693834.9
+ },
+ {
+  "company_id": "DE0007231334",
+  "name": "SIXT PREF",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 693573.6000000001
+ },
+ {
+  "company_id": "GB00B00FPT80",
+  "name": "CHESNARA PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 693308.7000000001
+ },
+ {
+  "company_id": "SE0015962477",
+  "name": "NOLATO CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 690528.3999999999
+ },
+ {
+  "company_id": "GB00BNK9TP58",
+  "name": "TRUSTPILOT GROUP PLC",
+  "sector": "Kommunikationsdienste",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 690213.2000000001
+ },
+ {
+  "company_id": "DE000JST4000",
+  "name": "JOST WERKE",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 688555.2999999999
+ },
+ {
+  "company_id": "NO0010816093",
+  "name": "ELKEM",
+  "sector": "Material",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 688526.4
+ },
+ {
+  "company_id": "BE0974256852",
+  "name": "COLRUYT GROUP NV",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 687944.0
+ },
+ {
+  "company_id": "DE000A0DJ6J9",
+  "name": "SMA SOLAR TECHNOLOGY AG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 687510.6
+ },
+ {
+  "company_id": "BE0974288202",
+  "name": "XIOR STUDENT HOUSING NV",
+  "sector": "Immobilien",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 684927.8
+ },
+ {
+  "company_id": "FR0000127771",
+  "name": "VIVENDI",
+  "sector": "Kommunikationsdienste",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 683189.8
+ },
+ {
+  "company_id": "CH0363463438",
+  "name": "IDORSIA N LTD",
+  "sector": "Gesundheitswesen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 683009.0
+ },
+ {
+  "company_id": "FR0000039620",
+  "name": "MERSEN SA",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 682543.8999999999
+ },
+ {
+  "company_id": "SE0009216278",
+  "name": "MIPS",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 680850.7
+ },
+ {
+  "company_id": "FR0010929125",
+  "name": "ID LOGISTICS",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 674215.7999999999
+ },
+ {
+  "company_id": "BMG3602E1084",
+  "name": "FLOW TRADERS",
+  "sector": "Finanzen",
+  "country": "Bermudas",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 674208.3
+ },
+ {
+  "company_id": "CH0013396012",
+  "name": "SKAN N AG",
+  "sector": "Gesundheitswesen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 674026.1
+ },
+ {
+  "company_id": "FR0000031775",
+  "name": "VICAT SA",
+  "sector": "Material",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 673591.7
+ },
+ {
+  "company_id": "CH0011432447",
+  "name": "BASILEA PHARMACEUTICA",
+  "sector": "Gesundheitswesen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 673261.2000000001
+ },
+ {
+  "company_id": "GB00B1ZBKY84",
+  "name": "MONY GROUP PLC",
+  "sector": "Kommunikationsdienste",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 671970.9
+ },
+ {
+  "company_id": "FR0010828137",
+  "name": "CARMILA SA",
+  "sector": "Immobilien",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 670148.1
+ },
+ {
+  "company_id": "FR0010241638",
+  "name": "MERCIALYS REIT SA",
+  "sector": "Immobilien",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 669018.1
+ },
+ {
+  "company_id": "SE0000170375",
+  "name": "HUFVUDSTADEN CLASS A",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 667107.0
+ },
+ {
+  "company_id": "SE0005999836",
+  "name": "AFRY CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 666545.5
+ },
+ {
+  "company_id": "DE0007231326",
+  "name": "SIXT",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 665358.5
+ },
+ {
+  "company_id": "GB00BMT9K014",
+  "name": "MOONPIG GROUP PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 665074.6
+ },
+ {
+  "company_id": "IT0005043507",
+  "name": "OVS SPA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 663955.2
+ },
+ {
+  "company_id": "FR0000130395",
+  "name": "REMY COINTREAU SA",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 661630.7
+ },
+ {
+  "company_id": "GB0005359004",
+  "name": "RENEW HOLDINGS PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 658773.8
+ },
+ {
+  "company_id": "SE0013747870",
+  "name": "ELECTROLUX PROFESSIONAL CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 657682.0
+ },
+ {
+  "company_id": "DE0005772206",
+  "name": "FIELMANN GROUP AG",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 656953.2
+ },
+ {
+  "company_id": "GB0007538100",
+  "name": "M. P. EVANS GROUP PLC",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 653428.8
+ },
+ {
+  "company_id": "NO0010751910",
+  "name": "SPAREBANK  OSTLANDET",
+  "sector": "Finanzen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 652896.7000000001
+ },
+ {
+  "company_id": "CH0406705126",
+  "name": "SENSIRION HOLDING AG",
+  "sector": "Informationstechnologie",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 652393.0
+ },
+ {
+  "company_id": "GB0006027295",
+  "name": "MORGAN ADVANCED MATERIALS PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 650937.8999999999
+ },
+ {
+  "company_id": "GB00BRJ9BJ26",
+  "name": "FEVERTREE DRINKS PLC",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 646597.0
+ },
+ {
+  "company_id": "SE0011426428",
+  "name": "ALTRA FASTIGHETER",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 643579.7999999999
+ },
+ {
+  "company_id": "GB00B1GCLT25",
+  "name": "POLAR CAPITAL HOLDINGS PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 641730.1
+ },
+ {
+  "company_id": "FR0010481960",
+  "name": "ARGAN SA",
+  "sector": "Immobilien",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 634327.1
+ },
+ {
+  "company_id": "GB0009292243",
+  "name": "VICTREX PLC",
+  "sector": "Material",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 633495.7
+ },
+ {
+  "company_id": "SE0010832204",
+  "name": "CIBUS REAL ESTATE",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 632435.1
+ },
+ {
+  "company_id": "DE000A3ENQ51",
+  "name": "SCHOTT PHARMA AG",
+  "sector": "Gesundheitswesen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 631895.7
+ },
+ {
+  "company_id": "CH1338987303",
+  "name": "INTERSHOP HOLDING N AG",
+  "sector": "Immobilien",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 628528.5
+ },
+ {
+  "company_id": "ES0105251005",
+  "name": "NEINOR HOMES SA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 624529.2999999999
+ },
+ {
+  "company_id": "NO0010571698",
+  "name": "WILH. WILHELMSEN HOLDING A",
+  "sector": "Industrieunternehmen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 623065.9
+ },
+ {
+  "company_id": "GB00B1FP6H53",
+  "name": "MITCHELLS AND BUTLERS PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 622793.8
+ },
+ {
+  "company_id": "BE0003810273",
+  "name": "PROXIMUS NV",
+  "sector": "Kommunikationsdienste",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 621583.5
+ },
+ {
+  "company_id": "FR0011341205",
+  "name": "NANOBIOTIX SA",
+  "sector": "Gesundheitswesen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 621176.6
+ },
+ {
+  "company_id": "GB0001859296",
+  "name": "VISTRY GROUP PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 621001.1
+ },
+ {
+  "company_id": "GB00BMX64W89",
+  "name": "SAGA PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 618694.2
+ },
+ {
+  "company_id": "SE0002626861",
+  "name": "CLOETTA CLASS B",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 616673.1
+ },
+ {
+  "company_id": "SE0016074249",
+  "name": "MILDEF GROUP",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 616266.0
+ },
+ {
+  "company_id": "GB00BKRC5K31",
+  "name": "GENUIT GROUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 615599.7
+ },
+ {
+  "company_id": "NL00150003E1",
+  "name": "FUGRO CLASS C",
+  "sector": "Industrieunternehmen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 614563.2
+ },
+ {
+  "company_id": "SE0007871363",
+  "name": "VITEC SOFTWARE GROUP CLASS B",
+  "sector": "Informationstechnologie",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 609100.3
+ },
+ {
+  "company_id": "GB00BJGTLF51",
+  "name": "TARGET HEALTHCARE REIT PLC",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 606749.2999999999
+ },
+ {
+  "company_id": "GB00B53P2009",
+  "name": "JUPITER FUND MANAGEMENT PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 605834.6
+ },
+ {
+  "company_id": "CH0582581713",
+  "name": "DOTTIKON ES HOLDING AG",
+  "sector": "Gesundheitswesen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 603948.2999999999
+ },
+ {
+  "company_id": "SE0017483506",
+  "name": "INSTALCO",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 603192.0
+ },
+ {
+  "company_id": "SE0006220018",
+  "name": "INWIDO",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 603063.9
+ },
+ {
+  "company_id": "DE000A0LD6E6",
+  "name": "GERRESHEIMER AG",
+  "sector": "Gesundheitswesen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 601564.0
+ },
+ {
+  "company_id": "GB00BN44P254",
+  "name": "BALTIC CLASSIFIEDS GROUP PLC",
+  "sector": "Kommunikationsdienste",
+  "country": "Litauen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 601036.1
+ },
+ {
+  "company_id": "SE0017769995",
+  "name": "BIOGAIA CLASS B",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 599574.6
+ },
+ {
+  "company_id": "SE0021628898",
+  "name": "VOLVO CAR CLASS B",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 591663.2999999999
+ },
+ {
+  "company_id": "SE0003917798",
+  "name": "SIVERS SEMICONDUCTORS",
+  "sector": "Informationstechnologie",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 590964.9
+ },
+ {
+  "company_id": "DE0006083405",
+  "name": "HORNBACH HOLDING AG",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 590339.5
+ },
+ {
+  "company_id": "DE0005565204",
+  "name": "DUERR AG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 590155.2000000001
+ },
+ {
+  "company_id": "NO0003921009",
+  "name": "DNO",
+  "sector": "Energie",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 583050.5
+ },
+ {
+  "company_id": "DE0006200108",
+  "name": "INDUS HOLDING AG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 579144.2999999999
+ },
+ {
+  "company_id": "BE0003818359",
+  "name": "GALAPAGOS ORD",
+  "sector": "Gesundheitswesen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 577141.5
+ },
+ {
+  "company_id": "ES0157097017",
+  "name": "ALMIRALL",
+  "sector": "Gesundheitswesen",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 575979.7000000001
+ },
+ {
+  "company_id": "NL0015002K83",
+  "name": "HAVAS NV",
+  "sector": "Kommunikationsdienste",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 575167.6
+ },
+ {
+  "company_id": "IT0005453250",
+  "name": "EL EN",
+  "sector": "Gesundheitswesen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 573988.4
+ },
+ {
+  "company_id": "GB00BKDTK925",
+  "name": "TRAINLINE PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 572682.7999999999
+ },
+ {
+  "company_id": "GB00BNLPYF73",
+  "name": "SPIRE HEALTHCARE GROUP PLCINARY",
+  "sector": "Gesundheitswesen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 571309.8
+ },
+ {
+  "company_id": "GB00B0CY5V57",
+  "name": "SERICA ENERGY PLC",
+  "sector": "Energie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 570001.9
+ },
+ {
+  "company_id": "GB00BG5KQW09",
+  "name": "CERES POWER HOLDINGS PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 569948.0
+ },
+ {
+  "company_id": "CH0021545667",
+  "name": "VAUDOISE ASSURANCES SA",
+  "sector": "Finanzen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 560026.1
+ },
+ {
+  "company_id": "GB00B128J450",
+  "name": "IP GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 559863.0
+ },
+ {
+  "company_id": "SE0009921588",
+  "name": "BILIA CLASS A",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 558926.9
+ },
+ {
+  "company_id": "GB00B0FVQX23",
+  "name": "ROCKHOPPER EXPLORATION PLC",
+  "sector": "Energie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 555205.0
+ },
+ {
+  "company_id": "FR001400NLM4",
+  "name": "EMEIS SA",
+  "sector": "Gesundheitswesen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 547716.9
+ },
+ {
+  "company_id": "SE0001852419",
+  "name": "LINDAB INTERNATIONAL",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 546005.3
+ },
+ {
+  "company_id": "CH0468525222",
+  "name": "MEDACTA GROUP SA",
+  "sector": "Gesundheitswesen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 544722.7
+ },
+ {
+  "company_id": "SE0001200015",
+  "name": "INVISIO",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 541499.2999999999
+ },
+ {
+  "company_id": "GB0030232317",
+  "name": "MICHAEL PAGE PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 541461.9
+ },
+ {
+  "company_id": "CH1110425654",
+  "name": "MONTANA N AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 541152.2
+ },
+ {
+  "company_id": "DE0005104400",
+  "name": "ATOSS SOFTWARE",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 538863.6
+ },
+ {
+  "company_id": "FR0000053381",
+  "name": "DERICHEBOURG SA",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 538559.8999999999
+ },
+ {
+  "company_id": "FR0000120859",
+  "name": "IMERYS SA",
+  "sector": "Material",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 532084.6000000001
+ },
+ {
+  "company_id": "GB00B14SKR37",
+  "name": "CMC MARKETS PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 524670.0
+ },
+ {
+  "company_id": "ES0105884011",
+  "name": "CIRSA ENTERPRISES SAU",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 523910.8
+ },
+ {
+  "company_id": "GB00BMHVL512",
+  "name": "KLARNA GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 523699.7
+ },
+ {
+  "company_id": "GB00BJHPLV88",
+  "name": "NINETY ONE PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 521766.6
+ },
+ {
+  "company_id": "FI4000252127",
+  "name": "TERVEYSTALO",
+  "sector": "Gesundheitswesen",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 520729.99999999994
+ },
+ {
+  "company_id": "SE0003756758",
+  "name": "SDIPTECH CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 520711.50000000006
+ },
+ {
+  "company_id": "GB00B6XZKY75",
+  "name": "A G BARR",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 520663.10000000003
+ },
+ {
+  "company_id": "DE0007074007",
+  "name": "KWS SAAT",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 519514.6
+ },
+ {
+  "company_id": "GB0007668071",
+  "name": "CLOSE BROS GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 516485.7
+ },
+ {
+  "company_id": "GB0004536594",
+  "name": "ADVANCED MEDICAL SOLUTIONS GROUP P",
+  "sector": "Gesundheitswesen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 515919.6
+ },
+ {
+  "company_id": "SE0020356970",
+  "name": "NEW WAVE GROUP CLASS B",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 515727.19999999995
+ },
+ {
+  "company_id": "SE0006887063",
+  "name": "HOIST FINANCE",
+  "sector": "Finanzen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 515186.8
+ },
+ {
+  "company_id": "FI4000306873",
+  "name": "HARVIA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 512930.3
+ },
+ {
+  "company_id": "SE0018040677",
+  "name": "HEXATRONIC GROUP",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 512485.2
+ },
+ {
+  "company_id": "FR0004024222",
+  "name": "INTERPARFUMS SA",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 511990.9
+ },
+ {
+  "company_id": "BMG243851091",
+  "name": "CONDUIT HOLDINGS LTD",
+  "sector": "Finanzen",
+  "country": "Bermudas",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 511464.0
+ },
+ {
+  "company_id": "PTPTI0AM0006",
+  "name": "THE NAVIGATOR COMPANY SA",
+  "sector": "Material",
+  "country": "Portugal",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 508703.4
+ },
+ {
+  "company_id": "DE0005936124",
+  "name": "OHB",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 508292.9
+ },
+ {
+  "company_id": "BE0003720340",
+  "name": "RETAIL ESTATES NV",
+  "sector": "Immobilien",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 507219.00000000006
+ },
+ {
+  "company_id": "SE0025138357",
+  "name": "HACKSAW",
+  "sector": "Kommunikationsdienste",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 503798.7
+ },
+ {
+  "company_id": "IT0003865570",
+  "name": "WEBUILD",
+  "sector": "Industrieunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 503432.5
+ },
+ {
+  "company_id": "DK0060655629",
+  "name": "DFDS",
+  "sector": "Industrieunternehmen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 501103.00000000006
+ },
+ {
+  "company_id": "DE0007461006",
+  "name": "PVA TEPLA AG",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 500974.39999999997
+ },
+ {
+  "company_id": "FR0013230612",
+  "name": "TIKEHAU CAPITAL",
+  "sector": "Finanzen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 500752.1
+ },
+ {
+  "company_id": "IE00BJ34P519",
+  "name": "IRISH RESIDENTIAL PROPERTIES PLC",
+  "sector": "Immobilien",
+  "country": "Irland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 500642.00000000006
+ },
+ {
+  "company_id": "NL0012650360",
+  "name": "RHI MAGNESITA",
+  "sector": "Material",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 500561.9
+ },
+ {
+  "company_id": "BMG850801025",
+  "name": "STOLT-NIELSEN LTD",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 500547.2
+ },
+ {
+  "company_id": "SE0008014476",
+  "name": "PLEJD",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 498300.60000000003
+ },
+ {
+  "company_id": "BE0974274061",
+  "name": "KINEPOLIS NV",
+  "sector": "Kommunikationsdienste",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 497753.0
+ },
+ {
+  "company_id": "GB0008794710",
+  "name": "TELECOM PLUS PLC",
+  "sector": "Versorgungsunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 497399.60000000003
+ },
+ {
+  "company_id": "CH0276534614",
+  "name": "ZEHNDER GROUP AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 495774.8
+ },
+ {
+  "company_id": "NL00150005Y4",
+  "name": "PHARVARIS N V",
+  "sector": "Gesundheitswesen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 494488.1
+ },
+ {
+  "company_id": "SE0000111940",
+  "name": "RATOS CLASS B",
+  "sector": "Finanzen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 493913.6
+ },
+ {
+  "company_id": "GB00BDDN1T20",
+  "name": "XPS PENSIONS GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 489167.80000000005
+ },
+ {
+  "company_id": "NO0010863285",
+  "name": "SATS",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 489076.80000000005
+ },
+ {
+  "company_id": "GB00B1V9NW54",
+  "name": "HILTON FOOD GROUP PLC",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 487108.10000000003
+ },
+ {
+  "company_id": "GB00B2PDGW16",
+  "name": "WH SMITH PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 484963.60000000003
+ },
+ {
+  "company_id": "GG00BQZCBZ44",
+  "name": "SHURGARD SELF STORAGE LTD",
+  "sector": "Immobilien",
+  "country": "Luxemburg",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 483827.8
+ },
+ {
+  "company_id": "SE0009888738",
+  "name": "BOOZT",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 482918.6
+ },
+ {
+  "company_id": "SE0017105620",
+  "name": "DYNAVOX GROUP",
+  "sector": "Informationstechnologie",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 475141.89999999997
+ },
+ {
+  "company_id": "AT0000A0E9W5",
+  "name": "KONTRON AG",
+  "sector": "Informationstechnologie",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 473986.4
+ },
+ {
+  "company_id": "DE0007297004",
+  "name": "SUEDZUCKER AG",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 473308.2
+ },
+ {
+  "company_id": "SE0006342333",
+  "name": "NP3 FASTIGHETER",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 472868.10000000003
+ },
+ {
+  "company_id": "IT0005107492",
+  "name": "LUVE",
+  "sector": "Industrieunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 472111.5
+ },
+ {
+  "company_id": "CH1484953687",
+  "name": "SMG SWISS MARKETPLACE GROUP HOLDIN",
+  "sector": "Kommunikationsdienste",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 471601.9
+ },
+ {
+  "company_id": "NO0013052209",
+  "name": "NORCONSULT",
+  "sector": "Industrieunternehmen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 470430.3
+ },
+ {
+  "company_id": "IT0004729759",
+  "name": "SESA",
+  "sector": "Informationstechnologie",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 470249.6
+ },
+ {
+  "company_id": "SE0000806994",
+  "name": "JM",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 468965.89999999997
+ },
+ {
+  "company_id": "IT0003153621",
+  "name": "TAMBURI INVESTMENT PARTNERS",
+  "sector": "Finanzen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 464413.7
+ },
+ {
+  "company_id": "DE000WACK012",
+  "name": "WACKER NEUSON N",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 462765.0
+ },
+ {
+  "company_id": "NL0010391025",
+  "name": "PHARMING GROUP",
+  "sector": "Gesundheitswesen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 460673.6
+ },
+ {
+  "company_id": "FR0000124570",
+  "name": "OPMOBILITY",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 460131.19999999995
+ },
+ {
+  "company_id": "SE0007158910",
+  "name": "ALIMAK GROUP",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 455824.0
+ },
+ {
+  "company_id": "GB0000667013",
+  "name": "AVON TECHNOLOGIES PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 455175.8
+ },
+ {
+  "company_id": "CH0239518779",
+  "name": "HIAG IMMOBILIEN HOLDING AG",
+  "sector": "Immobilien",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 452902.60000000003
+ },
+ {
+  "company_id": "SE0011205202",
+  "name": "VITROLIFE",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 451649.60000000003
+ },
+ {
+  "company_id": "NO0010073489",
+  "name": "AUSTEVOLL SEAFOOD",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 451171.5
+ },
+ {
+  "company_id": "FR001400PVN6",
+  "name": "VIRIDIEN SA",
+  "sector": "Energie",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 448167.0
+ },
+ {
+  "company_id": "GB0001638955",
+  "name": "WETHERSPOON(J.D.) PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 448128.7
+ },
+ {
+  "company_id": "ES0109427734",
+  "name": "ATRESMEDIA CORPORACION DE MEDIOS D",
+  "sector": "Kommunikationsdienste",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 447767.69999999995
+ },
+ {
+  "company_id": "GB0004762810",
+  "name": "JOHNSON SERVICE GROUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 445509.3
+ },
+ {
+  "company_id": "FI4000198031",
+  "name": "QT GROUP",
+  "sector": "Informationstechnologie",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 442703.60000000003
+ },
+ {
+  "company_id": "IT0005455875",
+  "name": "INTERCOS",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 440166.10000000003
+ },
+ {
+  "company_id": "DE000A0HL8N9",
+  "name": "2G ENERGY AG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 439455.6
+ },
+ {
+  "company_id": "FR001400PFU4",
+  "name": "PLANISWARE SA",
+  "sector": "Informationstechnologie",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 439248.2
+ },
+ {
+  "company_id": "NL0000289213",
+  "name": "WERELDHAVE NV",
+  "sector": "Immobilien",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 439105.3
+ },
+ {
+  "company_id": "GB00BMX3W479",
+  "name": "METRO BANK HOLDINGS PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 438117.80000000005
+ },
+ {
+  "company_id": "DE000A40ZVV0",
+  "name": "CECONOMY V AG",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 435314.8
+ },
+ {
+  "company_id": "ES0105546008",
+  "name": "LINEA DIRECTA ASEGURADORA SA",
+  "sector": "Finanzen",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 435197.0
+ },
+ {
+  "company_id": "AT0000609607",
+  "name": "PORR AG",
+  "sector": "Industrieunternehmen",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 435116.0
+ },
+ {
+  "company_id": "GB00BS3DYQ52",
+  "name": "RASPBERRY PI HOLDINGS PLC",
+  "sector": "Informationstechnologie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 433420.69999999995
+ },
+ {
+  "company_id": "NO0010196140",
+  "name": "NORWEGIAN AIR SHUTTLE",
+  "sector": "Industrieunternehmen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 430131.6
+ },
+ {
+  "company_id": "ES0126775008",
+  "name": "DISTRIBUIDORA INTERNACIONAL DE ALI",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 429065.69999999995
+ },
+ {
+  "company_id": "SE0015961982",
+  "name": "VIMIAN GROUP",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 428536.8
+ },
+ {
+  "company_id": "DE0006292030",
+  "name": "KSB PREF",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 426905.5
+ },
+ {
+  "company_id": "AT0000641352",
+  "name": "CA IMMOBILIEN ANLAGEN AG",
+  "sector": "Immobilien",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 426439.0
+ },
+ {
+  "company_id": "SE0007691613",
+  "name": "DOMETIC GROUPINARY SHARES",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 424237.4
+ },
+ {
+  "company_id": "CH1107979838",
+  "name": "R&S GROUP HOLDING AG",
+  "sector": "Industrieunternehmen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 424214.1
+ },
+ {
+  "company_id": "NL0015001OI1",
+  "name": "MFE-MEDIAFOREUROPE NV",
+  "sector": "Kommunikationsdienste",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 422952.2
+ },
+ {
+  "company_id": "SE0012141687",
+  "name": "SKISTAR CLASS B",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 421076.5
+ },
+ {
+  "company_id": "FI0009800643",
+  "name": "YIT",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 420303.3
+ },
+ {
+  "company_id": "FR0000039091",
+  "name": "ROBERTET SA",
+  "sector": "Material",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 419142.69999999995
+ },
+ {
+  "company_id": "NO0010894231",
+  "name": "LINK MOBILITY GROUP HOLDING",
+  "sector": "Informationstechnologie",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 418114.8
+ },
+ {
+  "company_id": "GB0004478896",
+  "name": "HUNTING PLC",
+  "sector": "Energie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 417492.6
+ },
+ {
+  "company_id": "CH1110760852",
+  "name": "POLYPEPTIDE N AG",
+  "sector": "Gesundheitswesen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 414847.60000000003
+ },
+ {
+  "company_id": "GB00B0130H42",
+  "name": "ITM POWER PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 411516.6
+ },
+ {
+  "company_id": "CH0325814116",
+  "name": "KUROS BIOSCIENCES AG",
+  "sector": "Gesundheitswesen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 408742.60000000003
+ },
+ {
+  "company_id": "SE0009160872",
+  "name": "MEDCAP",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 407090.7
+ },
+ {
+  "company_id": "DE000A3H2200",
+  "name": "NAGARRO N",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 406134.2
+ },
+ {
+  "company_id": "SE0000936478",
+  "name": "INTRUM",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 405314.6
+ },
+ {
+  "company_id": "AT0000938204",
+  "name": "MAYR MELNHOF KARTON AG",
+  "sector": "Material",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 402661.2
+ },
+ {
+  "company_id": "SE0007897079",
+  "name": "ACADEMEDIA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 397603.0
+ },
+ {
+  "company_id": "CH0276837694",
+  "name": "MOBILEZONE HOLDING",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 396858.7
+ },
+ {
+  "company_id": "FR0004065605",
+  "name": "MEDINCELL SA",
+  "sector": "Gesundheitswesen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 391406.6
+ },
+ {
+  "company_id": "BE0003656676",
+  "name": "RECTICEL SA",
+  "sector": "Industrieunternehmen",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 388179.89999999997
+ },
+ {
+  "company_id": "AT0000A21KS2",
+  "name": "CPI EUROPE AGE AG",
+  "sector": "Immobilien",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 387030.9
+ },
+ {
+  "company_id": "DE0005403901",
+  "name": "CEWE STIFTUNG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 386290.5
+ },
+ {
+  "company_id": "NL0013995087",
+  "name": "CEMENTIR HOLDING NV",
+  "sector": "Material",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 384434.3
+ },
+ {
+  "company_id": "NL0000313286",
+  "name": "ACOMO",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 383150.0
+ },
+ {
+  "company_id": "FR0000054470",
+  "name": "UBISOFT ENTERTAINMENT SA CAT A",
+  "sector": "Kommunikationsdienste",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 382944.0
+ },
+ {
+  "company_id": "SE0007439443",
+  "name": "STORYTEL CLASS B",
+  "sector": "Kommunikationsdienste",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 382595.0
+ },
+ {
+  "company_id": "IT0001041000",
+  "name": "BANCO DI DESIO E DELLA BRIANZA",
+  "sector": "Finanzen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 378130.5
+ },
+ {
+  "company_id": "SE0001634262",
+  "name": "DIOS FASTIGHETER",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 376492.5
+ },
+ {
+  "company_id": "SE0008294953",
+  "name": "PARADOX INTERACTIVE",
+  "sector": "Kommunikationsdienste",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 375432.2
+ },
+ {
+  "company_id": "GB00B0YD2B94",
+  "name": "COHORT PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 375400.1
+ },
+ {
+  "company_id": "DE0005659700",
+  "name": "ECKERT & ZIEGLER",
+  "sector": "Gesundheitswesen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 373960.6
+ },
+ {
+  "company_id": "SE0000115107",
+  "name": "VBG GROUP CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 372602.4
+ },
+ {
+  "company_id": "NO0010856511",
+  "name": "NORBIT",
+  "sector": "Informationstechnologie",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 372105.9
+ },
+ {
+  "company_id": "DE000A255F11",
+  "name": "FRIEDRICH VORWERK GROUP",
+  "sector": "Energie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 369789.7
+ },
+ {
+  "company_id": "DE0007667107",
+  "name": "VOSSLOH AG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 367220.1
+ },
+ {
+  "company_id": "NL0011832936",
+  "name": "COSMO N NV",
+  "sector": "Gesundheitswesen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 366314.3
+ },
+ {
+  "company_id": "SE0004840718",
+  "name": "XVIVO PERFUSION",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 365750.5
+ },
+ {
+  "company_id": "SE0016829709",
+  "name": "SYNSAM",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 363524.4
+ },
+ {
+  "company_id": "IT0003549422",
+  "name": "SANLORENZO",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 362714.5
+ },
+ {
+  "company_id": "SE0017161458",
+  "name": "SVOLDER CLASS B",
+  "sector": "Finanzen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 361302.7
+ },
+ {
+  "company_id": "DE0005419105",
+  "name": "CANCOM",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 357547.0
+ },
+ {
+  "company_id": "FR0000051070",
+  "name": "MAUREL ET PROM SA",
+  "sector": "Energie",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 356045.4
+ },
+ {
+  "company_id": "PTCTT0AM0001",
+  "name": "CTT CORREIOS DE PORTUGAL",
+  "sector": "Industrieunternehmen",
+  "country": "Portugal",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 355675.89999999997
+ },
+ {
+  "company_id": "NO0011002586",
+  "name": "ELOPAK",
+  "sector": "Material",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 354251.5
+ },
+ {
+  "company_id": "DK0060696300",
+  "name": "SCANDINAVIAN TOBACCO GROUP",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 350748.39999999997
+ },
+ {
+  "company_id": "SE0010468116",
+  "name": "ARJO CLASS B",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 350571.8
+ },
+ {
+  "company_id": "DE0006618309",
+  "name": "CHAPTERS GROUP AG",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 350342.1
+ },
+ {
+  "company_id": "SE0000135485",
+  "name": "RAYSEARCH LABORATORIES CLASS B",
+  "sector": "Gesundheitswesen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 349600.9
+ },
+ {
+  "company_id": "GB0003781050",
+  "name": "GOODWIN PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 349397.5
+ },
+ {
+  "company_id": "DE000PFSE212",
+  "name": "PFISTERER",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 346734.19999999995
+ },
+ {
+  "company_id": "PTMEN0AE0005",
+  "name": "MOTA-ENGIL SGPS",
+  "sector": "Industrieunternehmen",
+  "country": "Portugal",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 346271.7
+ },
+ {
+  "company_id": "DE000A0JL9W6",
+  "name": "VERBIO",
+  "sector": "Energie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 345507.7
+ },
+ {
+  "company_id": "GB00BD0NVK62",
+  "name": "HOLLYWOOD BOWL GROUP PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 345338.10000000003
+ },
+ {
+  "company_id": "SE0012729366",
+  "name": "TROAX GROUP",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 344825.89999999997
+ },
+ {
+  "company_id": "SE0024320832",
+  "name": "ATRIUM LJUNGBERG CLASS B",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 344474.4
+ },
+ {
+  "company_id": "SE0017831795",
+  "name": "NORION BANK",
+  "sector": "Finanzen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 340225.8
+ },
+ {
+  "company_id": "FR0000035081",
+  "name": "ICADE REIT SA",
+  "sector": "Immobilien",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 337245.19999999995
+ },
+ {
+  "company_id": "SE0015671995",
+  "name": "HEMNET GROUP",
+  "sector": "Kommunikationsdienste",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 335951.9
+ },
+ {
+  "company_id": "GB00BL6NGV24",
+  "name": "DR. MARTENS",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 335719.6
+ },
+ {
+  "company_id": "FI0009000665",
+  "name": "METSA BOARD CLASS B",
+  "sector": "Material",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 333307.9
+ },
+ {
+  "company_id": "DE0005800601",
+  "name": "GFT TECHNOLOGIES",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 331248.9
+ },
+ {
+  "company_id": "IT0001128047",
+  "name": "CEMBRE",
+  "sector": "Industrieunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 330072.0
+ },
+ {
+  "company_id": "GB00BV9DPV21",
+  "name": "SHAWBROOK GROUP PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 329126.89999999997
+ },
+ {
+  "company_id": "SE0005878543",
+  "name": "HANZA",
+  "sector": "Informationstechnologie",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 326777.4
+ },
+ {
+  "company_id": "DK0061141215",
+  "name": "NTG NORDIC TRANSPORT GROUP",
+  "sector": "Industrieunternehmen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 324267.7
+ },
+ {
+  "company_id": "AT0000758305",
+  "name": "PALFINGER AG",
+  "sector": "Industrieunternehmen",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 324016.7
+ },
+ {
+  "company_id": "GB00BNXJB679",
+  "name": "HBX GROUP INTERNATIONAL PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 322564.0
+ },
+ {
+  "company_id": "GB00BDFBVT43",
+  "name": "OXFORD BIOMEDICA PLC",
+  "sector": "Gesundheitswesen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 320072.3
+ },
+ {
+  "company_id": "DE000A2NB650",
+  "name": "MUTARES",
+  "sector": "Finanzen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 318694.8
+ },
+ {
+  "company_id": "GB00BPVDXX64",
+  "name": "APPLIED NUTRITION PLC",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 316910.89999999997
+ },
+ {
+  "company_id": "IT0005054967",
+  "name": "RAI WAY SPA",
+  "sector": "Kommunikationsdienste",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 316329.19999999995
+ },
+ {
+  "company_id": "FI4000567029",
+  "name": "FINNAIR",
+  "sector": "Industrieunternehmen",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 311975.2
+ },
+ {
+  "company_id": "GB00BWPD4D87",
+  "name": "AEP PLANTATIONS PLC",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 311118.2
+ },
+ {
+  "company_id": "LU2592315662",
+  "name": "DAMICO INTERNATIONAL SHIPPING SA",
+  "sector": "Energie",
+  "country": "Luxemburg",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 310159.39999999997
+ },
+ {
+  "company_id": "DE0007276503",
+  "name": "SECUNET SECURITY AG",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 306974.0
+ },
+ {
+  "company_id": "SE0023313762",
+  "name": "APOTEA",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 305352.39999999997
+ },
+ {
+  "company_id": "IT0000076502",
+  "name": "DANIELI",
+  "sector": "Industrieunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 301883.4
+ },
+ {
+  "company_id": "FR00140182K6",
+  "name": "WORLDLINE SA",
+  "sector": "unbekannt",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 300522.2
+ },
+ {
+  "company_id": "DK0064867972",
+  "name": "BIOMAR GROUP",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 299991.8
+ },
+ {
+  "company_id": "NO0010633951",
+  "name": "B2 IMPACT",
+  "sector": "Finanzen",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 299298.10000000003
+ },
+ {
+  "company_id": "BE0974362940",
+  "name": "BARCO NV",
+  "sector": "Informationstechnologie",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 299206.4
+ },
+ {
+  "company_id": "DE0005664809",
+  "name": "EVOTEC",
+  "sector": "Gesundheitswesen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 298601.6
+ },
+ {
+  "company_id": "FR0014005HJ9",
+  "name": "OVH GROUPE SA",
+  "sector": "Informationstechnologie",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 296075.8
+ },
+ {
+  "company_id": "FR0010221234",
+  "name": "EUTELSAT COMMUNICATIONS SA",
+  "sector": "Kommunikationsdienste",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 295822.0
+ },
+ {
+  "company_id": "ES0105223004",
+  "name": "GESTAMP AUTOMOCION SA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 294251.4
+ },
+ {
+  "company_id": "SE0015661236",
+  "name": "CREADES CLASS A",
+  "sector": "Finanzen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 294233.4
+ },
+ {
+  "company_id": "FR0010386334",
+  "name": "CLARIANE",
+  "sector": "Gesundheitswesen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 292040.2
+ },
+ {
+  "company_id": "FR0000131757",
+  "name": "ERAMET",
+  "sector": "Material",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 291363.2
+ },
+ {
+  "company_id": "GB0006870611",
+  "name": "GB GROUP PLC",
+  "sector": "Informationstechnologie",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 287684.3
+ },
+ {
+  "company_id": "GG00BMD8MJ76",
+  "name": "FORESIGHT GROUP HOLDINGS LTD",
+  "sector": "Finanzen",
+  "country": "Guernsey",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 284878.7
+ },
+ {
+  "company_id": "SE0017131337",
+  "name": "LOGISTEA CLASS B",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 283548.6
+ },
+ {
+  "company_id": "SE0025666969",
+  "name": "AVARDA BANK",
+  "sector": "Finanzen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 283224.4
+ },
+ {
+  "company_id": "SE0009161052",
+  "name": "SAGAX CLASS D",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 281093.6
+ },
+ {
+  "company_id": "CH0014345117",
+  "name": "COMPAGNIE FINANCIERE TRADITION SA",
+  "sector": "Finanzen",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 280238.2
+ },
+ {
+  "company_id": "FR0000063737",
+  "name": "AUBAY SA",
+  "sector": "Informationstechnologie",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 279986.9
+ },
+ {
+  "company_id": "BE0974310428",
+  "name": "X-FAB SILICON FOUNDRIES",
+  "sector": "Informationstechnologie",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 279814.10000000003
+ },
+ {
+  "company_id": "FR0011476928",
+  "name": "FNAC DARTY SA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 278615.9
+ },
+ {
+  "company_id": "FR0010417345",
+  "name": "DBV TECHNOLOGIES SA",
+  "sector": "Gesundheitswesen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 277087.30000000005
+ },
+ {
+  "company_id": "AT0000644505",
+  "name": "LENZING AG",
+  "sector": "Material",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 274309.2
+ },
+ {
+  "company_id": "FR0000033219",
+  "name": "ALTAREA",
+  "sector": "Immobilien",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 265949.1
+ },
+ {
+  "company_id": "IT0004195308",
+  "name": "MOLTIPLY GROUP",
+  "sector": "Finanzen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 265764.10000000003
+ },
+ {
+  "company_id": "DE000VNC0014",
+  "name": "VINCORION",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 263880.5
+ },
+ {
+  "company_id": "CH0008702190",
+  "name": "CICOR TECHNOLOGIES B LTD",
+  "sector": "Informationstechnologie",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 262457.89999999997
+ },
+ {
+  "company_id": "IT0000070786",
+  "name": "CIR SPA - COMPAGNIE INDUSTRIALI RI",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 261775.0
+ },
+ {
+  "company_id": "IT0004712375",
+  "name": "SALVATORE FERRAGAMO",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 260193.60000000003
+ },
+ {
+  "company_id": "IT0004604762",
+  "name": "SAFILO GROUP",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 260035.1
+ },
+ {
+  "company_id": "DE000A161408",
+  "name": "HELLOFRESH",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 259317.0
+ },
+ {
+  "company_id": "IT0003188064",
+  "name": "BANCA IFIS",
+  "sector": "Finanzen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 257668.30000000002
+ },
+ {
+  "company_id": "NO0010716418",
+  "name": "ENTRA",
+  "sector": "Immobilien",
+  "country": "Norwegen",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 256338.59999999998
+ },
+ {
+  "company_id": "SE0005999760",
+  "name": "SCANDI STANDARD",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 255435.7
+ },
+ {
+  "company_id": "BE0003555639",
+  "name": "TESSENDERLO GROUP NV",
+  "sector": "Material",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 255121.6
+ },
+ {
+  "company_id": "GB00B67G5X01",
+  "name": "WORKSPACE GROUP REIT PLC",
+  "sector": "Immobilien",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 252538.99999999997
+ },
+ {
+  "company_id": "SE0028000190",
+  "name": "SILEX MICROSYSTEMS",
+  "sector": "Informationstechnologie",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 251967.99999999997
+ },
+ {
+  "company_id": "AT100ASTA001",
+  "name": "ASTA ENERGY SOLUTIONS AG",
+  "sector": "Industrieunternehmen",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 251305.50000000003
+ },
+ {
+  "company_id": "IT0005253205",
+  "name": "ITALMOBILIARE",
+  "sector": "Industrieunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 249784.69999999998
+ },
+ {
+  "company_id": "SE0020848356",
+  "name": "RUSTA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 249382.4
+ },
+ {
+  "company_id": "BMG6904D1083",
+  "name": "PARATUS ENERGY SER LTD",
+  "sector": "Energie",
+  "country": "Bermudas",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 246516.80000000002
+ },
+ {
+  "company_id": "IT0005411209",
+  "name": "GVS",
+  "sector": "Gesundheitswesen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 245313.7
+ },
+ {
+  "company_id": "GB0008481250",
+  "name": "ME GROUP INTERNATIONAL PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 242469.5
+ },
+ {
+  "company_id": "BMG1738J1247",
+  "name": "BW OFFSHORE LTD",
+  "sector": "Energie",
+  "country": "Bermudas",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 240634.8
+ },
+ {
+  "company_id": "IT0003073266",
+  "name": "PIAGGIO & C",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 237494.6
+ },
+ {
+  "company_id": "NL0015000N33",
+  "name": "ARISTON HOLDING",
+  "sector": "Industrieunternehmen",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 229790.4
+ },
+ {
+  "company_id": "FR0000053324",
+  "name": "COMPAGNIE DES ALPES SA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 229386.2
+ },
+ {
+  "company_id": "SE0028799411",
+  "name": "PPI PUBLIC PROPERTY INVEST",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 228276.1
+ },
+ {
+  "company_id": "GG00B1Z5FH87",
+  "name": "PPH HOTEL GROUP",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 228082.80000000002
+ },
+ {
+  "company_id": "ES0175438003",
+  "name": "PROSEGUR COMPANIA DE SEGURIDAD SA",
+  "sector": "Industrieunternehmen",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 225363.6
+ },
+ {
+  "company_id": "CH0127480363",
+  "name": "AUTONEUM HOLDING AG",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 222855.69999999998
+ },
+ {
+  "company_id": "GB00BJTNFH41",
+  "name": "AO WORLD",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 222376.8
+ },
+ {
+  "company_id": "CH0011178255",
+  "name": "TX GROUP AG LTD",
+  "sector": "Kommunikationsdienste",
+  "country": "Schweiz",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 221374.1
+ },
+ {
+  "company_id": "DE0005102008",
+  "name": "BASLER AG",
+  "sector": "Informationstechnologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 221194.4
+ },
+ {
+  "company_id": "SE0004977692",
+  "name": "PLATZER FASTIGHETER HOLDING CLASS",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 221149.6
+ },
+ {
+  "company_id": "US7311054099",
+  "name": "POLESTAR AUTOMOTIVE HOLDING AMERIC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 220088.40000000002
+ },
+ {
+  "company_id": "SE0017769847",
+  "name": "ENGCON CLASS B",
+  "sector": "Industrieunternehmen",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 219692.80000000002
+ },
+ {
+  "company_id": "BMG0702P1086",
+  "name": "BW ENERGY LTD",
+  "sector": "Energie",
+  "country": "Bermudas",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 219107.0
+ },
+ {
+  "company_id": "PTSEM0AM0004",
+  "name": "SEMAPA SGPS SA",
+  "sector": "Material",
+  "country": "Portugal",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 213889.0
+ },
+ {
+  "company_id": "FR0013341781",
+  "name": "2CRSI SA",
+  "sector": "Informationstechnologie",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 213483.5
+ },
+ {
+  "company_id": "IT0005385213",
+  "name": "NEWPRINCES",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 209969.0
+ },
+ {
+  "company_id": "FR0013233012",
+  "name": "INVENTIVA SA",
+  "sector": "Gesundheitswesen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 209108.1
+ },
+ {
+  "company_id": "PTCOR0AE0006",
+  "name": "CORTICEIRA AMORIM SA",
+  "sector": "Material",
+  "country": "Portugal",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 206171.90000000002
+ },
+ {
+  "company_id": "FR0000053225",
+  "name": "METROPOLE TELEVISION SA",
+  "sector": "Kommunikationsdienste",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 205876.69999999998
+ },
+ {
+  "company_id": "SE0009554454",
+  "name": "SAMHALLSBYGGNADSBOLAGET I NORDEN C",
+  "sector": "Immobilien",
+  "country": "Schweden",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 203227.3
+ },
+ {
+  "company_id": "DE0005493365",
+  "name": "HYPOPORT N",
+  "sector": "Finanzen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 200006.1
+ },
+ {
+  "company_id": "FR0000054900",
+  "name": "TELEVISION FRANCAISE  SA",
+  "sector": "Kommunikationsdienste",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 194049.7
+ },
+ {
+  "company_id": "DE000A161N30",
+  "name": "GRENKE N AG",
+  "sector": "Finanzen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 193341.1
+ },
+ {
+  "company_id": "DK0062266474",
+  "name": "GUBRA",
+  "sector": "Gesundheitswesen",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 193127.8
+ },
+ {
+  "company_id": "DE000NCA0001",
+  "name": "THYSSENKRUPP NUCERA AG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 193074.0
+ },
+ {
+  "company_id": "DE0008051004",
+  "name": "WUESTENROT & WUERTTEMBERGISCHE AG",
+  "sector": "Finanzen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 191559.5
+ },
+ {
+  "company_id": "DE0007274136",
+  "name": "STO PREF",
+  "sector": "Material",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 191431.5
+ },
+ {
+  "company_id": "FR0000073041",
+  "name": "PIERRE ET VACANCES SA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 191147.4
+ },
+ {
+  "company_id": "NL0010558797",
+  "name": "OCI",
+  "sector": "Material",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 190975.0
+ },
+ {
+  "company_id": "ES0130625512",
+  "name": "ENCE ENERGIA Y CELULOSA SA",
+  "sector": "Material",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 186431.7
+ },
+ {
+  "company_id": "FR0000064784",
+  "name": "PEUGEOT INVEST SA",
+  "sector": "Finanzen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 180847.2
+ },
+ {
+  "company_id": "FR0004007813",
+  "name": "KAUFMAN & BROAD SA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 176726.6
+ },
+ {
+  "company_id": "DE000A1H8BV3",
+  "name": "NORMA GROUP",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 173868.09999999998
+ },
+ {
+  "company_id": "DE000PAT1AG3",
+  "name": "PATRIZIA",
+  "sector": "Immobilien",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 171719.5
+ },
+ {
+  "company_id": "PTALT0AE0002",
+  "name": "ALTRI SGPS",
+  "sector": "Material",
+  "country": "Portugal",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 171508.6
+ },
+ {
+  "company_id": "DE000A0ETBQ4",
+  "name": "MBB",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 170828.6
+ },
+ {
+  "company_id": "FR0013357621",
+  "name": "WAVESTONE SA",
+  "sector": "Informationstechnologie",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 170366.59999999998
+ },
+ {
+  "company_id": "IT0001469383",
+  "name": "ARNOLDO MONDADORI EDITORE",
+  "sector": "Kommunikationsdienste",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 169610.8
+ },
+ {
+  "company_id": "LU0775917882",
+  "name": "GRAND CITY PROPERTIES SA",
+  "sector": "Immobilien",
+  "country": "Luxemburg",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 164040.7
+ },
+ {
+  "company_id": "IT0005440893",
+  "name": "WIIT",
+  "sector": "Informationstechnologie",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 162763.2
+ },
+ {
+  "company_id": "IT0005274094",
+  "name": "PHARMANUTRA",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 162257.1
+ },
+ {
+  "company_id": "GB00BLGXWY71",
+  "name": "W.A.G PAYMENT SOLUTIONS PLC",
+  "sector": "Finanzen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 161058.80000000002
+ },
+ {
+  "company_id": "GB00BDHXPG30",
+  "name": "ALFA FINANCIAL SOFTWARE HOLDINGS P",
+  "sector": "Informationstechnologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 160038.30000000002
+ },
+ {
+  "company_id": "FR0000074148",
+  "name": "ASSYSTEM SA",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 160010.40000000002
+ },
+ {
+  "company_id": "IT0005572778",
+  "name": "JUVENTUS FOOTBAL CLUB",
+  "sector": "Kommunikationsdienste",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 158828.0
+ },
+ {
+  "company_id": "NL0013332471",
+  "name": "TOMTOM NV",
+  "sector": "Informationstechnologie",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 156771.69999999998
+ },
+ {
+  "company_id": "GB00B2NDK765",
+  "name": "YOUNG AND COS BREWERY PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 155775.6
+ },
+ {
+  "company_id": "FR0000066672",
+  "name": "GL EVENTS SA",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 155373.30000000002
+ },
+ {
+  "company_id": "FR0011950732",
+  "name": "ELIOR GROUP SA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 154576.1
+ },
+ {
+  "company_id": "DE000BEAU1Y4",
+  "name": "DOUGLAS N AG",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 152894.9
+ },
+ {
+  "company_id": "FR0000038606",
+  "name": "MANITOU BF SA",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 151395.4
+ },
+ {
+  "company_id": "ATFREQUENT09",
+  "name": "FREQUENTIS AG",
+  "sector": "Industrieunternehmen",
+  "country": "\u00d6sterreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 150053.5
+ },
+ {
+  "company_id": "FR0014005AL0",
+  "name": "ANTIN INFRASTRUCTURE PARTNERS",
+  "sector": "Finanzen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 149900.0
+ },
+ {
+  "company_id": "IT0005383291",
+  "name": "FERRETTI",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 149379.3
+ },
+ {
+  "company_id": "GB00BN0VZ646",
+  "name": "FERRARI GROUP PLC",
+  "sector": "Industrieunternehmen",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 148289.0
+ },
+ {
+  "company_id": "DK0060952240",
+  "name": "BETTER COLLECTIVE",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "D\u00e4nemark",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 146884.40000000002
+ },
+ {
+  "company_id": "NL0000817179",
+  "name": "SLIGRO FOOD GROUP",
+  "sector": "Basiskonsumg\u00fcter",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 146395.6
+ },
+ {
+  "company_id": "BE0003754687",
+  "name": "VASTNED BELGIUM NV",
+  "sector": "Immobilien",
+  "country": "Belgien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 146093.3
+ },
+ {
+  "company_id": "FR0000035164",
+  "name": "BENETEAU SA",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 142731.8
+ },
+ {
+  "company_id": "FI4000513593",
+  "name": "KEMPOWER",
+  "sector": "Industrieunternehmen",
+  "country": "Finnland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 142544.6
+ },
+ {
+  "company_id": "DE000A0JBPG2",
+  "name": "PNE AG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 142205.5
+ },
+ {
+  "company_id": "IT0005186371",
+  "name": "INDUSTRIE DE NORA",
+  "sector": "Industrieunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 140508.2
+ },
+ {
+  "company_id": "IT0004093263",
+  "name": "ASCOPIAVE",
+  "sector": "Versorgungsunternehmen",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 136987.7
+ },
+ {
+  "company_id": "DE000PSM7770",
+  "name": "PROSIEBEN SAT.1 MEDIA N",
+  "sector": "Kommunikationsdienste",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 129608.0
+ },
+ {
+  "company_id": "FR0000039109",
+  "name": "SECHE ENVIRONNEMENT SA",
+  "sector": "Industrieunternehmen",
+  "country": "Frankreich",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 122671.50000000001
+ },
+ {
+  "company_id": "GB00BMTV7393",
+  "name": "THG PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 121597.59999999999
+ },
+ {
+  "company_id": "IT0004171440",
+  "name": "ZIGNAGO VETRO",
+  "sector": "Material",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 120222.3
+ },
+ {
+  "company_id": "DE0005313506",
+  "name": "ENERGIEKONTOR AG",
+  "sector": "Industrieunternehmen",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 118125.8
+ },
+ {
+  "company_id": "NL0015001OJ9",
+  "name": "MFE B NV",
+  "sector": "Kommunikationsdienste",
+  "country": "Niederlande",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 115982.40000000001
+ },
+ {
+  "company_id": "GB00B1L5QH97",
+  "name": "RANK GROUP PLC",
+  "sector": "Nicht-Basiskonsumg\u00fcter",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 115262.2
+ },
+ {
+  "company_id": "IT0005424962",
+  "name": "AMCO   ASSET MANAGEMENT CO B",
+  "sector": "unbekannt",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 10209.1
+ },
+ {
+  "company_id": "BMG0114P1005",
+  "name": "AFRICAN MINERALS LTD",
+  "sector": "Material",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3.8000000000000003
+ },
+ {
+  "company_id": "ES0158252033",
+  "name": "LET S GOWEX S.A",
+  "sector": "Kommunikationsdienste",
+  "country": "Spanien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 0.3
+ },
+ {
+  "company_id": "IT0005056236",
+  "name": "BIO ON SPA",
+  "sector": "Material",
+  "country": "Italien",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 0.1
+ }
+]

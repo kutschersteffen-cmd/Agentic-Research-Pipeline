@@ -1,0 +1,902 @@
+[
+ {
+  "company_id": "US5949181045",
+  "name": "MICROSOFT",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 57187243.0
+ },
+ {
+  "company_id": "US30303M1027",
+  "name": "META PLATFORMS CLASS A",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 53609914.5
+ },
+ {
+  "company_id": "US67066G1040",
+  "name": "NVIDIA",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 47996181.4
+ },
+ {
+  "company_id": "US0378331005",
+  "name": "APPLE",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 47487560.800000004
+ },
+ {
+  "company_id": "US0079031078",
+  "name": "ADVANCED MICRO DEVICES",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 44092471.699999996
+ },
+ {
+  "company_id": "US0231351067",
+  "name": "AMAZON COM INC",
+  "sector": "Verbrauchsg\u00fcter",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 43325115.300000004
+ },
+ {
+  "company_id": "KR7005930003",
+  "name": "SAMSUNG ELECTRONICS LTD",
+  "sector": "Telekommunikation",
+  "country": "S\u00fcd Korea",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 39825175.300000004
+ },
+ {
+  "company_id": "US5951121038",
+  "name": "MICRON TECHNOLOGY",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 39548690.0
+ },
+ {
+  "company_id": "US02079K3059",
+  "name": "ALPHABET CLASS A",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 39372176.8
+ },
+ {
+  "company_id": "US9311421039",
+  "name": "WALMART",
+  "sector": "Verbrauchsg\u00fcter",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 38293430.699999996
+ },
+ {
+  "company_id": "US69608A1088",
+  "name": "PALANTIR TECHNOLOGIES CLASS A",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 36680431.7
+ },
+ {
+  "company_id": "US4581401001",
+  "name": "INTEL CORPORATION CORP",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 35751231.6
+ },
+ {
+  "company_id": "US17275R1023",
+  "name": "CISCO SYSTEMS INC",
+  "sector": "Telekommunikation",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 34527940.1
+ },
+ {
+  "company_id": "KR7000660001",
+  "name": "SK HYNIX",
+  "sector": "Technologie",
+  "country": "S\u00fcd Korea",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 32821348.799999997
+ },
+ {
+  "company_id": "US0605051046",
+  "name": "BANK OF AMERICA",
+  "sector": "Finanzdienstleister",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 30363375.099999998
+ },
+ {
+  "company_id": "US24703L2025",
+  "name": "DELL TECHNOLOGIES INC (TEXAS)",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 28365085.2
+ },
+ {
+  "company_id": "US6974351057",
+  "name": "PALO ALTO NETWORKS",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 26012136.0
+ },
+ {
+  "company_id": "US01609W1027",
+  "name": "ALIBABA GROUP HOLDING ADR REPRESEN",
+  "sector": "Verbrauchsg\u00fcter",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 23611268.7
+ },
+ {
+  "company_id": "US68389X1054",
+  "name": "ORACLE",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 21841255.7
+ },
+ {
+  "company_id": "US22788C1053",
+  "name": "CROWDSTRIKE HOLDINGS CLASS A",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 21824028.200000003
+ },
+ {
+  "company_id": "DE0007164600",
+  "name": "SAP",
+  "sector": "Technologie",
+  "country": "Deutschland",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 21218862.599999998
+ },
+ {
+  "company_id": "US0404132054",
+  "name": "ARISTA NETWORKS",
+  "sector": "unbekannt",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 18854758.6
+ },
+ {
+  "company_id": "US4592001014",
+  "name": "INTERNATIONAL BUSINESS MACHINES",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 17080496.6
+ },
+ {
+  "company_id": "US92343V1044",
+  "name": "VERIZON COMMUNICATIONS INC",
+  "sector": "Telekommunikation",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 15464291.4
+ },
+ {
+  "company_id": "US79466L3024",
+  "name": "SALESFORCE",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 15259069.1
+ },
+ {
+  "company_id": "US00206R1023",
+  "name": "AT&T",
+  "sector": "Telekommunikation",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 13599851.0
+ },
+ {
+  "company_id": "US9581021055",
+  "name": "WESTERN DIGITAL CORP",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 11528671.7
+ },
+ {
+  "company_id": "US81762P1021",
+  "name": "SERVICENOW",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 11443459.700000001
+ },
+ {
+  "company_id": "US8334451098",
+  "name": "SNOWFLAKE",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 10849336.200000001
+ },
+ {
+  "company_id": "IE00B4BNMY34",
+  "name": "ACCENTURE PLC CLASS A",
+  "sector": "Industrieunternehmen",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 10469439.6
+ },
+ {
+  "company_id": "TW0002317005",
+  "name": "HON HAI PRECISION INDUSTRY",
+  "sector": "Technologie",
+  "country": "Taiwan",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 8995388.1
+ },
+ {
+  "company_id": "US34959E1091",
+  "name": "FORTINET",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 8629081.2
+ },
+ {
+  "company_id": "US00724F1012",
+  "name": "ADOBE INC",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 7637340.1
+ },
+ {
+  "company_id": "US42824C1099",
+  "name": "HEWLETT PACKARD ENTERPRISE",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 6418451.399999999
+ },
+ {
+  "company_id": "US4612021034",
+  "name": "INTUIT",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 6230284.4
+ },
+ {
+  "company_id": "CNE1000041R8",
+  "name": "CAMBRICON TECHNOLOGIES CORPORATION",
+  "sector": "Technologie",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 4235580.800000001
+ },
+ {
+  "company_id": "JP3818000006",
+  "name": "FUJITSU",
+  "sector": "Technologie",
+  "country": "Japan",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3838804.9
+ },
+ {
+  "company_id": "JP3733000008",
+  "name": "NEC",
+  "sector": "Technologie",
+  "country": "Japan",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3625058.3000000003
+ },
+ {
+  "company_id": "US0494681010",
+  "name": "ATLASSIAN CORP CLASS A",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3484778.4000000004
+ },
+ {
+  "company_id": "US90138F1021",
+  "name": "TWILIO CLASS A",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3348149.6
+ },
+ {
+  "company_id": "US64110D1046",
+  "name": "NETAPP INC",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3123683.9
+ },
+ {
+  "company_id": "CNE100005PT2",
+  "name": "HYGON INFORMATION TECHNOLOGY LTD A",
+  "sector": "Technologie",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3093673.5
+ },
+ {
+  "company_id": "US1717793095",
+  "name": "CIENA",
+  "sector": "Telekommunikation",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 3045564.5
+ },
+ {
+  "company_id": "US74624M1027",
+  "name": "EVERPURE INC CLASS A",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2897471.1
+ },
+ {
+  "company_id": "US6792951054",
+  "name": "OKTA CLASS A",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2503093.3000000003
+ },
+ {
+  "company_id": "US60937P1066",
+  "name": "MONGODB CLASS A",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2433980.6999999997
+ },
+ {
+  "company_id": "US98980L1017",
+  "name": "ZOOM COMMUNICATIONS CLASS A",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2391886.3
+ },
+ {
+  "company_id": "US7811541090",
+  "name": "RUBRIK CLASS A",
+  "sector": "unbekannt",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 2174100.8
+ },
+ {
+  "company_id": "US98980G1022",
+  "name": "ZSCALER",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1971241.2
+ },
+ {
+  "company_id": "KR7035420009",
+  "name": "NAVER",
+  "sector": "Technologie",
+  "country": "S\u00fcd Korea",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1839533.5
+ },
+ {
+  "company_id": "CNE100006V65",
+  "name": "CHINA TOWER CORP LTD H",
+  "sector": "unbekannt",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1735962.2
+ },
+ {
+  "company_id": "US3156161024",
+  "name": "F5",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1672562.1
+ },
+ {
+  "company_id": "GB0030913577",
+  "name": "BT GROUP PLC",
+  "sector": "Telekommunikation",
+  "country": "Gro\u00dfbritannien (UK)",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1449133.0
+ },
+ {
+  "company_id": "US46222L1089",
+  "name": "IONQ",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1441155.0
+ },
+ {
+  "company_id": "CNE000001GL8",
+  "name": "TCL TECHNOLOGY GROUP A",
+  "sector": "Technologie",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1360032.4000000001
+ },
+ {
+  "company_id": "US12514G1085",
+  "name": "CDW",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1286521.7
+ },
+ {
+  "company_id": "US67059N1081",
+  "name": "NUTANIX CLASS A",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1185614.4
+ },
+ {
+  "company_id": "US00971T1016",
+  "name": "AKAMAI TECHNOLOGIES INC",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1181026.4000000001
+ },
+ {
+  "company_id": "CNE100000B81",
+  "name": "IFLYTEK LTD A",
+  "sector": "Technologie",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 1036990.3999999999
+ },
+ {
+  "company_id": "US2561631068",
+  "name": "DOCUSIGN",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 975103.2000000001
+ },
+ {
+  "company_id": "IL0010824113",
+  "name": "CHECK POINT SOFTWARE TECHNOLOGIES",
+  "sector": "Technologie",
+  "country": "Israel",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 946040.7
+ },
+ {
+  "company_id": "CNE0000012M2",
+  "name": "IEIT SYSTEMS CO LTD",
+  "sector": "Technologie",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 899045.3
+ },
+ {
+  "company_id": "US4435731009",
+  "name": "HUBSPOT",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 795115.4
+ },
+ {
+  "company_id": "US5653941030",
+  "name": "MAPLEBEAR",
+  "sector": "unbekannt",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 702191.0
+ },
+ {
+  "company_id": "TW0002337003",
+  "name": "MACRONIX INTERNATIONAL",
+  "sector": "Technologie",
+  "country": "Taiwan",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 689192.3999999999
+ },
+ {
+  "company_id": "US83304A1060",
+  "name": "SNAP INC CLASS A",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 659883.9
+ },
+ {
+  "company_id": "TW0002356003",
+  "name": "INVENTEC",
+  "sector": "Technologie",
+  "country": "Taiwan",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 614512.7000000001
+ },
+ {
+  "company_id": "US74275K1088",
+  "name": "PROCORE TECHNOLOGIES INC",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 606242.3
+ },
+ {
+  "company_id": "JP3967200001",
+  "name": "RAKUTEN GROUP",
+  "sector": "Technologie",
+  "country": "Japan",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 603658.2000000001
+ },
+ {
+  "company_id": "KYG4602S1057",
+  "name": "HORIZON ROBOTICS",
+  "sector": "unbekannt",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 575774.5
+ },
+ {
+  "company_id": "US6536561086",
+  "name": "NICE ADR REPRESENTING",
+  "sector": "Telekommunikation",
+  "country": "Israel",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 568008.1
+ },
+ {
+  "company_id": "US08265T2087",
+  "name": "BENTLEY SYSTEMS INC CLASS B",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 509793.60000000003
+ },
+ {
+  "company_id": "US64119N6085",
+  "name": "NETSKOPE CLASS A",
+  "sector": "unbekannt",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 505209.29999999993
+ },
+ {
+  "company_id": "KYG8062L1041",
+  "name": "SENSETIME GROUP CLASS B INC",
+  "sector": "Technologie",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 503796.39999999997
+ },
+ {
+  "company_id": "KR7018260000",
+  "name": "SAMSUNG SDS",
+  "sector": "Technologie",
+  "country": "S\u00fcd Korea",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 488233.5
+ },
+ {
+  "company_id": "US26210C1045",
+  "name": "DROPBOX INC CLASS A",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 470388.9
+ },
+ {
+  "company_id": "CNE1000033T1",
+  "name": "SANGFOR TECHNOLOGIES INC A",
+  "sector": "Technologie",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 453006.8
+ },
+ {
+  "company_id": "US2041661024",
+  "name": "COMMVAULT SYSTEMS",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 442336.2
+ },
+ {
+  "company_id": "CA6837151068",
+  "name": "OPEN TEXT",
+  "sector": "Technologie",
+  "country": "Kanada",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 432296.5
+ },
+ {
+  "company_id": "US9222801022",
+  "name": "VARONIS SYSTEMS",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 423855.5
+ },
+ {
+  "company_id": "US90364P1057",
+  "name": "UIPATH INC CLASS A",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 416910.8
+ },
+ {
+  "company_id": "CA09228F1036",
+  "name": "BLACKBERRY",
+  "sector": "Technologie",
+  "country": "Kanada",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 378609.9
+ },
+ {
+  "company_id": "US87157D1090",
+  "name": "SYNAPTICS",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 311005.0
+ },
+ {
+  "company_id": "KYG5264Y1089",
+  "name": "KINGSOFT",
+  "sector": "Technologie",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 295929.1
+ },
+ {
+  "company_id": "CNE100004231",
+  "name": "QUANTUMCTEK LTD A",
+  "sector": "unbekannt",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 279072.6
+ },
+ {
+  "company_id": "TW0003706008",
+  "name": "MITAC HOLDINGS CORP",
+  "sector": "unbekannt",
+  "country": "Taiwan",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 258398.99999999997
+ },
+ {
+  "company_id": "US49639K1016",
+  "name": "KINGSOFT CLOUD HOLDINGS ADR REPRES",
+  "sector": "Technologie",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 252310.09999999998
+ },
+ {
+  "company_id": "CA49448Q1090",
+  "name": "KINAXIS INC",
+  "sector": "Technologie",
+  "country": "Kanada",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 242409.1
+ },
+ {
+  "company_id": "US8361001071",
+  "name": "SOUNDHOUND AI CLASS A",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 208362.6
+ },
+ {
+  "company_id": "US64115T1043",
+  "name": "NETSCOUT SYSTEMS",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 206880.0
+ },
+ {
+  "company_id": "US50155Q1004",
+  "name": "KYNDRYL HOLDINGS",
+  "sector": "Technologie",
+  "country": "Vereinigte Staaten von Amerika",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 205356.6
+ },
+ {
+  "company_id": "CNE100006038",
+  "name": "SHENZHEN INTELLIFUSION TECHNOLOGIE",
+  "sector": "unbekannt",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 205062.2
+ },
+ {
+  "company_id": "KYG5966D1051",
+  "name": "MEITU INC",
+  "sector": "Telekommunikation",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 154879.9
+ },
+ {
+  "company_id": "TW0003005005",
+  "name": "GETAC HOLDINGS CORP",
+  "sector": "Technologie",
+  "country": "Taiwan",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 144926.1
+ },
+ {
+  "company_id": "CNE100000QJ2",
+  "name": "VENUSTECH GROUP INC A",
+  "sector": "Technologie",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 143128.4
+ },
+ {
+  "company_id": "CNE100001S32",
+  "name": "NSFOCUS TECHNOLOGIES GROUP A",
+  "sector": "Technologie",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 79329.0
+ },
+ {
+  "company_id": "CNE100000M47",
+  "name": "TAIJI COMPUTER CORP LTD A",
+  "sector": "Technologie",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 71204.5
+ },
+ {
+  "company_id": "TW0002388006",
+  "name": "VIA TECHNOLOGIES",
+  "sector": "Technologie",
+  "country": "Taiwan",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 65426.99999999999
+ },
+ {
+  "company_id": "CNE100001C71",
+  "name": "SINODATA CO LTD A",
+  "sector": "unbekannt",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 62583.799999999996
+ },
+ {
+  "company_id": "CNE000000M49",
+  "name": "INSPUR SOFTWARE CO LTD A",
+  "sector": "unbekannt",
+  "country": "China",
+  "currency": "EUR",
+  "price": 1.0,
+  "shares_outstanding": 49483.6
+ }
+]
