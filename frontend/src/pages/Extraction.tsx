@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { api } from "../api/client";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
-import type { DataPointSchema, ExtractionProfile, StepSettings, UniverseHandoff } from "../types";
+import type { ExtractionProfile, StepSettings, UniverseHandoff } from "../types";
 import { useReviewer } from "../lib/reviewer";
 import { ScoringTemplatePicker } from "../components/RunScoring";
 import { TransitionPlanMethodology } from "../components/TransitionPlanResults";
 import { PipelineEditor } from "../components/PipelineEditor";
-import { SchemaFieldsEditor } from "../components/SchemaFieldsEditor";
 import { StepTabs, type StepTab } from "../components/StepTabs";
 import { StageFlowChart } from "../components/StageFlowChart";
 import { FlowRuns } from "../components/FlowRuns";
 import { IdentityStage } from "../components/IdentityStage";
 import { DocumentsStage } from "../components/DocumentsStage";
-import { PROFILE_META, jobLabel, jobReady, type Job } from "../lib/jobs";
+import { PROFILE_META, addCustomJob, initialJobs, jobLabel, jobReady, type CustomJob, type Job } from "../lib/jobs";
 import {
   STAGES,
   extractInputs,
@@ -30,16 +29,7 @@ import {
 import { JobReview } from "./extraction/JobReview";
 import { JobRun, type JobStatus } from "./extraction/JobRun";
 import { CompaniesPanel } from "./extraction/CompaniesPanel";
-
-const DEFAULT_CRITERIA =
-  "Green capex: total green/sustainable capital expenditure in USD/EUR millions for the most recent fiscal " +
-  "year, and as a % of total capex. Separately capture: (a) whether reported per the EU Taxonomy (eligible vs " +
-  "aligned) vs. a self-defined/internal definition -- both if disclosed, clearly labeled; (b) breakdown by EU " +
-  "Taxonomy environmental objective (climate mitigation, adaptation, water, circular economy, pollution, " +
-  "biodiversity) where disclosed; (c) the company's own stated definition/methodology as a separate string " +
-  "field with its own citation; (d) prior-year comparative figure; (e) forward-looking green capex " +
-  "targets/guidance as a SEPARATE field from the actual reported figure -- extraction_instructions must " +
-  "explicitly forbid conflating a target with an actual reported number.";
+import { DEFAULT_CRITERIA, SchemaPanel } from "./extraction/SchemaPanel";
 
 type Mode = ExtractionProfile;
 
@@ -75,8 +65,9 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const runId = flow.extractRuns[mode] ?? null;
 
   // Custom-schema mode only
-  const [criteria, setCriteria] = useState(DEFAULT_CRITERIA);
-  const [schema, setSchema] = useState<DataPointSchema | null>(null);
+  const [jobs, setJobs] = useState<Job[]>(() => initialJobs(initialProfile, "custom:1", DEFAULT_CRITERIA));
+  const customCounter = useRef(1);
+  const nextCustomId = useCallback(() => `custom:${++customCounter.current}`, []);
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [stepSettings, setStepSettings] = useState<StepSettings>({});
 
@@ -88,6 +79,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   function switchMode(next: Mode) {
     if (next === mode) return;
     setMode(next);
+    if (next === "custom" && !jobs.some((j) => j.profile === "custom")) setJobs(addCustomJob(jobs, nextCustomId(), DEFAULT_CRITERIA));
     dispatch({ type: "jobsChanged", jobIds: [next] });
     setTab("companies");
     setSub((s) => ({ ...s, extract: "setup" }));
@@ -97,24 +89,15 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     setActiveSource(null);
   }
 
-  async function draft() {
-    setBusy(true);
-    setError(null);
-    try {
-      setSchema((await api.draftSchema(criteria)) as DataPointSchema);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const inputs = extractInputs(flow);
   const leftOut = pendingOnboard(flow);
   const inputCount = inputs.length === 1 ? inputs[0].count : mergeCompanies(inputs).length;
+  // Temporary bridge until the multi-profile picker: the page runs one job, the first custom one in Custom mode.
+  const firstCustom = jobs.find((j): j is CustomJob => j.profile === "custom");
+  const schema = firstCustom?.schema ?? null;
   const currentJob: Job = useMemo(
-    () => (mode === "custom" ? { id: "custom:1", profile: "custom", schema, request: "" } : { id: mode, profile: mode }),
-    [mode, schema],
+    () => (mode === "custom" && firstCustom ? firstCustom : { id: mode, profile: mode } as Job),
+    [mode, firstCustom],
   );
   const schemaReady = jobReady(currentJob);
   const canStart = inputs.length > 0 && schemaReady && (mode !== "tnfd" || !!asOf.trim());
@@ -303,23 +286,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
 
       {mode === "custom" && (
         <div role="tabpanel" aria-label="Schema" hidden={tab !== "schema"}>
-          <section className="card">
-            <h2>Describe what to extract</h2>
-            <label className="field-label">
-              Research request
-              <textarea rows={2} value={criteria} onChange={(e) => setCriteria(e.target.value)} />
-            </label>
-            <button onClick={draft} disabled={busy}>
-              Draft extraction schema
-            </button>
-            <p className="help-text">Or skip this and build a schema entirely by hand before starting a run.</p>
-          </section>
-          {schema && (
-            <section className="card">
-              <h2>Review &amp; edit fields</h2>
-              <SchemaFieldsEditor fields={schema.fields} onChange={(fields) => setSchema({ ...schema, fields })} />
-            </section>
-          )}
+          <SchemaPanel jobs={jobs} onChange={setJobs} nextCustomId={nextCustomId} defaultRequest={DEFAULT_CRITERIA} />
         </div>
       )}
 
