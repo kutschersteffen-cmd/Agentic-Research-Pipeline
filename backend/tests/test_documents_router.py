@@ -61,3 +61,44 @@ def test_enrich_cached_rows_leaves_unregistered_row_as_none(tmp_path):
 
     assert enriched[0]["company_id"] is None
     assert enriched[0]["filename"] is None
+
+
+def test_list_documents_rejects_unsafe_company_id(tmp_path):
+    from arp.api.routers.documents import list_documents
+    from arp.config import Settings
+
+    with pytest.raises(HTTPException) as exc_info:
+        list_documents("../etc", Settings(documents_dir=tmp_path))
+    assert exc_info.value.status_code == 400
+
+
+async def test_upload_refuses_oversize_file_and_leaves_nothing(tmp_path):
+    import io
+
+    from starlette.datastructures import UploadFile
+
+    from arp.api.routers.documents import upload_document
+    from arp.config import Settings
+    from arp.schemas.common import DocType
+
+    settings = Settings(documents_dir=tmp_path, max_upload_bytes=10)
+    with pytest.raises(HTTPException) as exc_info:
+        await upload_document("acme", DocType.OTHER, UploadFile(io.BytesIO(b"x" * 11), filename="big.pdf"), settings)
+    assert exc_info.value.status_code == 413
+    assert not list(tmp_path.rglob("*.pdf"))
+
+
+async def test_upload_keeps_both_files_with_the_same_name(tmp_path):
+    import io
+
+    from starlette.datastructures import UploadFile
+
+    from arp.api.routers.documents import upload_document
+    from arp.config import Settings
+    from arp.schemas.common import DocType
+
+    settings = Settings(documents_dir=tmp_path)
+    first = await upload_document("acme", DocType.OTHER, UploadFile(io.BytesIO(b"one"), filename="r.pdf"), settings)
+    second = await upload_document("acme", DocType.OTHER, UploadFile(io.BytesIO(b"two"), filename="r.pdf"), settings)
+    assert first["path"] != second["path"]
+    assert sorted(p.read_bytes() for p in (tmp_path / "acme" / "other").iterdir()) == [b"one", b"two"]

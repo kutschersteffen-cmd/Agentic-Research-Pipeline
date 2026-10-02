@@ -122,6 +122,13 @@ def enriched_universe(run_store: RunStore, run_id: str) -> list[CompanyRef]:
             if decision["decision"] == "reject":
                 continue
             edited = decision.get("edited_value") or {}
+            # The shared review controls send one free-text override as
+            # {"value": ...}: all digits is a CIK, anything else a website.
+            override = str(edited.get("value") or "").strip()
+            if override.isdigit():
+                cik = override
+            elif override:
+                website = override
             website = edited.get("resolved_website", website)
             cik = edited.get("resolved_cik", cik)
             included = decision["decision"] in ("approve", "edit")
