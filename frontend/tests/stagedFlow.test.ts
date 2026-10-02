@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  autoContinueDue, docRows, extractInputs, flagReason, pendingOnboard, flowReducer, initialFlow, mergeCompanies,
+  autoContinueDue, docRows, extractInputs, flagReason, pendingOnboard, flowReducer, initialFlow, latestExtractRun, mergeCompanies,
   editedText, matchesTile, reviewCounts, runEndedAt, runScope, stageInput, valueOrigin,
 } from "../src/lib/stagedFlow.ts";
 import type { FlowAction, FlowState, StageOutput } from "../src/lib/stagedFlow.ts";
@@ -60,7 +60,7 @@ test("skip passes input through", () => {
 
 test("rerun marks later stages stale", () => {
   const done = { ...initialFlow.identify, state: "done" as const, runId: "a" };
-  const s = run({ ...initialFlow, identify: done, documents: { ...done, runId: "b" }, extractRunId: "e" }, started);
+  const s = run({ ...initialFlow, identify: done, documents: { ...done, runId: "b" }, extractRuns: { financials: "e" } }, started);
   assert.equal(s.documents.state, "stale");
   assert.equal(s.extractStale, true);
 });
@@ -91,10 +91,33 @@ test("new list un-skips auto-skipped stages", () => {
   assert.equal(s.identify.handover, "manual");
 });
 
-test("profile change keeps stages", () => {
-  const s = run(initialFlow, started, finish(0), { type: "extractStarted", runId: "e" }, { type: "profileChanged" });
-  assert.equal(s.extractRunId, null);
-  assert.equal(s.identify.state, "ready");
+const twoRuns: FlowAction[] = [
+  { type: "extractStarted", job: "financials", runId: "r1" },
+  { type: "extractStarted", job: "tnfd", runId: "r2" },
+];
+
+test("extract runs per job", () => {
+  const s = run(initialFlow, ...twoRuns);
+  assert.deepEqual(s.extractRuns, { financials: "r1", tnfd: "r2" });
+  assert.deepEqual(s.runIds.slice(-2), ["r1", "r2"]);
+});
+
+test("jobsChanged drops removed jobs", () => {
+  const before = run(initialFlow, started, finish(0), ...twoRuns);
+  const s = run(before, { type: "jobsChanged", jobIds: ["tnfd"] });
+  assert.deepEqual(s.extractRuns, { tnfd: "r2" });
+  assert.equal(s.identify, before.identify);
+});
+
+test("latestExtractRun", () => {
+  assert.equal(latestExtractRun(initialFlow), null);
+  assert.equal(latestExtractRun(run(initialFlow, ...twoRuns)), "r2");
+  assert.equal(latestExtractRun(run(initialFlow, ...twoRuns, { type: "jobsChanged", jobIds: ["financials"] })), "r1");
+});
+
+test("stale with any run", () => {
+  const s = run(initialFlow, { type: "extractStarted", job: "tnfd", runId: "r2" }, started);
+  assert.equal(s.extractStale, true);
 });
 
 const skipBoth: FlowAction[] = [

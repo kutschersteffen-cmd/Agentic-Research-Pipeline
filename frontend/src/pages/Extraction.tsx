@@ -81,7 +81,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
   const identifyRef = useRef<StageHandle>(null);
   const documentsRef = useRef<StageHandle>(null);
-  const runId = flow.extractRunId;
+  const runId = flow.extractRuns[mode] ?? null;
 
   // Custom-schema mode only
   const [criteria, setCriteria] = useState(DEFAULT_CRITERIA);
@@ -108,7 +108,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   function switchMode(next: Mode) {
     if (next === mode) return;
     setMode(next);
-    dispatch({ type: "profileChanged" });
+    dispatch({ type: "jobsChanged", jobIds: [next] });
     setTab("companies");
     setSub((s) => ({ ...s, extract: "setup" }));
     setError(null);
@@ -165,7 +165,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
         decision_framework_id: templateId ?? undefined,
         step_settings: Object.keys(settings).length ? settings : undefined,
       });
-      dispatch({ type: "extractStarted", runId: res.run_id });
+      dispatch({ type: "extractStarted", job: mode, runId: res.run_id });
       clearResults();
       setTab("extract");
       setSub((s) => ({ ...s, extract: "run" }));
@@ -454,7 +454,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
                 profile={mode}
                 runId={runId}
                 onRestarted={(next) => {
-                  dispatch({ type: "extractStarted", runId: next });
+                  dispatch({ type: "extractStarted", job: mode, runId: next });
                   clearResults();
                 }}
               />

@@ -3,7 +3,7 @@ import ReactFlow, { Controls, Handle, MarkerType, Position, type Edge, type Node
 import "reactflow/dist/style.css";
 import { layoutPipeline } from "../lib/pipelineLayout";
 import { when } from "../lib/runs";
-import { extractInputs, type FlowAction, type FlowState, type FlowStep, type Handover, type StageId, type StageState } from "../lib/stagedFlow";
+import { extractInputs, latestExtractRun, type FlowAction, type FlowState, type FlowStep, type Handover, type StageId, type StageState } from "../lib/stagedFlow";
 import type { DataPointSchema, ExtractionProfile, PipelineShape } from "../types";
 
 const CARD_W = 214;
@@ -195,7 +195,7 @@ export function StageFlowChart({ flow, profile, extract, counts, onOpen, onStart
             startLabel: running ? null : START_STATES.has(extract.status) ? "Start" : "Run again",
             startDisabled: !extract.ready,
             onStart: () => onStart("extract"),
-            onStop: running && flow.extractRunId ? () => onStop(flow.extractRunId!) : null,
+            onStop: running && latestExtractRun(flow) ? () => onStop(latestExtractRun(flow)!) : null,
           };
         }
         case "scoring":

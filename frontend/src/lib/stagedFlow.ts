@@ -22,7 +22,8 @@ export interface FlowState {
   recheckReady: boolean;
   identify: Stage;
   documents: Stage;
-  extractRunId: string | null;
+  /** Extraction run id per job id. */
+  extractRuns: Record<string, string>;
   extractStale: boolean;
   runIds: string[];
 }
@@ -37,8 +38,8 @@ export type FlowAction =
   | { type: "runFinished"; stage: StageId; status: JobStatus; flagged: number; failed: number; note?: string }
   | { type: "handedOver"; stage: StageId; output: StageOutput }
   | { type: "useAnyway"; stage: StageId }
-  | { type: "extractStarted"; runId: string }
-  | { type: "profileChanged" };
+  | { type: "extractStarted"; job: string; runId: string }
+  | { type: "jobsChanged"; jobIds: string[] };
 
 export const STAGES: StageId[] = ["identify", "documents"];
 
@@ -55,7 +56,7 @@ export const initialFlow: FlowState = {
   recheckReady: false,
   identify: idleStage,
   documents: idleStage,
-  extractRunId: null,
+  extractRuns: {},
   extractStale: false,
   runIds: [],
 };
@@ -64,7 +65,7 @@ const later = (stage: StageId): StageId[] => STAGES.slice(STAGES.indexOf(stage) 
 
 /** Marks every stage matching `pick` as stale, and the extract with it. */
 function stale(s: FlowState, pick: (st: Stage, id: StageId) => boolean): FlowState {
-  const next = { ...s, extractStale: s.extractRunId != null };
+  const next = { ...s, extractStale: Object.keys(s.extractRuns).length > 0 };
   for (const id of STAGES) if (pick(s[id], id)) next[id] = { ...s[id], state: "stale" };
   return next;
 }
@@ -150,10 +151,16 @@ export function flowReducer(s: FlowState, a: FlowAction): FlowState {
     case "useAnyway":
       return s[a.stage].state === "stale" && s[a.stage].output != null ? { ...s, [a.stage]: { ...s[a.stage], state: "done" } } : s;
     case "extractStarted":
-      return { ...s, extractRunId: a.runId, runIds: [...s.runIds, a.runId], extractStale: false };
-    case "profileChanged":
-      return { ...s, extractRunId: null, extractStale: false };
+      return { ...s, extractRuns: { ...s.extractRuns, [a.job]: a.runId }, runIds: [...s.runIds, a.runId], extractStale: false };
+    case "jobsChanged":
+      return { ...s, extractRuns: Object.fromEntries(Object.entries(s.extractRuns).filter(([k]) => a.jobIds.includes(k))), extractStale: false };
   }
+}
+
+/** The most recently started extraction run that is still tracked. */
+export function latestExtractRun(s: FlowState): string | null {
+  const live = Object.values(s.extractRuns);
+  return s.runIds.findLast((id) => live.includes(id)) ?? null;
 }
 
 export function stageInput(s: FlowState, stage: StageId): StageOutput | null {
