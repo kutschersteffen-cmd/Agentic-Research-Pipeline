@@ -84,6 +84,16 @@ claude plugin install superpowers@superpowers-marketplace
 - **superpowers** — development workflow skills: brainstorming, writing plans, TDD,
   systematic debugging, worktrees. Its `SessionStart` hook loads `using-superpowers`.
 
+And one more:
+
+```
+claude plugin marketplace add Leonxlnx/taste-skill
+claude plugin install taste-skill@taste-skill
+```
+
+- **taste-skill** — frontend design-taste skills (typography, spacing, motion, anti-slop; variants
+  like brutalist, soft, redesign). Skills only. Frontend design, alongside impeccable and ui-ux-pro-max.
+
 ## Which plugin does what
 
 superpowers and ponytail pull in opposite directions (process vs. minimalism), so each owns a
