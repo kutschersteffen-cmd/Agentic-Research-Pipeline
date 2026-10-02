@@ -85,7 +85,7 @@ import type {
   TransitionPlanIndicatorDef,
   TrendPoint,
 } from "../types";
-import type { DecisionInput, PublishedDecision } from "../types";
+import type { DecisionInput, PublishedDecision, Readiness } from "../types";
 import type { Finding, QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, Storyline, TemplateStyleProfile } from "../types";
 import type { PaperCandidate, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
 import type {
@@ -252,6 +252,11 @@ export const api = {
   listDocuments: (companyId: string) => request(`/api/documents/${companyId}`),
   documentRawUrl: (companyId: string, docType: string, filename: string) =>
     `${API_BASE}/api/documents/${encodeURIComponent(companyId)}/${encodeURIComponent(docType)}/${encodeURIComponent(filename)}/raw`,
+  documentReadiness: (body: { universe_path?: string; companies?: unknown[] }) =>
+    request<{ ready: (CompanyRef & { readiness: Readiness })[]; onboard: CompanyRef[]; readiness: Record<string, Readiness> }>(
+      "/api/documents/readiness",
+      { method: "POST", body: JSON.stringify(body) },
+    ),
   listCachedDocuments: (offset = 0, limit = 25) => request(`/api/documents/cache?offset=${offset}&limit=${limit}`),
   getCachedDocumentText: (rowId: number) => request(`/api/documents/cache/${rowId}`),
 

@@ -225,6 +225,37 @@ class DocumentRegistry:
         finally:
             conn.close()
 
+    def readiness_by_company(self, company_ids: list[str]) -> dict[str, dict]:
+        """Per company: registered documents, how many have a parsed_content
+        row (any parser_version), doc types and latest last_seen_at. Companies
+        with no rows are absent. Read-only; ids are batched under SQLite's
+        variable limit."""
+        if not self.enabled or not company_ids:
+            return {}
+        out: dict[str, dict] = {}
+        conn = self._connect()
+        try:
+            for i in range(0, len(company_ids), 900):
+                batch = company_ids[i : i + 900]
+                placeholders = ",".join("?" for _ in batch)
+                rows = conn.execute(
+                    "SELECT d.company_id, COUNT(*), "
+                    " SUM(EXISTS (SELECT 1 FROM parsed_content p WHERE p.content_key = d.content_key)), "
+                    " GROUP_CONCAT(DISTINCT d.doc_type), MAX(d.last_seen_at) "
+                    f"FROM documents d WHERE d.company_id IN ({placeholders}) GROUP BY d.company_id",
+                    batch,
+                ).fetchall()
+                for company_id, registered, parsed, doc_types, last_seen in rows:
+                    out[company_id] = {
+                        "registered": registered,
+                        "parsed": parsed or 0,
+                        "doc_types": sorted(doc_types.split(",")),
+                        "last_seen_at": last_seen,
+                    }
+            return out
+        finally:
+            conn.close()
+
     def stats(self, conn: sqlite3.Connection) -> dict:
         """Takes an already-open connection -- called by
         DocumentContentStore.stats() as part of one cross-cutting operator

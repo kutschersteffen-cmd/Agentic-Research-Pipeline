@@ -139,6 +139,9 @@ class DocumentContentStore:
     def list_all_documents(self) -> list[StoredDocumentRef]:
         return self._registry.list_all()
 
+    def readiness_by_company(self, company_ids: list[str]) -> dict[str, dict]:
+        return self._registry.readiness_by_company(company_ids)
+
     # --- chunk embeddings (delegates to ChunkEmbeddingsCache) ---------------
 
     def lookup_embeddings(self, chunk_ids: list[str], embed_model: str) -> dict[str, np.ndarray]:
