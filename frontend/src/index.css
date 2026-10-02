@@ -1370,6 +1370,9 @@ mark.style-flag { background: color-mix(in srgb, var(--mid) 30%, transparent); c
 
 /* Steward Workflow: stage studios */
 .workflow-tabs { flex-wrap: wrap; }
+/* Extraction step tabs: wrap, and scroll inside the bar if one tab is still too wide. */
+.step-tabs { overflow-x: auto; max-width: 100%; }
+.tab-mark { margin-left: 6px; font-size: var(--text-xs); }
 .tab-badge {
   margin-left: 6px;
   background: var(--await);
