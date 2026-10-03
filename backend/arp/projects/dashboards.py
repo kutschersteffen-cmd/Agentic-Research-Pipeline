@@ -50,6 +50,7 @@ def plan_to_template(project_id: str, title: str, plan: ChartPlan) -> DashboardT
 
 
 def provision_project_dashboard(client, project_id: str, template: DashboardTemplate) -> str:
-    if not template.slug.startswith(f"arp-{project_id}--"):
+    prefix = f"arp-{project_id}--"
+    if not template.slug.startswith(prefix) or "--" in template.slug[len(prefix) :]:
         raise ProjectError(f"Dashboard {template.slug!r} does not belong to project {project_id!r}")
     return provision(client, scope_to_project(template, project_id))

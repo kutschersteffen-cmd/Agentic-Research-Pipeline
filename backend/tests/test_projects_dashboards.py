@@ -85,6 +85,14 @@ def test_provision_scopes_unscoped_template_and_rejects_foreign_slug():
     provision_project_dashboard(client, "alpha", t)
     assert len(client.params) == 2
     for p in client.params:
-        assert "project_id" in str(p["adhoc_filters"]) and "alpha" in str(p["adhoc_filters"])
+        want = {"expressionType": "SIMPLE", "subject": "project_id", "operator": "==", "comparator": "alpha", "clause": "WHERE"}
+        assert want in p["adhoc_filters"]
+        assert sum(f["subject"] == "project_id" for f in p["adhoc_filters"]) == 1
     with pytest.raises(ProjectError):
         provision_project_dashboard(FakeClient(), "beta", t)
+
+
+def test_slug_remainder_may_not_contain_double_hyphen():
+    t = DashboardTemplate(slug="arp-a--b--c", title="X", charts=[_spec("A")])
+    with pytest.raises(ProjectError):
+        provision_project_dashboard(FakeClient(), "a", t)
