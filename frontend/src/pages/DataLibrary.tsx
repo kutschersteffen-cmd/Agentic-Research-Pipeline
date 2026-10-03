@@ -15,7 +15,7 @@ import type {
 } from "../types";
 import { activatable } from "../lib/activatable";
 import { useMe } from "../lib/reviewer";
-import { ReviewerField } from "../components/ReviewerField";
+import { SignedInAs } from "../components/SignedInAs";
 
 const SUB_TABS = [
   { id: "results", label: "Run results" },
@@ -128,7 +128,7 @@ function RunResultsView() {
             <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
               Export CSV
             </a>
-            <ReviewerField compact />
+            <SignedInAs compact />
           </div>
         )}
         {error && <p className="error-text" role="alert">{error}</p>}

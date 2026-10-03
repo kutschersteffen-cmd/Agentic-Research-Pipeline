@@ -25,7 +25,7 @@ import type {
 } from "../types";
 import { activatable } from "../lib/activatable";
 import { setLeaveGuard } from "../lib/leaveGuard";
-import { ConfirmDecision } from "../components/ConfirmDecision";
+import { ConfirmSignedIn } from "../components/ConfirmSignedIn";
 import { newDimension } from "../lib/dimensions";
 import { TIER_STARTER } from "../lib/ruleGraphs";
 
@@ -1339,7 +1339,7 @@ export function DecisionStudio() {
               )}
             </div>
             {confirmingRatify && (
-              <ConfirmDecision
+              <ConfirmSignedIn
                 title={`Ratify version ${config.version}?`}
                 confirmLabel={`Ratify version ${config.version}`}
                 onConfirm={onRatify}
@@ -1349,10 +1349,10 @@ export function DecisionStudio() {
                   A ratified version is fixed: later edits become a new version, and decisions that cite this one keep
                   reading it exactly as it is now.
                 </p>
-              </ConfirmDecision>
+              </ConfirmSignedIn>
             )}
             {confirmingPublish && dataset && (
-              <ConfirmDecision
+              <ConfirmSignedIn
                 title="Publish these tiers?"
                 confirmLabel="Publish"
                 onConfirm={onPublish}
@@ -1384,7 +1384,7 @@ export function DecisionStudio() {
                     publications of this version reuse them, so a tier changes only when the score does.
                   </p>
                 )}
-              </ConfirmDecision>
+              </ConfirmSignedIn>
             )}
             {published && (
               <p className="status-text" role="status">

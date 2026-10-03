@@ -15,7 +15,7 @@ import type {
   ThemeDefinition,
 } from "../types";
 import { activatable } from "../lib/activatable";
-import { ConfirmDecision } from "../components/ConfirmDecision";
+import { ConfirmSignedIn } from "../components/ConfirmSignedIn";
 
 const METHOD_LABELS: Record<DerivationMethod, string> = {
   llm_draft: "LLM draft (freeform)",
@@ -160,7 +160,7 @@ function LibraryView({
   return (
     <section className="card">
       {confirmingRatify && (
-        <ConfirmDecision
+        <ConfirmSignedIn
           title={`Ratify ${confirmingRatify.name} version ${confirmingRatify.version}?`}
           confirmLabel={`Ratify version ${confirmingRatify.version}`}
           onConfirm={(by) => ratify(confirmingRatify, by)}
@@ -170,7 +170,7 @@ function LibraryView({
             Ratifying records that a named person approved this version. Later edits become a new version; this one
             stays exactly as ratified.
           </p>
-        </ConfirmDecision>
+        </ConfirmSignedIn>
       )}
       <div className="table-wrap">
         <table className="data-table">

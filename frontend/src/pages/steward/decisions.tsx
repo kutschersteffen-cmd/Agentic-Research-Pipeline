@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../../api/client";
-import { ConfirmDecision } from "../../components/ConfirmDecision";
+import { ConfirmSignedIn } from "../../components/ConfirmSignedIn";
 import { announce } from "../../lib/announce";
 import type { ClientExceptionItem, EscalationDecisionItem, PolicyDifferenceItem, TierChangeItem } from "../../types";
 import { fmt, words } from "./common";
@@ -33,7 +33,7 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
         </button>
       </div>
       {confirmingAll && (
-        <ConfirmDecision
+        <ConfirmSignedIn
           title={`Confirm all ${items.length} tiers?`}
           confirmLabel={`Confirm ${items.length} tiers`}
           onConfirm={() => confirm()}
@@ -43,7 +43,7 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
             Each company below moves to its proposed tier and coverage follows from it. Every confirmation is kept; to undo one,
             confirm a different tier later.
           </p>
-        </ConfirmDecision>
+        </ConfirmSignedIn>
       )}
       <p className="muted">
         Proposed by the house coverage rules (a decision table you can edit in the rule editor). A tier only counts once it is

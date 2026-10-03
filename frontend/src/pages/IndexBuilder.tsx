@@ -1229,6 +1229,8 @@ function CalibrationsTab({
     }
   }
 
+  const latestVersion = Math.max(0, ...versions.map((v) => v.version));
+
   async function approve(v: IndexCalibration) {
     setError(null);
     try {
@@ -1352,7 +1354,7 @@ function CalibrationsTab({
                     <button className="link-button" onClick={() => load(v.calibration_id, v.version)}>
                       load
                     </button>
-                    {me?.role === "approver" && v.created_by !== me.user_id && v.created_by !== me.name && !v.approved_by.includes(me.name) && (
+                    {me?.role === "approver" && v.version === latestVersion && v.created_by !== me.user_id && !v.approved_by.includes(me.user_id) && (
                       <button className="link-button" onClick={() => approve(v)}>
                         Approve
                       </button>

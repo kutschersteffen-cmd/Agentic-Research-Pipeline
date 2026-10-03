@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { PublishedDecision, RunDecision, RunScoringKind, TemplateMatch } from "../types";
-import { ConfirmDecision } from "./ConfirmDecision";
+import { ConfirmSignedIn } from "./ConfirmSignedIn";
 import { LevelOverrides } from "./LevelOverrides";
 
 interface PickerProps {
@@ -159,7 +159,7 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
       </div>
       {decision && publishBlocker(decision) && <p className="muted">{publishBlocker(decision)}</p>}
       {confirmingPublish && decision && (
-        <ConfirmDecision
+        <ConfirmSignedIn
           title="Publish these tiers?"
           confirmLabel="Publish"
           onConfirm={publish}
@@ -170,7 +170,7 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
             companies in this run, matched to issuers by company id. Steward Workflow&apos;s coverage rules and Index Construction can
             then read them. Nothing changes there until a person confirms tiers or runs an index review.
           </p>
-        </ConfirmDecision>
+        </ConfirmSignedIn>
       )}
       {published && (
         <p className="status-text" role="status">

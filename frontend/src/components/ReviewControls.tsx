@@ -25,7 +25,6 @@ export function ReviewControls({
   runId,
   itemKey,
   current,
-  reviewer,
   onDone,
   submitFn = api.submitExtractionReview,
   historyFn = api.getExtractionReviewHistory,
@@ -34,7 +33,7 @@ export function ReviewControls({
   runId: string;
   itemKey: string;
   current?: ReviewDecision;
-  reviewer: string;
+  reviewer?: string;
   /** Called with the decision just recorded. */
   onDone: (recorded: ReviewDecision) => void;
   /** Defaults to the scalar Data-Point Extraction Engine's endpoints; pass
@@ -46,6 +45,7 @@ export function ReviewControls({
   cosignFn?: (runId: string, itemKey: string) => Promise<unknown>;
 }) {
   const me = useMe();
+  const signedIn = me?.name ?? "";
   const [busy, setBusy] = useState(false);
   const [comment, setComment] = useState("");
   const [overrideValue, setOverrideValue] = useState("");
@@ -54,7 +54,7 @@ export function ReviewControls({
   const [error, setError] = useState<string | null>(null);
 
   async function submit(decision: "approve" | "edit" | "reject") {
-    if (!reviewer.trim()) {
+    if (!signedIn) {
       setError(SIGN_IN_REQUIRED);
       return;
     }
@@ -72,8 +72,8 @@ export function ReviewControls({
       setOverrideValue("");
       setShowOverrideInput(false);
       setHistory(null);
-      announce(`${decision === "approve" ? "Approved" : decision === "edit" ? "Overridden" : "Rejected"}; recorded against ${reviewer.trim()}.`);
-      onDone({ ...recorded, reviewer: reviewer.trim(), user_id: me?.user_id, role: me?.role, cosigned: false, decided_at: new Date().toISOString() });
+      announce(`${decision === "approve" ? "Approved" : decision === "edit" ? "Overridden" : "Rejected"}; recorded against ${signedIn}.`);
+      onDone({ ...recorded, reviewer: signedIn, user_id: me?.user_id, role: me?.role, cosigned: false, decided_at: new Date().toISOString() });
     } catch (err) {
       setError((err as Error).message);
     } finally {
