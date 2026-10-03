@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import { ACTIVE_STATUSES, runTypeLabel, when } from "../lib/runs";
+import { ACTIVE_STATUSES, isTrialRun, runTypeLabel, TRIAL_TITLE, when } from "../lib/runs";
 import { runEndedAt, runScope } from "../lib/stagedFlow";
 import type { RunManifest } from "../types";
 
@@ -156,6 +156,7 @@ export function FlowRuns(p: {
                           <td className="mono">{ended ? when(ended) : "—"}</td>
                           <td>
                             <span className={`status-pill status-${r.status}`}>{r.status}</span>
+                            {isTrialRun(r) && <> <span className="badge badge-mid" title={TRIAL_TITLE}>trial</span></>}
                             <div className="mono">
                               {r.completed_count}/{r.company_count}
                               {r.failed_count > 0 && <span className="muted"> · {r.failed_count} failed</span>}

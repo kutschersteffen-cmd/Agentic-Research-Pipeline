@@ -7,6 +7,7 @@ import type { ActiveSource } from "./SourcePanel";
 import type { BusinessSegment, CompanyFinancialsRecord, ExtractedField, ExtractionRecord, ReviewDecision, SpendSummary } from "../types";
 import { fieldItemKey } from "../lib/reviewKeys";
 import { valueLabel, withEditedValue } from "../lib/fieldValue";
+import { TRIAL_TITLE } from "../lib/runs";
 import { activatable } from "../lib/activatable";
 import { ProposedTag } from "./ProposedTag";
 import { OriginTag } from "./ReviewTiles";
@@ -140,6 +141,8 @@ interface ExtractionResultsTableProps {
   onReviewDone: () => void;
   onOpenSource: (s: ActiveSource) => void;
   filter?: TileFilter;
+  /** The run was a trial (draft schema fields): mark its results as not final. */
+  trial?: boolean;
 }
 
 export function ExtractionResultsTable({
@@ -152,6 +155,7 @@ export function ExtractionResultsTable({
   onReviewDone,
   onOpenSource,
   filter = null,
+  trial = false,
 }: ExtractionResultsTableProps) {
   if (results.length === 0) return null;
   // Items are fields; a field is flagged when its record needs review.
@@ -161,6 +165,11 @@ export function ExtractionResultsTable({
   if (shown.length === 0) return NO_MATCH;
   return (
     <div className="table-wrap">
+      {trial && (
+        <p className="await-text">
+          <span className="badge badge-mid">trial</span> {TRIAL_TITLE}
+        </p>
+      )}
       <table className="data-table">
         <thead>
           <tr>

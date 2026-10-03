@@ -9,6 +9,7 @@ import { reviewCounts, type ReviewTileCounts } from "../../lib/stagedFlow";
 import type { CompanyFinancialsRecord, ExtractionRecord, ReviewDecision, TnfdRecord, TransitionPlanAssessmentRecord } from "../../types";
 import { BatchSpendChart } from "./BatchSpendChart";
 import { ResultsTable } from "./ResultsTable";
+import { isTrialRun } from "../../lib/runs";
 import { useRunManifest } from "./useRunManifest";
 
 type Decisions = Record<string, ReviewDecision>;
@@ -99,6 +100,7 @@ export function JobReview(p: {
                 onReviewed={refresh}
                 onOpenSource={openSource}
                 filter={tileFilter}
+                trial={isTrialRun(run)}
               />
             </div>
             <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />

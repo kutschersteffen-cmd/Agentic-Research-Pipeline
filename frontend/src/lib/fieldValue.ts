@@ -16,12 +16,18 @@ export function valueLabel(f: Pick<ExtractedField, "value" | "value_state" | "un
 export const isReleased = (s: { release_flag?: boolean; fields: { status?: string }[] }): boolean =>
   !!s.release_flag && s.fields.every((f) => f.status === "released");
 
-/** The field as a reviewer's edit leaves it; mirrors the backend rule: state follows the value, canonical and FX no longer apply. */
+/** Zero iff not a bool and the value reads as the number 0 ("0" is zero, false is not); the backend's _is_zero matches. */
+export const isZero = (v: unknown): boolean =>
+  typeof v !== "boolean" && v != null && String(v).trim() !== "" && Number(v) === 0;
+
+/** The field as a reviewer's edit leaves it; mirrors the backend rule: state follows the value, canonical, scale and FX no longer apply. */
 export const withEditedValue = (f: ExtractedField, edited: string): ExtractedField => ({
   ...f,
   value: edited,
-  value_state: Number(edited) === 0 && edited.trim() !== "" ? "zero" : "found",
+  value_state: isZero(edited) ? "zero" : "found",
   canonical_value: null,
   canonical_unit: null,
+  scale_applied: null,
   fx_rate: null,
+  fx_rate_ref: null,
 });

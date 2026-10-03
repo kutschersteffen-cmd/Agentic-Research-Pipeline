@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isReleased, valueLabel, withEditedValue } from "../src/lib/fieldValue.ts";
+import { isReleased, isZero, valueLabel, withEditedValue } from "../src/lib/fieldValue.ts";
+import { isTrialRun } from "../src/lib/runs.ts";
 
 const f = (o: object) => ({ field_id: "x", field_name: "X", value: null, ...o }) as never;
 
@@ -29,4 +30,21 @@ test("withEditedValue resets state and drops stale canonical", () => {
   assert.equal(valueLabel(e), "5 t");
   assert.deepEqual([e.canonical_value, e.canonical_unit, e.fx_rate], [null, null, null]);
   assert.equal(withEditedValue(f({ value_state: "found", value: 3 }), "0").value_state, "zero");
+});
+
+test("withEditedValue also drops scale and FX reference", () => {
+  const e = withEditedValue(f({ value: 9, scale_applied: 1000, fx_rate: 1.1, fx_rate_ref: "fx_v1:EUR:2024" }), "7");
+  assert.deepEqual([e.scale_applied, e.fx_rate, e.fx_rate_ref], [null, null, null]);
+});
+
+test("isZero matches the backend rule", () => {
+  for (const v of ["0", "0.0", " 0 ", 0]) assert.equal(isZero(v), true, String(v));
+  for (const v of [false, true, "", "abc", null, undefined, "5"]) assert.equal(isZero(v), false, String(v));
+});
+
+test("isTrialRun reads manifest params.trial", () => {
+  assert.equal(isTrialRun({ params: { trial: true } }), true);
+  assert.equal(isTrialRun({ params: { trial: false } }), false);
+  assert.equal(isTrialRun({ params: {} }), false);
+  assert.equal(isTrialRun(null), false);
 });

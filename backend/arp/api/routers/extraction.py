@@ -298,6 +298,8 @@ async def restart_run(
     if saved is None:
         raise HTTPException(400, "This run was not started from the Extraction screen, so there is nothing to restart it from.")
     original = StartRequest.model_validate_json(saved)
+    if "trial" not in original.model_fields_set:  # saved before the release gate existed: it ran ungated
+        original = original.model_copy(update={"trial": True})
     if req.from_step not in {n["id"] for n in pipeline_shape(original.profile, settings)["nodes"]}:
         raise HTTPException(400, f"`{req.from_step}` is not a step of the {original.profile} pipeline.")
     companies = original.companies or []

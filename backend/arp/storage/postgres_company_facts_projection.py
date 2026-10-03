@@ -145,7 +145,7 @@ def resolve_fact(item_key: str, raw_value: dict, decisions: dict[str, dict], que
 
 
 def resolve_extraction_fact(
-    item_key: str, row: dict, decisions: dict[str, dict], queued_item_keys: set[str]
+    item_key: str, row: dict, decisions: dict[str, dict], queued_item_keys: set[str], *, trial: bool = False
 ) -> tuple[dict, str, str | None]:
     """An extraction fact is one whole record per company, but its queue
     rows are per field ("{issuer_key}:{field_id}:{period}"). Folds the
@@ -153,7 +153,15 @@ def resolve_extraction_fact(
     field, any still-undecided flagged field keeps the fact pending_review,
     else any reject -> rejected, else any edit -> edited, else approved.
     Runs queued at company_id alone (before per-field keys) resolve as before.
+    A trial run (draft schema fields) keeps its facts, but with status "trial".
     """
+    value, status, reviewer = _resolve_extraction_fact(item_key, row, decisions, queued_item_keys)
+    return value, "trial" if trial else status, reviewer
+
+
+def _resolve_extraction_fact(
+    item_key: str, row: dict, decisions: dict[str, dict], queued_item_keys: set[str]
+) -> tuple[dict, str, str | None]:
     if item_key in decisions or item_key in queued_item_keys:
         return resolve_fact(item_key, row, decisions, queued_item_keys)
     keys = [field_item_key(row.get("issuer_key", ""), f["field_id"], period_key(f)) for f in row.get("fields", [])]
@@ -174,12 +182,26 @@ def resolve_extraction_fact(
             edit = decision["edited_value"]
             merged = {**f, **edit, "field_id": f["field_id"]}
             if edit.get("value") is not None and "value_state" not in edit:  # a supplied value is no longer not_found
-                merged["value_state"] = "zero" if edit["value"] == 0 else "found"
-            if "value" in edit and not ({"canonical_value", "canonical_unit"} & edit.keys()):
-                merged["canonical_value"] = merged["canonical_unit"] = None  # never leave the old canonical beside an edited value
+                merged["value_state"] = "zero" if _is_zero(edit["value"]) else "found"
+            if "value" in edit:  # never leave the old conversion beside an edited value
+                if not ({"canonical_value", "canonical_unit"} & edit.keys()):
+                    merged["canonical_value"] = merged["canonical_unit"] = None
+                for k in ("fx_rate", "fx_rate_ref", "scale_applied"):
+                    if k not in edit:
+                        merged[k] = None
             value["fields"][i] = merged
     status = next(st for st in ("pending_review", "rejected", "edited", "approved") if st in outcomes)
     return value, status, None if status == "pending_review" else reviewer
+
+
+def _is_zero(v) -> bool:
+    """Zero iff not a bool and float(v) == 0 ("0" is zero, False is not); frontend withEditedValue matches."""
+    if isinstance(v, bool):
+        return False
+    try:
+        return float(v) == 0
+    except (TypeError, ValueError):
+        return False
 
 
 def materialize_run(dsn: str, run_store: RunStore, run_id: str) -> int:
@@ -244,8 +266,11 @@ def materialize_run(dsn: str, run_store: RunStore, run_id: str) -> int:
         }
         for item_key, raw_value in candidates:
             company_id = item_key.split(":", 1)[0]
-            resolve = resolve_extraction_fact if manifest.run_type == "extraction" else resolve_fact
-            value, status, reviewer = resolve(item_key, raw_value, decisions, queued_item_keys)
+            if manifest.run_type == "extraction":
+                trial = bool(manifest.params.get("trial"))
+                value, status, reviewer = resolve_extraction_fact(item_key, raw_value, decisions, queued_item_keys, trial=trial)
+            else:
+                value, status, reviewer = resolve_fact(item_key, raw_value, decisions, queued_item_keys)
             current = current_by_key.get(item_key)
             if current is not None and current.value == value and current.status == status:
                 continue

@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import { ConfidenceBadge } from "../components/ConfidenceBadge";
 import { ExtractionResultsTable, FieldDetail, FinancialsResultsTable, SegmentDetail, SpendDetail } from "../components/ExtractionResults";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
+import { isTrialRun } from "../lib/runs";
 import type {
   CachedDocumentDetail,
   CachedDocumentRow,
@@ -117,7 +118,7 @@ function RunResultsView() {
             <option value="">Select a run...</option>
             {runs.map((r) => (
               <option key={r.run_id} value={r.run_id}>
-                {r.run_id} — {new Date(r.created_at).toLocaleString()} ({r.completed_count}/{r.company_count} companies)
+                {r.run_id} — {new Date(r.created_at).toLocaleString()} ({r.completed_count}/{r.company_count} companies){isTrialRun(r) ? " · trial" : ""}
               </option>
             ))}
           </select>
@@ -148,6 +149,7 @@ function RunResultsView() {
                 reviewer={reviewer}
                 onReviewDone={() => loadResults()}
                 onOpenSource={setActiveSource}
+                trial={isTrialRun(runs.find((r) => r.run_id === runId))}
               />
             )}
             {kind === "financials" && (

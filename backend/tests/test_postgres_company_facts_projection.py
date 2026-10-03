@@ -223,3 +223,24 @@ def test_edit_with_value_only_clears_stale_canonical():
     edit = {key_b: {"decision": "edit", "edited_value": {"value": 5, "canonical_value": 5, "canonical_unit": "kg"}}}
     f = resolve_extraction_fact("acme", row, edit, {key_b})[0]["fields"][1]
     assert (f["canonical_value"], f["canonical_unit"]) == (5, "kg")
+
+
+def test_trial_run_facts_are_kept_with_trial_status():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    row = _extraction_row()
+    value, status, _ = resolve_extraction_fact("acme", row, {}, set(), trial=True)
+    assert status == "trial" and value == row
+    assert resolve_extraction_fact("acme", row, {}, set())[1] == "auto_approved"
+
+
+def test_edit_value_clears_fx_and_scale_and_infers_zero_like_frontend():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    row = {"issuer_key": "ARP:x", "fields": [{"field_id": "a", "value": 9, "value_state": "found",
+                                              "fx_rate": 1.1, "fx_rate_ref": "fx_v1:EUR:2024", "scale_applied": 1000.0}]}
+    key = "ARP:x:a:unspecified"
+    for edited, state in ((5, "found"), ("0", "zero"), (0.0, "zero"), (False, "found")):
+        f = resolve_extraction_fact("acme", row, {key: {"decision": "edit", "edited_value": {"value": edited}}}, {key})[0]["fields"][0]
+        assert f["value_state"] == state
+        assert (f["fx_rate"], f["fx_rate_ref"], f["scale_applied"]) == (None, None, None)
