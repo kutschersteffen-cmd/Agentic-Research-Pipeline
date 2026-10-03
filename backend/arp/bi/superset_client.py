@@ -13,10 +13,11 @@ _API = "/api/v1"
 
 class SupersetError(Exception):
     """A non-2xx response from Superset; keeps the status and raw body so
-    callers can surface Superset's own validation message."""
+    callers can log Superset's own validation message."""
 
     def __init__(self, status_code: int, body: str, message: str = ""):
-        super().__init__(f"Superset {status_code}: {message or body[:300]}")
+        # The body is kept on .body for logs but kept out of str(): it can echo hosts/DSNs to API clients.
+        super().__init__(f"Superset returned HTTP {status_code}" + (f": {message}" if message else ""))
         self.status_code = status_code
         self.body = body
 

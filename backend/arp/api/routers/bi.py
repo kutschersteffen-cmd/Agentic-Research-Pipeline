@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,6 +12,8 @@ from arp.bi import service
 from arp.bi.service import BIError, DesignResult
 from arp.bi.superset_client import SupersetClient, SupersetError
 from arp.llm.base import LLMClient
+
+logger = logging.getLogger(__name__)
 
 # Not /api/portfolio/bi: that prefix belongs to the older GenBI router.
 router = APIRouter(prefix="/api/bi", tags=["bi"])
@@ -35,6 +38,8 @@ class EmbedToken(BaseModel):
 
 
 def _bad_gateway(e: Exception) -> HTTPException:
+    cause = e.__cause__ or e  # BIError wraps the SupersetError whose body operators need
+    logger.warning("superset error: %s body=%r", e, getattr(cause, "body", None))
     # BIError carries a short message of ours; a raw SupersetError/httpx error never
     # reaches the client verbatim (its body may hold secrets).
     return HTTPException(502, str(e) if isinstance(e, BIError) else "Superset request failed")

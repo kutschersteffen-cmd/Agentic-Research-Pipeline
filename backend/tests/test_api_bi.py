@@ -20,11 +20,11 @@ class DownClient(FakeClient):
 
     def find_database(self, name):
         self.calls.append(("find_database", name))
-        raise SupersetError(500, SECRET_BODY, "upstream failed")
+        raise SupersetError(500, SECRET_BODY)
 
     def ensure_embedded(self, dashboard_id):
         self.calls.append(("ensure_embedded", dashboard_id))
-        raise SupersetError(500, SECRET_BODY, "upstream failed")
+        raise SupersetError(500, SECRET_BODY)
 
 
 def _app(llm, superset) -> TestClient:
@@ -68,9 +68,28 @@ def test_superset_down_returns_502_with_message_and_creates_nothing():
     assert down.writes() == []
 
 
+def test_ask_502_does_not_leak_body():
+    r = _app(FakeLLM(), DownClient()).post("/api/bi/ask", json={"question": "exposure?"})
+    assert r.status_code == 502 and "hunter2" not in r.text and "boom" not in r.text
+
+
+def test_chart_failure_502_names_chart_but_not_body():
+    class BadChart(FakeClient):
+        def create_chart(self, *a, **k):
+            raise SupersetError(422, SECRET_BODY)
+
+    r = _app(FakeLLM(PlannerRefusal(plan=PLAN)), BadChart()).post("/api/bi/design", json={"brief": "x"})
+    assert r.status_code == 502 and "'A'" in r.json()["detail"] and "hunter2" not in r.text
+
+
 def test_embed_token_502_does_not_leak_body():
     r = _app(FakeLLM(), DownClient()).post("/api/bi/embed-token", json={"dashboard_id": "7"})
-    assert r.status_code == 502 and "hunter2" not in r.text
+    assert r.status_code == 502 and "hunter2" not in r.text and "boom" not in r.text
+
+
+def test_502_logs_body_server_side(caplog):
+    _app(FakeLLM(), DownClient()).post("/api/bi/embed-token", json={"dashboard_id": "7"})
+    assert "hunter2" in caplog.text
 
 
 def test_embed_token_returns_token():
