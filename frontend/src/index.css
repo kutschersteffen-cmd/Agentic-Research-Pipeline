@@ -188,17 +188,9 @@ td, .stat-value, .nav-count { font-variant-numeric: tabular-nums; }
   padding: var(--s-1) var(--s-2) var(--s-3);
 }
 .app-sidebar-mark {
-  width: 26px;
-  height: 26px;
-  border-radius: var(--r-sm);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: var(--text-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--accent);
   flex-shrink: 0;
 }
 .app-sidebar-wordmark { font-family: var(--font-display); font-weight: 700; font-size: var(--text-base); letter-spacing: -0.01em; }
