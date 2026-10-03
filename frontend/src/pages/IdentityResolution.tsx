@@ -2,7 +2,7 @@ import { useReducer, useState } from "react";
 import { IdentityStage } from "../components/IdentityStage";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { flowReducer, initialFlow } from "../lib/stagedFlow";
-import { useReviewer } from "../lib/reviewer";
+import { useMe } from "../lib/reviewer";
 
 interface Props {
   onSendToDiscovery?: (path: string, count: number) => void;
@@ -10,7 +10,7 @@ interface Props {
 
 export function IdentityResolution({ onSendToDiscovery }: Props = {}) {
   const [flow, dispatch] = useReducer(flowReducer, initialFlow);
-  const [reviewer] = useReviewer();
+  const reviewer = useMe()?.name ?? "";
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
   const out = flow.identify.state === "done" ? flow.identify.output : null;
 

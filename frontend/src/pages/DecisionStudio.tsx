@@ -25,7 +25,6 @@ import type {
 } from "../types";
 import { activatable } from "../lib/activatable";
 import { setLeaveGuard } from "../lib/leaveGuard";
-import { useReviewer } from "../lib/reviewer";
 import { ConfirmDecision } from "../components/ConfirmDecision";
 import { newDimension } from "../lib/dimensions";
 import { TIER_STARTER } from "../lib/ruleGraphs";
@@ -126,7 +125,6 @@ export function DecisionStudio() {
   const [sensitivity, setSensitivity] = useState<EntitySensitivity | null>(null);
   const [orderBy, setOrderBy] = useState<"score" | "leverage">("score");
   const [status, setStatus] = useState("");
-  const [reviewer] = useReviewer();
   const [confirmingRatify, setConfirmingRatify] = useState(false);
   const [confirmingPublish, setConfirmingPublish] = useState(false);
   const [published, setPublished] = useState<PublishedDecision | null>(null);
@@ -299,7 +297,7 @@ export function DecisionStudio() {
 
   async function onImportTemplate(file: File) {
     const envelope = await guard("Importing the template…", async () =>
-      api.importMechanism(JSON.parse(await file.text()), reviewer.trim() || undefined),
+      api.importMechanism(JSON.parse(await file.text())),
     );
     if (envelope) {
       setStatus(`Imported ${envelope.config.name} as a draft.`);
@@ -309,7 +307,7 @@ export function DecisionStudio() {
 
   async function onImportIndicatorList(file: File) {
     const name = file.name.replace(/\.[^.]+$/, "");
-    const envelope = await guard("Building the framework…", () => api.importIndicatorList(file, name, reviewer.trim() || undefined));
+    const envelope = await guard("Building the framework…", () => api.importIndicatorList(file, name));
     if (envelope) {
       setBuiltFromList(true);
       setStatus(
@@ -432,7 +430,7 @@ export function DecisionStudio() {
   async function onSave() {
     if (!config) return;
     const envelope = await guard("Saving a new version…", () =>
-      api.saveMechanism({ config, base_version: baseVersion ?? undefined, by: reviewer.trim() || undefined }),
+      api.saveMechanism({ config, base_version: baseVersion ?? undefined }),
     );
     if (envelope) {
       loadConfig(envelope.config);
@@ -449,11 +447,11 @@ export function DecisionStudio() {
     if (saved) loadConfig(saved);
   }
 
-  async function onPublish(by: string) {
+  async function onPublish() {
     setConfirmingPublish(false);
     if (!config || !dataset) return;
     const snapshot = await guard("Publishing…", () =>
-      api.publishDecision({ dataset_id: dataset.dataset_id, framework_id: config.framework_id, version: config.version, published_by: by, id_column: idColumn || undefined }),
+      api.publishDecision({ dataset_id: dataset.dataset_id, framework_id: config.framework_id, version: config.version, id_column: idColumn || undefined }),
     );
     if (snapshot) setPublished(snapshot);
   }
@@ -1172,8 +1170,8 @@ export function DecisionStudio() {
                 await api.setDatasetOverride(dataset!.dataset_id, override);
                 setOverridesTick((t) => t + 1);
               }}
-              onRemoveOverride={async (entityKey, criterionId, reviewer, reason) => {
-                await api.removeDatasetOverride(dataset!.dataset_id, { entity_key: entityKey, criterion_id: criterionId, reviewer, reason });
+              onRemoveOverride={async (entityKey, criterionId, _reviewer, reason) => {
+                await api.removeDatasetOverride(dataset!.dataset_id, { entity_key: entityKey, criterion_id: criterionId, reason });
                 setOverridesTick((t) => t + 1);
               }}
             />

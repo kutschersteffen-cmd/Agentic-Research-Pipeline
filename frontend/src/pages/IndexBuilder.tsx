@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useMe } from "../lib/reviewer";
 import { api } from "../api/client";
 import type {
   PublishedDecision,
@@ -1196,7 +1197,7 @@ function CalibrationsTab({
   const [name, setName] = useState("");
   const [effectiveFrom, setEffectiveFrom] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
-  const [approvedBy, setApprovedBy] = useState("");
+  const me = useMe();
   const [versions, setVersions] = useState<IndexCalibration[]>([]);
 
   useEffect(() => {
@@ -1214,7 +1215,6 @@ function CalibrationsTab({
       effective_from: effectiveFrom,
       spec,
       notes,
-      approved_by: approvedBy.split(",").map((a) => a.trim()).filter(Boolean),
     };
     try {
       const saved =
@@ -1224,6 +1224,17 @@ function CalibrationsTab({
       setLoaded(saved);
       setStatus(`Saved ${saved.name} v${saved.version}, effective ${saved.effective_from}.`);
       refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function approve(v: IndexCalibration) {
+    setError(null);
+    try {
+      await api.approveIndexCalibration(v.calibration_id);
+      setVersions(await api.listIndexCalibrationVersions(v.calibration_id));
+      setStatus(`Approved ${v.name} v${v.version}.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -1266,10 +1277,6 @@ function CalibrationsTab({
           <label className="field-label" style={{ flex: 2 }}>
             Notes
             <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="what changed and why" />
-          </label>
-          <label className="field-label" style={{ flex: 1 }}>
-            Approved by
-            <input type="text" value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} placeholder="IC-2026-06-11" />
           </label>
         </div>
         <div className="toolbar">
@@ -1345,6 +1352,11 @@ function CalibrationsTab({
                     <button className="link-button" onClick={() => load(v.calibration_id, v.version)}>
                       load
                     </button>
+                    {me?.role === "approver" && v.created_by !== me.user_id && v.created_by !== me.name && !v.approved_by.includes(me.name) && (
+                      <button className="link-button" onClick={() => approve(v)}>
+                        Approve
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

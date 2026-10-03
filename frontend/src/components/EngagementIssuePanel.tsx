@@ -107,7 +107,6 @@ export function EngagementIssuePanel({
     await run(async () => {
       await api.escalateEngagementIssue(record.company_id, issue.issue_id, {
         stage: escalateStage,
-        decided_by: actor || "unknown",
         reason: escalateReason,
       });
       await refreshRecord();
@@ -150,7 +149,6 @@ export function EngagementIssuePanel({
     await run(async () => {
       await api.logOutreachSent(record.company_id, issue.issue_id, {
         summary: `${letter.subject} — sent to ${letter.recommended_recipient}`,
-        sent_by: actor || "unknown",
       });
       await refreshRecord();
       await loadNextAction();

@@ -86,3 +86,14 @@ def test_cosign_route_ok_and_same_user_400(run_store):
     _edit(run_store)
     assert _client(run_store, ALICE).post("/api/extraction/runs/r1/cosign", json={"item_key": "k"}).status_code == 400
     assert _client(run_store, BOB).post("/api/extraction/runs/r1/cosign", json={"item_key": "k"}).status_code == 200
+
+
+def test_review_decisions_report_cosigned(run_store):
+    _edit(run_store)
+    record_review_decision(run_store, "r1", "a", "approve", None, None, principal=ALICE)
+    c = _client(run_store, BOB)
+    url = "/api/extraction/runs/r1/review-decisions"
+    got = c.get(url).json()["decisions"]
+    assert got["k"]["cosigned"] is False and got["a"]["cosigned"] is True
+    c.post("/api/extraction/runs/r1/cosign", json={"item_key": "k"})
+    assert c.get(url).json()["decisions"]["k"]["cosigned"] is True

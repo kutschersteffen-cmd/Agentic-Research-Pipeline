@@ -14,7 +14,7 @@ import type {
   RunManifest,
 } from "../types";
 import { activatable } from "../lib/activatable";
-import { useReviewer } from "../lib/reviewer";
+import { useMe } from "../lib/reviewer";
 import { ReviewerField } from "../components/ReviewerField";
 
 const SUB_TABS = [
@@ -54,7 +54,7 @@ function RunResultsView() {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [runId, setRunId] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [reviewer] = useReviewer();
+  const reviewer = useMe()?.name ?? "";
   const [error, setError] = useState<string | null>(null);
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
 

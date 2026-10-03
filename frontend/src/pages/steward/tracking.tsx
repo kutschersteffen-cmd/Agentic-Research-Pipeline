@@ -54,7 +54,7 @@ export function TrackingStudio({ stage, onChanged }: StudioProps) {
     }
   }
   const setStatus = (c: TrackedCommitment, status: "verified" | "missed") =>
-    run(c.commitment_id, () => api.setCommitmentStatus(c.commitment_id, { company_id: c.company_id, issue_id: c.issue_id, status, decided_by: actor }));
+    run(c.commitment_id, () => api.setCommitmentStatus(c.commitment_id, { company_id: c.company_id, issue_id: c.issue_id, status }));
   const due = stage.decisions.filter((d): d is CommitmentDueItem => d.kind === "commitment_due");
   const open = data?.engagements.filter(isOpen) ?? [];
   const closed = data?.engagements.filter((e) => !isOpen(e)) ?? [];
@@ -207,7 +207,7 @@ export function TrackingStudio({ stage, onChanged }: StudioProps) {
             onClick={() => {
               const [company_id, issue_id] = closing.target.split("|");
               run("close", async () => {
-                await api.closeEngagement({ company_id, issue_id, status: closing.status, outcome: closing.outcome, decided_by: actor });
+                await api.closeEngagement({ company_id, issue_id, status: closing.status, outcome: closing.outcome });
                 setClosing({ target: "", status: "resolved", outcome: "" });
               });
             }}

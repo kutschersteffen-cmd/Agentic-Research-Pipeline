@@ -1,26 +1,41 @@
-import { useId } from "react";
-import { useReviewer } from "../lib/reviewer";
+import { useId, useState } from "react";
+import { useMe, useToken } from "../lib/reviewer";
 
-/** Edits the shared identity; any instance updates all the others. The name
- * is typed, not authenticated, and the full field says so: an auditor reading
- * "approved by X" should know it rests on trust. */
+/** Shows who is signed in. Without a valid token it asks for one; the server
+ * resolves the token to a user, so the name on every decision is verified. */
 export function ReviewerField({ compact = false }: { compact?: boolean }) {
-  const [reviewer, setReviewer] = useReviewer();
+  const me = useMe();
+  const [token, setToken] = useToken();
+  const [draft, setDraft] = useState("");
   const hintId = useId();
+  const cls = compact ? "reviewer-field reviewer-field-compact" : "reviewer-field";
+  if (me) {
+    return (
+      <div className={cls}>
+        <span>
+          Signed in as {me.name} ({me.role})
+        </span>
+        <button type="button" className="link-button" onClick={() => setToken("")}>
+          Sign out
+        </button>
+      </div>
+    );
+  }
   return (
-    <label className={compact ? "reviewer-field reviewer-field-compact" : "reviewer-field"}>
-      <span>Reviewing as</span>
+    <label className={cls}>
+      <span>{token ? "Signing in…" : "Access token"}</span>
       <input
-        value={reviewer}
-        onChange={(e) => setReviewer(e.target.value)}
-        placeholder="Your name"
-        autoComplete="name"
-        aria-invalid={!reviewer.trim() || undefined}
-        onBlur={(e) => setReviewer(e.target.value.trim())}
+        type="password"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={(e) => e.target.value.trim() && setToken(e.target.value.trim())}
+        onKeyDown={(e) => e.key === "Enter" && draft.trim() && setToken(draft.trim())}
+        placeholder="Paste your token"
+        autoComplete="off"
         aria-describedby={hintId}
       />
       <small id={hintId} className={compact ? "visually-hidden" : "reviewer-hint"}>
-        Typed on this device, not verified by a login.
+        Decisions are recorded against the user this token belongs to.
       </small>
     </label>
   );

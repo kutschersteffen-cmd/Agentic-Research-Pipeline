@@ -112,7 +112,7 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
     setBusy(`${t.issuer_id}-${t.rule}`);
     setActionError(null);
     try {
-      await api.openEngagementFromTrigger({ issuer_id: t.issuer_id, rule: t.rule, decided_by: actor });
+      await api.openEngagementFromTrigger({ issuer_id: t.issuer_id, rule: t.rule });
       await loadTriggers();
       onChanged();
     } catch (err) {

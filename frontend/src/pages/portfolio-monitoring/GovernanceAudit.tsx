@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
-import { REVIEWER_REQUIRED, useReviewer } from "../../lib/reviewer";
+import { SIGN_IN_REQUIRED, useMe } from "../../lib/reviewer";
 import { ConfidenceBadge } from "../../components/ConfidenceBadge";
 import { DecisionBar } from "../../components/DecisionBar";
 import type {
@@ -56,7 +56,7 @@ export function GovernanceAudit() {
   const [owners, setOwners] = useState<RiskCategoryOwner[]>([]);
   const [ownerInputs, setOwnerInputs] = useState<Record<string, string>>({});
 
-  const [decidedBy] = useReviewer();
+  const decidedBy = useMe()?.name ?? "";
   const [overrideInputs, setOverrideInputs] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
 
@@ -89,7 +89,7 @@ export function GovernanceAudit() {
 
   async function decide(itemType: "entity_resolution" | "climate_conflict", itemKey: string, decision: "accept" | "override" | "reject") {
     if (!decidedBy.trim()) {
-      setError(REVIEWER_REQUIRED);
+      setError(SIGN_IN_REQUIRED);
       return;
     }
     const overrideValue = overrideInputs[itemKey];
@@ -103,7 +103,6 @@ export function GovernanceAudit() {
         item_type: itemType,
         item_key: itemKey,
         decision,
-        decided_by: decidedBy.trim(),
         override_value: decision === "override" ? (itemType === "climate_conflict" ? Number(overrideValue) : overrideValue) : undefined,
       });
       loadAll();
@@ -113,7 +112,7 @@ export function GovernanceAudit() {
   }
 
   async function submitPolicyChange() {
-    if (!decidedBy.trim()) return setError(REVIEWER_REQUIRED);
+    if (!decidedBy.trim()) return setError(SIGN_IN_REQUIRED);
     if (!policyNewValue) return;
     setError(null);
     try {
@@ -128,7 +127,7 @@ export function GovernanceAudit() {
 
   async function assignOwner(category: string) {
     const owner = ownerInputs[category];
-    if (!decidedBy.trim()) return setError(REVIEWER_REQUIRED);
+    if (!decidedBy.trim()) return setError(SIGN_IN_REQUIRED);
     if (!owner?.trim()) return;
     setError(null);
     try {

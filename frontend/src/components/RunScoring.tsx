@@ -124,11 +124,11 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
     }
   }
 
-  async function publish(by: string) {
+  async function publish() {
     setConfirmingPublish(false);
     setError("");
     try {
-      setPublished(await api.publishRunDecision(runId, by));
+      setPublished(await api.publishRunDecision(runId));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -252,8 +252,8 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
                             entity={entity}
                             scale={decision.level_scale}
                             onSet={async (override) => setDecision(await api.setRunOverride(runId, override))}
-                            onRemove={async (criterionId, reviewer, reason) =>
-                              setDecision(await api.removeRunOverride(runId, { entity_key: entity.entity_key, criterion_id: criterionId, reviewer, reason }))
+                            onRemove={async (criterionId, _reviewer, reason) =>
+                              setDecision(await api.removeRunOverride(runId, { entity_key: entity.entity_key, criterion_id: criterionId, reason }))
                             }
                           />
                         </td>

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Modal } from "./Modal";
 import { ReviewerField } from "./ReviewerField";
-import { useReviewer } from "../lib/reviewer";
+import { useMe } from "../lib/reviewer";
 
 /** The one confirmation for a decision that binds the firm (ratify, cast):
  * says what will happen, records it against the shared reviewer name, and
@@ -19,12 +19,11 @@ export function ConfirmDecision({
   onCancel: () => void;
   children: ReactNode;
 }) {
-  const [reviewer] = useReviewer();
-  const name = reviewer.trim();
+  const name = useMe()?.name ?? "";
   return (
     <Modal title={title} compact noClose onClose={onCancel}>
       {children}
-      {name ? <p className="muted">Recorded against the name you entered: {name} (not verified by a login)</p> : <ReviewerField />}
+      {name ? <p className="muted">Recorded against {name}, the signed-in user</p> : <ReviewerField />}
       <div className="toolbar">
         <button onClick={() => onConfirm(name)} disabled={!name}>
           {confirmLabel}

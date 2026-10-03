@@ -3,7 +3,7 @@ import { api } from "../api/client";
 import type { RunManifest, StewardshipFlow } from "../types";
 import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
 import { openCount } from "./steward/common";
-import { useReviewer } from "../lib/reviewer";
+import { useMe } from "../lib/reviewer";
 
 // The start page and the three process overview pages. A process is a named
 // group of screens in order; each step links to the screen that does it and
@@ -257,7 +257,7 @@ function StateLegend() {
 export function StartPage() {
   const { runs, error, retry } = useRuns();
   const { flow } = useHouseFlow();
-  const [reviewer] = useReviewer();
+  const reviewer = useMe()?.name ?? "";
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const name = reviewer.trim();

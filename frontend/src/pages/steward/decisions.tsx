@@ -9,12 +9,12 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmingAll, setConfirmingAll] = useState(false);
-  async function confirm(issuerIds?: string[], by = actor) {
+  async function confirm(issuerIds?: string[]) {
     setConfirmingAll(false);
     setBusy(issuerIds ? issuerIds[0] : "all");
     setError(null);
     try {
-      await api.confirmTiers({ decided_by: by, issuer_ids: issuerIds });
+      await api.confirmTiers({ issuer_ids: issuerIds });
       announce(issuerIds ? "Tier confirmed." : `${items.length} tiers confirmed.`);
       onDone();
     } catch (err) {
@@ -36,7 +36,7 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
         <ConfirmDecision
           title={`Confirm all ${items.length} tiers?`}
           confirmLabel={`Confirm ${items.length} tiers`}
-          onConfirm={(by) => confirm(undefined, by)}
+          onConfirm={() => confirm()}
           onCancel={() => setConfirmingAll(false)}
         >
           <p>
@@ -92,7 +92,7 @@ export function EscalationDecisions({ items, actor, onDone }: { items: Escalatio
     setBusy(item.issue_id);
     setError(null);
     try {
-      await api.escalateEngagementIssue(item.company_id, item.issue_id, { stage: item.next, decided_by: actor, reason: item.reason });
+      await api.escalateEngagementIssue(item.company_id, item.issue_id, { stage: item.next, reason: item.reason });
       announce(`Escalated ${item.company} to ${words(item.next)}.`);
       onDone();
     } catch (err) {
@@ -166,7 +166,6 @@ export function ClientExceptionDecisions({ items, actor, onDone }: { items: Clie
         issue_id: item.issue_id,
         client_step: item.client_step,
         decision,
-        decided_by: actor,
       });
       announce(`${decision === "adopt" ? "Adopted" : "Kept the house step for"} ${item.company}.`);
       onDone();
@@ -250,7 +249,7 @@ export function PolicyDifference({ item, streamId, actor, onDone }: { item: Poli
     setBusy(true);
     setError(null);
     try {
-      await api.recordPolicyDecision(streamId, { issue_id: item.issue_id, decision: choice, decided_by: actor, note: note || undefined });
+      await api.recordPolicyDecision(streamId, { issue_id: item.issue_id, decision: choice, note: note || undefined });
       announce(`Recorded "${words(choice)}" on ${item.title}.`);
       onDone();
     } catch (err) {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { REVIEWER_REQUIRED, useReviewer } from "../lib/reviewer";
+import { SIGN_IN_REQUIRED, useMe } from "../lib/reviewer";
 import type { EntityDecision, LevelOverride } from "../types";
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
  * overrode it. An override needs a reason and a named reviewer; the rules'
  * level stays beside it, and removing one is recorded too. */
 export function LevelOverrides({ entity, scale, onSet, onRemove }: Props) {
-  const [reviewer] = useReviewer();
+  const reviewer = useMe()?.name ?? "";
   const [editing, setEditing] = useState<string | null>(null);
   const [level, setLevel] = useState<number>(scale[1]);
   const [reason, setReason] = useState("");
@@ -25,7 +25,7 @@ export function LevelOverrides({ entity, scale, onSet, onRemove }: Props) {
 
   async function run(action: () => Promise<void>) {
     if (!reviewer.trim()) {
-      setError(REVIEWER_REQUIRED);
+      setError(SIGN_IN_REQUIRED);
       return;
     }
     if (reason.trim().length < 3) {
@@ -104,12 +104,12 @@ export function LevelOverrides({ entity, scale, onSet, onRemove }: Props) {
                       <div className="toolbar">
                         <button
                           disabled={busy}
-                          onClick={() => run(() => onSet({ entity_key: entity.entity_key, criterion_id: id, level, reason: reason.trim(), reviewer: reviewer.trim() }))}
+                          onClick={() => run(() => onSet({ entity_key: entity.entity_key, criterion_id: id, level, reason: reason.trim() }))}
                         >
                           Set level {level}
                         </button>
                         {overridden && (
-                          <button className="secondary" disabled={busy} onClick={() => run(() => onRemove(id, reviewer.trim(), reason.trim()))}>
+                          <button className="secondary" disabled={busy} onClick={() => run(() => onRemove(id, reviewer, reason.trim()))}>
                             Remove override
                           </button>
                         )}

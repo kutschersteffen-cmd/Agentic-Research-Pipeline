@@ -81,7 +81,7 @@ export function OutreachDecisions({ items, actor, onDone }: { items: OutreachDec
                   value={d.interaction_type}
                   disabled={!actor || busy !== null}
                   onChange={(e) =>
-                    run(d.draft_id, () => api.updateDraft(d.draft_id, { updated_by: actor, interaction_type: e.target.value as InteractionType }))
+                    run(d.draft_id, () => api.updateDraft(d.draft_id, { interaction_type: e.target.value as InteractionType }))
                   }
                 >
                   {TAGS.map((t) => (
@@ -98,7 +98,7 @@ export function OutreachDecisions({ items, actor, onDone }: { items: OutreachDec
                 onChange={(e) => setNotes({ ...notes, [d.draft_id]: e.target.value })}
               />
               <button
-                onClick={() => run(d.draft_id, () => api.approveDraft(d.draft_id, { approved_by: actor, note: notes[d.draft_id] ?? "" }))}
+                onClick={() => run(d.draft_id, () => api.approveDraft(d.draft_id, { note: notes[d.draft_id] ?? "" }))}
                 disabled={!actor || author || busy !== null || (d.style_flags.length > 0 && !(notes[d.draft_id] ?? "").trim())}
                 title={
                   !actor
@@ -150,7 +150,7 @@ function Compose({ actor, onCreated }: { actor: string; onCreated: () => void })
     setBusy(true);
     setError(null);
     try {
-      await api.createDraft({ company_id, issue_id, type, text, created_by: actor });
+      await api.createDraft({ company_id, issue_id, type, text });
       setText("");
       onCreated();
     } catch (err) {
@@ -291,7 +291,7 @@ export function DraftingStudio({ stage, onChanged, onOpen }: StudioProps) {
   async function sent(d: OutreachDraft) {
     setError(null);
     try {
-      await api.markDraftSent(d.draft_id, actor);
+      await api.markDraftSent(d.draft_id);
       refresh();
     } catch (err) {
       setError((err as Error).message);

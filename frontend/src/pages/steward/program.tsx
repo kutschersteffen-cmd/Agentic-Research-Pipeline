@@ -84,7 +84,7 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
     if (!params) return;
     setMessage(null);
     try {
-      await api.saveProgram(streamId, params, actor);
+      await api.saveProgram(streamId, params);
       setSaved(params);
       setSavedBy(`${actor}, ${new Date().toLocaleDateString()}`);
       setSavedAuthor(actor);

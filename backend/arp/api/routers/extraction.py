@@ -23,7 +23,7 @@ from arp.extraction.pipeline import create_extraction_run, execute_extraction_ru
 from arp.extraction.schema_builder import draft_schema
 from arp.extraction.steps import ExtractionProfile, StepSettings, pipeline_shape, restart_overrides
 from arp.ingestion.registry import DocumentSourceRegistry
-from arp.orchestration.review_queue import record_cosign
+from arp.orchestration.review_queue import effective_decisions, record_cosign
 from arp.orchestration.step_tally import step_counts
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema
@@ -319,7 +319,9 @@ def get_extraction_review_decisions(run_id: str, run_store: RunStore = Depends(g
     """Latest decision per item_key across the whole run (company- and
     field-level keys mixed) -- one call so the results table can show
     every field's review status without a request per field."""
-    return get_review_decisions(run_store, run_id)
+    decisions = get_review_decisions(run_store, run_id)["decisions"]
+    effective = effective_decisions(run_store, run_id, cosign_required={"edit"})
+    return {"decisions": {k: {**d, "cosigned": k in effective} for k, d in decisions.items()}}
 
 
 @router.get("/runs/{run_id}/review-history")

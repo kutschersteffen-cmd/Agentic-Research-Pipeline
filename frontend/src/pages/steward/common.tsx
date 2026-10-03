@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../../api/client";
-import { useReviewer } from "../../lib/reviewer";
+import { useMe } from "../../lib/reviewer";
 import type { MetricSource, StewardPolicyId, StewardPolicyInfo, StewardshipStage } from "../../types";
 
 export const SOURCE_LABEL: Record<MetricSource, string> = { live: "live data", sample: "synthetic sample", portfolio: "portfolio holdings", not_built: "not built yet" };
@@ -38,7 +38,7 @@ export const openCount = (stage: StewardshipStage | undefined) =>
   stage ? stage.decisions.filter((d) => d.kind !== "policy_difference" || d.decision === null).length : 0;
 
 /** The name recorded with every decision: the app-wide "Reviewing as" identity. */
-export const useActor = useReviewer;
+export const useActor = (): [string, () => void] => [useMe()?.name ?? "", () => {}];
 
 export function ActorField({ actor, onChange }: { actor: string; onChange: (v: string) => void }) {
   return (
@@ -224,7 +224,7 @@ export function VersionsPanel({
     setError(null);
     setMessage(null);
     try {
-      const res = await api.saveStewardPolicyVersion(policyId, { content: workingCopy, note, created_by: actor }, stream);
+      const res = await api.saveStewardPolicyVersion(policyId, { content: workingCopy, note }, stream);
       setNote("");
       setMessage(`Saved as version ${res.version}. It is not active until someone activates it.`);
       onSaved();
@@ -239,7 +239,7 @@ export function VersionsPanel({
     setError(null);
     setMessage(null);
     try {
-      await api.activateStewardPolicy(policyId, { version, approved_by: actor }, stream);
+      await api.activateStewardPolicy(policyId, { version }, stream);
       setMessage(`Version ${version} is now active.`);
       onActivated();
     } catch (err) {
