@@ -161,8 +161,8 @@ in Superset's dashboard Properties and reload the tab. The weighted-average clim
 live only in Standard Analytics.
 
 The UI embeds a draft through `POST /api/bi/embed-token {dashboard_id}`, which answers `{token, embedded_id}`
-(`service.embed_token` returns `(embedded_id, token)`). Only ARP's own dashboards (slug `arp-...`, the scratch one
-included) are embeddable: another dashboard id gets 403, an unknown one 404.
+(`service.embed_token` returns `(embedded_id, token)`). Only arp- dashboards (slug `arp-...`, the scratch one and
+hand-built ones included) are embeddable: another dashboard id gets 403, an unknown one 404.
 
 Caveats:
 - Drafts only. Publishing a dashboard is a human step in Superset.

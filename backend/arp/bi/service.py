@@ -35,7 +35,7 @@ class DashboardNotFound(BIError):
 
 
 class NotAnARPDashboard(BIError):
-    """The dashboard was not made by ARP (slug not `arp-...`), so ARP will not embed it."""
+    """The dashboard's slug does not start with `arp-`, so ARP will not embed it."""
 
 
 class DesignResult(BaseModel):
@@ -179,7 +179,7 @@ def embed_token(client: SupersetClient, dashboard_id: str, rls: list[dict] | Non
     """(embedded UUID, guest token) for embedding the dashboard. Guest tokens
     and the embed SDK name the embedded UUID, not the id, so embedding is
     enabled first (idempotent). `rls` is the row-level-security hook; empty in v1.
-    Only ARP's own dashboards (slug `arp-...`, scratch included) are embedded."""
+    Only arp- dashboards (slug `arp-...`, scratch and hand-built ones included) are embedded."""
     try:
         try:
             slug = client.get_dashboard(int(dashboard_id)).get("slug") or ""
@@ -188,7 +188,7 @@ def embed_token(client: SupersetClient, dashboard_id: str, rls: list[dict] | Non
                 raise DashboardNotFound(f"Dashboard {dashboard_id} not found.") from e
             raise
         if not slug.startswith("arp-"):
-            raise NotAnARPDashboard(f"Dashboard {dashboard_id} was not made by ARP; only arp- dashboards can be embedded.")
+            raise NotAnARPDashboard(f"Dashboard {dashboard_id} has no arp- slug; only arp- dashboards can be embedded.")
         with _EMBED_LOCK:
             embedded_id = client.ensure_embedded(int(dashboard_id))
         return embedded_id, client.guest_token(embedded_id, rls or [])

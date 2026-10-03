@@ -105,10 +105,10 @@ def test_embed_token_returns_token():
     assert ("ensure_embedded", 7) in fake.calls
 
 
-def test_embed_token_403_for_a_dashboard_arp_did_not_make():
+def test_embed_token_403_for_a_dashboard_without_arp_slug():
     fake = _with_dashboard("sales")
     r = _app(FakeLLM(), fake).post("/api/bi/embed-token", json={"dashboard_id": "7"})
-    assert r.status_code == 403 and "arp" in r.json()["detail"]
+    assert r.status_code == 403 and "only arp- dashboards" in r.json()["detail"]
     assert fake.writes() == []
 
 
