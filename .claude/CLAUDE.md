@@ -84,6 +84,17 @@ claude plugin install superpowers@superpowers-marketplace
 - **superpowers** — development workflow skills: brainstorming, writing plans, TDD,
   systematic debugging, worktrees. Its `SessionStart` hook loads `using-superpowers`.
 
+And one more, the same way:
+
+```
+claude plugin marketplace add mattpocock/skills
+claude plugin install mattpocock-skills@mattpocock
+```
+
+- **mattpocock-skills** — Matt Pocock's engineering skills (`grill-with-docs`, `to-spec`,
+  `to-tickets`, `handoff`, `research`, …). Managed, read-only. Run `/setup-matt-pocock-skills`
+  once per repo (issue tracker: GitHub; keep docs out of `graphify-out/`).
+
 ## Which plugin does what
 
 superpowers and ponytail pull in opposite directions (process vs. minimalism), so each owns a
@@ -92,6 +103,10 @@ phase:
 - **Planning → superpowers.** For non-trivial work use `superpowers:brainstorming`, then
   `superpowers:writing-plans`. Apply ponytail's ladder to the plan itself: cut tasks that
   don't need to exist before writing them down. Trivial changes skip planning.
+- **Spec, tickets, handoff → mattpocock-skills.** `grill-with-docs` to stress-test a plan,
+  `to-spec` / `to-tickets` for issues, `handoff` / `research` as needed. Where it overlaps
+  superpowers or `/code-review` (`tdd`, `diagnosing-bugs`, `code-review`), use the superpowers /
+  existing one. Never use its `pr` skill: PRs follow the `main` rule above. Ignore `in-progress/`.
 - **Implementation → ponytail.** Smallest working diff; follow the plan's tasks, not more.
 - **Frontend design → impeccable and ui-ux-pro-max**, as before.
 - **Review → ponytail.** Review with `/ponytail:ponytail-review` (over-engineering) plus
