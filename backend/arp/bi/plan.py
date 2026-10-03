@@ -27,6 +27,7 @@ class NativeFilter(BaseModel):
     name: str
     dataset: str
     column: str
+    filters: dict[str, str] = {}  # column -> value pre-filter on the option list
 
 
 class ChartPlan(BaseModel):

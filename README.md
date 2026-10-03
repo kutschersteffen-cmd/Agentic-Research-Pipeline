@@ -221,6 +221,48 @@ Caveats:
 - Postgres 15 or later is assumed (compose runs pg16). Before 15, every role, `bi_reader` included, gets CREATE on schema `public` through PUBLIC, which bootstrap's REVOKE does not remove.
 - `frame-ancestors` lists only `http://localhost:5173` and `http://127.0.0.1:5173` (the dev UI). Add production origins in `superset/superset_config.py`.
 
+### Projects
+
+A project is a folder under `ARP_PROJECTS_DIR` (default `projects/`, git-ignored) holding replayable data sources
+(uploaded DWS constituent `.xlsx` files plus the assumed notional) and the dashboards stored for it. The data
+files are user data and are never committed. Opening a project re-imports its files into Postgres (tagged
+`project:<id>`, portfolio ids `<project>-dws-<fund isin>`) and provisions its dashboards, both idempotently.
+
+UI (Risk Monitoring, Dashboards): pick a project in the selector or choose New project, upload the files and
+notional, and the project opens automatically. A generated dashboard is saved to the project with Save to project.
+Dashboards you built by hand in Superset (slug `arp-...`) appear under Other arp- dashboards and can be exported
+into a project from there; opening the project re-imports one that is missing (always unpublished, never over an
+existing slug). Saving the same title again is an explicit Save and rebuilds that dashboard in Superset (only the
+dashboard is deleted, charts stay; it comes back unpublished); opening a project never changes an existing dashboard.
+
+```
+arp project create alpha --name "Alpha review"
+arp project add-data alpha Constituent_IE00B4L5Y983.xlsx --notional-eur 50000000
+arp project list
+arp project open alpha          # import data, provision dashboards; prints created / rebuilt / unchanged
+```
+
+API (`/api/projects`): `GET ""`, `POST ""`, `GET /{id}`, `POST /{id}/data` (multipart: file, notional_eur),
+`POST /{id}/open`, `POST /{id}/dashboards` (save a designed dashboard plan), `POST /{id}/dashboards/export` (store a hand-built
+dashboard).
+
+Scoping: `bi.holdings` and `bi.holdings_history` have a trailing `project_id` column taken from the portfolio tag.
+Project dashboards carry the chart filter `project_id == <id>` and their native filters (Fund, Sector, Country)
+are pre-filtered the same way, so options list only that project's data. The STANDARD dashboards (such as
+`arp-risk-exposure`) stay unfiltered and show ALL data in the shared Postgres, every opened project included.
+Securities and companies are global and keyed by ISIN: the last import wins for sector and country labels, so a
+conflicting file in project B can change project A's sector/country breakdowns (holdings themselves never mix).
+Hand-built dashboards are stored as Superset export bundles and are not auto-scoped; filter them on `project_id`
+yourself if they must be.
+
+Upgrade: re-run `arp bi bootstrap` so the views gain `project_id`. Project dashboards created before the
+native-filter scoping fix keep global filter options until rebuilt: delete the dashboard in Superset and open the
+project again.
+
+Limits: the only data kind is the DWS constituent `.xlsx`; uploads are `.xlsx` up to 50 MB; there is no project
+delete, versioning or authentication; opening needs the Postgres portfolio backend. `ARP_BI_READER_PASSWORD`
+(not a placeholder) is needed only to re-import stored hand-built bundles.
+
 ## CLI
 
 The CLI drives the same pipelines as the API and is the intended path for

@@ -33,6 +33,7 @@ from arp.api.routers import (
     index,
     overlap,
     portfolio,
+    projects,
     replication,
     reporting,
     revenue_catalogue,
@@ -116,6 +117,7 @@ app.include_router(portfolio.router, dependencies=[Depends(authorize)])
 app.include_router(climate.router, dependencies=[Depends(authorize)])
 app.include_router(decision.router, dependencies=[Depends(authorize)])
 app.include_router(bi.router, dependencies=[Depends(authorize)])
+app.include_router(projects.router, dependencies=[Depends(authorize)])
 app.include_router(search.router, dependencies=[Depends(authorize)])
 app.include_router(emerging_themes.router, dependencies=[Depends(authorize)])
 app.include_router(taxonomy_researcher.router, dependencies=[Depends(authorize)])

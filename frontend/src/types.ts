@@ -2790,11 +2790,17 @@ export interface BIChartSpec {
   filters: Record<string, string>;
 }
 
+export interface BIChartPlan {
+  title: string;
+  goal: string;
+  charts: BIChartSpec[];
+}
+
 export interface BIDesignResult {
   dashboard_id: number | null;
   slug: string | null;
   url: string | null;
-  plan: { title: string; goal: string; charts: BIChartSpec[] } | null;
+  plan: BIChartPlan | null;
   rejected: string[];
   clarification_needed: string | null;
 }
@@ -2810,4 +2816,35 @@ export interface DashboardItem {
   slug: string;
   title: string;
   published: boolean;
+}
+
+/** Projects (/api/projects): a named data set plus its dashboards. */
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  description: string;
+  created_at: string;
+  data_files: number;
+  dashboards: number;
+}
+
+export interface OpenedDashboard {
+  id: number | null;
+  slug: string;
+  title: string;
+  published: boolean;
+  status: string; // created | rebuilt | unchanged | skipped
+}
+
+export interface OpenResult {
+  data: Record<string, unknown>[];
+  dashboards: OpenedDashboard[];
+}
+
+export interface ExportedDashboard {
+  slug: string;
+  title: string;
+  source: string;
+  file: string;
+  scoped: boolean;
 }

@@ -40,3 +40,6 @@ config/users.json
 
 # OS
 .DS_Store
+
+projects/*
+!projects/.gitkeep

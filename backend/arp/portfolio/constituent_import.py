@@ -26,6 +26,7 @@ from pathlib import Path
 
 import openpyxl
 
+from arp.projects.store import ID_RE
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import Holding, Portfolio, SecurityRef
 from arp.storage.portfolio_store import PortfolioStore
@@ -121,7 +122,12 @@ def _translate(value, table: dict[str, str], untranslated: set[str]) -> str | No
 
 
 def import_constituent_file(
-    store: PortfolioStore, path: Path, notional_eur: float, untranslated: set[str], other_asset_classes: set[str]
+    store: PortfolioStore,
+    path: Path,
+    notional_eur: float,
+    untranslated: set[str],
+    other_asset_classes: set[str],
+    project_id: str | None = None,
 ) -> dict:
     m = _FILE_RE.search(path.name)
     if not m:
@@ -144,12 +150,17 @@ def import_constituent_file(
     if missing:
         raise ValueError(f"{path.name}: header row 4 lacks column(s) {sorted(missing)}")
 
-    portfolio_id = f"dws_{fund_isin.lower()}"
+    tags = ["source:dws-constituents", f"sizing:assumed-notional-eur-{notional_eur:.15g}", f"fund_isin:{fund_isin}"]
+    if project_id is None:
+        portfolio_id = f"dws_{fund_isin.lower()}"
+    else:
+        portfolio_id = f"{project_id}-dws-{fund_isin.lower()}"
+        tags.append(f"project:{project_id}")
     store.save_portfolio(
         Portfolio(
             portfolio_id=portfolio_id,
             name=f"DWS ETF {fund_isin}",
-            tags=["source:dws-constituents", f"sizing:assumed-notional-eur-{notional_eur:.15g}", f"fund_isin:{fund_isin}"],
+            tags=tags,
         )
     )
     holdings: list[Holding] = []
@@ -217,10 +228,19 @@ def import_constituent_file(
     }
 
 
-def import_constituent_files(store: PortfolioStore, paths: list[Path], notional_eur: float) -> dict:
+def import_constituent_files(
+    store: PortfolioStore, paths: list[Path], notional_eur: float, project_id: str | None = None
+) -> dict:
+    if project_id is not None:
+        try:
+            safe_id(project_id, label="project_id")
+        except UnsafeIdentifierError as exc:
+            raise ValueError(str(exc)) from None
+        if not ID_RE.fullmatch(project_id):
+            raise ValueError(f"project_id {project_id!r} must match {ID_RE.pattern}")
     untranslated: set[str] = set()
     other: set[str] = set()
-    portfolios = [import_constituent_file(store, p, notional_eur, untranslated, other) for p in paths]
+    portfolios = [import_constituent_file(store, p, notional_eur, untranslated, other, project_id) for p in paths]
     return {
         "notional_eur": notional_eur,
         "portfolios": portfolios,

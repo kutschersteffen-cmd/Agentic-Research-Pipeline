@@ -16,6 +16,7 @@ from arp.cli.golden_set import golden_set_app
 from arp.cli.identity import identity_app
 from arp.cli.index import index_app
 from arp.cli.portfolio import portfolio_app
+from arp.cli.project import project_app
 from arp.cli.replication import replicate_app
 from arp.cli.reporting import reporting_app
 from arp.cli.revenue_catalogue import revenue_catalogue_app
@@ -54,3 +55,4 @@ app.add_typer(taxonomy_researcher_app, name="taxonomy-researcher")
 app.add_typer(calibration_app, name="calibration")
 app.add_typer(reporting_app, name="report")
 app.add_typer(bi_app, name="bi")
+app.add_typer(project_app, name="project")

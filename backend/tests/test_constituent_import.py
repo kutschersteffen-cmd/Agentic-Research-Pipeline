@@ -110,3 +110,38 @@ def test_missing_security_type_is_not_reported_as_none(tmp_path):
     rows = [("NoType", "XS0000000002", "Japan", "JPY", None, "Energie", 0.1)]
     s = import_constituent_files(PortfolioStore(tmp_path / "store"), [_xlsx(tmp_path, rows)], 1.0)
     assert s["other_asset_classes"] == ["(blank)"]
+
+
+def test_two_projects_get_disjoint_tagged_portfolios(tmp_path):
+    store = PortfolioStore(tmp_path / "store")
+    path = _xlsx(tmp_path, ROWS)
+    for proj in ("alpha", "beta"):
+        import_constituent_files(store, [path], 100.0, project_id=proj)
+    ps = {p.portfolio_id: p for p in store.list_portfolios()}
+    assert set(ps) == {"alpha-dws-ie00testfund", "beta-dws-ie00testfund"}
+    assert "project:alpha" in ps["alpha-dws-ie00testfund"].tags and "project:beta" not in ps["alpha-dws-ie00testfund"].tags
+    assert "project:beta" in ps["beta-dws-ie00testfund"].tags
+    assert len(store.list_companies()) == 4  # shared across projects, not duplicated
+
+
+def test_no_project_keeps_old_id_and_no_project_tag(tmp_path):
+    store = PortfolioStore(tmp_path / "store")
+    import_constituent_files(store, [_xlsx(tmp_path, ROWS)], 100.0)
+    (p,) = store.list_portfolios()
+    assert p.portfolio_id == "dws_ie00testfund"
+    assert not any(t.startswith("project:") for t in p.tags)
+
+
+def test_project_reimport_overwrites(tmp_path):
+    store = PortfolioStore(tmp_path / "store")
+    path = _xlsx(tmp_path, ROWS)
+    for _ in range(2):
+        import_constituent_files(store, [path], 100.0, project_id="alpha")
+    assert [p.portfolio_id for p in store.list_portfolios()] == ["alpha-dws-ie00testfund"]
+    assert store.list_snapshot_dates("alpha-dws-ie00testfund") == ["2026-10-02"]
+
+
+@pytest.mark.parametrize("bad", ["Alpha", "-a", "a_b", "../x"])
+def test_bad_project_id_rejected(tmp_path, bad):
+    with pytest.raises(ValueError):
+        import_constituent_files(PortfolioStore(tmp_path / "store"), [_xlsx(tmp_path, ROWS)], 100.0, project_id=bad)

@@ -20,6 +20,7 @@ from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.portfolio.monitoring.scheduler import PortfolioMonitoringScheduler
+from arp.projects.store import ProjectStore
 from arp.reporting.scheduler import ReportScheduler
 from arp.stewardship.process import StreamStore
 from arp.storage.decision_store import DecisionStore
@@ -67,6 +68,10 @@ def get_index_store() -> IndexStore:
 @lru_cache
 def get_portfolio_store():
     return build_portfolio_store(get_settings())
+
+
+def get_project_store() -> ProjectStore:
+    return ProjectStore(get_settings().projects_dir)
 
 
 @lru_cache
