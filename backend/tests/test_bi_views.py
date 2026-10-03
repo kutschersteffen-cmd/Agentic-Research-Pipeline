@@ -306,5 +306,6 @@ def test_project_id_is_the_project_tag_suffix_or_null(engine):
                 {"p": pid},
             )
     for view in ("holdings", "holdings_history"):
-        rows = _q(engine, f"SELECT DISTINCT portfolio_id, project_id FROM bi.{view} ORDER BY portfolio_id")
-        assert [tuple(r) for r in rows] == [("p-b", "beta"), ("p-c", None), ("p1", "alpha")], view
+        rows = _q(engine, f"SELECT DISTINCT portfolio_id, project_id FROM bi.{view}")
+        # sorted in Python: SQL ORDER BY follows the database collation ("p1" vs "p-b" differ by locale)
+        assert sorted(tuple(r) for r in rows) == [("p-b", "beta"), ("p-c", None), ("p1", "alpha")], view
