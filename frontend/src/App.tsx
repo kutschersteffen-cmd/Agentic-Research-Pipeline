@@ -126,6 +126,17 @@ function navigate(tab: TabId, ...params: string[]) {
   window.location.hash = "/" + [tab, ...params].map(encodeURIComponent).join("/");
 }
 
+/** ARP mark: agents fan out; the signal square is where a person ratifies. */
+function ArpMark() {
+  return (
+    <svg className="app-sidebar-mark" viewBox="0 0 68 64" aria-hidden="true">
+      <path d="M10 32 34 12M10 32h24M10 32l24 20M34 12l22 20M34 32h22M34 52l22-20" stroke="currentColor" strokeWidth="3.5" fill="none" />
+      <path fill="currentColor" d="M5 27h10v10H5zM30 8h8v8h-8zM30 28h8v8h-8zM30 48h8v8h-8z" />
+      <rect x="49" y="25" width="14" height="14" fill="var(--hi)" />
+    </svg>
+  );
+}
+
 function App() {
   const [route, setRoute] = useState(parseHash);
   const active = route.tab;
@@ -270,13 +281,13 @@ function App() {
             <path d="M4 7h16M4 12h16M4 17h16" />
           </svg>
         </button>
-        <span className="app-sidebar-mark">A</span>
+        <ArpMark />
         <span className="app-topbar-title">{TABS.find((t) => t.id === active)!.label}</span>
       </header>
       <div className="nav-scrim" onClick={() => setNavOpen(false)} />
       <aside className="app-sidebar" id="app-sidebar" ref={navRef}>
         <div className="app-sidebar-brand">
-          <span className="app-sidebar-mark">A</span>
+          <ArpMark />
           <span className="app-sidebar-wordmark">ARP</span>
         </div>
         <div className="app-sidebar-reviewer">
