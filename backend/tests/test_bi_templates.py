@@ -73,6 +73,7 @@ def test_provision_never_sets_published():
         ({"charts": [_spec("A", groupby=["portfolio"])]}, "unknown groupby column 'portfolio'"),
         ({"native_filters": [NativeFilter(name="F", dataset="holdings", column="fund")]}, "column 'fund'"),
         ({"native_filters": [NativeFilter(name="F", dataset="nope", column="sector")]}, "dataset 'nope'"),
+        ({"charts": []}, "between 1 and 1"),
     ],
 )
 def test_template_with_unknown_column_fails_before_any_write(bad, needle):

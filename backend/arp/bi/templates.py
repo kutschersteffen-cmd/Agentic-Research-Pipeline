@@ -4,7 +4,8 @@
 A template is validated against the live datasets before anything is
 written. Present with at least as many charts as the template: left alone,
 so a dashboard a person extended or made public is never touched. Fewer: only
-the dashboard is deleted and rebuilt; its old charts stay."""
+the dashboard is deleted and rebuilt; its old charts stay. A rebuild comes
+back as a draft, even if the old dashboard was public in Superset."""
 
 from __future__ import annotations
 
@@ -28,7 +29,7 @@ def provision(client: SupersetClient, template: DashboardTemplate) -> str:
     when the template does not fit the live datasets, before any write."""
     ids, metas = _datasets(client)
     plan = ChartPlan(title=template.title, goal=template.goal, charts=template.charts)
-    problems = validate_plan(plan, metas, max_charts=len(plan.charts))
+    problems = validate_plan(plan, metas, max_charts=max(1, len(plan.charts)))
     for f in template.native_filters:
         if f.dataset not in metas:
             problems.append(f"Native filter '{f.name}': unknown dataset '{f.dataset}'.")
