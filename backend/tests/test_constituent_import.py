@@ -4,8 +4,19 @@ from openpyxl import Workbook
 from arp.portfolio.constituent_import import import_constituent_files
 from arp.storage.portfolio_store import PortfolioStore
 
-HEADER = [None, "Name", "ISIN", "Country", "Currency", "Exchange", "Type of Security", "Rating",
-          "Primary Listing", "Industry Classification", "Weighting"]
+HEADER = [
+    None,
+    "Name",
+    "ISIN",
+    "Country",
+    "Currency",
+    "Exchange",
+    "Type of Security",
+    "Rating",
+    "Primary Listing",
+    "Industry Classification",
+    "Weighting",
+]
 
 
 def _xlsx(tmp_path, rows, title="2026-10-02", isin="IE00TESTFUND"):
@@ -76,3 +87,15 @@ def test_bad_file_name(tmp_path):
     bad = path.rename(tmp_path / "holdings.xlsx")
     with pytest.raises(ValueError, match="Constituent_"):
         import_constituent_files(PortfolioStore(tmp_path / "s"), [bad], 1.0)
+
+
+def test_notional_tag_is_plain_digits(tmp_path):
+    store = PortfolioStore(tmp_path / "store")
+    import_constituent_files(store, [_xlsx(tmp_path, ROWS[:1])], 1e8)
+    assert "sizing:assumed-notional-eur-100000000" in store.get_portfolio("dws_ie00testfund").tags
+
+
+def test_missing_security_type_is_not_reported_as_none(tmp_path):
+    rows = [("NoType", "XS0000000002", "Japan", "JPY", None, "Energie", 0.1)]
+    s = import_constituent_files(PortfolioStore(tmp_path / "store"), [_xlsx(tmp_path, rows)], 1.0)
+    assert s["other_asset_classes"] == ["(blank)"]

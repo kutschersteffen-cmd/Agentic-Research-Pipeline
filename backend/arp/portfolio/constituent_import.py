@@ -29,34 +29,79 @@ from arp.schemas.portfolio import Holding, Portfolio, SecurityRef
 from arp.storage.portfolio_store import PortfolioStore
 
 ASSET_CLASS = {
-    "Aktien": "equity", "Depository Receipts": "equity", "Cash": "cash",
-    "Mutual Fund": "fund", "Warrants": "derivative", "Future": "derivative",
+    "Aktien": "equity",
+    "Depository Receipts": "equity",
+    "Cash": "cash",
+    "Mutual Fund": "fund",
+    "Warrants": "derivative",
+    "Future": "derivative",
 }
 
 COUNTRY = {
-    "Australien": "Australia", "Belgien": "Belgium", "Bermudas": "Bermuda", "Brasilien": "Brazil",
-    "Chile": "Chile", "China": "China", "Deutschland": "Germany", "Dänemark": "Denmark",
-    "Finnland": "Finland", "Frankreich": "France", "Färöer Inseln": "Faroe Islands", "Georgien": "Georgia",
-    "Großbritannien (UK)": "United Kingdom", "Guernsey": "Guernsey", "Hong Kong": "Hong Kong",
-    "Irland": "Ireland", "Isle of Man": "Isle of Man", "Israel": "Israel", "Italien": "Italy",
-    "Japan": "Japan", "Jersey": "Jersey", "Jordanien": "Jordan", "Kaiman Inseln": "Cayman Islands",
-    "Kanada": "Canada", "Liechtenstein": "Liechtenstein", "Litauen": "Lithuania", "Luxemburg": "Luxembourg",
-    "Macao": "Macao", "Neuseeland": "New Zealand", "Niederlande": "Netherlands", "Norwegen": "Norway",
-    "Portugal": "Portugal", "Sambia": "Zambia", "Schweden": "Sweden", "Schweiz": "Switzerland",
-    "Singapur": "Singapore", "Spanien": "Spain", "Süd Korea": "South Korea", "Taiwan": "Taiwan",
-    "Thailand": "Thailand", "Vereinigte Arabische Emirate": "United Arab Emirates",
-    "Vereinigte Staaten von Amerika": "United States", "Zypern": "Cyprus", "Österreich": "Austria",
+    "Australien": "Australia",
+    "Belgien": "Belgium",
+    "Bermudas": "Bermuda",
+    "Brasilien": "Brazil",
+    "Chile": "Chile",
+    "China": "China",
+    "Deutschland": "Germany",
+    "Dänemark": "Denmark",
+    "Finnland": "Finland",
+    "Frankreich": "France",
+    "Färöer Inseln": "Faroe Islands",
+    "Georgien": "Georgia",
+    "Großbritannien (UK)": "United Kingdom",
+    "Guernsey": "Guernsey",
+    "Hong Kong": "Hong Kong",
+    "Irland": "Ireland",
+    "Isle of Man": "Isle of Man",
+    "Israel": "Israel",
+    "Italien": "Italy",
+    "Japan": "Japan",
+    "Jersey": "Jersey",
+    "Jordanien": "Jordan",
+    "Kaiman Inseln": "Cayman Islands",
+    "Kanada": "Canada",
+    "Liechtenstein": "Liechtenstein",
+    "Litauen": "Lithuania",
+    "Luxemburg": "Luxembourg",
+    "Macao": "Macao",
+    "Neuseeland": "New Zealand",
+    "Niederlande": "Netherlands",
+    "Norwegen": "Norway",
+    "Portugal": "Portugal",
+    "Sambia": "Zambia",
+    "Schweden": "Sweden",
+    "Schweiz": "Switzerland",
+    "Singapur": "Singapore",
+    "Spanien": "Spain",
+    "Süd Korea": "South Korea",
+    "Taiwan": "Taiwan",
+    "Thailand": "Thailand",
+    "Vereinigte Arabische Emirate": "United Arab Emirates",
+    "Vereinigte Staaten von Amerika": "United States",
+    "Zypern": "Cyprus",
+    "Österreich": "Austria",
 }
 
 # The files mix two classification schemes (GICS-like and a legacy one); both are kept as given.
 SECTOR = {
-    "Basiskonsumgüter": "Consumer Staples", "Energie": "Energy", "Finanzdienstleister": "Financial Services",
-    "Finanzen": "Financials", "Gesundheitswesen": "Health Care", "Immobilien": "Real Estate",
-    "Industrieunternehmen": "Industrials", "Informationstechnologie": "Information Technology",
-    "Kommunikationsdienste": "Communication Services", "Material": "Materials",
-    "Nicht-Basiskonsumgüter": "Consumer Discretionary", "Technologie": "Technology",
-    "Telekommunikation": "Telecommunications", "Verbrauchsgüter": "Consumer Goods",
-    "Versorgungsunternehmen": "Utilities", "unbekannt": "Unknown",
+    "Basiskonsumgüter": "Consumer Staples",
+    "Energie": "Energy",
+    "Finanzdienstleister": "Financial Services",
+    "Finanzen": "Financials",
+    "Gesundheitswesen": "Health Care",
+    "Immobilien": "Real Estate",
+    "Industrieunternehmen": "Industrials",
+    "Informationstechnologie": "Information Technology",
+    "Kommunikationsdienste": "Communication Services",
+    "Material": "Materials",
+    "Nicht-Basiskonsumgüter": "Consumer Discretionary",
+    "Technologie": "Technology",
+    "Telekommunikation": "Telecommunications",
+    "Verbrauchsgüter": "Consumer Goods",
+    "Versorgungsunternehmen": "Utilities",
+    "unbekannt": "Unknown",
 }
 
 _FILE_RE = re.compile(r"Constituent_([A-Z0-9]{12})\.xlsx$", re.IGNORECASE)
@@ -79,23 +124,31 @@ def import_constituent_file(
     if not m:
         raise ValueError(f"{path.name}: expected a file name like Constituent_<ISIN>.xlsx")
     fund_isin = m.group(1).upper()
-    ws = openpyxl.load_workbook(path, data_only=True, read_only=True).worksheets[0]
+    wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
+    try:  # read-only workbooks keep the file open until closed
+        ws = wb.worksheets[0]
+        title = ws.title
+        rows = iter(list(ws.iter_rows(min_row=4, values_only=True)))
+    finally:
+        wb.close()
     try:
-        as_of = date.fromisoformat(ws.title.strip()).isoformat()
+        as_of = date.fromisoformat(title.strip()).isoformat()
     except ValueError:
-        raise ValueError(f"{path.name}: sheet title {ws.title!r} is not an ISO date (YYYY-MM-DD)") from None
+        raise ValueError(f"{path.name}: sheet title {title!r} is not an ISO date (YYYY-MM-DD)") from None
 
-    rows = ws.iter_rows(min_row=4, values_only=True)
     header = [str(c).strip() if c is not None else "" for c in next(rows)]
     missing = {"Name", "ISIN", "Weighting"} - set(header)
     if missing:
         raise ValueError(f"{path.name}: header row 4 lacks column(s) {sorted(missing)}")
 
     portfolio_id = f"dws_{fund_isin.lower()}"
-    store.save_portfolio(Portfolio(
-        portfolio_id=portfolio_id, name=f"DWS ETF {fund_isin}",
-        tags=["source:dws-constituents", f"sizing:assumed-notional-eur-{notional_eur:g}", f"fund_isin:{fund_isin}"],
-    ))
+    store.save_portfolio(
+        Portfolio(
+            portfolio_id=portfolio_id,
+            name=f"DWS ETF {fund_isin}",
+            tags=["source:dws-constituents", f"sizing:assumed-notional-eur-{notional_eur:.15g}", f"fund_isin:{fund_isin}"],
+        )
+    )
     holdings: list[Holding] = []
     skipped: list[dict] = []
     rows_read = 0
@@ -112,26 +165,47 @@ def import_constituent_file(
             continue
         sec_type = r.get("Type of Security")
         if sec_type not in ASSET_CLASS:
-            other_asset_classes.add(str(sec_type))
+            other_asset_classes.add("(blank)" if sec_type in _BLANK else str(sec_type))
         company_id = f"isin:{isin}"
-        store.save_company(CompanyRef(
-            company_id=company_id, name=name,
-            country=_translate(r.get("Country"), COUNTRY, untranslated),
-            sector=_translate(r.get("Industry Classification"), SECTOR, untranslated),
-        ))
-        store.save_security(SecurityRef(
-            security_id=isin, isin=isin, name=name, asset_class=ASSET_CLASS.get(sec_type, "other"),
-            currency=str(r.get("Currency") or "EUR").strip(), company_id=company_id,
-        ))
+        store.save_company(
+            CompanyRef(
+                company_id=company_id,
+                name=name,
+                country=_translate(r.get("Country"), COUNTRY, untranslated),
+                sector=_translate(r.get("Industry Classification"), SECTOR, untranslated),
+            )
+        )
+        store.save_security(
+            SecurityRef(
+                security_id=isin,
+                isin=isin,
+                name=name,
+                asset_class=ASSET_CLASS.get(sec_type, "other"),
+                currency=str(r.get("Currency") or "EUR").strip(),
+                company_id=company_id,
+            )
+        )
         mv = weight * notional_eur
-        holdings.append(Holding(
-            portfolio_id=portfolio_id, security_id=isin, as_of_date=as_of, quantity=mv, price=1.0,
-            market_value=mv, fx_rate_to_eur=1.0, market_value_eur=mv, weight_pct=weight * 100,
-        ))
+        holdings.append(
+            Holding(
+                portfolio_id=portfolio_id,
+                security_id=isin,
+                as_of_date=as_of,
+                quantity=mv,
+                price=1.0,
+                market_value=mv,
+                fx_rate_to_eur=1.0,
+                market_value_eur=mv,
+                weight_pct=weight * 100,
+            )
+        )
     store.save_snapshot(portfolio_id, as_of, holdings)
     return {
-        "portfolio_id": portfolio_id, "as_of_date": as_of, "rows_read": rows_read,
-        "holdings_written": len(holdings), "skipped_no_weight": skipped,
+        "portfolio_id": portfolio_id,
+        "as_of_date": as_of,
+        "rows_read": rows_read,
+        "holdings_written": len(holdings),
+        "skipped_no_weight": skipped,
         "weight_sum": round(sum(h.weight_pct for h in holdings) / 100, 6),
     }
 
@@ -141,6 +215,8 @@ def import_constituent_files(store: PortfolioStore, paths: list[Path], notional_
     other: set[str] = set()
     portfolios = [import_constituent_file(store, p, notional_eur, untranslated, other) for p in paths]
     return {
-        "notional_eur": notional_eur, "portfolios": portfolios,
-        "untranslated": sorted(untranslated), "other_asset_classes": sorted(other),
+        "notional_eur": notional_eur,
+        "portfolios": portfolios,
+        "untranslated": sorted(untranslated),
+        "other_asset_classes": sorted(other),
     }
