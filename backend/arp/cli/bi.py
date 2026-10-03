@@ -45,7 +45,7 @@ def bi_bootstrap(
     import httpx
     from sqlalchemy.engine import make_url
 
-    from arp.bi.catalog import VIEW_DATASETS
+    from arp.bi.catalog import BI_DATABASE, VIEW_DATASETS
     from arp.bi.superset_client import SupersetClient, SupersetError
     from arp.bi.views import ROLE, create_bi_views, ensure_reader_role
     from arp.storage.postgres import get_engine
@@ -69,7 +69,7 @@ def bi_bootstrap(
     )
     client = SupersetClient(settings.superset_url, settings.superset_user, settings.superset_password)
     try:
-        database_id = client.ensure_database("arp_bi", reader_uri)
+        database_id = client.ensure_database(BI_DATABASE, reader_uri)
         datasets = {}
         for table, dataset in VIEW_DATASETS.items():
             dataset_id = client.ensure_dataset(database_id, "bi", dataset.table)

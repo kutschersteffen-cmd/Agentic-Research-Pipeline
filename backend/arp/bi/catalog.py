@@ -20,6 +20,9 @@ class DatasetDef(BaseModel):
     metrics: list[MetricDef]
 
 
+# Superset database (connection) that `arp bi bootstrap` registers for the `bi` schema.
+BI_DATABASE = "arp_bi"
+
 # The Superset viz_type values a generated chart may use.
 VIZ_ALLOWLIST: tuple[str, ...] = (
     "big_number_total",

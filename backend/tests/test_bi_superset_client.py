@@ -131,3 +131,28 @@ def test_ensure_database_updates_uri_when_found():
     put = calls[-1]
     assert put.method == "PUT" and put.url.path == "/api/v1/database/4"
     assert json.loads(put.content) == {"sqlalchemy_uri": "postgresql://bi_reader:new@h/arp"}
+
+
+def test_find_dataset_filters_by_database_and_never_creates():
+    def h(r):
+        assert r.method == "GET"
+        q = json.loads(r.url.params["q"])
+        assert {"col": "database", "opr": "rel_o_m", "value": 4} in q["filters"]
+        return httpx.Response(200, json={"result": []})
+
+    c, _ = _client(h)
+    assert c.find_dataset(4, "bi", "holdings") is None
+
+
+def test_update_dashboard_attaches_charts_then_puts_layout():
+    c, calls = _client(lambda r: httpx.Response(200, json={}))
+    c.update_dashboard(5, {"k": 1}, [8])
+    puts = [x for x in calls if x.method == "PUT"]
+    assert [x.url.path for x in puts] == ["/api/v1/chart/8", "/api/v1/dashboard/5"]
+    assert json.loads(puts[0].content) == {"dashboards": [5]}
+    assert json.loads(puts[1].content) == {"position_json": json.dumps({"k": 1})}
+
+
+def test_dashboard_charts_maps_id_to_name():
+    c, _ = _client(lambda r: httpx.Response(200, json={"result": [{"id": 2, "slice_name": "B"}, {"id": 1, "slice_name": "A"}]}))
+    assert c.dashboard_charts(5) == {2: "B", 1: "A"}

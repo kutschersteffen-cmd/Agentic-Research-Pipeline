@@ -66,8 +66,11 @@ class SupersetClient:
         result = self._request("GET", f"/{resource}/", params={"q": q})["result"]
         return result[0]["id"] if result else None
 
+    def find_database(self, name: str) -> int | None:
+        return self._find_id("database", [{"col": "database_name", "opr": "eq", "value": name}])
+
     def ensure_database(self, name: str, sqlalchemy_uri: str) -> int:
-        found = self._find_id("database", [{"col": "database_name", "opr": "eq", "value": name}])
+        found = self.find_database(name)
         if found is not None:
             # Re-sent every time so a rotated reader password lands.
             self._request("PUT", f"/database/{found}", json={"sqlalchemy_uri": sqlalchemy_uri})
@@ -75,8 +78,8 @@ class SupersetClient:
         body = {"database_name": name, "sqlalchemy_uri": sqlalchemy_uri, "expose_in_sqllab": True}
         return self._request("POST", "/database/", json=body)["id"]
 
-    def ensure_dataset(self, database_id: int, schema: str, table: str) -> int:
-        found = self._find_id(
+    def find_dataset(self, database_id: int, schema: str, table: str) -> int | None:
+        return self._find_id(
             "dataset",
             [
                 {"col": "table_name", "opr": "eq", "value": table},
@@ -84,6 +87,9 @@ class SupersetClient:
                 {"col": "database", "opr": "rel_o_m", "value": database_id},
             ],
         )
+
+    def ensure_dataset(self, database_id: int, schema: str, table: str) -> int:
+        found = self.find_dataset(database_id, schema, table)
         if found is not None:
             return found
         body = {"database": database_id, "schema": schema, "table_name": table}
@@ -148,9 +154,23 @@ class SupersetClient:
             "published": False,
         }
         dash_id = self._request("POST", "/dashboard/", json=body)["id"]
-        for cid in chart_ids:  # POST /dashboard/ cannot take charts; they attach from the chart side
-            self._request("PUT", f"/chart/{cid}", json={"dashboards": [dash_id]})
+        self._attach(dash_id, chart_ids)
         return dash_id
+
+    def update_dashboard(self, dashboard_id: int, position_json: dict, chart_ids: list[int]) -> None:
+        """Attaches `chart_ids` (the chart's dashboard list is replaced) and
+        replaces the layout. Leaves title, slug and published untouched."""
+        self._attach(dashboard_id, chart_ids)
+        self._request("PUT", f"/dashboard/{dashboard_id}", json={"position_json": json.dumps(position_json)})
+
+    def _attach(self, dashboard_id: int, chart_ids: list[int]) -> None:
+        for cid in chart_ids:  # POST /dashboard/ cannot take charts; they attach from the chart side
+            self._request("PUT", f"/chart/{cid}", json={"dashboards": [dashboard_id]})
+
+    def dashboard_charts(self, dashboard_id: int) -> dict[int, str]:
+        """{chart id: chart name} of the charts attached to the dashboard."""
+        result = self._request("GET", f"/dashboard/{dashboard_id}/charts")["result"]
+        return {c["id"]: c["slice_name"] for c in result}
 
     def find_dashboard(self, slug: str) -> int | None:
         return self._find_id("dashboard", [{"col": "slug", "opr": "eq", "value": slug}])
