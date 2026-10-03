@@ -225,13 +225,37 @@ def test_edit_with_value_only_clears_stale_canonical():
     assert (f["canonical_value"], f["canonical_unit"]) == (5, "kg")
 
 
-def test_trial_run_facts_are_kept_with_trial_status():
-    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+def _run_with_result(tmp_path, trial):
+    from arp.orchestration.job_manager import JobManager
+    from arp.storage.run_store import RunStore
 
-    row = _extraction_row()
-    value, status, _ = resolve_extraction_fact("acme", row, {}, set(), trial=True)
-    assert status == "trial" and value == row
-    assert resolve_extraction_fact("acme", row, {}, set())[1] == "auto_approved"
+    store = RunStore(tmp_path)
+    run_id = JobManager(store).create_run("extraction", {"trial": trial}, 1).run_id
+    store.results_path(run_id).write_text('{"_key": "acme", "issuer_key": "ARP:x", "fields": []}\n')
+    return store, run_id
+
+
+def test_trial_run_is_not_projected_and_leaves_current_facts_alone(tmp_path, monkeypatch):
+    # No DB here: a run that gets past the trial gate reads its decisions next, so that read is the probe.
+    # (tests/test_postgres_projections_integration.py checks the current fact against a real Postgres.)
+    import pytest
+
+    from arp.storage import postgres_company_facts_projection as proj
+
+    class Reached(Exception):
+        pass
+
+    def reached(*a):
+        raise Reached
+
+    monkeypatch.setattr(proj, "latest_decisions", reached)
+    monkeypatch.setattr(proj, "get_engine", reached)
+    store, run_id = _run_with_result(tmp_path, trial=True)
+    assert proj.materialize_run("postgresql://unused", store, run_id) == 0  # nothing read, nothing written
+
+    store, run_id = _run_with_result(tmp_path / "b", trial=False)
+    with pytest.raises(Reached):  # a non-trial run still materialises
+        proj.materialize_run("postgresql://unused", store, run_id)
 
 
 def test_edit_value_clears_fx_and_scale_and_infers_zero_like_frontend():

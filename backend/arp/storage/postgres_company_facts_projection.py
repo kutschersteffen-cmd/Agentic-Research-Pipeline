@@ -145,7 +145,7 @@ def resolve_fact(item_key: str, raw_value: dict, decisions: dict[str, dict], que
 
 
 def resolve_extraction_fact(
-    item_key: str, row: dict, decisions: dict[str, dict], queued_item_keys: set[str], *, trial: bool = False
+    item_key: str, row: dict, decisions: dict[str, dict], queued_item_keys: set[str]
 ) -> tuple[dict, str, str | None]:
     """An extraction fact is one whole record per company, but its queue
     rows are per field ("{issuer_key}:{field_id}:{period}"). Folds the
@@ -153,15 +153,8 @@ def resolve_extraction_fact(
     field, any still-undecided flagged field keeps the fact pending_review,
     else any reject -> rejected, else any edit -> edited, else approved.
     Runs queued at company_id alone (before per-field keys) resolve as before.
-    A trial run (draft schema fields) keeps its facts, but with status "trial".
+    Trial runs never get here: materialize_run skips them.
     """
-    value, status, reviewer = _resolve_extraction_fact(item_key, row, decisions, queued_item_keys)
-    return value, "trial" if trial else status, reviewer
-
-
-def _resolve_extraction_fact(
-    item_key: str, row: dict, decisions: dict[str, dict], queued_item_keys: set[str]
-) -> tuple[dict, str, str | None]:
     if item_key in decisions or item_key in queued_item_keys:
         return resolve_fact(item_key, row, decisions, queued_item_keys)
     keys = [field_item_key(row.get("issuer_key", ""), f["field_id"], period_key(f)) for f in row.get("fields", [])]
@@ -224,6 +217,10 @@ def materialize_run(dsn: str, run_store: RunStore, run_id: str) -> int:
     manifest = run_store.load_manifest(run_id)
     if manifest is None:
         return 0
+    if manifest.params.get("trial"):
+        # A trial run (draft schema fields) is not a fact source: projecting it would retire the
+        # company's current approved fact. Its results stay visible in the run views.
+        return 0
     rows = run_store.read_jsonl(run_store.results_path(run_id))
     decisions = latest_decisions(run_store, run_id)
     queued_item_keys = {r["item_key"] for r in run_store.read_jsonl(run_store.review_queue_path(run_id)) if "item_key" in r}
@@ -266,11 +263,8 @@ def materialize_run(dsn: str, run_store: RunStore, run_id: str) -> int:
         }
         for item_key, raw_value in candidates:
             company_id = item_key.split(":", 1)[0]
-            if manifest.run_type == "extraction":
-                trial = bool(manifest.params.get("trial"))
-                value, status, reviewer = resolve_extraction_fact(item_key, raw_value, decisions, queued_item_keys, trial=trial)
-            else:
-                value, status, reviewer = resolve_fact(item_key, raw_value, decisions, queued_item_keys)
+            resolve = resolve_extraction_fact if manifest.run_type == "extraction" else resolve_fact
+            value, status, reviewer = resolve(item_key, raw_value, decisions, queued_item_keys)
             current = current_by_key.get(item_key)
             if current is not None and current.value == value and current.status == status:
                 continue
