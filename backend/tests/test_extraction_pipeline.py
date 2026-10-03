@@ -312,3 +312,39 @@ async def test_zero_and_not_found_end_to_end(tmp_path, fake_llm):
     assert [(f["value_state"], f["value"]) for f in row["fields"]] == [("zero", 0.0), ("not_found", None)]
     assert row["fields"][0]["period_end"] == "2024-12-31" and row["fields"][0]["qualifiers"] == []
     assert row["needs_review"] is False
+
+
+async def test_review_key_uses_period_end(tmp_path, fake_llm):
+    from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+    from arp.storage.run_store import RunStore
+
+    schema = _schema()
+    doc = SourceDocument(
+        company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG",
+        full_text="Green capex was 5 in FY2024 and 4 in some earlier time.",
+    )
+    company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME", fiscal_year_end="12-31")
+
+    def _pv(v, period, quote):
+        return PeriodValue(
+            value=v, raw_value_text=str(v), period_text=period,
+            citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=quote)],
+        )
+
+    draft = ExtractionDraft(
+        values=[_pv(5, "FY2024", "Green capex was 5 in FY2024"), _pv(4, "some earlier time", "4 in some earlier time")],
+        confidence=0.9,
+    )
+    disagree = VerifierOutput(agrees=False, corrected_value=None, confidence=0.9, notes="wrong")
+    llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [disagree, disagree]})
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    run_id = create_extraction_run(schema, [company], settings, run_store, trial=True)
+    await execute_extraction_run(
+        run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
+        settings=settings, run_store=run_store,
+    )
+    rows = run_store.read_jsonl(run_store.review_queue_path(run_id))
+    assert [(r["item_key"].rsplit(":", 1)[1], r["period_end"]) for r in rows] == [
+        ("2024-12-31", "2024-12-31"), ("unspecified", None)
+    ]

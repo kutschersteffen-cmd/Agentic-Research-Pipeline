@@ -13,7 +13,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, ExtractionRecord, FieldStatus
 from arp.schemas.issuer import issuer_key
-from arp.schemas.review import field_item_key
+from arp.schemas.review import field_item_key, period_key
 from arp.storage.run_store import RunStore
 from arp.storage.schema_registry import SchemaRegistry, UnreleasedFieldError
 
@@ -153,9 +153,9 @@ async def execute_extraction_run(
         rec = result.record
         return [
             (
-                field_item_key(rec.issuer_key, f.field_id),
+                field_item_key(rec.issuer_key, f.field_id, period_key(f)),
                 {
-                    "item_key": field_item_key(rec.issuer_key, f.field_id),
+                    "item_key": field_item_key(rec.issuer_key, f.field_id, period_key(f)),
                     "issuer_key": rec.issuer_key,
                     "issuer_scheme": rec.issuer_scheme,
                     "company_id": rec.company_id,
@@ -163,6 +163,7 @@ async def execute_extraction_run(
                     "schema_id": rec.schema_id,
                     "run_id": rec.run_id,
                     "field_id": f.field_id,
+                    "period_end": f.period_end,
                     "field": f.model_dump(mode="json"),
                     "reason_codes": [str(r) for r in f.review_reasons],
                 },

@@ -12,7 +12,7 @@ import logging
 
 from arp.orchestration.review_queue import effective_decisions, latest_decisions
 from arp.schemas.common import now_iso
-from arp.schemas.review import field_item_key
+from arp.schemas.review import field_item_key, period_key
 from arp.storage.postgres import get_engine
 from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.run_store import RunStore
@@ -156,22 +156,26 @@ def resolve_extraction_fact(
     """
     if item_key in decisions or item_key in queued_item_keys:
         return resolve_fact(item_key, row, decisions, queued_item_keys)
-    keys = {f["field_id"]: field_item_key(row.get("issuer_key", ""), f["field_id"]) for f in row.get("fields", [])}
-    flagged = {fid: k for fid, k in keys.items() if k in decisions or k in queued_item_keys}
+    keys = [field_item_key(row.get("issuer_key", ""), f["field_id"], period_key(f)) for f in row.get("fields", [])]
+    flagged = {i for i, k in enumerate(keys) if k in decisions or k in queued_item_keys}
     if not flagged:
         return row, "auto_approved", None
     value = dict(row)
     value["fields"] = list(row["fields"])
     outcomes, reviewer = [], None
     for i, f in enumerate(value["fields"]):
-        decision = decisions.get(flagged.get(f["field_id"], ""))
+        decision = decisions.get(keys[i])
         if decision is None:
-            outcomes.append("pending_review" if f["field_id"] in flagged else None)
+            outcomes.append("pending_review" if i in flagged else None)
             continue
         outcomes.append({"approve": "approved", "edit": "edited"}.get(decision.get("decision"), "rejected"))
         reviewer = decision.get("reviewer") or reviewer
         if decision.get("decision") == "edit" and decision.get("edited_value"):
-            value["fields"][i] = {**f, **decision["edited_value"], "field_id": f["field_id"]}
+            edit = decision["edited_value"]
+            merged = {**f, **edit, "field_id": f["field_id"]}
+            if edit.get("value") is not None and "value_state" not in edit:  # a supplied value is no longer not_found
+                merged["value_state"] = "zero" if edit["value"] == 0 else "found"
+            value["fields"][i] = merged
     status = next(st for st in ("pending_review", "rejected", "edited", "approved") if st in outcomes)
     return value, status, None if status == "pending_review" else reviewer
 

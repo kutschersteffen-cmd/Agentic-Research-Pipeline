@@ -168,3 +168,44 @@ def test_extraction_approve_plus_edit_is_edited_and_only_edited_field_changes():
     value, status, _ = resolve_extraction_fact("acme", row, decisions, {ka, kb})
     assert status == "edited"
     assert [f["value"] for f in value["fields"]] == [1, 7]
+
+
+def _two_period_row():
+    return {
+        "issuer_key": "ARP:x",
+        "fields": [
+            {"field_id": "a", "value": 10, "period_end": "2024-12-31"},
+            {"field_id": "a", "value": 7, "period_end": "2023-12-31"},
+        ],
+    }
+
+
+def test_projection_two_periods_same_field():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    k23 = "ARP:x:a:2023-12-31"
+    decisions = {k23: {"decision": "edit", "reviewer": "r", "edited_value": {"value": 8}}}
+    value, status, _ = resolve_extraction_fact("acme", _two_period_row(), decisions, {k23, "ARP:x:a:2024-12-31"})
+    assert status == "pending_review"  # FY2024 row is flagged but undecided
+    assert [f["value"] for f in value["fields"]] == [10, 8]
+    value, status, _ = resolve_extraction_fact("acme", _two_period_row(), decisions, {k23})
+    assert status == "edited" and [f["value"] for f in value["fields"]] == [10, 8]
+
+
+def test_projection_old_rows_without_period_unchanged():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    row = {"issuer_key": "ARP:x", "fields": [{"field_id": "a", "value": 1}]}
+    key = "ARP:x:a:unspecified"
+    value, status, _ = resolve_extraction_fact("acme", row, {key: {"decision": "edit", "edited_value": {"value": 3}}}, {key})
+    assert status == "edited" and value["fields"][0]["value"] == 3
+
+
+def test_edit_supplying_value_clears_not_found():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    row = {"issuer_key": "ARP:x", "fields": [{"field_id": "a", "value": None, "value_state": "not_found"}]}
+    key = "ARP:x:a:unspecified"
+    for edit, state in (({"value": 5}, "found"), ({"value": 0}, "zero"), ({"value": 5, "value_state": "not_applicable"}, "not_applicable")):
+        value, _, _ = resolve_extraction_fact("acme", row, {key: {"decision": "edit", "edited_value": edit}}, {key})
+        assert value["fields"][0]["value_state"] == state

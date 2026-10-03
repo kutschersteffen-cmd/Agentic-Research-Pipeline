@@ -150,7 +150,9 @@ def from_extraction_run(run_store: RunStore, run_id: str) -> Dataset:
     rows: list[list[str]] = []
     confidence: dict[str, list[float | None]] = defaultdict(list)
     for record in records:
-        by_name = {str(f.get("field_name") or f.get("field_id")): f for f in record.get("fields", [])}
+        by_name: dict[str, dict] = {}
+        for f in record.get("fields", []):  # latest period first: keep the first row per name
+            by_name.setdefault(str(f.get("field_name") or f.get("field_id")), f)
         row = [
             str(record.get("name") or record.get("company_id") or ""),
             str(record.get("company_id") or ""),

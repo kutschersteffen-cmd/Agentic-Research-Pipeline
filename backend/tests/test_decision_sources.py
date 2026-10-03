@@ -157,3 +157,20 @@ def test_an_empty_run_is_an_error_not_an_empty_table(tmp_path):
     _write(run_store, "empty", [])
     with pytest.raises(ValueError, match="no results"):
         sources.from_transition_plan_run(run_store, "empty")
+
+
+def test_decision_source_takes_latest_period(tmp_path):
+    run_store = RunStore(tmp_path)
+    _write(
+        run_store,
+        "ex2",
+        [{
+            "company_id": "a", "name": "Alpha", "overall_confidence": 0.9,
+            "fields": [  # latest period first
+                {"field_name": "Capex", "value": 10, "confidence": 0.9, "grounded": True, "period_end": "2024-12-31"},
+                {"field_name": "Capex", "value": 7, "confidence": 0.9, "grounded": True, "period_end": "2023-12-31"},
+            ],
+        }],
+    )
+    dataset = sources.from_extraction_run(run_store, "ex2")
+    assert str(dataset.rows[0]["Capex"]) in ("10", "10.0")
