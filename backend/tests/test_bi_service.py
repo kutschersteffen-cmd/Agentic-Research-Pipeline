@@ -189,9 +189,20 @@ def test_half_built_dashboard_under_slug_is_rebuilt():
     slug = f"arp-{plan_hash(PLAN)}"
     client.dashboards[slug] = {"id": 50, "published": False, "charts": [], "position": {}}
     res = run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
-    assert ("delete_dashboard", 50) in client.calls
+    assert [c for c in client.calls if c[0].startswith("delete")] == [("delete_dashboard", 50)]
     assert list(client.dashboards) == [slug] and res.dashboard_id == client.dashboards[slug]["id"] != 50
     assert client.dashboards[slug]["charts"] == [101, 102, 103]
+
+
+def test_rebuild_keeps_charts_shared_with_other_dashboards():
+    client = FakeClient()
+    slug = f"arp-{plan_hash(PLAN)}"
+    client.charts[7] = "Shared"  # a person also put this chart on their own dashboard
+    client.dashboards["mine"] = {"id": 60, "published": False, "charts": [7], "position": {}}
+    client.dashboards[slug] = {"id": 50, "published": False, "charts": [7], "position": {}}
+    run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    assert [c for c in client.calls if c[0].startswith("delete")] == [("delete_dashboard", 50)]
+    assert client.charts[7] == "Shared" and client.dashboards["mine"]["charts"] == [7]
 
 
 def test_dashboard_created_unpublished():

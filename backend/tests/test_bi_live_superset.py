@@ -14,6 +14,7 @@ than postgres:5432. Everything the test creates in Superset is deleted."""
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import os
 import uuid
@@ -27,7 +28,7 @@ from arp.bi.catalog import VIEW_DATASETS, VIZ_ALLOWLIST
 from arp.bi.plan import ChartPlan, ChartSpec
 from arp.bi.planner import PlannerRefusal
 from arp.bi.service import SCRATCH_SLUG, ask_chart, design_dashboard, embed_token
-from arp.bi.superset_client import SupersetClient
+from arp.bi.superset_client import SupersetClient, SupersetError
 from arp.cli import app
 from arp.config import get_settings
 from arp.llm.base import LLMClient, LLMUsage
@@ -215,10 +216,11 @@ def test_live_service_design_covers_every_viz_type(settings):
         assert isinstance(token, str) and token
     finally:
         for dash_id in dash_ids:
-            charts = client.dashboard_charts(dash_id)
-            client.delete_dashboard(dash_id)
-            for cid in charts:
-                client.delete_chart(cid)
+            with contextlib.suppress(SupersetError):  # one already gone must not leak the rest
+                charts = client.dashboard_charts(dash_id)
+                client.delete_dashboard(dash_id)
+                for cid in charts:
+                    client.delete_chart(cid)
     for slug in slugs:
         assert client.find_dashboard(slug) is None
 

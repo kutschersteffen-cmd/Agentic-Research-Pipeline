@@ -90,8 +90,8 @@ def _build_dashboard(client: SupersetClient, plan: ChartPlan, ids: dict[str, int
             if len(charts) == len(plan.charts):  # same plan as before: reuse, create nothing
                 return _result(existing, slug, plan)
             # Half-built or emptied since: replace it rather than return it as done.
+            # Only the dashboard goes; its charts may sit on other dashboards too.
             client.delete_dashboard(existing)
-            _cleanup(client, list(charts))
     except _ERRORS as e:
         raise BIError(f"Superset: {e}") from e
     created: list[int] = []
