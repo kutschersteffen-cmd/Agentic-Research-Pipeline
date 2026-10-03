@@ -104,18 +104,24 @@ export function reducePicker(s: PickerState, e: PickerEvent): PickerState {
   }
 }
 
-/** One readable line for an open's data summaries ({notional_eur, portfolios: [{holdings_written}]} each):
- * "4 funds, 2,829 holdings, EUR 400.6M". Notional is per file, so the total is notional x funds. */
+/** One readable line for an open's data summaries ({notional_eur, portfolios: [{holdings_written, weight_sum}]} each):
+ * "4 funds, 2,829 holdings, EUR 400.6M". Notional is per file; a fund's share is notional x weight_sum
+ * (1 when the summary lacks it). */
 export function dataLine(data: Record<string, unknown>[]): string {
   let funds = 0, holdings = 0, eur = 0;
   for (const d of data) {
     const ps = Array.isArray(d.portfolios) ? (d.portfolios as Record<string, unknown>[]) : [];
     funds += ps.length;
-    for (const p of ps) holdings += Number(p?.holdings_written) || 0;
-    eur += (Number(d.notional_eur) || 0) * ps.length;
+    for (const p of ps) {
+      holdings += Number(p?.holdings_written) || 0;
+      eur += (Number(d.notional_eur) || 0) * (p?.weight_sum != null && Number.isFinite(Number(p.weight_sum)) ? Number(p.weight_sum) : 1);
+    }
   }
   if (funds === 0) return "Data loaded";
-  const parts = [`${funds} ${funds === 1 ? "fund" : "funds"}`, `${holdings.toLocaleString("en-US")} holdings`];
-  if (eur > 0) parts.push(`EUR ${(eur / 1e6).toFixed(1)}M`);
+  const n = (k: number, w: string) => `${k.toLocaleString("en-US")} ${w}${k === 1 ? "" : "s"}`;
+  const parts = [n(funds, "fund"), n(holdings, "holding")];
+  if (eur >= 1e6) parts.push(`EUR ${(eur / 1e6).toFixed(1)}M`);
+  else if (eur >= 1e3) parts.push(`EUR ${Math.round(eur / 1e3)}k`);
+  else if (eur > 0) parts.push(`EUR ${Math.round(eur)}`);
   return parts.join(", ");
 }

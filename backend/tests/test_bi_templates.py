@@ -103,3 +103,14 @@ def test_bundled_templates_validate_against_catalog():
 def test_template_slug_must_start_with_arp():
     with pytest.raises(ValidationError, match="arp-"):
         DashboardTemplate(slug="risk", title="T", charts=[_spec("A")])
+
+
+def test_native_filter_unknown_filter_column_fails_before_any_write():
+    from tests.test_bi_service import FakeClient, _spec
+
+    client = FakeClient()
+    nf = NativeFilter(name="Fund", dataset="holdings", column="portfolio_name", filters={"nope": "x"})
+    t = DashboardTemplate(slug="arp-x", title="X", charts=[_spec("A")], native_filters=[nf])
+    with pytest.raises(templates.BIError, match="unknown filter column 'nope'"):
+        templates.provision(client, t)
+    assert not any(c[0].startswith("create") for c in client.calls)

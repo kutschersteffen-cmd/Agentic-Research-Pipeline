@@ -148,6 +148,8 @@ test("dataLine summarises funds, holdings and notional, with a generic fallback"
   const d = (n: number, h: number[]) => ({ notional_eur: n, portfolios: h.map((x) => ({ holdings_written: x })) });
   assert.equal(dataLine([d(100e6, [1000, 1000, 500, 329])]), "4 funds, 2,829 holdings, EUR 400.0M");
   assert.equal(dataLine([d(20e6, [6])]), "1 fund, 6 holdings, EUR 20.0M");
+  assert.equal(dataLine([{ notional_eur: 45_000, portfolios: [{ holdings_written: 1 }] }]), "1 fund, 1 holding, EUR 45k");
+  assert.equal(dataLine([{ notional_eur: 100e6, portfolios: [{ holdings_written: 3, weight_sum: 0.5 }, { holdings_written: 3, weight_sum: 1 }] }]), "2 funds, 6 holdings, EUR 150.0M");
   assert.equal(dataLine([]), "Data loaded");
   assert.equal(dataLine([{ kind: "x" }]), "Data loaded");
 });
