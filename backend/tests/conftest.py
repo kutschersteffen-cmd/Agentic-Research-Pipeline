@@ -44,7 +44,7 @@ class FakeLLMClient:
         queue = self._script.get(name)
         if not queue:
             raise AssertionError(f"FakeLLMClient has no scripted response left for {name}")
-        return queue.pop(0), LLMUsage(input_tokens=10, output_tokens=10)
+        return queue.pop(0), LLMUsage(input_tokens=10, output_tokens=10, provider="fake")
 
 
 @pytest.fixture

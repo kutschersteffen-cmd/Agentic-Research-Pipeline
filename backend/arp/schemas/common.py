@@ -118,6 +118,7 @@ class ProvenanceInfo(BaseModel):
     extractor_prompt_version: str | None = None
     verifier_model: str | None = None
     verifier_prompt_version: str | None = None
+    provider: str = ""
 
 
 class RunManifest(BaseModel):

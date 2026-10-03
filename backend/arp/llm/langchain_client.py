@@ -177,6 +177,7 @@ class LangChainAnthropicClient(LLMClient):
                 usage_fields = {**cached["usage"], "cached": True}
                 usage_fields.setdefault("model", self.model)
                 usage_fields.setdefault("prompt_version", prompt_version)
+                usage_fields["provider"] = "anthropic"
                 return instance, LLMUsage(**usage_fields)
             except ValidationError:
                 pass  # cache entry stale/corrupt; fall through to a live call
@@ -303,6 +304,7 @@ class LangChainAnthropicClient(LLMClient):
                 attempts=attempt,
                 model=self.model,
                 prompt_version=prompt_version,
+                provider="anthropic",
             )
             self.cache.set(
                 cache_key,
