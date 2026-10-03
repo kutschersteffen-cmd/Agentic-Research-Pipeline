@@ -27,7 +27,7 @@ from typer.testing import CliRunner
 from arp.bi.catalog import VIEW_DATASETS, VIZ_ALLOWLIST
 from arp.bi.plan import ChartPlan, ChartSpec
 from arp.bi.planner import PlannerRefusal
-from arp.bi.service import SCRATCH_SLUG, ask_chart, design_dashboard, embed_token
+from arp.bi.service import SCRATCH_SLUG, NotAnARPDashboard, ask_chart, design_dashboard, embed_token
 from arp.bi.superset_client import SupersetClient, SupersetError
 from arp.cli import app
 from arp.config import get_settings
@@ -214,6 +214,17 @@ def test_live_service_design_covers_every_viz_type(settings):
 
         embedded_id, token = embed_token(client, str(dash_ids[0]))
         assert isinstance(token, str) and token and embedded_id
+
+        # A person's own dashboard (no arp- slug) is refused and not made embeddable.
+        human = client._request("POST", "/dashboard/", json={"dashboard_title": f"Human {tag}", "slug": f"human-{tag}"})["id"]
+        try:
+            with pytest.raises(NotAnARPDashboard):
+                embed_token(client, str(human))
+            with pytest.raises(SupersetError) as e:
+                client._request("GET", f"/dashboard/{human}/embedded")
+            assert e.value.status_code == 404
+        finally:
+            client.delete_dashboard(human)
     finally:
         for dash_id in dash_ids:
             with contextlib.suppress(SupersetError):  # one already gone must not leak the rest

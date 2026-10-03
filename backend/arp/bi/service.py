@@ -30,6 +30,14 @@ class BIError(Exception):
     """Superset rejected or failed a step; whatever this call created was removed."""
 
 
+class DashboardNotFound(BIError):
+    """No Superset dashboard has that id."""
+
+
+class NotAnARPDashboard(BIError):
+    """The dashboard was not made by ARP (slug not `arp-...`), so ARP will not embed it."""
+
+
 class DesignResult(BaseModel):
     dashboard_id: int | None = None
     slug: str | None = None
@@ -88,9 +96,11 @@ def _build_dashboard(client: SupersetClient, plan: ChartPlan, ids: dict[str, int
         existing = client.find_dashboard(slug)
         if existing is not None:
             charts = client.dashboard_charts(existing)
-            if len(charts) == len(plan.charts):  # same plan as before: reuse, create nothing
+            # Same plan as before: reuse, create nothing. More charts means a person
+            # extended it, which must survive a re-run.
+            if len(charts) >= len(plan.charts):
                 return _result(existing, slug, plan)
-            # Half-built or emptied since: replace it rather than return it as done.
+            # Fewer: half-built or emptied since; replace it rather than return it as done.
             # Only the dashboard goes; its charts may sit on other dashboards too.
             client.delete_dashboard(existing)
     except _ERRORS as e:
@@ -158,8 +168,17 @@ _EMBED_LOCK = threading.Lock()
 def embed_token(client: SupersetClient, dashboard_id: str, rls: list[dict] | None = None) -> tuple[str, str]:
     """(embedded UUID, guest token) for embedding the dashboard. Guest tokens
     and the embed SDK name the embedded UUID, not the id, so embedding is
-    enabled first (idempotent). `rls` is the row-level-security hook; empty in v1."""
+    enabled first (idempotent). `rls` is the row-level-security hook; empty in v1.
+    Only ARP's own dashboards (slug `arp-...`, scratch included) are embedded."""
     try:
+        try:
+            slug = client.get_dashboard(int(dashboard_id)).get("slug") or ""
+        except SupersetError as e:
+            if e.status_code == 404:
+                raise DashboardNotFound(f"Dashboard {dashboard_id} not found.") from e
+            raise
+        if not slug.startswith("arp-"):
+            raise NotAnARPDashboard(f"Dashboard {dashboard_id} was not made by ARP; only arp- dashboards can be embedded.")
         with _EMBED_LOCK:
             embedded_id = client.ensure_embedded(int(dashboard_id))
         return embedded_id, client.guest_token(embedded_id, rls or [])

@@ -22,8 +22,8 @@ class DownClient(FakeClient):
         self.calls.append(("find_database", name))
         raise SupersetError(500, SECRET_BODY)
 
-    def ensure_embedded(self, dashboard_id):
-        self.calls.append(("ensure_embedded", dashboard_id))
+    def get_dashboard(self, id):
+        self.calls.append(("get_dashboard", id))
         raise SupersetError(500, SECRET_BODY)
 
 
@@ -92,11 +92,31 @@ def test_502_logs_body_server_side(caplog):
     assert "hunter2" in caplog.text
 
 
-def test_embed_token_returns_token():
+def _with_dashboard(slug: str) -> FakeClient:
     fake = FakeClient()
+    fake.dashboards[slug] = {"id": 7, "published": False, "charts": [], "position": {}}
+    return fake
+
+
+def test_embed_token_returns_token():
+    fake = _with_dashboard("arp-abc")
     r = _app(FakeLLM(), fake).post("/api/bi/embed-token", json={"dashboard_id": "7"})
     assert r.status_code == 200 and r.json() == {"token": "tok", "embedded_id": "uuid-1"}
     assert ("ensure_embedded", 7) in fake.calls
+
+
+def test_embed_token_403_for_a_dashboard_arp_did_not_make():
+    fake = _with_dashboard("sales")
+    r = _app(FakeLLM(), fake).post("/api/bi/embed-token", json={"dashboard_id": "7"})
+    assert r.status_code == 403 and "arp" in r.json()["detail"]
+    assert fake.writes() == []
+
+
+def test_embed_token_404_for_unknown_dashboard():
+    fake = FakeClient()
+    r = _app(FakeLLM(), fake).post("/api/bi/embed-token", json={"dashboard_id": "7"})
+    assert r.status_code == 404 and "message" not in r.text  # Superset's body is not echoed
+    assert fake.writes() == []
 
 
 @pytest.mark.parametrize("body", [{}, {"dashboard_id": ""}, {"dashboard_id": "  "}])

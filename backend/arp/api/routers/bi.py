@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from arp.api.deps import get_llm_client, get_superset_client
 from arp.bi import service
-from arp.bi.service import BIError, DesignResult
+from arp.bi.service import BIError, DashboardNotFound, DesignResult, NotAnARPDashboard
 from arp.bi.superset_client import SupersetClient, SupersetError
 from arp.llm.base import LLMClient
 
@@ -76,5 +76,9 @@ async def embed_token(req: EmbedRequest, client: SupersetClient = Depends(get_su
     try:
         embedded_id, token = await asyncio.to_thread(service.embed_token, client, req.dashboard_id)
         return EmbedToken(token=token, embedded_id=embedded_id)
+    except DashboardNotFound as e:
+        raise HTTPException(404, str(e)) from e
+    except NotAnARPDashboard as e:
+        raise HTTPException(403, str(e)) from e
     except (BIError, SupersetError, httpx.HTTPError) as e:
         raise _bad_gateway(e) from e

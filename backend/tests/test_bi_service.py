@@ -82,6 +82,13 @@ class FakeClient:
         d = next(d for d in self.dashboards.values() if d["id"] == dashboard_id)
         return {c: self.charts[c] for c in d["charts"]}
 
+    def get_dashboard(self, id):
+        self.calls.append(("get_dashboard", id))
+        for slug, d in self.dashboards.items():
+            if d["id"] == id:
+                return {"id": id, "slug": slug, "published": d["published"]}
+        raise SupersetError(404, '{"message": "Not found"}')
+
     def find_dashboard(self, slug):
         self.calls.append(("find_dashboard", slug))
         return self.dashboards[slug]["id"] if slug in self.dashboards else None
@@ -194,6 +201,18 @@ def test_half_built_dashboard_under_slug_is_rebuilt():
     assert client.dashboards[slug]["charts"] == [101, 102, 103]
 
 
+def test_dashboard_a_person_extended_is_reused_not_rebuilt():
+    client = FakeClient()
+    first = run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    slug = f"arp-{plan_hash(PLAN)}"
+    client.charts[200] = "Added by hand"
+    client.dashboards[slug]["charts"].append(200)
+    n_writes = len(client.writes())
+    again = run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    assert again.dashboard_id == first.dashboard_id and len(client.writes()) == n_writes
+    assert client.dashboards[slug]["charts"] == [101, 102, 103, 200]
+
+
 def test_rebuild_keeps_charts_shared_with_other_dashboards():
     client = FakeClient()
     slug = f"arp-{plan_hash(PLAN)}"
@@ -273,8 +292,31 @@ def test_no_code_path_publishes():
 
 def test_embed_token_ensures_embedded_first():
     client = FakeClient()
+    client.dashboards["arp-abc"] = {"id": 7, "published": False, "charts": [], "position": {}}
     assert embed_token(client, "7") == ("uuid-1", "tok")
-    assert client.calls == [("ensure_embedded", 7), ("guest_token", "uuid-1", [])]
+    assert client.calls == [("get_dashboard", 7), ("ensure_embedded", 7), ("guest_token", "uuid-1", [])]
+
+
+@pytest.mark.parametrize("slug", ["sales", "", None, "arpx-1"])
+def test_embed_token_refuses_dashboards_arp_did_not_make(slug):
+    client = FakeClient()
+    client.dashboards[slug] = {"id": 7, "published": True, "charts": [], "position": {}}
+    with pytest.raises(service.NotAnARPDashboard):
+        embed_token(client, "7")
+    assert client.writes() == [] and not any(c[0] == "guest_token" for c in client.calls)
+
+
+def test_embed_token_unknown_dashboard():
+    client = FakeClient()
+    with pytest.raises(service.DashboardNotFound):
+        embed_token(client, "7")
+    assert client.writes() == []
+
+
+def test_embed_token_allows_scratch():
+    client = FakeClient()
+    client.dashboards["arp-scratch"] = {"id": 7, "published": False, "charts": [], "position": {}}
+    assert embed_token(client, "7") == ("uuid-1", "tok")
 
 
 def test_embed_token_serialises_ensure_embedded():
@@ -293,7 +335,12 @@ def test_embed_token_serialises_ensure_embedded():
             Racy.inside -= 1
             return "uuid-1"
 
-    threads = [threading.Thread(target=embed_token, args=(Racy(), "7")) for _ in range(3)]
+    def racy():
+        c = Racy()
+        c.dashboards["arp-abc"] = {"id": 7, "published": False, "charts": [], "position": {}}
+        return c
+
+    threads = [threading.Thread(target=embed_token, args=(racy(), "7")) for _ in range(3)]
     for t in threads:
         t.start()
     for t in threads:

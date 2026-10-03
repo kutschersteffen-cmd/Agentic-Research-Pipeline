@@ -170,3 +170,12 @@ def test_create_dashboard_deletes_itself_when_attach_fails():
     with pytest.raises(SupersetError):
         c.create_dashboard("T", "slug", {}, [1])
     assert [(x.method, x.url.path) for x in calls][-1] == ("DELETE", "/api/v1/dashboard/3")
+
+
+def test_get_dashboard_returns_result():
+    def h(r):
+        assert r.method == "GET" and r.url.path == "/api/v1/dashboard/5"
+        return httpx.Response(200, json={"result": {"id": 5, "slug": "arp-x", "published": False}})
+
+    c, _ = _client(h)
+    assert c.get_dashboard(5)["slug"] == "arp-x"

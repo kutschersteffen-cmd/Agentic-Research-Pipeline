@@ -180,6 +180,10 @@ class SupersetClient:
         result = self._request("GET", f"/dashboard/{dashboard_id}/charts")["result"]
         return {c["id"]: c["slice_name"] for c in result}
 
+    def get_dashboard(self, dashboard_id: int) -> dict:
+        """The dashboard's metadata (slug, published, ...); 404 SupersetError if unknown."""
+        return self._request("GET", f"/dashboard/{dashboard_id}")["result"]
+
     def find_dashboard(self, slug: str) -> int | None:
         return self._find_id("dashboard", [{"col": "slug", "opr": "eq", "value": slug}])
 
