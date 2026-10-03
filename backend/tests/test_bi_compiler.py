@@ -1,0 +1,84 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from arp.bi.catalog import VIZ_ALLOWLIST
+from arp.bi.compiler import compile_chart, compile_dashboard, plan_hash
+from arp.bi.plan import ChartPlan, ChartSpec
+
+FIXTURES = Path(__file__).parent / "fixtures" / "bi"
+EXP = "Exposure (EUR)"
+
+# One canonical spec per viz_type; compile_chart must reproduce the fixture
+# Task 4 verified against live Superset.
+CANONICAL = {
+    "big_number_total": dict(metrics=[EXP]),
+    "echarts_timeseries_bar": dict(metrics=[EXP], groupby=["sector"]),
+    "echarts_timeseries_line": dict(metrics=[EXP], groupby=["as_of_date", "portfolio_name"]),
+    "heatmap_v2": dict(metrics=[EXP], groupby=["portfolio_name", "sector"]),
+    "pie": dict(metrics=[EXP], groupby=["sector"]),
+    "pivot_table_v2": dict(metrics=[EXP], groupby=["sector", "portfolio_name"]),
+    "table": dict(metrics=[EXP, "Holdings"], groupby=["portfolio_name", "sector"]),
+    "treemap_v2": dict(metrics=[EXP], groupby=["sector", "company_name"]),
+}
+
+
+def _spec(viz: str, **over) -> ChartSpec:
+    return ChartSpec(title="t", viz_type=viz, dataset="holdings", **{**CANONICAL[viz], **over})
+
+
+def test_canonical_covers_allowlist():
+    assert set(CANONICAL) == set(VIZ_ALLOWLIST)
+
+
+@pytest.mark.parametrize("viz", sorted(CANONICAL))
+def test_compile_matches_verified_fixture(viz):
+    fixture = json.loads((FIXTURES / f"{viz}.json").read_text())
+    if viz == "table":
+        # The recorded `asset_class IS NOT NULL` filter is a live-test probe the
+        # plan cannot express (only `==` filters); the rest must match.
+        fixture["adhoc_filters"] = []
+    assert compile_chart(_spec(viz), 7) == fixture
+
+
+def test_filters_and_time_range():
+    p = compile_chart(_spec("pie", filters={"sector": "Energy"}, time_range="Last quarter"), 7)
+    assert p["adhoc_filters"] == [
+        {"expressionType": "SIMPLE", "subject": "sector", "operator": "==", "comparator": "Energy", "clause": "WHERE"}
+    ]
+    assert p["time_range"] == "Last quarter"
+
+
+def _plan(filters, order=("a", "b")):
+    charts = [ChartSpec(title=t, viz_type="pie", dataset="holdings", metrics=[EXP], filters=filters) for t in order]
+    return ChartPlan(title="p", charts=charts)
+
+
+def test_plan_hash_stable_and_order_independent_for_filters():
+    h = plan_hash(_plan({"x": "1", "y": "2"}))
+    assert len(h) == 12 and int(h, 16) >= 0
+    assert h == plan_hash(_plan({"y": "2", "x": "1"}))
+    assert h != plan_hash(_plan({"x": "1", "y": "3"}))
+    assert h != plan_hash(_plan({"x": "1", "y": "2"}, order=("b", "a")))  # charts are positional
+
+
+def test_dashboard_layout_two_per_row():
+    pos = compile_dashboard([11, 12, 13, 14], ["a", "b", "c", "d"])
+    assert pos["DASHBOARD_VERSION_KEY"] == "v2"
+    assert pos["ROOT_ID"]["children"] == ["GRID_ID"]
+    rows = pos["GRID_ID"]["children"]
+    assert [pos[r]["children"] for r in rows] == [["CHART-11", "CHART-12"], ["CHART-13", "CHART-14"]]
+    c = pos["CHART-13"]
+    assert c["meta"] == {"chartId": 13, "width": 6, "height": 50, "sliceName": "c"}
+    assert c["parents"] == ["ROOT_ID", "GRID_ID", rows[1]]
+    assert pos[rows[0]]["parents"] == ["ROOT_ID", "GRID_ID"]
+    json.dumps(pos)
+
+
+def test_odd_chart_count_last_row_single():
+    pos = compile_dashboard([1, 2, 3], ["a", "b", "c"])
+    rows = pos["GRID_ID"]["children"]
+    assert [len(pos[r]["children"]) for r in rows] == [2, 1]
