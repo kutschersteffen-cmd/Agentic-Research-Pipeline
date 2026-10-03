@@ -176,3 +176,24 @@ def test_period_key():
     assert period_key({"period_end": "2024-12-31"}) == "2024-12-31"
     assert period_key({"field_id": "f"}) == "unspecified"
     assert period_key(ExtractedField(field_id="f", field_name="F", value=None, confidence=0)) == "unspecified"
+
+
+def _pv(value, period):
+    return PeriodValue(value=value, raw_value_text=str(value), period_text=period, citations=[])
+
+
+def test_short_fiscal_labels_give_two_periods_not_a_conflict():
+    draft = ExtractionDraft(values=[_pv(100, "FY24"), _pv(90, "FY23")], confidence=0.9)
+    rows = _build_all(draft, VerifierOutput(agrees=True, confidence=0.9, notes=""))
+    assert [(r.value, r.period_end) for r in rows] == [(100, "2024-12-31"), (90, "2023-12-31")]
+    assert all(ReasonCode.CONFLICT not in r.review_reasons for r in rows)
+
+
+def test_two_unresolved_period_labels_are_both_kept_as_check_failed():
+    draft = ExtractionDraft(values=[_pv(100, "H1 2024"), _pv(90, "H2 2024")], confidence=0.9)
+    rows = _build_all(draft, VerifierOutput(agrees=True, confidence=0.9, notes=""))
+    assert [r.value for r in rows] == [100, 90]
+    for r in rows:
+        assert ReasonCode.CHECK_FAILED in r.review_reasons
+        assert ReasonCode.CONFLICT not in r.review_reasons
+        assert f"period not resolved: {r.period_text}" in r.verifier_notes

@@ -348,3 +348,38 @@ async def test_review_key_uses_period_end(tmp_path, fake_llm):
     assert [(r["item_key"].rsplit(":", 1)[1], r["period_end"]) for r in rows] == [
         ("2024-12-31", "2024-12-31"), ("unspecified", None)
     ]
+
+
+async def test_field_graph_grounds_only_against_passages_shown_to_the_model(fake_llm, monkeypatch):
+    # The quote is in the document, but in a passage evidence selection did not show the model:
+    # through the real field_graph path it must not ground.
+    from arp.extraction import field_graph
+    from arp.schemas.common import DocumentChunk
+
+    shown_text = "In fiscal 2025, we invested $120 million in green capex."
+    hidden_text = "In fiscal 2024, we invested $999 million in green capex."
+    doc = SourceDocument(company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="r", full_text=f"{shown_text}\n\n{hidden_text}")
+    hidden_start = len(shown_text) + 2
+    chunks = [
+        DocumentChunk(doc_id=doc.doc_id, company_id="c1", doc_type=doc.doc_type, text=shown_text, char_start=0, char_end=len(shown_text)),
+        DocumentChunk(doc_id=doc.doc_id, company_id="c1", doc_type=doc.doc_type, text=hidden_text,
+                      char_start=hidden_start, char_end=len(doc.full_text)),
+    ]
+    monkeypatch.setattr(field_graph, "chunk_document", lambda d, keywords=None: chunks)
+    monkeypatch.setattr(field_graph, "select_relevant_chunks", lambda all_chunks, *a, **k: all_chunks[:1])
+
+    def _value(v, period, quote):
+        return PeriodValue(value=v, raw_value_text=f"${v} million", unit_text="USD million", period_text=period,
+                           citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=quote)])
+
+    draft = ExtractionDraft(values=[_value(120.0, "FY2025", "invested $120 million in green capex"),
+                                    _value(999.0, "FY2024", "invested $999 million in green capex")], confidence=0.9)
+    llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [VerifierOutput(agrees=True, confidence=0.9, notes="")]})
+    fields, _, _ = await field_graph.extract_one_field(
+        "Acme", _schema().fields[0], documents=[doc], documents_by_id={doc.doc_id: doc}, llm=llm,
+        fuzzy_threshold=0.9, confidence_review_threshold=0.6,
+    )
+    by_value = {f.value: f for f in fields}
+    assert by_value[120.0].grounded is True
+    assert by_value[999.0].grounded is False
+    assert by_value[999.0].citations[0].passage_id is None

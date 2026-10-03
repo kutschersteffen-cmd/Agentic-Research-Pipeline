@@ -41,14 +41,19 @@ def build_extracted_fields(
 
     kept: dict[str, list] = {}
     for pv, tv in typed:
-        key = tv.period_end or "unspecified"
+        # Unresolved periods with different labels are different periods we can't place, not duplicates.
+        key = tv.period_end or f"unspecified:{tv.period_text or ''}"
         if key in kept:
             kept[key][2] = True  # a second value for the same period
         else:
             kept[key] = [pv, tv, False]
 
+    unresolved = sum(1 for _, tv, _ in kept.values() if tv.period_end is None) > 1
     out: list[ExtractedField] = []
     for pv, tv, duplicated in kept.values():
+        if unresolved and tv.period_end is None:
+            tv = replace(tv, reasons=[*tv.reasons, ReasonCode.CHECK_FAILED],
+                         notes=[*tv.notes, f"period not resolved: {tv.period_text or '(none)'}"])
         claimed = tv.value_state != ValueState.NOT_FOUND
         # The verifier's corrected_value is for values[0] as it saw them (draft
         # order); the stable sort keeps that entry first in its period group.

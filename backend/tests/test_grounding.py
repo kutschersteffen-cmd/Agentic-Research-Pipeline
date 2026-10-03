@@ -366,3 +366,9 @@ def test_short_numeric_with_unit_grounds():
 
 def test_short_quote_never_fuzzy():
     assert not is_grounded("43 MWx", "Consumption was 43 MWh across sites.")
+
+
+def test_short_punctuation_quote_never_grounds():
+    assert not is_grounded("-", "Scope 3 emissions: - (not reported)")
+    assert not is_grounded("n/a", "Scope 3 emissions: n/a")
+    assert is_grounded("Yes", "Board oversight of climate: Yes. Next row.")

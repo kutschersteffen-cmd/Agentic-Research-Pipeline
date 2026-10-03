@@ -167,9 +167,12 @@ def _find_match(
     nq = _normalize(quote)
     # Short quotes (< SHORT_QUOTE_CHARS normalised chars): numeric evidence must carry
     # its label too (bare "42" is rejected); non-numeric evidence ("Yes") may ground
-    # by exact/normalised match only. Neither ever takes the fuzzy path.
+    # by exact/normalised match only, and must hold a word of 2+ letters ("-" never
+    # grounds). Neither ever takes the fuzzy path.
     if len(nq) < SHORT_QUOTE_CHARS and re.search(r"\d", nq) and not re.search(r"[a-z]{3,}", nq):
         return None
+    if len(nq) < SHORT_QUOTE_CHARS and not re.search(r"\d", nq) and not re.search(r"[a-z]{2,}", nq):
+        return None  # "-" or "n/a"-style punctuation is not evidence; "Yes" still is
     if within is None:
         return _find_in_span(quote, source_text, fuzzy_threshold, 0, len(source_text))
     spans = sorted(within, key=lambda sp: sp != prefer)  # prefer first, stable

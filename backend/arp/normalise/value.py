@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 from datetime import date
 
+from arp.decision.parsing import to_number
 from arp.extraction.extractor_agent import PeriodValue
 from arp.normalise import fx
 from arp.normalise.period import Qualifier, detect_qualifiers, normalise_basis, reported_precision, resolve_period
@@ -129,12 +130,19 @@ def typed_value(field: FieldDefinition, pv: PeriodValue, *, fiscal_year_end: str
         value = 0.0
     if state == ValueState.FOUND and value is None:
         state = ValueState.NOT_FOUND
+    reasons: list[ReasonCode] = []
+    notes: list[str] = []
+    if field.data_type in _NUMERIC and isinstance(value, str):
+        # A numeric field returned as text ("1,234"): parse it, or say why not -- never skip silently.
+        if (parsed := to_number(value)) is None:
+            reasons.append(ReasonCode.CHECK_FAILED)
+            notes.append(f"numeric field returned non-numeric text {value!r}")
+        else:
+            value = parsed
     numeric = isinstance(value, (int, float)) and not isinstance(value, bool)
     if state == ValueState.FOUND and numeric and value == 0:
         state = ValueState.ZERO
 
-    reasons: list[ReasonCode] = []
-    notes: list[str] = []
     canonical = canonical_unit = scale = rate = None
     if field.data_type in _NUMERIC and numeric:
         try:

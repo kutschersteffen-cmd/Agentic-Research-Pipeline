@@ -109,3 +109,19 @@ def test_no_unit_anywhere_is_check_failed():
 def test_scale_word_needs_a_boundary():
     tv = typed_value(_field(), PeriodValue(value=1234.0, raw_value_text="1,234 m3", unit_text="m3"), fiscal_year_end=None)
     assert tv.reasons == [] and tv.scale_applied == 1.0
+
+
+def test_numeric_string_is_parsed():
+    pv = PeriodValue(value="1,234", raw_value_text="1,234 tonnes", unit_text="tonnes", period_text="FY2023")
+    tv = typed_value(_field(), pv, fiscal_year_end="12-31")
+    assert tv.value == 1234.0
+    assert tv.canonical_value == 1234.0
+    assert tv.reasons == []
+    assert typed_value(_field(), PeriodValue(value="0", raw_value_text="0"), fiscal_year_end=None).value_state == ValueState.ZERO
+
+
+def test_unparseable_numeric_string_is_check_failed():
+    tv = typed_value(_field(), PeriodValue(value="about a third", raw_value_text="about a third"), fiscal_year_end=None)
+    assert tv.value == "about a third"
+    assert tv.reasons == [ReasonCode.CHECK_FAILED]
+    assert tv.canonical_value is None

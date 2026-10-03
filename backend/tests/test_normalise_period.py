@@ -71,10 +71,24 @@ def test_quarter():
     assert rp("Q2 2024") == (date(2024, 4, 1), date(2024, 6, 30))
 
 
-@pytest.mark.parametrize("text", [None, "", "recent years", "Q5 2024", "year ended 32 March 2024", "FY24"])
+@pytest.mark.parametrize("text", [None, "", "recent years", "Q5 2024", "year ended 32 March 2024", "2023/25", "2024-12", "H1 2024"])
 def test_unparseable_period_is_none(text):
     r = resolve_period(text, fiscal_year_end="03-31")
     assert (r.start, r.end, r.fye_assumed) == (None, None, False)
+
+
+def test_short_fiscal_and_split_year_labels():
+    assert rp("FY24", "03-31") == (date(2023, 4, 1), date(2024, 3, 31))
+    assert rp("FY 23") == (date(2023, 1, 1), date(2023, 12, 31))
+    assert rp("Fiscal 2024", "06-30") == (date(2023, 7, 1), date(2024, 6, 30))
+    assert rp("2023/2024", "03-31") == (date(2023, 4, 1), date(2024, 3, 31))
+    assert rp("2023-24", "03-31") == (date(2023, 4, 1), date(2024, 3, 31))
+    assert rp("FY2023-24", "03-31") == (date(2023, 4, 1), date(2024, 3, 31))
+
+
+def test_bare_date_is_point_in_time():
+    assert rp("31 December 2024") == (date(2024, 12, 31), date(2024, 12, 31))
+    assert rp("December 31, 2024") == (date(2024, 12, 31), date(2024, 12, 31))
 
 
 def _basis_rows():
