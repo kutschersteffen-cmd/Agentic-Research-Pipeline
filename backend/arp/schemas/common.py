@@ -50,6 +50,9 @@ class CompanyRef(BaseModel):
     isic_code: str | None = Field(
         default=None, description="ISIC Rev.4 industry code, if known (enables indirect/structural exposure scoring)."
     )
+    fiscal_year_end: str | None = Field(
+        default=None, pattern=r"^\d{2}-\d{2}$", description="Fiscal year end as MM-DD, e.g. 04-30."
+    )
 
 
 class SourceDocument(BaseModel):
