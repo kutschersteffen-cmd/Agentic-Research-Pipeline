@@ -11,20 +11,45 @@ const KILL_POINTS = { 13: 30, 21: 20, 34: 10 } as Record<number, number>;
 
 type Phase = "title" | "play" | "over";
 type Crater = { a: number; d: number; k: number };
-type Rock = { x: number; y: number; vx: number; vy: number; r: number; rot: number; spin: number; shape: number[]; craters: Crater[]; near: boolean };
+type Rock = { frames: HTMLCanvasElement[]; x: number; y: number; vx: number; vy: number; r: number; rot: number; spin: number; shape: number[]; craters: Crater[]; near: boolean };
 type Shard = { x: number; y: number; a: number; len: number; vx: number; vy: number; spin: number; life: number };
 type Ring = { x: number; y: number; age: number };
 type Bolt = { x: number; y: number };
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
+// 80s arcade rocks: chunky 3px pixels, four-tone orange shading lit from the top left, four 90-degree spin frames.
+const PX = 3;
+const TONES = ["#4a1c0c", "#a04418", "#e27a2c", "#ffc870"];
+
+function bake(r: number, shape: number[], craters: Crater[]): HTMLCanvasElement[] {
+  const n = Math.ceil((r * 2.5) / PX), c = n / 2;
+  return [0, 1, 2, 3].map((k) => {
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = n * PX;
+    const g = cv.getContext("2d")!;
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const dx = (x + 0.5 - c) * PX, dy = (y + 0.5 - c) * PX;
+      const f = (((Math.atan2(dy, dx) - k * (Math.PI / 2)) / 6.2832) % 1 + 1) % 1 * shape.length;
+      const i = Math.floor(f), edge = shape[i] + (shape[(i + 1) % shape.length] - shape[i]) * (f - i);
+      if (Math.hypot(dx, dy) > r * edge) continue;
+      let tone = (-dx * 0.6 - dy * 0.8) / r > 0.35 ? 3 : (-dx * 0.6 - dy * 0.8) / r > -0.1 ? 2 : (-dx * 0.6 - dy * 0.8) / r > -0.5 ? 1 : 0;
+      for (const cr of craters) {
+        const a = cr.a + k * (Math.PI / 2);
+        if (Math.hypot(dx - Math.cos(a) * r * cr.d * 2, dy - Math.sin(a) * r * cr.d * 2) < r * cr.k) tone = Math.max(0, tone - 2);
+      }
+      g.fillStyle = TONES[tone];
+      g.fillRect(x * PX, y * PX, PX, PX);
+    }
+    return cv;
+  });
+}
+
 function newRock(x: number, y: number, r: number, vy: number, vx = rnd(-30, 30)): Rock {
   const n = 9 + Math.floor(Math.random() * 4);
-  return {
-    x, y, vx, vy, r, rot: 0, spin: rnd(-1.4, 1.4), near: false,
-    shape: Array.from({ length: n }, () => rnd(0.72, 1.12)),
-    craters: Array.from({ length: r > 15 ? 2 + Math.floor(Math.random() * 2) : 0 }, () => ({ a: rnd(0, 6.28), d: rnd(0.1, 0.5), k: rnd(0.14, 0.26) })),
-  };
+  const shape = Array.from({ length: n }, () => rnd(0.72, 1.12));
+  const craters = Array.from({ length: r > 15 ? 2 + Math.floor(Math.random() * 2) : 0 }, () => ({ a: rnd(0, 6.28), d: rnd(0.1, 0.5), k: rnd(0.14, 0.26) }));
+  return { frames: bake(r, shape, craters), x, y, vx, vy, r, rot: 0, spin: rnd(-1.4, 1.4), near: false, shape, craters };
 }
 
 /** Vector-cabinet shooter: arrows / A D or drag to steer, hold Space (or press) to fire. */
@@ -105,24 +130,11 @@ export function MeteorDodge() {
     cv.addEventListener("pointermove", aim); cv.addEventListener("pointerdown", down);
 
     const drawRock = (m: Rock) => {
-      ctx.beginPath();
-      m.shape.forEach((k, i) => {
-        const a = m.rot + (i / m.shape.length) * 6.283;
-        const px = m.x + Math.cos(a) * m.r * k, py = m.y + Math.sin(a) * m.r * k;
-        if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
-      });
-      ctx.closePath(); ctx.stroke();
-      ctx.globalAlpha = 0.6;
-      for (const c of m.craters) {
-        ctx.beginPath(); ctx.arc(m.x + Math.cos(m.rot + c.a) * m.r * c.d * 2, m.y + Math.sin(m.rot + c.a) * m.r * c.d * 2, m.r * c.k, 0, 6.283); ctx.stroke();
-      }
-      if (m.r > 15) { // a ridge line across the face
-        ctx.beginPath();
-        ctx.moveTo(m.x + Math.cos(m.rot + 2.2) * m.r * 0.8, m.y + Math.sin(m.rot + 2.2) * m.r * 0.8);
-        ctx.lineTo(m.x + Math.cos(m.rot + 3.6) * m.r * 0.35, m.y + Math.sin(m.rot + 3.6) * m.r * 0.35);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
+      const f = m.frames[((Math.floor(m.rot * 2) % 4) + 4) % 4];
+      const prev = ctx.shadowBlur;
+      ctx.shadowBlur = 0; ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(f, Math.round(m.x - f.width / 2), Math.round(m.y - f.height / 2));
+      ctx.shadowBlur = prev;
     };
 
     const drawRocket = (x: number, flicker: number) => {
