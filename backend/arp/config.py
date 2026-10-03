@@ -65,6 +65,7 @@ class Settings(BaseSettings):
         description="Host headers the API answers (TrustedHostMiddleware; blocks DNS rebinding). 'testserver' is FastAPI's TestClient.",
     )
     runs_dir: Path = Field(default=REPO_ROOT / "runs")
+    schema_registry_dir: Path = REPO_ROOT / "schemas"
     taxonomies_dir: Path = Field(default=REPO_ROOT / "taxonomies")
     portfolios_dir: Path = Field(default=REPO_ROOT / "portfolios")
     projects_dir: Path = Field(default=REPO_ROOT / "projects")

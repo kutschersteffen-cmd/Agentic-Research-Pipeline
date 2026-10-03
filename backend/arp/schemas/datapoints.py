@@ -18,12 +18,20 @@ class FieldDataType(StrEnum):
     DATE = "date"
 
 
+class FieldStatus(StrEnum):
+    DRAFT = "draft"
+    RELEASED = "released"
+    RETIRED = "retired"
+
+
 class FieldDefinition(BaseModel):
     field_id: str = Field(default_factory=lambda: new_id("fld"))
     name: str
     description: str = Field(description="Plain-language definition of exactly what this data point means.")
     data_type: FieldDataType
-    unit: str | None = Field(default=None, description="e.g. 'USD millions', '%', 'fiscal year'.")
+    unit: str | None = Field(
+        default=None, description="Canonical unit every value of this field is converted to, e.g. 'tCO2e', 'USD millions', '%'."
+    )
     extraction_instructions: str = Field(
         description="Explicit instructions to the extractor agent: where to look, how to disambiguate, edge cases."
     )
@@ -35,6 +43,9 @@ class FieldDefinition(BaseModel):
     seed_keywords: list[str] = Field(
         default_factory=list, description="Seed keywords driving evidence-chunk retrieval for this field."
     )
+    version: int = 1
+    effective_from: str | None = Field(default=None, description="ISO date the definition took effect.")
+    status: FieldStatus = FieldStatus.DRAFT
 
 
 class DataPointSchema(BaseModel):
@@ -43,6 +54,8 @@ class DataPointSchema(BaseModel):
     description: str = ""
     fields: list[FieldDefinition] = Field(default_factory=list)
     created_at: str = Field(default_factory=now_iso)
+    version: int = 1
+    release_flag: bool = False
 
 
 class ExtractedField(BaseModel):

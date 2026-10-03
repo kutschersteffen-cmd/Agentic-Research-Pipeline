@@ -28,7 +28,7 @@ class _Docs(DocumentSource):
 
 def _settings(tmp_path, **on) -> Settings:
     return Settings(
-        anthropic_api_key="unused", runs_dir=tmp_path / "runs", documents_dir=tmp_path / "docs",
+        anthropic_api_key="unused", runs_dir=tmp_path / "runs", schema_registry_dir=tmp_path / "schemas", documents_dir=tmp_path / "docs",
         cache_dir=tmp_path / "cache", discovery_state_dir=tmp_path / "disc",
         **{f"pre_{k}_enabled": v for k, v in on.items()},
     )
@@ -155,7 +155,7 @@ def test_a_stopped_company_goes_to_review_not_failed(tmp_path):
     settings = _settings(tmp_path, parse_index=True)
     store = RunStore(settings.runs_dir)
     schema = DataPointSchema(name="s", fields=[FieldDefinition(name="f", description="d", data_type=FieldDataType.STRING, extraction_instructions="i", seed_keywords=["x"])])
-    run_id = asyncio.run(run_extraction(schema, [ACME], llm=None, registry=DocumentSourceRegistry([_None()]), settings=settings, run_store=store))
+    run_id = asyncio.run(run_extraction(schema, [ACME], llm=None, registry=DocumentSourceRegistry([_None()]), settings=settings, run_store=store, trial=True))
 
     manifest = store.load_manifest(run_id)
     assert (manifest.completed_count, manifest.failed_count, manifest.review_count) == (0, 0, 1)

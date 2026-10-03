@@ -24,6 +24,7 @@ class FieldState(TypedDict):
     verifier_llm: LLMClient
     settings: Settings | None
     fuzzy_threshold: float
+    schema_version: str
     confidence_review_threshold: float
     evidence: list[DocumentChunk]
     draft: ExtractionDraft | None
@@ -107,6 +108,8 @@ async def _aggregate(state: FieldState) -> dict:
         extractor_prompt_version=extractor_usage.prompt_version if extractor_usage else None,
         verifier_model=verifier_usage.model if verifier_usage else None,
         verifier_prompt_version=verifier_usage.prompt_version if verifier_usage else None,
+        schema_version=state["schema_version"],
+        field_version=state["field"].version,
     )
     extracted = extracted.model_copy(update={"provenance": provenance})
     return {"extracted": extracted, "needs_review": needs_review}
@@ -136,6 +139,7 @@ async def extract_one_field(
     settings: Settings | None = None,
     fuzzy_threshold: float,
     confidence_review_threshold: float,
+    schema_version: str = "",
 ) -> tuple[ExtractedField, bool, list[LLMUsage]]:
     """Runs one field's evidence-gather -> extract -> independent-verify ->
     programmatic-grounding-check -> aggregate flow as a LangGraph graph.
@@ -162,6 +166,7 @@ async def extract_one_field(
         "settings": settings,
         "fuzzy_threshold": fuzzy_threshold,
         "confidence_review_threshold": confidence_review_threshold,
+        "schema_version": schema_version,
         "evidence": [],
         "draft": None,
         "verifier": None,

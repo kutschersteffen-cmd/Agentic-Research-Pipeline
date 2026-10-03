@@ -11,10 +11,11 @@ from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef, SourceDocument
-from arp.schemas.datapoints import DataPointSchema, ExtractionRecord
+from arp.schemas.datapoints import DataPointSchema, ExtractionRecord, FieldStatus
 from arp.schemas.issuer import issuer_key
 from arp.schemas.review import field_item_key
 from arp.storage.run_store import RunStore
+from arp.storage.schema_registry import SchemaRegistry, UnreleasedFieldError
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,7 @@ async def _extract_company(
             settings=settings,
             fuzzy_threshold=settings.grounding_fuzzy_threshold,
             confidence_review_threshold=settings.confidence_review_threshold,
+            schema_version=f"{schema.schema_id}:v{schema.version}",
         )
         usages.extend(field_usages)
 
@@ -92,18 +94,40 @@ async def _extract_company(
 
 
 def create_extraction_run(
-    schema: DataPointSchema, companies: list[CompanyRef], settings: Settings, run_store: RunStore
+    schema: DataPointSchema, companies: list[CompanyRef], settings: Settings, run_store: RunStore, *, trial: bool = False
 ) -> str:
+    """Registers the schema, then refuses to start unless it is released
+    (every field `released`) or the run is a `trial`. The registered copy
+    is the run's `schema.json` snapshot."""
+    registered = SchemaRegistry(settings.schema_registry_dir).save(schema)
+    if not trial:
+        bad = [f.field_id for f in registered.fields if f.status != FieldStatus.RELEASED]
+        if not registered.release_flag or bad:
+            raise UnreleasedFieldError(
+                f"Schema {registered.schema_id} v{registered.version} is not released"
+                + (f"; fields not released: {', '.join(bad)}" if bad else "")
+                + ". Release it, or start a trial run."
+            )
     job_manager = JobManager(run_store)
     manifest = job_manager.create_run(
         "extraction",
-        {"schema_id": schema.schema_id, "schema_name": schema.name},
+        {
+            "schema_id": registered.schema_id,
+            "schema_name": registered.name,
+            "schema_version": f"{registered.schema_id}:v{registered.version}",
+            "trial": trial,
+        },
         len(companies),
         model=settings.llm_model,
         verifier_model=settings.llm_verifier_model,
     )
-    (run_store.run_dir(manifest.run_id) / "schema.json").write_text(schema.model_dump_json(indent=2))
+    (run_store.run_dir(manifest.run_id) / "schema.json").write_text(registered.model_dump_json(indent=2))
     return manifest.run_id
+
+
+def load_run_schema(run_store: RunStore, run_id: str) -> DataPointSchema | None:
+    path = run_store.run_dir(run_id) / "schema.json"
+    return DataPointSchema.model_validate_json(path.read_text()) if path.exists() else None
 
 
 async def execute_extraction_run(
@@ -122,6 +146,7 @@ async def execute_extraction_run(
     whole company universe, checkpointed and resumable for 4000+ company
     batches, against an already-created run (see create_extraction_run).
     """
+    schema = load_run_schema(run_store, run_id) or schema  # the registered snapshot
 
     def _review_items(company: CompanyRef, result: ExtractionRecordResult) -> list[tuple[str, dict]]:
         rec = result.record
@@ -175,10 +200,11 @@ async def run_extraction(
     registry: DocumentSourceRegistry,
     settings: Settings,
     run_store: RunStore,
+    trial: bool = False,
 ) -> str:
     """Convenience wrapper (create + execute in one call) for synchronous
     callers such as the CLI, where blocking until completion is expected."""
-    run_id = create_extraction_run(schema, companies, settings, run_store)
+    run_id = create_extraction_run(schema, companies, settings, run_store, trial=trial)
     return await execute_extraction_run(
         run_id, schema, companies, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store
     )

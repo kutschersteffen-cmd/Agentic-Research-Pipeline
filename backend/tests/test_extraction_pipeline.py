@@ -22,6 +22,7 @@ def _settings(tmp_path) -> Settings:
     return Settings(
         anthropic_api_key="unused",
         runs_dir=tmp_path / "runs",
+        schema_registry_dir=tmp_path / "schemas",
         documents_dir=tmp_path / "docs",
         cache_dir=tmp_path / "cache",
         discovery_state_dir=tmp_path / "disc",
@@ -183,7 +184,7 @@ async def test_a_run_counts_the_items_through_each_step(tmp_path, fake_llm):
     companies = [CompanyRef(company_id="c1", name="Acme"), CompanyRef(company_id="c2", name="Shoe Co")]
 
     run_id = await run_extraction(
-        _schema(), companies, llm=llm, registry=DocumentSourceRegistry([_ByCompany()]), settings=settings, run_store=run_store
+        _schema(), companies, llm=llm, registry=DocumentSourceRegistry([_ByCompany()]), settings=settings, run_store=run_store, trial=True
     )
     view, live = step_counts(run_store, run_id)
     assert live is False
@@ -227,7 +228,7 @@ async def test_pipeline_queues_one_row_per_flagged_field(tmp_path, fake_llm):
     )
     settings = _settings(tmp_path)
     run_store = RunStore(settings.runs_dir)
-    run_id = create_extraction_run(schema, [company], settings, run_store)
+    run_id = create_extraction_run(schema, [company], settings, run_store, trial=True)
     await execute_extraction_run(
         run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
         settings=settings, run_store=run_store,
@@ -241,3 +242,31 @@ async def test_pipeline_queues_one_row_per_flagged_field(tmp_path, fake_llm):
     assert rows[0]["issuer_key"] == key and rows[0]["issuer_scheme"] == scheme
     assert rows[0]["field"]["field_id"] == flagged[0] and rows[0]["company_id"] == "c1"
     assert run_store.load_manifest(run_id).review_count == 2
+
+
+async def test_provenance_records_schema_version(tmp_path, fake_llm):
+    from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+    from arp.storage.run_store import RunStore
+
+    doc = SourceDocument(
+        company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG",
+        full_text="In fiscal 2025, we invested $120 million in green capex across our facilities.",
+    )
+    quote = "invested $120 million in green capex"
+    draft = ExtractionDraft(
+        value=120.0, raw_value_text="$120 million",
+        citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=quote)], confidence=0.9,
+    )
+    llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [VerifierOutput(agrees=True, confidence=0.9, notes="ok")]})
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
+    schema = _schema()
+    run_id = create_extraction_run(schema, [company], settings, run_store, trial=True)
+    await execute_extraction_run(
+        run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
+        settings=settings, run_store=run_store,
+    )
+    (row,) = run_store.read_jsonl(run_store.results_path(run_id))
+    prov = row["fields"][0]["provenance"]
+    assert prov["schema_version"] == f"{schema.schema_id}:v1" and prov["field_version"] == 1
