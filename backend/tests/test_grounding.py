@@ -350,8 +350,18 @@ def test_short_number_with_label_grounds():
     assert is_grounded("42 MWh", "Consumption was 42 MWh across sites.")
 
 
-def test_short_label_without_number_rejected():
-    assert not is_grounded("emissions", "Our emissions fell in 2023 overall.")
+def test_short_non_numeric_quote_grounds_exactly():
+    assert is_grounded("Yes", "Board oversight of climate: Yes. Next row.")
+    assert is_grounded("Not applicable", "Scope 3 reporting:  not\napplicable for this entity.")
+
+
+def test_short_non_numeric_quote_never_fuzzy():
+    assert not is_grounded("Yes", "Board oversight of climate: Yse.")
+    assert not is_grounded("Yes", "Board oversight of climate: No.")
+
+
+def test_short_numeric_with_unit_grounds():
+    assert is_grounded("42 tCO2e", "Total was 42 tCO2e this year.")
 
 
 def test_short_quote_never_fuzzy():

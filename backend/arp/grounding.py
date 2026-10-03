@@ -23,6 +23,7 @@ _SHEET_RE = re.compile(r"^## Sheet: (.+)$", re.MULTILINE)
 _NORMALIZE_CACHE_SIZE = 16
 
 
+# Below this many normalised chars: numbers need a label, nothing goes fuzzy.
 SHORT_QUOTE_CHARS = 20
 
 _DASHES = dict.fromkeys(map(ord, "\u2010\u2011\u2012\u2013\u2014\u2212"), "-")
@@ -164,8 +165,11 @@ def _find_match(
     if not quote or not quote.strip():
         return None
     nq = _normalize(quote)
-    if len(nq) < SHORT_QUOTE_CHARS and not (re.search(r"\d", nq) and re.search(r"[a-z]{3,}", nq)):
-        return None  # a short quote must carry a number and its label
+    # Short quotes (< SHORT_QUOTE_CHARS normalised chars): numeric evidence must carry
+    # its label too (bare "42" is rejected); non-numeric evidence ("Yes") may ground
+    # by exact/normalised match only. Neither ever takes the fuzzy path.
+    if len(nq) < SHORT_QUOTE_CHARS and re.search(r"\d", nq) and not re.search(r"[a-z]{3,}", nq):
+        return None
     if within is None:
         return _find_in_span(quote, source_text, fuzzy_threshold, 0, len(source_text))
     spans = sorted(within, key=lambda sp: sp != prefer)  # prefer first, stable
