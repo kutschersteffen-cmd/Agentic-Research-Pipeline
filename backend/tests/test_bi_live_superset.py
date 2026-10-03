@@ -178,7 +178,7 @@ def test_native_filters_are_stored_and_applied(settings):
             metrics=["Exposure (EUR)"], groupby=["portfolio_name", "as_of_date"],
         ),
     ]  # fmt: skip
-    meta = compile_native_filters([NativeFilter(name="Portfolio", dataset="holdings", column="portfolio_name")], ds, [])
+    meta = compile_native_filters([NativeFilter(name="Portfolio", dataset="holdings", column="portfolio_name")], ds)
     chart_ids: list[int] = []
     dash_id = None
     try:
@@ -209,7 +209,7 @@ def test_native_filters_are_stored_and_applied(settings):
 
         more = compile_native_filters(
             [NativeFilter(name="Portfolio", dataset="holdings", column="portfolio_name"),
-             NativeFilter(name="Sector", dataset="holdings", column="sector")], ds, chart_ids,
+             NativeFilter(name="Sector", dataset="holdings", column="sector")], ds,
         )  # fmt: skip
         client.update_dashboard(dash_id, compile_dashboard(chart_ids, [s.title for s in specs]), chart_ids, more)
         stored = json.loads(client.get_dashboard(dash_id)["json_metadata"])["native_filter_configuration"]

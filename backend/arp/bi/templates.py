@@ -37,5 +37,5 @@ def provision(client: SupersetClient, template: DashboardTemplate) -> str:
             problems.append(f"Native filter '{f.name}': unknown column '{f.column}' in dataset '{f.dataset}'.")
     if problems:
         raise BIError(f"Template {template.slug}: " + " ".join(problems))
-    json_metadata = compile_native_filters(template.native_filters, ids, [])
+    json_metadata = compile_native_filters(template.native_filters, ids)
     return _ensure_dashboard(client, template.slug, plan, ids, json_metadata)[1]

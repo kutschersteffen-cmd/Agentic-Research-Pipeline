@@ -106,7 +106,7 @@ def test_compile_native_filters_matches_verified_fixture():
     # Accepted and applied by Superset 5.0.0 (task-4 spike; test_native_filters_are_stored_and_applied).
     fixture = json.loads((FIXTURES / "native_filters.json").read_text())
     nf = [NativeFilter(name="Portfolio", dataset="holdings", column="portfolio_name")]
-    assert compile_native_filters(nf, {"holdings": 1}, [10, 11]) == fixture
+    assert compile_native_filters(nf, {"holdings": 1}) == fixture
 
 
 def test_native_filter_ids_are_stable_and_unique():
@@ -116,17 +116,17 @@ def test_native_filter_ids_are_stable_and_unique():
         NativeFilter(name="Sector", dataset="holdings", column="sector"),
     ]
 
-    def ids(ds_ids, chart_ids):
-        return [f["id"] for f in compile_native_filters(nf, ds_ids, chart_ids)["native_filter_configuration"]]
+    def ids(ds_ids):
+        return [f["id"] for f in compile_native_filters(nf, ds_ids)["native_filter_configuration"]]
 
-    ids, again = ids({"holdings": 1, "holdings_history": 6}, []), ids({"holdings": 2, "holdings_history": 9}, [3])
+    ids, again = ids({"holdings": 1, "holdings_history": 6}), ids({"holdings": 2, "holdings_history": 9})
     assert ids == again and len(set(ids)) == 3
     assert all(i.startswith("NATIVE_FILTER-") for i in ids)
     with pytest.raises(ValueError):
-        compile_native_filters(nf[:1] * 2, {"holdings": 1}, [])
+        compile_native_filters(nf[:1] * 2, {"holdings": 1})
 
 
 def test_native_filter_on_unknown_dataset_names_filter_and_dataset():
     nf = [NativeFilter(name="Portfolio", dataset="holdings_history", column="portfolio_name")]
     with pytest.raises(ValueError, match="'Portfolio'.*'holdings_history'"):
-        compile_native_filters(nf, {"holdings": 1}, [])
+        compile_native_filters(nf, {"holdings": 1})

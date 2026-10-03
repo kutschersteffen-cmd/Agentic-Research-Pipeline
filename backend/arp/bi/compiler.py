@@ -164,7 +164,7 @@ def compile_dashboard(chart_ids: list[int], titles: list[str]) -> dict:
     return pos
 
 
-def compile_native_filters(filters: list[NativeFilter], dataset_ids: dict[str, int], chart_ids: list[int]) -> dict:
+def compile_native_filters(filters: list[NativeFilter], dataset_ids: dict[str, int]) -> dict:
     """Superset `json_metadata` holding one select filter per NativeFilter,
     scoped to the whole dashboard. Ids are derived from dataset+column, so a
     rebuild keeps them (and any saved filter state / URLs) stable.
@@ -173,7 +173,7 @@ def compile_native_filters(filters: list[NativeFilter], dataset_ids: dict[str, i
     also filters charts on `holdings_history`. The filter's value is applied
     to every chart in scope by column name; the target dataset only feeds the
     value list. So one filter per column is enough while the datasets share
-    the column name. `chart_ids` is unused: the ROOT_ID scope covers them all.
+    the column name. The ROOT_ID scope covers every chart, so no chart ids are needed.
     """
     out = []
     for f in filters:
