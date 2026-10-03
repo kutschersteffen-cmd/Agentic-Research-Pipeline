@@ -239,7 +239,7 @@ class SupersetClient:
                 if (r.get("slug") or "").startswith(slug_prefix)
             ]
             page += 1
-            if len(rows) < size or page * size >= body.get("count", page * size):
+            if len(rows) < size or ("count" in body and page * size >= body["count"]):
                 return out
 
     def delete_chart(self, id: int) -> None:

@@ -334,3 +334,15 @@ def test_list_dashboards_pages_through_results():
 
     c, _ = _client(h)
     assert len(c.list_dashboards()) == 250 and pages == [0, 1, 2]
+
+
+def test_list_dashboards_without_count_pages_until_short_page():
+    rows = [_row(i, f"arp-{i}") for i in range(150)]
+
+    def h(r):
+        q = json.loads(r.url.params["q"])
+        s = q["page"] * q["page_size"]
+        return httpx.Response(200, json={"result": rows[s : s + q["page_size"]]})
+
+    c, _ = _client(h)
+    assert len(c.list_dashboards()) == 150
