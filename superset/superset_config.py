@@ -46,7 +46,7 @@ TALISMAN_CONFIG = {
         "object-src": "'none'",
         "style-src": ["'self'", "'unsafe-inline'"],
         "script-src": ["'self'", "'strict-dynamic'"],
-        "frame-ancestors": ["'self'", "http://localhost:5173"],
+        "frame-ancestors": ["'self'", "http://localhost:5173", "http://127.0.0.1:5173"],
     },
     "content_security_policy_nonce_in": ["script-src"],
     "force_https": False,

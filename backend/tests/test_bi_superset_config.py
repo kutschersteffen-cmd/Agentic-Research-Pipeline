@@ -61,4 +61,5 @@ def test_embeddable_from_the_cross_origin_isolated_ui(monkeypatch):
     headers = _load(monkeypatch).OVERRIDE_HTTP_HEADERS
     assert headers["Cross-Origin-Resource-Policy"] == "cross-origin"
     assert headers["Cross-Origin-Embedder-Policy"] in {"require-corp", "credentialless"}
-    assert "http://localhost:5173" in _load(monkeypatch).TALISMAN_CONFIG["content_security_policy"]["frame-ancestors"]
+    ancestors = _load(monkeypatch).TALISMAN_CONFIG["content_security_policy"]["frame-ancestors"]
+    assert {"http://localhost:5173", "http://127.0.0.1:5173"} <= set(ancestors)  # the origins CORS allows

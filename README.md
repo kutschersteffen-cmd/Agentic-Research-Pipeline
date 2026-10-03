@@ -152,7 +152,7 @@ Caveats:
 - Embedding is verified in Chromium only.
 - The first-embed lock is in-process, so run a single uvicorn worker.
 - Demo data lives in files; seed it into Postgres before the views have anything to show.
-- `frame-ancestors` lists only `http://localhost:5173`. Add production origins in `superset/superset_config.py`.
+- `frame-ancestors` lists only `http://localhost:5173` and `http://127.0.0.1:5173` (the dev UI). Add production origins in `superset/superset_config.py`.
 
 ## CLI
 
