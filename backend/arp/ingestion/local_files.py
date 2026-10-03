@@ -11,6 +11,7 @@ from pathlib import Path
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.html_text import extract_html_text
 from arp.ingestion.indexing_config import IndexingConfig
+from arp.ingestion.intake import IntakeState, append_intake, check_intake
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
@@ -239,6 +240,28 @@ class LocalFileDocumentSource(DocumentSource):
             ),
         )
 
+    def _intake_all(self, entries: list[tuple[Path, DocType]]) -> list[tuple[Path, DocType]]:
+        """Blocking, sorted-order intake over one company's files. Non-accepted
+        files stay on disk; the verdict is only recorded in _intake.jsonl."""
+        seen: dict[str, str] = {}
+        accepted = []
+        for file_path, doc_type in entries:
+            try:
+                if self._content_store is not None:
+                    key = self._content_store.content_key_for_file(file_path)
+                else:
+                    with file_path.open("rb") as f:
+                        key = hashlib.file_digest(f, "sha256").hexdigest()
+                result = check_intake(file_path, key, seen=seen)
+            except Exception as exc:  # noqa: BLE001 - one unreadable file must not abort the fetch
+                logger.warning("Intake failed for %s: %s", file_path, exc)
+                continue
+            if result.state == IntakeState.ACCEPTED:
+                accepted.append((file_path, doc_type))
+            else:
+                append_intake(self.documents_dir, file_path, key, result)
+        return accepted
+
     async def fetch(self, company: CompanyRef, doc_types: list[DocType] | None = None) -> list[SourceDocument]:
         try:
             company_dir = self.documents_dir / safe_id(company.company_id, label="company_id")
@@ -290,5 +313,6 @@ class LocalFileDocumentSource(DocumentSource):
                 kwargs["doc_id"] = doc_id
             return SourceDocument(**kwargs)
 
-        results = await asyncio.gather(*(_fetch_one(fp, dt) for fp, dt in file_entries))
+        accepted = await asyncio.to_thread(self._intake_all, file_entries)
+        results = await asyncio.gather(*(_fetch_one(fp, dt) for fp, dt in accepted))
         return [d for d in results if d is not None]

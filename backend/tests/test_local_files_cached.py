@@ -1,5 +1,7 @@
 import asyncio
 
+from reportlab.pdfgen import canvas
+
 from arp.grounding import ground_citations
 from arp.ingestion import local_files
 from arp.ingestion.indexing_config import IndexingConfig
@@ -149,7 +151,10 @@ def test_grounding_resolves_the_page_from_cached_page_breaks(tmp_path, monkeypat
 
     doc_dir = tmp_path / "docs" / "acme" / DocType.ANNUAL_REPORT_10K.value
     doc_dir.mkdir(parents=True)
-    (doc_dir / "report.pdf").write_bytes(b"%PDF-1.4 fake bytes, to_markdown is mocked")
+    # Real text PDF so intake accepts it; the Docling conversion itself is mocked.
+    pdf = canvas.Canvas(str(doc_dir / "report.pdf"))
+    pdf.drawString(72, 700, "Revenue grew due to green capex investment this year.")
+    pdf.save()
 
     store = DocumentContentStore(tmp_path / "store")
     source = LocalFileDocumentSource(tmp_path / "docs", content_store=store)
