@@ -3,8 +3,11 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
+from fastapi import HTTPException
+
 from arp.agents.calibration_agent import CalibrationAgentScheduler
 from arp.agents.taxonomy_researcher import TaxonomyResearcherScheduler
+from arp.bi.superset_client import SupersetClient
 from arp.config import Settings, get_settings
 from arp.discovery.scheduler import DiscoveryScheduler
 from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient
@@ -138,6 +141,16 @@ def get_llm_client() -> LLMClient:
     baked into a cached singleton at import time.
     """
     return build_llm_client(get_settings())
+
+
+def get_superset_client() -> SupersetClient:
+    """Per-request, like get_llm_client. 503 when BI is not configured."""
+    s = get_settings()
+    if s.superset_password is None:
+        raise HTTPException(503, "Superset is not configured: set ARP_SUPERSET_PASSWORD.")
+    if s.postgres_dsn is None:
+        raise HTTPException(503, "BI needs Postgres: set ARP_POSTGRES_DSN.")
+    return SupersetClient(s.superset_url, s.superset_user, s.superset_password)
 
 
 def get_opensearch_client_or_503() -> OpenSearch:
