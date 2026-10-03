@@ -565,9 +565,16 @@ class IndexCalibration(BaseModel):
     effective_from: str = Field(description="ISO date. The first review date this version governs.")
     effective_to: str | None = None
     approved_by: list[str] = Field(default_factory=list, description="Committee minute references, e.g. 'IC-2026-06-11'.")
+    created_by: str | None = Field(default=None, description="user_id of the author. None on calibrations saved before four-eyes.")
     notes: str = ""
     created_at: str = Field(default_factory=now_iso)
     spec: ConstructionSpec
+
+    @property
+    def is_approved(self) -> bool:
+        """Approved by someone other than the author. A legacy calibration
+        (no created_by) with any approval counts, so existing data keeps working."""
+        return any(a != self.created_by for a in self.approved_by)
 
     @property
     def config_hash(self) -> str:

@@ -52,6 +52,7 @@ class IndexStore:
         effective_from: str,
         notes: str = "",
         approved_by: list[str] | None = None,
+        created_by: str | None = None,
     ) -> IndexCalibration:
         calibration = IndexCalibration(
             name=name,
@@ -59,6 +60,7 @@ class IndexStore:
             effective_from=effective_from,
             notes=notes,
             approved_by=approved_by or [],
+            created_by=created_by,
             spec=spec,
         )
         self._write_calibration(calibration)
@@ -72,6 +74,7 @@ class IndexStore:
         effective_from: str,
         notes: str = "",
         approved_by: list[str] | None = None,
+        created_by: str | None = None,
     ) -> IndexCalibration:
         current = self.get_calibration(calibration_id)
         if current is None:
@@ -89,6 +92,7 @@ class IndexStore:
             effective_from=effective_from,
             notes=notes,
             approved_by=approved_by or [],
+            created_by=created_by,
             spec=spec,
         )
         # Close the previous version's window so the effective ranges tile
@@ -97,6 +101,19 @@ class IndexStore:
         self._write_calibration(superseded)
         self._write_calibration(updated)
         return updated
+
+    def approve_calibration(self, calibration_id: str, user_id: str) -> IndexCalibration:
+        """Records `user_id` as approver of the latest version. Raises
+        ValueError for an unknown calibration or when the approver is its author."""
+        current = self.get_calibration(calibration_id)
+        if current is None:
+            raise ValueError(f"Unknown calibration_id: {calibration_id}")
+        if user_id == current.created_by:
+            raise ValueError("A calibration cannot be approved by the person who created it")
+        if user_id not in current.approved_by:
+            current = current.model_copy(update={"approved_by": [*current.approved_by, user_id]})
+            self._write_calibration(current)
+        return current
 
     def _write_calibration(self, calibration: IndexCalibration) -> None:
         directory = self._calibration_dir(calibration.calibration_id)
@@ -130,16 +147,21 @@ class IndexStore:
             versions.append(IndexCalibration.model_validate_json(read_text_utf8(path)))
         return versions
 
-    def resolve_for_date(self, calibration_id: str, review_date: str) -> IndexCalibration | None:
+    def resolve_for_date(
+        self, calibration_id: str, review_date: str, *, approved_only: bool = False
+    ) -> IndexCalibration | None:
         """The version in force on `review_date`: the latest one whose
         `effective_from` is on or before it. Returns None when the
         calibration did not yet exist on that date, which is a real answer
         and not an error -- a review cannot run under a methodology that had
-        not been approved yet."""
+        not been approved yet. With `approved_only`, the version in force must
+        also be approved by someone other than its author; an unapproved one
+        yields None rather than falling back to an older methodology."""
         in_force = [v for v in self.list_calibration_versions(calibration_id) if v.effective_from <= review_date]
         if not in_force:
             return None
-        return max(in_force, key=lambda v: (v.effective_from, v.version))
+        found = max(in_force, key=lambda v: (v.effective_from, v.version))
+        return found if found.is_approved or not approved_only else None
 
     def list_calibrations(self) -> list[IndexCalibration]:
         root = self.indices_dir / "calibrations"
