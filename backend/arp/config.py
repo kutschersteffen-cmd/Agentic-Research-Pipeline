@@ -418,9 +418,14 @@ class Settings(BaseSettings):
     object_store_bucket: str = Field(default="arp-documents", description="Bucket for immutable source-document copies.")
     object_store_live_upload_enabled: bool = Field(
         default=False,
-        description="When true (and object_store_endpoint_url is set), upload each newly registered document's raw "
-        "original bytes to object storage at ingestion time, best-effort -- an upload failure is logged, never "
-        "fails ingestion. Off by default; run 'arp db reindex object-store' for a one-time backfill regardless.",
+        description="When true (and object_store_endpoint_url is set), the object store is used instead of the "
+        "local blob store (blob_store_dir) for each document's raw original bytes. A failed or unverified "
+        "upload now fails the document -- it is not collected. Run 'arp db reindex object-store' to backfill.",
+    )
+    blob_store_dir: Path = Field(
+        default=REPO_ROOT / "data" / "blobs",
+        description="Local store for each captured document's original bytes (<dir>/<key[:2]>/<key>). Used "
+        "unless the object store is enabled.",
     )
 
     # Postgres read-model projections beyond Portfolio/Holdings (see

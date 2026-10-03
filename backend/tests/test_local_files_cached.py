@@ -47,9 +47,10 @@ def test_indexing_config_hooks_are_called_on_registration(tmp_path, monkeypatch)
     monkeypatch.setattr(
         "arp.retrieval.search_indexer.index_document_if_enabled", lambda config, **kwargs: index_calls.append(kwargs)
     )
+    monkeypatch.setattr("arp.storage.document_blob_store.blob_store_for", lambda config: None)
     monkeypatch.setattr(
-        "arp.storage.document_blob_store.upload_document_if_enabled",
-        lambda config, content_key, data: upload_calls.append((content_key, data)) or "s3://arp-documents/fake",
+        "arp.storage.document_blob_store.upload_or_fail",
+        lambda store, content_key, data: upload_calls.append((content_key, data)) or "s3://arp-documents/fake",
     )
     _write_doc(tmp_path, "acme", DocType.ANNUAL_REPORT_10K, "report.txt", "Some disclosure text about green capex.")
     content_store = DocumentContentStore(tmp_path / "store")

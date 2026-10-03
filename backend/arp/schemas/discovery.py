@@ -20,7 +20,22 @@ class DiscoveredDocument(BaseModel):
     sha256: str | None = None
     http_last_modified: str | None = None
     http_etag: str | None = None
+    capture_id: str | None = None
     discovered_at: str = Field(default_factory=now_iso)
+
+
+class CaptureRecord(BaseModel):
+    capture_id: str = Field(default_factory=lambda: new_id("cap"))
+    trigger: str
+    url_chain: list[str]
+    status: int
+    headers: dict[str, str] = Field(description="All response headers except set-cookie.")
+    content_key: str | None
+    storage_uri: str | None
+    rights_tag: str
+    fetched_at: str = Field(default_factory=now_iso)
+    collected: bool = False
+    error: str | None = None
 
 
 class DocumentEvent(BaseModel):

@@ -210,23 +210,22 @@ class LocalFileDocumentSource(DocumentSource):
     def _index_and_archive(
         self, doc_id: str, company_id: str, doc_type: DocType, file_path: Path, content_key: str, full_text: str
     ) -> None:
-        """Best-effort OpenSearch indexing + object-store archival, run
+        """Best-effort OpenSearch indexing + mandatory blob-store archival, run
         synchronously here since this whole method (via _parse_and_identify)
-        already executes off the event loop in a to_thread worker. Both
-        hooks are individually gated and individually best-effort -- see
-        their own docstrings (arp/retrieval/search_indexer.py,
-        arp/storage/document_blob_store.py) for the "never fails ingestion"
-        contract."""
+        already executes off the event loop in a to_thread worker. Indexing
+        is gated and best-effort (arp/retrieval/search_indexer.py); the blob
+        store is mandatory and a failed or unverified copy raises."""
         from arp.retrieval.search_indexer import index_document_if_enabled
 
         index_document_if_enabled(
             self._indexing_config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=file_path.name, full_text=full_text
         )
 
-        from arp.storage.document_blob_store import upload_document_if_enabled
+        from arp.storage.document_blob_store import blob_store_for, upload_or_fail
 
-        storage_uri = upload_document_if_enabled(self._indexing_config, content_key, file_path.read_bytes())
-        if storage_uri is not None and self._content_store is not None:
+        # CaptureStoreError propagates: _fetch_one drops the file this fetch.
+        storage_uri = upload_or_fail(blob_store_for(self._indexing_config), content_key, file_path.read_bytes())
+        if self._content_store is not None:
             self._content_store.set_storage_uri(doc_id, storage_uri)
 
         from arp.storage.document_registry import StoredDocumentRef

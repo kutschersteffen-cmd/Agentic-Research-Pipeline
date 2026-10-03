@@ -169,10 +169,11 @@ class EdgarDocumentSource(DocumentSource):
 
         storage_uri = None
         if raw_bytes is not None:
-            from arp.storage.document_blob_store import upload_document_if_enabled
+            from arp.storage.document_blob_store import blob_store_for, upload_or_fail
 
-            storage_uri = upload_document_if_enabled(self._indexing_config, content_key, raw_bytes)
-            if storage_uri is not None and self._content_store is not None:
+            # Blob key is the sha256 of the bytes; this source's content_key hashes the accession instead.
+            storage_uri = upload_or_fail(blob_store_for(self._indexing_config), hashlib.sha256(raw_bytes).hexdigest(), raw_bytes)
+            if self._content_store is not None:
                 self._content_store.set_storage_uri(doc_id, storage_uri)
 
         from arp.storage.document_registry import StoredDocumentRef

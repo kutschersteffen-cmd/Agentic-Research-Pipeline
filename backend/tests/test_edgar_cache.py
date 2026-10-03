@@ -133,8 +133,9 @@ async def test_indexing_config_hooks_on_cache_hit_only_indexes_not_uploads(tmp_p
     monkeypatch.setattr(
         "arp.retrieval.search_indexer.index_document_if_enabled", lambda config, **kwargs: index_calls.append(kwargs)
     )
+    monkeypatch.setattr("arp.storage.document_blob_store.blob_store_for", lambda config: None)
     monkeypatch.setattr(
-        "arp.storage.document_blob_store.upload_document_if_enabled", lambda *a, **k: upload_calls.append((a, k))
+        "arp.storage.document_blob_store.upload_or_fail", lambda *a, **k: upload_calls.append((a, k))
     )
     cache_dir = tmp_path / "cache"
     store = DocumentContentStore(tmp_path / "store")
@@ -163,9 +164,10 @@ async def test_indexing_config_hooks_on_fresh_fetch_archives_raw_bytes(tmp_path,
     monkeypatch.setattr(
         "arp.retrieval.search_indexer.index_document_if_enabled", lambda config, **kwargs: index_calls.append(kwargs)
     )
+    monkeypatch.setattr("arp.storage.document_blob_store.blob_store_for", lambda config: None)
     monkeypatch.setattr(
-        "arp.storage.document_blob_store.upload_document_if_enabled",
-        lambda config, content_key, data: upload_calls.append((content_key, data)) or "s3://arp-documents/fake",
+        "arp.storage.document_blob_store.upload_or_fail",
+        lambda store, content_key, data: upload_calls.append((content_key, data)) or "s3://arp-documents/fake",
     )
     cache_dir = tmp_path / "cache"
     store = DocumentContentStore(tmp_path / "store")

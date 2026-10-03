@@ -70,7 +70,7 @@ def test_content_search_then_document_mgmt_downloads_and_takes_stock(tmp_path, m
     async def crawl(root, config):
         return [CandidateDocumentLink(url=f"https://acme.example/r{i}.pdf", doc_type=DocType.SUSTAINABILITY_REPORT, link_text=f"r{i}") for i in range(2)]
 
-    async def download(company, candidates, documents_dir, user_agent):
+    async def download(company, candidates, documents_dir, user_agent, **kwargs):
         out = []
         for c in candidates:
             path = documents_dir / company.company_id / c.doc_type.value / f"{c.link_text}.pdf"
