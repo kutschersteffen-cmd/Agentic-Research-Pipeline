@@ -173,6 +173,8 @@ def test_native_filters_are_stored_and_applied(settings):
             (res,) = client._request("POST", "/chart/data", json=body)["result"]
             return {r["portfolio_name"] for r in res["data"]}
 
+        # Proves column-name matching on the data API only; the dashboard-driven
+        # behaviour (filter sent to both charts) was shown in the browser spike, see task-4-report.md.
         (nf,) = meta["native_filter_configuration"]
         value = sorted(portfolios(chart_ids[0], "holdings", []))[0]
         applied = [{"col": nf["targets"][0]["column"]["name"], "op": "IN", "val": [value]}]

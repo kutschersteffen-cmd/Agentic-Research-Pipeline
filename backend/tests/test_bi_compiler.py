@@ -124,3 +124,9 @@ def test_native_filter_ids_are_stable_and_unique():
     assert all(i.startswith("NATIVE_FILTER-") for i in ids)
     with pytest.raises(ValueError):
         compile_native_filters(nf[:1] * 2, {"holdings": 1}, [])
+
+
+def test_native_filter_on_unknown_dataset_names_filter_and_dataset():
+    nf = [NativeFilter(name="Portfolio", dataset="holdings_history", column="portfolio_name")]
+    with pytest.raises(ValueError, match="'Portfolio'.*'holdings_history'"):
+        compile_native_filters(nf, {"holdings": 1}, [])

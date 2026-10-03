@@ -193,7 +193,8 @@ class SupersetClient:
         self, dashboard_id: int, position_json: dict, chart_ids: list[int], json_metadata: dict | None = None
     ) -> None:
         """Attaches `chart_ids` (the chart's dashboard list is replaced) and
-        replaces the layout, and `json_metadata` when given (whole, not merged).
+        replaces the layout, and `json_metadata` when given (whole, not merged:
+        it overwrites any filter edits made in the Superset UI, so pass it only on (re)build).
         Leaves title, slug and published untouched."""
         self._attach(dashboard_id, chart_ids)
         body = {"position_json": json.dumps(position_json)}

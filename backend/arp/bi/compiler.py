@@ -177,6 +177,8 @@ def compile_native_filters(filters: list[NativeFilter], dataset_ids: dict[str, i
     """
     out = []
     for f in filters:
+        if f.dataset not in dataset_ids:
+            raise ValueError(f"native filter {f.name!r}: dataset {f.dataset!r} not in dataset_ids")
         fid = f"NATIVE_FILTER-{f.dataset}-{f.column}"
         if any(o["id"] == fid for o in out):
             raise ValueError(f"duplicate native filter on {f.dataset}.{f.column}")
