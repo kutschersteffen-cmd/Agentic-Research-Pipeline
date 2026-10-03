@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import typer
 
+from arp.cli.bi import bi_app
 from arp.cli.calibration import calibration_app
 from arp.cli.climate import climate_app
 from arp.cli.db import db_app
@@ -52,3 +53,4 @@ app.add_typer(db_app, name="db")
 app.add_typer(taxonomy_researcher_app, name="taxonomy-researcher")
 app.add_typer(calibration_app, name="calibration")
 app.add_typer(reporting_app, name="report")
+app.add_typer(bi_app, name="bi")

@@ -145,6 +145,9 @@ include = ["arp*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "live_superset: needs a running Superset (set ARP_TEST_SUPERSET_URL); skipped otherwise",
+]
 
 [tool.ruff]
 line-length = 130

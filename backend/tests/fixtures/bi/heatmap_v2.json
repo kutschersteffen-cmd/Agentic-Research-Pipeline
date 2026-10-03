@@ -1,0 +1,14 @@
+{
+  "x_axis": "portfolio_name",
+  "groupby": ["sector"],
+  "metric": "Exposure (EUR)",
+  "adhoc_filters": [],
+  "row_limit": 10000,
+  "normalize_across": "heatmap",
+  "sort_x_axis": "alpha_asc",
+  "sort_y_axis": "alpha_asc",
+  "linear_color_scheme": "blue_white_yellow",
+  "show_legend": true,
+  "show_percentage": true,
+  "y_axis_format": "SMART_NUMBER"
+}

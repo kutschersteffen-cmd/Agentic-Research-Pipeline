@@ -1,0 +1,14 @@
+{
+  "groupbyRows": ["sector"],
+  "groupbyColumns": ["portfolio_name"],
+  "metrics": ["Exposure (EUR)"],
+  "metricsLayout": "COLUMNS",
+  "aggregateFunction": "Sum",
+  "adhoc_filters": [],
+  "row_limit": 10000,
+  "order_desc": true,
+  "valueFormat": "SMART_NUMBER",
+  "date_format": "smart_date",
+  "rowOrder": "key_a_to_z",
+  "colOrder": "key_a_to_z"
+}

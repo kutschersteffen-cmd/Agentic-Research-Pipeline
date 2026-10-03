@@ -1,0 +1,19 @@
+{
+  "query_mode": "aggregate",
+  "groupby": ["portfolio_name", "sector"],
+  "metrics": ["Exposure (EUR)", "Holdings"],
+  "all_columns": [],
+  "percent_metrics": [],
+  "adhoc_filters": [
+    {
+      "expressionType": "SIMPLE",
+      "subject": "asset_class",
+      "operator": "IS NOT NULL",
+      "comparator": null,
+      "clause": "WHERE"
+    }
+  ],
+  "order_desc": true,
+  "row_limit": 1000,
+  "table_timestamp_format": "smart_date"
+}

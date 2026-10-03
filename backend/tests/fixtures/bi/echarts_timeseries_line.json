@@ -1,0 +1,12 @@
+{
+  "x_axis": "as_of_date",
+  "time_grain_sqla": "P1M",
+  "metrics": ["Exposure (EUR)"],
+  "groupby": ["portfolio_name"],
+  "adhoc_filters": [],
+  "row_limit": 10000,
+  "order_desc": true,
+  "show_legend": true,
+  "y_axis_format": "SMART_NUMBER",
+  "x_axis_time_format": "smart_date"
+}

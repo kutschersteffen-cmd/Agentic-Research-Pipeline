@@ -1,0 +1,9 @@
+{
+  "groupby": ["sector", "company_name"],
+  "metric": "Exposure (EUR)",
+  "adhoc_filters": [],
+  "row_limit": 10000,
+  "show_labels": true,
+  "label_type": "key_value",
+  "number_format": "SMART_NUMBER"
+}

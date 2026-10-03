@@ -1,0 +1,12 @@
+{
+  "x_axis": "sector",
+  "metrics": ["Exposure (EUR)"],
+  "groupby": [],
+  "adhoc_filters": [],
+  "row_limit": 10000,
+  "order_desc": true,
+  "x_axis_sort_asc": true,
+  "orientation": "vertical",
+  "show_legend": true,
+  "y_axis_format": "SMART_NUMBER"
+}
