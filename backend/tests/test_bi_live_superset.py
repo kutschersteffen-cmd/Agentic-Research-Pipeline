@@ -195,24 +195,32 @@ def test_live_service_design_covers_every_viz_type(settings):
         ),
     ]
     assert {c.viz_type for p in plans for c in p.charts} == set(VIZ_ALLOWLIST)
-    created: list[tuple[int, dict[int, str]]] = []
+    dash_ids: list[int] = []  # recorded before any check, so a failing assertion still cleans up
+    slugs: list[str] = []
     try:
         for plan in plans:
             res = asyncio.run(design_dashboard("brief", ScriptedLLM(plan), client))
+            dash_ids.append(res.dashboard_id)
+            slugs.append(res.slug)
             assert res.rejected == [] and res.slug.startswith("arp-") and res.url.endswith(f"/superset/dashboard/{res.slug}/")
-            created.append((res.dashboard_id, _check_dashboard(client, res.dashboard_id, plan)))
+            charts = _check_dashboard(client, res.dashboard_id, plan)
 
             again = asyncio.run(design_dashboard("brief", ScriptedLLM(plan), client))
+            if again.dashboard_id not in dash_ids:
+                dash_ids.append(again.dashboard_id)
             assert again.dashboard_id == res.dashboard_id  # same plan hash: reused
-            assert client.dashboard_charts(res.dashboard_id) == created[-1][1]  # and nothing new created
+            assert client.dashboard_charts(res.dashboard_id) == charts  # and nothing new created
 
-        token = embed_token(client, str(created[0][0]))
+        token = embed_token(client, str(dash_ids[0]))
         assert isinstance(token, str) and token
     finally:
-        for dash_id, charts in created:
+        for dash_id in dash_ids:
+            charts = client.dashboard_charts(dash_id)
             client.delete_dashboard(dash_id)
             for cid in charts:
                 client.delete_chart(cid)
+    for slug in slugs:
+        assert client.find_dashboard(slug) is None
 
 
 def test_live_service_ask_accumulates_on_scratch(settings):

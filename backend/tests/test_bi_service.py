@@ -92,6 +92,7 @@ class FakeClient:
 
     def delete_dashboard(self, id):
         self.calls.append(("delete_dashboard", id))
+        self.dashboards = {k: d for k, d in self.dashboards.items() if d["id"] != id}
 
     def ensure_embedded(self, dashboard_id):
         self.calls.append(("ensure_embedded", dashboard_id))
@@ -143,17 +144,54 @@ def test_failure_on_third_chart_deletes_first_two():
     assert client.charts == {} and not any(c[0] == "create_dashboard" for c in client.calls)
 
 
-def test_dashboard_failure_deletes_charts_and_the_half_made_dashboard():
+def test_dashboard_failure_deletes_charts_but_never_a_dashboard():
     client = FakeClient()
 
     def boom(title, slug, position_json, chart_ids):
-        client.dashboards[slug] = {"id": 999, "published": False, "charts": [], "position": {}}  # created, attach failed
-        raise SupersetError(500, "attach failed")
+        raise SupersetError(500, "attach failed")  # the client removes its own half-made dashboard
 
     client.create_dashboard = boom
     with pytest.raises(BIError, match="Exposure"):
         run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
-    assert client.charts == {} and ("delete_dashboard", 999) in client.calls
+    assert client.charts == {} and not any(c[0] == "delete_dashboard" for c in client.calls)
+
+
+def test_compile_error_mid_way_still_deletes_created_charts(monkeypatch):
+    real = service.compile_chart
+    n = {"calls": 0}
+
+    def flaky(spec, dataset_id):
+        n["calls"] += 1
+        if n["calls"] == 2:
+            raise ValueError("compiler bug")
+        return real(spec, dataset_id)
+
+    monkeypatch.setattr(service, "compile_chart", flaky)
+    client = FakeClient()
+    with pytest.raises(ValueError, match="compiler bug"):
+        run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    assert ("delete_chart", 101) in client.calls and client.charts == {}
+
+
+def test_cleanup_failure_does_not_mask_original_error():
+    client = FakeClient(fail_on_chart=3)
+
+    def bad_delete(id):
+        raise SupersetError(500, "delete failed")
+
+    client.delete_chart = bad_delete
+    with pytest.raises(BIError, match="'C'"):
+        run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+
+
+def test_half_built_dashboard_under_slug_is_rebuilt():
+    client = FakeClient()
+    slug = f"arp-{plan_hash(PLAN)}"
+    client.dashboards[slug] = {"id": 50, "published": False, "charts": [], "position": {}}
+    res = run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    assert ("delete_dashboard", 50) in client.calls
+    assert list(client.dashboards) == [slug] and res.dashboard_id == client.dashboards[slug]["id"] != 50
+    assert client.dashboards[slug]["charts"] == [101, 102, 103]
 
 
 def test_dashboard_created_unpublished():

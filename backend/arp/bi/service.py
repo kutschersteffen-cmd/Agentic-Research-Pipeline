@@ -73,13 +73,9 @@ def _create_charts(client: SupersetClient, plan: ChartPlan, ids: dict[str, int],
             raise BIError(f"Creating chart {spec.title!r} failed: {e}") from e
 
 
-def _cleanup(client: SupersetClient, chart_ids: list[int], dashboard_slug: str | None = None) -> None:
-    # Best effort: the original error is what the caller needs to see.
-    with contextlib.suppress(*_ERRORS):
-        # create_dashboard creates the dashboard before attaching charts, so on
-        # an attach failure it exists without the caller knowing its id.
-        if dashboard_slug and (dash := client.find_dashboard(dashboard_slug)) is not None:
-            client.delete_dashboard(dash)
+def _cleanup(client: SupersetClient, chart_ids: list[int]) -> None:
+    # Best effort: the original error is what the caller needs to see. A
+    # dashboard is never deleted here; create_dashboard removes its own half-made one.
     for cid in chart_ids:
         with contextlib.suppress(*_ERRORS):
             client.delete_chart(cid)
@@ -89,42 +85,46 @@ def _build_dashboard(client: SupersetClient, plan: ChartPlan, ids: dict[str, int
     slug = f"arp-{plan_hash(plan)}"
     try:
         existing = client.find_dashboard(slug)
+        if existing is not None:
+            charts = client.dashboard_charts(existing)
+            if len(charts) == len(plan.charts):  # same plan as before: reuse, create nothing
+                return _result(existing, slug, plan)
+            # Half-built or emptied since: replace it rather than return it as done.
+            client.delete_dashboard(existing)
+            _cleanup(client, list(charts))
     except _ERRORS as e:
         raise BIError(f"Superset: {e}") from e
-    if existing is not None:  # same plan as before: reuse, create nothing
-        return _result(existing, slug, plan)
     created: list[int] = []
     try:
         _create_charts(client, plan, ids, created)
         try:
-            layout = compile_dashboard(created, [c.title for c in plan.charts])
-            dash = client.create_dashboard(plan.title, slug, layout, created)
+            dash = client.create_dashboard(plan.title, slug, compile_dashboard(created, [c.title for c in plan.charts]), created)
         except _ERRORS as e:
             raise BIError(f"Creating dashboard {plan.title!r} failed: {e}") from e
-    except BIError:
-        _cleanup(client, created, slug if len(created) == len(plan.charts) else None)
+    except Exception:  # any failure, compiler bugs included: remove what this call made
+        _cleanup(client, created)
         raise
     return _result(dash, slug, plan)
 
 
 def _add_to_scratch(client: SupersetClient, plan: ChartPlan, ids: dict[str, int]) -> DesignResult:
-    created: list[int] = []
-    _create_charts(client, plan, ids, created)  # one chart; nothing to clean up if it fails
     title = plan.charts[0].title
-    new = False
+    created: list[int] = []
     try:
-        dash = client.find_dashboard(SCRATCH_SLUG)
-        if dash is None:
-            new = True
-            dash = client.create_dashboard("Scratch", SCRATCH_SLUG, compile_dashboard(created, [title]), created)
-        else:
-            charts = client.dashboard_charts(dash) | {created[0]: title}
-            order = sorted(charts)  # chart ids grow, so this is question order
-            client.update_dashboard(dash, compile_dashboard(order, [charts[c] for c in order]), created)
-    except _ERRORS as e:
-        # Only a scratch dashboard this call created is removed; an existing one keeps its charts.
-        _cleanup(client, created, SCRATCH_SLUG if new else None)
-        raise BIError(f"Adding chart {title!r} to the scratch dashboard failed: {e}") from e
+        _create_charts(client, plan, ids, created)
+        try:
+            dash = client.find_dashboard(SCRATCH_SLUG)
+            if dash is None:
+                dash = client.create_dashboard("Scratch", SCRATCH_SLUG, compile_dashboard(created, [title]), created)
+            else:
+                charts = client.dashboard_charts(dash) | {created[0]: title}
+                order = sorted(charts)  # chart ids grow, so this is question order
+                client.update_dashboard(dash, compile_dashboard(order, [charts[c] for c in order]), created)
+        except _ERRORS as e:
+            raise BIError(f"Adding chart {title!r} to the scratch dashboard failed: {e}") from e
+    except Exception:  # an existing scratch dashboard keeps its charts; only the new one goes
+        _cleanup(client, created)
+        raise
     return _result(dash, SCRATCH_SLUG, plan)
 
 

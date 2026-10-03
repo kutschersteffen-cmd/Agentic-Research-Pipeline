@@ -156,3 +156,17 @@ def test_update_dashboard_attaches_charts_then_puts_layout():
 def test_dashboard_charts_maps_id_to_name():
     c, _ = _client(lambda r: httpx.Response(200, json={"result": [{"id": 2, "slice_name": "B"}, {"id": 1, "slice_name": "A"}]}))
     assert c.dashboard_charts(5) == {2: "B", 1: "A"}
+
+
+def test_create_dashboard_deletes_itself_when_attach_fails():
+    def h(r):
+        if r.method == "POST":
+            return httpx.Response(201, json={"id": 3})
+        if r.method == "PUT":
+            return httpx.Response(422, text="bad chart")
+        return httpx.Response(200, json={})
+
+    c, calls = _client(h)
+    with pytest.raises(SupersetError):
+        c.create_dashboard("T", "slug", {}, [1])
+    assert [(x.method, x.url.path) for x in calls][-1] == ("DELETE", "/api/v1/dashboard/3")

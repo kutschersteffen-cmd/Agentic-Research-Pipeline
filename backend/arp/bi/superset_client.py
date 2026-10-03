@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 
 import httpx
@@ -154,7 +155,13 @@ class SupersetClient:
             "published": False,
         }
         dash_id = self._request("POST", "/dashboard/", json=body)["id"]
-        self._attach(dash_id, chart_ids)
+        try:
+            self._attach(dash_id, chart_ids)
+        except Exception:
+            # Remove the half-made dashboard by id; the caller never learns it.
+            with contextlib.suppress(SupersetError, httpx.HTTPError):
+                self.delete_dashboard(dash_id)
+            raise
         return dash_id
 
     def update_dashboard(self, dashboard_id: int, position_json: dict, chart_ids: list[int]) -> None:
