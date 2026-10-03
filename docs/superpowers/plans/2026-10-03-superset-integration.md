@@ -195,7 +195,7 @@ Tests: `backend/tests/test_bi_*.py`; one per module.
 - Test: `backend/tests/test_bi_service.py` (fake in-memory client)
 
 **Interfaces:**
-- Produces: `async def design_dashboard(brief: str, llm: LLMClient, client: SupersetClient) -> DesignResult`; `async def ask_chart(question: str, llm, client) -> DesignResult`; `def embed_token(client, dashboard_id: str) -> str`; `class DesignResult(BaseModel): dashboard_id: int | None; slug: str | None; url: str | None; plan: ChartPlan | None; rejected: list[str]; clarification_needed: str | None`.
+- Produces: `async def design_dashboard(brief: str, llm: LLMClient, client: SupersetClient) -> DesignResult`; `async def ask_chart(question: str, llm, client) -> DesignResult`; `def embed_token(client, dashboard_id: str) -> tuple[str, str]` (guest token, embedded uuid); `class DesignResult(BaseModel): dashboard_id: int | None; slug: str | None; url: str | None; plan: ChartPlan | None; rejected: list[str]; clarification_needed: str | None`.
 - Consumes: `plan_from_brief` (Task 8; code against its signature `async def plan_from_brief(brief: str, metas, llm) -> tuple[ChartPlan | None, list[str]]`, returning `(None, reasons)` on refusal), `validate_plan`, `compile_*`, `SupersetClient`.
 
 - [ ] **Step 1: Write failing tests** with a fake client recording calls: `test_rejected_plan_makes_no_superset_writes` (Review Focus 3); `test_failure_on_third_chart_deletes_first_two` (Review Focus 4); `test_dashboard_created_unpublished`; `test_same_plan_reuses_dashboard_by_slug` (Review Focus 5); `test_ask_lands_on_scratch_dashboard`; `test_no_code_path_publishes` (assert every `create_dashboard` call has `published` false in the fake).
@@ -207,6 +207,8 @@ Tests: `backend/tests/test_bi_*.py`; one per module.
 ---
 
 ### Task 8: Planner and eval set
+
+> Execution order: Task 8 ran before Task 7 (the service imports the planner).
 
 **Files:**
 - Create: `backend/arp/bi/planner.py`, `backend/arp/bi/eval.py`, `backend/arp/golden_set/data/bi_cases.json`
@@ -233,7 +235,7 @@ Tests: `backend/tests/test_bi_*.py`; one per module.
 - Test: `backend/tests/test_api_bi.py`
 
 **Interfaces:**
-- Produces: `POST /api/bi/design` `{brief}` → `DesignResult`; `POST /api/bi/ask` `{question}` → `DesignResult`; `POST /api/bi/embed-token` `{dashboard_id}` → `{token: str}`; `deps.get_superset_client() -> SupersetClient` (raises 503 with a clear message if `superset_password` unset).
+- Produces: `POST /api/bi/design` `{brief}` → `DesignResult`; `POST /api/bi/ask` `{question}` → `DesignResult`; `POST /api/bi/embed-token` `{dashboard_id}` → `{token: str, embedded_id: str}`; `deps.get_superset_client() -> SupersetClient` (raises 503 with a clear message if `superset_password` unset).
 
 - [ ] **Step 1: Write failing tests** via FastAPI `TestClient` and dependency overrides: `test_design_returns_result`; `test_superset_down_returns_502_with_message` (nothing created); `test_missing_superset_config_returns_503`; `test_embed_token_requires_dashboard_id`.
 - [ ] **Step 2: Run** → FAIL. **Step 3: Implement**; map `BIError`/`SupersetError` to 502. **Step 4: Run** → PASS.
@@ -249,7 +251,7 @@ Tests: `backend/tests/test_bi_*.py`; one per module.
 - Test: `frontend/tests/biEmbed.test.ts` (node:test, pure helper only)
 
 **Interfaces:**
-- Produces: component `SupersetBI()`; pure helper `designRequestBody(brief: string): { brief: string }` and `embedUrlFor(result: DesignResult): string | null` exported for the test.
+- Produces: component `SupersetBI()`; pure helper `designRequestBody(brief: string): { brief: string }` and `embedUrlFor(result: DesignResult, embeddedId: string, domain: string): string | null` exported for the test.
 - Consumes: Task 9 endpoints, existing API base helper used by `GenerativeBI.tsx`.
 
 - [ ] **Step 1: Write failing test** `embedUrlFor returns null when dashboard_id is null` and `designRequestBody trims the brief`. **Step 2: Run** `cd frontend && npm test` → FAIL.

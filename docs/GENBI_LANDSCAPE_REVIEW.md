@@ -140,6 +140,9 @@ no query language between the plan and the engine.
    "the bond book" do not appear in any directory we send. A small
    alias/glossary map (portfolio tags → phrases, metric synonyms) is the
    cheapest part of a semantic layer and the part we most obviously lack.
+   *Update 2026-10-03:* for the Superset path the metric catalogue
+   (`arp/bi/catalog.py`: metric names plus descriptions) now plays this role.
+   Portfolio-tag and phrase aliases are still absent on the native GenBI path.
 5. **Access control.** Cube and WrenAI both treat row/column-level security as
    core (WrenAI charges for it). This system has **no authentication or
    per-mandate segregation at all** — every dashboard sees every portfolio.

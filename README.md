@@ -31,6 +31,7 @@ file-based state by default — no database required.
 | 15 | **Decision Studio** | Turns any per-entity table the functions above produce into a scored, ranked and tiered decision — entities are companies, sectors in a jurisdiction, themes or strategies, since the engine scores rows. Correlated criteria are grouped so one theme measured seven ways doesn't earn seven times the weight; criteria are normalised within peer cohorts; direction is inferred and *flagged where it is a guess*. Gates resolve before the average, a sufficiency gate precedes scoring, and every entity carries its rank *range* across four specifications. Frameworks are versioned and ratifiable; the audit log separates what the data proposed from what a person changed. Zero LLM calls. |
 | 16 | **Equity Index Construction** | Builds an index methodology by composing named rules — ordered screens, one selection rule (best-in-class to a market-cap *or* count coverage target with hysteresis buffers, an absolute threshold, or top-N), a weighting scheme, bounded multiplicative tilts, a deterministic capping waterfall (single-name, group, UCITS 5/10/40) and the path-dependent EU PAB/CTB decarbonisation trajectory. Zero LLM calls in the numbers: a model-derived thematic score enters only as a frozen, effective-dated snapshot. The composition saves as a versioned, effective-dated **calibration**, and a review resolves the version *in force on its review date*, so today's parameters cannot rewrite a past one. Optionally (`.[optimize]`) swaps the waterfall for a convex programme — least-squares projection, minimum tracking error, or score maximisation under a TE budget on an estimated or vendor risk model — or a mixed-integer one on SCIP for cardinality limits and a genuinely enforced minimum weight. Every constraint is re-verified in plain Python afterwards; a solver's own "optimal" is never taken as proof. |
 | 14 | **Standing agents** | Taxonomy Researcher and Calibration Agent run on a schedule and *propose* changes for human review — they never apply them. |
+| 17 | **Superset BI Designer** *(opt-in)* | Describe a dashboard in words and get an unpublished draft in Apache Superset. The LLM plans, deterministic code compiles, Superset computes: a closed catalogue of datasets and metrics bounds the plan, a validator rejects anything outside it, and the model never writes SQL or sees a number. Reads only the `bi` views over Postgres, so company facts are the reviewed ones. Drafts only; a person publishes. |
 
 ## Architecture
 
@@ -123,6 +124,32 @@ also runs in CI.
 outbound requests reach SEC EDGAR, GDELT, regulatory RSS and crawled IR
 sites. Everything else stays on local disk. Review this against your
 organization's data-handling policy before pointing it at real holdings.
+
+## Superset BI
+
+Optional. Needs Postgres as the portfolio store, with the projections the `bi` views read switched on (`backend/.env.example` lists them):
+`ARP_PORTFOLIO_BACKEND=postgres`, `ARP_POSTGRES_DSN`, `ARP_COMPANY_RECORDS_PROJECTION_ENABLED=true`, `ARP_COMPANY_FACTS_PROJECTION_ENABLED=true`
+(and the document-registry and engagement projections if you want those views filled).
+
+Set `ARP_SUPERSET_URL`, `ARP_SUPERSET_USER`, `ARP_SUPERSET_PASSWORD`, `ARP_BI_READER_PASSWORD`, `SUPERSET_SECRET_KEY` and
+`SUPERSET_GUEST_TOKEN_JWT_SECRET` in `backend/.env`. None has a default and the `change-me` placeholders are refused;
+the two Superset secrets need 32+ characters. Generate each with `openssl rand -base64 42`.
+
+```bash
+docker compose --env-file backend/.env up -d postgres superset   # first start builds superset/Dockerfile
+arp db init-postgres                                             # schema + `bi` views
+arp bi bootstrap                                                 # bi_reader role, Superset database, datasets, metrics (idempotent)
+arp golden-set bi                                                # planner eval; needs an API key, not run in CI
+```
+
+Set `VITE_SUPERSET_URL` in `frontend/.env`, then open Risk Monitoring, Superset BI.
+
+Caveats:
+- Drafts only. Publishing a dashboard is a human step in Superset.
+- Embedding is verified in Chromium only.
+- The first-embed lock is in-process, so run a single uvicorn worker.
+- Demo data lives in files; seed it into Postgres before the views have anything to show.
+- `frame-ancestors` lists only `http://localhost:5173`. Add production origins in `superset/superset_config.py`.
 
 ## CLI
 

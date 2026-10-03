@@ -101,6 +101,14 @@ jobs:
       - name: Typecheck + build
         run: npm run build
 
+  # Optional live Superset suite (backend/tests/test_bi_live_superset.py), left
+  # off: it needs a running, bootstrapped Superset (docker compose --env-file
+  # backend/.env up -d postgres superset; arp bi bootstrap), not available on a
+  # plain runner. Run it on a machine with Docker:
+  #   cd backend && ARP_TEST_SUPERSET_URL=http://127.0.0.1:8088 \
+  #     ARP_TEST_POSTGRES_DSN=... pytest -m live_superset
+  # Without ARP_TEST_SUPERSET_URL the suite skips, so the normal pytest job is unaffected.
+
   # --- Corporate Readiness Plan, Phase 0 (docs/CORPORATE_READINESS_PLAN.md) ---
 
   secret-scan:
