@@ -97,6 +97,7 @@ async def _aggregate(state: FieldState) -> dict:
         state["documents_by_id"],
         state["fuzzy_threshold"],
         state["confidence_review_threshold"],
+        passages={c.chunk_id: c for c in state["evidence"]},
     )
     extractor_usage = state["extractor_usage"]
     verifier_usage = state["verifier_usage"]

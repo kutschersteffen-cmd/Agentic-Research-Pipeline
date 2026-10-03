@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -107,6 +108,17 @@ class Citation(BaseModel):
         default=None, description="Resolved from the cited SourceDocument by grounding, so a citation is self-contained for building a 'view source' link."
     )
     source_filename: str | None = Field(default=None, description="On-disk filename, resolved by grounding.")
+    content_key: str | None = Field(default=None, description="Content hash of the cited document, set by grounding.")
+    span_text: str | None = Field(default=None, description="Exact source text the quote matched, set by grounding.")
+    char_start: int | None = Field(default=None, description="Start offset of the match in the document text.")
+    char_end: int | None = Field(default=None, description="Exclusive end offset of the match in the document text.")
+    match_method: Literal["exact", "normalised", "fuzzy"] | None = None
+    match_score: float | None = None
+    passage_id: str | None = Field(
+        default=None, description="passage_id of the evidence block the quote was copied from"
+    )
+    table_ref: str | None = None
+    parser_version: str | None = None
 
 
 class ProvenanceInfo(BaseModel):

@@ -3,7 +3,7 @@ from __future__ import annotations
 from arp.extraction.extractor_agent import ExtractionDraft
 from arp.extraction.verifier_agent import VerifierOutput
 from arp.grounding import ground_citations
-from arp.schemas.common import SourceDocument
+from arp.schemas.common import DocumentChunk, SourceDocument
 from arp.schemas.datapoints import ExtractedField, FieldDefinition
 from arp.schemas.review import ReasonCode
 
@@ -15,6 +15,7 @@ def build_extracted_field(
     documents_by_id: dict[str, SourceDocument],
     fuzzy_threshold: float,
     confidence_review_threshold: float,
+    passages: dict[str, DocumentChunk] | None = None,
 ) -> tuple[ExtractedField, bool]:
     """Merges the extractor draft and the independent verifier pass into a
     final ExtractedField, applying the hard programmatic grounding check on
@@ -25,7 +26,7 @@ def build_extracted_field(
     if verifier.agrees:
         # draft.citations were written to support draft.value, which is
         # final_value here, so they're the right citations to check and show.
-        final_citations = ground_citations(draft.citations, documents_by_id, fuzzy_threshold)
+        final_citations = ground_citations(draft.citations, documents_by_id, fuzzy_threshold, passages=passages)
         all_grounded = all(c.grounded for c in final_citations) if final_citations else (final_value is None)
     else:
         # VerifierOutput carries no citations of its own -- draft.citations

@@ -21,7 +21,8 @@ Extract the value strictly according to the instructions. Rules:
   raw_value_text.
 - raw_value_text must be the literal text the value was read from.
 - Every citation's `quote` must be an EXACT, VERBATIM substring copied \
-  from the evidence block, tagged with the matching doc_id.
+  from the evidence block, tagged with the matching doc_id and the \
+passage_id of the block the quote was copied from.
 - If the evidence contains materially conflicting values for this field \
   from different documents, set conflicting_sources=true and pick the most \
   authoritative/recent one as the primary value, citing both."""
@@ -30,7 +31,7 @@ Extract the value strictly according to the instructions. Rules:
 def format_evidence(chunks: list[DocumentChunk]) -> str:
     blocks = []
     for c in chunks:
-        header = f"[doc_id={c.doc_id} | doc_type={c.doc_type.value}"
+        header = f"[doc_id={c.doc_id} | passage_id={c.chunk_id} | doc_type={c.doc_type.value}"
         if c.section:
             header += f" | section={c.section}"
         header += "]"

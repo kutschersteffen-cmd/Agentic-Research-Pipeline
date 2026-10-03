@@ -140,15 +140,15 @@ def test_one_document_is_normalized_once_however_many_citations_check_it():
 
     source = "The Company invested EUR 120 million in renewable capacity during fiscal 2024. " * 200
     quotes = [
-        "invested EUR 120 million in renewable capacity",
-        "renewable capacity during fiscal 2024",
-        "The Company invested EUR 120 million",
+        "INVESTED EUR 120 million in renewable capacity",  # not raw-exact: forces the normalised path
+        "renewable CAPACITY during fiscal 2024",
+        "the company invested EUR 120 MILLION",
     ]
     _normalize_with_offsets.cache_clear()
 
-    verdicts = [_find_match(q, source, 0.92)[0] for q in quotes]
+    verdicts = [_find_match(q, source, 0.92) is not None for q in quotes]
 
-    assert all(verdicts), "these quotes are all verbatim substrings"
+    assert all(verdicts), "these quotes differ from the source only in case"
     info = _normalize_with_offsets.cache_info()
     assert info.misses == 1, "the document should be normalized exactly once"
     assert info.hits == len(quotes) - 1
@@ -168,5 +168,79 @@ def test_the_cache_does_not_change_a_verdict_or_its_offset():
     second = _find_match(quote, source, 0.92)  # served from cache
 
     assert first == second
-    assert first[0] is True
-    assert source[first[1] :].startswith("Green")
+    assert first is not None
+    assert source[first.char_start :].startswith("Green")
+
+
+# --- E43: span evidence and passage binding ---------------------------------
+from arp.extraction.extractor_agent import format_evidence  # noqa: E402
+from arp.schemas.common import DocumentChunk  # noqa: E402
+
+_A = "Alpha section: green capex totaled $50 million in FY2025."
+_B = "Beta section: transition spend reached EUR 9 million in FY2024."
+_C = "Gamma section: unrelated filler text about governance."
+
+
+def _two_chunk_doc():
+    text = f"{_A}\n\n{_B}\n\n{_C}"
+    doc = SourceDocument(
+        company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="t", full_text=text,
+        content_key="ck1", parser_version="pv1",
+    )
+
+    def chunk(t):
+        s = text.index(t)
+        return DocumentChunk(doc_id=doc.doc_id, company_id="c1", doc_type=doc.doc_type, text=t, char_start=s, char_end=s + len(t))
+
+    return doc, chunk(_A), chunk(_B), chunk(_C)
+
+
+def test_grounded_citation_carries_span_and_offsets():
+    doc, a, _b, _c = _two_chunk_doc()
+    cit = Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote="green capex totaled $50 million")
+    c = ground_citations([cit], {doc.doc_id: doc})[0]
+    assert c.grounded
+    assert doc.full_text[c.char_start : c.char_end] == c.span_text
+    assert c.match_method == "exact" and c.match_score == 1.0
+    assert c.content_key == doc.content_key and c.parser_version == doc.parser_version
+
+
+def test_quote_from_unseen_passage_is_ungrounded():
+    doc, a, _b, _c = _two_chunk_doc()
+    cit = Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote="transition spend reached EUR 9 million")
+    c = ground_citations([cit], {doc.doc_id: doc}, passages={a.chunk_id: a})[0]
+    assert c.grounded is False
+    assert c.char_start is None and c.span_text is None and c.content_key is None
+
+
+def test_wrong_passage_id_corrected_to_shown_passage():
+    doc, a, _b, c_ = _two_chunk_doc()
+    cit = Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote="green capex totaled $50 million", passage_id=c_.chunk_id)
+    c = ground_citations([cit], {doc.doc_id: doc}, passages={a.chunk_id: a, c_.chunk_id: c_})[0]
+    assert c.grounded and c.passage_id == a.chunk_id
+
+
+def test_ungrounded_keeps_reported_passage_id():
+    doc, a, _b, _c = _two_chunk_doc()
+    cit = Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote="nonexistent quote text here", passage_id="x")
+    c = ground_citations([cit], {doc.doc_id: doc}, passages={a.chunk_id: a})[0]
+    assert not c.grounded and c.passage_id == "x"
+
+
+def test_without_passages_searches_whole_document():
+    doc, _a, _b, _c = _two_chunk_doc()
+    cit = Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote="transition spend reached EUR 9 million")
+    assert ground_citations([cit], {doc.doc_id: doc})[0].grounded
+
+
+def test_format_evidence_includes_passage_id():
+    _doc, a, _b, _c = _two_chunk_doc()
+    assert f"passage_id={a.chunk_id}" in format_evidence([a])
+
+
+def test_old_citation_json_loads():
+    c = Citation.model_validate({
+        "doc_id": "d", "doc_type": "10-K", "quote": "q", "location": None, "grounded": True,
+        "page": 1, "sheet": None, "company_id": "c", "source_filename": "f.pdf",
+    })
+    assert c.char_start is None and c.match_method is None and c.passage_id is None

@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import bisect
 import re
+from dataclasses import dataclass
 from difflib import SequenceMatcher
 from functools import lru_cache
 from pathlib import Path
 
-from arp.schemas.common import Citation, SourceDocument
+from arp.schemas.common import Citation, DocumentChunk, SourceDocument
 
 _WS_RE = re.compile(r"\s+")
 _SHEET_RE = re.compile(r"^## Sheet: (.+)$", re.MULTILINE)
@@ -67,27 +68,67 @@ def _normalize_with_offsets(text: str) -> tuple[str, list[int]]:
     return "".join(chars[start:end]), offsets[start:end]
 
 
-def _find_match(quote: str, source_text: str, fuzzy_threshold: float) -> tuple[bool, int | None]:
-    """Locates `quote` in `source_text` (exact-after-normalization, falling
-    back to a fuzzy longest-common-substring match), returning whether it
-    grounds and, if so, the match's char offset in the *original*
-    (non-normalized) source_text.
-    """
-    if not quote or not quote.strip():
-        return False, None
+@dataclass(frozen=True)
+class Match:
+    char_start: int
+    char_end: int  # exclusive; offsets index the original text
+    method: str
+    score: float
+
+
+def _inside(m: Match, spans: list[tuple[int, int]]) -> bool:
+    return any(s <= m.char_start and m.char_end <= e for s, e in spans)
+
+
+def _find_in_span(quote: str, source_text: str, fuzzy_threshold: float, lo: int, hi: int) -> Match | None:
+    """Raw, normalised, then fuzzy search restricted to source_text[lo:hi]."""
+    idx = source_text.find(quote, lo, hi)
+    if idx != -1:
+        return Match(idx, idx + len(quote), "exact", 1.0)
     norm_quote = _normalize(quote)
     norm_source, offsets = _normalize_with_offsets(source_text)
-    idx = norm_source.find(norm_quote)
+    if not norm_quote or not offsets:
+        return None
+    # offsets are ascending, so the span maps to a slice of the normalised text.
+    n_lo = bisect.bisect_left(offsets, lo)
+    n_hi = bisect.bisect_left(offsets, hi)
+    idx = norm_source.find(norm_quote, n_lo, n_hi)
     if idx != -1:
-        return True, offsets[idx] if offsets else None
+        return Match(offsets[idx], offsets[idx + len(norm_quote) - 1] + 1, "normalised", 1.0)
     if len(norm_quote) < 8:
-        return False, None
-    matcher = SequenceMatcher(None, norm_source, norm_quote, autojunk=False)
-    match = matcher.find_longest_match(0, len(norm_source), 0, len(norm_quote))
-    coverage = match.size / max(len(norm_quote), 1)
-    if coverage >= fuzzy_threshold and match.size > 0:
-        return True, offsets[match.a]
-    return False, None
+        return None
+    matcher = SequenceMatcher(None, norm_source[n_lo:n_hi], norm_quote, autojunk=False)
+    m = matcher.find_longest_match(0, n_hi - n_lo, 0, len(norm_quote))
+    coverage = m.size / max(len(norm_quote), 1)
+    if coverage >= fuzzy_threshold and m.size > 0:
+        a = n_lo + m.a
+        return Match(offsets[a], offsets[a + m.size - 1] + 1, "fuzzy", coverage)
+    return None
+
+
+def _find_match(
+    quote: str,
+    source_text: str,
+    fuzzy_threshold: float,
+    *,
+    within: list[tuple[int, int]] | None = None,
+    prefer: tuple[int, int] | None = None,
+) -> Match | None:
+    """Locates `quote` in `source_text` (raw, then normalised, then fuzzy).
+    Offsets index the original text. With `within`, only matches lying
+    inside one of those spans count, and the search runs per span; the
+    match inside `prefer` wins when there is one.
+    """
+    if not quote or not quote.strip():
+        return None
+    if within is None:
+        return _find_in_span(quote, source_text, fuzzy_threshold, 0, len(source_text))
+    spans = sorted(within, key=lambda sp: sp != prefer)  # prefer first, stable
+    for lo, hi in spans:
+        m = _find_in_span(quote, source_text, fuzzy_threshold, lo, hi)
+        if m is not None and _inside(m, [(lo, hi)]):
+            return m
+    return None
 
 
 def is_grounded(quote: str, source_text: str, fuzzy_threshold: float = 0.92) -> bool:
@@ -99,7 +140,7 @@ def is_grounded(quote: str, source_text: str, fuzzy_threshold: float = 0.92) -> 
     plain substring/fuzzy check against the real source text, so a
     hallucinated or paraphrased "quote" is caught mechanically.
     """
-    return _find_match(quote, source_text, fuzzy_threshold)[0]
+    return _find_match(quote, source_text, fuzzy_threshold) is not None
 
 
 def _page_for_offset(page_breaks: list[int], offset: int) -> int | None:
@@ -123,6 +164,7 @@ def ground_claim(
     fuzzy_threshold: float = 0.92,
     *,
     claim_is_empty: bool,
+    passages: dict[str, DocumentChunk] | None = None,
 ) -> tuple[list[Citation], bool]:
     """`ground_citations` plus the per-claim roll-up: the citations with
     `.grounded` resolved, and whether the claim they support is grounded
@@ -139,36 +181,67 @@ def ground_claim(
     Callers pass what "empty" means for their claim: `value is None` for a
     numeric metric, `description is None` for a prose description.
     """
-    grounded_citations = ground_citations(citations, documents_by_id, fuzzy_threshold)
+    grounded_citations = ground_citations(citations, documents_by_id, fuzzy_threshold, passages=passages)
     if not grounded_citations:
         return grounded_citations, claim_is_empty
     return grounded_citations, all(c.grounded for c in grounded_citations)
 
 
 def ground_citations(
-    citations: list[Citation], documents_by_id: dict[str, SourceDocument], fuzzy_threshold: float = 0.92
+    citations: list[Citation],
+    documents_by_id: dict[str, SourceDocument],
+    fuzzy_threshold: float = 0.92,
+    *,
+    passages: dict[str, DocumentChunk] | None = None,
 ) -> list[Citation]:
     """Returns a new list of citations with `.grounded` set correctly by
     checking each against its cited document's full text, and -- only for
-    citations that actually ground -- `.page`/`.sheet`/`.company_id`/
-    `.source_filename` resolved from the verified match's real position.
-    These location fields are never trusted from the LLM's self-report,
-    the same precision discipline as `.grounded` itself: an ungrounded
-    citation gets none of them, so the UI never offers a "view source"
-    link for a location it couldn't actually verify.
+    citations that actually ground -- location and span evidence resolved
+    from the verified match's real position. None of these fields is ever
+    trusted from the LLM's self-report: an ungrounded citation gets none of
+    them (except `passage_id`, which keeps the reported value).
+
+    With `passages` (the evidence blocks the model was shown), a quote only
+    grounds if it lies inside a shown passage of its document; the passage
+    named by `passage_id` is preferred, and `passage_id` is rewritten to the
+    passage the match actually lies in. Without it, the whole document.
     """
     grounded: list[Citation] = []
     for c in citations:
         doc = documents_by_id.get(c.doc_id)
-        ok, offset = _find_match(c.quote, doc.full_text, fuzzy_threshold) if doc else (False, None)
-        # Location fields start cleared, not inherited: Citation is also the
-        # LLM-facing draft schema, so the model can fill them itself, and an
-        # ungrounded citation must not keep a self-reported page/filename.
-        update: dict = {"grounded": ok, "page": None, "sheet": None, "company_id": None, "source_filename": None}
-        if ok and doc and offset is not None:
+        match = None
+        mine: list[DocumentChunk] = []
+        if doc:
+            if passages is None:
+                match = _find_match(c.quote, doc.full_text, fuzzy_threshold)
+            else:
+                mine = [p for p in passages.values() if p.doc_id == c.doc_id]
+                reported = passages.get(c.passage_id) if c.passage_id else None
+                prefer = (reported.char_start, reported.char_end) if reported and reported.doc_id == c.doc_id else None
+                match = _find_match(
+                    c.quote, doc.full_text, fuzzy_threshold,
+                    within=[(p.char_start, p.char_end) for p in mine], prefer=prefer,
+                )
+        # Fields start cleared, not inherited: Citation is also the LLM-facing
+        # draft schema, so the model can fill them itself.
+        update: dict = {
+            "grounded": match is not None, "page": None, "sheet": None, "company_id": None,
+            "source_filename": None, "content_key": None, "parser_version": None, "span_text": None,
+            "char_start": None, "char_end": None, "match_method": None, "match_score": None,
+        }
+        if match and doc:
             update["company_id"] = doc.company_id
             update["source_filename"] = Path(doc.local_path).name if doc.local_path else None
-            update["page"] = _page_for_offset(doc.page_breaks, offset)
-            update["sheet"] = _sheet_for_offset(doc.full_text, offset)
+            update["page"] = _page_for_offset(doc.page_breaks, match.char_start)
+            update["sheet"] = _sheet_for_offset(doc.full_text, match.char_start)
+            update.update(
+                content_key=doc.content_key, parser_version=doc.parser_version,
+                span_text=doc.full_text[match.char_start : match.char_end],
+                char_start=match.char_start, char_end=match.char_end,
+                match_method=match.method, match_score=match.score,
+            )
+            if passages is not None:
+                hit = next((p for p in mine if p.char_start <= match.char_start and match.char_end <= p.char_end), None)
+                update["passage_id"] = hit.chunk_id if hit else c.passage_id
         grounded.append(c.model_copy(update=update))
     return grounded
