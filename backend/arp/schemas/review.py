@@ -15,3 +15,9 @@ class ReasonCode(StrEnum):
 
 def field_item_key(issuer_key: str, field_id: str, period: str = "unspecified") -> str:
     return f"{issuer_key}:{field_id}:{period}"
+
+
+def period_key(f) -> str:
+    """`period_end` of an ExtractedField (model or dict), else "unspecified"."""
+    end = f.get("period_end") if isinstance(f, dict) else f.period_end
+    return end or "unspecified"

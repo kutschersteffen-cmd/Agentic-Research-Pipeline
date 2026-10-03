@@ -63,13 +63,14 @@ async def _extract_company(
             fuzzy_threshold=settings.grounding_fuzzy_threshold,
             confidence_review_threshold=settings.confidence_review_threshold,
             schema_version=f"{schema.schema_id}:v{schema.version}",
+            fiscal_year_end=company.fiscal_year_end,
         )
         usages.extend(field_usages)
 
         any_needs_review = any_needs_review or needs_review
-        fields.append((extracted, needs_review))
+        fields.extend(extracted)
 
-    confidences = [f.confidence for f, _ in fields if f.value is not None]
+    confidences = [f.confidence for f in fields if f.value is not None]
     overall_confidence = sum(confidences) / len(confidences) if confidences else 0.0
 
     key, scheme = issuer_key(company)
@@ -81,7 +82,7 @@ async def _extract_company(
         run_id="",  # filled in by caller once run_id is known
         issuer_key=key,
         issuer_scheme=scheme,
-        fields=[f for f, _ in fields],
+        fields=fields,
         overall_confidence=overall_confidence,
         needs_review=any_needs_review,
     )

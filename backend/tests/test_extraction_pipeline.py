@@ -270,3 +270,41 @@ async def test_provenance_records_schema_version(tmp_path, fake_llm):
     (row,) = run_store.read_jsonl(run_store.results_path(run_id))
     prov = row["fields"][0]["provenance"]
     assert prov["schema_version"] == f"{schema.schema_id}:v1" and prov["field_version"] == 1
+
+
+async def test_zero_and_not_found_end_to_end(tmp_path, fake_llm):
+    from arp.extraction.extractor_agent import PeriodValue
+    from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+    from arp.storage.run_store import RunStore
+
+    def _f(name, kw):
+        return FieldDefinition(
+            name=name, description=name, data_type=FieldDataType.NUMBER, extraction_instructions=name, seed_keywords=[kw]
+        )
+
+    schema = DataPointSchema(name="Two", fields=[_f("spills", "spills"), _f("fines", "fines")])
+    doc = SourceDocument(
+        company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG",
+        full_text="Spills: 0 incidents in FY2024. Regulatory fines are discussed in the legal section.",
+    )
+    company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME", fiscal_year_end="12-31")
+    zero = ExtractionDraft(
+        values=[PeriodValue(
+            value=0, state="zero", raw_value_text="0", period_text="FY2024",
+            citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote="Spills: 0 incidents in FY2024")],
+        )],
+        confidence=0.9,
+    )
+    agree = VerifierOutput(agrees=True, confidence=0.9, notes="ok")
+    llm = fake_llm({"ExtractionDraft": [zero, ExtractionDraft(values=[], confidence=0.9)], "VerifierOutput": [agree, agree]})
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    run_id = create_extraction_run(schema, [company], settings, run_store, trial=True)
+    await execute_extraction_run(
+        run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
+        settings=settings, run_store=run_store,
+    )
+    (row,) = run_store.read_jsonl(run_store.results_path(run_id))
+    assert [(f["value_state"], f["value"]) for f in row["fields"]] == [("zero", 0.0), ("not_found", None)]
+    assert row["fields"][0]["period_end"] == "2024-12-31" and row["fields"][0]["qualifiers"] == []
+    assert row["needs_review"] is False

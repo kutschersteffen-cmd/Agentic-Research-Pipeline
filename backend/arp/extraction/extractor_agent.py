@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.schemas.common import Citation, DocumentChunk
-from arp.schemas.datapoints import FieldDefinition
+from arp.schemas.datapoints import FieldDefinition, ValueState
 
 _SYSTEM_PROMPT = """\
 You are a precise financial/ESG data extraction analyst. You will be given \
@@ -12,14 +12,17 @@ a field definition (what to extract, its data type/unit, and explicit \
 extraction instructions) and excerpts from a company's disclosures.
 
 Extract the value strictly according to the instructions. Rules:
-- If the data point is not disclosed in the evidence, set value to null, \
-  confidence to 0, and leave citations empty. NEVER estimate, infer, or \
-  compute a value that is not explicitly stated.
-- If multiple figures are present (e.g. different fiscal years), follow \
-  the extraction_instructions' tie-break rule; if instructions are silent, \
-  prefer the most recent fiscal period and note the others in \
-  raw_value_text.
-- raw_value_text must be the literal text the value was read from.
+- Return one entry in `values` per reported period (e.g. each fiscal \
+  year shown), each with its own citations. List the most recent period \
+  first.
+- An empty `values` list means the data point is not disclosed. NEVER \
+  estimate, infer, or compute a value that is not explicitly stated.
+- Copy unit_text, period_text and basis_text verbatim from the evidence, \
+  including a scale word from a table header (e.g. "in thousands").
+- Never convert units or scales yourself: value is the number as printed.
+- Use state="zero" only when the document states the value is zero, and \
+  state="not_applicable" only when it states the item does not apply.
+- raw_value_text must be the literal text each value was read from.
 - Every citation's `quote` must be an EXACT, VERBATIM substring copied \
   from the evidence block, tagged with the matching doc_id and the \
 passage_id of the block the quote was copied from.
@@ -39,12 +42,31 @@ def format_evidence(chunks: list[DocumentChunk]) -> str:
     return "\n\n---\n\n".join(blocks)
 
 
-class ExtractionDraft(BaseModel):
-    value: str | float | bool | None
+class PeriodValue(BaseModel):
+    value: str | float | bool | None = None
+    state: ValueState = ValueState.FOUND
     raw_value_text: str | None = None
+    unit_text: str | None = None
+    period_text: str | None = None
+    basis_text: str | None = None
     citations: list[Citation] = Field(default_factory=list)
+
+
+class ExtractionDraft(BaseModel):
+    values: list[PeriodValue] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0)
     conflicting_sources: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _from_single_value(cls, data):
+        # The old single-value shape: {"value", "raw_value_text", "citations"}.
+        if isinstance(data, dict) and "values" not in data and {"value", "raw_value_text", "citations"} & data.keys():
+            data = dict(data)
+            pv = {k: data.pop(k, None) for k in ("value", "raw_value_text")}
+            citations = data.pop("citations", None) or []
+            data["values"] = [] if pv["value"] is None and not citations else [{**pv, "citations": citations}]
+        return data
 
 
 async def extract_field(

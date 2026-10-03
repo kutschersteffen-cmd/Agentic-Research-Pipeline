@@ -56,6 +56,11 @@ def lookup_unit(text: str) -> UnitInfo | None:
     return _units().get(_norm(text))
 
 
+def lookup_scale(word: str) -> tuple[float, bool] | None:
+    """(factor, ambiguous) for a scale word such as "bn" or "thousands"."""
+    return _scales().get(_norm(word))
+
+
 def split_unit(text: str) -> tuple[float, bool, str]:
     """Split a leading or trailing scale word off ``text``: (scale, scale_ambiguous, base_text)."""
     text = re.sub(r"\s+", " ", text).strip()
