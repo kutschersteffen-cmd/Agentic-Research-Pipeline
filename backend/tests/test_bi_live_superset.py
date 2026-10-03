@@ -68,7 +68,8 @@ def drop_templates(settings):
     yield
     client = SupersetClient(URL, settings.superset_user, settings.superset_password)
     for slug in TEMPLATE_SLUGS:
-        _drop_dashboard(client, slug)
+        with contextlib.suppress(SupersetError, httpx.HTTPError):  # one failure must not leak the rest
+            _drop_dashboard(client, slug)
 
 
 def _bootstrap() -> dict:
