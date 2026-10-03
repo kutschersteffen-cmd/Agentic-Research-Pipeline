@@ -80,6 +80,7 @@ def bi_bootstrap(
             dataset_id = client.ensure_dataset(database_id, "bi", dataset.table)
             client.refresh_dataset(dataset_id)  # pick up view column changes
             client.sync_metrics(dataset_id, dataset.metrics)
+            client.sync_descriptions(dataset_id, dataset.description, dataset.columns)
             datasets[table] = dataset_id
     except (SupersetError, httpx.HTTPError) as e:
         typer.echo(f"Superset at {settings.superset_url}: {e}", err=True)

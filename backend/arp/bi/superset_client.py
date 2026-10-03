@@ -125,6 +125,25 @@ class SupersetClient:
         # (the catalog is the source of truth).
         self._request("PUT", f"/dataset/{dataset_id}", json={"metrics": payload})
 
+    def sync_descriptions(self, dataset_id: int, description: str, columns: dict[str, str]) -> None:
+        """Sets the dataset description and the named columns' descriptions.
+        The PUT replaces the columns and metrics lists, so every existing
+        item goes back with its id and writable fields; no PUT if nothing differs."""
+        ds = self._dataset(dataset_id)
+        cols = ds.get("columns", [])
+        changed = (ds.get("description") or "") != description or any(
+            c["column_name"] in columns and (c.get("description") or "") != columns[c["column_name"]] for c in cols
+        )
+        if not changed:
+            return
+        new_cols = [
+            {**_keep(c, _COLUMN_FIELDS), "description": columns.get(c["column_name"], c.get("description"))} for c in cols
+        ]
+        new_metrics = [_keep(m, _METRIC_FIELDS) for m in ds.get("metrics", [])]
+        self._request(
+            "PUT", f"/dataset/{dataset_id}", json={"description": description, "columns": new_cols, "metrics": new_metrics}
+        )
+
     def create_chart(self, name: str, dataset_id: int, viz_type: str, params: dict) -> int:
         form_data = {**params, "datasource": f"{dataset_id}__table", "viz_type": viz_type}
         # Dashboards render from `params` (the frontend builds its own query);
@@ -208,6 +227,23 @@ class SupersetClient:
             "rls": rls,
         }
         return self._request("POST", "/security/guest_token/", json=body)["token"]
+
+
+# Writable fields of Superset's dataset PUT schema; GET also returns read-only
+# ones (changed_on, created_on, uuid, ...) that a PUT would reject. None values
+# are dropped so Superset keeps its defaults.
+_COLUMN_FIELDS = (
+    "id", "column_name", "type", "advanced_data_type", "verbose_name", "description", "expression",
+    "extra", "filterable", "groupby", "is_active", "is_dttm", "python_date_format",
+)  # fmt: skip
+_METRIC_FIELDS = (
+    "id", "metric_name", "metric_type", "verbose_name", "description", "expression", "extra",
+    "d3format", "currency", "warning_text",
+)  # fmt: skip
+
+
+def _keep(item: dict, fields: tuple[str, ...]) -> dict:
+    return {k: item[k] for k in fields if item.get(k) is not None}
 
 
 def _query(form_data: dict) -> dict:

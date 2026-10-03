@@ -51,3 +51,47 @@ def test_bootstrap_rejects_placeholder_reader_password(monkeypatch):
     finally:
         get_settings.cache_clear()
     assert result.exit_code == 1 and "placeholder" in result.stderr and "openssl rand" in result.stderr
+
+
+def test_bootstrap_syncs_descriptions_for_every_dataset(monkeypatch):
+    from arp.bi.catalog import VIEW_DATASETS
+
+    for name, value in {
+        "ARP_POSTGRES_DSN": "postgresql+psycopg://u:p@localhost:5432/arp",
+        "ARP_SUPERSET_PASSWORD": "x" * 20,
+        "ARP_BI_READER_PASSWORD": "y" * 20,
+    }.items():
+        monkeypatch.setenv(name, value)
+    get_settings.cache_clear()
+    synced = []
+
+    class FakeClient:
+        def __init__(self, *args):
+            pass
+
+        def ensure_database(self, *args):
+            return 1
+
+        def ensure_dataset(self, db, schema, table):
+            return hash(table) % 1000
+
+        def refresh_dataset(self, id):
+            pass
+
+        def sync_metrics(self, id, metrics):
+            pass
+
+        def sync_descriptions(self, id, description, columns):
+            synced.append((id, description, columns))
+
+    monkeypatch.setattr("arp.bi.superset_client.SupersetClient", FakeClient)
+    monkeypatch.setattr("arp.bi.views.create_bi_views", lambda conn: None)
+    monkeypatch.setattr("arp.bi.views.ensure_reader_role", lambda conn, pw: None)
+    monkeypatch.setattr("arp.storage.postgres.get_engine", lambda dsn: SimpleNamespace(begin=lambda: nullcontext()))
+    try:
+        result = CliRunner().invoke(app, ["bi", "bootstrap"])
+    finally:
+        get_settings.cache_clear()
+    assert result.exit_code == 0, result.output
+    assert sorted(s[1] for s in synced) == sorted(d.description for d in VIEW_DATASETS.values())
+    assert sorted(len(s[2]) for s in synced) == sorted(len(d.columns) for d in VIEW_DATASETS.values())

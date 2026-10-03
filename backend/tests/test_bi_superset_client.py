@@ -179,3 +179,69 @@ def test_get_dashboard_returns_result():
 
     c, _ = _client(h)
     assert c.get_dashboard(5)["slug"] == "arp-x"
+
+
+def _dataset_handler(state):
+    def h(r):
+        if r.method == "GET":
+            return httpx.Response(200, json={"result": state})
+        return httpx.Response(200, json={})
+
+    return h
+
+
+def _state():
+    return {
+        "description": None,
+        "columns": [
+            {"id": 1, "column_name": "a", "type": "TEXT", "description": None, "groupby": True, "filterable": True,
+             "is_dttm": False, "expression": "", "verbose_name": None, "changed_on": "x", "uuid": "u1"},
+            {"id": 2, "column_name": "b", "type": "NUMERIC", "description": "keep me", "groupby": False, "filterable": True,
+             "is_dttm": False, "expression": "", "verbose_name": "B", "created_on": "y"},
+        ],
+        "metrics": [{"id": 9, "metric_name": "m", "expression": "COUNT(*)", "description": "d", "changed_on": "z"}],
+    }
+
+
+def _puts(calls):
+    return [c for c in calls if c.method == "PUT"]
+
+
+def test_sync_descriptions_sets_dataset_and_column_descriptions():
+    c, calls = _client(_dataset_handler(_state()))
+    c.sync_descriptions(5, "Dataset text.", {"a": "Col a."})
+    (put,) = _puts(calls)
+    assert put.url.path == "/api/v1/dataset/5"
+    body = json.loads(put.content)
+    assert body["description"] == "Dataset text."
+    cols = {x["column_name"]: x for x in body["columns"]}
+    assert cols["a"]["description"] == "Col a."
+    assert cols["b"]["description"] == "keep me"  # not named: untouched
+
+
+def test_sync_descriptions_keeps_existing_columns_and_metrics():
+    c, calls = _client(_dataset_handler(_state()))
+    c.sync_descriptions(5, "Dataset text.", {"a": "Col a."})
+    body = json.loads(_puts(calls)[0].content)
+    assert [(x["id"], x["column_name"]) for x in body["columns"]] == [(1, "a"), (2, "b")]
+    assert body["columns"][0]["type"] == "TEXT" and body["columns"][1]["verbose_name"] == "B"
+    assert [(m["id"], m["metric_name"], m["expression"]) for m in body["metrics"]] == [(9, "m", "COUNT(*)")]
+    # read-only fields Superset rejects on PUT are not sent
+    assert all(not ({"changed_on", "created_on", "uuid"} & set(x)) for x in body["columns"] + body["metrics"])
+
+
+def test_sync_descriptions_is_idempotent():
+    state = _state()
+
+    def h(r):
+        if r.method == "PUT":
+            body = json.loads(r.content)
+            state["description"] = body["description"]
+            for col, new in zip(state["columns"], body["columns"], strict=True):
+                col["description"] = new["description"]
+        return httpx.Response(200, json={"result": state})
+
+    c, calls = _client(h)
+    c.sync_descriptions(5, "Dataset text.", {"a": "Col a."})
+    c.sync_descriptions(5, "Dataset text.", {"a": "Col a."})
+    assert len(_puts(calls)) == 1

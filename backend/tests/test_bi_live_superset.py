@@ -92,6 +92,10 @@ def test_live_superset_roundtrip(settings):
     meta = client.dataset_meta(holdings)
     assert meta.metrics == {m.name for m in VIEW_DATASETS["holdings"].metrics}
     assert meta.columns == set(VIEW_DATASETS["holdings"].columns)
+    raw = client._dataset(holdings)
+    assert raw["description"] == VIEW_DATASETS["holdings"].description
+    col, text = next(iter(VIEW_DATASETS["holdings"].columns.items()))
+    assert {c["column_name"]: c["description"] for c in raw["columns"]}[col] == text
 
     slug = f"arp-live-test-{uuid.uuid4().hex[:8]}"
     chart_ids: list[int] = []
