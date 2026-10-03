@@ -12,7 +12,7 @@ const KILL_POINTS = { 13: 30, 21: 20, 34: 10 } as Record<number, number>;
 type Phase = "title" | "play" | "over";
 type Crater = { a: number; d: number; k: number };
 type Rock = { frames: HTMLCanvasElement[]; x: number; y: number; vx: number; vy: number; r: number; rot: number; spin: number; shape: number[]; craters: Crater[]; near: boolean };
-type Shard = { x: number; y: number; a: number; len: number; vx: number; vy: number; spin: number; life: number };
+type Shard = { x: number; y: number; c: string; vx: number; vy: number; life: number };
 type Ring = { x: number; y: number; age: number };
 type Bolt = { x: number; y: number };
 
@@ -45,6 +45,26 @@ function bake(r: number, shape: number[], craters: Crater[]): HTMLCanvasElement[
   });
 }
 
+// The rocket: 11x15 pixel grid, drawn at 3px. R red, W white, B window, G/D greys, Y/O flame.
+const ROCKET = [
+  ".....R.....", "....RRR....", "....RRR....", "...RRRRR...", "...WWWWW...", "...WBBBW...", "...WBBBW...", "...WWWWW...",
+  "...WGGGW...", "...WGGGW...", ".R.WWWWW.R.", "RR.WWWWW.RR", "RRRWGGGWRRR", "RR.DDDDD.RR", "....DDD....",
+];
+const FLAME = [["....YYY....", ".....O....."], ["....YYY....", "....YOY....", ".....O....."]];
+const PAL: Record<string, string> = { R: "#e8382e", W: "#f2f2f2", B: "#4cc9f0", G: "#a3a9b3", D: "#575d68", Y: "#ffe45c", O: "#ff8a1f" };
+
+function bakeRocket(white: boolean): HTMLCanvasElement {
+  const cv = document.createElement("canvas");
+  cv.width = 11 * PX; cv.height = ROCKET.length * PX;
+  const g = cv.getContext("2d")!;
+  ROCKET.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (ch === ".") return;
+    g.fillStyle = white ? "#ffffff" : PAL[ch];
+    g.fillRect(x * PX, y * PX, PX, PX);
+  }));
+  return cv;
+}
+
 function newRock(x: number, y: number, r: number, vy: number, vx = rnd(-30, 30)): Rock {
   const n = 9 + Math.floor(Math.random() * 4);
   const shape = Array.from({ length: n }, () => rnd(0.72, 1.12));
@@ -68,8 +88,8 @@ export function MeteorDodge() {
     cv.width = W * dpr; cv.height = H * dpr;
     ctx.scale(dpr, dpr);
     const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const bloom = !still && (navigator.hardwareConcurrency ?? 4) > 2;
 
+    const hull = bakeRocket(false), hullWhite = bakeRocket(true);
     const layers = [0, 1, 2].map((z) => Array.from({ length: 22 + z * 10 }, () => ({ x: Math.random() * W, y: Math.random() * H, z })));
     let state: Phase = "title";
     let ship = W / 2, t = 0, spawn = 0, pts = 0, shown = 0, shake = 0, flash = 0, cool = 0, raf = 0, last = performance.now();
@@ -85,22 +105,22 @@ export function MeteorDodge() {
     };
     launch.current = start;
 
-    const burst = (x: number, y: number, n: number, speed: number, life: number) => {
+    const burst = (x: number, y: number, n: number, speed: number, life: number, colors: string[] = TONES) => {
       for (let i = 0; i < n; i++) {
         const ang = rnd(0, 6.28), sp = rnd(speed * 0.4, speed);
-        shards.push({ x, y, a: ang, len: rnd(5, 12), vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, spin: rnd(-10, 10), life: rnd(life * 0.5, life) });
+        shards.push({ x, y, c: colors[Math.floor(Math.random() * colors.length)], vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: rnd(life * 0.5, life) });
       }
     };
 
     const crash = () => {
       state = "over"; shake = still ? 0 : 14;
-      // The rocket's own outline breaks apart: nose, hull, both fins, nozzle.
-      const parts: [number, number, number, number][] = [[0, -30, 8, -2], [0, -30, -8, -2], [8, -2, 8, 14], [-8, -2, -8, 14], [8, 4, 16, 18], [-8, 4, -16, 18], [-5, 14, 5, 14]];
-      for (const [x1, y1, x2, y2] of parts) {
-        const ang = rnd(0, 6.28);
-        shards.push({ x: ship + (x1 + x2) / 2, y: SHIP_Y + (y1 + y2) / 2, a: Math.atan2(y2 - y1, x2 - x1), len: Math.hypot(x2 - x1, y2 - y1), vx: Math.cos(ang) * 90, vy: Math.sin(ang) * 90 - 30, spin: rnd(-6, 6), life: 1.6 });
-      }
-      burst(ship, SHIP_Y, 14, 300, 1.1);
+      // Every pixel of the rocket flies apart in its own colour.
+      ROCKET.forEach((row, y) => [...row].forEach((ch, x) => {
+        if (ch === ".") return;
+        const ang = rnd(0, 6.28), sp = rnd(40, 220);
+        shards.push({ x: ship + (x - 5) * PX, y: SHIP_Y - 30 + y * PX, c: PAL[ch], vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 30, life: rnd(0.8, 1.6) });
+      }));
+      burst(ship, SHIP_Y, 16, 300, 1.1, [PAL.Y, PAL.O, "#ffffff"]);
       rings.push({ x: ship, y: SHIP_Y, age: 0 });
       const final = Math.floor(pts), prev = Number(localStorage.getItem(BEST_KEY) ?? 0);
       if (final > prev) { localStorage.setItem(BEST_KEY, String(final)); setBest(final); setNewBest(true); }
@@ -109,7 +129,7 @@ export function MeteorDodge() {
 
     const split = (rk: Rock) => {
       pts += KILL_POINTS[rk.r] ?? 10;
-      burst(rk.x, rk.y, 8, 200, 0.7);
+      burst(rk.x, rk.y, 10, 200, 0.7);
       rings.push({ x: rk.x, y: rk.y, age: 0 });
       const i = TIERS.indexOf(rk.r);
       if (i > 0) for (const dir of [-1, 1]) rocks.push(newRock(rk.x, rk.y, TIERS[i - 1], rk.vy * 0.9, dir * rnd(50, 110)));
@@ -137,22 +157,15 @@ export function MeteorDodge() {
       ctx.shadowBlur = prev;
     };
 
-    const drawRocket = (x: number, flicker: number) => {
-      ctx.save(); ctx.translate(x, SHIP_Y);
-      ctx.strokeStyle = flash > 0 ? "#ffffff" : PHOSPHOR; ctx.lineWidth = 2;
-      ctx.beginPath(); // hull: ogive nose, straight body
-      ctx.moveTo(0, -30); ctx.quadraticCurveTo(10, -17, 8, -2); ctx.lineTo(8, 14); ctx.lineTo(-8, 14); ctx.lineTo(-8, -2); ctx.quadraticCurveTo(-10, -17, 0, -30);
-      ctx.stroke();
-      ctx.beginPath(); ctx.arc(0, -10, 3.4, 0, 6.283); ctx.stroke(); // porthole
-      ctx.beginPath(); ctx.moveTo(-8, 0); ctx.lineTo(8, 0); ctx.stroke(); // hull band
-      ctx.beginPath(); // fins
-      ctx.moveTo(8, 4); ctx.lineTo(17, 19); ctx.lineTo(8, 14); ctx.moveTo(-8, 4); ctx.lineTo(-17, 19); ctx.lineTo(-8, 14);
-      ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-5, 14); ctx.lineTo(-4, 19); ctx.lineTo(4, 19); ctx.lineTo(5, 14); ctx.stroke(); // nozzle
-      ctx.strokeStyle = PHOSPHOR; ctx.lineWidth = 1.6; // flame: outer + inner
-      ctx.beginPath(); ctx.moveTo(-4, 19); ctx.lineTo(0, 19 + 10 + flicker); ctx.lineTo(4, 19); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-2, 19); ctx.lineTo(0, 19 + 4 + flicker * 0.5); ctx.lineTo(2, 19); ctx.stroke();
-      ctx.restore();
+    const drawRocket = (x: number, frameNo: number) => {
+      const left = Math.round(x - (11 * PX) / 2), top = SHIP_Y - 30;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(flash > 0 ? hullWhite : hull, left, top);
+      FLAME[frameNo % 2].forEach((row, y) => [...row].forEach((ch, cx) => {
+        if (ch === ".") return;
+        ctx.fillStyle = PAL[ch];
+        ctx.fillRect(left + cx * PX, top + (ROCKET.length + y) * PX, PX, PX);
+      }));
     };
 
     function frame(now: number) {
@@ -182,7 +195,7 @@ export function MeteorDodge() {
         rocks = rocks.filter((m) => m.y < H + 60 && m.x > -60 && m.x < W + 60);
         show();
       }
-      for (const s of shards) { s.x += s.vx * dt; s.y += s.vy * dt; s.a += s.spin * dt; s.life -= dt; }
+      for (const s of shards) { s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt; }
       shards = shards.filter((s) => s.life > 0);
       for (const r of rings) r.age += dt;
       rings = rings.filter((r) => r.age < 0.5);
@@ -192,7 +205,6 @@ export function MeteorDodge() {
       ctx.fillStyle = GROUND; ctx.fillRect(0, 0, W, H);
       if (shake > 0) ctx.translate(rnd(-0.5, 0.5) * shake, rnd(-0.5, 0.5) * shake);
       ctx.lineCap = "round"; ctx.lineJoin = "round";
-      if (bloom) { ctx.shadowColor = PHOSPHOR; ctx.shadowBlur = 8; }
 
       const rush = state === "play" ? Math.min(1, t / 40) : 0;
       for (const l of layers) for (const s of l) {
@@ -204,17 +216,21 @@ export function MeteorDodge() {
 
       ctx.lineWidth = 2; ctx.strokeStyle = PHOSPHOR;
       for (const m of rocks) drawRock(m);
-      ctx.lineWidth = 2.5; ctx.strokeStyle = "#ffffff";
-      for (const b of bolts) { ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x, b.y + 14); ctx.stroke(); }
+      for (const b of bolts) {
+        const bx = Math.round(b.x - 1.5), by = Math.round(b.y);
+        ctx.fillStyle = PAL.Y; ctx.fillRect(bx, by, PX, PX);
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(bx, by + PX, PX, PX * 3);
+      }
       ctx.lineWidth = 2; ctx.strokeStyle = PHOSPHOR;
-      for (const r of rings) { ctx.globalAlpha = 1 - r.age * 2; ctx.beginPath(); ctx.arc(r.x, r.y, 14 + r.age * 110, 0, 6.283); ctx.stroke(); }
-      for (const s of shards) {
-        ctx.globalAlpha = Math.min(1, s.life); ctx.beginPath();
-        ctx.moveTo(s.x - Math.cos(s.a) * s.len / 2, s.y - Math.sin(s.a) * s.len / 2);
-        ctx.lineTo(s.x + Math.cos(s.a) * s.len / 2, s.y + Math.sin(s.a) * s.len / 2); ctx.stroke();
+      ctx.lineWidth = PX; ctx.lineJoin = "miter";
+      for (const r of rings) { ctx.globalAlpha = 1 - r.age * 2; const h = Math.round((8 + r.age * 90) / PX) * PX; ctx.strokeRect(Math.round(r.x - h), Math.round(r.y - h), h * 2, h * 2); }
+      ctx.lineJoin = "round";
+      for (const sh of shards) {
+        ctx.globalAlpha = Math.min(1, sh.life * 2); ctx.fillStyle = sh.c;
+        ctx.fillRect(Math.round(sh.x / PX) * PX, Math.round(sh.y / PX) * PX, PX, PX);
       }
       ctx.globalAlpha = 1;
-      if (state !== "over") drawRocket(state === "title" ? W / 2 : ship, still ? 3 : rnd(0, 7));
+      if (state !== "over") drawRocket(state === "title" ? W / 2 : ship, still ? 0 : Math.floor(now / 90));
       ctx.restore();
       raf = requestAnimationFrame(frame);
     }
