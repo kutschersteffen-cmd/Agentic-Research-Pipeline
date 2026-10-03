@@ -25,7 +25,8 @@ import pytest
 from typer.testing import CliRunner
 
 from arp.bi.catalog import VIEW_DATASETS, VIZ_ALLOWLIST
-from arp.bi.plan import ChartPlan, ChartSpec
+from arp.bi.compiler import compile_chart, compile_dashboard, compile_native_filters
+from arp.bi.plan import ChartPlan, ChartSpec, NativeFilter
 from arp.bi.planner import PlannerRefusal
 from arp.bi.service import SCRATCH_SLUG, NotAnARPDashboard, ask_chart, design_dashboard, embed_token
 from arp.bi.superset_client import SupersetClient, SupersetError
@@ -130,6 +131,62 @@ def test_live_superset_roundtrip(settings):
         )
         assert resp.status_code == 200, resp.text
         assert resp.json()["result"][0]["rowcount"] > 0
+    finally:
+        if dash_id is not None:
+            client.delete_dashboard(dash_id)
+        for cid in chart_ids:
+            client.delete_chart(cid)
+    assert client.find_dashboard(slug) is None
+
+
+def test_native_filters_are_stored_and_applied(settings):
+    """One filter on holdings.portfolio_name scopes a holdings chart and a
+    holdings_history chart (task-4 spike: the dashboard sends the filter value
+    as `filters` in each in-scope chart's query, matched by column name)."""
+    ds = _bootstrap()["datasets"]
+    client = SupersetClient(URL, settings.superset_user, settings.superset_password)
+    slug = f"arp-live-test-{uuid.uuid4().hex[:8]}"
+    specs = [
+        _h(f"{slug} holdings", "table", ["portfolio_name"]),
+        ChartSpec(
+            title=f"{slug} history", viz_type="table", dataset="holdings_history",
+            metrics=["Exposure (EUR)"], groupby=["portfolio_name", "as_of_date"],
+        ),
+    ]  # fmt: skip
+    meta = compile_native_filters([NativeFilter(name="Portfolio", dataset="holdings", column="portfolio_name")], ds, [])
+    chart_ids: list[int] = []
+    dash_id = None
+    try:
+        for s in specs:
+            chart_ids.append(client.create_chart(s.title, ds[s.dataset], s.viz_type, compile_chart(s, ds[s.dataset])))
+        dash_id = client.create_dashboard(slug, slug, compile_dashboard(chart_ids, [s.title for s in specs]), chart_ids, meta)
+        dash = client.get_dashboard(dash_id)
+        assert dash["published"] is False
+        assert json.loads(dash["json_metadata"])["native_filter_configuration"] == meta["native_filter_configuration"]
+
+        def portfolios(cid: int, dataset: str, filters: list[dict]) -> set[str]:
+            body = {
+                "datasource": {"id": ds[dataset], "type": "table"},
+                "form_data": {"slice_id": cid, "dashboardId": dash_id},
+                "queries": [{"columns": ["portfolio_name"], "metrics": ["Exposure (EUR)"], "filters": filters}],
+            }
+            (res,) = client._request("POST", "/chart/data", json=body)["result"]
+            return {r["portfolio_name"] for r in res["data"]}
+
+        (nf,) = meta["native_filter_configuration"]
+        value = sorted(portfolios(chart_ids[0], "holdings", []))[0]
+        applied = [{"col": nf["targets"][0]["column"]["name"], "op": "IN", "val": [value]}]
+        for cid, s in zip(chart_ids, specs, strict=True):
+            assert len(portfolios(cid, s.dataset, [])) > 1
+            assert portfolios(cid, s.dataset, applied) == {value}
+
+        more = compile_native_filters(
+            [NativeFilter(name="Portfolio", dataset="holdings", column="portfolio_name"),
+             NativeFilter(name="Sector", dataset="holdings", column="sector")], ds, chart_ids,
+        )  # fmt: skip
+        client.update_dashboard(dash_id, compile_dashboard(chart_ids, [s.title for s in specs]), chart_ids, more)
+        stored = json.loads(client.get_dashboard(dash_id)["json_metadata"])["native_filter_configuration"]
+        assert [f["id"] for f in stored] == [f["id"] for f in more["native_filter_configuration"]]
     finally:
         if dash_id is not None:
             client.delete_dashboard(dash_id)

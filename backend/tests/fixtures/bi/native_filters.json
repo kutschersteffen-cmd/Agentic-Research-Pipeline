@@ -1,0 +1,22 @@
+{
+  "native_filter_configuration": [
+    {
+      "id": "NATIVE_FILTER-holdings-portfolio_name",
+      "name": "Portfolio",
+      "filterType": "filter_select",
+      "type": "NATIVE_FILTER",
+      "targets": [{"datasetId": 1, "column": {"name": "portfolio_name"}}],
+      "scope": {"rootPath": ["ROOT_ID"], "excluded": []},
+      "controlValues": {
+        "enableEmptyFilter": false,
+        "defaultToFirstItem": false,
+        "multiSelect": true,
+        "searchAllOptions": false,
+        "inverseSelection": false
+      },
+      "defaultDataMask": {"extraFormData": {}, "filterState": {}},
+      "cascadeParentIds": [],
+      "description": ""
+    }
+  ]
+}

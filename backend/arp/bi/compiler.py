@@ -11,7 +11,7 @@ import hashlib
 import json
 
 from arp.bi.catalog import MIN_GROUPBY
-from arp.bi.plan import ChartPlan, ChartSpec
+from arp.bi.plan import ChartPlan, ChartSpec, NativeFilter
 
 _FMT = "SMART_NUMBER"
 
@@ -162,6 +162,45 @@ def compile_dashboard(chart_ids: list[int], titles: list[str]) -> dict:
                 "meta": {"chartId": cid, "width": 6, "height": 50, "sliceName": title},
             }
     return pos
+
+
+def compile_native_filters(filters: list[NativeFilter], dataset_ids: dict[str, int], chart_ids: list[int]) -> dict:
+    """Superset `json_metadata` holding one select filter per NativeFilter,
+    scoped to the whole dashboard. Ids are derived from dataset+column, so a
+    rebuild keeps them (and any saved filter state / URLs) stable.
+
+    Verified on Superset 5.0.0: one filter targeting `holdings.portfolio_name`
+    also filters charts on `holdings_history`. The filter's value is applied
+    to every chart in scope by column name; the target dataset only feeds the
+    value list. So one filter per column is enough while the datasets share
+    the column name. `chart_ids` is unused: the ROOT_ID scope covers them all.
+    """
+    out = []
+    for f in filters:
+        fid = f"NATIVE_FILTER-{f.dataset}-{f.column}"
+        if any(o["id"] == fid for o in out):
+            raise ValueError(f"duplicate native filter on {f.dataset}.{f.column}")
+        out.append(
+            {
+                "id": fid,
+                "name": f.name,
+                "filterType": "filter_select",
+                "type": "NATIVE_FILTER",
+                "targets": [{"datasetId": dataset_ids[f.dataset], "column": {"name": f.column}}],
+                "scope": {"rootPath": ["ROOT_ID"], "excluded": []},
+                "controlValues": {
+                    "enableEmptyFilter": False,
+                    "defaultToFirstItem": False,
+                    "multiSelect": True,
+                    "searchAllOptions": False,
+                    "inverseSelection": False,
+                },
+                "defaultDataMask": {"extraFormData": {}, "filterState": {}},
+                "cascadeParentIds": [],
+                "description": "",
+            }
+        )
+    return {"native_filter_configuration": out}
 
 
 def plan_hash(plan: ChartPlan) -> str:

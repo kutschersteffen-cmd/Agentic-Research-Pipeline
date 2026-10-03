@@ -21,6 +21,14 @@ class ChartSpec(BaseModel):
     filters: dict[str, str] = {}  # column -> value
 
 
+class NativeFilter(BaseModel):
+    """A dashboard select filter on `dataset.column`."""
+
+    name: str
+    dataset: str
+    column: str
+
+
 class ChartPlan(BaseModel):
     title: str
     goal: str = ""

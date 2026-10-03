@@ -169,12 +169,14 @@ class SupersetClient:
         }
         return self._request("POST", "/chart/", json=body)["id"]
 
-    def create_dashboard(self, title: str, slug: str, position_json: dict, chart_ids: list[int]) -> int:
+    def create_dashboard(
+        self, title: str, slug: str, position_json: dict, chart_ids: list[int], json_metadata: dict | None = None
+    ) -> int:
         body = {
             "dashboard_title": title,
             "slug": slug,
             "position_json": json.dumps(position_json),
-            "json_metadata": json.dumps({}),
+            "json_metadata": json.dumps(json_metadata or {}),
             "published": False,
         }
         dash_id = self._request("POST", "/dashboard/", json=body)["id"]
@@ -187,11 +189,17 @@ class SupersetClient:
             raise
         return dash_id
 
-    def update_dashboard(self, dashboard_id: int, position_json: dict, chart_ids: list[int]) -> None:
+    def update_dashboard(
+        self, dashboard_id: int, position_json: dict, chart_ids: list[int], json_metadata: dict | None = None
+    ) -> None:
         """Attaches `chart_ids` (the chart's dashboard list is replaced) and
-        replaces the layout. Leaves title, slug and published untouched."""
+        replaces the layout, and `json_metadata` when given (whole, not merged).
+        Leaves title, slug and published untouched."""
         self._attach(dashboard_id, chart_ids)
-        self._request("PUT", f"/dashboard/{dashboard_id}", json={"position_json": json.dumps(position_json)})
+        body = {"position_json": json.dumps(position_json)}
+        if json_metadata is not None:
+            body["json_metadata"] = json.dumps(json_metadata)
+        self._request("PUT", f"/dashboard/{dashboard_id}", json=body)
 
     def _attach(self, dashboard_id: int, chart_ids: list[int]) -> None:
         for cid in chart_ids:  # POST /dashboard/ cannot take charts; they attach from the chart side

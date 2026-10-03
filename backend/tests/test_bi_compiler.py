@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 
 from arp.bi.catalog import VIZ_ALLOWLIST
-from arp.bi.compiler import compile_chart, compile_dashboard, plan_hash
-from arp.bi.plan import ChartPlan, ChartSpec
+from arp.bi.compiler import compile_chart, compile_dashboard, compile_native_filters, plan_hash
+from arp.bi.plan import ChartPlan, ChartSpec, NativeFilter
 
 FIXTURES = Path(__file__).parent / "fixtures" / "bi"
 EXP = "Exposure (EUR)"
@@ -100,3 +100,27 @@ def test_odd_chart_count_last_row_single():
 def test_missing_required_input_raises_clear_error(viz, over):
     with pytest.raises(ValueError, match=viz):
         compile_chart(_spec(viz, **over), 7)
+
+
+def test_compile_native_filters_matches_verified_fixture():
+    # Accepted and applied by Superset 5.0.0 (task-4 spike; test_native_filters_are_stored_and_applied).
+    fixture = json.loads((FIXTURES / "native_filters.json").read_text())
+    nf = [NativeFilter(name="Portfolio", dataset="holdings", column="portfolio_name")]
+    assert compile_native_filters(nf, {"holdings": 1}, [10, 11]) == fixture
+
+
+def test_native_filter_ids_are_stable_and_unique():
+    nf = [
+        NativeFilter(name="Portfolio", dataset="holdings", column="portfolio_name"),
+        NativeFilter(name="Portfolio", dataset="holdings_history", column="portfolio_name"),
+        NativeFilter(name="Sector", dataset="holdings", column="sector"),
+    ]
+
+    def ids(ds_ids, chart_ids):
+        return [f["id"] for f in compile_native_filters(nf, ds_ids, chart_ids)["native_filter_configuration"]]
+
+    ids, again = ids({"holdings": 1, "holdings_history": 6}, []), ids({"holdings": 2, "holdings_history": 9}, [3])
+    assert ids == again and len(set(ids)) == 3
+    assert all(i.startswith("NATIVE_FILTER-") for i in ids)
+    with pytest.raises(ValueError):
+        compile_native_filters(nf[:1] * 2, {"holdings": 1}, [])

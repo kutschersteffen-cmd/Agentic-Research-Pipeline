@@ -45,6 +45,26 @@ def test_create_dashboard_sends_published_false():
     assert [c.url.path for c in calls if c.method == "PUT"] == ["/api/v1/chart/1", "/api/v1/chart/2"]
 
 
+def test_create_dashboard_sends_json_metadata_and_still_unpublished():
+    c, calls = _client(lambda r: httpx.Response(201, json={"id": 3}))
+    meta = {"native_filter_configuration": [{"id": "NATIVE_FILTER-x"}]}
+    c.create_dashboard("T", "slug", {"k": 1}, [1], json_metadata=meta)
+    body = json.loads(next(c for c in calls if c.url.path == "/api/v1/dashboard/").content)
+    assert body["json_metadata"] == json.dumps(meta) and body["published"] is False
+
+
+def test_create_dashboard_without_json_metadata_sends_empty_object():
+    c, calls = _client(lambda r: httpx.Response(201, json={"id": 3}))
+    c.create_dashboard("T", "slug", {"k": 1}, [])
+    assert json.loads(calls[-1].content)["json_metadata"] == "{}"
+
+
+def test_update_dashboard_sends_json_metadata_only_when_given():
+    c, calls = _client(lambda r: httpx.Response(200, json={}))
+    c.update_dashboard(5, {"k": 1}, [], json_metadata={"a": 1})
+    assert json.loads(calls[-1].content) == {"position_json": json.dumps({"k": 1}), "json_metadata": json.dumps({"a": 1})}
+
+
 def test_error_response_raises_superset_error_with_body():
     c, _ = _client(lambda r: httpx.Response(422, text="bad payload"))
     with pytest.raises(SupersetError) as e:
