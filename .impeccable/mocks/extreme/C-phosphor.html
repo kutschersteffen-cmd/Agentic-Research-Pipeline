@@ -1,0 +1,34 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Phosphor</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;700&display=swap" rel=stylesheet>
+<style>
+:root{--g:#c6ff3d}
+*{box-sizing:border-box;margin:0}
+body{background:#050700;color:var(--g);font:15px/1.5 "Geist Mono",ui-monospace,monospace;min-height:100vh;padding:clamp(16px,4vw,48px);text-shadow:0 0 8px #c6ff3d88;animation:fl 6s infinite}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,#0000 0 2px,#00000055 2px 3px);z-index:2}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,#0000 55%,#000 120%);z-index:3}
+@keyframes fl{0%,96%,100%{opacity:1}97%{opacity:.82}98%{opacity:1}99%{opacity:.9}}
+pre{font:700 clamp(7px,1.45vw,17px)/1.05 "Geist Mono",monospace;white-space:pre;overflow:hidden;margin-bottom:28px}
+.dim{opacity:.55}
+.p{display:grid;grid-template-columns:3ch 24ch 1fr auto;gap:0 2ch;padding:10px 0;border-top:1px dashed #c6ff3d55}
+.p:hover{background:var(--g);color:#050700;text-shadow:none}
+.p.q .st{opacity:.5}
+.bar{letter-spacing:-.05em}
+.cur{display:inline-block;width:.6em;height:1.1em;background:var(--g);vertical-align:-.2em;animation:b 1s steps(1) infinite}
+@keyframes b{50%{opacity:0}}
+@media(max-width:700px){.p{grid-template-columns:3ch 1fr}.p span:nth-child(n+3){grid-column:2}}
+@media(prefers-reduced-motion:reduce){body,.cur{animation:none}}
+</style>
+<pre>
+ █████╗ ██████╗ ██████╗      ▌ AGENTS PROPOSE
+██╔══██╗██╔══██╗██╔══██╗     ▌ PEOPLE RATIFY
+███████║██████╔╝██████╔╝     ▌ NOTHING SHIPS UNSIGNED
+██╔══██║██╔══██╗██╔═══╝
+██║  ██║██║  ██║██║          
+╚═╝  ╚═╝╚═╝  ╚═╝╚═╝          </pre>
+<p class=dim>$ arp status --today 2026-10-02</p>
+<p style="font-size:clamp(1.4rem,3vw,2.6rem);margin:8px 0 28px;font-weight:700">&gt; 15 ITEMS AWAIT RATIFICATION<span class=cur></span></p>
+<div id=l></div>
+<p class=dim style="margin-top:28px">[↑↓] select  [enter] open  [r] review queue  [/] search</p>
+<script src=../directions/shared.js></script><script>
+l.innerHTML=PROCS.map(p=>{const f=Math.min(20,p.w*2);return`<div class="p ${p.w?'':'q'}"><span>${p.k}</span><b>${p.n}</b><span class=bar>[${'█'.repeat(f)}${'░'.repeat(20-f)}]</span><span class=st>${p.s}</span></div><div class=dim style="grid-column:2/-1;margin:-6px 0 8px 5ch">${p.p}</div>`}).join('')
+</script>
