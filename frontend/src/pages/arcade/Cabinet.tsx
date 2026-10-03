@@ -8,7 +8,7 @@ export function Cabinet({ canvasRef, w, h, scale, left, right, phase, headline, 
   left: string; right: string; phase: Phase; headline: string; sub?: string; cta: string; hint?: string; flash?: boolean; onStart: () => void;
 }) {
   return (
-    <div className="cabinet" style={{ aspectRatio: `${w} / ${h}`, maxWidth: w * scale }}>
+    <div className="cabinet" style={{ aspectRatio: `${w} / ${h}`, width: `min(100%, ${w * scale}px, calc((100dvh - var(--cab-chrome, 14.5rem)) * ${w / h}))` }}>
       <div className="cabinet-hud" aria-hidden="true">
         <span className={flash ? "cabinet-score cabinet-score-best" : "cabinet-score"}>{left}</span>
         <span>{right}</span>

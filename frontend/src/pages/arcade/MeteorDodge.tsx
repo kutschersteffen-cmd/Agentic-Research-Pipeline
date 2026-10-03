@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { TouchPad } from "./TouchPad";
 
 const W = 480;
 const H = 640;
@@ -76,6 +77,7 @@ function newRock(x: number, y: number, r: number, vy: number, vx = rnd(-30, 30))
 export function MeteorDodge() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const launch = useRef<() => void>(() => {});
+  const press = useRef<(name: "left" | "right" | "fire", down: boolean) => void>(() => {});
   const [phase, setPhase] = useState<Phase>("title");
   const [score, setScore] = useState(0);
   const [best, setBest] = useState(() => Number(localStorage.getItem(BEST_KEY) ?? 0));
@@ -104,6 +106,11 @@ export function MeteorDodge() {
       setPhase("play"); setScore(0); setNewBest(false);
     };
     launch.current = start;
+    press.current = (name, down) => {
+      if (name === "fire") { if (down && state !== "play") start(); else firing = down; return; }
+      const k = name === "left" ? "arrowleft" : "arrowright";
+      if (down) keys.add(k); else keys.delete(k);
+    };
 
     const burst = (x: number, y: number, n: number, speed: number, life: number, colors: string[] = TONES) => {
       for (let i = 0; i < n; i++) {
@@ -262,9 +269,15 @@ export function MeteorDodge() {
             <button type="button" className="cabinet-go" onClick={() => launch.current()}>
               {phase === "title" ? "PRESS SPACE TO LAUNCH" : "PRESS SPACE TO RETRY"}
             </button>
+            {phase === "title" && <span className="cabinet-hint">← → steer · hold Space to fire · or drag</span>}
           </div>
         )}
       </div>
+      <TouchPad maxWidth={480} pads={[
+        { label: "◀", aria: "Steer left", hold: (d) => press.current("left", d) },
+        { label: "FIRE", aria: "Fire", hold: (d) => press.current("fire", d) },
+        { label: "▶", aria: "Steer right", hold: (d) => press.current("right", d) },
+      ]} />
     </>
   );
 }

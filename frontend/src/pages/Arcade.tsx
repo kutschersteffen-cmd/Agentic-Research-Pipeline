@@ -19,7 +19,7 @@ export function Arcade({ selected }: { selected: string | null }) {
   const game = GAMES.find((g) => g.id === selected);
   if (game) {
     return (
-      <div className="page">
+      <div className="page arcade-game">
         <p className="arcade-back"><a href="#/arcade">← Arcade</a></p>
         <h1>{game.title}</h1>
         <game.Component />

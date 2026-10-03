@@ -135,7 +135,7 @@ export function KartDash() {
       <p className="muted">← → steer (or touch the left / right half). Hold Space to boost, S to brake. Three laps, seven rivals.</p>
       <Cabinet canvasRef={cv} w={W} h={H} scale={3} left={`LAP ${hud.lap}/${LAPS}  ${hud.place === 8 ? "" : ord(hud.place)}`} right={`${fmt(hud.time)}  BEST ${best ? fmt(best) : "-:--.-"}`}
         phase={phase} flash={fresh} headline={phase === "title" ? "KART DASH" : fresh ? "WINNER" : "FINISH"} sub={phase === "over" ? result : undefined}
-        cta={phase === "title" ? "PRESS SPACE TO RACE" : "PRESS SPACE TO RACE AGAIN"} onStart={() => startRef.current()} />
+        cta={phase === "title" ? "PRESS SPACE TO RACE" : "PRESS SPACE TO RACE AGAIN"} hint={phase === "title" ? "← → steer · Space boost · or touch left / right" : undefined} onStart={() => startRef.current()} />
     </>
   );
 }
