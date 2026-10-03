@@ -1,6 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 68 64">
-<style>.i{fill:#141414}.l{stroke:#141414}.s{fill:#ea4c14}@media (prefers-color-scheme:dark){.i{fill:#e8e8e3}.l{stroke:#e8e8e3}.s{fill:#c6ff3d}}</style>
-<path class="l" d="M10 32 34 12M10 32h24M10 32l24 20M34 12l22 20M34 32h22M34 52l22-20" stroke-width="3.5" fill="none"/>
-<rect class="i" x="5" y="27" width="10" height="10"/><rect class="i" x="30" y="8" width="8" height="8"/><rect class="i" x="30" y="28" width="8" height="8"/><rect class="i" x="30" y="48" width="8" height="8"/>
-<rect class="s" x="49" y="25" width="14" height="14"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 62 62">
+<style>.i{fill:#141414}.s{fill:#ea4c14}@media (prefers-color-scheme:dark){.i{fill:#e8e8e3}.s{fill:#c6ff3d}}</style>
+<rect class="i" x="14" y="2" width="10" height="10"/><rect class="s" x="26" y="2" width="10" height="10"/><rect class="i" x="38" y="2" width="10" height="10"/><rect class="i" x="2" y="14" width="10" height="10"/><rect class="i" x="50" y="14" width="10" height="10"/><rect class="i" x="2" y="26" width="10" height="10"/><rect class="i" x="14" y="26" width="10" height="10"/><rect class="i" x="26" y="26" width="10" height="10"/><rect class="i" x="38" y="26" width="10" height="10"/><rect class="i" x="50" y="26" width="10" height="10"/><rect class="i" x="2" y="38" width="10" height="10"/><rect class="i" x="50" y="38" width="10" height="10"/><rect class="i" x="2" y="50" width="10" height="10"/><rect class="i" x="50" y="50" width="10" height="10"/>
 </svg>

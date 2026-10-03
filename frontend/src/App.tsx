@@ -126,13 +126,12 @@ function navigate(tab: TabId, ...params: string[]) {
   window.location.hash = "/" + [tab, ...params].map(encodeURIComponent).join("/");
 }
 
-/** ARP mark: agents fan out; the signal square is where a person ratifies. */
+/** ARP mark: a pixel "A"; the apex square is the signal, where a person ratifies. */
 function ArpMark() {
   return (
-    <svg className="app-sidebar-mark" viewBox="0 0 68 64" aria-hidden="true">
-      <path d="M10 32 34 12M10 32h24M10 32l24 20M34 12l22 20M34 32h22M34 52l22-20" stroke="currentColor" strokeWidth="3.5" fill="none" />
-      <path fill="currentColor" d="M5 27h10v10H5zM30 8h8v8h-8zM30 28h8v8h-8zM30 48h8v8h-8z" />
-      <rect x="49" y="25" width="14" height="14" fill="var(--hi)" />
+    <svg className="app-sidebar-mark" viewBox="0 0 62 62" aria-hidden="true">
+      <path fill="currentColor" d="M14 2h10v10H14zM38 2h10v10H38zM2 14h10v10H2zM50 14h10v10H50zM2 26h10v10H2zM14 26h10v10H14zM26 26h10v10H26zM38 26h10v10H38zM50 26h10v10H50zM2 38h10v10H2zM50 38h10v10H50zM2 50h10v10H2zM50 50h10v10H50z" />
+      <rect x="26" y="2" width="10" height="10" fill="var(--hi)" />
     </svg>
   );
 }

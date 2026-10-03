@@ -2,11 +2,10 @@
 
 Colours, type and components live in [`DESIGN.md`](../DESIGN.md). This file covers the mark only.
 
-## Mark: Fan-out / Fan-in
+## Mark: Pixel A
 
-One task splits into parallel agents (the ink squares) and converges on a single square. That
-last square carries the signal colour because it is where a person ratifies. It is the same
-rule as the UI: colour only appears when a person must act.
+A letter A built from ten squares. The apex is the signal colour: it is where a person
+ratifies what the agents proposed. Same rule as the UI: colour only appears when a person must act.
 
 | File | Use |
 |------|-----|
@@ -17,10 +16,10 @@ rule as the UI: colour only appears when a person must act.
 
 ## Rules
 
-- Ink everywhere except the output square. Never recolour the other squares or the lines.
+- Ink everywhere except the apex square. Never recolour the other squares or change the grid.
 - Square geometry, no rounding, no shadows, no gradients (matches DESIGN.md).
-- Clear space: one output-square width (14 units) on all sides. Minimum size 16px high.
-- On a coloured or photo ground use the single-colour version: all ink or all white, signal square included.
+- Clear space: one square (10 units) on all sides. Minimum size 16px high; the grid stays legible down to 16px.
+- On a coloured or photo ground use the single-colour version: all ink or all white, apex included.
 - Do not use the signal colour for anything else next to the mark.
 
 ## Voice

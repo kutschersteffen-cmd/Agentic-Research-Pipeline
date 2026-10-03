@@ -188,7 +188,7 @@ td, .stat-value, .nav-count { font-variant-numeric: tabular-nums; }
   padding: var(--s-1) var(--s-2) var(--s-3);
 }
 .app-sidebar-mark {
-  width: 30px;
+  width: 28px;
   height: 28px;
   color: var(--accent);
   flex-shrink: 0;
