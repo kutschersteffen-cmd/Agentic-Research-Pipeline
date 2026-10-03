@@ -199,9 +199,13 @@ def index_calibration_save(
 @index_app.command("approve")
 def index_approve(calibration_id: str = typer.Argument(...)) -> None:
     """Approves the latest version of a calibration as the signed-in user. The author cannot."""
+    from arp.api.auth import ROLE_RANK
     from arp.cli._shared import cli_principal
 
     user = cli_principal(get_settings())
+    if ROLE_RANK[user.role] < ROLE_RANK["approver"]:
+        typer.echo(f"Approving a calibration needs the approver role; {user.user_id} is {user.role}.", err=True)
+        raise typer.Exit(1)
     try:
         calibration = _index_store().approve_calibration(calibration_id, user.user_id)
     except ValueError as exc:

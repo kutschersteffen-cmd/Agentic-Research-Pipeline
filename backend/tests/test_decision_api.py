@@ -115,7 +115,7 @@ def test_deriving_again_adds_a_version_instead_of_a_new_framework(client):
     earlier version stays exactly as it was."""
     dataset_id = _upload(client)["dataset_id"]
     first = client.post("/api/decision/mechanisms/derive", json={"dataset_id": dataset_id, "save": True}).json()["config"]
-    client.post(f"/api/decision/mechanisms/{first['framework_id']}/ratify", params={"ratified_by": "A. Novak"})
+    client.post(f"/api/decision/mechanisms/{first['framework_id']}/ratify")
 
     again = client.post(
         "/api/decision/mechanisms/derive", json={"dataset_id": dataset_id, "save": True, "framework_id": first["framework_id"]}
@@ -139,7 +139,7 @@ def test_ratified_versions_are_readable_after_later_edits(client):
 
     v1 = client.get(f"/api/decision/mechanisms/{config['framework_id']}", params={"version": 1}).json()
     assert v1["config"]["ratified"] is True
-    assert v1["config"]["ratified_by"] == "A. Novak"
+    assert v1["config"]["ratified_by"] == PRINCIPAL.name  # a supplied ratified_by is ignored
     assert v1["config"]["min_coverage_pct"] == 60
     assert client.get(f"/api/decision/mechanisms/{config['framework_id']}/versions").json() == [1, 2]
 
@@ -366,3 +366,10 @@ def test_a_company_table_missing_an_indicator_is_flagged(client, tmp_path):
         csv.writer(fh).writerows([r[:c1] + r[c1 + 1 :] for r in rows])
     result = client.post("/api/decision/score", json={"dataset_id": upload(client, path), "framework_id": framework_id}).json()
     assert "C1" in result["missing_columns"]
+
+
+def test_ratify_ignores_a_supplied_ratified_by(client):
+    dataset_id = _upload(client)["dataset_id"]
+    config = client.post("/api/decision/mechanisms/derive", json={"dataset_id": dataset_id, "save": True}).json()["config"]
+    res = client.post(f"/api/decision/mechanisms/{config['framework_id']}/ratify", params={"ratified_by": "Mallory"})
+    assert res.status_code == 200 and res.json()["ratified_by"] == PRINCIPAL.name

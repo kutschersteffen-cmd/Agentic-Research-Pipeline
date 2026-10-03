@@ -19,6 +19,7 @@ from arp.stewardship.benchmark import BenchmarkStore, parse_ishares_holdings, pl
 from arp.stewardship.process import StreamStore  # noqa: E402
 from arp.stewardship.program import ProgramParams, build_proposal, simulate  # noqa: E402
 from arp.storage.engagement_store import EngagementStore  # noqa: E402
+from tests.conftest import PRINCIPAL  # noqa: E402
 
 HEADER = "Ticker,Name,Sector,Asset Class,Market Value,Weight (%),Notional Value,Quantity,Price,Location,Exchange,Currency,FX Rate,Market Currency,Accrual Date"
 ROWS = [
@@ -75,9 +76,10 @@ def test_program_runs_on_an_uploaded_benchmark_and_says_the_scores_are_placehold
 def test_upload_and_unknown_benchmark_errors(tmp_path):
     streams = StreamStore(tmp_path)
     with pytest.raises(HTTPException) as bad:
-        upload_benchmark(BenchmarkUpload(text="not,a,holdings,file", uploaded_by="A"), streams)
+        upload_benchmark(BenchmarkUpload(text="not,a,holdings,file"), streams, PRINCIPAL)
     assert bad.value.status_code == 422
-    listed = upload_benchmark(BenchmarkUpload(text=CSV, uploaded_by="A"), streams)
+    listed = upload_benchmark(BenchmarkUpload(text=CSV), streams, PRINCIPAL)
+    assert listed["uploaded_by"] == PRINCIPAL.name
     assert listed["constituents"] == 4
     stream_id = create_stream(CreateStreamRequest(name="Fund"), streams)["stream_id"]
     with pytest.raises(HTTPException) as unknown:

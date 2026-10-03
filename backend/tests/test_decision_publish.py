@@ -64,7 +64,7 @@ def test_publish_needs_a_ratified_framework_then_freezes_rows_by_id(client, tmp_
 
     assert client.post("/api/decision/publish", json=body).status_code == 422  # draft framework
 
-    client.post(f"/api/decision/mechanisms/{framework_id}/ratify", params={"ratified_by": "A. Reviewer"})
+    client.post(f"/api/decision/mechanisms/{framework_id}/ratify")
 
     published = client.post("/api/decision/publish", json=body)
     assert published.status_code == 200, published.text
@@ -110,7 +110,7 @@ def _upload(client, tmp_path, name, drop=(), edit=None):
 
 def _ratified(client, dataset_id):
     config = client.post("/api/decision/mechanisms/derive", json={"dataset_id": dataset_id, "name": "Climate", "save": True}).json()["config"]
-    client.post(f"/api/decision/mechanisms/{config['framework_id']}/ratify", params={"ratified_by": "A. Reviewer"})
+    client.post(f"/api/decision/mechanisms/{config['framework_id']}/ratify")
     return config["framework_id"]
 
 

@@ -32,8 +32,9 @@ def world(tmp_path):
 
 def _commit(engagements, issue, text, target):
     return add_commitment(
-        CommitmentRequest(company_id="ACME", issue_id=issue.issue_id, text=text, target_date=target, recorded_by="Analyst"),
+        CommitmentRequest(company_id="ACME", issue_id=issue.issue_id, text=text, target_date=target),
         engagements,
+        PRINCIPAL,
     )
 
 
@@ -71,7 +72,7 @@ def test_invalid_target_date_and_unknown_engagement_are_rejected(world):
         _commit(engagements, issue, "x", "next spring")
     assert bad_date.value.status_code == 422
     with pytest.raises(HTTPException) as unknown:
-        add_commitment(CommitmentRequest(company_id="NOPE", issue_id="x", text="x", recorded_by="A"), engagements)
+        add_commitment(CommitmentRequest(company_id="NOPE", issue_id="x", text="x"), engagements, PRINCIPAL)
     assert unknown.value.status_code == 404
 
 

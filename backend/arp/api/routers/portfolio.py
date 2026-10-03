@@ -337,16 +337,18 @@ def get_governance_policy(store: PortfolioStore = Depends(get_portfolio_store), 
 class PolicyChangeRequest(BaseModel):
     setting_name: PolicySettingName
     new_value: float
-    changed_by: str
     reason: str = ""
 
 
 @router.put("/governance/policy", response_model=PolicyChange)
 def update_governance_policy(
-    req: PolicyChangeRequest, store: PortfolioStore = Depends(get_portfolio_store), settings: Settings = Depends(settings_dep)
+    req: PolicyChangeRequest,
+    store: PortfolioStore = Depends(get_portfolio_store),
+    settings: Settings = Depends(settings_dep),
+    principal: Principal = Depends(current_user),
 ) -> PolicyChange:
     try:
-        return governance.set_policy(store, settings, req.setting_name, req.new_value, req.changed_by, req.reason)
+        return governance.set_policy(store, settings, req.setting_name, req.new_value, principal.name, req.reason)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -358,12 +360,16 @@ def list_governance_owners(store: PortfolioStore = Depends(get_portfolio_store))
 
 class OwnerAssignRequest(BaseModel):
     owner: str
-    assigned_by: str
 
 
 @router.put("/governance/owners/{category}", response_model=RiskCategoryOwner)
-def assign_governance_owner(category: str, req: OwnerAssignRequest, store: PortfolioStore = Depends(get_portfolio_store)) -> RiskCategoryOwner:
+def assign_governance_owner(
+    category: str,
+    req: OwnerAssignRequest,
+    store: PortfolioStore = Depends(get_portfolio_store),
+    principal: Principal = Depends(current_user),
+) -> RiskCategoryOwner:
     try:
-        return governance.set_owner(store, category, req.owner, req.assigned_by)
+        return governance.set_owner(store, category, req.owner, principal.name)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc

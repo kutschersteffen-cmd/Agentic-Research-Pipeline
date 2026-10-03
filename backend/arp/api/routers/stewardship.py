@@ -251,7 +251,6 @@ def get_catalogue() -> dict:
 
 class UniverseRequest(BaseModel):
     source: Literal["sample", "portfolio"]
-    set_by: str
 
 
 @router.get("/universe")
@@ -262,9 +261,11 @@ def get_universe(streams: StreamStore = Depends(get_stream_store)) -> dict:
 
 
 @router.put("/universe")
-def put_universe(body: UniverseRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
+def put_universe(
+    body: UniverseRequest, streams: StreamStore = Depends(get_stream_store), principal: Principal = Depends(current_user)
+) -> dict:
     try:
-        HouseUniverseSetting(streams.root).set(body.source, body.set_by)
+        HouseUniverseSetting(streams.root).set(body.source, principal.name)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     return get_universe(streams)
@@ -658,25 +659,19 @@ def get_program_monitor(
     return monitor(streams.root, stream, engagements.list_all(), settings.engagement_sla_days)
 
 
-class RecordRunRequest(BaseModel):
-    recorded_by: str
-
-
 @router.post("/streams/{stream_id}/program/runs")
 def post_program_run(
     stream_id: str,
-    body: RecordRunRequest,
+    principal: Principal = Depends(current_user),
     settings: Settings = Depends(settings_dep),
     streams: StreamStore = Depends(get_stream_store),
     engagements: EngagementStore = Depends(get_engagement_store),
 ) -> dict:
     """Records one monitoring run (a KPI snapshot) against the approved version."""
-    if not body.recorded_by.strip():
-        raise HTTPException(422, "Recording a run needs recorded_by")
     stream = _stream_or_404(streams, stream_id)
     try:
         stream = record_run(
-            stream, monitor(streams.root, stream, engagements.list_all(), settings.engagement_sla_days), body.recorded_by
+            stream, monitor(streams.root, stream, engagements.list_all(), settings.engagement_sla_days), principal.name
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
@@ -822,20 +817,23 @@ class CommitmentRequest(BaseModel):
     issue_id: str
     text: str
     target_date: str | None = None
-    recorded_by: str
 
 
 @router.post("/tracking/commitments")
-def add_commitment(body: CommitmentRequest, engagements: EngagementStore = Depends(get_engagement_store)) -> dict:
+def add_commitment(
+    body: CommitmentRequest,
+    engagements: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
+) -> dict:
     """Logs a commitment the company made, as validated by the person recording it."""
-    if not body.text.strip() or not body.recorded_by.strip():
-        raise HTTPException(422, "A commitment needs text and recorded_by")
+    if not body.text.strip():
+        raise HTTPException(422, "A commitment needs text")
     if body.target_date:
         try:
             datetime.fromisoformat(body.target_date)
         except ValueError as exc:
             raise HTTPException(422, "target_date must be an ISO date") from exc
-    commitment = Commitment(text=body.text, target_date=body.target_date, recorded_by=body.recorded_by)
+    commitment = Commitment(text=body.text, target_date=body.target_date, recorded_by=principal.name)
     try:
         engagements.add_commitment(body.company_id, body.issue_id, commitment)
     except (KeyError, ValueError) as exc:
@@ -914,17 +912,18 @@ def list_benchmarks(streams: StreamStore = Depends(get_stream_store)) -> dict:
 
 class BenchmarkUpload(BaseModel):
     text: str
-    uploaded_by: str
 
 
 @router.post("/benchmarks")
-def upload_benchmark(body: BenchmarkUpload, streams: StreamStore = Depends(get_stream_store)) -> dict:
+def upload_benchmark(
+    body: BenchmarkUpload, streams: StreamStore = Depends(get_stream_store), principal: Principal = Depends(current_user)
+) -> dict:
     """An iShares holdings export (e.g. URTH for MSCI World): equities and weights.
     Uploading the same fund and date again replaces it."""
     if len(body.text) > 5_000_000:
         raise HTTPException(413, "File too large for a holdings export")
     try:
-        record = BenchmarkStore(streams.root).save(parse_ishares_holdings(body.text), body.uploaded_by)
+        record = BenchmarkStore(streams.root).save(parse_ishares_holdings(body.text), principal.name)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     return {k: v for k, v in record.items() if k != "constituents"} | {"constituents": len(record["constituents"])}

@@ -212,25 +212,35 @@ def log_outreach_sent_endpoint(
 class ValidateMeetingSummaryRequest(BaseModel):
     summary: str
     commitments: list[str] = []
-    validated_by: str
 
 
 @router.post("/records/{company_id}/issues/{issue_id}/log-meeting-summary-validated")
-def log_meeting_summary_validated_endpoint(company_id: str, issue_id: str, req: ValidateMeetingSummaryRequest, store: EngagementStore = Depends(get_engagement_store)) -> dict:
+def log_meeting_summary_validated_endpoint(
+    company_id: str,
+    issue_id: str,
+    req: ValidateMeetingSummaryRequest,
+    store: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
+) -> dict:
     """The non-negotiable meeting-notes-validation checkpoint: only after a
     human confirms the drafted summary is accurate does it get logged as
     correspondence and any stated commitments recorded."""
-    return log_meeting_summary_validated(store, company_id, issue_id, req.summary, req.commitments, req.validated_by).model_dump(mode="json")
+    return log_meeting_summary_validated(store, company_id, issue_id, req.summary, req.commitments, principal.name).model_dump(mode="json")
 
 
 class VerifyCommitmentRequest(BaseModel):
     commitment_id: str
-    verified_by: str
 
 
 @router.post("/records/{company_id}/issues/{issue_id}/verify-commitment")
-def verify_commitment_endpoint(company_id: str, issue_id: str, req: VerifyCommitmentRequest, store: EngagementStore = Depends(get_engagement_store)) -> dict:
-    return log_commitment_verified(store, company_id, issue_id, req.commitment_id, req.verified_by).model_dump(mode="json")
+def verify_commitment_endpoint(
+    company_id: str,
+    issue_id: str,
+    req: VerifyCommitmentRequest,
+    store: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
+) -> dict:
+    return log_commitment_verified(store, company_id, issue_id, req.commitment_id, principal.name).model_dump(mode="json")
 
 
 @router.get("/report")

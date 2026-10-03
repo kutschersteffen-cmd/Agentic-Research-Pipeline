@@ -97,8 +97,9 @@ def test_legacy_calibration_without_created_by(api, tmp_path):
         data["approved_by"] = approvals
         path.write_text(json.dumps(data))
         ids[name] = cal.calibration_id
+    # Pre-four-eyes data is grandfathered: both resolve, with or without a recorded approval.
     assert _run(api, ids["old"]).status_code == 200
-    assert _run(api, ids["old2"]).status_code == 404
+    assert _run(api, ids["old2"]).status_code == 200
 
 
 @pytest.fixture
@@ -112,6 +113,7 @@ def cli(tmp_path, monkeypatch):
     users.write_text(json.dumps({"users": [
         {"user_id": "u_alice", "name": "Alice", "role": "approver", "token": "ta"},
         {"user_id": "u_bob", "name": "Bob", "role": "approver", "token": "tb"},
+        {"user_id": "u_ana", "name": "Ana", "role": "analyst", "token": "tn"},
     ]}))
     settings = Settings(indices_dir=tmp_path / "idx", users_file=users)
     monkeypatch.setattr(cli_index, "get_settings", lambda: settings)
@@ -140,4 +142,12 @@ def test_cli_author_cannot_approve(cli):
     cli("ta", "calibration-save", "--name", "c", "--effective-from", "2026-01-01", "--preset", "exclusion_only")
     cal = cli.store.list_calibrations()[0]
     assert cli("ta", "approve", cal.calibration_id).exit_code == 1
+    assert cli.store.get_calibration(cal.calibration_id).approved_by == []
+
+
+def test_cli_analyst_cannot_approve(cli):
+    cli("ta", "calibration-save", "--name", "c", "--effective-from", "2026-01-01", "--preset", "exclusion_only")
+    cal = cli.store.list_calibrations()[0]
+    r = cli("tn", "approve", cal.calibration_id)
+    assert r.exit_code == 1 and "approver" in r.output
     assert cli.store.get_calibration(cal.calibration_id).approved_by == []

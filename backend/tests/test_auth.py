@@ -122,3 +122,41 @@ def test_invalid_row_error_never_leaks_the_token(tmp_path):
     assert str(path) in str(err.value)
     assert "s3cret" not in str(err.value)
     assert "s3cret" not in repr(err.value.__cause__)
+
+
+def _write(tmp_path, rows):
+    path = tmp_path / "users.json"
+    path.write_text(json.dumps({"users": rows}))
+    return path
+
+
+def test_empty_token_row_refused_at_load(tmp_path):
+    with pytest.raises(RuntimeError):
+        load_users(_write(tmp_path, [{"token": "", "user_id": "u", "name": "N", "role": "viewer"}]))
+    with pytest.raises(RuntimeError):
+        load_users(_write(tmp_path, [{"token": "   ", "user_id": "u2", "name": "N", "role": "viewer"}]))
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        [{"token": "dup-s3cret", "user_id": "u1", "name": "A", "role": "viewer"},
+         {"token": "dup-s3cret", "user_id": "u2", "name": "B", "role": "viewer"}],
+        [{"token": "one-s3cret", "user_id": "u1", "name": "A", "role": "viewer"},
+         {"token": "two-s3cret", "user_id": "u1", "name": "B", "role": "viewer"}],
+    ],
+)
+def test_duplicate_token_or_user_id_refused_without_token_text(tmp_path, rows):
+    with pytest.raises(RuntimeError) as err:
+        load_users(_write(tmp_path, rows))
+    assert "s3cret" not in str(err.value)
+
+
+def test_bearer_with_nothing_is_401_even_if_lookup_would_match(tmp_path, monkeypatch):
+    import arp.api.auth as auth
+
+    # Belt and braces: even a users map that somehow holds "" must not let an empty token in.
+    monkeypatch.setattr(auth, "load_users", lambda _p: {"": Principal(user_id="x", name="x", role="approver")})
+    client = TestClient(make_app(Settings(users_file=tmp_path / "u.json", runs_dir=tmp_path / "runs")))
+    for header in ("Bearer", "Bearer ", "Bearer    "):
+        assert client.post("/approve", headers={"Authorization": header}).status_code == 401

@@ -573,8 +573,9 @@ class IndexCalibration(BaseModel):
     @property
     def is_approved(self) -> bool:
         """Approved by someone other than the author. A legacy calibration
-        (no created_by) with any approval counts, so existing data keeps working."""
-        return any(a != self.created_by for a in self.approved_by)
+        (created_by None, saved before four-eyes) is grandfathered as approved,
+        so review dates it governs re-run exactly as before."""
+        return self.created_by is None or any(a != self.created_by for a in self.approved_by)
 
     @property
     def config_hash(self) -> str:

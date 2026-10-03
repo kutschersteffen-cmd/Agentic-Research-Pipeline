@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import Depends, HTTPException, Request
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from arp.api.deps import settings_dep
 from arp.config import Settings
@@ -24,7 +24,7 @@ class Principal(BaseModel):
 
 
 class _UserRow(Principal):
-    token: str
+    token: str = Field(min_length=1)
 
 
 @lru_cache
@@ -40,14 +40,19 @@ def load_users(path: Path) -> dict[str, Principal]:
         else:
             why = type(exc).__name__
         raise RuntimeError(f"Users file {path} is missing or invalid ({why}); see config/users.example.json.") from None
-    return {u.token: Principal(user_id=u.user_id, name=u.name, role=u.role) for u in users}
+    tokens, ids = [u.token.strip() for u in users], [u.user_id for u in users]
+    if not all(tokens) or len(set(tokens)) != len(tokens) or len(set(ids)) != len(ids):
+        # No token text in the message: it ends up in logs.
+        raise RuntimeError(f"Users file {path} has a blank or duplicate token or a duplicate user_id.")
+    return {u.token.strip(): Principal(user_id=u.user_id, name=u.name, role=u.role) for u in users}
 
 
 async def current_user(request: Request, settings: Settings = Depends(settings_dep)) -> Principal:
     if settings.auth_mode == "dev" and request.client and request.client.host in LOOPBACK_HOSTS:
         return Principal(user_id=settings.dev_user, name=settings.dev_user, role="approver")
     scheme, _, token = request.headers.get("Authorization", "").partition(" ")
-    user = load_users(settings.users_file).get(token.strip()) if scheme.lower() == "bearer" else None
+    token = token.strip()
+    user = load_users(settings.users_file).get(token) if scheme.lower() == "bearer" and token else None
     if user is None:
         raise HTTPException(401, "Missing or invalid bearer token", headers={"WWW-Authenticate": "Bearer"})
     return user
