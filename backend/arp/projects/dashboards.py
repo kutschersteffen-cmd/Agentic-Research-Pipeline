@@ -25,12 +25,12 @@ def slugify_dashboard(project_id: str, title: str) -> str:
 
 def scope_to_project(template: DashboardTemplate, project_id: str) -> DashboardTemplate:
     out = template.model_copy(deep=True)
-    for chart in out.charts:
-        if chart.dataset not in SCOPED_DATASETS:
+    for item in (*out.charts, *out.native_filters):
+        if item.dataset not in SCOPED_DATASETS:
             continue
-        if chart.filters.get("project_id", project_id) != project_id:
-            raise ProjectError(f"Chart {chart.title!r} filters on another project")
-        chart.filters["project_id"] = project_id
+        if item.filters.get("project_id", project_id) != project_id:
+            raise ProjectError(f"{getattr(item, 'title', None) or item.name!r} filters on another project")
+        item.filters["project_id"] = project_id
     return out
 
 

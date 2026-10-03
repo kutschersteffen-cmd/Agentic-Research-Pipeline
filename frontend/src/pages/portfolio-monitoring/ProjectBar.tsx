@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
-import { apiMessage, createAndOpen, DEFAULT_NOTIONAL_EUR, STANDARD } from "../../lib/projects";
+import { apiMessage, createAndOpen, dataLine, DEFAULT_NOTIONAL_EUR, STANDARD } from "../../lib/projects";
 import type { OpenedDashboard, OpenResult, ProjectSummary } from "../../types";
 
 const KEY = "arp.project"; // a convenience only: storage may be blocked
@@ -179,11 +179,7 @@ export function ProjectBar({
       {summary && (
         <div className="banner banner-success" aria-live="polite">
           <ul className="citation-list">
-            {summary.data.map((d, i) => (
-              <li key={i}>
-                Data: {Object.entries(d).map(([k, v]) => `${k} ${typeof v === "object" ? JSON.stringify(v) : String(v)}`).join(", ")}
-              </li>
-            ))}
+            {summary.data.length > 0 && <li>{dataLine(summary.data)}</li>}
             {summary.dashboards.map((d) => (
               <li key={d.slug}>
                 {d.title}: <strong>{d.status}</strong>

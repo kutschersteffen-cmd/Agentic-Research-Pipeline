@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import pytest
 
+from arp.bi.compiler import compile_native_filters
 from arp.bi.eval import offline_metas
-from arp.bi.plan import ChartPlan, ChartSpec, DashboardTemplate
+from arp.bi.plan import ChartPlan, ChartSpec, DashboardTemplate, NativeFilter
 from arp.bi.validator import validate_plan
 from arp.projects.dashboards import (
     plan_to_template,
@@ -96,3 +97,37 @@ def test_slug_remainder_may_not_contain_double_hyphen():
     t = DashboardTemplate(slug="arp-a--b--c", title="X", charts=[_spec("A")])
     with pytest.raises(ProjectError):
         provision_project_dashboard(FakeClient(), "a", t)
+
+
+def _nf(dataset="holdings", **kw):
+    return NativeFilter(name="Fund", dataset=dataset, column="portfolio_name", **kw)
+
+
+def test_scope_adds_project_to_native_filters_on_holdings_only_and_is_pure():
+    t = DashboardTemplate(slug="arp-x", title="X", charts=[_spec("A")], native_filters=[_nf(), _nf("company_facts")])
+    before = t.model_dump()
+    out = scope_to_project(t, "alpha")
+    assert t.model_dump() == before
+    assert out.native_filters[0].filters == {"project_id": "alpha"}
+    assert out.native_filters[1].filters == {}
+
+
+def test_scope_refuses_foreign_project_id_on_native_filter():
+    t = DashboardTemplate(slug="arp-x", title="X", charts=[_spec("A")], native_filters=[_nf(filters={"project_id": "beta"})])
+    with pytest.raises(ProjectError):
+        scope_to_project(t, "alpha")
+
+
+def test_unscoped_native_filter_compiles_without_adhoc_filters():
+    cfg = compile_native_filters([_nf()], {"holdings": 1})["native_filter_configuration"][0]
+    assert "adhoc_filters" not in cfg
+
+
+def test_scoped_template_provisions_with_project_filter_in_native_filter_json():
+    plan = ChartPlan(title="T", charts=[_spec("A", groupby=["country"])])
+    client = FakeClient()
+    t = plan_to_template("alpha", "T", plan)
+    provision_project_dashboard(client, "alpha", t)
+    want = {"expressionType": "SIMPLE", "subject": "project_id", "operator": "==", "comparator": "alpha", "clause": "WHERE"}
+    cfgs = next(d["meta"] for d in client.dashboards.values())["native_filter_configuration"]
+    assert len(cfgs) == 3 and all(c["adhoc_filters"] == [want] for c in cfgs)

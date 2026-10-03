@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { apiMessage, createAndOpen, embeddable, saveBody } from "../src/lib/projects.ts";
+import { apiMessage, dataLine, createAndOpen, embeddable, saveBody } from "../src/lib/projects.ts";
 
 const dash = (id: number | null, slug = "arp-p--a") => ({ id, slug, title: slug, published: true, status: "created" });
 
@@ -142,4 +142,12 @@ test("a failed open in project mode empties the project list and selects nothing
   );
   assert.deepEqual(s.projectDashboards, []);
   assert.equal(s.selectedId, null);
+});
+
+test("dataLine summarises funds, holdings and notional, with a generic fallback", () => {
+  const d = (n: number, h: number[]) => ({ notional_eur: n, portfolios: h.map((x) => ({ holdings_written: x })) });
+  assert.equal(dataLine([d(100e6, [1000, 1000, 500, 329])]), "4 funds, 2,829 holdings, EUR 400.0M");
+  assert.equal(dataLine([d(20e6, [6])]), "1 fund, 6 holdings, EUR 20.0M");
+  assert.equal(dataLine([]), "Data loaded");
+  assert.equal(dataLine([{ kind: "x" }]), "Data loaded");
 });

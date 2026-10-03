@@ -103,3 +103,19 @@ export function reducePicker(s: PickerState, e: PickerEvent): PickerState {
       return { ...s, projectDashboards: [...(s.projectDashboards ?? []).filter((d) => d.id !== e.item.id), e.item], selectedId: e.item.id };
   }
 }
+
+/** One readable line for an open's data summaries ({notional_eur, portfolios: [{holdings_written}]} each):
+ * "4 funds, 2,829 holdings, EUR 400.6M". Notional is per file, so the total is notional x funds. */
+export function dataLine(data: Record<string, unknown>[]): string {
+  let funds = 0, holdings = 0, eur = 0;
+  for (const d of data) {
+    const ps = Array.isArray(d.portfolios) ? (d.portfolios as Record<string, unknown>[]) : [];
+    funds += ps.length;
+    for (const p of ps) holdings += Number(p?.holdings_written) || 0;
+    eur += (Number(d.notional_eur) || 0) * ps.length;
+  }
+  if (funds === 0) return "Data loaded";
+  const parts = [`${funds} ${funds === 1 ? "fund" : "funds"}`, `${holdings.toLocaleString("en-US")} holdings`];
+  if (eur > 0) parts.push(`EUR ${(eur / 1e6).toFixed(1)}M`);
+  return parts.join(", ");
+}
