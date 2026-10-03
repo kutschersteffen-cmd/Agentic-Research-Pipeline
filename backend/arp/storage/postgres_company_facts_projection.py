@@ -175,6 +175,8 @@ def resolve_extraction_fact(
             merged = {**f, **edit, "field_id": f["field_id"]}
             if edit.get("value") is not None and "value_state" not in edit:  # a supplied value is no longer not_found
                 merged["value_state"] = "zero" if edit["value"] == 0 else "found"
+            if "value" in edit and not ({"canonical_value", "canonical_unit"} & edit.keys()):
+                merged["canonical_value"] = merged["canonical_unit"] = None  # never leave the old canonical beside an edited value
             value["fields"][i] = merged
     status = next(st for st in ("pending_review", "rejected", "edited", "approved") if st in outcomes)
     return value, status, None if status == "pending_review" else reviewer

@@ -8,9 +8,11 @@ export interface Me {
  * company-level rows and new per-field rows both work. */
 export const itemKeyOf = (row: { item_key: string }): string => row.item_key;
 
-/** Key of one extracted field's decision: per-field for new runs, `company:field` for old ones. */
-export const fieldItemKey = (r: { company_id: string; issuer_key?: string | null }, fieldId: string): string =>
-  r.issuer_key ? `${r.issuer_key}:${fieldId}:unspecified` : `${r.company_id}:${fieldId}`;
+/** Key of one extracted field's decision: per-field and per-period for new runs, `company:field` for old ones. */
+export const fieldItemKey = (
+  r: { company_id: string; issuer_key?: string | null },
+  f: { field_id: string; period_end?: string | null },
+): string => (r.issuer_key ? `${r.issuer_key}:${f.field_id}:${f.period_end ?? "unspecified"}` : `${r.company_id}:${f.field_id}`);
 
 /** An override counts once a different approver co-signs it. */
 export function canCosign(

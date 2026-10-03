@@ -209,3 +209,17 @@ def test_edit_supplying_value_clears_not_found():
     for edit, state in (({"value": 5}, "found"), ({"value": 0}, "zero"), ({"value": 5, "value_state": "not_applicable"}, "not_applicable")):
         value, _, _ = resolve_extraction_fact("acme", row, {key: {"decision": "edit", "edited_value": edit}}, {key})
         assert value["fields"][0]["value_state"] == state
+
+
+def test_edit_with_value_only_clears_stale_canonical():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    row = _extraction_row()
+    row["fields"][1].update(canonical_value=1000, canonical_unit="kg")
+    key_b = "ARP:x:b:unspecified"
+    edit = {key_b: {"decision": "edit", "edited_value": {"value": 5}}}
+    f = resolve_extraction_fact("acme", row, edit, {key_b})[0]["fields"][1]
+    assert (f["value"], f["canonical_value"], f["canonical_unit"]) == (5, None, None)
+    edit = {key_b: {"decision": "edit", "edited_value": {"value": 5, "canonical_value": 5, "canonical_unit": "kg"}}}
+    f = resolve_extraction_fact("acme", row, edit, {key_b})[0]["fields"][1]
+    assert (f["canonical_value"], f["canonical_unit"]) == (5, "kg")

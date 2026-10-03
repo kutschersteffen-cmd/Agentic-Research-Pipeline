@@ -24,6 +24,9 @@ export function CitationList({ citations, onOpenSource }: Props) {
             </span>
           )}{" "}
           [{c.doc_type}] "{c.quote}"
+          {c.match_method === "fuzzy" && (
+            <span className="muted" title="The quote matched the source only approximately"> fuzzy match{c.match_score != null ? ` ${c.match_score.toFixed(2)}` : ""}</span>
+          )}
           {c.grounded && c.company_id && c.source_filename && (
             <>
               {" "}

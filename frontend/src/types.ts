@@ -108,6 +108,13 @@ export interface Citation {
   sheet?: string | null;
   company_id?: string | null;
   source_filename?: string | null;
+  span_text?: string | null;
+  char_start?: number | null;
+  char_end?: number | null;
+  match_method?: "exact" | "normalised" | "fuzzy" | null;
+  match_score?: number | null;
+  passage_id?: string | null;
+  parser_version?: string | null;
 }
 
 export interface AgentOpinion {
@@ -190,6 +197,7 @@ export interface FieldDefinition {
   required: boolean;
   source_doc_types: DocType[];
   seed_keywords: string[];
+  status?: "draft" | "released" | "retired";
 }
 
 export interface DataPointSchema {
@@ -198,6 +206,7 @@ export interface DataPointSchema {
   description: string;
   fields: FieldDefinition[];
   created_at: string;
+  release_flag?: boolean;
 }
 
 export interface ExtractedField {
@@ -210,6 +219,18 @@ export interface ExtractedField {
   grounded: boolean;
   verifier_notes?: string | null;
   conflicting_sources: boolean;
+  value_state?: "found" | "not_found" | "not_applicable" | "zero";
+  unit?: string | null;
+  canonical_value?: string | number | null;
+  canonical_unit?: string | null;
+  period_start?: string | null;
+  period_end?: string | null;
+  basis?: string | null;
+  qualifiers?: string[] | null;
+  scale_applied?: number | null;
+  fx_rate?: number | null;
+  fx_rate_ref?: string | null;
+  review_reasons?: string[] | null;
 }
 
 export interface ExtractionRecord {

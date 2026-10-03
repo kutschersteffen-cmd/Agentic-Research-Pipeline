@@ -7,6 +7,7 @@ import { ScoringTemplatePicker } from "../components/RunScoring";
 import { PipelineEditor } from "../components/PipelineEditor";
 import { StepTabs, type StepTab } from "../components/StepTabs";
 import { StageFlowChart } from "../components/StageFlowChart";
+import { isReleased } from "../lib/fieldValue";
 import { FlowRuns } from "../components/FlowRuns";
 import { IdentityStage } from "../components/IdentityStage";
 import { DocumentsStage } from "../components/DocumentsStage";
@@ -133,6 +134,8 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const toStart = jobsToStart(jobs, flow.extractRuns, flow.extractStale, flow.freshJobs);
   const canStart = inputs.length > 0 && toStart.length > 0;
 
+  const isTrial = (job: Job) => job.profile === "custom" && !!job.schema && !isReleased(job.schema);
+
   async function startOne(job: Job): Promise<string> {
     if (job.profile === "tnfd" && !asOf.trim()) throw new Error("Set the TNFD reporting period on Companies first.");
     const s = settings[job.id] ?? NO_SETTINGS;
@@ -145,6 +148,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
     const res = await api.startExtraction({
       profile: job.profile,
       datapoint_schema: job.profile === "custom" ? job.schema : undefined,
+      trial: isTrial(job),
       as_of: job.profile === "tnfd" ? asOf : undefined,
       ...(inputs.length === 1 ? { universe_path: inputs[0].path } : { companies: mergeCompanies(inputs) }),
       decision_framework_id: s.templateId ?? undefined,
@@ -439,6 +443,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
                 : "No companies handed over yet: carry them through Identify and Documents, or skip those stages."}
             </p>
             {inputs.length > 0 && leftOut > 0 && <p className="await-text">{leftOut} companies are still onboarding and will be left out</p>}
+            {toStart.some(isTrial) && <p className="await-text">Trial run: the custom schema is not released, so results are not final.</p>}
             {flow.extractStale && <p className="await-text">Inputs changed since this run</p>}
             <button onClick={startAll} disabled={busy || !canStart}>
               Start extraction
