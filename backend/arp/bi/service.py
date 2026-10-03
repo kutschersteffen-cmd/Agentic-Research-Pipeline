@@ -147,11 +147,12 @@ async def ask_chart(question: str, llm: LLMClient, client: SupersetClient) -> De
     return await asyncio.to_thread(_add_to_scratch, client, plan, ids)
 
 
-def embed_token(client: SupersetClient, dashboard_id: str, rls: list[dict] | None = None) -> str:
-    """Guest token for embedding the dashboard. Guest tokens name the
-    dashboard's embedded UUID, not its id, so embedding is enabled first
-    (idempotent). `rls` is the row-level-security hook; empty in v1."""
+def embed_token(client: SupersetClient, dashboard_id: str, rls: list[dict] | None = None) -> tuple[str, str]:
+    """(embedded UUID, guest token) for embedding the dashboard. Guest tokens
+    and the embed SDK name the embedded UUID, not the id, so embedding is
+    enabled first (idempotent). `rls` is the row-level-security hook; empty in v1."""
     try:
-        return client.guest_token(client.ensure_embedded(int(dashboard_id)), rls or [])
+        embedded_id = client.ensure_embedded(int(dashboard_id))
+        return embedded_id, client.guest_token(embedded_id, rls or [])
     except _ERRORS as e:
         raise BIError(f"Superset: {e}") from e

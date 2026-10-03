@@ -273,5 +273,5 @@ def test_no_code_path_publishes():
 
 def test_embed_token_ensures_embedded_first():
     client = FakeClient()
-    assert embed_token(client, "7") == "tok"
+    assert embed_token(client, "7") == ("uuid-1", "tok")
     assert client.calls == [("ensure_embedded", 7), ("guest_token", "uuid-1", [])]

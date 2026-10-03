@@ -35,6 +35,7 @@ class EmbedRequest(BaseModel):
 
 class EmbedToken(BaseModel):
     token: str
+    embedded_id: str  # the UUID the embed SDK mounts, not the numeric dashboard id
 
 
 def _bad_gateway(e: Exception) -> HTTPException:
@@ -73,6 +74,7 @@ async def ask(
 @router.post("/embed-token", response_model=EmbedToken)
 async def embed_token(req: EmbedRequest, client: SupersetClient = Depends(get_superset_client)) -> EmbedToken:
     try:
-        return EmbedToken(token=await asyncio.to_thread(service.embed_token, client, req.dashboard_id))
+        embedded_id, token = await asyncio.to_thread(service.embed_token, client, req.dashboard_id)
+        return EmbedToken(token=token, embedded_id=embedded_id)
     except (BIError, SupersetError, httpx.HTTPError) as e:
         raise _bad_gateway(e) from e

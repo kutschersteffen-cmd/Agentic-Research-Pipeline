@@ -212,8 +212,8 @@ def test_live_service_design_covers_every_viz_type(settings):
             assert again.dashboard_id == res.dashboard_id  # same plan hash: reused
             assert client.dashboard_charts(res.dashboard_id) == charts  # and nothing new created
 
-        token = embed_token(client, str(dash_ids[0]))
-        assert isinstance(token, str) and token
+        embedded_id, token = embed_token(client, str(dash_ids[0]))
+        assert isinstance(token, str) and token and embedded_id
     finally:
         for dash_id in dash_ids:
             with contextlib.suppress(SupersetError):  # one already gone must not leak the rest

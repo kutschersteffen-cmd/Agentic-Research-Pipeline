@@ -95,7 +95,7 @@ def test_502_logs_body_server_side(caplog):
 def test_embed_token_returns_token():
     fake = FakeClient()
     r = _app(FakeLLM(), fake).post("/api/bi/embed-token", json={"dashboard_id": "7"})
-    assert r.status_code == 200 and r.json() == {"token": "tok"}
+    assert r.status_code == 200 and r.json() == {"token": "tok", "embedded_id": "uuid-1"}
     assert ("ensure_embedded", 7) in fake.calls
 
 
