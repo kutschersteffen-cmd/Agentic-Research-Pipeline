@@ -24,7 +24,7 @@
 #   docker compose up backend frontend --build        # just the app
 #   docker compose up -d postgres opensearch minio     # just the dev infra
 #   Then:  arp db init-postgres && arp db init-opensearch && arp db init-object-store
-#   docker compose up -d postgres superset            # BI (arp/bi/), then:
+#   docker compose --env-file backend/.env up -d postgres superset   # BI (arp/bi/), then:
 #          arp db init-postgres && arp bi bootstrap
 
 services:
@@ -139,15 +139,22 @@ services:
   # boot if missing); ARP data is read through the `bi_reader` role that
   # `arp bi bootstrap` registers. Secrets (SUPERSET_SECRET_KEY,
   # SUPERSET_GUEST_TOKEN_JWT_SECRET, ARP_SUPERSET_PASSWORD) come from
-  # backend/.env and have no defaults. Loopback-only like everything here.
+  # backend/.env via `docker compose --env-file backend/.env ...` and have no
+  # defaults. Loopback-only like everything here.
   superset:
     build: ./superset  # apache/superset:5.0.0 plus the Postgres driver
     image: arp-superset:5.0.0
     entrypoint: ["/app/pythonpath/entrypoint.sh"]
-    env_file:
-      - backend/.env
+    # Only what Superset needs, interpolated from the shell or `--env-file
+    # backend/.env` -- never the whole backend env (LLM keys, DSNs, ...).
+    # `:-` rather than `:?`, so the other services still start without these;
+    # superset_config.py/entrypoint.sh refuse empty or placeholder values.
     environment:
       SUPERSET_DATABASE_URI: postgresql+psycopg2://arp:arp@postgres:5432/superset
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-}
+      SUPERSET_GUEST_TOKEN_JWT_SECRET: ${SUPERSET_GUEST_TOKEN_JWT_SECRET:-}
+      ARP_SUPERSET_USER: ${ARP_SUPERSET_USER:-arp_designer}
+      ARP_SUPERSET_PASSWORD: ${ARP_SUPERSET_PASSWORD:-}
     ports:
       - "127.0.0.1:8088:8088"
     volumes:
