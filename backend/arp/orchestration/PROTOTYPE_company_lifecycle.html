@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE - company lifecycle (throwaway)</title>
+<style>
+  :root { --ink:#1b1f24; --muted:#5b6570; --line:#d9dee3; --bg:#fafaf8; --accent:#1f5f8b; --bad:#a63d2f; --ok:#2f7d4f; }
+  * { box-sizing:border-box; }
+  body { font:15px/1.5 system-ui,sans-serif; color:var(--ink); background:var(--bg); margin:0; padding:32px 16px 64px; }
+  main { max-width:880px; margin:0 auto; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:32px 0 10px; }
+  .tag { display:inline-block; font-size:12px; background:#fff3cd; border:1px solid #e6d28a; padding:1px 8px; border-radius:99px; margin-bottom:8px; }
+  .question { background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 16px; margin:16px 0; }
+  .panel { background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px; }
+  dl { display:grid; grid-template-columns:200px 1fr; gap:6px 16px; margin:0; }
+  dt { color:var(--muted); } dd { margin:0; font-weight:600; }
+  dd.changed { background:#e8f1f7; border-radius:4px; padding:0 6px; margin-left:-6px; }
+  .stage { font-size:18px; color:var(--accent); }
+  .row { display:flex; flex-wrap:wrap; gap:8px; }
+  button { font:inherit; padding:6px 12px; border:1px solid var(--line); background:#fff; border-radius:6px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button.step-done { opacity:.45; }
+  .tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:1px solid var(--line); margin-bottom:12px; }
+  .tab { border:none; border-bottom:2px solid transparent; border-radius:0; background:none; }
+  .tab[aria-selected=true] { border-bottom-color:var(--accent); color:var(--accent); font-weight:600; }
+  .log { font:13px/1.6 ui-monospace,monospace; max-height:220px; overflow:auto; }
+  .log .err { color:var(--bad); } .log .ok { color:var(--ok); }
+  label { color:var(--muted); margin-right:8px; }
+  small { color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <span class="tag">PROTOTYPE - throwaway, wipe me. No persistence, no tests.</span>
+  <h1>How does the pipeline move a company?</h1>
+
+  <div class="question">
+    <strong>The question this demo answers:</strong> a company goes
+    <em>identity &rarr; document discovery &rarr; extraction &rarr; review &rarr; data library</em>
+    (the "Onboard a portfolio" path). Does the order feel right when things go wrong? Specifically:
+    can a company get stuck, can it skip a step, and what should happen when a <strong>new document
+    appears after a company was already approved</strong>? (Today nothing marks the approved figures as out of date. This demo
+    lets you choose.)
+    <br><small>Assumptions: review is per company here (the real queue is per field); "edit" in identity review
+    means a person typed the website/CIK; stages and checks mirror
+    <code>docs/PROCESS_VIEW.md</code>, <code>schemas/discovery.py</code> and <code>schemas/datapoints.py</code>.</small>
+  </div>
+
+  <h2>Current state</h2>
+  <div class="panel" id="state"></div>
+
+  <h2>Free play</h2>
+  <div class="panel">
+    <div class="row" style="margin-bottom:12px">
+      <label><input type="checkbox" id="staleRule"> When a document changes after approval, send the company back to extraction</label>
+    </div>
+    <div class="row" id="free"></div>
+  </div>
+
+  <h2>Guided walkthroughs</h2>
+  <div class="panel">
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <p id="desc"></p>
+    <div class="row" id="steps"></div>
+  </div>
+
+  <h2>What happened</h2>
+  <div class="panel log" id="log"></div>
+</main>
+
+<script>
+// ===== Portable logic: pure, no DOM. Lift this block into the real module. =====
+const Lifecycle = (() => {
+  const initial = (opts = {}) => ({
+    identity: "unresolved",      // unresolved | uncertain | resolved | rejected
+    discovery: "not_started",    // not_started | found | unreachable | none_found
+    docVersion: 0,               // bumps each time a new/updated document arrives
+    extractedFromVersion: null,  // doc version the current extraction was read from
+    extraction: "pending",       // pending | clean | flagged
+    flagReason: null,
+    review: "none",              // none | approved | edited | rejected
+    sendBackWhenStale: !!opts.sendBackWhenStale,
+    events: [],
+  });
+
+  const isStale = (s) => s.extractedFromVersion !== null && s.extractedFromVersion < s.docVersion;
+
+  const inLibrary = (s) =>
+    s.extraction !== "pending" && !(isStale(s) && s.sendBackWhenStale) &&
+    (s.extraction === "clean" || s.review === "approved" || s.review === "edited");
+
+  const stage = (s) => {
+    if (s.identity === "rejected") return "Dropped: identity rejected";
+    if (s.identity === "uncertain") return "Identity review";
+    if (s.identity === "unresolved") return "Identity resolution";
+    if (s.review === "rejected") return "Dropped: figures rejected";
+    if (s.discovery === "not_started" || s.discovery === "unreachable" || s.discovery === "none_found") return "Document discovery";
+    if (s.extraction === "pending" || (isStale(s) && s.sendBackWhenStale)) return "Extraction";
+    if (s.extraction === "flagged" && s.review === "none") return "Extraction review";
+    if (inLibrary(s)) return isStale(s) ? "Data library (STALE)" : "Data library";
+    return "Extraction";
+  };
+
+  // Which actions are legal right now, and why not when they are not.
+  const check = (s, a) => {
+    switch (a.type) {
+      case "resolve_clean": case "resolve_uncertain": case "resolve_fail":
+        return s.identity === "unresolved" ? null : "Identity is already " + s.identity + ".";
+      case "review_identity":
+        return s.identity === "uncertain" ? null : "Nothing to review: identity is " + s.identity + ".";
+      case "crawl_found": case "crawl_unreachable": case "crawl_none":
+        if (s.identity !== "resolved") return "Discovery needs a resolved identity first (it is fed by the enriched universe).";
+        if (s.discovery === "found") return "Documents already found. Use 'A document changed'.";
+        return null;
+      case "doc_changed":
+        return s.discovery === "found" ? null : "No documents yet, so nothing can change.";
+      case "extract_clean": case "extract_flagged":
+        if (s.discovery !== "found") return "Extraction needs at least one document.";
+        if (s.extraction !== "pending" && !(isStale(s) && s.sendBackWhenStale)) return "Already extracted. (Turn on the stale rule to re-extract after a change.)";
+        return null;
+      case "review_extraction":
+        if (s.extraction !== "flagged") return "Only flagged extractions go to review.";
+        if (s.review !== "none" && !(isStale(s) && s.sendBackWhenStale)) return "Already reviewed (" + s.review + ").";
+        return null;
+    }
+    return "Unknown action.";
+  };
+
+  const reduce = (s, a) => {
+    const err = check(s, a);
+    if (err) return { state: s, error: err };
+    const n = { ...s, events: [...s.events] };
+    const say = (m) => n.events.push(m);
+    switch (a.type) {
+      case "resolve_clean": n.identity = "resolved"; say("Identity resolved with high confidence."); break;
+      case "resolve_uncertain": n.identity = "uncertain"; say("Identity match is uncertain: queued for a person."); break;
+      case "resolve_fail": n.identity = "uncertain"; say("No match found: queued for a person to fill in website/CIK."); break;
+      case "review_identity":
+        n.identity = a.decision === "reject" ? "rejected" : "resolved";
+        say("Reviewer chose '" + a.decision + "' on identity."); break;
+      case "crawl_found": n.discovery = "found"; n.docVersion = 1; say("Crawl found documents (new_document event)."); break;
+      case "crawl_unreachable": n.discovery = "unreachable"; say("Homepage unreachable. Recorded as unreachable, not as '0 documents'."); break;
+      case "crawl_none": n.discovery = "none_found"; say("Homepage fetched fine but nothing matched."); break;
+      case "doc_changed":
+        n.docVersion += 1;
+        say("A document changed (updated_document event, version " + n.docVersion + ")." +
+            (isStale(n) ? (n.sendBackWhenStale ? " Extraction is now stale: sent back." : " Extraction is now stale, but nothing reacts to it.") : ""));
+        break;
+      case "extract_clean":
+        n.extraction = "clean"; n.flagReason = null; n.review = "none"; n.extractedFromVersion = n.docVersion;
+        say("Extracted. Every figure grounded, verifier agrees: no review needed."); break;
+      case "extract_flagged":
+        n.extraction = "flagged"; n.flagReason = a.reason; n.review = "none"; n.extractedFromVersion = n.docVersion;
+        say("Extracted but flagged (" + a.reason + "): needs review."); break;
+      case "review_extraction":
+        n.review = a.decision === "reject" ? "rejected" : a.decision === "edit" ? "edited" : "approved";
+        say("Reviewer chose '" + a.decision + "' on the extracted figures (permanent audit trail)."); break;
+    }
+    return { state: n, error: null };
+  };
+
+  return { initial, reduce, stage, inLibrary, isStale, check };
+})();
+// ===== End portable logic. Everything below is the throwaway page. =====
+
+const $ = (id) => document.getElementById(id);
+let S = Lifecycle.initial();
+let prev = S;
+const logLines = [];
+
+const ACTIONS = [
+  ["Identity: resolved cleanly", { type: "resolve_clean" }],
+  ["Identity: uncertain match", { type: "resolve_uncertain" }],
+  ["Identity: no match", { type: "resolve_fail" }],
+  ["Identity review: approve", { type: "review_identity", decision: "approve" }],
+  ["Identity review: edit (type website/CIK)", { type: "review_identity", decision: "edit" }],
+  ["Identity review: reject", { type: "review_identity", decision: "reject" }],
+  ["Crawl: documents found", { type: "crawl_found" }],
+  ["Crawl: homepage unreachable", { type: "crawl_unreachable" }],
+  ["Crawl: nothing matched", { type: "crawl_none" }],
+  ["A document changed", { type: "doc_changed" }],
+  ["Extract: clean", { type: "extract_clean" }],
+  ["Extract: flagged (low confidence)", { type: "extract_flagged", reason: "low confidence" }],
+  ["Extract: flagged (not grounded)", { type: "extract_flagged", reason: "citation not found in source" }],
+  ["Extraction review: approve", { type: "review_extraction", decision: "approve" }],
+  ["Extraction review: edit", { type: "review_extraction", decision: "edit" }],
+  ["Extraction review: reject", { type: "review_extraction", decision: "reject" }],
+];
+
+const SCENARIOS = [
+  { name: "Happy path", stale: false,
+    desc: "Everything goes right. Watch what must be true before the company reaches the data library.",
+    steps: ["Identity: resolved cleanly", "Crawl: documents found", "Extract: clean"] },
+  { name: "Uncertain identity", stale: false,
+    desc: "The match is uncertain, so a person fixes it by hand. Watch that discovery cannot start until they do.",
+    steps: ["Identity: uncertain match", "Crawl: documents found", "Identity review: edit (type website/CIK)", "Crawl: documents found", "Extract: flagged (low confidence)", "Extraction review: approve"] },
+  { name: "Unreachable site", stale: false,
+    desc: "The IR site is down. Watch that 'unreachable' is kept apart from 'nothing matched', and that the crawl can be retried.",
+    steps: ["Identity: resolved cleanly", "Crawl: homepage unreachable", "Extract: clean", "Crawl: documents found", "Extract: clean"] },
+  { name: "Rejected", stale: false,
+    desc: "A reviewer rejects the identity. Watch where the company ends up and whether anything can bring it back.",
+    steps: ["Identity: no match", "Identity review: reject", "Crawl: documents found"] },
+  { name: "Document changes after approval", stale: false,
+    desc: "THE OPEN QUESTION. The company is approved, then a newer annual report arrives. With the stale rule off (today), nothing happens. Tick the rule above and replay it.",
+    steps: ["Identity: resolved cleanly", "Crawl: documents found", "Extract: flagged (not grounded)", "Extraction review: approve", "A document changed", "Extract: clean"] },
+];
+
+function render() {
+  const rows = [
+    ["Stage", Lifecycle.stage(S), Lifecycle.stage(prev)],
+    ["Identity", S.identity, prev.identity],
+    ["Discovery", S.discovery, prev.discovery],
+    ["Document version", S.docVersion, prev.docVersion],
+    ["Extracted from version", S.extractedFromVersion ?? "-", prev.extractedFromVersion ?? "-"],
+    ["Extraction", S.extraction + (S.flagReason ? " (" + S.flagReason + ")" : ""), prev.extraction + (prev.flagReason ? " (" + prev.flagReason + ")" : "")],
+    ["Review", S.review, prev.review],
+    ["Figures out of date?", Lifecycle.isStale(S) ? "YES" : "no", Lifecycle.isStale(prev) ? "YES" : "no"],
+    ["In the data library?", Lifecycle.inLibrary(S) ? "yes" : "no", Lifecycle.inLibrary(prev) ? "yes" : "no"],
+  ];
+  $("state").innerHTML = "<dl>" + rows.map(([k, v, p], i) =>
+    "<dt>" + k + "</dt><dd class='" + (String(v) !== String(p) ? "changed" : "") + (i === 0 ? " stage" : "") + "'>" + v + "</dd>").join("") + "</dl>";
+  $("log").innerHTML = logLines.slice().reverse().join("");
+}
+
+function act(a) {
+  S.sendBackWhenStale = $("staleRule").checked;
+  const r = Lifecycle.reduce(S, a);
+  prev = S;
+  if (r.error) { logLines.push("<div class='err'>Blocked: " + r.error + "</div>"); }
+  else {
+    S = r.state;
+    logLines.push("<div class='ok'>" + S.events[S.events.length - 1] + "</div>");
+  }
+  render();
+}
+
+function reset(stale) {
+  $("staleRule").checked = !!stale;
+  S = Lifecycle.initial({ sendBackWhenStale: !!stale });
+  prev = S; logLines.length = 0;
+  render();
+}
+
+$("staleRule").addEventListener("change", () => { S = { ...S, sendBackWhenStale: $("staleRule").checked }; render(); });
+ACTIONS.forEach(([label, a]) => {
+  const b = document.createElement("button"); b.textContent = label; b.onclick = () => act(a); $("free").appendChild(b);
+});
+const r0 = document.createElement("button"); r0.textContent = "Reset"; r0.className = "primary"; r0.onclick = () => reset($("staleRule").checked); $("free").appendChild(r0);
+
+function showScenario(i) {
+  const sc = SCENARIOS[i];
+  document.querySelectorAll(".tab").forEach((t, j) => t.setAttribute("aria-selected", j === i));
+  $("desc").textContent = sc.desc;
+  reset(sc.stale);
+  $("steps").innerHTML = "";
+  sc.steps.forEach((label, n) => {
+    const a = ACTIONS.find(([l]) => l === label)[1];
+    const b = document.createElement("button");
+    b.textContent = (n + 1) + ". " + label;
+    b.onclick = () => { act(a); b.classList.add("step-done"); };
+    $("steps").appendChild(b);
+  });
+}
+SCENARIOS.forEach((sc, i) => {
+  const t = document.createElement("button"); t.className = "tab"; t.setAttribute("role", "tab"); t.textContent = sc.name;
+  t.onclick = () => showScenario(i); $("tabs").appendChild(t);
+});
+showScenario(0);
+</script>
+</body>
+</html>
