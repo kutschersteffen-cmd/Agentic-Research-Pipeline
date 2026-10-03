@@ -53,3 +53,12 @@ def test_designer_password_placeholder_rejected(monkeypatch):
         config.required("ARP_SUPERSET_PASSWORD")
     monkeypatch.setenv("ARP_SUPERSET_PASSWORD", "a-real-password")
     assert config.required("ARP_SUPERSET_PASSWORD") == "a-real-password"
+
+
+def test_embeddable_from_the_cross_origin_isolated_ui(monkeypatch):
+    """The ARP UI sends COEP require-corp; without these Chrome blocks the iframe
+    (ERR_BLOCKED_BY_RESPONSE, CorpNotSameOriginAfterDefaultedToSameOriginByCoep)."""
+    headers = _load(monkeypatch).OVERRIDE_HTTP_HEADERS
+    assert headers["Cross-Origin-Resource-Policy"] == "cross-origin"
+    assert headers["Cross-Origin-Embedder-Policy"] in {"require-corp", "credentialless"}
+    assert "http://localhost:5173" in _load(monkeypatch).TALISMAN_CONFIG["content_security_policy"]["frame-ancestors"]

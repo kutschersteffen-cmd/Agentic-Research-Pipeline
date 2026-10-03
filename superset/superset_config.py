@@ -55,3 +55,12 @@ TALISMAN_CONFIG = {
 
 # No cache backend in v1: Superset's default CACHE_CONFIG/DATA_CACHE_CONFIG
 # are NullCache, which is what we want.
+
+# The ARP UI is cross-origin isolated (COEP require-corp, for the Decision
+# Studio's threaded WebAssembly), and such a page only frames a cross-origin
+# document that opts in with CORP and is itself under COEP. `credentialless`
+# keeps Superset's own no-cors loads working without CORP on each of them.
+OVERRIDE_HTTP_HEADERS = {
+    "Cross-Origin-Resource-Policy": "cross-origin",
+    "Cross-Origin-Embedder-Policy": "credentialless",
+}
