@@ -1,5 +1,5 @@
 from arp.config import Settings
-from arp.extraction.extractor_agent import ExtractionDraft
+from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.pipeline import _extract_company
 from arp.extraction.verifier_agent import VerifierOutput
 from arp.ingestion.base import DocumentSource
@@ -53,9 +53,13 @@ async def test_extract_company_grounded_value_not_flagged(tmp_path, fake_llm):
 
     quote = "invested $120 million in green capex"
     draft = ExtractionDraft(
-        value=120.0,
-        raw_value_text="$120 million in green capex",
-        citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=quote)],
+        values=[PeriodValue(
+            value=120.0,
+            raw_value_text="$120 million in green capex",
+            unit_text="USD million",
+            period_text="fiscal 2025",
+            citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=quote)],
+        )],
         confidence=0.9,
     )
     verifier = VerifierOutput(agrees=True, corrected_value=None, confidence=0.9, notes="Matches the cited text.")
@@ -67,6 +71,7 @@ async def test_extract_company_grounded_value_not_flagged(tmp_path, fake_llm):
     field_result = result.record.fields[0]
     assert field_result.value == 120.0
     assert field_result.grounded is True
+    assert (field_result.canonical_value, field_result.canonical_unit) == (120.0, "USD millions")
     assert result.record.needs_review is False
 
 
@@ -273,7 +278,6 @@ async def test_provenance_records_schema_version(tmp_path, fake_llm):
 
 
 async def test_zero_and_not_found_end_to_end(tmp_path, fake_llm):
-    from arp.extraction.extractor_agent import PeriodValue
     from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
     from arp.storage.run_store import RunStore
 

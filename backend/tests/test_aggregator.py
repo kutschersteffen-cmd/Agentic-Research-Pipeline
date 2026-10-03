@@ -120,20 +120,24 @@ def test_multi_period_one_field_each_latest_first():
     assert all(f.grounded and f.review_reasons == [] for f in fields)
 
 
-def test_verifier_disagreement_replaces_first_sorted_entry_only():
+def test_verifier_correction_lands_on_values_0_even_when_oldest_first():
+    # values[0] is FY2023; the verifier's correction is for that entry, not for
+    # the latest period that sorts first in the output.
     draft = ExtractionDraft(
         values=[
-            PeriodValue(value=100.0, period_text="FY2023", citations=_cite("100 tonnes in FY2023")),
-            PeriodValue(value=999.0, period_text="FY2024", citations=_cite("120 tonnes in FY2024")),
+            PeriodValue(value=999.0, raw_value_text="$1.2bn", unit_text="tonnes", period_text="FY2023",
+                        citations=_cite("100 tonnes in FY2023")),
+            PeriodValue(value=120.0, unit_text="tonnes", period_text="FY2024", citations=_cite("120 tonnes in FY2024")),
         ],
         confidence=0.9,
     )
-    verifier = VerifierOutput(agrees=False, corrected_value=120.0, confidence=0.9, notes="misread")
+    verifier = VerifierOutput(agrees=False, corrected_value=100.0, confidence=0.9, notes="misread")
     latest, older = _build_all(draft, verifier, {_DOC.doc_id: _DOC})
-    assert (latest.value, latest.citations, latest.grounded) == (120.0, [], False)
-    assert latest.review_reasons == [ReasonCode.NOT_GROUNDED, ReasonCode.VERIFIER_DISAGREES]
-    assert older.value == 100.0 and older.grounded is True
-    assert older.review_reasons == [ReasonCode.VERIFIER_DISAGREES]
+    assert (latest.period_end, latest.value, latest.grounded) == ("2024-12-31", 120.0, True)
+    assert latest.review_reasons == [ReasonCode.VERIFIER_DISAGREES]
+    assert (older.period_end, older.value, older.citations, older.grounded) == ("2023-12-31", 100.0, [], False)
+    assert older.canonical_value is None and older.scale_applied is None  # never re-typed from the rejected text
+    assert older.review_reasons == [ReasonCode.NOT_GROUNDED, ReasonCode.VERIFIER_DISAGREES]
 
 
 def test_duplicate_period_values_flag_conflict():

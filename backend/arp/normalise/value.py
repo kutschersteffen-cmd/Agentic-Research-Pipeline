@@ -14,7 +14,8 @@ from arp.schemas.datapoints import FieldDataType, FieldDefinition, ValueState
 from arp.schemas.review import ReasonCode
 
 _NUMERIC = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
-_RAW_SCALE = re.compile(r"\d[\d,]*(?:\.\d+)?\s*([A-Za-z']+)")
+_NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
+_RAW_SCALE = re.compile(r"\d[\d,]*(?:\.\d+)?\s*([A-Za-z']+)(?![\w²³])")
 
 
 @dataclass(frozen=True)
@@ -62,15 +63,33 @@ def _split(text: str) -> tuple[float, bool, str | None]:
     return scale, amb, base or None
 
 
-def _canonical(field: FieldDefinition, value: float, pv: PeriodValue, end: date | None, notes: list[str]):
+def _unit_from_raw(raw: str | None) -> str | None:
+    """Unit text read around a number in raw_value_text: "12.5%" -> "%", "$1.2bn" -> "$ bn",
+    "1,234 thousand tonnes" -> "thousand tonnes". Longest readable run of words wins."""
+    for m in _NUMBER.finditer(raw or ""):
+        before = raw[: m.start()].split()
+        prefix = before[-1] if before and lookup_unit(before[-1]) is not None else ""
+        words = raw[m.end() :].replace("%", " % ").split()
+        for k in range(len(words), -1, -1):
+            text = " ".join(([prefix] if prefix else []) + words[:k])
+            if not text:
+                continue
+            _, _, base = _split(text)
+            if base is not None and lookup_unit(base) is not None:
+                return text
+    return None
+
+
+def _canonical(field: FieldDefinition, value: float, pv: PeriodValue, end: date | None):
     """(canonical_value, canonical_unit, scale_applied, FxRate | None); raises _CheckFailed."""
-    unit_scale, unit_amb, base = _split(pv.unit_text) if pv.unit_text else (1.0, False, None)
+    unit_text = pv.unit_text or _unit_from_raw(pv.raw_value_text)
+    unit_scale, unit_amb, base = _split(unit_text) if unit_text else (1.0, False, None)
     raw = _raw_scale(pv.raw_value_text)
     if unit_scale != 1.0 and raw and raw[0] != unit_scale:
         raise _CheckFailed("scale stated twice and differs")
     scale, amb = (unit_scale, unit_amb) if unit_scale != 1.0 else (raw or (1.0, False))
     if amb:
-        raise _CheckFailed(f"ambiguous scale in {pv.unit_text if unit_scale != 1.0 else pv.raw_value_text!r}")
+        raise _CheckFailed(f"ambiguous scale in {unit_text if unit_scale != 1.0 else pv.raw_value_text!r}")
     src = lookup_unit(base) if base else None
     if src and src.ambiguous:
         raise _CheckFailed(f"ambiguous unit {base!r}")
@@ -78,8 +97,7 @@ def _canonical(field: FieldDefinition, value: float, pv: PeriodValue, end: date 
     if field.unit is None:
         return amount, base, scale, None
     if base is None:
-        notes.append(f"No unit stated; not converted to {field.unit}.")
-        return None, None, scale, None
+        raise _CheckFailed(f"no unit stated or readable in the raw text; cannot convert to {field.unit}")
 
     c = convert(amount, base, field.unit)
     rate = None
@@ -94,9 +112,9 @@ def _canonical(field: FieldDefinition, value: float, pv: PeriodValue, end: date 
             raise _CheckFailed(f"no FX rate {missing} {end.year} in {fx.FX_TABLE}")
         c = convert(in_dst, dst.canonical, field.unit)
     if c.ambiguous:
-        raise _CheckFailed(f"ambiguous unit {pv.unit_text!r} or {field.unit!r}")
+        raise _CheckFailed(f"ambiguous unit {unit_text!r} or {field.unit!r}")
     if c.value is None:
-        raise _CheckFailed(f"cannot convert {pv.unit_text!r} to {field.unit!r} ({c.reason})")
+        raise _CheckFailed(f"cannot convert {unit_text!r} to {field.unit!r} ({c.reason})")
     return c.value, field.unit, scale, rate
 
 
@@ -120,7 +138,7 @@ def typed_value(field: FieldDefinition, pv: PeriodValue, *, fiscal_year_end: str
     canonical = canonical_unit = scale = rate = None
     if field.data_type in _NUMERIC and numeric:
         try:
-            canonical, canonical_unit, scale, rate = _canonical(field, float(value), pv, period.end, notes)
+            canonical, canonical_unit, scale, rate = _canonical(field, float(value), pv, period.end)
         except _CheckFailed as e:
             reasons.append(ReasonCode.CHECK_FAILED)
             notes.append(str(e))

@@ -88,3 +88,24 @@ def test_assumed_fiscal_year_end_qualifier_and_basis():
     assert tv.canonical_value is None
     assert tv.basis == "market_based"
     assert tv.qualifiers == ["restated", "fiscal_year_end_assumed"]
+
+
+def test_unit_read_from_raw_text_when_unit_text_missing():
+    pct = typed_value(_field(FieldDataType.PERCENTAGE, unit="%"), PeriodValue(value=12.5, raw_value_text="12.5%"),
+                      fiscal_year_end="12-31")
+    assert (pct.canonical_value, pct.canonical_unit, pct.reasons) == (12.5, "%", [])
+    t = typed_value(_field(unit="t"), PeriodValue(value=1234.0, raw_value_text="1,234 thousand tonnes"),
+                    fiscal_year_end="12-31")
+    assert (t.canonical_value, t.canonical_unit, t.scale_applied, t.reasons) == (1_234_000.0, "t", 1000.0, [])
+
+
+def test_no_unit_anywhere_is_check_failed():
+    tv = typed_value(_field(unit="tCO2e"), PeriodValue(value=1234.0, raw_value_text="1,234"), fiscal_year_end="12-31")
+    assert tv.canonical_value is None
+    assert tv.reasons == [ReasonCode.CHECK_FAILED]
+    assert tv.notes and "no unit" in tv.notes[0]
+
+
+def test_scale_word_needs_a_boundary():
+    tv = typed_value(_field(), PeriodValue(value=1234.0, raw_value_text="1,234 m3", unit_text="m3"), fiscal_year_end=None)
+    assert tv.reasons == [] and tv.scale_applied == 1.0

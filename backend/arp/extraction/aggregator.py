@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.verifier_agent import VerifierOutput
 from arp.grounding import ground_citations
@@ -46,16 +48,25 @@ def build_extracted_fields(
             kept[key] = [pv, tv, False]
 
     out: list[ExtractedField] = []
-    for i, (pv, tv, duplicated) in enumerate(kept.values()):
+    for pv, tv, duplicated in kept.values():
         claimed = tv.value_state != ValueState.NOT_FOUND
-        disagrees_here = i == 0 and not verifier.agrees
-        if disagrees_here:
+        # The verifier's corrected_value is for values[0] as it saw them (draft
+        # order); the stable sort keeps that entry first in its period group.
+        if pv is values[0] and not verifier.agrees:
             # VerifierOutput carries no citations of its own -- pv.citations
             # supported the value the verifier just rejected, so they can't
             # back verifier.corrected_value. A real corrected value with
-            # nothing behind it is explicitly not grounded.
-            tv = typed_value(field, pv.model_copy(update={"value": verifier.corrected_value, "state": ValueState.FOUND}),
-                             fiscal_year_end=fiscal_year_end)
+            # nothing behind it is explicitly not grounded. The rejected
+            # raw/unit text no longer describes the value, so nothing is
+            # converted from it.
+            v = verifier.corrected_value
+            zero = isinstance(v, (int, float)) and not isinstance(v, bool) and v == 0
+            state = ValueState.NOT_FOUND if v is None else ValueState.ZERO if zero else ValueState.FOUND
+            tv = replace(
+                tv, value=v, value_state=state, canonical_value=None, canonical_unit=None, scale_applied=None,
+                fx_rate=None, fx_rate_ref=None, reasons=[],
+                notes=["No canonical value is computed for the verifier's correction."] if v is not None else [],
+            )
             final_citations = []
         else:
             final_citations = ground_citations(pv.citations, documents_by_id, fuzzy_threshold, passages=passages)
