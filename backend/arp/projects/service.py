@@ -54,6 +54,17 @@ def _import_data(store: ProjectStore, portfolio_store, project_id: str) -> list[
     return out
 
 
+def dashboard_state(client, slug: str, step: str) -> tuple[int | None, bool]:
+    """(Superset id, published) of the dashboard under `slug`; (None, False) if absent."""
+    dash_id = client.find_dashboard(slug)
+    if dash_id is None:
+        return None, False
+    meta = client.get_dashboard(dash_id)
+    if "published" not in meta:
+        raise OpenError(step, "Superset did not report published state")
+    return dash_id, bool(meta["published"])
+
+
 def _open_dashboard(store: ProjectStore, client, project_id: str, d) -> OpenedDashboard:
     if d.source == "superset-export":
         # Import is wired in Task 8; until then the bundle is not applied.
@@ -66,13 +77,7 @@ def _open_dashboard(store: ProjectStore, client, project_id: str, d) -> OpenedDa
         if template.slug != d.slug:
             raise OpenError(step, f"Stored template slug {template.slug!r} does not match {d.slug!r}")
         status = provision_project_dashboard(client, project_id, template)
-        dash_id = client.find_dashboard(d.slug)
-        published = False
-        if dash_id is not None:
-            meta = client.get_dashboard(dash_id)
-            if "published" not in meta:
-                raise OpenError(step, "Superset did not report published state")
-            published = bool(meta["published"])
+        dash_id, published = dashboard_state(client, d.slug, step)
     except SupersetError as e:  # never echo e.body
         raise OpenError(step, f"Superset returned HTTP {e.status_code}") from None
     except httpx.HTTPError:
