@@ -4,7 +4,7 @@
 
 **Goal:** An LLM turns a plain-language brief or question into draft Superset charts and dashboards over governed Postgres views, with every number computed by Superset SQL.
 
-**Architecture:** A new `arp/bi/` package: planner (LLM, closed `ChartPlan`) → validator → compiler (pure) → `SupersetClient` (REST) → draft dashboard. Superset reads a `bi` schema of views through a `bi_reader` role that can see nothing else. The existing Generative BI under `arp/portfolio/genbi/` is not touched.
+**Architecture:** A new `arp/bi/` package: planner (LLM, closed `ChartPlan`) → validator → compiler (pure) → `SupersetClient` (REST) → draft dashboard. Superset reads a `bi` schema of views through a `bi_reader` role that can see nothing else. The old in-house Generative BI was removed and replaced by Superset.
 
 **Tech Stack:** Python 3.11, FastAPI, Typer, Pydantic, SQLAlchemy (existing Postgres layer), `httpx` (already a dependency), Apache Superset 5.x (Docker), React/TypeScript. No new Python dependencies.
 
@@ -252,10 +252,10 @@ Tests: `backend/tests/test_bi_*.py`; one per module.
 
 **Interfaces:**
 - Produces: component `SupersetBI()`; pure helper `designRequestBody(brief: string): { brief: string }` and `embedUrlFor(result: DesignResult, embeddedId: string, domain: string): string | null` exported for the test.
-- Consumes: Task 9 endpoints, existing API base helper used by `GenerativeBI.tsx`.
+- Consumes: Task 9 endpoints, existing API base helper in `api/client.ts`.
 
 - [ ] **Step 1: Write failing test** `embedUrlFor returns null when dashboard_id is null` and `designRequestBody trims the brief`. **Step 2: Run** `cd frontend && npm test` → FAIL.
-- [ ] **Step 3: Implement** the component: brief textarea, "Design in Superset" button, rejection reasons list, link to the draft dashboard, and the embedded dashboard via the SDK using `/api/bi/embed-token`. Follow `GenerativeBI.tsx` styling and DESIGN.md tokens. Add a visible note: "Draft — unpublished. Publish it in Superset."
+- [ ] **Step 3: Implement** the component: brief textarea, "Design in Superset" button, rejection reasons list, link to the draft dashboard, and the embedded dashboard via the SDK using `/api/bi/embed-token`. Follow the other portfolio sub-tab styling (the old GenerativeBI.tsx was later removed) and DESIGN.md tokens. Add a visible note: "Draft — unpublished. Publish it in Superset."
 - [ ] **Step 4: Run** `npm test && npm run lint && npm run build` → PASS.
 - [ ] **Step 5: Run** the app, open the tab and screenshot it (needs Superset up from Task 4).
 - [ ] **Step 6: Commit** `feat(bi): Superset BI tab`.
@@ -265,7 +265,7 @@ Tests: `backend/tests/test_bi_*.py`; one per module.
 ### Task 11: Docs and full verification
 
 **Files:**
-- Modify: `README.md` (add function entry and setup), `docs/GENBI_LANDSCAPE_REVIEW.md` (note §5.4 alias layer now covered by the Superset metric catalogue)
+- Modify: `README.md` (add function entry and setup)
 - Modify: `.github/workflows/ci.yml` (optional job running `-m live_superset`; leave off by default)
 
 - [ ] **Step 1:** Document `docker compose up -d postgres superset`, `arp db init-postgres`, `arp bi bootstrap`, the env vars from Global Constraints, and the "drafts only" rule.

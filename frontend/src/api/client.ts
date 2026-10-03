@@ -54,14 +54,12 @@ import type {
   AnalyticRequest,
   CompanyRef,
   CoverageBySource,
-  DashboardSpec,
   DataPointObservation,
   DataPointSchema,
   DemoSeedSummary,
   EmergingThemeCandidate,
   EmergingThemesScheduleConfig,
   FinancedEmissionsResult,
-  GeneratedDashboard,
   GovernanceDecision,
   GovernanceDecisionType,
   GovernanceItemType,
@@ -624,23 +622,6 @@ export const api = {
   listGovernanceOwners: () => request<RiskCategoryOwner[]>("/api/portfolio/governance/owners"),
   assignGovernanceOwner: (category: string, body: { owner: string; assigned_by: string }) =>
     request<RiskCategoryOwner>(`/api/portfolio/governance/owners/${encodeURIComponent(category)}`, { method: "PUT", body: JSON.stringify(body) }),
-
-  // Generative BI: brief -> planned panels -> deterministic numbers -> checked narrative
-  generateDashboard: (brief: string, opts?: { narrate?: boolean; save?: boolean }) =>
-    request<GeneratedDashboard>("/api/portfolio/bi/generate", {
-      method: "POST",
-      body: JSON.stringify({ brief, narrate: opts?.narrate ?? true, save: opts?.save ?? false }),
-    }),
-  executeDashboardSpec: (spec: DashboardSpec, asOf?: string) =>
-    request<GeneratedDashboard>(`/api/portfolio/bi/execute${buildQuery({ as_of: asOf })}`, {
-      method: "POST",
-      body: JSON.stringify(spec),
-    }),
-  listDashboards: () => request<DashboardSpec[]>("/api/portfolio/bi/dashboards"),
-  saveDashboard: (spec: DashboardSpec) =>
-    request<DashboardSpec>("/api/portfolio/bi/dashboards", { method: "POST", body: JSON.stringify(spec) }),
-  runDashboard: (dashboardId: string, asOf?: string) =>
-    request<GeneratedDashboard>(`/api/portfolio/bi/dashboards/${dashboardId}/run${buildQuery({ as_of: asOf })}`),
 
   // Superset BI designer (/api/bi): drafts dashboards in Superset itself
   designBI: (body: { brief: string }) => request<BIDesignResult>("/api/bi/design", { method: "POST", body: JSON.stringify(body) }),

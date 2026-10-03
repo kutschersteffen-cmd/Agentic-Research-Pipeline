@@ -10,8 +10,8 @@ dashboards. The LLM plans, deterministic code compiles the plan into Superset
 objects, and Superset computes every number with SQL on governed views. This
 keeps ARP's rule: the LLM plans, deterministic code computes.
 
-The existing Generative BI (`backend/arp/portfolio/genbi/`) is unchanged. It
-stays the governed, narrated, portfolio-only path.
+The earlier in-house Generative BI (formerly under `backend/arp/portfolio/`) was
+removed and replaced by Superset (see the foundation phase 1 design).
 
 ## Scope (v1)
 
@@ -65,7 +65,7 @@ A metric catalogue in `arp/bi/catalog.py`, provisioned into Superset as dataset
 metrics with plain-language descriptions: `Exposure (EUR)`, `Holdings`,
 `Avg confidence`, `% needing review`, and so on. The planner prompt is built
 from these descriptions, so they also act as the business-alias layer
-(GENBI_LANDSCAPE_REVIEW §5.4).
+(the former GENBI landscape review's §5.4, since removed).
 
 ### ChartPlan (closed spec)
 

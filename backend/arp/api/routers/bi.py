@@ -15,7 +15,6 @@ from arp.llm.base import LLMClient
 
 logger = logging.getLogger(__name__)
 
-# Not /api/portfolio/bi: that prefix belongs to the older GenBI router.
 router = APIRouter(prefix="/api/bi", tags=["bi"])
 
 _Text = Field(min_length=1, max_length=2000)

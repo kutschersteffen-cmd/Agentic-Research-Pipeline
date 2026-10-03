@@ -271,9 +271,9 @@ alongside this document — see the plan referenced in the PR/commit for the
 new `PortfolioRiskMonitoringTool` page, `PortfolioPaneContext`, and the
 seven sub-tabs (Standard Analytics & Visuals, Pivot Explorer, Monitoring &
 Alerts, Company Profiles, Custom Analysis, Ask the Portfolio, Governance &
-Audit). An eighth, Generative BI, was added afterwards (§5c of
+Audit). An eighth, Generative BI, was added afterwards and later replaced by Superset (§5c of
 [`PORTFOLIO_RISK_EXPOSURE_PLAN.md`](PORTFOLIO_RISK_EXPOSURE_PLAN.md)); it
-reads the same pane selection as its siblings. The Custom Analysis sub-tab
+read the same pane selection as its siblings. The Custom Analysis sub-tab
 was later removed from the UI: it only ever rendered a "not yet built"
 placeholder, and §7 above remains the record of that gap.
 
@@ -302,5 +302,5 @@ engine itself, not because the sequencing advice was disregarded.
 | §5 Governance & Workflow | Built — decisions, ownership, and policy history; doesn't retroactively re-flag past items |
 | §6 Company-Level Risk & Intelligence Profiles | Built (as an assembly of existing endpoints); engagement/voting + Tool 0 exist in this repo now but aren't wired into the profile yet |
 | §7 Jupyter Notebook Integration | Not built |
-| §8 AI/LLM Q&A Layer | Built — question-level Q&A, plus dashboard-level Generative BI (brief → planned panels → deterministic numbers → numerically grounded prose) |
+| §8 AI/LLM Q&A Layer | Built — question-level Q&A, plus dashboard-level BI via the Superset designer (the earlier in-house Generative BI was replaced by Superset) |
 | §9 Front-End Architecture | Was a structural mismatch; addressed in this change |

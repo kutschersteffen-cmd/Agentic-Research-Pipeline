@@ -1,4 +1,4 @@
-"""Shape-only eval for the BI planner (mirrors golden_set/planner_runner.py).
+"""Shape-only eval for the BI planner.
 Needs an API key; not run in CI. Metas are built offline from the catalog."""
 
 from __future__ import annotations

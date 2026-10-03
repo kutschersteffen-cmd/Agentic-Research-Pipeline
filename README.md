@@ -24,7 +24,7 @@ file-based state by default — no database required.
 | 7 | **Indirect Exposure Tier** *(opt-in)* | Structural supply-chain exposure via OECD ICIO input-output propagation. Purely quantitative, zero LLM calls. |
 | 8 | **Transition Plan Assessment** | Replication of Colesanti Senni et al. (2024): 64 fixed indicators scored "walk" vs. "talk", each with a grounded RAG verdict. |
 | 9 | **Transition Barrier Assessment** | Sector-level counterpart: a 105-cell matrix (35 criteria × 9 hard-to-abate sectors × EU/US/China) backed by 86 verified sources, with staleness tracking and a propose-never-apply EUR-Lex refresh pipeline. |
-| 10 | **Portfolio Risk & Exposure Monitoring** | Deterministic holdings aggregation, an NL Q&A agent (LLM drafts the query, the engine computes the number), a **Generative BI** layer that plans whole dashboards, and **Climate Analytics** (WACI, PCAF-style financed emissions, coverage). |
+| 10 | **Portfolio Risk & Exposure Monitoring** | Deterministic holdings aggregation, an NL Q&A agent (LLM drafts the query, the engine computes the number), a **Superset BI** designer that drafts whole dashboards, and **Climate Analytics** (WACI, PCAF-style financed emissions, coverage). |
 | 11 | **Investment Strategy Replication** | Reduces a strategy paper to an executable spec, then backtests it deterministically in- and out-of-sample, with deflated Sharpe, PBO via purged/embargoed CSCV, and regime stratification. |
 | 12 | **Emerging Themes Scanner** | Bottom-up theme discovery from EDGAR full-text search, GDELT and regulatory RSS, with cross-period cluster lineage and an action-score promotion gate (corporate action, not mention counts). |
 | 13 | **Presentation & Reporting Tool** | One LLM call drafts a report plan; deterministic renderers emit pptx/docx/pdf, reusing an ingested `.pptx` template's layouts, colors and fonts. House decks (`house_deck`) draft a storyline for you to approve, then fill, lint, fit and visually check each slide in the app's own design system, and can be re-run on fresh pipeline data. |
@@ -176,7 +176,6 @@ arp transition-plan run --universe companies.csv
 arp transition-barrier scores --region China --pillar Regulation
 arp emerging-themes run --universe companies.csv
 arp replicate backtest --spec spec.json --prices prices.csv --tickers universe.csv
-arp portfolio bi generate "climate risk overview of the leaders fund" --save
 arp climate waci --group-by portfolio_id
 arp decision derive --source transition_plan_run --run-id <run_id> --save   # no API key: zero LLM calls
 arp decision score --source transition_barrier --region "European Union"  # entity = sector, not company
@@ -274,4 +273,4 @@ Re-run `arp db init-postgres` after upgrading, not only on a fresh database.
 | [`INDEX_CONSTRUCTION.md`](docs/INDEX_CONSTRUCTION.md) | How the index engine builds a review, stage by stage, with a verified UI walkthrough |
 | [`TRANSITION_BARRIER_ASSESSMENT.md`](docs/TRANSITION_BARRIER_ASSESSMENT.md) | The 35 criteria and their source lists |
 | [`EMERGING_THEMES_VOCABULARY.md`](docs/EMERGING_THEMES_VOCABULARY.md) | How each scored dimension maps to the research vocabulary |
-| [`THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md`](docs/THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md), [`GENBI_LANDSCAPE_REVIEW.md`](docs/GENBI_LANDSCAPE_REVIEW.md), [`DATABASE_STORAGE_REVIEW.md`](docs/DATABASE_STORAGE_REVIEW.md), [`SPEC_GAP_ANALYSIS.md`](docs/SPEC_GAP_ANALYSIS.md) | Architecture reviews and gap analyses |
+| [`THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md`](docs/THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md), [`DATABASE_STORAGE_REVIEW.md`](docs/DATABASE_STORAGE_REVIEW.md), [`SPEC_GAP_ANALYSIS.md`](docs/SPEC_GAP_ANALYSIS.md) | Architecture reviews and gap analyses |
