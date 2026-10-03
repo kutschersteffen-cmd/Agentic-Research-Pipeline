@@ -18,6 +18,7 @@ from arp.ingestion.html_text import extract_html_text
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.schemas.discovery import EdgarNameMatch
+from arp.storage.document_blob_store import CaptureStoreError
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
@@ -139,9 +140,21 @@ class EdgarDocumentSource(DocumentSource):
                         source_url=url,
                     )
                     if self._indexing_config is not None:
-                        self._index_and_archive(kwargs["doc_id"], company.company_id, doc_type, title, content_key, text, raw_bytes, url)
+                        try:
+                            if raw_bytes is None and not self._has_stored_blob(content_key):
+                                # Parse-cache hit, but an earlier store attempt failed: fetch and archive again.
+                                _, raw_bytes = await self._get_and_extract_text(client, url)
+                            self._index_and_archive(kwargs["doc_id"], company.company_id, doc_type, title, content_key, text, raw_bytes, url)
+                        except (CaptureStoreError, httpx.HTTPError) as exc:
+                            # Not collected: no verified copy of the original bytes.
+                            logger.warning("EDGAR filing %s not collected: %s", url, exc)
+                            continue
                 docs.append(SourceDocument(**kwargs))
             return docs
+
+    def _has_stored_blob(self, content_key: str) -> bool:
+        ref = self._content_store.list_documents_by_content_keys([content_key]).get(content_key)
+        return bool(ref and ref.storage_uri)
 
     def _index_and_archive(
         self,

@@ -55,3 +55,11 @@ def test_blob_store_for_defaults_to_local(tmp_path):
     assert isinstance(store, document_blob_store.LocalBlobStore)
     with pytest.raises(document_blob_store.CaptureStoreError):
         document_blob_store.blob_store_for(IndexingConfig())
+
+
+def test_blob_store_for_returns_object_store_when_enabled(monkeypatch):
+    monkeypatch.setattr("arp.storage.document_blob_store.get_client", lambda *a, **k: object())
+    monkeypatch.setattr("arp.storage.document_blob_store.ensure_bucket", lambda *a, **k: None)
+    store = document_blob_store.blob_store_for(_config())
+    assert isinstance(store, document_blob_store.DocumentBlobStore)
+    assert store.uri("k") == "s3://arp-documents/k"

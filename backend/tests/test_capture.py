@@ -120,3 +120,25 @@ def test_local_files_skips_file_when_archive_fails(tmp_path):
         tmp_path / "docs", content_store=DocumentContentStore(tmp_path / "store"), indexing_config=config
     )
     assert asyncio.run(source.fetch(ACME)) == []
+
+
+def test_upload_or_fail_rejects_stored_bytes_with_other_hash(tmp_path):
+    class Corrupting(LocalBlobStore):
+        def put(self, key, data):
+            return super().put(key, data + b"x")
+
+    with pytest.raises(CaptureStoreError):
+        upload_or_fail(Corrupting(tmp_path), hashlib.sha256(BODY).hexdigest(), BODY)
+
+
+def test_local_files_real_store_success(tmp_path):
+    folder = tmp_path / "docs" / "acme" / DocType.ANNUAL_REPORT_10K.value
+    folder.mkdir(parents=True)
+    (folder / "report.txt").write_text("Some disclosure text about green capex.")
+    blobs = tmp_path / "blobs"
+    store = DocumentContentStore(tmp_path / "store")
+    source = LocalFileDocumentSource(tmp_path / "docs", content_store=store, indexing_config=IndexingConfig(blob_store_dir=blobs))
+    (doc,) = asyncio.run(source.fetch(ACME))
+    key = hashlib.sha256(b"Some disclosure text about green capex.").hexdigest()
+    assert LocalBlobStore(blobs).exists(key)
+    assert store.resolve_document(doc.doc_id).storage_uri.startswith("file://")

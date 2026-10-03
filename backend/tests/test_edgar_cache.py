@@ -7,8 +7,9 @@ import httpx
 from arp.ingestion import edgar as edgar_module
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
-from arp.schemas.common import CompanyRef
-from arp.storage.document_store import DocumentContentStore
+from arp.schemas.common import CompanyRef, DocType
+from arp.storage.document_blob_store import LocalBlobStore
+from arp.storage.document_store import DocumentContentStore, derive_doc_id
 
 
 class _FailingClient:
@@ -149,6 +150,13 @@ async def test_indexing_config_hooks_on_cache_hit_only_indexes_not_uploads(tmp_p
         source_suffix=".htm", byte_size=100, text="Cached filing text.", page_breaks=[],
     )
     monkeypatch.setattr(edgar_module.httpx, "AsyncClient", _FailingClient)
+    # Already registered and archived on an earlier fetch.
+    doc_id = derive_doc_id("apple", DocType.ANNUAL_REPORT_10K.value, content_key)
+    store.register_document(
+        doc_id=doc_id, company_id="apple", doc_type=DocType.ANNUAL_REPORT_10K.value, content_key=content_key,
+        title="t", local_path=None, source_url="u",
+    )
+    store.set_storage_uri(doc_id, "file:///already")
 
     company = CompanyRef(company_id="apple", name="Apple Inc.", cik="320193")
     await source.fetch(company)
@@ -218,3 +226,68 @@ async def test_no_content_store_behaves_exactly_as_before(tmp_path, monkeypatch)
     assert docs[0].full_text == "Fresh text every time, no cache."
     # random default doc_id, exactly like before this phase
     assert docs[0].doc_id.startswith("doc_")
+
+
+_TWO = {
+    "filings": {
+        "recent": {
+            "form": ["10-K", "DEF 14A"],
+            "accessionNumber": ["0000320193-24-000001", "0000320193-24-000002"],
+            "primaryDocument": ["a.htm", "b.htm"],
+            "filingDate": ["2024-01-01", "2024-02-01"],
+        }
+    }
+}
+
+
+def _setup(tmp_path, monkeypatch, submissions, blobs):
+    cache_dir = tmp_path / "cache"
+    store = DocumentContentStore(tmp_path / "store")
+    config = IndexingConfig(blob_store_dir=blobs)
+    source = EdgarDocumentSource(user_agent="t t@example.com", cache_dir=cache_dir, content_store=store, indexing_config=config)
+    _write_submissions_cache(cache_dir, "0000320193", submissions)
+
+    async def fake(self, client, url):
+        return f"text of {url}", f"bytes of {url}".encode()
+
+    monkeypatch.setattr(EdgarDocumentSource, "_get_and_extract_text", fake)
+    monkeypatch.setattr(edgar_module.httpx, "AsyncClient", lambda *a, **k: _FailingClient())
+    return source, store
+
+
+COMPANY = CompanyRef(company_id="apple", name="Apple Inc.", cik="320193")
+
+
+async def test_edgar_real_store_keys_blob_by_sha256_of_bytes(tmp_path, monkeypatch):
+    source, store = _setup(tmp_path, monkeypatch, _SUBMISSIONS, tmp_path / "blobs")
+    (doc,) = await source.fetch(COMPANY)
+    raw = f"bytes of {doc.source_url}".encode()
+    key = hashlib.sha256(raw).hexdigest()
+    assert LocalBlobStore(tmp_path / "blobs").get(key) == raw
+    assert store.resolve_document(doc.doc_id).storage_uri.startswith("file://")
+
+
+async def test_edgar_store_failure_then_retry_archives_before_returning(tmp_path, monkeypatch):
+    blobs = tmp_path / "blobs"
+    blobs.write_text("not a dir")  # store fails on the first fetch
+    source, store = _setup(tmp_path, monkeypatch, _SUBMISSIONS, blobs)
+    assert await source.fetch(COMPANY) == []
+    blobs.unlink()
+    (doc,) = await source.fetch(COMPANY)  # parse cache hit, but no blob yet -> re-fetch and archive
+    assert store.resolve_document(doc.doc_id).storage_uri.startswith("file://")
+
+
+async def test_edgar_one_failing_filing_does_not_abort_the_other(tmp_path, monkeypatch):
+    source, _ = _setup(tmp_path, monkeypatch, _TWO, tmp_path / "blobs")
+    from arp.storage import document_blob_store as dbs
+
+    orig = dbs.upload_or_fail
+
+    def flaky(store, key, data):
+        if b"b.htm" in data:
+            raise dbs.CaptureStoreError("boom")
+        return orig(store, key, data)
+
+    monkeypatch.setattr(dbs, "upload_or_fail", flaky)
+    docs = await source.fetch(COMPANY)
+    assert [d.title for d in docs] == ["Apple Inc. 10-K (2024-01-01)"]
