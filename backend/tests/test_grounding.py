@@ -244,3 +244,115 @@ def test_old_citation_json_loads():
         "page": 1, "sheet": None, "company_id": "c", "source_filename": "f.pdf",
     })
     assert c.char_start is None and c.match_method is None and c.passage_id is None
+
+
+# --- E44: robust matching -------------------------------------------------
+
+from arp.grounding import _normalize_with_offsets  # noqa: E402
+
+
+def _ground(quote, text):
+    doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="t", full_text=text)
+    cit = Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=quote)
+    return doc, ground_citations([cit], {doc.doc_id: doc})[0]
+
+
+def test_hyphen_split_number_grounds():
+    text = "Scope 1 emissions of 12,3-\n45 tCO2e in 2023"
+    doc, c = _ground("emissions of 12,345 tCO2e", text)
+    assert c.grounded and c.match_method == "normalised"
+    assert c.span_text.startswith("emissions of 12,3-")
+    assert c.span_text == text[c.char_start : c.char_end]
+
+
+def test_word_hyphenation_grounds():
+    text = "Total emis-\nsions fell sharply in 2023 versus prior year."
+    doc, c = _ground("total emissions fell sharply in 2023", text)
+    assert c.grounded and c.match_method == "normalised"
+    assert c.span_text == text[c.char_start : c.char_end]
+
+
+def test_repeated_quote_picks_cited_passage():
+    q = "Scope 1 emissions: 4,210 tCO2e"
+    a, b = f"Section A. {q} in 2023.", f"Section B. {q} again."
+    text = f"{a}\n\n{b}"
+    doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="t", full_text=text)
+
+    def chunk(t):
+        s = text.index(t)
+        return DocumentChunk(doc_id=doc.doc_id, company_id="c1", doc_type=doc.doc_type, text=t, char_start=s, char_end=s + len(t))
+
+    ca, cb = chunk(a), chunk(b)
+    cit = Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=q, passage_id=cb.chunk_id)
+    c = ground_citations([cit], {doc.doc_id: doc}, passages={ca.chunk_id: ca, cb.chunk_id: cb})[0]
+    assert c.grounded and c.passage_id == cb.chunk_id
+    assert cb.char_start <= c.char_start < cb.char_end
+
+
+def test_typographic_variants_normalise():
+    text = "the e\ufb03cient – “net zero” 2030 tar­get"
+    doc, c = _ground('the efficient - "net zero" 2030 target', text)
+    assert c.grounded and c.match_method == "normalised"
+    assert c.span_text == text[c.char_start : c.char_end] == text
+    # and the reverse: variants in the quote, plain source
+    doc, c = _ground(text, 'the efficient - "net zero" 2030 target')
+    assert c.grounded and c.match_method == "normalised"
+
+
+def test_minus_and_other_dashes_curly_apostrophe():
+    text = "Net change − 5.2 million—the firm’s result ‒ final"
+    doc, c = _ground("net change - 5.2 million-the firm's result - final", text)
+    assert c.grounded and c.match_method == "normalised"
+    assert c.span_text == text[c.char_start : c.char_end]
+
+
+def test_normalised_offsets_with_extra_whitespace_and_zero_width():
+    pre = "Intro.   "
+    body = "Green​  capex\n\ttotalled   $50 million"
+    text = pre + body + " trailing"
+    doc, c = _ground("green capex totalled $50 million", text)
+    assert c.match_method == "normalised"
+    assert (c.char_start, c.char_end) == (len(pre), len(pre) + len(body))
+    assert c.span_text == body
+
+
+def test_fuzzy_match_span_is_original_slice():
+    text = "Intro ﬁrst   line.\n" + "The company reported green capex of $500 million during the year" + " tail"
+    doc, c = _ground("the company reported green capex of $500 million during the yeer", text)
+    assert c.grounded and c.match_method == "fuzzy"
+    assert c.span_text == text[c.char_start : c.char_end]
+    assert c.span_text.startswith("The company")
+
+
+def test_multichar_lowercase_keeps_offsets_aligned():
+    text = "İstanbul office emitted 1,200 tCO2e in 2023"
+    norm, offs = _normalize_with_offsets(text)
+    assert len(norm) == len(offs)
+    assert offs[0] == offs[1] == 0 and offs[2] == 1  # both chars of lower(U+0130) map to the İ
+    i = norm.index("office")
+    assert text[offs[i]] == "o"
+    _, c = _ground("office emitted 1,200 tCO2e", text)
+    assert c.grounded and c.span_text == "office emitted 1,200 tCO2e"
+    assert text[c.char_start : c.char_end] == c.span_text
+
+
+def test_ligature_expansion_maps_to_ligature_offset():
+    text = "x ﬃ y"
+    norm, offs = _normalize_with_offsets(text)
+    assert norm == "x ffi y" and offs[2:5] == [2, 2, 2]
+
+
+def test_short_bare_number_rejected():
+    assert not is_grounded("42", "Total was 42 units across sites.")
+
+
+def test_short_number_with_label_grounds():
+    assert is_grounded("42 MWh", "Consumption was 42 MWh across sites.")
+
+
+def test_short_label_without_number_rejected():
+    assert not is_grounded("emissions", "Our emissions fell in 2023 overall.")
+
+
+def test_short_quote_never_fuzzy():
+    assert not is_grounded("43 MWx", "Consumption was 43 MWh across sites.")
