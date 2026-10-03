@@ -20,12 +20,16 @@ function EmbeddedDashboard({ dashboardId }: { dashboardId: number }) {
   const frameUrl = embedUrlFor({ dashboard_id: dashboardId }, embeddedId);
 
   useEffect(() => {
+    let live = true;
     setEmbeddedId(null);
     setError(null);
     api.biEmbedToken(dashboardId).then(
-      (t) => setEmbeddedId(t.embedded_id),
-      (e) => setError(String(e)),
+      (t) => live && setEmbeddedId(t.embedded_id),
+      (e) => live && setError(String(e)),
     );
+    return () => {
+      live = false;
+    };
   }, [dashboardId]);
 
   useEffect(() => {

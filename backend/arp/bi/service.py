@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import threading
 
 import httpx
 from pydantic import BaseModel
@@ -147,12 +148,20 @@ async def ask_chart(question: str, llm: LLMClient, client: SupersetClient) -> De
     return await asyncio.to_thread(_add_to_scratch, client, plan, ids)
 
 
+# Superset's embedded upsert races: concurrent first-time POSTs each mint a UUID and
+# only the last one survives, so the other caller's iframe 404s (React StrictMode's
+# double effect hit this on every fresh draft).
+# ponytail: one process-wide lock; a multi-worker deploy needs a DB/advisory lock.
+_EMBED_LOCK = threading.Lock()
+
+
 def embed_token(client: SupersetClient, dashboard_id: str, rls: list[dict] | None = None) -> tuple[str, str]:
     """(embedded UUID, guest token) for embedding the dashboard. Guest tokens
     and the embed SDK name the embedded UUID, not the id, so embedding is
     enabled first (idempotent). `rls` is the row-level-security hook; empty in v1."""
     try:
-        embedded_id = client.ensure_embedded(int(dashboard_id))
+        with _EMBED_LOCK:
+            embedded_id = client.ensure_embedded(int(dashboard_id))
         return embedded_id, client.guest_token(embedded_id, rls or [])
     except _ERRORS as e:
         raise BIError(f"Superset: {e}") from e

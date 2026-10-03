@@ -275,3 +275,27 @@ def test_embed_token_ensures_embedded_first():
     client = FakeClient()
     assert embed_token(client, "7") == ("uuid-1", "tok")
     assert client.calls == [("ensure_embedded", 7), ("guest_token", "uuid-1", [])]
+
+
+def test_embed_token_serialises_ensure_embedded():
+    """Superset's embedded upsert races: two first-time POSTs each create a UUID and
+    only the last survives, so the other caller's embed 404s."""
+    import threading
+    import time
+
+    class Racy(FakeClient):
+        inside = peak = 0
+
+        def ensure_embedded(self, dashboard_id):
+            Racy.inside += 1
+            Racy.peak = max(Racy.peak, Racy.inside)
+            time.sleep(0.05)
+            Racy.inside -= 1
+            return "uuid-1"
+
+    threads = [threading.Thread(target=embed_token, args=(Racy(), "7")) for _ in range(3)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert Racy.peak == 1
