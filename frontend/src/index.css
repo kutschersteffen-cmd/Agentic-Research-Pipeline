@@ -1859,3 +1859,10 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
   .arcade-game { --cab-chrome: 10.5rem; }
   .arcade-game > .muted { display: none; }
 }
+
+/* On-screen buttons for phones: only on touch or narrow screens, and the cabinet leaves room for them. */
+.touchpad { display: none; gap: var(--s-3); margin-top: var(--s-3); width: 100%; }
+.touchpad button { min-height: 4rem; font-family: var(--font-mono); font-size: 1rem; font-weight: 600; letter-spacing: 0.1em; color: #c6ff3d; background: #05070a; border: 2px solid #c6ff3d; border-radius: 0; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: pointer; }
+.touchpad button:active { background: #c6ff3d; color: #05070a; }
+.touchpad button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (pointer: coarse), (max-width: 640px) { .touchpad { display: grid; } .arcade-game:has(.touchpad) { --cab-chrome: 15.5rem; } }
