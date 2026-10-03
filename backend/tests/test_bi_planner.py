@@ -4,7 +4,7 @@ import asyncio
 
 from arp.bi.catalog import VIEW_DATASETS
 from arp.bi.eval import evaluate_case, load_bi_cases, offline_metas
-from arp.bi.plan import ChartPlan, ChartSpec, DatasetMeta
+from arp.bi.plan import ChartPlan, ChartSpec
 from arp.bi.planner import PlannerRefusal, plan_from_brief
 from arp.llm.base import LLMClient, LLMUsage
 
