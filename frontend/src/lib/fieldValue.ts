@@ -15,3 +15,13 @@ export function valueLabel(f: Pick<ExtractedField, "value" | "value_state" | "un
 /** A schema may run for real only when flagged released and no field is still draft or retired. */
 export const isReleased = (s: { release_flag?: boolean; fields: { status?: string }[] }): boolean =>
   !!s.release_flag && s.fields.every((f) => f.status === "released");
+
+/** The field as a reviewer's edit leaves it; mirrors the backend rule: state follows the value, canonical and FX no longer apply. */
+export const withEditedValue = (f: ExtractedField, edited: string): ExtractedField => ({
+  ...f,
+  value: edited,
+  value_state: Number(edited) === 0 && edited.trim() !== "" ? "zero" : "found",
+  canonical_value: null,
+  canonical_unit: null,
+  fx_rate: null,
+});

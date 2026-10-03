@@ -6,7 +6,7 @@ import { CitationList } from "./CitationList";
 import type { ActiveSource } from "./SourcePanel";
 import type { BusinessSegment, CompanyFinancialsRecord, ExtractedField, ExtractionRecord, ReviewDecision, SpendSummary } from "../types";
 import { fieldItemKey } from "../lib/reviewKeys";
-import { valueLabel } from "../lib/fieldValue";
+import { valueLabel, withEditedValue } from "../lib/fieldValue";
 import { activatable } from "../lib/activatable";
 import { ProposedTag } from "./ProposedTag";
 import { OriginTag } from "./ReviewTiles";
@@ -187,8 +187,8 @@ export function ExtractionResultsTable({
                       const d = reviewDecisions[itemKey];
                       return (
                         <div key={`${f.field_id}:${f.period_end ?? ""}`}>
-                          <FieldDetail field={editedText(d) === undefined ? f : { ...f, value: editedText(d)! }} onOpenSource={onOpenSource} />
-                          <OriginTag decision={d} systemValue={String(f.value ?? "—")} />
+                          <FieldDetail field={editedText(d) === undefined ? f : withEditedValue(f, editedText(d)!)} onOpenSource={onOpenSource} />
+                          <OriginTag decision={d} systemValue={valueLabel(f)} />
                           <ReviewControls
                             runId={runId}
                             itemKey={itemKey}
