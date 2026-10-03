@@ -23,6 +23,8 @@
 - `GET /api/health` stays unauthenticated.
 - The dev bypass is honoured only for requests whose client address is loopback (`127.0.0.1`, `::1`).
 - Old run directories (queue rows keyed by `company_id`, decision rows with only `reviewer`) must still load.
+- **Voting is frozen: no change to any voting file.** That means `arp/api/routers/voting.py`, `arp/voting/`, `arp/cli/voting.py`, `arp/stewardship/voting_feed.py`, `frontend/src/components/BallotReview.tsx` and their tests. Shared code they call keeps its current signatures working (`submit_review(..., reviewer=...)`, `record_review_decision(..., reviewer, ...)`, `useReviewer()`), and the voting router is mounted without the sign-in dependency.
+- Every existing voting test (`grep -rl voting backend/tests`) passes without modification.
 - Backend checks: `cd backend && ruff check arp tests && pytest -q`. Frontend checks: `cd frontend && npm run lint && npm test && npm run build`.
 
 ## Review Focus
@@ -61,11 +63,12 @@
   - `test_require_role_approver_rejects_analyst` (403)
   - `test_dev_bypass_only_from_loopback`: `auth_mode="dev"`, client host `127.0.0.1` → 200 as `Principal(user_id="dev", name="dev", role="approver")`; client host `10.0.0.5` → 401
   - `test_missing_users_file_raises` and `test_invalid_users_json_raises`: `load_users(path)` raises `RuntimeError` whose message contains `str(path)`
+  - `test_voting_router_unchanged`: with the conftest override removed, `GET /api/voting/runs/{id}/review-queue` still answers without a token (voting is frozen)
   - `test_health_open_and_me_returns_principal` against the real `arp.api.main.app` with the conftest override removed for this test: `/api/health` → 200 without header; `/api/me` with a valid token → `{"user_id": ..., "name": ..., "role": ...}`
 
 - [ ] **Step 2: Run** `cd backend && pytest tests/test_auth.py -v` — expect FAIL (`ModuleNotFoundError: arp.api.auth`).
 
-- [ ] **Step 3: Implement `arp/api/auth.py`** as in Interfaces. `load_users` is cached per path (`functools.lru_cache`). The client address comes from `request.client.host`. In `arp/api/main.py`, replace every `app.include_router(x.router)` with `app.include_router(x.router, dependencies=[Depends(authorize)])`. Read CORS origins from `settings_dep().allowed_origins`. Add `GET /api/me` returning the `Principal`. In `lifespan`, call `load_users(settings.users_file)` when `auth_mode == "local"` so a bad file stops startup. Add `config/users.example.json` with one user per role and add `config/users.json` to `.gitignore`.
+- [ ] **Step 3: Implement `arp/api/auth.py`** as in Interfaces. `load_users` is cached per path (`functools.lru_cache`). The client address comes from `request.client.host`. In `arp/api/main.py`, replace every `app.include_router(x.router)` with `app.include_router(x.router, dependencies=[Depends(authorize)])`, except `voting.router`, which stays exactly as it is (frozen). Read CORS origins from `settings_dep().allowed_origins`. Add `GET /api/me` returning the `Principal`. In `lifespan`, call `load_users(settings.users_file)` when `auth_mode == "local"` so a bad file stops startup. Add `config/users.example.json` with one user per role and add `config/users.json` to `.gitignore`.
 
 - [ ] **Step 4: Add the autouse fixture to `tests/conftest.py`.** It sets `app.dependency_overrides[authorize] = lambda: Principal(user_id="u_test", name="Test", role="approver")` and `[current_user]` likewise, then clears both after the test. Import the app lazily inside the fixture so tests that never touch the API stay import-light.
 
@@ -79,15 +82,15 @@
 
 **Files:**
 - Modify: `arp/orchestration/review_queue.py`, `arp/api/review_endpoints.py`
-- Modify (callers): `arp/api/routers/{themes,extraction,financials,tnfd,transition_plan,transition_barrier,identity,voting,replication}.py`, `arp/cli/voting.py`, `arp/cli/identity.py`, `arp/cli/_shared.py`
-- Modify (other name fields, filled from the principal): `arp/api/routers/{decision,engagement,index,portfolio,replication,stewardship,voting}.py` — every request-model field named `reviewer`, `approved_by`, `decided_by`, `updated_by`, `activated_by`, `created_by`, `author` or `by` (23 today; `grep -nE "^\s+(reviewer|approved_by|decided_by|updated_by|activated_by|created_by|author|by)\s*:" arp/api/routers/*.py`)
+- Modify (callers): `arp/api/routers/{themes,extraction,financials,tnfd,transition_plan,transition_barrier,identity,replication}.py`, `arp/cli/identity.py`, `arp/cli/_shared.py`
+- Modify (other name fields, filled from the principal): `arp/api/routers/{decision,engagement,index,portfolio,replication,stewardship}.py` — every request-model field named `reviewer`, `approved_by`, `decided_by`, `updated_by`, `activated_by`, `created_by`, `author` or `by` (22 outside voting today; `grep -nE "^\s+(reviewer|approved_by|decided_by|updated_by|activated_by|created_by|author|by)\s*:" arp/api/routers/*.py`)
 - Test: `tests/test_review_queue.py` (extend), `tests/test_review_identity.py` (new)
 
 **Interfaces:**
 - Consumes: `Principal`, `current_user` (Task 1).
 - Produces:
-  - `record_review_decision(run_store, run_id, item_key, decision, principal: Principal, edited_value, comment=None) -> None`. The row gains `user_id` and `role`; `reviewer` is kept and set to `principal.name`, so existing readers such as `storage/postgres_company_facts_projection.py` keep working.
-  - `submit_review(run_store, run_id, *, item_key, decision, principal: Principal, edited_value, comment=None) -> dict`. It raises `ValueError` when `decision` is not in `{"approve", "edit", "reject", "escalate"}`; the app maps that to 400.
+  - `record_review_decision(run_store, run_id, item_key, decision, reviewer: str | None, edited_value, comment=None, *, principal: Principal | None = None) -> None`. Existing positional callers (voting) are unchanged; when `principal` is given, `user_id`, `role` and `reviewer=principal.name` come from it and the `reviewer` argument is ignored. The row gains `user_id` and `role`; `reviewer` is kept and set to `principal.name`, so existing readers such as `storage/postgres_company_facts_projection.py` keep working.
+  - `submit_review(run_store, run_id, *, item_key, decision, reviewer: str | None = None, edited_value, comment=None, principal: Principal | None = None) -> dict`. Every non-voting route passes `principal`; voting keeps passing `reviewer`. It raises `ValueError` when `decision` is not in `{"approve", "edit", "reject", "escalate"}`; the app maps that to 400.
   - `ReviewDecisionRequest` drops `reviewer`. It sets `model_config = ConfigDict(extra="ignore")`, so old clients that still send `reviewer` are not rejected, and the value is ignored.
   - CLI: `def cli_principal(settings: Settings) -> Principal` in `cli/_shared.py`. It resolves env `ARP_CLI_TOKEN` through `load_users`. With no token it exits with an error. The `--by` options are removed.
 
@@ -101,7 +104,7 @@
 
 - [ ] **Step 2: Run** `pytest tests/test_review_identity.py tests/test_review_queue.py -v`. Expect FAIL.
 
-- [ ] **Step 3: Implement.** Change both functions to the new signatures and add `principal: Principal = Depends(current_user)` to every review route. Remove the name fields listed above from the request models and set them from `principal.name` (or `principal.user_id` where the stored value is an id) inside the route. Keep the voting `co_signed_by` field for now; Task 3 replaces it.
+- [ ] **Step 3: Implement.** Change both functions to the new signatures and add `principal: Principal = Depends(current_user)` to every review route. Remove the name fields listed above from the request models and set them from `principal.name` (or `principal.user_id` where the stored value is an id) inside the route. Voting is not touched: it keeps calling `submit_review(..., reviewer=req.reviewer, ...)`.
 
 - [ ] **Step 4: Run** `pytest -q && ruff check arp tests`. Expect all pass.
 
@@ -109,11 +112,11 @@
 
 ---
 
-### Task 3: Second sign-off for extraction corrections and ballots
+### Task 3: Second sign-off for extraction corrections
 
 **Files:**
 - Modify: `arp/storage/run_store.py` (`review_cosigns_path`), `arp/orchestration/review_queue.py`
-- Modify: `arp/api/routers/extraction.py`, `arp/api/routers/voting.py`, `arp/voting/pipeline.py` (`cast_approved_votes`), `arp/storage/postgres_company_facts_projection.py`, plus any extraction results or export path that applies `edited_value` (`grep -rn "edited_value" arp`)
+- Modify: `arp/api/routers/extraction.py`, `arp/storage/postgres_company_facts_projection.py`, plus any extraction results or export path that applies `edited_value` (`grep -rn "edited_value" arp`)
 - Test: `tests/test_cosign.py`
 
 **Interfaces:**
@@ -122,8 +125,8 @@
   - `RunStore.review_cosigns_path(run_id) -> Path`. The file is `runs/<id>/review_cosigns.jsonl`.
   - `record_cosign(run_store, run_id, item_key, principal) -> None`. It raises `ValueError("co-sign must be a different person")` when `principal.user_id` equals the `user_id` on the latest decision for `item_key`, and `ValueError("nothing to co-sign")` when there is no decision. Row: `{item_key, user_id, name, role, decision_decided_at, cosigned_at}`. The co-sign binds to the decision it signed, so a later decision invalidates it.
   - `effective_decisions(run_store, run_id, *, cosign_required: set[str]) -> dict[str, dict]`. This is `latest_decisions` minus any decision whose `decision` is in `cosign_required` and that has no matching co-sign.
-  - Routes, both behind `require_role("approver")`: `POST /api/extraction/runs/{run_id}/cosign` and `POST /api/voting/runs/{run_id}/cosign`, each with body `{item_key}`.
-  - Extraction treats `edit` as final only once co-signed: `cosign_required={"edit"}`. Voting: a ballot item with `engagement_alignment_flag` is cast only once co-signed. This replaces `co_signed_by`, which is removed from `VoteReviewDecisionRequest`.
+  - Route behind `require_role("approver")`: `POST /api/extraction/runs/{run_id}/cosign` with body `{item_key}`.
+  - Extraction treats `edit` as final only once co-signed: `cosign_required={"edit"}`. Voting keeps its existing `co_signed_by` rule unchanged.
 
 - [ ] **Step 1: Write failing tests:**
   - `test_cosign_by_same_user_refused`
@@ -132,7 +135,6 @@
   - `test_cosigned_edit_effective`
   - `test_new_decision_after_cosign_needs_new_cosign`
   - `test_cosign_route_requires_approver` (an analyst gets 403)
-  - `test_flagged_ballot_not_cast_without_cosign`
 
 - [ ] **Step 2: Run** `pytest tests/test_cosign.py -v`. Expect FAIL.
 
@@ -140,7 +142,7 @@
 
 - [ ] **Step 4: Run** `pytest -q`. Expect all pass.
 
-- [ ] **Step 5: Commit** with `feat(review): enforced second sign-off for corrections and flagged ballots (E2)`.
+- [ ] **Step 5: Commit** with `feat(review): enforced second sign-off for extraction corrections (E2)`.
 
 ---
 
@@ -250,11 +252,11 @@
 - Modify: `frontend/src/api/client.ts`:
   - `request()` (line ~129) sends `Authorization: Bearer <token>`.
   - Add `getMe()`.
-  - Add `cosignExtraction(runId, itemKey)` and `cosignVoting(runId, itemKey)`.
-- Modify: `frontend/src/lib/reviewer.ts`. It stores the access token, not a name: `useToken()`, plus `useMe()` loading `/api/me`.
+  - Add `cosignExtraction(runId, itemKey)`.
+- Modify: `frontend/src/lib/reviewer.ts`. Add `useToken()` and `useMe()` (loads `/api/me`). Keep `useReviewer()` exported and unchanged for the frozen `BallotReview`.
 - Modify: `frontend/src/components/ReviewerField.tsx`. It becomes "Signed in as {name} ({role})", with a token input shown only when there is no valid token.
 - Modify: drop the `reviewer` field from submit payloads in these 17 users (from `grep -rln "useReviewer\|ReviewerField" frontend/src`):
-  - `ConfirmDecision`, `BallotReview`, `LevelOverrides`, `App`
+  - `ConfirmDecision`, `LevelOverrides`, `App` (`BallotReview` is frozen and keeps `useReviewer()`, which stays exported and unchanged)
   - `ProcessHub`, `JobRun`, `Extraction`, `MonitoringAlerts`, `GovernanceAudit`
   - `steward/common`, `StewardWorkflow`, `DataLibrary`, `IdentityResolution`, `DecisionStudio`, `ReviewQueue`
 - Modify: `frontend/src/components/ExtractionResults.tsx`. Decide with the queue row's `item_key` instead of building `${company_id}:${field_id}`. Show `reason_codes`. Show a "Co-sign" button on an `edit` decision, visible to approvers who are not the decision's `user_id`.
