@@ -84,3 +84,59 @@ def test_superset_export_skipped(env):
     store.save_dashboard("alpha", "arp-alpha--x", "X", "superset-export", b"zip")
     (d,) = open_project(store, pf, client, "alpha").dashboards
     assert (d.status, d.id) == ("skipped", None)
+
+
+def _data_error(env, tmp_path, name="alpha"):
+    store, pf, client = env
+    with pytest.raises(OpenError) as ei:
+        open_project(store, pf, client, name)
+    assert ei.value.step == "data"
+
+
+def test_junk_xlsx(env):
+    store, _, _ = env
+    store.create("alpha", "A")
+    store.add_data_file("alpha", "Constituent_X.xlsx", b"junk", {"notional_eur": 1.0})
+    _data_error(env, None)
+
+
+def test_missing_data_file(env, tmp_path):
+    store, _, _ = env
+    _project(store, tmp_path, "alpha", ())
+    store.file_path("alpha", "data", "Constituent_IE00TESTFUND.xlsx").unlink()
+    _data_error(env, tmp_path)
+
+
+def test_non_numeric_notional(env, tmp_path):
+    store, _, _ = env
+    store.create("alpha", "A")
+    store.add_data_file("alpha", "Constituent_X.xlsx", _xlsx(tmp_path, ROWS).read_bytes(), {"notional_eur": "abc"})
+    _data_error(env, tmp_path)
+
+
+def test_traversal_filename_in_manifest(env, tmp_path):
+    store, _, _ = env
+    _project(store, tmp_path, "alpha", ())
+    m = store.root / "alpha" / "project.json"
+    m.write_text(m.read_text().replace("Constituent_IE00TESTFUND.xlsx", "../../x.xlsx"))
+    _data_error(env, tmp_path)
+
+
+def test_published_is_read_not_changed(env, tmp_path):
+    store, pf, client = env
+    _project(store, tmp_path, "alpha", ("One",))
+    open_project(store, pf, client, "alpha")
+    client.dashboards[slugify_dashboard("alpha", "One")]["published"] = True
+    (d,) = open_project(store, pf, client, "alpha").dashboards
+    assert d.published is True and d.status == "unchanged"
+    assert client.dashboards[slugify_dashboard("alpha", "One")]["published"] is True
+
+
+def test_malformed_template_file(env, tmp_path):
+    store, pf, client = env
+    _project(store, tmp_path, "alpha", ("One",))
+    slug = slugify_dashboard("alpha", "One")
+    store.file_path("alpha", "dashboards", f"{slug}.json").write_text("{not json")
+    with pytest.raises(OpenError) as ei:
+        open_project(store, pf, client, "alpha")
+    assert ei.value.step == f"dashboard:{slug}"

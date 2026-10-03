@@ -43,13 +43,13 @@ def _import_data(store: ProjectStore, portfolio_store, project_id: str) -> list[
             continue
         if "notional_eur" not in src.params:
             raise OpenError("data", "Missing notional_eur parameter for the constituent files")
-        paths: list[Path] = [store.file_path(project_id, "data", f) for f in src.files]
         try:
+            paths: list[Path] = [store.file_path(project_id, "data", f) for f in src.files]
             summary = import_constituent_files(
                 portfolio_store, paths, src.params["notional_eur"], project_id=project_id
             )
-        except (ValueError, OSError) as e:
-            raise OpenError("data", str(e)) from e
+        except Exception as e:  # openpyxl raises BadZipFile, StopIteration, TypeError, ... on bad files
+            raise OpenError("data", f"{src.kind}: {e}") from e
         out.append({"kind": src.kind, **summary})
     return out
 
@@ -63,9 +63,16 @@ def _open_dashboard(store: ProjectStore, client, project_id: str, d) -> OpenedDa
         template = DashboardTemplate.model_validate_json(
             store.file_path(project_id, "dashboards", d.file).read_text(encoding="utf-8")
         )
+        if template.slug != d.slug:
+            raise OpenError(step, f"Stored template slug {template.slug!r} does not match {d.slug!r}")
         status = provision_project_dashboard(client, project_id, template)
         dash_id = client.find_dashboard(d.slug)
-        published = bool(client.get_dashboard(dash_id)["published"]) if dash_id is not None else False
+        published = False
+        if dash_id is not None:
+            meta = client.get_dashboard(dash_id)
+            if "published" not in meta:
+                raise OpenError(step, "Superset did not report published state")
+            published = bool(meta["published"])
     except SupersetError as e:  # never echo e.body
         raise OpenError(step, f"Superset returned HTTP {e.status_code}") from None
     except httpx.HTTPError:
