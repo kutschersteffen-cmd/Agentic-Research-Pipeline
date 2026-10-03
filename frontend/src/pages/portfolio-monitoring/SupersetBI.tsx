@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { embedDashboard } from "@superset-ui/embedded-sdk";
 import { api } from "../../api/client";
 import { designRequestBody, embedErrorText, embedUrlFor, pickDefaultDashboard, SUPERSET_URL } from "../../lib/biEmbed";
-import type { BIDesignResult, DashboardItem } from "../../types";
+import { apiMessage, embeddable, saveBody, UNSCOPED_CAVEAT } from "../../lib/projects";
+import type { BIDesignResult, DashboardItem, OpenedDashboard } from "../../types";
+import { ProjectBar } from "./ProjectBar";
 
 const EXAMPLE_BRIEFS = [
   "Exposure overview: total exposure in EUR, split by sector and by country",
@@ -57,7 +59,7 @@ function EmbeddedDashboard({ dashboardId, title }: { dashboardId: number; title:
 }
 
 /** What the designer did with the last brief. The dashboard itself shows in the picker above. */
-function ResultView({ result }: { result: BIDesignResult }) {
+function ResultView({ result, onSave }: { result: BIDesignResult; onSave?: () => void }) {
   if (result.dashboard_id === null) {
     return (
       <div className="banner banner-warning">
@@ -75,6 +77,11 @@ function ResultView({ result }: { result: BIDesignResult }) {
   return (
     <div className="banner banner-success">
       Drafted in Superset: <strong>{result.plan?.title ?? result.slug}</strong>.
+      {onSave && saveBody(result) && (
+        <div className="toolbar">
+          <button className="secondary" onClick={onSave}>Save to project</button>
+        </div>
+      )}
       {result.plan && (
         <details>
           <summary>Chart plan (what the model asked Superset for)</summary>
@@ -109,6 +116,10 @@ export function SupersetBI() {
   const [listError, setListError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const listRequest = useRef(0);
+
+  const [project, setProject] = useState<string | null>(null);
+  const [projectDashboards, setProjectDashboards] = useState<DashboardItem[] | null>(null);
+  const [saveNote, setSaveNote] = useState<string | null>(null);
 
   const [brief, setBrief] = useState("");
   const [result, setResult] = useState<BIDesignResult | null>(null);
@@ -155,19 +166,62 @@ export function SupersetBI() {
     }
   }
 
-  const selected = dashboards?.find((d) => d.id === selectedId) ?? null;
+  // With a project chosen the picker shows only what open returned; otherwise every arp- dashboard.
+  const shown = project ? projectDashboards : dashboards;
+  const selected = shown?.find((d) => d.id === selectedId) ?? null;
+
+  const onOpened = useCallback((ds: OpenedDashboard[]) => {
+    const items = embeddable(ds);
+    setProjectDashboards(items);
+    setSelectedId(items[0]?.id ?? null);
+  }, []);
+  const onProject = useCallback((id: string | null) => {
+    setProject(id);
+    setProjectDashboards(null);
+    setSaveNote(null);
+  }, []);
+
+  async function saveToProject(action: () => Promise<string>) {
+    setSaveNote(null);
+    try {
+      setSaveNote(await action());
+    } catch (e) {
+      setSaveNote(`Could not save to the project. ${apiMessage(e)}`);
+    }
+  }
+  const saveDesign = () => {
+    const body = saveBody(result);
+    if (!project || !body) return;
+    void saveToProject(async () => {
+      const d = await api.saveProjectDashboard(project, body);
+      if (d.id !== null) {
+        const item = { id: d.id, slug: d.slug, title: d.title, published: d.published };
+        setProjectDashboards((cur) => [...(cur ?? []).filter((x) => x.id !== item.id), item]);
+        setSelectedId(d.id);
+      }
+      return `Saved to the project: ${d.title}.`;
+    });
+  };
+  const exportPicked = () => {
+    if (!project || !selected) return;
+    void saveToProject(async () => {
+      const d = await api.exportProjectDashboard(project, selected.id);
+      return `Saved to the project: ${d.title}.${d.scoped ? "" : ` ${UNSCOPED_CAVEAT}.`}`;
+    });
+  };
 
   return (
     <>
+      <ProjectBar onOpened={onOpened} onProject={onProject} />
       <section className="card">
         <h2>Dashboards</h2>
-        {listError ? (
+        {!project && listError ? (
           <ListError error={listError} />
-        ) : dashboards === null ? (
-          <p className="muted" aria-live="polite">Loading dashboards…</p>
-        ) : dashboards.length === 0 ? (
+        ) : shown === null ? (
+          <p className="muted" aria-live="polite">{project ? "Opening the project…" : "Loading dashboards…"}</p>
+        ) : shown.length === 0 ? (
           <p className="muted">
-            No dashboards yet — run <code>arp bi bootstrap</code> or describe one below.
+            {project ? "This project has no dashboards open." : <>No dashboards yet — run <code>arp bi bootstrap</code> or describe one below.</>}
           </p>
         ) : (
           <>
@@ -175,7 +229,7 @@ export function SupersetBI() {
               <label className="field-label inline-label">
                 Dashboard
                 <select value={selectedId ?? ""} onChange={(e) => setSelectedId(Number(e.target.value))}>
-                  {dashboards.map((d) => (
+                  {shown.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.published ? d.title : `${d.title} (draft)`}
                     </option>
@@ -188,7 +242,11 @@ export function SupersetBI() {
                   Open in Superset
                 </a>
               )}
+              {project && selected && !selected.slug.startsWith(`arp-${project}--`) && (
+                <button className="secondary" onClick={exportPicked}>Save to project</button>
+              )}
             </div>
+            {saveNote && <p className="muted" role="status">{saveNote}</p>}
             {selected && !selected.published && (
               <p className="await-text">Draft — unpublished. Review and publish it in Superset.</p>
             )}
@@ -244,7 +302,8 @@ export function SupersetBI() {
             {error}
           </p>
         )}
-        {result && <ResultView result={result} />}
+        {saveNote && !shown?.length && <p className="muted" role="status">{saveNote}</p>}
+        {result && <ResultView result={result} onSave={project ? saveDesign : undefined} />}
       </section>
     </>
   );

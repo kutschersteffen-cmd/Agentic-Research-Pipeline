@@ -84,7 +84,7 @@ import type {
   TrendPoint,
 } from "../types";
 import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
-import type { BIDesignResult, BIEmbedToken, DashboardItem } from "../types";
+import type { BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
 import type { Finding, QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, Storyline, TemplateStyleProfile } from "../types";
 import type { PaperCandidate, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
 import type {
@@ -629,6 +629,25 @@ export const api = {
   biDashboards: () => request<DashboardItem[]>("/api/bi/dashboards"),
   biEmbedToken: (dashboardId: number) =>
     request<BIEmbedToken>("/api/bi/embed-token", { method: "POST", body: JSON.stringify({ dashboard_id: String(dashboardId) }) }),
+
+  // Projects (/api/projects)
+  listProjects: () => request<ProjectSummary[]>("/api/projects"),
+  createProject: (body: { name: string; description: string }) =>
+    request<{ id: string; name: string }>("/api/projects", { method: "POST", body: JSON.stringify(body) }),
+  uploadProjectData: (id: string, file: File, notionalEur: number) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("notional_eur", String(notionalEur));
+    return request<{ id: string }>(`/api/projects/${encodeURIComponent(id)}/data`, { method: "POST", body: form });
+  },
+  openProject: (id: string) => request<OpenResult>(`/api/projects/${encodeURIComponent(id)}/open`, { method: "POST" }),
+  saveProjectDashboard: (id: string, body: { title: string; plan: unknown }) =>
+    request<OpenedDashboard>(`/api/projects/${encodeURIComponent(id)}/dashboards`, { method: "POST", body: JSON.stringify(body) }),
+  exportProjectDashboard: (id: string, dashboardId: number) =>
+    request<ExportedDashboard>(`/api/projects/${encodeURIComponent(id)}/dashboards/export`, {
+      method: "POST",
+      body: JSON.stringify({ dashboard_id: dashboardId }),
+    }),
 
   // Climate analytics
   getClimateSchema: () => request<DataPointSchema>("/api/climate/schema"),
