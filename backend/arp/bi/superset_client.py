@@ -23,8 +23,8 @@ class SupersetError(Exception):
 class SupersetClient:
     """Sync REST client for Apache Superset 5.x. Logs in lazily, sends the
     bearer token + CSRF token + Referer on every call, and re-logs-in once
-    on a 401. Payload keys marked `# unverified` are checked against a live
-    Superset in Task 4."""
+    on a 401. Endpoints and payloads were checked against a live Superset
+    5.0.0 (tests/test_bi_live_superset.py is the contract)."""
 
     def __init__(self, base_url: str, user: str, password: str, *, transport: httpx.BaseTransport | None = None):
         self._base = base_url.rstrip("/")
@@ -62,15 +62,17 @@ class SupersetClient:
         raise AssertionError("unreachable")
 
     def _find_id(self, resource: str, filters: list[dict]) -> int | None:
-        q = json.dumps({"filters": filters})  # unverified: JSON accepted in place of rison for ?q=
+        q = json.dumps({"filters": filters})  # Superset's rison parser accepts JSON for ?q=
         result = self._request("GET", f"/{resource}/", params={"q": q})["result"]
         return result[0]["id"] if result else None
 
     def ensure_database(self, name: str, sqlalchemy_uri: str) -> int:
         found = self._find_id("database", [{"col": "database_name", "opr": "eq", "value": name}])
         if found is not None:
+            # Re-sent every time so a rotated reader password lands.
+            self._request("PUT", f"/database/{found}", json={"sqlalchemy_uri": sqlalchemy_uri})
             return found
-        body = {"database_name": name, "sqlalchemy_uri": sqlalchemy_uri, "expose_in_sqllab": True}  # unverified: expose_in_sqllab
+        body = {"database_name": name, "sqlalchemy_uri": sqlalchemy_uri, "expose_in_sqllab": True}
         return self._request("POST", "/database/", json=body)["id"]
 
     def ensure_dataset(self, database_id: int, schema: str, table: str) -> int:
@@ -79,13 +81,17 @@ class SupersetClient:
             [
                 {"col": "table_name", "opr": "eq", "value": table},
                 {"col": "schema", "opr": "eq", "value": schema},
-                {"col": "database", "opr": "rel_o_m", "value": database_id},  # unverified: relation filter opr
+                {"col": "database", "opr": "rel_o_m", "value": database_id},
             ],
         )
         if found is not None:
             return found
         body = {"database": database_id, "schema": schema, "table_name": table}
         return self._request("POST", "/dataset/", json=body)["id"]
+
+    def refresh_dataset(self, dataset_id: int) -> None:
+        """Re-reads the view's columns, so a changed view definition shows up."""
+        self._request("PUT", f"/dataset/{dataset_id}/refresh")
 
     def _dataset(self, dataset_id: int) -> dict:
         return self._request("GET", f"/dataset/{dataset_id}")["result"]
@@ -107,15 +113,21 @@ class SupersetClient:
             if m.name in existing:
                 item["id"] = existing.pop(m.name)
             payload.append(item)
-        # unverified: PUT with only catalog metrics drops any others (intended: catalog is source of truth)
+        # The PUT replaces the whole list: metrics not in the catalog are dropped
+        # (the catalog is the source of truth).
         self._request("PUT", f"/dataset/{dataset_id}", json={"metrics": payload})
 
     def create_chart(self, name: str, dataset_id: int, viz_type: str, params: dict) -> int:
         form_data = {**params, "datasource": f"{dataset_id}__table", "viz_type": viz_type}
-        query_context = {  # unverified: minimal query_context shape
+        # Dashboards render from `params` (the frontend builds its own query);
+        # the saved query_context only serves GET /chart/<id>/data/, reports
+        # and cache warm-up. With empty `queries` that endpoint returns nothing.
+        query_context = {
             "datasource": {"id": dataset_id, "type": "table"},
-            "queries": [],
+            "queries": [_query(form_data)],
             "form_data": form_data,
+            "result_format": "json",
+            "result_type": "full",
         }
         body = {
             "slice_name": name,
@@ -132,11 +144,11 @@ class SupersetClient:
             "dashboard_title": title,
             "slug": slug,
             "position_json": json.dumps(position_json),
-            "json_metadata": json.dumps({}),  # unverified: empty metadata accepted
+            "json_metadata": json.dumps({}),
             "published": False,
         }
         dash_id = self._request("POST", "/dashboard/", json=body)["id"]
-        for cid in chart_ids:  # unverified: charts are attached by PUT /chart/{id} {"dashboards": [...]}
+        for cid in chart_ids:  # POST /dashboard/ cannot take charts; they attach from the chart side
             self._request("PUT", f"/chart/{cid}", json={"dashboards": [dash_id]})
         return dash_id
 
@@ -149,13 +161,59 @@ class SupersetClient:
     def delete_dashboard(self, id: int) -> None:
         self._request("DELETE", f"/dashboard/{id}")
 
+    def ensure_embedded(self, dashboard_id: int) -> str:
+        """The dashboard's embedded UUID, which guest tokens and the embed SDK
+        need (not the numeric id). The POST is an upsert: same UUID on repeat."""
+        body = {"allowed_domains": []}  # framing is limited by the CSP frame-ancestors instead
+        return self._request("POST", f"/dashboard/{dashboard_id}/embedded", json=body)["result"]["uuid"]
+
     def guest_token(self, dashboard_id: str, rls: list[dict]) -> str:
+        """`dashboard_id` is the embedded UUID from `ensure_embedded`. Superset
+        does not check it here; a wrong id only fails when the embed loads."""
         body = {
-            "user": {"username": "arp_guest"},  # unverified: guest user shape
+            "user": {"username": "arp_guest"},
             "resources": [{"type": "dashboard", "id": dashboard_id}],
             "rls": rls,
         }
         return self._request("POST", "/security/guest_token/", json=body)["token"]
+
+
+def _query(form_data: dict) -> dict:
+    """One query object covering the allowlisted viz types: every column
+    control becomes a group-by column, `metric`/`metrics` the metrics.
+    Close to what each viz's frontend buildQuery sends, minus its
+    post-processing, which only reshapes rows for drawing."""
+    columns: list = []
+    x_axis = form_data.get("x_axis")
+    if x_axis and form_data.get("time_grain_sqla"):
+        columns.append(
+            {
+                "columnType": "BASE_AXIS",
+                "sqlExpression": x_axis,
+                "label": x_axis,
+                "expressionType": "SQL",
+                "timeGrain": form_data["time_grain_sqla"],
+            }
+        )
+    elif x_axis:
+        columns.append(x_axis)
+    for key in ("groupby", "groupbyRows", "groupbyColumns", "all_columns"):
+        value = form_data.get(key) or []
+        columns.extend([value] if isinstance(value, str) else value)
+    metrics = form_data.get("metrics") or ([form_data["metric"]] if form_data.get("metric") else [])
+    filters = [
+        {"col": f["subject"], "op": f["operator"], "val": f.get("comparator")}
+        for f in form_data.get("adhoc_filters", [])
+        if f.get("expressionType") == "SIMPLE"
+    ]
+    return {
+        "columns": columns,
+        "metrics": metrics,
+        "filters": filters,
+        "orderby": [[metrics[0], False]] if metrics else [],
+        "row_limit": form_data.get("row_limit", 10000),
+        "time_range": form_data.get("time_range", "No filter"),
+    }
 
 
 def _check(resp: httpx.Response) -> None:

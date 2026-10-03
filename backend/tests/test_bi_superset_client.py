@@ -76,3 +76,58 @@ def test_token_refreshed_on_401_once():
     c2, _ = _client(lambda r: httpx.Response(401, text="no"))
     with pytest.raises(SupersetError):
         c2.find_dashboard("s")
+
+
+def test_create_chart_query_context_queries_params_columns_and_metrics():
+    # Superset's GET /chart/<id>/data/ runs the saved query_context; with
+    # empty `queries` it returns no rows (checked live in Task 4).
+    c, calls = _client(lambda r: httpx.Response(201, json={"id": 7}))
+    params = {
+        "x_axis": "as_of_date",
+        "time_grain_sqla": "P1M",
+        "groupby": ["portfolio_name"],
+        "metrics": ["Exposure (EUR)"],
+        "adhoc_filters": [
+            {"expressionType": "SIMPLE", "subject": "sector", "operator": "IN", "comparator": ["Energy"], "clause": "WHERE"}
+        ],
+        "row_limit": 50,
+    }
+    c.create_chart("n", 3, "echarts_timeseries_line", params)
+    qc = json.loads(json.loads(calls[-1].content)["query_context"])
+    assert qc["datasource"] == {"id": 3, "type": "table"}
+    (q,) = qc["queries"]
+    assert q["columns"][0]["sqlExpression"] == "as_of_date" and q["columns"][0]["timeGrain"] == "P1M"
+    assert q["columns"][1:] == ["portfolio_name"]
+    assert q["metrics"] == ["Exposure (EUR)"]
+    assert q["filters"] == [{"col": "sector", "op": "IN", "val": ["Energy"]}]
+    assert q["row_limit"] == 50
+
+
+def test_create_chart_query_context_single_metric_and_pivot_rows():
+    c, calls = _client(lambda r: httpx.Response(201, json={"id": 7}))
+    c.create_chart("n", 3, "pie", {"groupby": ["sector"], "metric": "Holdings"})
+    c.create_chart("n", 3, "pivot_table_v2", {"groupbyRows": ["sector"], "groupbyColumns": ["country"], "metrics": ["Holdings"]})
+    pie, pivot = (
+        json.loads(json.loads(x.content)["query_context"])["queries"][0] for x in calls if x.url.path == "/api/v1/chart/"
+    )
+    assert pie["columns"] == ["sector"] and pie["metrics"] == ["Holdings"]
+    assert pivot["columns"] == ["sector", "country"]
+
+
+def test_ensure_embedded_returns_uuid():
+    c, calls = _client(lambda r: httpx.Response(200, json={"result": {"uuid": "u-1", "dashboard_id": "5"}}))
+    assert c.ensure_embedded(5) == "u-1"
+    assert calls[-1].method == "POST" and calls[-1].url.path == "/api/v1/dashboard/5/embedded"
+
+
+def test_ensure_database_updates_uri_when_found():
+    def h(r):
+        if r.method == "GET":
+            return httpx.Response(200, json={"result": [{"id": 4}]})
+        return httpx.Response(200, json={"id": 4})
+
+    c, calls = _client(h)
+    assert c.ensure_database("arp_bi", "postgresql://bi_reader:new@h/arp") == 4
+    put = calls[-1]
+    assert put.method == "PUT" and put.url.path == "/api/v1/database/4"
+    assert json.loads(put.content) == {"sqlalchemy_uri": "postgresql://bi_reader:new@h/arp"}
