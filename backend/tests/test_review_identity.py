@@ -1,0 +1,96 @@
+from __future__ import annotations
+
+import pytest
+import typer
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from arp.api.auth import Principal
+from arp.api.deps import get_run_store, get_stream_store
+from arp.api.review_endpoints import submit_review
+from arp.api.routers import extraction as extraction_router
+from arp.api.routers import stewardship as stewardship_router
+from arp.cli._shared import cli_principal
+from arp.config import Settings
+from arp.orchestration.review_queue import latest_decisions, record_review_decision
+from arp.stewardship.process import StreamStore
+from arp.storage.run_store import RunStore
+from tests.conftest import PRINCIPAL
+
+
+@pytest.fixture
+def run_store(tmp_path):
+    return RunStore(tmp_path / "runs")
+
+
+def test_decision_row_records_user_id_and_role(run_store):
+    record_review_decision(run_store, "r1", "k", "approve", "ignored", None, principal=PRINCIPAL)
+    row = latest_decisions(run_store, "r1")["k"]
+    assert (row["user_id"], row["role"], row["reviewer"]) == ("u_test", "approver", "Test")
+
+
+def test_spoofed_reviewer_body_is_ignored(run_store):
+    app = FastAPI()
+    app.include_router(extraction_router.router)
+    app.dependency_overrides[get_run_store] = lambda: run_store
+    from arp.api.auth import current_user
+
+    app.dependency_overrides[current_user] = lambda: PRINCIPAL
+    with TestClient(app) as c:
+        r = c.post("/api/extraction/runs/r1/review", json={"item_key": "k", "decision": "approve", "reviewer": "Mallory"})
+    assert r.status_code == 200
+    row = latest_decisions(run_store, "r1")["k"]
+    assert row["user_id"] == "u_test" and row["reviewer"] == "Test"
+
+
+def test_unknown_decision_is_400(run_store):
+    from arp.api.main import app
+
+    app.dependency_overrides[get_run_store] = lambda: run_store
+    try:
+        r = TestClient(app).post("/api/extraction/runs/r1/review", json={"item_key": "k", "decision": "maybe"})
+    finally:
+        app.dependency_overrides.pop(get_run_store, None)
+    assert r.status_code == 400
+    with pytest.raises(ValueError):
+        submit_review(run_store, "r1", item_key="k", decision="maybe", edited_value=None)
+
+
+def test_escalate_is_accepted(run_store):
+    submit_review(run_store, "r1", item_key="k", decision="escalate", edited_value=None, principal=PRINCIPAL)
+    assert latest_decisions(run_store, "r1")["k"]["decision"] == "escalate"
+
+
+def test_old_decision_rows_without_user_id_still_load(run_store):
+    run_store.append_jsonl(run_store.review_decisions_path("r1"), {"item_key": "k", "decision": "approve", "reviewer": "old"})
+    row = latest_decisions(run_store, "r1")["k"]
+    assert row["reviewer"] == "old" and "user_id" not in row
+
+
+def test_cli_principal_requires_token(tmp_path, monkeypatch):
+    users = tmp_path / "users.json"
+    users.write_text('{"users": [{"token": "t1", "user_id": "u1", "name": "Una", "role": "analyst"}]}')
+    settings = Settings(users_file=users)
+    monkeypatch.delenv("ARP_CLI_TOKEN", raising=False)
+    with pytest.raises(typer.Exit):
+        cli_principal(settings)
+    monkeypatch.setenv("ARP_CLI_TOKEN", "t1")
+    assert cli_principal(settings) == Principal(user_id="u1", name="Una", role="analyst")
+    monkeypatch.setenv("ARP_CLI_TOKEN", "nope")
+    with pytest.raises(typer.Exit):
+        cli_principal(settings)
+
+
+def test_stewardship_approved_by_comes_from_principal(tmp_path):
+    from arp.api.auth import current_user
+
+    streams = StreamStore(tmp_path / "streams")
+    app = FastAPI()
+    app.include_router(stewardship_router.router)
+    app.dependency_overrides[get_stream_store] = lambda: streams
+    app.dependency_overrides[current_user] = lambda: PRINCIPAL
+    with TestClient(app) as c:
+        # Another user saved v1; the body's `approved_by` must not be able to impersonate them.
+        r = c.post("/api/stewardship/policies/house_voting/activate", json={"version": 0, "approved_by": "Mallory"})
+        assert r.status_code == 200
+        assert r.json()["approved_by"] == "u_test"

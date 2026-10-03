@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import pytest
 
+from arp.api.auth import Principal
+
+PRINCIPAL = Principal(user_id="u_test", name="Test", role="approver")
+
 
 @pytest.fixture(autouse=True)
 def _disable_hybrid_retrieval_by_default(monkeypatch):
@@ -74,10 +78,10 @@ def _signed_in_approver():
     """Every router now sits behind arp.api.auth.authorize; existing API tests
     exercise endpoint behaviour, not sign-in, so they run as an approver.
     tests/test_auth.py clears these overrides to test the real thing."""
-    from arp.api.auth import Principal, authorize, current_user
+    from arp.api.auth import authorize, current_user
     from arp.api.main import app
 
-    principal = Principal(user_id="u_test", name="Test", role="approver")
+    principal = PRINCIPAL
     app.dependency_overrides[authorize] = lambda: principal
     app.dependency_overrides[current_user] = lambda: principal
     yield

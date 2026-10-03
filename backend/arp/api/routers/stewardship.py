@@ -11,6 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from arp.api.auth import Principal, current_user
 from arp.api.deps import get_decision_store, get_engagement_store, get_stream_store, settings_dep
 from arp.config import Settings
 from arp.schemas.engagement import (
@@ -103,16 +104,20 @@ def get_flow(
 class PolicyDecisionRequest(BaseModel):
     issue_id: str
     decision: Literal["adopt", "adopt_with_modification", "decline", "defer", "clarify"]
-    decided_by: str
     note: str | None = None
     modification: dict | None = None
 
 
 @router.post("/streams/{stream_id}/decisions")
-def post_decision(body: PolicyDecisionRequest, stream_id: str, streams: StreamStore = Depends(get_stream_store)) -> dict:
+def post_decision(
+    body: PolicyDecisionRequest,
+    stream_id: str,
+    streams: StreamStore = Depends(get_stream_store),
+    principal: Principal = Depends(current_user),
+) -> dict:
     stream = _stream_or_404(streams, stream_id)
     try:
-        updated = record_decision(stream, body.model_dump(exclude_none=True), PolicyStore(streams.root).active("house_voting"))
+        updated = record_decision(stream, {**body.model_dump(exclude_none=True), "decided_by": principal.name}, PolicyStore(streams.root).active("house_voting"))
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     streams.save(updated)
@@ -131,7 +136,6 @@ def post_build(stream_id: str, streams: StreamStore = Depends(get_stream_store))
 
 
 class ConfirmTiersRequest(BaseModel):
-    decided_by: str
     issuer_ids: list[str] | None = None  # None: confirm every proposed change
 
 
@@ -140,9 +144,10 @@ def post_confirm_tiers(
     body: ConfirmTiersRequest,
     streams: StreamStore = Depends(get_stream_store),
     engagements: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     try:
-        confirmed = confirm_tiers(streams.root, engagements.list_all(), body.decided_by, body.issuer_ids)
+        confirmed = confirm_tiers(streams.root, engagements.list_all(), principal.name, body.issuer_ids)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     return {"confirmed": confirmed}
@@ -202,16 +207,19 @@ def get_policy_version(
 class SavePolicyRequest(BaseModel):
     content: dict
     note: str = ""
-    created_by: str
 
 
 @router.post("/policies/{policy_id}/versions")
 def save_policy_version(
-    policy_id: str, body: SavePolicyRequest, stream: str = HOUSE, streams: StreamStore = Depends(get_stream_store)
+    policy_id: str,
+    body: SavePolicyRequest,
+    stream: str = HOUSE,
+    streams: StreamStore = Depends(get_stream_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     store = _store(streams, stream, policy_id)
     try:
-        version = store.save(policy_id, body.content, body.note, body.created_by, load_sample())
+        version = store.save(policy_id, body.content, body.note, principal.user_id, load_sample())
     except (ValueError, KeyError) as exc:
         raise HTTPException(422, str(exc)) from exc
     return {"version": version}
@@ -219,16 +227,19 @@ def save_policy_version(
 
 class ActivateRequest(BaseModel):
     version: int
-    approved_by: str
 
 
 @router.post("/policies/{policy_id}/activate")
 def activate_policy_version(
-    policy_id: str, body: ActivateRequest, stream: str = HOUSE, streams: StreamStore = Depends(get_stream_store)
+    policy_id: str,
+    body: ActivateRequest,
+    stream: str = HOUSE,
+    streams: StreamStore = Depends(get_stream_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     store = _store(streams, stream, policy_id)
     try:
-        return store.activate(policy_id, body.version, body.approved_by)
+        return store.activate(policy_id, body.version, principal.user_id)
     except (ValueError, KeyError) as exc:
         raise HTTPException(422, str(exc)) from exc
 
@@ -360,7 +371,6 @@ def post_monitoring_preview(
 class OpenFromTriggerRequest(BaseModel):
     issuer_id: str
     rule: str
-    decided_by: str
 
 
 @router.post("/monitoring/open-engagement")
@@ -368,11 +378,10 @@ def open_engagement_from_trigger(
     body: OpenFromTriggerRequest,
     streams: StreamStore = Depends(get_stream_store),
     engagements: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     """Opens an engagement for a trigger the active rules raise. The theme and
     severity come from the rule, not the request."""
-    if not body.decided_by.strip():
-        raise HTTPException(422, "Opening an engagement needs decided_by")
     sample = load_sample()
     triggers = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, engagements.list_all())
     trigger = next((t for t in triggers if t["issuer_id"] == body.issuer_id and t["rule"] == body.rule), None)
@@ -386,7 +395,7 @@ def open_engagement_from_trigger(
         theme=trigger["theme"],
         severity=IssueSeverity(trigger["severity"]),
         source=TriggerSource.MONITORING_RULE,
-        source_detail=f"{trigger['rule']}: {trigger['reason']} (opened by {body.decided_by})",
+        source_detail=f"{trigger['rule']}: {trigger['reason']} (opened by {principal.name})",
         sector=trigger["sector"],
     )
     return {"issue_id": issue.issue_id, "trigger": {**trigger, "engagement_id": issue.issue_id}}
@@ -456,7 +465,6 @@ class ExceptionDecisionRequest(BaseModel):
     issue_id: str
     client_step: str  # the step the decider saw: a stale or repeated request finds no open exception
     decision: Literal["adopt", "decline"]
-    decided_by: str
     note: str = ""
 
 
@@ -467,12 +475,11 @@ def decide_client_exception(
     settings: Settings = Depends(settings_dep),
     streams: StreamStore = Depends(get_stream_store),
     engagements: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     """The house decides a client's escalation above its own step: adopt moves the
     engagement to the client's step; decline keeps the house step. Both are logged
     on the stream, so the client report can show them."""
-    if not body.decided_by.strip():
-        raise HTTPException(422, "A decision needs decided_by")
     stream = _stream_or_404(streams, stream_id)
     ctxs = _escalation_contexts(settings, streams, engagements)
     house = escalation.evaluate(PolicyStore(streams.root).active("escalation_rules"), ctxs)
@@ -491,7 +498,7 @@ def decide_client_exception(
             item["company_id"],
             item["issue_id"],
             EscalationStage(item["recommended"]),
-            body.decided_by,
+            principal.name,
             f"Adopted from {stream['name']}: {item['reason']} ({item['rule']})",
         )
     row = {
@@ -501,7 +508,7 @@ def decide_client_exception(
         "house_step": item["house_recommended"],
         "client_step": item["recommended"],
         "decision": body.decision,
-        "decided_by": body.decided_by,
+        "decided_by": principal.name,
         "note": body.note,
         "decided_at": datetime.now(UTC).isoformat(),
     }
@@ -581,21 +588,17 @@ def post_program_simulate(
         raise HTTPException(422, str(exc)) from exc
 
 
-class SaveProgramRequest(ProgramRequest):
-    updated_by: str
-
-
 @router.put("/streams/{stream_id}/program")
-def put_program(stream_id: str, body: SaveProgramRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
-    if not body.updated_by.strip():
-        raise HTTPException(422, "Saving a calibration needs updated_by")
+def put_program(
+    stream_id: str, body: ProgramRequest, streams: StreamStore = Depends(get_stream_store), principal: Principal = Depends(current_user)
+) -> dict:
     stream = _stream_or_404(streams, stream_id)
     if body.params.benchmark != "sample":
         try:
             BenchmarkStore(streams.root).get(body.params.benchmark)
         except KeyError as exc:
             raise HTTPException(422, f"Unknown benchmark: {body.params.benchmark}") from exc
-    program = {"params": body.params.model_dump(), "updated_by": body.updated_by, "updated_at": datetime.now(UTC).isoformat()}
+    program = {"params": body.params.model_dump(), "updated_by": principal.user_id, "updated_at": datetime.now(UTC).isoformat()}
     streams.save({**stream, "program": program})
     return program
 
@@ -622,7 +625,7 @@ def get_program_proposal(
 
 
 class ApproveProgramRequest(BaseModel):
-    approved_by: str
+    pass  # approver comes from the signed-in principal
 
 
 @router.post("/streams/{stream_id}/program/approve")
@@ -632,11 +635,12 @@ def post_program_approve(
     settings: Settings = Depends(settings_dep),
     streams: StreamStore = Depends(get_stream_store),
     engagements: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     """Freezes the saved calibration as a new program version (four-eyes)."""
     stream = _stream_or_404(streams, stream_id)
     try:
-        stream = approve(streams.root, stream, engagements.list_all(), settings.engagement_sla_days, body.approved_by)
+        stream = approve(streams.root, stream, engagements.list_all(), settings.engagement_sla_days, principal.user_id)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     streams.save(stream)
@@ -711,7 +715,6 @@ class CreateDraftRequest(BaseModel):
     issue_id: str
     type: CorrespondenceType = CorrespondenceType.LETTER
     text: str
-    created_by: str
     interaction_type: InteractionType | None = None  # None: take the proposed tag
 
 
@@ -720,9 +723,10 @@ def create_draft(
     body: CreateDraftRequest,
     streams: StreamStore = Depends(get_stream_store),
     engagements: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     try:
-        return drafting.create(_drafts(streams), engagements, _blocklist(streams), **body.model_dump())
+        return drafting.create(_drafts(streams), engagements, _blocklist(streams), **body.model_dump(), created_by=principal.user_id)
     except KeyError as exc:
         raise HTTPException(404, "Unknown engagement") from exc
     except ValueError as exc:
@@ -730,7 +734,6 @@ def create_draft(
 
 
 class UpdateDraftRequest(BaseModel):
-    updated_by: str
     text: str | None = None
     interaction_type: InteractionType | None = None
 
@@ -741,9 +744,10 @@ def update_draft(
     body: UpdateDraftRequest,
     streams: StreamStore = Depends(get_stream_store),
     engagements: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     try:
-        return drafting.update(_drafts(streams), engagements, _blocklist(streams), draft_id, **body.model_dump())
+        return drafting.update(_drafts(streams), engagements, _blocklist(streams), draft_id, **body.model_dump(), updated_by=principal.user_id)
     except KeyError as exc:
         raise HTTPException(404, "Unknown draft or engagement") from exc
     except ValueError as exc:
@@ -751,15 +755,16 @@ def update_draft(
 
 
 class ApproveDraftRequest(BaseModel):
-    approved_by: str
     note: str = ""
 
 
 @router.post("/drafts/{draft_id}/approve")
-def approve_draft(draft_id: str, body: ApproveDraftRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
+def approve_draft(
+    draft_id: str, body: ApproveDraftRequest, streams: StreamStore = Depends(get_stream_store), principal: Principal = Depends(current_user)
+) -> dict:
     """The stage 5 checkpoint for outreach: nothing is sent before a second person approves it."""
     try:
-        return drafting.approve(_drafts(streams), draft_id, body.approved_by, body.note)
+        return drafting.approve(_drafts(streams), draft_id, principal.user_id, body.note)
     except KeyError as exc:
         raise HTTPException(404, "Unknown draft") from exc
     except ValueError as exc:
@@ -841,18 +846,18 @@ class CommitmentStatusRequest(BaseModel):
     company_id: str
     issue_id: str
     status: Literal["verified", "missed"]
-    decided_by: str
 
 
 @router.post("/tracking/commitments/{commitment_id}")
 def set_commitment_status(
-    commitment_id: str, body: CommitmentStatusRequest, engagements: EngagementStore = Depends(get_engagement_store)
+    commitment_id: str,
+    body: CommitmentStatusRequest,
+    engagements: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
-    if not body.decided_by.strip():
-        raise HTTPException(422, "A decision needs decided_by")
     try:
         engagements.update_commitment_status(
-            body.company_id, body.issue_id, commitment_id, CommitmentStatus(body.status), body.decided_by
+            body.company_id, body.issue_id, commitment_id, CommitmentStatus(body.status), principal.name
         )
     except (KeyError, ValueError) as exc:
         raise HTTPException(404, str(exc)) from exc
@@ -864,13 +869,14 @@ class CloseRequest(BaseModel):
     issue_id: str
     status: Literal["resolved", "closed"]
     outcome: str
-    decided_by: str
 
 
 @router.post("/tracking/close")
-def close_engagement(body: CloseRequest, engagements: EngagementStore = Depends(get_engagement_store)) -> dict:
+def close_engagement(
+    body: CloseRequest, engagements: EngagementStore = Depends(get_engagement_store), principal: Principal = Depends(current_user)
+) -> dict:
     try:
-        tracking.close(engagements, body.company_id, body.issue_id, IssueStatus(body.status), body.outcome, body.decided_by)
+        tracking.close(engagements, body.company_id, body.issue_id, IssueStatus(body.status), body.outcome, principal.name)
     except KeyError as exc:
         raise HTTPException(404, "Unknown engagement") from exc
     except ValueError as exc:

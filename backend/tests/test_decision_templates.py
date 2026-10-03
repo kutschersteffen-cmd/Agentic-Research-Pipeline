@@ -6,6 +6,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from arp.api.auth import current_user
 from arp.api.deps import get_decision_store, get_portfolio_store, get_run_store, settings_dep
 from arp.api.routers import decision as decision_router
 from arp.config import Settings
@@ -14,6 +15,7 @@ from arp.decision.mechanism import derive_mechanism
 from arp.orchestration.job_manager import JobManager
 from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
+from tests.conftest import PRINCIPAL
 
 FIELDS = ["Green capex", "Net zero target"]
 
@@ -50,6 +52,7 @@ def client(tmp_path):
     app.dependency_overrides[get_decision_store] = lambda: store
     app.dependency_overrides[get_run_store] = lambda: run_store
     app.dependency_overrides[get_portfolio_store] = lambda: None
+    app.dependency_overrides[current_user] = lambda: PRINCIPAL
     with TestClient(app) as c:
         c.store, c.run_store = store, run_store
         yield c
@@ -91,7 +94,7 @@ def test_export_import_round_trip_starts_a_new_unratified_framework(client):
     payload = exported.json()
     assert payload["format"] == templates.TEMPLATE_FORMAT and payload["origin"]["ratified"] is True
 
-    imported = client.post("/api/decision/mechanisms/import", json={"template": payload, "by": "ana"}).json()
+    imported = client.post("/api/decision/mechanisms/import", json={"template": payload}).json()
     assert imported["config"]["framework_id"] != framework_id
     assert imported["config"]["ratified"] is False and imported["config"]["version"] == 1
     assert imported["config"]["criteria"] == payload["config"]["criteria"]

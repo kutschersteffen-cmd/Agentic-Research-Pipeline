@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from arp.schemas.common import now_iso
 from arp.storage.run_store import RunStore
+
+if TYPE_CHECKING:  # runtime import would cycle: api.auth -> api.deps -> research.pipeline -> here
+    from arp.api.auth import Principal
 
 
 def queue_for_review(run_store: RunStore, run_id: str, item_key: str, payload: dict) -> None:
@@ -21,8 +26,10 @@ def record_review_decision(
     reviewer: str | None,
     edited_value: dict | None,
     comment: str | None = None,
+    *,
+    principal: Principal | None = None,
 ) -> None:
-    """decision: 'approve' | 'edit' | 'reject'. Decisions are appended, never
+    """decision: 'approve' | 'edit' | 'reject' | 'escalate'. Decisions are appended, never
     mutated in place, so the review queue keeps a full audit trail; the
     latest decision per item_key wins when results are materialized.
 
@@ -32,10 +39,14 @@ def record_review_decision(
     on it. `comment` is a trailing optional kwarg specifically so existing
     positional call sites (e.g. themes.py) keep working unmodified.
     """
+    if principal is not None:
+        reviewer = principal.name
     row = {
         "item_key": item_key,
         "decision": decision,
         "reviewer": reviewer,
+        "user_id": principal.user_id if principal else None,
+        "role": principal.role if principal else None,
         "edited_value": edited_value,
         "comment": comment,
         "decided_at": now_iso(),

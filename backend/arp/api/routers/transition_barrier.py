@@ -4,6 +4,7 @@ import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store, settings_dep
 from arp.api.review_endpoints import (
     ReviewDecisionRequest,
@@ -176,14 +177,15 @@ def get_refresh_review_history(run_id: str, item_key: str, run_store: RunStore =
 
 @router.post("/refresh/runs/{run_id}/review")
 def submit_refresh_review(
-    run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store)
+    run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     return submit_review(
         run_store,
         run_id,
         item_key=req.item_key,
         decision=req.decision,
-        reviewer=req.reviewer,
+        principal=principal,
         edited_value=req.edited_value,
         comment=req.comment,
     )

@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from arp.api.auth import Principal, current_user
 from arp.api.deps import get_llm_client, get_registry, get_run_store, get_taxonomy_store, get_verifier_llm_client, settings_dep
 from arp.api.review_endpoints import ReviewDecisionRequest, get_review_queue, submit_review
 from arp.api.run_scheduling import schedule_llm_run
@@ -233,9 +234,10 @@ def get_theme_review_queue(run_id: str, run_store: RunStore = Depends(get_run_st
 
 @router.post("/runs/{run_id}/review")
 def submit_theme_review(
-    run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store)
+    run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     return submit_review(
-        run_store, run_id, item_key=req.item_key, decision=req.decision, reviewer=req.reviewer,
+        run_store, run_id, item_key=req.item_key, decision=req.decision, principal=principal,
         edited_value=req.edited_value, comment=req.comment,
     )

@@ -8,11 +8,13 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from arp.api.auth import current_user
 from arp.api.deps import get_decision_store, get_portfolio_store, get_run_store, settings_dep
 from arp.api.routers import decision as decision_router
 from arp.config import Settings
 from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
+from tests.conftest import PRINCIPAL
 
 DECK = Path(__file__).resolve().parents[2] / "docs/decision-studio/example-framework/credibility"
 SAMPLE = Path(__file__).resolve().parents[1] / "arp" / "decision" / "sample_data" / "example_transition_universe.csv"
@@ -31,6 +33,7 @@ def client(tmp_path):
     app.dependency_overrides[get_decision_store] = lambda: store
     app.dependency_overrides[get_run_store] = lambda: run_store
     app.dependency_overrides[get_portfolio_store] = lambda: None
+    app.dependency_overrides[current_user] = lambda: PRINCIPAL
     with TestClient(app) as c:
         c.run_store = run_store
         yield c
@@ -98,10 +101,10 @@ def test_saving_edits_records_them_as_human_decisions(client):
     config["criteria"][0]["direction"] = "lower" if config["criteria"][0]["direction"] == "higher" else "higher"
     config["min_coverage_pct"] = 75
 
-    saved = client.post("/api/decision/mechanisms", json={"config": config, "base_version": 1, "by": "analyst"}).json()
+    saved = client.post("/api/decision/mechanisms", json={"config": config, "base_version": 1}).json()
     assert saved["config"]["version"] == 2
     human = [e for e in saved["audit"] if e["origin"] == "human"]
-    assert human and all(e["by"] == "analyst" for e in human)
+    assert human and all(e["by"] == "Test" for e in human)
     assert any("direction" in e["decision"] for e in human)
     assert any("60 -> 75" in e["decision"] for e in human)
 

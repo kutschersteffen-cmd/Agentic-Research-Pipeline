@@ -35,6 +35,7 @@ from arp.stewardship.process import (  # noqa: E402
     flow,
 )
 from arp.storage.engagement_store import EngagementStore  # noqa: E402
+from tests.conftest import PRINCIPAL
 
 SAMPLE = json.loads(SAMPLE_PATH.read_text())
 
@@ -187,14 +188,14 @@ def test_a_client_escalation_above_the_house_is_decided_at_the_house_checkpoint(
     [item] = checkpoint()
     assert (item["client"], item["house"], item["client_step"]) == ("Pension Fund", "private_engagement", "joint_engagement")
     body = ExceptionDecisionRequest(
-        issue_id=issue.issue_id, client_step=item["client_step"], decision=decision, decided_by="Lead"
+        issue_id=issue.issue_id, client_step=item["client_step"], decision=decision
     )
-    row = decide_client_exception(stream["stream_id"], body, settings, streams, engagements)
+    row = decide_client_exception(stream["stream_id"], body, settings, streams, engagements, PRINCIPAL)
     assert row["decision"] == decision
     # the decided step is gone (this test graph has no wait, so after an adopt it already asks for the next step)
     assert all(d["client_step"] != item["client_step"] for d in checkpoint())
     [live] = engagements.get("SYN10").issues
     assert live.escalation_stage.value == ("joint_engagement" if decision == "adopt" else "private_engagement")
     with pytest.raises(HTTPException) as again:
-        decide_client_exception(stream["stream_id"], body, settings, streams, engagements)
+        decide_client_exception(stream["stream_id"], body, settings, streams, engagements, PRINCIPAL)
     assert again.value.status_code == 404

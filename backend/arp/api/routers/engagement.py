@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from arp.api.auth import Principal, current_user
 from arp.api.deps import get_engagement_store, get_llm_client, get_registry, settings_dep
 from arp.config import Settings
 from arp.engagement.drafting_agent import draft_meeting_summary, draft_outreach_letter, draft_talking_points
@@ -89,15 +90,20 @@ def next_action(company_id: str, issue_id: str, settings: Settings = Depends(set
 
 class EscalateRequest(BaseModel):
     stage: EscalationStage
-    decided_by: str
     reason: str = ""
 
 
 @router.post("/records/{company_id}/issues/{issue_id}/escalate")
-def escalate_issue(company_id: str, issue_id: str, req: EscalateRequest, store: EngagementStore = Depends(get_engagement_store)) -> dict:
+def escalate_issue(
+    company_id: str,
+    issue_id: str,
+    req: EscalateRequest,
+    store: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
+) -> dict:
     """The non-negotiable escalation-lever human checkpoint -- this is the
     only code path that can move an issue's escalation_stage."""
-    return store.set_escalation_stage(company_id, issue_id, req.stage, req.decided_by, req.reason).model_dump(mode="json")
+    return store.set_escalation_stage(company_id, issue_id, req.stage, principal.name, req.reason).model_dump(mode="json")
 
 
 class TriggerScanRequest(BaseModel):

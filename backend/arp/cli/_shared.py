@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import os
+
 import typer
 
-from arp.config import get_settings
+from arp.api.auth import Principal, load_users
+from arp.config import Settings, get_settings
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.local_files import LocalFileDocumentSource
@@ -117,3 +120,20 @@ def _portfolio_store():
 
 
 _portfolio_directories = portfolio_directories
+
+
+def cli_principal(settings: Settings) -> Principal:
+    """The signed-in user for CLI writes: env ARP_CLI_TOKEN looked up in the users file."""
+    token = os.environ.get("ARP_CLI_TOKEN", "").strip()
+    if not token:
+        typer.echo("Set ARP_CLI_TOKEN to your user token (see config/users.example.json).", err=True)
+        raise typer.Exit(1)
+    try:
+        user = load_users(settings.users_file).get(token)
+    except RuntimeError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    if user is None:
+        typer.echo("ARP_CLI_TOKEN does not match any user.", err=True)
+        raise typer.Exit(1)
+    return user
