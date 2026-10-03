@@ -55,7 +55,10 @@ def _registry_for(settings: Settings = Depends(settings_dep)) -> SchemaRegistry:
 
 
 @router.post("/schemas", response_model=DataPointSchema)
-def register_schema(schema: DataPointSchema, registry: SchemaRegistry = Depends(_registry_for)) -> DataPointSchema:
+def register_schema(
+    schema: DataPointSchema, registry: SchemaRegistry = Depends(_registry_for),
+    principal: Principal = Depends(require_role("analyst")),
+) -> DataPointSchema:
     return registry.save(schema)
 
 
@@ -78,7 +81,7 @@ def release_schema(
     principal: Principal = Depends(require_role("approver")),
 ) -> DataPointSchema:
     try:
-        return registry.release(schema_id, version)
+        return registry.release(schema_id, version, released_by=principal.user_id)
     except KeyError:
         raise HTTPException(404, "Schema not found") from None
 

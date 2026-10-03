@@ -137,13 +137,20 @@ def test_release_route_requires_approver(settings, monkeypatch):
     s = reg.save(_schema())
     url = f"/api/extraction/schemas/{s.schema_id}/versions/1/release"
     assert _client(settings, store, "analyst", monkeypatch).post(url).status_code == 403
-    ok = _client(settings, store, "approver", monkeypatch).post(url)
+    ok = _client(settings, store, "approver", monkeypatch).post(url, json={"released_by": "mallory"})
     assert ok.status_code == 200 and ok.json()["release_flag"] is True
+    assert ok.json()["released_by"] == "u" and ok.json()["released_at"]
     assert ok.json()["fields"][0]["status"] == "released"
+
+
+def test_register_schema_requires_analyst(settings, monkeypatch):
+    body = _schema().model_dump(mode="json")
+    assert _client(settings, RunStore(settings.runs_dir), "viewer", monkeypatch).post("/api/extraction/schemas", json=body).status_code == 403
 
 
 def test_schema_routes_register_list_get(settings, monkeypatch):
     c = _client(settings, RunStore(settings.runs_dir), "viewer", monkeypatch)
+    c.app.dependency_overrides[current_user] = lambda: Principal(user_id="u", name="U", role="analyst")
     s = c.post("/api/extraction/schemas", json=_schema().model_dump(mode="json")).json()
     assert c.get("/api/extraction/schemas").json()[0]["schema_id"] == s["schema_id"]
     assert c.get(f"/api/extraction/schemas/{s['schema_id']}", params={"version": 1}).json()["version"] == 1

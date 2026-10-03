@@ -56,6 +56,8 @@ class DataPointSchema(BaseModel):
     created_at: str = Field(default_factory=now_iso)
     version: int = 1
     release_flag: bool = False
+    released_by: str | None = None
+    released_at: str | None = None
 
 
 class ExtractedField(BaseModel):

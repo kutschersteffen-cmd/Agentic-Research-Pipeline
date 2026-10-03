@@ -98,7 +98,7 @@ class SchemaRegistry:
             self._write(new)
             return new
 
-    def release(self, schema_id: str, version: int) -> DataPointSchema:
+    def release(self, schema_id: str, version: int, released_by: str | None = None) -> DataPointSchema:
         with self._lock.acquire("registry"):
             schema = self.get(schema_id, version)
             today = date.today().isoformat()
@@ -107,6 +107,8 @@ class SchemaRegistry:
                 if f.status == FieldStatus.DRAFT else f
                 for f in schema.fields
             ]
-            released = schema.model_copy(update={"fields": fields, "release_flag": True})
+            released = schema.model_copy(
+                update={"fields": fields, "release_flag": True, "released_by": released_by, "released_at": now_iso()}
+            )
             self._write(released)
             return released
