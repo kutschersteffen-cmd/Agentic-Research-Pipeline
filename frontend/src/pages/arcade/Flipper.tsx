@@ -195,7 +195,7 @@ export function Flipper() {
       <p className="muted">← → (or A D, or tap the left / right half) flip. Space or a tap launches. Three balls.</p>
       <Cabinet canvasRef={cv} w={W} h={H} scale={2} left={pad(score)} right={`BALLS ${balls}  BEST ${pad(best)}`} phase={phase} flash={fresh}
         headline={phase === "title" ? "FLIPPER" : fresh ? "NEW BEST" : "GAME OVER"} sub={phase === "over" ? `Score ${score}` : undefined}
-        cta={phase === "title" ? "PRESS SPACE TO PLAY" : "PRESS SPACE TO RETRY"} onStart={() => startRef.current()} />
+        cta={phase === "title" ? "PRESS SPACE TO PLAY" : "PRESS SPACE TO RETRY"} hint={phase === "title" ? "← → flip · Space launch · or tap left / right" : undefined} onStart={() => startRef.current()} />
     </>
   );
 }

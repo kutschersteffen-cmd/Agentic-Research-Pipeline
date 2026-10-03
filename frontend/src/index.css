@@ -1826,7 +1826,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .flow-runs .selected-row td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 
 /* Meteor Dodge: a vector-cabinet world of its own (fixed phosphor-on-black in both themes). */
-.cabinet { position: relative; width: 100%; max-width: 480px; aspect-ratio: 3 / 4; background: #05070a; border: 1px solid var(--panel-border); overflow: hidden; touch-action: none; }
+.cabinet { position: relative; width: min(100%, 480px, calc((100dvh - var(--cab-chrome, 14.5rem)) * 0.75)); min-width: 12rem; aspect-ratio: 3 / 4; user-select: none; -webkit-user-select: none; background: #05070a; border: 1px solid var(--panel-border); overflow: hidden; touch-action: none; }
 .cabinet canvas { display: block; width: 100%; height: 100%; }
 .cabinet-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgb(0 0 0 / 0.65) 100%); }
 .cabinet-hud { position: absolute; inset: 12px 14px auto; display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: var(--text-sm); color: #c6ff3d; z-index: 1; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
@@ -1853,3 +1853,9 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .cabinet canvas { image-rendering: pixelated; }
 .cabinet-hint { font-size: var(--text-xs); color: #8aa530; letter-spacing: 0.04em; }
 .cabinet-card strong { padding-inline: var(--s-4); text-wrap: balance; }
+
+/* Phones: drop the help line above the game so the cabinet fits the screen; the controls show on the title card instead. */
+@media (max-width: 640px), (max-height: 500px) {
+  .arcade-game { --cab-chrome: 10.5rem; }
+  .arcade-game > .muted { display: none; }
+}

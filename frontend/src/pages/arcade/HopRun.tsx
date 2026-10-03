@@ -135,7 +135,7 @@ export function HopRun() {
       <p className="muted">← → run, Space or ↑ jump (hold for height). Stomp the purple walkers, grab coins, reach the flag. On touch: left, middle and right thirds.</p>
       <Cabinet canvasRef={cv} w={W} h={H} scale={3} left={pad(score)} right={`BEST ${pad(best)}`} phase={phase} flash={fresh}
         headline={phase === "title" ? "HOP & RUN" : fresh ? "NEW BEST" : headline} sub={phase === "over" ? `Score ${score}` : undefined}
-        cta={phase === "title" ? "PRESS SPACE TO START" : "PRESS SPACE TO RETRY"} onStart={() => startRef.current()} />
+        cta={phase === "title" ? "PRESS SPACE TO START" : "PRESS SPACE TO RETRY"} hint={phase === "title" ? "← → run · Space jump · or touch thirds" : undefined} onStart={() => startRef.current()} />
     </>
   );
 }

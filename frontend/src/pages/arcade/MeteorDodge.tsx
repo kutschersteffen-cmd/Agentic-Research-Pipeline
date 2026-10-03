@@ -262,6 +262,7 @@ export function MeteorDodge() {
             <button type="button" className="cabinet-go" onClick={() => launch.current()}>
               {phase === "title" ? "PRESS SPACE TO LAUNCH" : "PRESS SPACE TO RETRY"}
             </button>
+            {phase === "title" && <span className="cabinet-hint">← → steer · hold Space to fire · or drag</span>}
           </div>
         )}
       </div>
