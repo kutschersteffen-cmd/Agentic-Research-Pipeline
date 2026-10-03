@@ -53,7 +53,10 @@ TEMPLATE_SLUGS = [t.slug for t in load_templates()]
 
 
 def _drop_dashboard(client: SupersetClient, slug: str) -> None:
-    """Deletes the dashboard under `slug` and its charts, if present."""
+    """Deletes the dashboard under `slug` and its charts, if present.
+
+    WARNING: it deletes whatever has that slug, including a real `arp-risk-exposure`.
+    Point ARP_TEST_SUPERSET_URL only at a throwaway Superset."""
     dash_id = client.find_dashboard(slug)
     if dash_id is not None:
         charts = client.dashboard_charts(dash_id)
@@ -64,7 +67,11 @@ def _drop_dashboard(client: SupersetClient, slug: str) -> None:
 
 @pytest.fixture(autouse=True)
 def drop_templates(settings):
-    """Every bootstrap provisions the template dashboards; none may outlive a test."""
+    """Every bootstrap provisions the template dashboards; none may outlive a test.
+
+    WARNING: this deletes `arp-risk-exposure` (and every other template slug) on the
+    target, including one someone curated. Point ARP_TEST_SUPERSET_URL only at a
+    throwaway Superset."""
     yield
     client = SupersetClient(URL, settings.superset_user, settings.superset_password)
     for slug in TEMPLATE_SLUGS:
