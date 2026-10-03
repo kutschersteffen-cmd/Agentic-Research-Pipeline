@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Cabinet, type Phase } from "./Cabinet";
+import { TouchPad } from "./TouchPad";
 import { bindKeys, loadBest, loop, pad, pointerX, saveBest } from "./kit";
 
 const W = 256, H = 144, T = 16, LW = 200, LH = 9; // low-res screen (shown at 3x), 16px tiles
@@ -27,6 +28,7 @@ const PAL: Record<string, string> = { R: "#e8382e", W: "#f2f2f2", C: "#4cc9f0", 
 export function HopRun() {
   const cv = useRef<HTMLCanvasElement>(null);
   const startRef = useRef(() => {});
+  const press = useRef<(name: "run" | "jump", down: boolean) => void>(() => {});
   const [phase, setPhase] = useState<Phase>("title");
   const [score, setScore] = useState(0);
   const [headline, setHeadline] = useState("HOP & RUN");
@@ -46,6 +48,11 @@ export function HopRun() {
       setScore(0); setFresh(false); setPhase("play");
     };
     startRef.current = start;
+    press.current = (name, down) => {
+      if (name === "run") { key.r = down; return; }
+      key.jump = down;
+      if (down) { if (state !== "play") start(); else buffer = 0.12; }
+    };
     const finish = (won: boolean) => {
       state = "over"; setPhase("over");
       const f = Math.floor(pts + (won ? Math.max(0, 120 - time) * 5 : 0));
@@ -135,7 +142,11 @@ export function HopRun() {
       <p className="muted">← → run, Space or ↑ jump (hold for height). Stomp the purple walkers, grab coins, reach the flag. On touch: left, middle and right thirds.</p>
       <Cabinet canvasRef={cv} w={W} h={H} scale={3} left={pad(score)} right={`BEST ${pad(best)}`} phase={phase} flash={fresh}
         headline={phase === "title" ? "HOP & RUN" : fresh ? "NEW BEST" : headline} sub={phase === "over" ? `Score ${score}` : undefined}
-        cta={phase === "title" ? "PRESS SPACE TO START" : "PRESS SPACE TO RETRY"} onStart={() => startRef.current()} />
+        cta={phase === "title" ? "PRESS SPACE TO START" : "PRESS SPACE TO RETRY"} hint={phase === "title" ? "← → run · Space jump · or touch thirds" : undefined} onStart={() => startRef.current()} />
+      <TouchPad maxWidth={768} pads={[
+        { label: "RUN", aria: "Run", hold: (d) => press.current("run", d) },
+        { label: "JUMP", aria: "Jump", hold: (d) => press.current("jump", d) },
+      ]} />
     </>
   );
 }
