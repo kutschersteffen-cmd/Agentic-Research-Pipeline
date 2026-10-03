@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { FileLink } from "../components/FileLink";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
@@ -371,9 +372,9 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
           <RunProgress runId={runId} />
           <div className="toolbar">
             <button onClick={refreshResults}>Refresh results</button>
-            <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
+            <FileLink url={api.exportRunCsvUrl(runId)} name={`${runId}.csv`}>
               Export CSV
-            </a>
+            </FileLink>
           </div>
           {results.length > 0 && (
             <>

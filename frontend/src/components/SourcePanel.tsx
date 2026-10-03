@@ -1,3 +1,5 @@
+import { FileFrame } from "./FileLink";
+
 export interface ActiveSource {
   title: string;
   src: string;
@@ -34,7 +36,7 @@ export function SourcePanel({ source, onClose }: Props) {
         </button>
       </div>
       {source.quote && <p className="source-panel-quote">"{source.quote}"</p>}
-      <iframe className="source-panel-iframe" src={source.src} title={source.title} />
+      <FileFrame className="source-panel-iframe" url={source.src} title={source.title} />
     </div>
   );
 }

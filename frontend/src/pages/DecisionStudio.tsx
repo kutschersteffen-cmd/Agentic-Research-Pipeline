@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { api } from "../api/client";
+import { FileLink } from "../components/FileLink";
+import { api, downloadFile } from "../api/client";
 import { AuditLogView } from "../components/AuditLogView";
 import { ColumnProfileTable } from "../components/ColumnProfileTable";
 import { DecisionResultsTable } from "../components/DecisionResultsTable";
@@ -440,10 +441,10 @@ export function DecisionStudio() {
     }
   }
 
-  async function onRatify(by: string) {
+  async function onRatify() {
     setConfirmingRatify(false);
     if (!config) return;
-    const saved = await guard("Ratifying…", () => api.ratifyMechanism(config.framework_id, config.version, by));
+    const saved = await guard("Ratifying…", () => api.ratifyMechanism(config.framework_id, config.version));
     if (saved) loadConfig(saved);
   }
 
@@ -474,18 +475,8 @@ export function DecisionStudio() {
 
   async function onExport() {
     if (!dataset || !config) return;
-    const response = await fetch(api.decisionExportUrl(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dataset_id: dataset.dataset_id, config }),
-    });
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${dataset.name.replace(/\.[^.]+$/, "")}_decision.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const name = `${dataset.name.replace(/\.[^.]+$/, "")}_decision.csv`;
+    await guard("Exporting…", () => downloadFile(api.decisionExportUrl(), name, { dataset_id: dataset.dataset_id, config }));
   }
 
   // Derivation entries come from deriving or from the stored framework;
@@ -938,7 +929,7 @@ export function DecisionStudio() {
                                 Apply
                               </button>
                             )}
-                            <a href={api.exportMechanismUrl(t.config.framework_id, t.config.version)}>Export</a>
+                            <FileLink url={api.exportMechanismUrl(t.config.framework_id, t.config.version)} name={`${t.config.framework_id}.json`}>Export</FileLink>
                           </td>
                         </tr>
                       );
@@ -1317,7 +1308,7 @@ export function DecisionStudio() {
                 Save as new version
               </button>
               {baseVersion === config.version && !unsaved && (
-                <a href={api.exportMechanismUrl(config.framework_id, config.version)}>Export v{config.version} as template</a>
+                <FileLink url={api.exportMechanismUrl(config.framework_id, config.version)} name={`${config.framework_id}.json`}>Export v{config.version} as template</FileLink>
               )}
               {unsaved ? (
                 <span className="muted">

@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
+import { FileLink } from "../components/FileLink";
 import { api } from "../api/client";
 import { ConfidenceBadge } from "../components/ConfidenceBadge";
 import { ExtractionResultsTable, FieldDetail, FinancialsResultsTable, SegmentDetail, SpendDetail } from "../components/ExtractionResults";
@@ -125,9 +126,9 @@ function RunResultsView() {
         {runId && (
           <div className="toolbar">
             <button onClick={() => loadResults()}>Refresh</button>
-            <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
+            <FileLink url={api.exportRunCsvUrl(runId)} name={`${runId}.csv`}>
               Export CSV
-            </a>
+            </FileLink>
             <SignedInAs compact />
           </div>
         )}
@@ -262,9 +263,9 @@ function CompanyResultsView() {
                   <tr key={i}>
                     <td>{d.doc_type}</td>
                     <td>
-                      <a href={api.documentRawUrl(companyId, d.doc_type, d.filename)} target="_blank" rel="noreferrer">
+                      <FileLink open url={api.documentRawUrl(companyId, d.doc_type, d.filename)} name={d.filename}>
                         {d.filename}
-                      </a>
+                      </FileLink>
                     </td>
                     <td>{Math.round(d.size_bytes / 1024)} KB</td>
                   </tr>
@@ -404,13 +405,9 @@ function ParsedDocumentsView() {
                       <td colSpan={6} className="detail-cell">
                         {row.company_id && row.doc_type && row.filename ? (
                           <p>
-                            <a
-                              href={api.documentRawUrl(row.company_id, row.doc_type, row.filename)}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
+                            <FileLink open url={api.documentRawUrl(row.company_id, row.doc_type, row.filename)} name={row.filename}>
                               view original document
-                            </a>
+                            </FileLink>
                           </p>
                         ) : (
                           <p className="muted">Source document not separately registered — showing cached text only.</p>

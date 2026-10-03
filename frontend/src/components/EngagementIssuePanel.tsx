@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { useMe } from "../lib/reviewer";
+import { SignedInAs } from "./SignedInAs";
 import type {
   Contact,
   EngagementIssue,
@@ -44,7 +46,7 @@ export function EngagementIssuePanel({
   onUpdated: (record: EngagementRecord) => void;
   onClose: () => void;
 }) {
-  const [actor, setActor] = useState("");
+  const actor = useMe()?.name ?? "";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -172,7 +174,6 @@ export function EngagementIssuePanel({
       await api.logMeetingSummaryValidated(record.company_id, issue.issue_id, {
         summary: meetingSummary.summary,
         commitments: meetingSummary.commitments_identified,
-        validated_by: actor || "unknown",
       });
       await refreshRecord();
       await loadNextAction();
@@ -183,7 +184,7 @@ export function EngagementIssuePanel({
 
   async function verifyCommitment(commitmentId: string) {
     await run(async () => {
-      await api.verifyCommitment(record.company_id, issue.issue_id, { commitment_id: commitmentId, verified_by: actor || "unknown" });
+      await api.verifyCommitment(record.company_id, issue.issue_id, { commitment_id: commitmentId });
       await refreshRecord();
       await loadNextAction();
     });
@@ -229,10 +230,7 @@ export function EngagementIssuePanel({
         </p>
       )}
 
-      <label className="field-label">
-        Acting as (used for all sign-offs below)
-        <input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="your name / handle" />
-      </label>
+      <SignedInAs compact />
       {error && <p className="error-text" role="alert">{error}</p>}
 
       <div className="panel-section">

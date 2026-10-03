@@ -1,4 +1,5 @@
 import { RUN_TYPE_LABEL, runTypeLabel, when } from "../lib/runs";
+import { FileLink } from "../components/FileLink";
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { ReviewableRunKind, RunManifest } from "../types";
@@ -93,9 +94,9 @@ export function RunHistory({ onOpenReview }: Props = {}) {
                     <td>${r.estimated_cost_usd.toFixed(2)}</td>
                     <td className="mono">{when(r.created_at)}</td>
                     <td>
-                      <a href={api.exportRunCsvUrl(r.run_id)} target="_blank" rel="noreferrer">
+                      <FileLink url={api.exportRunCsvUrl(r.run_id)} name={`${r.run_id}.csv`}>
                         CSV
-                      </a>
+                      </FileLink>
                       {runType === "proxy_voting" && (
                         <>
                           {" "}

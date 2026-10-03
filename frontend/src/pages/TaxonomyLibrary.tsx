@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
+import { FileLink } from "../components/FileLink";
 import { api } from "../api/client";
 import { ActivityEditorTable } from "../components/ActivityEditorTable";
 import { SourceDiscoveryPanel } from "../components/SourceDiscoveryPanel";
@@ -122,12 +123,12 @@ function LibraryView({
     }
   }
 
-  async function ratify(t: Taxonomy, ratifiedBy: string) {
+  async function ratify(t: Taxonomy) {
     setConfirmingRatify(null);
     setBusy(true);
     setError(null);
     try {
-      await api.ratifyTaxonomy(t.taxonomy_id, { version: t.version, ratified_by: ratifiedBy });
+      await api.ratifyTaxonomy(t.taxonomy_id, { version: t.version });
       onChange();
     } catch (err) {
       setError((err as Error).message);
@@ -163,7 +164,7 @@ function LibraryView({
         <ConfirmSignedIn
           title={`Ratify ${confirmingRatify.name} version ${confirmingRatify.version}?`}
           confirmLabel={`Ratify version ${confirmingRatify.version}`}
-          onConfirm={(by) => ratify(confirmingRatify, by)}
+          onConfirm={() => ratify(confirmingRatify)}
           onCancel={() => setConfirmingRatify(null)}
         >
           <p>
@@ -232,9 +233,9 @@ function LibraryView({
                         <button onClick={() => mapStandards(t)} disabled={busy}>
                           Map to NACE / NAICS / SIC / GICS
                         </button>
-                        <a href={api.standardsCsvUrl(t.taxonomy_id)} target="_blank" rel="noreferrer">
+                        <FileLink url={api.standardsCsvUrl(t.taxonomy_id)} name={`${t.taxonomy_id}_standards.csv`}>
                           Export standards CSV
-                        </a>
+                        </FileLink>
                       </div>
                       {onUseInTheme && (
                         <div className="toolbar">

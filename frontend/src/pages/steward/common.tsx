@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../../api/client";
+import { SignedInAs } from "../../components/SignedInAs";
 import { useMe } from "../../lib/reviewer";
 import type { MetricSource, StewardPolicyId, StewardPolicyInfo, StewardshipStage } from "../../types";
 
@@ -37,15 +38,14 @@ export const stageName = (stage: StewardshipStage) => STAGE_TABS.find((t) => t.i
 export const openCount = (stage: StewardshipStage | undefined) =>
   stage ? stage.decisions.filter((d) => d.kind !== "policy_difference" || d.decision === null).length : 0;
 
-/** The name recorded with every decision: the app-wide "Reviewing as" identity. */
-export const useActor = (): [string, () => void] => [useMe()?.name ?? "", () => {}];
+/** The signed-in user's name, or "" when signed out. The server records who decided. */
+export const useActor = (): string => useMe()?.name ?? "";
 
-export function ActorField({ actor, onChange }: { actor: string; onChange: (v: string) => void }) {
+export function ActorField() {
   return (
-    <label className="field-label actor-field">
-      Your name (recorded with every decision and version)
-      <input value={actor} onChange={(e) => onChange(e.target.value)} placeholder="e.g. J. Doe" />
-    </label>
+    <div className="actor-field">
+      <SignedInAs compact />
+    </div>
   );
 }
 
@@ -217,7 +217,7 @@ export function VersionsPanel({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const needName = actor ? undefined : "Enter your name above first";
+  const needName = actor ? undefined : "Sign in above first";
 
   async function save() {
     setBusy("save");

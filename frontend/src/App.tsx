@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api/client";
 import { canLeave } from "./lib/leaveGuard";
+import { ReviewerField } from "./components/ReviewerField";
 import { SignedInAs } from "./components/SignedInAs";
 import { ThemeBuilder } from "./pages/ThemeBuilder";
 import { Extraction } from "./pages/Extraction";
@@ -280,6 +281,7 @@ function App() {
           <span className="app-sidebar-wordmark">ARP</span>
         </div>
         <div className="app-sidebar-reviewer">
+          <ReviewerField />
           <SignedInAs />
         </div>
         <button className="palette-trigger" onClick={() => setPaletteOpen(true)}>

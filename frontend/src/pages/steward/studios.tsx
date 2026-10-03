@@ -1,4 +1,5 @@
 import "@gorules/jdm-editor/dist/style.css";
+import { FileLink } from "../../components/FileLink";
 import { useEditorTheme } from "../../lib/editorTheme";
 import { DecisionGraph, JdmConfigProvider, type DecisionGraphType } from "@gorules/jdm-editor";
 import { useEffect, useMemo, useState } from "react";
@@ -88,7 +89,7 @@ const SEVERITY_BADGE: Record<string, string> = { high: "badge-low", medium: "bad
 export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
   const draft = useRuleDraft<MonitoringPreview>("monitoring_rules", api.previewMonitoring);
   const { info, graph, preview } = draft;
-  const [actor, setActor] = useActor();
+  const actor = useActor();
   const [contexts, setContexts] = useState<Record<string, unknown>[] | null>(null);
   const [triggers, setTriggers] = useState<MonitoringTrigger[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -157,7 +158,7 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
           { label: "Decide", ready: true },
         ]}
       />
-      <ActorField actor={actor} onChange={setActor} />
+      <ActorField />
       {loadError && <p className="error-text" role="alert">{loadError}</p>}
       <Section step="Review · Decide" title="Triggers raised">
         <p className="help-text">
@@ -202,7 +203,7 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
                         <button
                           onClick={() => openEngagement(t)}
                           disabled={!actor || busy !== null}
-                          title={actor ? undefined : "Enter your name above first"}
+                          title={actor ? undefined : "Sign in above first"}
                         >
                           {busy === `${t.issuer_id}-${t.rule}` ? "Opening…" : "Open engagement"}
                         </button>
@@ -354,7 +355,7 @@ function DecisionInputs() {
 export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
   const draft = useRuleDraft<CoveragePreview>("coverage_rules", api.previewCoverage);
   const { info, graph, preview } = draft;
-  const [actor, setActor] = useActor();
+  const actor = useActor();
   const distributionRows = preview
     ? TIER_ORDER.map((t) => ({
         tier: t,
@@ -383,7 +384,7 @@ export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
         </div>
       </Section>
       <DecisionInputs />
-      <ActorField actor={actor} onChange={setActor} />
+      <ActorField />
       {draft.error && <p className="error-text" role="alert">{draft.error}</p>}
       <RuleEditor label="coverage rules">
         <Section step="Design" title="Coverage rules">
@@ -562,7 +563,7 @@ function PositionEditor({
 
 export function VotingStudio({ stage, onChanged }: StudioProps) {
   const { info, error, reload } = usePolicy("house_voting");
-  const [actor, setActor] = useActor();
+  const actor = useActor();
   const [catalogue, setCatalogue] = useState<IssueCatalogue | null>(null);
   const [policy, setPolicy] = useState<VotingPolicy | null>(null);
   const [baseVersion, setBaseVersion] = useState<number | null>(null);
@@ -639,7 +640,7 @@ export function VotingStudio({ stage, onChanged }: StudioProps) {
           empty="No ballot decided yet. Start a run in Proxy Voting and decide its items."
         />
       </Section>
-      <ActorField actor={actor} onChange={setActor} />
+      <ActorField />
       {error && <p className="error-text" role="alert">{error}</p>}
       <RuleEditor label="voting positions">
         <Section step="Design" title="House voting positions">
@@ -762,7 +763,7 @@ const LADDER = [
 ];
 
 export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
-  const [actor, setActor] = useActor();
+  const actor = useActor();
   const draft = useRuleDraft<EscalationPreview>("escalation_rules", api.previewEscalation);
   const { info, graph, preview } = draft;
   const [recs, setRecs] = useState<EscalationRecommendation[] | null>(null);
@@ -798,7 +799,7 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
           { label: "Versions", ready: true },
         ]}
       />
-      <ActorField actor={actor} onChange={setActor} />
+      <ActorField />
       <Section step="Decide" title="Decisions waiting">
         {outreach.length > 0 && (
           <>
@@ -990,7 +991,7 @@ export function ClientPicker({
 }
 
 export function ClientPolicyStudio({ stage, streamId, onChanged }: StudioProps & { streamId: string }) {
-  const [actor, setActor] = useActor();
+  const actor = useActor();
   const draft = useRuleDraft<ClientEscalationPreview>(
     "escalation_rules",
     (graph) => api.previewClientEscalation(streamId, graph),
@@ -1025,7 +1026,7 @@ export function ClientPolicyStudio({ stage, streamId, onChanged }: StudioProps &
           { label: "Versions", ready: true },
         ]}
       />
-      <ActorField actor={actor} onChange={setActor} />
+      <ActorField />
       <Section step="Review · Calibrate · Decide" title="The client's voting policy against the house policy">
         <p className="muted">
           {open.length} of {differences.length} differences still to decide. Each shows its back-test effect on the synthetic sample.
@@ -1129,9 +1130,9 @@ export function ReportingStudio({ stage, streamId }: StudioProps & { streamId: s
           same content, in the house deck design; nothing in it is written by a model.
         </p>
         <div className="toolbar">
-          <a className="button-link" href={api.clientReportPptxUrl(streamId)} download>
+          <FileLink className="button-link" url={api.clientReportPptxUrl(streamId)} name="report.pptx">
             Download PowerPoint
-          </a>
+          </FileLink>
         </div>
         {error && <p className="error-text" role="alert">{error}</p>}
         {report === null && !error && <p className="status-text">Loading…</p>}

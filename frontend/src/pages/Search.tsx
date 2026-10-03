@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FileLink } from "../components/FileLink";
 import { api } from "../api/client";
 import type { SearchHit, SearchResultType } from "../types";
 
@@ -99,9 +100,9 @@ export function Search() {
                     <td>{h.snippet}</td>
                     <td>
                       {h.link && (
-                        <a href={`${api.base}${h.link}`} target="_blank" rel="noreferrer">
+                        <FileLink open url={`${api.base}${h.link}`} name="result.json">
                           Open
-                        </a>
+                        </FileLink>
                       )}
                     </td>
                   </tr>

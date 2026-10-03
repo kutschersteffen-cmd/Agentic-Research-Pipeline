@@ -82,6 +82,30 @@ cp .env.example .env            # VITE_API_BASE, VITE_SUPERSET_URL
 npm run dev                                   # UI on :5173
 ```
 
+### Sign-in
+
+Every API route except `/api/health` (and the proxy-voting routes) needs a
+signed-in user, and every review, ratification and approval is recorded
+against that user.
+
+- Copy `config/users.example.json` to `config/users.json` and give each person
+  a long random token (`openssl rand -hex 24`), a unique `user_id`, a name and a
+  role: `viewer` (read), `analyst` (change), `approver` (also approve
+  calibrations and co-sign). Tokens and `user_id`s must be unique and non-empty;
+  otherwise every signed-in request fails with an error naming the file. Restart
+  the API after editing the file: it is read once.
+- `ARP_USERS_FILE` points at a different users file.
+- `ARP_AUTH_MODE=dev` signs in every request from 127.0.0.1/::1 as an approver
+  (`ARP_DEV_USER`, default `dev`) without a token, for local use only. The bypass
+  trusts the socket address, so never use it behind a proxy on the same host
+  (every proxied request would arrive from loopback and be signed in).
+- `ARP_ALLOWED_ORIGINS` is the CORS allow-list for the browser UI, as JSON, e.g.
+  `ARP_ALLOWED_ORIGINS='["https://arp.example.com"]'`.
+- The UI asks for the token in the sidebar and keeps it in the browser's
+  `localStorage` until you sign out (or the API rejects it).
+- CLI commands that write (`arp index calibration-save`, `arp index approve`, …)
+  need `ARP_CLI_TOKEN` set to your token.
+
 `[dev]` is enough to run the app, but **not** enough for a green test suite —
 the reporting tests render through headless Chromium and a few storage tests
 need the optional backends. For the full suite, as CI installs it:
@@ -205,9 +229,10 @@ arp runs list                     # also: arp runs show <run_id>, arp runs cance
 # Index construction (see docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md)
 arp index presets                                        # the named methodology shapes
 arp index preview --preset eu_pab --review-date 2026-03-31 --show trace
-arp index calibration-save --name "DWS Electrification PAB" --effective-from 2026-01-01 \
-    --preset eu_pab --approved-by "IC-2026-01-14"
-arp index run --index-id dws_pab --review-date 2026-03-31 --calibration-id <cal_id>
+ARP_CLI_TOKEN=<your token> arp index calibration-save --name "DWS Electrification PAB" \
+    --effective-from 2026-01-01 --preset eu_pab --approved-by "IC-2026-01-14"   # --approved-by is kept as a note
+ARP_CLI_TOKEN=<a second approver's token> arp index approve <cal_id>         # four-eyes: not the author
+ARP_CLI_TOKEN=<your token> arp index run --index-id dws_pab --review-date 2026-03-31 --calibration-id <cal_id>
 # Optional convex / integer paths (pip install -e ".[optimize]")
 arp index preview --preset eu_pab --review-date 2026-03-31 --solver-method min_tracking_error
 arp index preview --preset eu_pab --review-date 2026-03-31 --max-constituents 20

@@ -33,10 +33,9 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     # Bound to the loopback interface, not every interface. A bare "8000:8000"
-    # publishes on 0.0.0.0, and there is no authentication in front of this API
-    # yet (see docs/CORPORATE_READINESS_PLAN.md), so anyone who could route to
-    # the host could start runs that spend API credit, launch crawls and read
-    # every ingested document. Widen this only together with auth.
+    # publishes on 0.0.0.0. The API now requires a bearer token per user
+    # (config/users.json, see README "Sign-in"), but those are shared-secret
+    # tokens over plain HTTP: put TLS in front before widening this.
     ports:
       - "127.0.0.1:8000:8000"
     env_file:
@@ -51,6 +50,12 @@ services:
       - arp_cache:/app/backend/.cache
       - arp_discovery_state:/app/backend/.discovery_state
       - arp_document_store:/app/backend/.document_store
+      # Sign-in users (README "Sign-in"). Create config/users.json from
+      # config/users.example.json first: if it is missing, Docker mounts an
+      # empty directory and every request fails with "users file invalid".
+      # Restart the backend after editing it. ARP_AUTH_MODE=dev does not work
+      # here: requests reach the container from the bridge, not loopback.
+      - ./config/users.json:/app/config/users.json:ro
 
   frontend:
     build:
@@ -58,7 +63,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE: http://localhost:8000
-    # Loopback too, for the same reason: the UI drives that unauthenticated API.
+    # Loopback too, for the same reason.
     ports:
       - "127.0.0.1:5173:80"
     depends_on:

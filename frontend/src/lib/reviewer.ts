@@ -46,18 +46,30 @@ export function useToken(): [string, (token: string) => void] {
   return [useSyncExternalStore(subscribeAuth, getToken), setToken];
 }
 
+// One /api/me request per token, however many components mount useMe at once.
+let inflight: { token: string; promise: Promise<void> } | null = null;
+
+function loadMe(token: string) {
+  if (inflight?.token === token) return;
+  const promise = api
+    .getMe()
+    .then((m) => {
+      if (getToken() === token) setMe(m);
+    })
+    .catch(() => {})
+    .finally(() => {
+      if (inflight?.promise === promise) inflight = null;
+    });
+  inflight = { token, promise };
+}
+
 /** The signed-in user from /api/me, or null while loading / signed out (a 401 clears the token). */
 export function useMe(): Me | null {
   const token = useSyncExternalStore(subscribeAuth, getToken);
   const me = useSyncExternalStore(subscribeAuth, getMe);
   useEffect(() => {
-    if (!token) return;
-    let live = true;
-    api.getMe().then((m) => live && setMe(m)).catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, [token]);
+    if (token && !me) loadMe(token);
+  }, [token, me]);
   return token ? me : null;
 }
 

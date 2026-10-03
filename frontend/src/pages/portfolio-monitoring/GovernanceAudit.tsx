@@ -116,7 +116,7 @@ export function GovernanceAudit() {
     if (!policyNewValue) return;
     setError(null);
     try {
-      await api.updateGovernancePolicy({ setting_name: policySetting, new_value: Number(policyNewValue), changed_by: decidedBy.trim(), reason: policyReason });
+      await api.updateGovernancePolicy({ setting_name: policySetting, new_value: Number(policyNewValue), reason: policyReason });
       setPolicyNewValue("");
       setPolicyReason("");
       loadAll();
@@ -131,7 +131,7 @@ export function GovernanceAudit() {
     if (!owner?.trim()) return;
     setError(null);
     try {
-      await api.assignGovernanceOwner(category, { owner: owner.trim(), assigned_by: decidedBy.trim() });
+      await api.assignGovernanceOwner(category, { owner: owner.trim() });
       loadAll();
     } catch (e) {
       setError(String(e));

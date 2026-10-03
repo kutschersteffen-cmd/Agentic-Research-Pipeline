@@ -1,4 +1,5 @@
 import { when } from "../lib/runs";
+import { FileImg, FileLink } from "../components/FileLink";
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { Modal } from "../components/Modal";
@@ -515,9 +516,9 @@ export function ReportBuilder() {
                 <button className="link-button" onClick={() => openPreview(manifest.report_id, plan.title || manifest.title)}>
                   Preview
                 </button>
-                <a href={api.reportDownloadUrl(manifest.report_id)} target="_blank" rel="noreferrer">
+                <FileLink url={api.reportDownloadUrl(manifest.report_id)} name={`${manifest.report_id}.${manifest.output_format}`}>
                   Download {manifest.output_format}
-                </a>
+                </FileLink>
               </>
             )}
           </div>
@@ -581,9 +582,9 @@ export function ReportBuilder() {
                   Preview
                 </button>
                 {manifest.output_files.map((f) => (
-                  <a key={f} className="button-link" href={api.reportDownloadUrl(manifest.report_id, f)} target="_blank" rel="noreferrer">
+                  <FileLink key={f} className="button-link" url={api.reportDownloadUrl(manifest.report_id, f)} name={f}>
                     Download {f.split(".").pop()?.toUpperCase()}
-                  </a>
+                  </FileLink>
                 ))}
               </>
             )}
@@ -646,9 +647,9 @@ export function ReportBuilder() {
                           >
                             Preview
                           </button>
-                          <a href={api.reportDownloadUrl(r.report_id)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                          <FileLink url={api.reportDownloadUrl(r.report_id)} name={r.report_id}>
                             Download
-                          </a>
+                          </FileLink>
                         </>
                       )}
                     </td>
@@ -674,7 +675,7 @@ export function ReportBuilder() {
           <div className="preview-thumb-grid">
             {Array.from({ length: previewPageCount }, (_, i) => i + 1).map((p) => (
               <button key={p} className="preview-thumb" onClick={() => setEnlargedPage(p)}>
-                <img src={api.reportPreviewPageUrl(previewReportId, p)} alt={`Page ${p}`} loading="lazy" />
+                <FileImg url={api.reportPreviewPageUrl(previewReportId, p)} alt={`Page ${p}`} />
                 <span>{p}</span>
               </button>
             ))}
@@ -685,7 +686,7 @@ export function ReportBuilder() {
 
     {enlargedPage && previewReportId && (
       <Modal title={`${previewTitle} — page ${enlargedPage} / ${previewPageCount}`} onClose={() => setEnlargedPage(null)}>
-        <img className="modal-image" src={api.reportPreviewPageUrl(previewReportId, enlargedPage)} alt={`Page ${enlargedPage}`} />
+        <FileImg className="modal-image" url={api.reportPreviewPageUrl(previewReportId, enlargedPage)} alt={`Page ${enlargedPage}`} />
         <div className="toolbar">
           <button onClick={() => setEnlargedPage((p) => Math.max(1, (p ?? 1) - 1))} disabled={enlargedPage <= 1}>
             &larr; Prev

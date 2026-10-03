@@ -23,7 +23,7 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
       setBusy(null);
     }
   }
-  const needName = actor ? undefined : "Enter your name above first";
+  const needName = actor ? undefined : "Sign in above first";
   return (
     <>
       <div className="section-heading">
@@ -138,7 +138,7 @@ export function EscalationDecisions({ items, actor, onDone }: { items: Escalatio
                     className="secondary"
                     onClick={() => escalate(item)}
                     disabled={!actor || !item.next || busy !== null}
-                    title={actor ? undefined : "Enter your name above first"}
+                    title={actor ? undefined : "Sign in above first"}
                   >
                     {busy === item.issue_id ? "Escalating…" : "Escalate"}
                   </button>
@@ -205,7 +205,7 @@ export function ClientExceptionDecisions({ items, actor, onDone }: { items: Clie
                     <button
                       onClick={() => decide(item, "adopt")}
                       disabled={!actor || busy !== null}
-                      title={actor ? undefined : "Enter your name above first"}
+                      title={actor ? undefined : "Sign in above first"}
                     >
                       Adopt
                     </button>
@@ -305,7 +305,7 @@ export function PolicyDifference({ item, streamId, actor, onDone }: { item: Poli
             ))}
           </select>
           <input aria-label={`Note on ${item.title}`} placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
-          <button onClick={record} disabled={!actor || busy} title={actor ? undefined : "Enter your name above first"}>
+          <button onClick={record} disabled={!actor || busy} title={actor ? undefined : "Sign in above first"}>
             {busy ? "Recording…" : "Record decision"}
           </button>
         </div>

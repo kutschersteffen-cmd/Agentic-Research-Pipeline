@@ -1,4 +1,5 @@
 import { clearToken, getToken } from "../lib/auth";
+import { filenameFromDisposition, inlineSafe } from "../lib/files";
 import type { Me } from "../lib/reviewKeys";
 import type {
   CompanyBallot,
@@ -127,6 +128,21 @@ function formatValidationErrors(errors: { loc?: (string | number)[]; msg?: strin
     .join("; ");
 }
 
+async function errorFor(res: Response): Promise<Error> {
+  let detail = res.statusText;
+  try {
+    const body = await res.json();
+    detail = Array.isArray(body.detail)
+      ? formatValidationErrors(body.detail)
+      : typeof body.detail === "string"
+        ? body.detail
+        : JSON.stringify(body.detail ?? body);
+  } catch {
+    /* ignore parse failure */
+  }
+  return new Error(`${res.status}: ${detail}`);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
   const token = getToken();
@@ -139,21 +155,61 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (res.status === 401) clearToken();
-  if (!res.ok) {
-    let detail = res.statusText;
-    try {
-      const body = await res.json();
-      detail = Array.isArray(body.detail)
-        ? formatValidationErrors(body.detail)
-        : typeof body.detail === "string"
-          ? body.detail
-          : JSON.stringify(body.detail ?? body);
-    } catch {
-      /* ignore parse failure */
-    }
-    throw new Error(`${res.status}: ${detail}`);
-  }
+  if (!res.ok) throw await errorFor(res);
   return res.json() as Promise<T>;
+}
+
+/** A file from one of the *Url builders below, fetched with the bearer token
+ * (a plain <a href>/<img src>/<iframe src> cannot send it). A JSON `body` makes it a POST. */
+export async function fetchFile(url: string, body?: unknown): Promise<{ blob: Blob; filename: string | null }> {
+  const token = getToken();
+  const res = await fetch(url.split("#")[0], {
+    method: body === undefined ? "GET" : "POST",
+    headers: {
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (res.status === 401) clearToken();
+  if (!res.ok) throw await errorFor(res);
+  return { blob: await res.blob(), filename: filenameFromDisposition(res.headers.get("Content-Disposition"), "") || null };
+}
+
+function saveBlob(blob: Blob, filename: string) {
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(href), 1000);
+}
+
+/** Saves an authenticated file, named by the server's Content-Disposition or the fallback. */
+export async function downloadFile(url: string, fallbackName: string, body?: unknown): Promise<void> {
+  const { blob, filename } = await fetchFile(url, body);
+  saveBlob(blob, filename ?? fallbackName);
+}
+
+/** Opens an authenticated file in a new tab when its type is safe to show
+ * from this origin (PDF, image, text); anything else (HTML, SVG) is saved instead. */
+export async function openFile(url: string, fallbackName: string): Promise<void> {
+  const tab = window.open("", "_blank"); // opened now, inside the click, so popup blockers allow it
+  try {
+    const { blob, filename } = await fetchFile(url);
+    if (!tab || !inlineSafe(blob.type)) {
+      tab?.close();
+      saveBlob(blob, filename ?? fallbackName);
+      return;
+    }
+    const href = URL.createObjectURL(blob);
+    tab.location.href = `${href}${url.includes("#") ? url.slice(url.indexOf("#")) : ""}`;
+    // ponytail: fixed delay; the tab has loaded the blob long before, revoke on tab close if that ever bites
+    setTimeout(() => URL.revokeObjectURL(href), 60_000);
+  } catch (err) {
+    tab?.close();
+    throw err;
+  }
 }
 
 export const api = {
@@ -374,7 +430,7 @@ export const api = {
   listTaxonomies: () => request<{ taxonomies: unknown[] }>("/api/taxonomies"),
   newTaxonomyVersion: (taxonomyId: string, body: unknown) =>
     request(`/api/taxonomies/${taxonomyId}/versions`, { method: "POST", body: JSON.stringify(body) }),
-  ratifyTaxonomy: (taxonomyId: string, body: unknown) =>
+  ratifyTaxonomy: (taxonomyId: string, body: { version: number }) =>
     request(`/api/taxonomies/${taxonomyId}/ratify`, { method: "POST", body: JSON.stringify(body) }),
   compareTaxonomies: (body: unknown) => request("/api/taxonomies/compare", { method: "POST", body: JSON.stringify(body) }),
   mergeTaxonomies: (body: unknown) => request("/api/taxonomies/merge", { method: "POST", body: JSON.stringify(body) }),
@@ -427,8 +483,8 @@ export const api = {
   activateStewardPolicy: (policyId: StewardPolicyId, body: { version: number }, stream?: string) =>
     request(`/api/stewardship/policies/${policyId}/activate${streamQuery(stream)}`, { method: "POST", body: JSON.stringify(body) }),
   listBenchmarks: () => request<{ benchmarks: BenchmarkInfo[] }>("/api/stewardship/benchmarks"),
-  uploadBenchmark: (text: string, uploadedBy: string) =>
-    request<BenchmarkInfo>("/api/stewardship/benchmarks", { method: "POST", body: JSON.stringify({ text, uploaded_by: uploadedBy }) }),
+  uploadBenchmark: (text: string) =>
+    request<BenchmarkInfo>("/api/stewardship/benchmarks", { method: "POST", body: JSON.stringify({ text }) }),
   getProgram: (streamId: string) =>
     request<{
       saved: { params: ProgramParams; updated_by: string; updated_at: string } | null;
@@ -448,17 +504,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ params }),
     }),
-  approveProgram: (streamId: string, approvedBy: string) =>
-    request<ProgramVersion>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program/approve`, {
-      method: "POST",
-      body: JSON.stringify({ approved_by: approvedBy }),
-    }),
+  approveProgram: (streamId: string) =>
+    request<ProgramVersion>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program/approve`, { method: "POST", body: "{}" }),
   monitorProgram: (streamId: string) => request<ProgramMonitor>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program/monitor`),
-  recordProgramRun: (streamId: string, recordedBy: string) =>
-    request<ProgramRun>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program/runs`, {
-      method: "POST",
-      body: JSON.stringify({ recorded_by: recordedBy }),
-    }),
+  recordProgramRun: (streamId: string) =>
+    request<ProgramRun>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program/runs`, { method: "POST" }),
   programProposalUrl: (streamId: string) => `${API_BASE}/api/stewardship/streams/${encodeURIComponent(streamId)}/program/proposal.pptx`,
   checkStyle: (text: string) =>
     request<{ flags: StyleFlag[] }>("/api/stewardship/style/check", { method: "POST", body: JSON.stringify({ text }) }),
@@ -474,7 +524,7 @@ export const api = {
       method: "POST",
     }),
   getTracking: () => request<{ commitments: TrackedCommitment[]; engagements: TrackedEngagement[] }>("/api/stewardship/tracking"),
-  addCommitment: (body: { company_id: string; issue_id: string; text: string; target_date?: string; recorded_by: string }) =>
+  addCommitment: (body: { company_id: string; issue_id: string; text: string; target_date?: string }) =>
     request("/api/stewardship/tracking/commitments", { method: "POST", body: JSON.stringify(body) }),
   setCommitmentStatus: (commitmentId: string, body: { company_id: string; issue_id: string; status: "verified" | "missed" }) =>
     request(`/api/stewardship/tracking/commitments/${encodeURIComponent(commitmentId)}`, { method: "POST", body: JSON.stringify(body) }),
@@ -559,13 +609,13 @@ export const api = {
   logMeetingSummaryValidated: (
     companyId: string,
     issueId: string,
-    body: { summary: string; commitments?: string[]; validated_by: string },
+    body: { summary: string; commitments?: string[] },
   ) =>
     request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/log-meeting-summary-validated`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  verifyCommitment: (companyId: string, issueId: string, body: { commitment_id: string; verified_by: string }) =>
+  verifyCommitment: (companyId: string, issueId: string, body: { commitment_id: string }) =>
     request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/verify-commitment`, {
       method: "POST",
       body: JSON.stringify(body),
@@ -627,10 +677,10 @@ export const api = {
     request<GovernanceDecision[]>(`/api/portfolio/governance/decisions${buildQuery({ item_type: itemType })}`),
   getGovernancePolicy: () =>
     request<{ values: Record<PolicySettingName, number>; history: PolicyChange[] }>("/api/portfolio/governance/policy"),
-  updateGovernancePolicy: (body: { setting_name: PolicySettingName; new_value: number; changed_by: string; reason?: string }) =>
+  updateGovernancePolicy: (body: { setting_name: PolicySettingName; new_value: number; reason?: string }) =>
     request<PolicyChange>("/api/portfolio/governance/policy", { method: "PUT", body: JSON.stringify(body) }),
   listGovernanceOwners: () => request<RiskCategoryOwner[]>("/api/portfolio/governance/owners"),
-  assignGovernanceOwner: (category: string, body: { owner: string; assigned_by: string }) =>
+  assignGovernanceOwner: (category: string, body: { owner: string }) =>
     request<RiskCategoryOwner>(`/api/portfolio/governance/owners/${encodeURIComponent(category)}`, { method: "PUT", body: JSON.stringify(body) }),
 
   // Superset BI designer (/api/bi): drafts dashboards in Superset itself
@@ -766,8 +816,8 @@ export const api = {
     request<MechanismEnvelope>("/api/decision/mechanisms/derive", { method: "POST", body: JSON.stringify(body) }),
   saveMechanism: (body: { config: MechanismConfig; base_version?: number | null }) =>
     request<MechanismEnvelope>("/api/decision/mechanisms", { method: "POST", body: JSON.stringify(body) }),
-  ratifyMechanism: (frameworkId: string, version: number | undefined, ratifiedBy: string) =>
-    request<MechanismConfig>(`/api/decision/mechanisms/${frameworkId}/ratify${buildQuery({ version: version ? String(version) : undefined, ratified_by: ratifiedBy })}`, {
+  ratifyMechanism: (frameworkId: string, version: number | undefined) =>
+    request<MechanismConfig>(`/api/decision/mechanisms/${frameworkId}/ratify${buildQuery({ version: version ? String(version) : undefined })}`, {
       method: "POST",
     }),
   scoreDecision: (body: { dataset_id: string; config?: MechanismConfig; framework_id?: string; version?: number }) =>
