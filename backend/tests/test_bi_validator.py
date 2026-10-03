@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import pytest
+
 from arp.bi.plan import MAX_CHARTS, ChartPlan, ChartSpec, DatasetMeta
 from arp.bi.validator import validate_plan
 
 METAS = {
     "holdings": DatasetMeta(columns={"sector", "region", "weight"}, metrics={"Total weight", "Positions"}),
+}
+
+METAS_H = {
+    "holdings": DatasetMeta(columns={"sector", "as_of_date"}, metrics={"Positions"}),
 }
 
 
@@ -71,3 +77,32 @@ def test_pivot_requires_two_groupby():
 def test_duplicate_title_rejected():
     errs = validate_plan(_plan(_chart(), _chart()), METAS)
     assert len(errs) == 1 and "C1" in errs[0] and "duplicate" in errs[0].lower()
+
+
+def test_line_first_groupby_must_be_temporal():
+    ok = validate_plan(_plan(_chart(viz_type="echarts_timeseries_line", groupby=["as_of_date"])), METAS_H)
+    assert ok == []
+    errs = validate_plan(_plan(_chart(viz_type="echarts_timeseries_line", groupby=["sector"])), METAS_H)
+    assert len(errs) == 1 and "C1" in errs[0] and "'sector'" in errs[0]
+
+
+@pytest.mark.parametrize(
+    "viz,n",
+    [
+        ("echarts_timeseries_bar", 1),
+        ("echarts_timeseries_line", 1),
+        ("treemap_v2", 1),
+        ("pie", 1),
+        ("heatmap_v2", 2),
+        ("pivot_table_v2", 2),
+    ],
+)
+def test_min_groupby_per_viz(viz, n):
+    errs = validate_plan(_plan(_chart(viz_type=viz, groupby=[])), METAS_H)
+    assert any("C1" in e and viz in e and f"at least {n}" in e for e in errs)
+
+
+def test_big_number_rejects_groupby():
+    errs = validate_plan(_plan(_chart(viz_type="big_number_total", groupby=["sector"])), METAS_H)
+    assert len(errs) == 1 and "big_number_total" in errs[0] and "sector" in errs[0]
+    assert validate_plan(_plan(_chart(viz_type="big_number_total", groupby=[])), METAS_H) == []

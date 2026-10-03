@@ -3,7 +3,7 @@ Returns human-readable reasons; the planner feeds them back to the LLM."""
 
 from __future__ import annotations
 
-from arp.bi.catalog import VIEW_DATASETS, VIZ_ALLOWLIST
+from arp.bi.catalog import MAX_GROUPBY, MIN_GROUPBY, TEMPORAL_COLUMNS, VIEW_DATASETS, VIZ_ALLOWLIST
 from arp.bi.plan import MAX_CHARTS, ChartPlan, DatasetMeta
 
 
@@ -23,14 +23,22 @@ def validate_plan(plan: ChartPlan, metas: dict[str, DatasetMeta]) -> list[str]:
         seen.add(c.title)
         if c.viz_type not in VIZ_ALLOWLIST:
             errors.append(f"{t}: viz_type '{c.viz_type}' is not allowed; use one of {', '.join(VIZ_ALLOWLIST)}.")
-        if c.viz_type == "pivot_table_v2" and len(c.groupby) < 2:
-            errors.append(f"{t}: pivot_table_v2 needs at least two groupby columns (rows and columns).")
+        lo, hi = MIN_GROUPBY.get(c.viz_type, 0), MAX_GROUPBY.get(c.viz_type)
+        if len(c.groupby) < lo:
+            errors.append(f"{t}: {c.viz_type} needs at least {lo} groupby column(s); got {len(c.groupby)}.")
+        if hi is not None and len(c.groupby) > hi:
+            errors.append(f"{t}: {c.viz_type} takes no groupby columns; got {', '.join(c.groupby)}.")
         if not c.metrics:
             errors.append(f"{t}: needs at least one metric.")
         meta = metas.get(c.dataset)
         if c.dataset not in VIEW_DATASETS or meta is None:
             errors.append(f"{t}: unknown dataset '{c.dataset}'; use one of {', '.join(VIEW_DATASETS)}.")
             continue
+        if c.viz_type == "echarts_timeseries_line" and c.groupby and c.groupby[0] not in TEMPORAL_COLUMNS[c.dataset]:
+            errors.append(
+                f"{t}: echarts_timeseries_line needs a date column first in groupby; '{c.groupby[0]}' is not one "
+                f"in dataset '{c.dataset}' (date columns: {', '.join(sorted(TEMPORAL_COLUMNS[c.dataset]))})."
+            )
         errors += [
             f"{t}: unknown metric '{m}' for dataset '{c.dataset}'; available: {', '.join(sorted(meta.metrics))}."
             for m in c.metrics

@@ -24,3 +24,11 @@ def test_metric_names_unique_per_dataset():
     for ds in VIEW_DATASETS.values():
         names = [m.name for m in ds.metrics]
         assert len(names) == len(set(names))
+
+
+def test_temporal_columns_exist_in_their_dataset():
+    from arp.bi.catalog import TEMPORAL_COLUMNS
+
+    assert set(TEMPORAL_COLUMNS) == set(VIEW_DATASETS)
+    for ds, cols in TEMPORAL_COLUMNS.items():
+        assert cols <= set(VIEW_DATASETS[ds].columns), ds

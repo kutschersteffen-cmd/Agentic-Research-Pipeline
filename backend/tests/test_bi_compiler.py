@@ -37,10 +37,6 @@ def test_canonical_covers_allowlist():
 @pytest.mark.parametrize("viz", sorted(CANONICAL))
 def test_compile_matches_verified_fixture(viz):
     fixture = json.loads((FIXTURES / f"{viz}.json").read_text())
-    if viz == "table":
-        # The recorded `asset_class IS NOT NULL` filter is a live-test probe the
-        # plan cannot express (only `==` filters); the rest must match.
-        fixture["adhoc_filters"] = []
     assert compile_chart(_spec(viz), 7) == fixture
 
 
@@ -82,3 +78,21 @@ def test_odd_chart_count_last_row_single():
     pos = compile_dashboard([1, 2, 3], ["a", "b", "c"])
     rows = pos["GRID_ID"]["children"]
     assert [len(pos[r]["children"]) for r in rows] == [2, 1]
+
+
+@pytest.mark.parametrize(
+    "viz,over",
+    [
+        ("echarts_timeseries_bar", dict(groupby=[])),
+        ("echarts_timeseries_line", dict(groupby=[])),
+        ("heatmap_v2", dict(groupby=["sector"])),
+        ("pivot_table_v2", dict(groupby=["sector"])),
+        ("pie", dict(groupby=[])),
+        ("treemap_v2", dict(groupby=[])),
+        ("big_number_total", dict(metrics=[])),
+        ("table", dict(metrics=[])),
+    ],
+)
+def test_missing_required_input_raises_clear_error(viz, over):
+    with pytest.raises(ValueError, match=viz):
+        compile_chart(_spec(viz, **over), 7)

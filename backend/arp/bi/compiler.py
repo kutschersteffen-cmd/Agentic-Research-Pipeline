@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 
+from arp.bi.catalog import MIN_GROUPBY
 from arp.bi.plan import ChartPlan, ChartSpec
 
 _FMT = "SMART_NUMBER"
@@ -124,6 +125,10 @@ def _per_viz(viz: str, metrics: list[str], g: list[str]) -> dict:
 
 def compile_chart(spec: ChartSpec, dataset_id: int) -> dict:
     # dataset_id is unused: the client adds the datasource; kept for the agreed signature.
+    if not spec.metrics:
+        raise ValueError(f"{spec.viz_type} needs at least one metric")
+    if len(spec.groupby) < MIN_GROUPBY.get(spec.viz_type, 0):
+        raise ValueError(f"{spec.viz_type} needs at least {MIN_GROUPBY[spec.viz_type]} groupby column(s)")
     params = _per_viz(spec.viz_type, spec.metrics, spec.groupby)
     params["adhoc_filters"] = _adhoc(spec.filters)
     if spec.time_range:  # omitted otherwise; the client defaults the query to "No filter"
@@ -132,6 +137,7 @@ def compile_chart(spec: ChartSpec, dataset_id: int) -> dict:
 
 
 def compile_dashboard(chart_ids: list[int], titles: list[str]) -> dict:
+    """Two charts per row. Not verified against live Superset by this task's tests."""
     pos = {
         "DASHBOARD_VERSION_KEY": "v2",
         "ROOT_ID": {"type": "ROOT", "id": "ROOT_ID", "children": ["GRID_ID"]},

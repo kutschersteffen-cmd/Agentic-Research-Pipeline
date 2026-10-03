@@ -137,3 +137,27 @@ VIEW_DATASETS: dict[str, DatasetDef] = {
         ],
     ),
 }
+
+# Minimum groupby columns per viz type, as the compiler consumes them
+# (axis charts: first column is the x axis; heatmap/pivot need a second one).
+# big_number_total takes none and rejects any (see MAX_GROUPBY).
+MIN_GROUPBY: dict[str, int] = {
+    "big_number_total": 0,
+    "echarts_timeseries_bar": 1,
+    "echarts_timeseries_line": 1,
+    "heatmap_v2": 2,
+    "pivot_table_v2": 2,
+    "pie": 1,
+    "table": 0,
+    "treemap_v2": 1,
+}
+MAX_GROUPBY: dict[str, int] = {"big_number_total": 0}
+
+# Date/timestamp columns per dataset (cast with bi.safe_date / bi.safe_ts in views.py).
+TEMPORAL_COLUMNS: dict[str, frozenset[str]] = {
+    "holdings": frozenset({"as_of_date"}),
+    "company_facts": frozenset({"as_of", "valid_from"}),
+    "company_facts_pending": frozenset({"as_of", "valid_from"}),
+    "run_records": frozenset({"generated_at"}),
+    "documents": frozenset({"first_seen_at", "last_seen_at"}),
+}
