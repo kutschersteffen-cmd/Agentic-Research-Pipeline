@@ -154,7 +154,10 @@ MIN_GROUPBY: dict[str, int] = {
     "table": 0,
     "treemap_v2": 1,
 }
-MAX_GROUPBY: dict[str, int] = {"big_number_total": 0}
+# Columns the compiler would silently drop past this (heatmap: x and y axis only).
+MAX_GROUPBY: dict[str, int] = {"big_number_total": 0, "heatmap_v2": 2}
+# Viz types the compiler feeds a single `metric` (metrics[0]); a second one would be dropped.
+MAX_METRICS: dict[str, int] = {"big_number_total": 1, "pie": 1, "heatmap_v2": 1, "treemap_v2": 1}
 
 # Date/timestamp columns per dataset (cast with bi.safe_date / bi.safe_ts in views.py).
 TEMPORAL_COLUMNS: dict[str, frozenset[str]] = {

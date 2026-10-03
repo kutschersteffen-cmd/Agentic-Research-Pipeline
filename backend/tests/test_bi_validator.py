@@ -106,3 +106,23 @@ def test_big_number_rejects_groupby():
     errs = validate_plan(_plan(_chart(viz_type="big_number_total", groupby=["sector"])), METAS_H)
     assert len(errs) == 1 and "big_number_total" in errs[0] and "sector" in errs[0]
     assert validate_plan(_plan(_chart(viz_type="big_number_total", groupby=[])), METAS_H) == []
+
+
+def test_heatmap_rejects_a_third_groupby():
+    errs = validate_plan(_plan(_chart(viz_type="heatmap_v2", groupby=["sector", "as_of_date", "sector"])), METAS_H)
+    assert len(errs) == 1 and "heatmap_v2" in errs[0] and "at most 2" in errs[0]
+
+
+@pytest.mark.parametrize("viz,groupby", [("big_number_total", []), ("pie", ["sector"]), ("treemap_v2", ["sector"])])
+def test_single_metric_viz_rejects_a_second_metric(viz, groupby):
+    two = dict(metrics=["Total weight", "Positions"])
+    errs = validate_plan(_plan(_chart(viz_type=viz, groupby=groupby, **two)), METAS)
+    assert len(errs) == 1 and viz in errs[0] and "exactly one metric" in errs[0]
+    assert validate_plan(_plan(_chart(viz_type=viz, groupby=groupby)), METAS) == []
+
+
+def test_heatmap_rejects_a_second_metric():
+    errs = validate_plan(
+        _plan(_chart(viz_type="heatmap_v2", groupby=["sector", "region"], metrics=["Total weight", "Positions"])), METAS
+    )
+    assert len(errs) == 1 and "exactly one metric" in errs[0]

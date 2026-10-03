@@ -39,6 +39,7 @@ def test_prompt_contains_metric_descriptions_but_no_row_data():
     assert "Total market value in EUR." in system and "Exposure (EUR)" in system
     assert "echarts_timeseries_line" in system and "as_of_date" in system
     assert "never write SQL" in " ".join(system.split())
+    assert "- heatmap_v2: exactly 2 groupby columns; exactly one metric" in system  # shape rules come from the catalog
     assert "Acme" not in system and llm.calls[0]["prompt"].count("exposure by sector") == 1
 
 

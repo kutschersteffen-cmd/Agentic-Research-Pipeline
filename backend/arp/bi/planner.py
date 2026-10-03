@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from arp.bi.catalog import MAX_GROUPBY, MIN_GROUPBY, TEMPORAL_COLUMNS, VIEW_DATASETS, VIZ_ALLOWLIST
+from arp.bi.catalog import MAX_GROUPBY, MAX_METRICS, MIN_GROUPBY, TEMPORAL_COLUMNS, VIEW_DATASETS, VIZ_ALLOWLIST
 from arp.bi.plan import MAX_CHARTS, ChartPlan, DatasetMeta
 from arp.bi.validator import validate_plan
 from arp.llm.base import LLMClient
@@ -25,10 +25,16 @@ def _shape_rule(viz: str) -> str:
     lo, hi = MIN_GROUPBY.get(viz, 0), MAX_GROUPBY.get(viz)
     if hi == 0:
         rule = "no groupby columns"
+    elif lo and lo == hi:
+        rule = f"exactly {lo} groupby columns"
     elif lo:
         rule = f"at least {lo} groupby column(s)"
     else:
         rule = "groupby optional"
+    if hi and hi != lo:
+        rule += f", at most {hi}"
+    if MAX_METRICS.get(viz) == 1:
+        rule += "; exactly one metric"
     if viz == "echarts_timeseries_line":
         rule += "; the first groupby column must be a date column of the dataset"
     return f"- {viz}: {rule}"
