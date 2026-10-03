@@ -64,7 +64,8 @@ _HOLDINGS_SELECT = """
     SELECT h.portfolio_id, p.name AS portfolio_name, bi.safe_date(h.as_of_date) AS as_of_date,
            h.security_id, s.name AS security_name, s.isin, s.asset_class, s.currency,
            s.company_id, c.name AS company_name, c.sector, c.country,
-           h.quantity, h.market_value_eur, h.weight_pct
+           h.quantity, h.market_value_eur, h.weight_pct,
+           (SELECT substr(t, 9) FROM unnest(p.tags) t WHERE t LIKE 'project:%' LIMIT 1) AS project_id
     FROM holdings h
     JOIN portfolios p ON p.portfolio_id = h.portfolio_id
     LEFT JOIN securities s ON s.security_id = h.security_id

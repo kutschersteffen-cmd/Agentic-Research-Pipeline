@@ -140,3 +140,13 @@ def test_holdings_history_needs_as_of_date_first():
     assert len(validate_plan(_plan(big), METAS_HH)) == 1
     line = _chart(viz_type="echarts_timeseries_line", dataset="holdings_history", groupby=["as_of_date", "portfolio_name"])
     assert validate_plan(_plan(line), METAS_HH) == []
+
+
+def test_filter_on_project_id_is_accepted_for_holdings_datasets():
+    from arp.bi.catalog import VIEW_DATASETS
+
+    for name, ds in VIEW_DATASETS.items():
+        if name.startswith("holdings"):
+            metas = {name: DatasetMeta(columns=set(ds.columns), metrics={"Holdings"})}
+            chart = _chart(dataset=name, metrics=["Holdings"], groupby=["as_of_date"], filters={"project_id": "alpha"})
+            assert validate_plan(_plan(chart), metas) == []
