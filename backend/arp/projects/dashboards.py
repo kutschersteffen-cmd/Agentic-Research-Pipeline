@@ -1,4 +1,7 @@
-"""Project-scoped dashboards: slug, project_id filter injection, provisioning."""
+"""Project-scoped dashboards: slug, project_id filter injection, provisioning.
+
+Slug format: `arp-<project_id>--<slugified title>`. The title part never contains `--`
+(runs of non-alphanumerics collapse to one `-`, ends stripped), so two projects cannot collide."""
 
 from __future__ import annotations
 
@@ -16,8 +19,8 @@ def slugify_dashboard(project_id: str, title: str) -> str:
     part = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
     if not part:
         raise ProjectError(f"Dashboard title {title!r} has no usable characters")
-    prefix = f"arp-{project_id}-"
-    return prefix + part[: MAX_SLUG - len(prefix)].strip("-")  # prefix <= 68 chars (ID_RE), so room remains
+    prefix = f"arp-{project_id}--"
+    return prefix + part[: MAX_SLUG - len(prefix)].strip("-")  # prefix <= 69 chars (ID_RE), so room remains
 
 
 def scope_to_project(template: DashboardTemplate, project_id: str) -> DashboardTemplate:
@@ -36,14 +39,17 @@ def plan_to_template(project_id: str, title: str, plan: ChartPlan) -> DashboardT
     if any(c.dataset in SCOPED_DATASETS for c in plan.charts):
         exposure = next(t for t in load_templates() if t.slug == "arp-risk-exposure")
         filters = exposure.native_filters
-    return DashboardTemplate(
+    template = DashboardTemplate(
         slug=slugify_dashboard(project_id, title),
         title=title,
         goal=plan.goal,
         charts=plan.charts,
         native_filters=filters,
-    ).model_copy(deep=True)
+    )
+    return scope_to_project(template, project_id)
 
 
-def provision_project_dashboard(client, template: DashboardTemplate) -> str:
-    return provision(client, template)
+def provision_project_dashboard(client, project_id: str, template: DashboardTemplate) -> str:
+    if not template.slug.startswith(f"arp-{project_id}--"):
+        raise ProjectError(f"Dashboard {template.slug!r} does not belong to project {project_id!r}")
+    return provision(client, scope_to_project(template, project_id))
