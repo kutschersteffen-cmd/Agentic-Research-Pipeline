@@ -15,6 +15,8 @@ DSN = os.environ.get("ARP_TEST_POSTGRES_DSN")
 pytestmark = pytest.mark.skipif(not DSN, reason="ARP_TEST_POSTGRES_DSN not set -- opt-in Postgres backend")
 
 _PASSWORD = "bi-test-password"
+# Roles are cluster-wide: the tests use their own so a developer's real bi_reader is never touched.
+_ROLE = "bi_reader_test"
 
 
 @pytest.fixture
@@ -29,12 +31,12 @@ def engine():
     eng = get_engine(DSN)
     with eng.begin() as conn:
         create_bi_views(conn)  # pick up view edits on a DB that already recorded step 0002
-        ensure_reader_role(conn, _PASSWORD)
+        ensure_reader_role(conn, _PASSWORD, role=_ROLE)
     yield eng
     reset_postgres_tables(DSN)
     with eng.begin() as conn:
-        conn.execute(text("DROP OWNED BY bi_reader"))
-        conn.execute(text("DROP ROLE bi_reader"))
+        conn.execute(text(f"DROP OWNED BY {_ROLE}"))
+        conn.execute(text(f"DROP ROLE {_ROLE}"))
 
 
 def _q(engine, sql):
@@ -93,6 +95,24 @@ def test_holdings_view_matches_base_tables_total(engine):
     assert _q(engine, "SELECT sum(market_value_eur) FROM holdings WHERE as_of_date = '2026-02-28'")[0][0] == 100.0
     row = _q(engine, "SELECT portfolio_name, company_name, sector FROM bi.holdings")[0]
     assert tuple(row) == ("Core", "BMW", "Auto")
+
+
+def test_holdings_view_keeps_each_portfolios_own_latest_snapshot(engine):
+    from sqlalchemy import text
+
+    _seed(engine)  # p1: 2026-01-31 and 2026-02-28
+    with engine.begin() as conn:
+        conn.execute(text("INSERT INTO portfolios (portfolio_id, name, tags) VALUES ('p2', 'Older', '{}')"))
+        for d, mv in (("2025-12-31", 7.0), ("2026-01-31", 9.0)):
+            conn.execute(
+                text(
+                    "INSERT INTO holdings (portfolio_id, security_id, as_of_date, quantity, price, market_value,"
+                    " fx_rate_to_eur, market_value_eur, weight_pct) VALUES ('p2', 's1', :d, 1, :mv, :mv, 1, :mv, 100)"
+                ),
+                {"d": d, "mv": mv},
+            )
+    rows = _q(engine, "SELECT portfolio_id, as_of_date::text, market_value_eur FROM bi.holdings ORDER BY portfolio_id")
+    assert [tuple(r) for r in rows] == [("p1", "2026-02-28", 100.0), ("p2", "2026-01-31", 9.0)]
 
 
 def test_as_of_date_is_a_date(engine):
@@ -172,7 +192,7 @@ def test_bi_reader_cannot_select_base_tables(engine):
     from sqlalchemy.exc import ProgrammingError
 
     _seed(engine)
-    url = sa.engine.make_url(DSN).set(username="bi_reader", password=_PASSWORD)
+    url = sa.engine.make_url(DSN).set(username=_ROLE, password=_PASSWORD)
     reader = sa.create_engine(url)
     try:
         with reader.connect() as conn:
@@ -189,8 +209,8 @@ def test_ensure_reader_role_is_idempotent(engine):
 
     with engine.begin() as conn:
         create_bi_views(conn)
-        ensure_reader_role(conn, _PASSWORD)
-        ensure_reader_role(conn, _PASSWORD)
+        ensure_reader_role(conn, _PASSWORD, role=_ROLE)
+        ensure_reader_role(conn, _PASSWORD, role=_ROLE)
 
 
 def test_run_records_excludes_payload(engine):
@@ -221,8 +241,8 @@ def test_reader_password_with_colon_and_quote(engine):
     pw = "pw!:abc x'y"
     _seed(engine)
     with engine.begin() as conn:
-        ensure_reader_role(conn, pw)
-    reader = sa.create_engine(sa.engine.make_url(DSN).set(username="bi_reader", password=pw))
+        ensure_reader_role(conn, pw, role=_ROLE)
+    reader = sa.create_engine(sa.engine.make_url(DSN).set(username=_ROLE, password=pw))
     try:
         with reader.connect() as conn:
             assert conn.execute(sa.text("SELECT count(*) FROM bi.holdings")).scalar() == 1

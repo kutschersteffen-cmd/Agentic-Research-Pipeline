@@ -61,8 +61,9 @@ _FACT_SELECT = """
 """
 
 _VIEWS = {
-    # Latest valid snapshot per portfolio. Max over valid dates only, so a
-    # malformed as_of_date string cannot win the "latest" comparison.
+    # Latest valid snapshot per portfolio, found in one pass (not a per-row
+    # subquery). Max over valid dates only, so a malformed as_of_date string
+    # cannot win the "latest" comparison.
     "holdings": """
         SELECT h.portfolio_id, p.name AS portfolio_name, bi.safe_date(h.as_of_date) AS as_of_date,
                h.security_id, s.name AS security_name, s.isin, s.asset_class, s.currency,
@@ -72,9 +73,9 @@ _VIEWS = {
         JOIN portfolios p ON p.portfolio_id = h.portfolio_id
         LEFT JOIN securities s ON s.security_id = h.security_id
         LEFT JOIN companies c ON c.company_id = s.company_id
-        WHERE bi.safe_date(h.as_of_date) = (
-            SELECT max(bi.safe_date(h2.as_of_date)) FROM holdings h2 WHERE h2.portfolio_id = h.portfolio_id
-        )
+        JOIN (
+            SELECT portfolio_id, max(bi.safe_date(as_of_date)) AS d FROM holdings GROUP BY portfolio_id
+        ) latest ON latest.portfolio_id = h.portfolio_id AND bi.safe_date(h.as_of_date) = latest.d
     """,
     "company_facts": _FACT_SELECT.format(statuses="'approved', 'edited', 'auto_approved'"),
     "company_facts_pending": _FACT_SELECT.format(statuses="'pending_review'"),
@@ -103,24 +104,25 @@ def create_bi_views(conn: Connection) -> None:
         conn.execute(text(f"CREATE OR REPLACE VIEW bi.{name} AS {select}"))
 
 
-def ensure_reader_role(conn: Connection, password: str) -> None:
-    """Creates or updates `bi_reader`: LOGIN, no access to the base tables,
-    SELECT on the `bi` views only. Idempotent. The views run with their
-    owner's rights, so the role needs nothing on `public`."""
+def ensure_reader_role(conn: Connection, password: str, role: str = ROLE) -> None:
+    """Creates or updates `role` (default `bi_reader`): LOGIN, no access to
+    the base tables, SELECT on the `bi` views only. Idempotent. The views run
+    with their owner's rights, so the role needs nothing on `public`. `role`
+    is a trusted identifier (tests pass their own so they never touch the real one)."""
     from sqlalchemy import text
 
     conn.execute(
         text(
-            f"DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{ROLE}') THEN CREATE ROLE {ROLE} LOGIN; END IF; END $$"
+            f"DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{role}') THEN CREATE ROLE {role} LOGIN; END IF; END $$"
         )
     )
     alter = conn.execute(
-        text(f"SELECT format('ALTER ROLE {ROLE} WITH LOGIN PASSWORD %L', CAST(:pw AS text))"), {"pw": password}
+        text(f"SELECT format('ALTER ROLE {role} WITH LOGIN PASSWORD %L', CAST(:pw AS text))"), {"pw": password}
     ).scalar()
     # The formatted statement embeds the password; escape ':' so text() does
     # not read ':name' inside it as a bind parameter.
     conn.execute(text(alter.replace(":", "\\:")))
-    conn.execute(text(f"REVOKE ALL ON ALL TABLES IN SCHEMA public FROM {ROLE}"))
-    conn.execute(text(f"REVOKE ALL ON SCHEMA public FROM {ROLE}"))
-    conn.execute(text(f"GRANT USAGE ON SCHEMA bi TO {ROLE}"))
-    conn.execute(text(f"GRANT SELECT ON ALL TABLES IN SCHEMA bi TO {ROLE}"))
+    conn.execute(text(f"REVOKE ALL ON ALL TABLES IN SCHEMA public FROM {role}"))
+    conn.execute(text(f"REVOKE ALL ON SCHEMA public FROM {role}"))
+    conn.execute(text(f"GRANT USAGE ON SCHEMA bi TO {role}"))
+    conn.execute(text(f"GRANT SELECT ON ALL TABLES IN SCHEMA bi TO {role}"))
