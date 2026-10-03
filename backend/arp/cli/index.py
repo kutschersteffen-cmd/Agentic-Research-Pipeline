@@ -139,9 +139,9 @@ def index_run(
     store = _index_store()
     calibration_version = None
     if calibration_id:
-        calibration = store.resolve_for_date(calibration_id, review_date)
+        calibration = store.resolve_for_date(calibration_id, review_date, approved_only=True)
         if calibration is None:
-            raise typer.BadParameter(f"No version of {calibration_id} is in force on {review_date}.")
+            raise typer.BadParameter(f"No approved version of {calibration_id} is in force on {review_date}.")
         spec, calibration_version = calibration.spec, calibration.version
         typer.echo(f"Using calibration {calibration.name} v{calibration.version} (effective {calibration.effective_from}).")
         if solver_method:
@@ -177,19 +177,37 @@ def index_calibration_save(
     solver_method: str = typer.Option(None, help="waterfall | least_squares."),
     calibration_id: str = typer.Option(None, help="Supply to add a new version to an existing calibration."),
     notes: str = typer.Option(""),
-    approved_by: str = typer.Option("", help="Comma-separated committee minute references."),
+    approved_by: str = typer.Option("", help="Comma-separated committee minute references. Recorded in the notes only; approval is `arp index approve`."),
 ) -> None:
     """Saves a construction spec as a new calibration, or a new version of one."""
+    from arp.cli._shared import cli_principal
+
     store = _index_store()
+    author = cli_principal(get_settings()).user_id
     spec = _load_spec(preset, spec_file, solver_method)
-    approvals = [a.strip() for a in approved_by.split(",") if a.strip()]
+    if approved_by.strip():
+        notes = f"{notes} [committee refs: {approved_by.strip()}]".strip()
     if calibration_id:
         calibration = store.new_calibration_version(
-            calibration_id, spec, effective_from=effective_from, notes=notes, approved_by=approvals
+            calibration_id, spec, effective_from=effective_from, notes=notes, created_by=author
         )
     else:
-        calibration = store.create_calibration(name, spec, effective_from=effective_from, notes=notes, approved_by=approvals)
+        calibration = store.create_calibration(name, spec, effective_from=effective_from, notes=notes, created_by=author)
     typer.echo(f"{calibration.calibration_id} v{calibration.version}  effective {calibration.effective_from}  hash {calibration.config_hash[:12]}")
+
+
+@index_app.command("approve")
+def index_approve(calibration_id: str = typer.Argument(...)) -> None:
+    """Approves the latest version of a calibration as the signed-in user. The author cannot."""
+    from arp.cli._shared import cli_principal
+
+    user = cli_principal(get_settings())
+    try:
+        calibration = _index_store().approve_calibration(calibration_id, user.user_id)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"{calibration.calibration_id} v{calibration.version} approved by {user.user_id}")
 
 
 @index_app.command("calibration-list")
@@ -210,7 +228,7 @@ def index_calibration_show(
 ) -> None:
     """Prints a calibration, or its whole version history."""
     store = _index_store()
-    calibration = store.resolve_for_date(calibration_id, as_of) if as_of else store.get_calibration(calibration_id, version)
+    calibration = store.resolve_for_date(calibration_id, as_of, approved_only=True) if as_of else store.get_calibration(calibration_id, version)
     if calibration is None:
         raise typer.BadParameter(f"No calibration {calibration_id}" + (f" in force on {as_of}" if as_of else ""))
     typer.echo(calibration.model_dump_json(indent=2))

@@ -466,8 +466,8 @@ def test_demo_universe_and_price_panel_are_reproducible():
 
 def test_calibration_versions_are_append_only_and_effective_dated(tmp_path):
     store = IndexStore(tmp_path)
-    v1 = store.create_calibration("DWS PAB", build_preset("eu_ctb"), effective_from="2026-01-01", notes="initial")
-    v2 = store.new_calibration_version(v1.calibration_id, build_preset("eu_pab"), effective_from="2026-07-01", notes="tightened")
+    v1 = store.create_calibration("DWS PAB", build_preset("eu_ctb"), effective_from="2026-01-01", notes="initial", created_by="u_a")
+    v2 = store.new_calibration_version(v1.calibration_id, build_preset("eu_pab"), effective_from="2026-07-01", notes="tightened", created_by="u_a")
 
     assert v2.version == 2 and v2.based_on_version == 1
     assert store.resolve_for_date(v1.calibration_id, "2026-03-31").version == 1
@@ -481,9 +481,9 @@ def test_calibration_versions_are_append_only_and_effective_dated(tmp_path):
 
 def test_calibration_versions_are_forward_only(tmp_path):
     store = IndexStore(tmp_path)
-    v1 = store.create_calibration("c", build_preset("eu_ctb"), effective_from="2026-06-01")
+    v1 = store.create_calibration("c", build_preset("eu_ctb"), effective_from="2026-06-01", created_by="u_a")
     with pytest.raises(ValueError, match="forward-only"):
-        store.new_calibration_version(v1.calibration_id, build_preset("eu_pab"), effective_from="2026-01-01")
+        store.new_calibration_version(v1.calibration_id, build_preset("eu_pab"), effective_from="2026-01-01", created_by="u_a")
 
 
 def test_reviews_chain_state_through_the_store(tmp_path):

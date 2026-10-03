@@ -51,15 +51,13 @@ class IndexStore:
         *,
         effective_from: str,
         notes: str = "",
-        approved_by: list[str] | None = None,
-        created_by: str | None = None,
+        created_by: str,
     ) -> IndexCalibration:
         calibration = IndexCalibration(
             name=name,
             version=1,
             effective_from=effective_from,
             notes=notes,
-            approved_by=approved_by or [],
             created_by=created_by,
             spec=spec,
         )
@@ -73,8 +71,7 @@ class IndexStore:
         *,
         effective_from: str,
         notes: str = "",
-        approved_by: list[str] | None = None,
-        created_by: str | None = None,
+        created_by: str,
     ) -> IndexCalibration:
         current = self.get_calibration(calibration_id)
         if current is None:
@@ -91,7 +88,6 @@ class IndexStore:
             based_on_version=current.version,
             effective_from=effective_from,
             notes=notes,
-            approved_by=approved_by or [],
             created_by=created_by,
             spec=spec,
         )

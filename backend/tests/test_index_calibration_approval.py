@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -84,10 +86,58 @@ def test_approved_by_in_body_ignored(api):
     assert _run(api, cal["calibration_id"]).status_code == 404
 
 
-def test_legacy_calibration_without_created_by(api):
+def test_legacy_calibration_without_created_by(api, tmp_path):
     spec = api.get("/api/index/presets/exclusion_only").json()
-    legacy = api.store.create_calibration("old", index_router.ConstructionSpec(**spec), effective_from="2026-01-01", approved_by=["IC-2026-06-11"])
-    unapproved = api.store.create_calibration("old2", index_router.ConstructionSpec(**spec), effective_from="2026-01-01")
-    assert legacy.created_by is None
-    assert _run(api, legacy.calibration_id).status_code == 200
-    assert _run(api, unapproved.calibration_id).status_code == 404
+    ids = {}
+    for name, approvals in (("old", ["IC-2026-06-11"]), ("old2", [])):
+        cal = api.store.create_calibration(name, index_router.ConstructionSpec(**spec), effective_from="2026-01-01", created_by="x")
+        path = tmp_path / "calibrations" / cal.calibration_id / "v1.json"
+        data = json.loads(path.read_text())
+        data.pop("created_by")
+        data["approved_by"] = approvals
+        path.write_text(json.dumps(data))
+        ids[name] = cal.calibration_id
+    assert _run(api, ids["old"]).status_code == 200
+    assert _run(api, ids["old2"]).status_code == 404
+
+
+@pytest.fixture
+def cli(tmp_path, monkeypatch):
+    from typer.testing import CliRunner
+
+    from arp.cli import index as cli_index
+    from arp.config import Settings
+
+    users = tmp_path / "users.json"
+    users.write_text(json.dumps({"users": [
+        {"user_id": "u_alice", "name": "Alice", "role": "approver", "token": "ta"},
+        {"user_id": "u_bob", "name": "Bob", "role": "approver", "token": "tb"},
+    ]}))
+    settings = Settings(indices_dir=tmp_path / "idx", users_file=users)
+    monkeypatch.setattr(cli_index, "get_settings", lambda: settings)
+
+    def run(token, *args):
+        monkeypatch.setenv("ARP_CLI_TOKEN", token)
+        return CliRunner().invoke(cli_index.index_app, list(args))
+
+    run.store = IndexStore(settings.indices_dir)
+    return run
+
+
+def test_cli_calibration_unapproved_until_second_principal_approves(cli):
+    r = cli("ta", "calibration-save", "--name", "c", "--effective-from", "2026-01-01", "--preset", "exclusion_only",
+            "--approved-by", "IC-1")
+    assert r.exit_code == 0, r.output
+    cal = cli.store.list_calibrations()[0]
+    assert cal.created_by == "u_alice" and cal.approved_by == [] and "IC-1" in cal.notes
+    run = ("--index-id", "i", "--review-date", "2026-03-31", "--calibration-id", cal.calibration_id)
+    assert cli("ta", "run", *run).exit_code != 0
+    assert cli("tb", "approve", cal.calibration_id).exit_code == 0
+    assert cli("ta", "run", *run).exit_code == 0
+
+
+def test_cli_author_cannot_approve(cli):
+    cli("ta", "calibration-save", "--name", "c", "--effective-from", "2026-01-01", "--preset", "exclusion_only")
+    cal = cli.store.list_calibrations()[0]
+    assert cli("ta", "approve", cal.calibration_id).exit_code == 1
+    assert cli.store.get_calibration(cal.calibration_id).approved_by == []
