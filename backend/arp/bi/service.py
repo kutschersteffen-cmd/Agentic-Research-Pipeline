@@ -90,8 +90,11 @@ def _cleanup(client: SupersetClient, chart_ids: list[int]) -> None:
             client.delete_chart(cid)
 
 
-def _build_dashboard(client: SupersetClient, plan: ChartPlan, ids: dict[str, int]) -> DesignResult:
-    slug = f"arp-{plan_hash(plan)}"
+def _ensure_dashboard(
+    client: SupersetClient, slug: str, plan: ChartPlan, ids: dict[str, int], json_metadata: dict | None = None
+) -> tuple[int, str]:
+    """(dashboard id, "created" | "rebuilt" | "unchanged") for `slug` holding the plan's charts."""
+    status = "created"
     try:
         existing = client.find_dashboard(slug)
         if existing is not None:
@@ -99,23 +102,30 @@ def _build_dashboard(client: SupersetClient, plan: ChartPlan, ids: dict[str, int
             # Same plan as before: reuse, create nothing. More charts means a person
             # extended it, which must survive a re-run.
             if len(charts) >= len(plan.charts):
-                return _result(existing, slug, plan)
+                return existing, "unchanged"
             # Fewer: half-built or emptied since; replace it rather than return it as done.
             # Only the dashboard goes; its charts may sit on other dashboards too.
             client.delete_dashboard(existing)
+            status = "rebuilt"
     except _ERRORS as e:
         raise BIError(f"Superset: {e}") from e
     created: list[int] = []
     try:
         _create_charts(client, plan, ids, created)
         try:
-            dash = client.create_dashboard(plan.title, slug, compile_dashboard(created, [c.title for c in plan.charts]), created)
+            position = compile_dashboard(created, [c.title for c in plan.charts])
+            dash = client.create_dashboard(plan.title, slug, position, created, json_metadata)
         except _ERRORS as e:
             raise BIError(f"Creating dashboard {plan.title!r} failed: {e}") from e
     except Exception:  # any failure, compiler bugs included: remove what this call made
         _cleanup(client, created)
         raise
-    return _result(dash, slug, plan)
+    return dash, status
+
+
+def _build_dashboard(client: SupersetClient, plan: ChartPlan, ids: dict[str, int]) -> DesignResult:
+    slug = f"arp-{plan_hash(plan)}"
+    return _result(_ensure_dashboard(client, slug, plan, ids)[0], slug, plan)
 
 
 def _add_to_scratch(client: SupersetClient, plan: ChartPlan, ids: dict[str, int]) -> DesignResult:

@@ -1,0 +1,20 @@
+{
+  "slug": "arp-risk-exposure",
+  "title": "Exposure overview",
+  "goal": "Where the portfolios' market value sits: by fund, sector, country, currency and asset class, and how it moved across snapshots.",
+  "charts": [
+    {"title": "Total exposure", "viz_type": "big_number_total", "dataset": "holdings", "metrics": ["Exposure (EUR)"]},
+    {"title": "Exposure by fund", "viz_type": "echarts_timeseries_bar", "dataset": "holdings", "metrics": ["Exposure (EUR)"], "groupby": ["portfolio_name"]},
+    {"title": "Exposure by sector", "viz_type": "treemap_v2", "dataset": "holdings", "metrics": ["Exposure (EUR)"], "groupby": ["sector"]},
+    {"title": "Exposure by country", "viz_type": "table", "dataset": "holdings", "metrics": ["Exposure (EUR)"], "groupby": ["country"]},
+    {"title": "Exposure by currency", "viz_type": "echarts_timeseries_bar", "dataset": "holdings", "metrics": ["Exposure (EUR)"], "groupby": ["currency"]},
+    {"title": "Asset class mix", "viz_type": "pie", "dataset": "holdings", "metrics": ["Exposure (EUR)"], "groupby": ["asset_class"]},
+    {"title": "Sector by fund", "viz_type": "pivot_table_v2", "dataset": "holdings", "metrics": ["Exposure (EUR)"], "groupby": ["sector", "portfolio_name"]},
+    {"title": "Exposure over time by fund", "viz_type": "echarts_timeseries_line", "dataset": "holdings_history", "metrics": ["Exposure (EUR)"], "groupby": ["as_of_date", "portfolio_name"]}
+  ],
+  "native_filters": [
+    {"name": "Fund", "dataset": "holdings", "column": "portfolio_name"},
+    {"name": "Sector", "dataset": "holdings", "column": "sector"},
+    {"name": "Country", "dataset": "holdings", "column": "country"}
+  ]
+}

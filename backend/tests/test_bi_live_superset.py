@@ -30,6 +30,7 @@ from arp.bi.plan import ChartPlan, ChartSpec, NativeFilter
 from arp.bi.planner import PlannerRefusal
 from arp.bi.service import SCRATCH_SLUG, NotAnARPDashboard, ask_chart, design_dashboard, embed_token
 from arp.bi.superset_client import SupersetClient, SupersetError
+from arp.bi.templates import load_templates
 from arp.cli import app
 from arp.config import get_settings
 from arp.llm.base import LLMClient, LLMUsage
@@ -46,6 +47,28 @@ def settings(monkeypatch):
     get_settings.cache_clear()
     yield get_settings()
     get_settings.cache_clear()
+
+
+TEMPLATE_SLUGS = [t.slug for t in load_templates()]
+
+
+def _drop_dashboard(client: SupersetClient, slug: str) -> None:
+    """Deletes the dashboard under `slug` and its charts, if present."""
+    dash_id = client.find_dashboard(slug)
+    if dash_id is not None:
+        charts = client.dashboard_charts(dash_id)
+        client.delete_dashboard(dash_id)
+        for cid in charts:
+            client.delete_chart(cid)
+
+
+@pytest.fixture(autouse=True)
+def drop_templates(settings):
+    """Every bootstrap provisions the template dashboards; none may outlive a test."""
+    yield
+    client = SupersetClient(URL, settings.superset_user, settings.superset_password)
+    for slug in TEMPLATE_SLUGS:
+        _drop_dashboard(client, slug)
 
 
 def _bootstrap() -> dict:
@@ -86,7 +109,8 @@ def _position(chart_ids: list[int]) -> dict:
 def test_live_superset_roundtrip(settings):
     out = _bootstrap()
     assert set(out["datasets"]) == set(VIEW_DATASETS) and out["reader_role"] == "bi_reader"
-    assert _bootstrap() == out  # idempotent
+    again = _bootstrap()
+    assert again == {**out, "templates": dict.fromkeys(TEMPLATE_SLUGS, "unchanged")}  # idempotent
 
     client = SupersetClient(URL, settings.superset_user, settings.superset_password)
     holdings = out["datasets"]["holdings"]
@@ -195,6 +219,27 @@ def test_native_filters_are_stored_and_applied(settings):
         for cid in chart_ids:
             client.delete_chart(cid)
     assert client.find_dashboard(slug) is None
+
+
+def test_bootstrap_provisions_risk_exposure(settings):
+    """The standard template: created unpublished with its native filters, every
+    chart returns rows from the seeded data, and a re-run leaves it alone."""
+    (template,) = [t for t in load_templates() if t.slug == "arp-risk-exposure"]
+    client = SupersetClient(URL, settings.superset_user, settings.superset_password)
+    _drop_dashboard(client, template.slug)  # start from absent; the fixture cleans up after
+    out = _bootstrap()
+    assert out["templates"]["arp-risk-exposure"] == "created"
+    dash_id = client.find_dashboard(template.slug)
+    _check_dashboard(client, dash_id, ChartPlan(title=template.title, charts=template.charts))
+    stored = json.loads(client.get_dashboard(dash_id)["json_metadata"])["native_filter_configuration"]
+    assert [(f["name"], f["targets"][0]["column"]["name"]) for f in stored] == [
+        (f.name, f.column) for f in template.native_filters
+    ]
+    assert all(
+        f["targets"][0]["datasetId"] == out["datasets"][nf.dataset] for f, nf in zip(stored, template.native_filters, strict=True)
+    )
+    assert _bootstrap()["templates"]["arp-risk-exposure"] == "unchanged"
+    assert client.find_dashboard(template.slug) == dash_id
 
 
 # --- Service end to end (design_dashboard / ask_chart / embed_token) -------------------

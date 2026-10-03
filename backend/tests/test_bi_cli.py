@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from contextlib import nullcontext
 from types import SimpleNamespace
 
@@ -53,9 +54,8 @@ def test_bootstrap_rejects_placeholder_reader_password(monkeypatch):
     assert result.exit_code == 1 and "placeholder" in result.stderr and "openssl rand" in result.stderr
 
 
-def test_bootstrap_syncs_descriptions_for_every_dataset(monkeypatch):
-    from arp.bi.catalog import VIEW_DATASETS
-
+def _bootstrap_offline(monkeypatch, provision) -> tuple:
+    """Runs `arp bi bootstrap` against a fake Superset; returns (result, synced descriptions)."""
     for name, value in {
         "ARP_POSTGRES_DSN": "postgresql+psycopg://u:p@localhost:5432/arp",
         "ARP_SUPERSET_PASSWORD": "x" * 20,
@@ -88,10 +88,41 @@ def test_bootstrap_syncs_descriptions_for_every_dataset(monkeypatch):
     monkeypatch.setattr("arp.bi.views.create_bi_views", lambda conn: None)
     monkeypatch.setattr("arp.bi.views.ensure_reader_role", lambda conn, pw: None)
     monkeypatch.setattr("arp.storage.postgres.get_engine", lambda dsn: SimpleNamespace(begin=lambda: nullcontext()))
+    monkeypatch.setattr("arp.bi.templates.provision", provision)
     try:
-        result = CliRunner().invoke(app, ["bi", "bootstrap"])
+        return CliRunner().invoke(app, ["bi", "bootstrap"]), synced
     finally:
         get_settings.cache_clear()
+
+
+def test_bootstrap_syncs_descriptions_for_every_dataset(monkeypatch):
+    from arp.bi.catalog import VIEW_DATASETS
+
+    result, synced = _bootstrap_offline(monkeypatch, lambda client, t: "unchanged")
     assert result.exit_code == 0, result.output
     assert sorted(s[1] for s in synced) == sorted(d.description for d in VIEW_DATASETS.values())
     assert sorted(len(s[2]) for s in synced) == sorted(len(d.columns) for d in VIEW_DATASETS.values())
+
+
+def test_bootstrap_provisions_templates(monkeypatch):
+    seen = []
+
+    def provision(client, template):
+        seen.append(template.slug)
+        return "created"
+
+    result, _ = _bootstrap_offline(monkeypatch, provision)
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.stdout)["templates"] == {"arp-risk-exposure": "created"}
+    assert seen == ["arp-risk-exposure"]
+
+
+def test_bootstrap_template_error_exits_nonzero(monkeypatch):
+    from arp.bi.service import BIError
+
+    def provision(client, template):
+        raise BIError(f"Template {template.slug}: Chart 'X': unknown groupby column 'fund'")
+
+    result, _ = _bootstrap_offline(monkeypatch, provision)
+    assert result.exit_code == 1
+    assert "unknown groupby column 'fund'" in result.stderr and result.stdout == ""

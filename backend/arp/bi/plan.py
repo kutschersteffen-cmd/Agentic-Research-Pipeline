@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class DatasetMeta(BaseModel):
@@ -33,3 +33,21 @@ class ChartPlan(BaseModel):
     title: str
     goal: str = ""
     charts: list[ChartSpec]  # 1..MAX_CHARTS, enforced by the validator
+
+
+class DashboardTemplate(BaseModel):
+    """A committed dashboard (arp/bi/templates/*.json) that `arp bi bootstrap` provisions."""
+
+    slug: str
+    title: str
+    goal: str = ""
+    charts: list[ChartSpec]
+    native_filters: list[NativeFilter] = []
+
+    @field_validator("slug")
+    @classmethod
+    def _arp_slug(cls, slug: str) -> str:
+        # ARP only embeds and rebuilds arp- dashboards (service.embed_token).
+        if not slug.startswith("arp-"):
+            raise ValueError(f"template slug {slug!r} must start with 'arp-'")
+        return slug

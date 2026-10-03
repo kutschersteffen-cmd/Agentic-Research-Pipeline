@@ -64,11 +64,13 @@ class FakeClient:
         self.charts[cid] = name
         return cid
 
-    def create_dashboard(self, title, slug, position_json, chart_ids):
+    def create_dashboard(self, title, slug, position_json, chart_ids, json_metadata=None):
         self.calls.append(("create_dashboard", slug))
         did = self._id()
         # The real client always sends published=False; record it as the payload would.
-        self.dashboards[slug] = {"id": did, "published": False, "charts": list(chart_ids), "position": position_json}
+        self.dashboards[slug] = {
+            "id": did, "published": False, "charts": list(chart_ids), "position": position_json, "meta": json_metadata,
+        }  # fmt: skip
         return did
 
     def update_dashboard(self, dashboard_id, position_json, chart_ids):
@@ -154,7 +156,7 @@ def test_failure_on_third_chart_deletes_first_two():
 def test_dashboard_failure_deletes_charts_but_never_a_dashboard():
     client = FakeClient()
 
-    def boom(title, slug, position_json, chart_ids):
+    def boom(title, slug, position_json, chart_ids, json_metadata=None):
         raise SupersetError(500, "attach failed")  # the client removes its own half-made dashboard
 
     client.create_dashboard = boom

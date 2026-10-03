@@ -31,7 +31,11 @@ def bi_bootstrap(
     `superset fab create-admin --username arp_designer --password ... --firstname ARP --lastname Designer
     --email arp_designer@localhost`.
 
-    Prints {"database_id", "datasets": {table: id}, "reader_role"} as JSON."""
+    Then provisions each dashboard template (arp/bi/templates/*.json):
+    created when absent, rebuilt when it has fewer charts than the template,
+    otherwise left as it is.
+
+    Prints {"database_id", "datasets": {table: id}, "reader_role", "templates": {slug: status}} as JSON."""
     settings = get_settings()
     required = {
         "ARP_POSTGRES_DSN": settings.postgres_dsn,
@@ -50,7 +54,9 @@ def bi_bootstrap(
     import httpx
     from sqlalchemy.engine import make_url
 
+    from arp.bi import templates
     from arp.bi.catalog import BI_DATABASE, VIEW_DATASETS
+    from arp.bi.service import BIError
     from arp.bi.superset_client import SupersetClient, SupersetError
     from arp.bi.views import ROLE, create_bi_views, ensure_reader_role
     from arp.storage.postgres import get_engine
@@ -82,9 +88,15 @@ def bi_bootstrap(
             client.sync_metrics(dataset_id, dataset.metrics)
             client.sync_descriptions(dataset_id, dataset.description, dataset.columns)
             datasets[table] = dataset_id
+        statuses = {t.slug: templates.provision(client, t) for t in templates.load_templates()}
+    except BIError as e:  # a template that does not fit, or Superset failing mid-provision
+        typer.echo(f"Dashboard templates: {e}", err=True)
+        if isinstance(e.__cause__, SupersetError) and e.__cause__.body:
+            typer.echo(f"Response body: {e.__cause__.body}", err=True)
+        raise typer.Exit(1) from e
     except (SupersetError, httpx.HTTPError) as e:
         typer.echo(f"Superset at {settings.superset_url}: {e}", err=True)
         if isinstance(e, SupersetError) and e.body:
             typer.echo(f"Response body: {e.body}", err=True)  # operator-only; str(e) omits it
         raise typer.Exit(1) from e
-    typer.echo(json.dumps({"database_id": database_id, "datasets": datasets, "reader_role": ROLE}))
+    typer.echo(json.dumps({"database_id": database_id, "datasets": datasets, "reader_role": ROLE, "templates": statuses}))

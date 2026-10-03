@@ -7,13 +7,14 @@ from arp.bi.catalog import MAX_GROUPBY, MAX_METRICS, MIN_GROUPBY, TEMPORAL_COLUM
 from arp.bi.plan import MAX_CHARTS, ChartPlan, DatasetMeta
 
 
-def validate_plan(plan: ChartPlan, metas: dict[str, DatasetMeta]) -> list[str]:
+def validate_plan(plan: ChartPlan, metas: dict[str, DatasetMeta], max_charts: int = MAX_CHARTS) -> list[str]:
+    """`max_charts` caps a planner's output; a committed template passes its own size."""
     errors: list[str] = []
     n = len(plan.charts)
     if n == 0:
-        errors.append(f"Plan has no charts; it needs between 1 and {MAX_CHARTS}.")
-    elif n > MAX_CHARTS:
-        errors.append(f"Plan has {n} charts; the maximum is {MAX_CHARTS}.")
+        errors.append(f"Plan has no charts; it needs between 1 and {max_charts}.")
+    elif n > max_charts:
+        errors.append(f"Plan has {n} charts; the maximum is {max_charts}.")
 
     seen: set[str] = set()
     for c in plan.charts:
