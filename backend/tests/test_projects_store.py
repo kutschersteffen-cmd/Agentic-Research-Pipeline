@@ -29,7 +29,7 @@ def test_duplicate_id(store):
         store.create("alpha", "A2")
 
 
-@pytest.mark.parametrize("bad", ["Foo", "a/b", "..", "-x", "a" * 64, "", "a.b"])
+@pytest.mark.parametrize("bad", ["Foo", "a/b", "..", "-x", "a" * 64, "", "a.b", "a\n"])
 def test_bad_ids(store, bad):
     with pytest.raises(ProjectError):
         store.create(bad, "x")
@@ -39,12 +39,12 @@ def test_id_max_length_ok(store):
     store.create("a" * 63, "x")
 
 
-@pytest.mark.parametrize("name", ["../x.xlsx", "a.xlsm", "a/b.xlsx", ""])
+@pytest.mark.parametrize("name", ["../x.xlsx", "a.xlsm", "a/b.xlsx", "", "a\0.xlsx"])
 def test_bad_upload_names(store, tmp_path, name):
     store.create("p", "P")
     with pytest.raises(ProjectError):
         store.add_data_file("p", name, b"x", {})
-    assert not list((tmp_path / "p" / "data").glob("*")) if (tmp_path / "p" / "data").exists() else True
+    assert not any((tmp_path / "p").rglob("*.xlsx"))
     assert store.get("p").data == []
 
 
@@ -84,7 +84,54 @@ def test_file_path_rejects_traversal(store):
         store.file_path("p", "other", "a")
 
 
-def test_lock_context(store):
+def test_lock_mutual_exclusion(store):
+    import threading
+    import time
+
     store.create("p", "P")
-    with store.lock("p"):
+    inside, bad = [], []
+
+    def worker():
+        with store.lock("p"):
+            inside.append(1)
+            if len(inside) > 1:
+                bad.append(1)
+            time.sleep(0.02)
+            inside.pop()
+
+    ts = [threading.Thread(target=worker) for _ in range(5)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    assert not bad
+
+
+def test_parallel_uploads(store):
+    from concurrent.futures import ThreadPoolExecutor
+
+    store.create("p", "P")
+    n = 12
+    with ThreadPoolExecutor(n) as ex:
+        list(ex.map(lambda i: store.add_data_file("p", f"f{i}.xlsx", b"x", {f"k{i}": i}), range(n)))
+    p = store.get("p")
+    assert sorted(p.data[0].files) == sorted(f"f{i}.xlsx" for i in range(n))
+    assert len(p.data[0].params) == n
+    assert all(store.file_path("p", "data", f).exists() for f in p.data[0].files)
+
+
+def test_zip_dashboard_no_stale_json(store):
+    store.create("p", "P")
+    store.save_dashboard("p", "d", "D", "template", b"{}")
+    p = store.save_dashboard("p", "d", "D", "superset-export", b"PK")
+    assert p.dashboards[0].file == "d.zip"
+    assert store.file_path("p", "dashboards", "d.zip").read_bytes() == b"PK"
+    assert not store.file_path("p", "dashboards", "d.json").exists()
+
+
+def test_missing_project_leaves_no_dir(store, tmp_path):
+    with pytest.raises(ProjectNotFound):
+        store.add_data_file("ghost", "a.xlsx", b"x", {})
+    with pytest.raises(ProjectNotFound):
+        store.save_dashboard("ghost", "d", "D", "template", b"{}")
+    with pytest.raises(ProjectNotFound), store.lock("ghost"):
         pass
+    assert not (tmp_path / "ghost").exists()

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import re
+import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -50,15 +52,17 @@ class Project(BaseModel):
 
 
 def _check_id(value: str, label: str = "project id") -> str:
-    if not isinstance(value, str) or not ID_RE.match(value):
+    if not isinstance(value, str) or not ID_RE.fullmatch(value):
         raise ProjectError(f"Invalid {label}: {value!r}")
     return value
 
 
 def _check_filename(name: str) -> str:
     try:
+        if "\0" in name:
+            raise UnsafeIdentifierError("NUL in filename")
         return safe_filename(name)
-    except UnsafeIdentifierError as e:
+    except (UnsafeIdentifierError, OSError, TypeError) as e:
         raise ProjectError(str(e)) from e
 
 
@@ -68,6 +72,10 @@ class ProjectStore:
         self._locks = KeyedLock(lock_path=lambda pid: self.root / pid / ".lock")
 
     def lock(self, id: str):
+        self.get(id)  # no stray directory for a nonexistent project
+        return self._lock(id)
+
+    def _create_lock(self, id: str):
         return self._lock(_check_id(id))
 
     @contextmanager
@@ -82,7 +90,7 @@ class ProjectStore:
         atomic_write_text(self._manifest(p.id), p.model_dump_json(indent=2))
 
     def create(self, id: str, name: str, description: str = "") -> Project:
-        with self.lock(id):
+        with self._create_lock(id):
             if self._manifest(id).exists():
                 raise ProjectError(f"Project already exists: {id}")
             p = Project(
@@ -107,7 +115,7 @@ class ProjectStore:
         return [
             self.get(d.name)
             for d in sorted(self.root.iterdir())
-            if d.is_dir() and ID_RE.match(d.name) and (d / "project.json").exists()
+            if d.is_dir() and ID_RE.fullmatch(d.name) and (d / "project.json").exists()
         ]
 
     def file_path(self, id: str, kind_dir: Literal["data", "dashboards"], name: str) -> Path:
@@ -144,20 +152,20 @@ class ProjectStore:
         _check_id(slug, "dashboard slug")
         with self.lock(id):
             p = self.get(id)
-            fname = f"{slug}.json"
+            fname = f"{slug}.{'zip' if source == 'superset-export' else 'json'}"
             target = self.file_path(id, "dashboards", fname)
             target.parent.mkdir(parents=True, exist_ok=True)
             _write_bytes(target, payload)
             entry = StoredDashboard(slug=slug, title=title, source=source, file=fname)
+            for d in p.dashboards:
+                if d.slug == slug and d.file != fname:
+                    self.file_path(id, "dashboards", d.file).unlink(missing_ok=True)
             p.dashboards = [d for d in p.dashboards if d.slug != slug] + [entry]
             self._save(p)
             return p
 
 
 def _write_bytes(path: Path, content: bytes) -> None:
-    import os
-    import tempfile
-
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".tmp_", suffix=".tmp")
     try:
         with os.fdopen(fd, "wb") as f:
