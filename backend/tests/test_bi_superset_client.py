@@ -395,3 +395,15 @@ def test_import_dashboard_error_keeps_body_out_of_message():
     with pytest.raises(SupersetError) as exc:
         c.import_dashboard(b"x", {})
     assert "bi_reader" not in str(exc.value)
+
+
+def test_export_dashboard_relogs_in_once_on_401():
+    seen = []
+
+    def handler(req):
+        seen.append(req.headers["Authorization"])
+        return httpx.Response(401) if len(seen) == 1 else httpx.Response(200, content=b"PK")
+
+    c, _ = _client(handler)
+    assert c.export_dashboard(5) == b"PK"
+    assert seen == ["Bearer tok1", "Bearer tok2"]

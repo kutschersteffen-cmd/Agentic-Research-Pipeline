@@ -5,25 +5,35 @@ test_bi_live_superset.py, plus ARP_BI_READER_PASSWORD for the masked database pa
 The second scenario also needs ARP_TEST_SUPERSET_URL2: a second Superset on a fresh,
 empty metadata DB (it is bootstrapped here, then its copy of the dashboard is dropped).
 
-WARNING: like test_bi_live_superset.py this deletes `arp-risk-exposure` (and its charts)
-on the targets. Point it only at throwaway Superset instances."""
+WARNING: this deletes `arp-risk-exposure` (and its charts) on the targets, during and after
+every test. It only runs with ARP_TEST_SUPERSET_DESTRUCTIVE=1, a promise that the URLs point
+at throwaway Superset instances."""
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 
+import httpx
 import pytest
 from typer.testing import CliRunner
 
-from arp.bi.superset_client import SupersetClient
+from arp.bi.superset_client import SupersetClient, SupersetError
 from arp.cli import app
 from arp.config import get_settings
 
 URL = os.environ.get("ARP_TEST_SUPERSET_URL")
 URL2 = os.environ.get("ARP_TEST_SUPERSET_URL2")
 SLUG = "arp-risk-exposure"
-pytestmark = [pytest.mark.live_superset, pytest.mark.skipif(not URL, reason="ARP_TEST_SUPERSET_URL not set -- live Superset")]
+pytestmark = [
+    pytest.mark.live_superset,
+    pytest.mark.skipif(not URL, reason="ARP_TEST_SUPERSET_URL not set -- live Superset"),
+    pytest.mark.skipif(
+        os.environ.get("ARP_TEST_SUPERSET_DESTRUCTIVE") != "1",
+        reason="ARP_TEST_SUPERSET_DESTRUCTIVE=1 not set -- this test deletes dashboards",
+    ),
+]
 
 
 @pytest.fixture
@@ -32,6 +42,23 @@ def settings(monkeypatch):
     get_settings.cache_clear()
     yield get_settings()
     get_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def drop_dashboard_after(settings):
+    """Nothing the tests create or import may outlive them, on either Superset."""
+    yield
+    for url in (URL, URL2):
+        if not url:
+            continue
+        with contextlib.suppress(SupersetError, httpx.HTTPError):  # one failure must not leak the rest
+            client = SupersetClient(url, settings.superset_user, settings.superset_password)
+            dash_id = client.find_dashboard(SLUG)
+            if dash_id is not None:
+                charts = client.dashboard_charts(dash_id)
+                client.delete_dashboard(dash_id)
+                for cid in charts:
+                    client.delete_chart(cid)
 
 
 def _bootstrap(monkeypatch, url: str) -> None:
@@ -64,11 +91,15 @@ def test_export_then_import_roundtrip(settings, monkeypatch):
     client = SupersetClient(URL, settings.superset_user, settings.superset_password)
     bundle = client.export_dashboard(client.find_dashboard(SLUG))
     _drop_dashboard_only(client)
-    assert client.find_dashboard(SLUG) is None
-    client.import_dashboard(bundle, _passwords())
-    _assert_restored(client)
-    client.import_dashboard(bundle, _passwords())  # overwrite=true makes a repeat harmless
-    _assert_restored(client)
+    try:
+        assert client.find_dashboard(SLUG) is None
+        client.import_dashboard(bundle, _passwords())
+        _assert_restored(client)
+        client.import_dashboard(bundle, _passwords())  # overwrite=true makes a repeat harmless
+        _assert_restored(client)
+    finally:
+        if client.find_dashboard(SLUG) is None:  # a failed import must not leave the target without it
+            _bootstrap(monkeypatch, URL)
 
 
 @pytest.mark.skipif(not URL2, reason="ARP_TEST_SUPERSET_URL2 not set -- second Superset on a fresh metadata DB")

@@ -30,6 +30,24 @@ Both scenarios pass, so hand-built dashboards are exported, stored, and re-impor
 - The password map must name the bundle's database file; if a stored bundle uses another database name the key differs. Task 8 should take the key from the bundle's `databases/*.yaml` entries.
 - Superset response bodies stay out of exception messages (`SupersetError` already omits the body from `str`).
 
+## Second Superset recipe (scenario b)
+
+Same image, env and entrypoint as the main container, only the port and metadata DB change:
+
+```
+createdb -p 5433 -O arp superset_live2
+sed 's#superset_live$#superset_live2#; s#SUPERSET_PORT=8090#SUPERSET_PORT=8091#' <env of arp-superset-live> > live.envfile
+docker run -d --name arp-superset-live2 --network host --env-file live.envfile \
+  -v <repo>/superset:/app/pythonpath:ro arp-superset:dev /app/pythonpath/entrypoint.sh
+```
+
+The container command must be `/app/pythonpath/entrypoint.sh` (it migrates the new DB and creates the
+`arp_designer` user); without it Superset starts on an empty DB and every login returns 401. Both
+instances share the same credentials (`ARP_SUPERSET_USER` / `ARP_SUPERSET_PASSWORD`, `ARP_BI_READER_PASSWORD`)
+and the same ARP database, so one env file serves both. Run the tests with
+`ARP_TEST_SUPERSET_DESTRUCTIVE=1 ARP_TEST_SUPERSET_URL=http://127.0.0.1:8090 ARP_TEST_SUPERSET_URL2=http://127.0.0.1:8091 pytest -m live_superset tests/test_bi_live_export.py`.
+The tests delete `arp-risk-exposure` on both instances afterwards.
+
 ## Client
 
 `SupersetClient.export_dashboard(dashboard_id: int) -> bytes` and
