@@ -16,14 +16,14 @@ from arp.bi.service import BIError, DashboardNotFound, NotAnARPDashboard, _datas
 from arp.bi.superset_client import SupersetError
 from arp.bi.validator import validate_plan
 from arp.projects import store as store_mod
-from arp.projects.dashboards import plan_to_template, provision_project_dashboard
+from arp.projects.dashboards import plan_to_template
 from arp.projects.service import (
     OpenedDashboard,
     OpenError,
     OpenResult,
-    dashboard_state,
     export_dashboard_to_project,
     open_project,
+    save_template_dashboard,
 )
 from arp.projects.store import Project, ProjectError, ProjectNotFound, ProjectStore, StoredDashboard
 
@@ -144,10 +144,7 @@ def _save_dashboard(store: ProjectStore, client, id: str, req: SaveDashboardRequ
     if problems:
         raise HTTPException(422, problems)
     template = plan_to_template(id, req.title, req.plan)
-    store.save_dashboard(id, template.slug, req.title, "template", template.model_dump_json().encode())
-    status = provision_project_dashboard(client, id, template)
-    dash_id, published = dashboard_state(client, template.slug, f"dashboard:{template.slug}")
-    return OpenedDashboard(id=dash_id, slug=template.slug, title=req.title, published=published, status=status)
+    return save_template_dashboard(store, client, id, template, req.title)
 
 
 @router.post("/{id}/dashboards", response_model=OpenedDashboard, dependencies=[Depends(_require_postgres)])

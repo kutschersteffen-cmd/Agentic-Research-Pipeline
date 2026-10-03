@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import zipfile
 from pathlib import Path
 
@@ -16,7 +17,9 @@ from arp.bi.views import PLACEHOLDER_SECRETS
 from arp.config import get_settings
 from arp.portfolio.constituent_import import import_constituent_files
 from arp.projects.dashboards import provision_project_dashboard
-from arp.projects.store import MAX_UPLOAD_BYTES, ProjectError, ProjectStore, StoredDashboard
+from arp.projects.store import MAX_UPLOAD_BYTES, ForeignProjectDashboard, ProjectError, ProjectStore, StoredDashboard
+
+logger = logging.getLogger(__name__)
 
 
 class OpenError(Exception):
@@ -52,8 +55,11 @@ def _import_data(store: ProjectStore, portfolio_store, project_id: str) -> list[
             summary = import_constituent_files(
                 portfolio_store, paths, src.params["notional_eur"], project_id=project_id
             )
-        except Exception as e:  # openpyxl raises BadZipFile, StopIteration, TypeError, ... on bad files
+        except (ValueError, OSError) as e:  # importer row/header errors: the message is ours
             raise OpenError("data", f"{src.kind}: {e}") from e
+        except Exception as e:  # openpyxl raises BadZipFile, StopIteration, TypeError, ... on bad files
+            logger.exception("project %s: constituent import failed", project_id)
+            raise OpenError("data", f"{src.kind}: import failed ({type(e).__name__})") from e
         out.append({"kind": src.kind, **summary})
     return out
 
@@ -143,12 +149,31 @@ def export_dashboard_to_project(store: ProjectStore, client, project_id: str, da
     slug = meta.get("slug") or ""
     if not slug.startswith("arp-"):
         raise NotAnARPDashboard(f"Dashboard {dashboard_id} has no arp- slug; only arp- dashboards can be stored.")
+    if "--" in slug and not slug.startswith(f"arp-{project_id}--"):
+        # `arp-<id>--...` is a project-scoped dashboard; only this project's own may pass.
+        raise ForeignProjectDashboard(f"Dashboard {slug!r} is project-scoped to another project and cannot be stored in project {project_id!r}.")
     store.get(project_id)
     bundle = client.export_dashboard(dashboard_id)
     project = store.save_dashboard(
         project_id, slug, meta.get("dashboard_title") or slug, "superset-export", bundle
     )
     return next(d for d in project.dashboards if d.slug == slug)
+
+
+def save_template_dashboard(
+    store: ProjectStore, client, project_id: str, template: DashboardTemplate, title: str
+) -> OpenedDashboard:
+    """Explicit save: store the template, then rebuild the Superset dashboard under it. Only the dashboard is
+    deleted (charts may sit on other dashboards); a rebuilt one comes back unpublished. Open never does this."""
+    step = f"dashboard:{template.slug}"
+    with store.lock(project_id):
+        store.save_dashboard(project_id, template.slug, title, "template", template.model_dump_json().encode())
+        existing = client.find_dashboard(template.slug)
+        if existing is not None:
+            client.delete_dashboard(existing)
+        status = provision_project_dashboard(client, project_id, template)
+        dash_id, published = dashboard_state(client, template.slug, step)
+    return OpenedDashboard(id=dash_id, slug=template.slug, title=title, published=published, status="rebuilt" if existing is not None else status)
 
 
 def open_project(store: ProjectStore, portfolio_store, client, project_id: str) -> OpenResult:

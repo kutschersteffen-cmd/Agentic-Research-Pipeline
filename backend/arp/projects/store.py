@@ -18,6 +18,8 @@ from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import UnsafeIdentifierError, safe_filename
 
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
+# Dashboard slugs: `arp-<project id>--<title part>`, up to 123 chars (Superset allows 255).
+DASHBOARD_SLUG_RE = re.compile(r"^arp-[a-z0-9][a-z0-9-]{0,118}$")
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 
@@ -26,6 +28,10 @@ class ProjectError(ValueError):
 
 
 class ProjectNotFound(ProjectError):
+    pass
+
+
+class ForeignProjectDashboard(ProjectError):
     pass
 
 
@@ -121,7 +127,10 @@ class ProjectStore:
     def file_path(self, id: str, kind_dir: Literal["data", "dashboards"], name: str) -> Path:
         if kind_dir not in ("data", "dashboards"):
             raise ProjectError(f"Invalid directory: {kind_dir!r}")
-        return self.root / _check_id(id) / kind_dir / _check_filename(name)
+        name = _check_filename(name)
+        if kind_dir == "dashboards" and not DASHBOARD_SLUG_RE.fullmatch(name.rsplit(".", 1)[0]):
+            raise ProjectError(f"Invalid dashboard file name: {name!r}")
+        return self.root / _check_id(id) / kind_dir / name
 
     def add_data_file(self, id: str, filename: str, content: bytes, params: dict) -> Project:
         # Validate everything before any write so a rejected upload leaves nothing.
@@ -149,7 +158,8 @@ class ProjectStore:
         self, id: str, slug: str, title: str,
         source: Literal["template", "superset-export"], payload: bytes,
     ) -> Project:
-        _check_id(slug, "dashboard slug")
+        if not isinstance(slug, str) or not DASHBOARD_SLUG_RE.fullmatch(slug):
+            raise ProjectError(f"Invalid dashboard slug: {slug!r}")
         with self.lock(id):
             p = self.get(id)
             fname = f"{slug}.{'zip' if source == 'superset-export' else 'json'}"

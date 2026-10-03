@@ -12,7 +12,7 @@ from arp.projects.dashboards import (
     scope_to_project,
     slugify_dashboard,
 )
-from arp.projects.store import ProjectError
+from arp.projects.store import DASHBOARD_SLUG_RE, ProjectError
 from tests.test_bi_service import FakeClient, _spec
 
 
@@ -44,7 +44,16 @@ def test_slugify():
     with pytest.raises(ProjectError):
         slugify_dashboard("alpha", "!!!")
     s = slugify_dashboard("a" * 63, "word " * 50)
-    assert len(s) <= 100 and s.startswith("arp-" + "a" * 63 + "--")
+    assert len(s) <= 100 and s.startswith("arp-" + "a" * 63 + "--") and DASHBOARD_SLUG_RE.fullmatch(s)
+    assert "--" not in s[len("arp-" + "a" * 63 + "--") :] and not s.endswith("-")
+
+
+def test_long_titles_get_distinct_deterministic_slugs():
+    base = "x" * 60
+    a, b = slugify_dashboard("alpha", base + " one"), slugify_dashboard("alpha", base + " two")
+    assert a != b and a == slugify_dashboard("alpha", base + " one")
+    assert all(len(s) <= 100 and "--" not in s[len("arp-alpha--") :] for s in (a, b))
+    assert slugify_dashboard("a" * 63, "word " * 50) == slugify_dashboard("a" * 63, "word " * 50)
 
 
 def test_plan_to_template_validates_and_provisions():

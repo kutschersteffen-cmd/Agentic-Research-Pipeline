@@ -5,6 +5,7 @@ Slug format: `arp-<project_id>--<slugified title>`. The title part never contain
 
 from __future__ import annotations
 
+import hashlib
 import re
 
 from arp.bi.plan import ChartPlan, DashboardTemplate
@@ -20,7 +21,13 @@ def slugify_dashboard(project_id: str, title: str) -> str:
     if not part:
         raise ProjectError(f"Dashboard title {title!r} has no usable characters")
     prefix = f"arp-{project_id}--"
-    return prefix + part[: MAX_SLUG - len(prefix)].strip("-")  # prefix <= 69 chars (ID_RE), so room remains
+    room = MAX_SLUG - len(prefix)  # prefix <= 69 chars (ID_RE)
+    if len(part) <= room:
+        return prefix + part
+    # Truncated: a hash of the full title keeps long titles with a shared prefix apart.
+    digest = hashlib.sha1(part.encode()).hexdigest()[:6]
+    head = part[: max(room - 7, 0)].strip("-")
+    return f"{prefix}{head}-{digest}" if head else f"{prefix}{digest}"
 
 
 def scope_to_project(template: DashboardTemplate, project_id: str) -> DashboardTemplate:

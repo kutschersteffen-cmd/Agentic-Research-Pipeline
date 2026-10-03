@@ -153,3 +153,11 @@ test("dataLine summarises funds, holdings and notional, with a generic fallback"
   assert.equal(dataLine([]), "Data loaded");
   assert.equal(dataLine([{ kind: "x" }]), "Data loaded");
 });
+
+test("projectGroups hides other projects' scoped dashboards but keeps hand-built ones", () => {
+  const d = (id: number, slug: string) => ({ id, slug, title: slug, published: true });
+  const mine = [d(1, "arp-alpha--a")];
+  const all = [d(1, "arp-alpha--a"), d(2, "arp-beta--exposure"), d(3, "arp-risk-exposure"), d(4, "arp-alpha--b")];
+  const g = projectGroups("alpha", mine, all);
+  assert.deepEqual(g.others.map((x) => x.id), [3]);
+});

@@ -6,10 +6,10 @@ from arp.config import Settings
 from arp.projects import service as svc
 from arp.projects.dashboards import slugify_dashboard
 from arp.projects.service import OpenError, export_dashboard_to_project, open_project
-from arp.projects.store import ProjectStore
+from arp.projects.store import ForeignProjectDashboard, ProjectStore
 from arp.storage.portfolio_store import PortfolioStore
 from tests.export_helpers import PW, ExportClient, make_bundle
-from tests.test_bi_service import FakeClient
+from tests.test_bi_service import FakeClient, _spec
 from tests.test_constituent_import import ROWS, _xlsx
 
 
@@ -87,13 +87,27 @@ def _data_error(env, tmp_path, name="alpha"):
     with pytest.raises(OpenError) as ei:
         open_project(store, pf, client, name)
     assert ei.value.step == "data"
+    return str(ei.value)
 
 
 def test_junk_xlsx(env):
     store, _, _ = env
     store.create("alpha", "A")
     store.add_data_file("alpha", "Constituent_X.xlsx", b"junk", {"notional_eur": 1.0})
-    _data_error(env, None)
+    msg = _data_error(env, None)
+    assert msg.startswith("dws-constituents: ")
+
+
+def test_unexpected_import_exception_is_not_echoed(env, tmp_path, monkeypatch):
+    store, _, _ = env
+    _project(store, tmp_path, "alpha", ())
+
+    def boom(*a, **k):
+        raise RuntimeError("secret /etc/passwd detail")
+
+    monkeypatch.setattr(svc, "import_constituent_files", boom)
+    msg = _data_error(env, None)
+    assert msg == "dws-constituents: import failed (RuntimeError)" and "secret" not in msg
 
 
 def test_missing_data_file(env, tmp_path):
@@ -274,3 +288,35 @@ def test_open_rejects_oversize_bundle(xenv, monkeypatch):
     monkeypatch.setattr(svc, "MAX_UPLOAD_BYTES", 5)
     with pytest.raises(OpenError, match="too large"):
         open_project(store, pf, client, "alpha")
+
+
+def test_export_rejects_foreign_scoped_dashboard_but_allows_hand_built(xenv):
+    store, _, client = xenv
+    client.dashboards["arp-beta--exposure"] = {"id": 11, "published": False, "charts": [], "position": {}, "meta": None}
+    with pytest.raises(ForeignProjectDashboard):
+        export_dashboard_to_project(store, client, "alpha", 11)
+    client.dashboards["arp-risk-exposure"] = {"id": 13, "published": False, "charts": [], "position": {}, "meta": None}
+    assert export_dashboard_to_project(store, client, "alpha", 13).slug == "arp-risk-exposure"
+    assert [d.slug for d in store.get("alpha").dashboards] == ["arp-risk-exposure"]
+
+
+def _save(store, client, title, plan):
+    from arp.projects.dashboards import plan_to_template
+
+    return svc.save_template_dashboard(store, client, "alpha", plan_to_template("alpha", title, plan), title)
+
+
+def test_save_rebuilds_existing_dashboard_and_open_does_not(env, tmp_path):
+    from arp.bi.plan import ChartPlan
+
+    store, pf, client = env
+    store.create("alpha", "A")
+    a = ChartPlan(title="T", charts=[_spec("A1", groupby=["country"])])
+    b = ChartPlan(title="T", charts=[_spec("B1", groupby=["country"]), _spec("B2", groupby=["sector"])])
+    assert _save(store, client, "T", a).status == "created"
+    r = _save(store, client, "T", b)
+    assert r.status == "rebuilt" and not r.published
+    slug = r.slug
+    assert [c[0] for c in client.calls].count("delete_dashboard") == 1
+    assert len(client.dashboards[slug]["charts"]) == 2
+    assert open_project(store, pf, client, "alpha").dashboards[0].status == "unchanged"

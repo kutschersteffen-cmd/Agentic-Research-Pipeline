@@ -52,9 +52,10 @@ export function formatValidationErrors(errors: ({ loc?: (string | number)[]; msg
 }
 
 /** Picker contents in project mode: the project's own dashboards, then every other `arp-` dashboard. */
-export function projectGroups(project: string, mine: DashboardItem[], all: DashboardItem[] | null) {
+export function projectGroups(_project: string, mine: DashboardItem[], all: DashboardItem[] | null) {
   const own = new Set(mine.map((d) => d.id));
-  const others = (all ?? []).filter((d) => !d.slug.startsWith(`arp-${project}--`) && !own.has(d.id));
+  // Another project's scoped dashboard (`arp-<id>--...`) must not be offered for saving here.
+  const others = (all ?? []).filter((d) => !d.slug.includes("--") && !own.has(d.id));
   return { mine, others, union: [...mine, ...others] };
 }
 

@@ -186,7 +186,8 @@ UI (Risk Monitoring, Dashboards): pick a project in the selector or choose New p
 notional, and the project opens automatically. A generated dashboard is saved to the project with Save to project.
 Dashboards you built by hand in Superset (slug `arp-...`) appear under Other arp- dashboards and can be exported
 into a project from there; opening the project re-imports one that is missing (always unpublished, never over an
-existing slug).
+existing slug). Saving the same title again is an explicit Save and rebuilds that dashboard in Superset (only the
+dashboard is deleted, charts stay; it comes back unpublished); opening a project never changes an existing dashboard.
 
 ```
 arp project create alpha --name "Alpha review"
@@ -203,6 +204,8 @@ Scoping: `bi.holdings` and `bi.holdings_history` have a trailing `project_id` co
 Project dashboards carry the chart filter `project_id == <id>` and their native filters (Fund, Sector, Country)
 are pre-filtered the same way, so options list only that project's data. The STANDARD dashboards (such as
 `arp-risk-exposure`) stay unfiltered and show ALL data in the shared Postgres, every opened project included.
+Securities and companies are global and keyed by ISIN: the last import wins for sector and country labels, so a
+conflicting file in project B can change project A's sector/country breakdowns (holdings themselves never mix).
 Hand-built dashboards are stored as Superset export bundles and are not auto-scoped; filter them on `project_id`
 yourself if they must be.
 
@@ -211,8 +214,8 @@ native-filter scoping fix keep global filter options until rebuilt: delete the d
 project again.
 
 Limits: the only data kind is the DWS constituent `.xlsx`; uploads are `.xlsx` up to 50 MB; there is no project
-delete, versioning or authentication; opening needs the Postgres portfolio backend and a configured
-`ARP_BI_READER_PASSWORD` (not a placeholder).
+delete, versioning or authentication; opening needs the Postgres portfolio backend. `ARP_BI_READER_PASSWORD`
+(not a placeholder) is needed only to re-import stored hand-built bundles.
 
 ## CLI
 

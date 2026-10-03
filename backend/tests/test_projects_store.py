@@ -69,8 +69,8 @@ def test_add_data_file_appends_and_merges(store):
 
 def test_save_dashboard_replaces_slug(store):
     store.create("p", "P")
-    store.save_dashboard("p", "d1", "One", "template", b"{}")
-    p = store.save_dashboard("p", "d1", "Uno", "superset-export", b"[]")
+    store.save_dashboard("p", "arp-d1", "One", "template", b"{}")
+    p = store.save_dashboard("p", "arp-d1", "Uno", "superset-export", b"[]")
     assert len(p.dashboards) == 1
     assert p.dashboards[0].title == "Uno" and p.dashboards[0].source == "superset-export"
     assert store.file_path("p", "dashboards", p.dashboards[0].file).read_bytes() == b"[]"
@@ -120,18 +120,28 @@ def test_parallel_uploads(store):
 
 def test_zip_dashboard_no_stale_json(store):
     store.create("p", "P")
-    store.save_dashboard("p", "d", "D", "template", b"{}")
-    p = store.save_dashboard("p", "d", "D", "superset-export", b"PK")
-    assert p.dashboards[0].file == "d.zip"
-    assert store.file_path("p", "dashboards", "d.zip").read_bytes() == b"PK"
-    assert not store.file_path("p", "dashboards", "d.json").exists()
+    store.save_dashboard("p", "arp-d", "D", "template", b"{}")
+    p = store.save_dashboard("p", "arp-d", "D", "superset-export", b"PK")
+    assert p.dashboards[0].file == "arp-d.zip"
+    assert store.file_path("p", "dashboards", "arp-d.zip").read_bytes() == b"PK"
+    assert not store.file_path("p", "dashboards", "arp-d.json").exists()
 
 
 def test_missing_project_leaves_no_dir(store, tmp_path):
     with pytest.raises(ProjectNotFound):
         store.add_data_file("ghost", "a.xlsx", b"x", {})
     with pytest.raises(ProjectNotFound):
-        store.save_dashboard("ghost", "d", "D", "template", b"{}")
+        store.save_dashboard("ghost", "arp-d", "D", "template", b"{}")
     with pytest.raises(ProjectNotFound), store.lock("ghost"):
         pass
     assert not (tmp_path / "ghost").exists()
+
+
+def test_dashboard_slug_rules(store):
+    store.create("p", "P")
+    store.save_dashboard("p", "arp-" + "a" * 119, "D", "template", b"{}")
+    for bad in ("d", "arp-", "arp-" + "a" * 120, "arp-../x", "arp-A", "arp-a/b"):
+        with pytest.raises(ProjectError):
+            store.save_dashboard("p", bad, "D", "template", b"{}")
+    with pytest.raises(ProjectError):
+        store.file_path("p", "dashboards", "x.json")

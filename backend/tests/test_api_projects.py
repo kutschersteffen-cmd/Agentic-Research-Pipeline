@@ -204,3 +204,39 @@ def test_export_dashboard_endpoint(tmp_path, monkeypatch):
 def test_export_dashboard_file_backend_503(tmp_path, monkeypatch):
     http, *_ = _env(tmp_path, monkeypatch, backend="file")
     assert http.post("/api/projects/alpha/dashboards/export", json={"dashboard_id": 1}).status_code == 503
+
+
+def test_export_foreign_scoped_dashboard_422(tmp_path, monkeypatch):
+    client = ExportClient()
+    client.dashboards["arp-beta--x"] = {"id": 21, "published": False, "charts": [], "position": {}, "meta": None}
+    client.dashboards["arp-risk-exposure"] = {"id": 22, "published": False, "charts": [], "position": {}, "meta": None}
+    http, store, _, _ = _env(tmp_path, monkeypatch, client)
+    http.post("/api/projects", json={"id": "alpha", "name": "A"})
+    r = http.post("/api/projects/alpha/dashboards/export", json={"dashboard_id": 21})
+    assert r.status_code == 422 and "project-scoped" in r.json()["detail"]
+    assert http.post("/api/projects/alpha/dashboards/export", json={"dashboard_id": 22}).status_code == 200
+    assert [d.slug for d in store.get("alpha").dashboards] == ["arp-risk-exposure"]
+
+
+def test_save_long_title_and_long_project_id(env):
+    http, store, _, client = env
+    http.post("/api/projects", json={"id": "q3-2026-review", "name": "Q3"})
+    title = "Exposure by sector and country for the largest holdings"
+    r = http.post("/api/projects/q3-2026-review/dashboards", json={"title": title, "plan": PLAN.model_dump()})
+    assert r.status_code == 200, r.text
+    p = store.get("q3-2026-review")
+    assert len(p.dashboards[0].slug) > 63 and store.file_path("q3-2026-review", "dashboards", p.dashboards[0].file).exists()
+    pid = "p" * 63
+    http.post("/api/projects", json={"id": pid, "name": "Long"})
+    r = http.post(f"/api/projects/{pid}/dashboards", json={"title": "T", "plan": PLAN.model_dump()})
+    assert r.status_code == 200, r.text
+    assert store.file_path(pid, "dashboards", store.get(pid).dashboards[0].file).exists()
+
+
+def test_save_same_title_twice_rebuilds(env):
+    http, _, _, client = env
+    http.post("/api/projects", json={"id": "alpha", "name": "A"})
+    body = {"title": "Same", "plan": PLAN.model_dump()}
+    assert http.post("/api/projects/alpha/dashboards", json=body).json()["status"] == "created"
+    r = http.post("/api/projects/alpha/dashboards", json=body)
+    assert r.json()["status"] == "rebuilt" and [c for c in client.calls if c[0] == "delete_dashboard"]
