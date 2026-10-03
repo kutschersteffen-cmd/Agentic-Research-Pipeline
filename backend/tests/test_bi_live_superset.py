@@ -366,3 +366,21 @@ def test_live_service_ask_accumulates_on_scratch(settings):
             for cid in charts:
                 client.delete_chart(cid)
     assert client.find_dashboard(SCRATCH_SLUG) is None
+
+
+def test_live_list_dashboards_only_arp_slugs(settings):
+    client = SupersetClient(URL, settings.superset_user, settings.superset_password)
+    tag = uuid.uuid4().hex[:8]
+    mine, other = f"arp-manual-{tag}", f"human-{tag}"
+    ids: list[int] = []
+    try:
+        for slug, title in ((mine, "manual test"), (other, "not ours")):
+            body = {"dashboard_title": title, "slug": slug, "published": False}
+            ids.append(client._request("POST", "/dashboard/", json=body)["id"])
+        listed = {d["slug"]: d for d in client.list_dashboards()}
+        assert listed[mine]["published"] is False and listed[mine]["title"] == "manual test"
+        assert other not in listed and all(s.startswith("arp-") for s in listed)
+    finally:
+        for dash_id in ids:
+            with contextlib.suppress(SupersetError, httpx.HTTPError):
+                client.delete_dashboard(dash_id)

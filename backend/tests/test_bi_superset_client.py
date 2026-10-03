@@ -303,3 +303,34 @@ def test_sync_descriptions_treats_none_and_empty_as_equal():
     c, calls = _client(_dataset_handler(state))
     c.sync_descriptions(5, "", {"a": ""})  # stored: description None, column a ""
     assert _puts(calls) == []
+
+
+def _row(i, slug, title="T", published=False):
+    return {"id": i, "slug": slug, "dashboard_title": title, "published": published}
+
+
+def test_list_dashboards_filters_by_prefix():
+    rows = [_row(1, "arp-a", "A", True), _row(2, "ARP-b"), _row(3, "arpx"), _row(4, " arp-c"), _row(5, None), _row(6, "human")]
+
+    def h(r):
+        assert r.method == "GET" and r.url.path == "/api/v1/dashboard/"
+        q = json.loads(r.url.params["q"])
+        assert {"col": "slug", "opr": "sw", "value": "arp-"} in q["filters"]
+        return httpx.Response(200, json={"count": len(rows), "result": rows})
+
+    c, _ = _client(h)
+    assert c.list_dashboards() == [{"id": 1, "slug": "arp-a", "title": "A", "published": True}]
+
+
+def test_list_dashboards_pages_through_results():
+    rows = [_row(i, f"arp-{i}") for i in range(250)]
+    pages = []
+
+    def h(r):
+        q = json.loads(r.url.params["q"])
+        pages.append(q["page"])
+        s = q["page"] * q["page_size"]
+        return httpx.Response(200, json={"count": len(rows), "result": rows[s : s + q["page_size"]]})
+
+    c, _ = _client(h)
+    assert len(c.list_dashboards()) == 250 and pages == [0, 1, 2]

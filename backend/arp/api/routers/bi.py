@@ -37,6 +37,13 @@ class EmbedToken(BaseModel):
     embedded_id: str  # the UUID the embed SDK mounts, not the numeric dashboard id
 
 
+class DashboardItem(BaseModel):
+    id: int
+    slug: str
+    title: str
+    published: bool
+
+
 def _bad_gateway(e: Exception) -> HTTPException:
     cause = e.__cause__ or e  # BIError wraps the SupersetError whose body operators need
     logger.warning("superset error: %s body=%r", e, getattr(cause, "body", None))
@@ -81,3 +88,12 @@ async def embed_token(req: EmbedRequest, client: SupersetClient = Depends(get_su
         raise HTTPException(403, str(e)) from e
     except (BIError, SupersetError, httpx.HTTPError) as e:
         raise _bad_gateway(e) from e
+
+
+@router.get("/dashboards", response_model=list[DashboardItem])
+async def dashboards(client: SupersetClient = Depends(get_superset_client)) -> list[DashboardItem]:
+    try:
+        items = await asyncio.to_thread(client.list_dashboards)
+    except (BIError, SupersetError, httpx.HTTPError) as e:
+        raise _bad_gateway(e) from e
+    return sorted((DashboardItem(**i) for i in items), key=lambda d: (d.title.lower(), d.slug))

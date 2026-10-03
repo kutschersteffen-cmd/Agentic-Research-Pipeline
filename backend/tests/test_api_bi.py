@@ -145,3 +145,31 @@ def test_missing_config_returns_503(monkeypatch, settings):
     app.dependency_overrides[get_llm_client] = lambda: FakeLLM()
     r = TestClient(app).post("/api/bi/design", json={"brief": "x"})
     assert r.status_code == 503 and "ARP_" in r.json()["detail"]
+
+
+class ListingClient(FakeClient):
+    def list_dashboards(self, slug_prefix="arp-"):
+        return [{"id": 3, "slug": "arp-x", "title": "X", "published": False}]
+
+
+class DownListing(FakeClient):
+    def list_dashboards(self, slug_prefix="arp-"):
+        raise SupersetError(500, SECRET_BODY)
+
+
+def test_dashboards_endpoint_returns_items():
+    r = _app(FakeLLM(), ListingClient()).get("/api/bi/dashboards")
+    assert r.status_code == 200 and r.json() == [{"id": 3, "slug": "arp-x", "title": "X", "published": False}]
+
+
+def test_dashboards_502_without_body():
+    r = _app(FakeLLM(), DownListing()).get("/api/bi/dashboards")
+    assert r.status_code == 502 and "hunter2" not in r.text and "boom" not in r.text
+
+
+def test_dashboards_503_when_unconfigured(monkeypatch):
+    monkeypatch.setattr(deps, "get_settings", lambda: Settings(superset_password=None, postgres_dsn="postgresql://x"))
+    app = FastAPI()
+    app.include_router(bi_router.router)
+    r = TestClient(app).get("/api/bi/dashboards")
+    assert r.status_code == 503

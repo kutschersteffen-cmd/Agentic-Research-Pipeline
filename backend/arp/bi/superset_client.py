@@ -218,6 +218,30 @@ class SupersetClient:
     def find_dashboard(self, slug: str) -> int | None:
         return self._find_id("dashboard", [{"col": "slug", "opr": "eq", "value": slug}])
 
+    def list_dashboards(self, slug_prefix: str = "arp-") -> list[dict]:
+        """{id, slug, title, published} of every dashboard whose slug starts with the prefix.
+        Superset filters server-side (`sw`); startswith is re-checked here so lookalikes never pass."""
+        size, page, out = 100, 0, []
+        while True:
+            q = json.dumps(
+                {
+                    "filters": [{"col": "slug", "opr": "sw", "value": slug_prefix}],
+                    "columns": ["id", "slug", "dashboard_title", "published"],
+                    "page": page,
+                    "page_size": size,
+                }
+            )
+            body = self._request("GET", "/dashboard/", params={"q": q})
+            rows = body["result"]
+            out += [
+                {"id": r["id"], "slug": r["slug"], "title": r["dashboard_title"] or "", "published": bool(r["published"])}
+                for r in rows
+                if (r.get("slug") or "").startswith(slug_prefix)
+            ]
+            page += 1
+            if len(rows) < size or page * size >= body.get("count", page * size):
+                return out
+
     def delete_chart(self, id: int) -> None:
         self._request("DELETE", f"/chart/{id}")
 
