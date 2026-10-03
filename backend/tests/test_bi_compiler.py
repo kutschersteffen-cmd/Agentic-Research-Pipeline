@@ -40,12 +40,16 @@ def test_compile_matches_verified_fixture(viz):
     assert compile_chart(_spec(viz), 7) == fixture
 
 
-def test_filters_and_time_range():
-    p = compile_chart(_spec("pie", filters={"sector": "Energy"}, time_range="Last quarter"), 7)
+def test_filters():
+    p = compile_chart(_spec("pie", filters={"sector": "Energy"}), 7)
     assert p["adhoc_filters"] == [
         {"expressionType": "SIMPLE", "subject": "sector", "operator": "==", "comparator": "Energy", "clause": "WHERE"}
     ]
-    assert p["time_range"] == "Last quarter"
+
+
+def test_no_time_range_field():
+    # Superset 5 ignores a bare time_range with generic axes, so the plan does not offer one.
+    assert "time_range" not in ChartSpec.model_fields
 
 
 def _plan(filters, order=("a", "b")):

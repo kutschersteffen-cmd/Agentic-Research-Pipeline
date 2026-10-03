@@ -156,7 +156,7 @@ Tests: `backend/tests/test_bi_*.py`; one per module.
 
 **Interfaces:**
 - Produces (`plan.py`):
-  - `class ChartSpec(BaseModel): title: str; question: str = ""; viz_type: str; dataset: str; metrics: list[str]; groupby: list[str] = []; filters: dict[str, str] = {}; time_range: str | None = None`
+  - `class ChartSpec(BaseModel): title: str; question: str = ""; viz_type: str; dataset: str; metrics: list[str]; groupby: list[str] = []; filters: dict[str, str] = {}`
   - `class ChartPlan(BaseModel): title: str; goal: str = ""; charts: list[ChartSpec]  # 1..6`
   - `MAX_CHARTS = 6`
   - `DatasetMeta` already exists in this file from Task 3; leave it unchanged
@@ -182,7 +182,7 @@ Tests: `backend/tests/test_bi_*.py`; one per module.
 
 - [ ] **Step 1: Write failing golden tests:** one `test_compile_<viz_type>_matches_verified_fixture` per allowlisted type, comparing `compile_chart` output for a canonical spec to `fixtures/bi/<viz_type>.json`; `test_plan_hash_stable_and_order_independent_for_filters`; `test_dashboard_layout_two_per_row`; `test_odd_chart_count_last_row_single`.
 - [ ] **Step 2: Run** → FAIL.
-- [ ] **Step 3: Implement**, mapping `metrics` to saved-metric names, `groupby` to dimension columns, `filters` to adhoc `==` filters, `time_range` to Superset's string form (`"Last quarter"`, `"No filter"` default).
+- [ ] **Step 3: Implement**, mapping `metrics` to saved-metric names, `groupby` to dimension columns, `filters` to adhoc `==` filters. (`time_range` was dropped from ChartSpec: Superset 5 ignores a bare time_range with generic axes.)
 - [ ] **Step 4: Run** → PASS. If Task 4 Step 4 could not run, add `# unverified against live Superset` to the module docstring and say so in the final report.
 - [ ] **Step 5: Commit** `feat(bi): plan to Superset compiler`.
 

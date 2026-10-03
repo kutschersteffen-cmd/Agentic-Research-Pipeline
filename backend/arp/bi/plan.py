@@ -19,7 +19,6 @@ class ChartSpec(BaseModel):
     metrics: list[str]  # saved-metric names from DatasetMeta.metrics
     groupby: list[str] = []
     filters: dict[str, str] = {}  # column -> value
-    time_range: str | None = None
 
 
 class ChartPlan(BaseModel):

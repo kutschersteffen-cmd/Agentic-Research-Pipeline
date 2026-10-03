@@ -2847,7 +2847,6 @@ export interface BIChartSpec {
   metrics: string[];
   groupby: string[];
   filters: Record<string, string>;
-  time_range: string | null;
 }
 
 export interface BIDesignResult {

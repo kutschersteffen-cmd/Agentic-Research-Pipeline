@@ -244,7 +244,7 @@ def _query(form_data: dict) -> dict:
         "filters": filters,
         "orderby": [[metrics[0], False]] if metrics else [],
         "row_limit": form_data.get("row_limit", 10000),
-        "time_range": form_data.get("time_range", "No filter"),
+        "time_range": "No filter",
     }
 
 

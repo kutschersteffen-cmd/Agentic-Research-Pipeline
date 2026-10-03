@@ -131,8 +131,6 @@ def compile_chart(spec: ChartSpec, dataset_id: int) -> dict:
         raise ValueError(f"{spec.viz_type} needs at least {MIN_GROUPBY[spec.viz_type]} groupby column(s)")
     params = _per_viz(spec.viz_type, spec.metrics, spec.groupby)
     params["adhoc_filters"] = _adhoc(spec.filters)
-    if spec.time_range:  # omitted otherwise; the client defaults the query to "No filter"
-        params["time_range"] = spec.time_range
     return params
 
 
