@@ -5,6 +5,7 @@ from enum import StrEnum
 from pydantic import BaseModel, Field
 
 from arp.schemas.common import Citation, DocType, ProvenanceInfo, new_id, now_iso
+from arp.schemas.review import ReasonCode
 
 
 class FieldDataType(StrEnum):
@@ -54,6 +55,7 @@ class ExtractedField(BaseModel):
     grounded: bool = Field(default=False)
     verifier_notes: str | None = None
     conflicting_sources: bool = False
+    review_reasons: list[ReasonCode] = Field(default_factory=list)
     provenance: ProvenanceInfo | None = Field(
         default=None, description="Which extractor/verifier model+prompt version produced this field."
     )
@@ -65,6 +67,8 @@ class ExtractionRecord(BaseModel):
     name: str
     schema_id: str
     run_id: str
+    issuer_key: str = ""
+    issuer_scheme: str = ""
     fields: list[ExtractedField] = Field(default_factory=list)
     overall_confidence: float = Field(ge=0.0, le=1.0, default=0.0)
     needs_review: bool = False

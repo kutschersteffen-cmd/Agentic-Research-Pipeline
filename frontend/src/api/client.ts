@@ -1,3 +1,6 @@
+import { clearToken, getToken } from "../lib/auth";
+import { filenameFromDisposition, inlineSafe } from "../lib/files";
+import type { Me } from "../lib/reviewKeys";
 import type {
   CompanyBallot,
   ClientEscalationPreview,
@@ -114,31 +117,94 @@ function buildQuery(params: Record<string, string | string[] | undefined | null>
 /** Policy endpoints act on the house by default, or on a client stream's own policies. */
 const streamQuery = (stream?: string) => (stream ? `?stream=${encodeURIComponent(stream)}` : "");
 
+async function errorFor(res: Response): Promise<Error> {
+  let detail = res.statusText;
+  try {
+    const body = await res.json();
+    detail = Array.isArray(body.detail)
+      ? formatValidationErrors(body.detail)
+      : typeof body.detail === "string"
+        ? body.detail
+        : JSON.stringify(body.detail ?? body);
+  } catch {
+    /* ignore parse failure */
+  }
+  return new Error(`${res.status}: ${detail}`);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
+  const token = getToken();
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: isFormData ? init?.headers : { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers: {
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...((init?.headers as Record<string, string> | undefined) ?? {}),
+    },
   });
-  if (!res.ok) {
-    let detail = res.statusText;
-    try {
-      const body = await res.json();
-      detail = Array.isArray(body.detail)
-        ? formatValidationErrors(body.detail)
-        : typeof body.detail === "string"
-          ? body.detail
-          : JSON.stringify(body.detail ?? body);
-    } catch {
-      /* ignore parse failure */
-    }
-    throw new Error(`${res.status}: ${detail}`);
-  }
+  if (res.status === 401) clearToken();
+  if (!res.ok) throw await errorFor(res);
   return res.json() as Promise<T>;
+}
+
+/** A file from one of the *Url builders below, fetched with the bearer token
+ * (a plain <a href>/<img src>/<iframe src> cannot send it). A JSON `body` makes it a POST. */
+export async function fetchFile(url: string, body?: unknown): Promise<{ blob: Blob; filename: string | null }> {
+  const token = getToken();
+  const res = await fetch(url.split("#")[0], {
+    method: body === undefined ? "GET" : "POST",
+    headers: {
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (res.status === 401) clearToken();
+  if (!res.ok) throw await errorFor(res);
+  return { blob: await res.blob(), filename: filenameFromDisposition(res.headers.get("Content-Disposition"), "") || null };
+}
+
+function saveBlob(blob: Blob, filename: string) {
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(href), 1000);
+}
+
+/** Saves an authenticated file, named by the server's Content-Disposition or the fallback. */
+export async function downloadFile(url: string, fallbackName: string, body?: unknown): Promise<void> {
+  const { blob, filename } = await fetchFile(url, body);
+  saveBlob(blob, filename ?? fallbackName);
+}
+
+/** Opens an authenticated file in a new tab when its type is safe to show
+ * from this origin (PDF, image, text); anything else (HTML, SVG) is saved instead. */
+export async function openFile(url: string, fallbackName: string): Promise<void> {
+  const tab = window.open("", "_blank"); // opened now, inside the click, so popup blockers allow it
+  try {
+    const { blob, filename } = await fetchFile(url);
+    if (!tab || !inlineSafe(blob.type)) {
+      tab?.close();
+      saveBlob(blob, filename ?? fallbackName);
+      return;
+    }
+    const href = URL.createObjectURL(blob);
+    tab.location.href = `${href}${url.includes("#") ? url.slice(url.indexOf("#")) : ""}`;
+    // ponytail: fixed delay; the tab has loaded the blob long before, revoke on tab close if that ever bites
+    setTimeout(() => URL.revokeObjectURL(href), 60_000);
+  } catch (err) {
+    tab?.close();
+    throw err;
+  }
 }
 
 export const api = {
   base: API_BASE,
+
+  getMe: () => request<Me>("/api/me"),
 
   // Search
   searchAll: (q: string, types?: string[], limit?: number) =>
@@ -173,6 +239,8 @@ export const api = {
   getExtractionReviewQueue: (runId: string) => request(`/api/extraction/runs/${runId}/review-queue`),
   submitExtractionReview: (runId: string, body: unknown) =>
     request(`/api/extraction/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
+  cosignExtraction: (runId: string, itemKey: string) =>
+    request(`/api/extraction/runs/${runId}/cosign`, { method: "POST", body: JSON.stringify({ item_key: itemKey }) }),
   getExtractionReviewDecisions: (runId: string) => request(`/api/extraction/runs/${runId}/review-decisions`),
   getExtractionReviewHistory: (runId: string, itemKey: string) =>
     request(`/api/extraction/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
@@ -351,7 +419,7 @@ export const api = {
   listTaxonomies: () => request<{ taxonomies: unknown[] }>("/api/taxonomies"),
   newTaxonomyVersion: (taxonomyId: string, body: unknown) =>
     request(`/api/taxonomies/${taxonomyId}/versions`, { method: "POST", body: JSON.stringify(body) }),
-  ratifyTaxonomy: (taxonomyId: string, body: unknown) =>
+  ratifyTaxonomy: (taxonomyId: string, body: { version: number }) =>
     request(`/api/taxonomies/${taxonomyId}/ratify`, { method: "POST", body: JSON.stringify(body) }),
   compareTaxonomies: (body: unknown) => request("/api/taxonomies/compare", { method: "POST", body: JSON.stringify(body) }),
   mergeTaxonomies: (body: unknown) => request("/api/taxonomies/merge", { method: "POST", body: JSON.stringify(body) }),
@@ -388,24 +456,24 @@ export const api = {
   createStewardshipStream: (body: { name: string; vehicle_type: string; client_policy?: unknown }) =>
     request<{ stream_id: string }>("/api/stewardship/streams", { method: "POST", body: JSON.stringify(body) }),
   getStewardshipFlow: (streamId: string) => request<StewardshipFlow>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/flow`),
-  recordPolicyDecision: (streamId: string, body: { issue_id: string; decision: string; decided_by: string; note?: string }) =>
+  recordPolicyDecision: (streamId: string, body: { issue_id: string; decision: string; note?: string }) =>
     request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/decisions`, { method: "POST", body: JSON.stringify(body) }),
-  confirmTiers: (body: { decided_by: string; issuer_ids?: string[] }) =>
+  confirmTiers: (body: { issuer_ids?: string[] }) =>
     request<{ confirmed: number }>("/api/stewardship/tiers/confirm", { method: "POST", body: JSON.stringify(body) }),
   getStewardPolicy: (policyId: StewardPolicyId, stream?: string) =>
     request<StewardPolicyInfo>(`/api/stewardship/policies/${policyId}${streamQuery(stream)}`),
   getStewardPolicyVersion: (policyId: StewardPolicyId, version: number, stream?: string) =>
     request<Record<string, unknown>>(`/api/stewardship/policies/${policyId}/versions/${version}${streamQuery(stream)}`),
-  saveStewardPolicyVersion: (policyId: StewardPolicyId, body: { content: unknown; note: string; created_by: string }, stream?: string) =>
+  saveStewardPolicyVersion: (policyId: StewardPolicyId, body: { content: unknown; note: string }, stream?: string) =>
     request<{ version: number }>(`/api/stewardship/policies/${policyId}/versions${streamQuery(stream)}`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  activateStewardPolicy: (policyId: StewardPolicyId, body: { version: number; approved_by: string }, stream?: string) =>
+  activateStewardPolicy: (policyId: StewardPolicyId, body: { version: number }, stream?: string) =>
     request(`/api/stewardship/policies/${policyId}/activate${streamQuery(stream)}`, { method: "POST", body: JSON.stringify(body) }),
   listBenchmarks: () => request<{ benchmarks: BenchmarkInfo[] }>("/api/stewardship/benchmarks"),
-  uploadBenchmark: (text: string, uploadedBy: string) =>
-    request<BenchmarkInfo>("/api/stewardship/benchmarks", { method: "POST", body: JSON.stringify({ text, uploaded_by: uploadedBy }) }),
+  uploadBenchmark: (text: string) =>
+    request<BenchmarkInfo>("/api/stewardship/benchmarks", { method: "POST", body: JSON.stringify({ text }) }),
   getProgram: (streamId: string) =>
     request<{
       saved: { params: ProgramParams; updated_by: string; updated_at: string } | null;
@@ -420,43 +488,36 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ params }),
     }),
-  saveProgram: (streamId: string, params: ProgramParams, updatedBy: string) =>
+  saveProgram: (streamId: string, params: ProgramParams) =>
     request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program`, {
       method: "PUT",
-      body: JSON.stringify({ params, updated_by: updatedBy }),
+      body: JSON.stringify({ params }),
     }),
-  approveProgram: (streamId: string, approvedBy: string) =>
-    request<ProgramVersion>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program/approve`, {
-      method: "POST",
-      body: JSON.stringify({ approved_by: approvedBy }),
-    }),
+  approveProgram: (streamId: string) =>
+    request<ProgramVersion>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program/approve`, { method: "POST", body: "{}" }),
   monitorProgram: (streamId: string) => request<ProgramMonitor>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program/monitor`),
-  recordProgramRun: (streamId: string, recordedBy: string) =>
-    request<ProgramRun>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program/runs`, {
-      method: "POST",
-      body: JSON.stringify({ recorded_by: recordedBy }),
-    }),
+  recordProgramRun: (streamId: string) =>
+    request<ProgramRun>(`/api/stewardship/streams/${encodeURIComponent(streamId)}/program/runs`, { method: "POST" }),
   programProposalUrl: (streamId: string) => `${API_BASE}/api/stewardship/streams/${encodeURIComponent(streamId)}/program/proposal.pptx`,
   checkStyle: (text: string) =>
     request<{ flags: StyleFlag[] }>("/api/stewardship/style/check", { method: "POST", body: JSON.stringify({ text }) }),
   listDrafts: () => request<{ drafts: OutreachDraft[] }>("/api/stewardship/drafts"),
-  createDraft: (body: { company_id: string; issue_id: string; type: string; text: string; created_by: string }) =>
+  createDraft: (body: { company_id: string; issue_id: string; type: string; text: string }) =>
     request<OutreachDraft>("/api/stewardship/drafts", { method: "POST", body: JSON.stringify(body) }),
-  updateDraft: (draftId: string, body: { updated_by: string; text?: string; interaction_type?: InteractionType }) =>
+  updateDraft: (draftId: string, body: { text?: string; interaction_type?: InteractionType }) =>
     request<OutreachDraft>(`/api/stewardship/drafts/${encodeURIComponent(draftId)}`, { method: "PUT", body: JSON.stringify(body) }),
-  approveDraft: (draftId: string, body: { approved_by: string; note?: string }) =>
+  approveDraft: (draftId: string, body: { note?: string }) =>
     request<OutreachDraft>(`/api/stewardship/drafts/${encodeURIComponent(draftId)}/approve`, { method: "POST", body: JSON.stringify(body) }),
-  markDraftSent: (draftId: string, sentBy: string) =>
+  markDraftSent: (draftId: string) =>
     request<OutreachDraft>(`/api/stewardship/drafts/${encodeURIComponent(draftId)}/sent`, {
       method: "POST",
-      body: JSON.stringify({ sent_by: sentBy }),
     }),
   getTracking: () => request<{ commitments: TrackedCommitment[]; engagements: TrackedEngagement[] }>("/api/stewardship/tracking"),
-  addCommitment: (body: { company_id: string; issue_id: string; text: string; target_date?: string; recorded_by: string }) =>
+  addCommitment: (body: { company_id: string; issue_id: string; text: string; target_date?: string }) =>
     request("/api/stewardship/tracking/commitments", { method: "POST", body: JSON.stringify(body) }),
-  setCommitmentStatus: (commitmentId: string, body: { company_id: string; issue_id: string; status: "verified" | "missed"; decided_by: string }) =>
+  setCommitmentStatus: (commitmentId: string, body: { company_id: string; issue_id: string; status: "verified" | "missed" }) =>
     request(`/api/stewardship/tracking/commitments/${encodeURIComponent(commitmentId)}`, { method: "POST", body: JSON.stringify(body) }),
-  closeEngagement: (body: { company_id: string; issue_id: string; status: "resolved" | "closed"; outcome: string; decided_by: string }) =>
+  closeEngagement: (body: { company_id: string; issue_id: string; status: "resolved" | "closed"; outcome: string }) =>
     request("/api/stewardship/tracking/close", { method: "POST", body: JSON.stringify(body) }),
   getCaseStudy: (companyId: string, issueId: string) =>
     request<CaseStudy>(`/api/stewardship/tracking/case-study/${encodeURIComponent(companyId)}/${encodeURIComponent(issueId)}`),
@@ -470,7 +531,7 @@ export const api = {
     }),
   decideClientException: (
     streamId: string,
-    body: { issue_id: string; client_step: string; decision: "adopt" | "decline"; decided_by: string; note?: string },
+    body: { issue_id: string; client_step: string; decision: "adopt" | "decline"; note?: string },
   ) => request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/exceptions`, { method: "POST", body: JSON.stringify(body) }),
   getIssueCatalogue: () => request<IssueCatalogue>("/api/stewardship/catalogue"),
   getCoverageInputs: () => request<{ contexts: Record<string, unknown>[] }>("/api/stewardship/studio/coverage/inputs"),
@@ -479,7 +540,7 @@ export const api = {
   getMonitoringTriggers: () => request<{ triggers: MonitoringTrigger[] }>("/api/stewardship/studio/monitoring/triggers"),
   previewMonitoring: (graph: unknown) =>
     request<MonitoringPreview>("/api/stewardship/studio/monitoring/preview", { method: "POST", body: JSON.stringify({ graph }) }),
-  openEngagementFromTrigger: (body: { issuer_id: string; rule: string; decided_by: string }) =>
+  openEngagementFromTrigger: (body: { issuer_id: string; rule: string }) =>
     request<{ issue_id: string }>("/api/stewardship/monitoring/open-engagement", { method: "POST", body: JSON.stringify(body) }),
   getEscalationRecommendations: () =>
     request<{ recommendations: EscalationRecommendation[] }>("/api/stewardship/studio/escalation/recommendations"),
@@ -502,7 +563,7 @@ export const api = {
     }),
   getEngagementNextAction: (companyId: string, issueId: string) =>
     request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/next-action`),
-  escalateEngagementIssue: (companyId: string, issueId: string, body: { stage: string; decided_by: string; reason?: string }) =>
+  escalateEngagementIssue: (companyId: string, issueId: string, body: { stage: string; reason?: string }) =>
     request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/escalate`, {
       method: "POST",
       body: JSON.stringify(body),
@@ -529,7 +590,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  logOutreachSent: (companyId: string, issueId: string, body: { summary: string; sent_by: string; doc_ref?: string | null }) =>
+  logOutreachSent: (companyId: string, issueId: string, body: { summary: string; doc_ref?: string | null }) =>
     request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/log-outreach-sent`, {
       method: "POST",
       body: JSON.stringify(body),
@@ -537,13 +598,13 @@ export const api = {
   logMeetingSummaryValidated: (
     companyId: string,
     issueId: string,
-    body: { summary: string; commitments?: string[]; validated_by: string },
+    body: { summary: string; commitments?: string[] },
   ) =>
     request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/log-meeting-summary-validated`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  verifyCommitment: (companyId: string, issueId: string, body: { commitment_id: string; verified_by: string }) =>
+  verifyCommitment: (companyId: string, issueId: string, body: { commitment_id: string }) =>
     request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/verify-commitment`, {
       method: "POST",
       body: JSON.stringify(body),
@@ -585,7 +646,7 @@ export const api = {
   createMonitoringRule: (rule: Omit<AlertRule, "rule_id" | "created_at">) =>
     request<AlertRule>("/api/portfolio/monitoring/rules", { method: "POST", body: JSON.stringify(rule) }),
   listAlerts: (status?: AlertStatus) => request<Alert[]>(`/api/portfolio/monitoring/alerts${buildQuery({ status })}`),
-  transitionAlert: (scopeId: string, alertId: string, body: { status: AlertStatus; decided_by: string; reason?: string; owner?: string }) =>
+  transitionAlert: (scopeId: string, alertId: string, body: { status: AlertStatus; reason?: string; owner?: string }) =>
     request<Alert>(`/api/portfolio/monitoring/alerts/${encodeURIComponent(scopeId)}/${encodeURIComponent(alertId)}/transition`, {
       method: "POST",
       body: JSON.stringify(body),
@@ -598,7 +659,6 @@ export const api = {
     item_type: GovernanceItemType;
     item_key: string;
     decision: GovernanceDecisionType;
-    decided_by: string;
     reason?: string;
     override_value?: number | string | boolean | null;
   }) => request<GovernanceDecision>("/api/portfolio/governance/decisions", { method: "POST", body: JSON.stringify(body) }),
@@ -606,10 +666,10 @@ export const api = {
     request<GovernanceDecision[]>(`/api/portfolio/governance/decisions${buildQuery({ item_type: itemType })}`),
   getGovernancePolicy: () =>
     request<{ values: Record<PolicySettingName, number>; history: PolicyChange[] }>("/api/portfolio/governance/policy"),
-  updateGovernancePolicy: (body: { setting_name: PolicySettingName; new_value: number; changed_by: string; reason?: string }) =>
+  updateGovernancePolicy: (body: { setting_name: PolicySettingName; new_value: number; reason?: string }) =>
     request<PolicyChange>("/api/portfolio/governance/policy", { method: "PUT", body: JSON.stringify(body) }),
   listGovernanceOwners: () => request<RiskCategoryOwner[]>("/api/portfolio/governance/owners"),
-  assignGovernanceOwner: (category: string, body: { owner: string; assigned_by: string }) =>
+  assignGovernanceOwner: (category: string, body: { owner: string }) =>
     request<RiskCategoryOwner>(`/api/portfolio/governance/owners/${encodeURIComponent(category)}`, { method: "PUT", body: JSON.stringify(body) }),
 
   // Superset BI designer (/api/bi): drafts dashboards in Superset itself
@@ -703,10 +763,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ instruction }),
     }),
-  approveSpecDraft: (specRunId: string, reviewer?: string) =>
+  approveSpecDraft: (specRunId: string) =>
     request<{ spec_run_id: string; spec: StrategySpec; approved: boolean }>(`/api/replication/specs/${encodeURIComponent(specRunId)}/approve`, {
       method: "POST",
-      body: JSON.stringify({ reviewer }),
     }),
   uploadPriceDataset: (specRunId: string, file: File) => {
     const form = new FormData();
@@ -763,10 +822,10 @@ export const api = {
     request<DatasetSummary>(`/api/decision/datasets/${datasetId}/calculated`, { method: "POST", body: JSON.stringify({ rule_graph: ruleGraph }) }),
   deriveMechanism: (body: { dataset_id: string; name?: string; cluster_threshold?: number; save?: boolean; framework_id?: string }) =>
     request<MechanismEnvelope>("/api/decision/mechanisms/derive", { method: "POST", body: JSON.stringify(body) }),
-  saveMechanism: (body: { config: MechanismConfig; base_version?: number | null; by?: string | null }) =>
+  saveMechanism: (body: { config: MechanismConfig; base_version?: number | null }) =>
     request<MechanismEnvelope>("/api/decision/mechanisms", { method: "POST", body: JSON.stringify(body) }),
-  ratifyMechanism: (frameworkId: string, version: number | undefined, ratifiedBy: string) =>
-    request<MechanismConfig>(`/api/decision/mechanisms/${frameworkId}/ratify${buildQuery({ version: version ? String(version) : undefined, ratified_by: ratifiedBy })}`, {
+  ratifyMechanism: (frameworkId: string, version: number | undefined) =>
+    request<MechanismConfig>(`/api/decision/mechanisms/${frameworkId}/ratify${buildQuery({ version: version ? String(version) : undefined })}`, {
       method: "POST",
     }),
   scoreDecision: (body: { dataset_id: string; config?: MechanismConfig; framework_id?: string; version?: number }) =>
@@ -780,13 +839,12 @@ export const api = {
     request<MechanismEnvelope>(`/api/decision/mechanisms/${frameworkId}${buildQuery({ version: version ? String(version) : undefined })}`),
   exportMechanismUrl: (frameworkId: string, version?: number) =>
     `${API_BASE}/api/decision/mechanisms/${frameworkId}/export${buildQuery({ version: version ? String(version) : undefined })}`,
-  importMechanism: (template: unknown, by?: string) =>
-    request<MechanismEnvelope>("/api/decision/mechanisms/import", { method: "POST", body: JSON.stringify({ template, by }) }),
-  importIndicatorList: (file: File, name: string, by?: string) => {
+  importMechanism: (template: unknown) =>
+    request<MechanismEnvelope>("/api/decision/mechanisms/import", { method: "POST", body: JSON.stringify({ template }) }),
+  importIndicatorList: (file: File, name: string) => {
     const form = new FormData();
     form.append("file", file);
     form.append("name", name);
-    if (by) form.append("by", by);
     return request<MechanismEnvelope>("/api/decision/mechanisms/from-indicators", { method: "POST", body: form });
   },
   matchTemplates: (body: { run_type?: RunScoringKind; field_names?: string[]; columns?: string[] }) =>
@@ -796,24 +854,24 @@ export const api = {
   getRunDecision: (runId: string) => request<RunDecision>(`/api/decision/runs/${runId}/decision`),
   setRunOverride: (runId: string, body: LevelOverride) =>
     request<RunDecision>(`/api/decision/runs/${runId}/overrides`, { method: "POST", body: JSON.stringify(body) }),
-  removeRunOverride: (runId: string, body: { entity_key: string; criterion_id: string; reviewer: string; reason: string }) =>
+  removeRunOverride: (runId: string, body: { entity_key: string; criterion_id: string; reason: string }) =>
     request<RunDecision>(`/api/decision/runs/${runId}/overrides/remove`, { method: "POST", body: JSON.stringify(body) }),
   getDatasetOverrides: (datasetId: string) => request<OverridesView>(`/api/decision/datasets/${datasetId}/overrides`),
   setDatasetOverride: (datasetId: string, body: LevelOverride) =>
     request<OverridesView>(`/api/decision/datasets/${datasetId}/overrides`, { method: "POST", body: JSON.stringify(body) }),
-  removeDatasetOverride: (datasetId: string, body: { entity_key: string; criterion_id: string; reviewer: string; reason: string }) =>
+  removeDatasetOverride: (datasetId: string, body: { entity_key: string; criterion_id: string; reason: string }) =>
     request<OverridesView>(`/api/decision/datasets/${datasetId}/overrides/remove`, { method: "POST", body: JSON.stringify(body) }),
   rescoreRunDecision: (runId: string) => request<RunDecision>(`/api/decision/runs/${runId}/decision/rescore`, { method: "POST" }),
-  publishRunDecision: (runId: string, publishedBy: string) =>
-    request<PublishedDecision>(`/api/decision/runs/${runId}/publish`, { method: "POST", body: JSON.stringify({ published_by: publishedBy }) }),
-  publishDecision: (body: { dataset_id: string; framework_id: string; version?: number; published_by: string; id_column?: string; note?: string }) =>
+  publishRunDecision: (runId: string) =>
+    request<PublishedDecision>(`/api/decision/runs/${runId}/publish`, { method: "POST", body: "{}" }),
+  publishDecision: (body: { dataset_id: string; framework_id: string; version?: number; id_column?: string; note?: string }) =>
     request<PublishedDecision>("/api/decision/publish", { method: "POST", body: JSON.stringify(body) }),
   listPublishedDecisions: () => request<PublishedDecision[]>("/api/decision/published"),
   getHouseUniverse: () =>
     request<{ source: "sample" | "portfolio"; set_by: string | null; set_at: string | null; issuers: number; note: string | null }>(
       "/api/stewardship/universe",
     ),
-  setHouseUniverse: (body: { source: "sample" | "portfolio"; set_by: string }) =>
+  setHouseUniverse: (body: { source: "sample" | "portfolio" }) =>
     request<{ source: "sample" | "portfolio"; issuers: number }>("/api/stewardship/universe", { method: "PUT", body: JSON.stringify(body) }),
   getDecisionInputs: () => request<{ in_scope: number; published: DecisionInput[] }>("/api/stewardship/decision-inputs"),
   // Index construction
@@ -824,13 +882,15 @@ export const api = {
   listIndexCalibrations: () => request<IndexCalibration[]>("/api/index/calibrations"),
   getIndexCalibration: (calibrationId: string, version?: number) =>
     request<IndexCalibration>(`/api/index/calibrations/${calibrationId}${buildQuery({ version: version?.toString() })}`),
+  approveIndexCalibration: (calibrationId: string) =>
+    request<IndexCalibration>(`/api/index/calibrations/${calibrationId}/approve`, { method: "POST" }),
   listIndexCalibrationVersions: (calibrationId: string) =>
     request<IndexCalibration[]>(`/api/index/calibrations/${calibrationId}/versions`),
-  createIndexCalibration: (body: { name: string; effective_from: string; spec: ConstructionSpec; notes?: string; approved_by?: string[] }) =>
+  createIndexCalibration: (body: { name: string; effective_from: string; spec: ConstructionSpec; notes?: string }) =>
     request<IndexCalibration>("/api/index/calibrations", { method: "POST", body: JSON.stringify(body) }),
   createIndexCalibrationVersion: (
     calibrationId: string,
-    body: { name: string; effective_from: string; spec: ConstructionSpec; notes?: string; approved_by?: string[] },
+    body: { name: string; effective_from: string; spec: ConstructionSpec; notes?: string },
   ) => request<IndexCalibration>(`/api/index/calibrations/${calibrationId}/versions`, { method: "POST", body: JSON.stringify(body) }),
   runIndexReview: (body: {
     index_id: string;

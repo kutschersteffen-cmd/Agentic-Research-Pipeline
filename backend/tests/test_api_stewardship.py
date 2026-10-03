@@ -15,6 +15,7 @@ from arp.api.routers.stewardship import (  # noqa: E402
 )
 from arp.stewardship.process import HOUSE, StreamStore, flow  # noqa: E402
 from arp.storage.engagement_store import EngagementStore  # noqa: E402
+from tests.conftest import PRINCIPAL
 
 
 @pytest.fixture
@@ -50,7 +51,7 @@ def test_client_stream_decide_every_difference_then_build(streams, tmp_path):
     for item in open_items:
         decision = "clarify" if item["difference"] in ("unclear", "unmapped") else "adopt"
         post_decision(
-            PolicyDecisionRequest(issue_id=item["issue_id"], decision=decision, decided_by="tester"), stream_id, streams
+            PolicyDecisionRequest(issue_id=item["issue_id"], decision=decision), stream_id, streams, PRINCIPAL
         )
     assert _stage(flow(stream_id, streams, [], sla_days=45), "client_policy")["can_build"]
     assert post_build(stream_id, streams)["positions_from_client"] > 0
@@ -60,7 +61,7 @@ def test_client_stream_decide_every_difference_then_build(streams, tmp_path):
 def test_invalid_decision_is_rejected(streams):
     stream_id = create_stream(CreateStreamRequest(name="X"), streams)["stream_id"]
     with pytest.raises(HTTPException) as exc:
-        post_decision(PolicyDecisionRequest(issue_id="board.attendance", decision="adopt", decided_by="t"), stream_id, streams)
+        post_decision(PolicyDecisionRequest(issue_id="board.attendance", decision="adopt"), stream_id, streams, PRINCIPAL)
     assert exc.value.status_code == 422
 
 

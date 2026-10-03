@@ -55,3 +55,11 @@ def test_decision_history_returns_full_audit_trail_oldest_first(tmp_path):
 
     # latest_decisions still collapses to just the last row per item_key
     assert latest_decisions(store, "run1")["DHL:fld_123"]["decision"] == "edit"
+
+
+def test_old_company_level_queue_rows_still_listed(tmp_path):
+    from arp.api.review_endpoints import get_review_queue
+
+    store = RunStore(tmp_path)
+    queue_for_review(store, "r1", "acme", {"company_id": "acme", "needs_review": True})
+    assert [r["item_key"] for r in get_review_queue(store, "r1")["pending"]] == ["acme"]

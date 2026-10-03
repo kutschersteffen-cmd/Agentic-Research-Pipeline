@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { PublishedDecision, RunDecision, RunScoringKind, TemplateMatch } from "../types";
-import { ConfirmDecision } from "./ConfirmDecision";
+import { ConfirmSignedIn } from "./ConfirmSignedIn";
 import { LevelOverrides } from "./LevelOverrides";
 
 interface PickerProps {
@@ -124,11 +124,11 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
     }
   }
 
-  async function publish(by: string) {
+  async function publish() {
     setConfirmingPublish(false);
     setError("");
     try {
-      setPublished(await api.publishRunDecision(runId, by));
+      setPublished(await api.publishRunDecision(runId));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -159,7 +159,7 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
       </div>
       {decision && publishBlocker(decision) && <p className="muted">{publishBlocker(decision)}</p>}
       {confirmingPublish && decision && (
-        <ConfirmDecision
+        <ConfirmSignedIn
           title="Publish these tiers?"
           confirmLabel="Publish"
           onConfirm={publish}
@@ -170,7 +170,7 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
             companies in this run, matched to issuers by company id. Steward Workflow&apos;s coverage rules and Index Construction can
             then read them. Nothing changes there until a person confirms tiers or runs an index review.
           </p>
-        </ConfirmDecision>
+        </ConfirmSignedIn>
       )}
       {published && (
         <p className="status-text" role="status">
@@ -252,8 +252,8 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
                             entity={entity}
                             scale={decision.level_scale}
                             onSet={async (override) => setDecision(await api.setRunOverride(runId, override))}
-                            onRemove={async (criterionId, reviewer, reason) =>
-                              setDecision(await api.removeRunOverride(runId, { entity_key: entity.entity_key, criterion_id: criterionId, reviewer, reason }))
+                            onRemove={async (criterionId, _reviewer, reason) =>
+                              setDecision(await api.removeRunOverride(runId, { entity_key: entity.entity_key, criterion_id: criterionId, reason }))
                             }
                           />
                         </td>

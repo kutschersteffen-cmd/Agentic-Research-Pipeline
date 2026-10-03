@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
+from arp.api.auth import Principal, authorize, current_user, load_users
 from arp.api.deps import (
     get_calibration_scheduler,
     get_emerging_themes_scheduler,
@@ -53,7 +55,10 @@ logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    settings_dep().ensure_dirs()
+    settings = settings_dep()
+    settings.ensure_dirs()
+    if settings.auth_mode == "local":
+        load_users(settings.users_file)  # a bad users file stops startup
     scheduler = get_scheduler()
     taxonomy_researcher_scheduler = get_taxonomy_researcher_scheduler()
     calibration_scheduler = get_calibration_scheduler()
@@ -79,43 +84,47 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Agentic Research Pipeline", version="0.1.0", lifespan=lifespan)
 
+# Host check for every route (voting included): a host check, not auth. Stops
+# DNS rebinding from turning a foreign site into a loopback "dev" caller.
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings_dep().trusted_hosts)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=settings_dep().allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(themes.router)
-app.include_router(extraction.router)
-app.include_router(documents.router)
-app.include_router(discovery.router)
-app.include_router(identity.router)
-app.include_router(runs.router)
-app.include_router(universe.router)
-app.include_router(taxonomies.router)
-app.include_router(overlap.router)
-app.include_router(revenue_catalogue.router)
-app.include_router(engagement.router)
+app.include_router(themes.router, dependencies=[Depends(authorize)])
+app.include_router(extraction.router, dependencies=[Depends(authorize)])
+app.include_router(documents.router, dependencies=[Depends(authorize)])
+app.include_router(discovery.router, dependencies=[Depends(authorize)])
+app.include_router(identity.router, dependencies=[Depends(authorize)])
+app.include_router(runs.router, dependencies=[Depends(authorize)])
+app.include_router(universe.router, dependencies=[Depends(authorize)])
+app.include_router(taxonomies.router, dependencies=[Depends(authorize)])
+app.include_router(overlap.router, dependencies=[Depends(authorize)])
+app.include_router(revenue_catalogue.router, dependencies=[Depends(authorize)])
+app.include_router(engagement.router, dependencies=[Depends(authorize)])
 app.include_router(voting.router)
-app.include_router(stewardship.router)
-app.include_router(financials.router)
-app.include_router(tnfd.router)
-app.include_router(transition_plan.router)
-app.include_router(transition_barrier.router)
-app.include_router(portfolio.router)
-app.include_router(climate.router)
-app.include_router(decision.router)
-app.include_router(bi.router)
-app.include_router(projects.router)
-app.include_router(search.router)
-app.include_router(emerging_themes.router)
-app.include_router(taxonomy_researcher.router)
-app.include_router(calibration.router)
-app.include_router(reporting.router)
-app.include_router(replication.router)
-app.include_router(index.router)
+app.include_router(stewardship.router, dependencies=[Depends(authorize)])
+app.include_router(financials.router, dependencies=[Depends(authorize)])
+app.include_router(tnfd.router, dependencies=[Depends(authorize)])
+app.include_router(transition_plan.router, dependencies=[Depends(authorize)])
+app.include_router(transition_barrier.router, dependencies=[Depends(authorize)])
+app.include_router(portfolio.router, dependencies=[Depends(authorize)])
+app.include_router(climate.router, dependencies=[Depends(authorize)])
+app.include_router(decision.router, dependencies=[Depends(authorize)])
+app.include_router(bi.router, dependencies=[Depends(authorize)])
+app.include_router(projects.router, dependencies=[Depends(authorize)])
+app.include_router(search.router, dependencies=[Depends(authorize)])
+app.include_router(emerging_themes.router, dependencies=[Depends(authorize)])
+app.include_router(taxonomy_researcher.router, dependencies=[Depends(authorize)])
+app.include_router(calibration.router, dependencies=[Depends(authorize)])
+app.include_router(reporting.router, dependencies=[Depends(authorize)])
+app.include_router(replication.router, dependencies=[Depends(authorize)])
+app.include_router(index.router, dependencies=[Depends(authorize)])
 
 
 @app.exception_handler(RuntimeError)
@@ -137,3 +146,8 @@ async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@app.get("/api/me")
+def me(user: Principal = Depends(current_user)) -> Principal:
+    return user

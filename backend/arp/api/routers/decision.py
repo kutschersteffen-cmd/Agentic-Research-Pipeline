@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
+from arp.api.auth import Principal, current_user
 from arp.api.deps import get_decision_store, get_portfolio_store, get_run_store, settings_dep
 from arp.config import Settings
 from arp.decision import overrides, sources, templates
@@ -299,17 +300,17 @@ class SaveRequest(BaseModel):
         description="The version the edits were made on top of. Supplying it produces the human-origin half of the "
         "audit log -- which rules a person changed, as against which the data proposed.",
     )
-    by: str | None = None
-
 
 @router.post("/mechanisms", response_model=MechanismEnvelope)
-def save_mechanism(req: SaveRequest, store: DecisionStore = Depends(get_decision_store)) -> MechanismEnvelope:
+def save_mechanism(
+    req: SaveRequest, store: DecisionStore = Depends(get_decision_store), principal: Principal = Depends(current_user)
+) -> MechanismEnvelope:
     """Saves a new version of a framework. Never an in-place edit: the
     version the last decision cited stays readable exactly as it was."""
     previous = store.get(req.config.framework_id, req.base_version)
     audit = list(store.get_audit(req.config.framework_id, previous.version) if previous else [])
     if previous is not None:
-        audit.extend(describe_changes(previous, req.config, by=req.by))
+        audit.extend(describe_changes(previous, req.config, by=principal.name))
     saved = store.new_version(req.config, audit) if previous is not None else store.save(req.config, audit)
     return MechanismEnvelope(config=saved, audit=audit)
 
@@ -347,14 +348,15 @@ def export_mechanism(framework_id: str, version: int | None = None, store: Decis
 
 class ImportRequest(BaseModel):
     template: dict[str, Any]
-    by: str | None = None
 
 
 @router.post("/mechanisms/import", response_model=MechanismEnvelope)
-def import_mechanism(req: ImportRequest, store: DecisionStore = Depends(get_decision_store)) -> MechanismEnvelope:
+def import_mechanism(
+    req: ImportRequest, store: DecisionStore = Depends(get_decision_store), principal: Principal = Depends(current_user)
+) -> MechanismEnvelope:
     """A template file -> a new, unratified framework in this installation."""
     try:
-        config, audit = templates.import_template(req.template, by=req.by)
+        config, audit = templates.import_template(req.template, by=principal.name)
     except (ValueError, ValidationError) as exc:
         raise HTTPException(400, str(exc)) from exc
     store.save(config, audit)
@@ -365,9 +367,9 @@ def import_mechanism(req: ImportRequest, store: DecisionStore = Depends(get_deci
 async def mechanism_from_indicators(
     file: UploadFile,
     name: str = Form(...),
-    by: str | None = Form(None),
     settings: Settings = Depends(settings_dep),
     store: DecisionStore = Depends(get_decision_store),
+    principal: Principal = Depends(current_user),
 ) -> MechanismEnvelope:
     """An indicator list (one row per indicator) -> a new, unratified
     framework. Format: docs/decision-studio/indicator-list.md."""
@@ -376,7 +378,7 @@ async def mechanism_from_indicators(
         config, audit = build_framework(parse_indicator_list(load_table(dest_path)), name=name)
     except (ValueError, ValidationError) as exc:
         raise HTTPException(400, str(exc)) from exc
-    audit = [a.model_copy(update={"by": by}) for a in audit]
+    audit = [a.model_copy(update={"by": principal.name}) for a in audit]
     store.save(config, audit)
     return MechanismEnvelope(config=config, audit=audit)
 
@@ -419,12 +421,11 @@ def match_templates(req: TemplateMatchRequest, store: DecisionStore = Depends(ge
 def ratify_mechanism(
     framework_id: str,
     version: int | None = None,
-    ratified_by: str | None = None,
     store: DecisionStore = Depends(get_decision_store),
+    principal: Principal = Depends(current_user),
 ) -> MechanismConfig:
-    """`ratified_by` names the person ratifying; the UI always sends it."""
     try:
-        return store.ratify(framework_id, version, ratified_by=ratified_by.strip() if ratified_by else None)
+        return store.ratify(framework_id, version, ratified_by=principal.name)
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
 
@@ -655,7 +656,6 @@ class OverridesView(BaseModel):
 class RemoveOverrideRequest(BaseModel):
     entity_key: str
     criterion_id: str
-    reviewer: str = Field(min_length=1)
     reason: str = Field(min_length=3)
 
 
@@ -679,10 +679,15 @@ def set_dataset_override(dataset_id: str, override: LevelOverride, store: Decisi
 
 
 @router.post("/datasets/{dataset_id}/overrides/remove", response_model=OverridesView)
-def remove_dataset_override(dataset_id: str, req: RemoveOverrideRequest, store: DecisionStore = Depends(get_decision_store)) -> OverridesView:
+def remove_dataset_override(
+    dataset_id: str,
+    req: RemoveOverrideRequest,
+    store: DecisionStore = Depends(get_decision_store),
+    principal: Principal = Depends(current_user),
+) -> OverridesView:
     _load_dataset(dataset_id, store)
     try:
-        overrides.remove_override(store.overrides_path(dataset_id), req.entity_key, req.criterion_id, req.reviewer, req.reason)
+        overrides.remove_override(store.overrides_path(dataset_id), req.entity_key, req.criterion_id, principal.name, req.reason)
     except KeyError as exc:
         raise HTTPException(404, str(exc)) from exc
     return _overrides_view(store.overrides_path(dataset_id))
@@ -715,11 +720,15 @@ def set_run_override(
 
 @router.post("/runs/{run_id}/overrides/remove", response_model=RunDecision)
 def remove_run_override(
-    run_id: str, req: RemoveOverrideRequest, store: DecisionStore = Depends(get_decision_store), run_store: RunStore = Depends(get_run_store)
+    run_id: str,
+    req: RemoveOverrideRequest,
+    store: DecisionStore = Depends(get_decision_store),
+    run_store: RunStore = Depends(get_run_store),
+    principal: Principal = Depends(current_user),
 ) -> RunDecision:
     manifest, _attached, _config, _audit = _pinned(run_id, store, run_store)
     try:
-        overrides.remove_override(templates.run_overrides_path(run_store, run_id), req.entity_key, req.criterion_id, req.reviewer, req.reason)
+        overrides.remove_override(templates.run_overrides_path(run_store, run_id), req.entity_key, req.criterion_id, principal.name, req.reason)
     except KeyError as exc:
         raise HTTPException(404, str(exc)) from exc
     if manifest.status.value in _FINISHED:
@@ -728,7 +737,6 @@ def remove_run_override(
 
 
 class RunPublishRequest(BaseModel):
-    published_by: str
     note: str = ""
 
 
@@ -738,6 +746,7 @@ def publish_run(
     req: RunPublishRequest,
     store: DecisionStore = Depends(get_decision_store),
     run_store: RunStore = Depends(get_run_store),
+    principal: Principal = Depends(current_user),
 ) -> PublishedDecision:
     """Publishes a run's tiers straight from the run, with the pinned version.
 
@@ -758,7 +767,7 @@ def publish_run(
         held, held_from = hold_published_cuts(config, store.list_published())
         result = _apply(dataset, held, overrides=overrides.load(templates.run_overrides_path(run_store, run_id)))
         snapshot = publish(
-            dataset, config, result, published_by=req.published_by, note=req.note or f"From run {run_id}", cuts_held_from=held_from
+            dataset, config, result, published_by=principal.name, note=req.note or f"From run {run_id}", cuts_held_from=held_from
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
@@ -798,13 +807,14 @@ class PublishRequest(BaseModel):
     dataset_id: str
     framework_id: str
     version: int | None = None
-    published_by: str
     id_column: str | None = Field(default=None, description="Column matching rows to issuers; found automatically when omitted.")
     note: str = ""
 
 
 @router.post("/publish", response_model=PublishedDecision)
-def post_publish(req: PublishRequest, store: DecisionStore = Depends(get_decision_store)) -> PublishedDecision:
+def post_publish(
+    req: PublishRequest, store: DecisionStore = Depends(get_decision_store), principal: Principal = Depends(current_user)
+) -> PublishedDecision:
     """Freezes a ratified framework's result so Steward Workflow and Index
     Construction can read it. Publishing proposes: coverage tiers still need
     confirming at the checkpoint, and an index still needs its own run."""
@@ -814,7 +824,7 @@ def post_publish(req: PublishRequest, store: DecisionStore = Depends(get_decisio
     try:
         result = _apply(dataset, held, overrides=overrides.load(store.overrides_path(dataset.dataset_id)))
         snapshot = publish(
-            dataset, config, result, published_by=req.published_by, id_column=req.id_column, note=req.note, cuts_held_from=held_from
+            dataset, config, result, published_by=principal.name, id_column=req.id_column, note=req.note, cuts_held_from=held_from
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc

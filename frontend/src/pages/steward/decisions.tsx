@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../../api/client";
-import { ConfirmDecision } from "../../components/ConfirmDecision";
+import { ConfirmSignedIn } from "../../components/ConfirmSignedIn";
 import { announce } from "../../lib/announce";
 import type { ClientExceptionItem, EscalationDecisionItem, PolicyDifferenceItem, TierChangeItem } from "../../types";
 import { fmt, words } from "./common";
@@ -9,12 +9,12 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmingAll, setConfirmingAll] = useState(false);
-  async function confirm(issuerIds?: string[], by = actor) {
+  async function confirm(issuerIds?: string[]) {
     setConfirmingAll(false);
     setBusy(issuerIds ? issuerIds[0] : "all");
     setError(null);
     try {
-      await api.confirmTiers({ decided_by: by, issuer_ids: issuerIds });
+      await api.confirmTiers({ issuer_ids: issuerIds });
       announce(issuerIds ? "Tier confirmed." : `${items.length} tiers confirmed.`);
       onDone();
     } catch (err) {
@@ -23,7 +23,7 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
       setBusy(null);
     }
   }
-  const needName = actor ? undefined : "Enter your name above first";
+  const needName = actor ? undefined : "Sign in above first";
   return (
     <>
       <div className="section-heading">
@@ -33,17 +33,17 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
         </button>
       </div>
       {confirmingAll && (
-        <ConfirmDecision
+        <ConfirmSignedIn
           title={`Confirm all ${items.length} tiers?`}
           confirmLabel={`Confirm ${items.length} tiers`}
-          onConfirm={(by) => confirm(undefined, by)}
+          onConfirm={() => confirm()}
           onCancel={() => setConfirmingAll(false)}
         >
           <p>
             Each company below moves to its proposed tier and coverage follows from it. Every confirmation is kept; to undo one,
             confirm a different tier later.
           </p>
-        </ConfirmDecision>
+        </ConfirmSignedIn>
       )}
       <p className="muted">
         Proposed by the house coverage rules (a decision table you can edit in the rule editor). A tier only counts once it is
@@ -92,7 +92,7 @@ export function EscalationDecisions({ items, actor, onDone }: { items: Escalatio
     setBusy(item.issue_id);
     setError(null);
     try {
-      await api.escalateEngagementIssue(item.company_id, item.issue_id, { stage: item.next, decided_by: actor, reason: item.reason });
+      await api.escalateEngagementIssue(item.company_id, item.issue_id, { stage: item.next, reason: item.reason });
       announce(`Escalated ${item.company} to ${words(item.next)}.`);
       onDone();
     } catch (err) {
@@ -138,7 +138,7 @@ export function EscalationDecisions({ items, actor, onDone }: { items: Escalatio
                     className="secondary"
                     onClick={() => escalate(item)}
                     disabled={!actor || !item.next || busy !== null}
-                    title={actor ? undefined : "Enter your name above first"}
+                    title={actor ? undefined : "Sign in above first"}
                   >
                     {busy === item.issue_id ? "Escalating…" : "Escalate"}
                   </button>
@@ -166,7 +166,6 @@ export function ClientExceptionDecisions({ items, actor, onDone }: { items: Clie
         issue_id: item.issue_id,
         client_step: item.client_step,
         decision,
-        decided_by: actor,
       });
       announce(`${decision === "adopt" ? "Adopted" : "Kept the house step for"} ${item.company}.`);
       onDone();
@@ -206,7 +205,7 @@ export function ClientExceptionDecisions({ items, actor, onDone }: { items: Clie
                     <button
                       onClick={() => decide(item, "adopt")}
                       disabled={!actor || busy !== null}
-                      title={actor ? undefined : "Enter your name above first"}
+                      title={actor ? undefined : "Sign in above first"}
                     >
                       Adopt
                     </button>
@@ -250,7 +249,7 @@ export function PolicyDifference({ item, streamId, actor, onDone }: { item: Poli
     setBusy(true);
     setError(null);
     try {
-      await api.recordPolicyDecision(streamId, { issue_id: item.issue_id, decision: choice, decided_by: actor, note: note || undefined });
+      await api.recordPolicyDecision(streamId, { issue_id: item.issue_id, decision: choice, note: note || undefined });
       announce(`Recorded "${words(choice)}" on ${item.title}.`);
       onDone();
     } catch (err) {
@@ -306,7 +305,7 @@ export function PolicyDifference({ item, streamId, actor, onDone }: { item: Poli
             ))}
           </select>
           <input aria-label={`Note on ${item.title}`} placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
-          <button onClick={record} disabled={!actor || busy} title={actor ? undefined : "Enter your name above first"}>
+          <button onClick={record} disabled={!actor || busy} title={actor ? undefined : "Sign in above first"}>
             {busy ? "Recording…" : "Record decision"}
           </button>
         </div>

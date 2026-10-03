@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from arp.api.auth import Principal, current_user
 from arp.api.deps import get_engagement_store, get_llm_client, get_registry, settings_dep
 from arp.config import Settings
 from arp.engagement.drafting_agent import draft_meeting_summary, draft_outreach_letter, draft_talking_points
@@ -89,15 +90,20 @@ def next_action(company_id: str, issue_id: str, settings: Settings = Depends(set
 
 class EscalateRequest(BaseModel):
     stage: EscalationStage
-    decided_by: str
     reason: str = ""
 
 
 @router.post("/records/{company_id}/issues/{issue_id}/escalate")
-def escalate_issue(company_id: str, issue_id: str, req: EscalateRequest, store: EngagementStore = Depends(get_engagement_store)) -> dict:
+def escalate_issue(
+    company_id: str,
+    issue_id: str,
+    req: EscalateRequest,
+    store: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
+) -> dict:
     """The non-negotiable escalation-lever human checkpoint -- this is the
     only code path that can move an issue's escalation_stage."""
-    return store.set_escalation_stage(company_id, issue_id, req.stage, req.decided_by, req.reason).model_dump(mode="json")
+    return store.set_escalation_stage(company_id, issue_id, req.stage, principal.name, req.reason).model_dump(mode="json")
 
 
 class TriggerScanRequest(BaseModel):
@@ -189,37 +195,52 @@ async def meeting_summary_endpoint(company_id: str, issue_id: str, req: MeetingS
 
 class LogOutreachSentRequest(BaseModel):
     summary: str
-    sent_by: str
     doc_ref: str | None = None
 
 
 @router.post("/records/{company_id}/issues/{issue_id}/log-outreach-sent")
-def log_outreach_sent_endpoint(company_id: str, issue_id: str, req: LogOutreachSentRequest, store: EngagementStore = Depends(get_engagement_store)) -> dict:
-    return log_outreach_sent(store, company_id, issue_id, req.summary, req.sent_by, req.doc_ref).model_dump(mode="json")
+def log_outreach_sent_endpoint(
+    company_id: str,
+    issue_id: str,
+    req: LogOutreachSentRequest,
+    store: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
+) -> dict:
+    return log_outreach_sent(store, company_id, issue_id, req.summary, principal.name, req.doc_ref).model_dump(mode="json")
 
 
 class ValidateMeetingSummaryRequest(BaseModel):
     summary: str
     commitments: list[str] = []
-    validated_by: str
 
 
 @router.post("/records/{company_id}/issues/{issue_id}/log-meeting-summary-validated")
-def log_meeting_summary_validated_endpoint(company_id: str, issue_id: str, req: ValidateMeetingSummaryRequest, store: EngagementStore = Depends(get_engagement_store)) -> dict:
+def log_meeting_summary_validated_endpoint(
+    company_id: str,
+    issue_id: str,
+    req: ValidateMeetingSummaryRequest,
+    store: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
+) -> dict:
     """The non-negotiable meeting-notes-validation checkpoint: only after a
     human confirms the drafted summary is accurate does it get logged as
     correspondence and any stated commitments recorded."""
-    return log_meeting_summary_validated(store, company_id, issue_id, req.summary, req.commitments, req.validated_by).model_dump(mode="json")
+    return log_meeting_summary_validated(store, company_id, issue_id, req.summary, req.commitments, principal.name).model_dump(mode="json")
 
 
 class VerifyCommitmentRequest(BaseModel):
     commitment_id: str
-    verified_by: str
 
 
 @router.post("/records/{company_id}/issues/{issue_id}/verify-commitment")
-def verify_commitment_endpoint(company_id: str, issue_id: str, req: VerifyCommitmentRequest, store: EngagementStore = Depends(get_engagement_store)) -> dict:
-    return log_commitment_verified(store, company_id, issue_id, req.commitment_id, req.verified_by).model_dump(mode="json")
+def verify_commitment_endpoint(
+    company_id: str,
+    issue_id: str,
+    req: VerifyCommitmentRequest,
+    store: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
+) -> dict:
+    return log_commitment_verified(store, company_id, issue_id, req.commitment_id, principal.name).model_dump(mode="json")
 
 
 @router.get("/report")

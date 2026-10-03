@@ -62,7 +62,12 @@ function isCitationArray(v: unknown): v is Citation[] {
  * known field stays available, just tucked behind "Full record" instead of
  * dominating the card the way a top-level JSON.stringify dump used to. */
 export function ReviewItemFields({ item, onOpenSource }: { item: Record<string, unknown>; onOpenSource: (s: ActiveSource) => void }) {
-  const known = new Set(["item_key", "queued_at", "company_id", "name", "ticker", "confidence", "verdict", "citations", "adjudicator_rationale", "rationale", "failed_step_label", "error"]);
+  const known = new Set(["item_key", "queued_at", "company_id", "name", "ticker", "confidence", "verdict", "citations", "field", "field_id", "issuer_key", "issuer_scheme", "schema_id", "run_id", "reason_codes", "adjudicator_rationale", "rationale", "failed_step_label", "error"]);
+  // Per-field extraction rows carry the field itself; old rows keep these at top level.
+  const field = (item.field ?? null) as { field_name?: string; value?: unknown; citations?: unknown; confidence?: number } | null;
+  const citations = item.citations ?? field?.citations;
+  const confidence = typeof item.confidence === "number" ? item.confidence : field?.confidence;
+  const reasons = Array.isArray(item.reason_codes) ? (item.reason_codes as string[]) : [];
   const rest = Object.fromEntries(Object.entries(item).filter(([k]) => !known.has(k)));
   const hasRest = Object.keys(rest).length > 0;
 
@@ -75,19 +80,25 @@ export function ReviewItemFields({ item, onOpenSource }: { item: Record<string, 
         </strong>
         <span>
           {typeof item.verdict === "string" && <VerdictBadge verdict={item.verdict} />}{" "}
-          {typeof item.confidence === "number" && <ConfidenceBadge value={item.confidence} />}
+          {typeof confidence === "number" && <ConfidenceBadge value={confidence} />}
         </span>
       </div>
+      {field?.field_name && (
+        <p>
+          {field.field_name}: <strong>{String(field.value ?? "—")}</strong>
+        </p>
+      )}
+      {reasons.length > 0 && <p className="muted">Flagged: {reasons.map((c) => c.replaceAll("_", " ")).join(", ")}</p>}
       {typeof item.failed_step_label === "string" && (
         <p className="error-text" role="alert">
           Stopped at {item.failed_step_label}: {String(item.error ?? "")}
         </p>
       )}
       {Boolean(item.adjudicator_rationale || item.rationale) && <p>{(item.adjudicator_rationale ?? item.rationale) as string}</p>}
-      {isCitationArray(item.citations) && (
+      {isCitationArray(citations) && (
         <>
           <p className="muted">Citations:</p>
-          <CitationList citations={item.citations} onOpenSource={onOpenSource} />
+          <CitationList citations={citations} onOpenSource={onOpenSource} />
         </>
       )}
       {hasRest && (
@@ -166,6 +177,7 @@ export function ReviewItems({
               reviewer={reviewer}
               submitFn={SUBMIT_FNS[q.kind]}
               historyFn={HISTORY_FNS[q.kind] ?? null}
+              cosignFn={q.kind === "extraction" ? api.cosignExtraction : undefined}
               onDone={(recorded) => {
                 focusNextCard(document.querySelector<HTMLElement>(`[data-review-key="${CSS.escape(k)}"]`), ".review-item");
                 onDecided(k, recorded);

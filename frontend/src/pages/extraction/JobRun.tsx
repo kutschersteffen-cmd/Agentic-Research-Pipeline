@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
+import { FileLink } from "../../components/FileLink";
 import { api } from "../../api/client";
 import { PipelineEditor } from "../../components/PipelineEditor";
-import { ReviewerField } from "../../components/ReviewerField";
+import { SignedInAs } from "../../components/SignedInAs";
 import { RunProgress } from "../../components/RunProgress";
 import { ACTIVE_STATUSES } from "../../lib/runs";
 import { jobLabel, jobRunType, type Job } from "../../lib/jobs";
@@ -39,10 +40,10 @@ export function JobRun(p: { job: Job; runId: string; onRestarted: (runId: string
       <RunProgress runId={runId} runType={jobRunType(job)} />
       <PipelineEditor key={runId} profile={job.profile} runId={runId} onRestarted={onRestarted} />
       <div className="toolbar">
-        <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
+        <FileLink url={api.exportRunCsvUrl(runId)} name={`${runId}.csv`}>
           Export CSV
-        </a>
-        <ReviewerField compact />
+        </FileLink>
+        <SignedInAs compact />
       </div>
     </section>
   );

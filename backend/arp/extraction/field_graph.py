@@ -101,6 +101,7 @@ async def _aggregate(state: FieldState) -> dict:
     extractor_usage = state["extractor_usage"]
     verifier_usage = state["verifier_usage"]
     provenance = ProvenanceInfo(
+        provider=extractor_usage.provider if extractor_usage else "",
         extractor_model=extractor_usage.model if extractor_usage else None,
         extractor_prompt_version=extractor_usage.prompt_version if extractor_usage else None,
         verifier_model=verifier_usage.model if verifier_usage else None,

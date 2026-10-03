@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
+import { FileLink } from "../components/FileLink";
 import { api } from "../api/client";
 import { ConfidenceBadge } from "../components/ConfidenceBadge";
 import { ExtractionResultsTable, FieldDetail, FinancialsResultsTable, SegmentDetail, SpendDetail } from "../components/ExtractionResults";
@@ -14,8 +15,8 @@ import type {
   RunManifest,
 } from "../types";
 import { activatable } from "../lib/activatable";
-import { useReviewer } from "../lib/reviewer";
-import { ReviewerField } from "../components/ReviewerField";
+import { useMe } from "../lib/reviewer";
+import { SignedInAs } from "../components/SignedInAs";
 
 const SUB_TABS = [
   { id: "results", label: "Run results" },
@@ -54,7 +55,7 @@ function RunResultsView() {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [runId, setRunId] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [reviewer] = useReviewer();
+  const reviewer = useMe()?.name ?? "";
   const [error, setError] = useState<string | null>(null);
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
 
@@ -125,10 +126,10 @@ function RunResultsView() {
         {runId && (
           <div className="toolbar">
             <button onClick={() => loadResults()}>Refresh</button>
-            <a href={api.exportRunCsvUrl(runId)} target="_blank" rel="noreferrer">
+            <FileLink url={api.exportRunCsvUrl(runId)} name={`${runId}.csv`}>
               Export CSV
-            </a>
-            <ReviewerField compact />
+            </FileLink>
+            <SignedInAs compact />
           </div>
         )}
         {error && <p className="error-text" role="alert">{error}</p>}
@@ -262,9 +263,9 @@ function CompanyResultsView() {
                   <tr key={i}>
                     <td>{d.doc_type}</td>
                     <td>
-                      <a href={api.documentRawUrl(companyId, d.doc_type, d.filename)} target="_blank" rel="noreferrer">
+                      <FileLink open url={api.documentRawUrl(companyId, d.doc_type, d.filename)} name={d.filename}>
                         {d.filename}
-                      </a>
+                      </FileLink>
                     </td>
                     <td>{Math.round(d.size_bytes / 1024)} KB</td>
                   </tr>
@@ -404,13 +405,9 @@ function ParsedDocumentsView() {
                       <td colSpan={6} className="detail-cell">
                         {row.company_id && row.doc_type && row.filename ? (
                           <p>
-                            <a
-                              href={api.documentRawUrl(row.company_id, row.doc_type, row.filename)}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
+                            <FileLink open url={api.documentRawUrl(row.company_id, row.doc_type, row.filename)} name={row.filename}>
                               view original document
-                            </a>
+                            </FileLink>
                           </p>
                         ) : (
                           <p className="muted">Source document not separately registered — showing cached text only.</p>

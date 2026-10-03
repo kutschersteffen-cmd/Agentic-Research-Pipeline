@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { FileLink } from "../../components/FileLink";
 import { api } from "../../api/client";
 import type { BenchmarkInfo, ProgramMonitor, ProgramParams, ProgramRun, ProgramSimulation, ProgramVersion } from "../../types";
 import { ActorField, DataTable, Section, useActor, words } from "./common";
@@ -22,7 +23,7 @@ const FIELDS: { key: NumberKey; label: string; step: number; hint: string }[] = 
 /** Client program (operating model Part 5): calibrate tilt -> selection -> sanction ->
  * escalation against the house program, save the calibration, download the proposal. */
 export function ProgramStudio({ streamId }: { streamId: string }) {
-  const [actor, setActor] = useActor();
+  const actor = useActor();
   const [params, setParams] = useState<ProgramParams | null>(null);
   const [saved, setSaved] = useState<ProgramParams | null>(null);
   const [savedBy, setSavedBy] = useState<string | null>(null);
@@ -84,7 +85,7 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
     if (!params) return;
     setMessage(null);
     try {
-      await api.saveProgram(streamId, params, actor);
+      await api.saveProgram(streamId, params);
       setSaved(params);
       setSavedBy(`${actor}, ${new Date().toLocaleDateString()}`);
       setSavedAuthor(actor);
@@ -100,11 +101,11 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
     setMessage(null);
     try {
       if (kind === "approve") {
-        const v = await api.approveProgram(streamId, actor);
+        const v = await api.approveProgram(streamId);
         setVersions([...versions, v]);
         setMessage(`Program version ${v.version} approved: its ${v.targets.length} targets are now monitored.`);
       } else {
-        const run = await api.recordProgramRun(streamId, actor);
+        const run = await api.recordProgramRun(streamId);
         setRuns([...runs, run]);
       }
       setWatch(await api.monitorProgram(streamId));
@@ -119,7 +120,7 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
     setUploading(true);
     setError(null);
     try {
-      const b = await api.uploadBenchmark(await file.text(), actor);
+      const b = await api.uploadBenchmark(await file.text());
       setBenchmarks([...benchmarks.filter((x) => x.benchmark_id !== b.benchmark_id), b]);
       setParams({ ...params, benchmark: b.benchmark_id });
       setMessage(`${b.name}, holdings as of ${b.as_of}: ${b.constituents} equities loaded (${b.dropped} cash, futures and unlisted lines dropped).`);
@@ -167,7 +168,7 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
           ))}
         </div>
       </section>
-      <ActorField actor={actor} onChange={setActor} />
+      <ActorField />
       <Section step="Calibrate" title="Settings">
         <label className="field-label">
           Client objective
@@ -185,7 +186,7 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
               ))}
             </select>
           </label>
-          <label className="field-label" title={actor ? undefined : "Enter your name above first"}>
+          <label className="field-label" title={actor ? undefined : "Sign in above first"}>
             Upload iShares holdings (CSV)
             <input type="file" accept=".csv,text/csv" disabled={!actor || uploading} onChange={(e) => upload(e.target.files?.[0])} />
           </label>
@@ -216,12 +217,12 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
           </label>
         </div>
         <div className="toolbar">
-          <button onClick={save} disabled={!actor || !dirty} title={!actor ? "Enter your name above first" : !dirty ? "No changes to save" : undefined}>
+          <button onClick={save} disabled={!actor || !dirty} title={!actor ? "Sign in above first" : !dirty ? "No changes to save" : undefined}>
             Save calibration
           </button>
-          <a className="button-link" href={api.programProposalUrl(streamId)} download>
+          <FileLink className="button-link" url={api.programProposalUrl(streamId)} name="proposal.pptx">
             Download proposal (PowerPoint)
-          </a>
+          </FileLink>
           <span className="muted">
             {running ? "Running…" : dirty ? "Unsaved changes: the proposal uses the saved calibration." : savedBy ? `Saved by ${savedBy}` : "Defaults, not saved yet"}
           </span>
@@ -241,7 +242,7 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
             disabled={!actor || !savedAuthor || dirty || selfApproval || busy !== null}
             title={
               !actor
-                ? "Enter your name above first"
+                ? "Sign in above first"
                 : !savedAuthor
                   ? "Save a calibration first"
                   : dirty
@@ -299,7 +300,7 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
             <h3>Approved targets</h3>
             <DataTable rows={watch.targets ?? []} />
             <div className="toolbar">
-              <button onClick={() => act("run")} disabled={!actor || busy !== null} title={actor ? undefined : "Enter your name above first"}>
+              <button onClick={() => act("run")} disabled={!actor || busy !== null} title={actor ? undefined : "Sign in above first"}>
                 {busy === "run" ? "Recording…" : "Record this monitoring run"}
               </button>
             </div>

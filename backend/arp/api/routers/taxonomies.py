@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
+from arp.api.auth import Principal, current_user
 from arp.api.deps import get_llm_client, get_registry, get_taxonomy_store, settings_dep
 from arp.config import Settings
 from arp.discovery.site_finder import DuckDuckGoSearchClient
@@ -260,15 +261,17 @@ def new_taxonomy_version(
 
 class RatifyRequest(BaseModel):
     version: int
-    ratified_by: str
 
 
 @router.post("/{taxonomy_id}/ratify", response_model=Taxonomy)
 def ratify_taxonomy(
-    taxonomy_id: str, req: RatifyRequest, store: TaxonomyStore = Depends(get_taxonomy_store)
+    taxonomy_id: str,
+    req: RatifyRequest,
+    store: TaxonomyStore = Depends(get_taxonomy_store),
+    principal: Principal = Depends(current_user),
 ) -> Taxonomy:
     try:
-        return store.ratify(taxonomy_id, req.version, req.ratified_by)
+        return store.ratify(taxonomy_id, req.version, principal.name)
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
 

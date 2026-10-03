@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import logging
 
-from arp.orchestration.review_queue import latest_decisions
+from arp.orchestration.review_queue import effective_decisions, latest_decisions
 from arp.schemas.common import now_iso
+from arp.schemas.review import field_item_key
 from arp.storage.postgres import get_engine
 from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.run_store import RunStore
@@ -143,6 +144,38 @@ def resolve_fact(item_key: str, raw_value: dict, decisions: dict[str, dict], que
     return raw_value, "auto_approved", None
 
 
+def resolve_extraction_fact(
+    item_key: str, row: dict, decisions: dict[str, dict], queued_item_keys: set[str]
+) -> tuple[dict, str, str | None]:
+    """An extraction fact is one whole record per company, but its queue
+    rows are per field ("{issuer_key}:{field_id}:{period}"). Folds the
+    record's per-field decisions into that one fact: an edit replaces the
+    field, any still-undecided flagged field keeps the fact pending_review,
+    else any reject -> rejected, else any edit -> edited, else approved.
+    Runs queued at company_id alone (before per-field keys) resolve as before.
+    """
+    if item_key in decisions or item_key in queued_item_keys:
+        return resolve_fact(item_key, row, decisions, queued_item_keys)
+    keys = {f["field_id"]: field_item_key(row.get("issuer_key", ""), f["field_id"]) for f in row.get("fields", [])}
+    flagged = {fid: k for fid, k in keys.items() if k in decisions or k in queued_item_keys}
+    if not flagged:
+        return row, "auto_approved", None
+    value = dict(row)
+    value["fields"] = list(row["fields"])
+    outcomes, reviewer = [], None
+    for i, f in enumerate(value["fields"]):
+        decision = decisions.get(flagged.get(f["field_id"], ""))
+        if decision is None:
+            outcomes.append("pending_review" if f["field_id"] in flagged else None)
+            continue
+        outcomes.append({"approve": "approved", "edit": "edited"}.get(decision.get("decision"), "rejected"))
+        reviewer = decision.get("reviewer") or reviewer
+        if decision.get("decision") == "edit" and decision.get("edited_value"):
+            value["fields"][i] = {**f, **decision["edited_value"], "field_id": f["field_id"]}
+    status = next(st for st in ("pending_review", "rejected", "edited", "approved") if st in outcomes)
+    return value, status, None if status == "pending_review" else reviewer
+
+
 def materialize_run(dsn: str, run_store: RunStore, run_id: str) -> int:
     """One DB transaction for this run: for each fact candidate, finds
     the current row (is_current=True) for (company_id, fact_key, as_of=""),
@@ -166,6 +199,9 @@ def materialize_run(dsn: str, run_store: RunStore, run_id: str) -> int:
     rows = run_store.read_jsonl(run_store.results_path(run_id))
     decisions = latest_decisions(run_store, run_id)
     queued_item_keys = {r["item_key"] for r in run_store.read_jsonl(run_store.review_queue_path(run_id)) if "item_key" in r}
+    if manifest.run_type == "extraction":  # an edit is final only once co-signed; until then it stays pending
+        decisions = effective_decisions(run_store, run_id, cosign_required={"edit"})
+        queued_item_keys |= set(latest_decisions(run_store, run_id)) - set(decisions)
     fact_type = _FACT_TYPE_BY_RUN_TYPE.get(manifest.run_type, manifest.run_type)
 
     from sqlalchemy import select
@@ -202,7 +238,8 @@ def materialize_run(dsn: str, run_store: RunStore, run_id: str) -> int:
         }
         for item_key, raw_value in candidates:
             company_id = item_key.split(":", 1)[0]
-            value, status, reviewer = resolve_fact(item_key, raw_value, decisions, queued_item_keys)
+            resolve = resolve_extraction_fact if manifest.run_type == "extraction" else resolve_fact
+            value, status, reviewer = resolve(item_key, raw_value, decisions, queued_item_keys)
             current = current_by_key.get(item_key)
             if current is not None and current.value == value and current.status == status:
                 continue

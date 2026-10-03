@@ -1,3 +1,4 @@
+import { FileFrame } from "./FileLink";
 import { Modal } from "./Modal";
 
 /** A lightweight modal for inspecting a source "in its original form" --
@@ -15,7 +16,7 @@ interface Props {
 export function InspectorModal({ title, onClose, src, text }: Props) {
   return (
     <Modal title={title} onClose={onClose}>
-      {src && <iframe className="modal-iframe" src={src} title={title} />}
+      {src && <FileFrame className="modal-iframe" url={src} title={title} />}
       {text !== undefined && <pre className="modal-text">{text}</pre>}
     </Modal>
   );

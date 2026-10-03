@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from arp.api.auth import Principal, current_user
 from arp.api.deps import get_llm_client, get_portfolio_store, settings_dep
 from arp.api.routers.universe import save_universe
 from arp.config import Settings
@@ -258,21 +259,24 @@ def list_monitoring_alerts(status: AlertStatus | None = None, store: PortfolioSt
 
 class AlertTransitionRequest(BaseModel):
     status: AlertStatus
-    decided_by: str
     reason: str = ""
     owner: str | None = None
 
 
 @router.post("/monitoring/alerts/{scope_id}/{alert_id}/transition", response_model=Alert)
 def transition_monitoring_alert(
-    scope_id: str, alert_id: str, req: AlertTransitionRequest, store: PortfolioStore = Depends(get_portfolio_store)
+    scope_id: str,
+    alert_id: str,
+    req: AlertTransitionRequest,
+    store: PortfolioStore = Depends(get_portfolio_store),
+    principal: Principal = Depends(current_user),
 ) -> Alert:
     """A human-decided status change -- `decided_by` required, mirrors the
     engagement router's escalate-issue route exactly (see
     engagement_store.py::set_escalation_stage)."""
     try:
         return monitoring_evaluator.transition_alert(
-            store, scope_id, alert_id, AlertTransition(status=req.status, decided_by=req.decided_by, reason=req.reason, owner=req.owner)
+            store, scope_id, alert_id, AlertTransition(status=req.status, decided_by=principal.name, reason=req.reason, owner=req.owner)
         )
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
@@ -301,16 +305,19 @@ class GovernanceDecisionRequest(BaseModel):
     item_type: GovernanceItemType
     item_key: str
     decision: GovernanceDecisionType
-    decided_by: str
     reason: str = ""
     override_value: float | str | bool | None = None
 
 
 @router.post("/governance/decisions", response_model=GovernanceDecision)
-def record_governance_decision(req: GovernanceDecisionRequest, store: PortfolioStore = Depends(get_portfolio_store)) -> GovernanceDecision:
+def record_governance_decision(
+    req: GovernanceDecisionRequest,
+    store: PortfolioStore = Depends(get_portfolio_store),
+    principal: Principal = Depends(current_user),
+) -> GovernanceDecision:
     try:
         return governance.record_decision(
-            store, req.item_type, req.item_key, req.decision, req.decided_by, req.reason, req.override_value
+            store, req.item_type, req.item_key, req.decision, principal.name, req.reason, req.override_value
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
@@ -330,16 +337,18 @@ def get_governance_policy(store: PortfolioStore = Depends(get_portfolio_store), 
 class PolicyChangeRequest(BaseModel):
     setting_name: PolicySettingName
     new_value: float
-    changed_by: str
     reason: str = ""
 
 
 @router.put("/governance/policy", response_model=PolicyChange)
 def update_governance_policy(
-    req: PolicyChangeRequest, store: PortfolioStore = Depends(get_portfolio_store), settings: Settings = Depends(settings_dep)
+    req: PolicyChangeRequest,
+    store: PortfolioStore = Depends(get_portfolio_store),
+    settings: Settings = Depends(settings_dep),
+    principal: Principal = Depends(current_user),
 ) -> PolicyChange:
     try:
-        return governance.set_policy(store, settings, req.setting_name, req.new_value, req.changed_by, req.reason)
+        return governance.set_policy(store, settings, req.setting_name, req.new_value, principal.name, req.reason)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -351,12 +360,16 @@ def list_governance_owners(store: PortfolioStore = Depends(get_portfolio_store))
 
 class OwnerAssignRequest(BaseModel):
     owner: str
-    assigned_by: str
 
 
 @router.put("/governance/owners/{category}", response_model=RiskCategoryOwner)
-def assign_governance_owner(category: str, req: OwnerAssignRequest, store: PortfolioStore = Depends(get_portfolio_store)) -> RiskCategoryOwner:
+def assign_governance_owner(
+    category: str,
+    req: OwnerAssignRequest,
+    store: PortfolioStore = Depends(get_portfolio_store),
+    principal: Principal = Depends(current_user),
+) -> RiskCategoryOwner:
     try:
-        return governance.set_owner(store, category, req.owner, req.assigned_by)
+        return governance.set_owner(store, category, req.owner, principal.name)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc

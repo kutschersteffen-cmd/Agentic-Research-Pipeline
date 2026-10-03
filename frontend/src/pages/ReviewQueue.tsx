@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import type { ReviewDecision, ReviewableRunKind, RunManifest } from "../types";
-import { useReviewer } from "../lib/reviewer";
-import { ReviewerField } from "../components/ReviewerField";
+import { useMe } from "../lib/reviewer";
+import { SignedInAs } from "../components/SignedInAs";
 import { useCardKeys } from "../lib/cardKeys";
 import { QUEUE_FNS, REVIEW_KIND_LABEL, ReviewItems, keyOf, type QueueItem } from "../components/RunReviewList";
 
@@ -21,7 +21,7 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
   const [filter, setFilter] = useState(pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "");
   const [error, setError] = useState<string | null>(null);
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
-  const [reviewer] = useReviewer();
+  const reviewer = useMe()?.name ?? "";
   // Decided items stay in place, collapsed: decisions are append-only and the
   // latest wins, so "Change" records a new one and the history keeps both.
   const [decided, setDecided] = useState<Record<string, ReviewDecision>>({});
@@ -86,7 +86,7 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
         <button className="secondary" onClick={load} disabled={items === null}>
           Refresh
         </button>
-        {!reviewer.trim() && <ReviewerField compact />}
+        {!reviewer.trim() && <SignedInAs compact />}
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
       {items === null && <p className="status-text">Loading flagged items…</p>}

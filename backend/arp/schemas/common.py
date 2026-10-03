@@ -43,6 +43,7 @@ class CompanyRef(BaseModel):
     ticker: str | None = None
     website: str | None = Field(default=None, description="Known corporate/IR homepage, if supplied.")
     cik: str | None = Field(default=None, description="SEC CIK, if known (enables direct EDGAR lookup).")
+    lei: str | None = None
     country: str | None = None
     sector: str | None = None
     isic_code: str | None = Field(
@@ -117,6 +118,7 @@ class ProvenanceInfo(BaseModel):
     extractor_prompt_version: str | None = None
     verifier_model: str | None = None
     verifier_prompt_version: str | None = None
+    provider: str = ""
 
 
 class RunManifest(BaseModel):

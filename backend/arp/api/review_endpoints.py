@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
+from arp.api.auth import Principal
 from arp.orchestration.review_queue import decision_history, latest_decisions, record_review_decision
 from arp.storage.run_store import RunStore
 
@@ -14,10 +15,14 @@ from arp.storage.run_store import RunStore
 # and only calls submit_review() with the primitives everyone shares.
 
 
+VALID_DECISIONS = {"approve", "edit", "reject", "escalate"}
+
+
 class ReviewDecisionRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")  # old clients may still send `reviewer`; ignored
+
     item_key: str
-    decision: str  # approve | edit | reject
-    reviewer: str | None = None
+    decision: str  # approve | edit | reject | escalate
     edited_value: dict | None = None
     comment: str | None = None
 
@@ -47,9 +52,12 @@ def submit_review(
     *,
     item_key: str,
     decision: str,
-    reviewer: str | None,
+    reviewer: str | None = None,
     edited_value: dict | None,
     comment: str | None = None,
+    principal: Principal | None = None,
 ) -> dict:
-    record_review_decision(run_store, run_id, item_key, decision, reviewer, edited_value, comment)
+    if decision not in VALID_DECISIONS:
+        raise ValueError(f"decision must be one of {sorted(VALID_DECISIONS)}")
+    record_review_decision(run_store, run_id, item_key, decision, reviewer, edited_value, comment, principal=principal)
     return {"status": "recorded"}

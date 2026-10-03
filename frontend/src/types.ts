@@ -214,6 +214,8 @@ export interface ExtractedField {
 
 export interface ExtractionRecord {
   company_id: string;
+  /** Absent on runs from before per-field keys. */
+  issuer_key?: string | null;
   ticker?: string | null;
   name: string;
   schema_id: string;
@@ -359,9 +361,20 @@ export interface ReviewDecision {
   item_key: string;
   decision: "approve" | "edit" | "reject";
   reviewer?: string | null;
+  user_id?: string | null;
+  role?: string | null;
+  /** Extraction only: an `edit` counts once a second approver co-signs it. */
+  cosigned?: boolean;
   edited_value?: { value?: unknown } | null;
   comment?: string | null;
   decided_at: string;
+}
+
+/** One flagged extraction field in the review queue (old runs: one row per company). */
+export interface ReviewQueueRow {
+  item_key: string;
+  reason_codes: string[];
+  [k: string]: unknown;
 }
 
 // --- Discovery ---
@@ -1804,7 +1817,7 @@ export interface LevelOverride {
   criterion_id: string;
   level: number;
   reason: string;
-  reviewer: string;
+  reviewer?: string;
   at?: string;
 }
 
@@ -2081,6 +2094,7 @@ export interface IndexCalibration {
   effective_from: string;
   effective_to?: string | null;
   approved_by: string[];
+  created_by?: string;
   notes: string;
   created_at: string;
   spec: ConstructionSpec;

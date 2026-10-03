@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import pytest
 
+from arp.api.auth import Principal
+
+PRINCIPAL = Principal(user_id="u_test", name="Test", role="approver")
+
 
 @pytest.fixture(autouse=True)
 def _disable_hybrid_retrieval_by_default(monkeypatch):
@@ -40,7 +44,7 @@ class FakeLLMClient:
         queue = self._script.get(name)
         if not queue:
             raise AssertionError(f"FakeLLMClient has no scripted response left for {name}")
-        return queue.pop(0), LLMUsage(input_tokens=10, output_tokens=10)
+        return queue.pop(0), LLMUsage(input_tokens=10, output_tokens=10, provider="fake")
 
 
 @pytest.fixture
@@ -67,3 +71,19 @@ class FakeSearchClient:
 @pytest.fixture
 def fake_search():
     return FakeSearchClient
+
+
+@pytest.fixture(autouse=True)
+def _signed_in_approver():
+    """Every router now sits behind arp.api.auth.authorize; existing API tests
+    exercise endpoint behaviour, not sign-in, so they run as an approver.
+    tests/test_auth.py clears these overrides to test the real thing."""
+    from arp.api.auth import authorize, current_user
+    from arp.api.main import app
+
+    principal = PRINCIPAL
+    app.dependency_overrides[authorize] = lambda: principal
+    app.dependency_overrides[current_user] = lambda: principal
+    yield
+    app.dependency_overrides.pop(authorize, None)
+    app.dependency_overrides.pop(current_user, None)

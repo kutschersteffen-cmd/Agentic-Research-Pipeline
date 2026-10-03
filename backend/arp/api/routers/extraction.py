@@ -5,6 +5,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from arp.api.auth import Principal, current_user, require_role
 from arp.api.company_results import list_company_results
 from arp.api.deps import get_decision_store, get_llm_client, get_registry, get_run_store, get_xbrl_source, settings_dep
 from arp.api.review_endpoints import (
@@ -22,6 +23,7 @@ from arp.extraction.pipeline import create_extraction_run, execute_extraction_ru
 from arp.extraction.schema_builder import draft_schema
 from arp.extraction.steps import ExtractionProfile, StepSettings, pipeline_shape, restart_overrides
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.orchestration.review_queue import effective_decisions, record_cosign
 from arp.orchestration.step_tally import step_counts
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema
@@ -317,7 +319,9 @@ def get_extraction_review_decisions(run_id: str, run_store: RunStore = Depends(g
     """Latest decision per item_key across the whole run (company- and
     field-level keys mixed) -- one call so the results table can show
     every field's review status without a request per field."""
-    return get_review_decisions(run_store, run_id)
+    decisions = get_review_decisions(run_store, run_id)["decisions"]
+    effective = effective_decisions(run_store, run_id, cosign_required={"edit"})
+    return {"decisions": {k: {**d, "cosigned": k in effective} for k, d in decisions.items()}}
 
 
 @router.get("/runs/{run_id}/review-history")
@@ -329,9 +333,26 @@ def get_extraction_review_history(
 
 @router.post("/runs/{run_id}/review")
 def submit_extraction_review(
-    run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store)
+    run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     return submit_review(
-        run_store, run_id, item_key=req.item_key, decision=req.decision, reviewer=req.reviewer,
+        run_store, run_id, item_key=req.item_key, decision=req.decision, principal=principal,
         edited_value=req.edited_value, comment=req.comment,
     )
+
+
+class CosignRequest(BaseModel):
+    item_key: str
+
+
+@router.post("/runs/{run_id}/cosign")
+def cosign_extraction_review(
+    run_id: str, req: CosignRequest, run_store: RunStore = Depends(get_run_store),
+    principal: Principal = Depends(require_role("approver")),
+) -> dict:
+    try:
+        record_cosign(run_store, run_id, req.item_key, principal)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+    return {"ok": True}

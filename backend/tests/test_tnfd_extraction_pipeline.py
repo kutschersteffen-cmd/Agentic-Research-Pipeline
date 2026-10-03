@@ -93,6 +93,7 @@ async def test_extract_company_tnfd_single_call_pair(tmp_path, fake_llm):
     # Exactly one extractor call and one verifier call for the whole combined extraction.
     assert llm.calls == ["TNFDExtractionDraft", "TNFDVerifierOutput"]
 
+    assert record.provenance.provider == "fake"
     assert len(record.disclosures) == 2
     assert record.disclosures[0].grounded is True
     assert record.disclosures[1].grounded is True

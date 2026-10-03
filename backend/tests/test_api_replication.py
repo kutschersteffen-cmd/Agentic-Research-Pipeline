@@ -24,6 +24,7 @@ from arp.replication.spec_revision import _current_revision_draft
 from arp.replication.spec_verifier_agent import SpecVerifierOutput
 from arp.schemas.strategy_replication import RebalanceFrequency, ReportedPerformance, SignalType, StrategySpec, WeightingScheme
 from arp.storage.run_store import RunStore
+from tests.conftest import PRINCIPAL
 
 _PAPER_TEXT = (
     "We form decile portfolios based on the prior 6-month formation period return and hold them "
@@ -92,13 +93,13 @@ async def test_approve_then_edit_unapproves(tmp_path, fake_llm):
     run_store = _run_store(tmp_path)
     spec_run_id = await _drafted_spec_run_id(run_store, fake_llm)
 
-    approved = approve_spec_draft(spec_run_id, ApproveSpecRequest(reviewer="alice"), run_store=run_store)
+    approved = approve_spec_draft(spec_run_id, ApproveSpecRequest(reviewer="alice"), run_store=run_store, principal=PRINCIPAL)
     assert approved["approved"] is True
 
     current_state = get_spec_draft(spec_run_id, run_store=run_store)
     edited_spec = StrategySpec.model_validate(current_state["spec"])
     edited_spec.holding_period_months = 12
-    result = update_spec_draft(spec_run_id, edited_spec, run_store=run_store)
+    result = update_spec_draft(spec_run_id, edited_spec, run_store=run_store, principal=PRINCIPAL)
 
     assert result["approved"] is False  # editing after approval un-approves
     assert result["spec"]["holding_period_months"] == 12
@@ -111,7 +112,7 @@ async def test_revise_via_instruction_records_history_entry(tmp_path, fake_llm):
 
     revised_draft = _current_revision_draft(current).model_copy(update={"rebalance_frequency": RebalanceFrequency.QUARTERLY})
     llm = fake_llm({"StrategySpecRevisionDraft": [revised_draft]})
-    result = await revise_spec_draft(spec_run_id, ReviseSpecRequest(instruction="use quarterly rebalancing"), run_store=run_store, llm=llm)
+    result = await revise_spec_draft(spec_run_id, ReviseSpecRequest(instruction="use quarterly rebalancing"), run_store=run_store, llm=llm, principal=PRINCIPAL)
 
     assert result["spec"]["rebalance_frequency"] == "quarterly"
     assert result["approved"] is False
@@ -156,7 +157,7 @@ def _write_price_csv(path, n_months=48, seed=11):
 async def test_full_flow_backtest_then_results_then_regime_report(tmp_path, fake_llm):
     run_store = _run_store(tmp_path)
     spec_run_id = await _drafted_spec_run_id(run_store, fake_llm)
-    approve_spec_draft(spec_run_id, ApproveSpecRequest(), run_store=run_store)
+    approve_spec_draft(spec_run_id, ApproveSpecRequest(), run_store=run_store, principal=PRINCIPAL)
 
     prices_path = tmp_path / "prices.csv"
     tickers = _write_price_csv(prices_path)
@@ -192,7 +193,7 @@ async def test_trigger_sanity_check_appends_and_is_returned_on_next_fetch(tmp_pa
 
     run_store = _run_store(tmp_path)
     spec_run_id = await _drafted_spec_run_id(run_store, fake_llm)
-    approve_spec_draft(spec_run_id, ApproveSpecRequest(), run_store=run_store)
+    approve_spec_draft(spec_run_id, ApproveSpecRequest(), run_store=run_store, principal=PRINCIPAL)
     prices_path = tmp_path / "prices.csv"
     tickers = _write_price_csv(prices_path)
     result = run_backtest_from_spec(spec_run_id, BacktestRequest(tickers=tickers, prices_ref=str(prices_path)), run_store=run_store)

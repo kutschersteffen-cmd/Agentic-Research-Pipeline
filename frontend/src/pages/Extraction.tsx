@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { api } from "../api/client";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import type { ExtractionProfile, StepSettings, UniverseHandoff } from "../types";
-import { useReviewer } from "../lib/reviewer";
+import { useMe } from "../lib/reviewer";
 import { ScoringTemplatePicker } from "../components/RunScoring";
 import { PipelineEditor } from "../components/PipelineEditor";
 import { StepTabs, type StepTab } from "../components/StepTabs";
@@ -72,7 +72,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   );
   const [tab, setTab] = useState<Tab>("overview");
   const [sub, setSub] = useState<Record<Inner, Sub>>({ identify: "run", documents: "run", extract: "setup" });
-  const [reviewer] = useReviewer();
+  const reviewer = useMe()?.name ?? "";
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
   const identifyRef = useRef<StageHandle>(null);
   const documentsRef = useRef<StageHandle>(null);

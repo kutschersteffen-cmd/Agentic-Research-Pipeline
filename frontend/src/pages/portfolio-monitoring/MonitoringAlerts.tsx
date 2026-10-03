@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
-import { REVIEWER_REQUIRED, useReviewer } from "../../lib/reviewer";
+import { SIGN_IN_REQUIRED, useMe } from "../../lib/reviewer";
 import { usePortfolioPane } from "../../context/usePortfolioPane";
 import { PortfolioFilterPicker } from "../../components/PortfolioFilterPicker";
 import type { Alert, AlertComparator, AlertRule, AlertRuleType, AlertStatus } from "../../types";
@@ -52,7 +52,7 @@ export function MonitoringAlerts() {
   const [statusFilter, setStatusFilter] = useState<AlertStatus | "all">("open");
   const [error, setError] = useState<string | null>(null);
   const [evaluating, setEvaluating] = useState(false);
-  const [decidedBy] = useReviewer();
+  const decidedBy = useMe()?.name ?? "";
 
   const [name, setName] = useState("");
   const [ruleType, setRuleType] = useState<AlertRuleType>("field_threshold");
@@ -118,12 +118,12 @@ export function MonitoringAlerts() {
 
   async function transition(alert: Alert, status: AlertStatus) {
     if (!decidedBy.trim()) {
-      setError(REVIEWER_REQUIRED);
+      setError(SIGN_IN_REQUIRED);
       return;
     }
     setError(null);
     try {
-      await api.transitionAlert(alert.scope_id, alert.alert_id, { status, decided_by: decidedBy.trim() });
+      await api.transitionAlert(alert.scope_id, alert.alert_id, { status });
       loadAll();
     } catch (e) {
       setError(String(e));

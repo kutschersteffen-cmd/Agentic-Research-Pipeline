@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../../api/client";
-import { useReviewer } from "../../lib/reviewer";
+import { SignedInAs } from "../../components/SignedInAs";
+import { useMe } from "../../lib/reviewer";
 import type { MetricSource, StewardPolicyId, StewardPolicyInfo, StewardshipStage } from "../../types";
 
 export const SOURCE_LABEL: Record<MetricSource, string> = { live: "live data", sample: "synthetic sample", portfolio: "portfolio holdings", not_built: "not built yet" };
@@ -37,15 +38,14 @@ export const stageName = (stage: StewardshipStage) => STAGE_TABS.find((t) => t.i
 export const openCount = (stage: StewardshipStage | undefined) =>
   stage ? stage.decisions.filter((d) => d.kind !== "policy_difference" || d.decision === null).length : 0;
 
-/** The name recorded with every decision: the app-wide "Reviewing as" identity. */
-export const useActor = useReviewer;
+/** The signed-in user's name, or "" when signed out. The server records who decided. */
+export const useActor = (): string => useMe()?.name ?? "";
 
-export function ActorField({ actor, onChange }: { actor: string; onChange: (v: string) => void }) {
+export function ActorField() {
   return (
-    <label className="field-label actor-field">
-      Your name (recorded with every decision and version)
-      <input value={actor} onChange={(e) => onChange(e.target.value)} placeholder="e.g. J. Doe" />
-    </label>
+    <div className="actor-field">
+      <SignedInAs compact />
+    </div>
   );
 }
 
@@ -217,14 +217,14 @@ export function VersionsPanel({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const needName = actor ? undefined : "Enter your name above first";
+  const needName = actor ? undefined : "Sign in above first";
 
   async function save() {
     setBusy("save");
     setError(null);
     setMessage(null);
     try {
-      const res = await api.saveStewardPolicyVersion(policyId, { content: workingCopy, note, created_by: actor }, stream);
+      const res = await api.saveStewardPolicyVersion(policyId, { content: workingCopy, note }, stream);
       setNote("");
       setMessage(`Saved as version ${res.version}. It is not active until someone activates it.`);
       onSaved();
@@ -239,7 +239,7 @@ export function VersionsPanel({
     setError(null);
     setMessage(null);
     try {
-      await api.activateStewardPolicy(policyId, { version, approved_by: actor }, stream);
+      await api.activateStewardPolicy(policyId, { version }, stream);
       setMessage(`Version ${version} is now active.`);
       onActivated();
     } catch (err) {

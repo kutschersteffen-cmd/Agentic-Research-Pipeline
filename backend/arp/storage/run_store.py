@@ -62,6 +62,9 @@ class RunStore:
     def review_decisions_path(self, run_id: str) -> Path:
         return self.run_dir(run_id) / "review_decisions.jsonl"
 
+    def review_cosigns_path(self, run_id: str) -> Path:
+        return self.run_dir(run_id) / "review_cosigns.jsonl"
+
     def events_path(self, run_id: str) -> Path:
         return self.run_dir(run_id) / "events.jsonl"
 

@@ -82,6 +82,52 @@ cp .env.example .env            # VITE_API_BASE, VITE_SUPERSET_URL
 npm run dev                                   # UI on :5173
 ```
 
+### Sign-in
+
+Every API route except `/api/health` (and the proxy-voting routes) needs a
+signed-in user, and every review, ratification and approval is recorded
+against that user.
+
+**Current default: dev mode** (`ARP_AUTH_MODE=dev`). Every request from
+127.0.0.1/::1 is signed in as an approver named `ARP_DEV_USER` (default `dev`)
+without a token; the sidebar shows "Signed in as dev (approver)". Use it only on
+your own machine, or with the provided `docker-compose.yml`, which publishes the
+API on 127.0.0.1 only and adds the Docker bridge range (`172.16.0.0/12`) to
+`ARP_DEV_TRUSTED_NETWORKS` because the browser's requests reach the container
+from the bridge, not loopback. That range also covers every other container on
+the compose network (e.g. Superset): while dev mode is on, they get dev approver
+access too. On Docker hosts whose compose subnets come from `192.168.0.0/16`
+(check `docker network inspect`), adjust `ARP_DEV_TRUSTED_NETWORKS` to match.
+The bypass trusts the socket address: never run dev mode behind a proxy on the
+same host (every proxied request would arrive from loopback) and never publish
+the port on a LAN-reachable address. Requests from anywhere else still need a
+token. Dev mode also refuses browser requests from foreign origins (an `Origin`
+header not in `ARP_ALLOWED_ORIGINS` gets no bypass, so another website cannot
+act as you), and the API only answers the host names in `ARP_TRUSTED_HOSTS`
+(default `localhost`, `127.0.0.1`, `[::1]`, `backend`), which blocks DNS
+rebinding; this host check applies to every route, voting included. Dev mode has a single user, so four-eyes
+steps (calibration approval, co-sign) need local mode.
+
+**Switching to local mode** (real per-person sign-in):
+
+1. `cp config/users.example.json config/users.json` and give each person a long
+   random token (`openssl rand -hex 24`), a unique `user_id`, a name and a role:
+   `viewer` (read), `analyst` (change), `approver` (also approve calibrations
+   and co-sign). Tokens and `user_id`s must be unique and non-empty, or the API
+   refuses to start. `config/users.json` is gitignored; `ARP_USERS_FILE` points
+   elsewhere.
+2. Set `ARP_AUTH_MODE=local` in `backend/.env` (Docker: in the `backend`
+   service's `environment:` in `docker-compose.yml`, and remove
+   `ARP_DEV_TRUSTED_NETWORKS` there).
+3. Restart the API (also after every later edit of the users file: it is read once).
+4. Each person pastes their token into the sidebar; the UI keeps it in the
+   browser's `localStorage` until they sign out (or the API rejects it).
+5. CLI commands that write (`arp index calibration-save`, `arp index approve`, …)
+   need `ARP_CLI_TOKEN` set to the person's token, in either mode.
+
+`ARP_ALLOWED_ORIGINS` is the CORS allow-list for the browser UI, as JSON, e.g.
+`ARP_ALLOWED_ORIGINS='["https://arp.example.com"]'`.
+
 `[dev]` is enough to run the app, but **not** enough for a green test suite —
 the reporting tests render through headless Chromium and a few storage tests
 need the optional backends. For the full suite, as CI installs it:
@@ -247,9 +293,10 @@ arp runs list                     # also: arp runs show <run_id>, arp runs cance
 # Index construction (see docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md)
 arp index presets                                        # the named methodology shapes
 arp index preview --preset eu_pab --review-date 2026-03-31 --show trace
-arp index calibration-save --name "DWS Electrification PAB" --effective-from 2026-01-01 \
-    --preset eu_pab --approved-by "IC-2026-01-14"
-arp index run --index-id dws_pab --review-date 2026-03-31 --calibration-id <cal_id>
+ARP_CLI_TOKEN=<your token> arp index calibration-save --name "DWS Electrification PAB" \
+    --effective-from 2026-01-01 --preset eu_pab --approved-by "IC-2026-01-14"   # --approved-by is kept as a note
+ARP_CLI_TOKEN=<a second approver's token> arp index approve <cal_id>         # four-eyes: not the author
+ARP_CLI_TOKEN=<your token> arp index run --index-id dws_pab --review-date 2026-03-31 --calibration-id <cal_id>
 # Optional convex / integer paths (pip install -e ".[optimize]")
 arp index preview --preset eu_pab --review-date 2026-03-31 --solver-method min_tracking_error
 arp index preview --preset eu_pab --review-date 2026-03-31 --max-constituents 20

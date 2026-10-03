@@ -19,6 +19,7 @@ from arp.stewardship.monitoring import evaluate, load_graph, preview  # noqa: E4
 from arp.stewardship.policies import PolicyStore  # noqa: E402
 from arp.stewardship.process import SAMPLE_PATH, StreamStore  # noqa: E402
 from arp.storage.engagement_store import EngagementStore  # noqa: E402
+from tests.conftest import PRINCIPAL
 
 SAMPLE = json.loads(SAMPLE_PATH.read_text())
 
@@ -69,18 +70,18 @@ def test_an_invalid_trigger_type_is_rejected_on_save(tmp_path):
 
 def test_open_engagement_from_a_trigger_uses_the_rule_and_only_once(tmp_path):
     streams, engagements = StreamStore(tmp_path / "s"), EngagementStore(tmp_path / "e")
-    body = OpenFromTriggerRequest(issuer_id="SYN10", rule="clti_laggard", decided_by="Analyst")
-    opened = open_engagement_from_trigger(body, streams, engagements)
+    body = OpenFromTriggerRequest(issuer_id="SYN10", rule="clti_laggard")
+    opened = open_engagement_from_trigger(body, streams, engagements, PRINCIPAL)
     [issue] = engagements.get("SYN10").issues
     assert (issue.theme, issue.severity.value, issue.source.value) == ("climate_transition", "high", "monitoring_rule")
     assert opened["issue_id"] == issue.issue_id
     attached = next(t for t in monitoring_triggers(Settings(), streams, engagements)["triggers"] if t["rule"] == "clti_laggard")
     assert attached["engagement_id"] == issue.issue_id
     with pytest.raises(HTTPException) as again:
-        open_engagement_from_trigger(body, streams, engagements)
+        open_engagement_from_trigger(body, streams, engagements, PRINCIPAL)
     assert again.value.status_code == 409
     with pytest.raises(HTTPException) as unknown:
         open_engagement_from_trigger(
-            OpenFromTriggerRequest(issuer_id="SYN01", rule="clti_laggard", decided_by="A"), streams, engagements
+            OpenFromTriggerRequest(issuer_id="SYN01", rule="clti_laggard"), streams, engagements, PRINCIPAL
         )
     assert unknown.value.status_code == 404

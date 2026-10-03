@@ -5,6 +5,7 @@ import { ReviewControls } from "./ReviewControls";
 import { CitationList } from "./CitationList";
 import type { ActiveSource } from "./SourcePanel";
 import type { BusinessSegment, CompanyFinancialsRecord, ExtractedField, ExtractionRecord, ReviewDecision, SpendSummary } from "../types";
+import { fieldItemKey } from "../lib/reviewKeys";
 import { activatable } from "../lib/activatable";
 import { ProposedTag } from "./ProposedTag";
 import { OriginTag } from "./ReviewTiles";
@@ -146,7 +147,7 @@ export function ExtractionResultsTable({
   if (results.length === 0) return null;
   // Items are fields; a field is flagged when its record needs review.
   const shownFields = (r: ExtractionRecord) =>
-    r.fields.filter((f) => matchesTile(filter, r.needs_review, reviewDecisions[`${r.company_id}:${f.field_id}`]));
+    r.fields.filter((f) => matchesTile(filter, r.needs_review, reviewDecisions[fieldItemKey(r, f.field_id)]));
   const shown = results.filter((r) => shownFields(r).length > 0);
   if (shown.length === 0) return NO_MATCH;
   return (
@@ -165,7 +166,7 @@ export function ExtractionResultsTable({
             <Fragment key={r.company_id}>
               <tr className="clickable-row" {...activatable(() => onToggleExpanded(r.company_id), expanded === r.company_id)}>
                 <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
-                <td>{r.fields.map((f) => `${f.field_name}=${editedText(reviewDecisions[`${r.company_id}:${f.field_id}`]) ?? f.value ?? "—"}`).join(", ")}</td>
+                <td>{r.fields.map((f) => `${f.field_name}=${editedText(reviewDecisions[fieldItemKey(r, f.field_id)]) ?? f.value ?? "—"}`).join(", ")}</td>
                 <td><ConfidenceBadge value={r.overall_confidence} /></td>
                 <td>{r.needs_review ? <ProposedTag /> : ""}</td>
               </tr>
@@ -173,7 +174,7 @@ export function ExtractionResultsTable({
                 <tr>
                   <td colSpan={4} className="detail-cell">
                     {shownFields(r).map((f) => {
-                      const itemKey = `${r.company_id}:${f.field_id}`;
+                      const itemKey = fieldItemKey(r, f.field_id);
                       const d = reviewDecisions[itemKey];
                       return (
                         <div key={f.field_id}>
@@ -185,6 +186,7 @@ export function ExtractionResultsTable({
                             current={reviewDecisions[itemKey]}
                             reviewer={reviewer}
                             onDone={onReviewDone}
+                            cosignFn={api.cosignExtraction}
                           />
                         </div>
                       );

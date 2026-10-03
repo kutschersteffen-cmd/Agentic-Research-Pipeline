@@ -4,7 +4,7 @@ import type { StewardshipFlow, StewardshipStream } from "../types";
 import { SOURCE_LABEL, STAGE_TABS, openCount } from "./steward/common";
 
 export { STAGE_TABS };
-import { useReviewer } from "../lib/reviewer";
+import { useMe } from "../lib/reviewer";
 import { FlowChart, FlowList } from "./steward/flow";
 import { DraftingStudio } from "./steward/drafting";
 import { ProgramStudio } from "./steward/program";
@@ -29,14 +29,14 @@ const CLIENT_STAGES = new Set(["client_policy", "reporting", "program"]);
 function HouseUniverse({ onChanged }: { onChanged: () => void }) {
   const [info, setInfo] = useState<Awaited<ReturnType<typeof api.getHouseUniverse>> | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [reviewer] = useReviewer();
+  const reviewer = useMe()?.name ?? "";
   useEffect(() => {
     api.getHouseUniverse().then(setInfo, (e: Error) => setError(e.message));
   }, []);
   async function choose(source: "sample" | "portfolio") {
     setError(null);
     try {
-      await api.setHouseUniverse({ source, set_by: reviewer });
+      await api.setHouseUniverse({ source });
       setInfo(await api.getHouseUniverse());
       onChanged();
     } catch (e) {

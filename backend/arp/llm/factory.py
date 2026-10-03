@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from arp.config import Settings
 from arp.llm.base import LLMClient
 from arp.llm.langchain_client import LangChainAnthropicClient
 
 
-def build_llm_client(settings: Settings, *, model: str | None = None, cache_refresh: bool | None = None) -> LLMClient:
+def _build_anthropic(settings: Settings, *, model: str | None = None, cache_refresh: bool | None = None) -> LLMClient:
     if not settings.anthropic_api_key:
         raise RuntimeError(
             "ARP_ANTHROPIC_API_KEY is not set. Provide an Anthropic API key via environment variable "
@@ -19,6 +21,13 @@ def build_llm_client(settings: Settings, *, model: str | None = None, cache_refr
         cache_refresh=settings.llm_cache_refresh if cache_refresh is None else cache_refresh,
         prompt_cache_enabled=settings.llm_prompt_cache_enabled,
     )
+
+
+_BUILDERS: dict[str, Callable[..., LLMClient]] = {"anthropic": _build_anthropic}
+
+
+def build_llm_client(settings: Settings, *, model: str | None = None, cache_refresh: bool | None = None) -> LLMClient:
+    return _BUILDERS[settings.llm_provider](settings, model=model, cache_refresh=cache_refresh)
 
 
 def build_verifier_llm_client(settings: Settings) -> LLMClient:

@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from arp.api.auth import Principal, require_role
 from arp.api.deps import get_decision_store, get_index_store
 from arp.decision.publish import as_fields
 from arp.index.calc import level_series
@@ -60,7 +61,6 @@ class CalibrationRequest(BaseModel):
     effective_from: str = Field(description="ISO date. The first review date this version governs.")
     spec: ConstructionSpec
     notes: str = ""
-    approved_by: list[str] = Field(default_factory=list)
 
 
 @router.get("/calibrations", response_model=list[IndexCalibration])
@@ -69,10 +69,27 @@ def list_calibrations(store: IndexStore = Depends(get_index_store)) -> list[Inde
 
 
 @router.post("/calibrations", response_model=IndexCalibration)
-def create_calibration(req: CalibrationRequest, store: IndexStore = Depends(get_index_store)) -> IndexCalibration:
+def create_calibration(
+    req: CalibrationRequest,
+    store: IndexStore = Depends(get_index_store),
+    principal: Principal = Depends(require_role("analyst")),
+) -> IndexCalibration:
     return store.create_calibration(
-        req.name, req.spec, effective_from=req.effective_from, notes=req.notes, approved_by=req.approved_by
+        req.name, req.spec, effective_from=req.effective_from, notes=req.notes, created_by=principal.user_id
     )
+
+
+@router.post("/calibrations/{calibration_id}/approve", response_model=IndexCalibration)
+def approve_calibration(
+    calibration_id: str,
+    store: IndexStore = Depends(get_index_store),
+    principal: Principal = Depends(require_role("approver")),
+) -> IndexCalibration:
+    """Four-eyes: the latest version needs an approver other than its author."""
+    try:
+        return store.approve_calibration(calibration_id, principal.user_id)
+    except ValueError as exc:
+        raise HTTPException(404 if "Unknown" in str(exc) else 400, str(exc)) from exc
 
 
 @router.get("/calibrations/{calibration_id}", response_model=IndexCalibration)
@@ -95,11 +112,14 @@ def list_calibration_versions(calibration_id: str, store: IndexStore = Depends(g
 
 @router.post("/calibrations/{calibration_id}/versions", response_model=IndexCalibration)
 def new_calibration_version(
-    calibration_id: str, req: CalibrationRequest, store: IndexStore = Depends(get_index_store)
+    calibration_id: str,
+    req: CalibrationRequest,
+    store: IndexStore = Depends(get_index_store),
+    principal: Principal = Depends(require_role("analyst")),
 ) -> IndexCalibration:
     try:
         return store.new_calibration_version(
-            calibration_id, req.spec, effective_from=req.effective_from, notes=req.notes, approved_by=req.approved_by
+            calibration_id, req.spec, effective_from=req.effective_from, notes=req.notes, created_by=principal.user_id
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
@@ -210,12 +230,12 @@ def _with_decisions(
 
 def _resolve_spec(req: RunRequest, store: IndexStore) -> tuple[ConstructionSpec, str | None, int | None]:
     if req.calibration_id:
-        calibration = store.resolve_for_date(req.calibration_id, req.review_date)
+        calibration = store.resolve_for_date(req.calibration_id, req.review_date, approved_only=True)
         if calibration is None:
             raise HTTPException(
                 404,
-                f"No version of calibration {req.calibration_id} is in force on {req.review_date} -- "
-                "a review cannot run under a methodology that was not yet approved.",
+                f"No version of calibration {req.calibration_id} is in force and approved on {req.review_date} -- "
+                "a review cannot run under a methodology that was not yet approved by someone other than its author.",
             )
         return calibration.spec, calibration.calibration_id, calibration.version
     if req.spec is None:

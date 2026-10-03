@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { api } from "../api/client";
+import { FileLink } from "../components/FileLink";
+import { api, downloadFile } from "../api/client";
 import { AuditLogView } from "../components/AuditLogView";
 import { ColumnProfileTable } from "../components/ColumnProfileTable";
 import { DecisionResultsTable } from "../components/DecisionResultsTable";
@@ -25,8 +26,7 @@ import type {
 } from "../types";
 import { activatable } from "../lib/activatable";
 import { setLeaveGuard } from "../lib/leaveGuard";
-import { useReviewer } from "../lib/reviewer";
-import { ConfirmDecision } from "../components/ConfirmDecision";
+import { ConfirmSignedIn } from "../components/ConfirmSignedIn";
 import { newDimension } from "../lib/dimensions";
 import { TIER_STARTER } from "../lib/ruleGraphs";
 
@@ -126,7 +126,6 @@ export function DecisionStudio() {
   const [sensitivity, setSensitivity] = useState<EntitySensitivity | null>(null);
   const [orderBy, setOrderBy] = useState<"score" | "leverage">("score");
   const [status, setStatus] = useState("");
-  const [reviewer] = useReviewer();
   const [confirmingRatify, setConfirmingRatify] = useState(false);
   const [confirmingPublish, setConfirmingPublish] = useState(false);
   const [published, setPublished] = useState<PublishedDecision | null>(null);
@@ -299,7 +298,7 @@ export function DecisionStudio() {
 
   async function onImportTemplate(file: File) {
     const envelope = await guard("Importing the template…", async () =>
-      api.importMechanism(JSON.parse(await file.text()), reviewer.trim() || undefined),
+      api.importMechanism(JSON.parse(await file.text())),
     );
     if (envelope) {
       setStatus(`Imported ${envelope.config.name} as a draft.`);
@@ -309,7 +308,7 @@ export function DecisionStudio() {
 
   async function onImportIndicatorList(file: File) {
     const name = file.name.replace(/\.[^.]+$/, "");
-    const envelope = await guard("Building the framework…", () => api.importIndicatorList(file, name, reviewer.trim() || undefined));
+    const envelope = await guard("Building the framework…", () => api.importIndicatorList(file, name));
     if (envelope) {
       setBuiltFromList(true);
       setStatus(
@@ -432,7 +431,7 @@ export function DecisionStudio() {
   async function onSave() {
     if (!config) return;
     const envelope = await guard("Saving a new version…", () =>
-      api.saveMechanism({ config, base_version: baseVersion ?? undefined, by: reviewer.trim() || undefined }),
+      api.saveMechanism({ config, base_version: baseVersion ?? undefined }),
     );
     if (envelope) {
       loadConfig(envelope.config);
@@ -442,18 +441,18 @@ export function DecisionStudio() {
     }
   }
 
-  async function onRatify(by: string) {
+  async function onRatify() {
     setConfirmingRatify(false);
     if (!config) return;
-    const saved = await guard("Ratifying…", () => api.ratifyMechanism(config.framework_id, config.version, by));
+    const saved = await guard("Ratifying…", () => api.ratifyMechanism(config.framework_id, config.version));
     if (saved) loadConfig(saved);
   }
 
-  async function onPublish(by: string) {
+  async function onPublish() {
     setConfirmingPublish(false);
     if (!config || !dataset) return;
     const snapshot = await guard("Publishing…", () =>
-      api.publishDecision({ dataset_id: dataset.dataset_id, framework_id: config.framework_id, version: config.version, published_by: by, id_column: idColumn || undefined }),
+      api.publishDecision({ dataset_id: dataset.dataset_id, framework_id: config.framework_id, version: config.version, id_column: idColumn || undefined }),
     );
     if (snapshot) setPublished(snapshot);
   }
@@ -476,18 +475,8 @@ export function DecisionStudio() {
 
   async function onExport() {
     if (!dataset || !config) return;
-    const response = await fetch(api.decisionExportUrl(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dataset_id: dataset.dataset_id, config }),
-    });
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${dataset.name.replace(/\.[^.]+$/, "")}_decision.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const name = `${dataset.name.replace(/\.[^.]+$/, "")}_decision.csv`;
+    await guard("Exporting…", () => downloadFile(api.decisionExportUrl(), name, { dataset_id: dataset.dataset_id, config }));
   }
 
   // Derivation entries come from deriving or from the stored framework;
@@ -940,7 +929,7 @@ export function DecisionStudio() {
                                 Apply
                               </button>
                             )}
-                            <a href={api.exportMechanismUrl(t.config.framework_id, t.config.version)}>Export</a>
+                            <FileLink url={api.exportMechanismUrl(t.config.framework_id, t.config.version)} name={`${t.config.framework_id}.json`}>Export</FileLink>
                           </td>
                         </tr>
                       );
@@ -1172,8 +1161,8 @@ export function DecisionStudio() {
                 await api.setDatasetOverride(dataset!.dataset_id, override);
                 setOverridesTick((t) => t + 1);
               }}
-              onRemoveOverride={async (entityKey, criterionId, reviewer, reason) => {
-                await api.removeDatasetOverride(dataset!.dataset_id, { entity_key: entityKey, criterion_id: criterionId, reviewer, reason });
+              onRemoveOverride={async (entityKey, criterionId, _reviewer, reason) => {
+                await api.removeDatasetOverride(dataset!.dataset_id, { entity_key: entityKey, criterion_id: criterionId, reason });
                 setOverridesTick((t) => t + 1);
               }}
             />
@@ -1319,7 +1308,7 @@ export function DecisionStudio() {
                 Save as new version
               </button>
               {baseVersion === config.version && !unsaved && (
-                <a href={api.exportMechanismUrl(config.framework_id, config.version)}>Export v{config.version} as template</a>
+                <FileLink url={api.exportMechanismUrl(config.framework_id, config.version)} name={`${config.framework_id}.json`}>Export v{config.version} as template</FileLink>
               )}
               {unsaved ? (
                 <span className="muted">
@@ -1341,7 +1330,7 @@ export function DecisionStudio() {
               )}
             </div>
             {confirmingRatify && (
-              <ConfirmDecision
+              <ConfirmSignedIn
                 title={`Ratify version ${config.version}?`}
                 confirmLabel={`Ratify version ${config.version}`}
                 onConfirm={onRatify}
@@ -1351,10 +1340,10 @@ export function DecisionStudio() {
                   A ratified version is fixed: later edits become a new version, and decisions that cite this one keep
                   reading it exactly as it is now.
                 </p>
-              </ConfirmDecision>
+              </ConfirmSignedIn>
             )}
             {confirmingPublish && dataset && (
-              <ConfirmDecision
+              <ConfirmSignedIn
                 title="Publish these tiers?"
                 confirmLabel="Publish"
                 onConfirm={onPublish}
@@ -1386,7 +1375,7 @@ export function DecisionStudio() {
                     publications of this version reuse them, so a tier changes only when the score does.
                   </p>
                 )}
-              </ConfirmDecision>
+              </ConfirmSignedIn>
             )}
             {published && (
               <p className="status-text" role="status">

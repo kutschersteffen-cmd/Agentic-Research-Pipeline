@@ -36,6 +36,8 @@ backend/.cache/
 backend/.discovery_state/
 backend/.document_store/
 
+config/users.json
+
 # OS
 .DS_Store
 

@@ -27,7 +27,7 @@ function EngagementSelect({ engagements, value, onChange }: { engagements: Track
 /** Stage 6: commitments with target dates (overdue or missed ones raise stage 1 triggers),
  * closing an engagement with its outcome, and E7 case studies from closed engagements. */
 export function TrackingStudio({ stage, onChanged }: StudioProps) {
-  const [actor, setActor] = useActor();
+  const actor = useActor();
   const [data, setData] = useState<{ commitments: TrackedCommitment[]; engagements: TrackedEngagement[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -54,11 +54,11 @@ export function TrackingStudio({ stage, onChanged }: StudioProps) {
     }
   }
   const setStatus = (c: TrackedCommitment, status: "verified" | "missed") =>
-    run(c.commitment_id, () => api.setCommitmentStatus(c.commitment_id, { company_id: c.company_id, issue_id: c.issue_id, status, decided_by: actor }));
+    run(c.commitment_id, () => api.setCommitmentStatus(c.commitment_id, { company_id: c.company_id, issue_id: c.issue_id, status }));
   const due = stage.decisions.filter((d): d is CommitmentDueItem => d.kind === "commitment_due");
   const open = data?.engagements.filter(isOpen) ?? [];
   const closed = data?.engagements.filter((e) => !isOpen(e)) ?? [];
-  const needName = actor ? undefined : "Enter your name above first";
+  const needName = actor ? undefined : "Sign in above first";
 
   const commitmentButtons = (c: TrackedCommitment) => (
     <div className="row-actions">
@@ -86,7 +86,7 @@ export function TrackingStudio({ stage, onChanged }: StudioProps) {
           is logged on the Engagement page and when outreach is sent (stage 3).
         </p>
       </StudioHeader>
-      <ActorField actor={actor} onChange={setActor} />
+      <ActorField />
       {error && <p className="error-text" role="alert">{error}</p>}
       <Section step="Decide" title="Commitments past their target date">
         {due.length === 0 ? (
@@ -138,7 +138,7 @@ export function TrackingStudio({ stage, onChanged }: StudioProps) {
             onClick={() => {
               const [company_id, issue_id] = newC.target.split("|");
               run("add", async () => {
-                await api.addCommitment({ company_id, issue_id, text: newC.text, target_date: newC.date || undefined, recorded_by: actor });
+                await api.addCommitment({ company_id, issue_id, text: newC.text, target_date: newC.date || undefined });
                 setNewC({ target: newC.target, text: "", date: "" });
               });
             }}
@@ -207,7 +207,7 @@ export function TrackingStudio({ stage, onChanged }: StudioProps) {
             onClick={() => {
               const [company_id, issue_id] = closing.target.split("|");
               run("close", async () => {
-                await api.closeEngagement({ company_id, issue_id, status: closing.status, outcome: closing.outcome, decided_by: actor });
+                await api.closeEngagement({ company_id, issue_id, status: closing.status, outcome: closing.outcome });
                 setClosing({ target: "", status: "resolved", outcome: "" });
               });
             }}

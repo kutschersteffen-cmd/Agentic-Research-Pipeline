@@ -2,6 +2,7 @@ from arp.extraction.aggregator import build_extracted_field
 from arp.extraction.extractor_agent import ExtractionDraft
 from arp.extraction.verifier_agent import VerifierOutput
 from arp.schemas.datapoints import FieldDataType, FieldDefinition
+from arp.schemas.review import ReasonCode
 
 _FIELD = FieldDefinition(
     name="Green CapEx",
@@ -36,4 +37,29 @@ def test_verifier_agreement_with_no_citations_and_no_value_is_grounded():
 
     assert field_result.value is None
     assert field_result.grounded is True
+    assert needs_review is False
+
+
+def _build(draft, verifier, docs=None):
+    return build_extracted_field(_FIELD, draft, verifier, docs or {}, fuzzy_threshold=0.9, confidence_review_threshold=0.6)
+
+
+def test_reasons_for_ungrounded_value():
+    draft = ExtractionDraft(value=1.0, citations=[], confidence=0.9)
+    field_result, needs_review = _build(draft, VerifierOutput(agrees=True, confidence=0.9, notes=""))
+    assert field_result.review_reasons == [ReasonCode.NOT_GROUNDED]
+    assert needs_review is True
+
+
+def test_reasons_for_verifier_disagreement_and_conflict():
+    draft = ExtractionDraft(value=1.0, citations=[], confidence=0.9, conflicting_sources=True)
+    verifier = VerifierOutput(agrees=False, corrected_value=None, confidence=0.9, notes="no")
+    field_result, _ = _build(draft, verifier)
+    assert field_result.review_reasons == [ReasonCode.VERIFIER_DISAGREES, ReasonCode.CONFLICT]
+
+
+def test_no_reasons_means_no_review():
+    draft = ExtractionDraft(value=None, citations=[], confidence=0.9)
+    field_result, needs_review = _build(draft, VerifierOutput(agrees=True, confidence=0.9, notes=""))
+    assert field_result.review_reasons == []
     assert needs_review is False

@@ -18,6 +18,7 @@ from arp.schemas.engagement import CorrespondenceEntry, EscalationStage, Interac
 from arp.stewardship import tracking
 from arp.stewardship.process import HOUSE, StreamStore, flow
 from arp.storage.engagement_store import EngagementStore
+from tests.conftest import PRINCIPAL
 
 TODAY = date(2026, 9, 27)
 
@@ -31,8 +32,9 @@ def world(tmp_path):
 
 def _commit(engagements, issue, text, target):
     return add_commitment(
-        CommitmentRequest(company_id="ACME", issue_id=issue.issue_id, text=text, target_date=target, recorded_by="Analyst"),
+        CommitmentRequest(company_id="ACME", issue_id=issue.issue_id, text=text, target_date=target),
         engagements,
+        PRINCIPAL,
     )
 
 
@@ -43,8 +45,9 @@ def test_overdue_and_missed_commitments_and_stalls_become_triggers(world):
     _commit(engagements, issue, "Not due yet", "2027-06-30")
     set_commitment_status(
         missed["commitment_id"],
-        CommitmentStatusRequest(company_id="ACME", issue_id=issue.issue_id, status="missed", decided_by="Lead"),
+        CommitmentStatusRequest(company_id="ACME", issue_id=issue.issue_id, status="missed"),
         engagements,
+        PRINCIPAL,
     )
     rules = sorted(t["rule"] for t in tracking.triggers(engagements.list_all(), sla_days=365, today=TODAY))
     assert rules == ["commitment_missed", "commitment_overdue"]
@@ -69,7 +72,7 @@ def test_invalid_target_date_and_unknown_engagement_are_rejected(world):
         _commit(engagements, issue, "x", "next spring")
     assert bad_date.value.status_code == 422
     with pytest.raises(HTTPException) as unknown:
-        add_commitment(CommitmentRequest(company_id="NOPE", issue_id="x", text="x", recorded_by="A"), engagements)
+        add_commitment(CommitmentRequest(company_id="NOPE", issue_id="x", text="x"), engagements, PRINCIPAL)
     assert unknown.value.status_code == 404
 
 
@@ -82,8 +85,9 @@ def test_a_closed_engagement_gets_a_case_study_from_its_records_with_style_flags
     kept = _commit(engagements, issue, "Publish interim targets", "2026-06-30")
     set_commitment_status(
         kept["commitment_id"],
-        CommitmentStatusRequest(company_id="ACME", issue_id=issue.issue_id, status="verified", decided_by="Lead"),
+        CommitmentStatusRequest(company_id="ACME", issue_id=issue.issue_id, status="verified"),
         engagements,
+        PRINCIPAL,
     )
     engagements.add_correspondence(
         "ACME",
@@ -96,9 +100,9 @@ def test_a_closed_engagement_gets_a_case_study_from_its_records_with_style_flags
             issue_id=issue.issue_id,
             status="resolved",
             outcome="Thanks to our engagement the board set interim targets.",
-            decided_by="Lead",
         ),
         engagements,
+        PRINCIPAL,
     )
     assert engagements.get("ACME").issues[0].status == IssueStatus.RESOLVED
     study = get_case_study("ACME", issue.issue_id, streams, engagements)
@@ -109,6 +113,6 @@ def test_a_closed_engagement_gets_a_case_study_from_its_records_with_style_flags
     assert [f["phrase"] for f in study["style_flags"]] == ["thanks to our engagement"]  # the outcome wording is checked too
     with pytest.raises(HTTPException) as twice:
         close_engagement(
-            CloseRequest(company_id="ACME", issue_id=issue.issue_id, status="closed", outcome="x", decided_by="Lead"), engagements
+            CloseRequest(company_id="ACME", issue_id=issue.issue_id, status="closed", outcome="x"), engagements, PRINCIPAL
         )
     assert twice.value.status_code == 422

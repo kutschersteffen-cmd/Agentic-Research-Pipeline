@@ -6,7 +6,7 @@ from pathlib import Path
 
 import typer
 
-from arp.cli._shared import _run_store
+from arp.cli._shared import _run_store, cli_principal
 from arp.config import get_settings
 from arp.discovery.identity_pipeline import enriched_universe, run_identity_resolution
 from arp.llm.factory import build_llm_client
@@ -62,7 +62,6 @@ def identity_review(
     run_id: str,
     item_key: str = typer.Argument(..., help="The company_id, as shown by `arp identity review-queue`."),
     decision: str = typer.Option(..., help="approve | edit | reject"),
-    by: str = typer.Option(...),
     website: str = typer.Option(None, help="Corrected website. With --decision edit, at least one of --website/--cik is required."),
     cik: str = typer.Option(None, help="Corrected CIK."),
     comment: str = typer.Option(None),
@@ -76,7 +75,9 @@ def identity_review(
         typer.echo("--website and/or --cik is required with --decision edit", err=True)
         raise typer.Exit(1)
     edited_value = {"resolved_website": website, "resolved_cik": cik} if decision == "edit" else None
-    record_review_decision(_run_store(), run_id, item_key, decision, by, edited_value, comment)
+    record_review_decision(
+        _run_store(), run_id, item_key, decision, None, edited_value, comment, principal=cli_principal(get_settings())
+    )
     typer.echo("Recorded.")
 
 

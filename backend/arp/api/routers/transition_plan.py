@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from arp.api.auth import Principal, current_user
 from arp.api.deps import get_decision_store, get_registry, get_run_store, settings_dep
 from arp.api.review_endpoints import (
     ReviewDecisionRequest,
@@ -117,9 +118,10 @@ def get_transition_plan_review_history(
 
 @router.post("/runs/{run_id}/review")
 def submit_transition_plan_review(
-    run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store)
+    run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     return submit_review(
-        run_store, run_id, item_key=req.item_key, decision=req.decision, reviewer=req.reviewer,
+        run_store, run_id, item_key=req.item_key, decision=req.decision, principal=principal,
         edited_value=req.edited_value, comment=req.comment,
     )

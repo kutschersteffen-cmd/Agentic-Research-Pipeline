@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
+from arp.api.auth import Principal, current_user
 from arp.api.deps import get_llm_client, get_run_store, get_verifier_llm_client, settings_dep
 from arp.config import Settings
 from arp.discovery.academic_search import ArxivSearchClient, CompositeSearchClient, SemanticScholarSearchClient
@@ -52,7 +53,7 @@ class ReviseSpecRequest(BaseModel):
 
 
 class ApproveSpecRequest(BaseModel):
-    reviewer: str | None = None
+    pass  # reviewer comes from the signed-in principal; a legacy `reviewer` body field is ignored
 
 
 class BacktestRequest(BaseModel):
@@ -169,20 +170,30 @@ def get_spec_draft(spec_run_id: str, run_store: RunStore = Depends(get_run_store
 
 
 @router.put("/specs/{spec_run_id}")
-def update_spec_draft(spec_run_id: str, spec: StrategySpec, run_store: RunStore = Depends(get_run_store)) -> dict:
+def update_spec_draft(
+    spec_run_id: str,
+    spec: StrategySpec,
+    run_store: RunStore = Depends(get_run_store),
+    principal: Principal = Depends(current_user),
+) -> dict:
     """Direct full-object edit -- the user's own corrected StrategySpec,
     validated by the schema itself. Recorded as an 'edit' decision (never
     overwrites the draft row in place), which un-approves the spec."""
     _spec_run_or_404(run_store, spec_run_id)
     record_review_decision(
-        run_store, spec_run_id, _SPEC_ITEM_KEY, "edit", None, spec.model_dump(mode="json"), comment="direct edit"
+        run_store, spec_run_id, _SPEC_ITEM_KEY, "edit", None, spec.model_dump(mode="json"),
+        comment="direct edit", principal=principal,
     )
     return _spec_state(run_store, spec_run_id)
 
 
 @router.post("/specs/{spec_run_id}/revise")
 async def revise_spec_draft(
-    spec_run_id: str, req: ReviseSpecRequest, run_store: RunStore = Depends(get_run_store), llm: LLMClient = Depends(get_llm_client)
+    spec_run_id: str,
+    req: ReviseSpecRequest,
+    run_store: RunStore = Depends(get_run_store),
+    llm: LLMClient = Depends(get_llm_client),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     """Applies a natural-language instruction to the current spec (see
     arp/replication/spec_revision.py) -- any field it actually changes has
@@ -191,15 +202,21 @@ async def revise_spec_draft(
     current = _current_spec(run_store, spec_run_id)
     revised, _usage = await revise_spec_via_instruction(current, req.instruction, llm)
     record_review_decision(
-        run_store, spec_run_id, _SPEC_ITEM_KEY, "edit", None, revised.model_dump(mode="json"), comment=req.instruction
+        run_store, spec_run_id, _SPEC_ITEM_KEY, "edit", None, revised.model_dump(mode="json"),
+        comment=req.instruction, principal=principal,
     )
     return _spec_state(run_store, spec_run_id)
 
 
 @router.post("/specs/{spec_run_id}/approve")
-def approve_spec_draft(spec_run_id: str, req: ApproveSpecRequest, run_store: RunStore = Depends(get_run_store)) -> dict:
+def approve_spec_draft(
+    spec_run_id: str,
+    req: ApproveSpecRequest,
+    run_store: RunStore = Depends(get_run_store),
+    principal: Principal = Depends(current_user),
+) -> dict:
     _spec_run_or_404(run_store, spec_run_id)
-    record_review_decision(run_store, spec_run_id, _SPEC_ITEM_KEY, "approve", req.reviewer, None, comment=None)
+    record_review_decision(run_store, spec_run_id, _SPEC_ITEM_KEY, "approve", None, None, comment=None, principal=principal)
     return _spec_state(run_store, spec_run_id)
 
 
