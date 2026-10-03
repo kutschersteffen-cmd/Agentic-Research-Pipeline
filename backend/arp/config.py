@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, IPvAnyNetwork, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -52,9 +52,13 @@ class Settings(BaseSettings):
     )
 
     # Paths (all file-based storage lives under these)
-    auth_mode: Literal["local", "dev"] = Field(default="local", description="'local': bearer token looked up in users_file. 'dev': loopback requests are signed in as dev_user (approver).")
+    auth_mode: Literal["local", "dev"] = Field(default="dev", description="'local': bearer token looked up in users_file. 'dev' (default for now): requests from loopback or dev_trusted_networks are signed in as dev_user (approver); everyone else still needs a token.")
     users_file: Path = Field(default=REPO_ROOT / "config" / "users.json", description="JSON file mapping bearer tokens to users and roles; see config/users.example.json.")
     dev_user: str = Field(default="dev", description="user_id/name used for the loopback dev bypass when auth_mode is 'dev'.")
+    dev_trusted_networks: list[IPvAnyNetwork] = Field(
+        default=[],
+        description="Extra CIDRs the dev bypass trusts besides loopback, e.g. the Docker bridge (172.16.0.0/12) when the published port is bound to 127.0.0.1. Ignored in 'local' mode.",
+    )
     allowed_origins: list[str] = Field(default=["http://localhost:5173", "http://127.0.0.1:5173"], description="CORS allow-list for the browser frontend.")
     runs_dir: Path = Field(default=REPO_ROOT / "runs")
     taxonomies_dir: Path = Field(default=REPO_ROOT / "taxonomies")

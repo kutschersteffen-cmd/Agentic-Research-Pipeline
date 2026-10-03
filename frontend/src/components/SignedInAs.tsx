@@ -15,9 +15,11 @@ export function SignedInAs({ compact = false }: { compact?: boolean }) {
         <span>
           Signed in as {me.name} ({me.role})
         </span>
-        <button type="button" className="link-button" onClick={() => setToken("")}>
-          Sign out
-        </button>
+        {token && (
+          <button type="button" className="link-button" onClick={() => setToken("")}>
+            Sign out
+          </button>
+        )}
       </div>
     );
   }

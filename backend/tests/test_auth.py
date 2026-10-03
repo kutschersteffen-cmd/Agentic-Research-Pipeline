@@ -160,3 +160,33 @@ def test_bearer_with_nothing_is_401_even_if_lookup_would_match(tmp_path, monkeyp
     client = TestClient(make_app(Settings(users_file=tmp_path / "u.json", runs_dir=tmp_path / "runs")))
     for header in ("Bearer", "Bearer ", "Bearer    "):
         assert client.post("/approve", headers={"Authorization": header}).status_code == 401
+
+
+def test_default_auth_mode_is_dev():
+    assert Settings.model_fields["auth_mode"].default == "dev"
+
+
+def test_dev_bypass_accepts_trusted_networks_only(users_file, tmp_path):
+    settings = Settings(auth_mode="dev", dev_trusted_networks=["172.16.0.0/12"], users_file=users_file, runs_dir=tmp_path / "runs")
+    app = make_app(settings)
+    inside = TestClient(app, client=("172.18.0.1", 5000)).post("/approve")
+    assert inside.status_code == 200 and inside.json()["user_id"] == "dev"
+    assert TestClient(app, client=("192.168.1.20", 5000)).post("/approve").status_code == 401
+    assert TestClient(app, client=("172.32.0.1", 5000)).post("/approve").status_code == 401
+    # a token still works from outside
+    assert TestClient(app, client=("192.168.1.20", 5000)).post("/approve", headers=bearer("tp")).status_code == 200
+
+
+def test_local_mode_ignores_trusted_networks(users_file, tmp_path):
+    settings = Settings(auth_mode="local", dev_trusted_networks=["172.16.0.0/12"], users_file=users_file, runs_dir=tmp_path / "runs")
+    app = make_app(settings)
+    assert TestClient(app, client=("172.18.0.1", 5000)).post("/approve").status_code == 401
+    assert TestClient(app, client=("127.0.0.1", 5000)).post("/approve").status_code == 401
+
+
+def test_dev_trusted_networks_from_env(monkeypatch):
+    monkeypatch.setenv("ARP_DEV_TRUSTED_NETWORKS", '["172.16.0.0/12"]')
+    assert [str(n) for n in Settings().dev_trusted_networks] == ["172.16.0.0/12"]
+    monkeypatch.setenv("ARP_DEV_TRUSTED_NETWORKS", '["not-a-cidr"]')
+    with pytest.raises(ValueError):
+        Settings()

@@ -32,14 +32,26 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    # Bound to the loopback interface, not every interface. A bare "8000:8000"
-    # publishes on 0.0.0.0. The API now requires a bearer token per user
-    # (config/users.json, see README "Sign-in"), but those are shared-secret
-    # tokens over plain HTTP: put TLS in front before widening this.
+    # Bound to 127.0.0.1 only -- keep it that way. The app runs in dev sign-in
+    # mode (README "Sign-in"): there is no token, and every request from
+    # loopback or ARP_DEV_TRUSTED_NETWORKS is signed in as the dev approver.
+    # The browser's requests reach this container from the Docker bridge
+    # (172.16.0.0/12), not loopback, hence the trusted range below. That is
+    # only safe because the published port is loopback-bound: a bare
+    # "8000:8000" publishes on 0.0.0.0, Docker would forward LAN traffic in
+    # through the bridge too, and every host on the network would become an
+    # approver. (Other containers on the compose network are trusted as well.)
+    # Switching to real sign-in: create config/users.json, set
+    # ARP_AUTH_MODE=local below and drop ARP_DEV_TRUSTED_NETWORKS. Tokens are
+    # shared secrets over plain HTTP, so put TLS in front before widening ports.
     ports:
       - "127.0.0.1:8000:8000"
     env_file:
       - backend/.env
+    environment:  # overrides backend/.env
+      ARP_AUTH_MODE: dev
+      ARP_DEV_TRUSTED_NETWORKS: '["172.16.0.0/12"]'
+      ARP_USERS_FILE: /app/config/users.json
     volumes:
       - arp_runs:/app/runs
       - arp_taxonomies:/app/taxonomies
@@ -50,12 +62,11 @@ services:
       - arp_cache:/app/backend/.cache
       - arp_discovery_state:/app/backend/.discovery_state
       - arp_document_store:/app/backend/.document_store
-      # Sign-in users (README "Sign-in"). Create config/users.json from
-      # config/users.example.json first: if it is missing, Docker mounts an
-      # empty directory and every request fails with "users file invalid".
-      # Restart the backend after editing it. ARP_AUTH_MODE=dev does not work
-      # here: requests reach the container from the bridge, not loopback.
-      - ./config/users.json:/app/config/users.json:ro
+      # Sign-in users for local mode (README "Sign-in"): config/users.json,
+      # created from config/users.example.json. Not needed in dev mode. The
+      # whole directory is mounted so a missing users.json is not turned into
+      # an empty directory by Docker. Restart the backend after editing it.
+      - ./config:/app/config:ro
 
   frontend:
     build:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 import json
 from collections.abc import Callable
 from functools import lru_cache
@@ -47,8 +48,19 @@ def load_users(path: Path) -> dict[str, Principal]:
     return {u.token.strip(): Principal(user_id=u.user_id, name=u.name, role=u.role) for u in users}
 
 
+def _dev_trusted(host: str, settings: Settings) -> bool:
+    """Loopback, or an address in dev_trusted_networks (the Docker bridge, say)."""
+    if host in LOOPBACK_HOSTS:
+        return True
+    try:
+        addr = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return any(addr in net for net in settings.dev_trusted_networks)
+
+
 async def current_user(request: Request, settings: Settings = Depends(settings_dep)) -> Principal:
-    if settings.auth_mode == "dev" and request.client and request.client.host in LOOPBACK_HOSTS:
+    if settings.auth_mode == "dev" and request.client and _dev_trusted(request.client.host, settings):
         return Principal(user_id=settings.dev_user, name=settings.dev_user, role="approver")
     scheme, _, token = request.headers.get("Authorization", "").partition(" ")
     token = token.strip()
