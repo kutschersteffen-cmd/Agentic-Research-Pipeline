@@ -136,6 +136,7 @@ Set `ARP_SUPERSET_PASSWORD`, `ARP_BI_READER_PASSWORD`, `SUPERSET_SECRET_KEY` and
 characters. Generate each with `openssl rand -base64 42`. `ARP_SUPERSET_URL` (default `http://127.0.0.1:8088`) and
 `ARP_SUPERSET_USER` (default `arp_designer`) have defaults; `ARP_BI_SUPERSET_DB_HOST` (default `postgres:5432`) is the
 host:port Superset uses to reach Postgres.
+Each `arp bi bootstrap` overwrites the dataset description and the descriptions of catalogue-named columns from `backend/arp/bi/catalog.py`, so edit them there, not in Superset.
 
 ```bash
 docker compose --env-file backend/.env up -d postgres superset   # first start builds superset/Dockerfile

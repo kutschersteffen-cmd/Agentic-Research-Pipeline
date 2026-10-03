@@ -245,3 +245,41 @@ def test_sync_descriptions_is_idempotent():
     c.sync_descriptions(5, "Dataset text.", {"a": "Col a."})
     c.sync_descriptions(5, "Dataset text.", {"a": "Col a."})
     assert len(_puts(calls)) == 1
+
+
+def test_sync_descriptions_drops_empty_length_validated_fields_but_keeps_flags():
+    state = _state()
+    state["columns"][0].update(verbose_name="", advanced_data_type="", python_date_format="", groupby=False)
+    state["metrics"][0].update(metric_type="", d3format="", currency="", verbose_name="")
+    c, calls = _client(_dataset_handler(state))
+    c.sync_descriptions(5, "Dataset text.", {"a": "Col a."})
+    body = json.loads(_puts(calls)[0].content)
+    col, metric = body["columns"][0], body["metrics"][0]
+    assert col["id"] == 1 and col["groupby"] is False and col["filterable"] is True
+    assert not {"verbose_name", "advanced_data_type", "python_date_format"} & set(col)
+    assert metric["id"] == 9 and not {"metric_type", "d3format", "currency", "verbose_name"} & set(metric)
+
+
+def test_sync_descriptions_puts_again_when_catalog_description_changes():
+    state = _state()
+
+    def h(r):
+        if r.method == "PUT":
+            body = json.loads(r.content)
+            state["description"] = body["description"]
+            for col, new in zip(state["columns"], body["columns"], strict=True):
+                col["description"] = new["description"]
+        return httpx.Response(200, json={"result": state})
+
+    c, calls = _client(h)
+    c.sync_descriptions(5, "One.", {"a": "Col a."})
+    c.sync_descriptions(5, "Two.", {"a": "Col a."})
+    assert len(_puts(calls)) == 2
+
+
+def test_sync_descriptions_treats_none_and_empty_as_equal():
+    state = _state()
+    state["columns"][0]["description"] = ""
+    c, calls = _client(_dataset_handler(state))
+    c.sync_descriptions(5, "", {"a": ""})  # stored: description None, column a ""
+    assert _puts(calls) == []

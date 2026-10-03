@@ -129,6 +129,9 @@ class SupersetClient:
         """Sets the dataset description and the named columns' descriptions.
         The PUT replaces the columns and metrics lists, so every existing
         item goes back with its id and writable fields; no PUT if nothing differs."""
+        # The catalog owns the dataset description and the descriptions of the columns it names:
+        # they are overwritten on every bootstrap (edit catalog.py, not Superset). Catalog columns
+        # absent from the dataset are silently ignored.
         ds = self._dataset(dataset_id)
         cols = ds.get("columns", [])
         changed = (ds.get("description") or "") != description or any(
@@ -242,8 +245,13 @@ _METRIC_FIELDS = (
 )  # fmt: skip
 
 
+# Superset validates these with Length(1, N), so "" would 422; drop them when empty.
+# description/expression/extra and booleans pass through ("" and False are real values).
+_NONEMPTY = {"verbose_name", "advanced_data_type", "python_date_format", "metric_type", "d3format", "currency"}
+
+
 def _keep(item: dict, fields: tuple[str, ...]) -> dict:
-    return {k: item[k] for k in fields if item.get(k) is not None}
+    return {k: item[k] for k in fields if item.get(k) is not None and (item[k] != "" or k not in _NONEMPTY)}
 
 
 def _query(form_data: dict) -> dict:
