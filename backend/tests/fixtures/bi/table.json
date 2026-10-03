@@ -1,0 +1,17 @@
+{
+  "query_mode": "aggregate",
+  "groupby": [
+    "portfolio_name",
+    "sector"
+  ],
+  "metrics": [
+    "Exposure (EUR)",
+    "Holdings"
+  ],
+  "all_columns": [],
+  "percent_metrics": [],
+  "adhoc_filters": [],
+  "order_desc": true,
+  "row_limit": 1000,
+  "table_timestamp_format": "smart_date"
+}

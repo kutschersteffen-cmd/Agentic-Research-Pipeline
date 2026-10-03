@@ -17,6 +17,7 @@ from arp.api.deps import (
     settings_dep,
 )
 from arp.api.routers import (
+    bi,
     calibration,
     climate,
     decision,
@@ -26,7 +27,6 @@ from arp.api.routers import (
     engagement,
     extraction,
     financials,
-    genbi,
     identity,
     index,
     overlap,
@@ -106,7 +106,7 @@ app.include_router(transition_barrier.router)
 app.include_router(portfolio.router)
 app.include_router(climate.router)
 app.include_router(decision.router)
-app.include_router(genbi.router)
+app.include_router(bi.router)
 app.include_router(search.router)
 app.include_router(emerging_themes.router)
 app.include_router(taxonomy_researcher.router)

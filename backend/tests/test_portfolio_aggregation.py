@@ -68,6 +68,17 @@ def test_weighted_avg_datapoint_requires_values():
         aggregate([], {}, {}, group_by="portfolio_id", metric="weighted_avg_datapoint", as_of="2026-01-01")
 
 
+def test_weighted_avg_datapoint_with_no_coverage_is_empty_not_an_error():
+    # an empty mapping means "resolved, nothing covered" (e.g. freshly imported holdings)
+    securities = {"a": _security("a", "co_a")}
+    holdings = [_holding("p1", "a", "2026-01-01", 60.0)]
+    kw = dict(metric="weighted_avg_datapoint", as_of="2026-01-01", data_point_values={})
+    result = aggregate(holdings, securities, {}, group_by="portfolio_id", **kw)
+    assert result.rows[0].weighted_avg_value is None and result.unresolved_market_value_eur == 60.0
+    piv = pivot(holdings, securities, {}, row_dim="portfolio_id", col_dim="asset_class", **kw)
+    assert [c.weighted_avg_value for c in piv.cells] == [None]
+
+
 def test_unresolved_company_groups_separately():
     securities = {"x": _security("x", None)}
     companies: dict = {}

@@ -139,7 +139,7 @@ export function MonitoringAlerts() {
       <section className="card">
         <h2>Add a monitoring rule</h2>
         <p className="help-text">
-          Flag a breach when a figure crosses a threshold, computed by the same engine as Pivot Explorer. Factor, PAI
+          Flag a breach when a figure crosses a threshold, computed by the portfolio aggregation engine. Factor, PAI
           and benchmark-relative rules are not available yet.
         </p>
         <div className="toolbar">

@@ -1,0 +1,37 @@
+[
+  {
+    "brief": "How is our portfolio exposure split by sector?",
+    "must_include": {"datasets": ["holdings"], "viz_types": [], "metrics": ["Exposure (EUR)"]},
+    "must_refuse": false
+  },
+  {
+    "brief": "Show the share of the portfolio held in each country as a pie chart.",
+    "must_include": {"datasets": ["holdings"], "viz_types": ["pie"], "metrics": []},
+    "must_refuse": false
+  },
+  {
+    "brief": "How many facts are still waiting for review, per company?",
+    "must_include": {"datasets": ["company_facts_pending"], "viz_types": [], "metrics": ["Facts"]},
+    "must_refuse": false
+  },
+  {
+    "brief": "What is the average extraction confidence of our approved company facts by fact type?",
+    "must_include": {"datasets": ["company_facts"], "viz_types": [], "metrics": ["Avg confidence"]},
+    "must_refuse": false
+  },
+  {
+    "brief": "What share of pipeline run records needed review over time?",
+    "must_include": {"datasets": ["run_records"], "viz_types": ["echarts_timeseries_line"], "metrics": ["% needing review"]},
+    "must_refuse": false
+  },
+  {
+    "brief": "What will the share price of our top holding be next quarter?",
+    "must_include": {},
+    "must_refuse": true
+  },
+  {
+    "brief": "Show employee headcount by department for each portfolio company.",
+    "must_include": {},
+    "must_refuse": true
+  }
+]

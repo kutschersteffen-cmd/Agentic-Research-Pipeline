@@ -77,6 +77,8 @@ def test_a_missing_column_is_reported_then_added(current_schema):
     to discover as an UndefinedColumn error at query time."""
     from arp.storage.postgres_schema import ensure_schema, schema_report
 
+    # bi.company_facts / bi.run_records select needs_review, which blocks the DROP.
+    _execute("DROP SCHEMA IF EXISTS bi CASCADE")
     _execute("ALTER TABLE company_records DROP COLUMN needs_review")
 
     report = schema_report(DSN)
@@ -87,6 +89,12 @@ def test_a_missing_column_is_reported_then_added(current_schema):
     report = schema_report(DSN)
     assert report["missing_columns"] == []
     assert report["current"] is True
+
+    from arp.bi.views import create_bi_views
+    from arp.storage.postgres import get_engine
+
+    with get_engine(DSN).begin() as conn:
+        create_bi_views(conn)  # the migration only runs once per DB
 
 
 def test_a_column_the_models_dropped_is_reported_as_drift_not_removed(current_schema):

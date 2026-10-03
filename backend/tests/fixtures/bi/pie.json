@@ -1,0 +1,11 @@
+{
+  "groupby": ["sector"],
+  "metric": "Exposure (EUR)",
+  "adhoc_filters": [],
+  "row_limit": 100,
+  "sort_by_metric": true,
+  "show_legend": true,
+  "show_labels": true,
+  "label_type": "key",
+  "number_format": "SMART_NUMBER"
+}

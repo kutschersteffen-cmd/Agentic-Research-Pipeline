@@ -24,13 +24,14 @@ file-based state by default — no database required.
 | 7 | **Indirect Exposure Tier** *(opt-in)* | Structural supply-chain exposure via OECD ICIO input-output propagation. Purely quantitative, zero LLM calls. |
 | 8 | **Transition Plan Assessment** | Replication of Colesanti Senni et al. (2024): 64 fixed indicators scored "walk" vs. "talk", each with a grounded RAG verdict. |
 | 9 | **Transition Barrier Assessment** | Sector-level counterpart: a 105-cell matrix (35 criteria × 9 hard-to-abate sectors × EU/US/China) backed by 86 verified sources, with staleness tracking and a propose-never-apply EUR-Lex refresh pipeline. |
-| 10 | **Portfolio Risk & Exposure Monitoring** | Deterministic holdings aggregation, an NL Q&A agent (LLM drafts the query, the engine computes the number), a **Generative BI** layer that plans whole dashboards, and **Climate Analytics** (WACI, PCAF-style financed emissions, coverage). |
+| 10 | **Portfolio Risk & Exposure Monitoring** | Deterministic holdings aggregation, an NL Q&A agent (LLM drafts the query, the engine computes the number), a **Dashboards (Superset)** tab that embeds every `arp-` dashboard (a provisioned exposure dashboard with Fund/Sector/Country filters, hand-built ones, and drafts from the Superset designer), and **Climate Analytics** (WACI, PCAF-style financed emissions, coverage). |
 | 11 | **Investment Strategy Replication** | Reduces a strategy paper to an executable spec, then backtests it deterministically in- and out-of-sample, with deflated Sharpe, PBO via purged/embargoed CSCV, and regime stratification. |
 | 12 | **Emerging Themes Scanner** | Bottom-up theme discovery from EDGAR full-text search, GDELT and regulatory RSS, with cross-period cluster lineage and an action-score promotion gate (corporate action, not mention counts). |
 | 13 | **Presentation & Reporting Tool** | One LLM call drafts a report plan; deterministic renderers emit pptx/docx/pdf, reusing an ingested `.pptx` template's layouts, colors and fonts. House decks (`house_deck`) draft a storyline for you to approve, then fill, lint, fit and visually check each slide in the app's own design system, and can be re-run on fresh pipeline data. |
 | 15 | **Decision Studio** | Turns any per-entity table the functions above produce into a scored, ranked and tiered decision — entities are companies, sectors in a jurisdiction, themes or strategies, since the engine scores rows. Correlated criteria are grouped so one theme measured seven ways doesn't earn seven times the weight; criteria are normalised within peer cohorts; direction is inferred and *flagged where it is a guess*. Gates resolve before the average, a sufficiency gate precedes scoring, and every entity carries its rank *range* across four specifications. Frameworks are versioned and ratifiable; the audit log separates what the data proposed from what a person changed. Zero LLM calls. |
 | 16 | **Equity Index Construction** | Builds an index methodology by composing named rules — ordered screens, one selection rule (best-in-class to a market-cap *or* count coverage target with hysteresis buffers, an absolute threshold, or top-N), a weighting scheme, bounded multiplicative tilts, a deterministic capping waterfall (single-name, group, UCITS 5/10/40) and the path-dependent EU PAB/CTB decarbonisation trajectory. Zero LLM calls in the numbers: a model-derived thematic score enters only as a frozen, effective-dated snapshot. The composition saves as a versioned, effective-dated **calibration**, and a review resolves the version *in force on its review date*, so today's parameters cannot rewrite a past one. Optionally (`.[optimize]`) swaps the waterfall for a convex programme — least-squares projection, minimum tracking error, or score maximisation under a TE budget on an estimated or vendor risk model — or a mixed-integer one on SCIP for cardinality limits and a genuinely enforced minimum weight. Every constraint is re-verified in plain Python afterwards; a solver's own "optimal" is never taken as proof. |
 | 14 | **Standing agents** | Taxonomy Researcher and Calibration Agent run on a schedule and *propose* changes for human review — they never apply them. |
+| 17 | **Superset BI Designer** *(opt-in)* | Describe a dashboard in words and get an unpublished draft in Apache Superset. The LLM plans, deterministic code compiles, Superset computes: a closed catalogue of datasets and metrics bounds the plan, a validator rejects anything outside it, and the model never writes SQL or sees a number. Reads only the `bi` views over Postgres, so company facts are the reviewed ones. Drafts only; a person publishes. |
 
 ## Architecture
 
@@ -77,7 +78,7 @@ uvicorn arp.api.main:app --reload            # API on :8000
 
 # Frontend
 cd frontend && npm install
-cp .env.example .env            # VITE_API_BASE
+cp .env.example .env            # VITE_API_BASE, VITE_SUPERSET_URL
 npm run dev                                   # UI on :5173
 ```
 
@@ -124,6 +125,56 @@ outbound requests reach SEC EDGAR, GDELT, regulatory RSS and crawled IR
 sites. Everything else stays on local disk. Review this against your
 organization's data-handling policy before pointing it at real holdings.
 
+## Superset BI
+
+Optional. Needs Postgres as the portfolio store, with the projections the `bi` views read switched on (`backend/.env.example` lists them):
+`ARP_PORTFOLIO_BACKEND=postgres`, `ARP_POSTGRES_DSN`, `ARP_COMPANY_RECORDS_PROJECTION_ENABLED=true`, `ARP_COMPANY_FACTS_PROJECTION_ENABLED=true`
+(and the document-registry and engagement projections if you want those views filled).
+
+Set `ARP_SUPERSET_PASSWORD`, `ARP_BI_READER_PASSWORD`, `SUPERSET_SECRET_KEY` and `SUPERSET_GUEST_TOKEN_JWT_SECRET` in
+`backend/.env`. None has a default and the `change-me` placeholders are refused; the two Superset secrets need 32+
+characters. Generate each with `openssl rand -base64 42`. `ARP_SUPERSET_URL` (default `http://127.0.0.1:8088`) and
+`ARP_SUPERSET_USER` (default `arp_designer`) have defaults; `ARP_BI_SUPERSET_DB_HOST` (default `postgres:5432`) is the
+host:port Superset uses to reach Postgres.
+
+```bash
+docker compose --env-file backend/.env up -d postgres superset   # first start builds superset/Dockerfile
+arp db init-postgres                                             # schema + `bi` views
+ARP_PORTFOLIO_BACKEND=postgres arp portfolio seed-demo           # demo holdings into Postgres (with ARP_POSTGRES_DSN set)
+arp bi bootstrap                                                 # views, bi_reader role, Superset database, datasets, metrics, descriptions, templates (idempotent)
+arp golden-set bi                                                # planner eval; needs an API key, not run in CI
+```
+
+`arp bi bootstrap` re-applies the `bi` views (including `holdings_history`), registers the six datasets and their
+metrics, and copies descriptions from `backend/arp/bi/catalog.py`. Each run overwrites the dataset description and the
+descriptions of catalogue-named columns, so edit them there, not in Superset. It then provisions the standard
+dashboards in `backend/arp/bi/templates/` (today `arp-risk-exposure`: 8 charts, native filters Fund, Sector and Country)
+and prints `{"templates": {"arp-risk-exposure": "created" | "rebuilt" | "unchanged"}}` with the rest of its output.
+The dashboard is created unpublished; publish it in Superset. One that has at least the template's charts is left alone.
+One with fewer is deleted and rebuilt (its old charts stay), and the rebuild is unpublished again. Existing
+deployments must re-run `arp bi bootstrap` after upgrading: the AI designer needs every catalogue dataset, including
+`holdings_history`.
+
+Set `VITE_SUPERSET_URL` in `frontend/.env`, then open Risk Monitoring, Dashboards (Superset). This one tab replaces
+Pivot Explorer, Generative BI and Superset BI (old links land on it); Standard Analytics, Monitoring & Alerts, Company
+Profiles, Ask the Portfolio and Governance & Audit are unchanged. The picker lists every Superset dashboard whose slug
+starts with `arp-` and opens on `arp-risk-exposure`. To add a dashboard you built by hand, set its slug to `arp-<name>`
+in Superset's dashboard Properties and reload the tab. The weighted-average climate pivots Pivot Explorer had now
+live only in Standard Analytics.
+
+The UI embeds a draft through `POST /api/bi/embed-token {dashboard_id}`, which answers `{token, embedded_id}`
+(`service.embed_token` returns `(embedded_id, token)`). Only arp- dashboards (slug `arp-...`, the scratch one and
+hand-built ones included) are embeddable: another dashboard id gets 403, an unknown one 404.
+
+Caveats:
+- Drafts only. Publishing a dashboard is a human step in Superset.
+- The `superset/Dockerfile` build (adds psycopg2 to `apache/superset:5.0.0`) is unverified end to end: the sandbox proxy's TLS blocked it, and it was tested with an equivalent local image. Run `docker compose build superset` on a normal machine before relying on it.
+- Embedding is verified in Chromium only.
+- The first-embed lock is in-process, so run a single uvicorn worker.
+- Demo data lives in files; seed it into Postgres (`ARP_PORTFOLIO_BACKEND=postgres arp portfolio seed-demo`) before the views have anything to show.
+- Postgres 15 or later is assumed (compose runs pg16). Before 15, every role, `bi_reader` included, gets CREATE on schema `public` through PUBLIC, which bootstrap's REVOKE does not remove.
+- `frame-ancestors` lists only `http://localhost:5173` and `http://127.0.0.1:5173` (the dev UI). Add production origins in `superset/superset_config.py`.
+
 ## CLI
 
 The CLI drives the same pipelines as the API and is the intended path for
@@ -140,7 +191,6 @@ arp transition-plan run --universe companies.csv
 arp transition-barrier scores --region China --pillar Regulation
 arp emerging-themes run --universe companies.csv
 arp replicate backtest --spec spec.json --prices prices.csv --tickers universe.csv
-arp portfolio bi generate "climate risk overview of the leaders fund" --save
 arp climate waci --group-by portfolio_id
 arp decision derive --source transition_plan_run --run-id <run_id> --save   # no API key: zero LLM calls
 arp decision score --source transition_barrier --region "European Union"  # entity = sector, not company
@@ -238,4 +288,4 @@ Re-run `arp db init-postgres` after upgrading, not only on a fresh database.
 | [`INDEX_CONSTRUCTION.md`](docs/INDEX_CONSTRUCTION.md) | How the index engine builds a review, stage by stage, with a verified UI walkthrough |
 | [`TRANSITION_BARRIER_ASSESSMENT.md`](docs/TRANSITION_BARRIER_ASSESSMENT.md) | The 35 criteria and their source lists |
 | [`EMERGING_THEMES_VOCABULARY.md`](docs/EMERGING_THEMES_VOCABULARY.md) | How each scored dimension maps to the research vocabulary |
-| [`THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md`](docs/THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md), [`GENBI_LANDSCAPE_REVIEW.md`](docs/GENBI_LANDSCAPE_REVIEW.md), [`DATABASE_STORAGE_REVIEW.md`](docs/DATABASE_STORAGE_REVIEW.md), [`SPEC_GAP_ANALYSIS.md`](docs/SPEC_GAP_ANALYSIS.md) | Architecture reviews and gap analyses |
+| [`THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md`](docs/THEMATIC_INTELLIGENCE_ARCHITECTURE_REVIEW.md), [`DATABASE_STORAGE_REVIEW.md`](docs/DATABASE_STORAGE_REVIEW.md), [`SPEC_GAP_ANALYSIS.md`](docs/SPEC_GAP_ANALYSIS.md) | Architecture reviews and gap analyses |

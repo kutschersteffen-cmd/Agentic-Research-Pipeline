@@ -1,0 +1,350 @@
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+
+import pytest
+
+from arp.bi import service
+from arp.bi.catalog import BI_DATABASE, VIEW_DATASETS
+from arp.bi.compiler import plan_hash
+from arp.bi.plan import ChartPlan, ChartSpec, DatasetMeta
+from arp.bi.planner import PlannerRefusal
+from arp.bi.service import BIError, ask_chart, design_dashboard, embed_token
+from arp.bi.superset_client import SupersetError
+from arp.llm.base import LLMClient, LLMUsage
+
+WRITES = {"create_chart", "create_dashboard", "update_dashboard", "delete_chart", "delete_dashboard", "ensure_embedded"}
+
+
+class FakeLLM(LLMClient):
+    def __init__(self, *outputs: PlannerRefusal) -> None:
+        self.outputs = list(outputs)
+        self.prompts: list[str] = []
+
+    async def complete_structured(self, *, system, prompt, output_model, **kw):
+        self.prompts.append(prompt)
+        return self.outputs.pop(0), LLMUsage()
+
+
+class FakeClient:
+    """In-memory SupersetClient: records every call, can fail the Nth create_chart."""
+
+    def __init__(self, fail_on_chart: int | None = None) -> None:
+        self.calls: list[tuple] = []
+        self.fail_on_chart = fail_on_chart
+        self.charts: dict[int, str] = {}
+        self.dashboards: dict[str, dict] = {}  # slug -> {id, published, charts, position}
+        self.datasets = {d.table: i for i, d in enumerate(VIEW_DATASETS.values(), start=1)}
+        self._next = 100
+
+    def _id(self) -> int:
+        self._next += 1
+        return self._next
+
+    def find_database(self, name):
+        self.calls.append(("find_database", name))
+        return 1 if name == BI_DATABASE else None
+
+    def find_dataset(self, database_id, schema, table):
+        self.calls.append(("find_dataset", table))
+        return self.datasets.get(table)
+
+    def dataset_meta(self, dataset_id):
+        self.calls.append(("dataset_meta", dataset_id))
+        name = next(n for n, d in VIEW_DATASETS.items() if self.datasets[d.table] == dataset_id)
+        d = VIEW_DATASETS[name]
+        return DatasetMeta(columns=set(d.columns), metrics={m.name for m in d.metrics})
+
+    def create_chart(self, name, dataset_id, viz_type, params):
+        self.calls.append(("create_chart", name))
+        if self.fail_on_chart == len([c for c in self.calls if c[0] == "create_chart"]):
+            raise SupersetError(422, "bad params")
+        cid = self._id()
+        self.charts[cid] = name
+        return cid
+
+    def create_dashboard(self, title, slug, position_json, chart_ids, json_metadata=None):
+        self.calls.append(("create_dashboard", slug))
+        did = self._id()
+        # The real client always sends published=False; record it as the payload would.
+        self.dashboards[slug] = {
+            "id": did, "published": False, "charts": list(chart_ids), "position": position_json, "meta": json_metadata,
+        }  # fmt: skip
+        return did
+
+    def update_dashboard(self, dashboard_id, position_json, chart_ids):
+        self.calls.append(("update_dashboard", dashboard_id))
+        d = next(d for d in self.dashboards.values() if d["id"] == dashboard_id)
+        d["charts"] += [c for c in chart_ids if c not in d["charts"]]
+        d["position"] = position_json
+
+    def dashboard_charts(self, dashboard_id):
+        self.calls.append(("dashboard_charts", dashboard_id))
+        d = next(d for d in self.dashboards.values() if d["id"] == dashboard_id)
+        return {c: self.charts[c] for c in d["charts"]}
+
+    def get_dashboard(self, id):
+        self.calls.append(("get_dashboard", id))
+        for slug, d in self.dashboards.items():
+            if d["id"] == id:
+                return {"id": id, "slug": slug, "published": d["published"]}
+        raise SupersetError(404, '{"message": "Not found"}')
+
+    def find_dashboard(self, slug):
+        self.calls.append(("find_dashboard", slug))
+        return self.dashboards[slug]["id"] if slug in self.dashboards else None
+
+    def delete_chart(self, id):
+        self.calls.append(("delete_chart", id))
+        del self.charts[id]
+
+    def delete_dashboard(self, id):
+        self.calls.append(("delete_dashboard", id))
+        self.dashboards = {k: d for k, d in self.dashboards.items() if d["id"] != id}
+
+    def ensure_embedded(self, dashboard_id):
+        self.calls.append(("ensure_embedded", dashboard_id))
+        return "uuid-1"
+
+    def guest_token(self, dashboard_id, rls):
+        self.calls.append(("guest_token", dashboard_id, rls))
+        return "tok"
+
+    def writes(self) -> list[tuple]:
+        return [c for c in self.calls if c[0] in WRITES]
+
+
+def _spec(title: str, **kw) -> ChartSpec:
+    spec = dict(title=title, viz_type="pie", dataset="holdings", metrics=["Exposure (EUR)"], groupby=["sector"])
+    spec.update(kw)
+    return ChartSpec(**spec)
+
+
+PLAN = ChartPlan(title="Exposure", charts=[_spec("A"), _spec("B"), _spec("C")])
+
+
+def run(coro):
+    return asyncio.run(coro)
+
+
+def test_rejected_plan_makes_no_superset_writes():
+    client = FakeClient()
+    res = run(design_dashboard("weather?", FakeLLM(PlannerRefusal(clarification_needed="No weather data.")), client))
+    assert res.dashboard_id is None and res.plan is None and res.url is None
+    assert res.rejected == ["No weather data."]
+    assert client.writes() == []
+
+
+def test_missing_dataset_fails_clearly_before_planning():
+    client = FakeClient()
+    del client.datasets["holdings"]
+    llm = FakeLLM()
+    with pytest.raises(BIError, match="arp bi bootstrap"):
+        run(design_dashboard("x", llm, client))
+    assert llm.prompts == [] and client.writes() == []
+
+
+def test_failure_on_third_chart_deletes_first_two():
+    client = FakeClient(fail_on_chart=3)
+    with pytest.raises(BIError, match="'C'"):
+        run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    assert [c for c in client.calls if c[0] == "delete_chart"] == [("delete_chart", 101), ("delete_chart", 102)]
+    assert client.charts == {} and not any(c[0] == "create_dashboard" for c in client.calls)
+
+
+def test_dashboard_failure_deletes_charts_but_never_a_dashboard():
+    client = FakeClient()
+
+    def boom(title, slug, position_json, chart_ids, json_metadata=None):
+        raise SupersetError(500, "attach failed")  # the client removes its own half-made dashboard
+
+    client.create_dashboard = boom
+    with pytest.raises(BIError, match="Exposure"):
+        run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    assert client.charts == {} and not any(c[0] == "delete_dashboard" for c in client.calls)
+
+
+def test_compile_error_mid_way_still_deletes_created_charts(monkeypatch):
+    real = service.compile_chart
+    n = {"calls": 0}
+
+    def flaky(spec, dataset_id):
+        n["calls"] += 1
+        if n["calls"] == 2:
+            raise ValueError("compiler bug")
+        return real(spec, dataset_id)
+
+    monkeypatch.setattr(service, "compile_chart", flaky)
+    client = FakeClient()
+    with pytest.raises(ValueError, match="compiler bug"):
+        run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    assert ("delete_chart", 101) in client.calls and client.charts == {}
+
+
+def test_cleanup_failure_does_not_mask_original_error():
+    client = FakeClient(fail_on_chart=3)
+
+    def bad_delete(id):
+        raise SupersetError(500, "delete failed")
+
+    client.delete_chart = bad_delete
+    with pytest.raises(BIError, match="'C'"):
+        run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+
+
+def test_half_built_dashboard_under_slug_is_rebuilt():
+    client = FakeClient()
+    slug = f"arp-{plan_hash(PLAN)}"
+    client.dashboards[slug] = {"id": 50, "published": False, "charts": [], "position": {}}
+    res = run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    assert [c for c in client.calls if c[0].startswith("delete")] == [("delete_dashboard", 50)]
+    assert list(client.dashboards) == [slug] and res.dashboard_id == client.dashboards[slug]["id"] != 50
+    assert client.dashboards[slug]["charts"] == [101, 102, 103]
+
+
+def test_dashboard_a_person_extended_is_reused_not_rebuilt():
+    client = FakeClient()
+    first = run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    slug = f"arp-{plan_hash(PLAN)}"
+    client.charts[200] = "Added by hand"
+    client.dashboards[slug]["charts"].append(200)
+    n_writes = len(client.writes())
+    again = run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    assert again.dashboard_id == first.dashboard_id and len(client.writes()) == n_writes
+    assert client.dashboards[slug]["charts"] == [101, 102, 103, 200]
+
+
+def test_rebuild_keeps_charts_shared_with_other_dashboards():
+    client = FakeClient()
+    slug = f"arp-{plan_hash(PLAN)}"
+    client.charts[7] = "Shared"  # a person also put this chart on their own dashboard
+    client.dashboards["mine"] = {"id": 60, "published": False, "charts": [7], "position": {}}
+    client.dashboards[slug] = {"id": 50, "published": False, "charts": [7], "position": {}}
+    run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    assert [c for c in client.calls if c[0].startswith("delete")] == [("delete_dashboard", 50)]
+    assert client.charts[7] == "Shared" and client.dashboards["mine"]["charts"] == [7]
+
+
+def test_dashboard_created_unpublished():
+    client = FakeClient()
+    res = run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    slug = f"arp-{plan_hash(PLAN)}"
+    assert res.slug == slug and res.plan == PLAN and res.rejected == []
+    assert res.url.endswith(f"/superset/dashboard/{slug}/")
+    dash = client.dashboards[slug]
+    assert res.dashboard_id == dash["id"] and dash["published"] is False
+    assert dash["charts"] == [101, 102, 103]
+    assert [k for k in dash["position"] if k.startswith("CHART-")] == ["CHART-101", "CHART-102", "CHART-103"]
+
+
+def test_same_plan_reuses_dashboard_by_slug():
+    client = FakeClient()
+    first = run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    n_writes = len(client.writes())
+    again = run(design_dashboard("exposure", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    assert again.dashboard_id == first.dashboard_id and again.slug == first.slug
+    assert len(client.writes()) == n_writes
+
+
+def test_ask_lands_on_scratch_dashboard():
+    client = FakeClient()
+    q1 = ChartPlan(title="Q", charts=[_spec("By sector"), _spec("Extra")])
+    q2 = ChartPlan(title="Q", charts=[_spec("By portfolio", groupby=["portfolio_name"])])
+    llm = FakeLLM(PlannerRefusal(plan=q1), PlannerRefusal(plan=q2))
+    r1 = run(ask_chart("exposure by sector?", llm, client))
+    r2 = run(ask_chart("exposure by portfolio?", llm, client))
+    assert r1.slug == r2.slug == "arp-scratch" and r1.dashboard_id == r2.dashboard_id
+    assert [c.title for c in r1.plan.charts] == ["By sector"]  # one chart per question
+    assert "one chart" in llm.prompts[0]
+    dash = client.dashboards["arp-scratch"]
+    assert dash["published"] is False and dash["charts"] == [101, 103]
+    # position_json rebuilt from all of the scratch dashboard's charts
+    assert [k for k in dash["position"] if k.startswith("CHART-")] == ["CHART-101", "CHART-103"]
+    assert [c[0] for c in client.writes()] == ["create_chart", "create_dashboard", "create_chart", "update_dashboard"]
+
+
+def test_ask_failure_on_update_deletes_new_chart_but_keeps_scratch():
+    client = FakeClient()
+    llm = FakeLLM(
+        PlannerRefusal(plan=ChartPlan(title="Q", charts=[_spec("A")])),
+        PlannerRefusal(plan=ChartPlan(title="Q", charts=[_spec("B")])),
+    )
+    run(ask_chart("a", llm, client))
+
+    def boom(*a):
+        raise SupersetError(500, "nope")
+
+    client.update_dashboard = boom
+    with pytest.raises(BIError, match="'B'"):
+        run(ask_chart("b", llm, client))
+    assert list(client.charts.values()) == ["A"] and not any(c[0] == "delete_dashboard" for c in client.calls)
+
+
+def test_no_code_path_publishes():
+    client = FakeClient()
+    run(design_dashboard("x", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    run(ask_chart("y", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    run(ask_chart("z", FakeLLM(PlannerRefusal(plan=PLAN)), client))
+    assert all(d["published"] is False for d in client.dashboards.values())
+    # The real client hardcodes published=False and has no publish path; nothing here may set it.
+    src = Path(service.__file__).read_text()
+    assert "published" not in src
+
+
+def test_embed_token_ensures_embedded_first():
+    client = FakeClient()
+    client.dashboards["arp-abc"] = {"id": 7, "published": False, "charts": [], "position": {}}
+    assert embed_token(client, "7") == ("uuid-1", "tok")
+    assert client.calls == [("get_dashboard", 7), ("ensure_embedded", 7), ("guest_token", "uuid-1", [])]
+
+
+@pytest.mark.parametrize("slug", ["sales", "", None, "arpx-1"])
+def test_embed_token_refuses_dashboards_arp_did_not_make(slug):
+    client = FakeClient()
+    client.dashboards[slug] = {"id": 7, "published": True, "charts": [], "position": {}}
+    with pytest.raises(service.NotAnARPDashboard):
+        embed_token(client, "7")
+    assert client.writes() == [] and not any(c[0] == "guest_token" for c in client.calls)
+
+
+def test_embed_token_unknown_dashboard():
+    client = FakeClient()
+    with pytest.raises(service.DashboardNotFound):
+        embed_token(client, "7")
+    assert client.writes() == []
+
+
+def test_embed_token_allows_scratch():
+    client = FakeClient()
+    client.dashboards["arp-scratch"] = {"id": 7, "published": False, "charts": [], "position": {}}
+    assert embed_token(client, "7") == ("uuid-1", "tok")
+
+
+def test_embed_token_serialises_ensure_embedded():
+    """Superset's embedded upsert races: two first-time POSTs each create a UUID and
+    only the last survives, so the other caller's embed 404s."""
+    import threading
+    import time
+
+    class Racy(FakeClient):
+        inside = peak = 0
+
+        def ensure_embedded(self, dashboard_id):
+            Racy.inside += 1
+            Racy.peak = max(Racy.peak, Racy.inside)
+            time.sleep(0.05)
+            Racy.inside -= 1
+            return "uuid-1"
+
+    def racy():
+        c = Racy()
+        c.dashboards["arp-abc"] = {"id": 7, "published": False, "charts": [], "position": {}}
+        return c
+
+    threads = [threading.Thread(target=embed_token, args=(racy(), "7")) for _ in range(3)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert Racy.peak == 1

@@ -324,6 +324,25 @@ class Settings(BaseSettings):
         description="SQLAlchemy DSN, e.g. postgresql+psycopg://user:pass@host:5432/arp. None (default) disables "
         "every Postgres-backed feature below and the file-based stores behave exactly as before.",
     )
+    # Apache Superset BI integration (arp/bi/). Needs postgres_dsn: Superset
+    # reads only the read-only 'bi' views, never base tables.
+    superset_url: str = Field(
+        default="http://127.0.0.1:8088",
+        description="Base URL of the Superset instance the BI designer talks to.",
+    )
+    superset_user: str = Field(
+        default="arp_designer",
+        description="Superset account used by bootstrap and the BI designer at runtime.",
+    )
+    superset_password: str | None = Field(
+        default=None,
+        description="Password for superset_user. None (default) leaves BI features unconfigured; no built-in default.",
+    )
+    bi_reader_password: str | None = Field(
+        default=None,
+        description="Password of the bi_reader Postgres role (SELECT on schema 'bi' only) that Superset connects "
+        "with. None (default) means the role is not provisioned; no built-in default.",
+    )
     portfolio_backend: Literal["file", "postgres"] = Field(
         default="file",
         description="Literal-typed, so a typo ('postgress') fails at startup with a validation error naming the "

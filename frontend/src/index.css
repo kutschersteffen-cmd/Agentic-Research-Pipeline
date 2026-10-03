@@ -976,6 +976,10 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .banner-success { background: color-mix(in srgb, var(--high) 12%, transparent); border: 1px solid var(--high); color: color-mix(in oklch, var(--high) 70%, var(--text)); }
 .banner-danger { background: color-mix(in srgb, var(--low) 12%, transparent); border: 1px solid var(--low); color: color-mix(in oklch, var(--low) 70%, var(--text)); }
 
+/* Superset BI tab: the SDK mounts a bare iframe here; Superset sizes nothing itself. */
+.superset-embed { margin-top: var(--s-4); }
+.superset-embed iframe { display: block; width: 100%; height: min(80vh, 760px); border: 1px solid var(--panel-border); background: var(--panel); }
+
 .chip-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
 .chip {
   background: var(--well);
@@ -1090,13 +1094,6 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .chart-tooltip-date { color: var(--muted); margin-bottom: 4px; }
 .chart-tooltip-row { display: flex; align-items: center; gap: 6px; }
 .chart-tooltip-value { font-weight: 600; }
-
-.pivot-table-wrap { overflow-x: auto; }
-.pivot-table { border-collapse: collapse; font-size: var(--text-sm); margin-top: 10px; }
-.pivot-table th, .pivot-table td { padding: 6px 10px; text-align: right; white-space: nowrap; }
-.pivot-table th { color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--panel-border); }
-.pivot-table th:first-child, .pivot-table td:first-child { text-align: left; color: var(--muted); border-right: 1px solid var(--panel-border); }
-.pivot-cell-empty { color: var(--muted); }
 
 .selection-pane { margin-bottom: 20px; }
 .pane-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }

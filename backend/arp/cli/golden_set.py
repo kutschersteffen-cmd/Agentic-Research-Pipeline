@@ -5,8 +5,8 @@ from pathlib import Path
 
 import typer
 
+from arp.bi.eval import load_bi_cases, run_bi_set
 from arp.config import get_settings
-from arp.golden_set.planner_runner import build_demo_context, load_planner_cases, run_planner_set
 from arp.golden_set.role_runner import load_role_cases as load_role_golden_set_cases
 from arp.golden_set.role_runner import run_role_golden_set
 from arp.golden_set.runner import load_cases as load_golden_set_cases
@@ -55,44 +55,26 @@ def golden_set_run(
         raise typer.Exit(1)
 
 
-@golden_set_app.command("planner")
-def golden_set_planner(
-    cases_file: Path = typer.Option(
-        None, "--cases", help="Custom planner-case JSON file (same shape as the bundled set). Defaults to the bundled set."
-    ),
-    repair: bool = typer.Option(
-        False, "--repair", help="Also allow the bounded re-plan pass, measuring end-to-end behaviour instead of the first plan."
-    ),
-    fail_on_regression: bool = typer.Option(
-        True, help="Exit non-zero if any case fails -- for wiring into CI before a planning-prompt change ships."
-    ),
+@golden_set_app.command("bi")
+def golden_set_bi(
+    cases_file: Path = typer.Option(None, "--cases", help="Custom BI-case JSON file (same shape as the bundled set)."),
+    fail_on_regression: bool = typer.Option(True, help="Exit non-zero if any case fails."),
 ) -> None:
-    """Runs the generative-BI planner against briefs with known-correct
-    dashboard *shapes* (which kinds, metrics, dimensions and fields must
-    appear), scored against the bundled demo dataset so the run is
-    reproducible anywhere. The counterpart of `golden-set run` for
-    planning rather than extraction: run it before any change to the
-    planning prompt, the dimension/metric vocabulary, or the planner's
-    model reaches real briefs. Requires ARP_ANTHROPIC_API_KEY."""
+    """Runs the Superset chart planner against briefs with known-correct
+    shapes (datasets, viz types, metrics, or a refusal). Needs no Superset:
+    metas are built offline from the catalog. Requires ARP_ANTHROPIC_API_KEY;
+    not run in CI."""
     llm = build_llm_client(get_settings())
-    cases = load_planner_cases(cases_file)
-    typer.echo(f"Running {len(cases)} planner case(s) against {get_settings().llm_model} (repair={'on' if repair else 'off'})...")
-
-    async def _run():
-        ctx = await build_demo_context()
-        return await run_planner_set(cases, llm=llm, ctx=ctx, repair=repair)
-
-    report = asyncio.run(_run())
-    for result in report.results:
-        typer.echo(f"[{'PASS' if result.passed else 'FAIL'}] {result.case_id}: {result.description}")
-        for panel in result.panels:
-            typer.echo(f"       panel: {panel}")
-        if result.clarification:
-            typer.echo(f"       clarification: {result.clarification}")
-        for failure in result.failures:
-            typer.echo(f"       ! {failure}")
-    typer.echo(f"\n{report.passed}/{report.total} passed (model={report.model}).")
-    if fail_on_regression and not report.all_passed:
+    cases = load_bi_cases(cases_file)
+    typer.echo(f"Running {len(cases)} BI case(s) against {get_settings().llm_model}...")
+    results = asyncio.run(run_bi_set(cases, llm=llm))
+    for r in results:
+        typer.echo(f"[{'PASS' if r.passed else 'FAIL'}] {r.brief}")
+        for f in r.failures:
+            typer.echo(f"       ! {f}")
+    passed = sum(r.passed for r in results)
+    typer.echo(f"\n{passed}/{len(results)} passed.")
+    if fail_on_regression and passed != len(results):
         raise typer.Exit(1)
 
 
