@@ -9,6 +9,7 @@ from arp.bi.catalog import MetricDef
 from arp.bi.plan import DatasetMeta
 
 _API = "/api/v1"
+MAX_DASHBOARD_PAGES = 100  # guards list_dashboards against a server that never returns a short page
 
 
 class SupersetError(Exception):
@@ -221,8 +222,8 @@ class SupersetClient:
     def list_dashboards(self, slug_prefix: str = "arp-") -> list[dict]:
         """{id, slug, title, published} of every dashboard whose slug starts with the prefix.
         Superset filters server-side (`sw`); startswith is re-checked here so lookalikes never pass."""
-        size, page, out = 100, 0, []
-        while True:
+        size, out = 100, []
+        for page in range(MAX_DASHBOARD_PAGES):
             q = json.dumps(
                 {
                     "filters": [{"col": "slug", "opr": "sw", "value": slug_prefix}],
@@ -238,9 +239,9 @@ class SupersetClient:
                 for r in rows
                 if (r.get("slug") or "").startswith(slug_prefix)
             ]
-            page += 1
-            if len(rows) < size or ("count" in body and page * size >= body["count"]):
-                return out
+            if len(rows) < size or ("count" in body and (page + 1) * size >= body["count"]):
+                break
+        return out
 
     def delete_chart(self, id: int) -> None:
         self._request("DELETE", f"/chart/{id}")

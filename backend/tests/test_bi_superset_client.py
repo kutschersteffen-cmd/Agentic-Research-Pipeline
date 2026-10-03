@@ -5,7 +5,7 @@ import json
 import httpx
 import pytest
 
-from arp.bi.superset_client import SupersetClient, SupersetError
+from arp.bi.superset_client import MAX_DASHBOARD_PAGES, SupersetClient, SupersetError
 
 
 def _client(handler):
@@ -346,3 +346,16 @@ def test_list_dashboards_without_count_pages_until_short_page():
 
     c, _ = _client(h)
     assert len(c.list_dashboards()) == 150
+
+
+def test_list_dashboards_stops_at_page_cap():
+    pages = []
+
+    def h(r):  # a broken server: always a full page, never a count
+        q = json.loads(r.url.params["q"])
+        pages.append(q["page"])
+        return httpx.Response(200, json={"result": [_row(i, f"arp-{i}") for i in range(q["page_size"])]})
+
+    c, _ = _client(h)
+    c.list_dashboards()
+    assert pages == list(range(MAX_DASHBOARD_PAGES))
