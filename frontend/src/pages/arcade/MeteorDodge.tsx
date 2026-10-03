@@ -246,8 +246,7 @@ export function MeteorDodge() {
   }, []);
 
   return (
-    <div className="page">
-      <h1>Meteor Dodge</h1>
+    <>
       <p className="muted">Steer with ← → or A D, or drag. Hold Space, or press and hold, to fire. Big rocks split in two.</p>
       <div className="cabinet">
         <div className="cabinet-hud" aria-hidden="true">
@@ -266,6 +265,6 @@ export function MeteorDodge() {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

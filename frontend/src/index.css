@@ -1840,3 +1840,13 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .cabinet-go:hover { background: #fff; }
 .cabinet-go:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .cabinet-score-best { animation: none; } }
+
+/* Arcade: the list of games. The game screens themselves are the .cabinet rules above. */
+.arcade-back { margin: 0 0 var(--s-2); font-size: var(--text-sm); }
+.arcade-list { list-style: none; margin: var(--s-6) 0 0; padding: 0; border-top: 1px solid var(--panel-border); }
+.arcade-list li { border-bottom: 1px solid var(--panel-border); }
+.arcade-list a { display: grid; grid-template-columns: minmax(10rem, 14rem) 1fr auto; gap: var(--s-4); align-items: baseline; padding: var(--s-4) 0; color: inherit; text-decoration: none; }
+.arcade-list a:hover .arcade-title { text-decoration: underline; }
+.arcade-title { font-family: var(--font-display); font-weight: 600; font-size: 1.125rem; letter-spacing: -0.02em; }
+.arcade-play { font-family: var(--font-mono); font-size: var(--text-sm); }
+@media (max-width: 640px) { .arcade-list a { grid-template-columns: 1fr auto; } .arcade-list a .muted { grid-column: 1 / -1; order: 3; } }
