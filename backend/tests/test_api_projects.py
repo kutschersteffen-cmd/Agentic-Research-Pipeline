@@ -184,3 +184,24 @@ def test_save_dashboard_502_without_superset_body(tmp_path, monkeypatch):
     http.post("/api/projects", json={"id": "alpha", "name": "A"})
     r = http.post("/api/projects/alpha/dashboards", json={"title": "T", "plan": PLAN.model_dump()})
     assert r.status_code == 502 and "hunter2" not in r.text and "boom" not in r.text
+
+
+def test_export_dashboard_endpoint(tmp_path, monkeypatch):
+    from tests.test_projects_service import ExportClient
+
+    client = ExportClient()
+    client.dashboards["arp-hand"] = {"id": 900, "published": False, "charts": [], "position": {}, "meta": None}
+    client.dashboards["plain"] = {"id": 5, "published": False, "charts": [], "position": {}, "meta": None}
+    http, store, _, _ = _env(tmp_path, monkeypatch, client)
+    http.post("/api/projects", json={"id": "alpha", "name": "A"})
+    r = http.post("/api/projects/alpha/dashboards/export", json={"dashboard_id": 900})
+    assert r.status_code == 200
+    assert r.json() == {"slug": "arp-hand", "title": "arp-hand", "source": "superset-export", "file": "arp-hand.zip", "scoped": False}
+    assert http.post("/api/projects/alpha/dashboards/export", json={"dashboard_id": 5}).status_code == 403
+    assert http.post("/api/projects/alpha/dashboards/export", json={"dashboard_id": 777}).status_code == 404
+    assert http.post("/api/projects/nope/dashboards/export", json={"dashboard_id": 900}).status_code == 404
+
+
+def test_export_dashboard_file_backend_503(tmp_path, monkeypatch):
+    http, *_ = _env(tmp_path, monkeypatch, backend="file")
+    assert http.post("/api/projects/alpha/dashboards/export", json={"dashboard_id": 1}).status_code == 503

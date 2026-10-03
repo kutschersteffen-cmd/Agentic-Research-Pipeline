@@ -78,14 +78,6 @@ def test_missing_notional_is_data_error(env, tmp_path):
     assert ei.value.step == "data"
 
 
-def test_superset_export_skipped(env):
-    store, pf, client = env
-    store.create("alpha", "A")
-    store.save_dashboard("alpha", "arp-alpha--x", "X", "superset-export", b"zip")
-    (d,) = open_project(store, pf, client, "alpha").dashboards
-    assert (d.status, d.id) == ("skipped", None)
-
-
 def _data_error(env, tmp_path, name="alpha"):
     store, pf, client = env
     with pytest.raises(OpenError) as ei:
@@ -140,3 +132,105 @@ def test_malformed_template_file(env, tmp_path):
     with pytest.raises(OpenError) as ei:
         open_project(store, pf, client, "alpha")
     assert ei.value.step == f"dashboard:{slug}"
+
+
+# --- hand-built dashboards as export bundles ---
+import io  # noqa: E402
+import zipfile  # noqa: E402
+
+from arp.bi.service import NotAnARPDashboard  # noqa: E402
+from arp.bi.superset_client import SupersetError  # noqa: E402
+from arp.config import Settings  # noqa: E402
+from arp.projects import service as svc  # noqa: E402
+from arp.projects.service import export_dashboard_to_project  # noqa: E402
+
+PW = "s3cret-reader-pw"
+
+
+def _bundle() -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("dashboard_export_1/metadata.yaml", "x")
+        z.writestr("dashboard_export_1/databases/x.yaml", "x")
+    return buf.getvalue()
+
+
+class ExportClient(FakeClient):
+    fail_import = False
+
+    def export_dashboard(self, dashboard_id):
+        self.calls.append(("export_dashboard", dashboard_id))
+        return _bundle()
+
+    def import_dashboard(self, bundle, db_passwords):
+        self.calls.append(("import_dashboard", db_passwords))
+        if self.fail_import:
+            raise SupersetError(500, f"body with {PW}")
+        self.dashboards["arp-hand"] = {"id": 900, "published": False, "charts": [], "position": {}, "meta": None}
+
+
+@pytest.fixture
+def xenv(tmp_path, monkeypatch):
+    monkeypatch.setattr(svc, "get_settings", lambda: Settings(bi_reader_password=PW))
+    store = ProjectStore(tmp_path / "projects")
+    store.create("alpha", "A")
+    client = ExportClient()
+    client.dashboards["arp-hand"] = {"id": 900, "published": False, "charts": [], "position": {}, "meta": None}
+    return store, PortfolioStore(tmp_path / "pf"), client
+
+
+def _imports(client):
+    return [c for c in client.calls if c[0] == "import_dashboard"]
+
+
+def test_export_stores_zip_and_manifest(xenv):
+    store, _, client = xenv
+    d = export_dashboard_to_project(store, client, "alpha", 900)
+    assert (d.slug, d.source, d.file) == ("arp-hand", "superset-export", "arp-hand.zip")
+    assert store.file_path("alpha", "dashboards", "arp-hand.zip").read_bytes() == _bundle()
+    assert store.get("alpha").dashboards == [d]
+
+
+def test_export_rejects_non_arp(xenv):
+    store, _, client = xenv
+    client.dashboards["other"] = {"id": 5, "published": False, "charts": [], "position": {}, "meta": None}
+    with pytest.raises(NotAnARPDashboard):
+        export_dashboard_to_project(store, client, "alpha", 5)
+    assert store.get("alpha").dashboards == []
+
+
+def test_open_never_imports_over_existing(xenv):
+    store, pf, client = xenv
+    export_dashboard_to_project(store, client, "alpha", 900)
+    r = open_project(store, pf, client, "alpha")
+    assert [d.status for d in r.dashboards] == ["unchanged"] and r.dashboards[0].id == 900
+    assert _imports(client) == []
+
+
+def test_open_imports_when_absent_with_key_from_bundle(xenv):
+    store, pf, client = xenv
+    export_dashboard_to_project(store, client, "alpha", 900)
+    del client.dashboards["arp-hand"]
+    r = open_project(store, pf, client, "alpha")
+    assert [d.status for d in r.dashboards] == ["created"] and r.dashboards[0].id == 900
+    assert _imports(client) == [("import_dashboard", {"databases/x.yaml": PW})]
+
+
+def test_open_import_failure_hides_password(xenv):
+    store, pf, client = xenv
+    export_dashboard_to_project(store, client, "alpha", 900)
+    del client.dashboards["arp-hand"]
+    client.fail_import = True
+    with pytest.raises(OpenError) as ei:
+        open_project(store, pf, client, "alpha")
+    assert ei.value.step == "dashboard:arp-hand" and PW not in str(ei.value)
+
+
+def test_open_without_reader_password(xenv, monkeypatch):
+    store, pf, client = xenv
+    export_dashboard_to_project(store, client, "alpha", 900)
+    del client.dashboards["arp-hand"]
+    monkeypatch.setattr(svc, "get_settings", lambda: Settings(bi_reader_password=None))
+    with pytest.raises(OpenError, match="ARP_BI_READER_PASSWORD") as ei:
+        open_project(store, pf, client, "alpha")
+    assert ei.value.step == "dashboard:arp-hand" and _imports(client) == []

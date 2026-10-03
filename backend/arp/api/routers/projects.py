@@ -12,13 +12,20 @@ from arp.api import deps
 from arp.api.deps import get_portfolio_store, get_project_store, get_superset_client
 from arp.api.routers.bi import _bad_gateway
 from arp.bi.plan import ChartPlan
-from arp.bi.service import BIError, _datasets
+from arp.bi.service import BIError, DashboardNotFound, NotAnARPDashboard, _datasets
 from arp.bi.superset_client import SupersetError
 from arp.bi.validator import validate_plan
 from arp.projects import store as store_mod
 from arp.projects.dashboards import plan_to_template, provision_project_dashboard
-from arp.projects.service import OpenedDashboard, OpenError, OpenResult, dashboard_state, open_project
-from arp.projects.store import Project, ProjectError, ProjectNotFound, ProjectStore
+from arp.projects.service import (
+    OpenedDashboard,
+    OpenError,
+    OpenResult,
+    dashboard_state,
+    export_dashboard_to_project,
+    open_project,
+)
+from arp.projects.store import Project, ProjectError, ProjectNotFound, ProjectStore, StoredDashboard
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -161,3 +168,33 @@ async def save_dashboard(
         raise HTTPException(502, f"Saving the dashboard failed: {e}") from e
     except _ERRORS as e:
         raise _bad_gateway(e) from e
+
+
+class ExportRequest(BaseModel):
+    dashboard_id: int
+
+
+class ExportedDashboard(StoredDashboard):
+    scoped: bool = False  # hand-built charts are not filtered to this project
+
+
+@router.post("/{id}/dashboards/export", response_model=ExportedDashboard, dependencies=[Depends(_require_postgres)])
+async def export_dashboard(
+    id: str,
+    req: ExportRequest,
+    store: ProjectStore = Depends(get_project_store),
+    client=Depends(get_superset_client),
+) -> ExportedDashboard:
+    try:
+        d = await asyncio.to_thread(export_dashboard_to_project, store, client, id, req.dashboard_id)
+    except ProjectNotFound as e:
+        raise HTTPException(404, str(e)) from e
+    except ProjectError as e:
+        raise HTTPException(422, str(e)) from e
+    except NotAnARPDashboard as e:
+        raise HTTPException(403, str(e)) from e
+    except DashboardNotFound as e:
+        raise HTTPException(404, str(e)) from e
+    except _ERRORS as e:
+        raise _bad_gateway(e) from e
+    return ExportedDashboard(**d.model_dump())
