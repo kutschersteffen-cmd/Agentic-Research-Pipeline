@@ -140,18 +140,24 @@ host:port Superset uses to reach Postgres.
 ```bash
 docker compose --env-file backend/.env up -d postgres superset   # first start builds superset/Dockerfile
 arp db init-postgres                                             # schema + `bi` views
+ARP_PORTFOLIO_BACKEND=postgres arp portfolio seed-demo           # demo holdings into Postgres (with ARP_POSTGRES_DSN set)
 arp bi bootstrap                                                 # bi_reader role, Superset database, datasets, metrics (idempotent)
 arp golden-set bi                                                # planner eval; needs an API key, not run in CI
 ```
 
 Set `VITE_SUPERSET_URL` in `frontend/.env`, then open Risk Monitoring, Superset BI.
 
+The UI embeds a draft through `POST /api/bi/embed-token {dashboard_id}`, which answers `{token, embedded_id}`
+(`service.embed_token` returns `(embedded_id, token)`). Only ARP's own dashboards (slug `arp-...`, the scratch one
+included) are embeddable: another dashboard id gets 403, an unknown one 404.
+
 Caveats:
 - Drafts only. Publishing a dashboard is a human step in Superset.
 - The `superset/Dockerfile` build (adds psycopg2 to `apache/superset:5.0.0`) is unverified end to end: the sandbox proxy's TLS blocked it, and it was tested with an equivalent local image. Run `docker compose build superset` on a normal machine before relying on it.
 - Embedding is verified in Chromium only.
 - The first-embed lock is in-process, so run a single uvicorn worker.
-- Demo data lives in files; seed it into Postgres before the views have anything to show.
+- Demo data lives in files; seed it into Postgres (`ARP_PORTFOLIO_BACKEND=postgres arp portfolio seed-demo`) before the views have anything to show.
+- Postgres 15 or later is assumed (compose runs pg16). Before 15, every role, `bi_reader` included, gets CREATE on schema `public` through PUBLIC, which bootstrap's REVOKE does not remove.
 - `frame-ancestors` lists only `http://localhost:5173` and `http://127.0.0.1:5173` (the dev UI). Add production origins in `superset/superset_config.py`.
 
 ## CLI

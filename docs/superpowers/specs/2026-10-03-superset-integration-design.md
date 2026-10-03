@@ -69,7 +69,11 @@ from these descriptions, so they also act as the business-alias layer
 
 ### ChartPlan (closed spec)
 
-`{datasets, charts[{viz_type, dataset, metrics, groupby, filters, time_range}], layout}`
+`{title, goal, charts[{title, question, viz_type, dataset, metrics, groupby, filters}]}`
+
+The layout is not part of the plan: the compiler places charts two per row.
+There is no time filter (Superset 5 ignores a bare `time_range` on charts with
+generic axes); filters are column == value.
 
 - `viz_type` is one of about 8: big number, bar, line, pie, table, pivot table,
   heatmap, treemap. The allowlist lives in `catalog.py`.
@@ -110,8 +114,11 @@ A question becomes a one-chart plan and lands on a "Scratch" dashboard.
   limited to the ARP UI origin.
 - `SUPERSET_SECRET_KEY` and the `bi_reader` password come from `backend/.env`,
   no defaults.
-- `arp bi bootstrap` registers the `bi` database connection, creates datasets
-  and metrics, and creates the `arp_designer` service account.
+- The `arp_designer` service account (Admin role) is created at container boot:
+  `superset/entrypoint.sh` runs `fab create-admin` and `fab reset-password` from
+  env, since bootstrap logs in as that account.
+- `arp bi bootstrap` re-applies the `bi` views and the `bi_reader` role,
+  registers the `bi` database connection, and creates datasets and metrics.
 
 ## Error handling
 
