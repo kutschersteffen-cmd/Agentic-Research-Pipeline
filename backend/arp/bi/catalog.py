@@ -141,6 +141,11 @@ VIEW_DATASETS: dict[str, DatasetDef] = {
     ),
 }
 
+# Same columns and metrics as `holdings`, built from it so they cannot drift.
+VIEW_DATASETS["holdings_history"] = VIEW_DATASETS["holdings"].model_copy(
+    update={"table": "holdings_history", "description": "Every holdings snapshot, joined to security and company"}
+)
+
 # Minimum groupby columns per viz type, as the compiler consumes them
 # (axis charts: first column is the x axis; heatmap/pivot need a second one).
 # big_number_total takes none and rejects any (see MAX_GROUPBY).
@@ -162,6 +167,7 @@ MAX_METRICS: dict[str, int] = {"big_number_total": 1, "pie": 1, "heatmap_v2": 1,
 # Date/timestamp columns per dataset (cast with bi.safe_date / bi.safe_ts in views.py).
 TEMPORAL_COLUMNS: dict[str, frozenset[str]] = {
     "holdings": frozenset({"as_of_date"}),
+    "holdings_history": frozenset({"as_of_date"}),
     "company_facts": frozenset({"as_of", "valid_from"}),
     "company_facts_pending": frozenset({"as_of", "valid_from"}),
     "run_records": frozenset({"generated_at"}),

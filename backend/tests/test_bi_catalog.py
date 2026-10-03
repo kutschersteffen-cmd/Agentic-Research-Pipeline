@@ -4,7 +4,14 @@ from arp.bi.catalog import VIEW_DATASETS, VIZ_ALLOWLIST
 
 
 def test_every_dataset_has_metrics_and_descriptions():
-    assert set(VIEW_DATASETS) == {"holdings", "company_facts", "company_facts_pending", "run_records", "documents"}
+    assert set(VIEW_DATASETS) == {
+        "holdings",
+        "holdings_history",
+        "company_facts",
+        "company_facts_pending",
+        "run_records",
+        "documents",
+    }
     for ds in VIEW_DATASETS.values():
         assert ds.description and ds.metrics
         assert all(d.strip() for d in ds.columns.values())
@@ -32,3 +39,12 @@ def test_temporal_columns_exist_in_their_dataset():
     assert set(TEMPORAL_COLUMNS) == set(VIEW_DATASETS)
     for ds, cols in TEMPORAL_COLUMNS.items():
         assert cols <= set(VIEW_DATASETS[ds].columns), ds
+
+
+def test_holdings_history_mirrors_holdings():
+    from arp.bi.catalog import TEMPORAL_COLUMNS
+
+    h, hh = VIEW_DATASETS["holdings"], VIEW_DATASETS["holdings_history"]
+    assert list(hh.columns) == list(h.columns)
+    assert [m.name for m in hh.metrics] == [m.name for m in h.metrics]
+    assert "as_of_date" in TEMPORAL_COLUMNS["holdings_history"]

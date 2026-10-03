@@ -60,23 +60,29 @@ _FACT_SELECT = """
     WHERE is_current AND status IN ({statuses})
 """
 
+_HOLDINGS_SELECT = """
+    SELECT h.portfolio_id, p.name AS portfolio_name, bi.safe_date(h.as_of_date) AS as_of_date,
+           h.security_id, s.name AS security_name, s.isin, s.asset_class, s.currency,
+           s.company_id, c.name AS company_name, c.sector, c.country,
+           h.quantity, h.market_value_eur, h.weight_pct
+    FROM holdings h
+    JOIN portfolios p ON p.portfolio_id = h.portfolio_id
+    LEFT JOIN securities s ON s.security_id = h.security_id
+    LEFT JOIN companies c ON c.company_id = s.company_id
+"""
+
 _VIEWS = {
     # Latest valid snapshot per portfolio, found in one pass (not a per-row
     # subquery). Max over valid dates only, so a malformed as_of_date string
     # cannot win the "latest" comparison.
-    "holdings": """
-        SELECT h.portfolio_id, p.name AS portfolio_name, bi.safe_date(h.as_of_date) AS as_of_date,
-               h.security_id, s.name AS security_name, s.isin, s.asset_class, s.currency,
-               s.company_id, c.name AS company_name, c.sector, c.country,
-               h.quantity, h.market_value_eur, h.weight_pct
-        FROM holdings h
-        JOIN portfolios p ON p.portfolio_id = h.portfolio_id
-        LEFT JOIN securities s ON s.security_id = h.security_id
-        LEFT JOIN companies c ON c.company_id = s.company_id
+    "holdings": _HOLDINGS_SELECT
+    + """
         JOIN (
             SELECT portfolio_id, max(bi.safe_date(as_of_date)) AS d FROM holdings GROUP BY portfolio_id
         ) latest ON latest.portfolio_id = h.portfolio_id AND bi.safe_date(h.as_of_date) = latest.d
     """,
+    # Every snapshot; junk dates (NULL after the safe cast) are left out.
+    "holdings_history": _HOLDINGS_SELECT + " WHERE bi.safe_date(h.as_of_date) IS NOT NULL",
     "company_facts": _FACT_SELECT.format(statuses="'approved', 'edited', 'auto_approved'"),
     "company_facts_pending": _FACT_SELECT.format(statuses="'pending_review'"),
     "run_records": """

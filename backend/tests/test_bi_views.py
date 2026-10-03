@@ -248,3 +248,42 @@ def test_reader_password_with_colon_and_quote(engine):
             assert conn.execute(sa.text("SELECT count(*) FROM bi.holdings")).scalar() == 1
     finally:
         reader.dispose()
+
+
+def test_holdings_history_has_every_snapshot(engine):
+    _seed(engine)  # 2026-01-31 and 2026-02-28 for p1
+    rows = _q(engine, "SELECT as_of_date::text FROM bi.holdings_history ORDER BY as_of_date")
+    assert [r[0] for r in rows] == ["2026-01-31", "2026-02-28"]
+    assert [r[0] for r in _q(engine, "SELECT as_of_date::text FROM bi.holdings")] == ["2026-02-28"]
+
+
+def test_holdings_history_excludes_junk_dates_and_empty_table_is_ok(engine):
+    from sqlalchemy import text
+
+    _seed(engine)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO holdings (portfolio_id, security_id, as_of_date, quantity, price, market_value,"
+                " fx_rate_to_eur, market_value_eur, weight_pct) VALUES ('p1', 's1', 'junk', 1, 1, 1, 1, 1, 1)"
+            )
+        )
+    assert [r[0] for r in _q(engine, "SELECT as_of_date::text FROM bi.holdings_history ORDER BY 1")] == [
+        "2026-01-31",
+        "2026-02-28",
+    ]
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM holdings"))
+    assert _q(engine, "SELECT count(*) FROM bi.holdings_history")[0][0] == 0
+
+
+def test_history_columns_match_catalog(engine):
+    cols = [
+        r[0]
+        for r in _q(
+            engine,
+            "SELECT column_name FROM information_schema.columns WHERE table_schema='bi'"
+            " AND table_name='holdings_history' ORDER BY ordinal_position",
+        )
+    ]
+    assert cols == list(VIEW_DATASETS["holdings_history"].columns)
