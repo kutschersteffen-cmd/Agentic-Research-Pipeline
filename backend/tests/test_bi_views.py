@@ -21,13 +21,14 @@ _PASSWORD = "bi-test-password"
 def engine():
     from sqlalchemy import text
 
-    from arp.bi.views import ensure_reader_role
+    from arp.bi.views import create_bi_views, ensure_reader_role
     from arp.storage.postgres import get_engine
 
     ensure_schema(DSN)
     reset_postgres_tables(DSN)
     eng = get_engine(DSN)
     with eng.begin() as conn:
+        create_bi_views(conn)  # pick up view edits on a DB that already recorded step 0002
         ensure_reader_role(conn, _PASSWORD)
     yield eng
     reset_postgres_tables(DSN)
@@ -116,12 +117,14 @@ def test_value_num_null_when_no_numeric(engine):
         ("txt", "", "approved", '{"value": "hello"}', True),
         ("none", "", "approved", '{"company_id": "bmw"}', True),
         ("nul", "", "approved", '{"value": null}', True),
+        ("huge", "", "approved", '{"value": 1e400}', True),
     ])
     rows = {r[0]: (r[1], r[2]) for r in _q(engine, "SELECT fact_key, value_num, value_text FROM bi.company_facts")}
     assert rows["num"] == (12.5, None)
     assert rows["txt"] == (None, "hello")
     assert rows["none"] == (None, None)
     assert rows["nul"] == (None, None)
+    assert rows["huge"] == (None, None)  # beyond float range: NULL, not an error
 
 
 def test_malformed_date_returns_null_not_error(engine):
@@ -181,3 +184,20 @@ def test_run_records_excludes_payload(engine):
     cols = [r[0] for r in _q(engine, "SELECT column_name FROM information_schema.columns WHERE table_schema='bi' AND table_name='run_records'")]
     assert "payload" not in cols
     assert _q(engine, "SELECT pg_typeof(generated_at)::text FROM bi.run_records")[0][0] == "timestamp with time zone"
+
+
+def test_reader_password_with_colon_and_quote(engine):
+    import sqlalchemy as sa
+
+    from arp.bi.views import ensure_reader_role
+
+    pw = "pw!:abc x'y"
+    _seed(engine)
+    with engine.begin() as conn:
+        ensure_reader_role(conn, pw)
+    reader = sa.create_engine(sa.engine.make_url(DSN).set(username="bi_reader", password=pw))
+    try:
+        with reader.connect() as conn:
+            assert conn.execute(sa.text("SELECT count(*) FROM bi.holdings")).scalar() == 1
+    finally:
+        reader.dispose()

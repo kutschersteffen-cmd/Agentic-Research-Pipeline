@@ -49,7 +49,8 @@ _SAFE_CAST_FUNCTIONS = (
 _FACT_SELECT = """
     SELECT company_id, fact_key, fact_type,
            bi.safe_date(NULLIF(as_of, '')) AS as_of,
-           CASE WHEN jsonb_typeof(value->'value') = 'number' THEN (value->>'value')::double precision END AS value_num,
+           CASE WHEN jsonb_typeof(value->'value') = 'number' AND abs((value->>'value')::numeric) < 1e300
+                THEN (value->>'value')::double precision END AS value_num,
            CASE WHEN jsonb_typeof(value->'value') = 'string' THEN value->>'value' END AS value_text,
            status, confidence, reviewer,
            bi.safe_ts(valid_from) AS valid_from
@@ -110,7 +111,9 @@ def ensure_reader_role(conn: Connection, password: str) -> None:
         text(f"DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{ROLE}') THEN CREATE ROLE {ROLE} LOGIN; END IF; END $$")
     )
     alter = conn.execute(text(f"SELECT format('ALTER ROLE {ROLE} WITH LOGIN PASSWORD %L', CAST(:pw AS text))"), {"pw": password}).scalar()
-    conn.execute(text(alter))
+    # The formatted statement embeds the password; escape ':' so text() does
+    # not read ':name' inside it as a bind parameter.
+    conn.execute(text(alter.replace(":", "\\:")))
     conn.execute(text(f"REVOKE ALL ON ALL TABLES IN SCHEMA public FROM {ROLE}"))
     conn.execute(text(f"REVOKE ALL ON SCHEMA public FROM {ROLE}"))
     conn.execute(text(f"GRANT USAGE ON SCHEMA bi TO {ROLE}"))
