@@ -112,10 +112,10 @@ def aggregate(
         raise ValueError(f"Unknown aggregation metric: {metric!r}. Valid: {_VALID_METRICS}")
     security_filter = security_filter or {}
     portfolio_filter = portfolio_filter or []
-    data_point_values = data_point_values or {}
-
-    if metric == "weighted_avg_datapoint" and not data_point_values:
+    # None = caller forgot the values; {} = resolved but nothing covered (valid, all unresolved)
+    if metric == "weighted_avg_datapoint" and data_point_values is None:
         raise ValueError("metric='weighted_avg_datapoint' requires data_point_values")
+    data_point_values = data_point_values or {}
 
     filtered = [h for h in holdings if _passes_filter(h, securities, companies, security_filter, portfolio_filter)]
 
@@ -212,10 +212,10 @@ def pivot(
         raise ValueError(f"Unknown aggregation metric: {metric!r}. Valid: {_VALID_METRICS}")
     security_filter = security_filter or {}
     portfolio_filter = portfolio_filter or []
-    data_point_values = data_point_values or {}
-
-    if metric == "weighted_avg_datapoint" and not data_point_values:
+    # None = caller forgot the values; {} = resolved but nothing covered (valid, all unresolved)
+    if metric == "weighted_avg_datapoint" and data_point_values is None:
         raise ValueError("metric='weighted_avg_datapoint' requires data_point_values")
+    data_point_values = data_point_values or {}
 
     filtered = [h for h in holdings if _passes_filter(h, securities, companies, security_filter, portfolio_filter)]
 
