@@ -19,6 +19,7 @@ class FieldVersionError(ValueError):
     """A released field's content changed without a higher field version."""
 
 
+_UNRELEASED = {"release_flag": False, "released_by": None, "released_at": None}
 _NOT_CONTENT = {"status", "version", "effective_from"}
 
 
@@ -73,10 +74,17 @@ class SchemaRegistry:
         return json.loads(read_text_utf8(path)) if path.exists() else []
 
     def save(self, schema: DataPointSchema) -> DataPointSchema:
+        """Registers `schema` as a new version (or returns the latest when
+        nothing changed). Release metadata (release_flag, released_by,
+        released_at) from the caller is always discarded; only `release`
+        sets it. A field `status` sent by the caller is stored as-is: the
+        run gate also needs the schema's release_flag, which a save can
+        never set, so a client-claimed "released" field opens nothing.
+        """
         with self._lock.acquire("registry"):
             versions = self._versions(schema.schema_id)
             if not versions:
-                first = schema.model_copy(update={"version": 1, "release_flag": False})
+                first = schema.model_copy(update={"version": 1, **_UNRELEASED})
                 self._write(first)
                 return first
             latest = self.get(schema.schema_id, versions[-1])
@@ -94,7 +102,7 @@ class SchemaRegistry:
                     )
             if _content(schema) == _content(latest):
                 return latest
-            new = schema.model_copy(update={"version": latest.version + 1, "release_flag": False})
+            new = schema.model_copy(update={"version": latest.version + 1, **_UNRELEASED})
             self._write(new)
             return new
 

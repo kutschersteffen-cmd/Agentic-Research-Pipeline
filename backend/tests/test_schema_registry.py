@@ -75,6 +75,17 @@ def test_released_field_change_requires_new_version(tmp_path):
     assert reg.get(s.schema_id).release_flag is False
 
 
+def test_save_discards_client_release_metadata(tmp_path):
+    reg = SchemaRegistry(tmp_path)
+    s = reg.save(_schema(release_flag=True, released_by="mallory", released_at="2020-01-01"))
+    assert (s.release_flag, s.released_by, s.released_at) == (False, None, None)
+    stored = reg.get(s.schema_id)
+    assert (stored.release_flag, stored.released_by, stored.released_at) == (False, None, None)
+    edited = stored.model_copy(update={"name": "S2", "released_by": "mallory"})
+    v2 = reg.save(edited)
+    assert v2.version == 2 and v2.released_by is None
+
+
 def test_resave_unchanged_returns_same_version(tmp_path):
     reg = SchemaRegistry(tmp_path)
     s = reg.save(_schema())
