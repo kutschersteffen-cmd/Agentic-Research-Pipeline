@@ -65,6 +65,8 @@ class ExtractionRecord(BaseModel):
     name: str
     schema_id: str
     run_id: str
+    issuer_key: str = ""
+    issuer_scheme: str = ""
     fields: list[ExtractedField] = Field(default_factory=list)
     overall_confidence: float = Field(ge=0.0, le=1.0, default=0.0)
     needs_review: bool = False

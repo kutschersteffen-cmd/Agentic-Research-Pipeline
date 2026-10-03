@@ -12,6 +12,7 @@ from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, ExtractionRecord
+from arp.schemas.issuer import issuer_key
 from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
@@ -68,12 +69,15 @@ async def _extract_company(
     confidences = [f.confidence for f, _ in fields if f.value is not None]
     overall_confidence = sum(confidences) / len(confidences) if confidences else 0.0
 
+    key, scheme = issuer_key(company)
     record = ExtractionRecord(
         company_id=company.company_id,
         ticker=company.ticker,
         name=company.name,
         schema_id=schema.schema_id,
         run_id="",  # filled in by caller once run_id is known
+        issuer_key=key,
+        issuer_scheme=scheme,
         fields=[f for f, _ in fields],
         overall_confidence=overall_confidence,
         needs_review=any_needs_review,
