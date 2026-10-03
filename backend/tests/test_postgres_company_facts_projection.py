@@ -144,3 +144,27 @@ def test_extraction_fact_still_resolves_old_company_level_key():
     from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
 
     assert resolve_extraction_fact("acme", _extraction_row(), {}, {"acme"})[1] == "pending_review"
+
+
+def test_extraction_partial_edit_merges_into_field_and_refolds():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    row = _extraction_row()
+    row["fields"][1].update(field_name="Beta", citations=[{"quote": "q"}])
+    key_b = "ARP:x:b:unspecified"
+    edit = {key_b: {"decision": "edit", "reviewer": "r", "edited_value": {"value": 5}}}
+    value, status, _ = resolve_extraction_fact("acme", row, edit, {key_b})
+    f = value["fields"][1]
+    assert (status, f["field_id"], f["field_name"], f["citations"], f["value"]) == ("edited", "b", "Beta", [{"quote": "q"}], 5)
+    assert resolve_extraction_fact("acme", value, edit, {key_b})[1] == "edited"  # refold: no KeyError
+
+
+def test_extraction_approve_plus_edit_is_edited_and_only_edited_field_changes():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    row = _extraction_row()
+    ka, kb = "ARP:x:a:unspecified", "ARP:x:b:unspecified"
+    decisions = {ka: {"decision": "approve"}, kb: {"decision": "edit", "edited_value": {"value": 7}}}
+    value, status, _ = resolve_extraction_fact("acme", row, decisions, {ka, kb})
+    assert status == "edited"
+    assert [f["value"] for f in value["fields"]] == [1, 7]

@@ -171,7 +171,7 @@ def resolve_extraction_fact(
         outcomes.append({"approve": "approved", "edit": "edited"}.get(decision.get("decision"), "rejected"))
         reviewer = decision.get("reviewer") or reviewer
         if decision.get("decision") == "edit" and decision.get("edited_value"):
-            value["fields"][i] = decision["edited_value"]
+            value["fields"][i] = {**f, **decision["edited_value"], "field_id": f["field_id"]}
     status = next(st for st in ("pending_review", "rejected", "edited", "approved") if st in outcomes)
     return value, status, None if status == "pending_review" else reviewer
 
