@@ -38,9 +38,12 @@ def _parse_date(text: str) -> date | None:
 
 
 def _year_start(end: date) -> date:
-    # The day after `end`, one year earlier; that day is never Feb 29.
-    nxt = end + timedelta(days=1)
-    return nxt.replace(year=nxt.year - 1)
+    # The day after the same month-day one year earlier (Feb 29 clamps to Feb 28 first).
+    try:
+        prev = end.replace(year=end.year - 1)
+    except ValueError:
+        prev = date(end.year - 1, 2, 28)
+    return prev + timedelta(days=1)
 
 
 def _fiscal_end(year: int, mmdd: str) -> date:
@@ -54,6 +57,7 @@ def _fiscal_end(year: int, mmdd: str) -> date:
 
 
 def resolve_period(text: str | None, *, fiscal_year_end: str | None) -> ResolvedPeriod:
+    """Resolve period text; a fiscal year is labelled by the calendar year it ends in."""
     none = ResolvedPeriod(None, None)
     text = (text or "").strip()
     if not text:

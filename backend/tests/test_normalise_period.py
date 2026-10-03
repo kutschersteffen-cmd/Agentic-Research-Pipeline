@@ -126,3 +126,12 @@ def test_company_ref_fiscal_year_end_validated():
         CompanyRef(company_id="x", name="X", fiscal_year_end="4/30")
     assert CompanyRef(company_id="x", name="X", fiscal_year_end="04-30").fiscal_year_end == "04-30"
     assert CompanyRef(company_id="x", name="X").fiscal_year_end is None
+
+
+def test_year_end_28_feb_before_leap_year():
+    assert rp("FY2024", "02-28") == (date(2023, 3, 1), date(2024, 2, 28))
+    assert rp("year ended 28 February 2024") == (date(2023, 3, 1), date(2024, 2, 28))
+
+
+def test_fy2025_feb28_start_is_day_after_2024_02_28_which_is_leap_day():
+    assert rp("FY2025", "02-28") == (date(2024, 2, 29), date(2025, 2, 28))
