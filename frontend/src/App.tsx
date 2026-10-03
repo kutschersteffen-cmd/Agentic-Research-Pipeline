@@ -24,6 +24,7 @@ import { ThemeSwitch } from "./components/ThemeSwitch";
 import { ReportBuilder } from "./pages/ReportBuilder";
 import { StrategyReplication } from "./pages/StrategyReplication";
 import { Search } from "./pages/Search";
+import { Arcade } from "./pages/Arcade";
 import { DecisionStudio } from "./pages/DecisionStudio";
 import { IndexBuilder } from "./pages/IndexBuilder";
 import { ProcessBar, Processes } from "./pages/Processes";
@@ -59,6 +60,7 @@ const TABS = [
   { id: "decision", label: "Decision Studio" },
   { id: "index", label: "Index Construction" },
   { id: "library", label: "Data Library" },
+  { id: "arcade", label: "Arcade" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -92,7 +94,7 @@ const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boo
   { label: "Research", ids: ["theme", "identity"] },
   { label: "Portfolio", ids: ["portfolio-monitoring"] },
   { label: "Output", ids: ["reporting", "history"] },
-  { label: "More tools", ids: ["decision", "taxonomy", "emergingThemes", "strategyReplication", "index"], collapsed: true },
+  { label: "More tools", ids: ["decision", "taxonomy", "emergingThemes", "strategyReplication", "index", "arcade"], collapsed: true },
 ];
 
 // Everything the command palette can jump to: every screen (under its hub's
@@ -344,6 +346,7 @@ function App() {
         {active === "dashboard" && <MonitoringDashboard onNavigate={go} onOpenReview={openReview} />}
         {active === "processes" && <Processes selected={route.params[0] ?? null} onSelect={(id) => navigate("processes", id)} />}
         {active === "search" && <Search />}
+        {active === "arcade" && <Arcade selected={route.params[0] ?? null} />}
         {active === "theme" && <ThemeBuilder onSendToExtraction={(path, count) => sendUniverse("Thematic Universe")("extraction", path, count)} pendingTaxonomyId={pendingTaxonomyId} />}
         {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
         {active === "emergingThemes" && <EmergingThemesDetector onNavigate={go} />}

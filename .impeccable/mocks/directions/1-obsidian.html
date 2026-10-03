@@ -1,0 +1,36 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Obsidian Instrument</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&family=Geist+Mono:wght@400;500&display=swap" rel=stylesheet>
+<style>
+:root{--bg:#0a0b0d;--panel:#101114;--line:#222328;--ink:#ececE6;--mute:#8d8e94;--sig:#c6ff3d}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 Geist,system-ui,sans-serif;min-height:100vh;display:grid;grid-template-columns:232px 1fr}
+.mono{font-family:"Geist Mono",monospace;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+aside{border-right:1px solid var(--line);padding:24px 16px;display:flex;flex-direction:column;gap:4px}
+.logo{font-weight:600;letter-spacing:-.02em;margin-bottom:28px;display:flex;gap:10px;align-items:center}
+.logo i{width:10px;height:10px;background:var(--ink);display:block}
+aside a{padding:8px 10px;color:var(--mute);display:flex;justify-content:space-between;text-decoration:none}
+aside a.on{background:var(--ink);color:#000}
+aside b{background:var(--sig);color:#000;font:500 11px "Geist Mono";padding:1px 6px;border-radius:99px}
+main{padding:56px clamp(20px,5vw,72px);max-width:1200px}
+h1{font-size:clamp(2.4rem,1rem + 4.5vw,5rem);line-height:.98;letter-spacing:-.045em;font-weight:600;margin:16px 0 12px}
+h1 em{font-style:normal;color:var(--sig)}
+.lede{color:var(--mute);max-width:46ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:48px}
+.card{background:var(--panel);padding:22px;min-height:230px;display:flex;flex-direction:column;gap:10px;transition:background .2s;position:relative}
+.card:hover{background:#15161a}
+.card h2{font-size:1.25rem;letter-spacing:-.02em;margin-top:auto}
+.card p{color:var(--mute);font-size:14px}
+.card.w::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--sig);box-shadow:0 0 18px 1px #c6ff3d66}
+.big{font:500 3rem/1 "Geist Mono";letter-spacing:-.04em}
+.st{font:12px "Geist Mono";color:var(--mute)}.w .st{color:var(--sig)}
+@media(max-width:700px){body{grid-template-columns:1fr}aside{display:none}}
+</style>
+<aside><div class=logo><i></i>ARP</div>
+<a class=on>Start</a><a>Review queue <b>15</b></a><a>Run history</a><a>Data library</a><a>Agents</a></aside>
+<main><div class=mono>Friday · 2 Oct · 15 items need a person</div>
+<h1>Fifteen decisions<br>wait on <em>you.</em></h1>
+<p class=lede>Everything else is quiet. Agents propose, you ratify, every figure traces to its source.</p>
+<div class=grid id=g></div></main>
+<script src=shared.js></script><script>
+g.innerHTML=PROCS.map(p=>`<div class="card ${p.w?'w':''}"><span class=mono>${p.k}</span><div class=big>${p.w||'—'}</div><h2>${p.n}</h2><p>${p.p}</p><span class=st>${p.s}</span></div>`).join('')
+</script>

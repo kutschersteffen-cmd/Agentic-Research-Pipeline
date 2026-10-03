@@ -1,0 +1,34 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Constellation</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@500;700&family=Geist+Mono:wght@400&display=swap" rel=stylesheet>
+<style>
+*{box-sizing:border-box;margin:0}html,body{height:100%;background:#020305;color:#e8e8e3;overflow:hidden;font:15px Geist,Helvetica,sans-serif}
+canvas{position:fixed;inset:0;width:100%;height:100%}
+.hud{position:fixed;inset:0;pointer-events:none;padding:28px 32px;display:flex;flex-direction:column;justify-content:space-between}
+.m{font:12px "Geist Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:#7d7f86}
+.row{display:flex;justify-content:space-between}
+h1{font:700 clamp(2.4rem,1rem + 5.5vw,6.4rem)/.95 Geist,Helvetica;letter-spacing:-.05em;mix-blend-mode:difference}
+h1 b{color:#c6ff3d}
+.lab{position:fixed;transform:translate(-50%,-50%);text-align:center;pointer-events:none;font:700 15px Geist;white-space:nowrap;letter-spacing:-.01em;text-shadow:0 0 12px #000}
+.lab small{display:block;font:12px "Geist Mono";color:#7d7f86;font-weight:400}.lab.w small{color:#c6ff3d}
+</style>
+<canvas id=c></canvas><div id=labs></div>
+<div class=hud><div class=row><span class=m>ARP · universe 4,000 · live</span><span class=m>● 15 awaiting ratification</span></div>
+<div><h1>4,000 companies.<br><b>15</b> need a human.</h1><p class=m style="margin-top:14px">Move to disturb the field</p></div></div>
+<script src=../directions/shared.js></script><script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H,D=devicePixelRatio||1;
+function rs(){W=innerWidth;H=innerHeight;c.width=W*D;c.height=H*D;x.setTransform(D,0,0,D,0,0)}rs();addEventListener('resize',rs)
+let seed=7;const R=()=>(seed=seed*16807%2147483647)/2147483647;
+const cent=[[.25,.38],[.72,.3],[.3,.7],[.74,.68]];
+const pts=[];PROCS.forEach((p,i)=>{for(let j=0;j<1000;j++){const a=R()*6.283,r=Math.pow(R(),.7)*.17;pts.push({cx:cent[i][0]+Math.cos(a)*r*(H/W),cy:cent[i][1]+Math.sin(a)*r,i,w:j<p.w*6,ph:R()*6.28,x:0,y:0,vx:0,vy:0,init:0})}})
+labs.innerHTML=PROCS.map(p=>`<div class="lab ${p.w?'w':''}"><span>${p.n}</span><small>${p.w?p.w+' waiting':'quiet'}</small></div>`).join('')
+const L=[...labs.children];let mx=-999,my=-999;addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY})
+function f(t){x.fillStyle='rgba(2,3,5,.28)';x.fillRect(0,0,W,H);
+ L.forEach((l,i)=>{l.style.left=cent[i][0]*W+'px';l.style.top=(cent[i][1]-.2)*H+'px'});
+ for(const p of pts){const tx=(p.cx+Math.cos(t/4000+p.ph)*.004)*W,ty=(p.cy+Math.sin(t/3500+p.ph)*.004*W/H)*H;
+  if(!p.init){p.x=tx;p.y=ty;p.init=1}
+  const dx=p.x-mx,dy=p.y-my,d=dx*dx+dy*dy;if(d<22000){const f=(22000-d)/22000*3;const q=Math.sqrt(d)||1;p.vx+=dx/q*f;p.vy+=dy/q*f}
+  p.vx+=(tx-p.x)*.03;p.vy+=(ty-p.y)*.03;p.vx*=.86;p.vy*=.86;p.x+=p.vx;p.y+=p.vy;
+  if(p.w){x.fillStyle='#c6ff3d';x.shadowColor='#c6ff3d';x.shadowBlur=10;x.fillRect(p.x,p.y,2.6,2.6);x.shadowBlur=0}
+  else{x.fillStyle='rgba(232,232,227,.55)';x.fillRect(p.x,p.y,1.3,1.3)}}
+ requestAnimationFrame(f)}requestAnimationFrame(f)
+</script>
