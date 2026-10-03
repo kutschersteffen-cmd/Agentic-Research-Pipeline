@@ -7,7 +7,7 @@ from pathlib import Path
 import typer
 
 from arp.config import get_settings
-from arp.projects.store import Project, ProjectError, ProjectStore
+from arp.projects.store import MAX_UPLOAD_BYTES, Project, ProjectError, ProjectStore, _check_filename
 
 project_app = typer.Typer(help="Projects: a folder of data files plus saved dashboards (arp/projects/).")
 
@@ -48,6 +48,8 @@ def project_create(
     description: str = typer.Option("", "--description", help="Optional description."),
 ) -> None:
     """Creates an empty project and prints its summary as JSON."""
+    if not name.strip():
+        raise _fail("--name must not be empty")
     try:
         p = _store().create(id, name.strip(), description.strip())
     except ProjectError as e:
@@ -67,13 +69,23 @@ def project_add_data(
     store = _store()
     try:
         store.get(id)
-        contents = [(f.name, f.read_bytes()) for f in files]
-        for name, content in contents:
-            p = store.add_data_file(id, name, content, {"notional_eur": notional_eur})
-    except OSError as e:
-        raise _fail(f"Cannot read {e.filename}: {e.strerror}") from e
-    except ProjectError as e:
+        for f in files:  # validate every file before the first copy, so a bad one leaves nothing behind
+            if not f.is_file():
+                raise ProjectError(f"Not a readable file: {f}")
+            if not _check_filename(f.name).lower().endswith(".xlsx"):
+                raise ProjectError(f"Only .xlsx uploads are accepted: {f.name}")
+            if f.stat().st_size > MAX_UPLOAD_BYTES:
+                raise ProjectError(f"{f.name} exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit")
+    except (ProjectError, OSError) as e:
         raise _fail(str(e)) from e
+    added: list[str] = []
+    for f in files:
+        try:
+            p = store.add_data_file(id, f.name, f.read_bytes(), {"notional_eur": notional_eur})
+        except (ProjectError, OSError) as e:
+            done = f" (already added: {', '.join(added)})" if added else ""
+            raise _fail(f"{f.name}: {e}{done}") from e
+        added.append(f.name)
     typer.echo(json.dumps(_summary(p)))
 
 
@@ -99,10 +111,16 @@ def project_open(id: str = typer.Argument(..., help="Project id.")) -> None:
     s = get_settings()
     if s.portfolio_backend != "postgres":
         raise _fail("Projects need Postgres: set ARP_PORTFOLIO_BACKEND=postgres.", 2)
+    if s.postgres_dsn is None:
+        raise _fail("BI needs Postgres: set ARP_POSTGRES_DSN.", 2)
     if s.superset_password is None:
         raise _fail("Superset is not configured: set ARP_SUPERSET_PASSWORD.", 2)
     try:
-        result = open_project(_store(), _portfolio_store(), _superset_client(), id)
+        try:
+            pstore = _portfolio_store()
+        except RuntimeError as e:
+            raise _fail(f"Portfolio store unavailable: {e}", 2) from e
+        result = open_project(_store(), pstore, _superset_client(), id)
     except OpenError as e:
         raise _fail(f"Opening the project failed at {e.step}: {e}") from e
     except ProjectError as e:

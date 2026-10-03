@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 import pytest
 from typer.testing import CliRunner
@@ -82,6 +83,7 @@ def test_open_prints_json(projects_dir, monkeypatch):
     seen = {}
 
     def fake_open(store, pstore, client, pid):
+        assert (pstore, client) == ("pstore", "client")
         seen["pid"] = pid
         return OpenResult(data=[], dashboards=[dash])
 
@@ -119,3 +121,63 @@ def test_open_with_file_backend_exits_2_before_any_work(projects_dir, monkeypatc
     monkeypatch.setattr("arp.projects.service.open_project", forbidden)
     r = runner.invoke(app, ["project", "open", "demo"])
     assert r.exit_code == 2 and "Postgres" in r.output
+
+
+def _add(*args):
+    return runner.invoke(app, ["project", "add-data", *args, "--notional-eur", "10"])
+
+
+def _clean(r, code=1):
+    assert r.exit_code == code and "Traceback" not in r.output and isinstance(r.exception, SystemExit)
+
+
+def test_oversize_file_rejected_without_reading_or_copying(projects_dir, monkeypatch):
+    _create()
+    monkeypatch.setattr(cli, "MAX_UPLOAD_BYTES", 3)
+    f = _xlsx(projects_dir)
+    _clean(_add("demo", str(f)))
+    assert not (projects_dir / "projects" / "demo" / "data").exists()
+
+
+def test_missing_path_and_directory(projects_dir):
+    _create()
+    _clean(_add("demo", str(projects_dir / "nope.xlsx")))
+    d = projects_dir / "d.xlsx"
+    d.mkdir()
+    _clean(_add("demo", str(d)))
+
+
+def test_batch_with_bad_second_file_copies_nothing(projects_dir):
+    _create()
+    bad = projects_dir / "b.csv"
+    bad.write_text("x")
+    _clean(_add("demo", str(_xlsx(projects_dir)), str(bad)))
+    assert not (projects_dir / "projects" / "demo" / "data").exists()
+
+
+def test_unknown_project(projects_dir, monkeypatch):
+    _clean(_add("ghost", str(_xlsx(projects_dir))))
+    _configure(monkeypatch)
+    monkeypatch.setattr(cli, "_portfolio_store", lambda: None)
+    monkeypatch.setattr(cli, "_superset_client", lambda: None)
+    _clean(runner.invoke(app, ["project", "open", "ghost"]))
+
+
+def test_empty_name_rejected(projects_dir):
+    _clean(runner.invoke(app, ["project", "create", "demo", "--name", "  "]))
+
+
+@pytest.mark.parametrize("missing", ["superset_password", "postgres_dsn"])
+def test_open_unconfigured_exits_2_with_no_calls(projects_dir, monkeypatch, missing):
+    # Settings itself rejects backend=postgres without a DSN, so stand in for the settings object.
+    s = SimpleNamespace(portfolio_backend="postgres", postgres_dsn="dsn", superset_password="pw", **{})
+    setattr(s, missing, None)
+    monkeypatch.setattr(cli, "get_settings", lambda: s)
+
+    def forbidden(*a):
+        raise AssertionError("called")
+
+    monkeypatch.setattr(cli, "_portfolio_store", forbidden)
+    monkeypatch.setattr(cli, "_superset_client", forbidden)
+    monkeypatch.setattr(cli, "_store", forbidden)
+    _clean(runner.invoke(app, ["project", "open", "demo"]), 2)
