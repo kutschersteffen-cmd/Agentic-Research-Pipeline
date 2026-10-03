@@ -35,7 +35,8 @@ def record_review_decision(
 
     item_key granularity is entirely up to the caller -- the Theme Builder
     keys at "{company_id}:{activity_id}", the Extraction Engine's per-field
-    review keys at "{company_id}:{field_id}"; this function has no opinion
+    review keys at "{issuer_key}:{field_id}:{period}" (older runs: bare
+    company_id); this function has no opinion
     on it. `comment` is a trailing optional kwarg specifically so existing
     positional call sites (e.g. themes.py) keep working unmodified.
     """

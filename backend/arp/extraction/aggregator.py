@@ -5,6 +5,7 @@ from arp.extraction.verifier_agent import VerifierOutput
 from arp.grounding import ground_citations
 from arp.schemas.common import SourceDocument
 from arp.schemas.datapoints import ExtractedField, FieldDefinition
+from arp.schemas.review import ReasonCode
 
 
 def build_extracted_field(
@@ -48,12 +49,16 @@ def build_extracted_field(
         else:
             notes_parts.append("No grounded citation supports this value.")
 
-    needs_review = (
-        (final_value is not None and not all_grounded)
-        or not verifier.agrees
-        or draft.conflicting_sources
-        or (draft.value is not None and final_confidence < confidence_review_threshold)
-    )
+    reasons = [
+        code
+        for code, applies in (
+            (ReasonCode.NOT_GROUNDED, final_value is not None and not all_grounded),
+            (ReasonCode.VERIFIER_DISAGREES, not verifier.agrees),
+            (ReasonCode.CONFLICT, bool(draft.conflicting_sources)),
+            (ReasonCode.LOW_CONFIDENCE, draft.value is not None and final_confidence < confidence_review_threshold),
+        )
+        if applies
+    ]
 
     field_result = ExtractedField(
         field_id=field.field_id,
@@ -65,8 +70,9 @@ def build_extracted_field(
         grounded=all_grounded,
         verifier_notes=" ".join(notes_parts).strip() or None,
         conflicting_sources=draft.conflicting_sources,
+        review_reasons=reasons,
     )
-    return field_result, needs_review
+    return field_result, bool(reasons)
 
 
 def no_evidence_field(field: FieldDefinition) -> tuple[ExtractedField, bool]:

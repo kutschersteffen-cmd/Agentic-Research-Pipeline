@@ -121,3 +121,26 @@ def test_resolve_fact_never_queued_is_auto_approved():
     assert value == _RAW_VALUE
     assert status == "auto_approved"
     assert reviewer is None
+
+
+def _extraction_row():
+    return {"_key": "acme", "issuer_key": "ARP:x", "fields": [{"field_id": "a", "value": 1}, {"field_id": "b", "value": 2}]}
+
+
+def test_extraction_fact_resolves_per_field_decisions():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    row = _extraction_row()
+    key_b = "ARP:x:b:unspecified"
+    assert resolve_extraction_fact("acme", row, {}, set())[1] == "auto_approved"
+    assert resolve_extraction_fact("acme", row, {}, {key_b})[1] == "pending_review"
+    edit = {key_b: {"decision": "edit", "reviewer": "r", "edited_value": {"field_id": "b", "value": 5}}}
+    value, status, reviewer = resolve_extraction_fact("acme", row, edit, {key_b})
+    assert (status, reviewer, value["fields"][1]["value"], value["fields"][0]["value"]) == ("edited", "r", 5, 1)
+    assert resolve_extraction_fact("acme", row, {key_b: {"decision": "reject"}}, {key_b})[1] == "rejected"
+
+
+def test_extraction_fact_still_resolves_old_company_level_key():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    assert resolve_extraction_fact("acme", _extraction_row(), {}, {"acme"})[1] == "pending_review"

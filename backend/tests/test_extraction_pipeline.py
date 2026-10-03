@@ -192,3 +192,52 @@ async def test_a_run_counts_the_items_through_each_step(tmp_path, fake_llm):
     # Per company: the one without evidence never reached the extractor.
     assert step_counts(run_store, run_id, "c2")[0]["counts"] == {"gather_evidence": 1, "finalize_no_evidence": 1}
     assert step_counts(run_store, run_id, "c1")[0]["counts"] == {"gather_evidence": 1, "extract": 1, "verify": 1, "aggregate": 1}
+
+
+async def test_pipeline_queues_one_row_per_flagged_field(tmp_path, fake_llm):
+    from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+    from arp.schemas.issuer import issuer_key
+    from arp.storage.run_store import RunStore
+
+    def _f(name, kw):
+        return FieldDefinition(
+            name=name, description=name, data_type=FieldDataType.NUMBER, extraction_instructions=name, seed_keywords=[kw]
+        )
+
+    schema = DataPointSchema(name="Three", fields=[_f("alpha", "alphakw"), _f("beta", "betakw"), _f("gamma", "gammakw")])
+    doc = SourceDocument(
+        company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG",
+        full_text="alphakw is 1 million. betakw is 2 million. gammakw is 3 million.",
+    )
+    company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
+
+    def _draft(v, quote):
+        return ExtractionDraft(
+            value=v, raw_value_text=quote,
+            citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=quote)], confidence=0.9,
+        )
+
+    agree = VerifierOutput(agrees=True, confidence=0.9, notes="ok")
+    disagree = VerifierOutput(agrees=False, corrected_value=None, confidence=0.9, notes="wrong")
+    llm = fake_llm(
+        {
+            "ExtractionDraft": [_draft(1.0, "alphakw is 1 million"), _draft(2.0, "betakw is 2 million"), _draft(3.0, "gammakw is 3 million")],
+            "VerifierOutput": [agree, disagree, disagree],
+        }
+    )
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    run_id = create_extraction_run(schema, [company], settings, run_store)
+    await execute_extraction_run(
+        run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
+        settings=settings, run_store=run_store,
+    )
+
+    rows = run_store.read_jsonl(run_store.review_queue_path(run_id))
+    key, scheme = issuer_key(company)
+    flagged = [f.field_id for f in schema.fields[1:]]
+    assert [r["item_key"] for r in rows] == [f"{key}:{fid}:unspecified" for fid in flagged]
+    assert rows[0]["reason_codes"] == ["verifier_disagrees"]
+    assert rows[0]["issuer_key"] == key and rows[0]["issuer_scheme"] == scheme
+    assert rows[0]["field"]["field_id"] == flagged[0] and rows[0]["company_id"] == "c1"
+    assert run_store.load_manifest(run_id).review_count == 2

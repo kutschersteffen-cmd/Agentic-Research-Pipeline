@@ -13,6 +13,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, ExtractionRecord
 from arp.schemas.issuer import issuer_key
+from arp.schemas.review import field_item_key
 from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
@@ -122,6 +123,28 @@ async def execute_extraction_run(
     batches, against an already-created run (see create_extraction_run).
     """
 
+    def _review_items(company: CompanyRef, result: ExtractionRecordResult) -> list[tuple[str, dict]]:
+        rec = result.record
+        return [
+            (
+                field_item_key(rec.issuer_key, f.field_id),
+                {
+                    "item_key": field_item_key(rec.issuer_key, f.field_id),
+                    "issuer_key": rec.issuer_key,
+                    "issuer_scheme": rec.issuer_scheme,
+                    "company_id": rec.company_id,
+                    "name": rec.name,
+                    "schema_id": rec.schema_id,
+                    "run_id": rec.run_id,
+                    "field_id": f.field_id,
+                    "field": f.model_dump(mode="json"),
+                    "reason_codes": [str(r) for r in f.review_reasons],
+                },
+            )
+            for f in rec.fields
+            if f.review_reasons
+        ]
+
     async def _worker(company: CompanyRef) -> ExtractionRecordResult:
         company = await prepare_company(company, settings=settings, llm=llm, registry=registry)
         result = await _extract_company(
@@ -136,7 +159,7 @@ async def execute_extraction_run(
         run_store=run_store,
         worker=_worker,
         result_to_json=lambda r: r.record.model_dump(mode="json"),
-        review_items=lambda c, r: [(c.company_id, r.record.model_dump(mode="json"))] if r.record.needs_review else [],
+        review_items=_review_items,
         cost_usd=lambda r: r.cost_usd,
         concurrency=settings.max_concurrent_llm_calls,
     )
