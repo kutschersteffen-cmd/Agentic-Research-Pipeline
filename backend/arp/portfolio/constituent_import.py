@@ -11,8 +11,10 @@ keep their sign.
 
 Layout: sheet title = ISO as-of date; row 4 = header; data from row 5.
 Issuer resolution is not performed: one CompanyRef per security
-(`isin:<ISIN>`), so several share classes of one issuer are separate
-companies. Country/sector are German in the files and translated below;
+(`isin_<ISIN>`), so several share classes of one issuer are separate
+companies. The id must pass `safe_id` (it becomes a path segment in
+analytics/documents); an ISIN that cannot fails the import, naming the
+file, row and ISIN. Country/sector are German in the files and translated below;
 unknown values are kept verbatim and reported.
 """
 
@@ -27,6 +29,7 @@ import openpyxl
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import Holding, Portfolio, SecurityRef
 from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
 ASSET_CLASS = {
     "Aktien": "equity",
@@ -152,7 +155,7 @@ def import_constituent_file(
     holdings: list[Holding] = []
     skipped: list[dict] = []
     rows_read = 0
-    for raw in rows:
+    for row_no, raw in enumerate(rows, 5):
         r = dict(zip(header, raw, strict=False))
         name, isin = r.get("Name"), r.get("ISIN")
         if not name or not isin:
@@ -166,7 +169,11 @@ def import_constituent_file(
         sec_type = r.get("Type of Security")
         if sec_type not in ASSET_CLASS:
             other_asset_classes.add("(blank)" if sec_type in _BLANK else str(sec_type))
-        company_id = f"isin:{isin}"
+        company_id = f"isin_{isin}"
+        try:  # company ids become path segments downstream (analytics, documents)
+            safe_id(company_id, label="company_id")
+        except UnsafeIdentifierError:
+            raise ValueError(f"{path.name} row {row_no}: ISIN {isin!r} cannot form a valid company_id {company_id!r}") from None
         store.save_company(
             CompanyRef(
                 company_id=company_id,

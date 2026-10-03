@@ -3,6 +3,7 @@ from openpyxl import Workbook
 
 from arp.portfolio.constituent_import import import_constituent_files
 from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.safe_path import safe_id
 
 HEADER = [
     None,
@@ -60,10 +61,20 @@ def test_import(tmp_path):
     assert store.get_security("CASH_EUR").asset_class == "cash"
     assert store.get_security("___ADI2VD0J5").asset_class == "derivative"
     assert store.get_security("XS0000000001").asset_class == "other"
-    c = store.get_company("isin:US0378331005")
+    c = store.get_company("isin_US0378331005")
     assert (c.country, c.sector) == ("United States", "Information Technology")
-    assert store.get_company("isin:CASH_EUR").sector is None
-    assert store.get_company("isin:XS0000000001").country == "Atlantis"
+    assert store.get_company("isin_CASH_EUR").sector is None
+    assert store.get_company("isin_XS0000000001").country == "Atlantis"
+    # placeholder ISINs with a leading "_" still give a safe id: the prefix starts it alphanumerically
+    assert safe_id(store.get_security("___ADI2VD0J5").company_id) == "isin____ADI2VD0J5"
+
+
+def test_unsafe_isin_fails_at_import(tmp_path):
+    store = PortfolioStore(tmp_path / "store")
+    bad = ("Slash", "US03/8331005", "-", "USD", "Aktien", "-", 0.1)
+    path = _xlsx(tmp_path, [ROWS[0], bad])
+    with pytest.raises(ValueError, match=r"Constituent_IE00TESTFUND\.xlsx row 6: ISIN 'US03/8331005'"):
+        import_constituent_files(store, [path], 100.0)
 
 
 def test_idempotent(tmp_path):
