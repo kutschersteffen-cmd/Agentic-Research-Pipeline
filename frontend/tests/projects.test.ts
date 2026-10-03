@@ -125,3 +125,21 @@ test("formatValidationErrors handles pydantic objects and the plan validator's p
     "plan › title: bad; oops",
   );
 });
+
+test("opened is ignored in Standard mode (a failed create must not change the picker)", () => {
+  const s = run(initialPicker, { type: "list", items: standard });
+  assert.equal(reducePicker(s, { type: "opened", dashboards: [] }), s);
+});
+
+test("a failed open in project mode empties the project list and selects nothing", () => {
+  const s = run(
+    initialPicker,
+    { type: "list", items: standard },
+    { type: "select", project: "p" },
+    { type: "opened", dashboards: [dash(3, "arp-p--x")] },
+    { type: "select", project: "p" },
+    { type: "opened", dashboards: [] },
+  );
+  assert.deepEqual(s.projectDashboards, []);
+  assert.equal(s.selectedId, null);
+});

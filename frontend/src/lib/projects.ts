@@ -87,6 +87,7 @@ export function reducePicker(s: PickerState, e: PickerEvent): PickerState {
         selectedId: e.project ? s.selectedId : (s.standard ? pickDefaultDashboard(s.standard)?.id ?? null : null),
       };
     case "opened": {
+      if (s.project === null) return s; // a late or failed open must not touch Standard mode
       const items = embeddable(e.dashboards).map(({ id, slug, title, published }) => ({ id, slug, title, published }));
       return { ...s, projectDashboards: items, selectedId: items[0]?.id ?? null };
     }

@@ -41,6 +41,7 @@ export function ProjectBar({
   const [notional, setNotional] = useState(String(DEFAULT_NOTIONAL_EUR));
   const [files, setFiles] = useState<File[]>([]);
 
+  const created = useRef(false); // the create flow got as far as having a project
   const latest = useRef(0); // a stale open never overwrites newer state
 
   const open = useCallback(
@@ -58,7 +59,7 @@ export function ProjectBar({
       } catch (e) {
         if (mine !== latest.current) return null;
         setError(apiMessage(e));
-        onOpened([]);
+        if (!flow || created.current) onOpened([]); // a failed createProject leaves the picker as it was
         return null;
       } finally {
         if (mine === latest.current) setRunning(false);
@@ -98,9 +99,11 @@ export function ProjectBar({
     e.preventDefault();
     const notionalEur = Number(notional);
     if (!name.trim() || !(notionalEur > 0) || files.length === 0) return;
+    created.current = false;
     // The project becomes the parent's selection as soon as it exists, before the open fills its dashboards.
     const id = await open("", () =>
       createAndOpen(api, { name: name.trim(), notionalEur, files }, (pid) => {
+        created.current = true;
         setSelected(pid);
         remember(pid);
         onProject?.(pid);

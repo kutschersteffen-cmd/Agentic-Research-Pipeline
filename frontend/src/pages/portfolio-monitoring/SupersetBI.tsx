@@ -224,6 +224,7 @@ export function SupersetBI() {
                 <select value={selectedId ?? ""} onChange={(e) => dispatch({ type: "pick", id: Number(e.target.value) })}>
                   {groups ? (
                     <>
+                      {!selected && <option value="" disabled>Select a dashboard</option>}
                       <optgroup label="Project dashboards">{groups.mine.map(option)}</optgroup>
                       {groups.others.length > 0 && <optgroup label="Other arp- dashboards">{groups.others.map(option)}</optgroup>}
                     </>
@@ -242,6 +243,7 @@ export function SupersetBI() {
                 <button className="secondary" onClick={exportPicked}>Save to project</button>
               )}
             </div>
+            {groups && groups.mine.length === 0 && <p className="muted">No dashboards opened for this project.</p>}
             {saveNote && <p className="muted" role="status">{saveNote}</p>}
             {selected && !selected.published && (
               <p className="await-text">Draft — unpublished. Review and publish it in Superset.</p>
