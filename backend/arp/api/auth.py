@@ -33,8 +33,13 @@ def load_users(path: Path) -> dict[str, Principal]:
     try:
         rows = json.loads(Path(path).read_text(encoding="utf-8"))["users"]
         users = [_UserRow.model_validate(r) for r in rows]
-    except (OSError, ValueError, KeyError, TypeError, ValidationError) as exc:
-        raise RuntimeError(f"Users file {path} is missing or invalid ({exc}); see config/users.example.json.") from exc
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        # Never put str(exc) here: a pydantic ValidationError echoes the offending row, token included.
+        if isinstance(exc, ValidationError):
+            why = "; ".join(f"{'.'.join(map(str, e['loc']))}: {e['type']}" for e in exc.errors(include_input=False))
+        else:
+            why = type(exc).__name__
+        raise RuntimeError(f"Users file {path} is missing or invalid ({why}); see config/users.example.json.") from None
     return {u.token: Principal(user_id=u.user_id, name=u.name, role=u.role) for u in users}
 
 

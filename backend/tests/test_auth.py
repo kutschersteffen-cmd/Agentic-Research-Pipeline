@@ -112,3 +112,13 @@ def test_health_open_and_me_returns_principal(real_client):
     assert real_client.get("/api/me").status_code == 401
     r = real_client.get("/api/me", headers=bearer("ta"))
     assert r.json() == {"user_id": "u_a", "name": "A", "role": "analyst"}
+
+
+def test_invalid_row_error_never_leaks_the_token(tmp_path):
+    path = tmp_path / "bad.json"
+    path.write_text('{"users": [{"token": "s3cret", "user_id": "u", "name": "N", "role": "root"}]}')
+    with pytest.raises(RuntimeError) as err:
+        load_users(path)
+    assert str(path) in str(err.value)
+    assert "s3cret" not in str(err.value)
+    assert "s3cret" not in repr(err.value.__cause__)
