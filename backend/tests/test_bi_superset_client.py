@@ -407,3 +407,10 @@ def test_export_dashboard_relogs_in_once_on_401():
     c, _ = _client(handler)
     assert c.export_dashboard(5) == b"PK"
     assert seen == ["Bearer tok1", "Bearer tok2"]
+
+
+def test_unpublish_dashboard_puts_published_false():
+    c, calls = _client(lambda r: httpx.Response(200, json={}))
+    c.unpublish_dashboard(5)
+    assert calls[-1].method == "PUT" and calls[-1].url.path == "/api/v1/dashboard/5"
+    assert json.loads(calls[-1].content) == {"published": False}

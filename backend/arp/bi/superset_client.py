@@ -203,6 +203,9 @@ class SupersetClient:
             body["json_metadata"] = json.dumps(json_metadata)
         self._request("PUT", f"/dashboard/{dashboard_id}", json=body)
 
+    def unpublish_dashboard(self, dashboard_id: int) -> None:
+        self._request("PUT", f"/dashboard/{dashboard_id}", json={"published": False})
+
     def _attach(self, dashboard_id: int, chart_ids: list[int]) -> None:
         for cid in chart_ids:  # POST /dashboard/ cannot take charts; they attach from the chart side
             self._request("PUT", f"/chart/{cid}", json={"dashboards": [dashboard_id]})

@@ -12,10 +12,11 @@ from pydantic import BaseModel
 from arp.bi.plan import DashboardTemplate
 from arp.bi.service import BIError, DashboardNotFound, NotAnARPDashboard
 from arp.bi.superset_client import SupersetError
+from arp.bi.views import PLACEHOLDER_SECRETS
 from arp.config import get_settings
 from arp.portfolio.constituent_import import import_constituent_files
 from arp.projects.dashboards import provision_project_dashboard
-from arp.projects.store import ProjectError, ProjectStore, StoredDashboard
+from arp.projects.store import MAX_UPLOAD_BYTES, ProjectError, ProjectStore, StoredDashboard
 
 
 class OpenError(Exception):
@@ -96,15 +97,24 @@ def _open_export(store: ProjectStore, client, project_id: str, d, step: str) -> 
         if dash_id is not None:
             return OpenedDashboard(id=dash_id, slug=d.slug, title=d.title, published=published, status="unchanged")
         password = get_settings().bi_reader_password
-        if not password:
-            raise OpenError(step, "ARP_BI_READER_PASSWORD is not set; cannot import the stored dashboard")
-        bundle = store.file_path(project_id, "dashboards", d.file).read_bytes()
+        if not password or password in PLACEHOLDER_SECRETS:
+            raise OpenError(step, "ARP_BI_READER_PASSWORD is unset or a placeholder; cannot import the stored dashboard")
+        path = store.file_path(project_id, "dashboards", d.file)
+        if path.stat().st_size > MAX_UPLOAD_BYTES:
+            raise OpenError(step, "Stored bundle is too large to import")
+        bundle = path.read_bytes()
         with zipfile.ZipFile(io.BytesIO(bundle)) as z:
-            keys = {n.split("/", 1)[1] for n in z.namelist() if n.split("/")[1:2] == ["databases"] and n.endswith(".yaml")}
-        if not keys:
-            raise OpenError(step, "Stored bundle has no databases/*.yaml entry")
-        client.import_dashboard(bundle, {k: password for k in keys})
+            parts = [n.split("/") for n in z.namelist()]
+            keys = ["/".join(q[1:]) for q in parts if len(q) == 3 and q[1] == "databases" and q[2].endswith(".yaml")]
+        if len(keys) != 1:  # ponytail: multi-database bundles unsupported, one reader password only
+            raise OpenError(step, f"Stored bundle must contain exactly one databases/*.yaml entry, found {len(keys)}")
+        client.import_dashboard(bundle, {keys[0]: password})
         dash_id, published = dashboard_state(client, d.slug, step)
+        if dash_id is not None and published:  # only a dashboard this import just created
+            client.unpublish_dashboard(dash_id)
+            dash_id, published = dashboard_state(client, d.slug, step)
+            if published:
+                raise OpenError(step, "could not unpublish the imported dashboard")
     except SupersetError as e:  # never echo e.body
         raise OpenError(step, f"Superset returned HTTP {e.status_code}") from None
     except httpx.HTTPError:

@@ -1,10 +1,14 @@
 import pytest
 
 from arp.bi.plan import ChartSpec, DashboardTemplate
+from arp.bi.service import NotAnARPDashboard
+from arp.config import Settings
+from arp.projects import service as svc
 from arp.projects.dashboards import slugify_dashboard
-from arp.projects.service import OpenError, open_project
+from arp.projects.service import OpenError, export_dashboard_to_project, open_project
 from arp.projects.store import ProjectStore
 from arp.storage.portfolio_store import PortfolioStore
+from tests.export_helpers import PW, ExportClient, make_bundle
 from tests.test_bi_service import FakeClient
 from tests.test_constituent_import import ROWS, _xlsx
 
@@ -135,38 +139,6 @@ def test_malformed_template_file(env, tmp_path):
 
 
 # --- hand-built dashboards as export bundles ---
-import io  # noqa: E402
-import zipfile  # noqa: E402
-
-from arp.bi.service import NotAnARPDashboard  # noqa: E402
-from arp.bi.superset_client import SupersetError  # noqa: E402
-from arp.config import Settings  # noqa: E402
-from arp.projects import service as svc  # noqa: E402
-from arp.projects.service import export_dashboard_to_project  # noqa: E402
-
-PW = "s3cret-reader-pw"
-
-
-def _bundle() -> bytes:
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as z:
-        z.writestr("dashboard_export_1/metadata.yaml", "x")
-        z.writestr("dashboard_export_1/databases/x.yaml", "x")
-    return buf.getvalue()
-
-
-class ExportClient(FakeClient):
-    fail_import = False
-
-    def export_dashboard(self, dashboard_id):
-        self.calls.append(("export_dashboard", dashboard_id))
-        return _bundle()
-
-    def import_dashboard(self, bundle, db_passwords):
-        self.calls.append(("import_dashboard", db_passwords))
-        if self.fail_import:
-            raise SupersetError(500, f"body with {PW}")
-        self.dashboards["arp-hand"] = {"id": 900, "published": False, "charts": [], "position": {}, "meta": None}
 
 
 @pytest.fixture
@@ -187,7 +159,7 @@ def test_export_stores_zip_and_manifest(xenv):
     store, _, client = xenv
     d = export_dashboard_to_project(store, client, "alpha", 900)
     assert (d.slug, d.source, d.file) == ("arp-hand", "superset-export", "arp-hand.zip")
-    assert store.file_path("alpha", "dashboards", "arp-hand.zip").read_bytes() == _bundle()
+    assert store.file_path("alpha", "dashboards", "arp-hand.zip").read_bytes() == client.bundle
     assert store.get("alpha").dashboards == [d]
 
 
@@ -234,3 +206,71 @@ def test_open_without_reader_password(xenv, monkeypatch):
     with pytest.raises(OpenError, match="ARP_BI_READER_PASSWORD") as ei:
         open_project(store, pf, client, "alpha")
     assert ei.value.step == "dashboard:arp-hand" and _imports(client) == []
+
+
+def _absent(xenv):
+    store, pf, client = xenv
+    export_dashboard_to_project(store, client, "alpha", 900)
+    del client.dashboards["arp-hand"]
+    return store, pf, client
+
+
+def test_open_unpublishes_published_import(xenv):
+    store, pf, client = _absent(xenv)
+    client.import_published = True
+    (d,) = open_project(store, pf, client, "alpha").dashboards
+    assert (d.status, d.published) == ("created", False)
+
+
+def test_open_unpublish_failure_is_open_error(xenv):
+    store, pf, client = _absent(xenv)
+    client.import_published = True
+    client.fail_unpublish = True
+    with pytest.raises(OpenError) as ei:
+        open_project(store, pf, client, "alpha")
+    assert ei.value.step == "dashboard:arp-hand"
+
+
+def test_open_never_touches_published_existing(xenv):
+    store, pf, client = xenv
+    export_dashboard_to_project(store, client, "alpha", 900)
+    client.dashboards["arp-hand"]["published"] = True
+    (d,) = open_project(store, pf, client, "alpha").dashboards
+    assert (d.status, d.published) == ("unchanged", True)
+    assert not [c for c in client.calls if c[0] == "unpublish_dashboard"]
+
+
+@pytest.mark.parametrize("pw", [None, "", "change-me-dev-only"])
+def test_open_rejects_unset_or_placeholder_password(xenv, monkeypatch, pw):
+    store, pf, client = _absent(xenv)
+    monkeypatch.setattr(svc, "get_settings", lambda: Settings(bi_reader_password=pw))
+    with pytest.raises(OpenError) as ei:
+        open_project(store, pf, client, "alpha")
+    assert ei.value.step == "dashboard:arp-hand" and "change-me" not in str(ei.value) and _imports(client) == []
+
+
+@pytest.mark.parametrize("names", [("metadata.yaml",), ("databases/a.yaml", "databases/b.yaml"), ("databases/sub/a.yaml",)])
+def test_open_rejects_bundle_without_exactly_one_database(xenv, names):
+    store, pf, client = xenv
+    client.bundle = make_bundle(*names)
+    export_dashboard_to_project(store, client, "alpha", 900)
+    del client.dashboards["arp-hand"]
+    with pytest.raises(OpenError, match="exactly one"):
+        open_project(store, pf, client, "alpha")
+    assert _imports(client) == []
+
+
+def test_open_rejects_non_zip_bundle(xenv):
+    store, pf, client = xenv
+    client.bundle = b"not a zip"
+    export_dashboard_to_project(store, client, "alpha", 900)
+    del client.dashboards["arp-hand"]
+    with pytest.raises(OpenError, match="not a valid zip"):
+        open_project(store, pf, client, "alpha")
+
+
+def test_open_rejects_oversize_bundle(xenv, monkeypatch):
+    store, pf, client = _absent(xenv)
+    monkeypatch.setattr(svc, "MAX_UPLOAD_BYTES", 5)
+    with pytest.raises(OpenError, match="too large"):
+        open_project(store, pf, client, "alpha")

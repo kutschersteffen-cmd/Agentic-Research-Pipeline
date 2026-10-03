@@ -14,6 +14,7 @@ from arp.projects import store as store_mod
 from arp.projects.dashboards import slugify_dashboard
 from arp.projects.store import ProjectStore
 from arp.storage.portfolio_store import PortfolioStore
+from tests.export_helpers import ExportClient
 from tests.test_bi_service import PLAN, FakeClient, _spec
 from tests.test_constituent_import import ROWS, _xlsx
 
@@ -187,8 +188,6 @@ def test_save_dashboard_502_without_superset_body(tmp_path, monkeypatch):
 
 
 def test_export_dashboard_endpoint(tmp_path, monkeypatch):
-    from tests.test_projects_service import ExportClient
-
     client = ExportClient()
     client.dashboards["arp-hand"] = {"id": 900, "published": False, "charts": [], "position": {}, "meta": None}
     client.dashboards["plain"] = {"id": 5, "published": False, "charts": [], "position": {}, "meta": None}
