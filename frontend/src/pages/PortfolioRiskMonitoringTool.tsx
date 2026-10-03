@@ -41,9 +41,16 @@ function Inner({ initialSub, onSendUniverse }: { initialSub?: string; onSendUniv
   return (
     <div className="page">
       <h1>Risk Monitoring</h1>
-      <p className="help-text">Pick a portfolio or group and an as-of date; the selection carries across every tab below.</p>
-
-      <PersistentSelectionPane onSendUniverse={onSendUniverse} />
+      {/* spec §5: on the Dashboards tab Superset's filter bar is the selection UI */}
+      {sub !== "dashboards" && (
+        <>
+          <p className="help-text">
+            Pick a portfolio or group and an as-of date; the selection carries across the tabs below (Dashboards uses
+            Superset&apos;s own filter bar).
+          </p>
+          <PersistentSelectionPane onSendUniverse={onSendUniverse} />
+        </>
+      )}
 
       <nav className="sub-nav">
         {SUB_TABS.map((t) => (
