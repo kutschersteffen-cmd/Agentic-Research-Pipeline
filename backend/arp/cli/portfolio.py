@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
 
 import typer
 
@@ -9,6 +10,7 @@ from arp.cli._shared import _portfolio_directories, _portfolio_store
 from arp.config import get_settings
 from arp.llm.factory import build_llm_client
 from arp.portfolio import analytics, governance, qa_agent
+from arp.portfolio.constituent_import import import_constituent_files
 from arp.portfolio.genbi import service as genbi_service
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
@@ -38,6 +40,18 @@ def portfolio_seed_demo() -> None:
     )
     typer.echo(json.dumps(summary.__dict__, indent=2))
 
+
+
+@portfolio_app.command("import-constituents")
+def portfolio_import_constituents(
+    files: list[Path] = typer.Argument(..., help="DWS Constituent_<ISIN>.xlsx files."),
+    notional_eur: float = typer.Option(..., help="Assumed fund size in EUR; the files carry weights only."),
+) -> None:
+    """Imports DWS ETF constituent files as one portfolio per file, sizing
+    each weight at the assumed notional. Idempotent: a re-run overwrites
+    the same snapshot."""
+    summary = import_constituent_files(_portfolio_store(), files, notional_eur)
+    typer.echo(json.dumps(summary, indent=2, ensure_ascii=False))
 
 
 @portfolio_app.command("list")
