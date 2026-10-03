@@ -16,7 +16,7 @@ const SLINGS = [
 const WALLS = [...RAILS, ...SLINGS.flatMap((s) => s.sides as [number, number, number, number][])];
 const BUMPERS = [{ x: 58, y: 96, r: 9 }, { x: 108, y: 96, r: 9 }, { x: 83, y: 134, r: 9 }];
 const LANES = [50, 82, 114]; // top rollover lights
-const FLIPPERS = [{ px: 56, py: 284, len: 34, side: 1, rest: 0.52, up: -0.5 }, { px: 124, py: 284, len: 34, side: -1, rest: 0.52, up: -0.5 }];
+const FLIPPERS = [{ px: 56, py: 284, len: 28, side: 1, rest: 0.52, up: -0.5 }, { px: 124, py: 284, len: 28, side: -1, rest: 0.52, up: -0.5 }];
 const C = { rail: "#4cc9f0", railDark: "#12385a", bump: "#ff3d9a", yellow: "#ffd23d", ball: "#ffffff" };
 // 3x5 pixel letters for the table logo
 const FONT: Record<string, string[]> = {
@@ -64,7 +64,9 @@ export function Flipper() {
     const art = paintTable();
 
     const serve = () => { Object.assign(ball, { x: 168, y: 292, vx: 0, vy: 0 }); ready = true; };
-    const launch = () => { if (state === "play" && ready) { ball.vy = -420 - (still ? 0 : Math.random() * 20); ready = false; } };
+    // the ball can be pushed out of the lane whenever it rests at the bottom of it, not only at serve
+    const canLaunch = () => state === "play" && ball.x > 162 && ball.y > 270 && Math.abs(ball.vy) < 60;
+    const launch = () => { if (canLaunch()) { ball.vy = -420 - (still ? 0 : Math.random() * 20); ball.vx = 0; ready = false; } };
     const start = () => { state = "play"; lit.fill(false); pts = 0; shown = 0; left = 3; setScore(0); setBalls(3); setFresh(false); setPhase("play"); serve(); };
     startRef.current = start;
 
@@ -75,7 +77,7 @@ export function Flipper() {
       if (down && (k === "space" || k === "enter")) { if (state !== "play") start(); else launch(); }
     });
     const el = cv.current!;
-    const pd = (e: PointerEvent) => { if (state !== "play") { start(); return; } if (ready) launch(); press(pointerX(e, el) < 0.5 ? 0 : 1, true); };
+    const pd = (e: PointerEvent) => { if (state !== "play") { start(); return; } launch(); press(pointerX(e, el) < 0.5 ? 0 : 1, true); };
     const pu = () => { press(0, false); press(1, false); };
     el.addEventListener("pointerdown", pd); addEventListener("pointerup", pu);
 
@@ -178,7 +180,7 @@ export function Flipper() {
         const a = ang[i], tx = f.px + f.side * Math.cos(a) * f.len, ty = f.py + Math.sin(a) * f.len;
         line(f.px, f.py, tx, ty, "#12385a", 7); line(f.px, f.py, tx, ty, C.rail, 5); line(f.px, f.py, tx, ty, "#d6f4ff", 2); disc(f.px, f.py, 3, C.yellow);
       });
-      if (ready && state === "play" && !still) { ctx.fillStyle = C.yellow; const o = Math.floor(now / 250) % 2 * 2; ctx.fillRect(166, 262 + o, 5, 1); ctx.fillRect(167, 261 + o, 3, 1); ctx.fillRect(168, 260 + o, 1, 1); }
+      if (canLaunch() && !still) { ctx.fillStyle = C.yellow; const o = Math.floor(now / 250) % 2 * 2; ctx.fillRect(166, 262 + o, 5, 1); ctx.fillRect(167, 261 + o, 3, 1); ctx.fillRect(168, 260 + o, 1, 1); }
       if (state !== "title") {
         trail.push({ x: ball.x, y: ball.y }); if (trail.length > 7) trail.shift();
         trail.forEach((t, i) => { if (i < trail.length - 1) disc(t.x, t.y, i < 3 ? 1 : 2, i < 3 ? "#4cc9f044" : "#4cc9f088"); });
