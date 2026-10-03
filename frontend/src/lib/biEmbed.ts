@@ -1,4 +1,4 @@
-import type { BIDesignResult } from "../types";
+import type { BIDesignResult, DashboardItem } from "../types";
 
 // `env` is undefined under `node --test`, hence the `?.`.
 export const SUPERSET_URL: string = import.meta.env?.VITE_SUPERSET_URL ?? "http://127.0.0.1:8088";
@@ -16,4 +16,9 @@ export function embedUrlFor(
 ): string | null {
   if (result.dashboard_id === null || !embeddedId) return null;
   return `${supersetDomain.replace(/\/+$/, "")}/embedded/${embeddedId}`;
+}
+
+/** The dashboard the tab opens on: the preferred slug if listed, else the first, else none. */
+export function pickDefaultDashboard(items: DashboardItem[], preferredSlug = "arp-risk-exposure"): DashboardItem | null {
+  return items.find((d) => d.slug === preferredSlug) ?? items[0] ?? null;
 }

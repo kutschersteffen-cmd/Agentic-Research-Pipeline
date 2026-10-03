@@ -80,7 +80,7 @@ export function CompanyProfiles() {
     <section className="card">
       <h2>Company Profiles</h2>
       <p className="help-text">
-        Pick an issuer, or filter Pivot Explorer to one company. Climate figures come from holdings in the current
+        Pick an issuer. Climate figures come from holdings in the current
         selection, so an issuer you do not hold may show no data. Engagement and voting history is not shown here yet.
       </p>
       <label className="field-label">

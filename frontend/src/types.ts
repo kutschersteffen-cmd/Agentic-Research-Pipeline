@@ -2789,3 +2789,11 @@ export interface BIEmbedToken {
   token: string;
   embedded_id: string;
 }
+
+/** An embeddable Superset dashboard (slug starts with `arp-`), from GET /api/bi/dashboards. */
+export interface DashboardItem {
+  id: number;
+  slug: string;
+  title: string;
+  published: boolean;
+}
