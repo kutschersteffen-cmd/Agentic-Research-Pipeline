@@ -136,7 +136,7 @@ def test_publishing_from_a_run_needs_a_finished_run_and_a_ratified_version(clien
     framework_id = _template(client)
     run_id = _extraction_run(client.run_store)
     client.put(f"/api/decision/runs/{run_id}/framework", json={"framework_id": framework_id})
-    body = {"published_by": "ana"}
+    body = {"published_by": "ana"}  # ignored: the principal publishes
 
     running = client.post(f"/api/decision/runs/{run_id}/publish", json=body)
     assert running.status_code == 409, "half a run's tiers are not the universe's tiers"

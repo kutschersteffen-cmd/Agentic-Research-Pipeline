@@ -195,13 +195,18 @@ async def meeting_summary_endpoint(company_id: str, issue_id: str, req: MeetingS
 
 class LogOutreachSentRequest(BaseModel):
     summary: str
-    sent_by: str
     doc_ref: str | None = None
 
 
 @router.post("/records/{company_id}/issues/{issue_id}/log-outreach-sent")
-def log_outreach_sent_endpoint(company_id: str, issue_id: str, req: LogOutreachSentRequest, store: EngagementStore = Depends(get_engagement_store)) -> dict:
-    return log_outreach_sent(store, company_id, issue_id, req.summary, req.sent_by, req.doc_ref).model_dump(mode="json")
+def log_outreach_sent_endpoint(
+    company_id: str,
+    issue_id: str,
+    req: LogOutreachSentRequest,
+    store: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
+) -> dict:
+    return log_outreach_sent(store, company_id, issue_id, req.summary, principal.name, req.doc_ref).model_dump(mode="json")
 
 
 class ValidateMeetingSummaryRequest(BaseModel):

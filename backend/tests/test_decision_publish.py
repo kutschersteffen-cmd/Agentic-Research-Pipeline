@@ -10,6 +10,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from arp.api.auth import current_user
 from arp.api.deps import get_decision_store, get_index_store, get_portfolio_store, get_run_store, settings_dep
 from arp.api.routers import decision as decision_router
 from arp.api.routers import index as index_router
@@ -19,6 +20,7 @@ from arp.stewardship.tiers import tier_contexts
 from arp.storage.decision_store import DecisionStore
 from arp.storage.index_store import IndexStore
 from arp.storage.run_store import RunStore
+from tests.conftest import PRINCIPAL
 
 SAMPLE = Path(__file__).resolve().parents[1] / "arp" / "decision" / "sample_data" / "example_transition_universe.csv"
 
@@ -32,6 +34,7 @@ def client(tmp_path):
     app.include_router(decision_router.router)
     app.include_router(index_router.router)
     app.dependency_overrides[settings_dep] = lambda: settings
+    app.dependency_overrides[current_user] = lambda: PRINCIPAL
     app.dependency_overrides[get_decision_store] = lambda: store
     app.dependency_overrides[get_run_store] = lambda: RunStore(settings.runs_dir)
     app.dependency_overrides[get_portfolio_store] = lambda: None
@@ -57,16 +60,16 @@ def _framework(client, tmp_path) -> tuple[str, str]:
 
 def test_publish_needs_a_ratified_framework_then_freezes_rows_by_id(client, tmp_path):
     dataset_id, framework_id = _framework(client, tmp_path)
-    body = {"dataset_id": dataset_id, "framework_id": framework_id, "published_by": "A. Reviewer"}
+    body = {"dataset_id": dataset_id, "framework_id": framework_id, "published_by": "Mallory"}  # spoofed: ignored
 
     assert client.post("/api/decision/publish", json=body).status_code == 422  # draft framework
 
     client.post(f"/api/decision/mechanisms/{framework_id}/ratify", params={"ratified_by": "A. Reviewer"})
-    assert client.post("/api/decision/publish", json={**body, "published_by": " "}).status_code == 422
 
     published = client.post("/api/decision/publish", json=body)
     assert published.status_code == 200, published.text
     snapshot = published.json()
+    assert snapshot["published_by"] == "Test"
     assert snapshot["id_column"] == "Company_Id"
     assert {r["entity_id"] for r in snapshot["rows"]} >= {"SYN01", "demo000"}
     assert client.get("/api/decision/published").json()[0]["snapshot_id"] == snapshot["snapshot_id"]

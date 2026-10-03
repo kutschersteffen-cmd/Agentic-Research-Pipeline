@@ -772,7 +772,7 @@ def approve_draft(
 
 
 class SentRequest(BaseModel):
-    sent_by: str
+    pass  # the sender is the signed-in principal
 
 
 @router.post("/drafts/{draft_id}/sent")
@@ -781,10 +781,11 @@ def mark_draft_sent(
     body: SentRequest,
     streams: StreamStore = Depends(get_stream_store),
     engagements: EngagementStore = Depends(get_engagement_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     """Records that an approved draft went out: it is logged as correspondence with its interaction type."""
     try:
-        return drafting.mark_sent(_drafts(streams), engagements, draft_id, body.sent_by)
+        return drafting.mark_sent(_drafts(streams), engagements, draft_id, principal.user_id)
     except KeyError as exc:
         raise HTTPException(404, "Unknown draft or engagement") from exc
     except ValueError as exc:

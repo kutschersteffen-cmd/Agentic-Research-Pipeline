@@ -6,7 +6,7 @@ from pathlib import Path
 import typer
 from pydantic import ValidationError
 
-from arp.cli._shared import _portfolio_store, _run_store
+from arp.cli._shared import _portfolio_store, _run_store, cli_principal
 from arp.config import get_settings
 from arp.decision import sources as decision_sources
 from arp.decision import templates
@@ -294,7 +294,6 @@ def decision_audit(framework_id: str, version: int = typer.Option(None)) -> None
 def decision_new_version(
     framework_id: str,
     framework_file: Path = typer.Option(..., "--framework-file", help="Edited MechanismConfig JSON."),
-    by: str = typer.Option(None, "--by", help="Who made the edits, recorded in the audit trail."),
 ) -> None:
     store = _decision_store()
     edited = MechanismConfig.model_validate_json(framework_file.read_text())
@@ -302,7 +301,7 @@ def decision_new_version(
     if previous is None:
         typer.echo(f"Unknown framework: {framework_id}", err=True)
         raise typer.Exit(1)
-    audit = list(store.get_audit(framework_id, previous.version)) + describe_changes(previous, edited, by=by)
+    audit = list(store.get_audit(framework_id, previous.version)) + describe_changes(previous, edited, by=cli_principal(get_settings()).name)
     saved = store.new_version(edited.model_copy(update={"framework_id": framework_id}), audit)
     typer.echo(f"Created {saved.framework_id} v{saved.version}")
 
@@ -326,11 +325,10 @@ def decision_export(
 @decision_app.command("import")
 def decision_import(
     template_file: Path,
-    by: str = typer.Option(None, "--by", help="Who imported it, recorded in the audit trail."),
 ) -> None:
     """A scoring template file -> a new, unratified framework here."""
     try:
-        config, audit = templates.import_template(json.loads(template_file.read_text()), by=by)
+        config, audit = templates.import_template(json.loads(template_file.read_text()), by=cli_principal(get_settings()).name)
     except (ValueError, ValidationError) as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc

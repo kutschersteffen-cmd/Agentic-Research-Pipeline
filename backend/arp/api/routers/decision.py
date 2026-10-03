@@ -738,7 +738,6 @@ def remove_run_override(
 
 
 class RunPublishRequest(BaseModel):
-    published_by: str
     note: str = ""
 
 
@@ -748,6 +747,7 @@ def publish_run(
     req: RunPublishRequest,
     store: DecisionStore = Depends(get_decision_store),
     run_store: RunStore = Depends(get_run_store),
+    principal: Principal = Depends(current_user),
 ) -> PublishedDecision:
     """Publishes a run's tiers straight from the run, with the pinned version.
 
@@ -768,7 +768,7 @@ def publish_run(
         held, held_from = hold_published_cuts(config, store.list_published())
         result = _apply(dataset, held, overrides=overrides.load(templates.run_overrides_path(run_store, run_id)))
         snapshot = publish(
-            dataset, config, result, published_by=req.published_by, note=req.note or f"From run {run_id}", cuts_held_from=held_from
+            dataset, config, result, published_by=principal.name, note=req.note or f"From run {run_id}", cuts_held_from=held_from
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
@@ -808,13 +808,14 @@ class PublishRequest(BaseModel):
     dataset_id: str
     framework_id: str
     version: int | None = None
-    published_by: str
     id_column: str | None = Field(default=None, description="Column matching rows to issuers; found automatically when omitted.")
     note: str = ""
 
 
 @router.post("/publish", response_model=PublishedDecision)
-def post_publish(req: PublishRequest, store: DecisionStore = Depends(get_decision_store)) -> PublishedDecision:
+def post_publish(
+    req: PublishRequest, store: DecisionStore = Depends(get_decision_store), principal: Principal = Depends(current_user)
+) -> PublishedDecision:
     """Freezes a ratified framework's result so Steward Workflow and Index
     Construction can read it. Publishing proposes: coverage tiers still need
     confirming at the checkpoint, and an index still needs its own run."""
@@ -824,7 +825,7 @@ def post_publish(req: PublishRequest, store: DecisionStore = Depends(get_decisio
     try:
         result = _apply(dataset, held, overrides=overrides.load(store.overrides_path(dataset.dataset_id)))
         snapshot = publish(
-            dataset, config, result, published_by=req.published_by, id_column=req.id_column, note=req.note, cuts_held_from=held_from
+            dataset, config, result, published_by=principal.name, id_column=req.id_column, note=req.note, cuts_held_from=held_from
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
