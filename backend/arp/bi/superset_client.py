@@ -249,6 +249,29 @@ class SupersetClient:
     def delete_dashboard(self, id: int) -> None:
         self._request("DELETE", f"/dashboard/{id}")
 
+    def export_dashboard(self, dashboard_id: int) -> bytes:
+        """The dashboard's export bundle (a zip: dashboard, charts, datasets, masked database)."""
+        for attempt in (0, 1):
+            if self._headers is None:
+                self._login()
+            resp = self._http.get(f"{_API}/dashboard/export/", params={"q": f"!({dashboard_id})"}, headers=self._headers)
+            if resp.status_code == 401 and attempt == 0:
+                self._headers = None
+                continue
+            _check(resp)
+            return resp.content
+        raise AssertionError("unreachable")
+
+    def import_dashboard(self, bundle: bytes, db_passwords: dict[str, str]) -> None:
+        """Imports an export bundle with overwrite. `db_passwords` maps the bundle's database
+        file (e.g. "databases/arp_bi.yaml") to its password, which exports mask."""
+        self._request(
+            "POST",
+            "/dashboard/import/",
+            files={"formData": ("dashboard.zip", bundle, "application/zip")},
+            data={"overwrite": "true", "passwords": json.dumps(db_passwords)},
+        )
+
     def ensure_embedded(self, dashboard_id: int) -> str:
         """The dashboard's embedded UUID, which guest tokens and the embed SDK
         need (not the numeric id). The POST is an upsert: same UUID on repeat."""

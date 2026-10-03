@@ -359,3 +359,39 @@ def test_list_dashboards_stops_at_page_cap():
     c, _ = _client(h)
     c.list_dashboards()
     assert pages == list(range(MAX_DASHBOARD_PAGES))
+
+
+def test_export_dashboard_returns_zip_bytes():
+    c, calls = _client(lambda r: httpx.Response(200, content=b"PK-zip", headers={"content-type": "application/zip"}))
+    assert c.export_dashboard(5) == b"PK-zip"
+    req = calls[-1]
+    assert req.method == "GET" and req.url.path == "/api/v1/dashboard/export/"
+    assert req.url.params["q"] == "!(5)"
+    assert req.headers["Authorization"] == "Bearer tok1"
+
+
+def test_export_dashboard_error_keeps_body_out_of_message():
+    c, _ = _client(lambda r: httpx.Response(404, text="secret-host:5432"))
+    with pytest.raises(SupersetError) as exc:
+        c.export_dashboard(5)
+    assert "secret-host" not in str(exc.value) and exc.value.body == "secret-host:5432"
+
+
+def test_import_dashboard_posts_multipart_with_overwrite_and_passwords():
+    c, calls = _client(lambda r: httpx.Response(200, json={"message": "OK"}))
+    c.import_dashboard(b"PK-zip", {"databases/arp_bi.yaml": "pw"})
+    req = calls[-1]
+    assert req.method == "POST" and req.url.path == "/api/v1/dashboard/import/"
+    assert req.headers["content-type"].startswith("multipart/form-data")
+    assert req.headers["X-CSRFToken"] == "csrf"
+    body = req.content
+    assert b'name="formData"' in body and b"PK-zip" in body
+    assert b'name="overwrite"' in body and b"true" in body
+    assert b'{"databases/arp_bi.yaml": "pw"}' in body
+
+
+def test_import_dashboard_error_keeps_body_out_of_message():
+    c, _ = _client(lambda r: httpx.Response(422, text="postgresql://bi_reader:pw@h/db"))
+    with pytest.raises(SupersetError) as exc:
+        c.import_dashboard(b"x", {})
+    assert "bi_reader" not in str(exc.value)
