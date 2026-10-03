@@ -10,7 +10,7 @@ from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 from arp.ingestion.base import DocumentSource
-from arp.ingestion.doc_identity import assign_identity, published_at_for
+from arp.ingestion.doc_identity import CORRECTION_MARKERS, assign_identity, published_at_for
 from arp.ingestion.html_text import extract_html_text
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.intake import IntakeResult, IntakeState, append_intake, check_intake
@@ -210,30 +210,38 @@ class LocalFileDocumentSource(DocumentSource):
                 "sha256": parsed.text_sha256,
                 "content_key": parsed.content_key,
                 "parser_version": parser_version(),
-                **self._identity_for(doc_id, file_path, company_id, doc_type, parsed.content_key, parsed.full_text),
             }
 
         text, page_breaks = parse_file_to_text_with_pages(file_path)
         return {"full_text": text, "page_breaks": page_breaks, "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()}
 
-    def _identity_for(
-        self, doc_id: str, file_path: Path, company_id: str, doc_type: DocType, content_key: str, text: str
+    def _identify_batch(self, items: list[tuple[Path, DocType, SourceDocument]]) -> list[SourceDocument]:
+        """Blocking, serial identity assignment after the concurrent parse, in a
+        deterministic order so version numbers never depend on parse timing:
+        known published_at ascending, originals before corrections, then path."""
+        from arp.discovery.downloader import latest_capture
+
+        keyed = []
+        for file_path, doc_type, doc in items:
+            published = published_at_for(file_path, latest_capture(self.documents_dir, doc.content_key))
+            marker = any(k in file_path.name.lower() for k in CORRECTION_MARKERS)
+            keyed.append(((published is None, published or "", marker, str(file_path)), published, doc_type, doc))
+        out = []
+        with self._identity_lock:
+            for _, published, doc_type, doc in sorted(keyed, key=lambda k: k[0]):
+                ident = self._identity_locked(doc.doc_id, Path(doc.local_path), doc.company_id, doc_type, published, doc.full_text)
+                out.append(doc.model_copy(update=ident))
+        return out
+
+    def _identity_locked(
+        self, doc_id: str, file_path: Path, company_id: str, doc_type: DocType, published_at: str | None, text: str
     ) -> dict:
         """Assigns family/version once per document: a row that already has a
         family_id keeps it, so re-fetching never renumbers versions."""
-        with self._identity_lock:
-            return self._identity_locked(doc_id, file_path, company_id, doc_type, content_key, text)
-
-    def _identity_locked(
-        self, doc_id: str, file_path: Path, company_id: str, doc_type: DocType, content_key: str, text: str
-    ) -> dict:
         store = self._content_store
         ref = store.resolve_document(doc_id)
         if ref is not None and ref.family_id is not None:
             return {k: getattr(ref, k) for k in ("family_id", "version", "supersedes", "published_at")}
-        from arp.discovery.downloader import latest_capture
-
-        published_at = published_at_for(file_path, latest_capture(self.documents_dir, content_key))
         decision = assign_identity(
             doc_id=doc_id, company_id=company_id, doc_type=doc_type.value, title=file_path.name, text=text,
             published_at=published_at, family=store.list_family,
@@ -336,7 +344,7 @@ class LocalFileDocumentSource(DocumentSource):
                 if file_path.is_file():
                     file_entries.append((file_path, doc_type))
 
-        async def _fetch_one(file_path: Path, doc_type: DocType) -> SourceDocument | None:
+        async def _fetch_one(file_path: Path, doc_type: DocType) -> tuple[Path, DocType, SourceDocument] | None:
             async with self._parse_sem:
                 try:
                     extra = await asyncio.to_thread(
@@ -347,14 +355,18 @@ class LocalFileDocumentSource(DocumentSource):
                     return None
             if not extra["full_text"].strip():
                 return None
-            return SourceDocument(
+            doc = SourceDocument(
                 company_id=company.company_id,
                 doc_type=doc_type,
                 title=file_path.name,
                 local_path=str(file_path),
                 **extra,
             )
+            return file_path, doc_type, doc
 
         accepted = await asyncio.to_thread(self._intake_all, file_entries)
         results = await asyncio.gather(*(_fetch_one(fp, dt) for fp, dt in accepted))
-        return [d for d in results if d is not None]
+        items = [r for r in results if r is not None]
+        if self._content_store is None:
+            return [d for _, _, d in items]
+        return await asyncio.to_thread(self._identify_batch, items)

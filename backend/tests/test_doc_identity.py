@@ -88,3 +88,27 @@ def test_old_content_db_gains_identity_columns(tmp_path):
 def test_old_source_document_json_loads():
     d = SourceDocument.model_validate({"company_id": "a", "doc_type": "other", "title": "t", "full_text": "x"})
     assert d.family_id is None and d.version is None and d.content_key is None
+
+
+def test_first_ingest_order_is_deterministic_under_reverse_completion(tmp_path, monkeypatch):
+    import time
+
+    from arp.ingestion import local_files
+
+    folder = tmp_path / "docs" / "acme" / DocType.SUSTAINABILITY_REPORT.value
+    folder.mkdir(parents=True)
+    (folder / "Sustainability Report 2023.txt").write_text(BODY)
+    (folder / "Sustainability Report 2023 corrected.txt").write_text(BODY + "Corrected figure.")
+    real = local_files.parse_file_to_text_with_pages
+
+    def slow_original(path):
+        if "corrected" not in path.name:
+            time.sleep(0.3)  # the original finishes parsing last
+        return real(path)
+
+    monkeypatch.setattr(local_files, "parse_file_to_text_with_pages", slow_original)
+    for i in range(2):
+        store = DocumentContentStore(tmp_path / f"store{i}")
+        docs = {d.title: d for d in _fetch(tmp_path, store)}
+        orig, corr = docs["Sustainability Report 2023.txt"], docs["Sustainability Report 2023 corrected.txt"]
+        assert orig.version == 1 and corr.version == 2 and corr.supersedes == orig.doc_id
