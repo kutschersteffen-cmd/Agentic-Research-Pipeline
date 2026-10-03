@@ -287,3 +287,25 @@ def test_history_columns_match_catalog(engine):
         )
     ]
     assert cols == list(VIEW_DATASETS["holdings_history"].columns)
+
+
+def test_project_id_is_the_project_tag_suffix_or_null(engine):
+    from sqlalchemy import text
+
+    _seed(engine)
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE portfolios SET tags = '{project:alpha}' WHERE portfolio_id = 'p1'"))
+        conn.execute(text("INSERT INTO portfolios (portfolio_id, name, tags) VALUES ('p-b', 'B', '{x,project:beta}')"))
+        conn.execute(text("INSERT INTO portfolios (portfolio_id, name, tags) VALUES ('p-c', 'C', '{x}')"))
+        for pid in ("p-b", "p-c"):
+            conn.execute(
+                text(
+                    "INSERT INTO holdings (portfolio_id, security_id, as_of_date, quantity, price, market_value,"
+                    " fx_rate_to_eur, market_value_eur, weight_pct) VALUES (:p, 's1', '2026-02-28', 1, 1, 1, 1, 1, 100)"
+                ),
+                {"p": pid},
+            )
+    for view in ("holdings", "holdings_history"):
+        rows = _q(engine, f"SELECT DISTINCT portfolio_id, project_id FROM bi.{view}")
+        # sorted in Python: SQL ORDER BY follows the database collation ("p1" vs "p-b" differ by locale)
+        assert sorted(tuple(r) for r in rows) == [("p-b", "beta"), ("p-c", None), ("p1", "alpha")], view

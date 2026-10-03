@@ -78,6 +78,7 @@ VIEW_DATASETS: dict[str, DatasetDef] = {
             "quantity": "Number of units held.",
             "market_value_eur": "Market value of the position in EUR.",
             "weight_pct": "Position weight in the portfolio, in percent.",
+            "project_id": "Project the portfolio belongs to; NULL for portfolios outside any project.",
         },
         metrics=[
             MetricDef(name="Exposure (EUR)", expression="SUM(market_value_eur)", description="Total market value in EUR."),

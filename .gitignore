@@ -38,3 +38,6 @@ backend/.document_store/
 
 # OS
 .DS_Store
+
+projects/*
+!projects/.gitkeep

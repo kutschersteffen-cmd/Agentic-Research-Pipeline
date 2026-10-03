@@ -182,8 +182,7 @@ def compile_native_filters(filters: list[NativeFilter], dataset_ids: dict[str, i
         fid = f"NATIVE_FILTER-{f.dataset}-{f.column}"
         if any(o["id"] == fid for o in out):
             raise ValueError(f"duplicate native filter on {f.dataset}.{f.column}")
-        out.append(
-            {
+        item = {
                 "id": fid,
                 "name": f.name,
                 "filterType": "filter_select",
@@ -200,8 +199,10 @@ def compile_native_filters(filters: list[NativeFilter], dataset_ids: dict[str, i
                 "defaultDataMask": {"extraFormData": {}, "filterState": {}},
                 "cascadeParentIds": [],
                 "description": "",
-            }
-        )
+        }
+        if f.filters:
+            item["adhoc_filters"] = _adhoc(f.filters)  # "Pre-filter available values"
+        out.append(item)
     return {"native_filter_configuration": out}
 
 

@@ -35,6 +35,12 @@ def provision(client: SupersetClient, template: DashboardTemplate) -> str:
             problems.append(f"Native filter '{f.name}': unknown dataset '{f.dataset}'.")
         elif f.column not in metas[f.dataset].columns:
             problems.append(f"Native filter '{f.name}': unknown column '{f.column}' in dataset '{f.dataset}'.")
+        else:
+            problems += [
+                f"Native filter '{f.name}': unknown filter column '{c}' in dataset '{f.dataset}'."
+                for c in f.filters
+                if c not in metas[f.dataset].columns
+            ]
     if problems:
         raise BIError(f"Template {template.slug}: " + " ".join(problems))
     json_metadata = compile_native_filters(template.native_filters, ids)

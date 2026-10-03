@@ -43,11 +43,12 @@ def portfolio_seed_demo() -> None:
 def portfolio_import_constituents(
     files: list[Path] = typer.Argument(..., help="DWS Constituent_<ISIN>.xlsx files."),
     notional_eur: float = typer.Option(..., help="Assumed fund size in EUR; the files carry weights only."),
+    project: str = typer.Option(None, "--project", help="Namespace portfolio ids and tag them project:<id>."),
 ) -> None:
     """Imports DWS ETF constituent files as one portfolio per file, sizing
     each weight at the assumed notional. Idempotent: a re-run overwrites
     the same snapshot."""
-    summary = import_constituent_files(_portfolio_store(), files, notional_eur)
+    summary = import_constituent_files(_portfolio_store(), files, notional_eur, project)
     typer.echo(json.dumps(summary, indent=2, ensure_ascii=False))
 
 
