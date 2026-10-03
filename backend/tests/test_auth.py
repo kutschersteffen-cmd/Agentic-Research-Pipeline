@@ -190,3 +190,26 @@ def test_dev_trusted_networks_from_env(monkeypatch):
     monkeypatch.setenv("ARP_DEV_TRUSTED_NETWORKS", '["not-a-cidr"]')
     with pytest.raises(ValueError):
         Settings()
+
+
+@pytest.fixture
+def dev_client(users_file, tmp_path):
+    app = make_app(Settings(auth_mode="dev", users_file=users_file, runs_dir=tmp_path / "runs"))
+    return TestClient(app, client=("127.0.0.1", 5000))
+
+
+def test_dev_bypass_refuses_foreign_origin(dev_client):
+    assert dev_client.post("/approve", headers={"Origin": "https://evil.example"}).status_code == 401
+    assert dev_client.post("/approve", headers={"Origin": "null"}).status_code == 401
+
+
+def test_dev_bypass_allows_own_origin_and_no_origin(dev_client):
+    assert dev_client.post("/approve", headers={"Origin": "http://localhost:5173"}).status_code == 200
+    assert dev_client.post("/approve").status_code == 200
+
+
+def test_untrusted_host_header_is_400(real_client):
+    assert real_client.get("/api/health", headers={"Host": "evil.example"}).status_code == 400
+    assert real_client.get("/api/health", headers={"Host": "localhost:8000"}).status_code == 200
+    # voting sits behind the same host check (not auth): still answers on a trusted host
+    assert real_client.get("/api/voting/runs/r1/review-queue").status_code != 400

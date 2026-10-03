@@ -52,6 +52,10 @@ services:
       ARP_AUTH_MODE: dev
       ARP_DEV_TRUSTED_NETWORKS: '["172.16.0.0/12"]'
       ARP_USERS_FILE: /app/config/users.json
+      # The browser calls the API as localhost:8000 (VITE_API_BASE), which the
+      # default ARP_TRUSTED_HOSTS allows; set ARP_TRUSTED_HOSTS (JSON list) if
+      # you reach it under another host name. On Docker hosts whose compose
+      # subnets come from 192.168.0.0/16, change the trusted range above to match.
     volumes:
       - arp_runs:/app/runs
       - arp_taxonomies:/app/taxonomies

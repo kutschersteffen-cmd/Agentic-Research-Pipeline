@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
 from arp.api.auth import Principal, authorize, current_user, load_users
@@ -81,6 +82,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Agentic Research Pipeline", version="0.1.0", lifespan=lifespan)
+
+# Host check for every route (voting included): a host check, not auth. Stops
+# DNS rebinding from turning a foreign site into a loopback "dev" caller.
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings_dep().trusted_hosts)
 
 app.add_middleware(
     CORSMiddleware,

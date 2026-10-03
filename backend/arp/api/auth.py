@@ -60,7 +60,11 @@ def _dev_trusted(host: str, settings: Settings) -> bool:
 
 
 async def current_user(request: Request, settings: Settings = Depends(settings_dep)) -> Principal:
-    if settings.auth_mode == "dev" and request.client and _dev_trusted(request.client.host, settings):
+    origin = request.headers.get("Origin")
+    # A browser on a foreign site can still send simple cross-origin requests
+    # (no preflight) to loopback; those carry its Origin, so no bypass for them.
+    same_site = origin is None or origin in settings.allowed_origins
+    if settings.auth_mode == "dev" and same_site and request.client and _dev_trusted(request.client.host, settings):
         return Principal(user_id=settings.dev_user, name=settings.dev_user, role="approver")
     scheme, _, token = request.headers.get("Authorization", "").partition(" ")
     token = token.strip()

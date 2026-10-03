@@ -94,10 +94,18 @@ without a token; the sidebar shows "Signed in as dev (approver)". Use it only on
 your own machine, or with the provided `docker-compose.yml`, which publishes the
 API on 127.0.0.1 only and adds the Docker bridge range (`172.16.0.0/12`) to
 `ARP_DEV_TRUSTED_NETWORKS` because the browser's requests reach the container
-from the bridge, not loopback. The bypass trusts the socket address: never run
-dev mode behind a proxy on the same host (every proxied request would arrive
-from loopback) and never publish the port on a LAN-reachable address. Requests
-from anywhere else still need a token. Dev mode has a single user, so four-eyes
+from the bridge, not loopback. That range also covers every other container on
+the compose network (e.g. Superset): while dev mode is on, they get dev approver
+access too. On Docker hosts whose compose subnets come from `192.168.0.0/16`
+(check `docker network inspect`), adjust `ARP_DEV_TRUSTED_NETWORKS` to match.
+The bypass trusts the socket address: never run dev mode behind a proxy on the
+same host (every proxied request would arrive from loopback) and never publish
+the port on a LAN-reachable address. Requests from anywhere else still need a
+token. Dev mode also refuses browser requests from foreign origins (an `Origin`
+header not in `ARP_ALLOWED_ORIGINS` gets no bypass, so another website cannot
+act as you), and the API only answers the host names in `ARP_TRUSTED_HOSTS`
+(default `localhost`, `127.0.0.1`, `[::1]`, `backend`), which blocks DNS
+rebinding; this host check applies to every route, voting included. Dev mode has a single user, so four-eyes
 steps (calibration approval, co-sign) need local mode.
 
 **Switching to local mode** (real per-person sign-in):

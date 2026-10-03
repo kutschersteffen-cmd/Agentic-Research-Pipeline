@@ -59,7 +59,11 @@ class Settings(BaseSettings):
         default=[],
         description="Extra CIDRs the dev bypass trusts besides loopback, e.g. the Docker bridge (172.16.0.0/12) when the published port is bound to 127.0.0.1. Ignored in 'local' mode.",
     )
-    allowed_origins: list[str] = Field(default=["http://localhost:5173", "http://127.0.0.1:5173"], description="CORS allow-list for the browser frontend.")
+    allowed_origins: list[str] = Field(default=["http://localhost:5173", "http://127.0.0.1:5173"], description="CORS allow-list for the browser frontend. In dev mode, a request with any other Origin gets no bypass.")
+    trusted_hosts: list[str] = Field(
+        default=["localhost", "127.0.0.1", "[::1]", "backend", "testserver"],
+        description="Host headers the API answers (TrustedHostMiddleware; blocks DNS rebinding). 'testserver' is FastAPI's TestClient.",
+    )
     runs_dir: Path = Field(default=REPO_ROOT / "runs")
     taxonomies_dir: Path = Field(default=REPO_ROOT / "taxonomies")
     portfolios_dir: Path = Field(default=REPO_ROOT / "portfolios")
