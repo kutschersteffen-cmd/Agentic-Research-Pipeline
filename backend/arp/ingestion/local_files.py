@@ -4,11 +4,13 @@ import asyncio
 import functools
 import hashlib
 import logging
+import threading
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 from arp.ingestion.base import DocumentSource
+from arp.ingestion.doc_identity import assign_identity, published_at_for
 from arp.ingestion.html_text import extract_html_text
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.intake import IntakeResult, IntakeState, append_intake, check_intake
@@ -176,14 +178,13 @@ class LocalFileDocumentSource(DocumentSource):
         self._content_store = content_store
         self._parse_sem = asyncio.Semaphore(max_concurrent_parses)
         self._indexing_config = indexing_config
+        self._identity_lock = threading.Lock()  # family lookup + set_identity must not interleave
 
-    def _parse_and_identify(
-        self, file_path: Path, company_id: str, doc_type: DocType
-    ) -> tuple[str | None, str, list[int], str]:
+    def _parse_and_identify(self, file_path: Path, company_id: str, doc_type: DocType) -> dict:
         """Blocking: stat + hash + SQLite + parse, called only via
-        asyncio.to_thread so it never stalls the event loop. Returns
-        (doc_id, text, page_breaks, text_sha256); doc_id is None when no
-        content_store is configured, so SourceDocument falls back to its
+        asyncio.to_thread so it never stalls the event loop. Returns the
+        SourceDocument kwargs this parse determines; `doc_id` is absent when
+        no content_store is configured, so SourceDocument falls back to its
         own random default -- exactly today's behavior.
         """
         if self._content_store is not None:
@@ -202,11 +203,49 @@ class LocalFileDocumentSource(DocumentSource):
             )
             if self._indexing_config is not None:
                 self._index_and_archive(doc_id, company_id, doc_type, file_path, parsed.content_key, parsed.full_text)
-            return doc_id, parsed.full_text, parsed.page_breaks, parsed.text_sha256
+            return {
+                "doc_id": doc_id,
+                "full_text": parsed.full_text,
+                "page_breaks": parsed.page_breaks,
+                "sha256": parsed.text_sha256,
+                "content_key": parsed.content_key,
+                "parser_version": parser_version(),
+                **self._identity_for(doc_id, file_path, company_id, doc_type, parsed.content_key, parsed.full_text),
+            }
 
         text, page_breaks = parse_file_to_text_with_pages(file_path)
-        text_sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()
-        return None, text, page_breaks, text_sha256
+        return {"full_text": text, "page_breaks": page_breaks, "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()}
+
+    def _identity_for(
+        self, doc_id: str, file_path: Path, company_id: str, doc_type: DocType, content_key: str, text: str
+    ) -> dict:
+        """Assigns family/version once per document: a row that already has a
+        family_id keeps it, so re-fetching never renumbers versions."""
+        with self._identity_lock:
+            return self._identity_locked(doc_id, file_path, company_id, doc_type, content_key, text)
+
+    def _identity_locked(
+        self, doc_id: str, file_path: Path, company_id: str, doc_type: DocType, content_key: str, text: str
+    ) -> dict:
+        store = self._content_store
+        ref = store.resolve_document(doc_id)
+        if ref is not None and ref.family_id is not None:
+            return {k: getattr(ref, k) for k in ("family_id", "version", "supersedes", "published_at")}
+        from arp.discovery.downloader import latest_capture
+
+        published_at = published_at_for(file_path, latest_capture(self.documents_dir, content_key))
+        decision = assign_identity(
+            doc_id=doc_id, company_id=company_id, doc_type=doc_type.value, title=file_path.name, text=text,
+            published_at=published_at, family=store.list_family,
+        )
+        store.set_identity(
+            doc_id, family_id=decision.family_id, version=decision.version, supersedes=decision.supersedes,
+            published_at=published_at, confidence=decision.confidence, needs_review=decision.needs_review,
+        )
+        return {
+            "family_id": decision.family_id, "version": decision.version,
+            "supersedes": decision.supersedes, "published_at": published_at,
+        }
 
     def _index_and_archive(
         self, doc_id: str, company_id: str, doc_type: DocType, file_path: Path, content_key: str, full_text: str
@@ -300,26 +339,21 @@ class LocalFileDocumentSource(DocumentSource):
         async def _fetch_one(file_path: Path, doc_type: DocType) -> SourceDocument | None:
             async with self._parse_sem:
                 try:
-                    doc_id, text, page_breaks, text_sha256 = await asyncio.to_thread(
+                    extra = await asyncio.to_thread(
                         self._parse_and_identify, file_path, company.company_id, doc_type
                     )
                 except Exception as exc:  # noqa: BLE001 - isolate one bad file from the whole fetch
                     logger.warning("Failed to parse %s: %s", file_path, exc)
                     return None
-            if not text.strip():
+            if not extra["full_text"].strip():
                 return None
-            kwargs: dict = dict(
+            return SourceDocument(
                 company_id=company.company_id,
                 doc_type=doc_type,
                 title=file_path.name,
                 local_path=str(file_path),
-                full_text=text,
-                sha256=text_sha256,
-                page_breaks=page_breaks,
+                **extra,
             )
-            if doc_id is not None:
-                kwargs["doc_id"] = doc_id
-            return SourceDocument(**kwargs)
 
         accepted = await asyncio.to_thread(self._intake_all, file_entries)
         results = await asyncio.gather(*(_fetch_one(fp, dt) for fp, dt in accepted))

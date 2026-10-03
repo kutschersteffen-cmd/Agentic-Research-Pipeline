@@ -130,6 +130,8 @@ class EdgarDocumentSource(DocumentSource):
                 )
                 if self._content_store is not None and content_key is not None:
                     doc_id = derive_doc_id(company.company_id, doc_type.value, content_key)
+                    kwargs["content_key"] = content_key
+                    kwargs["parser_version"] = _edgar_parser_version()
                     kwargs["doc_id"] = self._content_store.register_document(
                         doc_id=doc_id,
                         company_id=company.company_id,

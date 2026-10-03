@@ -62,6 +62,12 @@ class SourceDocument(BaseModel):
     fetched_at: str = Field(default_factory=now_iso)
     full_text: str = Field(repr=False)
     sha256: str | None = None
+    published_at: str | None = None
+    family_id: str | None = None
+    version: int | None = None
+    supersedes: str | None = None
+    content_key: str | None = None
+    parser_version: str | None = None
     page_breaks: list[int] = Field(
         default_factory=list,
         description=(

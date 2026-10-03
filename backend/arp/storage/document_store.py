@@ -84,7 +84,7 @@ class DocumentContentStore:
             try:
                 conn.executescript(_SCHEMA)
                 conn.commit()
-                document_registry.ensure_storage_uri_column(conn)
+                document_registry.ensure_columns(conn)
             finally:
                 conn.close()
 
@@ -135,6 +135,12 @@ class DocumentContentStore:
 
     def set_storage_uri(self, doc_id: str, storage_uri: str) -> None:
         return self._registry.set_storage_uri(doc_id, storage_uri)
+
+    def set_identity(self, doc_id: str, **kwargs) -> None:
+        return self._registry.set_identity(doc_id, **kwargs)
+
+    def list_family(self, family_id: str) -> list[StoredDocumentRef]:
+        return self._registry.list_family(family_id)
 
     def list_all_documents(self) -> list[StoredDocumentRef]:
         return self._registry.list_all()
