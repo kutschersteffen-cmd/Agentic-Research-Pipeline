@@ -136,7 +136,10 @@ def test_text_must_be_non_empty_and_bounded(path, key, value):
 
 @pytest.mark.parametrize(
     "settings",
-    [Settings(superset_password=None, postgres_dsn="postgresql://x"), Settings(superset_password="pw", postgres_dsn=None)],
+    [
+        Settings(superset_password=None, postgres_dsn="postgresql://x", portfolio_backend="file"),
+        Settings(superset_password="pw", postgres_dsn=None, portfolio_backend="file"),
+    ],
 )
 def test_missing_config_returns_503(monkeypatch, settings):
     monkeypatch.setattr(deps, "get_settings", lambda: settings)
@@ -168,7 +171,9 @@ def test_dashboards_502_without_body():
 
 
 def test_dashboards_503_when_unconfigured(monkeypatch):
-    monkeypatch.setattr(deps, "get_settings", lambda: Settings(superset_password=None, postgres_dsn="postgresql://x"))
+    monkeypatch.setattr(
+        deps, "get_settings", lambda: Settings(superset_password=None, postgres_dsn="postgresql://x", portfolio_backend="file")
+    )
     app = FastAPI()
     app.include_router(bi_router.router)
     r = TestClient(app).get("/api/bi/dashboards")
