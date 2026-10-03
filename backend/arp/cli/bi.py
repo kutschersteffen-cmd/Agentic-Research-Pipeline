@@ -78,5 +78,7 @@ def bi_bootstrap(
             datasets[table] = dataset_id
     except (SupersetError, httpx.HTTPError) as e:
         typer.echo(f"Superset at {settings.superset_url}: {e}", err=True)
+        if isinstance(e, SupersetError) and e.body:
+            typer.echo(f"Response body: {e.body}", err=True)  # operator-only; str(e) omits it
         raise typer.Exit(1) from e
     typer.echo(json.dumps({"database_id": database_id, "datasets": datasets, "reader_role": ROLE}))
