@@ -414,6 +414,11 @@ Overview/Explore/Pivot/Ask sub-tabs),
 `ClimateAnalytics.tsx`, reusing existing UI patterns (`RunProgress.tsx`-style status, `ConfidenceBadge.tsx` for
 coverage/confidence display).
 
+*As built today:* Risk Monitoring's sub-tabs are Standard Analytics, Monitoring & Alerts, Company Profiles, Ask the
+Portfolio, Dashboards (Superset) and Governance & Audit. Dashboards (Superset) replaced Pivot Explorer, Generative BI
+and Superset BI; it embeds every Superset dashboard with an `arp-` slug. The weighted-average climate pivots are in
+Standard Analytics only.
+
 ## 8. Reuse map (what's new vs. what already exists)
 
 | Need | Reuse | New |

@@ -24,7 +24,7 @@ file-based state by default — no database required.
 | 7 | **Indirect Exposure Tier** *(opt-in)* | Structural supply-chain exposure via OECD ICIO input-output propagation. Purely quantitative, zero LLM calls. |
 | 8 | **Transition Plan Assessment** | Replication of Colesanti Senni et al. (2024): 64 fixed indicators scored "walk" vs. "talk", each with a grounded RAG verdict. |
 | 9 | **Transition Barrier Assessment** | Sector-level counterpart: a 105-cell matrix (35 criteria × 9 hard-to-abate sectors × EU/US/China) backed by 86 verified sources, with staleness tracking and a propose-never-apply EUR-Lex refresh pipeline. |
-| 10 | **Portfolio Risk & Exposure Monitoring** | Deterministic holdings aggregation, an NL Q&A agent (LLM drafts the query, the engine computes the number), a **Superset BI** designer that drafts whole dashboards, and **Climate Analytics** (WACI, PCAF-style financed emissions, coverage). |
+| 10 | **Portfolio Risk & Exposure Monitoring** | Deterministic holdings aggregation, an NL Q&A agent (LLM drafts the query, the engine computes the number), a **Dashboards (Superset)** tab that embeds every `arp-` dashboard (a provisioned exposure dashboard with Fund/Sector/Country filters, hand-built ones, and drafts from the Superset designer), and **Climate Analytics** (WACI, PCAF-style financed emissions, coverage). |
 | 11 | **Investment Strategy Replication** | Reduces a strategy paper to an executable spec, then backtests it deterministically in- and out-of-sample, with deflated Sharpe, PBO via purged/embargoed CSCV, and regime stratification. |
 | 12 | **Emerging Themes Scanner** | Bottom-up theme discovery from EDGAR full-text search, GDELT and regulatory RSS, with cross-period cluster lineage and an action-score promotion gate (corporate action, not mention counts). |
 | 13 | **Presentation & Reporting Tool** | One LLM call drafts a report plan; deterministic renderers emit pptx/docx/pdf, reusing an ingested `.pptx` template's layouts, colors and fonts. House decks (`house_deck`) draft a storyline for you to approve, then fill, lint, fit and visually check each slide in the app's own design system, and can be re-run on fresh pipeline data. |
@@ -136,17 +136,29 @@ Set `ARP_SUPERSET_PASSWORD`, `ARP_BI_READER_PASSWORD`, `SUPERSET_SECRET_KEY` and
 characters. Generate each with `openssl rand -base64 42`. `ARP_SUPERSET_URL` (default `http://127.0.0.1:8088`) and
 `ARP_SUPERSET_USER` (default `arp_designer`) have defaults; `ARP_BI_SUPERSET_DB_HOST` (default `postgres:5432`) is the
 host:port Superset uses to reach Postgres.
-Each `arp bi bootstrap` overwrites the dataset description and the descriptions of catalogue-named columns from `backend/arp/bi/catalog.py`, so edit them there, not in Superset.
 
 ```bash
 docker compose --env-file backend/.env up -d postgres superset   # first start builds superset/Dockerfile
 arp db init-postgres                                             # schema + `bi` views
 ARP_PORTFOLIO_BACKEND=postgres arp portfolio seed-demo           # demo holdings into Postgres (with ARP_POSTGRES_DSN set)
-arp bi bootstrap                                                 # bi_reader role, Superset database, datasets, metrics (idempotent)
+arp bi bootstrap                                                 # views, bi_reader role, Superset database, datasets, metrics, descriptions, templates (idempotent)
 arp golden-set bi                                                # planner eval; needs an API key, not run in CI
 ```
 
-Set `VITE_SUPERSET_URL` in `frontend/.env`, then open Risk Monitoring, Superset BI.
+`arp bi bootstrap` re-applies the `bi` views (including `holdings_history`), registers the six datasets and their
+metrics, and copies descriptions from `backend/arp/bi/catalog.py`. Each run overwrites the dataset description and the
+descriptions of catalogue-named columns, so edit them there, not in Superset. It then provisions the standard
+dashboards in `backend/arp/bi/templates/` (today `arp-risk-exposure`: 8 charts, native filters Fund, Sector and Country)
+and prints `{"templates": {"arp-risk-exposure": "created" | "rebuilt" | "unchanged"}}` with the rest of its output.
+The dashboard is created unpublished; publish it in Superset. One that has at least the template's charts is left alone.
+One with fewer is deleted and rebuilt (its old charts stay), and the rebuild is unpublished again.
+
+Set `VITE_SUPERSET_URL` in `frontend/.env`, then open Risk Monitoring, Dashboards (Superset). This one tab replaces
+Pivot Explorer, Generative BI and Superset BI (old links land on it); Standard Analytics, Monitoring & Alerts, Company
+Profiles, Ask the Portfolio and Governance & Audit are unchanged. The picker lists every Superset dashboard whose slug
+starts with `arp-` and opens on `arp-risk-exposure`. To add a dashboard you built by hand, set its slug to `arp-<name>`
+in Superset's dashboard Properties and reload the tab. The weighted-average climate pivots Pivot Explorer had now
+live only in Standard Analytics.
 
 The UI embeds a draft through `POST /api/bi/embed-token {dashboard_id}`, which answers `{token, embedded_id}`
 (`service.embed_token` returns `(embedded_id, token)`). Only ARP's own dashboards (slug `arp-...`, the scratch one
