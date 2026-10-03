@@ -161,3 +161,10 @@ test("projectGroups hides other projects' scoped dashboards but keeps hand-built
   const g = projectGroups("alpha", mine, all);
   assert.deepEqual(g.others.map((x) => x.id), [3]);
 });
+
+test("projectGroups for project a never lists arp-a--b--t (project a--b's dashboard) as other", () => {
+  const d = (id: number, slug: string) => ({ id, slug, title: slug, published: true });
+  const g = projectGroups("a", [d(1, "arp-a--t")], [d(1, "arp-a--t"), d(2, "arp-a--b--t"), d(3, "arp-hand")]);
+  assert.deepEqual(g.mine.map((x) => x.id), [1]);
+  assert.deepEqual(g.others.map((x) => x.id), [3]);
+});

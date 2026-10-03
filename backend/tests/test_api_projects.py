@@ -240,3 +240,13 @@ def test_save_same_title_twice_rebuilds(env):
     assert http.post("/api/projects/alpha/dashboards", json=body).json()["status"] == "created"
     r = http.post("/api/projects/alpha/dashboards", json=body)
     assert r.json()["status"] == "rebuilt" and [c for c in client.calls if c[0] == "delete_dashboard"]
+
+
+def test_export_other_double_hyphen_project_dashboard_422(tmp_path, monkeypatch):
+    client = ExportClient()
+    client.dashboards["arp-a--b--t"] = {"id": 41, "published": False, "charts": [], "position": {}, "meta": None}
+    http, store, _, _ = _env(tmp_path, monkeypatch, client)
+    http.post("/api/projects", json={"id": "a", "name": "A"})
+    http.post("/api/projects", json={"id": "a--b", "name": "AB"})
+    assert http.post("/api/projects/a/dashboards/export", json={"dashboard_id": 41}).status_code == 422
+    assert http.post("/api/projects/a--b/dashboards/export", json={"dashboard_id": 41}).status_code == 200

@@ -320,3 +320,16 @@ def test_save_rebuilds_existing_dashboard_and_open_does_not(env, tmp_path):
     assert [c[0] for c in client.calls].count("delete_dashboard") == 1
     assert len(client.dashboards[slug]["charts"]) == 2
     assert open_project(store, pf, client, "alpha").dashboards[0].status == "unchanged"
+
+
+def test_export_double_hyphen_project_ids_do_not_leak(xenv):
+    store, _, client = xenv
+    store.create("a", "A")
+    store.create("a--b", "AB")
+    for slug, i in (("arp-a--b--t", 31), ("arp-a--t", 32)):
+        client.dashboards[slug] = {"id": i, "published": False, "charts": [], "position": {}, "meta": None}
+    with pytest.raises(ForeignProjectDashboard):
+        export_dashboard_to_project(store, client, "a", 31)
+    assert export_dashboard_to_project(store, client, "a--b", 31).slug == "arp-a--b--t"
+    assert export_dashboard_to_project(store, client, "a", 32).slug == "arp-a--t"
+    assert [d.slug for d in store.get("a").dashboards] == ["arp-a--t"]

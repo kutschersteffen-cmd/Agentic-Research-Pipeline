@@ -149,7 +149,8 @@ def export_dashboard_to_project(store: ProjectStore, client, project_id: str, da
     slug = meta.get("slug") or ""
     if not slug.startswith("arp-"):
         raise NotAnARPDashboard(f"Dashboard {dashboard_id} has no arp- slug; only arp- dashboards can be stored.")
-    if "--" in slug and not slug.startswith(f"arp-{project_id}--"):
+    prefix = f"arp-{project_id}--"  # project ids may contain `--`, so the remainder must not
+    if "--" in slug and (not slug.startswith(prefix) or "--" in slug[len(prefix) :]):
         # `arp-<id>--...` is a project-scoped dashboard; only this project's own may pass.
         raise ForeignProjectDashboard(f"Dashboard {slug!r} is project-scoped to another project and cannot be stored in project {project_id!r}.")
     store.get(project_id)
