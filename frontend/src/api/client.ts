@@ -86,6 +86,7 @@ import type {
   TrendPoint,
 } from "../types";
 import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
+import type { BIDesignResult, BIEmbedToken } from "../types";
 import type { Finding, QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, Storyline, TemplateStyleProfile } from "../types";
 import type { PaperCandidate, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
 import type {
@@ -640,6 +641,12 @@ export const api = {
     request<DashboardSpec>("/api/portfolio/bi/dashboards", { method: "POST", body: JSON.stringify(spec) }),
   runDashboard: (dashboardId: string, asOf?: string) =>
     request<GeneratedDashboard>(`/api/portfolio/bi/dashboards/${dashboardId}/run${buildQuery({ as_of: asOf })}`),
+
+  // Superset BI designer (/api/bi): drafts dashboards in Superset itself
+  designBI: (body: { brief: string }) => request<BIDesignResult>("/api/bi/design", { method: "POST", body: JSON.stringify(body) }),
+  askBI: (question: string) => request<BIDesignResult>("/api/bi/ask", { method: "POST", body: JSON.stringify({ question }) }),
+  biEmbedToken: (dashboardId: number) =>
+    request<BIEmbedToken>("/api/bi/embed-token", { method: "POST", body: JSON.stringify({ dashboard_id: String(dashboardId) }) }),
 
   // Climate analytics
   getClimateSchema: () => request<DataPointSchema>("/api/climate/schema"),

@@ -976,6 +976,10 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .banner-success { background: color-mix(in srgb, var(--high) 12%, transparent); border: 1px solid var(--high); color: color-mix(in oklch, var(--high) 70%, var(--text)); }
 .banner-danger { background: color-mix(in srgb, var(--low) 12%, transparent); border: 1px solid var(--low); color: color-mix(in oklch, var(--low) 70%, var(--text)); }
 
+/* Superset BI tab: the SDK mounts a bare iframe here; Superset sizes nothing itself. */
+.superset-embed { margin-top: var(--s-4); }
+.superset-embed iframe { display: block; width: 100%; height: min(80vh, 760px); border: 1px solid var(--panel-border); background: var(--panel); }
+
 .chip-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
 .chip {
   background: var(--well);

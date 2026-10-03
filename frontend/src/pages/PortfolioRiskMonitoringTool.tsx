@@ -7,6 +7,7 @@ import { MonitoringAlerts } from "./portfolio-monitoring/MonitoringAlerts";
 import { CompanyProfiles } from "./portfolio-monitoring/CompanyProfiles";
 import { AskThePortfolio } from "./portfolio-monitoring/AskThePortfolio";
 import { GenerativeBI } from "./portfolio-monitoring/GenerativeBI";
+import { SupersetBI } from "./portfolio-monitoring/SupersetBI";
 import { GovernanceAudit } from "./portfolio-monitoring/GovernanceAudit";
 
 export const SUB_TABS = [
@@ -16,6 +17,7 @@ export const SUB_TABS = [
   { id: "profiles", label: "Company Profiles" },
   { id: "ask", label: "Ask the Portfolio" },
   { id: "genbi", label: "Generative BI" },
+  { id: "superset", label: "Superset BI" },
   { id: "governance", label: "Governance & Audit" },
 ] as const;
 
@@ -60,6 +62,7 @@ function Inner({ initialSub, onSendUniverse }: { initialSub?: string; onSendUniv
       {sub === "profiles" && <CompanyProfiles />}
       {sub === "ask" && <AskThePortfolio />}
       {sub === "genbi" && <GenerativeBI />}
+      {sub === "superset" && <SupersetBI />}
       {sub === "governance" && <GovernanceAudit />}
     </div>
   );

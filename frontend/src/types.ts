@@ -2837,3 +2837,29 @@ export interface RunCompany {
   /** review: a step before extraction stopped it, and its error report waits in the review queue. */
   status: "done" | "failed" | "review" | "waiting";
 }
+
+/** Superset BI designer (/api/bi). A refused plan is a 200 with `rejected` reasons and no dashboard. */
+export interface BIChartSpec {
+  title: string;
+  question: string;
+  viz_type: string;
+  dataset: string;
+  metrics: string[];
+  groupby: string[];
+  filters: Record<string, string>;
+  time_range: string | null;
+}
+
+export interface BIDesignResult {
+  dashboard_id: number | null;
+  slug: string | null;
+  url: string | null;
+  plan: { title: string; goal: string; charts: BIChartSpec[] } | null;
+  rejected: string[];
+  clarification_needed: string | null;
+}
+
+export interface BIEmbedToken {
+  token: string;
+  embedded_id: string;
+}

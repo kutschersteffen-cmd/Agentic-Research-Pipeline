@@ -77,7 +77,7 @@ uvicorn arp.api.main:app --reload            # API on :8000
 
 # Frontend
 cd frontend && npm install
-cp .env.example .env            # VITE_API_BASE
+cp .env.example .env            # VITE_API_BASE, VITE_SUPERSET_URL
 npm run dev                                   # UI on :5173
 ```
 
