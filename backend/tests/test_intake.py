@@ -91,3 +91,21 @@ def test_fetch_skips_non_accepted_and_logs(tmp_path):
     rows = [json.loads(line) for line in (tmp_path / "docs" / "_intake.jsonl").read_text().splitlines()]
     assert {r["state"] for r in rows} == {"ocr_needed", "quarantined"}
     assert len(rows) == 2
+
+
+def test_intake_error_is_logged_as_quarantined(tmp_path, monkeypatch):
+    from arp.ingestion import local_files
+
+    d = tmp_path / "docs" / "acme" / "sustainability_report"
+    d.mkdir(parents=True)
+    (d / "good.txt").write_text("Scope 1 emissions were 10 tonnes.")
+
+    def boom(*a, **k):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(local_files, "check_intake", boom)
+    source = LocalFileDocumentSource(tmp_path / "docs")
+    assert asyncio.run(source.fetch(CompanyRef(company_id="acme", name="Acme"))) == []
+    rows = [json.loads(line) for line in (tmp_path / "docs" / "_intake.jsonl").read_text().splitlines()]
+    assert len(rows) == 1
+    assert rows[0]["state"] == "quarantined" and "intake error" in rows[0]["reason"]
