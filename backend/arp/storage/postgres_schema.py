@@ -93,6 +93,12 @@ def _drop_projection_company_fks(conn: Connection) -> None:
         conn.execute(text(f'ALTER TABLE {table_name} DROP CONSTRAINT "{constraint_name}"'))
 
 
+def _create_bi_views(conn: Connection) -> None:
+    from arp.bi.views import create_bi_views
+
+    create_bi_views(conn)
+
+
 # Ordered; append new steps, never edit or reorder an existing one (a
 # database that already recorded it will not run it again).
 SCHEMA_STEPS: tuple[SchemaStep, ...] = (
@@ -100,6 +106,11 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         name="0001_drop_projection_company_fks",
         description="Drop company_records/company_facts/engagement_issues -> companies foreign keys",
         apply=_drop_projection_company_fks,
+    ),
+    SchemaStep(
+        name="0002_create_bi_views",
+        description="Create the bi schema and the views the BI tool reads",
+        apply=_create_bi_views,
     ),
 )
 
