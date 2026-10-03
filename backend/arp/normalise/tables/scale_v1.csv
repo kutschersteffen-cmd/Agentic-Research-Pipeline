@@ -1,0 +1,13 @@
+word,factor,ambiguous
+thousand,1000,0
+thousands,1000,0
+'000,1000,0
+k,1000,0
+million,1000000,0
+millions,1000000,0
+mn,1000000,0
+mm,1000000,0
+bn,1000000000,0
+billion,1000000000,0
+billions,1000000000,0
+m,1000000,1
