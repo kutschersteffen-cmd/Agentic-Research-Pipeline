@@ -54,6 +54,7 @@ async def test_extractor_and_verifier_agree_produces_grounded_spec(fake_llm):
     # mirrors ExtractedField's provenance elsewhere in this codebase (see arp/schemas/common.py::ProvenanceInfo).
     assert spec.provenance.extractor_model is not None
     assert spec.provenance.verifier_model is not None
+    assert spec.provenance.provider == "fake"
 
 
 async def test_verifier_correction_overrides_the_draft(fake_llm):

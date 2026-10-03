@@ -104,6 +104,7 @@ async def test_extract_company_financials_single_call_pair(tmp_path, fake_llm):
     # Exactly one extractor call and one verifier call for all three topics combined.
     assert llm.calls == ["FinancialsExtractionDraft", "FinancialsVerifierOutput"]
 
+    assert record.provenance.provider == "fake"
     assert len(record.segments) == 1
     assert record.segments[0].revenue.value == 500.0
     assert record.segments[0].grounded is True
