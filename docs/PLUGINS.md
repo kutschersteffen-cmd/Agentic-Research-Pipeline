@@ -1,0 +1,87 @@
+# Plugins
+
+Moved out of `.claude/CLAUDE.md` so that file stays short (the agent reads all of it every session). The rules for *which plugin owns which phase* stay in `CLAUDE.md`.
+
+`.claude/settings.json` declares eight marketplaces and enables a plugin from each. Neither
+entry does any fetching: `extraKnownMarketplaces` only *declares* a marketplace, and
+`enabledPlugins` only flips a plugin on once it is installed. So each collaborator has to
+register every marketplace and run every install once themselves:
+
+```
+claude plugin marketplace add DietrichGebert/ponytail
+claude plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill
+claude plugin marketplace add pbakaus/impeccable
+claude plugin install ponytail@ponytail
+claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill
+claude plugin install impeccable@impeccable
+```
+
+The `marketplace add` lines are the step that is easy to miss. Skip them and the install
+fails with `Plugin "ponytail" not found in marketplace "ponytail"` — which reads as if the
+plugin were missing, when really the marketplace was never cloned. `claude plugin marketplace
+list` printing `No marketplaces configured` confirms that case.
+
+A `SessionStart` hook (`.claude/hooks/install-plugins.sh`, wired up in `settings.json`) now
+runs those commands for you. It is idempotent — it skips anything already installed and
+prints nothing — and it always exits 0, so a failure never blocks session start. It exists
+mainly for cloud sessions (claude.ai/code and the mobile **Code** tab), which get a fresh
+container every time and cannot run `/plugin` at all. Running the commands by hand is still
+fine, and still the faster path on a local machine.
+
+Hooks load at session start, so start a new session after installing before expecting
+ponytail to take effect. That applies to the hook too: it installs the plugins during startup,
+after the plugin registry has already been read, so the skills it fetches become selectable in
+the *following* session. For cloud sessions each new session is a fresh container, which means
+the first one after a container boot pays the install and the skills are live from then on. To
+have them ready in the very first session instead, run the same commands from the cloud
+environment's setup script, which runs before the session starts.
+
+- **ponytail** — "lazy senior dev mode". Its hooks run on `SessionStart`, `SubagentStart`
+  and `UserPromptSubmit`, and require `node` on `PATH`.
+- **ui-ux-pro-max** — UI/UX design intelligence (styles, palettes, typography, charts,
+  per-stack guidelines). Skills only, no hooks; its scripts run on demand and need `python3`.
+- **impeccable** — frontend design fluency: one skill with sub-commands (`/impeccable:impeccable
+  polish`, `audit`, `critique`, …) plus anti-pattern detection. Its hooks run on `SessionStart`,
+  `PostToolUse` (Edit/Write) and `Stop`.
+
+`settings.json` also enables three more plugins, which the same hook installs. By hand:
+
+```
+claude plugin marketplace add ayghri/i-have-adhd
+claude plugin marketplace add forrestchang/andrej-karpathy-skills
+claude plugin marketplace add blader/humanizer
+claude plugin install i-have-adhd@i-have-adhd
+claude plugin install andrej-karpathy-skills@karpathy-skills
+claude plugin install humanizer@humanizer
+```
+
+- **i-have-adhd** — ADHD-friendly output: next action first, numbered steps, no tangents.
+  `/i-have-adhd`. Always-on here: `install-plugins.sh` creates `~/.claude/.i-have-adhd-always`
+  every session, so the plugin's own `SessionStart` hook loads the full ruleset. Say "stop adhd
+  mode" to turn it off for one session; delete the `touch` line in the hook to opt out for good.
+- **andrej-karpathy-skills** — the `karpathy-guidelines` skill: think before coding, simplicity
+  first, surgical changes, goal-driven execution. Skill only.
+- **humanizer** — rewrites AI-sounding text so it reads naturally. `/humanizer:humanizer`.
+  Skill only.
+
+And one more, the same way:
+
+```
+claude plugin marketplace add obra/superpowers-marketplace
+claude plugin install superpowers@superpowers-marketplace
+```
+
+- **superpowers** — development workflow skills: brainstorming, writing plans, TDD,
+  systematic debugging, worktrees. Its `SessionStart` hook loads `using-superpowers`.
+
+And one more, the same way:
+
+```
+claude plugin marketplace add mattpocock/skills
+claude plugin install mattpocock-skills@mattpocock
+```
+
+- **mattpocock-skills** — Matt Pocock's engineering skills (`grill-with-docs`, `to-spec`,
+  `to-tickets`, `handoff`, `research`, …). Managed, read-only. Run `/setup-matt-pocock-skills`
+  once per repo (issue tracker: GitHub; keep docs out of `graphify-out/`).
+

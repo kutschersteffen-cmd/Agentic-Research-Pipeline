@@ -72,6 +72,19 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "mcp__github__create_pull_request",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/pr-base-main.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checking PR base is main"
+          }
+        ]
+      }
     ]
   }
 }

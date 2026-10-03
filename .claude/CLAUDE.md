@@ -1,126 +1,73 @@
 # Repository conventions
 
+Python (FastAPI + Typer) backend in `backend/`, React/TypeScript (Vite) frontend in `frontend/`,
+file-based run state in `runs/`. Two rules hold everywhere: the LLM plans and deterministic code
+computes, and every citation is re-verified programmatically against the source document
+(`backend/arp/grounding.py`).
+
 ## Pull requests
 
-**The base branch for every pull request is `main`.** Always target `main`, regardless of
-what GitHub reports as the repository's default branch — that setting currently points at a
-`claude/*` feature branch and is wrong. Do not read the base off `git remote show origin`
-or `refs/remotes/origin/HEAD`.
+**The base branch for every pull request is `main`.** Always target `main`, regardless of what
+GitHub reports as the default branch (it currently points at a `claude/*` feature branch and is
+wrong). Do not read the base off `git remote show origin` or `refs/remotes/origin/HEAD`.
+`.claude/hooks/pr-base-main.sh` blocks `create_pull_request` for any other base.
 
-Branch off `main` when starting work. If a branch was created from anything else, merge
-`origin/main` into it before opening the PR so the diff shows only the intended change.
+Branch off `main`. If a branch was created from anything else, merge `origin/main` into it before
+opening the PR so the diff shows only the intended change.
 
-## Plugins
+## Commands
 
-`.claude/settings.json` declares seven marketplaces and enables a plugin from each. Neither
-entry does any fetching: `extraKnownMarketplaces` only *declares* a marketplace, and
-`enabledPlugins` only flips a plugin on once it is installed. So each collaborator has to
-register every marketplace and run every install once themselves:
+Run all of these before saying a task is done, and show the output.
 
-```
-claude plugin marketplace add DietrichGebert/ponytail
-claude plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill
-claude plugin marketplace add pbakaus/impeccable
-claude plugin install ponytail@ponytail
-claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill
-claude plugin install impeccable@impeccable
-```
+- Backend tests (no API key or network needed): `cd backend && pytest -q`
+- Backend lint: `cd backend && ruff check .`
+- Frontend lint: `cd frontend && npm run lint`
+- Frontend typecheck and build: `cd frontend && npm run build`
+- Frontend unit tests: `cd frontend && npm test`
 
-The `marketplace add` lines are the step that is easy to miss. Skip them and the install
-fails with `Plugin "ponytail" not found in marketplace "ponytail"` — which reads as if the
-plugin were missing, when really the marketplace was never cloned. `claude plugin marketplace
-list` printing `No marketplaces configured` confirms that case.
+If a test fails, fix the code, not the test. Never skip, delete or weaken a failing test.
 
-A `SessionStart` hook (`.claude/hooks/install-plugins.sh`, wired up in `settings.json`) now
-runs those commands for you. It is idempotent — it skips anything already installed and
-prints nothing — and it always exits 0, so a failure never blocks session start. It exists
-mainly for cloud sessions (claude.ai/code and the mobile **Code** tab), which get a fresh
-container every time and cannot run `/plugin` at all. Running the commands by hand is still
-fine, and still the faster path on a local machine.
+## Rules that must hold
 
-Hooks load at session start, so start a new session after installing before expecting
-ponytail to take effect. That applies to the hook too: it installs the plugins during startup,
-after the plugin registry has already been read, so the skills it fetches become selectable in
-the *following* session. For cloud sessions each new session is a fresh container, which means
-the first one after a container boot pays the install and the skills are live from then on. To
-have them ready in the very first session instead, run the same commands from the cloud
-environment's setup script, which runs before the session starts.
+- Standing agents (Taxonomy Researcher, Calibration Agent) propose changes for human review. They
+  never apply them.
+- A figure that reaches a report must trace to a grounded citation. Correct a wrong extracted
+  value through the review/override flow, which keeps the audit trail, never by editing results
+  files.
+- Do not edit ratified frameworks or taxonomies in place. They are versioned; add a new version.
+- No auth sits in front of the API yet (`docs/CORPORATE_READINESS_PLAN.md`). Do not add secrets to
+  the repo; CI scans for them.
 
-- **ponytail** — "lazy senior dev mode". Its hooks run on `SessionStart`, `SubagentStart`
-  and `UserPromptSubmit`, and require `node` on `PATH`.
-- **ui-ux-pro-max** — UI/UX design intelligence (styles, palettes, typography, charts,
-  per-stack guidelines). Skills only, no hooks; its scripts run on demand and need `python3`.
-- **impeccable** — frontend design fluency: one skill with sub-commands (`/impeccable:impeccable
-  polish`, `audit`, `critique`, …) plus anti-pattern detection. Its hooks run on `SessionStart`,
-  `PostToolUse` (Edit/Write) and `Stop`.
+## Things Claude gets wrong
 
-`settings.json` also enables three more plugins, which the same hook installs. By hand:
+When Claude makes the same mistake twice, add the correction here.
 
-```
-claude plugin marketplace add ayghri/i-have-adhd
-claude plugin marketplace add forrestchang/andrej-karpathy-skills
-claude plugin marketplace add blader/humanizer
-claude plugin install i-have-adhd@i-have-adhd
-claude plugin install andrej-karpathy-skills@karpathy-skills
-claude plugin install humanizer@humanizer
-```
-
-- **i-have-adhd** — ADHD-friendly output: next action first, numbered steps, no tangents.
-  `/i-have-adhd`. Always-on here: `install-plugins.sh` creates `~/.claude/.i-have-adhd-always`
-  every session, so the plugin's own `SessionStart` hook loads the full ruleset. Say "stop adhd
-  mode" to turn it off for one session; delete the `touch` line in the hook to opt out for good.
-- **andrej-karpathy-skills** — the `karpathy-guidelines` skill: think before coding, simplicity
-  first, surgical changes, goal-driven execution. Skill only.
-- **humanizer** — rewrites AI-sounding text so it reads naturally. `/humanizer:humanizer`.
-  Skill only.
-
-And one more, the same way:
-
-```
-claude plugin marketplace add obra/superpowers-marketplace
-claude plugin install superpowers@superpowers-marketplace
-```
-
-- **superpowers** — development workflow skills: brainstorming, writing plans, TDD,
-  systematic debugging, worktrees. Its `SessionStart` hook loads `using-superpowers`.
-
-And one more, the same way:
-
-```
-claude plugin marketplace add mattpocock/skills
-claude plugin install mattpocock-skills@mattpocock
-```
-
-- **mattpocock-skills** — Matt Pocock's engineering skills (`grill-with-docs`, `to-spec`,
-  `to-tickets`, `handoff`, `research`, …). Managed, read-only. Run `/setup-matt-pocock-skills`
-  once per repo (issue tracker: GitHub; keep docs out of `graphify-out/`).
+- Opening a PR against the repo's reported default branch instead of `main`.
+- Using `superpowers:requesting-code-review` or `receiving-code-review` (banned, see below).
 
 ## Which plugin does what
 
-superpowers and ponytail pull in opposite directions (process vs. minimalism), so each owns a
-phase:
+Install steps and per-plugin notes are in `docs/PLUGINS.md`. Each plugin owns a phase:
 
 - **Planning → superpowers.** For non-trivial work use `superpowers:brainstorming`, then
-  `superpowers:writing-plans`. Apply ponytail's ladder to the plan itself: cut tasks that
-  don't need to exist before writing them down. Trivial changes skip planning.
-- **Spec, tickets, handoff → mattpocock-skills.** `grill-with-docs` to stress-test a plan,
-  `to-spec` / `to-tickets` for issues, `handoff` / `research` as needed. Where it overlaps
-  superpowers or `/code-review` (`tdd`, `diagnosing-bugs`, `code-review`), use the superpowers /
-  existing one. Never use its `pr` skill: PRs follow the `main` rule above. Ignore `in-progress/`.
+  `superpowers:writing-plans`. Apply ponytail's ladder to the plan: cut tasks that don't need to
+  exist. Trivial changes skip planning.
+- **Spec, tickets, handoff → mattpocock-skills.** `grill-with-docs`, `to-spec`, `to-tickets`,
+  `handoff`, `research`. Where it overlaps superpowers or `/code-review` (`tdd`, `diagnosing-bugs`,
+  `code-review`), use the superpowers or built-in one. Never use its `pr` skill. Ignore
+  `in-progress/`.
 - **Implementation → ponytail.** Smallest working diff; follow the plan's tasks, not more.
-- **Frontend design → impeccable and ui-ux-pro-max**, as before.
-- **Review → ponytail.** Review with `/ponytail:ponytail-review` (over-engineering) plus
-  `/code-review` (correctness). Do not use `superpowers:requesting-code-review` or
-  `superpowers:receiving-code-review`.
+- **Verifying → `prove-it-works`.** Check the real artifact before claiming done. Measured numbers
+  also go through `explain-the-number`. Long or unattended work keeps a trail with
+  `show-me-your-work`.
+- **Frontend design → impeccable and ui-ux-pro-max.**
+- **Review → ponytail plus `/code-review`**, following `REVIEW.md`. Do not use
+  `superpowers:requesting-code-review` or `superpowers:receiving-code-review`.
 - **Finishing → no auto-merge.** `superpowers:finishing-a-development-branch` must open a PR
-  against `main` (see above); never merge locally.
+  against `main`; never merge locally.
 
-## Invoking skills
-
-The `/` autocomplete menu is a terminal-only feature. In cloud sessions — claude.ai/code and
-the mobile **Code** tab — the composer is a plain chat box with no picker, so type the skill
-name (`/graphify`) and send it, or just describe what you want and let the description trigger
-it. Plugin skills are namespaced: `/ponytail:ponytail-review`, `/ui-ux-pro-max:design`.
+Plugin skills are namespaced (`/ponytail:ponytail-review`). In cloud sessions there is no `/`
+picker: type the skill name and send it, or describe what you want.
 
 # graphify
 - **graphify** (`.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`

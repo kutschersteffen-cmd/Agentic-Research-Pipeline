@@ -38,3 +38,7 @@ backend/.document_store/
 
 # OS
 .DS_Store
+
+# show-me-your-work decision logs (local by default)
+decisions.tsv
+.audit/
