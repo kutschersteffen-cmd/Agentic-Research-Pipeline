@@ -68,3 +68,34 @@ def decision_history(run_store: RunStore, run_id: str, item_key: str) -> list[di
     """
     rows = run_store.read_jsonl(run_store.review_decisions_path(run_id))
     return [r for r in rows if r["item_key"] == item_key]
+
+
+def record_cosign(run_store: RunStore, run_id: str, item_key: str, principal: Principal) -> None:
+    """Second sign-off on the latest decision for item_key. Bound to that
+    decision's decided_at, so any later decision invalidates it."""
+    decision = latest_decisions(run_store, run_id).get(item_key)
+    if decision is None:
+        raise ValueError("nothing to co-sign")
+    if principal.user_id == decision.get("user_id"):  # legacy rows lack user_id: allowed
+        raise ValueError("co-sign must be a different person")
+    run_store.append_jsonl(
+        run_store.review_cosigns_path(run_id),
+        {
+            "item_key": item_key,
+            "user_id": principal.user_id,
+            "name": principal.name,
+            "role": principal.role,
+            "decision_decided_at": decision["decided_at"],
+            "cosigned_at": now_iso(),
+        },
+    )
+
+
+def effective_decisions(run_store: RunStore, run_id: str, *, cosign_required: set[str]) -> dict[str, dict]:
+    """latest_decisions minus decisions in cosign_required that lack a matching co-sign."""
+    signed = {(r["item_key"], r["decision_decided_at"]) for r in run_store.read_jsonl(run_store.review_cosigns_path(run_id))}
+    return {
+        k: d
+        for k, d in latest_decisions(run_store, run_id).items()
+        if d.get("decision") not in cosign_required or (k, d.get("decided_at")) in signed
+    }

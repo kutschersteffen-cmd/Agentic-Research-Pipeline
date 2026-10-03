@@ -5,7 +5,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from arp.api.auth import Principal, current_user
+from arp.api.auth import Principal, current_user, require_role
 from arp.api.company_results import list_company_results
 from arp.api.deps import get_decision_store, get_llm_client, get_registry, get_run_store, get_xbrl_source, settings_dep
 from arp.api.review_endpoints import (
@@ -23,6 +23,7 @@ from arp.extraction.pipeline import create_extraction_run, execute_extraction_ru
 from arp.extraction.schema_builder import draft_schema
 from arp.extraction.steps import ExtractionProfile, StepSettings, pipeline_shape, restart_overrides
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.orchestration.review_queue import record_cosign
 from arp.orchestration.step_tally import step_counts
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema
@@ -337,3 +338,19 @@ def submit_extraction_review(
         run_store, run_id, item_key=req.item_key, decision=req.decision, principal=principal,
         edited_value=req.edited_value, comment=req.comment,
     )
+
+
+class CosignRequest(BaseModel):
+    item_key: str
+
+
+@router.post("/runs/{run_id}/cosign")
+def cosign_extraction_review(
+    run_id: str, req: CosignRequest, run_store: RunStore = Depends(get_run_store),
+    principal: Principal = Depends(require_role("approver")),
+) -> dict:
+    try:
+        record_cosign(run_store, run_id, req.item_key, principal)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+    return {"ok": True}

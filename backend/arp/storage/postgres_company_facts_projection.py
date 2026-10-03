@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from arp.orchestration.review_queue import latest_decisions
+from arp.orchestration.review_queue import effective_decisions, latest_decisions
 from arp.schemas.common import now_iso
 from arp.storage.postgres import get_engine
 from arp.storage.postgres_projection_config import ProjectionConfig
@@ -166,6 +166,9 @@ def materialize_run(dsn: str, run_store: RunStore, run_id: str) -> int:
     rows = run_store.read_jsonl(run_store.results_path(run_id))
     decisions = latest_decisions(run_store, run_id)
     queued_item_keys = {r["item_key"] for r in run_store.read_jsonl(run_store.review_queue_path(run_id)) if "item_key" in r}
+    if manifest.run_type == "extraction":  # an edit is final only once co-signed; until then it stays pending
+        decisions = effective_decisions(run_store, run_id, cosign_required={"edit"})
+        queued_item_keys |= set(latest_decisions(run_store, run_id)) - set(decisions)
     fact_type = _FACT_TYPE_BY_RUN_TYPE.get(manifest.run_type, manifest.run_type)
 
     from sqlalchemy import select
