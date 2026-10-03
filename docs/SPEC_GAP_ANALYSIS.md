@@ -160,8 +160,9 @@ interaction model §4 specifies. `AnalyticSpec`/`PivotSpec`
 persisted (`analytics.py::save_analytic`/`list_analytics`,
 `GET /api/portfolio/analytics`).
 
-**Gaps:** the save/list plumbing above has no UI — nothing in
-`PivotExplorer.tsx` ever sets `save: true` or lists a saved analytic, so
+**Gaps:** the save/list plumbing above has no UI — the former
+`PivotExplorer.tsx` (since removed; ad-hoc slicing now lives in the
+Dashboards (Superset) tab) never set `save: true` or listed a saved analytic, so
 "saved, role-based views" don't exist as a reachable feature, only as unused
 backend capacity. There's no benchmark-relative/absolute toggle anywhere
 (no `Benchmark` concept exists at all — consistent with §2's benchmark

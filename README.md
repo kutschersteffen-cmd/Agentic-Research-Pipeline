@@ -151,7 +151,9 @@ descriptions of catalogue-named columns, so edit them there, not in Superset. It
 dashboards in `backend/arp/bi/templates/` (today `arp-risk-exposure`: 8 charts, native filters Fund, Sector and Country)
 and prints `{"templates": {"arp-risk-exposure": "created" | "rebuilt" | "unchanged"}}` with the rest of its output.
 The dashboard is created unpublished; publish it in Superset. One that has at least the template's charts is left alone.
-One with fewer is deleted and rebuilt (its old charts stay), and the rebuild is unpublished again.
+One with fewer is deleted and rebuilt (its old charts stay), and the rebuild is unpublished again. Existing
+deployments must re-run `arp bi bootstrap` after upgrading: the AI designer needs every catalogue dataset, including
+`holdings_history`.
 
 Set `VITE_SUPERSET_URL` in `frontend/.env`, then open Risk Monitoring, Dashboards (Superset). This one tab replaces
 Pivot Explorer, Generative BI and Superset BI (old links land on it); Standard Analytics, Monitoring & Alerts, Company
