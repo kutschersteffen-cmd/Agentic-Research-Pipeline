@@ -1850,3 +1850,6 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .arcade-title { font-family: var(--font-display); font-weight: 600; font-size: 1.125rem; letter-spacing: -0.02em; }
 .arcade-play { font-family: var(--font-mono); font-size: var(--text-sm); }
 @media (max-width: 640px) { .arcade-list a { grid-template-columns: 1fr auto; } .arcade-list a .muted { grid-column: 1 / -1; order: 3; } }
+.cabinet canvas { image-rendering: pixelated; }
+.cabinet-hint { font-size: var(--text-xs); color: #8aa530; letter-spacing: 0.04em; }
+.cabinet-card strong { padding-inline: var(--s-4); text-wrap: balance; }
