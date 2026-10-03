@@ -2776,11 +2776,17 @@ export interface BIChartSpec {
   filters: Record<string, string>;
 }
 
+export interface BIChartPlan {
+  title: string;
+  goal: string;
+  charts: BIChartSpec[];
+}
+
 export interface BIDesignResult {
   dashboard_id: number | null;
   slug: string | null;
   url: string | null;
-  plan: { title: string; goal: string; charts: BIChartSpec[] } | null;
+  plan: BIChartPlan | null;
   rejected: string[];
   clarification_needed: string | null;
 }

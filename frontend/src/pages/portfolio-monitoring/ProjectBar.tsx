@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
 import { apiMessage, createAndOpen, DEFAULT_NOTIONAL_EUR, STANDARD } from "../../lib/projects";
 import type { OpenedDashboard, OpenResult, ProjectSummary } from "../../types";
@@ -41,22 +41,27 @@ export function ProjectBar({
   const [notional, setNotional] = useState(String(DEFAULT_NOTIONAL_EUR));
   const [files, setFiles] = useState<File[]>([]);
 
+  const latest = useRef(0); // a stale open never overwrites newer state
+
   const open = useCallback(
     async (id: string, flow?: () => Promise<{ id: string; result: OpenResult }>) => {
+      const mine = ++latest.current;
       setRunning(true);
       setError(null);
       setSummary(null);
       try {
         const r = flow ? await flow() : { id, result: await api.openProject(id) };
+        if (mine !== latest.current) return null;
         setSummary(r.result);
         onOpened(r.result.dashboards);
         return r.id;
       } catch (e) {
+        if (mine !== latest.current) return null;
         setError(apiMessage(e));
         onOpened([]);
         return null;
       } finally {
-        setRunning(false);
+        if (mine === latest.current) setRunning(false);
       }
     },
     [onOpened],
@@ -93,8 +98,14 @@ export function ProjectBar({
     e.preventDefault();
     const notionalEur = Number(notional);
     if (!name.trim() || !(notionalEur > 0) || files.length === 0) return;
-    onProject?.(null);
-    const id = await open("", () => createAndOpen(api, { name: name.trim(), notionalEur, files }));
+    // The project becomes the parent's selection as soon as it exists, before the open fills its dashboards.
+    const id = await open("", () =>
+      createAndOpen(api, { name: name.trim(), notionalEur, files }, (pid) => {
+        setSelected(pid);
+        remember(pid);
+        onProject?.(pid);
+      }),
+    );
     // The project exists even if a later step failed, so list it either way.
     try {
       setProjects(await api.listProjects());
@@ -102,9 +113,6 @@ export function ProjectBar({
       /* the list refreshes on next load */
     }
     if (id) {
-      setSelected(id);
-      remember(id);
-      onProject?.(id);
       setCreating(false);
       setName("");
       setFiles([]);

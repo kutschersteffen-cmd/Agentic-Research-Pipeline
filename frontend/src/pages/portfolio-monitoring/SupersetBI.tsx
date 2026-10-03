@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { embedDashboard } from "@superset-ui/embedded-sdk";
 import { api } from "../../api/client";
-import { designRequestBody, embedErrorText, embedUrlFor, pickDefaultDashboard, SUPERSET_URL } from "../../lib/biEmbed";
-import { apiMessage, embeddable, saveBody, UNSCOPED_CAVEAT } from "../../lib/projects";
+import { designRequestBody, embedErrorText, embedUrlFor, SUPERSET_URL } from "../../lib/biEmbed";
+import { apiMessage, initialPicker, isOther, projectGroups, reducePicker, saveBody, UNSCOPED_CAVEAT } from "../../lib/projects";
 import type { BIDesignResult, DashboardItem, OpenedDashboard } from "../../types";
 import { ProjectBar } from "./ProjectBar";
 
@@ -11,6 +11,12 @@ const EXAMPLE_BRIEFS = [
   "Which portfolios hold the most, and in which asset classes and currencies?",
   "Review backlog: share of run records needing review, by pipeline",
 ];
+
+const option = (d: DashboardItem) => (
+  <option key={d.id} value={d.id}>
+    {d.published ? d.title : `${d.title} (draft)`}
+  </option>
+);
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -112,13 +118,10 @@ function ListError({ error }: { error: string }) {
  * chart types from a fixed catalogue; Superset runs every query. Drafts stay
  * unpublished until a person publishes them in Superset. */
 export function SupersetBI() {
-  const [dashboards, setDashboards] = useState<DashboardItem[] | null>(null);
+  const [picker, dispatch] = useReducer(reducePicker, initialPicker);
+  const { standard: dashboards, project, projectDashboards, selectedId } = picker;
   const [listError, setListError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
   const listRequest = useRef(0);
-
-  const [project, setProject] = useState<string | null>(null);
-  const [projectDashboards, setProjectDashboards] = useState<DashboardItem[] | null>(null);
   const [saveNote, setSaveNote] = useState<string | null>(null);
 
   const [brief, setBrief] = useState("");
@@ -132,14 +135,8 @@ export function SupersetBI() {
     try {
       const items = await api.biDashboards();
       if (req !== listRequest.current) return; // a newer load superseded this one
-      setDashboards(items);
       setListError(null);
-      setSelectedId((current) => {
-        const listed = (id: number | null | undefined) => items.some((d) => d.id === id);
-        if (listed(preferId)) return preferId!;
-        if (listed(current)) return current;
-        return pickDefaultDashboard(items)?.id ?? null;
-      });
+      dispatch({ type: "list", items, preferId });
     } catch (e) {
       if (req !== listRequest.current) return;
       setListError(message(e));
@@ -166,18 +163,15 @@ export function SupersetBI() {
     }
   }
 
-  // With a project chosen the picker shows only what open returned; otherwise every arp- dashboard.
-  const shown = project ? projectDashboards : dashboards;
+  // With a project chosen the picker shows what open returned, then the other arp- dashboards; otherwise all of them.
+  const groups = project ? projectGroups(project, projectDashboards ?? [], dashboards) : null;
+  const shown = project ? (projectDashboards === null ? null : groups!.union) : dashboards;
   const selected = shown?.find((d) => d.id === selectedId) ?? null;
+  const canExport = !!groups && selected !== null && isOther(groups.others, selected.id);
 
-  const onOpened = useCallback((ds: OpenedDashboard[]) => {
-    const items = embeddable(ds);
-    setProjectDashboards(items);
-    setSelectedId(items[0]?.id ?? null);
-  }, []);
+  const onOpened = useCallback((ds: OpenedDashboard[]) => dispatch({ type: "opened", dashboards: ds }), []);
   const onProject = useCallback((id: string | null) => {
-    setProject(id);
-    setProjectDashboards(null);
+    dispatch({ type: "select", project: id });
     setSaveNote(null);
   }, []);
 
@@ -195,9 +189,7 @@ export function SupersetBI() {
     void saveToProject(async () => {
       const d = await api.saveProjectDashboard(project, body);
       if (d.id !== null) {
-        const item = { id: d.id, slug: d.slug, title: d.title, published: d.published };
-        setProjectDashboards((cur) => [...(cur ?? []).filter((x) => x.id !== item.id), item]);
-        setSelectedId(d.id);
+        dispatch({ type: "saved", item: { id: d.id, slug: d.slug, title: d.title, published: d.published } });
       }
       return `Saved to the project: ${d.title}.`;
     });
@@ -206,6 +198,7 @@ export function SupersetBI() {
     if (!project || !selected) return;
     void saveToProject(async () => {
       const d = await api.exportProjectDashboard(project, selected.id);
+      dispatch({ type: "saved", item: { id: selected.id, slug: d.slug, title: d.title, published: selected.published } });
       return `Saved to the project: ${d.title}.${d.scoped ? "" : ` ${UNSCOPED_CAVEAT}.`}`;
     });
   };
@@ -228,12 +221,15 @@ export function SupersetBI() {
             <div className="toolbar">
               <label className="field-label inline-label">
                 Dashboard
-                <select value={selectedId ?? ""} onChange={(e) => setSelectedId(Number(e.target.value))}>
-                  {shown.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.published ? d.title : `${d.title} (draft)`}
-                    </option>
-                  ))}
+                <select value={selectedId ?? ""} onChange={(e) => dispatch({ type: "pick", id: Number(e.target.value) })}>
+                  {groups ? (
+                    <>
+                      <optgroup label="Project dashboards">{groups.mine.map(option)}</optgroup>
+                      {groups.others.length > 0 && <optgroup label="Other arp- dashboards">{groups.others.map(option)}</optgroup>}
+                    </>
+                  ) : (
+                    shown.map(option)
+                  )}
                 </select>
               </label>
               {selected && !selected.published && <span className="badge badge-mid">Draft</span>}
@@ -242,7 +238,7 @@ export function SupersetBI() {
                   Open in Superset
                 </a>
               )}
-              {project && selected && !selected.slug.startsWith(`arp-${project}--`) && (
+              {canExport && (
                 <button className="secondary" onClick={exportPicked}>Save to project</button>
               )}
             </div>

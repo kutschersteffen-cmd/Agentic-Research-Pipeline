@@ -84,7 +84,8 @@ import type {
   TrendPoint,
 } from "../types";
 import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
-import type { BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
+import { formatValidationErrors } from "../lib/projects";
+import type { BIChartPlan, BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
 import type { Finding, QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, Storyline, TemplateStyleProfile } from "../types";
 import type { PaperCandidate, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
 import type {
@@ -112,18 +113,6 @@ function buildQuery(params: Record<string, string | string[] | undefined | null>
 
 /** Policy endpoints act on the house by default, or on a client stream's own policies. */
 const streamQuery = (stream?: string) => (stream ? `?stream=${encodeURIComponent(stream)}` : "");
-
-/** FastAPI's 422 body: `detail` is a list of {loc, msg}. Rendered as
- * "spec › screens › 0 › metric_threshold: needs at least one of …". */
-function formatValidationErrors(errors: { loc?: (string | number)[]; msg?: string }[]): string {
-  return errors
-    .map((e) => {
-      const where = (e.loc ?? []).filter((part) => part !== "body").join(" › ");
-      const msg = (e.msg ?? "invalid").replace(/^Value error, /, "");
-      return where ? `${where}: ${msg}` : msg;
-    })
-    .join("; ");
-}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
@@ -641,7 +630,7 @@ export const api = {
     return request<{ id: string }>(`/api/projects/${encodeURIComponent(id)}/data`, { method: "POST", body: form });
   },
   openProject: (id: string) => request<OpenResult>(`/api/projects/${encodeURIComponent(id)}/open`, { method: "POST" }),
-  saveProjectDashboard: (id: string, body: { title: string; plan: unknown }) =>
+  saveProjectDashboard: (id: string, body: { title: string; plan: BIChartPlan }) =>
     request<OpenedDashboard>(`/api/projects/${encodeURIComponent(id)}/dashboards`, { method: "POST", body: JSON.stringify(body) }),
   exportProjectDashboard: (id: string, dashboardId: number) =>
     request<ExportedDashboard>(`/api/projects/${encodeURIComponent(id)}/dashboards/export`, {
