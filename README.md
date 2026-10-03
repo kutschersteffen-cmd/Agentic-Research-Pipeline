@@ -131,9 +131,11 @@ Optional. Needs Postgres as the portfolio store, with the projections the `bi` v
 `ARP_PORTFOLIO_BACKEND=postgres`, `ARP_POSTGRES_DSN`, `ARP_COMPANY_RECORDS_PROJECTION_ENABLED=true`, `ARP_COMPANY_FACTS_PROJECTION_ENABLED=true`
 (and the document-registry and engagement projections if you want those views filled).
 
-Set `ARP_SUPERSET_URL`, `ARP_SUPERSET_USER`, `ARP_SUPERSET_PASSWORD`, `ARP_BI_READER_PASSWORD`, `SUPERSET_SECRET_KEY` and
-`SUPERSET_GUEST_TOKEN_JWT_SECRET` in `backend/.env`. None has a default and the `change-me` placeholders are refused;
-the two Superset secrets need 32+ characters. Generate each with `openssl rand -base64 42`.
+Set `ARP_SUPERSET_PASSWORD`, `ARP_BI_READER_PASSWORD`, `SUPERSET_SECRET_KEY` and `SUPERSET_GUEST_TOKEN_JWT_SECRET` in
+`backend/.env`. None has a default and the `change-me` placeholders are refused; the two Superset secrets need 32+
+characters. Generate each with `openssl rand -base64 42`. `ARP_SUPERSET_URL` (default `http://127.0.0.1:8088`) and
+`ARP_SUPERSET_USER` (default `arp_designer`) have defaults; `ARP_BI_SUPERSET_DB_HOST` (default `postgres:5432`) is the
+host:port Superset uses to reach Postgres.
 
 ```bash
 docker compose --env-file backend/.env up -d postgres superset   # first start builds superset/Dockerfile
@@ -146,6 +148,7 @@ Set `VITE_SUPERSET_URL` in `frontend/.env`, then open Risk Monitoring, Superset 
 
 Caveats:
 - Drafts only. Publishing a dashboard is a human step in Superset.
+- The `superset/Dockerfile` build (adds psycopg2 to `apache/superset:5.0.0`) is unverified end to end: the sandbox proxy's TLS blocked it, and it was tested with an equivalent local image. Run `docker compose build superset` on a normal machine before relying on it.
 - Embedding is verified in Chromium only.
 - The first-embed lock is in-process, so run a single uvicorn worker.
 - Demo data lives in files; seed it into Postgres before the views have anything to show.

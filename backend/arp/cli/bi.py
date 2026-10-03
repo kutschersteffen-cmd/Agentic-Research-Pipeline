@@ -4,6 +4,7 @@ import json
 
 import typer
 
+from arp.bi.views import PLACEHOLDER_SECRETS
 from arp.config import get_settings
 
 bi_app = typer.Typer(help="Apache Superset BI integration (arp/bi/): provision the `bi` views and Superset datasets.")
@@ -40,6 +41,10 @@ def bi_bootstrap(
     missing = [name for name, value in required.items() if not value]
     if missing:
         typer.echo(f"Not set: {', '.join(missing)} -- see backend/.env.example.", err=True)
+        raise typer.Exit(1)
+
+    if settings.bi_reader_password in PLACEHOLDER_SECRETS:
+        typer.echo("ARP_BI_READER_PASSWORD is a placeholder -- set it to e.g. the output of `openssl rand -base64 42`.", err=True)
         raise typer.Exit(1)
 
     import httpx

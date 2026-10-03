@@ -37,4 +37,17 @@ def test_bootstrap_prints_superset_response_body_for_the_operator(monkeypatch):
     finally:
         get_settings.cache_clear()
     assert result.exit_code == 1
-    assert "HTTP 422" in result.output and '"bad uri"' in result.output
+    assert "HTTP 422" in result.stderr and '"bad uri"' in result.stderr
+    assert '"bad uri"' not in result.stdout
+
+
+def test_bootstrap_rejects_placeholder_reader_password(monkeypatch):
+    monkeypatch.setenv("ARP_POSTGRES_DSN", "postgresql+psycopg://u:p@localhost:5432/arp")
+    monkeypatch.setenv("ARP_SUPERSET_PASSWORD", "x" * 20)
+    monkeypatch.setenv("ARP_BI_READER_PASSWORD", "change-me-dev-only")
+    get_settings.cache_clear()
+    try:
+        result = CliRunner().invoke(app, ["bi", "bootstrap"])
+    finally:
+        get_settings.cache_clear()
+    assert result.exit_code == 1 and "placeholder" in result.stderr and "openssl rand" in result.stderr

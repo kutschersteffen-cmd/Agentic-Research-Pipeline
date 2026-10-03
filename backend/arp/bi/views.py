@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from sqlalchemy import Connection
 
+# Keep in step with PLACEHOLDERS in superset/superset_config.py (that file cannot import arp).
+PLACEHOLDER_SECRETS = {"change-me-dev-only", "CHANGE_ME_SECRET_KEY", "test-guest-secret-change-me"}
 ROLE = "bi_reader"
 
 # Date/timestamp columns are text in the base tables and may be '' or junk.
