@@ -13,6 +13,7 @@ than postgres:5432. Everything the test creates in Superset is deleted."""
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import uuid
@@ -23,9 +24,13 @@ import pytest
 from typer.testing import CliRunner
 
 from arp.bi.catalog import VIEW_DATASETS, VIZ_ALLOWLIST
+from arp.bi.plan import ChartPlan, ChartSpec
+from arp.bi.planner import PlannerRefusal
+from arp.bi.service import SCRATCH_SLUG, ask_chart, design_dashboard, embed_token
 from arp.bi.superset_client import SupersetClient
 from arp.cli import app
 from arp.config import get_settings
+from arp.llm.base import LLMClient, LLMUsage
 
 URL = os.environ.get("ARP_TEST_SUPERSET_URL")
 pytestmark = [pytest.mark.live_superset, pytest.mark.skipif(not URL, reason="ARP_TEST_SUPERSET_URL not set -- live Superset")]
@@ -126,3 +131,109 @@ def test_live_superset_roundtrip(settings):
         for cid in chart_ids:
             client.delete_chart(cid)
     assert client.find_dashboard(slug) is None
+
+
+# --- Service end to end (design_dashboard / ask_chart / embed_token) -------------------
+
+
+class ScriptedLLM(LLMClient):
+    """Returns canned planner outputs, so the live test exercises everything after the LLM."""
+
+    def __init__(self, *plans: ChartPlan) -> None:
+        self.plans = list(plans)
+
+    async def complete_structured(self, *, system, prompt, output_model, **kw):
+        return PlannerRefusal(plan=self.plans.pop(0)), LLMUsage()
+
+
+def _h(title: str, viz: str, groupby: list[str], metrics=("Exposure (EUR)",), **kw) -> ChartSpec:
+    return ChartSpec(title=title, viz_type=viz, dataset="holdings", metrics=list(metrics), groupby=groupby, **kw)
+
+
+def _check_dashboard(client: SupersetClient, dash_id: int, plan: ChartPlan) -> dict[int, str]:
+    """Charts attached, laid out by compile_dashboard's position_json, unpublished, each returning rows."""
+    charts = client.dashboard_charts(dash_id)
+    assert sorted(charts.values()) == sorted(c.title for c in plan.charts)
+    dash = client._request("GET", f"/dashboard/{dash_id}")["result"]
+    assert dash["published"] is False
+    layout = json.loads(dash["position_json"])
+    assert {v["meta"]["chartId"] for v in layout.values() if isinstance(v, dict) and v.get("type") == "CHART"} == set(charts)
+    for cid in charts:
+        (data,) = client._request("GET", f"/chart/{cid}/data/")["result"]
+        assert data["status"] == "success" and data["rowcount"] > 0, (charts[cid], data)
+    return charts
+
+
+def test_live_service_design_covers_every_viz_type(settings):
+    _bootstrap()
+    client = SupersetClient(URL, settings.superset_user, settings.superset_password)
+    tag = uuid.uuid4().hex[:8]  # fresh plan hashes, so no earlier dashboard is reused
+    plans = [
+        ChartPlan(
+            title=f"Live test {tag} overview",
+            charts=[
+                _h("Total exposure", "big_number_total", []),
+                _h("Exposure by sector", "echarts_timeseries_bar", ["sector"]),
+                _h("Exposure over time", "echarts_timeseries_line", ["as_of_date", "portfolio_name"]),
+                _h("Sector mix", "pie", ["sector"]),
+                _h(
+                    "EUR equity positions",
+                    "table",
+                    ["portfolio_name", "security_name"],
+                    ["Holdings", "Exposure (EUR)"],
+                    filters={"asset_class": "equity", "currency": "EUR"},
+                ),
+                _h("Portfolio x sector", "pivot_table_v2", ["portfolio_name", "sector"]),
+            ],
+        ),
+        ChartPlan(
+            title=f"Live test {tag} concentration",
+            charts=[
+                _h("Sector heatmap", "heatmap_v2", ["portfolio_name", "sector"]),
+                _h("Exposure treemap", "treemap_v2", ["sector", "company_name"]),
+            ],
+        ),
+    ]
+    assert {c.viz_type for p in plans for c in p.charts} == set(VIZ_ALLOWLIST)
+    created: list[tuple[int, dict[int, str]]] = []
+    try:
+        for plan in plans:
+            res = asyncio.run(design_dashboard("brief", ScriptedLLM(plan), client))
+            assert res.rejected == [] and res.slug.startswith("arp-") and res.url.endswith(f"/superset/dashboard/{res.slug}/")
+            created.append((res.dashboard_id, _check_dashboard(client, res.dashboard_id, plan)))
+
+            again = asyncio.run(design_dashboard("brief", ScriptedLLM(plan), client))
+            assert again.dashboard_id == res.dashboard_id  # same plan hash: reused
+            assert client.dashboard_charts(res.dashboard_id) == created[-1][1]  # and nothing new created
+
+        token = embed_token(client, str(created[0][0]))
+        assert isinstance(token, str) and token
+    finally:
+        for dash_id, charts in created:
+            client.delete_dashboard(dash_id)
+            for cid in charts:
+                client.delete_chart(cid)
+
+
+def test_live_service_ask_accumulates_on_scratch(settings):
+    _bootstrap()
+    client = SupersetClient(URL, settings.superset_user, settings.superset_password)
+    if client.find_dashboard(SCRATCH_SLUG) is not None:
+        pytest.skip("this Superset already has a scratch dashboard; the test would add to it")
+    q1 = ChartPlan(title="Q", charts=[_h("Exposure by country", "pie", ["country"])])
+    q2 = ChartPlan(title="Q", charts=[_h("Positions by asset class", "echarts_timeseries_bar", ["asset_class"], ["Holdings"])])
+    llm = ScriptedLLM(q1, q2)
+    dash_id = None
+    try:
+        r1 = asyncio.run(ask_chart("exposure by country?", llm, client))
+        dash_id = r1.dashboard_id
+        r2 = asyncio.run(ask_chart("positions by asset class?", llm, client))
+        assert r1.slug == r2.slug == SCRATCH_SLUG and r2.dashboard_id == dash_id
+        _check_dashboard(client, dash_id, ChartPlan(title="Scratch", charts=q1.charts + q2.charts))
+    finally:
+        if dash_id is not None:
+            charts = client.dashboard_charts(dash_id)
+            client.delete_dashboard(dash_id)
+            for cid in charts:
+                client.delete_chart(cid)
+    assert client.find_dashboard(SCRATCH_SLUG) is None
