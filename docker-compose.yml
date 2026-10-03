@@ -62,6 +62,7 @@ services:
       - arp_taxonomies:/app/taxonomies
       - arp_portfolios:/app/portfolios
       - arp_documents:/app/data/documents
+      - arp_blobs:/app/data/blobs
       - arp_engagements:/app/engagements
       - arp_ballots:/app/ballots
       - arp_cache:/app/backend/.cache
@@ -195,6 +196,7 @@ volumes:
   arp_taxonomies:
   arp_portfolios:
   arp_documents:
+  arp_blobs:
   arp_engagements:
   arp_ballots:
   arp_cache:

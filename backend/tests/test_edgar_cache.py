@@ -134,7 +134,9 @@ async def test_indexing_config_hooks_on_cache_hit_only_indexes_not_uploads(tmp_p
     monkeypatch.setattr(
         "arp.retrieval.search_indexer.index_document_if_enabled", lambda config, **kwargs: index_calls.append(kwargs)
     )
-    monkeypatch.setattr("arp.storage.document_blob_store.blob_store_for", lambda config: None)
+    monkeypatch.setattr(
+        "arp.storage.document_blob_store.blob_store_for", lambda config: type("S", (), {"exists": lambda self, k: True})()
+    )
     monkeypatch.setattr(
         "arp.storage.document_blob_store.upload_or_fail", lambda *a, **k: upload_calls.append((a, k))
     )
@@ -291,3 +293,14 @@ async def test_edgar_one_failing_filing_does_not_abort_the_other(tmp_path, monke
     monkeypatch.setattr(dbs, "upload_or_fail", flaky)
     docs = await source.fetch(COMPANY)
     assert [d.title for d in docs] == ["Apple Inc. 10-K (2024-01-01)"]
+
+
+async def test_edgar_lost_blob_is_archived_again(tmp_path, monkeypatch):
+    # The registry still names a storage_uri, but the blob itself is gone: re-fetch and re-archive.
+    source, store = _setup(tmp_path, monkeypatch, _SUBMISSIONS, tmp_path / "blobs")
+    (doc,) = await source.fetch(COMPANY)
+    key = hashlib.sha256(f"bytes of {doc.source_url}".encode()).hexdigest()
+    blob = tmp_path / "blobs" / key[:2] / key
+    blob.unlink()
+    (doc,) = await source.fetch(COMPANY)
+    assert blob.read_bytes() == f"bytes of {doc.source_url}".encode()

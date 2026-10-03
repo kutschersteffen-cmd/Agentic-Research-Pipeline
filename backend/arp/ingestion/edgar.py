@@ -155,8 +155,14 @@ class EdgarDocumentSource(DocumentSource):
             return docs
 
     def _has_stored_blob(self, content_key: str) -> bool:
+        """The registry names a stored copy AND the blob store still has it (a lost blob is re-archived)."""
+        from arp.storage.document_blob_store import blob_store_for
+
         ref = self._content_store.list_documents_by_content_keys([content_key]).get(content_key)
-        return bool(ref and ref.storage_uri)
+        if not (ref and ref.storage_uri):
+            return False
+        # The blob key is the sha256 of the bytes, the last segment of file://... or s3://bucket/<sha>.
+        return blob_store_for(self._indexing_config).exists(ref.storage_uri.rsplit("/", 1)[-1])
 
     def _index_and_archive(
         self,

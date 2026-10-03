@@ -142,3 +142,33 @@ def test_local_files_real_store_success(tmp_path):
     key = hashlib.sha256(b"Some disclosure text about green capex.").hexdigest()
     assert LocalBlobStore(blobs).exists(key)
     assert store.resolve_document(doc.doc_id).storage_uri.startswith("file://")
+
+
+def test_second_fetch_of_unchanged_file_skips_reverify_and_intake_checks(tmp_path, monkeypatch):
+    from arp.ingestion import intake, local_files
+
+    folder = tmp_path / "docs" / "acme" / DocType.ANNUAL_REPORT_10K.value
+    folder.mkdir(parents=True)
+    (folder / "report.pdf").write_bytes(BODY)
+    pdf_checks, gets = [], []
+    monkeypatch.setattr(intake, "_check_pdf", lambda path: pdf_checks.append(path))
+    monkeypatch.setattr(local_files, "parse_file_to_text_with_pages", lambda path: ("Green capex was 5m.", []))
+    captures = []
+    orig_latest = downloader.latest_capture
+    monkeypatch.setattr(downloader, "latest_capture", lambda *a: captures.append(a) or orig_latest(*a))
+    orig_get = LocalBlobStore.get
+    monkeypatch.setattr(LocalBlobStore, "get", lambda self, key: gets.append(key) or orig_get(self, key))
+    store = DocumentContentStore(tmp_path / "store")
+    source = LocalFileDocumentSource(tmp_path / "docs", content_store=store, indexing_config=IndexingConfig(blob_store_dir=tmp_path / "blobs"))
+
+    (first,) = asyncio.run(source.fetch(ACME))
+    assert len(pdf_checks) == 1 and len(gets) == 1  # first fetch: checked and verified
+    (second,) = asyncio.run(source.fetch(ACME))
+    assert len(pdf_checks) == 1 and len(gets) == 1  # unchanged: neither re-checked nor re-read
+    assert len(captures) == 1  # identity already assigned: published_at not looked up again
+    assert second.doc_id == first.doc_id and second.family_id == first.family_id
+
+    key = hashlib.sha256(BODY).hexdigest()
+    (tmp_path / "blobs" / key[:2] / key).unlink()  # a lost blob is stored and verified again
+    asyncio.run(source.fetch(ACME))
+    assert len(gets) == 2 and LocalBlobStore(tmp_path / "blobs").exists(key)

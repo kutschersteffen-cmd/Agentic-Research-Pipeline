@@ -179,6 +179,14 @@ class LocalFileDocumentSource(DocumentSource):
         self._parse_sem = asyncio.Semaphore(max_concurrent_parses)
         self._indexing_config = indexing_config
         self._identity_lock = threading.Lock()  # family lookup + set_identity must not interleave
+        # (content_key, suffix) of files intake already accepted: unchanged bytes aren't re-checked every fetch.
+        self._accepted: set[tuple[str, str]] = set()
+
+    @functools.cached_property
+    def _blob_store(self):
+        from arp.storage.document_blob_store import blob_store_for
+
+        return blob_store_for(self._indexing_config)
 
     def _parse_and_identify(self, file_path: Path, company_id: str, doc_type: DocType) -> dict:
         """Blocking: stat + hash + SQLite + parse, called only via
@@ -223,7 +231,11 @@ class LocalFileDocumentSource(DocumentSource):
 
         keyed = []
         for file_path, doc_type, doc in items:
-            published = published_at_for(file_path, latest_capture(self.documents_dir, doc.content_key))
+            ref = self._content_store.resolve_document(doc.doc_id)
+            if ref is not None and ref.family_id is not None:  # identity is fixed; skip the capture-log scan
+                published = ref.published_at
+            else:
+                published = published_at_for(file_path, latest_capture(self.documents_dir, doc.content_key))
             marker = any(k in file_path.name.lower() for k in CORRECTION_MARKERS)
             keyed.append(((published is None, published or "", marker, str(file_path)), published, doc_type, doc))
         out = []
@@ -269,12 +281,16 @@ class LocalFileDocumentSource(DocumentSource):
             self._indexing_config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=file_path.name, full_text=full_text
         )
 
-        from arp.storage.document_blob_store import blob_store_for, upload_or_fail
+        from arp.storage.document_blob_store import upload_or_fail
 
         # CaptureStoreError propagates: _fetch_one drops the file this fetch.
-        storage_uri = upload_or_fail(blob_store_for(self._indexing_config), content_key, file_path.read_bytes())
-        if self._content_store is not None:
-            self._content_store.set_storage_uri(doc_id, storage_uri)
+        ref = self._content_store.resolve_document(doc_id) if self._content_store is not None else None
+        if ref is not None and ref.content_key == content_key and ref.storage_uri and self._blob_store.exists(content_key):
+            storage_uri = ref.storage_uri  # verified when it was stored; still there
+        else:
+            storage_uri = upload_or_fail(self._blob_store, content_key, file_path.read_bytes())
+            if self._content_store is not None:
+                self._content_store.set_storage_uri(doc_id, storage_uri)
 
         from arp.storage.document_registry import StoredDocumentRef
         from arp.storage.postgres_document_projection import sync_document_if_enabled
@@ -300,7 +316,11 @@ class LocalFileDocumentSource(DocumentSource):
                 else:
                     with file_path.open("rb") as f:
                         key = hashlib.file_digest(f, "sha256").hexdigest()
-                result = check_intake(file_path, key, seen=seen)
+                cached = (key, file_path.suffix.lower()) in self._accepted
+                if cached and seen.setdefault(key, str(file_path)) == str(file_path):
+                    result = IntakeResult(IntakeState.ACCEPTED)
+                else:
+                    result = check_intake(file_path, key, seen=seen)
             except Exception as exc:  # noqa: BLE001 - one unreadable file must not abort the fetch
                 logger.warning("Intake failed for %s: %s", file_path, exc)
                 try:
@@ -312,6 +332,7 @@ class LocalFileDocumentSource(DocumentSource):
                     logger.exception("Could not log intake error for %s", file_path)
                 continue
             if result.state == IntakeState.ACCEPTED:
+                self._accepted.add((key, file_path.suffix.lower()))
                 accepted.append((file_path, doc_type))
             else:
                 append_intake(self.documents_dir, file_path, key, result)

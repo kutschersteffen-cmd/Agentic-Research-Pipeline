@@ -34,6 +34,7 @@ frameworks/*
 stewardship_streams/
 data/documents/*
 !data/documents/.gitkeep
+data/blobs/*
 backend/.cache/
 backend/.discovery_state/
 backend/.document_store/
