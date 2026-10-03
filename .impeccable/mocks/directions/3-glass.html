@@ -1,0 +1,32 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Glass Command Deck</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&family=Geist+Mono:wght@400&display=swap" rel=stylesheet>
+<style>
+:root{--ink:#eaf0ff;--mute:#8f9ab5;--a:#7c5cff;--b:#22d3ee}
+*{box-sizing:border-box;margin:0}
+body{min-height:100vh;color:var(--ink);font:15px/1.5 Geist,system-ui,sans-serif;background:#07080f;position:relative;overflow-x:hidden}
+body::before,body::after{content:"";position:fixed;width:60vw;height:60vw;border-radius:50%;filter:blur(120px);opacity:.35;z-index:-1;animation:d 18s ease-in-out infinite alternate}
+body::before{background:var(--a);top:-20vw;left:-10vw}body::after{background:var(--b);bottom:-30vw;right:-10vw;animation-delay:-9s}
+@keyframes d{to{transform:translate(8vw,6vw) scale(1.15)}}
+.grid-bg{position:fixed;inset:0;z-index:-1;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(circle at 50% 30%,#000,transparent 75%)}
+main{max-width:1120px;margin:0 auto;padding:56px clamp(20px,5vw,48px)}
+.pill{display:inline-flex;gap:8px;align-items:center;padding:6px 14px;border:1px solid #ffffff22;border-radius:99px;background:#ffffff0d;backdrop-filter:blur(12px);font:12px "Geist Mono"}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--b);box-shadow:0 0 10px var(--b);animation:p 1.6s infinite}
+@keyframes p{50%{opacity:.3}}
+h1{font-size:clamp(2.4rem,1rem + 5vw,5.2rem);line-height:1;letter-spacing:-.04em;font-weight:600;margin:24px 0 16px;background:linear-gradient(120deg,#fff,var(--b) 60%,var(--a));-webkit-background-clip:text;background-clip:text;color:transparent}
+.lede{color:var(--mute);max-width:48ch}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:48px}
+.c{padding:24px;border-radius:20px;border:1px solid #ffffff1f;background:linear-gradient(160deg,#ffffff14,#ffffff05);backdrop-filter:blur(20px);min-height:220px;display:flex;flex-direction:column;gap:8px;transition:transform .3s,border-color .3s}
+.c:hover{transform:translateY(-4px);border-color:#22d3ee88}
+.c h2{font-size:1.25rem;letter-spacing:-.02em;margin-top:auto}.c p{color:var(--mute);font-size:14px}
+.n{font:500 2.6rem/1 "Geist Mono";background:linear-gradient(var(--ink),var(--mute));-webkit-background-clip:text;background-clip:text;color:transparent}
+.st{font:12px "Geist Mono";color:var(--mute)}.w .st{color:var(--b)}
+.bar{height:3px;border-radius:2px;background:#ffffff14;overflow:hidden}.bar u{display:block;height:100%;width:54%;background:linear-gradient(90deg,var(--a),var(--b));animation:s 2.4s ease-in-out infinite alternate}
+@keyframes s{from{width:48%}to{width:58%}}
+@media(prefers-reduced-motion:reduce){*,::before,::after{animation:none!important}}
+</style>
+<div class=grid-bg></div><main><span class=pill><i></i>4 agents live · 15 awaiting you</span>
+<h1>Your research floor,<br>in real time.</h1><p class=lede>Pipelines stream results as they run. You approve what ships.</p>
+<div class=g id=g></div></main>
+<script src=shared.js></script><script>
+g.innerHTML=PROCS.map((p,i)=>`<div class="c ${p.w?'w':''}"><div class=n>${p.w||'0'}</div><h2>${p.n}</h2><p>${p.p}</p>${i==2?'<div class=bar><u></u></div>':''}<span class=st>${p.s}</span></div>`).join('')
+</script>

@@ -1824,3 +1824,32 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .flow-runs .toolbar h2 { margin: 0; margin-right: auto; }
 .flow-runs.compact .data-table :is(th, td):nth-child(n+6):nth-child(-n+7) { display: none; }
 .flow-runs .selected-row td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* Meteor Dodge: a vector-cabinet world of its own (fixed phosphor-on-black in both themes). */
+.cabinet { position: relative; width: 100%; max-width: 480px; aspect-ratio: 3 / 4; background: #05070a; border: 1px solid var(--panel-border); overflow: hidden; touch-action: none; }
+.cabinet canvas { display: block; width: 100%; height: 100%; }
+.cabinet-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgb(0 0 0 / 0.65) 100%); }
+.cabinet-hud { position: absolute; inset: 12px 14px auto; display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: var(--text-sm); color: #c6ff3d; z-index: 1; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+.cabinet-score { font-size: 1.5rem; font-weight: 600; }
+.cabinet-score-best { animation: cabinet-pulse 1s ease-in-out infinite alternate; }
+@keyframes cabinet-pulse { from { opacity: 1; } to { opacity: 0.45; } }
+.cabinet-card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-4); background: rgb(5 7 10 / 0.6); color: #c6ff3d; text-align: center; z-index: 2; }
+.cabinet-card strong { font-family: var(--font-display); font-size: clamp(2rem, 8vw, 3rem); font-weight: 600; letter-spacing: -0.03em; }
+.cabinet-card span { font-family: var(--font-mono); }
+.cabinet-go { font-family: var(--font-mono); font-size: var(--text-sm); letter-spacing: 0.1em; color: #05070a; background: #c6ff3d; border: 0; padding: 10px 18px; cursor: pointer; }
+.cabinet-go:hover { background: #fff; }
+.cabinet-go:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .cabinet-score-best { animation: none; } }
+
+/* Arcade: the list of games. The game screens themselves are the .cabinet rules above. */
+.arcade-back { margin: 0 0 var(--s-2); font-size: var(--text-sm); }
+.arcade-list { list-style: none; margin: var(--s-6) 0 0; padding: 0; border-top: 1px solid var(--panel-border); }
+.arcade-list li { border-bottom: 1px solid var(--panel-border); }
+.arcade-list a { display: grid; grid-template-columns: minmax(10rem, 14rem) 1fr auto; gap: var(--s-4); align-items: baseline; padding: var(--s-4) 0; color: inherit; text-decoration: none; }
+.arcade-list a:hover .arcade-title { text-decoration: underline; }
+.arcade-title { font-family: var(--font-display); font-weight: 600; font-size: 1.125rem; letter-spacing: -0.02em; }
+.arcade-play { font-family: var(--font-mono); font-size: var(--text-sm); }
+@media (max-width: 640px) { .arcade-list a { grid-template-columns: 1fr auto; } .arcade-list a .muted { grid-column: 1 / -1; order: 3; } }
+.cabinet canvas { image-rendering: pixelated; }
+.cabinet-hint { font-size: var(--text-xs); color: #8aa530; letter-spacing: 0.04em; }
+.cabinet-card strong { padding-inline: var(--s-4); text-wrap: balance; }

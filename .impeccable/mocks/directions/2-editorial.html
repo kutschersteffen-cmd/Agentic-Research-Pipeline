@@ -1,0 +1,30 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Editorial Ledger</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;600&family=Geist+Mono:wght@400&display=swap" rel=stylesheet>
+<style>
+:root{--bg:#f4f1ea;--ink:#16140f;--mute:#6b665b;--line:#d6d0c2;--sig:#d9420b}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 Geist,system-ui,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:28px clamp(20px,5vw,48px) 80px}
+nav{display:flex;justify-content:space-between;padding-bottom:16px;border-bottom:2px solid var(--ink);font:12px "Geist Mono";text-transform:uppercase;letter-spacing:.08em}
+h1{font:400 clamp(3rem,1rem + 8vw,7.5rem)/.92 "Instrument Serif",serif;letter-spacing:-.02em;margin:64px 0 24px}
+h1 i{color:var(--sig)}
+.lede{font:1.35rem/1.4 "Instrument Serif",serif;max-width:40ch;color:var(--mute)}
+.row{display:grid;grid-template-columns:64px 1fr auto;gap:20px;align-items:baseline;padding:28px 0;border-bottom:1px solid var(--line);margin-top:0;transition:padding .25s}
+.row:hover{padding-left:12px}
+.list{margin-top:64px;border-top:1px solid var(--ink)}
+.no{font:12px "Geist Mono";color:var(--mute)}
+.row h2{font:400 2.1rem/1 "Instrument Serif",serif}
+.row p{color:var(--mute);margin-top:6px;max-width:52ch;font-size:15px}
+.tag{font:12px "Geist Mono";text-transform:uppercase;letter-spacing:.06em;text-align:right;white-space:nowrap}
+.w .tag{color:var(--sig)}.w .tag::before{content:"● "}
+.fn{margin-top:40px;font-size:13px;color:var(--mute)}sup{color:var(--sig);font-family:"Geist Mono"}
+@media(max-width:600px){.row{grid-template-columns:36px 1fr}.tag{grid-column:2;text-align:left}}
+</style>
+<div class=wrap><nav><span>Agentic Research Pipeline</span><span>Vol. 1 · 2 October 2026</span></nav>
+<h1>Fifteen things<br>need <i>your</i> judgement.</h1>
+<p class=lede>Agents draft. You decide. Each figure below is cited<sup>1</sup> and re-verified against its source.</p>
+<div class=list id=l></div>
+<p class=fn><sup>1</sup> Citations expand inline to the exact passage in the original disclosure.</p></div>
+<script src=shared.js></script><script>
+l.innerHTML=PROCS.map(p=>`<div class="row ${p.w?'w':''}"><span class=no>${p.k}</span><div><h2>${p.n}</h2><p>${p.p}</p></div><span class=tag>${p.s}</span></div>`).join('')
+</script>
