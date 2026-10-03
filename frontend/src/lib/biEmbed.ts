@@ -22,3 +22,10 @@ export function embedUrlFor(
 export function pickDefaultDashboard(items: DashboardItem[], preferredSlug = "arp-risk-exposure"): DashboardItem | null {
   return items.find((d) => d.slug === preferredSlug) ?? items[0] ?? null;
 }
+
+/** The embed error for people: a dashboard that vanished or lost its `arp-` slug (403/404)
+ * is "no longer available"; anything else loses its "NNN: " status prefix. */
+export function embedErrorText(error: string): string {
+  if (/^40[34]:/.test(error)) return "This dashboard is no longer available here.";
+  return error.replace(/^\d{3}:\s*/, "");
+}

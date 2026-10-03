@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { designRequestBody, embedUrlFor, pickDefaultDashboard } from "../src/lib/biEmbed.ts";
+import { designRequestBody, embedErrorText, embedUrlFor, pickDefaultDashboard } from "../src/lib/biEmbed.ts";
 
 test("designRequestBody trims the brief", () => {
   assert.deepEqual(designRequestBody("  exposure by sector \n"), { brief: "exposure by sector" });
@@ -34,4 +34,10 @@ test("pickDefaultDashboard falls back to the first item", () => {
 
 test("pickDefaultDashboard returns null for an empty list", () => {
   assert.equal(pickDefaultDashboard([]), null);
+});
+
+test("embedErrorText says a 403/404 dashboard is gone and strips the status prefix otherwise", () => {
+  assert.equal(embedErrorText("403: not an arp- dashboard"), "This dashboard is no longer available here.");
+  assert.equal(embedErrorText("404: dashboard 9 not found"), "This dashboard is no longer available here.");
+  assert.equal(embedErrorText("502: Superset is unreachable"), "Superset is unreachable");
 });

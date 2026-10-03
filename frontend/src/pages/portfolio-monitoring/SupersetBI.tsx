@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { embedDashboard } from "@superset-ui/embedded-sdk";
 import { api } from "../../api/client";
-import { designRequestBody, embedUrlFor, pickDefaultDashboard, SUPERSET_URL } from "../../lib/biEmbed";
+import { designRequestBody, embedErrorText, embedUrlFor, pickDefaultDashboard, SUPERSET_URL } from "../../lib/biEmbed";
 import type { BIDesignResult, DashboardItem } from "../../types";
 
 const EXAMPLE_BRIEFS = [
@@ -29,7 +29,7 @@ function EmbeddedDashboard({ dashboardId, title }: { dashboardId: number; title:
     setError(null);
     api.biEmbedToken(dashboardId).then(
       (t) => live && setEmbeddedId(t.embedded_id),
-      (e) => live && setError(message(e)),
+      (e) => live && setError(embedErrorText(message(e))),
     );
     return () => {
       live = false;
