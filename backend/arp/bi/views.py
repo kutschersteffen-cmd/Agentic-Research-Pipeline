@@ -108,9 +108,13 @@ def ensure_reader_role(conn: Connection, password: str) -> None:
     from sqlalchemy import text
 
     conn.execute(
-        text(f"DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{ROLE}') THEN CREATE ROLE {ROLE} LOGIN; END IF; END $$")
+        text(
+            f"DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{ROLE}') THEN CREATE ROLE {ROLE} LOGIN; END IF; END $$"
+        )
     )
-    alter = conn.execute(text(f"SELECT format('ALTER ROLE {ROLE} WITH LOGIN PASSWORD %L', CAST(:pw AS text))"), {"pw": password}).scalar()
+    alter = conn.execute(
+        text(f"SELECT format('ALTER ROLE {ROLE} WITH LOGIN PASSWORD %L', CAST(:pw AS text))"), {"pw": password}
+    ).scalar()
     # The formatted statement embeds the password; escape ':' so text() does
     # not read ':name' inside it as a bind parameter.
     conn.execute(text(alter.replace(":", "\\:")))

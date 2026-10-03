@@ -73,9 +73,7 @@ Chart types (viz_type) and their groupby shape:
 """
 
 
-async def plan_from_brief(
-    brief: str, metas: dict[str, DatasetMeta], llm: LLMClient
-) -> tuple[ChartPlan | None, list[str]]:
+async def plan_from_brief(brief: str, metas: dict[str, DatasetMeta], llm: LLMClient) -> tuple[ChartPlan | None, list[str]]:
     system = _build_system(metas)
     out, _ = await llm.complete_structured(system=system, prompt=f"Brief: {brief}", output_model=PlannerRefusal)
     if out.plan is None:

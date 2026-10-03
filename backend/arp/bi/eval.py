@@ -39,9 +39,7 @@ def load_bi_cases(path: Path | None = None) -> list[BiCase]:
 
 
 def offline_metas() -> dict[str, DatasetMeta]:
-    return {
-        n: DatasetMeta(columns=set(d.columns), metrics={m.name for m in d.metrics}) for n, d in VIEW_DATASETS.items()
-    }
+    return {n: DatasetMeta(columns=set(d.columns), metrics={m.name for m in d.metrics}) for n, d in VIEW_DATASETS.items()}
 
 
 def evaluate_case(case: BiCase, plan: ChartPlan | None, reasons: list[str]) -> BiCaseResult:
@@ -58,7 +56,11 @@ def evaluate_case(case: BiCase, plan: ChartPlan | None, reasons: list[str]) -> B
             "metrics": {m for c in plan.charts for m in c.metrics},
         }
         for kind, wanted in case.must_include.model_dump().items():
-            failures += [f"No chart using {kind[:-1]} {w!r} (got: {', '.join(sorted(got[kind])) or 'none'})." for w in wanted if w not in got[kind]]
+            failures += [
+                f"No chart using {kind[:-1]} {w!r} (got: {', '.join(sorted(got[kind])) or 'none'})."
+                for w in wanted
+                if w not in got[kind]
+            ]
     return BiCaseResult(brief=case.brief, passed=not failures, failures=failures)
 
 

@@ -50,7 +50,11 @@ def _seed(engine, facts=(), holdings_date="2026-02-28"):
     with engine.begin() as conn:
         conn.execute(text("INSERT INTO portfolios (portfolio_id, name, tags) VALUES ('p1', 'Core', '{}')"))
         conn.execute(text("INSERT INTO companies (company_id, name, sector, country) VALUES ('bmw', 'BMW', 'Auto', 'DE')"))
-        conn.execute(text("INSERT INTO securities (security_id, name, asset_class, currency, company_id) VALUES ('s1', 'BMW', 'equity', 'EUR', 'bmw')"))
+        conn.execute(
+            text(
+                "INSERT INTO securities (security_id, name, asset_class, currency, company_id) VALUES ('s1', 'BMW', 'equity', 'EUR', 'bmw')"
+            )
+        )
         for d, mv in (("2026-01-31", 5.0), (holdings_date, 100.0)):
             conn.execute(
                 text(
@@ -72,7 +76,13 @@ def _seed(engine, facts=(), holdings_date="2026-02-28"):
 
 def test_views_match_catalog_columns(engine):
     for name, dataset in VIEW_DATASETS.items():
-        cols = [r[0] for r in _q(engine, f"SELECT column_name FROM information_schema.columns WHERE table_schema='bi' AND table_name='{name}' ORDER BY ordinal_position")]
+        cols = [
+            r[0]
+            for r in _q(
+                engine,
+                f"SELECT column_name FROM information_schema.columns WHERE table_schema='bi' AND table_name='{name}' ORDER BY ordinal_position",
+            )
+        ]
         assert cols == list(dataset.columns), name
 
 
@@ -91,34 +101,43 @@ def test_as_of_date_is_a_date(engine):
 
 
 def test_facts_view_excludes_pending_and_rejected(engine):
-    _seed(engine, facts=[
-        ("a", "", "approved", '{"value": 1}', True),
-        ("b", "", "pending_review", '{"value": 2}', True),
-        ("c", "", "rejected", '{"value": 3}', True),
-        ("d", "", "auto_approved", '{"value": 4}', True),
-        ("e", "", "edited", '{"value": 5}', True),
-        ("f", "", "approved", '{"value": 6}', False),
-    ])
+    _seed(
+        engine,
+        facts=[
+            ("a", "", "approved", '{"value": 1}', True),
+            ("b", "", "pending_review", '{"value": 2}', True),
+            ("c", "", "rejected", '{"value": 3}', True),
+            ("d", "", "auto_approved", '{"value": 4}', True),
+            ("e", "", "edited", '{"value": 5}', True),
+            ("f", "", "approved", '{"value": 6}', False),
+        ],
+    )
     assert sorted(r[0] for r in _q(engine, "SELECT fact_key FROM bi.company_facts")) == ["a", "d", "e"]
 
 
 def test_pending_view_holds_only_pending(engine):
-    _seed(engine, facts=[
-        ("a", "", "approved", '{"value": 1}', True),
-        ("b", "", "pending_review", '{"value": 2}', True),
-        ("c", "", "pending_review", '{"value": 3}', False),
-    ])
+    _seed(
+        engine,
+        facts=[
+            ("a", "", "approved", '{"value": 1}', True),
+            ("b", "", "pending_review", '{"value": 2}', True),
+            ("c", "", "pending_review", '{"value": 3}', False),
+        ],
+    )
     assert [r[0] for r in _q(engine, "SELECT fact_key FROM bi.company_facts_pending")] == ["b"]
 
 
 def test_value_num_null_when_no_numeric(engine):
-    _seed(engine, facts=[
-        ("num", "", "approved", '{"value": 12.5}', True),
-        ("txt", "", "approved", '{"value": "hello"}', True),
-        ("none", "", "approved", '{"company_id": "bmw"}', True),
-        ("nul", "", "approved", '{"value": null}', True),
-        ("huge", "", "approved", '{"value": 1e400}', True),
-    ])
+    _seed(
+        engine,
+        facts=[
+            ("num", "", "approved", '{"value": 12.5}', True),
+            ("txt", "", "approved", '{"value": "hello"}', True),
+            ("none", "", "approved", '{"company_id": "bmw"}', True),
+            ("nul", "", "approved", '{"value": null}', True),
+            ("huge", "", "approved", '{"value": 1e400}', True),
+        ],
+    )
     rows = {r[0]: (r[1], r[2]) for r in _q(engine, "SELECT fact_key, value_num, value_text FROM bi.company_facts")}
     assert rows["num"] == (12.5, None)
     assert rows["txt"] == (None, "hello")
@@ -128,12 +147,15 @@ def test_value_num_null_when_no_numeric(engine):
 
 
 def test_malformed_date_returns_null_not_error(engine):
-    _seed(engine, facts=[
-        ("empty", "", "approved", "{}", True),
-        ("junk", "not-a-date", "approved", "{}", True),
-        ("badday", "2026-13-45", "approved", "{}", True),
-        ("ok", "2026-03-31", "approved", "{}", True),
-    ])
+    _seed(
+        engine,
+        facts=[
+            ("empty", "", "approved", "{}", True),
+            ("junk", "not-a-date", "approved", "{}", True),
+            ("badday", "2026-13-45", "approved", "{}", True),
+            ("ok", "2026-03-31", "approved", "{}", True),
+        ],
+    )
     rows = {r[0]: r[1] for r in _q(engine, "SELECT fact_key, as_of FROM bi.company_facts")}
     assert rows["empty"] is None and rows["junk"] is None and rows["badday"] is None
     assert str(rows["ok"]) == "2026-03-31"
@@ -181,7 +203,12 @@ def test_run_records_excludes_payload(engine):
                 " VALUES ('r1', 'extraction', 'bmw', '', 0.9, false, '2026-03-01T10:00:00+00:00', '{\"secret\": 1}')"
             )
         )
-    cols = [r[0] for r in _q(engine, "SELECT column_name FROM information_schema.columns WHERE table_schema='bi' AND table_name='run_records'")]
+    cols = [
+        r[0]
+        for r in _q(
+            engine, "SELECT column_name FROM information_schema.columns WHERE table_schema='bi' AND table_name='run_records'"
+        )
+    ]
     assert "payload" not in cols
     assert _q(engine, "SELECT pg_typeof(generated_at)::text FROM bi.run_records")[0][0] == "timestamp with time zone"
 
