@@ -126,3 +126,17 @@ def test_heatmap_rejects_a_second_metric():
         _plan(_chart(viz_type="heatmap_v2", groupby=["sector", "region"], metrics=["Total weight", "Positions"])), METAS
     )
     assert len(errs) == 1 and "exactly one metric" in errs[0]
+
+
+METAS_HH = {"holdings_history": DatasetMeta(columns={"sector", "as_of_date", "portfolio_name"}, metrics={"Positions"})}
+
+
+def test_holdings_history_needs_as_of_date_first():
+    # summing across snapshots double-counts, so history is for charts over time only
+    bar = _chart(title="Sectors", viz_type="echarts_timeseries_bar", dataset="holdings_history", groupby=["sector"])
+    (err,) = validate_plan(_plan(bar), METAS_HH)
+    assert "Chart 'Sectors'" in err and "as_of_date" in err and "double-count" in err
+    big = _chart(title="Total", viz_type="big_number_total", dataset="holdings_history", groupby=[])
+    assert len(validate_plan(_plan(big), METAS_HH)) == 1
+    line = _chart(viz_type="echarts_timeseries_line", dataset="holdings_history", groupby=["as_of_date", "portfolio_name"])
+    assert validate_plan(_plan(line), METAS_HH) == []

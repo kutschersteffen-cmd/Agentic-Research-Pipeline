@@ -44,6 +44,12 @@ def validate_plan(plan: ChartPlan, metas: dict[str, DatasetMeta], max_charts: in
                 f"{t}: echarts_timeseries_line needs a date column first in groupby; '{c.groupby[0]}' is not one "
                 f"in dataset '{c.dataset}' (date columns: {', '.join(sorted(TEMPORAL_COLUMNS[c.dataset]))})."
             )
+        if c.dataset == "holdings_history" and c.groupby[:1] != ["as_of_date"]:
+            errors.append(
+                f"{t}: dataset 'holdings_history' holds every snapshot, so it is for charts over time only and "
+                "needs 'as_of_date' as its first groupby column; anything else sums across snapshots and "
+                "double-counts. Use dataset 'holdings' for a single as-of view."
+            )
         errors += [
             f"{t}: unknown metric '{m}' for dataset '{c.dataset}'; available: {', '.join(sorted(meta.metrics))}."
             for m in c.metrics

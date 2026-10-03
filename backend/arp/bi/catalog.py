@@ -143,7 +143,14 @@ VIEW_DATASETS: dict[str, DatasetDef] = {
 
 # Same columns and metrics as `holdings`, built from it so they cannot drift.
 VIEW_DATASETS["holdings_history"] = VIEW_DATASETS["holdings"].model_copy(
-    update={"table": "holdings_history", "description": "Every holdings snapshot, joined to security and company"}
+    update={
+        "table": "holdings_history",
+        "description": (
+            "Every holdings snapshot, joined to security and company. For charts over time only: "
+            "the first groupby column must be as_of_date, because summing across snapshots double-counts. "
+            "Use holdings for anything at a single as-of date."
+        ),
+    }
 )
 
 # Minimum groupby columns per viz type, as the compiler consumes them
