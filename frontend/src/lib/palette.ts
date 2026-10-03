@@ -12,7 +12,7 @@ export const CATEGORICAL = [
 ] as const;
 
 // Single-hue sequential ramp (blue, light -> dark) for magnitude encodings
-// (bar charts, pivot-table heatmap cells) -- one hue only, never a rainbow.
+// (bar charts, score bands) -- one hue only, never a rainbow.
 // This ramp is mode-invariant (same steps validated for both chart
 // surfaces), so it's unchanged from the app's previous dark theme.
 export const SEQUENTIAL_BLUE = [

@@ -1095,13 +1095,6 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .chart-tooltip-row { display: flex; align-items: center; gap: 6px; }
 .chart-tooltip-value { font-weight: 600; }
 
-.pivot-table-wrap { overflow-x: auto; }
-.pivot-table { border-collapse: collapse; font-size: var(--text-sm); margin-top: 10px; }
-.pivot-table th, .pivot-table td { padding: 6px 10px; text-align: right; white-space: nowrap; }
-.pivot-table th { color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--panel-border); }
-.pivot-table th:first-child, .pivot-table td:first-child { text-align: left; color: var(--muted); border-right: 1px solid var(--panel-border); }
-.pivot-cell-empty { color: var(--muted); }
-
 .selection-pane { margin-bottom: 20px; }
 .pane-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
 @media (max-width: 760px) { .pane-grid { grid-template-columns: 1fr; } }
