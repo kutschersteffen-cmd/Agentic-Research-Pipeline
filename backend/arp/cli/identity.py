@@ -42,9 +42,17 @@ def identity_resolve(
 
 @identity_app.command("review-queue")
 def identity_review_queue(run_id: str) -> None:
+    import os
+
+    from arp.api.auth import Principal
     from arp.review.items import list_open_items
 
-    items = list_open_items(_run_store(), cli_principal(get_settings()), run_id=run_id)
+    settings = get_settings()
+    if settings.auth_mode == "dev" and not os.environ.get("ARP_CLI_TOKEN", "").strip():  # as current_user's dev bypass
+        principal = Principal(user_id=settings.dev_user, name=settings.dev_user, role="approver")
+    else:
+        principal = cli_principal(settings)
+    items = list_open_items(_run_store(), principal, run_id=run_id)
     if not items:
         typer.echo("Nothing pending review.")
         return
@@ -77,6 +85,9 @@ def identity_review(
     if decision not in ("approve", "correct", "reject", "escalate"):
         typer.echo("decision must be approve, correct, reject or escalate", err=True)
         raise typer.Exit(1)
+    if decision != "approve" and not reason:
+        typer.echo("--reason is required with --decision " + decision, err=True)
+        raise typer.Exit(1)
     if decision == "correct" and not (website or cik):
         typer.echo("--website and/or --cik is required with --decision correct", err=True)
         raise typer.Exit(1)
@@ -91,7 +102,7 @@ def identity_review(
         raise typer.Exit(1)
     try:
         req = ItemDecisionRequest(
-            decision=decision, reason_code=reason or ("confirmed" if decision == "approve" else ""),
+            decision=decision, reason_code=reason or "confirmed",
             corrected_value={"resolved_website": website, "resolved_cik": cik} if decision == "correct" else None,
             comment=comment, context_etag=bundle["etag"],
         )

@@ -8,11 +8,11 @@ from hashlib import sha256
 from typing import TYPE_CHECKING
 
 from arp.api.auth import ROLE_RANK
-from arp.checks.numeric import candidates, parse_number
+from arp.checks.numeric import NUMERIC_TYPES, candidates, parse_number
 from arp.config import Settings
 from arp.extraction.history import PriorValue, RunHistory
 from arp.grounding import ground_citations
-from arp.orchestration.review_queue import append_decision, same_value
+from arp.orchestration.review_queue import FINAL_STATES, agrees, append_decision, same_value
 from arp.review.context import _state, _text, build_context, write_snapshot
 from arp.review.items import get_item
 from arp.schemas.common import Citation, SourceDocument
@@ -35,7 +35,6 @@ CORRECTED_KEYS = {
     "sector_code": {"isic_code"},
 }
 _REQUIRED_KEY = {"value": "value", "restatement_candidate": "value", "sector_code": "isic_code"}
-_NUMERIC = {"number", "currency_amount", "percentage"}
 
 
 class DecisionError(Exception):
@@ -50,8 +49,9 @@ def sampled(item_key: str, rate: float) -> bool:
 
 def second_review_reasons(
     decision: str, *, kind: str, item_key: str, high_risk: bool, first_audit_passed: bool | None,
-    current_value, corrected_value, prior: PriorValue | None, sample_rate: float,
+    current_value, corrected_value, prior: PriorValue | None, sample_rate: float, changes_final: bool = False,
 ) -> list[str]:
+    """`changes_final`: the decision would overturn this item's own final outcome in this run."""
     if decision == "escalate":
         return []
     changes_prior = prior is not None and (
@@ -62,7 +62,7 @@ def second_review_reasons(
     rules = [
         ("correction", decision == "correct"),
         ("high_risk", high_risk),
-        ("published_change", kind == "restatement_candidate" or changes_prior),
+        ("published_change", kind == "restatement_candidate" or changes_prior or changes_final),
         ("first_audit_pending", first_audit_passed is False),
         ("sample", decision == "approve" and sampled(item_key, sample_rate)),
     ]
@@ -71,6 +71,7 @@ def second_review_reasons(
 
 def ground_correction(
     citation: Citation, bundle: dict, *, content_store: DocumentContentStore | None, data_type: str | None, corrected_value,
+    fuzzy_threshold: float = 0.92,
 ) -> Citation:
     """Grounds the reviewer's citation against the stored text of one of the item's documents.
     Whatever offsets or span the client sent are discarded by `ground_citations`."""
@@ -85,14 +86,18 @@ def ground_correction(
         title=doc.get("title") or "", full_text=text.full_text, page_breaks=text.page_breaks,
         content_key=doc["content_key"], parser_version=doc["parser_version"],
     )
-    [grounded] = ground_citations([citation], {source.doc_id: source})
+    [grounded] = ground_citations([citation], {source.doc_id: source}, fuzzy_threshold)
     if not grounded.grounded:
         raise DecisionError(422, "correction citation is not in the source text")
-    if data_type in _NUMERIC:
+    if data_type in NUMERIC_TYPES:
         want = parse_number(str(corrected_value["value"]))
         if want is None or not any(math.isclose(abs(want), abs(n), rel_tol=1e-9) for n in candidates(grounded.span_text)):
             raise DecisionError(422, "corrected number not in the cited text")
     return grounded
+
+
+def _is_number(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
 
 
 def _check_kind(kind: str, req: ItemDecisionRequest, principal: Principal) -> None:
@@ -109,6 +114,8 @@ def _check_kind(kind: str, req: ItemDecisionRequest, principal: Principal) -> No
         raise DecisionError(422, f"corrected_value needs {_REQUIRED_KEY[kind]!r}")
     if kind in ("value", "restatement_candidate") and req.correction_citation is None:
         raise DecisionError(422, "a correction needs a citation")
+    if kind == "identity" and not (req.corrected_value.get("resolved_website") or req.corrected_value.get("resolved_cik")):
+        raise DecisionError(422, "an identity correction needs resolved_website or resolved_cik")
     if kind in ("identity", "sector_code") and not (req.comment or "").strip():
         raise DecisionError(422, "a correction needs a comment naming its source")
 
@@ -129,6 +136,8 @@ def _step(s, req: ItemDecisionRequest, principal: Principal) -> str:
         return "resolution"
     if s.state == "pending" and s.escalated and not approver:
         raise DecisionError(403, "an escalated item is decided by an approver")
+    if s.state in FINAL_STATES and s.effective.get("step") == "resolution" and not approver:
+        raise DecisionError(403, "an item resolved by an approver is decided again by an approver")
     return "first"  # pending, second_done or final: a new round
 
 
@@ -144,15 +153,22 @@ def decide(
         if kind == "other":
             raise DecisionError(400, "decide this item through its run's review endpoint")
         _check_kind(kind, req, principal)
-        step = _step(_state(run_store, run_id, item_key), req, principal)
+        s = _state(run_store, run_id, item_key)
+        step = _step(s, req, principal)
         bundle = build_context(run_store, run_id, item_key, principal, settings=settings, content_store=content_store)
         if bundle["etag"] != req.context_etag:
             raise DecisionError(409, "this item changed since you loaded it; reload")
         field = bundle["field_definition"] or {}
+        current = (bundle["value"] or {}).get("value")
         citation = None
         if req.decision == "correct" and req.correction_citation is not None:
-            citation = ground_correction(req.correction_citation, bundle, content_store=content_store,
-                                         data_type=field.get("data_type"), corrected_value=req.corrected_value)
+            data_type = field.get("data_type")
+            if data_type is None and any(_is_number(v) for v in (current, req.corrected_value.get("value"))):
+                data_type = "number"  # no field definition (an old run): judge by the value itself
+            citation = ground_correction(
+                req.correction_citation, bundle, content_store=content_store, data_type=data_type,
+                corrected_value=req.corrected_value, fuzzy_threshold=settings.grounding_fuzzy_threshold,
+            )
         reasons: list[str] = []
         if step == "first":
             prior = None
@@ -161,8 +177,9 @@ def decide(
                 prior = RunHistory.load(run_store, exclude_run_id=run_id).last_decided(key)
             reasons = second_review_reasons(
                 req.decision, kind=kind, item_key=item_key, high_risk=item.high_risk,
-                first_audit_passed=field.get("first_audit_passed"), current_value=(bundle["value"] or {}).get("value"),
+                first_audit_passed=field.get("first_audit_passed"), current_value=current,
                 corrected_value=req.corrected_value, prior=prior, sample_rate=settings.second_review_sample_rate,
+                changes_final=s.state in FINAL_STATES and not agrees(s.effective, req.model_dump()),
             )
         snapshot_id = write_snapshot(run_store, run_id, bundle)
         append_decision(run_store, run_id, ReviewDecision(

@@ -21,7 +21,7 @@ from arp.schemas.datapoints import (
     ValueState,
 )
 
-_NUMERIC = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
+NUMERIC_TYPES = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
 _SPACES = "    "
 # One separator at a time, so a table row's double-space column gap splits numbers.
 _NUM_RE = re.compile(rf"[(\-−]?\d+(?:[.,'{_SPACES}]\d+)*\)?")
@@ -102,7 +102,7 @@ def _grounded(field: ExtractedField):
 def check_number_in_span(spec: FieldDefinition, field: ExtractedField, ctx) -> list[CheckResult]:
     cid, na = "numeric.in_span", CheckOutcome.NOT_APPLICABLE
     cits = _grounded(field)
-    if spec.data_type not in _NUMERIC or field.value_state != ValueState.FOUND or not cits:
+    if spec.data_type not in NUMERIC_TYPES or field.value_state != ValueState.FOUND or not cits:
         return _result(cid, Severity.BLOCK, na)
     expected = parse_number(field.raw_value_text or "")
     if expected is None:

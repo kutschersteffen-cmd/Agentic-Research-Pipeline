@@ -270,6 +270,8 @@ def test_identity_correct_without_citation_needs_comment(env):
     body = {"decision": "correct", "reason_code": "wrong_entity", "corrected_value": {"resolved_website": "https://acme.com"}}
     r = decide(ALICE, body, key="C1", run_id="idn1")
     assert r.status_code == 422 and "comment" in r.text
+    empty = {**body, "corrected_value": {"resolved_website": None, "resolved_cik": ""}, "comment": "register"}
+    assert decide(ALICE, empty, key="C1", run_id="idn1").status_code == 422
     r = decide(ALICE, {**body, "comment": "company register"}, key="C1", run_id="idn1")
     assert (r.json()["state"], r.json()["second_reasons"]) == ("first_done", ["correction"])
 
@@ -291,8 +293,26 @@ def test_spoofed_reviewer_body_is_ignored(env):
 
 
 def test_cli_identity_correct_without_comment_exits_1():
-    res = CliRunner().invoke(identity_app, ["review", "r1", "C1", "--decision", "correct", "--website", "https://a.com"])
+    args = ["review", "r1", "C1", "--decision", "correct", "--website", "https://a.com"]
+    res = CliRunner().invoke(identity_app, [*args, "--reason", "wrong_entity"])
     assert res.exit_code == 1 and "--comment" in res.output
+
+
+@pytest.mark.parametrize("decision", ["reject", "escalate", "correct"])
+def test_cli_identity_review_needs_reason(decision):
+    res = CliRunner().invoke(identity_app, ["review", "r1", "C1", "--decision", decision])
+    assert res.exit_code != 0 and "--reason is required" in res.output
+
+
+def test_cli_review_queue_dev_mode_without_token(env, monkeypatch):
+    import arp.cli.identity as cli
+
+    monkeypatch.delenv("ARP_CLI_TOKEN", raising=False)
+    monkeypatch.setattr(cli, "_run_store", lambda: env[0])
+    monkeypatch.setattr(cli, "get_settings", lambda: env[2])
+    res = CliRunner().invoke(identity_app, ["review-queue", "idn1"])
+    assert res.exit_code == 0, res.output
+    assert "C1 [pending]" in res.output
 
 
 def test_old_review_routes_removed(env):
@@ -325,3 +345,45 @@ def test_stray_second_after_final_keeps_state():
     second = {"item_key": "k", "decision": "reject", "step": "second", "user_id": "b"}
     s = item_state([first, second], cosigned_at=set(), cosign_required=set())
     assert s.state == "final" and s.effective is first
+
+
+def test_correction_grounded_with_settings_fuzzy_threshold(env):
+    quote = "Emissions (in thousands of tonnes) Scope 1  1,234  1,100 zz"  # fuzzy match, score ~0.96
+    body = {**CORRECT, "correction_citation": {**CIT, "quote": quote}}
+    app.dependency_overrides[settings_dep] = lambda: env[2].model_copy(update={"grounding_fuzzy_threshold": 0.99})
+    r = decide(ALICE, body)
+    assert r.status_code == 422 and "not in the source text" in r.text
+    app.dependency_overrides[settings_dep] = lambda: env[2]
+    assert decide(ALICE, body).status_code == 200
+    assert rows(env[0])[-1]["correction_citation"]["match_method"] == "fuzzy"
+
+
+def test_number_checked_without_field_definition(env):
+    (env[0].run_dir("ext1") / "schema.json").unlink()
+    r = decide(ALICE, {**CORRECT, "corrected_value": {"value": 1300}})
+    assert r.status_code == 422 and "corrected number" in r.text
+
+
+def test_lone_analyst_cannot_overturn_two_person_outcome(env):
+    decide(ALICE, CORRECT)
+    assert decide(BOB, CORRECT).json()["state"] == "second_done"
+    r = decide(ALICE, {"decision": "reject", "reason_code": "wrong_value"})
+    assert (r.json()["state"], r.json()["second_reasons"]) == ("first_done", ["published_change"])
+    eff = effective_decisions(env[0], "ext1", cosign_required={"edit"})
+    assert KEY not in eff
+
+
+def test_resolved_item_redecided_only_by_approver(env):
+    decide(ALICE, CORRECT)
+    decide(BOB, APPROVE)
+    assert decide(CAROL, APPROVE).json()["state"] == "final"
+    r = decide(BOB, {"decision": "reject", "reason_code": "wrong_value"})
+    assert r.status_code == 403 and "approver" in r.text
+    r = decide(DAVE, {"decision": "reject", "reason_code": "wrong_value"})
+    assert (r.json()["state"], r.json()["second_reasons"]) == ("first_done", ["published_change"])
+
+
+def test_agreeing_redecision_on_final_item_stays_single_reviewer(env):
+    assert decide(CAROL, APPROVE).json()["state"] == "final"
+    r = decide(ALICE, APPROVE)
+    assert (r.json()["state"], r.json()["second_reasons"]) == ("final", [])
