@@ -31,27 +31,31 @@ Taken from STOXX: a **quarterly, issuer-level ordinal score, -2 to +2**, of how 
 
 Their own gap, which we close: they show a 0.4 correlation with price momentum but no test of alpha **after** removing it. Narrative tone often follows returns, so idea 1 is mandatory for this signal.
 
-## Two entry points, one object
+## Three entry points, one object
 
-Both start a `SignalCandidate` (family id, origin, signal definition, snapshot ref). Everything after the bridge is identical.
+All three start a `SignalCandidate` (family id, origin, signal definition, snapshot ref). Everything after the bridge is identical.
 
 ```
- A. THEME LEVEL                         B. COMPANY LEVEL
- ratified Taxonomy theme or             predefined topic, e.g. "narrative momentum"
- EmergingThemeCandidate                 (named SignalDefinition, per company)
-        |                                        |
-        v                                        |
- theme time series (relevance, velocity,         |
- action_score per period)                        |
-        |                                        |
-        v                                        |
- company exposure (company_exposure.py,          |
- universe builder) -> company-level score        |
-        \_______________________  _______________/
-                                \/
-   3  Bridge: ordinal scores, sector-relative, frozen, effective-dated, lagged
-                                |
-              #11 deterministic backtest (IS / OOS declared first)
+ A. THEME LEVEL            B. COMPANY LEVEL            C. PAPER LEVEL
+ ratified Taxonomy theme   predefined topic, e.g.      paper -> paper_discovery ->
+ or EmergingThemeCandidate "narrative momentum"        spec extractor + verifier
+        |                  (named SignalDefinition)    -> StrategySpec + reported
+        v                           |                    performance
+ theme time series                  |                         |
+ (relevance, velocity,              |                         |
+ action_score per period)           |                         |
+        v                           |                         |
+ company exposure -> company        |                         |
+ score (company_exposure.py,        |                         |
+ universe builder)                  |                         |
+        \__________________  _______/                         |
+                           \/                                  |
+   3  Bridge: ordinal scores, sector-relative, frozen,          |
+      effective-dated, lagged  (builds the spec)                |
+                           \___________________  ______________/
+                                               \/
+              #11 run_replication: deterministic backtest (IS / OOS declared first)
+                C also gets the REPLICATED / NOT_REPLICATED verdict vs the paper
                                 |
         2  Ledger: count the trial in this family (+ global)
                                 |
@@ -64,6 +68,8 @@ Both start a `SignalCandidate` (family id, origin, signal definition, snapshot r
 
 - **A (theme level)** asks whether a theme predicts returns; its company exposures set the long and short legs.
 - **B (company level)** asks whether a company-level narrative signal predicts returns.
+- **C (paper level)** is the existing #11 flow: a published strategy becomes a spec, is replicated, and its result enters the ledger and registry. Its family is the paper, so a paper's variants are counted together.
+- **#11 is also the engine for A and B** (stage S5), and the **source of the benchmark factors**: replicate momentum, value and size first and store them as the first registry entries, so the incremental-alpha gate uses ARP's own universe and calendar instead of a vendor series.
 - Variants share a **family id**, so the ledger counts them together and the hurdle rises honestly.
 
 ## Orchestration
@@ -79,7 +85,24 @@ A **study** is one manifest (`studies/<id>/study.json`) listing stages, each sta
 5. **Incremental alpha is a real regression** of long-short returns on actual price momentum, standard factor series and registry returns. Fewer than 36 monthly observations returns INSUFFICIENT_DATA, never a pass.
 6. **Pre-committed split.** IS/OOS dates are fixed in the snapshot before the backtest runs and never changed (as in Huang & Fan).
 7. **Provisional until forward.** Both papers admit LLM training data can postdate the test window, and this cannot be removed from a historical backtest. A candidate stays `PROVISIONAL` until it has a set number of forward quarters; only then can it be ratified.
-8. **Costs are modelled, not assumed.** Turnover-dependent costs plus borrow where shorting; a flat 3 bps is not accepted (Huang & Fan report ~110% daily turnover at that cost).
+8. **Verdict without a paper.** `compare.py` currently needs the paper's reported performance. For A and B it becomes optional: the verdict then rests on the hurdle, DSR and PBO alone.
+9. **Costs are modelled, not assumed.** Turnover-dependent costs plus borrow where shorting; a flat 3 bps is not accepted (Huang & Fan report ~110% daily turnover at that cost).
+
+## Frontend: one "Alpha Research" page
+
+One sidebar item (under **Research**), one page, tabs that follow the process. It reuses the tab pattern of Decision Studio and the review controls of the Review Queue; the existing Strategy Replication page stays as the paper-level workbench and is linked from here. A header above the tabs always shows the selected **study**: entry (A/B/C), family, stage stepper, status, LLM cost so far.
+
+| Tab | Shows | Reuses | Phase |
+|---|---|---|---|
+| **Studies** | List and start: pick entry A (theme), B (topic), C (paper); status, cost, family, pending items | `FlowRuns`, `DateSelector` | P1 |
+| **Signal** | Narrative-momentum config, score distribution by sector, burst-consistency result, sampled judge QA with grounded citations | `BarChart`, `CitationList`, `ConfidenceBadge` | P2 |
+| **Backtest** | Declared IS/OOS split, bucket returns, regime split, costs and turnover; for C, replication verdict vs the paper | `LineChart`, StrategyReplication result views | P1 |
+| **Gate** | Hurdle and the trial count behind it, DSR, PBO, incremental-alpha table, verdict, PROVISIONAL status and forward-quarter counter | `ConfidenceBadge`, tables | P1 |
+| **Ledger** | Append-only attempts per family, filters by verdict and reason; rejected attempts stay visible | `AuditLogView` | P1 |
+| **Registry** | Ratified factors, pairwise correlation matrix, ratify / reject with a required reason | `ReviewControls`, `ConfirmDecision`, `LevelOverrides` pattern | P1 |
+| **Allocation** | IPS constraints and verified weights | `PersistentSelectionPane` | P3, hidden until built |
+
+Rules for the page, from `PRODUCT.md`: it is screen-shared in committees, so the Gate and Registry tabs must read cleanly on a wide screen; it is also checked on phones, so **Studies** (status, pending items) and ratification work at phone width, while dense tables may scroll. Nothing flagged is shown as final until a person ratifies it. API: one new router `api/routers/alpha.py` (studies, ledger, registry, ratify), registered like the others.
 
 ## Evidence from the papers that shapes the gates
 
@@ -92,9 +115,9 @@ A **study** is one manifest (`studies/<id>/study.json`) listing stages, each sta
 
 | Phase | Scope | Effort | Depends on |
 |---|---|---|---|
-| P1 | Study manifest + ledger + registry + incremental-alpha gate, wired into `compare.py`; CLI `arp alpha ...`; one test per gate | 4-5 days | nothing |
-| P2 | Bridge, entry B first (narrative momentum per STOXX definition, over stored documents), then entry A | ~1 week | P1, dated document history |
-| P3 | Allocation track with IPS schema | 2+ weeks | P1, macro data, a user-defined IPS |
+| P1 | Replicate momentum / value / size and seed the registry; study manifest + ledger + incremental-alpha gate wired into `compare.py` (paper optional); CLI `arp alpha ...`; page with Studies, Backtest, Gate, Ledger, Registry tabs; one test per gate | ~9 days (5 backend, 4 frontend) | nothing |
+| P2 | Bridge and Signal tab, entry B first (narrative momentum per STOXX definition, over stored documents), then entry A | ~1.5 weeks | P1, dated document history |
+| P3 | Allocation track with IPS schema, plus Allocation tab | 2+ weeks | P1, macro data, a user-defined IPS |
 | P4 (optional) | Factor discovery over a **bounded grammar** of whitelisted operators, evaluated deterministically (no code execution, so no sandbox) | 1-2 weeks | P1; only if novel-factor discovery is wanted |
 
 Ship P1 alone and it already improves #11.
@@ -106,7 +129,7 @@ Their real-world setup (maximise signal exposure, long-only, 1% tracking error, 
 ## Open questions
 
 1. **History.** Backtesting needs dated documents for several years. Filings and EDGAR full-text give history; news archives (GDELT) are noisier. Is filings-plus-archives coverage acceptable, given it is narrower than STOXX's web search?
-2. **Benchmark factors.** Is a vendor factor series (for example Fama-French) available, or is the registry plus price momentum the only reference at first?
+2. **Benchmark factors.** Plan: replicate momentum, value and size with #11 and seed the registry. Is a vendor series (for example Fama-French) also available to cross-check them?
 3. **Forward window.** How many forward quarters before a provisional candidate can be ratified?
 4. **Registry storage.** Files under `alpha/` like `indices/`, or Postgres via the existing optional extra?
 5. **Is P3 or P4 in scope?** P3 needs a user-defined IPS; P4 is only worth it if new-factor discovery is a goal.
