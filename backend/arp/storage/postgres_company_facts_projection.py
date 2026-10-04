@@ -136,7 +136,7 @@ def resolve_fact(item_key: str, raw_value: dict, decisions: dict[str, dict], que
         reviewer = decision.get("reviewer")
         if outcome == "approve":
             return raw_value, "approved", reviewer
-        if outcome == "edit":
+        if outcome in ("edit", "correct"):
             return decision.get("edited_value") or raw_value, "edited", reviewer
         return raw_value, "rejected", reviewer
     if item_key in queued_item_keys:
@@ -172,13 +172,16 @@ def resolve_extraction_fact(
         decision = decisions.get(keys[i])
         if decision is None:
             routed = {"hold": "held", "auto_accept": "auto_accepted"}.get(f.get("route"))
-            outcomes.append(routed or ("pending_review" if i in flagged else None))
+            outcomes.append("pending_review" if i in flagged else routed)  # an open human review outranks the route
             continue
-        outcomes.append({"approve": "approved", "edit": "edited"}.get(decision.get("decision"), "rejected"))
+        outcomes.append({"approve": "approved", "edit": "edited", "correct": "edited"}.get(decision.get("decision"), "rejected"))
         reviewer = decision.get("reviewer") or reviewer
-        if decision.get("decision") == "edit" and decision.get("edited_value"):
+        if decision.get("decision") in ("edit", "correct") and decision.get("edited_value"):
             edit = decision["edited_value"]
             merged = {**f, **edit, "field_id": f["field_id"]}
+            if decision.get("decision") == "correct" and decision.get("correction_citation"):
+                merged["citations"] = [decision["correction_citation"]]  # the correction's own grounded source
+                merged["grounded"] = True
             if edit.get("value") is not None and "value_state" not in edit:  # a supplied value is no longer not_found
                 merged["value_state"] = "zero" if _is_zero(edit["value"]) else "found"
             if "value" in edit:  # never leave the old conversion beside an edited value
@@ -230,8 +233,10 @@ def materialize_run(dsn: str, run_store: RunStore, run_id: str) -> int:
     rows = run_store.read_jsonl(run_store.results_path(run_id))
     decisions = latest_decisions(run_store, run_id)
     queued_item_keys = {r["item_key"] for r in run_store.read_jsonl(run_store.review_queue_path(run_id)) if "item_key" in r}
-    if manifest.run_type == "extraction":  # an edit is final only once co-signed; until then it stays pending
-        decisions = effective_decisions(run_store, run_id, cosign_required={"edit"})
+    if manifest.run_type in ("extraction", "identity"):  # an item is final only after its second review; until then it stays pending
+        decisions = effective_decisions(
+            run_store, run_id, cosign_required={"edit"} if manifest.run_type == "extraction" else set()
+        )
         queued_item_keys |= set(latest_decisions(run_store, run_id)) - set(decisions)
     fact_type = _FACT_TYPE_BY_RUN_TYPE.get(manifest.run_type, manifest.run_type)
 

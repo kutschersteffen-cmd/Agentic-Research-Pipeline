@@ -8,13 +8,6 @@ from pydantic import BaseModel, Field
 from arp.api.auth import Principal, current_user, require_role
 from arp.api.company_results import list_company_results
 from arp.api.deps import get_decision_store, get_llm_client, get_registry, get_run_store, get_xbrl_source, settings_dep
-from arp.api.review_endpoints import (
-    ReviewDecisionRequest,
-    get_review_decisions,
-    get_review_history,
-    get_review_queue,
-    submit_review,
-)
 from arp.api.routers.decision import template_for_run
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
@@ -23,8 +16,10 @@ from arp.extraction.pipeline import create_extraction_run, execute_extraction_ru
 from arp.extraction.schema_builder import draft_schema
 from arp.extraction.steps import ExtractionProfile, StepSettings, pipeline_shape, restart_overrides
 from arp.ingestion.registry import DocumentSourceRegistry
-from arp.orchestration.review_queue import effective_decisions, record_cosign
+from arp.orchestration.review_queue import effective_decisions, item_states, public_decision, record_cosign
 from arp.orchestration.step_tally import step_counts
+from arp.review.context import visible_history
+from arp.review.items import cosign_rule, get_item
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema, FieldQuality
 from arp.storage.decision_store import DecisionStore
@@ -361,37 +356,28 @@ def get_extraction_results_for_company(company_id: str, run_store: RunStore = De
     return {"results": list_company_results(run_store, "extraction", company_id)}
 
 
-@router.get("/runs/{run_id}/review-queue")
-def get_extraction_review_queue(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    return get_review_queue(run_store, run_id)
-
-
 @router.get("/runs/{run_id}/review-decisions")
-def get_extraction_review_decisions(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    """Latest decision per item_key across the whole run (company- and
-    field-level keys mixed) -- one call so the results table can show
-    every field's review status without a request per field."""
-    decisions = get_review_decisions(run_store, run_id)["decisions"]
-    effective = effective_decisions(run_store, run_id, cosign_required={"edit"})
-    return {"decisions": {k: {**d, "cosigned": k in effective} for k, d in decisions.items()}}
+def get_extraction_review_decisions(
+    run_id: str, run_store: RunStore = Depends(get_run_store), principal: Principal = Depends(current_user),
+) -> dict:
+    """Public effective decision per final item_key, plus every decided key's state -- one call
+    so the results table can show every field's review status without a request per field."""
+    rule = cosign_rule("extraction")
+    effective = effective_decisions(run_store, run_id, cosign_required=rule)
+    return {
+        "decisions": {k: public_decision(d, principal) for k, d in effective.items()},
+        "states": {k: {"state": s.state, "escalated": s.escalated}
+                   for k, s in item_states(run_store, run_id, cosign_required=rule).items()},
+    }
 
 
 @router.get("/runs/{run_id}/review-history")
 def get_extraction_review_history(
-    run_id: str, item_key: str, run_store: RunStore = Depends(get_run_store)
+    run_id: str, item_key: str, run_store: RunStore = Depends(get_run_store), principal: Principal = Depends(current_user),
 ) -> dict:
-    return get_review_history(run_store, run_id, item_key)
-
-
-@router.post("/runs/{run_id}/review")
-def submit_extraction_review(
-    run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store),
-    principal: Principal = Depends(current_user),
-) -> dict:
-    return submit_review(
-        run_store, run_id, item_key=req.item_key, decision=req.decision, principal=principal,
-        edited_value=req.edited_value, comment=req.comment,
-    )
+    item = get_item(run_store, run_id, item_key, principal)
+    high_risk = item is not None and item.high_risk
+    return {"item_key": item_key, "history": visible_history(run_store, run_id, item_key, principal, high_risk=high_risk)}
 
 
 class CosignRequest(BaseModel):

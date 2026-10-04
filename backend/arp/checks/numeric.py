@@ -21,7 +21,7 @@ from arp.schemas.datapoints import (
     ValueState,
 )
 
-_NUMERIC = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
+NUMERIC_TYPES = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
 _SPACES = "    "
 # One separator at a time, so a table row's double-space column gap splits numbers.
 _NUM_RE = re.compile(rf"[(\-−]?\d+(?:[.,'{_SPACES}]\d+)*\)?")
@@ -57,7 +57,7 @@ def numbers_in(text: str) -> list[float]:
     return [v for m in _NUM_RE.finditer(text) if (v := parse_number(m.group())) is not None]
 
 
-def _candidates(text: str) -> list[float]:
+def candidates(text: str) -> list[float]:
     """Every parse of each match and of each run of its space-separated pieces ("1 4,210" -> 14210, 4210, 1)."""
     out = []
     for m in _NUM_RE.finditer(text):
@@ -102,14 +102,14 @@ def _grounded(field: ExtractedField):
 def check_number_in_span(spec: FieldDefinition, field: ExtractedField, ctx) -> list[CheckResult]:
     cid, na = "numeric.in_span", CheckOutcome.NOT_APPLICABLE
     cits = _grounded(field)
-    if spec.data_type not in _NUMERIC or field.value_state != ValueState.FOUND or not cits:
+    if spec.data_type not in NUMERIC_TYPES or field.value_state != ValueState.FOUND or not cits:
         return _result(cid, Severity.BLOCK, na)
     expected = parse_number(field.raw_value_text or "")
     if expected is None:
         if isinstance(field.value, bool) or not isinstance(field.value, (int, float)):
             return _result(cid, Severity.BLOCK, na)
         expected = float(field.value)
-    ok = any(math.isclose(abs(expected), abs(n), rel_tol=1e-9) for c in cits for n in _candidates(c.span_text))
+    ok = any(math.isclose(abs(expected), abs(n), rel_tol=1e-9) for c in cits for n in candidates(c.span_text))
     return _result(cid, Severity.BLOCK, CheckOutcome.PASS if ok else CheckOutcome.FAIL,
                    "" if ok else f"value {expected:g} not in grounded span")
 

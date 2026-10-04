@@ -1,26 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canCosign, fieldItemKey, flaggedReasons, itemKeyOf } from "../src/lib/reviewKeys.ts";
-
-const edit = { decision: "edit", user_id: "u1" };
-
-test("canCosign: false for the same user, even an approver", () => {
-  assert.equal(canCosign(edit, { user_id: "u1", role: "approver" }), false);
-});
-
-test("canCosign: false for a non-approver", () => {
-  assert.equal(canCosign(edit, { user_id: "u2", role: "analyst" }), false);
-});
-
-test("canCosign: true for a different approver; false for non-edit or signed-out", () => {
-  assert.equal(canCosign(edit, { user_id: "u2", role: "approver" }), true);
-  assert.equal(canCosign({ decision: "approve", user_id: "u1" }, { user_id: "u2", role: "approver" }), false);
-  assert.equal(canCosign(edit, null), false);
-});
-
-test("canCosign: false once co-signed", () => {
-  assert.equal(canCosign({ ...edit, cosigned: true }, { user_id: "u2", role: "approver" }), false);
-});
+import { fieldItemKey, flaggedReasons, itemKeyOf } from "../src/lib/reviewKeys.ts";
 
 test("itemKeyOf returns the stored key for old and new rows", () => {
   assert.equal(itemKeyOf({ item_key: "C1" }), "C1");
@@ -40,4 +20,48 @@ test("flaggedReasons merges review and route reasons once each, in order", () =>
     ["not_grounded", "check_failed", "first_audit_pending"],
   );
   assert.deepEqual(flaggedReasons({}), []);
+});
+
+import { agreeBody, decideBlock, decisionChoices, needsCitation } from "../src/lib/reviewKeys.ts";
+
+test("decisionChoices and needsCitation by kind", () => {
+  assert.ok(!decisionChoices("quarantined_document").includes("correct"));
+  assert.deepEqual(decisionChoices("other"), []);
+  assert.deepEqual(decisionChoices("other", "theme"), []);
+  assert.deepEqual(decisionChoices("other", "extraction"), ["approve", "reject", "escalate"]);
+  assert.equal(decisionChoices("value").length, 4);
+  assert.equal(needsCitation("identity"), false);
+  assert.equal(needsCitation("value"), true);
+});
+
+test("decideBlock", () => {
+  const analyst = { user_id: "u", name: "n", role: "analyst" as const };
+  const approver = { ...analyst, role: "approver" as const };
+  const base = { state: "pending" as const, escalated: false, decision: null };
+  assert.equal(decideBlock(base, null), "Sign in as an analyst or approver to decide.");
+  assert.equal(decideBlock(base, { ...analyst, role: "viewer" }), "Sign in as an analyst or approver to decide.");
+  const dec = (mine: boolean) => ({ item_key: "k", decision: "approve" as const, decided_at: "", mine });
+  assert.equal(decideBlock({ ...base, state: "first_done", decision: dec(true) }, analyst), "Waiting for a second reviewer.");
+  assert.equal(decideBlock({ ...base, state: "first_done", decision: dec(false) }, analyst), null);
+  assert.equal(decideBlock({ ...base, state: "disagreed" }, analyst), "Reviewers disagree; an approver decides.");
+  assert.equal(decideBlock({ ...base, state: "disagreed" }, approver), null);
+  assert.equal(decideBlock({ ...base, escalated: true }, analyst), "Escalated; an approver decides.");
+});
+
+test("agreeBody resubmits a visible first correction", () => {
+  const cit = { doc_id: "d1", doc_type: "annual_report" as const, quote: "1,100", span_text: "Scope 1  1,100", grounded: true };
+  const first = {
+    item_key: "k", decision: "correct" as const, reason_code: "wrong_value", corrected_value: { value: 1100 },
+    correction_citation: cit, comment: "note", decided_at: "", mine: false,
+  };
+  const ctx = { blind: false, decisions: [first] };
+  assert.deepEqual(agreeBody("value", "first_done", ctx), {
+    decision: "correct", reason_code: "wrong_value", corrected_value: { value: 1100 },
+    correction_citation: { doc_id: "d1", doc_type: "annual_report", quote: "Scope 1  1,100" }, comment: "note",
+  });
+  assert.equal(agreeBody("value", "first_done", { blind: true, decisions: [] }), null);
+  assert.equal(agreeBody("value", "pending", ctx), null);
+  assert.equal(agreeBody("value", "first_done", { blind: false, decisions: [{ ...first, mine: true }] }), null);
+  assert.equal(agreeBody("value", "first_done", { blind: false, decisions: [{ ...first, decision: "edit" as const }] }), null);
+  assert.equal(agreeBody("identity", "first_done", ctx)?.correction_citation, null);
 });

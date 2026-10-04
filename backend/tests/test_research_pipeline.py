@@ -498,3 +498,14 @@ async def test_resume_theme_run_unknown_universe_path_raises(tmp_path, fake_llm)
         raise AssertionError("expected ValueError")
     except ValueError as exc:
         assert "universe_path" in str(exc)
+
+
+def test_model_chosen_isic_queues_sector_code_item():
+    from arp.llm.base import LLMUsage
+    from arp.research.pipeline import CompanyMatchesResult, theme_review_items
+
+    c = CompanyRef(company_id="C1", name="Acme")
+    rows = dict(theme_review_items(c, CompanyMatchesResult([], LLMUsage(), 0.0, isic_code="C10", isic_from_model=True)))
+    assert rows["isic:C1"]["kind"] == "sector_code" and rows["isic:C1"]["isic_code"] == "C10"
+    supplied = theme_review_items(c, CompanyMatchesResult([], LLMUsage(), 0.0, isic_code="C10", isic_from_model=False))
+    assert "isic:C1" not in dict(supplied)

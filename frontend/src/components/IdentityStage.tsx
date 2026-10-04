@@ -144,7 +144,6 @@ export function IdentityStage({
           <>
             <ReviewTiles counts={reviewCounts(counts.pending, counts.decisions, stage.flagged)} active={tile} onSelect={setTile} />
             <RunReviewList
-              kind="identity"
               runId={runId}
               reviewer={reviewer}
               onOpenSource={onOpenSource}

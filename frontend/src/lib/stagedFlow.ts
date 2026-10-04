@@ -213,24 +213,26 @@ export interface ReviewTileCounts { pending: number; approved: number; edited: n
 
 export function reviewCounts(pending: number, decisions: ReviewDecision[], flagged: number): ReviewTileCounts {
   const n = (d: ReviewDecision["decision"]) => decisions.filter((x) => x.decision === d).length;
-  return { pending, approved: n("approve"), edited: n("edit"), rejected: n("reject"), flagged };
+  return { pending, approved: n("approve"), edited: n("edit") + n("correct"), rejected: n("reject"), flagged };
 }
 
-const TILE_DECISION = { approved: "approve", edited: "edit", rejected: "reject" } as const;
+const TILE_DECISION = { approved: ["approve"], edited: ["edit", "correct"], rejected: ["reject"] } as const;
 
 /** Whether an item belongs under a status tile: pending = flagged and undecided, flagged = every flagged item. */
 export function matchesTile(filter: keyof ReviewTileCounts | null | undefined, flagged: boolean, d?: ReviewDecision): boolean {
   if (!filter) return true;
   if (filter === "flagged") return flagged;
   if (filter === "pending") return flagged && !d;
-  return d?.decision === TILE_DECISION[filter];
+  return !!d && (TILE_DECISION[filter] as readonly string[]).includes(d.decision);
 }
 
 /** The reviewer's replacement value as text, or undefined when the decision is not an edit. */
 export const editedText = (d?: ReviewDecision): string | undefined =>
-  d?.decision === "edit" && d.edited_value?.value != null ? String(d.edited_value.value) : undefined;
+  (d?.decision === "edit" || d?.decision === "correct") && (d.corrected_value?.value ?? d.edited_value?.value) != null
+    ? String(d.corrected_value?.value ?? d.edited_value?.value)
+    : undefined;
 
-export const valueOrigin = (d?: ReviewDecision): "system" | "edited" => (d?.decision === "edit" ? "edited" : "system");
+export const valueOrigin = (d?: ReviewDecision): "system" | "edited" => (d?.decision === "edit" || d?.decision === "correct" ? "edited" : "system");
 
 export const runScope = (m: RunManifest): "batch" | "single" => (m.company_count === 1 ? "single" : "batch");
 

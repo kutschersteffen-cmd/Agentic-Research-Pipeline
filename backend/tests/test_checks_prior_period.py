@@ -146,3 +146,28 @@ def test_rejected_value_fails_prior_rejected_until_a_human_approves(tmp_path):
     _prior_run(store, "ok", 1000, FY24, decision="approve", created="2024-02-01")
     spec, ctx = _ctx(store, [])
     assert check_last_rejected(spec, _field(1000, FY24), ctx)[0].outcome == "not_applicable"
+
+
+def _decide(store, run_id, key, **row):
+    from arp.orchestration.review_queue import append_decision
+    from arp.schemas.review import ReviewDecision
+
+    append_decision(store, run_id, ReviewDecision(
+        item_key=key, reviewer="A", user_id="u1", role="approver", snapshot_id="s", **row))
+
+
+def test_correct_counts_as_decided_value(tmp_path):
+    store = RunStore(tmp_path)
+    _prior_run(store, "old", 1000, decision=None)
+    key = f"{IK}:rev:{FY23}"
+    _decide(store, "old", key, decision="correct", reason_code="wrong_value", corrected_value={"value": 1050}, step="first")
+    p = RunHistory.load(store).last_decided(key)
+    assert (p.value, p.decided_by) == (1050, "human")
+
+
+def test_first_done_reject_not_counted_as_rejected(tmp_path):
+    store = RunStore(tmp_path)
+    _prior_run(store, "old", 1000, decision=None)
+    key = f"{IK}:rev:{FY23}"
+    _decide(store, "old", key, decision="reject", reason_code="wrong_value", step="first", second_required=True)
+    assert RunHistory.load(store).last_rejected_value(key) is None

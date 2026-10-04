@@ -81,6 +81,19 @@ async def test_unchanged_hash_makes_zero_model_calls(tmp_path, fake_llm):
     assert row2["reused_from_run"] == run1 and row2["value"] == row1["value"] == 120.0
 
 
+async def test_reused_row_keeps_alternatives(tmp_path, fake_llm):
+    pv = lambda v: PeriodValue(  # noqa: E731
+        value=v, raw_value_text="$120 million", unit_text="USD million", period_text="fiscal 2025",
+        citations=[Citation(doc_id="d1", doc_type=DocType.SUSTAINABILITY_REPORT, quote=QUOTE)],
+    )
+    script = {"ExtractionDraft": [ExtractionDraft(values=[pv(120.0), pv(125.0)], confidence=0.9)],
+              "VerifierOutput": [VerifierOutput(agrees=True, confidence=0.9, notes="ok")]}
+    _, row1, _ = await _run(tmp_path, _field(), _doc(), fake_llm, script)
+    _, row2, llm2 = await _run(tmp_path, _field(), _doc(), fake_llm, {})
+    assert llm2.calls == [] and row2["reused_from_run"]
+    assert row1["alternatives"] and row2["alternatives"] == row1["alternatives"]
+
+
 async def test_changed_document_reextracts(tmp_path, fake_llm):
     await _run(tmp_path, _field(), _doc(), fake_llm, _script())
     _, row2, llm2 = await _run(tmp_path, _field(), _doc(TEXT + " More.", key="k2"), fake_llm, _script())

@@ -6,7 +6,7 @@ import { SourcePanel, type ActiveSource } from "../../components/SourcePanel";
 import { TransitionPlanBatchOverview } from "../../components/TransitionPlanResults";
 import { jobRunType, type Job } from "../../lib/jobs";
 import { reviewCounts, type ReviewTileCounts } from "../../lib/stagedFlow";
-import type { CompanyFinancialsRecord, ExtractionRecord, ReviewDecision, TnfdRecord, TransitionPlanAssessmentRecord } from "../../types";
+import type { CompanyFinancialsRecord, ExtractionRecord, ReviewDecision, ReviewStates, TnfdRecord, TransitionPlanAssessmentRecord } from "../../types";
 import { BatchSpendChart } from "./BatchSpendChart";
 import { ResultsTable } from "./ResultsTable";
 import { isTrialRun } from "../../lib/runs";
@@ -33,13 +33,16 @@ export function JobReview(p: {
   const [tnfdResults, setTnfdResults] = useState<TnfdRecord[]>([]);
   const [transitionResults, setTransitionResults] = useState<TransitionPlanAssessmentRecord[]>([]);
   const [extractionDecisions, setExtractionDecisions] = useState<Decisions>({});
+  const [extractionStates, setExtractionStates] = useState<ReviewStates>({});
   const [financialsDecisions, setFinancialsDecisions] = useState<Decisions>({});
   const [transitionDecisions, setTransitionDecisions] = useState<Decisions>({});
 
   const refresh = useCallback(async () => {
     if (mode === "custom") {
       setExtractionResults(((await api.getExtractionResults(runId)) as { results: ExtractionRecord[] }).results);
-      setExtractionDecisions(((await api.getExtractionReviewDecisions(runId)) as { decisions: Decisions }).decisions);
+      const review = (await api.getExtractionReviewDecisions(runId)) as { decisions: Decisions; states: ReviewStates };
+      setExtractionDecisions(review.decisions);
+      setExtractionStates(review.states);
     } else if (mode === "financials") {
       setFinancialsResults(((await api.getFinancialsResults(runId)) as { results: CompanyFinancialsRecord[] }).results);
       setFinancialsDecisions(((await api.getFinancialsReviewDecisions(runId)) as { decisions: Decisions }).decisions);
@@ -58,6 +61,7 @@ export function JobReview(p: {
     setTnfdResults([]);
     setTransitionResults([]);
     setExtractionDecisions({});
+    setExtractionStates({});
     setFinancialsDecisions({});
     setTransitionDecisions({});
     setExpanded(null);
@@ -94,6 +98,7 @@ export function JobReview(p: {
                 runId={runId}
                 results={results}
                 decisions={decisionMaps}
+                states={extractionStates}
                 expanded={expanded}
                 onToggleExpanded={(id) => setExpanded(expanded === id ? null : id)}
                 reviewer={reviewer}

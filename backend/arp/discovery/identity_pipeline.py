@@ -11,7 +11,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
-from arp.orchestration.review_queue import latest_decisions
+from arp.orchestration.review_queue import effective_decisions
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import IdentityResolutionResult, IdentityVerdict
 from arp.storage.identifier_map import IdentifierMapStore
@@ -127,7 +127,7 @@ def enriched_universe(run_store: RunStore, run_id: str) -> list[CompanyRef]:
     missing website/cik.
     """
     rows = run_store.read_jsonl(run_store.results_path(run_id))
-    decisions = latest_decisions(run_store, run_id)
+    decisions = effective_decisions(run_store, run_id, cosign_required=set())
     companies: list[CompanyRef] = []
     for row in rows:
         result = IdentityResolutionResult.model_validate(row)
@@ -148,7 +148,7 @@ def enriched_universe(run_store: RunStore, run_id: str) -> list[CompanyRef]:
                 website = override
             website = edited.get("resolved_website", website)
             cik = edited.get("resolved_cik", cik)
-            included = decision["decision"] in ("approve", "edit")
+            included = decision["decision"] in ("approve", "edit", "correct")
 
         if not included or (not website and not cik):
             continue

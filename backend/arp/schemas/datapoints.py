@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -139,6 +140,15 @@ class DataPointSchema(BaseModel):
     released_at: str | None = None
 
 
+class Alternative(BaseModel):
+    """A value the extractor or a duplicate reading offered but the row did not keep."""
+
+    value: str | float | bool | None = None
+    raw_value_text: str | None = None
+    source: Literal["extractor", "duplicate"]
+    citations: list[Citation] = Field(default_factory=list)
+
+
 class ExtractedField(BaseModel):
     field_id: str
     field_name: str
@@ -146,6 +156,9 @@ class ExtractedField(BaseModel):
     raw_value_text: str | None = Field(default=None, description="Verbatim text the value was parsed from.")
     citations: list[Citation] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0)
+    extractor_confidence: float | None = None
+    verifier_confidence: float | None = None
+    alternatives: list[Alternative] = Field(default_factory=list)
     grounded: bool = Field(default=False)
     verifier_notes: str | None = None
     conflicting_sources: bool = False
@@ -200,4 +213,5 @@ class ExtractionRecord(BaseModel):
     overall_confidence: float = Field(ge=0.0, le=1.0, default=0.0)
     needs_review: bool = False
     held_documents: list[dict] = Field(default_factory=list)
+    documents: list[dict] = Field(default_factory=list)
     generated_at: str = Field(default_factory=now_iso)
