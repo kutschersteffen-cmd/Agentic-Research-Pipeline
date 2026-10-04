@@ -109,6 +109,7 @@ def cleanup(
         if _status(run_dir) in ACTIVE_STATUSES:
             report.kept += 1
             continue
+        before = len(report.deleted)
         logs, rest = [], []
         for f in _files(run_dir):
             (logs if _is_decision_log(f, run_dir) else rest).append(f)
@@ -125,12 +126,13 @@ def cleanup(
                 expire(f, timedelta(0) if f.name in SIDECARS else policy.runs)
         else:
             report.kept += len(rest)
-        if apply:
+        if apply and len(report.deleted) > before:
             _prune_empty(run_dir)
             with contextlib.suppress(OSError):
                 run_dir.rmdir()
 
     for prefix in _children(settings.blob_store_dir):
+        before = len(report.deleted)
         for f in _files(prefix):
             if f.name in held_keys:
                 report.held.append(f.name)
@@ -138,7 +140,7 @@ def cleanup(
                 expire(f, policy.originals)
             else:
                 report.kept += 1
-        if apply:
+        if apply and len(report.deleted) > before:
             _prune_empty(prefix)
             with contextlib.suppress(OSError):
                 prefix.rmdir()

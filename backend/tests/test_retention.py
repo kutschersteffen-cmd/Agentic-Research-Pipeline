@@ -118,3 +118,12 @@ def test_cleanup_never_follows_symlink(settings, tmp_path):
 def test_policy_floor():
     with pytest.raises(ValidationError):
         Settings(retention_runs_days=30)
+
+
+def test_cleanup_apply_leaves_untouched_empty_dirs(settings):
+    run = settings.runs_dir / "fresh"
+    (run / "snapshots").mkdir(parents=True)
+    prefix = settings.blob_store_dir / "ab"
+    prefix.mkdir(parents=True)
+    cleanup(settings, apply=True)
+    assert (run / "snapshots").is_dir() and prefix.is_dir()
