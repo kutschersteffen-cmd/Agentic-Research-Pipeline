@@ -5,11 +5,12 @@ from pathlib import Path
 
 import httpx
 
+from arp.checks.cross_source import Reference
 from arp.checks.prior_period import open_restatement_candidates
 from arp.checks.runner import CheckContext, check_record
 from arp.config import Settings
 from arp.extraction.aggregator import no_evidence_field
-from arp.extraction.field_graph import extract_one_field
+from arp.extraction.field_graph import _MAX_END_DRIFT_DAYS, _days_apart, extract_one_field
 from arp.extraction.history import RunHistory
 from arp.extraction.pre_steps import prepare_company
 from arp.extraction.routing import route
@@ -29,6 +30,7 @@ from arp.schemas.datapoints import (
     DataPointSchema,
     ExtractedField,
     ExtractionRecord,
+    FieldDefinition,
     FieldQuality,
     FieldStatus,
     is_failing,
@@ -40,6 +42,56 @@ from arp.storage.run_store import RunStore
 from arp.storage.schema_registry import SchemaRegistry, UnreleasedFieldError
 
 logger = logging.getLogger(__name__)
+
+
+def build_references(
+    fields: list[ExtractedField],
+    *,
+    xbrl_facts: dict | None,
+    cik: str | None,
+    history: RunHistory | None,
+    published: dict[str, tuple[float, str | None]],
+    company_id: str,
+    issuer_key: str,
+    specs: dict[str, FieldDefinition],
+) -> dict[str, list[Reference]]:
+    """E39: other-source values per item key. A tagged field is checked against the text value an
+    earlier run extracted; an extracted one against the filer's XBRL fact for the same period."""
+    out: dict[str, list[Reference]] = {}
+    for f in fields:
+        if f.period_end is None:
+            continue
+        key = field_item_key(issuer_key, f.field_id, period_key(f))
+        refs = out.setdefault(key, [])
+        spec = specs.get(f.field_id)
+        if f.method == "tagged":
+            prior = [r for r in (history.last_rows(company_id, f.field_id) if history else [])
+                     if r.get("period_end") == f.period_end and r.get("method") != "tagged"
+                     and r.get("canonical_value") is not None]
+            if prior:
+                refs.append(Reference(source="text", value=prior[-1]["canonical_value"], unit=prior[-1].get("canonical_unit")))
+        elif spec and spec.xbrl_tags and xbrl_facts and cik:
+            fact = XbrlFactSource.fact_for_tags(xbrl_facts, spec.xbrl_tags, fiscal_year=int(f.period_end[:4]))
+            if fact and fact.period_end and _days_apart(fact.period_end, f.period_end) <= _MAX_END_DRIFT_DAYS:
+                refs.append(Reference(source="tagged", value=fact.value, unit=fact.unit))
+        if key in published:
+            refs.append(Reference(source="published", value=published[key][0], unit=published[key][1]))
+    return {k: v for k, v in out.items() if v}
+
+
+def _published_values(settings: Settings, issuer_key_: str) -> dict[str, tuple[float, str | None]]:
+    if not settings.postgres_dsn:
+        return {}
+    try:
+        from arp.publish.facts import PublishStore
+        from arp.publish.reader import facts_as_of
+        from arp.schemas.common import now_iso
+
+        facts = facts_as_of(PublishStore(settings.postgres_dsn), now_iso(), issuer_key=issuer_key_)
+    except Exception as exc:  # a Postgres failure never fails the extraction
+        logger.warning("Published values unavailable for %s: %s", issuer_key_, exc)
+        return {}
+    return {x.item_key: (x.canonical_value, x.canonical_unit) for x in facts if x.canonical_value is not None}
 
 
 class ExtractionRecordResult:
@@ -175,6 +227,10 @@ async def _extract_company(
             documents_by_id=documents_by_id,
             record_fields=fields,
             history=history,
+            references=build_references(
+                fields, xbrl_facts=xbrl_facts, cik=cik, history=history, published=_published_values(settings, key),
+                company_id=company.company_id, issuer_key=key, specs={f.field_id: f for f in schema.fields},
+            ),
         ),
     )
 

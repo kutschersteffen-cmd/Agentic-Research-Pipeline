@@ -75,6 +75,7 @@ class CheckConfig(BaseModel):
     sum_of: list[str] = Field(default_factory=list, description="This field equals the sum of these field_ids.")
     sum_tolerance: float = Field(default=0.01, description="Relative.")
     prior_change_max: float | None = Field(default=0.5, description="Relative jump vs. prior value that warns.")
+    cross_source_tolerance: float = Field(default=0.01, description="Relative difference vs. another source that warns.")
 
 
 class ApplicabilityRules(BaseModel):
