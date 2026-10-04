@@ -358,6 +358,7 @@ arp holdings import | pull | template
 arp snapshots build | pull
 arp runs list | show | cancel
 arp retention cleanup [--apply]
+arp scale load | report
 ```
 
 `arp identity review <run_id> <item_key> --decision approve|correct|reject|escalate [--reason R] [--website W] [--cik C] [--comment T]`: `--reason` is required unless approving (default `confirmed`); `correct` needs `--website` and/or `--cik` and a `--comment` naming the source.
@@ -373,6 +374,10 @@ arp retention cleanup [--apply]
 - Runs whose manifest status is `running` or `pending` are never touched.
 - Stored originals in `blob_store_dir` are deleted once past the originals period; emptied directories are removed.
 - Held, never deleted: any run id that is the `source_run_id` of a `published_facts` row, and any content key cited by one (needs `ARP_POSTGRES_DSN`; without it nothing is held).
+
+### Load and cost report (E15)
+
+`arp scale load --issuers 200 --concurrency 4,8,16 [--latency S] [--out F]` runs one `load_test` run per concurrency level against a simulated worker (no network, no API key, no LLM calls) and writes a markdown table: duration, tokens, cost, USD per 1,000 issuers, minutes per 1,000 and issuers per minute, all read from each run's manifest (`arp/scale/report.py`). The simulated figures measure orchestration overhead only; the token and cost columns are synthetic. `--live --universe P --schema P` runs real extraction instead (a trial run per level, real API spend). `arp scale report RUN_ID... [--out F]` renders the same table for existing runs. The committed local report is `docs/scale/2026-10-04-local-200-issuers.md`; `max_concurrent_llm_calls` stays at its default of 8.
 
 ### Durable jobs
 
