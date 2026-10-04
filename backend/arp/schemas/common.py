@@ -45,6 +45,7 @@ class CompanyRef(BaseModel):
     website: str | None = Field(default=None, description="Known corporate/IR homepage, if supplied.")
     cik: str | None = Field(default=None, description="SEC CIK, if known (enables direct EDGAR lookup).")
     lei: str | None = None
+    isin: str | None = None
     country: str | None = None
     sector: str | None = None
     isic_code: str | None = Field(

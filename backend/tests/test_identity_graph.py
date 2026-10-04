@@ -43,7 +43,7 @@ async def test_cik_already_known_short_circuits(fake_llm):
     assert result.resolved_cik == "123"
 
 
-async def test_clean_single_exact_edgar_match_resolves_with_zero_llm_calls(fake_llm):
+async def test_clean_single_exact_edgar_match_goes_to_review_with_zero_llm_calls(fake_llm):
     """The whole point of this phase's redesign: a direct, unambiguous
     SEC EDGAR name match never touches the LLM at all."""
     llm = fake_llm({})
@@ -52,10 +52,10 @@ async def test_clean_single_exact_edgar_match_resolves_with_zero_llm_calls(fake_
 
     result, usages = await resolve_company_identity(company, llm=llm, edgar=edgar, search_client=_NullSearch())
 
-    assert result.verdict == IdentityVerdict.RESOLVED
+    assert result.verdict == IdentityVerdict.UNCERTAIN
     assert result.resolved_cik == "42"
-    assert result.confidence == 1.0
-    assert result.flagged_for_review is False
+    assert result.match_rule == "name_only"
+    assert result.flagged_for_review is True  # E62: name-only matches always go to review
     assert usages == []
     assert llm.calls == []
 
@@ -203,3 +203,19 @@ async def test_grounded_website_from_real_search_result_is_accepted(fake_llm, fa
 
     assert result.verdict == IdentityVerdict.RESOLVED
     assert result.resolved_website == "https://acme.example.com"
+
+
+async def test_adjudicated_result_always_flagged(fake_llm):
+    adjudication = IdentityAdjudication(
+        verdict=IdentityVerdict.RESOLVED, confidence=0.99, resolved_website=None, resolved_cik=None,
+        rationale="Sure.",
+    )
+    llm = fake_llm({IdentityAdjudication.__name__: [adjudication]})
+    company = CompanyRef(company_id="acme", name="Acme")
+
+    result, _ = await resolve_company_identity(company, llm=llm, edgar=_FakeEdgar(), search_client=_NullSearch())
+
+    assert result.verdict == IdentityVerdict.RESOLVED
+    assert result.flagged_for_review is True
+    assert result.match_rule == "ambiguous"
+    assert result.reason_codes == ["match_ambiguous"]

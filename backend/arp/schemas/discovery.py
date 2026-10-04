@@ -5,6 +5,7 @@ from enum import StrEnum
 from pydantic import BaseModel, Field
 
 from arp.schemas.common import DocType, new_id, now_iso
+from arp.schemas.review import ReasonCode
 
 
 class DocumentEventType(StrEnum):
@@ -153,4 +154,8 @@ class IdentityResolutionResult(BaseModel):
     signals: IdentitySignals
     rationale: str
     flagged_for_review: bool = False
+    match_rule: str = ""
+    resolved_issuer_key: str | None = None
+    identifiers: dict[str, str] = Field(default_factory=dict)
+    reason_codes: list[ReasonCode] = Field(default_factory=list)
     generated_at: str = Field(default_factory=now_iso)
