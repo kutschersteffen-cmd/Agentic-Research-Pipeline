@@ -32,6 +32,7 @@ portfolios/*
 frameworks/*
 !frameworks/.gitkeep
 stewardship_streams/
+data/identifier_map.jsonl
 data/documents/*
 !data/documents/.gitkeep
 data/blobs/*

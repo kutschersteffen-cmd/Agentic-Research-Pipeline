@@ -273,7 +273,7 @@ async def test_name_only_match_always_creates_review_item(tmp_path, fake_llm):
 async def test_exact_lei_resolves_without_lookup(tmp_path, fake_llm):
     edgar, search = _FakeEdgar(), _NullSearch()
     _, _, result, _ = await _run(
-        tmp_path, fake_llm, CompanyRef(company_id="acme", name="Acme", lei=LEI_X), edgar=edgar, search=search
+        tmp_path, fake_llm, CompanyRef(company_id="acme", name="Acme", lei=LEI_X, cik="42"), edgar=edgar, search=search
     )
 
     assert result.match_rule == "exact_lei"
@@ -332,3 +332,38 @@ async def test_unchanged_company_reused_from_previous_run(tmp_path, fake_llm):
     assert edgar.calls == 1  # reused, no lookup
     assert llm.calls == []
     assert len(run_store.read_jsonl(run_store.review_queue_path(second))) == 1
+
+
+async def test_exact_lei_without_cik_or_website_looks_up_and_flags(tmp_path, fake_llm):
+    edgar = _FakeEdgar({"Acme": [EdgarNameMatch(ticker="ACME", cik="42", title="Acme")]})
+    run_store, run_id, result, llm = await _run(
+        tmp_path, fake_llm, CompanyRef(company_id="acme", name="Acme", lei=LEI_X), edgar=edgar
+    )
+
+    assert llm.calls == [] and edgar.calls == 1
+    assert result.match_rule == "exact_lei" and result.resolved_issuer_key == LEI_X
+    assert result.flagged_for_review is True
+    assert result.reason_codes == ["match_ambiguous"]
+    assert result.resolved_cik == "42"
+    record_review_decision(run_store, run_id, "acme", "approve", "reviewer1", None)
+    universe = enriched_universe(run_store, run_id)
+    assert [(c.cik, c.lei) for c in universe] == [("42", LEI_X)]
+
+
+async def test_exact_lei_without_any_lookup_hit_is_flagged_not_dropped(tmp_path, fake_llm):
+    _, _, result, llm = await _run(tmp_path, fake_llm, CompanyRef(company_id="acme", name="Acme", lei=LEI_X))
+
+    assert llm.calls == []
+    assert result.flagged_for_review is True and result.resolved_cik is None
+    assert result.match_rule == "exact_lei"
+
+
+async def test_ambiguous_map_outcome_keeps_supplied_cik_for_approval(tmp_path, fake_llm):
+    rows = [IdentifierMap(issuer_key=k, scheme="CIK", value="320193") for k in (LEI_X, LEI_Y)]
+    run_store, run_id, result, _ = await _run(
+        tmp_path, fake_llm, CompanyRef(company_id="a", name="A", cik="320193"), rows=rows
+    )
+
+    assert result.resolved_cik == "320193"
+    record_review_decision(run_store, run_id, "a", "approve", "reviewer1", None)
+    assert [c.cik for c in enriched_universe(run_store, run_id)] == ["320193"]

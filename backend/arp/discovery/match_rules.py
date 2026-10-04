@@ -65,6 +65,8 @@ def apply_name_rules(company: CompanyRef, signals: IdentitySignals) -> RuleOutco
 
 
 def needs_recheck(result: IdentityResolutionResult, company: CompanyRef, idmap: IdentifierMapStore | None) -> bool:
+    if not result.match_rule:  # legacy row: never reuse, it predates the always-review rule
+        return True
     if identifiers_of(company) != result.identifiers:
         return True
     outcome = apply_identifier_rules(company, idmap)

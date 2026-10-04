@@ -32,12 +32,12 @@ class IdentityState(TypedDict):
     edgar: EdgarDocumentSource
     search_client: WebSearchClient
     max_search_results: int
-    confidence_threshold: float
     signals: IdentitySignals | None
     adjudication: IdentityAdjudication | None
     usages: list[LLMUsage]
     identifier_map: IdentifierMapStore | None
     outcome: RuleOutcome | None
+    id_outcome: RuleOutcome | None
     result: IdentityResolutionResult | None
 
 
@@ -46,7 +46,8 @@ def _route_after_rules(state: IdentityState) -> str:
 
 
 def _route_after_name_rules(state: IdentityState) -> str:
-    return "finalize_rules" if state["outcome"] else "adjudicate"
+    # An identifier-resolved company never reaches the model; it is flagged instead.
+    return "finalize_rules" if (state["outcome"] or state["id_outcome"]) else "adjudicate"
 
 
 async def _check_known(state: IdentityState) -> dict:
@@ -54,13 +55,44 @@ async def _check_known(state: IdentityState) -> dict:
 
 
 async def _apply_rules(state: IdentityState) -> dict:
-    return {"outcome": apply_identifier_rules(state["company"], state["identifier_map"])}
+    company = state["company"]
+    outcome = apply_identifier_rules(company, state["identifier_map"])
+    # Resolved by identifier but nothing to crawl or look up by: find a CIK by name, then a human confirms.
+    lookup = (
+        outcome is not None
+        and outcome.rule in (MatchRule.EXACT_LEI, MatchRule.IDENTIFIER_MAP)
+        and not (company.website or company.cik)
+    )
+    return {"id_outcome": outcome, "outcome": None if lookup else outcome}
 
 
 async def _finalize_rules(state: IdentityState) -> dict:
     """Rule outcomes, zero LLM calls. Resolved rules pass; name-only and
     ambiguous outcomes always go to a reviewer."""
-    company, outcome = state["company"], state["outcome"]
+    company, outcome, id_outcome = state["company"], state["outcome"], state["id_outcome"]
+    if id_outcome is not None and outcome is not id_outcome:
+        # Identifier rule plus name lookup: the CIK (or its absence) needs a human.
+        name_cik = outcome.candidates[0] if outcome else None
+        return {
+            "result": IdentityResolutionResult(
+                company_id=company.company_id,
+                input_name=company.name,
+                match_rule=id_outcome.rule.value,
+                resolved_issuer_key=id_outcome.issuer_key,
+                identifiers=identifiers_of(company),
+                verdict=IdentityVerdict.UNCERTAIN,
+                confidence=0.5 if name_cik else 0.0,
+                resolved_cik=name_cik,
+                signals=state["signals"] or IdentitySignals(),
+                rationale=(
+                    f"Resolved by {id_outcome.rule.value}; CIK {name_cik} from a single exact EDGAR title match, needs review."
+                    if name_cik
+                    else f"Resolved by {id_outcome.rule.value}; no CIK or website found, needs review."
+                ),
+                flagged_for_review=True,
+                reason_codes=[ReasonCode.MATCH_AMBIGUOUS],
+            )
+        }
     base = {
         "company_id": company.company_id,
         "input_name": company.name,
@@ -85,7 +117,8 @@ async def _finalize_rules(state: IdentityState) -> dict:
             **base,
             verdict=IdentityVerdict.UNCERTAIN,
             confidence=0.5 if name_only else 0.0,
-            resolved_cik=outcome.candidates[0] if name_only else None,
+            resolved_website=company.website,
+            resolved_cik=outcome.candidates[0] if name_only else company.cik,
             signals=state["signals"] or IdentitySignals(),
             rationale=(
                 f"Single exact SEC EDGAR title match (CIK {outcome.candidates[0]}); name-only, needs review."
@@ -200,7 +233,7 @@ async def resolve_company_identity(
     edgar: EdgarDocumentSource,
     search_client: WebSearchClient,
     max_search_results: int = 5,
-    confidence_threshold: float = 0.7,
+    confidence_threshold: float = 0.7,  # unused: adjudicated results are always flagged; kept for existing callers
     identifier_map: IdentifierMapStore | None = None,
 ) -> tuple[IdentityResolutionResult, list[LLMUsage]]:
     """Runs identity resolution for one company: zero LLM calls for
@@ -214,12 +247,12 @@ async def resolve_company_identity(
         "edgar": edgar,
         "search_client": search_client,
         "max_search_results": max_search_results,
-        "confidence_threshold": confidence_threshold,
         "signals": None,
         "adjudication": None,
         "usages": [],
         "identifier_map": identifier_map,
         "outcome": None,
+        "id_outcome": None,
         "result": None,
     }
     final_state = await _COMPILED_GRAPH.ainvoke(initial)

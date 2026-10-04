@@ -152,5 +152,8 @@ def enriched_universe(run_store: RunStore, run_id: str) -> list[CompanyRef]:
 
         if not included or (not website and not cik):
             continue
-        companies.append(CompanyRef(company_id=result.company_id, name=result.input_name, website=website, cik=cik))
+        companies.append(CompanyRef(
+            company_id=result.company_id, name=result.input_name, website=website, cik=cik,
+            lei=result.identifiers.get("lei"), isin=result.identifiers.get("isin"),
+        ))
     return companies
