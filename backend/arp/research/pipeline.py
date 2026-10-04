@@ -21,6 +21,7 @@ from arp.research.revenue_exposure.catalogue import load_catalogue
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.common import CompanyRef, JobStatus
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
+from arp.schemas.review import sector_item_key
 from arp.schemas.thematic import CompanyMatch, ThemeDefinition
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
@@ -29,10 +30,27 @@ logger = logging.getLogger(__name__)
 
 
 class CompanyMatchesResult:
-    def __init__(self, matches: list[CompanyMatch], usage: LLMUsage, cost_usd: float) -> None:
+    def __init__(
+        self, matches: list[CompanyMatch], usage: LLMUsage, cost_usd: float,
+        isic_code: str | None = None, isic_from_model: bool = False,
+    ) -> None:
         self.matches = matches
         self.usage = usage
         self.cost_usd = cost_usd
+        self.isic_code = isic_code
+        self.isic_from_model = isic_from_model
+
+
+def theme_review_items(company: CompanyRef, r: CompanyMatchesResult) -> list[tuple[str, dict]]:
+    """Flagged activity matches, plus the sector code when the model chose it:
+    rules before models, so a model-chosen code always goes to review."""
+    rows = [(f"{company.company_id}:{m.activity_id}", m.model_dump(mode="json")) for m in r.matches if m.flagged_for_review]
+    if r.isic_from_model:
+        rows.append((sector_item_key(company.company_id), {
+            "kind": "sector_code", "company_id": company.company_id, "name": company.name,
+            "isic_code": r.isic_code, "source": "model",
+        }))
+    return rows
 
 
 async def _match_company(
@@ -85,7 +103,10 @@ async def _match_company(
     # resolution) and llm_verifier_model (the revenue-exposure resolver's
     # path-2 extraction fallback) calls within one company.
     cost = sum(estimate_cost_usd(u.model or settings.llm_model, u) for u in usages)
-    return CompanyMatchesResult(matches, combine_usage(*usages) if usages else LLMUsage(), cost)
+    isic_from_model = company_isic is not None and company.isic_code != company_isic
+    return CompanyMatchesResult(
+        matches, combine_usage(*usages) if usages else LLMUsage(), cost, isic_code=company_isic, isic_from_model=isic_from_model,
+    )
 
 
 def create_theme_run(
@@ -248,9 +269,7 @@ async def execute_theme_run(
             rd_resolver=rd_resolver,
         ),
         result_to_json=lambda r: {"company_matches": [m.model_dump(mode="json") for m in r.matches]},
-        review_items=lambda c, r: [
-            (f"{c.company_id}:{m.activity_id}", m.model_dump(mode="json")) for m in r.matches if m.flagged_for_review
-        ],
+        review_items=theme_review_items,
         cost_usd=lambda r: r.cost_usd,
         concurrency=settings.max_concurrent_llm_calls,
     )

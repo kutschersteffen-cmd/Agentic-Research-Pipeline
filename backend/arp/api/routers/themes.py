@@ -237,6 +237,8 @@ def submit_theme_review(
     run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store),
     principal: Principal = Depends(current_user),
 ) -> dict:
+    if req.item_key.startswith("isic:"):
+        raise HTTPException(400, "decide sector codes through the review workbench")
     return submit_review(
         run_store, run_id, item_key=req.item_key, decision=req.decision, principal=principal,
         edited_value=req.edited_value, comment=req.comment,

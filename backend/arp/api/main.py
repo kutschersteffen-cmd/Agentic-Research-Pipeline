@@ -37,6 +37,7 @@ from arp.api.routers import (
     replication,
     reporting,
     revenue_catalogue,
+    review,
     runs,
     search,
     stewardship,
@@ -125,6 +126,7 @@ app.include_router(calibration.router, dependencies=[Depends(authorize)])
 app.include_router(reporting.router, dependencies=[Depends(authorize)])
 app.include_router(replication.router, dependencies=[Depends(authorize)])
 app.include_router(index.router, dependencies=[Depends(authorize)])
+app.include_router(review.router, dependencies=[Depends(authorize)])
 
 
 @app.exception_handler(RuntimeError)

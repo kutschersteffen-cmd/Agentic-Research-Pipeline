@@ -72,3 +72,24 @@ def held_item_key(company_id: str, doc_id: str) -> str:
 
 def sector_item_key(company_id: str) -> str:
     return f"isic:{company_id}"
+
+
+class ReviewItemKind(StrEnum):
+    VALUE = "value"
+    SECTOR_CODE = "sector_code"
+    IDENTITY = "identity"
+    QUARANTINED_DOCUMENT = "quarantined_document"
+    RESTATEMENT_CANDIDATE = "restatement_candidate"
+    OTHER = "other"
+
+
+class ReviewItem(BaseModel):
+    item_key: str
+    kind: ReviewItemKind
+    run_id: str
+    run_type: str
+    payload: dict
+    state: str = "pending"
+    escalated: bool = False
+    high_risk: bool = False
+    decision: dict | None = None  # a public_decision; None when blind or undecided
