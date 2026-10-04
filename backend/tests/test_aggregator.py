@@ -265,3 +265,24 @@ def test_old_row_loads_without_new_fields():
     assert (f.extractor_confidence, f.verifier_confidence, f.alternatives) == (None, None, [])
     r = ExtractionRecord.model_validate({"company_id": "c", "name": "n", "schema_id": "s", "run_id": "r"})
     assert r.documents == []
+
+
+def _locale_run(raw, decimals, value="1,234"):
+    docs = {f"d{i}": SourceDocument(doc_id=f"d{i}", company_id="c", doc_type=DocType.SUSTAINABILITY_REPORT, title="t",
+                                    full_text=raw, decimal=d) for i, d in enumerate(decimals)}
+    cits = [Citation(doc_id=k, doc_type=DocType.SUSTAINABILITY_REPORT, quote=raw) for k in docs]
+    draft = ExtractionDraft(values=[PeriodValue(value=value, raw_value_text=raw, citations=cits)], confidence=0.9)
+    (f,) = _build_all(draft, _AGREE, docs)
+    return f
+
+
+def test_document_decimal_resolves_ambiguity():
+    f = _locale_run("1,234", ["point"])
+    assert f.value == 1234.0 and ReasonCode.NUMBER_LOCALE_AMBIGUOUS not in f.review_reasons
+    f = _locale_run("1.234", ["comma"], value="1.234")
+    assert f.value == 1234.0 and ReasonCode.NUMBER_LOCALE_AMBIGUOUS not in f.review_reasons
+
+
+def test_disagreeing_or_unknown_document_decimals_flag():
+    assert ReasonCode.NUMBER_LOCALE_AMBIGUOUS in _locale_run("1,234", ["point", "comma"]).review_reasons
+    assert ReasonCode.NUMBER_LOCALE_AMBIGUOUS in _locale_run("1,234", [None]).review_reasons

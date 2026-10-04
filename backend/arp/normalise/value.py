@@ -24,6 +24,7 @@ from arp.schemas.review import ReasonCode
 
 _NUMERIC = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
 _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
+_PRINTED = re.compile(r"\d[\d.,]*\d|\d")
 _RAW_SCALE = re.compile(r"\d[\d,]*(?:\.\d+)?\s*([A-Za-z']+)(?![\w²³])")
 
 
@@ -152,10 +153,13 @@ def typed_value(
             reasons.append(ReasonCode.CHECK_FAILED)
             notes.append(f"numeric field returned non-numeric text {value!r}")
         else:
-            if parse_number(value, decimal)[1]:
-                reasons.append(ReasonCode.NUMBER_LOCALE_AMBIGUOUS)
-                notes.append(f"{value!r} is a thousands group or a decimal; read as a decimal point")
             value = parsed
+    text = pv.value if isinstance(pv.value, str) else pv.raw_value_text
+    # The string as printed: the typed float no longer shows whether "1,234" was 1234 or 1.234.
+    m = _PRINTED.search(text) if field.data_type in _NUMERIC and text else None
+    if m and parse_number(m[0], decimal)[1]:
+        reasons.append(ReasonCode.NUMBER_LOCALE_AMBIGUOUS)
+        notes.append(f"{m[0]!r} is a thousands group or a decimal; read as a decimal point")
     numeric = isinstance(value, (int, float)) and not isinstance(value, bool)
     if state == ValueState.FOUND and numeric and value == 0:
         state = ValueState.ZERO

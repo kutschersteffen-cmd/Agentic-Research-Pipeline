@@ -38,7 +38,11 @@ def build_extracted_fields(
         values = [PeriodValue(state=ValueState.NOT_FOUND)]
 
     planned = set(planned_periods or ())
-    typed = [(pv, typed_value(field, pv, fiscal_year_end=fiscal_year_end, planned=planned)) for pv in values]
+    decimals = {
+        d.decimal if (d := documents_by_id.get(c.doc_id)) else None for pv in values for c in pv.citations
+    }
+    decimal = decimals.pop() if len(decimals) == 1 else None  # disagreeing or unknown -> flag ambiguity
+    typed = [(pv, typed_value(field, pv, fiscal_year_end=fiscal_year_end, planned=planned, decimal=decimal)) for pv in values]
     typed.sort(key=lambda t: t[1].period_end or "", reverse=True)  # ISO dates sort as text; None ("") last
 
     kept: dict[str, list] = {}
@@ -86,7 +90,7 @@ def build_extracted_fields(
         else:
             final_citations = ground_citations(pv.citations, documents_by_id, fuzzy_threshold, passages=passages)
         for d in dupes.get(key, []):
-            dtv = typed_value(field, d, fiscal_year_end=fiscal_year_end, planned=planned)
+            dtv = typed_value(field, d, fiscal_year_end=fiscal_year_end, planned=planned, decimal=decimal)
             if dtv.value_state != ValueState.NOT_FOUND:
                 alternatives.append(Alternative(
                     value=dtv.value, raw_value_text=d.raw_value_text, source="duplicate",

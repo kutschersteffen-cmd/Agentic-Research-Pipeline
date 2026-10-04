@@ -45,3 +45,11 @@ def test_ambiguous_value_flags_review():
     assert "number_locale_ambiguous" in typed_value(_field(), pv, fiscal_year_end=None, planned=None).reasons
     tv = typed_value(_field(), pv, fiscal_year_end=None, planned=None, decimal="comma")
     assert "number_locale_ambiguous" not in tv.reasons and tv.value == 1.234
+
+
+def test_float_value_from_ambiguous_raw_text_flags_review():
+    pv = PeriodValue(value=1234.0, raw_value_text="1,234 tonnes", state=ValueState.FOUND)
+    assert "number_locale_ambiguous" in typed_value(_field(), pv, fiscal_year_end=None, planned=None).reasons
+    assert "number_locale_ambiguous" not in typed_value(_field(), pv, fiscal_year_end=None, decimal="point").reasons
+    pv = PeriodValue(value=1234.56, raw_value_text="1.234,56", state=ValueState.FOUND)
+    assert "number_locale_ambiguous" not in typed_value(_field(), pv, fiscal_year_end=None).reasons
