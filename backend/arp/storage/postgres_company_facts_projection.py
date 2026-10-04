@@ -172,7 +172,7 @@ def resolve_extraction_fact(
         decision = decisions.get(keys[i])
         if decision is None:
             routed = {"hold": "held", "auto_accept": "auto_accepted"}.get(f.get("route"))
-            outcomes.append(routed or ("pending_review" if i in flagged else None))
+            outcomes.append("pending_review" if i in flagged else routed)  # an open human review outranks the route
             continue
         outcomes.append({"approve": "approved", "edit": "edited", "correct": "edited"}.get(decision.get("decision"), "rejected"))
         reviewer = decision.get("reviewer") or reviewer

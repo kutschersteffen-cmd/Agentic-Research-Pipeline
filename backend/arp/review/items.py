@@ -80,12 +80,12 @@ def get_item(run_store: RunStore, run_id: str, item_key: str, principal: Princip
 
 
 def _field_row(run_store: RunStore, run_id: str, item_key: str) -> tuple:
-    """A results field outside the queue (auto-accepted, legacy unflagged, or a run queued per company):
+    """A non-held results field outside the queue (auto-accepted, legacy unflagged, or a run queued per company):
     decidable as a value item, but never listed as open. A queued row with the same key comes first."""
     for r in run_store.read_jsonl(run_store.results_path(run_id)):
         issuer = r.get("issuer_key", "")
         for f in r.get("fields", []):
-            if field_item_key(issuer, f["field_id"], period_key(f)) == item_key:
+            if f.get("route") != "hold" and field_item_key(issuer, f["field_id"], period_key(f)) == item_key:  # held: approver release only
                 return ((item_key, ReviewItemKind.VALUE, {
                     "item_key": item_key, "issuer_key": issuer, "company_id": r.get("company_id"), "name": r.get("name"),
                     "field_id": f["field_id"], "period_end": f.get("period_end"), "field": f,

@@ -394,10 +394,10 @@ def test_agreeing_redecision_on_final_item_stays_single_reviewer(env):
 AUTO_KEY = "ISS1:f1:2023-12-31"
 
 
-def _add_auto_accepted(rs):
+def _add_auto_accepted(rs, route="auto_accept"):
     path = rs.results_path("ext1")
     row = rs.read_jsonl(path)[0]
-    row["fields"].append({**FIELD, "period_end": "2023-12-31", "route": "auto_accept", "route_reasons": [], "checks": []})
+    row["fields"].append({**FIELD, "period_end": "2023-12-31", "route": route, "route_reasons": [], "checks": []})
     path.write_text(json.dumps(row) + "\n")
 
 
@@ -445,3 +445,22 @@ def test_extraction_failure_report_escalate_needs_approver(env):
     assert "C2" in {i.item_key for i in list_open_items(rs, ALICE, run_id="ext1")}
     assert decide(BOB, APPROVE, key="C2").status_code == 403
     assert decide(CAROL, {"decision": "reject", "reason_code": "other"}, key="C2").json()["state"] == "final"
+
+
+def test_held_field_key_is_not_decidable(env):
+    rs = env[0]
+    _add_auto_accepted(rs, route="hold")
+    assert client(ALICE).get(f"/api/review/runs/ext1/items/{AUTO_KEY}/context").status_code == 404
+    assert decide(ALICE, APPROVE, key=AUTO_KEY, etag="x").status_code == 404
+    assert rows(rs) == []
+
+
+def test_open_review_on_auto_accepted_row_projects_pending(env):
+    rs = env[0]
+    _add_auto_accepted(rs)
+    assert decide(ALICE, CORRECT, key=AUTO_KEY).json()["state"] == "first_done"
+    row = rs.read_jsonl(rs.results_path("ext1"))[0]
+    row["fields"] = row["fields"][1:]  # only the auto-accepted field
+    open_keys = {AUTO_KEY}  # what materialize adds: latest minus effective decisions
+    assert resolve_extraction_fact("C1", row, effective_decisions(rs, "ext1", cosign_required={"edit"}), open_keys)[1] == "pending_review"
+    assert resolve_extraction_fact("C1", row, {}, set())[1] == "auto_accepted"
