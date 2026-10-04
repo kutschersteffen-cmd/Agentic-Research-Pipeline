@@ -224,3 +224,44 @@ def test_resolved_period_wins_over_planned():
     draft = ExtractionDraft(values=[_planned_pv(100, "FY2024", "2023-12-31")], confidence=0.9)
     (row,) = _build_all(draft, VerifierOutput(agrees=True, confidence=0.9, notes=""), planned_periods=["2023-12-31"])
     assert row.period_end == "2024-12-31"
+
+
+def test_confidence_components_recorded():
+    draft = ExtractionDraft(value=1.0, citations=[], confidence=0.9)
+    f, _ = _build(draft, VerifierOutput(agrees=True, confidence=0.8, notes=""))
+    assert (f.confidence, f.extractor_confidence, f.verifier_confidence) == (0.8, 0.9, 0.8)
+
+
+def test_verifier_disagreement_keeps_extractor_value_as_alternative():
+    draft = ExtractionDraft(
+        values=[PeriodValue(value=4210.0, raw_value_text="4,210", citations=_cite("Scope 1 emissions were 120 tonnes"))],
+        confidence=0.9,
+    )
+    (f,) = _build_all(draft, VerifierOutput(agrees=False, corrected_value=4200.0, confidence=0.7, notes="x"), {_DOC.doc_id: _DOC})
+    (alt,) = f.alternatives
+    assert (alt.source, alt.value, alt.raw_value_text) == ("extractor", 4210.0, "4,210")
+    assert alt.citations and all(c.grounded for c in alt.citations)
+
+
+def test_duplicate_period_value_kept_as_alternative():
+    draft = ExtractionDraft(
+        values=[
+            PeriodValue(value=120.0, period_text="FY2024", citations=_cite("Scope 1 emissions were 120 tonnes")),
+            PeriodValue(value=130.0, period_text="FY2024", citations=_cite("Scope 1 emissions were 120 tonnes")),
+        ],
+        confidence=0.9,
+    )
+    (f,) = _build_all(draft, _AGREE, {_DOC.doc_id: _DOC}, fiscal_year_end="12-31")
+    assert f.value == 120.0
+    (alt,) = f.alternatives
+    assert (alt.source, alt.value) == ("duplicate", 130.0)
+    assert alt.citations and alt.citations[0].grounded
+
+
+def test_old_row_loads_without_new_fields():
+    from arp.schemas.datapoints import ExtractionRecord
+
+    f = ExtractedField.model_validate({"field_id": "a", "field_name": "a", "value": 1, "confidence": 0.5})
+    assert (f.extractor_confidence, f.verifier_confidence, f.alternatives) == (None, None, [])
+    r = ExtractionRecord.model_validate({"company_id": "c", "name": "n", "schema_id": "s", "run_id": "r"})
+    assert r.documents == []

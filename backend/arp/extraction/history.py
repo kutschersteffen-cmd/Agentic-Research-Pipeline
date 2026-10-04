@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from arp.orchestration.review_queue import effective_decisions
-from arp.schemas.review import field_item_key, period_key
+from arp.schemas.review import field_item_key, held_item_key, period_key
 from arp.storage.run_store import RunStore
 
 
@@ -26,6 +26,7 @@ class RunHistory:
         self._company_rows: dict[str, list[dict]] = {}
         self._company_run: dict[str, str] = {}
         self._company_rejected: dict[str, set[str]] = {}  # company -> field ids a human rejected in its last run
+        self._released: set[str] = set()  # content keys of held documents a human approved
 
     @classmethod
     def load(cls, run_store: RunStore, *, exclude_run_id: str | None = None) -> RunHistory:
@@ -51,6 +52,12 @@ class RunHistory:
             self._company_rejected[row.get("company_id", "")] = {
                 f["field_id"] for f in row.get("fields", []) if field_item_key(issuer, f["field_id"], period_key(f)) in rejected
             }
+            for d in row.get("held_documents", []):
+                ck = d.get("content_key")
+                if ck and (decisions.get(held_item_key(row.get("company_id", ""), d["doc_id"])) or {}).get("decision") == "approve":
+                    self._released.add(ck)
+                else:  # a later reject or new round withdraws an earlier release
+                    self._released.discard(ck)
             for f in row.get("fields", []):
                 key = field_item_key(issuer, f["field_id"], period_key(f))
                 kind = (decisions.get(key) or {}).get("decision")
@@ -62,6 +69,9 @@ class RunHistory:
                 if prior is not None:
                     self._decided[key] = prior
                     self._periods.setdefault(issuer, set()).add(period_key(f))
+
+    def released_documents(self) -> set[str]:
+        return set(self._released)
 
     def last_decided(self, item_key: str) -> PriorValue | None:
         return self._decided.get(item_key)

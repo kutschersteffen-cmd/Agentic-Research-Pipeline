@@ -7,7 +7,7 @@ from arp.extraction.verifier_agent import VerifierOutput
 from arp.grounding import ground_citations
 from arp.normalise.value import typed_value
 from arp.schemas.common import DocumentChunk, SourceDocument
-from arp.schemas.datapoints import ExtractedField, FieldDefinition, ValueState
+from arp.schemas.datapoints import Alternative, ExtractedField, FieldDefinition, ValueState
 from arp.schemas.review import ReasonCode
 
 
@@ -42,17 +42,20 @@ def build_extracted_fields(
     typed.sort(key=lambda t: t[1].period_end or "", reverse=True)  # ISO dates sort as text; None ("") last
 
     kept: dict[str, list] = {}
+    dupes: dict[str, list[PeriodValue]] = {}
     for pv, tv in typed:
         # Unresolved periods with different labels are different periods we can't place, not duplicates.
         key = tv.period_end or f"unspecified:{tv.period_text or ''}"
         if key in kept:
             kept[key][2] = True  # a second value for the same period
+            dupes.setdefault(key, []).append(pv)
         else:
             kept[key] = [pv, tv, False]
 
     unresolved = sum(1 for _, tv, _ in kept.values() if tv.period_end is None) > 1
     out: list[ExtractedField] = []
-    for pv, tv, duplicated in kept.values():
+    for key, (pv, tv, duplicated) in kept.items():
+        alternatives: list[Alternative] = []
         if unresolved and tv.period_end is None:
             tv = replace(tv, reasons=[*tv.reasons, ReasonCode.CHECK_FAILED],
                          notes=[*tv.notes, f"period not resolved: {tv.period_text or '(none)'}"])
@@ -67,6 +70,10 @@ def build_extracted_fields(
             # raw/unit text no longer describes the value, so nothing is
             # converted from it.
             v = verifier.corrected_value
+            alternatives.append(Alternative(
+                value=tv.value, raw_value_text=pv.raw_value_text, source="extractor",
+                citations=ground_citations(pv.citations, documents_by_id, fuzzy_threshold, passages=passages),
+            ))
             zero = isinstance(v, (int, float)) and not isinstance(v, bool) and v == 0
             state = ValueState.NOT_FOUND if v is None else ValueState.ZERO if zero else ValueState.FOUND
             tv = replace(
@@ -77,6 +84,14 @@ def build_extracted_fields(
             final_citations = []
         else:
             final_citations = ground_citations(pv.citations, documents_by_id, fuzzy_threshold, passages=passages)
+        alternatives += [
+            Alternative(
+                value=typed_value(field, d, fiscal_year_end=fiscal_year_end, planned=planned).value,
+                raw_value_text=d.raw_value_text, source="duplicate",
+                citations=ground_citations(d.citations, documents_by_id, fuzzy_threshold, passages=passages),
+            )
+            for d in dupes.get(key, [])
+        ]
         has_value = tv.value_state != ValueState.NOT_FOUND
         all_grounded = all(c.grounded for c in final_citations) if final_citations else not has_value
 
@@ -117,6 +132,9 @@ def build_extracted_fields(
                 raw_value_text=pv.raw_value_text,
                 citations=final_citations,
                 confidence=final_confidence,
+                extractor_confidence=draft.confidence,
+                verifier_confidence=verifier.confidence,
+                alternatives=alternatives,
                 grounded=all_grounded,
                 verifier_notes=" ".join(notes_parts).strip() or None,
                 conflicting_sources=conflict,

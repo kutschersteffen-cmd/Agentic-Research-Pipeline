@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from arp.checks.prior_period import open_restatement_candidates
 from arp.checks.runner import CheckContext, check_record
@@ -74,10 +75,17 @@ async def _extract_company(
     if documents is None:
         documents = await registry.fetch_all(company)
     documents = [confirm_entity(d, company, identifier_map) for d in documents]
+    released = history.released_documents() if history else set()
+    for d in documents:
+        if d.content_key in released:  # a human released it from a held list
+            d.match_status = MatchStatus.CONFIRMED
     documents_by_id = {d.doc_id: d for d in documents}  # all docs, held ones included
     kept = [d for d in documents if d.match_status != MatchStatus.MISMATCH]
     held = [
-        {"doc_id": d.doc_id, "title": d.title, "covered_entity": d.covered_entity, "match_status": d.match_status.value}
+        {
+            "doc_id": d.doc_id, "title": d.title, "covered_entity": d.covered_entity, "match_status": d.match_status.value,
+            "content_key": d.content_key, "parser_version": d.parser_version, "doc_type": d.doc_type.value,
+        }
         for d in documents
         if d.match_status == MatchStatus.MISMATCH
     ]
@@ -177,6 +185,14 @@ async def _extract_company(
         overall_confidence=overall_confidence,
         needs_review=any(f.route == "review" for f in fields),
         held_documents=held,
+        documents=[
+            {
+                "doc_id": d.doc_id, "doc_type": d.doc_type.value, "title": d.title, "company_id": d.company_id,
+                "content_key": d.content_key, "parser_version": d.parser_version,
+                "source_filename": Path(d.local_path).name if d.local_path else None,
+            }
+            for d in kept
+        ],
     )
     # Cost is estimated per-call against the model that actually produced
     # each usage (extractor and verifier can now differ), then summed --
