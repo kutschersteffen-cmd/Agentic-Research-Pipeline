@@ -47,3 +47,6 @@ config/users.json
 
 projects/*
 !projects/.gitkeep
+
+# graphify output
+graphify-out/

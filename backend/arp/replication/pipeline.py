@@ -4,7 +4,7 @@ import logging
 from dataclasses import replace
 
 from arp.replication.backtest_engine import required_characteristic_names, run_backtest
-from arp.replication.characteristics_data import CharacteristicDataSource, CharacteristicPanel
+from arp.replication.characteristics_data import CharacteristicPanel, CsvCharacteristicSource
 from arp.replication.compare import build_comparison_report
 from arp.replication.price_data import PriceDataSource
 from arp.schemas.common import JobStatus, RunManifest, new_id, now_iso
@@ -33,7 +33,7 @@ def run_replication(
     price_source: PriceDataSource,
     *,
     run_store: RunStore,
-    characteristics_sources: dict[str, CharacteristicDataSource] | None = None,
+    characteristics_sources: dict[str, CsvCharacteristicSource] | None = None,
     benchmark_ticker: str | None = None,
     out_of_sample_start: str | None = None,
     out_of_sample_end: str | None = None,

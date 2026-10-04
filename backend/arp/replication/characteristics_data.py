@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -29,28 +28,7 @@ class CharacteristicPanel:
         return list(self.values.keys())
 
 
-class CharacteristicDataSource(ABC):
-    """Pluggable fundamental/characteristic-data adapter, the value-signal
-    counterpart to PriceDataSource. signals.py/backtest_engine.py only
-    ever talk to this interface, never a vendor SDK directly, so a real
-    point-in-time fundamentals vendor is a new adapter here, not a change
-    to the signal/backtest code -- see docs/STRATEGY_REPLICATION_
-    METHODOLOGY.md for what this project's own CsvCharacteristicSource
-    does and doesn't correct for (notably: no restatement handling: the
-    CSV's own values are trusted as point-in-time as supplied).
-    """
-
-    name: str
-
-    @abstractmethod
-    def get_values(self, tickers: list[str], start: str, end: str) -> CharacteristicPanel:
-        """The characteristic's value for `tickers` over [start, end]
-        (ISO dates). Tickers with no data anywhere in the window may be
-        omitted entirely rather than included as all-None columns."""
-        raise NotImplementedError
-
-
-class CsvCharacteristicSource(CharacteristicDataSource):
+class CsvCharacteristicSource:
     """Reads a wide CSV: a `date` column (ISO, one row per period-end,
     typically the same monthly grid as the price panel it's paired with --
     a fundamental reported less often, e.g. annually, is expected to

@@ -6,7 +6,7 @@ from arp.schemas.common import DocType, DocumentChunk
 
 
 def setup_function():
-    index_cache_module.clear_index_cache()
+    index_cache_module.get_index_cache().clear()
 
 
 def _chunk(chunk_id, text, doc_type=DocType.ANNUAL_REPORT_10K):
@@ -86,7 +86,7 @@ def test_cache_reuse_does_not_change_selection_results():
     ]
 
     first = select_relevant_chunks(chunks, ["green", "capex", "renewable"], max_chunks=10)
-    index_cache_module.clear_index_cache()  # force a fresh build, no cache reuse
+    index_cache_module.get_index_cache().clear()  # force a fresh build, no cache reuse
     second = select_relevant_chunks(chunks, ["green", "capex", "renewable"], max_chunks=10)
 
     assert [c.chunk_id for c in first] == [c.chunk_id for c in second]

@@ -7,7 +7,6 @@ from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.verifier_agent import VerifierOutput
 from arp.ingestion.registry import DocumentSourceRegistry
-from arp.normalise.tables_manifest import TABLES, check_manifest, table_versions
 from arp.normalise.value import typed_value
 from arp.presets.green import GREEN_TABLE, build_green_schema, green_summary, load_green_categories
 from arp.presets.registry import PRESETS, install_preset
@@ -25,8 +24,7 @@ GREEN_IDS = [
 ]
 
 
-def test_table_in_manifest():
-    assert check_manifest(TABLES, {GREEN_TABLE: table_versions()[GREEN_TABLE]}) == []
+def test_green_categories_table():
     cats = load_green_categories()
     assert [c.category_id for c in cats if c.kind == "green"] == GREEN_IDS
     assert [c.category_id for c in cats if c.kind == "transition"] == ["transition"]

@@ -2,13 +2,13 @@ import threading
 import time
 
 from arp.ingestion import parsing
-from arp.ingestion.chunk_spans import clear_span_cache
+from arp.ingestion.chunk_spans import get_span_cache
 from arp.ingestion.parsing import chunk_document
 from arp.schemas.common import DocType, SourceDocument
 
 
 def setup_function():
-    clear_span_cache()
+    get_span_cache().clear()
 
 
 def _doc(text, doc_type=DocType.ANNUAL_REPORT_10K, doc_id="doc_a"):

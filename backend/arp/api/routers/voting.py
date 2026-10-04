@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from arp.api.deps import get_ballot_platform, get_engagement_store, get_registry, get_run_store, settings_dep
+from arp.api.deps import get_engagement_store, get_registry, get_run_store, settings_dep
 from arp.api.review_endpoints import get_review_history, get_review_queue, submit_review
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
@@ -12,7 +12,7 @@ from arp.schemas.common import CompanyRef
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
-from arp.voting.ballot_casting import BallotPlatform
+from arp.voting.ballot_casting import ManualInstructionBallotPlatform
 from arp.voting.pipeline import cast_approved_votes, create_voting_run, execute_voting_run, get_ballots, get_cast_votes
 
 router = APIRouter(prefix="/api/voting", tags=["voting"])
@@ -109,9 +109,9 @@ def submit_voting_review(run_id: str, req: VoteReviewDecisionRequest, run_store:
 
 @router.post("/runs/{run_id}/cast")
 async def cast_votes_endpoint(
-    run_id: str, run_store: RunStore = Depends(get_run_store), platform: BallotPlatform = Depends(get_ballot_platform)
+    run_id: str, run_store: RunStore = Depends(get_run_store), settings: Settings = Depends(settings_dep)
 ) -> dict:
-    cast = await cast_approved_votes(run_id, run_store, platform)
+    cast = await cast_approved_votes(run_id, run_store, ManualInstructionBallotPlatform(settings.ballots_dir))
     return {"cast_count": len(cast), "votes": [v.model_dump(mode="json") for v in cast]}
 
 

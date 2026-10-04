@@ -85,10 +85,6 @@ _CRITICAL_MINERALS: list[CriticalMineral] = [
 ]
 
 
-def list_critical_minerals() -> list[CriticalMineral]:
-    return list(_CRITICAL_MINERALS)
-
-
 def critical_isic_codes() -> set[str]:
     """Flattened set of every ISIC division appearing in the registry -- the
     join key used throughout the indirect-exposure subsystem. Coarse by
@@ -97,10 +93,6 @@ def critical_isic_codes() -> set[str]:
     at the industry-division level, not a per-commodity certification.
     """
     return {code for mineral in _CRITICAL_MINERALS for code in mineral.isic_codes}
-
-
-def is_critical_isic_code(isic_code: str) -> bool:
-    return isic_code in critical_isic_codes()
 
 
 def apply_criticality_overlay(theme: ThemeDefinition) -> ThemeDefinition:

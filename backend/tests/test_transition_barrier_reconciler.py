@@ -8,7 +8,6 @@ from arp.transition_barrier.refresh.eli import parse_eli
 from arp.transition_barrier.refresh.reconciler import (
     FetchedVersion,
     is_auto_applicable,
-    partition_findings,
     reconcile,
 )
 from arp.transition_barrier.refresh.router import automatable_sources, coverage_summary, route_sources
@@ -205,7 +204,8 @@ def test_no_rating_change_is_ever_auto_applicable():
         reconcile(_score(), _fetched(conflicting_versions=["a", "b"])),
         reconcile(_score(), _fetched(error="boom")),
     ]
-    auto, review = partition_findings(findings)
+    auto = [f for f in findings if is_auto_applicable(f)]
+    review = [f for f in findings if not is_auto_applicable(f)]
     assert len(auto) + len(review) == len(findings)
     assert all(f.proposed_rating is None for f in auto), "an auto-applicable finding must never carry a rating change"
     assert all(f.outcome is not RefreshOutcome.RATING_CHANGE_CANDIDATE for f in auto)

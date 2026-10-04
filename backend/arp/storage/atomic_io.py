@@ -34,6 +34,18 @@ import tempfile
 from pathlib import Path
 
 
+def _atomic_write(path: Path, data: str | bytes, prefix: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=prefix, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w" if isinstance(data, str) else "wb", **({"encoding": "utf-8"} if isinstance(data, str) else {})) as f:
+            f.write(data)
+        os.replace(tmp_path, path)
+    except BaseException:
+        Path(tmp_path).unlink(missing_ok=True)
+        raise
+
+
 def atomic_write_text(path: Path, text: str, *, prefix: str = ".tmp_") -> None:
     """Writes `text` to `path` via a temp file in the same directory plus
     `os.replace`. The temp file must share the destination's directory:
@@ -42,28 +54,12 @@ def atomic_write_text(path: Path, text: str, *, prefix: str = ".tmp_") -> None:
     (`BaseException`, so a KeyboardInterrupt mid-write doesn't leak one)
     rather than leaving a stray `.tmp_*` behind.
     """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=prefix, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(text)
-        os.replace(tmp_path, path)
-    except BaseException:
-        Path(tmp_path).unlink(missing_ok=True)
-        raise
+    _atomic_write(path, text, prefix)
 
 
 def atomic_write_bytes(path: Path, data: bytes, *, prefix: str = ".tmp_") -> None:
     """`atomic_write_text` for raw bytes (stored source documents)."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=prefix, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "wb") as f:
-            f.write(data)
-        os.replace(tmp_path, path)
-    except BaseException:
-        Path(tmp_path).unlink(missing_ok=True)
-        raise
+    _atomic_write(path, data, prefix)
 
 
 def write_text_exclusive(path: Path, text: str) -> None:

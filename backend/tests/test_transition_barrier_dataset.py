@@ -6,7 +6,6 @@ import re
 from arp.schemas.transition_barrier import CRITERION_CODE_PATTERN, AccessPattern, Pillar, Region
 from arp.transition_barrier.dataset import (
     build_matrix,
-    criteria_by_code,
     filter_scores,
     load_criteria,
     load_scores,
@@ -73,7 +72,7 @@ def test_105_scores_cover_every_criterion_in_all_three_regions():
     scores = load_scores()
     assert len(scores) == 105
     per_code = collections.Counter(s.code for s in scores)
-    assert set(per_code) == set(criteria_by_code())
+    assert set(per_code) == {c.code for c in load_criteria()}
     assert set(per_code.values()) == {3}, "every criterion must be rated in all three regions"
     for code in per_code:
         assert {s.region for s in filter_scores(code=code)} == set(Region)
@@ -120,7 +119,7 @@ def test_only_company_disclosure_sources_lack_a_url():
 
 
 def test_registry_never_references_an_unknown_criterion():
-    known = set(criteria_by_code())
+    known = {c.code for c in load_criteria()}
     for source in load_source_registry():
         assert source.used_by_criteria, f"{source.key} is used by no criterion"
         unknown = set(source.used_by_criteria) - known

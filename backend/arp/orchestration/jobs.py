@@ -5,7 +5,7 @@ import logging
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.schemas.common import JobStatus, RunManifest
@@ -66,12 +66,6 @@ def hold_run(run_store: RunStore, run_id: str) -> Iterator[None]:
             _held.reset(token)
 
 
-class JobLauncher(Protocol):
-    def launch(self, run_id: str, job: Callable[[], Awaitable[None]], *, run_store: RunStore | None = None) -> None: ...
-
-    async def drain(self) -> list[str]: ...
-
-
 class LocalJobLauncher:
     """Runs a run's job as a background task in this process, under the
     run's lease. `run_store` is a factory so the app's current settings
@@ -109,10 +103,10 @@ class LocalJobLauncher:
         return drained
 
 
-_launcher: JobLauncher | None = None
+_launcher: LocalJobLauncher | None = None
 
 
-def get_job_launcher() -> JobLauncher:
+def get_job_launcher() -> LocalJobLauncher:
     global _launcher
     if _launcher is None:
         from arp.api.deps import get_run_store
@@ -178,7 +172,7 @@ async def resume_run(
     from what its creator stored (manifest params, companies.json). Items
     already in results.jsonl, or stopped for review, are not run again;
     plain failures are retried. Holds the run's lease throughout unless
-    `lease=False` (the caller -- a JobLauncher -- already holds it)."""
+    `lease=False` (the caller -- a LocalJobLauncher -- already holds it)."""
     from arp.orchestration.batch_runner import read_done_keys
 
     manifest = check_resumable(run_store, run_id)

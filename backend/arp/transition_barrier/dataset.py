@@ -55,11 +55,6 @@ def load_source_registry(path: Path | None = None) -> list[RegistrySource]:
     return [RegistrySource.model_validate({"key": key, **row}) for key, row in raw.items()]
 
 
-@lru_cache
-def criteria_by_code() -> dict[str, BarrierCriterion]:
-    return {c.code: c for c in load_criteria()}
-
-
 def sources_for_criterion(code: str) -> list[RegistrySource]:
     """Resolve the criterion -> source join. criteria_schema.json is
     authoritative for *which* sources back a criterion; the registry is used

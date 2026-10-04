@@ -1,4 +1,4 @@
-from arp.research.taxonomy_sources.bundled_sources import bundled_source_categories, list_bundled_authority_sources
+from arp.research.taxonomy_sources.bundled_sources import list_bundled_authority_sources
 from arp.schemas.taxonomy_sources import SourceCandidateType
 
 
@@ -13,8 +13,8 @@ def test_list_bundled_authority_sources_returns_well_formed_candidates():
 
 
 def test_list_bundled_authority_sources_covers_expected_categories():
-    categories = set(bundled_source_categories())
-    assert {"eu_taxonomy", "nace", "iea", "ipcc"} <= categories
+    for category in ("eu_taxonomy", "nace", "iea", "ipcc"):
+        assert list_bundled_authority_sources(category=category)
 
 
 def test_list_bundled_authority_sources_filters_by_category():

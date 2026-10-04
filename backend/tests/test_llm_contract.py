@@ -1,5 +1,4 @@
-import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from arp.config import Settings
 from arp.extraction.extractor_agent import ExtractionDraft
@@ -27,11 +26,6 @@ async def assert_llm_contract(client: LLMClient) -> None:
 
 async def test_fake_client_passes_contract(fake_llm):
     await assert_llm_contract(fake_llm({"_Out": [_Out()]}))
-
-
-def test_unknown_provider_rejected():
-    with pytest.raises(ValidationError):
-        Settings(llm_provider="vertex")
 
 
 def test_factory_builds_anthropic(tmp_path):

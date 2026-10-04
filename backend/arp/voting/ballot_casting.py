@@ -1,32 +1,15 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from pathlib import Path
 
 from arp.schemas.voting import CastConfirmation, VoteRecord
 
 
-class BallotPlatform(ABC):
-    """Transmits an authorized vote instruction somewhere real: a custodian
-    API, an ISS/Glass Lewis voting platform, or similar. Which platform to
-    integrate is a house infrastructure decision (see
-    docs/ENGAGEMENT_VOTING_ARCHITECTURE.md #8), not an architectural one --
-    swap implementations behind this interface without touching the agent
-    that calls it."""
-
-    name: str = "base"
-
-    @abstractmethod
-    async def cast(self, vote_record: VoteRecord) -> CastConfirmation:
-        raise NotImplementedError
-
-
-class ManualInstructionBallotPlatform(BallotPlatform):
+class ManualInstructionBallotPlatform:
     """No real custodian/proxy-platform integration is wired up yet -- this
     writes a human-readable voting instruction file instead of transmitting
     anywhere, so the rest of the pipeline (and its tests) can exercise the
-    real cast_vote() contract today, with a real platform swapped in later
-    against the same BallotPlatform interface."""
+    real cast_vote() contract today."""
 
     name = "manual_instruction_file"
 
@@ -53,7 +36,7 @@ class CastVoteError(Exception):
     pass
 
 
-async def cast_vote(platform: BallotPlatform, vote_record: VoteRecord) -> VoteRecord:
+async def cast_vote(platform: ManualInstructionBallotPlatform, vote_record: VoteRecord) -> VoteRecord:
     """Executes an authorized vote. This function has no read access to a
     "recommendation" -- only to a `human_decision` -- by construction: it
     refuses outright if one isn't present, so an unauthorized vote can

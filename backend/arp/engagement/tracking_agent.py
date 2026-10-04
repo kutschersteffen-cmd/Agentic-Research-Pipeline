@@ -31,11 +31,6 @@ def log_outreach_sent(
     return store.set_milestone_stage(company_id, issue_id, MilestoneStage.CONTACTED, reason=f"Outreach sent by {sent_by}.")
 
 
-def log_dialogue_opened(store: EngagementStore, company_id: str, issue_id: str, summary: str, logged_by: str) -> EngagementRecord:
-    store.add_correspondence(company_id, issue_id, CorrespondenceEntry(type="call", summary=summary, logged_by=logged_by))
-    return store.set_milestone_stage(company_id, issue_id, MilestoneStage.DIALOGUE_OPENED, reason="Company opened dialogue.")
-
-
 def log_meeting_summary_validated(
     store: EngagementStore,
     company_id: str,
@@ -70,8 +65,3 @@ def log_commitment_verified(
         )
         record = store.set_issue_status(company_id, issue_id, IssueStatus.RESOLVED)
     return record
-
-def log_commitment_missed(
-    store: EngagementStore, company_id: str, issue_id: str, commitment_id: str, noted_by: str
-) -> EngagementRecord:
-    return store.update_commitment_status(company_id, issue_id, commitment_id, CommitmentStatus.MISSED, noted_by)
