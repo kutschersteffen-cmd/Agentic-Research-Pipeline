@@ -344,6 +344,18 @@ def test_legacy_review_routes_refuse_workbench_runs_and_keys(env):
     assert c.post("/api/themes/runs/thm1/review", json={"item_key": "C1:a1", "decision": "approve"}).status_code == 200
 
 
+def test_legacy_review_routes_refuse_holdings_runs(env):
+    rs, c = env[0], client(CAROL)
+    rs.save_manifest(RunManifest(run_id="hold1", run_type="holdings"))
+    rs.append_jsonl(rs.review_queue_path("hold1"), {"item_key": "isin:US0378331005", "isin": "US0378331005"})
+    for url in ("/api/financials/runs/hold1/review", "/api/voting/runs/hold1/review"):
+        for key in ("isin:US0378331005", "other"):
+            r = c.post(url, json={"item_key": key, "decision": "approve", "reviewer": "X"})
+            assert r.status_code == 400, (url, key)
+    assert c.post("/api/themes/runs/thm1/review", json={"item_key": "isin:US0378331005", "decision": "approve"}).status_code == 400
+    assert rs.read_jsonl(rs.review_decisions_path("hold1")) == rs.read_jsonl(rs.review_decisions_path("thm1")) == []
+
+
 def test_get_item(env):
     rs = env[0]
     item = get_item(rs, "ext1", HELD, ALICE)

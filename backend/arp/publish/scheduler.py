@@ -61,8 +61,8 @@ def due_jobs(
     if (
         today >= first_business_day_after(date.fromisoformat(prev), settings.snapshot_day)
         and latest_frozen_month != month_of(prev)
-        and not (url and (today.day < settings.holdings_pull_day or pull))
-    ):
+        and not (url and today.day < settings.holdings_pull_day)
+    ):  # a failing pull never holds it: the pull runs first, stale holders stay flagged in holder status
         due.append("snapshot")
     if settings.postgres_dsn and latest_frozen_month is not None:
         due.append("corrections")

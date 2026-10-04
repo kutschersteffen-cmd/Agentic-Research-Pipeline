@@ -54,6 +54,9 @@ class SnapshotManifest(BaseModel):
     as_of: str
     frozen_at: str
     cutoff: str | None = None  # taken before facts were read; the next correction counts events after it
+    # The highest outbox event id read for a correction; the next one counts events after it (ids follow
+    # commit order, timestamps do not). Older manifests lack it and fall back to `cutoff`.
+    event_id_cutoff: int | None = None
     schema_version: str
     datasets: list[DatasetEntry]
     supersedes: str | None = None

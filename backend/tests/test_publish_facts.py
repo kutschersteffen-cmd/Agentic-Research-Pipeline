@@ -104,3 +104,17 @@ def test_published_facts_unique_key_version():
         if isinstance(u, UniqueConstraint)
     }
     assert frozenset({"issuer_key", "field_id", "period_end", "basis", "version"}) in cols
+
+
+def test_serialization_failures_map_to_concurrent_publish():
+    from types import SimpleNamespace
+
+    from sqlalchemy.exc import OperationalError
+
+    from arp.publish.facts import ConcurrentPublish, _concurrent_on_serialization_failure
+
+    for code in ("40P01", "40001"):
+        with pytest.raises(ConcurrentPublish), _concurrent_on_serialization_failure():
+            raise OperationalError("UPDATE", {}, SimpleNamespace(sqlstate=code))
+    with pytest.raises(OperationalError), _concurrent_on_serialization_failure():
+        raise OperationalError("UPDATE", {}, SimpleNamespace(sqlstate="08006"))  # connection failure stays a 500

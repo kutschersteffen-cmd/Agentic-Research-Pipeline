@@ -5,6 +5,7 @@ arp/storage/postgres_models.py."""
 from __future__ import annotations
 
 from collections.abc import Iterable
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Literal
@@ -126,6 +127,21 @@ class ConcurrentPublish(RuntimeError):
     """Another publish changed a fact first."""
 
 
+SERIALIZATION_FAILURES = {"40P01", "40001"}  # deadlock_detected, serialization_failure
+
+
+@contextmanager
+def _concurrent_on_serialization_failure():
+    from sqlalchemy.exc import OperationalError
+
+    try:
+        yield
+    except OperationalError as exc:
+        if getattr(exc.orig, "sqlstate", None) in SERIALIZATION_FAILURES:
+            raise ConcurrentPublish(str(exc.orig)) from exc
+        raise
+
+
 def _fact(row) -> Fact:
     return Fact.model_validate({c.key: getattr(row, c.key) for c in row.__table__.columns})
 
@@ -223,7 +239,9 @@ class PublishStore:
         from arp.storage.postgres_models import PublishedFactModel as M
         from arp.storage.postgres_models import ReleaseModel
 
-        with self.session() as s:
+        # Rows in key order, so two publishes over overlapping keys lock them in the same order.
+        plans = sorted(plans, key=lambda p: fact_key(p.fact) if p.fact is not None else ("",) * 4)
+        with _concurrent_on_serialization_failure(), self.session() as s:
             try:
                 if release is not None:
                     s.add(ReleaseModel(**release.model_dump()))
@@ -235,9 +253,13 @@ class PublishStore:
                         if p.closes is not None:
                             self._close(s, p.closes)
                     elif p.kind == "reconfirm":
-                        s.execute(
-                            update(M).where(M.fact_id == p.fact.fact_id).values(reconfirmed_at=p.fact.reconfirmed_at)
+                        res = s.execute(
+                            update(M)
+                            .where(M.fact_id == p.fact.fact_id, M.valid_to.is_(None))
+                            .values(reconfirmed_at=p.fact.reconfirmed_at)
                         )
+                        if res.rowcount != 1:
+                            raise ConcurrentPublish(f"fact {p.fact.fact_id} is no longer current")
             except IntegrityError as exc:
                 raise ConcurrentPublish(str(exc.orig)) from exc
             self._commit(s, events)
@@ -279,7 +301,8 @@ class PublishStore:
         from arp.storage.postgres_models import PublishedFactModel as M
         from arp.storage.postgres_models import ReleaseModel as R
 
-        with self.session() as s:
+        closes, restores = sorted(closes, key=fact_key), sorted(restores, key=fact_key)
+        with _concurrent_on_serialization_failure(), self.session() as s:
             try:
                 # Serialise withdrawals per issuer, then re-check what was planned outside the lock.
                 for issuer in sorted({release.issuer_key, *(f.issuer_key for f in closes + restores)}):

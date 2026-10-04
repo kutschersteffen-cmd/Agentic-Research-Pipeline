@@ -131,6 +131,20 @@ def test_stale_close_raises_concurrent_pg(store):
     assert store.get_fact(stale.fact.fact_id) is None
 
 
+def test_reconfirm_of_closed_fact_raises_concurrent_pg(store):
+    from arp.publish.facts import ConcurrentPublish
+
+    _, p1 = _publish(store, _cand(), T1)
+    rel = _release("run2", T2)
+    plan = plan_version(p1.fact, _cand(observed_at=T2), release_id=rel.release_id, now=T2)
+    assert plan.kind == "reconfirm"
+    _publish(store, _cand(value=1100.0, observed_at=T2), T2, "run3")  # closes p1 meanwhile
+    with pytest.raises(ConcurrentPublish, match="no longer current"):
+        store.save_release(rel, [plan], [])
+    assert store.get_fact(p1.fact.fact_id).reconfirmed_at is None
+    assert store.get_release(rel.release_id) is None
+
+
 def test_lineage_one_join_pg(store):
     from sqlalchemy import event
 

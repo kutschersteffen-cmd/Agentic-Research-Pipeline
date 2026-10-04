@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../../api/client";
 import { FileLink } from "../../components/FileLink";
 import { announce } from "../../lib/announce";
-import { ageLabel, parseIntakeError, rowErrorText } from "../../lib/holdings";
+import { ageLabel, needsOverrideReason, parseIntakeError, rowErrorText } from "../../lib/holdings";
 import type { HolderStatus, IntakeResult, RowError } from "../../types";
 
 const KINDS = ["index", "portfolio"] as const;
@@ -29,6 +29,7 @@ export function HoldingsIntake() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ message: string; errors: RowError[] } | null>(null);
   const reasonRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const load = () => api.listHolders().then((r) => setHolders(r.holders), (e: Error) => setLoadError(e.message));
   useEffect(() => {
@@ -43,7 +44,9 @@ export function HoldingsIntake() {
       setNotice(msg);
       announce(msg);
     } catch (err) {
-      setNotice(parseIntakeError(err as Error).message);
+      const msg = parseIntakeError(err as Error).message;
+      setNotice(msg);
+      announce(msg);
     } finally {
       setPulling(null);
       void load();
@@ -61,12 +64,13 @@ export function HoldingsIntake() {
       setNotice(msg);
       announce(msg);
       setFile(null);
+      if (fileRef.current) fileRef.current.value = "";
       setReason("");
       void load();
     } catch (err) {
       const parsed = parseIntakeError(err as Error);
       setError(parsed);
-      if ((err as Error).message.startsWith("409")) reasonRef.current?.focus();
+      if (needsOverrideReason(err as Error)) reasonRef.current?.focus();
     } finally {
       setBusy(false);
     }
@@ -140,7 +144,7 @@ export function HoldingsIntake() {
         </label>
         <label className="field-label">
           File
-          <input type="file" accept=".csv,.xlsx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required />
+          <input ref={fileRef} type="file" accept=".csv,.xlsx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required />
         </label>
         <label className="field-label">
           Provider

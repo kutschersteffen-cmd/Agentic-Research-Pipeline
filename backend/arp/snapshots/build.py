@@ -119,6 +119,7 @@ def build_snapshot(
     majors: list[int] | None = None,
     holdings_from: int | None = None,
     cutoff: str | None = None,
+    event_id_cutoff: int | None = None,
 ) -> SnapshotManifest:
     """`majors`: defaults to the month's live majors. `holdings_from`: a revision of the same month whose
     holdings files are copied byte for byte. `cutoff`: the time facts and events were read up to (now when
@@ -129,11 +130,11 @@ def build_snapshot(
     out = snapshot_dir(root, month, revision)
     with _MONTH_LOCKS.acquire(str(out.parent)):
         return _build(as_of, month, revision, out, root, portfolio_store, facts_as_of, supersedes, changes,
-                      schema.live_majors(month) if majors is None else majors, holdings_from, cutoff)
+                      schema.live_majors(month) if majors is None else majors, holdings_from, cutoff, event_id_cutoff)
 
 
 def _build(as_of, month, revision, out, root, portfolio_store, facts_as_of, supersedes, changes, majors, holdings_from,
-           cutoff):
+           cutoff, event_id_cutoff):
     snapshot_id = f"{month}.r{revision}"
     if (out / "manifest.json").exists():
         raise SnapshotFrozen(f"{snapshot_id} is frozen")
@@ -159,6 +160,7 @@ def _build(as_of, month, revision, out, root, portfolio_store, facts_as_of, supe
                                         rows=data[1].count(b"\n"), files=files))
     manifest = SnapshotManifest(
         snapshot_id=snapshot_id, month=month, revision=revision, as_of=as_of, frozen_at=ts_now(), cutoff=cutoff,
+        event_id_cutoff=event_id_cutoff,
         schema_version=schema.SCHEMAS[schema.CURRENT_MAJOR]["version"], datasets=entries,
         supersedes=supersedes, changes=list(changes),
     )
@@ -221,24 +223,30 @@ def build_correction(
 ) -> SnapshotManifest | None:
     """A new revision when a fact visible at month end was restated, withdrawn or restored after the latest
     revision's cut-off (for r1, after month end, since r1 reflects month end). ESG rows carry every such
-    correction since month end; facts first published after month end never enter. Events and current facts
-    are read up to one cut-off, stored in the new manifest, so a later event is counted by the next correction.
+    correction since month end; facts first published after month end never enter. The latest revision is
+    superseded by events with an id above its `event_id_cutoff` (event ids follow commit order; a timestamp is
+    taken before commit, so a slow commit can land behind a time watermark). Events are read once by time
+    (`at` after month end, the same stamps that decide what was visible at month end), then current facts after
+    that read, so every event read is reflected; the highest id read is stored for the next correction.
     The majors and holdings files are those of the latest revision."""
     latest = read_manifest(root, month)
     if latest is None:
         return None
-    cutoff = now or ts_now()
     end = month_end(month)
     bound = as_of_bound(end)
     base_facts = facts_as_of(bound)
     base = {fact_key(f) for f in base_facts}
-
-    def relevant(after: str) -> list[FactEvent]:
-        return [e for e in events_since(after) if e.event_type in CORRECTION_EVENTS and e.at <= cutoff
-                and (e.issuer_key, e.field_id, e.period_end, e.basis) in base]
-
-    since_end = relevant(bound)
-    new = since_end if latest.revision == 1 else relevant(latest.cutoff or latest.frozen_at)
+    events = events_since(bound)
+    cutoff = now or ts_now()  # after the event read: every event read is stamped before it
+    max_id = max([e.event_id or 0 for e in events] + [latest.event_id_cutoff or 0])
+    since_end = [e for e in events if e.event_type in CORRECTION_EVENTS
+                 and (e.issuer_key, e.field_id, e.period_end, e.basis) in base]
+    if latest.revision == 1:
+        new = since_end
+    elif latest.event_id_cutoff is not None:
+        new = [e for e in since_end if e.event_id > latest.event_id_cutoff]
+    else:  # a manifest from before event ids were stored
+        new = [e for e in since_end if e.at > (latest.cutoff or latest.frozen_at)]
     if not new:
         return None
     keys = {(e.issuer_key, e.field_id, e.period_end, e.basis) for e in since_end}
@@ -246,6 +254,7 @@ def build_correction(
     corrected = [f for f in base_facts if fact_key(f) not in keys] + [current[k] for k in keys if k in current]
     return build_snapshot(
         end, root=root, portfolio_store=portfolio_store, facts_as_of=lambda _: corrected, cutoff=cutoff,
+        event_id_cutoff=max_id,
         revision=latest.revision + 1, supersedes=latest.snapshot_id, holdings_from=latest.revision,
         majors=sorted({d.major for d in latest.datasets}),
         changes=[e.model_dump(include={"event_type", "fact_id", "issuer_key", "field_id", "period_end", "basis", "at"})

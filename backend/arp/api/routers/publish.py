@@ -69,7 +69,6 @@ def withdraw_release(
         raise HTTPException(409, str(exc) if isinstance(exc, AlreadyWithdrawn) else CONCURRENT) from None
     except WithdrawalError as exc:
         raise HTTPException(422, str(exc)) from None
-        raise HTTPException(409, CONCURRENT) from None
     return {"restored": [f.model_dump(mode="json") for f in restored]}
 
 
@@ -93,7 +92,7 @@ def lineage(fact_id: str, store: PublishStore = Depends(publish_store_dep)) -> d
     found = store.lineage(fact_id)
     if found is None:
         raise HTTPException(404, f"unknown fact {fact_id}")
-    found.pop("storage_uri")  # a server path; clients use content_key / doc_id
+    found.pop("storage_uri", None)  # a server path; clients use content_key / doc_id
     return found
 
 

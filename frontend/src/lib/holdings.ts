@@ -16,3 +16,6 @@ export function parseIntakeError(err: Error): { message: string; errors: RowErro
   }
   return { message: err.message, errors: [] };
 }
+
+/** A 409 that asks for an override reason (a file over an API month), not a lost revision race. */
+export const needsOverrideReason = (err: Error): boolean => err.message.startsWith("409") && /override/i.test(err.message);

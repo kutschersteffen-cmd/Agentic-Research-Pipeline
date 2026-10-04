@@ -17,8 +17,8 @@ from arp.storage.run_store import RunStore
 
 VALID_DECISIONS = {"approve", "edit", "reject", "escalate"}
 # Decided only through the review workbench (arp/review/decide.py), which enforces second reviews.
-WORKBENCH_RUN_TYPES = {"extraction", "identity"}
-WORKBENCH_KEY_PREFIXES = ("isic:", "held:", "rst_")
+WORKBENCH_RUN_TYPES = {"extraction", "identity", "holdings"}
+WORKBENCH_KEY_PREFIXES = ("isic:", "held:", "rst_", "isin:")
 
 
 class ReviewDecisionRequest(BaseModel):

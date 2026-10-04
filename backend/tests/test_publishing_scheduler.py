@@ -43,13 +43,14 @@ def test_snapshot_due_once_per_month():
     assert "snapshot" not in due_jobs(date(2026, 11, 1), c, latest_frozen_month="2026-09", **kw)
 
 
-def test_snapshot_waits_for_pull():
+def test_snapshot_waits_for_pull_day_not_for_a_failing_pull():
     c, s = PublishingScheduleConfig(), _settings()
     s.holdings_api_url = "https://up.example"
+    s.holdings_pull_day = 3
     due = lambda day, as_of: due_jobs(day, c, settings=s, latest_frozen_month="2026-09", holders=[_api(as_of)])  # noqa: E731
-    assert "snapshot" not in due(date(2026, 11, 2), "2026-09-30")
-    assert "snapshot" in due(date(2026, 11, 2), "2026-10-31")
-    assert "snapshot" not in due(date(2026, 11, 1), "2026-10-31")
+    assert "snapshot" not in due(date(2026, 11, 2), "2026-09-30")  # before the pull day
+    assert due(date(2026, 11, 3), "2026-09-30") == ["pull", "snapshot"]  # pull still due: it runs first, then the snapshot
+    assert "snapshot" in due(date(2026, 11, 3), "2026-10-31")
 
 
 def test_pull_due_after_pull_day_until_success():
@@ -147,6 +148,18 @@ def test_run_isolates_failing_job(sched, monkeypatch):
     assert c.last_results["reground"] == {"status": "failed", "detail": "blob store down"}
     assert c.last_results["snapshot"]["status"] == "ok"
     assert c.last_reground_day is None  # a failed sample retries next tick
+
+
+def test_failing_pull_still_builds_snapshot(sched, monkeypatch):
+    sched.settings = sched.settings.model_copy(update={"holdings_api_url": "https://up.example"})
+    monkeypatch.setattr(sched.portfolio_store, "list_holders", lambda: [_api("2026-09-30")])
+    order = []
+    monkeypatch.setattr(sched, "_reground", lambda t: ("ok", ""))
+    monkeypatch.setattr(sched, "_pull", lambda t: order.append("pull") or ("failed", "1 pulled, 1 failed"))
+    monkeypatch.setattr(sched, "_snapshot", lambda t: order.append("snapshot") or ("ok", "2026-10.r1"))
+    c = _run(sched)
+    assert order == ["pull", "snapshot"]
+    assert c.last_results["pull"]["status"] == "failed" and c.last_results["snapshot"]["status"] == "ok"
 
 
 def test_reground_drift_recorded_and_day_set(sched, monkeypatch):

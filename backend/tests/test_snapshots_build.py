@@ -71,12 +71,13 @@ class World:
     def events_since(self, after):
         return [e for e in self.events if e.at > after]
 
-    def _event(self, kind, f, at):
-        self.events.append(FactEvent(event_type=kind, fact_id=f.fact_id, issuer_key=f.issuer_key, field_id=f.field_id,
-                                     period_end=f.period_end, basis=f.basis, release_id=f.release_id, at=at))
+    def _event(self, kind, f, at):  # ids in commit (append) order, like the outbox
+        self.events.append(FactEvent(event_id=len(self.events) + 1, event_type=kind, fact_id=f.fact_id,
+                                     issuer_key=f.issuer_key, field_id=f.field_id, period_end=f.period_end,
+                                     basis=f.basis, release_id=f.release_id, at=at))
 
-    def withdraw(self, field):
-        at = B.ts_now()
+    def withdraw(self, field, at=None):
+        at = at or B.ts_now()
         i, f = next((i, f) for i, f in enumerate(self.facts) if f.field_id == field and f.valid_to is None)
         self.facts[i] = f.model_copy(update={"valid_to": at})
         self._event("withdrawn", f, at)
@@ -211,6 +212,44 @@ def test_event_during_correction_reaches_next_revision(env, world, tmp_path):
     r3 = _correct(env, world, tmp_path)
     assert [c["field_id"] for c in r3.changes] == ["f2"]
     assert [r["field_id"] for r in _jsonl(tmp_path, r3, "esg_signals")] == ["f3"]
+
+
+def test_event_stamped_before_cutoff_committed_after_reaches_next_revision(env, world, tmp_path):
+    _build(env, world, tmp_path)
+    world.withdraw("f1")
+    assert _correct(env, world, tmp_path).revision == 2
+    world.restate("f3", 8.0)
+    stamp = B.ts_now()  # a publish starts: stamped before r3's cut-off, committed during r3's build
+    injected = []
+
+    def reading(as_of):
+        out = world.facts_as_of(as_of)
+        if as_of.startswith("2026-11") and not injected:  # after r3's facts read, before its freeze
+            injected.append(world.withdraw("f2", at=stamp))
+        return out
+
+    r3 = build_correction(MONTH, root=tmp_path, portfolio_store=env[0], facts_as_of=reading,
+                          events_since=world.events_since)
+    assert injected and [c["field_id"] for c in r3.changes] == ["f3"] and stamp < r3.cutoff
+    assert r3.event_id_cutoff == 2
+    r4 = _correct(env, world, tmp_path)
+    assert r4 is not None and [c["field_id"] for c in r4.changes] == ["f2"]
+    assert [r["field_id"] for r in _jsonl(tmp_path, r4, "esg_signals")] == ["f3"]
+    assert _correct(env, world, tmp_path) is None
+
+
+def test_manifest_without_event_id_cutoff_falls_back_to_time(env, world, tmp_path):
+    _build(env, world, tmp_path)
+    world.withdraw("f1")
+    r2 = _correct(env, world, tmp_path)
+    path = snapshot_dir(tmp_path, MONTH, 2) / "manifest.json"
+    legacy = json.loads(path.read_text())
+    del legacy["event_id_cutoff"]
+    path.write_text(json.dumps(legacy))
+    assert _correct(env, world, tmp_path) is None
+    world.withdraw("f2")
+    r3 = _correct(env, world, tmp_path)
+    assert [c["field_id"] for c in r3.changes] == ["f2"] and r2.revision == 2
 
 
 def test_month_not_ended_refused(env, world, tmp_path):
