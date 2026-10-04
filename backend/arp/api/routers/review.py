@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from arp.api.auth import Principal, current_user, require_role
 from arp.api.deps import get_document_content_store, get_run_store, settings_dep
 from arp.checks.effectiveness import effectiveness
 from arp.config import Settings
+from arp.review.analytics import MONTH_PATTERN, monthly_totals
 from arp.review.context import build_context, item_source, read_snapshot
 from arp.review.decide import DecisionError, decide
 from arp.review.items import list_open_items
@@ -35,6 +36,11 @@ def get_check_effectiveness(run_store: RunStore = Depends(get_run_store)) -> dic
 @router.get("/quality", dependencies=[Depends(require_role("approver"))])
 def get_reviewer_quality(run_store: RunStore = Depends(get_run_store), settings: Settings = Depends(settings_dep)) -> dict:
     return {"reviewers": [asdict(s) for s in reviewer_stats(run_store, settings)]}
+
+
+@router.get("/analytics", dependencies=[Depends(require_role("approver"))])
+def get_review_analytics(month: str = Query(pattern=MONTH_PATTERN), run_store: RunStore = Depends(get_run_store)) -> dict:
+    return {"month": month, "totals": [asdict(t) for t in monthly_totals(run_store, month)]}
 
 
 @router.get("/runs/{run_id}/items/{item_key}/context")

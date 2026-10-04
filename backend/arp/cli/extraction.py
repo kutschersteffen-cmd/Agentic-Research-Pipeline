@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from pathlib import Path
 
 import typer
@@ -14,6 +15,7 @@ from arp.extraction.schema_builder import draft_schema
 from arp.extraction.tnfd_pipeline import run_tnfd_extraction
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.orchestration.jobs import NotResumable, RunBusy, resume_run
+from arp.review.analytics import MONTH_PATTERN, monthly_totals
 from arp.schemas.datapoints import DataPointSchema
 from arp.universe import load_company_universe
 
@@ -132,3 +134,13 @@ def extract_check_effectiveness() -> None:
             f"{s.check_id:<28}{s.field_id:<28}{s.field_version if s.field_version is not None else '-':>4}"
             f"{s.fired:>7}{s.decided:>9}{s.hit_rate:>7.0%}{s.overturn_rate:>11.0%}"
         )
+
+
+@extract_app.command("review-analytics")
+def extract_review_analytics(month: str = typer.Option(..., help="YYYY-MM")) -> None:
+    """Reviewer correction reasons in a month, by field, extractor model and document type."""
+    if not re.match(MONTH_PATTERN, month):
+        raise typer.BadParameter("expected YYYY-MM", param_hint="--month")
+    typer.echo(f"{'field':<28}{'model':<26}{'doc type':<22}{'reason':<24}{'count':>6}")
+    for t in monthly_totals(_run_store(), month):
+        typer.echo(f"{t.field_id:<28}{t.model or '-':<26}{t.doc_type or '-':<22}{t.reason:<24}{t.count:>6}")
