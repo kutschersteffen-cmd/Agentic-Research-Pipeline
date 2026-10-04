@@ -1,12 +1,14 @@
 """E29: a field with XBRL tags takes the filer's own tagged value before any model call."""
 
+import json
+
 from arp.config import Settings
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.pipeline import _extract_company
 from arp.extraction.verifier_agent import VerifierOutput
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
-from arp.ingestion.xbrl import XbrlFactSource
+from arp.ingestion.xbrl import CompanyFactsSource, XbrlFactSource
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
 from arp.schemas.datapoints import (
     DataPointSchema,
@@ -32,16 +34,16 @@ class _Docs(DocumentSource):
 
 
 class _FakeXbrl:
-    def __init__(self, facts):
-        self._facts = facts
+    def __init__(self, facts, frozen=None):
+        self._facts, self.frozen = facts, frozen
         self.fetches = 0
 
     async def resolve_cik(self, cik, ticker):
         return cik
 
-    async def fetch_company_facts(self, cik):
+    async def fact_source(self, cik):
         self.fetches += 1
-        return self._facts
+        return CompanyFactsSource(self._facts, cik, frozen=self.frozen) if self._facts else None
 
 
 def _facts(fy: int, end: str, start: str | None = None) -> dict:
@@ -172,23 +174,35 @@ def test_fact_for_tags_annual_full_year_only():
 
 
 async def test_tagged_value_is_refused_by_publish_not_dropped(tmp_path, fake_llm):
-    """Pinned limitation: an XBRL citation has no stored original (content_key), so the gate
-    refuses a tagged candidate with no_grounded_citation until an XBRL lineage rule exists."""
+    """Step 7a pinned that an XBRL citation has no stored original and was refused with
+    no_grounded_citation. Superseded in step 7b: with a frozen companyfacts original the tagged
+    value passes the gate (tests/test_xbrl_publish.py); without one (no blob store) it is still
+    refused, never dropped."""
+    from arp.ingestion.xbrl import freeze_company_facts
     from arp.publish.candidates import run_candidates
     from arp.publish.release import split_by_gate
     from arp.schemas.common import RunManifest
+    from arp.storage.document_blob_store import LocalBlobStore
+    from arp.storage.document_store import DocumentContentStore
     from arp.storage.run_store import RunStore
 
     field = _field(["us-gaap:Revenues"])
     qualities = {(field.field_id, field.version): FieldQuality(field_id=field.field_id, version=field.version, first_audit_passed=True)}
-    (f,), _, _ = await _run(tmp_path, fake_llm, field, _facts(2024, "2024-12-31"), qualities=qualities)
-    assert (f.method, f.route) == ("tagged", "auto_accept")
-    rs = RunStore(tmp_path / "pub-runs")
-    rs.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
-    rs.append_jsonl(rs.results_path("r1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
-                                            "fields": [f.model_dump(mode="json")]})
-    cands, _ = run_candidates(rs, "r1")
-    [c] = cands
-    assert (c.state, c.citation) == ("auto_accepted", None)
-    passed, blocked = split_by_gate(cands, blob_store=None, withdrawn_docs=set())
-    assert passed == {} and blocked == [{"doc_id": None, "reason": "no_grounded_citation", "item_keys": [c.item_key]}]
+    facts = _facts(2024, "2024-12-31")
+    blobs, texts = LocalBlobStore(tmp_path / "blobs"), DocumentContentStore(tmp_path / "docs")
+    for frozen in (None, freeze_company_facts(json.dumps(facts).encode(), "0000320193", blob_store=blobs, content_store=texts)):
+        (f,), _, _ = await _run(tmp_path, fake_llm, field, facts, qualities=qualities, xbrl=_FakeXbrl(facts, frozen=frozen))
+        assert (f.method, f.route) == ("tagged", "auto_accept")
+        rs = RunStore(tmp_path / f"pub-runs-{frozen is not None}")
+        rs.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
+        rs.append_jsonl(rs.results_path("r1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
+                                                "fields": [f.model_dump(mode="json")]})
+        cands, _ = run_candidates(rs, "r1")
+        [c] = cands
+        passed, blocked = split_by_gate(cands, blob_store=blobs, withdrawn_docs=set(), content_store=texts)
+        if frozen is None:
+            assert (c.state, c.citation) == ("auto_accepted", None)
+            assert passed == {} and blocked == [{"doc_id": None, "reason": "no_grounded_citation", "item_keys": [c.item_key]}]
+        else:
+            assert c.state == "auto_accepted" and c.citation.doc_id == frozen.doc_id
+            assert blocked == [] and list(passed) == [("ISS1", frozen.doc_id)]

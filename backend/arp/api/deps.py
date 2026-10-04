@@ -139,6 +139,7 @@ def get_edgar_source() -> EdgarDocumentSource:
         settings.cache_dir,
         content_store=get_document_content_store(),
         submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
+        indexing_config=IndexingConfig.from_settings(settings),  # get_xbrl_source freezes tagged values into its blob store
     )
 
 

@@ -79,6 +79,7 @@ def _xbrl_source() -> XbrlFactSource:
     edgar = EdgarDocumentSource(
         settings.edgar_user_agent, settings.cache_dir, content_store=_document_content_store(),
         submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
+        indexing_config=IndexingConfig.from_settings(settings),  # the blob store tagged values are frozen into
     )
     return XbrlFactSource(edgar, settings.cache_dir, ttl_hours=settings.xbrl_facts_ttl_hours)
 

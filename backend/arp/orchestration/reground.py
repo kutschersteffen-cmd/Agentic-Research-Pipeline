@@ -114,7 +114,7 @@ def reground_runs(run_store: RunStore, *, settings, blob_store, content_store, r
                 for raw in f.get("citations", []):
                     c = Citation.model_validate(raw)
                     old = c.parser_version
-                    if not c.grounded or not old or old == version or _is_edgar(old):
+                    if not c.grounded or not old or old == version or _is_edgar(old) or old.startswith("xbrl_companyfacts"):
                         continue
                     if (key, c.doc_id, old, c.char_start, version) in seen:
                         continue

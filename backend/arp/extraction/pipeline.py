@@ -17,7 +17,7 @@ from arp.extraction.pre_steps import prepare_company
 from arp.extraction.routing import route
 from arp.ingestion.esef import esef_fact_sources
 from arp.ingestion.registry import DocumentSourceRegistry
-from arp.ingestion.xbrl import ChainedFactSource, CompanyFactsSource, FactSource, XbrlFactSource
+from arp.ingestion.xbrl import ChainedFactSource, FactSource, XbrlFactSource
 from arp.llm.base import LLMClient, LLMUsage
 from arp.normalise.units import convert
 from arp.orchestration.batch_runner import run_company_batch
@@ -189,9 +189,8 @@ async def _extract_company(
         if xbrl_source is not None:
             try:
                 cik = await xbrl_source.resolve_cik(company.cik, company.ticker)
-                xbrl_facts = await xbrl_source.fetch_company_facts(cik) if cik else None
-                if xbrl_facts:
-                    sec.append(CompanyFactsSource(xbrl_facts, cik))
+                if cik and (sec_facts := await xbrl_source.fact_source(cik)):
+                    sec.append(sec_facts)
             except httpx.HTTPError as exc:  # no facts: the tagged fields are extracted as before
                 logger.warning("XBRL facts unavailable for %s: %s", company.company_id, exc)
         esef = await asyncio.to_thread(esef_fact_sources, kept)

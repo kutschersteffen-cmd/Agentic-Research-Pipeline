@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import json
 import logging
 import time
@@ -12,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.schemas.common import Citation, DocType, now_iso
+from arp.storage.document_blob_store import upload_or_fail
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +44,7 @@ _REVENUE_TAGS = [
 ]
 
 _ANNUAL_FORMS = {"10-K", "10-K/A"}
+XBRL_PARSER_VERSION = "xbrl_companyfacts_v1"  # the rendered text below; bump when its line format changes
 
 
 def _full_year(row: dict) -> bool:
@@ -49,6 +53,16 @@ def _full_year(row: dict) -> bool:
         return True
     days = (date.fromisoformat(row["end"]) - date.fromisoformat(row["start"])).days
     return 350 <= days <= 380
+
+
+class FrozenFacts(BaseModel):
+    """A stored companyfacts original (blob under sha256(raw)) and its rendered text, one line per
+    annual fact, which a tagged citation quotes and the publish gate re-grounds against."""
+
+    doc_id: str
+    content_key: str
+    parser_version: str
+    text: str
 
 
 class XbrlFact(BaseModel):
@@ -71,22 +85,33 @@ class XbrlFact(BaseModel):
     period_start: str | None = None
     period_end: str | None = None
     cik: str | None = None  # set by CompanyFactsSource, so the fact can cite itself
+    frozen: FrozenFacts | None = Field(default=None, exclude=True)  # likewise, so the citation is publishable
 
     def reported(self) -> tuple[float, str, str, str]:
         """(value, raw text, unit text, decimal mark) to type the value from: plain digits and a
         stated decimal point, the number as tagged, never a locale guess."""
         return self.value, str(int(self.value)) if self.value.is_integer() else repr(self.value), self.unit, "point"
 
-    def as_citation(self, cik: str | None = None) -> Citation:
-        cik = cik or self.cik
+    def quote(self) -> str:
         # The period's own end, not companyfacts' `fy` (the filing's year, which also
         # labels the comparatives a filing repeats); fractions (EPS, ratios) as tagged.
         value = f"{self.value:,.0f}" if self.value.is_integer() else f"{self.value:,}"
         period = f"period ending {self.period_end}" if self.period_end else f"FY{self.fiscal_year} {self.fiscal_period or ''}".strip()
-        quote = (
+        return (
             f"{self.tag if ':' in self.tag else 'us-gaap:' + self.tag} = {value} {self.unit} "
             f"({period}, form {self.form}, filed {self.filed})"
         )
+
+    def as_citation(self, cik: str | None = None, *, frozen: FrozenFacts | None = None) -> Citation:
+        cik, frozen, quote = cik or self.cik, frozen or self.frozen, self.quote()
+        # With a frozen original: its rendered line, at its span, so the publish gate can check it.
+        if frozen is not None and (start := ("\n" + frozen.text).find("\n" + quote + "\n")) >= 0:
+            return Citation(
+                doc_id=frozen.doc_id, doc_type=DocType.OTHER, quote=quote, location="SEC EDGAR XBRL companyfacts API",
+                grounded=True, company_id=None, source_filename=None, content_key=frozen.content_key,
+                parser_version=frozen.parser_version, span_text=quote, char_start=start, char_end=start + len(quote),
+                match_method="exact",
+            )
         return Citation(
             doc_id=f"xbrl:{cik}:{self.accession or self.tag}",
             doc_type=DocType.OTHER,
@@ -103,6 +128,43 @@ class XbrlFact(BaseModel):
         )
 
 
+def _annual_row(row: dict) -> bool:
+    return (row.get("form") in _ANNUAL_FORMS and row.get("fp") == "FY" and row.get("val") is not None
+            and bool(row.get("end")) and _full_year(row))
+
+
+def render_company_facts(facts_json: dict) -> str:
+    """One line per annual fact, as `XbrlFact.quote()` writes it."""
+    return "".join(
+        XbrlFactSource._fact_from_row(f"{taxonomy}:{name}", unit, row).quote() + "\n"
+        for taxonomy, concepts in facts_json.get("facts", {}).items()
+        for name, entry in concepts.items()
+        for unit, rows in entry.get("units", {}).items()
+        for row in rows
+        if _annual_row(row)
+    )
+
+
+def freeze_company_facts(raw: bytes, cik: str, *, blob_store, content_store) -> FrozenFacts:
+    """Stores the companyfacts bytes (store-or-fail, under their sha256), registers them as
+    `xbrl:{cik10}:{sha[:16]}` with their storage_uri, and stores the rendered text under
+    (sha, XBRL_PARSER_VERSION). Idempotent. Raises CaptureStoreError when the blob is not stored."""
+    sha, cik10 = hashlib.sha256(raw).hexdigest(), cik.zfill(10)
+    storage_uri = upload_or_fail(blob_store, sha, raw)
+    doc_id = content_store.register_document(
+        doc_id=f"xbrl:{cik10}:{sha[:16]}", company_id=cik10,  # no ARP company here; the CIK is a safe id
+        doc_type=DocType.OTHER.value, content_key=sha, title=f"SEC XBRL companyfacts CIK{cik10}",
+        local_path=None, source_url=_COMPANY_FACTS_URL.format(cik10=cik10),
+    )
+    content_store.set_storage_uri(doc_id, storage_uri)
+    parsed = content_store.lookup(sha, XBRL_PARSER_VERSION)
+    text = parsed.full_text if parsed is not None else render_company_facts(json.loads(raw))
+    if parsed is None:
+        content_store.store(sha, key_kind="xbrl_companyfacts", parser_version=XBRL_PARSER_VERSION, source_suffix=".json",
+                            byte_size=len(raw), text=text, page_breaks=[])
+    return FrozenFacts(doc_id=doc_id, content_key=sha, parser_version=XBRL_PARSER_VERSION, text=text)
+
+
 class FactSource(Protocol):
     """Tagged facts for one company (E29): the SEC companyfacts JSON or an ESEF filing.
     The returned fact cites itself (`fact.as_citation()`)."""
@@ -111,14 +173,14 @@ class FactSource(Protocol):
 
 
 class CompanyFactsSource:
-    """FactSource over SEC's companyfacts JSON for one CIK."""
+    """FactSource over SEC's companyfacts JSON for one CIK; with `frozen`, its facts cite the stored original."""
 
-    def __init__(self, facts_json: dict, cik: str) -> None:
-        self.facts_json, self.cik = facts_json, cik
+    def __init__(self, facts_json: dict, cik: str, frozen: FrozenFacts | None = None) -> None:
+        self.facts_json, self.cik, self.frozen = facts_json, cik, frozen
 
     def fact_for_tags(self, tags: list[str], *, fiscal_year: int) -> XbrlFact | None:
         fact = XbrlFactSource.fact_for_tags(self.facts_json, tags, fiscal_year=fiscal_year)
-        return fact.model_copy(update={"cik": self.cik}) if fact else None
+        return fact.model_copy(update={"cik": self.cik, "frozen": self.frozen}) if fact else None
 
 
 class ChainedFactSource:
@@ -200,27 +262,57 @@ class XbrlFactSource:
         submissions cache (a week by default -- much lower churn than
         filings-list metadata, so a longer TTL is appropriate) rather than
         cached forever like an immutable filing document."""
+        return (await self._company_facts(cik))[0]
+
+    async def fact_source(self, cik: str) -> CompanyFactsSource | None:
+        """The company's facts as a FactSource. With a content store and a blob store
+        configured, the fetched bytes are frozen so its tagged citations can publish;
+        otherwise (or if storing fails) they cite as before and are not publishable."""
+        data, raw = await self._company_facts(cik)
+        if not data:
+            return None
+        return CompanyFactsSource(data, cik, frozen=await asyncio.to_thread(self._freeze, raw, cik) if raw else None)
+
+    def _freeze(self, raw: bytes, cik: str) -> FrozenFacts | None:
+        from arp.storage.document_blob_store import blob_store_for
+
+        store, config = self._edgar._content_store, self._edgar._indexing_config
+        if store is None or config is None:
+            return None
+        try:
+            return freeze_company_facts(raw, cik, blob_store=blob_store_for(config), content_store=store)
+        except Exception as exc:  # noqa: BLE001 - no frozen original: the tagged values stay unpublishable
+            logger.warning("XBRL companyfacts for CIK %s not frozen: %s", cik, exc)
+            return None
+
+    async def _company_facts(self, cik: str) -> tuple[dict | None, bytes | None]:
+        """(parsed JSON, raw bytes); the raw bytes are None for a cache file from before step 7b."""
         cik10 = cik.zfill(10)
         path = self._cache_dir / f"xbrl_companyfacts_{cik10}.json"
         if path.exists():
             try:
                 payload = json.loads(path.read_text())
                 if time.time() - payload["_fetched_at"] < self._ttl_hours * 3600:
-                    return payload["data"]
+                    if "raw" in payload:
+                        raw = payload["raw"].encode("utf-8")
+                        return json.loads(raw), raw
+                    return payload["data"], None
             except (json.JSONDecodeError, KeyError, OSError):
                 pass
 
         async with httpx.AsyncClient(headers=self._edgar.headers, timeout=30.0) as client:
             resp = await client.get(_COMPANY_FACTS_URL.format(cik10=cik10))
             if resp.status_code == 404:
-                return None
+                return None, None
             resp.raise_for_status()
-            data = resp.json()
+            raw = resp.content
+            data = json.loads(raw)
         try:
-            path.write_text(json.dumps({"_fetched_at": time.time(), "data": data}))
-        except OSError:
+            # The bytes as served (UTF-8 JSON), so a cache hit can still freeze the same original.
+            path.write_text(json.dumps({"_fetched_at": time.time(), "raw": raw.decode("utf-8")}))
+        except (OSError, UnicodeDecodeError):
             logger.warning("Could not write XBRL companyfacts cache for CIK %s", cik10)
-        return data
+        return data, raw
 
     @staticmethod
     def _fact_from_row(tag: str, unit_name: str | None, row: dict) -> XbrlFact:

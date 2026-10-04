@@ -285,11 +285,11 @@ async def test_us_filer_with_esef_document_uses_sec_first(tmp_path, fake_llm):
         async def resolve_cik(self, cik, ticker):
             return cik
 
-        async def fetch_company_facts(self, cik):
+        async def fact_source(self, cik):
             row = {"start": "{y}-01-01", "end": "{y}-12-31", "val": 0, "fy": 0, "fp": "FY", "form": "10-K", "filed": "x"}
             rows = [{**row, "start": f"{y}-01-01", "end": f"{y}-12-31", "val": 7e9, "fy": y, "filed": f"{y + 1}-02-01"}
                     for y in (2023, 2024)]
-            return {"facts": {"ifrs-full": {"Revenue": {"units": {"EUR": rows}}}}}
+            return CompanyFactsSource({"facts": {"ifrs-full": {"Revenue": {"units": {"EUR": rows}}}}}, cik)
 
     source, _, _ = _local_source(tmp_path)
     us = CompanyRef(company_id="c1", name="Beispiel AG", cik="0000320193", lei=LEI)
