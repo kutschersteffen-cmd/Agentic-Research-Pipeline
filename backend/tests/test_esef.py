@@ -219,6 +219,27 @@ async def test_esef_document_source_fetches_by_lei(tmp_path, no_ssrf):
     await client.aclose()
 
 
+async def test_esef_package_downloaded_once(tmp_path, no_ssrf):
+    downloads = []
+
+    def handler(request):
+        if request.url.path == f"/api/entities/{LEI}/filings":
+            return httpx.Response(200, json={"data": [{"attributes": {"period_end": "2024-12-31", "package_url": "/p.zip"}}]})
+        downloads.append(request.url.path)
+        return httpx.Response(200, content=PACKAGE)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    source = EsefDocumentSource("https://filings.example", tmp_path / "cache", client=client)
+    [first] = await source.fetch(COMPANY)
+    [again] = await source.fetch(COMPANY)
+    assert downloads == ["/p.zip"]  # the index is still polled; the package comes from the local copy
+    assert again.local_path == first.local_path and again.full_text == first.full_text
+    (tmp_path / "cache" / "esef" / f"{hashlib.sha256(PACKAGE).hexdigest()}.zip").write_bytes(b"corrupt")
+    [healed] = await source.fetch(COMPANY)  # a local copy that no longer matches its hash is fetched again
+    assert downloads == ["/p.zip", "/p.zip"] and healed.full_text == first.full_text
+    await client.aclose()
+
+
 def test_sec_companyfacts_wrapper_unchanged():
     row = {"start": "2024-01-01", "end": "2024-12-31", "val": 3, "fy": 2024, "fp": "FY", "form": "10-K",
            "filed": "2025-02-01", "accn": "0001-24-000001"}

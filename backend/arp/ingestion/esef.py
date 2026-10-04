@@ -353,7 +353,7 @@ class EsefDocumentSource(DocumentSource):
         latest = max(filings, key=lambda f: f.get("period_end") or "")
         url = urljoin(self._index_url + "/", latest["package_url"])
         try:
-            raw = await self._download(client, url)
+            raw = self._cached(url) or await self._download(client, url)
             text, facts = await asyncio.to_thread(parse_package, raw)
         except (UnsafeURLError, ValueError, zipfile.BadZipFile, etree.LxmlError, RecursionError) as exc:
             logger.warning("ESEF package %s for %s refused: %s", url, company.company_id, exc)
@@ -363,8 +363,9 @@ class EsefDocumentSource(DocumentSource):
         content_key = hashlib.sha256(raw).hexdigest()
         self._dir.mkdir(parents=True, exist_ok=True)
         path = self._dir / f"{content_key}.zip"  # the local copy esef_fact_sources reads the facts from
-        if not path.exists():
+        if not path.exists() or self._cached(url) is None:
             path.write_bytes(raw)
+        self._url_marker(url).write_text(content_key)
         language = detect_language(text)
         doc_type = DocType.ANNUAL_REPORT_10K
         title = f"{company.name} ESEF annual report ({latest.get('period_end')})"
@@ -393,6 +394,19 @@ class EsefDocumentSource(DocumentSource):
                     logger.warning("ESEF filing %s not collected: %s", url, exc)
                     return []
         return [SourceDocument(**kwargs)]
+
+    def _url_marker(self, url: str) -> Path:
+        return self._dir / f"url-{hashlib.sha256(url.encode()).hexdigest()}.txt"
+
+    def _cached(self, url: str) -> bytes | None:
+        """The local copy of the package at `url`, if one was fetched before and still matches its hash."""
+        # ponytail: assumes a package URL is immutable (filings.xbrl.org versions the path); key on ETag if one ever changes
+        try:
+            key = self._url_marker(url).read_text().strip()
+            raw = (self._dir / f"{key}.zip").read_bytes()
+        except OSError:
+            return None
+        return raw if hashlib.sha256(raw).hexdigest() == key else None
 
     async def _download(self, client: httpx.AsyncClient, url: str) -> bytes:
         """The package bytes, SSRF-guarded (an injected client may not carry the hook) and capped."""
