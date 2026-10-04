@@ -114,3 +114,8 @@ async def check_record(
             update["verifier_notes"] = f"{field.verifier_notes}; {notes}" if field.verifier_notes else notes
         out.append(field.model_copy(update=update))
     return out
+
+
+from arp.checks.numeric import check_caption_scale, check_number_in_span, check_row_label  # noqa: E402
+
+LAYERS[2] = [check_number_in_span, check_caption_scale, check_row_label]
