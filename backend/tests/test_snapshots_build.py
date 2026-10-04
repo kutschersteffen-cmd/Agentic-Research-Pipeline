@@ -257,6 +257,13 @@ def test_month_not_ended_refused(env, world, tmp_path):
         build_snapshot("2026-11-30", root=tmp_path, portfolio_store=env[0], facts_as_of=world.facts_as_of)
 
 
+def test_r1_waits_for_settle_window(env, world, tmp_path):
+    with pytest.raises(B.SnapshotSettling, match="2026-10 settle window"):
+        _build(env, world, tmp_path, cutoff="2026-11-01T00:59:59.999998+00:00")
+    assert read_manifest(tmp_path, MONTH) is None
+    assert _build(env, world, tmp_path, cutoff="2026-11-01T00:59:59.999999+00:00").revision == 1
+
+
 def test_correction_keeps_majors_of_superseded_revision(env, world, tmp_path, monkeypatch):
     _build(env, world, tmp_path)
     v1 = schema.SCHEMAS[1]

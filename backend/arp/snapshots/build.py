@@ -13,7 +13,7 @@ import os
 import re
 import tempfile
 from collections.abc import Callable, Iterable
-from datetime import date
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from arp import holdings
@@ -34,6 +34,13 @@ _MONTH_LOCKS = KeyedLock(lock_path=lambda month_dir: Path(month_dir) / ".lock")
 
 class SnapshotFrozen(RuntimeError):
     """The revision already has a manifest."""
+
+
+class SnapshotSettling(ValueError):
+    """r1 is asked for within the settle window after the month-end bound."""
+
+
+SETTLE = timedelta(hours=1)
 
 
 def _month(month: str) -> str:
@@ -139,8 +146,13 @@ def _build(as_of, month, revision, out, root, portfolio_store, facts_as_of, supe
     if (out / "manifest.json").exists():
         raise SnapshotFrozen(f"{snapshot_id} is frozen")
     cutoff = cutoff or ts_now()
-    if cutoff <= as_of_bound(as_of):
+    bound = as_of_bound(as_of)
+    if cutoff <= bound:
         raise ValueError(f"{month} has not ended")
+    # ponytail: a fixed margin for publishes stamped before the month end that commit after it; a publish
+    # running longer than SETTLE still escapes r1 (stamped before the bound, so no correction counts it).
+    if revision == 1 and cutoff < (datetime.fromisoformat(bound) + SETTLE).isoformat(timespec="microseconds"):
+        raise SnapshotSettling(f"{month} settle window")
     rows = dataset_rows(as_of, portfolio_store=portfolio_store, facts=facts_as_of(as_of))
     entries = []
     for major in majors:
@@ -250,6 +262,9 @@ def build_correction(
     if not new:
         return None
     keys = {(e.issuer_key, e.field_id, e.period_end, e.basis) for e in since_end}
+    # ponytail: the event read and the fact read are not one snapshot, so a commit between them can apply a
+    # value one revision before it is listed in `changes`; the next correction lists it. Upgrade: one
+    # REPEATABLE READ transaction for both reads.
     current = {fact_key(f): f for f in facts_as_of(cutoff)}
     corrected = [f for f in base_facts if fact_key(f) not in keys] + [current[k] for k in keys if k in current]
     return build_snapshot(

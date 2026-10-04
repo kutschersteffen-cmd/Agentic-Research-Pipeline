@@ -181,6 +181,13 @@ def test_frozen_snapshot_is_skipped_not_failed(sched, monkeypatch):
     assert _run(sched).last_results["snapshot"]["status"] == "skipped"
 
 
+def test_snapshot_in_settle_window_is_skipped(sched, monkeypatch):
+    monkeypatch.setattr(sched, "_reground", lambda t: ("ok", ""))
+    monkeypatch.setattr(B, "ts_now", lambda: "2026-11-01T00:30:00.000000+00:00")
+    c = _run(sched)
+    assert c.last_results["snapshot"] == {"status": "skipped", "detail": "2026-10 settle window; retried next tick"}
+
+
 def test_corrections_cover_every_frozen_month(sched, tmp_path, monkeypatch):
     world = World()
     ticks = iter(range(1000))

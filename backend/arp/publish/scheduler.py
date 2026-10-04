@@ -18,7 +18,14 @@ from arp.publish.facts import ConcurrentPublish, Fact, PublishStore, ts_now
 from arp.publish.gate import reground, sample
 from arp.publish.reader import events_since, facts_as_of
 from arp.schemas.portfolio import HolderConfig
-from arp.snapshots.build import SnapshotFrozen, build_correction, build_snapshot, list_months, month_of
+from arp.snapshots.build import (
+    SnapshotFrozen,
+    SnapshotSettling,
+    build_correction,
+    build_snapshot,
+    list_months,
+    month_of,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +148,8 @@ class PublishingScheduler(IntervalScheduler):
                                portfolio_store=self.portfolio_store, facts_as_of=facts)
         except (SnapshotFrozen, ConcurrentPublish):
             return "skipped", "another run froze this month"
+        except SnapshotSettling as exc:
+            return "skipped", f"{exc}; retried next tick"
         return "ok", m.snapshot_id
 
     def _corrections(self, months: list[str]) -> tuple[str, str]:
