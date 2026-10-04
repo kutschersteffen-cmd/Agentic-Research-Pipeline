@@ -65,3 +65,11 @@ test("agreeBody resubmits a visible first correction", () => {
   assert.equal(agreeBody("value", "first_done", { blind: false, decisions: [{ ...first, decision: "edit" as const }] }), null);
   assert.equal(agreeBody("identity", "first_done", ctx)?.correction_citation, null);
 });
+
+test("security items: labelled, decidable four ways, no citation", async () => {
+  const { ITEM_KIND_LABEL, decisionChoices, needsCitation } = await import("../src/lib/reviewKeys.ts");
+  assert.equal(ITEM_KIND_LABEL.security, "Security");
+  assert.ok(decisionChoices("security").includes("correct"));
+  assert.equal(decisionChoices("security").length, 4);
+  assert.equal(needsCitation("security"), false);
+});

@@ -1,0 +1,1 @@
+{"provider": "default", "columns": {"isin": "ISIN", "lei": "LEI", "name": "Name", "weight": "Weight (%)", "shares": "Shares", "free_float": "Free float", "price": "Price", "quantity": "Quantity", "market_value": "Market value", "currency": "Currency", "fx_rate_to_eur": "FX rate to EUR"}, "decimal": ".", "weight_unit": "percent"}

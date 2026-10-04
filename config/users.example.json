@@ -2,6 +2,7 @@
   "users": [
     {"token": "change-me-viewer", "user_id": "u_viewer", "name": "Vera Viewer", "role": "viewer"},
     {"token": "change-me-analyst", "user_id": "u_analyst", "name": "Anna Analyst", "role": "analyst"},
-    {"token": "change-me-approver", "user_id": "u_approver", "name": "Alice Approver", "role": "approver"}
+    {"token": "change-me-approver", "user_id": "u_approver", "name": "Alice Approver", "role": "approver"},
+    {"token": "change-me-snapshot-service", "user_id": "svc_snapshots", "name": "Snapshot consumer", "role": "viewer", "roles": ["snapshot_reader"]}
   ]
 }

@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 
 from arp.agents.calibration_agent import CalibrationAgentScheduler
 from arp.agents.taxonomy_researcher import TaxonomyResearcherScheduler
@@ -21,9 +21,12 @@ from arp.llm.base import LLMClient
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.portfolio.monitoring.scheduler import PortfolioMonitoringScheduler
 from arp.projects.store import ProjectStore
+from arp.publish.facts import PublishStore
+from arp.publish.scheduler import PublishingScheduler
 from arp.reporting.scheduler import ReportScheduler
 from arp.stewardship.process import StreamStore
 from arp.storage.decision_store import DecisionStore
+from arp.storage.document_blob_store import blob_store_for
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.index_store import IndexStore
@@ -43,6 +46,16 @@ if TYPE_CHECKING:
 
 def settings_dep() -> Settings:
     return get_settings()
+
+
+def publish_store_dep(settings: Settings = Depends(settings_dep)) -> PublishStore:
+    if not settings.postgres_dsn:
+        raise HTTPException(503, "the published-fact store needs ARP_POSTGRES_DSN")
+    return PublishStore(settings.postgres_dsn)
+
+
+def blob_store_dep(settings: Settings = Depends(settings_dep)):
+    return blob_store_for(IndexingConfig.from_settings(settings))
 
 
 @lru_cache
@@ -209,6 +222,11 @@ def get_calibration_scheduler() -> CalibrationAgentScheduler:
 @lru_cache
 def get_portfolio_monitoring_scheduler() -> PortfolioMonitoringScheduler:
     return PortfolioMonitoringScheduler(get_settings(), get_portfolio_store())
+
+
+@lru_cache
+def get_publishing_scheduler() -> PublishingScheduler:
+    return PublishingScheduler(get_settings(), get_portfolio_store(), get_run_store())
 
 
 @lru_cache

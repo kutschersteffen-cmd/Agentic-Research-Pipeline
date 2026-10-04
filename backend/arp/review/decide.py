@@ -16,6 +16,7 @@ from arp.orchestration.review_queue import FINAL_STATES, agrees, append_decision
 from arp.review.context import _state, _text, build_context, write_snapshot
 from arp.review.items import get_item
 from arp.schemas.common import Citation, SourceDocument
+from arp.schemas.issuer import lei_is_valid, normalise_lei
 from arp.schemas.review import ItemDecisionRequest, ReviewDecision
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
@@ -25,7 +26,7 @@ if TYPE_CHECKING:
 
 _ALL = {"approve", "correct", "reject", "escalate"}
 ALLOWED = {
-    "value": _ALL, "restatement_candidate": _ALL, "identity": _ALL, "sector_code": _ALL,
+    "value": _ALL, "restatement_candidate": _ALL, "identity": _ALL, "sector_code": _ALL, "security": _ALL,
     "quarantined_document": {"approve", "reject", "escalate"},
     "other": {"approve", "reject", "escalate"},  # an extraction PreStepFailed report only
 }
@@ -34,8 +35,9 @@ CORRECTED_KEYS = {
     "restatement_candidate": {"value", "unit", "period_end"},
     "identity": {"value", "resolved_website", "resolved_cik"},
     "sector_code": {"isic_code"},
+    "security": {"value"},
 }
-_REQUIRED_KEY = {"value": "value", "restatement_candidate": "value", "sector_code": "isic_code"}
+_REQUIRED_KEY = {"value": "value", "restatement_candidate": "value", "sector_code": "isic_code", "security": "value"}
 
 
 class DecisionError(Exception):
@@ -117,7 +119,9 @@ def _check_kind(kind: str, req: ItemDecisionRequest, principal: Principal) -> No
         raise DecisionError(422, "a correction needs a citation")
     if kind == "identity" and not (req.corrected_value.get("resolved_website") or req.corrected_value.get("resolved_cik")):
         raise DecisionError(422, "an identity correction needs resolved_website or resolved_cik")
-    if kind in ("identity", "sector_code") and not (req.comment or "").strip():
+    if kind == "security" and not lei_is_valid(normalise_lei(str(req.corrected_value["value"] or ""))):
+        raise DecisionError(422, "a security correction needs a valid LEI")
+    if kind in ("identity", "sector_code", "security") and not (req.comment or "").strip():
         raise DecisionError(422, "a correction needs a comment naming its source")
 
 
@@ -182,10 +186,13 @@ def decide(
                 corrected_value=req.corrected_value, prior=prior, sample_rate=settings.second_review_sample_rate,
                 changes_final=s.state in FINAL_STATES and not agrees(s.effective, req.model_dump()),
             )
+        corrected = req.corrected_value
+        if kind == "security" and req.decision == "correct":
+            corrected = {"value": normalise_lei(str(corrected["value"]))}  # a case-only difference is agreement
         snapshot_id = write_snapshot(run_store, run_id, bundle)
         append_decision(run_store, run_id, ReviewDecision(
             item_key=item_key, decision=req.decision, reason_code=req.reason_code, reviewer=principal.name,
-            user_id=principal.user_id, role=principal.role, corrected_value=req.corrected_value,
+            user_id=principal.user_id, role=principal.role, corrected_value=corrected,
             correction_citation=citation, snapshot_id=snapshot_id, comment=req.comment, step=step,
             second_required=bool(reasons), second_reasons=reasons,
         ))

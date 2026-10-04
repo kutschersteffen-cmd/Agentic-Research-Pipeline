@@ -7,6 +7,7 @@ import { CompanyProfiles } from "./portfolio-monitoring/CompanyProfiles";
 import { AskThePortfolio } from "./portfolio-monitoring/AskThePortfolio";
 import { SupersetBI } from "./portfolio-monitoring/SupersetBI";
 import { GovernanceAudit } from "./portfolio-monitoring/GovernanceAudit";
+import { HoldingsIntake } from "./portfolio-monitoring/HoldingsIntake";
 import { resolveSubTab } from "../lib/subTabs";
 
 export const SUB_TABS = [
@@ -16,6 +17,7 @@ export const SUB_TABS = [
   { id: "ask", label: "Ask the Portfolio" },
   { id: "dashboards", label: "Dashboards (Superset)" },
   { id: "governance", label: "Governance & Audit" },
+  { id: "holdings", label: "Holdings Intake" },
 ] as const;
 
 /** One top-level tool (spec §9): a persistent portfolio/date selection
@@ -66,6 +68,7 @@ function Inner({ initialSub, onSendUniverse }: { initialSub?: string; onSendUniv
       {sub === "ask" && <AskThePortfolio />}
       {sub === "dashboards" && <SupersetBI />}
       {sub === "governance" && <GovernanceAudit />}
+      {sub === "holdings" && <HoldingsIntake />}
     </div>
   );
 }

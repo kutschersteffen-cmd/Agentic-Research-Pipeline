@@ -291,3 +291,51 @@ def test_sql_aggregation_agrees_with_a_python_sum_over_the_same_as_of(tmp_path):
         assert dict(pg.aggregate_market_value_eur("2026-02-15", "portfolio_id")) == {"p1": 100.0, "p2": 500.0}
     finally:
         reset_postgres_tables(DSN)
+
+
+# --- E77: index holdings beside portfolio holdings ---
+
+
+def _index_holding(holder_id: str, security_id: str, as_of_date: str, weight: float) -> Holding:
+    return Holding(
+        holder_id=holder_id, kind="index", security_id=security_id, as_of_date=as_of_date, weight_pct=weight,
+        fx_rate_to_eur=None,
+    )
+
+
+def test_index_holdings_beside_portfolio_holdings(store):
+    store.save_portfolio(Portfolio(portfolio_id="X1", name="Same id as the index"))
+    store.save_security(SecurityRef(security_id="S1", name="S1", asset_class="equity", currency="EUR"))
+    store.save_snapshot("X1", "2026-10-31", [_holding("X1", "S1", "2026-10-31", 10.0)])
+    store.save_snapshot("X1", "2026-10-31", [_index_holding("X1", "S1", "2026-10-31", 2.5)], kind="index")
+
+    [p] = store.load_snapshot("X1", "2026-10-31")
+    [i] = store.load_snapshot("X1", "2026-10-31", kind="index")
+    assert (p.kind, p.market_value_eur) == ("portfolio", 10.0)
+    assert (i.kind, i.weight_pct, i.market_value_eur, i.fx_rate_to_eur) == ("index", 2.5, None, None)
+    assert store.list_snapshot_dates("X1", kind="index") == ["2026-10-31"]
+    assert store.latest_snapshot_date("X1", kind="index") == "2026-10-31"
+    assert [h.kind for h in store.load_holdings_as_of("2026-10-31")] == ["portfolio"]
+
+
+def test_revision_archive_is_write_once(store):
+    import pytest
+
+    r1 = [_index_holding("IDX1", "S1", "2026-10-31", 1.0)]
+    store.save_revision("index", "IDX1", "2026-10-31", 1, r1)
+    with pytest.raises(FileExistsError):
+        store.save_revision("index", "IDX1", "2026-10-31", 1, [_index_holding("IDX1", "S1", "2026-10-31", 9.0)])
+    store.save_revision("index", "IDX1", "2026-10-31", 2, [_index_holding("IDX1", "S1", "2026-10-31", 2.0)])
+    assert store.list_revisions("index", "IDX1", "2026-10-31") == [1, 2]
+    assert store.load_revision("index", "IDX1", "2026-10-31", 1) == r1
+
+
+def test_holders_registry_roundtrip(store):
+    from arp.schemas.portfolio import HolderConfig
+
+    store.save_holder(HolderConfig(holder_id="X1", kind="index", name="Index X1", source="api"))
+    store.save_holder(HolderConfig(holder_id="X1", kind="portfolio"))
+    assert store.get_holder("index", "X1").source == "api"
+    assert store.get_holder("portfolio", "X1").source == "file"
+    assert store.get_holder("index", "nope") is None
+    assert sorted((h.kind, h.holder_id) for h in store.list_holders()) == [("index", "X1"), ("portfolio", "X1")]

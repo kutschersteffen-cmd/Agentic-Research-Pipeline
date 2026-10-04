@@ -13,14 +13,17 @@ from arp.cli.emerging_themes import emerging_themes_app
 from arp.cli.engagement import engagement_app
 from arp.cli.extraction import extract_app
 from arp.cli.golden_set import golden_set_app
+from arp.cli.holdings import holdings_app
 from arp.cli.identity import identity_app
 from arp.cli.index import index_app
 from arp.cli.portfolio import portfolio_app
 from arp.cli.project import project_app
+from arp.cli.publish import publish_app
 from arp.cli.replication import replicate_app
 from arp.cli.reporting import reporting_app
 from arp.cli.revenue_catalogue import revenue_catalogue_app
 from arp.cli.runs import runs_app
+from arp.cli.snapshots import snapshots_app
 from arp.cli.taxonomy import taxonomy_app
 from arp.cli.taxonomy_researcher import taxonomy_researcher_app
 from arp.cli.theme import theme_app
@@ -56,3 +59,6 @@ app.add_typer(calibration_app, name="calibration")
 app.add_typer(reporting_app, name="report")
 app.add_typer(bi_app, name="bi")
 app.add_typer(project_app, name="project")
+app.add_typer(publish_app, name="publish")
+app.add_typer(snapshots_app, name="snapshots")
+app.add_typer(holdings_app, name="holdings")

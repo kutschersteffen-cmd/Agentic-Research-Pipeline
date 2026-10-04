@@ -108,26 +108,37 @@ class SecurityResolutionModel(Base):
 
 
 class HoldingModel(Base):
-    """One position: one security, in one portfolio, as of one date.
+    """One position: one security, held by one index or portfolio
+    (`kind`; `portfolio_id` holds the holder id), as of one date.
     Immutable once written, matching arp/schemas/portfolio.py::Holding's
     own contract -- a correction is a new snapshot (new as_of_date or a
     superseding row), never an UPDATE of an existing one."""
 
     __tablename__ = "holdings"
     __table_args__ = (
-        UniqueConstraint("portfolio_id", "security_id", "as_of_date", name="uq_holdings_portfolio_security_date"),
+        UniqueConstraint("kind", "portfolio_id", "security_id", "as_of_date", name="uq_holdings_kind_holder_security_date"),
         Index("ix_holdings_as_of_date_portfolio", "as_of_date", "portfolio_id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    portfolio_id: Mapped[str] = mapped_column(ForeignKey("portfolios.portfolio_id"))
+    kind: Mapped[str] = mapped_column(String, default="portfolio", server_default="portfolio")
+    # Holds Holding.holder_id (an index or a portfolio), so no FK to portfolios.
+    portfolio_id: Mapped[str] = mapped_column(String)
     security_id: Mapped[str] = mapped_column(ForeignKey("securities.security_id"))
     as_of_date: Mapped[str] = mapped_column(String)
-    quantity: Mapped[float] = mapped_column(Float)
-    price: Mapped[float] = mapped_column(Float)
-    market_value: Mapped[float] = mapped_column(Float)
-    fx_rate_to_eur: Mapped[float] = mapped_column(Float, default=1.0)
-    market_value_eur: Mapped[float] = mapped_column(Float)
+    isin: Mapped[str | None] = mapped_column(String, nullable=True)
+    issuer_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    issuer_scheme: Mapped[str | None] = mapped_column(String, nullable=True)
+    source: Mapped[str | None] = mapped_column(String, nullable=True)
+    source_ref: Mapped[str | None] = mapped_column(String, nullable=True)
+    currency: Mapped[str | None] = mapped_column(String, nullable=True)
+    quantity: Mapped[float | None] = mapped_column(Float, nullable=True)
+    price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    market_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fx_rate_to_eur: Mapped[float | None] = mapped_column(Float, nullable=True)
+    market_value_eur: Mapped[float | None] = mapped_column(Float, nullable=True)
+    shares: Mapped[float | None] = mapped_column(Float, nullable=True)
+    free_float: Mapped[float | None] = mapped_column(Float, nullable=True)
     weight_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
@@ -350,3 +361,81 @@ class IndexCheckpointModel(Base):
 
     name: Mapped[str] = mapped_column(String, primary_key=True)
     last_synced_at: Mapped[str] = mapped_column(String)
+
+
+class ReleaseModel(Base):
+    """One publication of a source document for an issuer in a run (E17).
+    `published_by` / `withdrawn_by` are internal user ids and never served."""
+
+    __tablename__ = "releases"
+    __table_args__ = (Index("ix_releases_doc", "doc_id"), Index("ix_releases_run", "run_id"))
+
+    release_id: Mapped[str] = mapped_column(String, primary_key=True)
+    doc_id: Mapped[str] = mapped_column(String)
+    content_key: Mapped[str] = mapped_column(String)
+    storage_uri: Mapped[str] = mapped_column(String)
+    issuer_key: Mapped[str] = mapped_column(String)
+    issuer_scheme: Mapped[str] = mapped_column(String)
+    run_id: Mapped[str] = mapped_column(String)
+    published_at: Mapped[str] = mapped_column(String)
+    published_by: Mapped[str] = mapped_column(String)
+    published_by_role: Mapped[str] = mapped_column(String)
+    withdrawn_at: Mapped[str | None] = mapped_column(String, nullable=True)
+    withdrawal_reason: Mapped[str | None] = mapped_column(String, nullable=True)
+    withdrawn_by: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class PublishedFactModel(Base):
+    """Insert-only versioned published fact (E72): a change closes the
+    current row (`valid_to`, `superseded_by`) and inserts the next version."""
+
+    __tablename__ = "published_facts"
+    __table_args__ = (
+        UniqueConstraint(
+            "issuer_key", "field_id", "period_end", "basis", "version", name="uq_published_facts_key_version"
+        ),
+        Index("ix_published_facts_current", "issuer_key", "field_id", "period_end", "basis", "valid_to"),
+        Index("ix_published_facts_valid_from", "valid_from"),
+    )
+
+    fact_id: Mapped[str] = mapped_column(String, primary_key=True)
+    issuer_key: Mapped[str] = mapped_column(String)
+    issuer_scheme: Mapped[str] = mapped_column(String)
+    field_id: Mapped[str] = mapped_column(String)
+    period_end: Mapped[str] = mapped_column(String)
+    basis: Mapped[str] = mapped_column(String, default="")
+    value: Mapped[object] = mapped_column(JSONB)
+    unit: Mapped[str | None] = mapped_column(String, nullable=True)
+    canonical_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    canonical_unit: Mapped[str | None] = mapped_column(String, nullable=True)
+    state: Mapped[str] = mapped_column(String)
+    citation: Mapped[dict] = mapped_column(JSONB)
+    source_run_id: Mapped[str] = mapped_column(String)
+    observed_at: Mapped[str] = mapped_column(String)
+    item_key: Mapped[str] = mapped_column(String)
+    restated: Mapped[bool] = mapped_column(default=False)
+    restated_by_doc_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    version: Mapped[int] = mapped_column()
+    valid_from: Mapped[str] = mapped_column(String)
+    valid_to: Mapped[str | None] = mapped_column(String, nullable=True)
+    superseded_by: Mapped[str | None] = mapped_column(ForeignKey("published_facts.fact_id"), nullable=True)
+    reconfirmed_at: Mapped[str | None] = mapped_column(String, nullable=True)
+    release_id: Mapped[str] = mapped_column(ForeignKey("releases.release_id"))
+    restored_from: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class FactEventModel(Base):
+    """Outbox of fact changes, ordered by the autoincrement `event_id`."""
+
+    __tablename__ = "fact_events"
+    __table_args__ = (Index("ix_fact_events_at", "at"),)
+
+    event_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    event_type: Mapped[str] = mapped_column(String)
+    fact_id: Mapped[str] = mapped_column(String)
+    issuer_key: Mapped[str] = mapped_column(String)
+    field_id: Mapped[str] = mapped_column(String)
+    period_end: Mapped[str] = mapped_column(String)
+    basis: Mapped[str] = mapped_column(String)
+    release_id: Mapped[str] = mapped_column(String)
+    at: Mapped[str] = mapped_column(String)

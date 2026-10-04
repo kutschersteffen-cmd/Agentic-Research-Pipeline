@@ -11,7 +11,7 @@ from arp.storage.run_store import RunStore
 if TYPE_CHECKING:
     from arp.api.auth import Principal
 
-REVIEWABLE_RUN_TYPES = ("theme", "extraction", "financials", "identity", "transition_plan", "tnfd")  # never voting
+REVIEWABLE_RUN_TYPES = ("theme", "extraction", "financials", "identity", "transition_plan", "tnfd", "holdings")  # never voting
 LEGACY_COSIGN = {"extraction": {"edit"}}
 
 
@@ -24,6 +24,8 @@ def _queue_kind(run_type: str, row: dict) -> ReviewItemKind:
         return ReviewItemKind.VALUE if "field" in row or "fields" in row else ReviewItemKind.OTHER  # else a PreStepFailed report
     if run_type == "identity":
         return ReviewItemKind.IDENTITY
+    if run_type == "holdings":
+        return ReviewItemKind.SECURITY
     if run_type == "theme" and row.get("kind") == "sector_code":
         return ReviewItemKind.SECTOR_CODE
     return ReviewItemKind.OTHER

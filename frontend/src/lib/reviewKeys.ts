@@ -25,6 +25,7 @@ export const ITEM_KIND_LABEL: Record<ReviewItemKind, string> = {
   value: "Value",
   sector_code: "Sector code",
   identity: "Identity",
+  security: "Security",
   quarantined_document: "Held document",
   restatement_candidate: "Restatement",
   other: "Other",

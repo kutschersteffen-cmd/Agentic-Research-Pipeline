@@ -80,6 +80,7 @@ class ReviewItemKind(StrEnum):
     IDENTITY = "identity"
     QUARANTINED_DOCUMENT = "quarantined_document"
     RESTATEMENT_CANDIDATE = "restatement_candidate"
+    SECURITY = "security"
     OTHER = "other"
 
 

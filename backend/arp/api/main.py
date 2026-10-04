@@ -13,6 +13,7 @@ from arp.api.deps import (
     get_calibration_scheduler,
     get_emerging_themes_scheduler,
     get_portfolio_monitoring_scheduler,
+    get_publishing_scheduler,
     get_report_scheduler,
     get_scheduler,
     get_taxonomy_researcher_scheduler,
@@ -29,17 +30,20 @@ from arp.api.routers import (
     engagement,
     extraction,
     financials,
+    holdings,
     identity,
     index,
     overlap,
     portfolio,
     projects,
+    publish,
     replication,
     reporting,
     revenue_catalogue,
     review,
     runs,
     search,
+    snapshots,
     stewardship,
     taxonomies,
     taxonomy_researcher,
@@ -66,12 +70,14 @@ async def lifespan(app: FastAPI):
     emerging_themes_scheduler = get_emerging_themes_scheduler()
     portfolio_monitoring_scheduler = get_portfolio_monitoring_scheduler()
     report_scheduler = get_report_scheduler()
+    publishing_scheduler = get_publishing_scheduler()
     scheduler.start()
     taxonomy_researcher_scheduler.start()
     calibration_scheduler.start()
     emerging_themes_scheduler.start()
     portfolio_monitoring_scheduler.start()
     report_scheduler.start()
+    publishing_scheduler.start()
     try:
         yield
     finally:
@@ -81,6 +87,7 @@ async def lifespan(app: FastAPI):
         emerging_themes_scheduler.shutdown()
         portfolio_monitoring_scheduler.shutdown()
         report_scheduler.shutdown()
+        publishing_scheduler.shutdown()
 
 
 app = FastAPI(title="Agentic Research Pipeline", version="0.1.0", lifespan=lifespan)
@@ -127,6 +134,9 @@ app.include_router(reporting.router, dependencies=[Depends(authorize)])
 app.include_router(replication.router, dependencies=[Depends(authorize)])
 app.include_router(index.router, dependencies=[Depends(authorize)])
 app.include_router(review.router, dependencies=[Depends(authorize)])
+app.include_router(publish.router, dependencies=[Depends(authorize)])
+app.include_router(snapshots.router, dependencies=[Depends(authorize)])
+app.include_router(holdings.router, dependencies=[Depends(authorize)])
 
 
 @app.exception_handler(RuntimeError)

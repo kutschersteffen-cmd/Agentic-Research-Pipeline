@@ -6,7 +6,7 @@ import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
-from arp.api.auth import Principal, authorize, load_users, require_role
+from arp.api.auth import GRANTS, Principal, authorize, load_users, require_grant, require_role
 from arp.api.deps import get_run_store, settings_dep
 from arp.api.main import app as real_app
 from arp.config import Settings
@@ -75,7 +75,7 @@ def test_dev_bypass_only_from_loopback(users_file, tmp_path):
     app = make_app(Settings(auth_mode="dev", users_file=users_file, runs_dir=tmp_path / "runs"))
     local = TestClient(app, client=("127.0.0.1", 5000)).post("/approve")
     assert local.status_code == 200
-    assert Principal(**local.json()) == Principal(user_id="dev", name="dev", role="approver")
+    assert Principal(**local.json()) == Principal(user_id="dev", name="dev", role="approver", roles=list(GRANTS))
     assert TestClient(app, client=("10.0.0.5", 5000)).post("/approve").status_code == 401
 
 
@@ -111,7 +111,7 @@ def test_health_open_and_me_returns_principal(real_client):
     assert real_client.get("/api/health").status_code == 200
     assert real_client.get("/api/me").status_code == 401
     r = real_client.get("/api/me", headers=bearer("ta"))
-    assert r.json() == {"user_id": "u_a", "name": "A", "role": "analyst"}
+    assert r.json() == {"user_id": "u_a", "name": "A", "role": "analyst", "roles": []}
 
 
 def test_invalid_row_error_never_leaks_the_token(tmp_path):
@@ -213,3 +213,25 @@ def test_untrusted_host_header_is_400(real_client):
     assert real_client.get("/api/health", headers={"Host": "localhost:8000"}).status_code == 200
     # voting sits behind the same host check (not auth): still answers on a trusted host
     assert real_client.get("/api/voting/runs/r1/review-queue").status_code != 400
+
+
+def test_dev_principal_has_snapshot_grants(dev_client):
+    assert dev_client.post("/approve").json()["roles"] == ["snapshot_reader", "holdings_reader"]
+
+
+def test_users_file_roles_and_require_grant(tmp_path):
+    rows = [{"token": "ts", "user_id": "svc", "name": "S", "role": "viewer", "roles": ["snapshot_reader"]}, USERS[0]]
+    users = load_users(_write(tmp_path, rows))
+    assert users["ts"].roles == ["snapshot_reader"] and users["tv"].roles == []
+    app = FastAPI()
+    app.dependency_overrides[settings_dep] = lambda: Settings(auth_mode="local", users_file=tmp_path / "users.json")
+    app.get("/s")(lambda user=Depends(require_grant("snapshot_reader", "holdings_reader")): user)
+    c = TestClient(app)
+    assert c.get("/s", headers=bearer("tv")).json()["detail"] == "Requires role 'snapshot_reader'"
+    assert c.get("/s", headers=bearer("ts")).json()["detail"] == "Requires role 'holdings_reader'"
+
+
+def test_unknown_grant_name_fails_at_load(tmp_path):
+    rows = [{"token": "ts", "user_id": "svc", "name": "S", "role": "viewer", "roles": ["snapshot_raeder"]}]
+    with pytest.raises(RuntimeError, match="roles"):
+        load_users(_write(tmp_path, rows))

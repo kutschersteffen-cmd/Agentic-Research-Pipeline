@@ -67,7 +67,7 @@ _HOLDINGS_SELECT = """
            h.quantity, h.market_value_eur, h.weight_pct,
            (SELECT substr(t, 9) FROM unnest(p.tags) t WHERE t LIKE 'project:%' LIMIT 1) AS project_id
     FROM holdings h
-    JOIN portfolios p ON p.portfolio_id = h.portfolio_id
+    JOIN portfolios p ON p.portfolio_id = h.portfolio_id AND h.kind = 'portfolio'
     LEFT JOIN securities s ON s.security_id = h.security_id
     LEFT JOIN companies c ON c.company_id = s.company_id
 """
@@ -79,7 +79,8 @@ _VIEWS = {
     "holdings": _HOLDINGS_SELECT
     + """
         JOIN (
-            SELECT portfolio_id, max(bi.safe_date(as_of_date)) AS d FROM holdings GROUP BY portfolio_id
+            SELECT portfolio_id, max(bi.safe_date(as_of_date)) AS d FROM holdings WHERE kind = 'portfolio'
+            GROUP BY portfolio_id
         ) latest ON latest.portfolio_id = h.portfolio_id AND bi.safe_date(h.as_of_date) = latest.d
     """,
     # Every snapshot; junk dates (NULL after the safe cast) are left out.

@@ -32,6 +32,8 @@ import type {
   VoteRecord,
   VoteReviewDecision,
   VotingPreview,
+  HolderStatus,
+  IntakeResult,
 } from "../types";
 import type {
   AggregationResult,
@@ -220,6 +222,20 @@ export const api = {
     request<Record<string, unknown>>(`/api/review/runs/${encodeURIComponent(runId)}/snapshots/${encodeURIComponent(snapshotId)}`),
 
   base: API_BASE,
+
+  // Holdings intake
+  listHolders: () => request<{ holders: HolderStatus[] }>("/api/holdings/holders"),
+  uploadHoldings: (f: { file: File; holder_id: string; kind: string; as_of: string; provider?: string; override_reason?: string }) => {
+    const form = new FormData();
+    form.append("file", f.file);
+    for (const k of ["holder_id", "kind", "as_of", "provider", "override_reason"] as const) if (f[k]) form.append(k, f[k]!);
+    return request<IntakeResult>("/api/holdings/upload", { method: "POST", body: form });
+  },
+  saveHolder: (kind: string, holderId: string, body: { name: string; source: "api" | "file" }) =>
+    request<HolderStatus>(`/api/holdings/holders/${kind}/${encodeURIComponent(holderId)}`, { method: "PUT", body: JSON.stringify(body) }),
+  pullHolder: (kind: string, holderId: string) =>
+    request<IntakeResult>(`/api/holdings/holders/${kind}/${encodeURIComponent(holderId)}/pull`, { method: "POST" }),
+  holdingsTemplateUrl: (kind: string, format: string) => `${API_BASE}/api/holdings/template${buildQuery({ kind, format })}`,
 
   getMe: () => request<Me>("/api/me"),
 

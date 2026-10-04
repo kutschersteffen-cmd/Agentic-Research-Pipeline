@@ -93,3 +93,66 @@ def test_list_all_alert_scope_ids_excludes_rules_json(tmp_path):
     store.save_rule(AlertRule(name="R", rule_type="field_threshold", field_id="f1", comparator="gt", threshold_value=1.0))
     store.append_alert_event("bmw", "alert_raised", {"alert": {}})
     assert store.list_all_alert_scope_ids() == ["bmw"]
+
+
+# --- E77: one canonical holding row ---
+
+
+def test_old_snapshot_loads_through_alias(tmp_path):
+    store = PortfolioStore(tmp_path)
+    path = store.snapshot_path("P1", "2026-01-31")
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        '{"portfolio_id": "P1", "security_id": "a", "as_of_date": "2026-01-31", "quantity": 1.0, '
+        '"price": 5.0, "market_value": 5.0, "fx_rate_to_eur": 1.0, "market_value_eur": 5.0}\n'
+    )
+    [h] = store.load_snapshot("P1", "2026-01-31")
+    assert (h.holder_id, h.portfolio_id, h.kind) == ("P1", "P1", "portfolio")
+
+
+def test_unsafe_holder_id_or_date_refused(tmp_path):
+    import pytest
+
+    store = PortfolioStore(tmp_path)
+    with pytest.raises(ValueError):
+        store.snapshot_path("../x", "2026-01-31")
+    with pytest.raises(ValueError):
+        store.snapshot_path("IDX1", "../x", kind="index")
+    with pytest.raises(ValueError):
+        store.revision_path("index", "../x", "2026-01-31", 1)
+    with pytest.raises(ValueError):
+        store.revision_path("index", "IDX1", "../x", 1)
+
+
+def test_new_snapshot_writes_holder_id(tmp_path):
+    import json
+
+    store = PortfolioStore(tmp_path)
+    store.save_snapshot("p1", "2026-01-01", [_holding("p1", "a", "2026-01-01")])
+    row = json.loads(store.snapshot_path("p1", "2026-01-01").read_text().splitlines()[0])
+    assert row["holder_id"] == "p1"
+    assert row["kind"] == "portfolio"
+
+
+def test_index_path_layout(tmp_path):
+    store = PortfolioStore(tmp_path)
+    assert store.snapshot_path("IDX1", "2026-10-31", kind="index") == (
+        tmp_path / "holdings" / "index" / "IDX1" / "snapshots" / "2026-10-31.jsonl"
+    )
+
+
+def test_portfolio_holding_requires_market_value_eur():
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="a portfolio holding needs market_value_eur"):
+        Holding(holder_id="p1", security_id="a", as_of_date="2026-01-01")
+    h = Holding(holder_id="IDX1", kind="index", security_id="a", as_of_date="2026-01-01", fx_rate_to_eur=None)
+    assert h.market_value_eur is None
+
+
+def test_fx_rate_filled_only_for_eur():
+    base = {"holder_id": "IDX1", "kind": "index", "security_id": "a", "as_of_date": "2026-01-01"}
+    assert Holding(**base, currency="EUR").fx_rate_to_eur == 1.0
+    assert Holding(**base, currency="USD").fx_rate_to_eur is None
+    assert Holding(**base).fx_rate_to_eur is None

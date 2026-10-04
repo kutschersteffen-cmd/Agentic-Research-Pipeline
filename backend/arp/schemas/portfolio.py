@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 from arp.schemas.common import new_id, now_iso
 
@@ -40,19 +40,61 @@ class SecurityResolution(BaseModel):
     resolved_at: str = Field(default_factory=now_iso)
 
 
-class Holding(BaseModel):
-    """One position: one security, in one portfolio, as of one date.
-    Immutable once written -- a correction is a new snapshot, not an edit."""
+HoldingKind = Literal["index", "portfolio"]
+HoldingSource = Literal["api", "file"]
 
-    portfolio_id: str
+
+class Holding(BaseModel):
+    """One position: one security, held by one index or portfolio, as of one
+    date. Immutable once written -- a correction is a new snapshot, not an
+    edit. Old rows (key `portfolio_id`, no `kind`) load as portfolio rows."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    holder_id: str = Field(validation_alias=AliasChoices("holder_id", "portfolio_id"))
+    kind: HoldingKind = "portfolio"
     security_id: str
     as_of_date: str
-    quantity: float
-    price: float
-    market_value: float = Field(description="quantity * price, in the security's native currency.")
-    fx_rate_to_eur: float = Field(default=1.0, description="As supplied by the custodian feed for this as_of_date.")
-    market_value_eur: float = Field(description="market_value * fx_rate_to_eur -- the only cross-portfolio unit.")
-    weight_pct: float | None = Field(default=None, description="Of portfolio NAV, if supplied/derivable.")
+    isin: str | None = None
+    issuer_key: str | None = None
+    issuer_scheme: str | None = None
+    source: HoldingSource | None = Field(default=None, description="None means written before the holdings intake.")
+    source_ref: str | None = None
+    quantity: float | None = None
+    price: float | None = None
+    market_value: float | None = Field(default=None, description="quantity * price, in the security's native currency.")
+    market_value_eur: float | None = Field(default=None, description="market_value * fx_rate_to_eur -- the only cross-portfolio unit.")
+    shares: float | None = None
+    free_float: float | None = None
+    weight_pct: float | None = Field(default=None, description="Of portfolio NAV / index weight, if supplied/derivable.")
+    currency: str | None = None
+    fx_rate_to_eur: float | None = Field(
+        default=None, description="As supplied by the feed for this as_of_date; 1.0 is filled in only for EUR rows."
+    )
+
+    @property
+    def portfolio_id(self) -> str:
+        return self.holder_id
+
+    @model_validator(mode="after")
+    def _portfolio_needs_eur_value(self) -> Holding:
+        if self.fx_rate_to_eur is None and self.currency == "EUR":
+            self.fx_rate_to_eur = 1.0
+        if self.kind == "portfolio" and self.market_value_eur is None:
+            raise ValueError("a portfolio holding needs market_value_eur")
+        return self
+
+
+class HolderConfig(BaseModel):
+    """One index or portfolio whose holdings are taken in."""
+
+    holder_id: str
+    kind: HoldingKind
+    name: str = ""
+    source: HoldingSource = "file"
+    as_of: str | None = Field(default=None, description="The newest date with data.")
+    last_pull_at: str | None = None
+    last_error: str | None = None
 
 
 class Portfolio(BaseModel):

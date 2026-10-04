@@ -99,6 +99,44 @@ def _create_bi_views(conn: Connection) -> None:
     create_bi_views(conn)
 
 
+def _holdings_intake(conn: Connection) -> None:
+    """E77: `holdings` holds index rows beside portfolio rows. Drops the FK
+    to `portfolios` (an index is no portfolio; found by catalog lookup, as in
+    step 0001), lets the money columns be NULL (an index row has weights, a
+    portfolio row may lack an FX rate), marks old rows as portfolio rows,
+    widens the unique key by `kind`, and re-creates the BI views so they
+    stay portfolio-only (step 0002 never re-runs)."""
+    from sqlalchemy import text
+
+    rows = conn.execute(
+        text(
+            """
+            SELECT con.conname FROM pg_constraint con
+            JOIN pg_class child ON child.oid = con.conrelid
+            JOIN pg_class parent ON parent.oid = con.confrelid
+            WHERE con.contype = 'f' AND child.relname = 'holdings' AND parent.relname = 'portfolios'
+            """
+        )
+    ).scalars().all()
+    for name in rows:
+        conn.execute(text(f'ALTER TABLE holdings DROP CONSTRAINT "{name}"'))
+    conn.execute(text("ALTER TABLE holdings DROP CONSTRAINT IF EXISTS uq_holdings_portfolio_security_date"))
+    for column in ("quantity", "price", "market_value", "market_value_eur", "fx_rate_to_eur"):
+        conn.execute(text(f"ALTER TABLE holdings ALTER COLUMN {column} DROP NOT NULL"))
+    # The column was added nullable, without a default, by reconciliation.
+    conn.execute(text("ALTER TABLE holdings ALTER COLUMN kind SET DEFAULT 'portfolio'"))
+    conn.execute(text("UPDATE holdings SET kind = 'portfolio' WHERE kind IS NULL"))
+    conn.execute(text("ALTER TABLE holdings ALTER COLUMN kind SET NOT NULL"))
+    if not conn.execute(text("SELECT 1 FROM pg_constraint WHERE conname = 'uq_holdings_kind_holder_security_date'")).first():
+        conn.execute(
+            text(
+                "ALTER TABLE holdings ADD CONSTRAINT uq_holdings_kind_holder_security_date"
+                " UNIQUE (kind, portfolio_id, security_id, as_of_date)"
+            )
+        )
+    _create_bi_views(conn)
+
+
 # Ordered; append new steps, never edit or reorder an existing one (a
 # database that already recorded it will not run it again).
 SCHEMA_STEPS: tuple[SchemaStep, ...] = (
@@ -111,6 +149,11 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         name="0002_create_bi_views",
         description="Create the bi schema and the views the BI tool reads",
         apply=_create_bi_views,
+    ),
+    SchemaStep(
+        name="0003_holdings_intake",
+        description="Index holdings beside portfolio holdings: kind, nullable money columns, no FK to portfolios",
+        apply=_holdings_intake,
     ),
 )
 
