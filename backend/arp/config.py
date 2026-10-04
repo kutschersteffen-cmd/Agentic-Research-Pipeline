@@ -260,6 +260,11 @@ class Settings(BaseSettings):
     discovery_schedule_enabled: bool = Field(default=False)
     discovery_schedule_interval_hours: float = Field(default=24.0)
     discovery_schedule_universe_path: Path | None = Field(default=None)
+    # Event-driven refresh (E20): a new or updated filing starts an extraction run per configured schema.
+    event_refresh_enabled: bool = Field(default=False, description="Start extraction runs when discovery records a new or updated document.")
+    event_refresh_schema_ids: list[str] = Field(default=[], description="Released schemas each new filing is extracted with.")
+    event_refresh_max_runs_per_day: int = Field(default=20, description="Cap on refresh runs started per UTC day.")
+    event_refresh_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".event_refresh_state")
 
     # Emerging Themes Scanner ("Tool 0" -- arp/emerging_themes/). Ingests
     # public news/filings/regulatory flow across a universe, clusters it
@@ -551,6 +556,7 @@ class Settings(BaseSettings):
             self.cache_dir,
             self.document_store_dir,
             self.discovery_state_dir,
+            self.event_refresh_state_dir,
             self.engagements_dir,
             self.stewardship_streams_dir,
             self.ballots_dir,

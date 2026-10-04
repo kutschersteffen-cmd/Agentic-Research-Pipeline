@@ -191,6 +191,7 @@ async def _document_mgmt(company: CompanyRef, candidates: list[CandidateDocument
     document the company now has on disk."""
     from arp.discovery.change_detector import ChangeDetector
     from arp.discovery.downloader import download_documents
+    from arp.discovery.refresh import refresh_hook
     from arp.ingestion.indexing_config import IndexingConfig
     from arp.storage.document_blob_store import blob_store_for
 
@@ -204,6 +205,7 @@ async def _document_mgmt(company: CompanyRef, candidates: list[CandidateDocument
             state_dir=settings.discovery_state_dir,
             global_events_path=settings.documents_dir / "_events.jsonl",
             webhook_url=settings.discovery_webhook_url,
+            on_events=refresh_hook(settings),
         )
         changed = len(await detector.diff_and_record(company, downloaded))
     folder = Path(settings.documents_dir) / safe_id(company.company_id, label="company_id")
