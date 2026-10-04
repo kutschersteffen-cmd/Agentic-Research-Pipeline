@@ -18,7 +18,7 @@ from arp.planning.doc_routing import input_hash, route_documents
 from arp.planning.entity_check import confirm_entity
 from arp.planning.periods import plan_periods, union_planned
 from arp.schemas.common import CompanyRef, MatchStatus, SourceDocument
-from arp.schemas.datapoints import DataPointSchema, ExtractedField, ExtractionRecord, FieldStatus
+from arp.schemas.datapoints import CheckResult, DataPointSchema, ExtractedField, ExtractionRecord, FieldStatus, is_failing
 from arp.schemas.issuer import issuer_key
 from arp.schemas.review import field_item_key, period_key
 from arp.storage.identifier_map import IdentifierMapStore
@@ -75,7 +75,12 @@ async def _extract_company(
     for field in to_extract:
         h = input_hash(field, route_documents(field, kept), planned_periods)
         prior = history.last_rows(company.company_id, field.field_id) if history and h else []
-        if prior and all(r.get("input_hash") == h and (r.get("provenance") or {}).get("field_version") == field.version for r in prior):
+        # ponytail: rows with failing checks re-extract; strip check-derived notes instead if that costs too many calls
+        if prior and all(
+            r.get("input_hash") == h and (r.get("provenance") or {}).get("field_version") == field.version
+            and not any(is_failing(CheckResult.model_validate(c)) for c in r.get("checks", []))
+            for r in prior
+        ):
             run = history.last_run_id(company.company_id)
             fields.extend(
                 ExtractedField.model_validate(r).model_copy(

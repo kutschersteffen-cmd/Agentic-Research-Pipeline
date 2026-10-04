@@ -49,6 +49,11 @@ class _Src(DocumentSource):
 
 
 async def _run(tmp_path, field, doc, fake_llm, script):
+    return await _run_docs(tmp_path, [doc], fake_llm, script, field)
+
+
+async def _run_docs(tmp_path, docs, fake_llm, script, field=None):
+    field = field or _field()
     settings = Settings(
         anthropic_api_key="unused", runs_dir=tmp_path / "r", schema_registry_dir=tmp_path / "s",
         documents_dir=tmp_path / "d", cache_dir=tmp_path / "c", discovery_state_dir=tmp_path / "x",
@@ -60,7 +65,7 @@ async def _run(tmp_path, field, doc, fake_llm, script):
     company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
     run_id = create_extraction_run(saved, [company], settings, store)
     await execute_extraction_run(
-        run_id, saved, [company], llm=llm, registry=DocumentSourceRegistry([_Src([doc])]),
+        run_id, saved, [company], llm=llm, registry=DocumentSourceRegistry([_Src(docs)]),
         settings=settings, run_store=store,
     )
     (row,) = store.read_jsonl(store.results_path(run_id))
@@ -107,3 +112,28 @@ def test_section_filter_with_fallback():
     assert section_filter(f, [a, b]) == [a]
     assert section_filter(f, [b]) == [b]
     assert section_filter(_field(routing=DocumentRouting(sections=["climate"], fallback=False)), [b]) == []
+
+
+def _failing_check_row(tmp_path, run_id):
+    import json
+
+    p = RunStore(tmp_path / "r").results_path(run_id)
+    rows = [json.loads(line) for line in p.read_text().splitlines()]
+    rows[0]["fields"][0]["checks"] = [{"check_id": "c", "layer": 2, "outcome": "fail", "severity": "warn"}]
+    p.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+
+
+async def test_prior_failing_check_reextracts(tmp_path, fake_llm):
+    run1, _, _ = await _run(tmp_path, _field(), _doc(), fake_llm, _script())
+    _failing_check_row(tmp_path, run1)
+    _, row2, llm2 = await _run(tmp_path, _field(), _doc(), fake_llm, _script())
+    assert llm2.calls and row2["reused_from_run"] is None
+
+
+async def test_shrunk_document_set_reextracts(tmp_path, fake_llm):
+    settings_docs = [_doc(), _doc("Other text about capex.", key="k2")]
+    for d, i in zip(settings_docs, ("d1", "d2"), strict=True):
+        d.doc_id = i
+    _, _, _ = await _run_docs(tmp_path, settings_docs, fake_llm, _script())
+    _, row2, llm2 = await _run_docs(tmp_path, settings_docs[:1], fake_llm, _script())
+    assert llm2.calls and row2["reused_from_run"] is None
