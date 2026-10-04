@@ -34,9 +34,16 @@ def test_altered_conversion_fails():
 
 def test_round_trip_with_fx():
     spec = _SPEC.model_copy(update={"unit": "USD"})
-    r = _run(spec, canonical_value=1_650_000.0, canonical_unit="USD", fx_rate=1.1)
-    assert r.outcome == "pass"
-    assert _run(spec, canonical_value=1_500_000.0, canonical_unit="USD", fx_rate=1.1).outcome == "fail"
+    kw = {"canonical_unit": "USD", "fx_rate": 1.1, "unit": None}
+    assert _run(spec, canonical_value=1_650_000.0, **kw).outcome == "pass"
+    assert _run(spec, canonical_value=1_500_000.0, **kw).outcome == "fail"
+
+
+def test_unit_read_from_raw_text_tonnes_to_kg():
+    spec = _SPEC.model_copy(update={"unit": "kg", "data_type": FieldDataType.NUMBER})
+    kw = {"raw_value_text": "1,500 tonnes", "value": 1500.0, "canonical_unit": "kg", "scale_applied": 1.0, "unit": None}
+    assert _run(spec, canonical_value=1_500_000.0, **kw).outcome == "pass"
+    assert _run(spec, canonical_value=1_600_000.0, **kw).outcome == "fail"
 
 
 def test_not_applicable_without_canonical():

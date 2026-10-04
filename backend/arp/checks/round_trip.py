@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 import math
-import re
 
 from arp.normalise.locale import parse_number
 from arp.normalise.units import lookup_unit, split_unit
-from arp.normalise.value import _unit_from_raw
+from arp.normalise.value import PRINTED, unit_from_raw
 from arp.schemas.datapoints import CheckOutcome, CheckResult, ExtractedField, FieldDefinition, Severity
-
-_PRINTED = re.compile(r"\d[\d.,]*\d|\d")
 
 
 def _result(outcome: CheckOutcome, detail: str = "") -> list[CheckResult]:
@@ -24,7 +21,7 @@ def _decimal(field: ExtractedField, ctx):
 
 def check_round_trip(spec: FieldDefinition, field: ExtractedField, ctx) -> list[CheckResult]:
     na = CheckOutcome.NOT_APPLICABLE
-    m = _PRINTED.search(field.raw_value_text or "")
+    m = PRINTED.search(field.raw_value_text or "")
     if field.canonical_value is None or not m:
         return _result(na)
     printed = parse_number(m[0], _decimal(field, ctx))[0]
@@ -32,7 +29,7 @@ def check_round_trip(spec: FieldDefinition, field: ExtractedField, ctx) -> list[
         return _result(na)
 
     # Forward: printed * scale * src.factor [* fx] / (dst scale * dst.factor). Undo it with the stored fields.
-    src_text = field.unit or spec.unit or _unit_from_raw(field.raw_value_text)
+    src_text = field.unit or unit_from_raw(field.raw_value_text)
     src = lookup_unit(split_unit(src_text)[2]) if src_text else None
     dst_scale, _, dst_base = split_unit(field.canonical_unit or "")
     dst = lookup_unit(dst_base) if field.canonical_unit else None

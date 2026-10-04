@@ -24,7 +24,7 @@ from arp.schemas.review import ReasonCode
 
 _NUMERIC = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
 _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
-_PRINTED = re.compile(r"\d[\d.,]*\d|\d")
+PRINTED = re.compile(r"\d[\d.,]*\d|\d")
 _RAW_SCALE = re.compile(r"\d[\d,]*(?:\.\d+)?\s*([A-Za-z']+)(?![\w²³])")
 
 
@@ -73,7 +73,7 @@ def _split(text: str) -> tuple[float, bool, str | None]:
     return scale, amb, base or None
 
 
-def _unit_from_raw(raw: str | None) -> str | None:
+def unit_from_raw(raw: str | None) -> str | None:
     """Unit text read around a number in raw_value_text: "12.5%" -> "%", "$1.2bn" -> "$ bn",
     "1,234 thousand tonnes" -> "thousand tonnes". Longest readable run of words wins."""
     for m in _NUMBER.finditer(raw or ""):
@@ -92,7 +92,7 @@ def _unit_from_raw(raw: str | None) -> str | None:
 
 def _canonical(field: FieldDefinition, value: float, pv: PeriodValue, end: date | None):
     """(canonical_value, canonical_unit, scale_applied, FxRate | None); raises _CheckFailed."""
-    unit_text = pv.unit_text or _unit_from_raw(pv.raw_value_text)
+    unit_text = pv.unit_text or unit_from_raw(pv.raw_value_text)
     unit_scale, unit_amb, base = _split(unit_text) if unit_text else (1.0, False, None)
     raw = _raw_scale(pv.raw_value_text)
     if unit_scale != 1.0 and raw and raw[0] != unit_scale:
@@ -156,7 +156,7 @@ def typed_value(
             value = parsed
     text = pv.value if isinstance(pv.value, str) else pv.raw_value_text
     # The string as printed: the typed float no longer shows whether "1,234" was 1234 or 1.234.
-    m = _PRINTED.search(text) if field.data_type in _NUMERIC and text else None
+    m = PRINTED.search(text) if field.data_type in _NUMERIC and text else None
     if m and parse_number(m[0], decimal)[1]:
         reasons.append(ReasonCode.NUMBER_LOCALE_AMBIGUOUS)
         notes.append(f"{m[0]!r} is a thousands group or a decimal; read as a decimal point")
