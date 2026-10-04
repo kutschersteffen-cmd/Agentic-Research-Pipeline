@@ -104,8 +104,8 @@ def _canonical(field: FieldDefinition, value: float, pv: PeriodValue, end: date 
     if src and src.ambiguous:
         raise _CheckFailed(f"ambiguous unit {base!r}")
     amount = value * scale
-    if field.unit is None:
-        return amount, base, scale, None
+    if field.unit is None:  # no conversion: only a known factor-1 unit is renamed to its canonical code ("€" -> "EUR")
+        return amount, src.canonical if src and src.factor == 1 else base, scale, None
     if base is None:
         raise _CheckFailed(f"no unit stated or readable in the raw text; cannot convert to {field.unit}")
 

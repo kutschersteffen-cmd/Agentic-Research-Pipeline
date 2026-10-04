@@ -48,7 +48,7 @@ def _common(metric: str) -> str:
         "(own definition, EU Taxonomy, ICMA Green Bond Principles, Climate Bonds Taxonomy, China catalogue or other), "
         "including amounts not aligned with or not covered by the EU Taxonomy, for EU, US and other firms alike. "
         f"Classify against {_TABLE_REF}. Count each amount in one category only. Report each fiscal year disclosed, in "
-        "the reporting currency as printed (never convert currencies). Transition activities are never green."
+        "the reporting currency (never convert currencies): give the unit as the ISO 4217 code (USD, EUR, GBP, ...) with the scale word separate, for example 'EUR million'. Transition activities are never green."
     )
 
 
@@ -69,7 +69,7 @@ def _metric_fields(m: str) -> list[FieldDefinition]:
     green = [c for c in cats if c.kind == "green"]
     (trans,) = [c for c in cats if c.kind == "transition"]
     word, common, all_green = METRICS[m], _common(m), _green_rules()
-    total, gtotal, split = f"{m}_total", f"green_{m}_total", f"green_{m}_eu_split_total"
+    total, gtotal = f"{m}_total", f"green_{m}_total"
     cat_ids = [f"green_{m}_{c.category_id}" for c in green]
     status = {
         f"green_{m}_eu_aligned": ("EU Taxonomy-aligned", "the part the company reports as EU Taxonomy-aligned. Taxonomy-aligned fossil gas and nuclear activities (Complementary Delegated Act) are transition, not green: leave them out here"),
@@ -87,11 +87,11 @@ def _metric_fields(m: str) -> list[FieldDefinition]:
                f"{common} The sum of the green categories. Where the company's own green figure contains excluded items "
                "(for example gas or nuclear), subtract them when quantified; otherwise report the figure and quote what "
                f"it includes.{all_green}",
-               kw, part_of=total, sum_of=cat_ids, le_of=[split]),
+               kw, part_of=total, sum_of=cat_ids),
         FieldDefinition(
             field_id=f"green_{m}_share_pct", name=f"Green {word} share", data_type=FieldDataType.PERCENTAGE, unit="%",
             description=f"Green {word} as a percentage of total {word}.",
-            extraction_instructions=f"{common} The share as the company reports it.{all_green}",
+            extraction_instructions=f"{common} The share as the company reports it.",
             seed_keywords=[f"share of green {m}", f"green {m} %"], required=False,
         ),
         _money(f"transition_{m}_total", f"Transition {word}",
@@ -102,24 +102,21 @@ def _metric_fields(m: str) -> list[FieldDefinition]:
                  [c.label.lower(), f"{c.label.lower()} {m}"], part_of=gtotal)
           for fid, c in zip(cat_ids, green, strict=True)),
         *(_money(fid, f"Green {word}, {label}", f"Of green {word}: {what}.", f"{common} Of the green amount, {what}.{all_green}",
-                 [*kw, "EU taxonomy", label], part_of=gtotal)
+                 [*kw, "EU taxonomy", label], part_of=gtotal,
+                 # the three EU statuses add up to the green total: checked once, on the last of them
+                 **({"sum_of": list(status)[:2], "sum_target_field": gtotal} if fid == f"green_{m}_eu_not_covered" else {}))
           for fid, (label, what) in status.items()),
-        _money(split, f"Green {word}, EU status split total",
-               f"Helper: the three EU status amounts added up; checked to equal green {word}.",
-               f"{common} The total of the EU-aligned, eligible-not-aligned and not-covered green amounts, when the "
-               f"company reports one.{all_green}",
-               [*kw, "EU taxonomy"], sum_of=list(status), le_of=[gtotal]),
         FieldDefinition(
             field_id=f"green_{m}_framework", name=f"Green {word} framework", data_type=FieldDataType.ENUM,
             allowed_values=FRAMEWORKS, description=f"The framework the company's green {word} figure follows.",
-            extraction_instructions=f"{common} Pick the framework the company names for its green figure.{all_green}",
+            extraction_instructions=f"{common} Pick the framework the company names for its green figure.",
             seed_keywords=[*kw, "taxonomy", "green bond principles", "climate bonds"], required=False,
         ),
         FieldDefinition(
             field_id=f"green_{m}_definition", name=f"Green {word} definition", data_type=FieldDataType.STRING,
             description=f"The company's own definition of green or low-carbon {word}, quoted.",
             extraction_instructions=f"{common} Quote the definition verbatim, with any thresholds, and say whether it "
-                                    f"counts gas or nuclear.{all_green}",
+                                    "counts gas or nuclear.",
             seed_keywords=[*kw, "we define", "definition"], required=False,
         ),
     ]
@@ -149,10 +146,14 @@ class GreenSummaryRow(BaseModel):
 def _num(f: dict | None) -> float | None:
     if f is None:
         return None
-    v = f.get("canonical_value")
-    if v is None and isinstance(f.get("value"), (int, float)) and not isinstance(f.get("value"), bool):
-        v = f["value"]
+    v, raw = f.get("canonical_value"), f.get("value")
+    if v is None and f.get("canonical_unit") is not None and isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        v = raw
     return v
+
+
+def _same_unit(a: dict, b: dict) -> bool:
+    return a.get("canonical_unit") is not None and a.get("canonical_unit") == b.get("canonical_unit")
 
 
 def green_summary(fields: list[dict]) -> list[GreenSummaryRow]:
@@ -165,13 +166,13 @@ def green_summary(fields: list[dict]) -> list[GreenSummaryRow]:
             g, a, s, t = (by.get((fid, p)) for fid in (gid, aid, f"green_{m}_share_pct", f"{m}_total"))
             beyond = flag = None
             if g and a:
-                if g.get("canonical_unit") != a.get("canonical_unit"):
+                if not _same_unit(g, a):
                     flag = "unit_mismatch"
                 else:
                     beyond = _num(g) - _num(a)
                     flag = "aligned_exceeds_green" if beyond < 0 else None
             share = _num(s)
-            if share is None and g and t and _num(t) and g.get("canonical_unit") == t.get("canonical_unit"):
+            if share is None and g and t and _num(t) and _same_unit(g, t):
                 share = _num(g) / _num(t) * 100
             rows.append(GreenSummaryRow(
                 metric=m, period_end=p, unit=(g or a).get("canonical_unit"), green_total=_num(g), aligned=_num(a),

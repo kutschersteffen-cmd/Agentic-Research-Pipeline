@@ -72,7 +72,7 @@ def test_missing_fx_rate_flags_check_failed(monkeypatch):
 def test_no_field_unit_scales_into_base_unit():
     pv = PeriodValue(value=2.0, raw_value_text="2 million", unit_text="tonnes", period_text="FY2023")
     tv = typed_value(_field(), pv, fiscal_year_end="12-31")
-    assert (tv.canonical_value, tv.canonical_unit, tv.scale_applied) == (2_000_000.0, "tonnes", 1_000_000.0)
+    assert (tv.canonical_value, tv.canonical_unit, tv.scale_applied) == (2_000_000.0, "t", 1_000_000.0)  # factor-1 unit renamed, not converted
 
 
 def test_zero_states():
