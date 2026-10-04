@@ -92,9 +92,11 @@ async def answer_question(
 
     vintage: dict = {"holdings_as_of": result.as_of}
     if spec.metric == "weighted_avg_datapoint":
-        # the dates of the observations the average used (same resolution as analytics.execute)
+        # the dates of the observations behind the average: companies held at as_of (same resolution as analytics.execute)
+        held = {h.security_id for h in store.load_holdings_as_of(result.as_of, spec.portfolio_filter or None)}
+        cids = {s.company_id for sid, s in securities.items() if sid in held and s.company_id}
         observations = (datapoint_mapping.resolve_field_value(store, cid, spec.data_point_field_id, result.as_of)
-                        for cid in {s.company_id for s in securities.values() if s.company_id})
+                        for cid in cids)
         vintage["observation_dates"] = sorted({o.observed_at[:10] for o in observations if o is not None
                                                and isinstance(o.value, (int, float)) and not isinstance(o.value, bool)})
     return QAAnswer(question=question, resolvable=True, spec=spec, result=result, answer_text=_template_answer(spec, result), vintage=vintage), usage
