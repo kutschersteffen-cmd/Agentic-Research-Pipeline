@@ -131,3 +131,44 @@ def test_unknown_provider_and_suffix_and_ref():
     with pytest.raises(ValueError):
         read_rows(b"", "a.txt", DEFAULT)
     assert file_ref(b"a").startswith("sha256:")
+
+
+@pytest.mark.parametrize("bad", ["nan", "inf", "1e999", float("nan")])
+def test_non_finite_numbers_rejected(bad):
+    raw = [{"_row": 2, "isin": ISINS[0], "weight": bad}]
+    assert RowError(2, "weight", "not a number") in _v(raw).errors
+    raw = [{"_row": 2, "isin": ISINS[0], "weight": 100, "market_value": 1, "currency": "USD", "fx_rate_to_eur": bad}]
+    v = validate(raw, kind="portfolio", as_of="2026-09-30")
+    assert RowError(2, "fx_rate_to_eur", "not a number") in v.errors
+
+
+def test_unreadable_files_raise_value_error():
+    with pytest.raises(ValueError, match="unreadable file"):
+        read_rows(b"not a zip", "a.xlsx", DEFAULT)
+    wrong = Mapping(provider="x", columns=DEFAULT.columns, sheet="Nope")
+    with pytest.raises(ValueError, match="unreadable file"):
+        read_rows(_xlsx(_data()), "a.xlsx", wrong)
+    with pytest.raises(ValueError, match="too many rows"):
+        read_rows(_csv(_data()), "a.csv", DEFAULT, max_rows=2)
+    with pytest.raises(ValueError, match="too many rows"):
+        read_rows(_xlsx(_data()), "a.xlsx", DEFAULT, max_rows=2)
+
+
+def test_sign_and_eur_rate_rules():
+    def one(**kw):
+        raw = [{"_row": 2, "isin": ISINS[0], "weight": 100, "market_value": 1, "currency": "EUR", **kw}]
+        return validate(raw, kind="portfolio", as_of="2026-09-30").errors
+
+    assert one(weight=-5) and RowError(2, "weight", "must not be negative") in one(weight=-5)
+    assert one(fx_rate_to_eur=0) == [RowError(2, "fx_rate_to_eur", "must be positive")]
+    assert one(fx_rate_to_eur=1.1) == [RowError(2, "fx_rate_to_eur", "must be 1 for a EUR position")]
+    assert one(fx_rate_to_eur=1) == []
+
+
+def test_bom_invalid_as_of_and_numeric_name():
+    rows = read_rows(b"\xef\xbb\xbf" + _csv(_data()), "a.csv", DEFAULT)
+    assert _v(rows).errors == []
+    with pytest.raises(ValueError):
+        validate(rows, kind="index", as_of="not-a-date")
+    r = [{"_row": 2, "isin": ISINS[0], "weight": 100, "name": 123.0}]
+    assert _v(r).rows[0]["name"] == "123"

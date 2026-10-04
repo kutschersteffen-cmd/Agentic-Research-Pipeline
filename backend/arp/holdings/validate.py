@@ -1,7 +1,8 @@
 """Whole-file validation of holdings rows: all errors are collected, and any error rejects the file."""
 
+import math
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import UTC, date, datetime
 
 from arp.schemas.issuer import lei_is_valid, normalise_lei
 
@@ -33,12 +34,18 @@ def parse_decimal(value, decimal: str) -> float | None:
     if isinstance(value, bool):
         raise ValueError(value)
     if isinstance(value, (int, float)):
-        return float(value)
+        result = float(value)
+        if not math.isfinite(result):
+            raise ValueError(value)
+        return result
     other = "," if decimal == "." else "."
     text = str(value).replace(" ", "").replace(" ", "").replace("'", "").replace(other, "")
     if not text:
         return None
-    return float(text.replace(decimal, "."))
+    result = float(text.replace(decimal, "."))
+    if not math.isfinite(result):
+        raise ValueError(value)
+    return result
 
 
 @dataclass(frozen=True)
@@ -91,7 +98,10 @@ def validate(
         if lei and not lei_is_valid(lei):
             errors.append(RowError(n, "lei", "LEI check digits fail (ISO 17442, mod 97)"))
         row["lei"] = lei
-        row["name"] = None if _blank(r.get("name")) else str(r["name"]).strip()
+        name = r.get("name")
+        if isinstance(name, float) and name.is_integer():
+            name = int(name)
+        row["name"] = None if _blank(name) else str(name).strip()
         if "currency" in r:
             row["currency"] = None if _blank(r["currency"]) else str(r["currency"]).strip().upper()
         for col in NUMERIC:
@@ -101,6 +111,13 @@ def validate(
             except (ValueError, OverflowError):
                 row[col] = None
                 errors.append(RowError(n, col, "not a number"))
+        if row.get("weight") is not None and row["weight"] < 0:
+            errors.append(RowError(n, "weight", "must not be negative"))
+        fx = row.get("fx_rate_to_eur")
+        if fx is not None and fx <= 0:
+            errors.append(RowError(n, "fx_rate_to_eur", "must be positive"))
+        elif fx is not None and row.get("currency") == "EUR" and fx != 1:
+            errors.append(RowError(n, "fx_rate_to_eur", "must be 1 for a EUR position"))
         if row.get("weight") is not None and weight_unit == "fraction":
             row["weight"] *= 100
         if (
@@ -115,6 +132,6 @@ def validate(
     s = sum(r["weight"] for r in rows if r.get("weight") is not None)
     if "weight" in REQUIRED[kind] and any(r.get("weight") is not None for r in rows) and abs(s - 100) > WEIGHT_TOLERANCE:
         errors.append(RowError(None, "weight", f"weights sum to {s:g}%, not 100% ± {WEIGHT_TOLERANCE:g}"))
-    if date.fromisoformat(as_of) > (today or date.today()):
+    if date.fromisoformat(as_of) > (today or datetime.now(UTC).date()):
         errors.append(RowError(None, None, "as-of date is in the future"))
     return Validated([] if errors else rows, errors)

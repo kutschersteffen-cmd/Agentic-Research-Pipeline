@@ -36,31 +36,44 @@ def _cell(v):
     return v.strip() if isinstance(v, str) else v
 
 
-def read_rows(data: bytes, filename: str, mapping: Mapping) -> list[dict]:
-    suffix = Path(filename).suffix.lower()
+MAX_ROWS = 200_000
+
+
+def _records(data: bytes, suffix: str, mapping: Mapping, max_rows: int):
     if suffix == ".csv":
         text = data.decode("utf-8-sig")
         reader = csv.DictReader(io.StringIO(text, newline=""), delimiter=sniff_delimiter(text))
-        records = [(i, {k: v for k, v in rec.items() if k is not None}) for i, rec in enumerate(reader, start=2)]
-    elif suffix == ".xlsx":
-        wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
-        try:
-            ws = wb[mapping.sheet] if mapping.sheet else wb.worksheets[0]
-            it = ws.iter_rows(values_only=True)
-            header = [None if h is None else str(h).strip() for h in next(it, ())]
-            records = [(i, dict(zip(header, vals, strict=False))) for i, vals in enumerate(it, start=2)]
-        finally:
-            wb.close()
-    else:
+        yield from ((i, {k: v for k, v in rec.items() if k is not None}) for i, rec in enumerate(reader, start=2))
+        return
+    wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+    try:
+        ws = wb[mapping.sheet] if mapping.sheet else wb.worksheets[0]
+        it = ws.iter_rows(values_only=True, max_row=max_rows + 2)
+        header = [None if h is None else str(h).strip() for h in next(it, ())]
+        yield from ((i, dict(zip(header, vals, strict=False))) for i, vals in enumerate(it, start=2))
+    finally:
+        wb.close()
+
+
+def read_rows(data: bytes, filename: str, mapping: Mapping, max_rows: int = MAX_ROWS) -> list[dict]:
+    suffix = Path(filename).suffix.lower()
+    if suffix not in (".csv", ".xlsx"):
         raise ValueError(f"unsupported file type: {suffix or filename!r}")
     rows = []
-    for n, rec in records:
-        rec = {k.strip(): _cell(v) for k, v in rec.items() if isinstance(k, str)}
-        if all(v is None or v == "" for v in rec.values()):
-            continue
-        row = {c: rec[h] for c, h in mapping.columns.items() if h in rec}
-        row["_row"] = n
-        rows.append(row)
+    try:
+        for n, rec in _records(data, suffix, mapping, max_rows):
+            rec = {k.strip(): _cell(v) for k, v in rec.items() if isinstance(k, str)}
+            if all(v is None or v == "" for v in rec.values()):
+                continue
+            if len(rows) >= max_rows:
+                raise ValueError(f"too many rows (more than {max_rows})")
+            row = {c: rec[h] for c, h in mapping.columns.items() if h in rec}
+            row["_row"] = n
+            rows.append(row)
+    except ValueError:
+        raise
+    except Exception as exc:  # untrusted input: zip, csv, openpyxl and sheet-lookup errors all surface as one type
+        raise ValueError(f"unreadable file: {type(exc).__name__}: {str(exc)[:100]}") from exc
     return rows
 
 
