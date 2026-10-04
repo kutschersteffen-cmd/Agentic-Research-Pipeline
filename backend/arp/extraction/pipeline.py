@@ -14,10 +14,11 @@ from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.planning.applicability import plan_fields
+from arp.planning.doc_routing import input_hash, route_documents
 from arp.planning.entity_check import confirm_entity
 from arp.planning.periods import plan_periods, union_planned
 from arp.schemas.common import CompanyRef, MatchStatus, SourceDocument
-from arp.schemas.datapoints import DataPointSchema, ExtractionRecord, FieldStatus
+from arp.schemas.datapoints import DataPointSchema, ExtractedField, ExtractionRecord, FieldStatus
 from arp.schemas.issuer import issuer_key
 from arp.schemas.review import field_item_key, period_key
 from arp.storage.identifier_map import IdentifierMapStore
@@ -72,6 +73,17 @@ async def _extract_company(
     planned_periods = union_planned(kept)
 
     for field in to_extract:
+        h = input_hash(field, route_documents(field, kept), planned_periods)
+        prior = history.last_rows(company.company_id, field.field_id) if history and h else []
+        if prior and all(r.get("input_hash") == h and (r.get("provenance") or {}).get("field_version") == field.version for r in prior):
+            run = history.last_run_id(company.company_id)
+            fields.extend(
+                ExtractedField.model_validate(r).model_copy(
+                    update={"reused_from_run": run, "checks": [], "route_reasons": []}
+                )
+                for r in prior
+            )
+            continue
         extracted, needs_review, field_usages = await extract_one_field(
             company.name,
             field,
@@ -88,7 +100,7 @@ async def _extract_company(
         )
         usages.extend(field_usages)
 
-        fields.extend(extracted)
+        fields.extend(f.model_copy(update={"input_hash": h}) for f in extracted)
 
     fields = await check_record(
         schema,

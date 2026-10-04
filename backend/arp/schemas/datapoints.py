@@ -78,6 +78,12 @@ class ApplicabilityRules(BaseModel):
     regimes: list[str] = Field(default_factory=list, description="Reporting regimes, e.g. 'CSRD', 'SEC'.")
 
 
+class DocumentRouting(BaseModel):
+    doc_types: list[DocType] = Field(default_factory=list, description="Document types in preference order.")
+    sections: list[str] = Field(default_factory=list, description="Section-heading substrings, case-insensitive.")
+    fallback: bool = True
+
+
 class FieldDefinition(BaseModel):
     field_id: str = Field(default_factory=lambda: new_id("fld"))
     name: str
@@ -102,6 +108,7 @@ class FieldDefinition(BaseModel):
     status: FieldStatus = FieldStatus.DRAFT
     check_config: CheckConfig = Field(default_factory=CheckConfig)
     applicability_rules: ApplicabilityRules | None = None
+    document_routing: DocumentRouting | None = None
 
 
 class DataPointSchema(BaseModel):
@@ -145,6 +152,8 @@ class ExtractedField(BaseModel):
     fx_rate_ref: str | None = None
     checks: list[CheckResult] = Field(default_factory=list)
     route_reasons: list[str] = Field(default_factory=list)
+    input_hash: str | None = None
+    reused_from_run: str | None = None
 
     @model_validator(mode="before")
     @classmethod

@@ -23,6 +23,7 @@ class RunHistory:
         self._decided: dict[str, PriorValue] = {}
         self._periods: dict[str, set[str]] = {}
         self._company_rows: dict[str, list[dict]] = {}
+        self._company_run: dict[str, str] = {}
 
     @classmethod
     def load(cls, run_store: RunStore, *, exclude_run_id: str | None = None) -> RunHistory:
@@ -42,6 +43,7 @@ class RunHistory:
         queued = {r["item_key"] for r in run_store.read_jsonl(run_store.review_queue_path(run_id)) if "item_key" in r}
         for row in run_store.read_jsonl(run_store.results_path(run_id)):
             self._company_rows[row.get("company_id", "")] = row.get("fields", [])
+            self._company_run[row.get("company_id", "")] = run_id
             issuer = row.get("issuer_key", "")
             for f in row.get("fields", []):
                 key = field_item_key(issuer, f["field_id"], period_key(f))
@@ -55,6 +57,9 @@ class RunHistory:
 
     def last_rows(self, company_id: str, field_id: str) -> list[dict]:
         return [f for f in self._company_rows.get(company_id, []) if f["field_id"] == field_id]
+
+    def last_run_id(self, company_id: str) -> str | None:
+        return self._company_run.get(company_id)
 
     def recorded_periods(self, issuer_key: str) -> set[str]:
         return set(self._periods.get(issuer_key, ()))

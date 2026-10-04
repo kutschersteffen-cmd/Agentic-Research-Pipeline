@@ -1,0 +1,109 @@
+from arp.config import Settings
+from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
+from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+from arp.extraction.verifier_agent import VerifierOutput
+from arp.ingestion.base import DocumentSource
+from arp.ingestion.registry import DocumentSourceRegistry
+from arp.planning.doc_routing import route_documents, section_filter
+from arp.schemas.common import Citation, CompanyRef, DocType, DocumentChunk, SourceDocument
+from arp.schemas.datapoints import DataPointSchema, DocumentRouting, FieldDataType, FieldDefinition, FieldStatus
+from arp.storage.run_store import RunStore
+from arp.storage.schema_registry import SchemaRegistry
+
+TEXT = "Acme Corp report. In fiscal 2025, we invested $120 million in green capex."
+QUOTE = "invested $120 million in green capex"
+
+
+def _doc(text=TEXT, key="k1", doc_type=DocType.SUSTAINABILITY_REPORT):
+    return SourceDocument(
+        company_id="c1", doc_type=doc_type, title="ESG", full_text=text, content_key=key, doc_id="d1"
+    )
+
+
+def _field(version=1, routing=None, instructions="x"):
+    return FieldDefinition(
+        field_id="f1", name="capex", description="capex", data_type=FieldDataType.NUMBER,
+        extraction_instructions=instructions, seed_keywords=["capex"], version=version, document_routing=routing,
+    )
+
+
+def _script():
+    draft = ExtractionDraft(
+        values=[PeriodValue(
+            value=120.0, raw_value_text="$120 million", unit_text="USD million", period_text="fiscal 2025",
+            citations=[Citation(doc_id="d1", doc_type=DocType.SUSTAINABILITY_REPORT, quote=QUOTE)],
+        )],
+        confidence=0.9,
+    )
+    return {"ExtractionDraft": [draft], "VerifierOutput": [VerifierOutput(agrees=True, confidence=0.9, notes="ok")]}
+
+
+class _Src(DocumentSource):
+    name = "fixed"
+
+    def __init__(self, docs):
+        self._docs = docs
+
+    async def fetch(self, company, doc_types=None):
+        return self._docs
+
+
+async def _run(tmp_path, field, doc, fake_llm, script):
+    settings = Settings(
+        anthropic_api_key="unused", runs_dir=tmp_path / "r", schema_registry_dir=tmp_path / "s",
+        documents_dir=tmp_path / "d", cache_dir=tmp_path / "c", discovery_state_dir=tmp_path / "x",
+    )
+    reg = SchemaRegistry(settings.schema_registry_dir)
+    saved = reg.save(DataPointSchema(schema_id="sch1", name="s", fields=[field.model_copy(update={"status": FieldStatus.RELEASED})]))
+    saved = reg.release(saved.schema_id, saved.version)
+    store, llm = RunStore(settings.runs_dir), fake_llm(script)
+    company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
+    run_id = create_extraction_run(saved, [company], settings, store)
+    await execute_extraction_run(
+        run_id, saved, [company], llm=llm, registry=DocumentSourceRegistry([_Src([doc])]),
+        settings=settings, run_store=store,
+    )
+    (row,) = store.read_jsonl(store.results_path(run_id))
+    return run_id, row["fields"][0], llm
+
+
+async def test_unchanged_hash_makes_zero_model_calls(tmp_path, fake_llm):
+    run1, row1, _ = await _run(tmp_path, _field(), _doc(), fake_llm, _script())
+    _, row2, llm2 = await _run(tmp_path, _field(), _doc(), fake_llm, {})
+    assert llm2.calls == []
+    assert row2["reused_from_run"] == run1 and row2["value"] == row1["value"] == 120.0
+
+
+async def test_changed_document_reextracts(tmp_path, fake_llm):
+    await _run(tmp_path, _field(), _doc(), fake_llm, _script())
+    _, row2, llm2 = await _run(tmp_path, _field(), _doc(TEXT + " More.", key="k2"), fake_llm, _script())
+    assert llm2.calls and row2["reused_from_run"] is None
+
+
+async def test_field_version_change_reextracts(tmp_path, fake_llm):
+    await _run(tmp_path, _field(), _doc(), fake_llm, _script())
+    _, row2, llm2 = await _run(tmp_path, _field(version=2, instructions="new instructions"), _doc(), fake_llm, _script())
+    assert llm2.calls and row2["reused_from_run"] is None
+
+
+def test_routing_prefers_first_doc_type_with_documents():
+    f = _field(routing=DocumentRouting(doc_types=[DocType.SUSTAINABILITY_REPORT, DocType.ANNUAL_REPORT_10K]))
+    k, s = _doc(doc_type=DocType.ANNUAL_REPORT_10K), _doc(doc_type=DocType.SUSTAINABILITY_REPORT)
+    assert route_documents(f, [k]) == [k]
+    assert route_documents(f, [k, s]) == [s]
+
+
+def test_no_routed_type_and_no_fallback_gives_nothing():
+    f = _field(routing=DocumentRouting(doc_types=[DocType.SUSTAINABILITY_REPORT], fallback=False))
+    assert route_documents(f, [_doc(doc_type=DocType.ANNUAL_REPORT_10K)]) == []
+
+
+def test_section_filter_with_fallback():
+    def chunk(sec):
+        return DocumentChunk(doc_id="d", company_id="c", doc_type=DocType.ANNUAL_REPORT_10K, section=sec, text="t", char_start=0, char_end=1)
+
+    a, b = chunk("Item 7 Climate"), chunk("Risk")
+    f = _field(routing=DocumentRouting(sections=["climate"]))
+    assert section_filter(f, [a, b]) == [a]
+    assert section_filter(f, [b]) == [b]
+    assert section_filter(_field(routing=DocumentRouting(sections=["climate"], fallback=False)), [b]) == []
