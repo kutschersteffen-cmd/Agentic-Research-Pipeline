@@ -316,3 +316,79 @@ def test_legacy_rows_without_route_unchanged():
     ]
     for decisions, queued, expected in cases:
         assert resolve_extraction_fact("acme", _extraction_row(), decisions, queued) == expected
+
+
+def _decision_rows(tmp_path, *rows):
+    """The decision view materialize_run builds: effective rows plus non-final keys as pending."""
+    from arp.orchestration.review_queue import append_decision, effective_decisions, latest_decisions
+    from arp.schemas.review import ReviewDecision
+    from arp.storage.run_store import RunStore
+
+    rs = RunStore(tmp_path)
+    for r in rows:
+        append_decision(rs, "r1", ReviewDecision(reviewer="A", user_id="u1", role="approver", snapshot_id="s", **r))
+    decisions = effective_decisions(rs, "r1", cosign_required={"edit"})
+    return decisions, set(latest_decisions(rs, "r1")) - set(decisions)
+
+
+_KEY_B = "ARP:x:b:unspecified"
+_CORRECT = dict(item_key=_KEY_B, decision="correct", reason_code="wrong_value", corrected_value={"value": 1050}, step="first")
+
+
+def test_correct_projects_as_edited_with_its_citation():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    cit = {"doc_id": "d", "doc_type": "annual_report", "quote": "1,050", "grounded": True}
+    row = _extraction_row()
+    row["fields"][1].update(canonical_value=2.0, canonical_unit="EUR", citations=[{"quote": "old"}], grounded=False)
+    d = {_KEY_B: {"decision": "correct", "reviewer": "r", "edited_value": {"value": 1050}, "correction_citation": cit}}
+    value, status, _ = resolve_extraction_fact("acme", row, d, {_KEY_B})
+    f = value["fields"][1]
+    assert (status, f["value"], f["citations"], f["grounded"], f["canonical_value"]) == ("edited", 1050, [cit], True, None)
+
+
+def test_first_done_correction_projects_pending(tmp_path):
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    d, queued = _decision_rows(tmp_path, {**_CORRECT, "second_required": True})
+    assert resolve_extraction_fact("acme", _extraction_row(), d, queued)[1] == "pending_review"
+
+
+def test_escalated_item_projects_pending(tmp_path):
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    d, queued = _decision_rows(tmp_path, dict(item_key=_KEY_B, decision="escalate", reason_code="needs_expert", step="first"))
+    assert resolve_extraction_fact("acme", _extraction_row(), d, queued)[1] == "pending_review"
+
+
+def test_identity_first_done_correction_projects_pending(tmp_path):
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    d, queued = _decision_rows(tmp_path, {**_CORRECT, "second_required": True})
+    assert d == {} and _KEY_B in queued  # identity reads the same view with cosign_required=set()
+    assert resolve_extraction_fact("acme", _extraction_row(), d, queued)[1] == "pending_review"
+
+
+def test_legacy_cosigned_edit_still_edited(tmp_path):
+    from arp.api.auth import Principal
+    from arp.orchestration.review_queue import effective_decisions, record_cosign, record_review_decision
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+    from arp.storage.run_store import RunStore
+
+    rs = RunStore(tmp_path)
+    record_review_decision(rs, "r1", _KEY_B, "edit", None, {"value": 5}, principal=Principal(user_id="a", name="A", role="approver"))
+    record_cosign(rs, "r1", _KEY_B, Principal(user_id="b", name="B", role="approver"))
+    d = effective_decisions(rs, "r1", cosign_required={"edit"})
+    assert resolve_extraction_fact("acme", _extraction_row(), d, {_KEY_B})[1] == "edited"
+
+
+def test_legacy_uncosigned_edit_still_pending(tmp_path):
+    from arp.orchestration.review_queue import effective_decisions, latest_decisions, record_review_decision
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+    from arp.storage.run_store import RunStore
+
+    rs = RunStore(tmp_path)
+    record_review_decision(rs, "r1", _KEY_B, "edit", "A", {"value": 5})
+    d = effective_decisions(rs, "r1", cosign_required={"edit"})
+    queued = set(latest_decisions(rs, "r1")) - set(d)
+    assert resolve_extraction_fact("acme", _extraction_row(), d, queued)[1] == "pending_review"

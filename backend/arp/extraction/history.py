@@ -56,7 +56,7 @@ class RunHistory:
                 kind = (decisions.get(key) or {}).get("decision")
                 if kind == "reject":
                     self._rejected[key] = PriorValue(f.get("value"), f.get("canonical_value"), run_id, "human")
-                elif kind in ("approve", "edit"):
+                elif kind in ("approve", "edit", "correct"):
                     self._rejected.pop(key, None)
                 prior = _decided_value(f, decisions.get(key), key in queued, run_id)
                 if prior is not None:
@@ -88,7 +88,7 @@ def _decided_value(f: dict, decision: dict | None, queued: bool, run_id: str) ->
         kind = decision.get("decision")
         if kind == "approve":
             return PriorValue(f.get("value"), f.get("canonical_value"), run_id, "human")
-        if kind == "edit":
+        if kind in ("edit", "correct"):
             edit = decision.get("edited_value") or {}
             return PriorValue(edit.get("value", f.get("value")), edit.get("canonical_value"), run_id, "human")
         return None  # reject

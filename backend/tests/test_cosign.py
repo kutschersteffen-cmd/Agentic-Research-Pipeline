@@ -97,3 +97,14 @@ def test_review_decisions_report_cosigned(run_store):
     assert got["k"]["cosigned"] is False and got["a"]["cosigned"] is True
     c.post("/api/extraction/runs/r1/cosign", json={"item_key": "k"})
     assert c.get(url).json()["decisions"]["k"]["cosigned"] is True
+
+
+def test_cosign_refused_for_new_shape_decision(run_store):
+    from arp.orchestration.review_queue import append_decision
+    from arp.schemas.review import ReviewDecision
+
+    append_decision(run_store, "r1", ReviewDecision(
+        item_key="k", decision="reject", reason_code="wrong_value", reviewer="Alice", user_id="u_alice",
+        role="approver", snapshot_id="s", step="first", second_required=True))
+    r = _client(run_store, BOB).post("/api/extraction/runs/r1/cosign", json={"item_key": "k"})
+    assert r.status_code == 400

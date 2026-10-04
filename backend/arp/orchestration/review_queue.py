@@ -81,6 +81,8 @@ def record_cosign(run_store: RunStore, run_id: str, item_key: str, principal: Pr
     decision = latest_decisions(run_store, run_id).get(item_key)
     if decision is None:
         raise ValueError("nothing to co-sign")
+    if decision.get("step"):
+        raise ValueError("use a second review")
     if principal.user_id == decision.get("user_id"):  # legacy rows lack user_id: allowed
         raise ValueError("co-sign must be a different person")
     run_store.append_jsonl(

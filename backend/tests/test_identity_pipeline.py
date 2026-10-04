@@ -6,10 +6,11 @@ from arp.discovery.identity_pipeline import (
     run_identity_resolution,
 )
 from arp.discovery.match_rules import needs_recheck
-from arp.orchestration.review_queue import record_review_decision
+from arp.orchestration.review_queue import append_decision, record_review_decision
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import EdgarNameMatch, IdentityAdjudication, IdentityResolutionResult, IdentityVerdict
 from arp.schemas.issuer import IdentifierMap
+from arp.schemas.review import ReviewDecision
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
 
@@ -367,3 +368,33 @@ async def test_ambiguous_map_outcome_keeps_supplied_cik_for_approval(tmp_path, f
     assert result.resolved_cik == "320193"
     record_review_decision(run_store, run_id, "a", "approve", "reviewer1", None)
     assert [c.cik for c in enriched_universe(run_store, run_id)] == ["320193"]
+
+
+def _correct(run_store, run_id, step, cik):
+    append_decision(run_store, run_id, ReviewDecision(
+        item_key="acme", decision="correct", reason_code="wrong_entity", reviewer="R", user_id=f"u_{step}", role="approver",
+        corrected_value={"resolved_cik": cik}, snapshot_id="s", step=step, second_required=step == "first"))
+
+
+async def test_identity_correct_needs_second_review_before_enriched(tmp_path, fake_llm):
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    run_id = await run_identity_resolution(
+        [CompanyRef(company_id="acme", name="Acme")], llm=_uncertain_llm_script(fake_llm), settings=settings,
+        run_store=run_store, edgar=_FakeEdgar(), search_client=_NullSearch(),
+    )
+    _correct(run_store, run_id, "first", "999")
+    assert enriched_universe(run_store, run_id) == []
+    _correct(run_store, run_id, "second", "999")
+    assert [c.cik for c in enriched_universe(run_store, run_id)] == ["999"]
+
+
+async def test_legacy_identity_edit_still_included(tmp_path, fake_llm):
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    run_id = await run_identity_resolution(
+        [CompanyRef(company_id="acme", name="Acme")], llm=_uncertain_llm_script(fake_llm), settings=settings,
+        run_store=run_store, edgar=_FakeEdgar(), search_client=_NullSearch(),
+    )
+    record_review_decision(run_store, run_id, "acme", "edit", "r", {"resolved_cik": "7"})
+    assert [c.cik for c in enriched_universe(run_store, run_id)] == ["7"]
