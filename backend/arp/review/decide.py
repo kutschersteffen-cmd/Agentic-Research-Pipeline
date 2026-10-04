@@ -16,6 +16,7 @@ from arp.orchestration.review_queue import FINAL_STATES, agrees, append_decision
 from arp.review.context import _state, _text, build_context, write_snapshot
 from arp.review.items import get_item
 from arp.schemas.common import Citation, SourceDocument
+from arp.schemas.issuer import lei_is_valid, normalise_lei
 from arp.schemas.review import ItemDecisionRequest, ReviewDecision
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
@@ -25,7 +26,7 @@ if TYPE_CHECKING:
 
 _ALL = {"approve", "correct", "reject", "escalate"}
 ALLOWED = {
-    "value": _ALL, "restatement_candidate": _ALL, "identity": _ALL, "sector_code": _ALL,
+    "value": _ALL, "restatement_candidate": _ALL, "identity": _ALL, "sector_code": _ALL, "security": _ALL,
     "quarantined_document": {"approve", "reject", "escalate"},
     "other": {"approve", "reject", "escalate"},  # an extraction PreStepFailed report only
 }
@@ -34,8 +35,9 @@ CORRECTED_KEYS = {
     "restatement_candidate": {"value", "unit", "period_end"},
     "identity": {"value", "resolved_website", "resolved_cik"},
     "sector_code": {"isic_code"},
+    "security": {"value"},
 }
-_REQUIRED_KEY = {"value": "value", "restatement_candidate": "value", "sector_code": "isic_code"}
+_REQUIRED_KEY = {"value": "value", "restatement_candidate": "value", "sector_code": "isic_code", "security": "value"}
 
 
 class DecisionError(Exception):
@@ -117,7 +119,9 @@ def _check_kind(kind: str, req: ItemDecisionRequest, principal: Principal) -> No
         raise DecisionError(422, "a correction needs a citation")
     if kind == "identity" and not (req.corrected_value.get("resolved_website") or req.corrected_value.get("resolved_cik")):
         raise DecisionError(422, "an identity correction needs resolved_website or resolved_cik")
-    if kind in ("identity", "sector_code") and not (req.comment or "").strip():
+    if kind == "security" and not lei_is_valid(normalise_lei(str(req.corrected_value["value"] or ""))):
+        raise DecisionError(422, "a security correction needs a valid LEI")
+    if kind in ("identity", "sector_code", "security") and not (req.comment or "").strip():
         raise DecisionError(422, "a correction needs a comment naming its source")
 
 
