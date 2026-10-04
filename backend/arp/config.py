@@ -72,6 +72,9 @@ class Settings(BaseSettings):
     projects_dir: Path = Field(default=REPO_ROOT / "projects")
     documents_dir: Path = Field(default=REPO_ROOT / "data" / "documents")
     snapshot_store_dir: Path = REPO_ROOT / "data" / "snapshot_store"
+    snapshot_pull_dir: Path = REPO_ROOT / "data" / "snapshots"  # where `arp snapshots pull` writes
+    holdings_api_url: str | None = None  # base URL of the ARP instance snapshots are pulled from
+    holdings_api_token: str | None = None
     max_upload_bytes: int = Field(default=100_000_000, description="Largest manual document upload accepted, in bytes.")
     cache_dir: Path = Field(default=REPO_ROOT / "backend" / ".cache")
     document_store_dir: Path = Field(

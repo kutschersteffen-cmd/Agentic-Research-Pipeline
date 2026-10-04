@@ -16,12 +16,14 @@ from arp.config import Settings
 ROLE_RANK: dict[str, int] = {"viewer": 0, "analyst": 1, "approver": 2}
 LOOPBACK_HOSTS = {"127.0.0.1", "::1"}
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+GRANTS = ("snapshot_reader", "holdings_reader")
 
 
 class Principal(BaseModel):
     user_id: str
     name: str
     role: Literal["viewer", "analyst", "approver"]
+    roles: list[str] = Field(default_factory=list)  # grants beyond the role rank, e.g. snapshot_reader
 
 
 class _UserRow(Principal):
@@ -45,7 +47,7 @@ def load_users(path: Path) -> dict[str, Principal]:
     if not all(tokens) or len(set(tokens)) != len(tokens) or len(set(ids)) != len(ids):
         # No token text in the message: it ends up in logs.
         raise RuntimeError(f"Users file {path} has a blank or duplicate token or a duplicate user_id.")
-    return {u.token.strip(): Principal(user_id=u.user_id, name=u.name, role=u.role) for u in users}
+    return {u.token.strip(): Principal(**u.model_dump(exclude={"token"})) for u in users}
 
 
 def _dev_trusted(host: str, settings: Settings) -> bool:
@@ -65,7 +67,7 @@ async def current_user(request: Request, settings: Settings = Depends(settings_d
     # (no preflight) to loopback; those carry its Origin, so no bypass for them.
     same_site = origin is None or origin in settings.allowed_origins
     if settings.auth_mode == "dev" and same_site and request.client and _dev_trusted(request.client.host, settings):
-        return Principal(user_id=settings.dev_user, name=settings.dev_user, role="approver")
+        return Principal(user_id=settings.dev_user, name=settings.dev_user, role="approver", roles=list(GRANTS))
     scheme, _, token = request.headers.get("Authorization", "").partition(" ")
     token = token.strip()
     user = load_users(settings.users_file).get(token) if scheme.lower() == "bearer" and token else None
@@ -78,6 +80,16 @@ def require_role(min_role: str) -> Callable:
     async def dependency(user: Principal = Depends(current_user)) -> Principal:
         if ROLE_RANK[user.role] < ROLE_RANK[min_role]:
             raise HTTPException(403, f"Requires role '{min_role}' or higher")
+        return user
+
+    return dependency
+
+
+def require_grant(*names: str) -> Callable:
+    async def dependency(user: Principal = Depends(current_user)) -> Principal:
+        for name in names:
+            if name not in user.roles:
+                raise HTTPException(403, f"Requires role '{name}'")
         return user
 
     return dependency
