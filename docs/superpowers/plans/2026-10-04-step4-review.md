@@ -80,7 +80,7 @@
   - `def agrees(first: dict, second: dict) -> bool`: the decision kinds match (a legacy `edit` counts as `correct`), and for `correct` the values match by `same_value` (the first row's value is `(corrected_value or edited_value or {}).get("value")`).
   - `def item_state(rows: list[dict], *, cosigned_at: set[str], cosign_required: set[str]) -> ItemState`: folds the rows in order:
     - Legacy row (no `step`): `escalate` → `pending`, `escalated=True`, `effective=None`. A decision in `cosign_required` → `first_done` (`first` = the row), or `second_done` (`effective` = the row) when its `decided_at` is in `cosigned_at`. Anything else → `final`, `effective` = the row.
-    - `step == "first"`: `escalate` → `pending`, `escalated=True`; otherwise `first_done` when `second_required`, else `final`, with `effective` = the row. `first` = the row, `second = None`.
+    - `step == "first"`: `escalated = (decision == "escalate")`; `escalate` → `pending`; otherwise `first_done` when `second_required`, else `final`, with `effective` = the row. `first` = the row, `second = None`.
     - `step == "second"`: `agrees(first, row)` → `second_done`, `effective = first`; otherwise `disagreed`, `effective = None`. `second` = the row.
     - `step == "resolution"`: `final`, `effective` = the row, `escalated=False`.
   - `def item_states(run_store, run_id, *, cosign_required: set[str]) -> dict[str, ItemState]`: reads the decisions and `review_cosigns.jsonl` once.
@@ -97,7 +97,7 @@
   - `test_agreeing_second_is_second_done_and_effective`: `effective_decisions[k]["edited_value"] == {"value": 1050}`, and `effective["user_id"]` is the first reviewer's.
   - `test_disagreeing_second_is_disagreed_not_effective`: the second row is `approve` after a first `correct`; also a second `correct` with `value` 1060 against 1050.
   - `test_resolution_is_final_and_effective`: after `disagreed`, a `resolution` row by an approver is the effective row.
-  - `test_escalate_is_pending_and_flags_escalated`
+  - `test_escalate_is_pending_and_flags_escalated`: also a `first` `correct` with `second_required` after an escalate gives `first_done` with `escalated is False`.
   - `test_new_round_after_final`: `final` approve, then a `first` correct with `second_required` gives `first_done`.
   - `test_legacy_extraction_edit_needs_cosign`: a legacy `edit` with `cosign_required={"edit"}` is `first_done`; after `record_cosign` it is `second_done` and effective.
   - `test_legacy_edit_with_agreeing_second_row_is_second_done`: a legacy `edit` `{"value": 5}`, then a `second` `correct` with `{"value": "5"}`.
@@ -132,7 +132,7 @@
 - Changes:
   - `resolve_fact`: `outcome in ("edit", "correct")` → the edited value, status `"edited"`.
   - `resolve_extraction_fact`: the outcome map becomes `{"approve": "approved", "edit": "edited", "correct": "edited"}`; the merge branch runs for `edit` or `correct` with an `edited_value`. For `correct` with a `correction_citation`, the merged field gets `citations = [correction_citation]` and `grounded = True` (the published correction carries its own grounded source).
-  - `materialize_run`: unchanged code. Non-final items are already pending through `queued_item_keys |= set(latest_decisions) - set(effective)`. That set now includes `first_done`, `disagreed` and escalated items.
+  - `materialize_run`: the extraction branch widens to `run_type in ("extraction", "identity")` and reads `effective_decisions(..., cosign_required=cosign_rule(run_type))` (identity: `set()`), so an identity run no longer projects through `latest_decisions`. Non-final items are pending through `queued_item_keys |= set(latest_decisions) - set(effective)`. That set now includes `first_done`, `disagreed` and escalated items.
   - `RunHistory._add_run`: `kind in ("approve", "edit", "correct")` clears a rejection; `_decided_value` treats `correct` like `edit` (reads `edited_value`, which `effective_decisions` fills). `escalate` never reaches them (not effective).
   - `enriched_universe`: reads `effective_decisions(run_store, run_id, cosign_required=set())` instead of `latest_decisions`; `included = decision["decision"] in ("approve", "edit", "correct")`. An identity correction now publishes only after its second review; legacy identity rows behave as before.
   - `record_cosign`: raises `ValueError("use a second review")` when the latest decision has a `step` (new rows get their second signature as a decision, not a co-sign). The route already maps `ValueError` to 400.
@@ -141,6 +141,7 @@
   - `test_correct_projects_as_edited_with_its_citation` (projection, pure `resolve_extraction_fact` with an effective `correct`): status `"edited"`, the field `value == 1050`, `citations == [citation]`, `grounded is True`, `canonical_value is None`.
   - `test_first_done_correction_projects_pending`: `materialize_run`'s decision view (`effective_decisions` + `queued_item_keys`) gives `"pending_review"` for a `first_done` key.
   - `test_escalated_item_projects_pending`
+  - `test_identity_first_done_correction_projects_pending`: an identity run with a `first_done` `correct` projects the item as pending, not `edited`.
   - `test_legacy_cosigned_edit_still_edited` and `test_legacy_uncosigned_edit_still_pending`
   - `test_correct_counts_as_decided_value` (history): a prior non-trial run with an agreed `correct` gives `last_decided(k).value == 1050`, `decided_by == "human"`.
   - `test_first_done_reject_not_counted_as_rejected`: a high-risk reject still in `first_done` gives `last_rejected_value(k) is None`.
@@ -176,7 +177,7 @@
     - When the verifier disagrees and its corrected value replaces the extractor's, the extractor's typed value with `pv.raw_value_text` and `ground_citations(pv.citations, ...)` becomes an `Alternative(source="extractor")`.
     - Each further value for an already-kept period (today dropped, with the "more than one value" note) becomes an `Alternative(source="duplicate")` on the kept row, its citations grounded the same way (with `passages`).
   - `ExtractionRecord.documents: list[dict] = []`: one `{"doc_id", "doc_type", "title", "company_id", "content_key", "parser_version", "source_filename"}` per document kept for extraction (not held). These are the documents a reviewer may cite in a correction.
-  - Held document dicts gain `"content_key"`.
+  - Held document dicts gain `"content_key"`, `"parser_version"` and `"doc_type"`.
   - `RunHistory.released_documents() -> set[str]`: in `_add_run`, for each results row's `held_documents`, when `effective_decisions` has an `approve` for `held_item_key(company_id, doc_id)` and the dict has a `content_key`, add it. A later `reject` or a new round removes it.
   - In `_extract_company`, after `confirm_entity`: a document whose `content_key` is in `history.released_documents()` gets `match_status = MatchStatus.CONFIRMED` (a human released it). The step 3 checks then treat it as confirmed. A release decided in a trial run does not count (`RunHistory` skips trial runs).
 
@@ -206,6 +207,7 @@
 - Create: `arp/review/__init__.py` (empty), `arp/review/items.py`
 - Create: `arp/api/routers/review.py`; Modify: `arp/api/main.py` (mount it with `dependencies=[Depends(authorize)]`)
 - Modify: `arp/research/pipeline.py` (`CompanyMatchesResult.isic_code`, `isic_from_model`; `theme_review_items`)
+- Modify: `arp/api/routers/themes.py` (`submit_theme_review` refuses `isic:` keys)
 - Test: `tests/test_review_items.py` (new), `tests/test_research_pipeline.py` (extend)
 
 **Interfaces:**
@@ -230,6 +232,7 @@
 - In `arp/research/pipeline.py`:
   - `CompanyMatchesResult.__init__(..., isic_code: str | None = None, isic_from_model: bool = False)`; `_match_company` sets `isic_from_model = company_isic is not None and company.isic_code != company_isic` (the model chose it).
   - `def theme_review_items(company: CompanyRef, r: CompanyMatchesResult) -> list[tuple[str, dict]]`: today's activity rows, plus `(sector_item_key(c.company_id), {"kind": "sector_code", "company_id", "name", "isic_code", "source": "model"})` when `r.isic_from_model`. It replaces the inline lambda passed to `run_company_batch`. Rules before models: a model-chosen sector code always goes to review.
+- `POST /api/themes/runs/{id}/review` (legacy theme route) refuses an `isic:` item key with 400 `"decide sector codes through the review workbench"`; sector codes decide only through the workbench rules.
 - Decision effects per kind (wired in Task 6 and Task 3): a `value` decision feeds the projection and `RunHistory`. A `quarantined_document` approve releases the document for later runs. An `identity` decision feeds the enriched universe. A `restatement_candidate` or `sector_code` decision is recorded; publishing a restatement is step 5, and nothing reads a sector-code decision yet.
 
 - [ ] **Step 1: Write the failing tests** in `tests/test_review_items.py`. Fixture `five_kinds(run_store)` writes, with `RunStore` directly: an extraction run (manifest; one per-field queue row; a results row with one `held_documents` entry; one `restatement_candidates.jsonl` row; one `PreStepFailed` queue row), an identity run (one queue row), a theme run (one `sector_code` queue row and one activity row), and a voting run (one queue row).
@@ -241,6 +244,7 @@
   - `test_legacy_company_level_row_is_value_item`: a queue row keyed `company_id` with `fields` is `kind == "value"`.
   - `test_no_user_id_in_items_response`: the JSON text has no `"user_id"` and no reviewer name.
   - `test_model_chosen_isic_queues_sector_code_item` (in `test_research_pipeline.py`): `theme_review_items` with `isic_from_model=True` returns a row keyed `"isic:C1"` with `kind == "sector_code"`; with a supplied code it returns no such row.
+  - `test_theme_review_route_refuses_isic_keys` (in `test_review_items.py`): `POST /api/themes/runs/{id}/review` with item key `"isic:C1"` gives 400.
 
 - [ ] **Step 2: Run** `PATH=/tmp/claude-0/venv/bin:$PATH python -m pytest tests/test_review_items.py tests/test_research_pipeline.py -v`. Expect FAIL (`ModuleNotFoundError: arp.review`).
 
@@ -281,19 +285,19 @@
     - `prior.rejected` "A reviewer rejected this same value before."
     - `consistency.entity` "The source document may cover a different company."
     - `consistency.period` "The source document does not report this period."
-  - `PAGE_CHARS = 10_000`. `def page_window(text: str, page_breaks: list[int], page: int) -> tuple[int, int, int]` returns `(start, end, pages)`. With `page_breaks`, page N spans `[page_breaks[N-2] or 0, page_breaks[N-1] or len(text))`. Without them, synthetic pages of `PAGE_CHARS` cut at the last newline before the limit. Mark `# ponytail: synthetic 10k-char pages for unpaginated text; use parser sections once they carry offsets`.
-  - `def page_of(text, page_breaks, char_start) -> int`: the page holding an offset (the same rule as `page_window`).
+  - `PAGE_CHARS = 10_000`. `def page_window(text: str, page_breaks: list[int], page: int) -> tuple[int, int, int]` returns `(start, end, pages)`. With `page_breaks` (`page_breaks[i]` is the start of page i+1, so `page_breaks[0] == 0`), page N spans `[page_breaks[N-1], page_breaks[N] if N < len(page_breaks) else len(text))` and `pages = len(page_breaks)`. Without them, synthetic pages of `PAGE_CHARS` cut at the last newline before the limit. Mark `# ponytail: synthetic 10k-char pages for unpaginated text; use parser sections once they carry offsets`.
+  - `def page_of(text, page_breaks, char_start) -> int`: the page holding an offset; for paginated text it reuses `grounding._page_for_offset`.
   - `def build_context(run_store, run_id: str, item_key: str, principal: Principal, *, settings: Settings, content_store: DocumentContentStore | None) -> dict | None` returns the bundle (None when there is no such item):
     - `item`: the `ReviewItem` dump.
     - `field_definition`: the field's `FieldDefinition` from the run's `schema.json` as `model_dump(mode="json")`, plus `"first_audit_passed"` from `SchemaRegistry(settings.schema_registry_dir).quality(field_id, version)`; None for kinds without a field, or with no snapshot.
     - `value`: the field row (`payload["field"]`, or for a restatement candidate the row in `results.jsonl` with the candidate's `item_key`); None otherwise.
     - `evidence`: one entry per grounded citation of `value` that has `char_start`: `{"doc_id", "doc_type", "title", "company_id", "source_filename", "page", "quote", "char_start", "char_end", "page_start", "page_text"}`. `page_text` and `page_start` come from `page_window` over `content_store.lookup(content_key, parser_version)`. Both are None when the text is unavailable (cache disabled or pruned).
-    - `documents`: the results row's `documents` (Task 3), plus each cited document not already listed (old rows), each with `"pages"`; `[]` for identity and sector-code items.
+    - `documents`: the results row's `documents` (Task 3), plus each cited document not already listed (old rows), each with `"pages"`; `[]` for identity and sector-code items. For a `quarantined_document` item the list is `[payload]` (the held document itself, so the reviewer can open what they release).
     - `failed_checks`: `[{"check_id", "severity", "plain": CHECK_WORDS.get(check_id, detail), "detail"}]` for each `is_failing` check of `value`.
     - `route_reasons`: `value.route_reasons` (`[]` when absent).
     - `conflict`: `{"conflicting_sources": value.conflicting_sources, "alternatives": value.alternatives}`.
     - `prior_period`: the record row with the same `field_id` and the next older `period_end`: `{"value", "period_end"}`, or None.
-    - `published`: `RunHistory.load(run_store, exclude_run_id=run_id).last_decided(item_key)` as `{"value", "run_id", "decided_by"}`, or None. "Published" means decided in an earlier non-trial run; there is no published-fact store yet. Mark `# ponytail: full RunHistory scan per bundle; cache per run once review traffic shows it`.
+    - `published`: `RunHistory.load(run_store, exclude_run_id=run_id).last_decided(key)` as `{"value", "run_id", "decided_by"}`, where `key` is `payload["item_key"]` for a `restatement_candidate` (its field key; the `rst_…` id is never a RunHistory key) and the item key otherwise, or None. "Published" means decided in an earlier non-trial run; there is no published-fact store yet. Mark `# ponytail: full RunHistory scan per bundle; cache per run once review traffic shows it`.
     - `confidence`: `{"final": confidence, "extractor": extractor_confidence, "verifier": verifier_confidence, "grounded", "match_methods": [c.match_method for grounded citations], "auto_accept_min": field_definition.auto_accept_min}`, or None without `value`.
     - `state`, `escalated`: from the item.
     - `decisions`: `[public_decision(r, principal) for r in state.rows]`, or, when `blind_for(...)`, the rows before the current round's `first` row only; `blind: bool`.
@@ -320,6 +324,7 @@
   - `test_confidence_components`: `extractor` and `verifier` present; a legacy row gives None for both.
   - `test_field_definition_from_run_snapshot`: `field_definition["description"]` equals the run's `schema.json`, and includes `first_audit_passed`.
   - `test_text_unavailable_gives_none`: a store with the cache disabled gives `page_text is None`; the bundle still loads.
+  - `test_paginated_text_page_window_and_page_of`: text with `page_breaks=[0, 20, 45]`: page 1 is `[0, 20)`, page 3 is `[45, len)`, `pages == 3`, and `page_of` gives 2 for an offset of 25.
   - `test_source_page_endpoint`: `GET .../source?doc_id=<doc>&page=1` returns the whole text as `page_text` with `pages == 1`; an unknown `doc_id` gives 404.
   - `test_blind_view_hides_first_decision`: a high-risk field; `u_alice` (analyst) has a `first` `correct` row; for `u_bob` (analyst) the bundle has `decisions == []` and `blind is True`; for `u_alice` and for `u_carol` (approver) it has one decision with `blind is False`.
   - `test_blind_history_and_decisions_hidden`: for `u_bob`, `GET /api/extraction/runs/{id}/review-history?item_key=k` returns `history == []`, and `review-decisions` has no entry for `k` (not final), with `states[k]["state"] == "first_done"`.
@@ -343,14 +348,15 @@
 **Files:**
 - Modify: `arp/schemas/review.py` (`ItemDecisionRequest`)
 - Modify: `arp/config.py` (`second_review_sample_rate`)
+- Modify: `arp/checks/numeric.py` (export `_candidates` as `candidates`; `numeric.in_span` calls it)
 - Create: `arp/review/decide.py`
 - Modify: `arp/api/routers/review.py` (`POST` decision route)
 - Modify: `arp/api/routers/extraction.py` (remove `POST /runs/{run_id}/review` and `GET /runs/{run_id}/review-queue`), `arp/api/routers/identity.py` (remove both routes of the same names)
 - Modify: `arp/cli/identity.py` (the review command decides through `decide`)
-- Test: `tests/test_review_decide.py` (new), `tests/test_review_identity.py` (move the spoof and unknown-decision tests to the new route)
+- Test: `tests/test_review_decide.py` (new), `tests/test_review_identity.py` (move the spoof test to the new route; keep the `submit_review` unknown-decision assertion)
 
 **Interfaces:**
-- Consumes: `build_context`, `write_snapshot` (Task 5); `get_item` (Task 4); `item_states`, `append_decision`, `agrees`, `ReviewDecision` (Task 1); `ground_citations` (`arp/grounding.py`); `numbers_in`, `parse_number` (`arp/checks/numeric.py`); `RunHistory`, `SchemaRegistry.quality`.
+- Consumes: `build_context`, `write_snapshot` (Task 5); `get_item` (Task 4); `item_states`, `append_decision`, `agrees`, `ReviewDecision` (Task 1); `ground_citations` (`arp/grounding.py`); `candidates` (the `_candidates` helper of `numeric.in_span`, renamed public), `parse_number` (`arp/checks/numeric.py`); `RunHistory`, `SchemaRegistry.quality`.
 - Produces, in `arp/schemas/review.py`:
   - `class ItemDecisionRequest(BaseModel)`, `model_config = ConfigDict(extra="ignore")` (an old client's `reviewer` is ignored):
     - `decision: Literal["approve", "correct", "reject", "escalate"]` (`edit` is a 422)
@@ -373,10 +379,10 @@
     - `"first_audit_pending"` when `first_audit_passed is False` (None means no definition to check: an old run without `schema.json`, or a kind without a field)
     - `"sample"` when `decision == "approve"` and `sampled(item_key, sample_rate)`
   - `def ground_correction(citation: Citation, bundle: dict, *, content_store, data_type: str | None, corrected_value) -> Citation`, which raises `DecisionError(422, ...)`:
-    - `"correction citation must cite one of this item's documents"` when `citation.doc_id` is not in `bundle["documents"]`
+    - `"correction citation must cite one of this item's documents"` when `citation.doc_id` is not in `{d["doc_id"] for d in bundle["documents"]}`
     - `"source text unavailable"` when `content_store.lookup` gives None
     - otherwise builds a `SourceDocument` (`doc_id`, `company_id`, `doc_type`, `title`, `full_text`, `page_breaks`, `content_key`, `parser_version`) and runs `ground_citations([citation], {doc_id: doc})`; `"correction citation is not in the source text"` when not grounded
-    - for numeric data types: `"corrected number not in the cited text"` when `parse_number(str(corrected_value["value"]))` matches no number in `numbers_in(span_text)` by absolute value (the `numeric.in_span` rule from step 3)
+    - for numeric data types: `"corrected number not in the cited text"` when `parse_number(str(corrected_value["value"]))` matches no number in `numbers_in(span_text)` by absolute value (`math.isclose`), using the same candidate helper as `numeric.in_span` (`_candidates` in `arp/checks/numeric.py`, exported as `candidates` and called by both, so "1 234"-style thousands are judged as in step 3)
     - returns the grounded citation (server-set `char_start`, `char_end`, `span_text`, `page`, `match_method`).
   - `def decide(run_store, run_id: str, item_key: str, req: ItemDecisionRequest, principal: Principal, *, settings: Settings, content_store: DocumentContentStore | None) -> dict`, all inside `with run_store.lock(run_id):`
     1. `item = get_item(...)`: None → 404; `kind == "other"` → 400 `"decide this item through its run's review endpoint"`.
@@ -388,13 +394,13 @@
        - otherwise (`pending`, `second_done`, `final`) → `step = "first"`: a new round.
     4. `bundle = build_context(..., principal, ...)`; `bundle["etag"] != req.context_etag` → 409 `"this item changed since you loaded it; reload"`.
     5. For `correct` with a citation: `citation = ground_correction(...)`.
-    6. For `step == "first"`: `second_reasons = second_review_reasons(...)`, using the field definition from the bundle, `quality.first_audit_passed`, the row's value, and `RunHistory.load(run_store, exclude_run_id=run_id).last_decided(item_key)` for `value`/`restatement_candidate` (None otherwise). `second_required = bool(second_reasons)`. A `second` or `resolution` row stores `second_required=False` and `[]`.
+    6. For `step == "first"`: `second_reasons = second_review_reasons(...)`, using the field definition from the bundle, `quality.first_audit_passed`, the row's value, and `RunHistory.load(run_store, exclude_run_id=run_id).last_decided(key)` for `value`/`restatement_candidate`, with `key = payload["item_key"]` for a restatement candidate (None otherwise). `second_required = bool(second_reasons)`. A `second` or `resolution` row stores `second_required=False` and `[]`.
     7. `snapshot_id = write_snapshot(run_store, run_id, bundle)`.
     8. `append_decision(run_store, run_id, ReviewDecision(item_key, decision, reason_code, reviewer=principal.name, user_id=principal.user_id, role=principal.role, corrected_value, correction_citation=citation, snapshot_id, comment, step, second_required, second_reasons))`.
     9. Returns `{"state": <new state>, "snapshot_id": snapshot_id, "second_reasons": second_reasons}`.
 - Route: `POST /api/review/runs/{run_id}/items/{item_key}/decision`, body `ItemDecisionRequest`, principal from `current_user` (analyst+ through the router's `authorize`), `content_store` from `get_document_content_store`; `DecisionError` → `HTTPException(status, message)`.
 - Removed routes, superseded by `/api/review`: extraction and identity `POST /runs/{run_id}/review` and `GET /runs/{run_id}/review-queue`. The legacy extraction cosign route stays, for legacy `edit` rows only (Task 2).
-- `arp/cli/identity.py` review: `--decision` accepts `approve|correct|reject|escalate` and `--reason`; it calls `build_context` for the etag, then `decide` with `cli_principal(...)`. `correct` sends `corrected_value={"resolved_website": ..., "resolved_cik": ...}` and requires `--comment`.
+- `arp/cli/identity.py` review: `--decision` accepts `approve|correct|reject|escalate` and `--reason`; it calls `build_context` for the etag, then `decide` with `cli_principal(...)`. `correct` sends `corrected_value={"resolved_website": ..., "resolved_cik": ...}` and requires `--comment`. `review-queue` lists `list_open_items(run_store, principal, run_id=...)`, so escalated and `first_done` items show as pending.
 
 - [ ] **Step 1: Write the failing tests** in `tests/test_review_decide.py`. Principals `ALICE` (analyst, `u_alice`), `ALICE2` (analyst, `user_id="u_alice"`, `name="alice "`), `BOB` (analyst), `CAROL` (approver), `DAVE` (approver). The text fixture is from Task 5; its field is released and has a recorded first audit, and `second_review_sample_rate` is overridden to 0.0, so only the rule under test asks for a second review. A helper `ctx(client, key)` gets the bundle and its etag.
   - `test_correction_without_citation_is_422`
@@ -417,14 +423,15 @@
   - `test_identity_correct_without_citation_needs_comment`: no comment → 422; with a comment → `first_done` (`correction`).
   - `test_other_kind_refused_400`: a theme activity row.
   - `test_spoofed_reviewer_body_is_ignored` (moved from `test_review_identity.py`): the body `{"reviewer": "Mallory", ...}` stores `user_id == "u_test"`, `reviewer == "Test"`.
+  - `test_cli_identity_correct_without_comment_exits_1`: `arp identity review --decision correct` without `--comment` exits 1.
   - `test_old_review_routes_removed`: `POST /api/extraction/runs/r1/review` and `GET /api/identity/runs/r1/review-queue` give 404 or 405.
-  - Delete `test_unknown_decision_is_400` from `test_review_identity.py`; `test_edit_decision_is_422` replaces it.
+  - `test_submit_review_rejects_unknown_decision` (kept from `test_unknown_decision_is_400`): `submit_review(..., "maybe")` raises `ValueError` (voting's shared `VALID_DECISIONS` path). Delete only the HTTP half of `test_unknown_decision_is_400` from `test_review_identity.py`; `test_edit_decision_is_422` replaces it.
 
 - [ ] **Step 2: Run** `PATH=/tmp/claude-0/venv/bin:$PATH python -m pytest tests/test_review_decide.py tests/test_review_identity.py -v`. Expect FAIL.
 
-- [ ] **Step 3: Implement as in Interfaces.** Update any CLI test for `arp identity review` to the new options.
+- [ ] **Step 3: Implement as in Interfaces.** Update any existing CLI test for `arp identity review` to the new options.
 
-- [ ] **Step 4: Run** the full backend check. Expect no new failures; `grep -rl voting tests` files are untouched.
+- [ ] **Step 4: Run** the full backend check. Expect no new failures; no `test_voting*` file and no existing voting test function is changed.
 
 - [ ] **Step 5: Commit** with `feat(review): accept, correct with a grounded citation, reject or escalate; second-reviewer rules (E53, E54)`.
 
@@ -490,17 +497,17 @@
 **Interfaces:**
 - Consumes: `highlightParts`, `decisionChoices`, `needsCitation`, `decideBlock`, `DECISION_REASONS`, the client calls (Task 7).
 - Produces:
-  - `ActiveSource` gains optional `text?: { doc_id: string; doc_type: string; page: number | null; pages?: number; page_start: number; page_text: string; char_start?: number; char_end?: number }` and `onSelectQuote?: (c: { doc_id: string; doc_type: string; quote: string }) => void`.
+  - `ActiveSource` gains optional `text?: { run_id: string; item_key: string; doc_id: string; doc_type: string; page: number | null; pages?: number; page_start: number; page_text: string; char_start?: number; char_end?: number }` and `onSelectQuote?: (c: { doc_id: string; doc_type: string; quote: string }) => void`.
   - `SourcePanel`, when `source.text` is set, renders `<pre className="source-text">` with `highlightParts(page_text, char_start - page_start, char_end - page_start)`: the line in `<span className="source-line-hit">`, the span in `<mark>`. Without a span it shows the plain page text. On `mouseup` inside the `<pre>`, a non-empty `window.getSelection()` string calls `onSelectQuote({ doc_id, doc_type, quote })`, with the hint `"Select text to use it as the correction's source."`. An "Open original" link uses `source.src`. Page buttons call `api.getItemSource` when `pages > 1`. Without `text`, the existing JSX path is unchanged (BallotReview).
   - `ReviewTiles.tsx` adds `export function CheckResults({ checks }: { checks: ItemContext["failed_checks"] })`: a list of `plain`, each with a `badge-high` (block) or `badge-mid` (warn) badge, and `detail` as a `title`. It renders nothing when empty.
   - `ReviewControls` gains optional props `item?: Pick<ReviewItem, "kind" | "state" | "escalated" | "decision">` and `onOpenSource?: (s: ActiveSource) => void`. With `item` (decision mode):
     - The status line shows the state: `first_done` "Awaiting a second review", `disagreed` "Reviewers disagree — approver decides", escalated "Escalated", final states show the decision with `by {role}` (and "(you)" when `mine`).
-    - A "Review" button loads `api.getItemContext(runId, itemKey)` and shows the decision view: the field definition (name, description, unit; `details` for instructions), the value and its confidence components, `CheckResults`, `route_reasons`, conflict alternatives (each with `CitationList`), prior-period and published values, and the evidence spans. Each span's "Show in source" calls `onOpenSource({ title, src: api.documentRawUrl(...), quote, text: {...span}, onSelectQuote })`. A document picker for `documents` calls `getItemSource(..., page 1)` and opens it the same way. A blind bundle shows "Earlier decision hidden (blind second review)".
+    - A "Review" button loads `api.getItemContext(runId, itemKey)` and shows the decision view: the field definition (name, description, unit; `details` for instructions), the value and its confidence components, `CheckResults`, `route_reasons`, conflict alternatives (each with `CitationList`), prior-period and published values, and the evidence spans. Each span's "Show in source" calls `onOpenSource({ title, src: api.documentRawUrl(...), quote, text: {run_id, item_key, ...span}, onSelectQuote })`, passing `text` only when the span's `page_text` is not null (otherwise today's PDF path). A document picker for `documents` calls `getItemSource(..., page 1)` and opens it the same way. A blind bundle shows "Earlier decision hidden (blind second review)".
     - Controls: one button per `decisionChoices(kind)` (`Accept`, `Correct…`, `Reject`, `Escalate`) and a reason `<select>` (fixed to `confirmed` for Accept, otherwise the other reasons). `Correct…` opens the corrected-value input (`isic_code` for `sector_code`; website/CIK for `identity`). For `needsCitation(kind)` it shows `"Source: \"{quote}\""` from `onSelectQuote`, and Submit stays disabled until a quote is chosen. Identity and sector code need a comment instead.
     - `decideBlock(item, me)`, when non-null, disables the controls and is shown.
     - Submit calls `api.decideItem(runId, itemKey, { ..., context_etag: ctx.etag })`. A 409 shows the message with a "Reload" button that refetches the context. On success it announces `"{Accepted|Corrected|Rejected|Escalated}; {state}."` and calls `onDone({ item_key, decision, reason_code, corrected_value, edited_value: corrected_value, role: me.role, mine: true, decided_at, step })`.
     - History in decision mode lists `ctx.decisions` (role and date, never a name).
-  - Without `item`, `ReviewControls` behaves exactly as today (TransitionPlanResults, financials and the legacy kinds).
+  - Without `item`, `ReviewControls` behaves as today, minus the co-sign block (Task 9 removes it), for TransitionPlanResults, financials and the legacy kinds.
   - `decisionLabel` handles `correct` (`corrected → {value}`) and `escalate` (`escalated`); `decisionBadgeClass("correct")` is `badge badge-mid`.
 
 - [ ] **Step 1: No new pure logic beyond Task 7.** The behaviour rests on `highlightParts`, `decisionChoices`, `needsCitation` and `decideBlock`, which Task 7 tests. Check by hand that `BallotReview` still type-checks against the unchanged `SourcePanel` props.
@@ -516,9 +523,10 @@
 ### Task 9: Frontend: one fetch for the workbench
 
 **Files:**
-- Modify: `frontend/src/components/RunReviewList.tsx` (delete `QUEUE_FNS`; one fetch; `QueueItem.review`)
+- Modify: `frontend/src/components/RunReviewList.tsx` (delete `QUEUE_FNS` and `FILTER_DECISION`; filter with `matchesTile(filter, true, d)`; one fetch; `QueueItem.review`; `SUBMIT_FNS` becomes `Partial<Record<ReviewableRunKind, …>>`)
 - Modify: `frontend/src/pages/ReviewQueue.tsx` (one `listReviewItems()` call; runs from the items)
 - Modify: `frontend/src/components/IdentityStage.tsx` (drop the `kind` prop)
+- Modify: `frontend/src/components/ReviewControls.tsx` (drop the `cosignFn` prop, the co-sign block, the `canCosign` import and the `submitFn` default; every legacy caller passes `submitFn`)
 - Modify: `frontend/src/components/ExtractionResults.tsx`, `frontend/src/pages/extraction/JobReview.tsx` (decision mode for field rows; `states` from `review-decisions`)
 - Modify: `frontend/src/components/ReviewTiles.tsx` (`OriginTag`: `decision.reviewer ?? decision.role ?? "unknown"`)
 - Modify: `frontend/src/api/client.ts` (remove `getExtractionReviewQueue`, `submitExtractionReview`, `getIdentityReviewQueue`, `submitIdentityReview`, `cosignExtraction`)
