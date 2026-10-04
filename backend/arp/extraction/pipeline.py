@@ -57,6 +57,7 @@ async def _extract_company(
     history: RunHistory | None = None,
     identifier_map: IdentifierMapStore | None = None,
     qualities: dict[tuple[str, int], FieldQuality] | None = None,
+    trial: bool = False,
 ) -> ExtractionRecordResult:
     """`documents`, when supplied, skips the registry fetch -- for callers
     (like the revenue-exposure resolver) that already fetched a company's
@@ -67,7 +68,9 @@ async def _extract_company(
     separate model (see `extract_one_field`).
 
     `qualities` maps (field_id, version) to its first-audit record; a missing
-    entry is unaudited, so that field's values route to review."""
+    entry is unaudited, so that field's values route to review.
+
+    `trial` routes every non-held row to review."""
     if documents is None:
         documents = await registry.fetch_all(company)
     documents = [confirm_entity(d, company, identifier_map) for d in documents]
@@ -88,10 +91,22 @@ async def _extract_company(
     for d in kept:
         d.period_plan = plan_periods(d, fiscal_year_end=company.fiscal_year_end, recorded=recorded)
     planned_periods = union_planned(kept)
+    run_settings = {
+        "llm_model": settings.llm_model,
+        "llm_verifier_model": settings.llm_verifier_model,
+        "grounding_fuzzy_threshold": settings.grounding_fuzzy_threshold,
+        "confidence_review_threshold": settings.confidence_review_threshold,
+        "hybrid_retrieval_enabled": settings.hybrid_retrieval_enabled,
+        "retrieval_backend": settings.retrieval_backend,
+    }
+    # A cache refresh (set by "Restart from here") asks for fresh answers: never reuse then.
+    reuse = history is not None and not (settings.llm_cache_refresh or settings.llm_verifier_cache_refresh)
 
     for field in to_extract:
-        h = input_hash(field, route_documents(field, kept), planned_periods)
-        prior = history.last_rows(company.company_id, field.field_id) if history and h else []
+        h = input_hash(field, route_documents(field, kept), planned_periods, run_settings)
+        prior = history.last_rows(company.company_id, field.field_id) if reuse and h else []
+        if prior and history.last_rejected(company.company_id, field.field_id):
+            prior = []  # a human rejected the last answer: ask again rather than reuse it
         # ponytail: rows with failing checks re-extract; strip check-derived notes instead if that costs too many calls
         if prior and all(
             r.get("input_hash") == h and (r.get("provenance") or {}).get("field_version") == field.version
@@ -142,7 +157,7 @@ async def _extract_company(
     for f in fields:
         spec = specs[f.field_id]
         quality = (qualities or {}).get((spec.field_id, spec.version)) or FieldQuality(field_id=spec.field_id, version=spec.version)
-        r = route(f, quality, spec, held="entity_mismatch" if all_held else None)
+        r = route(f, quality, spec, held="entity_mismatch" if all_held else None, trial=trial)
         routed.append(f.model_copy(update={"route": r.kind, "route_reasons": r.reasons}))
     fields = routed
 
@@ -253,12 +268,14 @@ async def execute_extraction_run(
     registry_store = SchemaRegistry(settings.schema_registry_dir)
     qualities = {(f.field_id, f.version): registry_store.quality(f.field_id, f.version) for f in schema.fields}
     identifier_map = IdentifierMapStore(settings.identifier_map_path)
+    manifest = run_store.load_manifest(run_id)
+    trial = bool(manifest and manifest.params.get("trial"))
 
     async def _worker(company: CompanyRef) -> ExtractionRecordResult:
         company = await prepare_company(company, settings=settings, llm=llm, registry=registry)
         result = await _extract_company(
             company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings,
-            history=history, identifier_map=identifier_map, qualities=qualities,
+            history=history, identifier_map=identifier_map, qualities=qualities, trial=trial,
         )
         result.record.run_id = run_id
         open_restatement_candidates(run_store, run_id, result.record, history)

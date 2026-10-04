@@ -52,18 +52,20 @@ async def _run(tmp_path, field, doc, fake_llm, script):
     return await _run_docs(tmp_path, [doc], fake_llm, script, field)
 
 
-async def _run_docs(tmp_path, docs, fake_llm, script, field=None):
+async def _run_docs(tmp_path, docs, fake_llm, script, field=None, *, trial=False, audit=False, **settings_kw):
     field = field or _field()
     settings = Settings(
         anthropic_api_key="unused", runs_dir=tmp_path / "r", schema_registry_dir=tmp_path / "s",
-        documents_dir=tmp_path / "d", cache_dir=tmp_path / "c", discovery_state_dir=tmp_path / "x",
+        documents_dir=tmp_path / "d", cache_dir=tmp_path / "c", discovery_state_dir=tmp_path / "x", **settings_kw,
     )
     reg = SchemaRegistry(settings.schema_registry_dir)
     saved = reg.save(DataPointSchema(schema_id="sch1", name="s", fields=[field.model_copy(update={"status": FieldStatus.RELEASED})]))
     saved = reg.release(saved.schema_id, saved.version)
+    if audit:
+        reg.record_first_audit(field.field_id, field.version, "approver")
     store, llm = RunStore(settings.runs_dir), fake_llm(script)
     company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
-    run_id = create_extraction_run(saved, [company], settings, store)
+    run_id = create_extraction_run(saved, [company], settings, store, trial=trial)
     await execute_extraction_run(
         run_id, saved, [company], llm=llm, registry=DocumentSourceRegistry([_Src(docs)]),
         settings=settings, run_store=store,
@@ -136,4 +138,36 @@ async def test_shrunk_document_set_reextracts(tmp_path, fake_llm):
         d.doc_id = i
     _, _, _ = await _run_docs(tmp_path, settings_docs, fake_llm, _script())
     _, row2, llm2 = await _run_docs(tmp_path, settings_docs[:1], fake_llm, _script())
+    assert llm2.calls and row2["reused_from_run"] is None
+
+
+async def test_prior_human_rejection_reextracts(tmp_path, fake_llm):
+    from arp.orchestration.review_queue import record_review_decision
+
+    run1, _, _ = await _run(tmp_path, _field(), _doc(), fake_llm, _script())
+    store = RunStore(tmp_path / "r")
+    (item,) = store.read_jsonl(store.review_queue_path(run1))
+    record_review_decision(store, run1, item["item_key"], "reject", "reviewer", None)
+    _, row2, llm2 = await _run_docs(tmp_path, [_doc()], fake_llm, _script(), audit=True)
+    assert llm2.calls and row2["reused_from_run"] is None
+
+
+async def test_trial_on_released_audited_field_queues_every_row(tmp_path, fake_llm):
+    run_id, row, _ = await _run_docs(tmp_path, [_doc()], fake_llm, _script(), trial=True, audit=True)
+    assert row["route"] == "review" and row["route_reasons"][:1] == ["unreleased_version"]
+    store = RunStore(tmp_path / "r")
+    assert [q["field_id"] for q in store.read_jsonl(store.review_queue_path(run_id))] == ["f1"]
+
+
+async def test_changed_model_setting_reextracts(tmp_path, fake_llm):
+    await _run(tmp_path, _field(), _doc(), fake_llm, _script())
+    _, row2, llm2 = await _run_docs(tmp_path, [_doc()], fake_llm, _script(), grounding_fuzzy_threshold=0.5, llm_model="other-model")
+    assert llm2.calls and row2["reused_from_run"] is None
+
+
+async def test_restart_from_extract_reextracts(tmp_path, fake_llm):
+    from arp.extraction.steps import restart_overrides
+
+    await _run(tmp_path, _field(), _doc(), fake_llm, _script())
+    _, row2, llm2 = await _run_docs(tmp_path, [_doc()], fake_llm, _script(), **restart_overrides("extract"))
     assert llm2.calls and row2["reused_from_run"] is None

@@ -22,15 +22,22 @@ class Route:
     reasons: list[str]
 
 
-def route(field: ExtractedField, quality: FieldQuality, spec: FieldDefinition, *, held: str | None = None) -> Route:
+def route(
+    field: ExtractedField, quality: FieldQuality, spec: FieldDefinition, *, held: str | None = None, trial: bool = False
+) -> Route:
+    """`trial`: the run is a trial, so every non-held row goes to review, rule skips included."""
     if held:
         return Route(RouteKind.HOLD, [held])
     if "not_applicable_by_rule" in field.route_reasons:
+        if trial:
+            return Route(RouteKind.REVIEW, ["unreleased_version", "not_applicable_by_rule"])
         return Route(RouteKind.AUTO_ACCEPT, ["not_applicable_by_rule"])
     reasons: list[str] = []
-    if spec.status != FieldStatus.RELEASED:
+    if trial or spec.status != FieldStatus.RELEASED:
         reasons.append("unreleased_version")
     reasons += [str(r) for r in field.review_reasons]
+    if field.value_state in (ValueState.FOUND, ValueState.ZERO) and not field.grounded and "not_grounded" not in reasons:
+        reasons.append("not_grounded")  # defence in depth: the grounding gate never relies on the reason alone
     reasons += [f"check:{r.check_id}" for r in field.checks if is_failing(r)]
     if not quality.first_audit_passed:
         reasons.append("first_audit_pending")

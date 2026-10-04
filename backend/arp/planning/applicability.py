@@ -4,15 +4,20 @@ from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema, ExtractedField, FieldDefinition, ValueState
 
 
+def _norm(values: list[str]) -> set[str]:
+    return {v.strip().casefold() for v in values}
+
+
 def not_applicable_reason(field: FieldDefinition, company: CompanyRef) -> str | None:
     rules = field.applicability_rules
     if rules is None:
         return None
-    if rules.sector_codes and company.isic_code and not any(company.isic_code.startswith(p) for p in rules.sector_codes):
-        return f"isic {company.isic_code} not in sector_codes {rules.sector_codes}"
-    if rules.countries and company.country and company.country.upper() not in {c.upper() for c in rules.countries}:
+    isic = (company.isic_code or "").strip()
+    if rules.sector_codes and isic and not any(isic.startswith(p.strip()) for p in rules.sector_codes):
+        return f"isic {isic} not in sector_codes {rules.sector_codes}"
+    if rules.countries and company.country and not _norm([company.country]) & _norm(rules.countries):
         return f"country {company.country} not in countries {rules.countries}"
-    if rules.regimes and company.regimes and not set(company.regimes) & set(rules.regimes):
+    if rules.regimes and company.regimes and not _norm(company.regimes) & _norm(rules.regimes):
         return f"regimes {company.regimes} not in regimes {rules.regimes}"
     return None
 

@@ -29,9 +29,12 @@ def section_filter(field: FieldDefinition, chunks: list[DocumentChunk]) -> list[
     return kept or (chunks if r.fallback else [])
 
 
-def input_hash(field: FieldDefinition, documents: list[SourceDocument], planned_periods: list[str]) -> str | None:
+def input_hash(
+    field: FieldDefinition, documents: list[SourceDocument], planned_periods: list[str], run_settings: dict | None = None
+) -> str | None:
+    """`run_settings`: the effective settings that change extraction output (models, thresholds, retrieval mode)."""
     keys = [d.content_key or d.sha256 for d in documents]
     if not keys or not all(keys):
         return None
-    payload = [field.field_id, field.version, sorted(keys), planned_periods]
+    payload = [field.field_id, field.version, sorted(keys), planned_periods, run_settings or {}]
     return hashlib.sha256(json.dumps(payload).encode()).hexdigest()

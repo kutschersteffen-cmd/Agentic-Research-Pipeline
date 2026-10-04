@@ -88,7 +88,14 @@ async def test_bank_skips_manufacturing_only_field(tmp_path, fake_llm):
     (row,) = run_store.read_jsonl(run_store.results_path(run_id))
     by_id = {f["field_id"]: f for f in row["fields"]}
     skipped = by_id[skipped_f.field_id]
-    assert skipped["value_state"] == "not_applicable" and skipped["route_reasons"] == ["not_applicable_by_rule"]
-    assert skipped["review_reasons"] == []
+    assert skipped["value_state"] == "not_applicable" and skipped["review_reasons"] == []
+    # A trial never auto-accepts, so even the rule skip goes to review.
+    assert skipped["route"] == "review" and skipped["route_reasons"] == ["unreleased_version", "not_applicable_by_rule"]
     queued = run_store.read_jsonl(run_store.review_queue_path(run_id))
-    assert all(r["field"]["field_id"] != skipped_f.field_id for r in queued)
+    assert any(r["field"]["field_id"] == skipped_f.field_id for r in queued)
+
+
+def test_regimes_and_isic_compare_trimmed_and_case_insensitive():
+    assert not_applicable_reason(_field(rules=ApplicabilityRules(regimes=["CSRD"])), _co(regimes=["csrd"])) is None
+    assert not_applicable_reason(_field(rules=MANUFACTURING), _co(isic_code=" 2410")) is None
+    assert not_applicable_reason(_field(rules=MANUFACTURING), _co(isic_code=" 6419")) is not None

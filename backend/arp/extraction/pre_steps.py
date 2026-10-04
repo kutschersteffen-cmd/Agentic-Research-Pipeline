@@ -113,6 +113,7 @@ async def _identity(company: CompanyRef, settings: Settings, llm: LLMClient):
     from arp.discovery.identity_graph import resolve_company_identity
     from arp.discovery.site_finder import DuckDuckGoSearchClient
     from arp.ingestion.edgar import EdgarDocumentSource
+    from arp.storage.identifier_map import IdentifierMapStore
 
     result, usages = await resolve_company_identity(
         company,
@@ -121,10 +122,21 @@ async def _identity(company: CompanyRef, settings: Settings, llm: LLMClient):
         search_client=DuckDuckGoSearchClient(settings.discovery_user_agent),
         max_search_results=settings.identity_resolution_max_search_results,
         confidence_threshold=settings.identity_resolution_confidence_threshold,
+        identifier_map=IdentifierMapStore(settings.identifier_map_path),
     )
     if usages:
         record_cost(settings.llm_model, combine_usage(*usages))
-    usable = result.verdict == IdentityVerdict.RESOLVED and not result.flagged_for_review
+    # Usable for fetching documents even when flagged: the flag feeds the identity review queue,
+    # and entity confirmation (E63) still guards every fetched document.
+    rule = result.match_rule
+    usable = bool(result.resolved_cik or result.resolved_website) and (
+        rule in ("exact_lei", "identifier_map", "supplied", "name_only")
+        or (
+            rule == "ambiguous"
+            and result.verdict == IdentityVerdict.RESOLVED
+            and result.confidence >= settings.identity_resolution_confidence_threshold
+        )
+    )
     if usable:
         company = company.model_copy(
             update={"website": company.website or result.resolved_website, "cik": company.cik or result.resolved_cik}

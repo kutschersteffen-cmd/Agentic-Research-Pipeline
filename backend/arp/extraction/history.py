@@ -24,6 +24,7 @@ class RunHistory:
         self._periods: dict[str, set[str]] = {}
         self._company_rows: dict[str, list[dict]] = {}
         self._company_run: dict[str, str] = {}
+        self._company_rejected: dict[str, set[str]] = {}  # company -> field ids a human rejected in its last run
 
     @classmethod
     def load(cls, run_store: RunStore, *, exclude_run_id: str | None = None) -> RunHistory:
@@ -41,10 +42,14 @@ class RunHistory:
         # Same decision view as the facts projection: an edit counts only once co-signed.
         decisions = effective_decisions(run_store, run_id, cosign_required={"edit"})
         queued = {r["item_key"] for r in run_store.read_jsonl(run_store.review_queue_path(run_id)) if "item_key" in r}
+        rejected = {k for k, d in decisions.items() if d.get("decision") == "reject"}
         for row in run_store.read_jsonl(run_store.results_path(run_id)):
+            issuer = row.get("issuer_key", "")
             self._company_rows[row.get("company_id", "")] = row.get("fields", [])
             self._company_run[row.get("company_id", "")] = run_id
-            issuer = row.get("issuer_key", "")
+            self._company_rejected[row.get("company_id", "")] = {
+                f["field_id"] for f in row.get("fields", []) if field_item_key(issuer, f["field_id"], period_key(f)) in rejected
+            }
             for f in row.get("fields", []):
                 key = field_item_key(issuer, f["field_id"], period_key(f))
                 prior = _decided_value(f, decisions.get(key), key in queued, run_id)
@@ -57,6 +62,10 @@ class RunHistory:
 
     def last_rows(self, company_id: str, field_id: str) -> list[dict]:
         return [f for f in self._company_rows.get(company_id, []) if f["field_id"] == field_id]
+
+    def last_rejected(self, company_id: str, field_id: str) -> bool:
+        """A human rejected one of this field's rows in the run `last_rows` comes from."""
+        return field_id in self._company_rejected.get(company_id, set())
 
     def last_run_id(self, company_id: str) -> str | None:
         return self._company_run.get(company_id)

@@ -93,3 +93,20 @@ def test_old_field_definition_and_row_load_with_defaults():
     spec = FieldDefinition.model_validate({"name": "x", "description": "d", "data_type": "number", "extraction_instructions": "i"})
     assert (spec.auto_accept_min, spec.high_risk) == (0.9, False)
     assert ExtractedField.model_validate({"field_id": "f", "field_name": "f", "value": 1, "confidence": 0.5}).route is None
+
+
+def test_trial_never_auto_accepts():
+    r = route(_field(), _AUDITED, _spec(), trial=True)
+    assert r.kind == RouteKind.REVIEW and r.reasons[:1] == ["unreleased_version"]
+    skipped = _field(value=None, value_state=ValueState.NOT_APPLICABLE, citations=[], route_reasons=["not_applicable_by_rule"])
+    r = route(skipped, _AUDITED, _spec(), trial=True)
+    assert (r.kind, r.reasons) == (RouteKind.REVIEW, ["unreleased_version", "not_applicable_by_rule"])
+    assert route(_field(), _AUDITED, _spec(), held="entity_mismatch", trial=True).kind == RouteKind.HOLD
+
+
+def test_ungrounded_value_always_reviews_once():
+    for state in (ValueState.FOUND, ValueState.ZERO):
+        r = route(_field(value_state=state, grounded=False), _AUDITED, _spec())
+        assert r.kind == RouteKind.REVIEW and r.reasons == ["not_grounded"]
+    r = route(_field(grounded=False, review_reasons=[ReasonCode.NOT_GROUNDED]), _AUDITED, _spec())
+    assert r.reasons.count("not_grounded") == 1
