@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 def now_iso() -> str:
@@ -73,6 +73,32 @@ class PeriodPlan(BaseModel):
         return [p for p in (self.current, *self.comparatives) if p]
 
 
+class TableCell(BaseModel):
+    row_label: str | None = None
+    col_label: str | None = None
+    char_start: int
+    char_end: int
+
+
+class TableSpan(BaseModel):
+    """Where one parsed table lies in SourceDocument.full_text, with its data cells."""
+
+    table_id: str
+    char_start: int
+    char_end: int
+    caption: str | None = None
+    unit_note: str | None = None
+    cells: list[TableCell] = Field(default_factory=list)
+
+
+class TableRef(BaseModel):
+    table_id: str
+    row_label: str | None = None
+    col_label: str | None = None
+    caption: str | None = None
+    unit_note: str | None = None
+
+
 class SourceDocument(BaseModel):
     doc_id: str = Field(default_factory=lambda: new_id("doc"))
     company_id: str
@@ -90,6 +116,8 @@ class SourceDocument(BaseModel):
     supersedes: str | None = None
     content_key: str | None = None
     parser_version: str | None = None
+    language: str | None = None
+    decimal: str | None = None
     covered_entity: str | None = None
     match_status: MatchStatus | None = None  # None = not checked (legacy)
     period_plan: PeriodPlan | None = None
@@ -100,6 +128,7 @@ class SourceDocument(BaseModel):
             "Empty for non-paginated formats (html/txt/xlsx) or non-local sources."
         ),
     )
+    table_spans: list[TableSpan] = Field(default_factory=list, description="Docling tables located in full_text.")
 
 
 class DocumentChunk(BaseModel):
@@ -141,7 +170,13 @@ class Citation(BaseModel):
     passage_id: str | None = Field(
         default=None, description="passage_id of the evidence block the quote was copied from"
     )
-    table_ref: str | None = None
+    table_ref: TableRef | None = Field(default=None, description="Table cell the match lies in, set by grounding.")
+
+    @field_validator("table_ref", mode="before")
+    @classmethod
+    def _drop_legacy_table_ref(cls, v):
+        # Old rows and model drafts carry a free-text string here; grounding sets the real value.
+        return v if isinstance(v, (dict, TableRef)) else None
     parser_version: str | None = None
 
 
@@ -160,6 +195,7 @@ class ProvenanceInfo(BaseModel):
     extractor_prompt_version: str | None = None
     verifier_model: str | None = None
     verifier_prompt_version: str | None = None
+    adjudicator_model: str | None = None
     provider: str = ""
     schema_version: str = ""
     field_version: int | None = None

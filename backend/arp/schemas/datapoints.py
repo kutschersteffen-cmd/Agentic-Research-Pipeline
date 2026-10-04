@@ -75,6 +75,7 @@ class CheckConfig(BaseModel):
     sum_of: list[str] = Field(default_factory=list, description="This field equals the sum of these field_ids.")
     sum_tolerance: float = Field(default=0.01, description="Relative.")
     prior_change_max: float | None = Field(default=0.5, description="Relative jump vs. prior value that warns.")
+    cross_source_tolerance: float = Field(default=0.01, description="Relative difference vs. another source that warns.")
 
 
 class ApplicabilityRules(BaseModel):
@@ -118,6 +119,9 @@ class FieldDefinition(BaseModel):
     document_routing: DocumentRouting | None = None
     auto_accept_min: float = Field(default=0.9, ge=0.0, le=1.0)
     high_risk: bool = False
+    xbrl_tags: list[str] = Field(
+        default_factory=list, description="XBRL concepts, e.g. 'us-gaap:Revenues', tried in order before any model call."
+    )
 
 
 class FieldQuality(BaseModel):
@@ -141,11 +145,12 @@ class DataPointSchema(BaseModel):
 
 
 class Alternative(BaseModel):
-    """A value the extractor or a duplicate reading offered but the row did not keep."""
+    """A value the extractor, a duplicate reading, the verifier, an adjudicator
+    or a tagged fact offered but the row did not keep."""
 
     value: str | float | bool | None = None
     raw_value_text: str | None = None
-    source: Literal["extractor", "duplicate"]
+    source: Literal["extractor", "duplicate", "verifier", "adjudicator", "tagged"]
     citations: list[Citation] = Field(default_factory=list)
 
 
@@ -184,6 +189,7 @@ class ExtractedField(BaseModel):
     route: RouteKind | None = Field(default=None, description="Set by the pipeline only; None on rows written before routing.")
     input_hash: str | None = None
     reused_from_run: str | None = None
+    method: Literal["extracted", "tagged", "adjudicated"] = "extracted"
 
     @model_validator(mode="before")
     @classmethod

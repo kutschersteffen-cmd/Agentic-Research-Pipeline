@@ -9,6 +9,7 @@ from datetime import date
 from arp.decision.parsing import to_number
 from arp.extraction.extractor_agent import PeriodValue
 from arp.normalise import fx
+from arp.normalise.locale import Decimal, parse_number
 from arp.normalise.period import (
     Qualifier,
     ResolvedPeriod,
@@ -21,8 +22,9 @@ from arp.normalise.units import convert, lookup_scale, lookup_unit, split_unit
 from arp.schemas.datapoints import FieldDataType, FieldDefinition, ValueState
 from arp.schemas.review import ReasonCode
 
-_NUMERIC = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
+NUMERIC = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
 _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
+PRINTED = re.compile(r"\d[\d.,]*\d|\d")
 _RAW_SCALE = re.compile(r"\d[\d,]*(?:\.\d+)?\s*([A-Za-z']+)(?![\w²³])")
 
 
@@ -71,7 +73,7 @@ def _split(text: str) -> tuple[float, bool, str | None]:
     return scale, amb, base or None
 
 
-def _unit_from_raw(raw: str | None) -> str | None:
+def unit_from_raw(raw: str | None) -> str | None:
     """Unit text read around a number in raw_value_text: "12.5%" -> "%", "$1.2bn" -> "$ bn",
     "1,234 thousand tonnes" -> "thousand tonnes". Longest readable run of words wins."""
     for m in _NUMBER.finditer(raw or ""):
@@ -90,7 +92,7 @@ def _unit_from_raw(raw: str | None) -> str | None:
 
 def _canonical(field: FieldDefinition, value: float, pv: PeriodValue, end: date | None):
     """(canonical_value, canonical_unit, scale_applied, FxRate | None); raises _CheckFailed."""
-    unit_text = pv.unit_text or _unit_from_raw(pv.raw_value_text)
+    unit_text = pv.unit_text or unit_from_raw(pv.raw_value_text)
     unit_scale, unit_amb, base = _split(unit_text) if unit_text else (1.0, False, None)
     raw = _raw_scale(pv.raw_value_text)
     if unit_scale != 1.0 and raw and raw[0] != unit_scale:
@@ -127,7 +129,8 @@ def _canonical(field: FieldDefinition, value: float, pv: PeriodValue, end: date 
 
 
 def typed_value(
-    field: FieldDefinition, pv: PeriodValue, *, fiscal_year_end: str | None, planned: set[str] | None = None
+    field: FieldDefinition, pv: PeriodValue, *, fiscal_year_end: str | None, planned: set[str] | None = None,
+    decimal: Decimal | None = None,
 ) -> TypedValue:
     period = resolve_period(pv.period_text, fiscal_year_end=fiscal_year_end)
     if period.end is None and planned and pv.planned_period_end in planned:
@@ -144,19 +147,25 @@ def typed_value(
         state = ValueState.NOT_FOUND
     reasons: list[ReasonCode] = []
     notes: list[str] = []
-    if field.data_type in _NUMERIC and isinstance(value, str):
+    if field.data_type in NUMERIC and isinstance(value, str):
         # A numeric field returned as text ("1,234"): parse it, or say why not -- never skip silently.
-        if (parsed := to_number(value)) is None:
+        if (parsed := to_number(value, decimal=decimal)) is None:
             reasons.append(ReasonCode.CHECK_FAILED)
             notes.append(f"numeric field returned non-numeric text {value!r}")
         else:
             value = parsed
+    text = pv.value if isinstance(pv.value, str) else pv.raw_value_text
+    # The string as printed: the typed float no longer shows whether "1,234" was 1234 or 1.234.
+    m = PRINTED.search(text) if field.data_type in NUMERIC and text else None
+    if m and parse_number(m[0], decimal)[1]:
+        reasons.append(ReasonCode.NUMBER_LOCALE_AMBIGUOUS)
+        notes.append(f"{m[0]!r} is a thousands group or a decimal; read under the point convention")
     numeric = isinstance(value, (int, float)) and not isinstance(value, bool)
     if state == ValueState.FOUND and numeric and value == 0:
         state = ValueState.ZERO
 
     canonical = canonical_unit = scale = rate = None
-    if field.data_type in _NUMERIC and numeric:
+    if field.data_type in NUMERIC and numeric:
         try:
             canonical, canonical_unit, scale, rate = _canonical(field, float(value), pv, period.end)
         except _CheckFailed as e:

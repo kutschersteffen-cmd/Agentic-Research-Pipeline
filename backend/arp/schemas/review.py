@@ -16,6 +16,9 @@ class ReasonCode(StrEnum):
     CHECK_FAILED = "check_failed"
     MATCH_AMBIGUOUS = "match_ambiguous"
     NOT_APPLICABLE_BY_RULE = "not_applicable_by_rule"
+    NUMBER_LOCALE_AMBIGUOUS = "number_locale_ambiguous"
+    VERIFIER_CORRECTION_UNCITED = "verifier_correction_uncited"
+    ADJUDICATOR_UNRESOLVED = "adjudicator_unresolved"
 
 
 class DecisionKind(StrEnum):
@@ -35,6 +38,7 @@ class DecisionReason(StrEnum):
     BAD_SOURCE = "bad_source"
     NEEDS_EXPERT = "needs_expert"
     OTHER = "other"
+    SPAN_MOVED = "span_moved"  # system only: a parser upgrade moved the cited span (E51)
 
 
 class ReviewDecision(BaseModel):
@@ -110,8 +114,20 @@ class ItemDecisionRequest(BaseModel):
     def _consistent(self) -> ItemDecisionRequest:
         if (self.decision == "approve") != (self.reason_code == DecisionReason.CONFIRMED):
             raise ValueError("approve requires reason 'confirmed'; every other decision forbids it")
+        if self.reason_code == DecisionReason.SPAN_MOVED:
+            raise ValueError("span_moved is set by the system only")
         if self.decision == "correct" and self.corrected_value is None:
             raise ValueError("correct requires corrected_value")
         if self.decision != "correct" and (self.corrected_value is not None or self.correction_citation is not None):
             raise ValueError("only correct takes corrected_value or correction_citation")
         return self
+
+
+class BulkItem(BaseModel):
+    item_key: str
+    context_etag: str = Field(min_length=1)
+
+
+class BulkAcceptRequest(BaseModel):
+    run_id: str
+    items: list[BulkItem] = Field(min_length=1, max_length=200)

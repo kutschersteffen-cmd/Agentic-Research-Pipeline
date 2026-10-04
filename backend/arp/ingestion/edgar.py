@@ -127,6 +127,8 @@ class EdgarDocumentSource(DocumentSource):
                     fiscal_period=filing_date,
                     full_text=text,
                     sha256=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+                    language="en",
+                    decimal="point",  # US filings: "383,285" is a thousands group
                 )
                 if self._content_store is not None and content_key is not None:
                     doc_id = derive_doc_id(company.company_id, doc_type.value, content_key)

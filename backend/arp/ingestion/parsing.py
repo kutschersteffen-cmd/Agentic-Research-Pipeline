@@ -138,4 +138,19 @@ def chunk_document(
                 keyword_hits=find_keyword_hits(span_text, keywords),
             )
         )
+    for t in doc.table_spans:  # each whole table as one passage too, labelled by its caption
+        span_text = doc.full_text[t.char_start : t.char_end]
+        chunks.append(
+            DocumentChunk(
+                chunk_id=f"chk_{doc.doc_id}_table_{t.char_start}_{t.char_end}",
+                doc_id=doc.doc_id,
+                company_id=doc.company_id,
+                doc_type=doc.doc_type,
+                section=t.caption,
+                text=span_text,
+                char_start=t.char_start,
+                char_end=t.char_end,
+                keyword_hits=find_keyword_hits(span_text, keywords),
+            )
+        )
     return chunks

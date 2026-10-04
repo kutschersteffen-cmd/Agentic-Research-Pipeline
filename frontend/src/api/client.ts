@@ -88,7 +88,7 @@ import type {
   TransitionPlanIndicatorDef,
   TrendPoint,
 } from "../types";
-import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, ReviewItem } from "../types";
+import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, ReviewItem, SimilarDecision } from "../types";
 import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
 import type { BIChartPlan, BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
@@ -217,6 +217,10 @@ export const api = {
     request<{ state: ItemState; snapshot_id: string; second_reasons: string[] }>(
       `/api/review/runs/${encodeURIComponent(runId)}/items/${encodeURIComponent(itemKey)}/decision`,
       { method: "POST", body: JSON.stringify(body) },
+    ),
+  getSimilarDecisions: (runId: string, itemKey: string) =>
+    request<{ items: SimilarDecision[] }>(
+      `/api/extraction/items/${encodeURIComponent(itemKey)}/similar?run_id=${encodeURIComponent(runId)}`,
     ),
   getSnapshot: (runId: string, snapshotId: string) =>
     request<Record<string, unknown>>(`/api/review/runs/${encodeURIComponent(runId)}/snapshots/${encodeURIComponent(snapshotId)}`),

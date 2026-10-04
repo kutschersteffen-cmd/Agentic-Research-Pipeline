@@ -7,7 +7,15 @@ from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal, current_user, require_role
 from arp.api.company_results import list_company_results
-from arp.api.deps import get_decision_store, get_llm_client, get_registry, get_run_store, get_xbrl_source, settings_dep
+from arp.api.deps import (
+    get_decision_store,
+    get_document_content_store,
+    get_llm_client,
+    get_registry,
+    get_run_store,
+    get_xbrl_source,
+    settings_dep,
+)
 from arp.api.routers.decision import template_for_run
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
@@ -18,11 +26,14 @@ from arp.extraction.steps import ExtractionProfile, StepSettings, pipeline_shape
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.review_queue import effective_decisions, item_states, public_decision, record_cosign
 from arp.orchestration.step_tally import step_counts
-from arp.review.context import visible_history
+from arp.review.context import similar_decisions, visible_history
+from arp.review.decide import DecisionError, bulk_accept
 from arp.review.items import cosign_rule, get_item
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema, FieldQuality
+from arp.schemas.review import BulkAcceptRequest
 from arp.storage.decision_store import DecisionStore
+from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
 from arp.storage.schema_registry import SchemaRegistry
 from arp.universe import load_company_universe
@@ -108,6 +119,7 @@ async def start_extraction_run(
     run_store: RunStore = Depends(get_run_store),
     registry: DocumentSourceRegistry = Depends(get_registry),
     decision_store: DecisionStore = Depends(get_decision_store),
+    xbrl_source=Depends(get_xbrl_source),
 ) -> dict:
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
     if not companies:
@@ -136,6 +148,7 @@ async def start_extraction_run(
             registry=registry,
             settings=settings,
             run_store=run_store,
+            xbrl_source=xbrl_source,
         )
 
     run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings)
@@ -191,7 +204,7 @@ async def _dispatch(req: StartRequest, settings: Settings, run_store: RunStore, 
     if req.profile == "custom":
         if req.datapoint_schema is None:
             raise HTTPException(400, "The custom profile needs `datapoint_schema`.")
-        started, run_type = await start_extraction_run(RunRequest(datapoint_schema=req.datapoint_schema, trial=req.trial, **common), **stores), "extraction"
+        started, run_type = await start_extraction_run(RunRequest(datapoint_schema=req.datapoint_schema, trial=req.trial, **common), **stores, xbrl_source=xbrl_source), "extraction"
     elif req.profile == "financials":
         started = await financials.start_financials_extraction_run(financials.RunRequest(**common), **stores, xbrl_source=xbrl_source)
         run_type = "financials"
@@ -378,6 +391,27 @@ def get_extraction_review_history(
     item = get_item(run_store, run_id, item_key, principal)
     high_risk = item is not None and item.high_risk
     return {"item_key": item_key, "history": visible_history(run_store, run_id, item_key, principal, high_risk=high_risk)}
+
+
+@router.get("/items/{item_key}/similar")
+def get_similar_decisions(
+    item_key: str, run_id: str, run_store: RunStore = Depends(get_run_store), principal: Principal = Depends(current_user),
+) -> dict:
+    items = similar_decisions(run_store, run_id=run_id, item_key=item_key)
+    if items is None:
+        raise HTTPException(404, "Run or item not found")
+    return {"items": items}
+
+
+@router.post("/items/bulk-accept", dependencies=[Depends(require_role("analyst"))])
+def bulk_accept_items(
+    req: BulkAcceptRequest, run_store: RunStore = Depends(get_run_store), principal: Principal = Depends(current_user),
+    settings: Settings = Depends(settings_dep), content_store: DocumentContentStore = Depends(get_document_content_store),
+) -> dict:
+    try:
+        return bulk_accept(run_store, req, principal, settings=settings, content_store=content_store)
+    except DecisionError as exc:
+        raise HTTPException(exc.status, exc.message) from None
 
 
 class CosignRequest(BaseModel):

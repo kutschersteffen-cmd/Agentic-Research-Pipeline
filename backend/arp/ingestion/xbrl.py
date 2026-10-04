@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from datetime import date
 from pathlib import Path
 
 import httpx
@@ -41,6 +42,14 @@ _REVENUE_TAGS = [
 _ANNUAL_FORMS = {"10-K", "10-K/A"}
 
 
+def _full_year(row: dict) -> bool:
+    """A duration of about a year; an instant (no start, e.g. a balance) passes."""
+    if not row.get("start"):
+        return True
+    days = (date.fromisoformat(row["end"]) - date.fromisoformat(row["start"])).days
+    return 350 <= days <= 380
+
+
 class XbrlFact(BaseModel):
     """One resolved figure from SEC EDGAR's structured XBRL companyfacts
     API -- never an LLM's read of prose, the exact "what's already
@@ -62,9 +71,13 @@ class XbrlFact(BaseModel):
     period_end: str | None = None
 
     def as_citation(self, cik: str) -> Citation:
+        # The period's own end, not companyfacts' `fy` (the filing's year, which also
+        # labels the comparatives a filing repeats); fractions (EPS, ratios) as tagged.
+        value = f"{self.value:,.0f}" if self.value.is_integer() else f"{self.value:,}"
+        period = f"period ending {self.period_end}" if self.period_end else f"FY{self.fiscal_year} {self.fiscal_period or ''}".strip()
         quote = (
-            f"us-gaap:{self.tag} = {self.value:,.0f} {self.unit} "
-            f"(FY{self.fiscal_year} {self.fiscal_period or ''}, form {self.form}, filed {self.filed})".strip()
+            f"{self.tag if ':' in self.tag else 'us-gaap:' + self.tag} = {value} {self.unit} "
+            f"({period}, form {self.form}, filed {self.filed})"
         )
         return Citation(
             doc_id=f"xbrl:{cik}:{self.accession or self.tag}",
@@ -216,6 +229,26 @@ class XbrlFactSource:
             # happen to also report the trailing annual number.
             best = max(candidates, key=lambda r: (r.get("end") or "", r.get("filed") or ""))
             return self._fact_from_row(tag, unit_name, best)
+        return None
+
+    @staticmethod
+    def fact_for_tags(facts_json: dict, tags: list[str], *, fiscal_year: int) -> XbrlFact | None:
+        """The annual (10-K / 10-K/A, full-year) fact for exactly `fiscal_year` -- the year
+        its period ends in, not companyfacts' `fy`, which is the filing's year and also
+        labels the prior-year comparatives a filing repeats -- for the first tag in list
+        order that has one. Tags are "taxonomy:Name" ("us-gaap:Revenues"); a bare name
+        is us-gaap. USD rows when the tag has them, else its only unit (shares, pure)."""
+        facts = facts_json.get("facts", {})
+        for tag in tags:
+            taxonomy, _, name = tag.rpartition(":")
+            units = facts.get(taxonomy or "us-gaap", {}).get(name, {}).get("units", {})
+            unit_name, rows = ("USD", units["USD"]) if "USD" in units else next(iter(units.items()), (None, []))
+            hits = [r for r in rows if r.get("form") in _ANNUAL_FORMS and r.get("fp") == "FY" and r.get("val") is not None
+                    and (r.get("end") or "")[:4] == str(fiscal_year) and _full_year(r)]
+            if hits:
+                # That year's own 10-K (or its amendment) first, then the latest filed.
+                best = max(hits, key=lambda r: (r.get("fy") == fiscal_year, r.get("filed") or ""))
+                return XbrlFactSource._fact_from_row(name if taxonomy in ("", "us-gaap") else tag, unit_name, best)
         return None
 
     def _best_two_annual_facts(self, facts_json: dict, tags: list[str]) -> tuple[XbrlFact, XbrlFact] | None:

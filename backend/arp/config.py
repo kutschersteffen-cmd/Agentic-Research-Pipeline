@@ -129,6 +129,24 @@ class Settings(BaseSettings):
     second_review_sample_rate: float = Field(
         default=0.1, ge=0.0, le=1.0, description="Share of approvals, chosen per item key, that also get a second review."
     )
+    bulk_accept_sample_rate: float = Field(
+        default=0.2, ge=0.0, le=1.0, description="Share of bulk-accepted items, chosen per item key, re-checked by a second reviewer."
+    )
+    review_quality_dir: Path = Field(
+        default=REPO_ROOT / "data" / "review_quality",
+        description="Reviewer quality loop: known.jsonl (which items are known answers) and extraction_cases.json "
+        "(gold cases grown from second-confirmed corrections). Never shown to reviewers.",
+    )
+    review_analytics_dir: Path = Field(
+        default=REPO_ROOT / "data" / "review_analytics",
+        description="Monthly reviewer error analytics: one {YYYY-MM}.json of correction reasons by field, model and document type.",
+    )
+    review_analytics_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".review_analytics_state")
+    review_analytics_schedule_enabled: bool = Field(default=False)  # daily; writes the previous month once it has ended
+    known_answer_rate: float = Field(
+        default=0.05, ge=0.0, le=1.0,
+        description="Known-answer items seeded per open review item when `golden-set seed-known-answers` gets no --count.",
+    )
     require_ratified_taxonomy: bool = Field(
         default=False,
         description="Human curation gate for theme runs (spec Step 0d): when true, POST /api/themes/runs refuses "
@@ -538,6 +556,7 @@ class Settings(BaseSettings):
             self.portfolio_monitoring_state_dir,
             self.frameworks_dir,
             self.indices_dir,
+            self.review_analytics_state_dir,
         ):
             d.mkdir(parents=True, exist_ok=True)
 

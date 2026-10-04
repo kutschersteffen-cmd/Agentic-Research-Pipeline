@@ -4,8 +4,20 @@ import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import type { ReviewDecision, ReviewableRunKind } from "../types";
 import { useMe } from "../lib/reviewer";
 import { SignedInAs } from "../components/SignedInAs";
-import { useCardKeys } from "../lib/cardKeys";
+import { useCardKeys, type CardHandlers } from "../lib/cardKeys";
 import { REVIEW_KIND_LABEL, ReviewItems, applyDecision, fromReviewItem, keyOf, type QueueItem } from "../components/RunReviewList";
+
+/** A / C / R open the focused item's approve / correct / reject form and focus it.
+ * They only press the choice button; submitting stays a click or Enter. */
+const openDecision = (decision: string) => (card: HTMLElement) => {
+  const button = card.querySelector<HTMLButtonElement>(`button[data-decision="${decision}"]:not(:disabled)`);
+  if (!button) return;
+  button.click();
+  requestAnimationFrame(() =>
+    card.querySelector<HTMLElement>(".inline-fields :is(input, select, button):not(:disabled)")?.focus(),
+  );
+};
+const DECISION_KEYS: CardHandlers = { a: openDecision("approve"), c: openDecision("correct"), r: openDecision("reject") };
 
 interface Props {
   pendingReview?: { kind: ReviewableRunKind; runId: string } | null;
@@ -24,7 +36,7 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
   // Decided items stay in place, collapsed: decisions are append-only and the
   // latest wins, so "Change" records a new one and the history keeps both.
   const [decided, setDecided] = useState<Record<string, ReviewDecision>>({});
-  useCardKeys(".review-item");
+  useCardKeys(".review-item", DECISION_KEYS);
 
   async function load() {
     setError(null);
@@ -84,7 +96,7 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
           <div className="split-review-main">
             <section className="card">
               <h2>{open > 0 ? `${open} awaiting a decision` : "All decided"}</h2>
-              <p className="help-text"><span className="kbd-hint">Press <kbd>J</kbd> / <kbd>K</kbd> to move between items. </span>A decision can be changed; every one is kept.</p>
+              <p className="help-text"><span className="kbd-hint">Press <kbd>J</kbd> / <kbd>K</kbd> to move between items, <kbd>A</kbd> / <kbd>C</kbd> / <kbd>R</kbd> to open approve, correct or reject. </span>A decision can be changed; every one is kept.</p>
               <ReviewItems
                 items={shown}
                 decided={decided}

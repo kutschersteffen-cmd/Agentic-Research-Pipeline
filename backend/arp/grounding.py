@@ -8,7 +8,7 @@ from difflib import SequenceMatcher
 from functools import lru_cache
 from pathlib import Path
 
-from arp.schemas.common import Citation, DocumentChunk, SourceDocument
+from arp.schemas.common import Citation, DocumentChunk, SourceDocument, TableRef
 
 _WS_RE = re.compile(r"\s+")
 _SHEET_RE = re.compile(r"^## Sheet: (.+)$", re.MULTILINE)
@@ -210,6 +210,21 @@ def _sheet_for_offset(full_text: str, offset: int) -> str | None:
     return name
 
 
+def _table_ref_for_offset(doc: SourceDocument, char_start: int, char_end: int | None = None) -> TableRef | None:
+    """The table the match starts in, and the first data cell it overlaps:
+    a quote like "Revenue | 1,234.5" starts on the row label, so the cell is
+    the number after it, not the cell at char_start."""
+    end = char_start + 1 if char_end is None else char_end
+    for t in doc.table_spans:
+        if t.char_start <= char_start < t.char_end:
+            cell = next((c for c in t.cells if c.char_start < end and char_start < c.char_end), None)
+            return TableRef(
+                table_id=t.table_id, row_label=cell.row_label if cell else None,
+                col_label=cell.col_label if cell else None, caption=t.caption, unit_note=t.unit_note,
+            )
+    return None
+
+
 def ground_claim(
     citations: list[Citation],
     documents_by_id: dict[str, SourceDocument],
@@ -279,13 +294,14 @@ def ground_citations(
         update: dict = {
             "grounded": match is not None, "page": None, "sheet": None, "company_id": None,
             "source_filename": None, "content_key": None, "parser_version": None, "span_text": None,
-            "char_start": None, "char_end": None, "match_method": None, "match_score": None,
+            "char_start": None, "char_end": None, "match_method": None, "match_score": None, "table_ref": None,
         }
         if match and doc:
             update["company_id"] = doc.company_id
             update["source_filename"] = Path(doc.local_path).name if doc.local_path else None
             update["page"] = _page_for_offset(doc.page_breaks, match.char_start)
             update["sheet"] = _sheet_for_offset(doc.full_text, match.char_start)
+            update["table_ref"] = _table_ref_for_offset(doc, match.char_start, match.char_end)
             update.update(
                 content_key=doc.content_key, parser_version=doc.parser_version,
                 span_text=doc.full_text[match.char_start : match.char_end],

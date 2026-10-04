@@ -5,13 +5,17 @@ from pathlib import Path
 
 import typer
 
+from arp.api.auth import Principal
 from arp.bi.eval import load_bi_cases, run_bi_set
+from arp.cli._shared import _run_store
 from arp.config import get_settings
 from arp.golden_set.role_runner import load_role_cases as load_role_golden_set_cases
 from arp.golden_set.role_runner import run_role_golden_set
 from arp.golden_set.runner import load_cases as load_golden_set_cases
 from arp.golden_set.runner import run_golden_set
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
+from arp.review.items import list_open_items
+from arp.review.quality import seed_known_answers
 
 golden_set_app = typer.Typer(help="Golden-set regression testing for the extraction pipeline -- run before every prompt/model change reaches a real batch.")
 
@@ -105,3 +109,22 @@ def golden_set_run_roles(
     typer.echo(f"\n{report.passed}/{report.total} passed.")
     if fail_on_regression and not report.all_passed:
         raise typer.Exit(1)
+
+
+@golden_set_app.command("seed-known-answers")
+def golden_set_seed_known_answers(
+    count: int = typer.Option(
+        None, "--count", min=1, help="Items to seed. Defaults to known_answer_rate times the open review items (at least 1)."
+    ),
+    seed: int = typer.Option(None, "--seed", help="Random seed, for a repeatable choice of cases."),
+) -> None:
+    """Seeds known-answer items into the review queue as one trial extraction run: half carry
+    the gold value, half a wrong copy. Which items they are is kept in review_quality_dir only;
+    reviewers see ordinary items. Accuracy shows per reviewer in GET /api/review/quality."""
+    settings = get_settings()
+    run_store = _run_store()
+    if count is None:
+        system = Principal(user_id="system", name="system", role="approver")
+        count = max(1, round(settings.known_answer_rate * len(list_open_items(run_store, system))))
+    run_id = seed_known_answers(run_store, settings, count=count, seed=seed)
+    typer.echo(f"Seeded {count} known-answer item(s) in trial run {run_id}.")

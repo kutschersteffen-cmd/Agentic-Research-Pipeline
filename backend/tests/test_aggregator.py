@@ -16,16 +16,17 @@ _FIELD = FieldDefinition(
 def test_verifier_override_of_null_value_is_not_shown_as_grounded():
     # Extractor correctly found nothing (value=None, no citations); verifier
     # disagrees and supplies a real number with no citations of its own --
-    # the merged field must not claim that number is grounded.
+    # that number never becomes the value (E38); it waits for review.
     draft = ExtractionDraft(value=None, citations=[], confidence=0.8)
     verifier = VerifierOutput(agrees=False, corrected_value=42.5, confidence=0.7, notes="Found it on page 12.")
 
     (field_result,) = build_extracted_fields(_FIELD, draft, verifier, {}, fuzzy_threshold=0.9, confidence_review_threshold=0.6)
     needs_review = bool(field_result.review_reasons)
 
-    assert field_result.value == 42.5
-    assert field_result.grounded is False
+    assert field_result.value is None
     assert field_result.citations == []
+    assert [(a.source, a.value) for a in field_result.alternatives] == [("verifier", 42.5)]
+    assert ReasonCode.VERIFIER_CORRECTION_UNCITED in field_result.review_reasons
     assert needs_review is True
 
 
@@ -63,7 +64,9 @@ def test_reasons_for_verifier_disagreement_and_conflict():
     draft = ExtractionDraft(value=1.0, citations=[], confidence=0.9, conflicting_sources=True)
     verifier = VerifierOutput(agrees=False, corrected_value=None, confidence=0.9, notes="no")
     field_result, _ = _build(draft, verifier)
-    assert field_result.review_reasons == [ReasonCode.VERIFIER_DISAGREES, ReasonCode.CONFLICT]
+    # No value and no citation offered: a disagreement, not a rejected correction.
+    assert field_result.review_reasons == [ReasonCode.NOT_GROUNDED, ReasonCode.VERIFIER_DISAGREES, ReasonCode.CONFLICT]
+    assert field_result.alternatives == []
 
 
 def test_no_reasons_means_no_review():
@@ -131,13 +134,15 @@ def test_verifier_correction_lands_on_values_0_even_when_oldest_first():
         ],
         confidence=0.9,
     )
-    verifier = VerifierOutput(agrees=False, corrected_value=100.0, confidence=0.9, notes="misread")
+    verifier = VerifierOutput(agrees=False, corrected_value=100.0, confidence=0.9, notes="misread",
+                              citations=_cite("100 tonnes in FY2023"))
     latest, older = _build_all(draft, verifier, {_DOC.doc_id: _DOC})
     assert (latest.period_end, latest.value, latest.grounded) == ("2024-12-31", 120.0, True)
     assert latest.review_reasons == [ReasonCode.VERIFIER_DISAGREES]
-    assert (older.period_end, older.value, older.citations, older.grounded) == ("2023-12-31", 100.0, [], False)
+    assert (older.period_end, older.value, older.grounded) == ("2023-12-31", 100.0, True)
+    assert [c.quote for c in older.citations] == ["100 tonnes in FY2023"]
     assert older.canonical_value is None and older.scale_applied is None  # never re-typed from the rejected text
-    assert older.review_reasons == [ReasonCode.NOT_GROUNDED, ReasonCode.VERIFIER_DISAGREES]
+    assert older.review_reasons == [ReasonCode.VERIFIER_DISAGREES]
 
 
 def test_duplicate_period_values_flag_conflict():
@@ -237,7 +242,9 @@ def test_verifier_disagreement_keeps_extractor_value_as_alternative():
         values=[PeriodValue(value=4210.0, raw_value_text="4,210", citations=_cite("Scope 1 emissions were 120 tonnes"))],
         confidence=0.9,
     )
-    (f,) = _build_all(draft, VerifierOutput(agrees=False, corrected_value=4200.0, confidence=0.7, notes="x"), {_DOC.doc_id: _DOC})
+    verifier = VerifierOutput(agrees=False, corrected_value=4200.0, confidence=0.7, notes="x",
+                              citations=_cite("Scope 1 emissions were 120 tonnes"))
+    (f,) = _build_all(draft, verifier, {_DOC.doc_id: _DOC})
     (alt,) = f.alternatives
     assert (alt.source, alt.value, alt.raw_value_text) == ("extractor", 4210.0, "4,210")
     assert alt.citations and all(c.grounded for c in alt.citations)
@@ -265,3 +272,29 @@ def test_old_row_loads_without_new_fields():
     assert (f.extractor_confidence, f.verifier_confidence, f.alternatives) == (None, None, [])
     r = ExtractionRecord.model_validate({"company_id": "c", "name": "n", "schema_id": "s", "run_id": "r"})
     assert r.documents == []
+
+
+def _locale_run(raw, decimals, value="1,234"):
+    docs = {f"d{i}": SourceDocument(doc_id=f"d{i}", company_id="c", doc_type=DocType.SUSTAINABILITY_REPORT, title="t",
+                                    full_text=raw, decimal=d) for i, d in enumerate(decimals)}
+    cits = [Citation(doc_id=k, doc_type=DocType.SUSTAINABILITY_REPORT, quote=raw) for k in docs]
+    draft = ExtractionDraft(values=[PeriodValue(value=value, raw_value_text=raw, citations=cits)], confidence=0.9)
+    (f,) = _build_all(draft, _AGREE, docs)
+    return f
+
+
+def test_document_decimal_resolves_ambiguity():
+    f = _locale_run("1,234", ["point"])
+    assert f.value == 1234.0 and ReasonCode.NUMBER_LOCALE_AMBIGUOUS not in f.review_reasons
+    f = _locale_run("1.234", ["comma"], value="1.234")
+    assert f.value == 1234.0 and ReasonCode.NUMBER_LOCALE_AMBIGUOUS not in f.review_reasons
+
+
+def test_disagreeing_or_unknown_document_decimals_flag():
+    assert ReasonCode.NUMBER_LOCALE_AMBIGUOUS in _locale_run("1,234", ["point", "comma"]).review_reasons
+    assert ReasonCode.NUMBER_LOCALE_AMBIGUOUS in _locale_run("1,234", [None]).review_reasons
+
+
+def test_ambiguity_note_names_the_point_convention():
+    f = _locale_run("1,234", [None])
+    assert "'1,234' is a thousands group or a decimal; read under the point convention" in f.verifier_notes

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from dataclasses import field as dc_field
 from datetime import date
 from typing import TYPE_CHECKING
 
@@ -21,6 +22,7 @@ from arp.schemas.datapoints import (
 from arp.schemas.review import ReasonCode
 
 if TYPE_CHECKING:
+    from arp.checks.cross_source import Reference
     from arp.extraction.history import RunHistory
 
 _NUMERIC = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
@@ -34,6 +36,7 @@ class CheckContext:
     documents_by_id: dict[str, SourceDocument]
     record_fields: list[ExtractedField]
     history: RunHistory | None = None
+    references: dict[str, list[Reference]] = dc_field(default_factory=dict)  # item key -> other-source values
 
 
 Check = Callable[[FieldDefinition, ExtractedField, CheckContext], list[CheckResult]]
@@ -80,15 +83,15 @@ def check_format(spec: FieldDefinition, field: ExtractedField, ctx: CheckContext
     return out
 
 
-# Layers 2-4 are registered in arp/checks/__init__.py (the check modules import this one).
-LAYERS: dict[int, list[Check]] = {1: [check_format], 2: [], 3: [], 4: []}
+# Layers 2-5 are registered in arp/checks/__init__.py (the check modules import this one).
+LAYERS: dict[int, list[Check]] = {1: [check_format], 2: [], 3: [], 4: [], 5: []}
 
 
 async def run_checks(
     spec: FieldDefinition, field: ExtractedField, ctx: CheckContext, *, model_check: ModelCheck | None = None
 ) -> list[CheckResult]:
     results: list[CheckResult] = []
-    for layer in (1, 2, 3, 4):
+    for layer in (1, 2, 3, 4, 5):
         for check in LAYERS[layer]:
             results.extend(check(spec, field, ctx))
         if any(is_blocking(r) for r in results):

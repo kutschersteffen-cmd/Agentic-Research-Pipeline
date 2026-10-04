@@ -472,6 +472,8 @@ export interface ItemContext {
   failed_checks: { check_id: string; severity: string; plain: string; detail: string }[];
   route_reasons: string[];
   conflict: { conflicting_sources: boolean; alternatives: { value: unknown; raw_value_text: string | null; source: string; citations: Citation[] }[] } | null;
+  /** The verifier's or adjudicator's value, pre-filled when the reviewer opens Correct (E57). */
+  suggested_correction?: { value: unknown; citations: Citation[] } | null;
   prior_period: { value: unknown; period_end: string } | null;
   published: { value: unknown; run_id: string; decided_by: string } | null;
   confidence: { final: number; extractor: number | null; verifier: number | null; grounded: boolean; match_methods: string[]; auto_accept_min: number | null } | null;
@@ -480,6 +482,15 @@ export interface ItemContext {
   decisions: ReviewDecision[];
   blind: boolean;
   etag: string;
+}
+
+/** A final decision on the same field and issuer, from the same kind of document, in an earlier run. */
+export interface SimilarDecision {
+  run_id: string;
+  item_key: string;
+  period: string;
+  value: unknown;
+  decision: ReviewDecision;
 }
 
 export interface ItemDecisionBody {

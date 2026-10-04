@@ -1,0 +1,22 @@
+{
+  "units_v1": {
+    "version": 1,
+    "sha256": "659ded5eb83b056c979563300d92ff777f8cd058c7d65dba9b13f0386321d58e"
+  },
+  "scale_v1": {
+    "version": 1,
+    "sha256": "5d1f4decbe605c6ce159c81baa4d558afe673c5ef7a5b057f5176413bcda64f0"
+  },
+  "fx_v1": {
+    "version": 1,
+    "sha256": "e62fd772aaeb00d7e2274a37ed5348d309ca5702d56161de3ed2e77707fbd72c"
+  },
+  "basis_v1": {
+    "version": 1,
+    "sha256": "4557f9197e4cb0c87e67bb77da3675bacfc2780e887e952547c5132ff1fa58dc"
+  },
+  "locale_v1": {
+    "version": 1,
+    "sha256": "6930dc321dca67a0886eb1ca6be43c9b18f490d8ced3354973df244fafb194dd"
+  }
+}

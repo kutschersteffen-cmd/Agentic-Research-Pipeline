@@ -1,0 +1,72 @@
+from arp.checks.round_trip import check_round_trip
+from arp.checks.runner import CheckContext
+from arp.schemas.common import CompanyRef
+from arp.schemas.datapoints import DataPointSchema, ExtractedField, FieldDataType, FieldDefinition
+
+_SPEC = FieldDefinition(
+    field_id="f1", name="Revenue", description="d", data_type=FieldDataType.CURRENCY_AMOUNT,
+    extraction_instructions="i", unit="EUR",
+)
+
+
+def _run(spec=_SPEC, **kw):
+    kw = {"raw_value_text": "EUR 1.5 million", "canonical_value": 1_500_000.0, "canonical_unit": "EUR",
+          "scale_applied": 1e6, "value": 1.5, "value_state": "found", **kw}
+    field = ExtractedField(field_id="f1", field_name="f1", confidence=0.9, citations=[], **kw)
+    ctx = CheckContext(
+        company=CompanyRef(company_id="c1", name="A"), issuer_key="k",
+        schema=DataPointSchema(name="s", fields=[spec]), documents_by_id={}, record_fields=[field],
+    )
+    (r,) = check_round_trip(spec, field, ctx)
+    return r
+
+
+def test_round_trip_passes_for_correct_conversion():
+    r = _run()
+    assert (r.check_id, r.layer, r.outcome) == ("round_trip", 3, "pass")
+
+
+def test_altered_conversion_fails():
+    r = _run(canonical_value=1_600_000.0)
+    assert (r.outcome, r.severity) == ("fail", "block")
+    assert "1.6" in r.detail and "1.5" in r.detail
+
+
+def test_round_trip_with_fx():
+    spec = _SPEC.model_copy(update={"unit": "USD"})
+    kw = {"canonical_unit": "USD", "fx_rate": 1.1, "unit": None}
+    assert _run(spec, canonical_value=1_650_000.0, **kw).outcome == "pass"
+    assert _run(spec, canonical_value=1_500_000.0, **kw).outcome == "fail"
+
+
+def test_unit_read_from_raw_text_tonnes_to_kg():
+    spec = _SPEC.model_copy(update={"unit": "kg", "data_type": FieldDataType.NUMBER})
+    kw = {"raw_value_text": "1,500 tonnes", "value": 1500.0, "canonical_unit": "kg", "scale_applied": 1.0, "unit": None}
+    assert _run(spec, canonical_value=1_500_000.0, **kw).outcome == "pass"
+    assert _run(spec, canonical_value=1_600_000.0, **kw).outcome == "fail"
+
+
+def test_not_applicable_without_canonical():
+    assert _run(canonical_value=None).outcome == "not_applicable"
+    assert _run(raw_value_text=None).outcome == "not_applicable"
+
+
+def test_german_document_point_table_uses_table_decimal():
+    from arp.schemas.common import Citation, SourceDocument, TableRef, TableSpan
+
+    table = "Revenue 1,234\nCosts 12.50\nOther 3,000"
+    text = "Der Bericht. " + table
+    start = text.index(table)
+    doc = SourceDocument(doc_id="d1", company_id="c1", doc_type="other", title="t", full_text=text,
+                         decimal="comma", table_spans=[TableSpan(table_id="t1", char_start=start, char_end=len(text))])
+    cit = Citation(doc_id="d1", doc_type="other", quote="Revenue 1,234", grounded=True,
+                   table_ref=TableRef(table_id="t1"))
+    spec = _SPEC.model_copy(update={"unit": None, "data_type": FieldDataType.NUMBER})
+    field = ExtractedField(field_id="f1", field_name="f1", confidence=0.9, citations=[cit], raw_value_text="1,234",
+                           value=1234.0, canonical_value=1234.0, value_state="found")
+    ctx = CheckContext(
+        company=CompanyRef(company_id="c1", name="A"), issuer_key="k",
+        schema=DataPointSchema(name="s", fields=[spec]), documents_by_id={"d1": doc}, record_fields=[field],
+    )
+    (r,) = check_round_trip(spec, field, ctx)
+    assert r.outcome == "pass", r.detail

@@ -12,6 +12,7 @@ class _FakeDoclingDocument:
     def __init__(self, page_texts: list[str]):
         self._page_texts = page_texts
         self.pages = {i + 1: object() for i in range(len(page_texts))}
+        self.tables = []
 
     def export_to_markdown(self, page_no: int) -> str:
         return self._page_texts[page_no - 1]
@@ -39,7 +40,7 @@ def test_pdf_page_breaks_mark_the_start_of_each_page(monkeypatch, tmp_path):
     path = tmp_path / "report.pdf"
     path.write_bytes(b"%PDF-1.4 fake bytes, never actually parsed since the converter is mocked")
 
-    text, page_breaks = parse_file_to_text_with_pages(path)
+    text, page_breaks, _spans = parse_file_to_text_with_pages(path)
 
     assert text == "\n\n".join([page1, page2, page3])
     assert page_breaks == [0, len(page1) + 2, len(page1) + 2 + len(page2) + 2]
@@ -53,7 +54,7 @@ def test_non_pdf_formats_return_empty_page_breaks(tmp_path):
     path = tmp_path / "notes.txt"
     path.write_text("Just some plain text, no pagination concept.")
 
-    text, page_breaks = parse_file_to_text_with_pages(path)
+    text, page_breaks, _spans = parse_file_to_text_with_pages(path)
 
     assert text == "Just some plain text, no pagination concept."
     assert page_breaks == []
@@ -76,7 +77,7 @@ def test_table_markdown_from_docling_passes_through_unmangled(monkeypatch, tmp_p
     path = tmp_path / "segments.pdf"
     path.write_bytes(b"%PDF-1.4 fake bytes, never actually parsed since the converter is mocked")
 
-    text, _page_breaks = parse_file_to_text_with_pages(path)
+    text, _page_breaks, _spans = parse_file_to_text_with_pages(path)
 
     assert "| Segment | Revenue | OpInc |" in text
     assert "| Auto | 500 | 50 |" in text

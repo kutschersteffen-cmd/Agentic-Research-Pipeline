@@ -25,6 +25,7 @@ from arp.publish.facts import PublishStore
 from arp.publish.scheduler import PublishingScheduler
 from arp.reporting.scheduler import ReportScheduler
 from arp.retrieval.content_store_factory import content_store_for
+from arp.review.analytics import ReviewAnalyticsScheduler
 from arp.stewardship.process import StreamStore
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_blob_store import blob_store_for
@@ -228,6 +229,11 @@ def get_portfolio_monitoring_scheduler() -> PortfolioMonitoringScheduler:
 @lru_cache
 def get_publishing_scheduler() -> PublishingScheduler:
     return PublishingScheduler(get_settings(), get_portfolio_store(), get_run_store())
+
+
+@lru_cache
+def get_review_analytics_scheduler() -> ReviewAnalyticsScheduler:
+    return ReviewAnalyticsScheduler(get_settings(), get_run_store())
 
 
 @lru_cache

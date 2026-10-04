@@ -50,15 +50,26 @@ def lineage_error(citation: Citation | None, blob_store, *, content_store: Docum
 
 
 def reground(fact: Fact, *, blob_store, content_store: DocumentContentStore | None, fuzzy_threshold: float) -> str:
-    c = fact.citation
+    return reground_citation(fact.citation, blob_store=blob_store, content_store=content_store, fuzzy_threshold=fuzzy_threshold)
+
+
+def reground_citation(c: Citation, *, blob_store, content_store: DocumentContentStore | None, fuzzy_threshold: float) -> str:
+    return reground_match(c, blob_store=blob_store, content_store=content_store, fuzzy_threshold=fuzzy_threshold)[0]
+
+
+def reground_match(
+    c: Citation, *, blob_store, content_store: DocumentContentStore | None, fuzzy_threshold: float
+) -> tuple[str, Citation | None]:
+    """The outcome, plus the re-grounded citation when the quote was matched
+    against the text stored under c.parser_version."""
     if err := lineage_error(c, blob_store, content_store=content_store):
-        return err
+        return err, None
     if content_store is None:
-        return "text_unavailable"
+        return "text_unavailable", None
     try:
         parsed = content_store.lookup(c.content_key, c.parser_version)
         if parsed is None:
-            return "text_unavailable"
+            return "text_unavailable", None
         text = parsed.full_text
         doc = SourceDocument(
             doc_id=c.doc_id, company_id=c.company_id or "", doc_type=c.doc_type, title=c.source_filename or c.doc_id,
@@ -74,13 +85,13 @@ def reground(fact: Fact, *, blob_store, content_store: DocumentContentStore | No
             )
             [g] = ground_citations(probe, {c.doc_id: doc}, fuzzy_threshold, passages={span.chunk_id: span})
             if g.grounded and g.char_start == c.char_start:
-                return "ok"
+                return "ok", g
         [g] = ground_citations(probe, {c.doc_id: doc}, fuzzy_threshold)
     except Exception:
-        return "text_unavailable"
+        return "text_unavailable", None
     if not g.grounded:
-        return "not_grounded"
-    return "offset_moved" if g.char_start != c.char_start else "ok"
+        return "not_grounded", g
+    return ("offset_moved" if g.char_start != c.char_start else "ok"), g
 
 
 def sample(facts: list[Fact], n: int, *, seed: str) -> list[Fact]:

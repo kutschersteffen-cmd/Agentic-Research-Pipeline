@@ -48,7 +48,7 @@ SETTING_INFO: dict[str, dict] = {
     "pre_document_mgmt_enabled": {"label": "Run this step", "type": "bool", "help": "Downloads what content search found, records new and changed documents, and counts what the company has."},
     "pre_parse_index_enabled": {"label": "Run this step", "type": "bool", "help": "Parses every document once and caches the text, so each item's evidence step reads it back."},
     "hybrid_retrieval_enabled": {"label": "Hybrid search", "type": "bool", "help": "Ranks evidence by BM25 and local embeddings together; off is BM25 only."},
-    "xbrl_facts_enabled": {"label": "SEC XBRL facts first", "type": "bool", "help": "EDGAR filers' CapEx and R&D totals come from SEC's structured data, not the LLM."},
+    "xbrl_facts_enabled": {"label": "SEC XBRL facts first", "type": "bool", "help": "Values EDGAR filers tag in SEC's structured data (CapEx and R&D totals, and any field with XBRL tags) come from it, not the LLM."},
     "llm_model": {"label": "Extractor model", "type": "model", "help": "Drafts each answer with quotes from the evidence."},
     "llm_verifier_model": {"label": "Verifier model", "type": "model", "help": "Checks the draft; keep it different from the extractor so the two don't share blind spots."},
     "grounding_fuzzy_threshold": {"label": "Quote match threshold", "type": "number", "min": 0.5, "max": 1.0, "step": 0.01, "help": "How closely a quote must match its source to count as grounded."},
@@ -61,11 +61,13 @@ STEP_INFO: dict[str, dict[str, str]] = {
     "content_search": {"label": "Content search", "about": "Finds the company's homepage and crawls it for sustainability and annual reports, listing candidate URLs."},
     "document_mgmt": {"label": "Document management", "about": "Downloads the found documents into the company's folder, records which are new or changed, and takes stock of its documents."},
     "parse_index": {"label": "Parse & index", "about": "Parses every document (PDF, DOCX, HTML) once and splits it into chunks for evidence ranking."},
+    "try_tagged": {"label": "Tagged data first", "about": "A field with XBRL tags takes the filer's own tagged value for each planned year, with no LLM call; otherwise the item goes on to find evidence."},
     "gather_evidence": {"label": "Find evidence", "about": "Fetches the company's documents, splits them into chunks and ranks the chunks against the item's keywords."},
     "finalize_no_evidence": {"label": "No evidence", "about": "Nothing matched: recorded as not disclosed, with no LLM call and no review."},
     "extract": {"label": "Extract", "about": "The extractor model drafts the value, quoting the evidence it used."},
     "answer": {"label": "Answer", "about": "The extractor model answers the indicator Yes/No, quoting the evidence it used."},
     "verify": {"label": "Verify", "about": "A second model checks the draft against the same evidence."},
+    "adjudicate": {"label": "Adjudicate", "about": "Only when the verifier disagrees: the verifier model settles the value from the evidence; unsettled or uncited, the item goes to review."},
     "finalize_answer_error": {"label": "Answer failed", "about": "The model never returned a valid answer; recorded as failed and flagged for review."},
     "aggregate": {"label": "Ground & score", "about": "Every quote is re-matched against its source; ungrounded or low-confidence answers go to review."},
     "company": {"label": "Company record", "about": "The company's items are assembled into one record and saved to the run."},
@@ -75,7 +77,8 @@ STEP_INFO: dict[str, dict[str, str]] = {
 _REVIEW = ["grounding_fuzzy_threshold", "confidence_review_threshold"]
 PROFILES: dict[str, dict] = {
     "custom": {"item": "each field of each company", "settings": {
-        "gather_evidence": ["hybrid_retrieval_enabled"], "extract": ["llm_model"], "verify": ["llm_verifier_model"], "aggregate": _REVIEW}},
+        "try_tagged": ["xbrl_facts_enabled"], "gather_evidence": ["hybrid_retrieval_enabled"], "extract": ["llm_model"], "verify": ["llm_verifier_model"], "adjudicate": ["llm_verifier_model"],
+        "aggregate": _REVIEW}},
     "financials": {"item": "each company", "settings": {
         "gather_evidence": ["hybrid_retrieval_enabled", "xbrl_facts_enabled"], "extract": ["llm_model"], "verify": ["llm_verifier_model"], "aggregate": _REVIEW}},
     "tnfd": {"item": "each company", "settings": {
@@ -140,10 +143,10 @@ def restart_overrides(step: str) -> dict:
     that step on, so it and every later step recompute while the earlier
     ones replay. Grounding and the company record need nothing skipped --
     they rerun on every run from the (cached) model answers."""
-    if step in ("start", *PRE_STEPS, "item", "gather_evidence"):
+    if step in ("start", *PRE_STEPS, "item", "try_tagged", "gather_evidence"):
         return {"document_cache_enabled": False, "llm_cache_refresh": True}
     if step in ("extract", "answer"):
         return {"llm_cache_refresh": True}
-    if step == "verify":
+    if step in ("verify", "adjudicate"):
         return {"llm_verifier_cache_refresh": True}
     return {}

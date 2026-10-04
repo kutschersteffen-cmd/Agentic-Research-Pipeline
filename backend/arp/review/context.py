@@ -6,11 +6,12 @@ import hashlib
 import json
 from typing import TYPE_CHECKING
 
+from arp.checks.numeric import NUMERIC_TYPES
 from arp.config import Settings
 from arp.extraction.history import RunHistory
 from arp.extraction.pipeline import load_run_schema
 from arp.grounding import _page_for_offset
-from arp.orchestration.review_queue import ItemState, blind_for, item_states, public_decision
+from arp.orchestration.review_queue import ItemState, blind_for, effective_decisions, item_states, public_decision
 from arp.review.items import cosign_rule, get_item
 from arp.schemas.common import new_id
 from arp.schemas.datapoints import CheckResult, is_failing
@@ -174,6 +175,52 @@ def _published(run_store: RunStore, run_id: str, item: ReviewItem) -> dict | Non
     return {"value": p.value, "run_id": p.run_id, "decided_by": p.decided_by} if p else None
 
 
+def _doc_types(f: dict) -> list:
+    return [c.get("doc_type") for c in f.get("citations", [])]
+
+
+def similar_decisions(run_store: RunStore, *, run_id: str, item_key: str, limit: int = 10) -> list[dict] | None:
+    """Final decisions on the same field and issuer from the same kind of document in other,
+    non-trial extraction runs, newest run first (E57). None for an unknown run or item."""
+    if item_key.count(":") < 2 or run_store.load_manifest(run_id) is None:
+        return None
+    issuer, field_id, period = item_key.rsplit(":", 2)  # from the right: provisional issuer keys contain ':'
+    current = next((f for r in run_store.read_jsonl(run_store.results_path(run_id)) if r.get("issuer_key") == issuer
+                    for f in r.get("fields", []) if f["field_id"] == field_id and period_key(f) == period), None)
+    if current is None:
+        return None
+    doc_type = (_doc_types(current) or [None])[0]
+    runs = [m for m in run_store.list_runs("extraction") if m.run_id != run_id and not m.params.get("trial")]
+    out: list[dict] = []
+    # ponytail: full scan of past extraction runs per request; index by issuer once run count makes this slow
+    for m in sorted(runs, key=lambda m: m.created_at, reverse=True):
+        decisions = effective_decisions(run_store, m.run_id, cosign_required=cosign_rule("extraction"))
+        for r in run_store.read_jsonl(run_store.results_path(m.run_id)):
+            if r.get("issuer_key") != issuer:
+                continue
+            for f in r.get("fields", []):
+                key = field_item_key(issuer, f["field_id"], period_key(f))
+                if f["field_id"] == field_id and key in decisions and doc_type in _doc_types(f):
+                    out.append({"run_id": m.run_id, "item_key": key, "period": period_key(f), "value": f.get("value"),
+                                "decision": public_decision(decisions[key], None)})
+                    if len(out) >= limit:
+                        return out
+    return out
+
+
+def _suggestion(v: dict, field_definition: dict | None) -> dict | None:
+    """The verifier's or adjudicator's value to start a correction from. A number is offered as its
+    printed text, so its scale travels with it; a bare number with no printed text is not offered."""
+    data_type = (field_definition or {}).get("data_type")
+    for a in v.get("alternatives", []):
+        raw, value = a.get("raw_value_text"), a.get("value")
+        number = isinstance(value, (int, float)) and not isinstance(value, bool)
+        numeric = data_type in NUMERIC_TYPES if data_type else number  # no field definition (an old run): the value
+        if a.get("source") in ("verifier", "adjudicator") and (raw or (value is not None and not numeric)):
+            return {"value": raw or value, "citations": a.get("citations", [])}
+    return None
+
+
 def build_context(
     run_store: RunStore, run_id: str, item_key: str, principal: Principal, *,
     settings: Settings, content_store: DocumentContentStore | None,
@@ -200,6 +247,7 @@ def build_context(
         "route_reasons": v.get("route_reasons", []),
         "conflict": {"conflicting_sources": v.get("conflicting_sources", False), "alternatives": v.get("alternatives", [])}
         if value else None,
+        "suggested_correction": _suggestion(v, field_definition),
         "prior_period": _prior_period(row, value),
         "published": _published(run_store, run_id, item),
         "confidence": {

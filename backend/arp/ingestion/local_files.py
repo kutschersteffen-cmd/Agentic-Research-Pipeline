@@ -4,6 +4,7 @@ import asyncio
 import functools
 import hashlib
 import logging
+import re
 import threading
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
@@ -14,7 +15,9 @@ from arp.ingestion.doc_identity import CORRECTION_MARKERS, assign_identity, publ
 from arp.ingestion.html_text import extract_html_text
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.intake import IntakeResult, IntakeState, append_intake, check_intake
-from arp.schemas.common import CompanyRef, DocType, SourceDocument
+from arp.normalise.locale import decimal_for, detect_language
+from arp.normalise.units import lookup_scale
+from arp.schemas.common import CompanyRef, DocType, SourceDocument, TableCell, TableSpan
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
@@ -30,7 +33,7 @@ _DOCX_SUFFIXES = {".docx"}
 # `cursor += len(text) + 2` page-join arithmetic in _extract_pdf_text --
 # since that silently changes what a cached page_breaks means without
 # changing any package version.
-_PARSER_LOGIC_VERSION = 2  # bumped: pymupdf4llm -> docling, markdown output differs byte-for-byte
+_PARSER_LOGIC_VERSION = 3  # bumped: table spans from Docling's table structure (E45)
 
 
 @functools.lru_cache(maxsize=1)
@@ -64,7 +67,81 @@ def _docling_converter():
     return DocumentConverter()
 
 
-def _extract_pdf_text(path: Path) -> tuple[str, list[int]]:
+_UNIT_NOTE = re.compile(r"\bin\s+[^()\n,;:]+", re.I)
+
+
+def _unit_note(caption: str | None) -> str | None:
+    """The "in EUR million" phrase of a caption: an "in ..." run holding a scale word."""
+    for m in _UNIT_NOTE.finditer(caption or ""):
+        if any(lookup_scale(w.strip(".")) for w in m.group().split()[1:]):
+            return m.group().strip()
+    return None
+
+
+def _caption_before(text: str, start: int) -> str | None:
+    """The last non-empty line before a table, for a table Docling found no caption for."""
+    lines = [ln.strip() for ln in text[:start].splitlines() if ln.strip()]
+    return lines[-1] if lines and not lines[-1].startswith("|") else None  # never another table's row
+
+
+def table_spans_from_docling(doc, text: str) -> list[TableSpan]:
+    """Locates each of `doc.tables` (Docling TableItems) in `text` by its own
+    exported markdown, and each data cell inside that block by its text.
+    A table whose markdown is not in `text` is skipped.
+
+    Reads `table.export_to_markdown(doc)`, `table.caption_text(doc)` and
+    `table.data.table_cells` (`text`, `start_row_offset_idx`,
+    `start_col_offset_idx`, `row_header`, `column_header`). Row 0 and column
+    0 count as headers too: markdown always prints row 0 as the header row,
+    and TableFormer does not always flag row headers. A table with a caption
+    item exports it above the grid; the span covers the grid only.
+    """
+    spans: list[TableSpan] = []
+    cursor = 0
+    for i, table in enumerate(doc.tables):
+        md = table.export_to_markdown(doc)
+        grid_at = 0 if md.startswith("|") else md.find("\n|") + 1  # 0 (not found) leaves md whole
+        found = text.find(md, cursor) if md.strip() else -1
+        if found == -1:
+            continue
+        cursor = found + len(md)
+        start, md = found + grid_at, md[grid_at:]
+        cells = sorted(table.data.table_cells, key=lambda c: (c.start_row_offset_idx, c.start_col_offset_idx))
+        row_labels: dict[int, str] = {}
+        col_labels: dict[int, str] = {}
+        for c in cells:
+            r, k, t = c.start_row_offset_idx, c.start_col_offset_idx, c.text.strip()
+            if t and (c.row_header or k == 0):
+                row_labels.setdefault(r, t)
+            if t and (c.column_header or r == 0):
+                col_labels[k] = t  # the lowest header row wins
+        lines = md.split("\n")
+        line_starts = [0]
+        for ln in lines:
+            line_starts.append(line_starts[-1] + len(ln) + 1)
+        out_cells: list[TableCell] = []
+        for c in cells:
+            r, k, t = c.start_row_offset_idx, c.start_col_offset_idx, c.text.replace("\n", " ").strip()
+            if not t or c.row_header or c.column_header or r == 0 or k == 0:
+                continue
+            li = r + 1  # line 1 is the |---| separator
+            if li >= len(lines):
+                continue
+            pipes = [j for j, ch in enumerate(lines[li]) if ch == "|"]
+            if k + 1 >= len(pipes):
+                continue
+            off = lines[li].find(t, pipes[k], pipes[k + 1])
+            if off == -1:
+                continue
+            a = start + line_starts[li] + off
+            out_cells.append(TableCell(row_label=row_labels.get(r), col_label=col_labels.get(k), char_start=a, char_end=a + len(t)))
+        caption = table.caption_text(doc).strip() or _caption_before(text, start)
+        spans.append(TableSpan(table_id=f"table_{i}", char_start=start, char_end=cursor, caption=caption,
+                               unit_note=_unit_note(caption), cells=out_cells))
+    return spans
+
+
+def _extract_pdf_text(path: Path) -> tuple[str, list[int], list[TableSpan]]:
     """Renders each page as markdown via Docling's layout-aware PDF
     pipeline rather than plain reading-order text -- disclosure PDFs are
     table-heavy (segment breakdowns, GHG inventories, revenue tables), and
@@ -91,16 +168,19 @@ def _extract_pdf_text(path: Path) -> tuple[str, list[int]]:
         page_breaks.append(cursor)
         parts.append(text)
         cursor += len(text) + 2  # matches the "\n\n" join below
-    return "\n\n".join(parts), page_breaks
+    text = "\n\n".join(parts)
+    return text, page_breaks, table_spans_from_docling(doc, text)
 
 
-def _extract_docx_text(path: Path) -> str:
+def _extract_docx_text(path: Path) -> tuple[str, list[TableSpan]]:
     """A Word document as markdown via the same Docling converter as PDFs,
     so headings and tables come out the same way. Docling reads DOCX
     declaratively (no layout model), so this is fast. A .docx has no fixed
     pages, hence no page breaks: citations ground to the text, without a
     page number."""
-    return _docling_converter().convert(str(path)).document.export_to_markdown()
+    doc = _docling_converter().convert(str(path)).document
+    text = doc.export_to_markdown()
+    return text, table_spans_from_docling(doc, text)
 
 
 def _extract_html_text(path: Path) -> str:
@@ -134,27 +214,28 @@ def _extract_xlsx_text(path: Path) -> str:
     return "\n\n".join(sections)
 
 
-def parse_file_to_text_with_pages(path: Path) -> tuple[str, list[int]]:
+def parse_file_to_text_with_pages(path: Path) -> tuple[str, list[int], list[TableSpan]]:
     """Like parse_file_to_text, but also returns PDF page-start char
     offsets (empty for every other format) -- the raw material for
-    resolving a grounded citation's exact page number in grounding.py."""
+    resolving a grounded citation's exact page number in grounding.py --
+    and the Docling table spans (PDF and DOCX only)."""
     suffix = path.suffix.lower()
     if suffix in _PDF_SUFFIXES:
         return _extract_pdf_text(path)
     if suffix in _HTML_SUFFIXES:
-        return _extract_html_text(path), []
+        return _extract_html_text(path), [], []
     if suffix in _TEXT_SUFFIXES:
-        return path.read_text(errors="ignore"), []
+        return path.read_text(errors="ignore"), [], []
     if suffix in _XLSX_SUFFIXES:
-        return _extract_xlsx_text(path), []
+        return _extract_xlsx_text(path), [], []
     if suffix in _DOCX_SUFFIXES:
-        return _extract_docx_text(path), []
+        text, spans = _extract_docx_text(path)
+        return text, [], spans
     raise ValueError(f"Unsupported document file type: {suffix}")
 
 
 def parse_file_to_text(path: Path) -> str:
-    text, _page_breaks = parse_file_to_text_with_pages(path)
-    return text
+    return parse_file_to_text_with_pages(path)[0]
 
 
 class LocalFileDocumentSource(DocumentSource):
@@ -215,13 +296,14 @@ class LocalFileDocumentSource(DocumentSource):
                 "doc_id": doc_id,
                 "full_text": parsed.full_text,
                 "page_breaks": parsed.page_breaks,
+                "table_spans": parsed.table_spans,
                 "sha256": parsed.text_sha256,
                 "content_key": parsed.content_key,
                 "parser_version": parser_version(),
             }
 
-        text, page_breaks = parse_file_to_text_with_pages(file_path)
-        return {"full_text": text, "page_breaks": page_breaks, "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()}
+        text, page_breaks, table_spans = parse_file_to_text_with_pages(file_path)
+        return {"full_text": text, "page_breaks": page_breaks, "table_spans": table_spans, "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()}
 
     def _identify_batch(self, items: list[tuple[Path, DocType, SourceDocument]]) -> list[SourceDocument]:
         """Blocking, serial identity assignment after the concurrent parse, in a
@@ -376,7 +458,10 @@ class LocalFileDocumentSource(DocumentSource):
                     return None
             if not extra["full_text"].strip():
                 return None
+            language = detect_language(extra["full_text"])
             doc = SourceDocument(
+                language=language,
+                decimal=decimal_for(language),
                 company_id=company.company_id,
                 doc_type=doc_type,
                 title=file_path.name,
