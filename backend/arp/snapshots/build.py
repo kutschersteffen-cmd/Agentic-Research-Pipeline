@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import calendar
 import csv
-import fcntl
 import hashlib
 import io
 import json
@@ -23,12 +22,14 @@ from arp.publish.reader import as_of_bound
 from arp.snapshots import schema
 from arp.snapshots.schema import DatasetEntry, SnapshotManifest
 from arp.storage.atomic_io import atomic_write_bytes
+from arp.storage.locks import KeyedLock
 
 _MONTH_RE = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
 _REV_RE = re.compile(r"r([1-9]\d*)")
 CORRECTION_EVENTS = {"restated", "withdrawn", "restored"}
 HOLDINGS = {"index_holdings": "index", "portfolio_holdings": "portfolio"}
 FORMATS = ("csv", "jsonl")
+_MONTH_LOCKS = KeyedLock(lock_path=lambda month_dir: Path(month_dir) / ".lock")
 
 
 class SnapshotFrozen(RuntimeError):
@@ -117,25 +118,28 @@ def build_snapshot(
     changes: Iterable[dict] = (),
     majors: list[int] | None = None,
     holdings_from: int | None = None,
+    cutoff: str | None = None,
 ) -> SnapshotManifest:
     """`majors`: defaults to the month's live majors. `holdings_from`: a revision of the same month whose
-    holdings files are copied byte for byte. One build per month at a time (a file lock on the month dir)."""
+    holdings files are copied byte for byte. `cutoff`: the time facts and events were read up to (now when
+    None); it must be after the month end. One build per month at a time (a file lock on the month dir)."""
     month = month_of(as_of)
     if as_of != month_end(month):
         raise ValueError(f"as_of must be the month end {month_end(month)}, got {as_of!r}")
     out = snapshot_dir(root, month, revision)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with open(out.parent / ".lock", "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with _MONTH_LOCKS.acquire(str(out.parent)):
         return _build(as_of, month, revision, out, root, portfolio_store, facts_as_of, supersedes, changes,
-                      schema.live_majors(month) if majors is None else majors, holdings_from)
+                      schema.live_majors(month) if majors is None else majors, holdings_from, cutoff)
 
 
-def _build(as_of, month, revision, out, root, portfolio_store, facts_as_of, supersedes, changes, majors, holdings_from):
+def _build(as_of, month, revision, out, root, portfolio_store, facts_as_of, supersedes, changes, majors, holdings_from,
+           cutoff):
     snapshot_id = f"{month}.r{revision}"
     if (out / "manifest.json").exists():
         raise SnapshotFrozen(f"{snapshot_id} is frozen")
-    cutoff = ts_now()
+    cutoff = cutoff or ts_now()
+    if cutoff <= as_of_bound(as_of):
+        raise ValueError(f"{month} has not ended")
     rows = dataset_rows(as_of, portfolio_store=portfolio_store, facts=facts_as_of(as_of))
     entries = []
     for major in majors:
@@ -216,32 +220,34 @@ def build_correction(
     now: str | None = None,
 ) -> SnapshotManifest | None:
     """A new revision when a fact visible at month end was restated, withdrawn or restored after the latest
-    revision's cut-off. ESG rows carry every such correction since month end; facts first published after
-    month end never enter. The majors and holdings files are those of the latest revision."""
+    revision's cut-off (for r1, after month end, since r1 reflects month end). ESG rows carry every such
+    correction since month end; facts first published after month end never enter. Events and current facts
+    are read up to one cut-off, stored in the new manifest, so a later event is counted by the next correction.
+    The majors and holdings files are those of the latest revision."""
     latest = read_manifest(root, month)
     if latest is None:
         return None
+    cutoff = now or ts_now()
     end = month_end(month)
     bound = as_of_bound(end)
     base_facts = facts_as_of(bound)
     base = {fact_key(f) for f in base_facts}
 
     def relevant(after: str) -> list[FactEvent]:
-        return [e for e in events_since(after) if e.event_type in CORRECTION_EVENTS
+        return [e for e in events_since(after) if e.event_type in CORRECTION_EVENTS and e.at <= cutoff
                 and (e.issuer_key, e.field_id, e.period_end, e.basis) in base]
 
-    new = relevant(latest.cutoff or latest.frozen_at)
+    since_end = relevant(bound)
+    new = since_end if latest.revision == 1 else relevant(latest.cutoff or latest.frozen_at)
     if not new:
         return None
-    since_end = relevant(bound)
     keys = {(e.issuer_key, e.field_id, e.period_end, e.basis) for e in since_end}
-    current = {fact_key(f): f for f in facts_as_of(now or ts_now())}
+    current = {fact_key(f): f for f in facts_as_of(cutoff)}
     corrected = [f for f in base_facts if fact_key(f) not in keys] + [current[k] for k in keys if k in current]
-    listed = since_end if latest.revision == 1 else new  # r1 reflects no event after month end
     return build_snapshot(
-        end, root=root, portfolio_store=portfolio_store, facts_as_of=lambda _: corrected,
+        end, root=root, portfolio_store=portfolio_store, facts_as_of=lambda _: corrected, cutoff=cutoff,
         revision=latest.revision + 1, supersedes=latest.snapshot_id, holdings_from=latest.revision,
         majors=sorted({d.major for d in latest.datasets}),
         changes=[e.model_dump(include={"event_type", "fact_id", "issuer_key", "field_id", "period_end", "basis", "at"})
-                 for e in listed],
+                 for e in new],
     )

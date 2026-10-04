@@ -186,6 +186,38 @@ def test_restatement_before_r1_freeze_reaches_r2(env, world, tmp_path):
     assert [c["field_id"] for c in r2.changes] == ["f2", "f3"]  # r1 reflected neither
 
 
+def test_pre_freeze_restatement_alone_triggers_r2(env, world, tmp_path):
+    world.restate("f2", 7.0, at="2026-11-01T09:00:00.000000+00:00")  # after month end, before r1
+    _build(env, world, tmp_path)
+    r2 = _correct(env, world, tmp_path)
+    assert r2.revision == 2 and [c["field_id"] for c in r2.changes] == ["f2"]
+    assert _correct(env, world, tmp_path) is None
+
+
+def test_event_during_correction_reaches_next_revision(env, world, tmp_path):
+    _build(env, world, tmp_path)
+    world.withdraw("f1")
+    injected = []
+
+    def reading(as_of):
+        out = world.facts_as_of(as_of)
+        if as_of.startswith("2026-11") and not injected:  # the cut-off read, after events were read
+            injected.append(world.withdraw("f2"))
+        return out
+
+    r2 = build_correction(MONTH, root=tmp_path, portfolio_store=env[0], facts_as_of=reading,
+                          events_since=world.events_since)
+    assert injected and [c["field_id"] for c in r2.changes] == ["f1"]
+    r3 = _correct(env, world, tmp_path)
+    assert [c["field_id"] for c in r3.changes] == ["f2"]
+    assert [r["field_id"] for r in _jsonl(tmp_path, r3, "esg_signals")] == ["f3"]
+
+
+def test_month_not_ended_refused(env, world, tmp_path):
+    with pytest.raises(ValueError, match="has not ended"):
+        build_snapshot("2026-11-30", root=tmp_path, portfolio_store=env[0], facts_as_of=world.facts_as_of)
+
+
 def test_correction_keeps_majors_of_superseded_revision(env, world, tmp_path, monkeypatch):
     _build(env, world, tmp_path)
     v1 = schema.SCHEMAS[1]
