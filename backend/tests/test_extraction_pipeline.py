@@ -46,7 +46,7 @@ async def test_extract_company_grounded_value_not_flagged(tmp_path, fake_llm):
         company_id="c1",
         doc_type=DocType.SUSTAINABILITY_REPORT,
         title="ESG report",
-        full_text="In fiscal 2025, we invested $120 million in green capex across our facilities.",
+        full_text="Acme Corp report. In fiscal 2025, we invested $120 million in green capex across our facilities.",
     )
     schema = _schema()
     company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
@@ -213,7 +213,7 @@ async def test_pipeline_queues_one_row_per_flagged_field(tmp_path, fake_llm):
     schema = DataPointSchema(name="Three", fields=[_f("alpha", "alphakw"), _f("beta", "betakw"), _f("gamma", "gammakw")])
     doc = SourceDocument(
         company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG",
-        full_text="alphakw is 1 million. betakw is 2 million. gammakw is 3 million.",
+        full_text="Acme Corp report. alphakw is 1 million. betakw is 2 million. gammakw is 3 million.",
     )
     company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
 
@@ -289,7 +289,7 @@ async def test_zero_and_not_found_end_to_end(tmp_path, fake_llm):
     schema = DataPointSchema(name="Two", fields=[_f("spills", "spills"), _f("fines", "fines")])
     doc = SourceDocument(
         company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG",
-        full_text="Spills: 0 incidents in FY2024. Regulatory fines are discussed in the legal section.",
+        full_text="Acme Corp report. Spills: 0 incidents in FY2024. Regulatory fines are discussed in the legal section.",
     )
     company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME", fiscal_year_end="12-31")
     zero = ExtractionDraft(
