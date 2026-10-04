@@ -12,13 +12,14 @@ from arp.api.main import app
 from arp.api.review_endpoints import submit_review
 from arp.cli.identity import identity_app
 from arp.config import Settings
-from arp.extraction.history import PriorValue
+from arp.extraction.history import PriorValue, RunHistory
 from arp.orchestration.review_queue import effective_decisions, item_state
 from arp.review.context import build_context
 from arp.review.decide import sampled, second_review_reasons
-from arp.review.items import get_item
+from arp.review.items import get_item, list_open_items
 from arp.schemas.common import RunManifest
 from arp.storage.document_store import DocumentContentStore
+from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
 from arp.storage.run_store import RunStore
 from arp.storage.schema_registry import SchemaRegistry
 from tests.conftest import PRINCIPAL
@@ -133,6 +134,7 @@ def test_grounded_correction_stored_with_server_offsets(env):
     assert (stored["char_start"], stored["char_end"]) == (TEXT.index("Scope 1  1,234"), START + 5)
     assert stored["span_text"] == "Scope 1  1,234"
     assert stored["match_method"] == "exact" and stored["grounded"] is True
+    assert stored["source_filename"] == "sr.pdf"  # the published correction can open its source
 
 
 def test_corrected_keys_checked(env):
@@ -387,3 +389,59 @@ def test_agreeing_redecision_on_final_item_stays_single_reviewer(env):
     assert decide(CAROL, APPROVE).json()["state"] == "final"
     r = decide(ALICE, APPROVE)
     assert (r.json()["state"], r.json()["second_reasons"]) == ("final", [])
+
+
+AUTO_KEY = "ISS1:f1:2023-12-31"
+
+
+def _add_auto_accepted(rs):
+    path = rs.results_path("ext1")
+    row = rs.read_jsonl(path)[0]
+    row["fields"].append({**FIELD, "period_end": "2023-12-31", "route": "auto_accept", "route_reasons": [], "checks": []})
+    path.write_text(json.dumps(row) + "\n")
+
+
+def test_auto_accepted_row_decidable_but_not_listed(env):
+    rs = env[0]
+    _add_auto_accepted(rs)
+    assert AUTO_KEY not in {i.item_key for i in list_open_items(rs, ALICE, run_id="ext1")}
+    assert ctx(client(ALICE), AUTO_KEY)["item"]["kind"] == "value"
+    assert decide(ALICE, CORRECT, key=AUTO_KEY).json()["state"] == "first_done"
+    agree = {**CORRECT, "correction_citation": {**CIT, "quote": rows(rs)[-1]["correction_citation"]["span_text"]}}  # the UI's Agree
+    assert decide(BOB, agree, key=AUTO_KEY).json()["state"] == "second_done"
+    row = rs.read_jsonl(rs.results_path("ext1"))[0]
+    value, status, _ = resolve_extraction_fact("C1", row, effective_decisions(rs, "ext1", cosign_required={"edit"}), {KEY})
+    assert status == "pending_review"  # KEY itself is still open
+    value, status, _ = resolve_extraction_fact("C1", row, effective_decisions(rs, "ext1", cosign_required={"edit"}), set())
+    assert status == "edited" and value["fields"][1]["value"] == 1100
+
+
+def test_open_review_on_auto_accepted_row_is_not_system_decided(env):
+    rs = env[0]
+    _add_auto_accepted(rs)
+    assert RunHistory.load(rs).last_decided(AUTO_KEY).decided_by == "system"
+    assert decide(ALICE, CORRECT, key=AUTO_KEY).json()["state"] == "first_done"
+    assert RunHistory.load(rs).last_decided(AUTO_KEY) is None
+
+
+def _queue_failure(rs):
+    rs.append_jsonl(rs.review_queue_path("ext1"), {"item_key": "C2", "company_id": "C2", "name": "Beta", "rationale": "no docs"})
+
+
+def test_extraction_failure_report_approve_is_final(env):
+    rs = env[0]
+    _queue_failure(rs)
+    assert "C2" in {i.item_key for i in list_open_items(rs, ALICE, run_id="ext1")}
+    r = decide(ALICE, APPROVE, key="C2")
+    assert r.status_code == 200 and r.json() == {**r.json(), "state": "final", "second_reasons": []}
+    assert "C2" not in {i.item_key for i in list_open_items(rs, ALICE, run_id="ext1")}
+    assert decide(ALICE, CORRECT, key="C2").status_code == 422
+
+
+def test_extraction_failure_report_escalate_needs_approver(env):
+    rs = env[0]
+    _queue_failure(rs)
+    assert decide(ALICE, {"decision": "escalate", "reason_code": "needs_expert"}, key="C2").json()["state"] == "pending"
+    assert "C2" in {i.item_key for i in list_open_items(rs, ALICE, run_id="ext1")}
+    assert decide(BOB, APPROVE, key="C2").status_code == 403
+    assert decide(CAROL, {"decision": "reject", "reason_code": "other"}, key="C2").json()["state"] == "final"

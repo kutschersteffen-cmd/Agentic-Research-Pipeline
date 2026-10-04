@@ -229,7 +229,11 @@ def get_theme_results(
 
 @router.get("/runs/{run_id}/review-queue")
 def get_theme_review_queue(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    return get_review_queue(run_store, run_id)
+    q = get_review_queue(run_store, run_id)  # sector codes live in the review workbench, with their reviewers hidden
+    return {
+        "pending": [r for r in q["pending"] if not r["item_key"].startswith("isic:")],
+        "decided": [d for d in q["decided"] if not d["item"]["item_key"].startswith("isic:")],
+    }
 
 
 @router.post("/runs/{run_id}/review")

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from arp.orchestration.review_queue import effective_decisions
+from arp.orchestration.review_queue import effective_decisions, latest_decisions
 from arp.schemas.review import field_item_key, held_item_key, period_key
 from arp.storage.run_store import RunStore
 
@@ -44,6 +44,8 @@ class RunHistory:
         # Same decision view as the facts projection: an edit counts only once co-signed.
         decisions = effective_decisions(run_store, run_id, cosign_required={"edit"})
         queued = {r["item_key"] for r in run_store.read_jsonl(run_store.review_queue_path(run_id)) if "item_key" in r}
+        in_review = set(latest_decisions(run_store, run_id)) - set(decisions)  # a human decision not yet final
+        queued |= in_review  # as the projection reads it
         rejected = {k for k, d in decisions.items() if d.get("decision") == "reject"}
         for row in run_store.read_jsonl(run_store.results_path(run_id)):
             issuer = row.get("issuer_key", "")
@@ -68,7 +70,7 @@ class RunHistory:
                     self._rejected[key] = PriorValue(f.get("value"), f.get("canonical_value"), run_id, "human")
                 elif kind in ("approve", "edit", "correct"):
                     self._rejected.pop(key, None)
-                prior = _decided_value(f, decisions.get(key), key in queued, run_id)
+                prior = _decided_value(f, decisions.get(key), key in queued, key in in_review, run_id)
                 if prior is not None:
                     self._decided[key] = prior
                     self._periods.setdefault(issuer, set()).add(period_key(f))
@@ -96,7 +98,7 @@ class RunHistory:
         return set(self._periods.get(issuer_key, ()))
 
 
-def _decided_value(f: dict, decision: dict | None, queued: bool, run_id: str) -> PriorValue | None:
+def _decided_value(f: dict, decision: dict | None, queued: bool, in_review: bool, run_id: str) -> PriorValue | None:
     if decision is not None:
         kind = decision.get("decision")
         if kind == "approve":
@@ -106,6 +108,6 @@ def _decided_value(f: dict, decision: dict | None, queued: bool, run_id: str) ->
             return PriorValue(edit.get("value", f.get("value")), edit.get("canonical_value"), run_id, "human")
         return None  # reject
     route = f.get("route")
-    if route == "auto_accept" or (route is None and not queued):
+    if (route == "auto_accept" and not in_review) or (route is None and not queued):
         return PriorValue(f.get("value"), f.get("canonical_value"), run_id, "system")
     return None

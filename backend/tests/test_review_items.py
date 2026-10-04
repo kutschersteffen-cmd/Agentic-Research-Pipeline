@@ -140,3 +140,11 @@ def test_theme_review_route_refuses_isic_keys(five_kinds):
     assert r.status_code == 400
     assert r.json()["detail"] == "decide sector codes through the review workbench"
     assert five_kinds.read_jsonl(five_kinds.review_decisions_path("thm1")) == []
+
+
+def test_theme_review_queue_leaves_out_sector_codes(five_kinds):
+    _decide(five_kinds, "thm1", "isic:C1", ALICE, "approve", "confirmed", second_required=True)
+    r = _client(five_kinds).get("/api/themes/runs/thm1/review-queue")
+    assert r.status_code == 200
+    assert [x["item_key"] for x in r.json()["pending"]] == ["C1:a1"] and r.json()["decided"] == []
+    assert "u_alice" not in r.text and "Alice Reviewer" not in r.text

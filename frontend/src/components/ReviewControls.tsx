@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { EvidenceSpan, ItemContext, ItemDecisionBody, ReviewDecision, ReviewItem } from "../types";
 import { SIGN_IN_REQUIRED, useMe } from "../lib/reviewer";
-import { DECISION_REASONS, decideBlock, decisionChoices, needsCitation, type Me } from "../lib/reviewKeys";
+import { DECISION_REASONS, agreeBody, decideBlock, decisionChoices, needsCitation, type Me } from "../lib/reviewKeys";
 import { CitationList } from "./CitationList";
 import { CheckResults } from "./ReviewTiles";
 import type { ActiveSource } from "./SourcePanel";
@@ -50,7 +50,7 @@ export function ReviewControls({
   /** null: this run kind keeps no per-item history endpoint, so no History button. */
   historyFn?: ((runId: string, itemKey: string) => Promise<unknown>) | null;
   /** Review workbench item: decide it through the item decision endpoint, with its context bundle. */
-  item?: Pick<ReviewItem, "kind" | "state" | "escalated" | "decision">;
+  item?: Pick<ReviewItem, "kind" | "state" | "escalated" | "decision"> & { run_type?: string };
   onOpenSource?: (s: ActiveSource) => void;
 }) {
   const me = useMe();
@@ -168,8 +168,13 @@ const DECIDED: Record<Decision, string> = { approve: "Accepted", correct: "Corre
 const shown = (v: unknown): string => (v == null ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v));
 const dated = (iso: string) => new Date(iso).toLocaleString();
 
-function ItemStatus({ item }: { item: Pick<ReviewItem, "state" | "escalated" | "decision"> }) {
-  if (item.state === "first_done") return <span className="muted">Awaiting a second review</span>;
+function ItemStatus({ item, first }: { item: Pick<ReviewItem, "state" | "escalated" | "decision">; first?: ReviewDecision }) {
+  if (item.state === "first_done")
+    return (
+      <span className="muted">
+        Awaiting a second review{first ? ` · first review: ${decisionLabel(first)}${first.role ? ` by ${first.role}` : ""}${first.mine ? " (you)" : ""}` : ""}
+      </span>
+    );
   if (item.state === "disagreed") return <span className="muted">Reviewers disagree — approver decides</span>;
   if (item.escalated) return <span className="badge badge-low">Escalated</span>;
   if ((item.state === "second_done" || item.state === "final") && item.decision) {
@@ -196,7 +201,7 @@ function ItemDecision({
 }: {
   runId: string;
   itemKey: string;
-  item: Pick<ReviewItem, "kind" | "state" | "escalated" | "decision">;
+  item: Pick<ReviewItem, "kind" | "state" | "escalated" | "decision"> & { run_type?: string };
   me: Me | null;
   onDone: (recorded: ReviewDecision) => void;
   onOpenSource?: (s: ActiveSource) => void;
@@ -214,6 +219,17 @@ function ItemDecision({
   const [stale, setStale] = useState<string | null>(null);
   const block = decideBlock(item, me);
   const kind = item.kind;
+  const awaitingSecond = item.state === "first_done" && !block;
+
+  useEffect(() => {
+    // A second reviewer sees the first decision (unless blind) and can agree with a correction.
+    if (!awaitingSecond) return;
+    let live = true;
+    api.getItemContext(runId, itemKey).then((c) => live && setCtx(c), () => undefined);
+    return () => {
+      live = false;
+    };
+  }, [awaitingSecond, runId, itemKey]);
 
   async function loadContext() {
     setError(null);
@@ -281,29 +297,34 @@ function ItemDecision({
         ? !!correctedValue?.isic_code && comment.trim() !== ""
         : !!correctedValue?.value && (!needsCitation(kind) || quote !== null));
   const canSubmit = !!ctx && !!decision && !!reason && correctionReady && !block && !busy;
+  const agree = ctx && !block ? agreeBody(kind, item.state, ctx) : null;
+  const first = item.state === "first_done" && ctx && !ctx.blind ? ctx.decisions[ctx.decisions.length - 1] : undefined;
 
-  async function submit() {
-    if (!ctx || !decision || !me) return;
+  /** `agreed`: the first correction resubmitted as is (the Agree action). */
+  async function submit(agreed?: NonNullable<typeof agree>) {
+    if (!ctx || !(agreed || decision) || !me) return;
     setBusy(true);
     setError(null);
     setStale(null);
     try {
-      const body: ItemDecisionBody = {
-        decision,
-        reason_code: reason,
-        corrected_value: correctedValue,
-        correction_citation: decision === "correct" && needsCitation(kind) ? quote : null,
-        comment: comment || null,
-        context_etag: ctx.etag,
-      };
+      const body: ItemDecisionBody = agreed
+        ? { ...agreed, comment: comment || agreed.comment, context_etag: ctx.etag }
+        : {
+            decision: decision!,
+            reason_code: reason,
+            corrected_value: correctedValue,
+            correction_citation: decision === "correct" && needsCitation(kind) ? quote : null,
+            comment: comment || null,
+            context_etag: ctx.etag,
+          };
       const res = await api.decideItem(runId, itemKey, body);
-      announce(`${DECIDED[decision]}; ${res.state}.`);
+      announce(`${agreed ? "Agreed" : DECIDED[body.decision]}; ${res.state}.`);
       onDone({
         item_key: itemKey,
-        decision,
-        reason_code: reason,
-        corrected_value: correctedValue,
-        edited_value: correctedValue,
+        decision: body.decision,
+        reason_code: body.reason_code,
+        corrected_value: body.corrected_value,
+        edited_value: body.corrected_value,
         role: me.role,
         mine: true,
         decided_at: new Date().toISOString(),
@@ -333,9 +354,14 @@ function ItemDecision({
 
   return (
     <div className="review-controls">
-      <ItemStatus item={item} />
+      <ItemStatus item={item} first={first} />
       <div className="toolbar decision-bar">
-        {decisionChoices(kind)
+        {agree && (
+          <button onClick={() => void submit(agree)} disabled={busy}>
+            Agree
+          </button>
+        )}
+        {decisionChoices(kind, item.run_type)
           .filter((d) => !(d === "escalate" && item.state === "disagreed"))
           .map((d) => (
           <button
@@ -345,7 +371,7 @@ function ItemDecision({
             disabled={!!block || busy}
             aria-pressed={decision === d}
           >
-            {DECISION_BUTTON[d]}
+            {agree && d === "approve" ? "Accept original value" : DECISION_BUTTON[d]}
           </button>
         ))}
         <button
@@ -482,7 +508,7 @@ function ItemDecision({
             ) : (
               input("value", "Corrected value")
             ))}
-          <button onClick={submit} disabled={!canSubmit}>
+          <button onClick={() => void submit()} disabled={!canSubmit}>
             Submit
           </button>
         </div>

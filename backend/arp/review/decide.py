@@ -27,6 +27,7 @@ _ALL = {"approve", "correct", "reject", "escalate"}
 ALLOWED = {
     "value": _ALL, "restatement_candidate": _ALL, "identity": _ALL, "sector_code": _ALL,
     "quarantined_document": {"approve", "reject", "escalate"},
+    "other": {"approve", "reject", "escalate"},  # an extraction PreStepFailed report only
 }
 CORRECTED_KEYS = {
     "value": {"value", "unit", "period_end"},
@@ -84,7 +85,7 @@ def ground_correction(
     source = SourceDocument(
         doc_id=doc["doc_id"], company_id=doc.get("company_id") or "", doc_type=doc.get("doc_type") or citation.doc_type,
         title=doc.get("title") or "", full_text=text.full_text, page_breaks=text.page_breaks,
-        content_key=doc["content_key"], parser_version=doc["parser_version"],
+        content_key=doc["content_key"], parser_version=doc["parser_version"], local_path=doc.get("source_filename"),
     )
     [grounded] = ground_citations([citation], {source.doc_id: source}, fuzzy_threshold)
     if not grounded.grounded:
@@ -150,7 +151,7 @@ def decide(
         if item is None:
             raise DecisionError(404, "Review item not found")
         kind = item.kind.value
-        if kind == "other":
+        if kind == "other" and item.run_type != "extraction":
             raise DecisionError(400, "decide this item through its run's review endpoint")
         _check_kind(kind, req, principal)
         s = _state(run_store, run_id, item_key)
@@ -170,7 +171,7 @@ def decide(
                 corrected_value=req.corrected_value, fuzzy_threshold=settings.grounding_fuzzy_threshold,
             )
         reasons: list[str] = []
-        if step == "first":
+        if step == "first" and kind != "other":  # a failure report keeps the legacy single decision
             prior = None
             if kind in ("value", "restatement_candidate"):
                 key = item.payload["item_key"] if kind == "restatement_candidate" else item_key

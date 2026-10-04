@@ -22,11 +22,13 @@ test("flaggedReasons merges review and route reasons once each, in order", () =>
   assert.deepEqual(flaggedReasons({}), []);
 });
 
-import { decideBlock, decisionChoices, needsCitation } from "../src/lib/reviewKeys.ts";
+import { agreeBody, decideBlock, decisionChoices, needsCitation } from "../src/lib/reviewKeys.ts";
 
 test("decisionChoices and needsCitation by kind", () => {
   assert.ok(!decisionChoices("quarantined_document").includes("correct"));
   assert.deepEqual(decisionChoices("other"), []);
+  assert.deepEqual(decisionChoices("other", "theme"), []);
+  assert.deepEqual(decisionChoices("other", "extraction"), ["approve", "reject", "escalate"]);
   assert.equal(decisionChoices("value").length, 4);
   assert.equal(needsCitation("identity"), false);
   assert.equal(needsCitation("value"), true);
@@ -44,4 +46,22 @@ test("decideBlock", () => {
   assert.equal(decideBlock({ ...base, state: "disagreed" }, analyst), "Reviewers disagree; an approver decides.");
   assert.equal(decideBlock({ ...base, state: "disagreed" }, approver), null);
   assert.equal(decideBlock({ ...base, escalated: true }, analyst), "Escalated; an approver decides.");
+});
+
+test("agreeBody resubmits a visible first correction", () => {
+  const cit = { doc_id: "d1", doc_type: "annual_report" as const, quote: "1,100", span_text: "Scope 1  1,100", grounded: true };
+  const first = {
+    item_key: "k", decision: "correct" as const, reason_code: "wrong_value", corrected_value: { value: 1100 },
+    correction_citation: cit, comment: "note", decided_at: "", mine: false,
+  };
+  const ctx = { blind: false, decisions: [first] };
+  assert.deepEqual(agreeBody("value", "first_done", ctx), {
+    decision: "correct", reason_code: "wrong_value", corrected_value: { value: 1100 },
+    correction_citation: { doc_id: "d1", doc_type: "annual_report", quote: "Scope 1  1,100" }, comment: "note",
+  });
+  assert.equal(agreeBody("value", "first_done", { blind: true, decisions: [] }), null);
+  assert.equal(agreeBody("value", "pending", ctx), null);
+  assert.equal(agreeBody("value", "first_done", { blind: false, decisions: [{ ...first, mine: true }] }), null);
+  assert.equal(agreeBody("value", "first_done", { blind: false, decisions: [{ ...first, decision: "edit" as const }] }), null);
+  assert.equal(agreeBody("identity", "first_done", ctx)?.correction_citation, null);
 });

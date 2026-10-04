@@ -188,7 +188,7 @@ export function ReviewItems({
                 Keep the current decision
               </button>
             )}
-            {q.review.kind !== "other" || SUBMIT_FNS[q.kind] ? (
+            {q.review.kind !== "other" || SUBMIT_FNS[q.kind] || q.kind === "extraction" ? (
               <ReviewControls
                 runId={q.runId}
                 itemKey={q.review.item_key}
@@ -196,7 +196,7 @@ export function ReviewItems({
                 reviewer={reviewer}
                 submitFn={SUBMIT_FNS[q.kind]}
                 historyFn={HISTORY_FNS[q.kind] ?? null}
-                item={q.review.kind === "other" ? undefined : q.review}
+                item={q.review.kind === "other" && q.kind !== "extraction" ? undefined : q.review}
                 onOpenSource={onOpenSource}
                 onDone={(recorded) => {
                   focusNextCard(document.querySelector<HTMLElement>(`[data-review-key="${CSS.escape(k)}"]`), ".review-item");
