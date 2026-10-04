@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 
-from arp.orchestration.review_queue import effective_decisions
+from arp.orchestration.review_queue import _kind, effective_decisions
 from arp.review.items import cosign_rule
 from arp.schemas.review import field_item_key, period_key
 from arp.storage.run_store import RunStore
@@ -33,7 +33,7 @@ def effectiveness(run_store: RunStore, *, run_ids: list[str] | None = None) -> l
         decisions = effective_decisions(run_store, run_id, cosign_required=cosign_rule("extraction"))
         for row in run_store.read_jsonl(run_store.results_path(run_id)):
             for f in row.get("fields", []):
-                kind = (decisions.get(field_item_key(row.get("issuer_key", ""), f["field_id"], period_key(f))) or {}).get("decision")
+                kind = _kind(decisions.get(field_item_key(row.get("issuer_key", ""), f["field_id"], period_key(f))) or {})
                 version = (f.get("provenance") or {}).get("field_version")
                 for check_id in {c["check_id"] for c in f.get("checks", []) if c.get("outcome") == "fail"}:
                     n = counts[(check_id, f["field_id"], version)]

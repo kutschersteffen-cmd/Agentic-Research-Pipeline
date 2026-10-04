@@ -19,10 +19,11 @@ def _field(fid, period, version, failed=(), passed=()):
     return {"field_id": fid, "period_end": period, "checks": checks, "provenance": {"field_version": version}}
 
 
-def _decide(rs, run_id, item_key, kind):
+def _decide(rs, run_id, item_key, kind, step="first", second_required=False):
     append_decision(rs, run_id, ReviewDecision(
         item_key=item_key, decision=kind, reason_code=DecisionReason.OTHER, reviewer="Secret Name", user_id="u_secret",
-        role="analyst", corrected_value={"value": 1} if kind == "correct" else None, snapshot_id="s", step="first",
+        role="analyst", corrected_value={"value": 1} if kind == "correct" else None, snapshot_id="s", step=step,
+        second_required=second_required,
     ))
 
 
@@ -37,6 +38,10 @@ def rs(tmp_path):
         _field("rev", "2022", 1, failed=["sum"]),  # approve
         _field("ebit", "2024", 2, failed=["range"], passed=["sum"]),  # approve
         _field("ebit", "2023", 2, failed=["range"]),  # undecided
+        _field("fx", "2024", 1, failed=["sum"]),  # first approve, second review pending: undecided
+        _field("fx", "2023", 1, failed=["sum"]),  # first and second disagree, no resolution: undecided
+        _field("fx", "2022", 1, failed=["sum"]),  # disagreement resolved with approve: decided (overturn)
+        _field("fx", "2021", 1, failed=["sum"]),  # legacy co-signed "edit": decided (hit)
         _field("cash", "2024", None, passed=["sum", "range"]),  # never fires
     ]})
     rs.append_jsonl(rs.results_path("trial"), {"issuer_key": "I", "company_id": "C", "fields": [
@@ -45,6 +50,15 @@ def rs(tmp_path):
     for run, key, kind in [("r1", "I:rev:2024", "correct"), ("r1", "I:rev:2023", "reject"), ("r1", "I:rev:2022", "approve"),
                            ("r1", "I:ebit:2024", "approve"), ("trial", "I:rev:2024", "correct")]:
         _decide(rs, run, key, kind)
+    _decide(rs, "r1", "I:fx:2024", "approve", second_required=True)
+    _decide(rs, "r1", "I:fx:2023", "correct", second_required=True)
+    _decide(rs, "r1", "I:fx:2023", "reject", step="second")
+    _decide(rs, "r1", "I:fx:2022", "correct", second_required=True)
+    _decide(rs, "r1", "I:fx:2022", "reject", step="second")
+    _decide(rs, "r1", "I:fx:2022", "approve", step="resolution")
+    legacy = {"item_key": "I:fx:2021", "decision": "edit", "edited_value": {"value": 1}, "decided_at": "2026-01-01T00:00:00Z"}
+    rs.append_jsonl(rs.review_decisions_path("r1"), legacy)  # no step, no user_id
+    rs.append_jsonl(rs.review_cosigns_path("r1"), {"item_key": "I:fx:2021", "decision_decided_at": legacy["decided_at"]})
     return rs
 
 
@@ -52,6 +66,7 @@ def test_report_matches_hand_count(rs):
     assert effectiveness(rs) == [
         CheckStat("range", "ebit", 2, fired=2, decided=1, hits=0, overturns=1, hit_rate=0.0, overturn_rate=1.0),
         CheckStat("range", "rev", 1, fired=1, decided=1, hits=1, overturns=0, hit_rate=1.0, overturn_rate=0.0),
+        CheckStat("sum", "fx", 1, fired=4, decided=2, hits=1, overturns=1, hit_rate=0.5, overturn_rate=0.5),
         CheckStat("sum", "rev", 1, fired=3, decided=3, hits=2, overturns=1, hit_rate=2 / 3, overturn_rate=1 / 3),
     ]
 
@@ -80,10 +95,12 @@ def test_endpoint_requires_approver(rs):
     approver = Principal(user_id="u_b", name="B", role="approver")
     r = _client(rs, approver).get("/api/review/check-effectiveness")
     assert r.status_code == 200
-    assert r.json()["checks"][2]["hits"] == 2
+    assert r.json()["checks"][3]["hits"] == 2
 
 
 def test_endpoint_has_no_user_ids(rs):
     approver = Principal(user_id="u_b", name="B", role="approver")
-    body = _client(rs, approver).get("/api/review/check-effectiveness").text
+    r = _client(rs, approver).get("/api/review/check-effectiveness")
+    assert r.status_code == 200
+    body = r.text
     assert "u_secret" not in body and "Secret Name" not in body and "user_id" not in body
