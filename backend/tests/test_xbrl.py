@@ -163,3 +163,14 @@ async def test_xbrl_fact_citation_is_grounded_without_a_source_document():
     assert citation.grounded is True
     assert "PaymentsToAcquirePropertyPlantAndEquipment" in citation.quote
     assert citation.doc_id == "xbrl:320193:0001-25-000001"
+    assert "340,000,000 USD" in citation.quote
+
+
+def test_xbrl_fact_citation_names_the_period_end_and_keeps_fractions():
+    from arp.ingestion.xbrl import XbrlFact
+
+    # fy is the filing's year; the comparative it repeats ends a year earlier.
+    fact = XbrlFact(tag="EarningsPerShareBasic", value=6.13, unit="USD/shares", fiscal_year=2025, fiscal_period="FY", form="10-K", period_end="2024-09-28")
+    quote = fact.as_citation("320193").quote
+    assert "6.13 USD/shares" in quote
+    assert "period ending 2024-09-28" in quote and "FY2025" not in quote

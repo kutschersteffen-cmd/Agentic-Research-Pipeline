@@ -71,9 +71,13 @@ class XbrlFact(BaseModel):
     period_end: str | None = None
 
     def as_citation(self, cik: str) -> Citation:
+        # The period's own end, not companyfacts' `fy` (the filing's year, which also
+        # labels the comparatives a filing repeats); fractions (EPS, ratios) as tagged.
+        value = f"{self.value:,.0f}" if self.value.is_integer() else f"{self.value:,}"
+        period = f"period ending {self.period_end}" if self.period_end else f"FY{self.fiscal_year} {self.fiscal_period or ''}".strip()
         quote = (
-            f"{self.tag if ':' in self.tag else 'us-gaap:' + self.tag} = {self.value:,.0f} {self.unit} "
-            f"(FY{self.fiscal_year} {self.fiscal_period or ''}, form {self.form}, filed {self.filed})".strip()
+            f"{self.tag if ':' in self.tag else 'us-gaap:' + self.tag} = {value} {self.unit} "
+            f"({period}, form {self.form}, filed {self.filed})"
         )
         return Citation(
             doc_id=f"xbrl:{cik}:{self.accession or self.tag}",

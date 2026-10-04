@@ -44,8 +44,8 @@ class _FakeXbrl:
         return self._facts
 
 
-def _facts(fy: int, end: str) -> dict:
-    row = {"start": f"{fy}-01-01", "end": end, "val": 383285000000, "fy": fy, "fp": "FY", "form": "10-K",
+def _facts(fy: int, end: str, start: str | None = None) -> dict:
+    row = {"start": start or f"{fy}-01-01", "end": end, "val": 383285000000, "fy": fy, "fp": "FY", "form": "10-K",
            "filed": f"{fy + 1}-02-01", "accn": f"0001-{fy % 100}-000001"}
     return {"facts": {"us-gaap": {"Revenues": {"units": {"USD": [row]}}}}}
 
@@ -79,13 +79,14 @@ def _llms(fake_llm, doc):
     return fake_llm({"ExtractionDraft": [draft]}), fake_llm({"VerifierOutput": [verifier]})
 
 
-async def _run(tmp_path, fake_llm, field, facts, *, qualities=None):
+async def _run(tmp_path, fake_llm, field, facts, *, qualities=None, xbrl=None, fields=None):
     doc = _doc()
     llm, verifier_llm = _llms(fake_llm, doc)
     company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME", cik="0000320193")
     result = await _extract_company(
-        company, DataPointSchema(name="Rev", fields=[field], release_flag=True), registry=DocumentSourceRegistry([_Docs([doc])]),
-        llm=llm, verifier_llm=verifier_llm, settings=_settings(tmp_path), xbrl_source=_FakeXbrl(facts), qualities=qualities,
+        company, DataPointSchema(name="Rev", fields=fields or [field], release_flag=True),
+        registry=DocumentSourceRegistry([_Docs([doc])]), llm=llm, verifier_llm=verifier_llm, settings=_settings(tmp_path),
+        xbrl_source=xbrl or _FakeXbrl(facts), qualities=qualities,
     )
     return result.record.fields, llm, verifier_llm
 
@@ -95,6 +96,7 @@ async def test_tagged_field_makes_zero_model_calls(tmp_path, fake_llm):
     (f,) = fields
     assert f.method == "tagged"
     assert "Revenues" in f.citations[0].quote
+    assert "period ending 2024-12-31" in f.citations[0].quote
     assert f.grounded is True and f.confidence == 1.0
     assert (f.value, f.unit) == (383285000000.0, "USD")
     assert (f.canonical_value, f.canonical_unit) == (383285.0, "USD millions")  # the normalise.value path
@@ -108,6 +110,32 @@ async def test_fact_for_other_year_falls_through(tmp_path, fake_llm):
     assert f.method == "extracted"
     assert len(llm.calls) + len(verifier_llm.calls) > 0
     assert f.value == 383285.0
+
+
+async def test_fact_for_another_year_end_falls_through(tmp_path, fake_llm):
+    # A September filer's FY2024 against a planned December end (fiscal year end unknown): not that period.
+    facts = _facts(2024, "2024-09-28", start="2023-10-01")
+    fields, llm, verifier_llm = await _run(tmp_path, fake_llm, _field(["us-gaap:Revenues"]), facts)
+    (f,) = fields
+    assert f.method == "extracted"
+    assert llm.calls == ["ExtractionDraft"] and verifier_llm.calls == ["VerifierOutput"]
+
+
+async def test_52_53_week_drift_still_tagged(tmp_path, fake_llm):
+    facts = _facts(2024, "2024-12-28", start="2023-12-31")
+    fields, llm, verifier_llm = await _run(tmp_path, fake_llm, _field(["us-gaap:Revenues"]), facts)
+    (f,) = fields
+    assert f.method == "tagged"
+    assert f.period_end == "2024-12-31"  # the planned end, so review keys match extracted rows
+    assert llm.calls == [] and verifier_llm.calls == []
+
+
+async def test_facts_fetched_once_per_company(tmp_path, fake_llm):
+    xbrl = _FakeXbrl(_facts(2024, "2024-12-31"))
+    a, b = _field(["us-gaap:Revenues"]), _field(["us-gaap:Revenues"]).model_copy(update={"name": "revenue_again"})
+    fields, llm, _ = await _run(tmp_path, fake_llm, None, None, xbrl=xbrl, fields=[a, b])
+    assert [f.method for f in fields] == ["tagged", "tagged"]
+    assert xbrl.fetches == 1 and llm.calls == []
 
 
 async def test_untagged_field_unchanged(tmp_path, fake_llm):
