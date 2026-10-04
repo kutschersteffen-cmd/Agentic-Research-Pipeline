@@ -53,6 +53,7 @@ class SnapshotManifest(BaseModel):
     revision: int
     as_of: str
     frozen_at: str
+    cutoff: str | None = None  # taken before facts were read; the next correction counts events after it
     schema_version: str
     datasets: list[DatasetEntry]
     supersedes: str | None = None

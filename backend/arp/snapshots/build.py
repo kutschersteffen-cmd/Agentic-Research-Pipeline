@@ -6,16 +6,20 @@ from __future__ import annotations
 
 import calendar
 import csv
+import fcntl
 import hashlib
 import io
 import json
+import os
 import re
+import tempfile
 from collections.abc import Callable, Iterable
 from datetime import date
 from pathlib import Path
 
 from arp import holdings
 from arp.publish.facts import Fact, FactEvent, fact_key, ts_now
+from arp.publish.reader import as_of_bound
 from arp.snapshots import schema
 from arp.snapshots.schema import DatasetEntry, SnapshotManifest
 from arp.storage.atomic_io import atomic_write_bytes
@@ -111,18 +115,30 @@ def build_snapshot(
     revision: int = 1,
     supersedes: str | None = None,
     changes: Iterable[dict] = (),
+    majors: list[int] | None = None,
     holdings_from: int | None = None,
 ) -> SnapshotManifest:
-    """`holdings_from`: a revision of the same month whose holdings files are copied byte for byte."""
+    """`majors`: defaults to the month's live majors. `holdings_from`: a revision of the same month whose
+    holdings files are copied byte for byte. One build per month at a time (a file lock on the month dir)."""
     month = month_of(as_of)
-    snapshot_id = f"{month}.r{revision}"
+    if as_of != month_end(month):
+        raise ValueError(f"as_of must be the month end {month_end(month)}, got {as_of!r}")
     out = snapshot_dir(root, month, revision)
-    # ponytail: check-then-write assumes one builder per month; add a lock if builds ever run concurrently
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with open(out.parent / ".lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        return _build(as_of, month, revision, out, root, portfolio_store, facts_as_of, supersedes, changes,
+                      schema.live_majors(month) if majors is None else majors, holdings_from)
+
+
+def _build(as_of, month, revision, out, root, portfolio_store, facts_as_of, supersedes, changes, majors, holdings_from):
+    snapshot_id = f"{month}.r{revision}"
     if (out / "manifest.json").exists():
         raise SnapshotFrozen(f"{snapshot_id} is frozen")
+    cutoff = ts_now()
     rows = dataset_rows(as_of, portfolio_store=portfolio_store, facts=facts_as_of(as_of))
     entries = []
-    for major in schema.live_majors(month):
+    for major in majors:
         for dataset in schema.DATASETS:
             if holdings_from is not None and dataset in HOLDINGS:
                 data = tuple(dataset_path(root, month, holdings_from, dataset, f, major).read_bytes() for f in FORMATS)
@@ -138,12 +154,25 @@ def build_snapshot(
             entries.append(DatasetEntry(name=dataset, major=major, schema_version=schema.SCHEMAS[major]["version"],
                                         rows=data[1].count(b"\n"), files=files))
     manifest = SnapshotManifest(
-        snapshot_id=snapshot_id, month=month, revision=revision, as_of=as_of, frozen_at=ts_now(),
+        snapshot_id=snapshot_id, month=month, revision=revision, as_of=as_of, frozen_at=ts_now(), cutoff=cutoff,
         schema_version=schema.SCHEMAS[schema.CURRENT_MAJOR]["version"], datasets=entries,
         supersedes=supersedes, changes=list(changes),
     )
-    atomic_write_bytes(out / "manifest.json", manifest.model_dump_json(indent=2).encode())
+    _freeze(out / "manifest.json", manifest)
     return manifest
+
+
+def _freeze(path: Path, manifest: SnapshotManifest) -> None:
+    """Writes the manifest whole and never over an existing one (`os.link` fails if the target exists)."""
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".tmp_", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(manifest.model_dump_json(indent=2).encode())
+        os.link(tmp, path)
+    except FileExistsError:
+        raise SnapshotFrozen(f"{manifest.snapshot_id} is frozen") from None
+    finally:
+        os.unlink(tmp)
 
 
 def _revisions(root: Path, month: str) -> list[int]:
@@ -186,23 +215,33 @@ def build_correction(
     events_since: Callable[[str], list[FactEvent]],
     now: str | None = None,
 ) -> SnapshotManifest | None:
-    """A new revision when a fact was restated, withdrawn or restored after the latest revision froze.
-    ESG rows carry every correction since r1; holdings are copied unchanged from the latest revision."""
+    """A new revision when a fact visible at month end was restated, withdrawn or restored after the latest
+    revision's cut-off. ESG rows carry every such correction since month end; facts first published after
+    month end never enter. The majors and holdings files are those of the latest revision."""
     latest = read_manifest(root, month)
     if latest is None:
         return None
-    new = [e for e in events_since(latest.frozen_at) if e.event_type in CORRECTION_EVENTS]
+    end = month_end(month)
+    bound = as_of_bound(end)
+    base_facts = facts_as_of(bound)
+    base = {fact_key(f) for f in base_facts}
+
+    def relevant(after: str) -> list[FactEvent]:
+        return [e for e in events_since(after) if e.event_type in CORRECTION_EVENTS
+                and (e.issuer_key, e.field_id, e.period_end, e.basis) in base]
+
+    new = relevant(latest.cutoff or latest.frozen_at)
     if not new:
         return None
-    first = read_manifest(root, month, 1) or latest
-    keys = {(e.issuer_key, e.field_id, e.period_end, e.basis) for e in events_since(first.frozen_at)
-            if e.event_type in CORRECTION_EVENTS}
+    since_end = relevant(bound)
+    keys = {(e.issuer_key, e.field_id, e.period_end, e.basis) for e in since_end}
     current = {fact_key(f): f for f in facts_as_of(now or ts_now())}
-    end = month_end(month)
-    corrected = [f for f in facts_as_of(end) if fact_key(f) not in keys] + [current[k] for k in keys if k in current]
+    corrected = [f for f in base_facts if fact_key(f) not in keys] + [current[k] for k in keys if k in current]
+    listed = since_end if latest.revision == 1 else new  # r1 reflects no event after month end
     return build_snapshot(
         end, root=root, portfolio_store=portfolio_store, facts_as_of=lambda _: corrected,
         revision=latest.revision + 1, supersedes=latest.snapshot_id, holdings_from=latest.revision,
+        majors=sorted({d.major for d in latest.datasets}),
         changes=[e.model_dump(include={"event_type", "fact_id", "issuer_key", "field_id", "period_end", "basis", "at"})
-                 for e in new],
+                 for e in listed],
     )

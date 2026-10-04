@@ -3,22 +3,26 @@ from __future__ import annotations
 import csv
 import hashlib
 import io
+import itertools
 import json
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
 from arp.holdings.intake import ingest
 from arp.holdings.validate import validate
-from arp.publish.facts import FactCandidate, FactEvent, plan_version, ts_now
+from arp.publish.facts import FactCandidate, FactEvent, plan_version
 from arp.publish.reader import visible
 from arp.schemas.common import Citation
+from arp.snapshots import build as B
 from arp.snapshots import schema
 from arp.snapshots.build import (
     SnapshotFrozen,
+    _freeze,
     build_correction,
     build_snapshot,
     dataset_path,
+    list_months,
     read_manifest,
     snapshot_dir,
 )
@@ -72,18 +76,26 @@ class World:
                                      period_end=f.period_end, basis=f.basis, release_id=f.release_id, at=at))
 
     def withdraw(self, field):
-        at = ts_now()
+        at = B.ts_now()
         i, f = next((i, f) for i, f in enumerate(self.facts) if f.field_id == field and f.valid_to is None)
         self.facts[i] = f.model_copy(update={"valid_to": at})
         self._event("withdrawn", f, at)
 
-    def restate(self, field, value):
-        at = ts_now()
+    def restate(self, field, value, at=None):
+        at = at or B.ts_now()
         i, f = next((i, f) for i, f in enumerate(self.facts) if f.field_id == field and f.valid_to is None)
         new = _fact(field, value, prev=f, at=at)
         self.facts[i] = f.model_copy(update={"valid_to": at, "superseded_by": new.fact_id})
         self.facts.append(new)
         self._event("restated", new, at)
+
+
+@pytest.fixture(autouse=True)
+def clock(monkeypatch):
+    """Every ts_now is a later minute after month end, whatever today is."""
+    ticks = itertools.count()
+    start = datetime(2026, 11, 2, tzinfo=UTC)
+    monkeypatch.setattr(B, "ts_now", lambda: (start + timedelta(minutes=next(ticks))).isoformat(timespec="microseconds"))
 
 
 @pytest.fixture
@@ -122,6 +134,66 @@ def test_same_inputs_same_hashes(env, world, tmp_path):
     assert _hashes(a) == _hashes(b)
     assert {d.name for d in a.datasets} == set(schema.DATASETS)
     assert a.snapshot_id == "2026-10.r1" and a.as_of == AS_OF
+    assert a.cutoff < a.frozen_at
+
+
+def test_as_of_must_be_month_end(env, world, tmp_path):
+    with pytest.raises(ValueError, match="month end"):
+        build_snapshot("2026-10-15", root=tmp_path, portfolio_store=env[0], facts_as_of=world.facts_as_of)
+
+
+def test_second_freeze_never_overwrites(env, world, tmp_path):
+    m = _build(env, world, tmp_path)
+    path = snapshot_dir(tmp_path, MONTH, 1) / "manifest.json"
+    before = path.read_bytes()
+    with pytest.raises(SnapshotFrozen):
+        _freeze(path, m.model_copy(update={"frozen_at": "x"}))
+    assert path.read_bytes() == before
+
+
+def test_incomplete_revision_skipped_and_rebuilt(env, world, tmp_path):
+    partial = snapshot_dir(tmp_path, MONTH, 1)
+    partial.mkdir(parents=True)
+    (partial / "esg_signals.v1.csv").write_text("half")
+    assert read_manifest(tmp_path, MONTH) is None
+    assert list_months(tmp_path) == [{"month": MONTH, "latest_revision": 1, "snapshot_id": "2026-10.r1",
+                                      "status": "incomplete"}]
+    r1 = _build(env, world, tmp_path)
+    (snapshot_dir(tmp_path, MONTH, 2)).mkdir()  # a crashed correction
+    assert read_manifest(tmp_path, MONTH) == r1 and list_months(tmp_path)[0]["status"] == "incomplete"
+    world.withdraw("f1")
+    assert _correct(env, world, tmp_path).revision == 2
+    assert list_months(tmp_path)[0]["status"] == "frozen"
+
+
+def test_fact_published_after_month_end_never_enters(env, world, tmp_path):
+    world.facts.append(_fact("f9", at="2026-11-01T09:00:00.000000+00:00"))
+    _build(env, world, tmp_path)
+    world.restate("f9", 5.0)
+    assert _correct(env, world, tmp_path) is None  # nothing visible at month end changed
+    world.withdraw("f1")
+    r2 = _correct(env, world, tmp_path)
+    assert [r["field_id"] for r in _jsonl(tmp_path, r2, "esg_signals")] == ["f2", "f3"]
+    assert [c["field_id"] for c in r2.changes] == ["f1"]
+
+
+def test_restatement_before_r1_freeze_reaches_r2(env, world, tmp_path):
+    world.restate("f2", 7.0, at="2026-11-01T09:00:00.000000+00:00")  # after month end, before r1
+    _build(env, world, tmp_path)
+    world.restate("f3", 8.0)
+    r2 = _correct(env, world, tmp_path)
+    assert {r["field_id"]: r["value"] for r in _jsonl(tmp_path, r2, "esg_signals")} == {"f1": 1.0, "f2": 7.0, "f3": 8.0}
+    assert [c["field_id"] for c in r2.changes] == ["f2", "f3"]  # r1 reflected neither
+
+
+def test_correction_keeps_majors_of_superseded_revision(env, world, tmp_path, monkeypatch):
+    _build(env, world, tmp_path)
+    v1 = schema.SCHEMAS[1]
+    monkeypatch.setitem(schema.SCHEMAS, 2, {"version": "2.0", "retire_after": None, "datasets": v1["datasets"]})
+    monkeypatch.setitem(v1, "retire_after", "2026-12")
+    world.withdraw("f1")
+    r2 = _correct(env, world, tmp_path)
+    assert {d.major for d in r2.datasets} == {1}
 
 
 def test_frozen_snapshot_refuses_rewrite(env, world, tmp_path):
