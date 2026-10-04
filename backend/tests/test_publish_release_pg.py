@@ -170,3 +170,55 @@ def test_older_run_republished_is_skipped_pg(store, rs, blobs):
     res = _publish(store, rs, blobs, "r1")
     assert res.releases == [] and Skip("ISS:f1:2024-12-31", "older_than_published") in res.skipped
     assert store.current([KEY])[KEY] == before
+
+
+def test_duplicate_fact_key_skipped_not_blocking_pg(store, rs, blobs):
+    _run(rs, "r1", 1, [_field(1000)])
+    rs.append_jsonl(rs.results_path("r1"), {"company_id": "c2", "issuer_key": "ISS", "issuer_scheme": "LEI",
+                                            "fields": [_field(1001)]})
+    res = _publish(store, rs, blobs, "r1")
+    assert len(res.releases) == 1 and Skip("ISS:f1:2024-12-31", "duplicate_key") in res.skipped
+    assert [v.value for v in store.versions(KEY)] == [1000]
+    assert _publish(store, rs, blobs, "r1").reconfirmed == 1  # a retry does not fail either
+
+
+def _three_releases(store, rs, blobs):
+    for i, (value, doc) in enumerate([(1000, "d1"), (1100, "d2"), (1200, "d3")], start=1):
+        _run(rs, f"r{i}", i, [_field(value, doc=doc)])
+    return [_publish(store, rs, blobs, f"r{i}").releases[0] for i in (1, 2, 3)]
+
+
+def _interleave(store, monkeypatch, other_release_id):
+    """Withdraw `other_release_id` between planning a withdrawal and saving it."""
+    real = store.save_withdrawal
+
+    def save(*args):
+        monkeypatch.setattr(store, "save_withdrawal", real)
+        withdraw(store, other_release_id, reason="concurrent", principal=BOB)
+        real(*args)
+
+    monkeypatch.setattr(store, "save_withdrawal", save)
+
+
+def test_concurrent_withdrawal_never_restores_withdrawn_value_pg(store, rs, blobs, monkeypatch):
+    from arp.publish.facts import ConcurrentPublish
+
+    _, rel_b, rel_c = _three_releases(store, rs, blobs)
+    _interleave(store, monkeypatch, rel_b.release_id)
+    with pytest.raises(ConcurrentPublish):
+        withdraw(store, rel_c.release_id, reason="bad", principal=BOB)  # planned to restore B's 1100
+    assert store.current([KEY])[KEY].value == 1200
+    [restored] = withdraw(store, rel_c.release_id, reason="bad", principal=BOB)  # the retry skips B
+    assert restored.value == 1000 and store.current([KEY])[KEY] == restored
+
+
+def test_withdrawal_refused_when_release_regained_current_fact_pg(store, rs, blobs, monkeypatch):
+    from arp.publish.facts import ConcurrentPublish
+
+    _, rel_b, rel_c = _three_releases(store, rs, blobs)
+    _interleave(store, monkeypatch, rel_c.release_id)  # restores B's value while B's withdrawal is planned
+    with pytest.raises(ConcurrentPublish):
+        withdraw(store, rel_b.release_id, reason="bad", principal=BOB)
+    assert store.current([KEY])[KEY].value == 1100
+    [restored] = withdraw(store, rel_b.release_id, reason="bad", principal=BOB)
+    assert restored.value == 1000

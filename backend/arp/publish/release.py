@@ -92,6 +92,15 @@ def publish_run(
 ) -> PublishResult:
     now = now or ts_now()
     cands, skipped = run_candidates(run_store, run_id)
+    seen: set[FactKey] = set()
+    unique = []
+    for c in cands:  # a repeated key would hit the version unique constraint on every retry
+        if fact_key(c) in seen:
+            skipped.append(Skip(c.item_key, "duplicate_key"))
+        else:
+            seen.add(fact_key(c))
+            unique.append(c)
+    cands = unique
     withdrawn_docs = {r.doc_id for r in store.list_releases(run_id=run_id) if r.withdrawn_at}
     groups, blocked = split_by_gate(cands, blob_store, withdrawn_docs=withdrawn_docs, content_store=content_store)
     result = PublishResult(releases=[], reconfirmed=0, blocked=blocked, skipped=list(skipped))

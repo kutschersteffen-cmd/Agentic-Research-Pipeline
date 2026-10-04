@@ -266,7 +266,7 @@ class PublishStore:
     def save_withdrawal(
         self, release: Release, closes: list[Fact], restores: list[Fact], events: list[FactEvent]
     ) -> None:
-        from sqlalchemy import update
+        from sqlalchemy import func, select, update
         from sqlalchemy.exc import IntegrityError
 
         from arp.storage.postgres_models import PublishedFactModel as M
@@ -274,6 +274,15 @@ class PublishStore:
 
         with self.session() as s:
             try:
+                # Serialise withdrawals per issuer, then re-check what was planned outside the lock.
+                for issuer in sorted({release.issuer_key, *(f.issuer_key for f in closes + restores)}):
+                    s.execute(select(func.pg_advisory_xact_lock(func.hashtext(issuer))))
+                sources = {f.release_id for f in restores}
+                if sources and s.scalar(select(func.count()).where(R.release_id.in_(sources), R.withdrawn_at.is_not(None))):
+                    raise ConcurrentPublish("a restored value's release was withdrawn meanwhile")
+                open_ids = set(s.scalars(select(M.fact_id).where(M.release_id == release.release_id, M.valid_to.is_(None))))
+                if open_ids - {f.fact_id for f in closes}:
+                    raise ConcurrentPublish(f"release {release.release_id} gained a current fact meanwhile")
                 res = s.execute(
                     update(R)
                     .where(R.release_id == release.release_id, R.withdrawn_at.is_(None))
