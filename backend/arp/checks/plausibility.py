@@ -75,7 +75,7 @@ def check_part_of_whole(spec: FieldDefinition, field: ExtractedField, ctx) -> li
 
 def check_sum_identity(spec: FieldDefinition, field: ExtractedField, ctx) -> list[CheckResult]:
     cid, cfg, total = "plausibility.sum_identity", spec.check_config, numeric_of(field)
-    if total is None or not cfg.sum_of:
+    if total is None or not cfg.sum_of or cfg.sum_target is not None or cfg.sum_target_field:
         return _result(cid, Severity.WARN, _NA)
     parts = [_same_period(ctx, pid, field.period_end) for pid in cfg.sum_of]
     if any(p is None or numeric_of(p) is None or p.canonical_unit != field.canonical_unit for p in parts):
@@ -85,5 +85,41 @@ def check_sum_identity(spec: FieldDefinition, field: ExtractedField, ctx) -> lis
     ref = threshold_ref(spec, "sum_tolerance")
     if abs(total - s) > cfg.sum_tolerance * max(abs(total), 1e-9):
         detail = f"total {total:g} vs parts {'+'.join(f'{x:g}' for x in vals)}={s:g}"
+        return _result(cid, Severity.WARN, CheckOutcome.FAIL, detail, ref)
+    return _result(cid, Severity.WARN, CheckOutcome.PASS, ref=ref)
+
+
+def check_less_or_equal(spec: FieldDefinition, field: ExtractedField, ctx) -> list[CheckResult]:
+    cid, v = "le_of", numeric_of(field)
+    if v is None:
+        return _result(cid, Severity.WARN, _NA)
+    checked = 0
+    for other_id in spec.check_config.le_of:
+        other = _same_period(ctx, other_id, field.period_end)
+        o = numeric_of(other) if other else None
+        if o is None or other.canonical_unit != field.canonical_unit:
+            continue
+        checked += 1
+        if v > o:
+            return _result(cid, Severity.WARN, CheckOutcome.FAIL, f"{v:g} exceeds {other_id} {o:g}")
+    return _result(cid, Severity.WARN, CheckOutcome.PASS if checked else _NA)
+
+
+def check_sum_to_target(spec: FieldDefinition, field: ExtractedField, ctx) -> list[CheckResult]:
+    cid, cfg, own = "sum_target", spec.check_config, numeric_of(field)
+    target, ref_name = cfg.sum_target, "sum_target"
+    if cfg.sum_target_field:
+        sibling = _same_period(ctx, cfg.sum_target_field, field.period_end)
+        ok = sibling is not None and sibling.canonical_unit == field.canonical_unit
+        target, ref_name = (numeric_of(sibling) if ok else None), "sum_target_field"
+    if target is None or not cfg.sum_of or own is None:
+        return _result(cid, Severity.WARN, _NA)
+    parts = [_same_period(ctx, pid, field.period_end) for pid in cfg.sum_of]
+    if any(p is None or numeric_of(p) is None or p.canonical_unit != field.canonical_unit for p in parts):
+        return _result(cid, Severity.WARN, _NA)
+    vals = [numeric_of(p) for p in parts] + [own]
+    s, ref = sum(vals), threshold_ref(spec, ref_name)
+    if abs(s - target) > cfg.sum_tolerance * max(abs(target), 1e-9):
+        detail = f"parts and field {'+'.join(f'{x:g}' for x in vals)}={s:g} vs target {target:g}"
         return _result(cid, Severity.WARN, CheckOutcome.FAIL, detail, ref)
     return _result(cid, Severity.WARN, CheckOutcome.PASS, ref=ref)

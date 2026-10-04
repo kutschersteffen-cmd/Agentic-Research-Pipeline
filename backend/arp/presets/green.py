@@ -1,0 +1,194 @@
+"""Green and low-carbon revenue, CapEx and OpEx (E22 A), generated from the versioned criteria table.
+
+Not limited to the EU Taxonomy: every green amount is captured, then split by EU status. Transition
+activities are kept apart from green. Amounts stay in the company's reporting currency (no FX)."""
+
+from __future__ import annotations
+
+import csv
+from dataclasses import dataclass
+from functools import cache
+from pathlib import Path
+
+from pydantic import BaseModel
+
+from arp.schemas.datapoints import CheckConfig, DataPointSchema, FieldDataType, FieldDefinition
+
+GREEN_TABLE = "green_categories_v1"
+SCHEMA_ID = "sch_green_lowcarbon"
+METRICS = {"revenue": "revenue (turnover)", "capex": "capital expenditure (CapEx)", "opex": "operating expenditure (OpEx)"}
+FRAMEWORKS = ["own_definition", "eu_taxonomy", "icma_gbp", "climate_bonds", "china_catalogue", "other"]
+_TABLE_REF = f"criteria table {GREEN_TABLE} (table version {GREEN_TABLE.rsplit('_v', 1)[1]})"
+
+
+@dataclass(frozen=True)
+class GreenCategory:
+    category_id: str
+    label: str
+    kind: str  # "green" | "transition"
+    description: str
+    include: str
+    exclude: str
+    eu_objective: str  # EU environmental objectives, ";"-separated: ccm, cca, wtr, ce, ppc, bio
+
+
+@cache
+def load_green_categories() -> list[GreenCategory]:
+    with open(Path(__file__).parents[1] / "normalise" / "tables" / f"{GREEN_TABLE}.csv", encoding="utf8", newline="") as f:
+        return [GreenCategory(**row) for row in csv.DictReader(f)]
+
+
+def _rules(c: GreenCategory) -> str:
+    return f"[{c.category_id}: {c.label}; EU objective {c.eu_objective}] Include: {c.include} Exclude: {c.exclude}"
+
+
+def _common(metric: str) -> str:
+    return (
+        f"Capture every green or low-carbon {METRICS[metric]} amount the company discloses, whatever framework it uses "
+        "(own definition, EU Taxonomy, ICMA Green Bond Principles, Climate Bonds Taxonomy, China catalogue or other), "
+        "including amounts not aligned with or not covered by the EU Taxonomy, for EU, US and other firms alike. "
+        f"Classify against {_TABLE_REF}. Count each amount in one category only. Report each fiscal year disclosed, in "
+        "the reporting currency (never convert currencies): give the unit as the ISO 4217 code (USD, EUR, GBP, ...) with the scale word separate, for example 'EUR million'. Transition activities are never green."
+        + ' A "%" in a column header applies to the bare cells beneath it: report such a figure with unit "%".'
+    )
+
+
+def _green_rules() -> str:
+    return " Green category rules: " + " ".join(_rules(c) for c in load_green_categories() if c.kind == "green")
+
+
+def _money(field_id: str, name: str, description: str, instructions: str, keywords: list[str], **checks) -> FieldDefinition:
+    return FieldDefinition(
+        field_id=field_id, name=name, description=description, data_type=FieldDataType.CURRENCY_AMOUNT,
+        extraction_instructions=instructions, seed_keywords=keywords, required=False,
+        check_config=CheckConfig(non_negative=True, **checks),
+    )
+
+
+def _metric_fields(m: str) -> list[FieldDefinition]:
+    cats = load_green_categories()
+    green = [c for c in cats if c.kind == "green"]
+    (trans,) = [c for c in cats if c.kind == "transition"]
+    word, common, all_green = METRICS[m], _common(m), _green_rules()
+    total, gtotal = f"{m}_total", f"green_{m}_total"
+    cat_ids = [f"green_{m}_{c.category_id}" for c in green]
+    status = {
+        f"green_{m}_eu_aligned": ("EU Taxonomy-aligned", "the part the company reports as EU Taxonomy-aligned. Taxonomy-aligned fossil gas and nuclear activities (Complementary Delegated Act) are transition, not green: leave them out here"),
+        f"green_{m}_eu_eligible_not_aligned": ("EU Taxonomy-eligible, not aligned", "the part the company reports as Taxonomy-eligible but not aligned"),
+        f"green_{m}_eu_not_covered": ("not covered by the EU Taxonomy", "the part for activities the EU Taxonomy does not cover (not eligible), as the company states it. Never infer it: a firm without a Taxonomy assessment leaves this not found"),
+    }
+    kw = [f"green {m}", f"low-carbon {m}", f"sustainable {m}", f"climate solutions {m}"]
+    fields = [
+        _money(total, f"Total {word}", f"Total {word} for the fiscal year: the denominator of the green share.",
+               f"{common} Use the total the company divides by for its green share; otherwise the consolidated total. "
+               f"Not restricted by category: it is the denominator for {_TABLE_REF}.",
+               [f"total {m}", word]),
+        _money(gtotal, f"Green {word}",
+               f"All {word} meeting the green include rules of {GREEN_TABLE}, whether or not EU Taxonomy-aligned.",
+               f"{common} The sum of the green categories. Where the company's own green figure contains excluded items "
+               "(for example gas or nuclear), subtract them when quantified; otherwise report the figure and quote what "
+               f"it includes.{all_green}",
+               kw, part_of=total, sum_of=cat_ids),
+        FieldDefinition(
+            field_id=f"green_{m}_share_pct", name=f"Green {word} share", data_type=FieldDataType.PERCENTAGE, unit="%",
+            description=f"Green {word} as a percentage of total {word}.",
+            extraction_instructions=f"{common} The share as the company reports it.",
+            seed_keywords=[f"share of green {m}", f"green {m} %"], required=False,
+        ),
+        _money(f"transition_{m}_total", f"Transition {word}",
+               f"{word.capitalize()} from transition activities, kept separate from green and never added to it.",
+               f"{common} Only the transition row applies. {_rules(trans)}",
+               [f"transition {m}", f"transitional {m}", "gas", "nuclear"], part_of=total),
+        *(_money(fid, f"Green {word}: {c.label}", f"{c.description} ({word})", f"{common} {_rules(c)}",
+                 [c.label.lower(), f"{c.label.lower()} {m}"], part_of=gtotal)
+          for fid, c in zip(cat_ids, green, strict=True)),
+        *(_money(fid, f"Green {word}, {label}", f"Of green {word}: {what}.", f"{common} Of the green amount, {what}.{all_green}",
+                 [*kw, "EU taxonomy", label], part_of=gtotal,
+                 # the three EU statuses add up to the green total: checked once, on the last of them
+                 **({"sum_of": list(status)[:2], "sum_target_field": gtotal} if fid == f"green_{m}_eu_not_covered" else {}))
+          for fid, (label, what) in status.items()),
+        FieldDefinition(
+            field_id=f"green_{m}_framework", name=f"Green {word} framework", data_type=FieldDataType.ENUM,
+            allowed_values=FRAMEWORKS, description=f"The framework the company's green {word} figure follows.",
+            extraction_instructions=f"{common} Pick the framework the company names for its green figure.",
+            seed_keywords=[*kw, "taxonomy", "green bond principles", "climate bonds"], required=False,
+        ),
+        FieldDefinition(
+            field_id=f"green_{m}_definition", name=f"Green {word} definition", data_type=FieldDataType.STRING,
+            description=f"The company's own definition of green or low-carbon {word}, quoted.",
+            extraction_instructions=f"{common} Quote the definition verbatim, with any thresholds, and say whether it "
+                                    "counts gas or nuclear.",
+            seed_keywords=[*kw, "we define", "definition"], required=False,
+        ),
+    ]
+    return fields
+
+
+def build_green_schema() -> DataPointSchema:
+    return DataPointSchema(
+        schema_id=SCHEMA_ID,
+        name="Green and low-carbon revenue, CapEx and OpEx",
+        description=f"All green and low-carbon amounts, beyond the EU Taxonomy, with transition kept separate; {_TABLE_REF}.",
+        fields=[f for m in METRICS for f in _metric_fields(m)],
+    )
+
+
+class GreenSummaryRow(BaseModel):
+    metric: str
+    period_end: str | None
+    unit: str | None
+    green_total: float | None
+    aligned: float | None
+    share: float | None
+    beyond_taxonomy: float | None
+    flag: str | None = None
+
+
+def _num(f: dict | None) -> float | None:
+    if f is None:
+        return None
+    v, raw = f.get("canonical_value"), f.get("value")
+    if v is None and f.get("canonical_unit") is not None and isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        v = raw
+    return v
+
+
+def _same_unit(a: dict, b: dict) -> bool:
+    return a.get("canonical_unit") is not None and a.get("canonical_unit") == b.get("canonical_unit")
+
+
+def _eu_aligned(eu: dict, m: str, p: str | None) -> dict | None:
+    """Reported aligned amount: aligned % x total amount, same period (turnover is revenue)."""
+    k = "turnover" if m == "revenue" else m
+    pct, amt = eu.get((f"eut_{k}_aligned_pct", p)), eu.get((f"eut_{k}_total_amount", p))
+    if pct is None or amt is None or amt.get("canonical_unit") is None:
+        return None
+    return {"canonical_value": _num(pct) / 100 * _num(amt), "canonical_unit": amt["canonical_unit"]}
+
+
+def green_summary(fields: list[dict], eu_taxonomy_fields: list[dict] | None = None) -> list[GreenSummaryRow]:
+    """Per metric and period: green total, aligned, share and green beyond the Taxonomy (never clipped).
+    The EU Taxonomy run's aligned amount fills in only where the green run has none."""
+    by = {(f.get("field_id"), f.get("period_end")): f for f in fields if _num(f) is not None}
+    eu = {(f.get("field_id"), f.get("period_end")): f for f in eu_taxonomy_fields or [] if _num(f) is not None}
+    rows = []
+    for m in METRICS:
+        gid, aid = f"green_{m}_total", f"green_{m}_eu_aligned"
+        for p in sorted({p for fid, p in by if fid in (gid, aid)}, key=lambda p: p or ""):
+            g, a, s, t = (by.get((fid, p)) for fid in (gid, aid, f"green_{m}_share_pct", f"{m}_total"))
+            a = a or _eu_aligned(eu, m, p)
+            beyond = flag = None
+            if g and a:
+                if not _same_unit(g, a):
+                    flag = "unit_mismatch"
+                else:
+                    beyond = _num(g) - _num(a)
+                    flag = "aligned_exceeds_green" if beyond < 0 else None
+            share = _num(s)
+            if share is None and g and t and _num(t) and _same_unit(g, t):
+                share = _num(g) / _num(t) * 100
+            rows.append(GreenSummaryRow(
+                metric=m, period_end=p, unit=(g or a).get("canonical_unit"), green_total=_num(g), aligned=_num(a),
+                share=share, beyond_taxonomy=beyond, flag=flag,
+            ))
+    return rows

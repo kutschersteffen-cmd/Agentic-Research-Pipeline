@@ -7,7 +7,7 @@ from pathlib import Path
 import typer
 
 from arp.checks.effectiveness import effectiveness
-from arp.cli._shared import _registry, _run_store, _xbrl_source
+from arp.cli._shared import _and_drain, _registry, _run_store, _xbrl_source
 from arp.config import get_settings
 from arp.extraction.financials_pipeline import run_financials_extraction
 from arp.extraction.pipeline import run_extraction
@@ -15,8 +15,10 @@ from arp.extraction.schema_builder import draft_schema
 from arp.extraction.tnfd_pipeline import run_tnfd_extraction
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.orchestration.jobs import NotResumable, RunBusy, resume_run
+from arp.presets.registry import PRESETS, install_preset
 from arp.review.analytics import MONTH_PATTERN, monthly_totals
 from arp.schemas.datapoints import DataPointSchema
+from arp.storage.schema_registry import SchemaRegistry
 from arp.universe import load_company_universe
 
 extract_app = typer.Typer(help="Schema-driven data-point extraction.")
@@ -32,6 +34,27 @@ def extract_draft_schema(criteria_text: str, out: Path = typer.Option(...)) -> N
 
 
 
+presets_app = typer.Typer(help="Built-in schema presets.")
+extract_app.add_typer(presets_app, name="presets")
+
+
+@presets_app.command("list")
+def presets_list() -> None:
+    for pid, build in PRESETS.items():
+        schema = build()
+        typer.echo(f"{pid}\t{schema.name}\t{len(schema.fields)} fields")
+
+
+@presets_app.command("install")
+def presets_install(preset_id: str) -> None:
+    try:
+        saved = install_preset(preset_id, SchemaRegistry(get_settings().schema_registry_dir))
+    except KeyError:
+        typer.echo(f"Unknown preset '{preset_id}'.", err=True)
+        raise typer.Exit(1) from None
+    typer.echo(f"Installed {saved.schema_id} v{saved.version}")
+
+
 @extract_app.command("run")
 def extract_run(
     schema_file: Path = typer.Option(None, "--schema"),
@@ -42,7 +65,7 @@ def extract_run(
     settings = get_settings()
     if run_id:
         try:
-            asyncio.run(resume_run(run_id, settings=settings, run_store=_run_store(), registry=_registry()))
+            asyncio.run(_and_drain(resume_run(run_id, settings=settings, run_store=_run_store(), registry=_registry())))
         except (NotResumable, RunBusy) as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(1) from exc
@@ -56,12 +79,12 @@ def extract_run(
     schema = DataPointSchema.model_validate_json(schema_file.read_text())
     companies = load_company_universe(universe)
     typer.echo(f"Extracting schema '{schema.name}' ({len(schema.fields)} fields) across {len(companies)} companies...")
-    run_id = asyncio.run(
+    run_id = asyncio.run(_and_drain(
         run_extraction(
             schema, companies, llm=llm, verifier_llm=verifier_llm, registry=_registry(), settings=settings, run_store=_run_store(), trial=trial,
             xbrl_source=_xbrl_source() if settings.xbrl_facts_enabled else None,
         )
-    )
+    ))
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 
 
@@ -83,7 +106,7 @@ def extract_financials_run(
     verifier_llm = build_verifier_llm_client(settings)
     companies = load_company_universe(universe)
     typer.echo(f"Extracting segments/CapEx/R&D across {len(companies)} companies...")
-    run_id = asyncio.run(
+    run_id = asyncio.run(_and_drain(
         run_financials_extraction(
             companies,
             llm=llm,
@@ -93,7 +116,7 @@ def extract_financials_run(
             run_store=_run_store(),
             xbrl_source=_xbrl_source() if settings.xbrl_facts_enabled else None,
         )
-    )
+    ))
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 
 
@@ -116,11 +139,11 @@ def extract_tnfd_run(
     verifier_llm = build_verifier_llm_client(settings)
     companies = load_company_universe(universe)
     typer.echo(f"Extracting TNFD disclosures ({as_of}) across {len(companies)} companies...")
-    run_id = asyncio.run(
+    run_id = asyncio.run(_and_drain(
         run_tnfd_extraction(
             companies, as_of, llm=llm, verifier_llm=verifier_llm, registry=_registry(), settings=settings, run_store=_run_store()
         )
-    )
+    ))
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 
 

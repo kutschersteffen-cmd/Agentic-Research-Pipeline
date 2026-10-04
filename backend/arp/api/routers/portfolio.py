@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from arp.api.auth import Principal, current_user
+from arp.api.auth import Principal, current_user, require_role
 from arp.api.deps import get_llm_client, get_portfolio_store, settings_dep
 from arp.api.routers.universe import save_universe
 from arp.config import Settings
 from arp.llm.base import LLMClient
-from arp.portfolio import aggregation, analytics, datapoint_mapping, governance, qa_agent
+from arp.portfolio import aggregation, analytics, datapoint_mapping, governance, qa_agent, qa_audit
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
 from arp.portfolio.news.classifier import classify_article
@@ -21,7 +23,7 @@ from arp.schemas.governance import (
     PolicySettingName,
     RiskCategoryOwner,
 )
-from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotResult, PivotSpec, Portfolio, TrendPoint
+from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotResult, PivotSpec, Portfolio, PortfolioGroup, TrendPoint
 from arp.schemas.portfolio_monitoring import Alert, AlertRule, AlertStatus, AlertTransition
 from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
 
@@ -47,6 +49,37 @@ async def seed_demo_dataset(
 @router.get("/portfolios", response_model=list[Portfolio])
 def list_portfolios(store: PortfolioStore = Depends(get_portfolio_store)) -> list[Portfolio]:
     return store.list_portfolios()
+
+
+class GroupRequest(BaseModel):
+    group_id: str | None = Field(default=None, description="Existing id: saves a new version.")
+    name: str
+    kind: Literal["portfolios", "companies", "securities"]
+    members: list[str]
+
+
+@router.post("/groups", response_model=PortfolioGroup)
+def save_group(
+    req: GroupRequest, store: PortfolioStore = Depends(get_portfolio_store), principal: Principal = Depends(require_role("analyst"))
+) -> PortfolioGroup:
+    group = PortfolioGroup(
+        **req.model_dump(exclude_none=True), created_by=principal.name  # never the user_id
+    )
+    store.save_group(group)
+    return group
+
+
+@router.get("/groups", response_model=list[PortfolioGroup])
+def list_groups(store: PortfolioStore = Depends(get_portfolio_store), _: Principal = Depends(current_user)) -> list[PortfolioGroup]:
+    return store.list_groups()
+
+
+@router.get("/groups/{group_id}", response_model=PortfolioGroup)
+def get_group(group_id: str, store: PortfolioStore = Depends(get_portfolio_store), _: Principal = Depends(current_user)) -> PortfolioGroup:
+    group = store.get_group(group_id)
+    if group is None:
+        raise HTTPException(404, f"Unknown group_id: {group_id}")
+    return group
 
 
 @router.get("/companies", response_model=list[CompanyRef])
@@ -200,13 +233,34 @@ async def ask(
     req: AskRequest,
     store: PortfolioStore = Depends(get_portfolio_store),
     llm: LLMClient = Depends(get_llm_client),
+    settings: Settings = Depends(settings_dep),
+    principal: Principal = Depends(current_user),
 ) -> qa_agent.QAAnswer:
     """Answers a plain-language portfolio question. The LLM only drafts the
     query (see qa_agent.py); the returned `result`/`spec` always show the
-    real, deterministically computed figures behind `answer_text`."""
-    securities, companies = portfolio_directories(store)
-    answer, _usage = await qa_agent.answer_question(req.question, llm, store, securities, companies)
-    return answer
+    real, deterministically computed figures behind `answer_text`. Every
+    call -- answered, unresolvable or failed -- leaves an audit row."""
+    answer, error = None, None
+    try:
+        securities, companies = portfolio_directories(store)
+        answer, _usage = await qa_agent.answer_question(req.question, llm, store, securities, companies)
+        return answer
+    except Exception as exc:
+        error = f"{type(exc).__name__}: {exc}"
+        raise
+    finally:
+        qa_audit.record_answer(
+            settings, endpoint="portfolio.ask", principal=principal, question=req.question,
+            answer_text=answer.answer_text if answer else None, vintage=answer.vintage if answer else {}, error=error,
+            resolvable=answer.resolvable if answer else None,
+        )
+
+
+@router.get("/qa-audit")
+def qa_audit_log(
+    limit: int = Query(200, ge=1, le=1000), settings: Settings = Depends(settings_dep), _: Principal = Depends(require_role("approver"))
+) -> list[dict]:
+    return qa_audit.list_audit(settings, limit=limit)
 
 
 @router.get("/news")

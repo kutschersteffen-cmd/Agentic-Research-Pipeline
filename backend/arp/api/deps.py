@@ -13,6 +13,7 @@ from arp.discovery.scheduler import DiscoveryScheduler
 from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient
 from arp.emerging_themes.scheduler import EmergingThemesScheduler
 from arp.ingestion.edgar import EdgarDocumentSource
+from arp.ingestion.esef import EsefDocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -120,6 +121,8 @@ def build_registry(settings: Settings, content_store: DocumentContentStore) -> D
                 submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
                 indexing_config=indexing_config,
             ),
+            *([EsefDocumentSource(settings.esef_index_url, settings.cache_dir, content_store=content_store,
+                                  indexing_config=indexing_config)] if settings.esef_enabled else []),
         ]
     )
 
@@ -136,6 +139,7 @@ def get_edgar_source() -> EdgarDocumentSource:
         settings.cache_dir,
         content_store=get_document_content_store(),
         submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
+        indexing_config=IndexingConfig.from_settings(settings),  # get_xbrl_source freezes tagged values into its blob store
     )
 
 

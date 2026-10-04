@@ -69,6 +69,8 @@ def hold_run(run_store: RunStore, run_id: str) -> Iterator[None]:
 class JobLauncher(Protocol):
     def launch(self, run_id: str, job: Callable[[], Awaitable[None]], *, run_store: RunStore | None = None) -> None: ...
 
+    async def drain(self) -> list[str]: ...
+
 
 class LocalJobLauncher:
     """Runs a run's job as a background task in this process, under the
@@ -90,9 +92,21 @@ class LocalJobLauncher:
             except Exception:  # noqa: BLE001 - nobody awaits the task
                 logger.exception("Job for run %s failed", run_id)
 
-        task = asyncio.create_task(_leased())
+        task = asyncio.create_task(_leased(), name=run_id)
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
+
+    async def drain(self) -> list[str]:
+        """Waits for every launched job, including any launched meanwhile, so a
+        short-lived caller (a CLI `asyncio.run`) does not cancel them on exit.
+        Returns the run ids it waited for."""
+        drained: list[str] = []
+        while self._tasks:
+            tasks = list(self._tasks)
+            drained += [t.get_name() for t in tasks]
+            await asyncio.gather(*tasks, return_exceptions=True)
+            self._tasks.difference_update(tasks)
+        return drained
 
 
 _launcher: JobLauncher | None = None
@@ -136,6 +150,7 @@ def _xbrl_source(settings: Settings):
     """Built as arp.api.deps.get_xbrl_source builds it; the pipelines
     themselves check xbrl_facts_enabled."""
     from arp.ingestion.edgar import EdgarDocumentSource
+    from arp.ingestion.indexing_config import IndexingConfig
     from arp.ingestion.xbrl import XbrlFactSource
     from arp.retrieval.content_store_factory import content_store_for
 
@@ -144,6 +159,7 @@ def _xbrl_source(settings: Settings):
         settings.cache_dir,
         content_store=content_store_for(settings),
         submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
+        indexing_config=IndexingConfig.from_settings(settings),  # the blob store tagged values are frozen into
     )
     return XbrlFactSource(edgar, settings.cache_dir, ttl_hours=settings.xbrl_facts_ttl_hours)
 

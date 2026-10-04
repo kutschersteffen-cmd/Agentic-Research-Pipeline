@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 
@@ -14,8 +15,9 @@ from arp.extraction.field_graph import MAX_END_DRIFT_DAYS, days_apart, extract_o
 from arp.extraction.history import RunHistory
 from arp.extraction.pre_steps import prepare_company
 from arp.extraction.routing import route
+from arp.ingestion.esef import esef_fact_sources
 from arp.ingestion.registry import DocumentSourceRegistry
-from arp.ingestion.xbrl import XbrlFactSource
+from arp.ingestion.xbrl import ChainedFactSource, FactSource, XbrlFactSource
 from arp.llm.base import LLMClient, LLMUsage
 from arp.normalise.units import convert
 from arp.orchestration.batch_runner import run_company_batch
@@ -48,8 +50,7 @@ logger = logging.getLogger(__name__)
 def build_references(
     fields: list[ExtractedField],
     *,
-    xbrl_facts: dict | None,
-    cik: str | None,
+    facts: FactSource | None,
     history: RunHistory | None,
     published: dict[str, tuple[float, str | None]],
     company_id: str,
@@ -57,7 +58,7 @@ def build_references(
     specs: dict[str, FieldDefinition],
 ) -> dict[str, list[Reference]]:
     """E39: other-source values per item key. A tagged field is checked against the text value an
-    earlier run extracted; an extracted one against the filer's XBRL fact for the same period."""
+    earlier run extracted; an extracted one against the filer's tagged fact (SEC or ESEF) for the same period."""
     out: dict[str, list[Reference]] = {}
     for f in fields:
         if f.period_end is None:
@@ -71,8 +72,8 @@ def build_references(
                      and r.get("canonical_value") is not None]
             if prior:
                 refs.append(Reference(source="text", value=prior[-1]["canonical_value"], unit=prior[-1].get("canonical_unit")))
-        elif spec and spec.xbrl_tags and xbrl_facts and cik:
-            fact = XbrlFactSource.fact_for_tags(xbrl_facts, spec.xbrl_tags, fiscal_year=int(f.period_end[:4]))
+        elif spec and spec.xbrl_tags and facts:
+            fact = facts.fact_for_tags(spec.xbrl_tags, fiscal_year=int(f.period_end[:4]))
             if fact and fact.period_end and days_apart(fact.period_end, f.period_end) <= MAX_END_DRIFT_DAYS:
                 # In the field's own unit; a conversion that fails (FX, unknown unit) means no reference.
                 c = convert(fact.value, fact.unit, spec.unit) if spec.unit else None
@@ -149,7 +150,8 @@ async def _extract_company(
     `trial` routes every non-held row to review.
 
     `xbrl_source` (with settings.xbrl_facts_enabled): the company's XBRL facts
-    are fetched once and fields with `xbrl_tags` take their tagged values first."""
+    are fetched once and fields with `xbrl_tags` take their tagged values first. Facts in an
+    ESEF filing among the documents count too: ahead of SEC's for a non-US filer."""
     if documents is None:
         documents = await registry.fetch_all(company)
     documents = [confirm_entity(d, company, identifier_map) for d in documents]
@@ -181,13 +183,19 @@ async def _extract_company(
     # A cache refresh (set by "Restart from here") asks for fresh answers: never reuse then.
     reuse = history is not None and not (settings.llm_cache_refresh or settings.llm_verifier_cache_refresh)
 
-    xbrl_facts = cik = None
-    if xbrl_source is not None and settings.xbrl_facts_enabled and any(f.xbrl_tags for f in to_extract):
-        try:
-            cik = await xbrl_source.resolve_cik(company.cik, company.ticker)
-            xbrl_facts = await xbrl_source.fetch_company_facts(cik) if cik else None
-        except httpx.HTTPError as exc:  # no facts: the tagged fields are extracted as before
-            logger.warning("XBRL facts unavailable for %s: %s", company.company_id, exc)
+    facts = None
+    if settings.xbrl_facts_enabled and any(f.xbrl_tags for f in to_extract):
+        sec: list[FactSource] = []
+        if xbrl_source is not None:
+            try:
+                cik = await xbrl_source.resolve_cik(company.cik, company.ticker)
+                if cik and (sec_facts := await xbrl_source.fact_source(cik)):
+                    sec.append(sec_facts)
+            except httpx.HTTPError as exc:  # no facts: the tagged fields are extracted as before
+                logger.warning("XBRL facts unavailable for %s: %s", company.company_id, exc)
+        esef = await asyncio.to_thread(esef_fact_sources, kept)
+        sources = esef + sec if not company.cik else sec + esef  # ESEF first for a non-US filer
+        facts = ChainedFactSource(sources) if sources else None
 
     for field in to_extract:
         h = input_hash(field, route_documents(field, kept), planned_periods, run_settings)
@@ -221,8 +229,7 @@ async def _extract_company(
             schema_version=f"{schema.schema_id}:v{schema.version}",
             fiscal_year_end=company.fiscal_year_end,
             planned_periods=planned_periods,
-            xbrl_facts=xbrl_facts,
-            cik=cik,
+            facts=facts,
         )
         usages.extend(field_usages)
 
@@ -239,7 +246,7 @@ async def _extract_company(
             record_fields=fields,
             history=history,
             references=build_references(
-                fields, xbrl_facts=xbrl_facts, cik=cik, history=history, published=_published_values(settings, key),
+                fields, facts=facts, history=history, published=_published_values(settings, key),
                 company_id=company.company_id, issuer_key=key, specs={f.field_id: f for f in schema.fields},
             ),
         ),
@@ -376,7 +383,9 @@ async def execute_extraction_run(
     trial = bool(manifest and manifest.params.get("trial"))
 
     async def _worker(company: CompanyRef) -> ExtractionRecordResult:
-        company = await prepare_company(company, settings=settings, llm=llm, registry=registry)
+        company = await prepare_company(
+            company, settings=settings, llm=llm, registry=registry, parent_run=(schema.schema_id, run_id)
+        )
         result = await _extract_company(
             company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings,
             history=history, identifier_map=identifier_map, qualities=qualities, trial=trial, xbrl_source=xbrl_source,

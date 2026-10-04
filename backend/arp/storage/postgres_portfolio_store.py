@@ -20,6 +20,7 @@ from arp.schemas.portfolio import (
     NewsItem,
     NewsRiskFlag,
     Portfolio,
+    PortfolioGroup,
     SecurityRef,
     SecurityResolution,
 )
@@ -114,6 +115,18 @@ class PostgresPortfolioStore:
 
     def get_analytic(self, analytic_id: str) -> dict | None:
         return self._files.get_analytic(analytic_id)
+
+    def groups_path(self):
+        return self._files.groups_path()
+
+    def save_group(self, group: PortfolioGroup) -> None:
+        self._files.save_group(group)
+
+    def list_groups(self) -> list[PortfolioGroup]:
+        return self._files.list_groups()
+
+    def get_group(self, group_id: str) -> PortfolioGroup | None:
+        return self._files.get_group(group_id)
 
     def rules_path(self):
         return self._files.rules_path()

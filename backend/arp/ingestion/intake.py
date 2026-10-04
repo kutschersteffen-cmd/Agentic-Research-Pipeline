@@ -11,7 +11,7 @@ from arp.storage.locks import KeyedLock
 INTAKE_LOG = "_intake.jsonl"
 MIN_TEXT_CHARS_PER_PAGE = 25
 TEXT_CHECK_PAGES = 5
-_ZIP_SUFFIXES = {".xlsx", ".xlsm", ".docx"}
+_ZIP_SUFFIXES = {".xlsx", ".xlsm", ".docx", ".zip"}
 
 _intake_locks = KeyedLock(lock_path=lambda log: Path(log + ".lock"))
 
@@ -68,9 +68,15 @@ def check_intake(path: Path, content_key: str, *, seen: dict[str, str]) -> Intak
     elif suffix in _ZIP_SUFFIXES:
         try:
             ok = zipfile.is_zipfile(path)
+            if ok and suffix == ".zip":
+                from arp.holdings.file_source import _check_zip
+
+                _check_zip(path.read_bytes())  # before testzip() inflates every member
             if ok:
                 with zipfile.ZipFile(path) as z:
                     ok = z.testzip() is None
+        except ValueError as exc:  # the decompressed-size cap
+            return IntakeResult(IntakeState.QUARANTINED, str(exc))
         except Exception:  # noqa: BLE001
             ok = False
         if not ok:

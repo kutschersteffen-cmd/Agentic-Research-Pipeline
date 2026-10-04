@@ -7,6 +7,7 @@ import typer
 from arp.api.auth import Principal, load_users
 from arp.config import Settings, get_settings
 from arp.ingestion.edgar import EdgarDocumentSource
+from arp.ingestion.esef import EsefDocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -23,6 +24,18 @@ from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
 from arp.voting.ballot_casting import ManualInstructionBallotPlatform
+
+
+async def _and_drain(coro):
+    """Awaits `coro`, then every job it launched (event-driven refresh runs),
+    so `asyncio.run` returning does not cancel them; prints their run ids."""
+    from arp.orchestration.jobs import get_job_launcher
+
+    result = await coro
+    started = await get_job_launcher().drain()
+    if started:
+        typer.echo(f"Refresh runs started: {', '.join(started)}")
+    return result
 
 
 def _engagement_store() -> EngagementStore:
@@ -66,6 +79,8 @@ def _registry() -> DocumentSourceRegistry:
                 submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
                 indexing_config=indexing_config,
             ),
+            *([EsefDocumentSource(settings.esef_index_url, settings.cache_dir, content_store=_document_content_store(),
+                                  indexing_config=indexing_config)] if settings.esef_enabled else []),
         ]
     )
 
@@ -76,6 +91,7 @@ def _xbrl_source() -> XbrlFactSource:
     edgar = EdgarDocumentSource(
         settings.edgar_user_agent, settings.cache_dir, content_store=_document_content_store(),
         submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
+        indexing_config=IndexingConfig.from_settings(settings),  # the blob store tagged values are frozen into
     )
     return XbrlFactSource(edgar, settings.cache_dir, ttl_hours=settings.xbrl_facts_ttl_hours)
 

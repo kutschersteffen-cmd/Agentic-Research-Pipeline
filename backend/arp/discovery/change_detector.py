@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Awaitable, Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import httpx
 
@@ -10,6 +12,9 @@ from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import DiscoveredDocument, DocumentEvent, DocumentEventType
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.safe_path import safe_id
+
+if TYPE_CHECKING:
+    from arp.ingestion.esef import EsefDocumentSource
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +28,22 @@ class ChangeDetector:
     manifest and emits a DocumentEvent (new or updated) for anything that
     wasn't seen before or whose hash changed. Events are:
       1. appended to a global rolling JSONL feed the UI/API can poll, and
-      2. POSTed (best-effort) to a configured webhook URL, if any.
+      2. POSTed (best-effort) to a configured webhook URL, if any, and
+      3. handed to `on_events(events, company)` (event-driven refresh, E20), if given; its
+         errors are logged, never raised.
     """
 
-    def __init__(self, state_dir: Path, global_events_path: Path, webhook_url: str | None = None) -> None:
+    def __init__(
+        self,
+        state_dir: Path,
+        global_events_path: Path,
+        webhook_url: str | None = None,
+        on_events: Callable[[list[DocumentEvent], CompanyRef], Awaitable[object]] | None = None,
+    ) -> None:
         self.state_dir = state_dir
         self.global_events_path = global_events_path
         self.webhook_url = webhook_url
+        self.on_events = on_events
         self.state_dir.mkdir(parents=True, exist_ok=True)
 
     def _manifest_path(self, company_id: str) -> Path:
@@ -73,6 +87,12 @@ class ChangeDetector:
             self._append_global_event(event)
             await self._notify_webhook(event)
 
+        if events and self.on_events is not None:
+            try:
+                await self.on_events(events, company)
+            except Exception:  # noqa: BLE001 - a refresh failure never fails discovery
+                logger.exception("on_events hook failed for %s", company.company_id)
+
         return events
 
     def _append_global_event(self, event: DocumentEvent) -> None:
@@ -93,3 +113,21 @@ class ChangeDetector:
             return []
         rows = [row for row in read_jsonl(global_events_path) if not (since and row.get("created_at", "") <= since)]
         return rows[-limit:]
+
+
+async def poll_esef_filings(
+    company: CompanyRef, source: EsefDocumentSource, detector: ChangeDetector, doc_types: list | None = None
+) -> list[DocumentEvent]:
+    """ESEF feed polling (E16): the company's latest ESEF filing from the index (by LEI), recorded
+    like any discovered document, so a new or changed filing raises a DocumentEvent."""
+    try:
+        docs = await source.fetch(company, doc_types)
+    except Exception as exc:  # noqa: BLE001 - a polling failure never discards the company's crawl result
+        logger.warning("ESEF filing poll failed for %s: %s", company.company_id, exc)
+        return []
+    found = [
+        DiscoveredDocument(company_id=company.company_id, doc_type=d.doc_type, url=d.source_url,
+                           local_path=d.local_path, sha256=d.content_key or d.sha256)
+        for d in docs if d.source_url
+    ]
+    return await detector.diff_and_record(company, found) if found else []

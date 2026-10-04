@@ -10,7 +10,7 @@ from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue, extract
 from arp.extraction.graph_shape import build_extract_verify_graph
 from arp.extraction.verifier_agent import DisagreementType, VerifierOutput, blind_verify, verify_extraction
 from arp.ingestion.parsing import chunk_document
-from arp.ingestion.xbrl import XbrlFact, XbrlFactSource
+from arp.ingestion.xbrl import FactSource, XbrlFact
 from arp.llm.base import LLMClient, LLMUsage
 from arp.normalise.value import typed_value
 from arp.orchestration.step_tally import run_graph
@@ -43,24 +43,22 @@ class FieldState(TypedDict):
     adjudicator_usage: LLMUsage | None
     extracted: list[ExtractedField]
     needs_review: bool
-    xbrl_facts: dict | None
-    cik: str | None
+    facts: FactSource | None
 
 
 def _tagged_field(state: FieldState, fact: XbrlFact, period_end: str) -> ExtractedField:
     field = state["field"]
-    # Plain digits and a stated decimal point: the number as tagged, never a locale guess.
-    raw = str(int(fact.value)) if fact.value.is_integer() else repr(fact.value)
-    pv = PeriodValue(value=fact.value, raw_value_text=raw, unit_text=fact.unit, planned_period_end=period_end)
-    tv = typed_value(field, pv, fiscal_year_end=state["fiscal_year_end"], planned={period_end}, decimal="point")
+    value, raw, unit_text, decimal = fact.reported()
+    pv = PeriodValue(value=value, raw_value_text=raw, unit_text=unit_text, planned_period_end=period_end)
+    tv = typed_value(field, pv, fiscal_year_end=state["fiscal_year_end"], planned={period_end}, decimal=decimal)
     return ExtractedField(
         field_id=field.field_id,
         field_name=field.name,
         value=tv.value,
         raw_value_text=raw,
-        citations=[fact.as_citation(state["cik"])],
+        citations=[fact.as_citation()],
         confidence=1.0,
-        grounded=True,  # the citation is the SEC fact itself (see XbrlFact.as_citation)
+        grounded=True,  # the citation is the tagged fact itself (see XbrlFact.as_citation)
         verifier_notes=" ".join(tv.notes) or None,
         review_reasons=tv.reasons,
         provenance=ProvenanceInfo(schema_version=state["schema_version"], field_version=field.version),
@@ -92,10 +90,10 @@ async def _try_tagged(state: FieldState) -> dict:
     """E29: the filer's own XBRL fact for every planned period, or nothing (the
     model path then extracts as before). A fact must be for the planned fiscal
     year; one for another year never stands in for it."""
-    field, facts, planned = state["field"], state["xbrl_facts"], state["planned_periods"]
-    if not (field.xbrl_tags and facts and state["cik"] and planned):
+    field, facts, planned = state["field"], state["facts"], state["planned_periods"]
+    if not (field.xbrl_tags and facts and planned):
         return {}
-    found = {end: XbrlFactSource.fact_for_tags(facts, field.xbrl_tags, fiscal_year=int(end[:4])) for end in planned}
+    found = {end: facts.fact_for_tags(field.xbrl_tags, fiscal_year=int(end[:4])) for end in planned}
     # The fact must cover the planned period itself: 52/53-week drift (a few days) is the
     # same period; a September year end against a planned December end is not.
     found = {end: f if f and f.period_end and days_apart(f.period_end, end) <= MAX_END_DRIFT_DAYS else None
@@ -247,8 +245,7 @@ async def extract_one_field(
     schema_version: str = "",
     fiscal_year_end: str | None = None,
     planned_periods: list[str] | None = None,
-    xbrl_facts: dict | None = None,
-    cik: str | None = None,
+    facts: FactSource | None = None,
 ) -> tuple[list[ExtractedField], bool, list[LLMUsage]]:
     """Runs one field's evidence-gather -> extract -> independent-verify ->
     adjudicate (typed disagreements only) -> programmatic-grounding-check -> aggregate flow as a LangGraph graph.
@@ -266,8 +263,8 @@ async def extract_one_field(
     stays pure BM25, matching every caller written before this option
     existed.
 
-    `xbrl_facts` (the company's companyfacts JSON) and `cik`, when supplied,
-    let a field with `xbrl_tags` take its tagged values with no model call.
+    `facts` (the company's SEC companyfacts and/or ESEF filing facts), when
+    supplied, lets a field with `xbrl_tags` take its tagged values with no model call.
     """
     initial: FieldState = {
         "company_name": company_name,
@@ -292,8 +289,7 @@ async def extract_one_field(
         "adjudicator_usage": None,
         "extracted": [],
         "needs_review": False,
-        "xbrl_facts": xbrl_facts,
-        "cik": cik,
+        "facts": facts,
     }
     final_state = await run_graph(_COMPILED_GRAPH, initial)
     return final_state["extracted"], final_state["needs_review"], final_state["usages"]

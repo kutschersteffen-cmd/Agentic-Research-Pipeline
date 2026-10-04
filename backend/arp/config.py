@@ -69,6 +69,7 @@ class Settings(BaseSettings):
     identifier_map_path: Path = REPO_ROOT / "data" / "identifier_map.jsonl"
     taxonomies_dir: Path = Field(default=REPO_ROOT / "taxonomies")
     portfolios_dir: Path = Field(default=REPO_ROOT / "portfolios")
+    qa_audit_path: Path | None = Field(default=None, description="Q&A audit log; defaults to portfolios_dir/qa_audit.jsonl.")
     projects_dir: Path = Field(default=REPO_ROOT / "projects")
     documents_dir: Path = Field(default=REPO_ROOT / "data" / "documents")
     snapshot_store_dir: Path = REPO_ROOT / "data" / "snapshot_store"
@@ -176,6 +177,12 @@ class Settings(BaseSettings):
         "descriptions still always go through the LLM pipeline -- XBRL tagging isn't standardized enough for those.",
     )
     xbrl_facts_ttl_hours: float = Field(default=24.0 * 7, description="companyfacts cache TTL -- lower churn than the filings-list cache.")
+    esef_enabled: bool = Field(
+        default=False,
+        description="Fetch the latest ESEF (European iXBRL) annual report of each company with an LEI from esef_index_url. "
+        "Off by default: a network source. ESEF files already on disk (.xhtml, .zip) are read either way.",
+    )
+    esef_index_url: str = Field(default="https://filings.xbrl.org", description="filings.xbrl.org-style ESEF filing index.")
 
     # Indirect (input-output) exposure tier. Off by default -- requires an
     # ICIO-format industry x industry matrix; see docs/METHODOLOGY.md.
@@ -220,6 +227,7 @@ class Settings(BaseSettings):
     naics_crosswalk_path: Path | None = Field(default=None, description="ISIC Rev.4 -> NAICS correspondence CSV.")
     sic_crosswalk_path: Path | None = Field(default=None, description="ISIC Rev.4 -> SIC correspondence CSV.")
     gics_reference_path: Path | None = Field(default=None, description="GICS code/label/level reference CSV (requires a GICS license for the full structure).")
+    company_gics_path: Path | None = Field(default=None, description="User-supplied company_id,gics_code CSV mapping each company to its 8-digit GICS sub-industry code.")
 
     # Revenue/CapEx exposure resolution (catalogue -> extraction -> qualitative
     # debate cascade). Thresholds mirror MSCI's published revenue-share bands.
@@ -254,6 +262,11 @@ class Settings(BaseSettings):
     discovery_schedule_enabled: bool = Field(default=False)
     discovery_schedule_interval_hours: float = Field(default=24.0)
     discovery_schedule_universe_path: Path | None = Field(default=None)
+    # Event-driven refresh (E20): a new or updated filing starts an extraction run per configured schema.
+    event_refresh_enabled: bool = Field(default=False, description="Start extraction runs when discovery records a new or updated document.")
+    event_refresh_schema_ids: list[str] = Field(default=[], description="Released schemas each new filing is extracted with.")
+    event_refresh_max_runs_per_day: int = Field(default=20, description="Cap on refresh runs started per UTC day.")
+    event_refresh_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".event_refresh_state")
 
     # Emerging Themes Scanner ("Tool 0" -- arp/emerging_themes/). Ingests
     # public news/filings/regulatory flow across a universe, clusters it
@@ -545,6 +558,7 @@ class Settings(BaseSettings):
             self.cache_dir,
             self.document_store_dir,
             self.discovery_state_dir,
+            self.event_refresh_state_dir,
             self.engagements_dir,
             self.stewardship_streams_dir,
             self.ballots_dir,

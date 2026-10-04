@@ -28,7 +28,7 @@ _DOC_TYPE_PATTERNS: list[tuple[DocType, tuple[str, ...]]] = [
     (DocType.INVESTOR_PRESENTATION, ("investor presentation", "investor deck", "investor day")),
 ]
 
-_DOCUMENT_EXTENSIONS = (".pdf",)
+_DOCUMENT_EXTENSIONS = (".pdf", ".xhtml", ".zip")  # .xhtml/.zip: ESEF reports and report packages
 
 
 class CandidateDocumentLink(BaseModel):

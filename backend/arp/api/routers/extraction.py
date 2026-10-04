@@ -26,6 +26,9 @@ from arp.extraction.steps import ExtractionProfile, StepSettings, pipeline_shape
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.review_queue import effective_decisions, item_states, public_decision, record_cosign
 from arp.orchestration.step_tally import step_counts
+from arp.presets.green import green_summary
+from arp.presets.registry import PRESETS, install_preset
+from arp.presets.remuneration import remuneration_summary
 from arp.review.context import similar_decisions, visible_history
 from arp.review.decide import DecisionError, bulk_accept
 from arp.review.items import cosign_rule, get_item
@@ -79,6 +82,23 @@ def get_schema(schema_id: str, version: int | None = None, registry: SchemaRegis
         return registry.get(schema_id, version)
     except KeyError:
         raise HTTPException(404, "Schema not found") from None
+
+
+@router.get("/presets")
+def list_presets() -> list[dict]:
+    return [{"preset_id": pid, "name": (s := build()).name, "field_count": len(s.fields)} for pid, build in PRESETS.items()]
+
+
+@router.post("/presets/{preset_id}/install")
+def install_preset_endpoint(
+    preset_id: str, registry: SchemaRegistry = Depends(_registry_for),
+    principal: Principal = Depends(require_role("analyst")),
+) -> dict:
+    try:
+        saved = install_preset(preset_id, registry)
+    except KeyError:
+        raise HTTPException(404, "Preset not found") from None
+    return {"schema_id": saved.schema_id, "version": saved.version}
 
 
 @router.post("/schemas/{schema_id}/versions/{version}/release", response_model=DataPointSchema)
@@ -359,6 +379,33 @@ def get_extraction_results(
 ) -> dict:
     rows = run_store.read_jsonl(run_store.results_path(run_id))
     return {"total": len(rows), "results": rows[offset : offset + limit]}
+
+
+@router.get("/runs/{run_id}/green-summary")
+def get_green_summary(
+    run_id: str, eu_taxonomy_run_id: str | None = None, run_store: RunStore = Depends(get_run_store)
+) -> dict:
+    """Per company, metric and period of a sch_green_lowcarbon run: green total, EU-aligned part,
+    share and green beyond the Taxonomy (negative values are flagged, never clipped). With
+    `eu_taxonomy_run_id` (a sch_eu_taxonomy run) the reported aligned amount fills in where the green run has none."""
+    _manifest_or_404(run_store, run_id)
+    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    eu: dict = {}
+    if eu_taxonomy_run_id:
+        _manifest_or_404(run_store, eu_taxonomy_run_id)
+        eu = {r.get("company_id"): r.get("fields", []) for r in run_store.read_jsonl(run_store.results_path(eu_taxonomy_run_id))}
+    return {"rows": [{"company_id": r.get("company_id"), "name": r.get("name"), **s.model_dump()}
+                     for r in rows for s in green_summary(r.get("fields", []), eu.get(r.get("company_id")))]}
+
+
+@router.get("/runs/{run_id}/remuneration-summary")
+def get_remuneration_summary(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+    """Per company, plan (STI, LTI) and period of a sch_esg_remuneration run: mechanism, ESG weight or multiplier
+    range, the computed effective weight and its below-10% or 10%-or-above class."""
+    _manifest_or_404(run_store, run_id)
+    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    return {"rows": [{"company_id": r.get("company_id"), "name": r.get("name"), **s.model_dump()}
+                     for r in rows for s in remuneration_summary(r.get("fields", []))]}
 
 
 @router.get("/companies/{company_id}/results")

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Literal
 
@@ -10,6 +10,10 @@ from pydantic import BaseModel, Field, field_validator
 
 def now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def iso_dates(v: list[str]) -> list[str]:
+    return [date.fromisoformat(d).isoformat() for d in v]  # ValueError becomes a validation error
 
 
 def new_id(prefix: str) -> str:

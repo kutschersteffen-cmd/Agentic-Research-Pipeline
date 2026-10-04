@@ -4,7 +4,7 @@ import pytest
 
 from arp.normalise.tables_manifest import TABLES, check_manifest, table_versions
 
-NAMES = ["units_v1", "scale_v1", "fx_v1", "basis_v1", "locale_v1"]
+NAMES = ["units_v1", "scale_v1", "fx_v1", "basis_v1", "locale_v1", "green_categories_v1"]
 
 
 def test_manifest_lists_all_tables():

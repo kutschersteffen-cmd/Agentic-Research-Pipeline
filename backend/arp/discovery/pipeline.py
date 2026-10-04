@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging
 
 from arp.config import Settings
-from arp.discovery.change_detector import ChangeDetector
+from arp.discovery.change_detector import ChangeDetector, poll_esef_filings
 from arp.discovery.crawler import CrawlConfig, HomepageUnreachableError, crawl_for_documents
 from arp.discovery.downloader import download_documents
+from arp.discovery.refresh import refresh_hook
 from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient, resolve_company_homepage
+from arp.ingestion.esef import EsefDocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.orchestration.batch_runner import run_batch
 from arp.orchestration.job_manager import JobManager
@@ -80,6 +82,7 @@ async def execute_discovery_run(
     run_store: RunStore,
     doc_types: list[DocType] | None = None,
     search_client: WebSearchClient | None = None,
+    esef_source: EsefDocumentSource | None = None,
 ) -> str:
     """Runs the document discovery pipeline over a company universe against
     an already-created run (see create_discovery_run).
@@ -87,7 +90,9 @@ async def execute_discovery_run(
     Shared by the manual API/CLI trigger and the periodic scheduler so both
     paths behave identically. Resumable and checkpointed via run_batch;
     every new/updated document raises a DocumentEvent through
-    ChangeDetector (internal feed + optional webhook).
+    ChangeDetector (internal feed + optional webhook + event-driven
+    refresh). With `esef_enabled`, each company with an LEI is also polled
+    for its latest ESEF filing (`esef_source`, else one from settings).
     """
     job_manager = JobManager(run_store)
     search_client = search_client or DuckDuckGoSearchClient(settings.discovery_user_agent)
@@ -95,7 +100,21 @@ async def execute_discovery_run(
         state_dir=settings.discovery_state_dir,
         global_events_path=settings.documents_dir / "_events.jsonl",
         webhook_url=settings.discovery_webhook_url,
+        on_events=refresh_hook(settings, run_store),
     )
+    if settings.esef_enabled:
+        esef_source = esef_source or EsefDocumentSource(settings.esef_index_url, settings.cache_dir)
+    else:
+        esef_source = None
+
+    async def _worker(company: CompanyRef) -> DiscoveryCompanyResult:
+        result = await _discover_for_company(
+            company, settings=settings, search_client=search_client, change_detector=change_detector, doc_types=doc_types
+        )
+        if esef_source is not None:
+            events = await poll_esef_filings(company, esef_source, change_detector, doc_types)
+            result.new_events += events
+        return result
 
     def _on_success(company: CompanyRef, result: DiscoveryCompanyResult) -> None:
         job_manager.record_progress(
@@ -111,9 +130,7 @@ async def execute_discovery_run(
         await run_batch(
             companies,
             item_key=lambda c: c.company_id,
-            worker=lambda c: _discover_for_company(
-                c, settings=settings, search_client=search_client, change_detector=change_detector, doc_types=doc_types
-            ),
+            worker=_worker,
             results_path=run_store.results_path(run_id),
             errors_path=run_store.errors_path(run_id),
             concurrency=settings.max_concurrent_downloads,

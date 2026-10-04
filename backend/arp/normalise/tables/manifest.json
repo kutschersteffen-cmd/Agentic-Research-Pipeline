@@ -18,5 +18,9 @@
   "locale_v1": {
     "version": 1,
     "sha256": "6930dc321dca67a0886eb1ca6be43c9b18f490d8ced3354973df244fafb194dd"
+  },
+  "green_categories_v1": {
+    "version": 1,
+    "sha256": "f549a444619abb87d514bc72cf9e9738e6b3ba0f8775bcd4cbd3ff53d545cc6f"
   }
 }

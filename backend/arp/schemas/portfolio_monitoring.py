@@ -3,9 +3,9 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from arp.schemas.common import new_id, now_iso
+from arp.schemas.common import iso_dates, new_id, now_iso
 
 RuleType = Literal["field_threshold", "concentration_threshold", "portfolio_aggregate_threshold"]
 Comparator = Literal["gt", "gte", "lt", "lte"]
@@ -117,3 +117,8 @@ class PortfolioMonitoringScheduleConfig(BaseModel):
     interval_hours: float = 6.0
     news_min_severity: Literal["low", "medium", "high"] = "medium"
     last_run_at: str | None = None
+    calendar_dates: list[str] = Field(default_factory=list)  # ISO dates; non-empty or a rule switches to calendar mode
+    calendar_rule: Literal["month_end", "quarter_end"] | None = None
+    last_calendar_fire: str | None = None
+
+    _iso_dates = field_validator("calendar_dates")(iso_dates)
