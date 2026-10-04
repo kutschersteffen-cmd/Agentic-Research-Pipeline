@@ -126,6 +126,24 @@ class DataPointObservation(BaseModel):
     notes: str = ""
 
 
+class PortfolioGroup(BaseModel):
+    """A saved, named set of portfolios, companies or securities. Members are
+    stored resolved (deduplicated) and sorted; a save under an existing
+    `group_id` is a new version and the latest wins on read."""
+
+    group_id: str = Field(default_factory=lambda: new_id("grp"))
+    name: str
+    kind: Literal["portfolios", "companies", "securities"]
+    members: list[str] = Field(default_factory=list)
+    created_at: str = Field(default_factory=now_iso)
+    created_by: str = ""
+
+    @model_validator(mode="after")
+    def _resolve_members(self) -> PortfolioGroup:
+        self.members = sorted({m.strip() for m in self.members if m.strip()})
+        return self
+
+
 class AnalyticSpec(BaseModel):
     """A saved, reusable analytic: filter -> group-by -> aggregation mode.
     Executed entirely by the deterministic engine in `aggregation.py` --

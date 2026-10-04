@@ -14,6 +14,7 @@ from arp.schemas.portfolio import (
     NewsItem,
     NewsRiskFlag,
     Portfolio,
+    PortfolioGroup,
     SecurityRef,
     SecurityResolution,
 )
@@ -337,6 +338,25 @@ class PortfolioStore:
 
     def get_analytic(self, analytic_id: str) -> dict | None:
         return self._read_json(self.analytics_path()).get(analytic_id)
+
+    # --- saved portfolio groups (versioned: latest save of an id wins) ---
+
+    def groups_path(self) -> Path:
+        return self.portfolios_dir / "groups.json"
+
+    def save_group(self, group: PortfolioGroup) -> None:
+        path = self.groups_path()
+        with self._lock(path):
+            data = self._read_json(path)
+            data.setdefault(group.group_id, []).append(json.loads(group.model_dump_json()))
+            self._write_json(path, data)
+
+    def list_groups(self) -> list[PortfolioGroup]:
+        return [PortfolioGroup.model_validate(v[-1]) for v in self._read_json(self.groups_path()).values()]
+
+    def get_group(self, group_id: str) -> PortfolioGroup | None:
+        versions = self._read_json(self.groups_path()).get(group_id)
+        return PortfolioGroup.model_validate(versions[-1]) if versions else None
 
     # --- continuous monitoring & alerting (arp/portfolio/monitoring/) ---
 

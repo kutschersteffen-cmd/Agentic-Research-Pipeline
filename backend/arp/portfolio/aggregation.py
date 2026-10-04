@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from functools import lru_cache
+from pathlib import Path
 
+from arp.config import get_settings
+from arp.research.standards_mapping.gics import load_company_gics, load_gics_reference
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import AggregationResult, AggregationRow, Holding, PivotCell, PivotResult, SecurityRef, TrendPoint
 
-DIMENSIONS = ("portfolio_id", "asset_class", "company_id", "company_name", "sector", "country", "currency")
+_GICS_LEVELS = {"gics_sector": 2, "gics_industry_group": 4, "gics_industry": 6, "gics_sub_industry": 8}
+DIMENSIONS = ("portfolio_id", "asset_class", "company_id", "company_name", "sector", "country", "currency", *_GICS_LEVELS)
 """Built-in grouping/filter dimensions. Each is a pure lookup on the joined
 holding + security + company row -- no LLM, no I/O. `company_id`/`company_name`/
 `sector`/`country` all resolve through `SecurityRef.company_id`, so a
@@ -14,6 +19,14 @@ security that hasn't been through entity resolution yet groups into
 """
 
 _VALID_METRICS = ("market_value_sum", "weighted_avg_datapoint", "count")
+
+
+@lru_cache
+def _gics_tables(reference_path: Path | None, company_path: Path | None) -> tuple[dict[str, str], dict[str, str]]:
+    """(code -> label, company_id -> code); empty when a file is unset or missing."""
+    labels = {e.code: e.label for e in load_gics_reference(reference_path)} if reference_path and reference_path.exists() else {}
+    codes = load_company_gics(company_path) if company_path and company_path.exists() else {}
+    return labels, codes
 
 
 def _dimension_value(holding: Holding, securities: dict[str, SecurityRef], companies: dict[str, CompanyRef], dimension: str) -> str | None:
@@ -28,6 +41,11 @@ def _dimension_value(holding: Holding, securities: dict[str, SecurityRef], compa
         return security.currency if security else None
     if dimension == "company_id":
         return security.company_id if security else None
+    if dimension in _GICS_LEVELS:
+        settings = get_settings()
+        labels, codes = _gics_tables(settings.gics_reference_path, settings.company_gics_path)
+        code = codes.get(security.company_id) if security and security.company_id else None
+        return labels.get(code[: _GICS_LEVELS[dimension]]) if code else None
     company = companies.get(security.company_id) if security and security.company_id else None
     if dimension == "company_name":
         return company.name if company else (security.name if security else None)

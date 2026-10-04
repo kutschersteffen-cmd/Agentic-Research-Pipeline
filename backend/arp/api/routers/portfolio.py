@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from arp.api.auth import Principal, current_user
+from arp.api.auth import Principal, current_user, require_role
 from arp.api.deps import get_llm_client, get_portfolio_store, settings_dep
 from arp.api.routers.universe import save_universe
 from arp.config import Settings
@@ -21,7 +23,7 @@ from arp.schemas.governance import (
     PolicySettingName,
     RiskCategoryOwner,
 )
-from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotResult, PivotSpec, Portfolio, TrendPoint
+from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotResult, PivotSpec, Portfolio, PortfolioGroup, TrendPoint
 from arp.schemas.portfolio_monitoring import Alert, AlertRule, AlertStatus, AlertTransition
 from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
 
@@ -47,6 +49,37 @@ async def seed_demo_dataset(
 @router.get("/portfolios", response_model=list[Portfolio])
 def list_portfolios(store: PortfolioStore = Depends(get_portfolio_store)) -> list[Portfolio]:
     return store.list_portfolios()
+
+
+class GroupRequest(BaseModel):
+    group_id: str | None = Field(default=None, description="Existing id: saves a new version.")
+    name: str
+    kind: Literal["portfolios", "companies", "securities"]
+    members: list[str]
+
+
+@router.post("/groups", response_model=PortfolioGroup)
+def save_group(
+    req: GroupRequest, store: PortfolioStore = Depends(get_portfolio_store), principal: Principal = Depends(require_role("analyst"))
+) -> PortfolioGroup:
+    group = PortfolioGroup(
+        **req.model_dump(exclude_none=True), created_by=principal.name  # never the user_id
+    )
+    store.save_group(group)
+    return group
+
+
+@router.get("/groups", response_model=list[PortfolioGroup])
+def list_groups(store: PortfolioStore = Depends(get_portfolio_store), _: Principal = Depends(current_user)) -> list[PortfolioGroup]:
+    return store.list_groups()
+
+
+@router.get("/groups/{group_id}", response_model=PortfolioGroup)
+def get_group(group_id: str, store: PortfolioStore = Depends(get_portfolio_store), _: Principal = Depends(current_user)) -> PortfolioGroup:
+    group = store.get_group(group_id)
+    if group is None:
+        raise HTTPException(404, f"Unknown group_id: {group_id}")
+    return group
 
 
 @router.get("/companies", response_model=list[CompanyRef])

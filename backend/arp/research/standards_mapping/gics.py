@@ -57,6 +57,12 @@ def load_gics_reference(path: Path) -> list[GicsReferenceEntry]:
     return entries
 
 
+def load_company_gics(path: Path) -> dict[str, str]:
+    """company_id -> GICS code, from a user-supplied CSV (company_id,gics_code)."""
+    with path.open(newline="") as f:
+        return {row["company_id"].strip(): row["gics_code"].strip() for row in csv.DictReader(f)}
+
+
 def _format_reference_list(reference: list[GicsReferenceEntry]) -> str:
     return "\n".join(f"{e.code} ({e.level}): {e.label}" for e in reference)
 

@@ -226,6 +226,7 @@ class Settings(BaseSettings):
     naics_crosswalk_path: Path | None = Field(default=None, description="ISIC Rev.4 -> NAICS correspondence CSV.")
     sic_crosswalk_path: Path | None = Field(default=None, description="ISIC Rev.4 -> SIC correspondence CSV.")
     gics_reference_path: Path | None = Field(default=None, description="GICS code/label/level reference CSV (requires a GICS license for the full structure).")
+    company_gics_path: Path | None = Field(default=None, description="User-supplied company_id,gics_code CSV mapping each company to its 8-digit GICS sub-industry code.")
 
     # Revenue/CapEx exposure resolution (catalogue -> extraction -> qualitative
     # debate cascade). Thresholds mirror MSCI's published revenue-share bands.
