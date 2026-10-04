@@ -14,14 +14,14 @@
   - `reader.py`: as-of reads and the outbox.
   - `scheduler.py`: the daily in-process job that runs the nightly re-ground sample, the holdings pull, the monthly snapshot build and the corrections.
 - The decision logic is pure and runs without Postgres: what may be published, versioning, gate grouping, release and withdrawal plans, as-of filtering and snapshot building. `PublishStore` is a thin I/O layer, tested against real Postgres in CI.
-- **E17 write path.** `publish_run` reuses the projection's decision resolution. The correction merge moves into `merge_correction`, which both call. It also follows the projection's insert-only versioning: close the current row, insert the next one. The `company_facts` table and `arp db reindex company-facts` stay as they are, so old rows keep working. Old runs are published once with `arp publish backfill`.
+- **E17 write path.** `publish_run` reuses the projection's decision resolution. The correction merge moves into `merge_correction`, which both call. It also follows the projection's insert-only versioning: insert the next row, then close the current one (the `superseded_by` FK needs the new row first). The `company_facts` table and `arp db reindex company-facts` stay as they are, so old rows keep working. Old runs are published once with `arp publish backfill`.
 - Holdings: the `Holding` model in `arp/schemas/portfolio.py` becomes the one canonical row (`kind`, `holder_id` with the `portfolio_id` alias, `issuer_key`/`issuer_scheme`, `isin`, `source`, `source_ref`). `PortfolioStore` and `PostgresPortfolioStore` gain `kind`. A new package `arp/holdings/` holds validation, the file source and its JSON mappings, the intake (identity, precedence, audit, revisions) and the API source.
 - Snapshots: a new package `arp/snapshots/` holds the versioned schemas, the build (frozen files with a manifest, plus correction revisions) and the pull client. It is served by `arp/api/routers/snapshots.py` under `/api/v1/snapshots`.
 - Frontend: a "Holdings Intake" sub-tab on the Risk Monitoring page shows the status of each holder (age, last pull, last error) and has an upload form. The workbench learns the new `security` review kind.
 
 **Tech Stack:** Python 3.11, FastAPI, Pydantic v2, SQLAlchemy 2 (already the Postgres extra), stdlib `csv`/`hashlib`/`json`/`random`/`datetime`/`uuid`, `openpyxl` (installed), `httpx` (installed), APScheduler through `IntervalScheduler` (installed); pytest; React + TypeScript (Vite), node test runner.
 
-**Spec:** ARP Technical Enhancement Specification, Claude Doc `https://claude.ai/code/artifact/88d67850-3c01-4d47-89a2-72b8738943c4`, section B5 (E72 to E76), E17 (platform) and section F (E77). Only the local defaults in the Cloud switch-on table are built (`object_store_backend=file`, `scheduler_backend=local`, local Postgres); no cloud adapter and no switch setting is added. Paths are relative to `backend/` unless they start with `frontend/`. It builds on steps 1 to 4 (`docs/superpowers/plans/2026-10-03-step1-identity-review-keys.md`, `2026-10-04-step2-capture-and-typing.md`, `2026-10-04-step3-checks-and-routing.md`, `2026-10-04-step4-review.md`).
+**Spec:** ARP Technical Enhancement Specification, Claude Doc `https://claude.ai/code/artifact/88d67850-3c01-4d47-89a2-72b8738943c4`, section B5 (E72 to E76), E17 (platform) and section F (E77). Only the local defaults in the Cloud switch-on table are built (`object_store_backend=file`, `scheduler_backend=local`, local Postgres); no cloud adapter and no switch setting is added. Paths are relative to `backend/` unless they start with `frontend/`, `config/` or `docs/`, which live at the repo root. It builds on steps 1 to 4 (`docs/superpowers/plans/2026-10-03-step1-identity-review-keys.md`, `2026-10-04-step2-capture-and-typing.md`, `2026-10-04-step3-checks-and-routing.md`, `2026-10-04-step4-review.md`).
 
 **Deviations from the spec text, decided here:**
 - The key is `issuer_key` plus `issuer_scheme` (user decision), not `issuer_id`. `basis` is `""` when the field has none.
@@ -83,7 +83,7 @@
   - Datasets: `index_holdings`, `portfolio_holdings`, `esg_signals`. Snapshot id: `f"{month}.r{revision}"`. Files: `{dataset}.v{major}.{csv|jsonl}` plus `manifest.json`.
 - **HTTP status codes:**
   - Publish: 503 when `postgres_dsn` is unset; 403 for publishing or withdrawing below approver; 404 for an unknown run, release or fact; 409 for a concurrent publish or a release already withdrawn; 422 for a blank withdrawal reason; 400 for a bad `as_of`.
-  - Holdings: 422 for a rejected file, with `{"message", "errors": [{"row", "column", "message"}]}`; 409 for a file over an API month without an override reason, or an API pull for a file holder; 503 for a pull when `holdings_api_url` is unset.
+  - Holdings: 413 for an upload over `max_upload_bytes`; 422 for a rejected or unreadable file, with `{"message", "errors": [{"row", "column", "message"}]}`; 409 for a file over an API month without an override reason, or an API pull for a file holder; 503 for a pull when `holdings_api_url` is unset.
   - Snapshots: 403 without the grant; 404 for an unknown month, revision or dataset; 400 for a malformed month.
 - Backend checks: `cd backend && PATH=/tmp/claude-0/venv/bin:$PATH python -m pytest -q && ruff check arp tests`. The baseline is 45 failures that already exist (Chromium, pdftoppm, Postgres factories, the nltk hardlink sandbox, botocore). There must be no new failures. The new `_pg` tests skip locally and must pass in CI.
 - Frontend checks: `cd frontend && npm run lint && npm test && npm run build`. The baseline is 0 errors and 13 warnings; add no new errors or warnings.
@@ -174,12 +174,12 @@
     - `get_fact(self, fact_id) -> Fact | None`; `previous_version(self, fact_id) -> Fact | None`, the row whose `superseded_by == fact_id`.
     - `save_release(self, release: Release | None, plans: list[VersionPlan], events: list[FactEvent]) -> None`, in one transaction:
       - insert the release when given;
-      - for each `insert` plan with `closes`: `UPDATE published_facts SET valid_to, superseded_by WHERE fact_id = :id AND valid_to IS NULL`, where a rowcount other than 1 raises `ConcurrentPublish`; then insert the new fact;
+      - for each `insert` plan: insert the new fact and flush; then, when the plan has `closes`, `UPDATE published_facts SET valid_to, superseded_by WHERE fact_id = :id AND valid_to IS NULL`, where a rowcount other than 1 raises `ConcurrentPublish`. The new row comes first because `superseded_by` is a self-FK checked at statement end;
       - `reconfirm` updates `reconfirmed_at` only; `older` writes nothing;
       - insert the events;
       - an `IntegrityError` (a duplicate key and version) raises `ConcurrentPublish`.
     - `get_release(self, release_id) -> Release | None`; `list_releases(self, *, doc_id: str | None = None, run_id: str | None = None) -> list[Release]`, ordered by `published_at`; `release_facts(self, release_id) -> list[Fact]`.
-    - `save_withdrawal(self, release: Release, closes: list[Fact], restores: list[Fact], events: list[FactEvent]) -> None`, in one transaction: update the release `WHERE withdrawn_at IS NULL` (rowcount 1, else `ConcurrentPublish`); close each fact `WHERE valid_to IS NULL`; insert the restored facts and the events.
+    - `save_withdrawal(self, release: Release, closes: list[Fact], restores: list[Fact], events: list[FactEvent]) -> None`, in one transaction: update the release `WHERE withdrawn_at IS NULL` (rowcount 1, else `ConcurrentPublish`); insert the restored facts and flush; then close each fact `WHERE valid_to IS NULL` (rowcount 1, else `ConcurrentPublish`), setting `superseded_by` to its restored copy's id; insert the events.
     - `lineage(self, fact_id) -> dict | None`: one `SELECT` of `published_facts` joined to `releases` on `release_id`. Returns `{"fact": <Fact json>, "citation", "release_id", "doc_id", "content_key", "storage_uri", "source_run_id", "item_key"}`.
 
 - [ ] **Step 1: Write the failing tests** in `tests/test_publish_store_pg.py` (skipped without `ARP_TEST_POSTGRES_DSN`; autouse schema and reset fixture):
@@ -223,7 +223,7 @@
       - `d is None`: `key in in_review` → `not_final`; `route == "hold"` → `held`; `route == "auto_accept"` → state `auto_accepted` with the field as is; anything else → `not_auto_accepted`;
       - `reject` → `rejected`; `approve` → `approved`; `correct` or `edit` → `edited`, with `merge_correction(f, d)`;
       - after this, `value is None` → `no_value`; no `period_end` → `no_period`.
-    - Citation: for a `correct` with a `correction_citation`, that citation; otherwise the first of the field's citations with `grounded` and `content_key`; otherwise `None` (the gate blocks it).
+    - Citation: for a `correct` with a `correction_citation`, that citation; otherwise, for an `approve` or an auto-accept, the first of the field's citations with `grounded` and `content_key`; otherwise `None` (the gate blocks it). A `correct` or `edit` without a `correction_citation` gets `None` too, never the field's original citation, which supports the old value.
     - Restatement branch, for each candidate `c` with `d = decisions.get(c["candidate_id"])`:
       - `d is None` → `Skip(c["item_key"], "restatement_pending")`; `reject` → `rejected`;
       - `approve` → `value = c["new_value"]` with the unit and canonical fields of the run's field row for `c["item_key"]`; `correct` → `merge_correction(field_row, d)`;
@@ -236,6 +236,7 @@
   - `test_legacy_unrouted_field_not_published`: no `route`, never queued → `Skip(key, "not_auto_accepted")`.
   - `test_first_done_correction_not_published`: a `first` `correct` with `second_required=True` → `not_final`.
   - `test_agreed_correction_published_with_its_citation`: after an agreeing `second` → `state == "edited"`, `value == 1050`, `citation.doc_id` is the correction citation's, `canonical_value is None`.
+  - `test_edit_without_correction_citation_has_no_citation`: a final `correct` or legacy co-signed `edit` with no `correction_citation` gives `citation is None` (the gate then blocks it).
   - `test_rejected_and_held_not_published`
   - `test_legacy_cosigned_edit_published`: a legacy `edit` plus a co-sign → `edited`; without the co-sign → `not_final`.
   - `test_restatement_published_only_after_second_approval`: a `first` approve on `rst_1` (`second_required=True`) gives `Skip("ISS:f1:2023-12-31", "restatement_pending")`; after an agreeing `second`, exactly one candidate with `restated is True`, `restated_by_doc_id == "d2"` and `value == 8`.
@@ -308,16 +309,16 @@
   - `class WithdrawalError(ValueError)`
   - `def split_by_gate(cands, blob_store, *, withdrawn_docs: set[str]) -> tuple[dict[str, list[FactCandidate]], list[dict]]`:
     - a candidate without a citation is blocked alone (`doc_id=None`, `no_grounded_citation`);
-    - the others are grouped by `citation.doc_id`;
-    - a group whose doc is in `withdrawn_docs` is blocked with `release_withdrawn`;
+    - the others are grouped by `(issuer_key, citation.doc_id)`, so a document cited by two issuers gives two groups; the dict is keyed by that pair;
+    - a group whose `doc_id` is in `withdrawn_docs` is blocked with `release_withdrawn`;
     - otherwise the first `lineage_error` among the group's citations blocks the whole group. A missing original blocks the release for that document.
   - `def plan_release(group: list[FactCandidate], current: dict[FactKey, Fact], *, run_id, published_by, published_by_role, storage_uri: str, now: str) -> tuple[Release | None, list[VersionPlan], list[FactEvent]]`:
-    - `release_id = new_id("rel")`; one `plan_version` per candidate;
+    - `release_id = new_id("rel")`; one `plan_version` per candidate; the release takes `issuer_key`/`issuer_scheme` from the group, `doc_id` and `content_key` from its citations;
     - a `Release` only when at least one plan is an `insert`;
     - one event per `insert` (`"restated"` when `fact.restated`, else `"published"`).
   - `def publish_run(store: PublishStore, run_store, run_id: str, *, principal: Principal | None, blob_store, now: str | None = None) -> PublishResult`:
-    - candidates from `run_candidates`; `withdrawn_docs` from `store.list_releases(run_id=run_id)`;
-    - `split_by_gate`, then `store.current(...)` and `plan_release` per document;
+    - candidates from `run_candidates`; `withdrawn_docs` = the `doc_id`s of `store.list_releases(run_id=run_id)` whose `withdrawn_at` is set;
+    - `split_by_gate`, then `store.current(...)` and `plan_release` per `(issuer_key, doc_id)` group, with `storage_uri = blob_store.uri(content_key)`;
     - `older` plans become `Skip(item_key, "older_than_published")`;
     - `store.save_release` per document;
     - `published_by = principal.user_id if principal else SYSTEM`, and `published_by_role = principal.role if principal else SYSTEM`.
@@ -327,14 +328,15 @@
     - Events `withdrawn` (closed) and `restored` (copy).
     - A version already superseded is left as it is.
     - Returns the updated release (`withdrawn_at`, `withdrawal_reason`, `withdrawn_by`), the closed and restored facts, and the events.
-  - `def withdraw(store, release_id: str, *, reason: str, principal: Principal, now: str | None = None) -> list[Fact]`: `LookupError` for an unknown release; reads `release_facts` and `previous_version` for each; `store.save_withdrawal`; returns the restored facts.
+  - `def withdraw(store, release_id: str, *, reason: str, principal: Principal, now: str | None = None) -> list[Fact]`: `LookupError` for an unknown release; reads `release_facts` and finds each fact's `previous` as follows: start from `previous_version(fact_id)`, or from `previous_version(restored_from)` when the fact is a restored copy; then walk back with `previous_version` past any version whose release has `withdrawn_at` set, stopping at none. Then `store.save_withdrawal`; returns the restored facts.
 
 - [ ] **Step 1: Write the failing tests.** Pure, in `tests/test_publish_release.py`:
-  - `test_one_release_per_document`: three candidates (two citing `d1`, one `d2`) give two `plan_release` releases, with `doc_id`s `{"d1", "d2"}`, and every plan's `fact.release_id` is its release's id.
+  - `test_one_release_per_document`: three candidates of one issuer (two citing `d1`, one `d2`) give two `plan_release` releases, with `doc_id`s `{"d1", "d2"}`, and every plan's `fact.release_id` is its release's id.
   - `test_republish_unchanged_creates_no_release`: all `reconfirm`, release None, no events.
   - `test_restated_insert_emits_restated_event`
   - `test_missing_original_blocks_whole_document`: `split_by_gate` with `d1`'s blob missing gives one blocked entry `{"doc_id": "d1", "reason": "original_missing", "item_keys": [k1, k2]}`, and `d2` passes.
   - `test_withdrawn_document_not_republished`: `d1` in `withdrawn_docs` gives `release_withdrawn`.
+  - `test_document_cited_by_two_issuers_gets_two_releases`: two candidates citing `d1` with different `issuer_key`s give two groups and two releases, each with its own `issuer_key`.
   - `test_withdrawal_restores_previous_fact` (spec): v1 (`rel_a`, 1000) superseded by v2 (`rel_b`, 1100); `plan_withdrawal(rel_b, [v2], {v2.fact_id: v1}, ...)` closes v2 at `now` and restores a copy with `value == 1000`, `version == 3`, `restored_from == v1.fact_id`, `release_id == "rel_a"`, `valid_from == now`. Events `["withdrawn", "restored"]`, and the release has `withdrawn_at == now` and the reason.
   - `test_withdrawal_without_reason_refused`: `"  "` raises `WithdrawalError`.
   - `test_withdrawn_twice_refused`
@@ -345,6 +347,7 @@
   - `test_publish_run_end_to_end_pg`: one release and one v1 fact; a second `publish_run` creates no release and sets `reconfirmed_at`.
   - `test_missing_original_blocks_release_pg`: `blocked[0]["reason"] == "original_missing"`, and no rows are written.
   - `test_withdrawal_restores_previous_fact_pg`: runs with 1000, then 1100; withdrawing the second release makes the current value 1000, and `versions(key)` has 3 rows.
+  - `test_withdraw_after_restore_skips_withdrawn_release_pg`: releases A (1000), B (1100), C (1200); withdrawing C restores B's value, then withdrawing B leaves 1000 current, not 1100 and not B's restored copy; `release_facts`-based `previous` never points into a withdrawn release.
   - `test_restated_period_shows_both_versions_pg` (spec E73): run 1 publishes `2023-12-31 = 9`; run 2's final restatement gives `versions(key)` with `[0].restated is False` and `value == 9`, and `[1].restated is True`, `value == 8`, `restated_by_doc_id == "d2"`.
   - `test_older_run_republished_is_skipped_pg`: re-publishing run 1 after run 2 gives `Skip(key, "older_than_published")` and leaves the current version unchanged.
 
@@ -411,7 +414,7 @@
 - Routes, in `arp/api/routers/publish.py` (`prefix="/api/publish"`, `tags=["publish"]`; on each route the principal dependency comes first):
   - `POST /runs/{run_id}` (approver) → `{"releases": [public_release], "reconfirmed", "blocked", "skipped": [{"item_key", "reason"}]}`; 404 when there is no manifest; `ConcurrentPublish` → 409.
   - `GET /releases?doc_id=&run_id=` → `{"releases": [public_release]}`.
-  - `POST /releases/{release_id}/withdraw` (approver), body `WithdrawRequest{reason: str = Field(min_length=1)}` → `{"restored": [Fact json]}`. `LookupError` → 404; `WithdrawalError("release already withdrawn")` → 409; a blank reason → 422.
+  - `POST /releases/{release_id}/withdraw` (approver), body `WithdrawRequest{reason: str = Field(min_length=1)}` → `{"restored": [Fact json]}`. `LookupError` → 404; `WithdrawalError("release already withdrawn")` → 409; a blank reason, including whitespace-only, → 422 (`WithdrawalError("a withdrawal needs a reason")` is mapped to 422).
   - `GET /facts?as_of=&issuer_key=&field_id=` → `{"as_of": as_of_bound(as_of or ts_now()), "facts": [...]}`; a `ValueError` → 400.
   - `GET /facts/{fact_id}/lineage` → `store.lineage`; 404.
   - `GET /versions?issuer_key=&field_id=&period_end=&basis=` → `{"versions": [...]}`.
@@ -426,7 +429,7 @@
   - `test_publish_store_missing_dsn_503`: no override, `postgres_dsn` unset → 503 on `GET /api/publish/releases`.
   - `test_publish_requires_approver`: an analyst principal → 403 on `POST /api/publish/runs/r1`.
   - `test_unknown_run_404`
-  - `test_withdraw_blank_reason_422`
+  - `test_withdraw_blank_reason_422`: `""` and `"  "` both give 422, not 500.
   - `test_release_response_has_no_user_id`: the stub's release has `published_by="u_secret"`; the response text has no `u_secret` and no `published_by"`.
   - `test_bad_as_of_400`
   - `test_cli_publish_run_needs_approver`: an analyst `ARP_CLI_TOKEN` → exit code 1.
@@ -446,7 +449,7 @@
 **Files:**
 - Modify: `arp/schemas/portfolio.py` (`Holding`, `HolderConfig`)
 - Modify: `arp/storage/portfolio_store.py` (`kind` on the snapshot methods; revision archive; holder registry; holdings audit)
-- Modify: `arp/storage/postgres_models.py` (`HoldingModel`), `arp/storage/postgres_schema.py` (`0003_holdings_intake`), `arp/storage/postgres_portfolio_store.py`
+- Modify: `arp/storage/postgres_models.py` (`HoldingModel`), `arp/storage/postgres_schema.py` (`0003_holdings_intake`), `arp/storage/postgres_portfolio_store.py`, `arp/bi/views.py` (`_HOLDINGS_SELECT`)
 - Test: `tests/test_portfolio_store.py`, `tests/test_portfolio_store_parity.py` (extend)
 
 **Interfaces:**
@@ -463,7 +466,7 @@
     - Existing callers (`mock_data.py`, `constituent_import.py`, `postgres_portfolio_store.py`) keep passing `portfolio_id=`.
   - `class HolderConfig(BaseModel)`: `holder_id: str`, `kind: Literal["index", "portfolio"]`, `name: str = ""`, `source: Literal["api", "file"] = "file"`, `as_of: str | None = None` (the newest date with data), `last_pull_at: str | None = None`, `last_error: str | None = None`
 - Produces, in `arp/storage/portfolio_store.py` (`kind` defaults to `"portfolio"`, so every existing call is unchanged):
-  - `snapshot_path(holder_id, as_of_date, *, kind="portfolio")`: portfolio → today's path. Index → `portfolios_dir / "holdings" / "index" / <holder_id> / "snapshots" / "<date>.jsonl"`.
+  - `snapshot_path(holder_id, as_of_date, *, kind="portfolio")` (`holder_id` and `as_of_date` go through `safe_id`, here and in `revision_path`): portfolio → today's path. Index → `portfolios_dir / "holdings" / "index" / <holder_id> / "snapshots" / "<date>.jsonl"`.
   - `save_snapshot`, `load_snapshot`, `list_snapshot_dates` and `latest_snapshot_date` take `*, kind="portfolio"`. `all_snapshot_dates` and `load_holdings_as_of` stay portfolio-only.
   - `revision_path(kind, holder_id, as_of_date, revision) -> Path`: `portfolios_dir / "holdings" / "revisions" / kind / <holder_id> / f"{as_of_date}.r{revision}.jsonl"`.
   - `save_revision(kind, holder_id, as_of_date, revision, holdings)`: write-once; an existing file raises `FileExistsError`.
@@ -471,17 +474,19 @@
   - `holders_path()` (`portfolios_dir / "holdings" / "holders.json"`); `save_holder(cfg)` (key `f"{kind}:{holder_id}"`, through `_put_json_entry`); `get_holder(kind, holder_id) -> HolderConfig | None`; `list_holders() -> list[HolderConfig]`.
   - `holdings_audit_path()` (`portfolios_dir / "holdings" / "audit.jsonl"`); `append_holdings_audit(row: dict)`.
 - Produces, in Postgres:
-  - `HoldingModel` gains `kind` (default `"portfolio"`), `isin`, `issuer_key`, `issuer_scheme`, `source`, `source_ref`, `currency`, `shares`, `free_float` (nullable). `quantity`, `price`, `market_value` and `market_value_eur` become `Mapped[float | None]`. `portfolio_id` keeps its column name, holds `holder_id`, and loses its FK to `portfolios`. The unique constraint becomes `UniqueConstraint("kind", "portfolio_id", "security_id", "as_of_date", name="uq_holdings_kind_holder_security_date")`.
+  - `HoldingModel` gains `kind` (default `"portfolio"`), `isin`, `issuer_key`, `issuer_scheme`, `source`, `source_ref`, `currency`, `shares`, `free_float` (nullable). `quantity`, `price`, `market_value`, `market_value_eur` and `fx_rate_to_eur` become `Mapped[float | None]`. `portfolio_id` keeps its column name, holds `holder_id`, and loses its FK to `portfolios`. The unique constraint becomes `UniqueConstraint("kind", "portfolio_id", "security_id", "as_of_date", name="uq_holdings_kind_holder_security_date")`.
   - `SCHEMA_STEPS` appends `SchemaStep("0003_holdings_intake", ...)`, idempotent:
     - drop any FK from `holdings` to `portfolios` (catalog lookup, as in step 0001);
     - `ALTER TABLE holdings DROP CONSTRAINT IF EXISTS uq_holdings_portfolio_security_date`;
-    - `DROP NOT NULL` on the four money columns;
+    - `DROP NOT NULL` on the five money columns (`quantity`, `price`, `market_value`, `market_value_eur`, `fx_rate_to_eur`);
     - `UPDATE holdings SET kind = 'portfolio' WHERE kind IS NULL`;
-    - add `uq_holdings_kind_holder_security_date` unless `pg_constraint` already has it.
+    - add `uq_holdings_kind_holder_security_date` unless `pg_constraint` already has it;
+    - call `create_bi_views` again (step 0002 never re-runs), after `arp/bi/views.py` adds `h.kind = 'portfolio'` to `_HOLDINGS_SELECT` and to its latest-date subquery, so `bi.holdings` and `bi.holdings_history` stay portfolio-only.
   - `PostgresPortfolioStore`: the snapshot methods take `kind` and filter `HoldingModel.kind == kind` (`save_snapshot` also deletes by kind). Every query without a kind filter (`all_snapshot_dates`, `_latest_snapshot_per_portfolio`, `_holdings_as_of_join`, `aggregate_holdings_by`, `aggregate_market_value_eur`) gains `HoldingModel.kind == "portfolio"`. `_holding_from_row` maps the new columns. The revision, holder and audit methods and their paths delegate to the file store.
 
 - [ ] **Step 1: Write the failing tests:**
   - `test_old_snapshot_loads_through_alias` (spec, `test_portfolio_store.py`): a raw JSONL line with `"portfolio_id": "P1"` and no `kind` loads with `holder_id == "P1"`, `portfolio_id == "P1"` and `kind == "portfolio"`.
+  - `test_unsafe_holder_id_or_date_refused`: `snapshot_path("../x", ...)` and `revision_path(..., "../x", ...)` raise.
   - `test_new_snapshot_writes_holder_id`: the written JSON line has `"holder_id"`.
   - `test_index_path_layout`: the path equals `portfolios_dir/"holdings"/"index"/"IDX1"/"snapshots"/"2026-10-31.jsonl"`.
   - `test_portfolio_holding_requires_market_value_eur`: a `ValidationError`; an `index` holding without it is valid.
@@ -489,7 +494,7 @@
   - `test_revision_archive_is_write_once` (parity): `save_revision` r1 twice raises `FileExistsError`; `list_revisions == [1, 2]` after r2; `load_revision(..., 1)` is unchanged.
   - `test_holders_registry_roundtrip` (parity)
   - `test_public_surfaces_match` (existing) still passes: the new public methods exist on both stores.
-  - `test_schema_step_0003_idempotent_pg` (in `tests/test_postgres_schema.py`, gated): `ensure_schema` twice applies `0003_holdings_intake` once; an index row whose holder is no portfolio inserts.
+  - `test_schema_step_0003_idempotent_pg` (in `tests/test_postgres_schema.py`, gated): `ensure_schema` twice applies `0003_holdings_intake` once; an index row with no `fx_rate_to_eur` whose holder is no portfolio inserts; `bi.holdings` still lists only the portfolio row when an index holder shares a portfolio's id.
 
 - [ ] **Step 2: Run** `PATH=/tmp/claude-0/venv/bin:$PATH python -m pytest tests/test_portfolio_store.py tests/test_portfolio_store_parity.py tests/test_postgres_schema.py -v`. Expect FAIL in the file half.
 
@@ -569,7 +574,7 @@
 - Test: `tests/test_holdings_intake.py` (new)
 
 **Interfaces:**
-- Consumes: `Holding`, `HolderConfig`, the store methods (Task 8); `Validated`, `RowError` (Task 9); `IdentifierMapStore.resolve`; `ARP_NAMESPACE`, `lei_is_valid`, `normalise_lei`; `queue_for_review`, `effective_decisions`; `RunStore`, `RunManifest`; `SecurityRef`, `SecurityResolution`; `Principal`.
+- Consumes: `Holding`, `HolderConfig`, `Portfolio`, the store methods (Task 8); `Validated`, `RowError` (Task 9); `IdentifierMapStore.resolve`; `ARP_NAMESPACE`, `lei_is_valid`, `normalise_lei`; `queue_for_review`, `effective_decisions`; `RunStore`, `RunManifest`; `SecurityRef`, `SecurityResolution`; `Principal`.
 - Produces, in `arp/holdings/intake.py`:
   - `class IntakeError(ValueError)`: `status: int`, `message: str`, `errors: list[RowError] = []`
   - `@dataclass class IntakeResult`: `status: Literal["written", "unchanged"]`, `revision: int`, `rows: int`, `unresolved: list[str]`, `review_run_id: str | None`
@@ -581,20 +586,22 @@
     - `decided[isin]` → `(lei, "LEI", False)`
     - otherwise → `(provisional_issuer_key(isin), "ARP_PROVISIONAL", True)`
   - `def ingest(store, validated: Validated, *, kind, holder_id, as_of, source, source_ref, principal: Principal | None, override_reason: str | None, run_store, idmap) -> IntakeResult`:
-    1. `validated.errors` → `IntakeError(422, "file rejected", errors)`.
+    1. `validated.errors` → `IntakeError(422, "file rejected", errors)`; an `as_of` that is not an ISO date (`date.fromisoformat`) → `IntakeError(422, "as_of must be YYYY-MM-DD")`.
     2. `holder = store.get_holder(kind, holder_id) or HolderConfig(holder_id=holder_id, kind=kind, source=source)`.
     3. Precedence:
        - `source == "api"` and `holder.source == "file"` → `IntakeError(409, "holder is configured for file intake")`.
-       - `source == "file"`, `holder.source == "api"`, the month already has a revision and `override_reason` is blank → `IntakeError(409, "this month already has API data; an override needs a reason")`.
+       - `source == "file"`, `holder.source == "api"`, any date of the same month (`as_of[:7]`, over `list_snapshot_dates`) already has a revision and `override_reason` is blank → `IntakeError(409, "this month already has API data; an override needs a reason")`.
     4. Rows → `Holding(holder_id, kind, security_id=isin, as_of_date=as_of, isin, issuer_key, issuer_scheme, source, source_ref, weight_pct=weight, ...)`, with `fx_rate_to_eur` = the row's rate, or `1.0` only for EUR, else None; `market_value_eur = market_value * fx` when both are set.
        - `store.save_security(SecurityRef(security_id=isin, isin=isin, name=name or isin, asset_class="other", currency=currency or ""))` only when `get_security(isin)` is None.
        - For an unresolved ISIN with no resolution yet: `store.save_resolution(SecurityResolution(security_id=isin, company_id=None, confidence=0.0, method="isin_exact", needs_review=True))`.
+       - For an ISIN that resolves while its stored resolution has `needs_review=True`: save it again with `needs_review=False`.
     5. The latest revision with identical `model_dump` rows → `IntakeResult("unchanged", revision=<latest>, ...)`, and nothing is written.
     6. `revision = len(list_revisions) + 1`; `save_revision(...)`, then `save_snapshot(holder_id, as_of, rows, kind=kind)` (the working copy is the latest revision).
     7. When ISINs are unresolved: `run_id = new_id("hold")`; `run_store.save_manifest(RunManifest(run_id=run_id, run_type="holdings", status=JobStatus.COMPLETED, params={"kind", "holder_id", "as_of", "revision"}))`; then one `queue_for_review(run_store, run_id, f"isin:{isin}", {"kind": "security", "isin", "name", "holder_id", "holder_kind": kind, "as_of", "provisional_issuer_key"})` per ISIN.
     8. `store.append_holdings_audit({"at", "kind", "holder_id", "as_of", "revision", "source", "source_ref", "rows", "user_id": principal.user_id if principal else "system", "role", "override_reason"})`.
-    9. `store.save_holder(holder)` with `as_of = max(holder.as_of or "", as_of)` and `last_error = None`.
-  - `def holder_status(store, today: date) -> list[dict]`: for each holder, `{"holder_id", "kind", "name", "source", "as_of", "last_pull_at", "last_error", "expected_as_of", "stale", "age_days"}`. `expected_as_of` is the last calendar day of the previous month; `stale = as_of is None or as_of < expected_as_of`; `age_days = (today - as_of).days`, or None.
+    9. For `kind == "portfolio"`, `store.save_portfolio(Portfolio(portfolio_id=holder_id, name=holder.name or holder_id))` when `get_portfolio(holder_id)` is None, so file-store analytics (`load_holdings_as_of`) see it. Then `store.save_holder(holder)` with `as_of = max(holder.as_of or "", as_of)` and `last_error = None`.
+  - `def previous_month_end(today: date) -> str`: the last calendar day of the previous month, as `YYYY-MM-DD`. Tasks 13 and 14 import it.
+  - `def holder_status(store, today: date) -> list[dict]`: for each holder, `{"holder_id", "kind", "name", "source", "as_of", "last_pull_at", "last_error", "expected_as_of", "stale", "age_days"}`. `expected_as_of = previous_month_end(today)`; `stale = as_of is None or as_of < expected_as_of`; `age_days = (today - as_of).days`, or None.
 - Produces, in `arp/holdings/__init__.py`: `def load(store, kind: str, holder_id: str, as_of: str) -> list[Holding]`: the working snapshot of the newest date on or before `as_of` (`list_snapshot_dates(holder_id, kind=kind)`), or `[]`.
 - Produces, in the workbench:
   - `ReviewItemKind.SECURITY`; `_queue_kind(run_type="holdings", ...)` → `SECURITY`.
@@ -604,11 +611,15 @@
 - [ ] **Step 1: Write the failing tests** in `tests/test_holdings_intake.py` (`PortfolioStore`, `RunStore` and `IdentifierMapStore` on `tmp_path`):
   - `test_isin_resolves_to_lei_through_identifier_map`: an `IdentifierMap(issuer_key=<valid LEI>, scheme="ISIN", value=isin)` gives `issuer_key == LEI` and `issuer_scheme == "LEI"`.
   - `test_unresolved_isin_appears_in_review_workbench` (spec): `result.unresolved == [isin]`; the holding has `issuer_scheme == "ARP_PROVISIONAL"` and `issuer_key.startswith("ARP:")`; `GET /api/review/items` (run store overridden) holds an item with `kind == "security"` and `item_key == f"isin:{isin}"`; `list_resolutions_needing_review()` holds the ISIN.
+  - `test_resolved_isin_clears_needs_review`: after the decision resolves the ISIN, the next intake leaves it out of `list_resolutions_needing_review()`.
   - `test_security_correction_needs_valid_lei`: `decide` with `correct` and value `"BAD"` → 422. A valid LEI with a comment → `first_done` (`correction`). After an agreeing `second`, `isin_decisions(run_store) == {isin: LEI}`, and the next intake resolves it.
   - `test_override_without_reason_refused` (spec): an `api` holder with revision 1; a file intake without a reason → `IntakeError` with status 409. With a reason → revision 2; the audit row has `user_id == "u_test"` and the reason; `load_revision(..., 1)` is unchanged.
+  - `test_override_needed_for_other_date_in_api_month`: an `api` holder with a revision on 2026-10-31; a file dated 2026-10-30 without a reason → 409.
   - `test_same_rows_twice_unchanged`: `status == "unchanged"` and `list_revisions == [1]`.
   - `test_missing_month_reads_previous`: `load(store, "portfolio", "P1", "2026-11-30")` returns October's rows.
+  - `test_intake_portfolio_visible_to_analytics`: after intake, `load_holdings_as_of` returns the portfolio's rows in the file store.
   - `test_holder_status_flags_stale`: holder `as_of="2026-09-30"`, `today=date(2026, 11, 5)` → `stale is True`, `age_days == 36`, `expected_as_of == "2026-10-31"`.
+  - `test_non_iso_as_of_refused`: `as_of="../x"` → `IntakeError` 422, nothing written.
   - `test_rejected_file_writes_nothing`: errors give 422, and no revision, snapshot or audit row is written.
 
 - [ ] **Step 2: Run** `PATH=/tmp/claude-0/venv/bin:$PATH python -m pytest tests/test_holdings_intake.py tests/test_review_items.py tests/test_review_decide.py -v`. Expect FAIL in the new file only.
@@ -634,7 +645,7 @@
   - `CURRENT_MAJOR = 1`
   - `SCHEMAS: dict[int, dict] = {1: {"version": "1.0", "retire_after": None, "datasets": {...}}}`, with keys and columns exactly:
     - `index_holdings`: key `["index_id", "issuer_key", "isin", "as_of"]`; columns `["issuer_scheme", "weight", "shares", "free_float", "price", "currency", "calibration_version"]`
-    - `portfolio_holdings`: key `["portfolio_id", "issuer_key", "isin", "as_of"]`; columns `["issuer_scheme", "weight", "market_value", "currency", "source_file"]`
+    - `portfolio_holdings`: key `["portfolio_id", "issuer_key", "isin", "as_of"]`; columns `["issuer_scheme", "weight", "market_value", "currency", "fx_rate_to_eur", "source_file"]`
     - `esg_signals`: key `["issuer_key", "field_id", "period_end", "basis"]`; columns `["issuer_scheme", "value", "canonical_unit", "state", "fact_id", "fact_version", "release_id", "published_at", "restated"]`
   - `DATASETS = ("index_holdings", "portfolio_holdings", "esg_signals")`
   - `def header(dataset: str, major: int = CURRENT_MAJOR) -> list[str]`: key plus columns
@@ -646,7 +657,7 @@
   - `def month_of(as_of: str) -> str` (`"2026-10"`); `def month_end(month: str) -> str` (`"2026-10-31"`)
   - `def snapshot_dir(root: Path, month: str, revision: int) -> Path`: `root / "snapshots" / month / f"r{revision}"`
   - `def dataset_rows(as_of: str, *, portfolio_store, facts: list[Fact]) -> dict[str, list[dict]]`:
-    - `index_holdings` and `portfolio_holdings` come from `holdings.load(store, kind, h.holder_id, as_of)` for every registered holder of that kind. `index_id`/`portfolio_id` is the holder id, `as_of` the holding's `as_of_date` and `weight` its `weight_pct`. `source_file` is `source_ref` when `source == "file"`, else None. `calibration_version` is None.
+    - `index_holdings` and `portfolio_holdings` come from `holdings.load(store, kind, h.holder_id, as_of)` for every registered holder of that kind. `index_id`/`portfolio_id` is the holder id, `as_of` the holding's `as_of_date` and `weight` its `weight_pct`. `fx_rate_to_eur` is the holding's rate. `source_file` is `source_ref` when `source == "file"`, else None. `calibration_version` is None.
     - `esg_signals` has one row per fact: `fact_version = version` and `published_at = valid_from`.
     - Rows are sorted by their key columns.
   - `def render(dataset: str, rows: list[dict], major: int) -> tuple[bytes, bytes]`: CSV (`csv.writer`, `lineterminator="\n"`, the header, None as `""`) and JSONL (`json.dumps({c: row.get(c) for c in header}, sort_keys=True, separators=(",", ":"))` per line).
@@ -660,16 +671,19 @@
   - `def dataset_path(root, month, revision, dataset, fmt, major) -> Path`
   - `def build_correction(month: str, *, root, portfolio_store, facts_as_of, events_since: Callable[[str], list[FactEvent]], now: str | None = None) -> SnapshotManifest | None`:
     - `latest = read_manifest(root, month)`; None → None.
-    - `events` = `events_since(latest.frozen_at)` of type `restated`, `withdrawn` or `restored`; none → None.
-    - The corrected ESG facts are `facts_as_of(month_end(month))`, with each changed key replaced by its entry in `facts_as_of(now)`, or dropped when it has none.
-    - The result is `build_snapshot(month_end(month), revision=latest.revision + 1, supersedes=latest.snapshot_id, changes=[{"event_type", "fact_id", "issuer_key", "field_id", "period_end", "basis", "at"}], facts_as_of=lambda _: corrected)`.
-    - Holdings stay as of month end.
+    - `new` = `events_since(latest.frozen_at)` of type `restated`, `withdrawn` or `restored`; none → None.
+    - `events` = the same event types since r1's `frozen_at` (`read_manifest(root, month, 1)`), so a later revision keeps every earlier revision's corrections.
+    - The corrected ESG facts are `facts_as_of(month_end(month))`, with each key of `events` replaced by its entry in `facts_as_of(now)`, or dropped when it has none.
+    - The result is `build_snapshot(month_end(month), revision=latest.revision + 1, supersedes=latest.snapshot_id, changes=[{"event_type", "fact_id", "issuer_key", "field_id", "period_end", "basis", "at"} for each event in `new`], facts_as_of=lambda _: corrected)`.
+    - Holdings are not rebuilt: the correction copies the latest revision's holdings data files byte-for-byte (same hashes), so a later intake revision never changes holdings without a `changes` entry.
 
 - [ ] **Step 1: Write the failing tests** in `tests/test_snapshots_build.py` (holders ingested through Task 10 on `tmp_path`; facts from lambdas):
   - `test_same_inputs_same_hashes` (spec): builds into two roots give equal `files` hashes per dataset, while `frozen_at` may differ.
   - `test_frozen_snapshot_refuses_rewrite` (spec): a second `build_snapshot` for the same month and revision raises `SnapshotFrozen`.
   - `test_manifest_hashes_match_stored_files` (spec): sha256 of every file on disk equals the manifest.
   - `test_r1_stays_readable_after_r2` (spec): build r1; `events_since` returns one `withdrawn` event after `frozen_at`; `build_correction` returns r2 with `supersedes == "2026-10.r1"` and `len(changes) == 1`. `read_manifest(root, "2026-10", 1)` still returns r1, and its files' hashes are unchanged.
+  - `test_r3_keeps_r2_corrections`: after r2 (one withdrawn key), a second event on another key gives r3 whose ESG rows still reflect the first correction, with `supersedes == "2026-10.r2"` and `changes` listing only the new event.
+  - `test_correction_copies_holdings_files`: an intake revision made after r1 does not change the holdings files of r2 (hashes equal r1's).
   - `test_no_events_no_revision`: `build_correction` returns None.
   - `test_esg_signals_rows_keep_fact_id`
   - `test_csv_and_jsonl_hold_the_same_rows`
@@ -749,20 +763,19 @@
 - Test: `tests/test_holdings_api.py` (new)
 
 **Interfaces:**
-- Consumes: `SnapshotClient.rows` (Task 12); `validate` (Task 9); `ingest`, `IntakeError`, `holder_status` (Task 10); `load_mapping`, `read_rows`, `template`, `file_ref` (Task 9); `get_portfolio_store`, `get_run_store`; `cli_principal`.
+- Consumes: `SnapshotClient.rows` (Task 12); `validate` (Task 9); `ingest`, `IntakeError`, `holder_status`, `previous_month_end` (Task 10); `load_mapping`, `read_rows`, `template`, `file_ref` (Task 9); `get_portfolio_store`, `get_run_store`; `cli_principal`.
 - Produces, in `arp/holdings/api_source.py`:
-  - `def previous_month_end(today: date) -> str`
   - `def pull_holder(holder: HolderConfig, as_of: str, *, client: SnapshotClient, base_url: str, store, run_store, idmap, today: date | None = None) -> IntakeResult`:
     - `manifest, rows = client.rows(as_of[:7], "index_holdings" if holder.kind == "index" else "portfolio_holdings")`, keeping the rows whose `index_id`/`portfolio_id` equals `holder.holder_id`;
-    - raw rows are `{"_row": n, "isin", "lei": issuer_key if issuer_scheme == "LEI" else None, "weight", ...}` (the dataset columns under their canonical names);
+    - raw rows are `{"_row": n, "isin", "lei": issuer_key if issuer_scheme == "LEI" else None, "weight", ...}` (the dataset columns under their canonical names, `fx_rate_to_eur` included, so a non-EUR portfolio row passes Task 9's FX rule);
     - `validate(raw, kind=holder.kind, as_of=as_of)`, then `ingest(..., source="api", source_ref=f"{base_url}/api/v1/snapshots/{month}/{dataset}?revision={manifest.revision}", principal=None, override_reason=None)`.
     - Success: `holder.last_pull_at = now_iso()` and `last_error = None`. Any exception: `last_pull_at` and `last_error = str(exc)[:500]`, then `save_holder` and re-raise. The previous month stays readable.
   - `def pull_due(store, *, settings, client, today: date, run_store, idmap) -> list[dict]`: for every `api` holder whose `as_of` is earlier than `previous_month_end(today)`, `pull_holder`. Errors are caught and listed as `{"holder_id", "kind", "status": "failed", "error"}`; successes as `{"holder_id", "kind", "status", "revision"}`.
 - Routes, in `arp/api/routers/holdings.py` (`prefix="/api/holdings"`, `tags=["holdings"]`):
-  - `POST /upload`, multipart: `file: UploadFile`, `holder_id`, `kind`, `as_of`, `provider="default"`, `override_reason: str | None`. It runs `read_rows`, then `validate` (with the mapping's `decimal` and `weight_unit`), then `ingest(source="file", source_ref=file_ref(data), principal=current_user)`, and returns the `IntakeResult` as a dict. `IntakeError` → `HTTPException(status, {"message", "errors": [asdict(e)]})`.
+  - `POST /upload`, multipart: `file: UploadFile`, `holder_id`, `kind`, `as_of`, `provider="default"`, `override_reason: str | None`. The body is read with `file.read(settings.max_upload_bytes + 1)`; more than `max_upload_bytes` → 413 (as `documents.py`). It runs `read_rows`, then `validate` (with the mapping's `decimal` and `weight_unit`), then `ingest(source="file", source_ref=file_ref(data), principal=current_user)`, and returns the `IntakeResult` as a dict. `IntakeError` → `HTTPException(status, {"message", "errors": [asdict(e)]})`. A `ValueError`, `BadZipFile` or `InvalidFileException` from `load_mapping`/`read_rows` → 422 `{"message", "errors": []}`.
   - `GET /template?kind=portfolio&format=csv|xlsx` → bytes with `Content-Disposition: attachment; filename="holdings-template-{kind}.{format}"`
   - `GET /holders` → `{"holders": holder_status(store, date.today())}`
-  - `PUT /holders/{kind}/{holder_id}`, body `{"name": str = "", "source": "api" | "file"}`: keeps the status fields and returns the holder
+  - `PUT /holders/{kind}/{holder_id}` (approver), body `{"name": str = "", "source": "api" | "file"}`: keeps the status fields, appends a holdings audit row (`user_id`, role, old and new `source`), and returns the holder
   - `POST /holders/{kind}/{holder_id}/pull?as_of=`: 503 `"holdings_api_url is not set"` when unset; otherwise `pull_holder` for `as_of` (default `previous_month_end(today)`)
 - CLI, in `arp/cli/holdings.py` (`holdings_app`):
   - `arp holdings import --file positions.xlsx --holder P1 --as-of 2026-10-31 [--kind portfolio] [--provider default] [--override-reason TEXT]` (`cli_principal`); a rejected file prints one line per `RowError` and exits 1.
@@ -772,10 +785,14 @@
 - [ ] **Step 1: Write the failing tests** in `tests/test_holdings_api.py` (a fake upstream through `httpx.MockTransport` that serves a manifest and a `portfolio_holdings` JSONL whose hashes match):
   - `test_fake_api_month_lands_once_when_pulled_twice` (spec): two `pull_holder` calls give `list_revisions == [1]`, and the second result has `status == "unchanged"`.
   - `test_failed_pull_keeps_last_month_and_flags` (spec): October pulls fine; November's transport returns 500. The holder has `last_error` set; `load(store, "portfolio", "P1", "2026-11-30")` returns October's rows; `holder_status(...)[0]["stale"] is True`.
+  - `test_non_eur_api_month_lands_with_fx_rate`: a `portfolio_holdings` row in USD with `fx_rate_to_eur` pulls without a validation error, and the holding keeps the rate.
   - `test_pull_for_file_holder_refused`: `IntakeError` with status 409.
   - `test_upload_bad_lei_422_names_row`: the JSON detail has `errors[0] == {"row": 3, "column": "lei", ...}`.
+  - `test_upload_over_size_limit_413`: a body over `max_upload_bytes` is refused.
+  - `test_upload_unreadable_file_422`: a `.xlsx` that is not a zip, and an unknown provider, give 422 with `"errors": []`.
   - `test_upload_over_api_month_without_reason_409`
   - `test_template_download_xlsx_opens`
+  - `test_put_holder_needs_approver_and_is_audited`: an analyst gets 403; an approver switching `api` to `file` writes an audit row.
   - `test_holders_response_has_no_user_id`
   - `test_pull_endpoint_503_without_api_url`
   - `test_cli_import_xlsx`: with an approver `ARP_CLI_TOKEN`, `arp holdings import --file positions.xlsx --holder P1 --as-of 2026-10-31` exits 0 and writes revision 1.
@@ -799,14 +816,14 @@
 - Test: `tests/test_publishing_scheduler.py` (new)
 
 **Interfaces:**
-- Consumes: `IntervalScheduler` (`arp/orchestration/interval_scheduler.py`); `reground`, `sample` (Task 4); `facts_as_of`, `events_since` (Task 6); `PublishStore` (Task 2); `build_snapshot`, `build_correction`, `list_months`, `month_of` (Task 11); `pull_due`, `previous_month_end` (Task 13); `SnapshotClient` (Task 12).
+- Consumes: `IntervalScheduler` (`arp/orchestration/interval_scheduler.py`); `reground`, `sample` (Task 4); `facts_as_of`, `events_since` (Task 6); `PublishStore` (Task 2); `build_snapshot`, `build_correction`, `list_months`, `month_of` (Task 11); `pull_due` (Task 13); `previous_month_end` (Task 10); `SnapshotClient` (Task 12).
 - Produces, in `arp/publish/scheduler.py`:
   - `class PublishingScheduleConfig(BaseModel)`: `enabled: bool = False`, `interval_hours: int = 24`, `last_run_at: str | None = None`, `last_reground_day: str | None = None`, `last_results: dict = {}`
   - `def first_business_day_after(month_end: date, n: int = 1) -> date`: the n-th Monday-to-Friday day after `month_end`. Mark `# ponytail: weekdays only, no holiday calendar; add one when a missed holiday matters`.
   - `def due_jobs(today: date, config, *, settings, latest_frozen_month: str | None, holders: list[HolderConfig]) -> list[str]`, in this order:
     - `"reground"` when `settings.postgres_dsn` is set and `config.last_reground_day != today.isoformat()`
     - `"pull"` when `settings.holdings_api_url` is set, `today.day >= settings.holdings_pull_day`, and an `api` holder has `as_of < previous_month_end(today)`
-    - `"snapshot"` when `today >= first_business_day_after(<previous month end>, settings.snapshot_day)` and `latest_frozen_month != month_of(<previous month end>)`
+    - `"snapshot"` when `today >= first_business_day_after(<previous month end>, settings.snapshot_day)` and `latest_frozen_month != month_of(<previous month end>)`, and not while `settings.holdings_api_url` is set and either `today.day < settings.holdings_pull_day` or `"pull"` is due (the snapshot waits for the pull)
     - `"corrections"` when `settings.postgres_dsn` is set and `latest_frozen_month` is not None
   - `def reground_sample(facts: list[Fact], *, n: int, day: str, blob_store, content_store, fuzzy_threshold: float, log_path: Path) -> list[dict]`: `sample(facts, n, seed=day)`, then `reground` on each. Each result row `{"day", "fact_id", "result"}` is appended to `log_path`. A result other than `ok` logs a warning naming the fact and the result. Published facts are never changed.
   - `class PublishingScheduler(IntervalScheduler)`: `config_cls = PublishingScheduleConfig`, `job_id = "publishing-schedule"`; `__init__(self, settings, portfolio_store, run_store)` (state in `settings.publish_state_dir`); `_default_config` reads `publishing_schedule_enabled`. `_run` runs each due job in its own `try`/`except`, records `{"status", "detail"}` in `config.last_results[job]` and sets `last_run_at` (and `last_reground_day` after `reground`). The facts come from `facts_as_of(PublishStore(dsn), ...)`, or `[]` without a DSN.
@@ -814,6 +831,7 @@
 - [ ] **Step 1: Write the failing tests** in `tests/test_publishing_scheduler.py`:
   - `test_first_business_day_after_month_end`: `date(2026, 10, 31)` (a Saturday) gives `date(2026, 11, 2)`; with `n=2`, `date(2026, 11, 3)`.
   - `test_snapshot_due_once_per_month`: due on 2026-11-02 when the latest frozen month is `"2026-09"`; not due once it is `"2026-10"`, and not due on 2026-11-01.
+  - `test_snapshot_waits_for_pull`: `holdings_api_url` set, `holdings_pull_day=2`, an `api` holder at `"2026-09-30"`: on 2026-11-02 (pull due) "snapshot" is not due; with the holder at `"2026-10-31"` it is. On 2026-11-01 (before the pull day) it is not due.
   - `test_pull_due_after_pull_day_until_success`: not due on day 1; due on day 3 while a holder's `as_of` is `"2026-09-30"`; not due once it is `"2026-10-31"`.
   - `test_reground_once_per_day_and_needs_dsn`
   - `test_reground_sample_records_results`: two facts, one with a missing original; the log has two rows and one is `original_missing`.
