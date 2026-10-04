@@ -441,17 +441,28 @@ class Settings(BaseSettings):
         description="Local store for each captured document's original bytes (<dir>/<key[:2]>/<key>). Used "
         "unless the object store is enabled.",
     )
+    retention_runs_days: int = Field(
+        default=3650, ge=365, description="Run files are deleted only once the newest of them is this old."
+    )
+    retention_decision_logs_days: int = Field(
+        default=3650, ge=365, description="Review decision/co-sign logs and snapshots/ files, each by its own age."
+    )
+    retention_originals_days: int = Field(
+        default=3650, ge=365, description="Stored originals in blob_store_dir, by file age."
+    )
 
     # Postgres read-model projections beyond Portfolio/Holdings (see
     # postgres_models.py's module docstring for the original narrower
-    # scope). Each mirrors an existing file/SQLite store -- which stays
-    # authoritative and unmodified either way -- into a queryable Postgres
-    # table. All require postgres_dsn; all default off.
+    # scope). Each mirrors an existing store -- which stays authoritative
+    # and unmodified either way (for the document registry that is SQLite,
+    # or Postgres itself when embeddings_backend=postgres) -- into a
+    # queryable Postgres table. All require postgres_dsn; all default off.
     document_registry_projection_enabled: bool = Field(
         default=False,
-        description="Mirrors DocumentRegistry (SQLite, always authoritative) into Postgres as a queryable "
-        "read-model (requires postgres_dsn) for relational joins against OpenSearch's doc_id hits. Additive only "
-        "-- SQLite stays the source of truth either way; see arp/storage/postgres_document_projection.py.",
+        description="Mirrors the document registry into Postgres as a queryable read-model (requires "
+        "postgres_dsn) for relational joins against OpenSearch's doc_id hits. Additive only -- the registry stays "
+        "the source of truth: SQLite by default, Postgres when embeddings_backend=postgres; see "
+        "arp/storage/postgres_document_projection.py.",
     )
     company_records_projection_enabled: bool = Field(
         default=False,

@@ -124,11 +124,11 @@ def reindex_opensearch(batch_size: int = typer.Option(200, help="Rows read from 
         typer.echo("ARP_OPENSEARCH_URL is not set -- nothing to index.", err=True)
         raise typer.Exit(1)
     from arp.ingestion.indexing_config import IndexingConfig
+    from arp.retrieval.content_store_factory import content_store_for
     from arp.retrieval.search_indexer import index_document
     from arp.schemas.common import DocType
-    from arp.storage.document_store import DocumentContentStore
 
-    content_store = DocumentContentStore(settings.document_store_dir, enabled=settings.document_cache_enabled)
+    content_store = content_store_for(settings)
     config = IndexingConfig(opensearch_url=settings.opensearch_url, search_live_indexing_enabled=True)
 
     indexed = failed = skipped = 0
@@ -180,10 +180,10 @@ def reindex_object_store() -> None:
     import httpx
 
     from arp.ingestion.indexing_config import IndexingConfig
+    from arp.retrieval.content_store_factory import content_store_for
     from arp.storage.document_blob_store import upload_document
-    from arp.storage.document_store import DocumentContentStore
 
-    content_store = DocumentContentStore(settings.document_store_dir, enabled=settings.document_cache_enabled)
+    content_store = content_store_for(settings)
     config = IndexingConfig(
         object_store_endpoint_url=settings.object_store_endpoint_url,
         object_store_access_key=settings.object_store_access_key,
@@ -218,17 +218,18 @@ def reindex_object_store() -> None:
 
 @reindex_app.command("documents")
 def reindex_documents() -> None:
-    """Mirrors every already-registered document from DocumentRegistry
-    (SQLite, always authoritative) into DocumentRegistryModel (Postgres).
+    """Mirrors every already-registered document from the authoritative
+    registry (SQLite, or Postgres when embeddings_backend=postgres) into
+    DocumentRegistryModel (Postgres).
     Safe to re-run -- each document is an idempotent upsert by doc_id."""
     settings = get_settings()
     if not settings.postgres_dsn:
         typer.echo("ARP_POSTGRES_DSN is not set -- nothing to sync.", err=True)
         raise typer.Exit(1)
-    from arp.storage.document_store import DocumentContentStore
+    from arp.retrieval.content_store_factory import content_store_for
     from arp.storage.postgres_document_projection import sync_all
 
-    content_store = DocumentContentStore(settings.document_store_dir, enabled=settings.document_cache_enabled)
+    content_store = content_store_for(settings)
     count = sync_all(settings.postgres_dsn, content_store)
     typer.echo(f"Document-registry backfill complete: synced={count}.")
 

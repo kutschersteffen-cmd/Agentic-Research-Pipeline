@@ -11,6 +11,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
+from arp.orchestration.jobs import hold_run
 from arp.research.indirect_exposure.company_mapper import resolve_company_isic
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.indirect_exposure.leontief import LeontiefModel
@@ -148,6 +149,7 @@ def create_theme_run(
         len(companies),
         model=settings.llm_model,
         verifier_model=settings.llm_verifier_model,
+        companies=companies,
     )
     run_dir = run_store.run_dir(manifest.run_id)
     (run_dir / "theme.json").write_text(theme.model_dump_json(indent=2))
@@ -177,13 +179,16 @@ async def resume_theme_run(
         raise ValueError(f"Unknown run_id: {run_id}")
     if manifest.run_type != "theme":
         raise ValueError(f"Run {run_id} is a {manifest.run_type} run, not a theme run.")
-    universe_path = manifest.params.get("universe_path")
-    if not universe_path:
-        raise ValueError(f"Run {run_id} has no stored universe_path -- it predates resume support and can't be reconstructed.")
+    # The stored companies.json is the run's input; a universe file may have
+    # changed since. Older runs without it fall back to the file.
+    companies = run_store.load_companies(run_id)
+    if companies is None and (universe_path := manifest.params.get("universe_path")):
+        companies = load_company_universe(universe_path)
+    if companies is None:
+        raise ValueError(f"Run {run_id} has no stored universe_path or companies.json -- it predates resume support and can't be reconstructed.")
 
     run_dir = run_store.run_dir(run_id)
     theme = ThemeDefinition.model_validate_json((run_dir / "theme.json").read_text())
-    companies = load_company_universe(universe_path)
 
     indirect_model = resolve_indirect_exposure_model(
         settings,
@@ -207,14 +212,17 @@ async def resume_theme_run(
             search_client=DuckDuckGoSearchClient(settings.discovery_user_agent),
         )
 
-    manifest.cancel_requested = False
-    manifest.status = JobStatus.RUNNING
-    run_store.save_manifest(manifest)
+    # Leased before touching the manifest, so a resume of a run another worker
+    # still drives raises RunBusy without clearing its cancel request.
+    with hold_run(run_store, run_id):
+        manifest.cancel_requested = False
+        manifest.status = JobStatus.RUNNING
+        run_store.save_manifest(manifest)
 
-    return await execute_theme_run(
-        run_id, theme, companies, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store,
-        indirect_model=indirect_model, revenue_resolver=revenue_resolver, rd_resolver=rd_resolver,
-    )
+        return await execute_theme_run(
+            run_id, theme, companies, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings,
+            run_store=run_store, indirect_model=indirect_model, revenue_resolver=revenue_resolver, rd_resolver=rd_resolver,
+        )
 
 
 async def execute_theme_run(

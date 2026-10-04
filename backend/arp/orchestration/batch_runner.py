@@ -8,6 +8,7 @@ from typing import Protocol, TypeVar
 
 from arp.llm.base import LLMUsage
 from arp.orchestration.job_manager import JobManager
+from arp.orchestration.jobs import hold_run
 from arp.orchestration.review_queue import queue_for_review
 from arp.orchestration.step_tally import on_company, tally_run
 from arp.schemas.common import CompanyRef
@@ -32,24 +33,30 @@ class ReviewRequired(Exception):
         self.report = report
 
 
-def read_done_keys(results_path: Path) -> set[str]:
-    if not results_path.exists():
-        return set()
+def read_done_keys(results_path: Path, errors_path: Path | None = None) -> set[str]:
+    """Keys of items not to run again: every result row, plus (given
+    `errors_path`) every item a worker stopped for review -- a person
+    decides those, so a resume must not redo them."""
     import json
 
     done: set[str] = set()
-    with results_path.open() as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            key = row.get(_KEY_FIELD)
-            if key:
-                done.add(key)
+    for path, field in ((results_path, _KEY_FIELD), (errors_path, "key")):
+        if path is None or not path.exists():
+            continue
+        with path.open() as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if field == "key" and not row.get("review"):
+                    continue
+                key = row.get(field)
+                if key:
+                    done.add(key)
     return done
 
 
@@ -89,7 +96,7 @@ async def run_batch(
 
     results_path.parent.mkdir(parents=True, exist_ok=True)
     errors_path.parent.mkdir(parents=True, exist_ok=True)
-    already_done = read_done_keys(results_path) if resume else set()
+    already_done = read_done_keys(results_path, errors_path) if resume else set()
 
     sem = asyncio.Semaphore(concurrency)
     write_lock = asyncio.Lock()
@@ -183,27 +190,28 @@ async def run_company_batch(
         current = run_store.load_manifest(run_id)
         return current is not None and current.cancel_requested
 
-    with tally_run(run_store, run_id):
-        await run_batch(
-            companies,
-            item_key=lambda c: c.company_id,
-            worker=_worker,
-            results_path=run_store.results_path(run_id),
-            errors_path=run_store.errors_path(run_id),
-            concurrency=concurrency,
-            result_to_json=result_to_json,
-            on_success=_on_success,
-            on_error=_on_error,
-            cancel_check=_cancel_check,
-        )
-    # The rules step: a run with a Decision Studio framework attached is
-    # scored before it is marked finished, so a finished run's scores are
-    # already stored when anyone looks. A no-op without one. Whatever goes
-    # wrong in it, the run still finishes: its extracted results stand.
-    from arp.decision.templates import score_run
+    with hold_run(run_store, run_id):  # one worker per run; RunBusy if another holds it
+        with tally_run(run_store, run_id):
+            await run_batch(
+                companies,
+                item_key=lambda c: c.company_id,
+                worker=_worker,
+                results_path=run_store.results_path(run_id),
+                errors_path=run_store.errors_path(run_id),
+                concurrency=concurrency,
+                result_to_json=result_to_json,
+                on_success=_on_success,
+                on_error=_on_error,
+                cancel_check=_cancel_check,
+            )
+        # The rules step: a run with a Decision Studio framework attached is
+        # scored before it is marked finished, so a finished run's scores are
+        # already stored when anyone looks. A no-op without one. Whatever goes
+        # wrong in it, the run still finishes: its extracted results stand.
+        from arp.decision.templates import score_run
 
-    try:
-        score_run(run_store, run_id)
-    except Exception:  # noqa: BLE001
-        logger.exception("Rules step failed for run %s", run_id)
-    job_manager.finish_run(run_id)
+        try:
+            score_run(run_store, run_id)
+        except Exception:  # noqa: BLE001
+            logger.exception("Rules step failed for run %s", run_id)
+        job_manager.finish_run(run_id)

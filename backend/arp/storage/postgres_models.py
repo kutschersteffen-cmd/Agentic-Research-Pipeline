@@ -46,7 +46,7 @@ docstring for what it specifically projects and why.
 from __future__ import annotations
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Float, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -162,14 +162,16 @@ class ChunkEmbeddingModel(Base):
 
 
 class DocumentRegistryModel(Base):
-    """Read-model projection of DocumentRegistry (SQLite, always
-    authoritative -- see arp/storage/document_registry.py). Additive
-    only: lets OpenSearch's doc_id-only hits (arp/storage/
-    opensearch_indices.py) join back to relational company/doc_type
-    facts in one query, and enables cross-company dedup queries that
-    today require scanning SQLite row-by-row. Selected via
-    Settings.document_registry_projection_enabled; SQLite is unaffected
-    either way."""
+    """The document registry's Postgres form. A read-model projection of
+    DocumentRegistry (SQLite) by default -- additive only: lets OpenSearch's
+    doc_id-only hits (arp/storage/opensearch_indices.py) join back to
+    relational company/doc_type facts in one query, selected via
+    Settings.document_registry_projection_enabled. When
+    Settings.embeddings_backend == "postgres" with a postgres_dsn it is
+    instead the authoritative registry (arp/storage/
+    postgres_document_registry.py) and the identity columns below are
+    written directly. Parsed text and embeddings stay SQLite/pgvector
+    caches either way."""
 
     __tablename__ = "document_registry"
     __table_args__ = (Index("ix_document_registry_company_type", "company_id", "doc_type"),)
@@ -184,6 +186,12 @@ class DocumentRegistryModel(Base):
     storage_uri: Mapped[str | None] = mapped_column(String, nullable=True)
     first_seen_at: Mapped[str] = mapped_column(String)
     last_seen_at: Mapped[str] = mapped_column(String)
+    family_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    supersedes: Mapped[str | None] = mapped_column(String, nullable=True)
+    published_at: Mapped[str | None] = mapped_column(String, nullable=True)
+    identity_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    identity_review: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class CompanyRecordModel(Base):

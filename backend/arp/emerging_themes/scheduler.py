@@ -12,8 +12,8 @@ from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
 from arp.orchestration.interval_scheduler import IntervalScheduler
+from arp.retrieval.content_store_factory import content_store_for
 from arp.schemas.emerging_themes import EmergingThemesScheduleConfig
-from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
 from arp.storage.topic_store import TopicStateStore
 from arp.universe import load_company_universe
@@ -67,7 +67,7 @@ class EmergingThemesScheduler(IntervalScheduler):
         edgar = EdgarDocumentSource(
             self.settings.edgar_user_agent,
             self.settings.cache_dir,
-            content_store=DocumentContentStore(self.settings.document_store_dir, enabled=self.settings.document_cache_enabled),
+            content_store=content_store_for(self.settings),
             submissions_ttl_hours=self.settings.edgar_submissions_ttl_hours,
         )
         return XbrlFactSource(edgar, self.settings.cache_dir, ttl_hours=self.settings.xbrl_facts_ttl_hours)

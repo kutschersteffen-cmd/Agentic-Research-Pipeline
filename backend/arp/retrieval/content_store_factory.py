@@ -21,6 +21,18 @@ if TYPE_CHECKING:
     from arp.storage.postgres_embeddings import PgVectorEmbeddingsStore
 
 
+def content_store_for(settings: Settings) -> DocumentContentStore:
+    """The document content store for `settings`: SQLite by default; with
+    embeddings_backend == "postgres" and a postgres_dsn, the registry and
+    embeddings live in Postgres (parsed text stays a local cache)."""
+    from arp.storage.document_store import DocumentContentStore
+
+    postgres_dsn = settings.postgres_dsn if settings.embeddings_backend == "postgres" else None
+    return DocumentContentStore(
+        settings.document_store_dir, enabled=settings.document_cache_enabled, postgres_dsn=postgres_dsn
+    )
+
+
 def build_hybrid_content_store(settings: Settings) -> DocumentContentStore | PgVectorEmbeddingsStore:
     """Constructed lazily, only on the path that actually uses it (hybrid
     retrieval enabled) -- a cheap connect + idempotent

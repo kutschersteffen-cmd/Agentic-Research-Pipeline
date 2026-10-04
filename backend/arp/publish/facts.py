@@ -163,6 +163,22 @@ class PublishStore:
 
         return Session(self.engine)
 
+    def referenced(self) -> tuple[set[str], set[str]]:
+        """Distinct source_run_id and citation content_key over every fact, plus the
+        blob key (last storage_uri segment, see gate.blob_key) of every release, since
+        EDGAR originals are stored under sha256(raw bytes): retention never deletes these."""
+        from sqlalchemy import select
+
+        from arp.storage.postgres_models import PublishedFactModel as M
+        from arp.storage.postgres_models import ReleaseModel as R
+
+        with self.session() as s:
+            runs = set(s.scalars(select(M.source_run_id).distinct()))
+            keys = set(s.scalars(select(M.citation["content_key"].astext).distinct()))
+            uris = s.scalars(select(R.storage_uri).where(R.storage_uri.is_not(None)).distinct())
+            keys |= {u.rsplit("/", 1)[-1] for u in uris if u}
+        return runs, {k for k in keys if k}
+
     def current(self, keys: Iterable[FactKey]) -> dict[FactKey, Fact]:
         from sqlalchemy import select, tuple_
 

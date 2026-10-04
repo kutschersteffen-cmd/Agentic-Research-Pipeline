@@ -173,7 +173,7 @@ The bottom-up counterpart to the Thematic Universe Builder. Ingests EDGAR full-t
 The **Taxonomy Researcher** and the **Calibration Agent** (`agents/`) run on a schedule and surface proposals — candidate taxonomy activity/source updates, and confidence-calibration drift against reviewed outcomes — for a human to accept or discard. Neither writes to the taxonomy library or to settings on its own.
 
 ### 3.18 Cross-cutting: orchestration, review, monitoring
-Every run type (`theme`, `extraction`, `financials`, `voting`, `identity`, `discovery`) shares one checkpointed/resumable batch-runner: results append to `runs/<run_id>/results.jsonl` per company as they complete, so an interrupted batch resumes without redoing finished work. Any running/pending run can be cooperatively cancelled and (for theme runs) resumed. The **Review Queue** is the single human checkpoint for anything flagged, ungrounded, or low-confidence across all five review-producing run types; for extraction runs it holds the rows routed `review` (see §3.3), while `auto_accept` rows skip it and `hold` rows wait on their held documents. The **Dashboard** leads with what waits on a person (ballot items and flagged items awaiting a decision), then gives a live cross-pipeline view (escalations, SLA breaches, open engagement issues, currently executing and recently finished runs), polling every 3 seconds while open. Every review decision is recorded against the one "Reviewing as" name set in the sidebar, and each view has a URL (`#/voting/<run id>`, `#/review/<kind>/<run id>`) so refresh, Back and shared links land on the same place.
+Every run type (`theme`, `extraction`, `financials`, `voting`, `identity`, `discovery`) shares one checkpointed/resumable batch-runner: results append to `runs/<run_id>/results.jsonl` per company as they complete, so an interrupted batch resumes without redoing finished work. Any running/pending run can be cooperatively cancelled, and any batch run resumed (see Durable jobs, §8). The **Review Queue** is the single human checkpoint for anything flagged, ungrounded, or low-confidence across all five review-producing run types; for extraction runs it holds the rows routed `review` (see §3.3), while `auto_accept` rows skip it and `hold` rows wait on their held documents. The **Dashboard** leads with what waits on a person (ballot items and flagged items awaiting a decision), then gives a live cross-pipeline view (escalations, SLA breaches, open engagement issues, currently executing and recently finished runs), polling every 3 seconds while open. Every review decision is recorded against the one "Reviewing as" name set in the sidebar, and each view has a URL (`#/voting/<run id>`, `#/review/<kind>/<run id>`) so refresh, Back and shared links land on the same place.
 
 **Review workbench (step 4).** One router, `api/routers/review.py`, serves every item that waits on a person: `GET /api/review/items` (open items, optional `run_id`), `.../runs/{id}/items/{key}/context`, `.../source?doc_id=&page=`, `POST .../decision` and `GET .../runs/{id}/snapshots/{snapshot_id}`. It replaced the extraction and identity `runs/{id}/review-queue` and `runs/{id}/review` routes, which are removed; the other run types keep their own routes.
 - *Kinds.* `value` (extraction rows routed `review`; any other non-held field of an extraction run's results, such as an auto-accepted value, can be opened and decided by its field item key but is never listed as open), `sector_code` (theme runs), `identity`, `quarantined_document` (a held document; `approve` releases it and needs the approver role, no `correct`), `restatement_candidate`, plus `other` for the legacy kinds (theme, financials, transition plan, TNFD), which still decide through their run's own review endpoint and where any decision is final. Extraction failure reports (`PreStepFailed`) are also `other` items but decide through the workbench endpoint with `approve`, `reject` or `escalate` (no `correct`, no second review): the decision is final at once, except `escalate`, which keeps the item pending until an approver decides. A sector-code decision has no consumer yet, and publishing a restatement is step 5.
@@ -295,6 +295,8 @@ backend/.arp_cache/ (configurable)           SQLite DocumentContentStore — par
                                               the one non-file-based store in the system
 ```
 
+With `ARP_EMBEDDINGS_BACKEND=postgres` and `ARP_POSTGRES_DSN`, `content_store_for(settings)` keeps the document registry (`document_registry` table, incl. identity columns) and the chunk embeddings in Postgres; parsed text stays in SQLite as a derived cache. Existing registries are copied once with `arp documents migrate-registry` (copies rows not yet in Postgres, never overwrites; idempotent; refuses unless that backend is selected). Upgrade step: a deployment that already has SQLite registry rows must run it right after switching the backend on; until then the Postgres registry is empty or partial, and building the content store logs an ERROR (once per process) naming the command.
+
 ### Captured originals, intake and schema release
 
 Settings (env prefix `ARP_`, see `backend/arp/config.py`):
@@ -335,7 +337,7 @@ arp theme decompose | run | resume | classify-sectors
 arp taxonomy discover-sources | create | list | ratify | compare | merge | map-standards | export-standards
 arp universe from-holdings | overlap
 arp revenue-catalogue suggest-mapping
-arp extract draft-schema | run | financials-run
+arp extract draft-schema | run [--run-id R] | financials-run
 arp identity resolve | review-queue | review
 arp discover run | schedule
 arp engagement issue-open | trigger-scan | dossier-draft | issue-escalate | record-show | report
@@ -355,10 +357,37 @@ arp publish run | withdraw | backfill
 arp holdings import | pull | template
 arp snapshots build | pull
 arp runs list | show | cancel
+arp retention cleanup [--apply]
+arp scale load | report
 ```
 
 `arp identity review <run_id> <item_key> --decision approve|correct|reject|escalate [--reason R] [--website W] [--cik C] [--comment T]`: `--reason` is required unless approving (default `confirmed`); `correct` needs `--website` and/or `--cik` and a `--comment` naming the source.
 
 `arp publish run --run-id R` and `arp publish withdraw --release-id ID --reason T` need the approver role and `ARP_POSTGRES_DSN`; `arp publish backfill` publishes every non-trial extraction run as the system. `arp holdings import --file F --holder H --as-of YYYY-MM-DD [--kind index|portfolio] [--provider P] [--override-reason T]`, `arp holdings pull [--holder H --kind K --as-of D]` (no holder: every API holder missing last month) and `arp holdings template --kind K --format csv|xlsx --out F`. `arp snapshots build --as-of <month end>` and `arp snapshots pull --month YYYY-MM [--dataset D] [--base-url U] [--dest DIR]`.
+
+### Retention
+
+`ARP_RETENTION_RUNS_DAYS`, `ARP_RETENTION_DECISION_LOGS_DAYS` and `ARP_RETENTION_ORIGINALS_DAYS` default to 3,650 days and cannot be set below 365. Age is a file's own mtime (`lstat`; symlinks are never followed). `arp retention cleanup` is a dry run unless `--apply` is given; deletion re-checks the age and refuses to delete inside the period.
+
+- Decision logs (`review_decisions.jsonl`, `review_cosigns.jsonl`, anything under `snapshots/`) are each kept on their own period.
+- All other run files go together, only once the run's newest such file (ignoring `.lock` and `.worker`) is past the runs period. Sidecar lock files are deleted with the run.
+- Runs whose manifest status is `running` or `pending` are never touched.
+- Stored originals in `blob_store_dir` are deleted once past the originals period; emptied directories are removed.
+- Held, never deleted: any run id that is the `source_run_id` of a `published_facts` row, and any content key cited by one (needs `ARP_POSTGRES_DSN`; without it nothing is held).
+
+### Load and cost report (E15)
+
+`arp scale load --issuers 200 --concurrency 4,8,16 [--latency S] [--out F]` runs one `load_test` run per concurrency level against a simulated worker (no network, no API key, no LLM calls) and writes a markdown table: duration, tokens, cost, USD per 1,000 issuers, minutes per 1,000 and issuers per minute, all read from each run's manifest (`arp/scale/report.py`). The simulated figures measure orchestration overhead only; the token and cost columns are synthetic. `--live --universe P --schema P` runs real extraction instead (a trial run per level, real API spend). `arp scale report RUN_ID... [--out F]` renders the same table for existing runs. The committed local report is `docs/scale/2026-10-04-local-200-issuers.md`; `max_concurrent_llm_calls` stays at its default of 8.
+
+### Durable jobs
+
+`arp extract run --run-id R` (or `POST /api/runs/{run_id}/resume`, analyst or higher) continues a killed, failed, partly failed or cancelled run of any batch type: `theme`, `extraction`, `financials`, `tnfd`, `transition_plan`, `identity`, `discovery`.
+
+- Inputs come from what the run stored at creation: `runs/<id>/companies.json` (an older theme run without one falls back to its `universe_path`), the manifest params, and the manifest's models.
+- Items already in `results.jsonl`, and items stopped for review, are not run again. Plain failures are retried; their old `errors.jsonl` rows stay as history.
+- The counters are rebuilt from the files: completed = result rows, failed = 0. The review count, tokens and cost are kept.
+- One worker per run: every batch run, however it was started (API, CLI, scheduler, launcher or resume), holds a lock on `runs/<id>/.worker` while its batch runs (`hold_run`, taken in `run_company_batch` and `execute_discovery_run`; re-entrant within one task). A second worker on the same run raises `RunBusy`; a resume is refused (`409` from the API, exit 1 from the CLI). The OS frees the lock if the worker dies.
+- Not resumable (start a new run instead): completed runs, runs created before inputs were stored, whole-pass jobs (`calibration`, `taxonomy_research`, `emerging_themes`, the barrier refresh) and `voting`.
+- Nothing resumes on its own at API startup.
 
 Full flag-level detail is in the project [`README.md`](../README.md); design rationale for every precision control is in [`METHODOLOGY.md`](METHODOLOGY.md).

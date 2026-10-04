@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Awaitable, Callable
 
 from arp.api.deps import get_llm_client, get_verifier_llm_client
 from arp.config import Settings
 from arp.llm.base import LLMClient
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
+from arp.orchestration.jobs import get_job_launcher
 
 
 def schedule_llm_run(
@@ -43,5 +43,5 @@ def schedule_llm_run(
     llm = build_llm_client(settings) if settings else get_llm_client()
     verifier_llm = build_verifier_llm_client(settings) if settings else get_verifier_llm_client()
     run_id = create_fn()
-    asyncio.create_task(run(run_id, llm, verifier_llm))
+    get_job_launcher().launch(run_id, lambda: run(run_id, llm, verifier_llm))
     return run_id

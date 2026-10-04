@@ -7,9 +7,13 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
+from arp.api.auth import require_role
 from arp.api.company_results import list_known_companies
-from arp.api.deps import get_run_store
+from arp.api.deps import get_registry, get_run_store, settings_dep
+from arp.config import Settings
+from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.job_manager import JobManager
+from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_job_launcher, resume_run, run_lease
 from arp.research.pipeline import load_theme_run_matches, rank_theme_matches
 from arp.research.results_diff import diff_theme_results
 from arp.schemas.thematic import CompanyMatch
@@ -92,6 +96,35 @@ def cancel_run(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dic
         raise HTTPException(400, f"Run {run_id} is already {manifest.status.value} -- nothing to cancel.")
     updated = JobManager(run_store).request_cancel(run_id)
     return updated.model_dump(mode="json")
+
+
+@router.post("/{run_id}/resume", dependencies=[Depends(require_role("analyst"))])
+async def resume_run_endpoint(
+    run_id: str,
+    settings: Settings = Depends(settings_dep),
+    run_store: RunStore = Depends(get_run_store),
+    registry: DocumentSourceRegistry = Depends(get_registry),
+) -> dict:
+    """Continues a killed, failed or cancelled run of any batch run type in
+    the background (see arp.orchestration.jobs.resume_run)."""
+    if run_store.load_manifest(run_id) is None:
+        raise HTTPException(404, "Run not found")
+    try:
+        with run_lease(run_store, run_id):  # busy now -> 409 here, not a log line later
+            pass
+    except RunBusy as exc:
+        raise HTTPException(409, str(exc)) from exc
+    try:
+        check_resumable(run_store, run_id)
+    except NotResumable as exc:
+        raise HTTPException(400, str(exc)) from exc
+    # The launcher holds the lease for the job, so the job takes none itself.
+    get_job_launcher().launch(
+        run_id,
+        lambda: resume_run(run_id, settings=settings, run_store=run_store, registry=registry, lease=False),
+        run_store=run_store,
+    )
+    return {"run_id": run_id, "status": "resumed"}
 
 
 @router.get("/{run_id}/errors")

@@ -24,6 +24,7 @@ from arp.projects.store import ProjectStore
 from arp.publish.facts import PublishStore
 from arp.publish.scheduler import PublishingScheduler
 from arp.reporting.scheduler import ReportScheduler
+from arp.retrieval.content_store_factory import content_store_for
 from arp.stewardship.process import StreamStore
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_blob_store import blob_store_for
@@ -90,7 +91,7 @@ def get_project_store() -> ProjectStore:
 @lru_cache
 def get_document_content_store() -> DocumentContentStore:
     settings = get_settings()
-    return DocumentContentStore(settings.document_store_dir, enabled=settings.document_cache_enabled)
+    return content_store_for(settings)
 
 
 @lru_cache

@@ -28,7 +28,7 @@ class IdentityResolutionOutcome:
 
 def create_identity_run(companies: list[CompanyRef], run_store: RunStore) -> str:
     job_manager = JobManager(run_store)
-    manifest = job_manager.create_run("identity", {"company_count": len(companies)}, len(companies))
+    manifest = job_manager.create_run("identity", {"company_count": len(companies)}, len(companies), companies=companies)
     return manifest.run_id
 
 

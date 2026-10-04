@@ -25,7 +25,7 @@ def runs_list(run_type: str = typer.Option(None)) -> None:
 def runs_cancel(run_id: str) -> None:
     """Requests a cooperative stop for a running/pending run -- in-flight
     items still finish and checkpoint; no new ones start. Works for any
-    run type. Resume it later with `arp theme resume` (theme runs only)."""
+    run type. Resume it later with `arp extract run --run-id` (any batch run type)."""
     store = _run_store()
     manifest = store.load_manifest(run_id)
     if manifest is None:

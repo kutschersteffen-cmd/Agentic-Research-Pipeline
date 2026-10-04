@@ -74,7 +74,7 @@ class DocumentContentStore:
     store_dir local if you repoint it.
     """
 
-    def __init__(self, store_dir: Path, enabled: bool = True) -> None:
+    def __init__(self, store_dir: Path, enabled: bool = True, *, postgres_dsn: str | None = None) -> None:
         self.store_dir = store_dir
         self.enabled = enabled
         self._db_path = store_dir / _DB_FILENAME
@@ -89,8 +89,20 @@ class DocumentContentStore:
                 conn.close()
 
         self._parsed_content = ParsedContentCache(self._connect, enabled)
-        self._registry = DocumentRegistry(self._connect, enabled)
-        self._embeddings = ChunkEmbeddingsCache(self._connect, enabled)
+        if postgres_dsn:
+            # Registry and embeddings live in Postgres (embeddings_backend ==
+            # "postgres"); parsed text stays here as a derived cache.
+            from arp.storage.postgres_document_registry import PgDocumentRegistry, warn_if_unmigrated
+            from arp.storage.postgres_embeddings import PgVectorEmbeddingsStore
+
+            self._registry = PgDocumentRegistry(postgres_dsn, enabled, self._parsed_content.parsed_keys)
+            self._embeddings = PgVectorEmbeddingsStore(postgres_dsn)
+            if enabled:
+                warn_if_unmigrated(postgres_dsn, self._db_path)
+        else:
+            self._registry = DocumentRegistry(self._connect, enabled)
+            self._embeddings = ChunkEmbeddingsCache(self._connect, enabled)
+        self._postgres = bool(postgres_dsn)
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self._db_path, timeout=5.0)
@@ -168,8 +180,12 @@ class DocumentContentStore:
         try:
             merged = {"enabled": True}
             merged.update(self._parsed_content.stats(conn))
-            merged.update(self._registry.stats(conn))
-            merged.update(self._embeddings.stats(conn))
+            if self._postgres:
+                merged.update(self._registry.stats())
+                merged["registry_backend"] = "postgres"
+            else:
+                merged.update(self._registry.stats(conn))
+                merged.update(self._embeddings.stats(conn))
             merged["db_path"] = str(self._db_path)
             return merged
         finally:

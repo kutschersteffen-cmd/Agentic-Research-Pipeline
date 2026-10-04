@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from arp.schemas.common import JobStatus, RunManifest, now_iso
+from arp.schemas.common import CompanyRef, JobStatus, RunManifest, now_iso
 from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.locks import KeyedLock
@@ -56,6 +57,9 @@ class RunStore:
     def errors_path(self, run_id: str) -> Path:
         return self.run_dir(run_id) / "errors.jsonl"
 
+    def companies_path(self, run_id: str) -> Path:
+        return self.run_dir(run_id) / "companies.json"
+
     def review_queue_path(self, run_id: str) -> Path:
         return self.run_dir(run_id) / "review_queue.jsonl"
 
@@ -105,6 +109,14 @@ class RunStore:
         if not path.exists():
             return None
         return RunManifest.model_validate_json(read_text_utf8(path))
+
+    def load_companies(self, run_id: str) -> list[CompanyRef] | None:
+        """The companies a run was created over, or None for a run that
+        stored none (voting, older runs) and so cannot be resumed."""
+        path = self.companies_path(run_id)
+        if not path.exists():
+            return None
+        return [CompanyRef.model_validate(c) for c in json.loads(read_text_utf8(path))]
 
     def list_runs(self, run_type: str | None = None) -> list[RunManifest]:
         manifests: list[RunManifest] = []
