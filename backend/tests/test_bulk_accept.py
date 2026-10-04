@@ -201,3 +201,10 @@ def test_escalated_item_rejects_whole_call(env):
                json={"decision": "escalate", "reason_code": "other", "context_etag": esc["context_etag"]})
     assert r.status_code == 200, r.text
     _rejected(env[0], [key(0), key(1)], key(1), "escalated")
+
+
+def test_span_moved_never_decided_item_rejects_whole_call(env):
+    from arp.orchestration.reground import _reopen
+
+    _reopen(env[0], "ext1", key(1), "old", "new")  # what re-grounding does for a moved span, no decision yet
+    _rejected(env[0], [key(0), key(1)], key(1), "escalated")

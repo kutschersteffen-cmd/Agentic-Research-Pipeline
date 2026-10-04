@@ -49,3 +49,24 @@ def test_unit_read_from_raw_text_tonnes_to_kg():
 def test_not_applicable_without_canonical():
     assert _run(canonical_value=None).outcome == "not_applicable"
     assert _run(raw_value_text=None).outcome == "not_applicable"
+
+
+def test_german_document_point_table_uses_table_decimal():
+    from arp.schemas.common import Citation, SourceDocument, TableRef, TableSpan
+
+    table = "Revenue 1,234\nCosts 12.50\nOther 3,000"
+    text = "Der Bericht. " + table
+    start = text.index(table)
+    doc = SourceDocument(doc_id="d1", company_id="c1", doc_type="other", title="t", full_text=text,
+                         decimal="comma", table_spans=[TableSpan(table_id="t1", char_start=start, char_end=len(text))])
+    cit = Citation(doc_id="d1", doc_type="other", quote="Revenue 1,234", grounded=True,
+                   table_ref=TableRef(table_id="t1"))
+    spec = _SPEC.model_copy(update={"unit": None, "data_type": FieldDataType.NUMBER})
+    field = ExtractedField(field_id="f1", field_name="f1", confidence=0.9, citations=[cit], raw_value_text="1,234",
+                           value=1234.0, canonical_value=1234.0, value_state="found")
+    ctx = CheckContext(
+        company=CompanyRef(company_id="c1", name="A"), issuer_key="k",
+        schema=DataPointSchema(name="s", fields=[spec]), documents_by_id={"d1": doc}, record_fields=[field],
+    )
+    (r,) = check_round_trip(spec, field, ctx)
+    assert r.outcome == "pass", r.detail

@@ -6,6 +6,7 @@ import hashlib
 import json
 from typing import TYPE_CHECKING
 
+from arp.checks.numeric import NUMERIC_TYPES
 from arp.config import Settings
 from arp.extraction.history import RunHistory
 from arp.extraction.pipeline import load_run_schema
@@ -207,6 +208,19 @@ def similar_decisions(run_store: RunStore, *, run_id: str, item_key: str, limit:
     return out
 
 
+def _suggestion(v: dict, field_definition: dict | None) -> dict | None:
+    """The verifier's or adjudicator's value to start a correction from. A number is offered as its
+    printed text, so its scale travels with it; a bare number with no printed text is not offered."""
+    data_type = (field_definition or {}).get("data_type")
+    for a in v.get("alternatives", []):
+        raw, value = a.get("raw_value_text"), a.get("value")
+        number = isinstance(value, (int, float)) and not isinstance(value, bool)
+        numeric = data_type in NUMERIC_TYPES if data_type else number  # no field definition (an old run): the value
+        if a.get("source") in ("verifier", "adjudicator") and (raw or (value is not None and not numeric)):
+            return {"value": raw or value, "citations": a.get("citations", [])}
+    return None
+
+
 def build_context(
     run_store: RunStore, run_id: str, item_key: str, principal: Principal, *,
     settings: Settings, content_store: DocumentContentStore | None,
@@ -233,9 +247,7 @@ def build_context(
         "route_reasons": v.get("route_reasons", []),
         "conflict": {"conflicting_sources": v.get("conflicting_sources", False), "alternatives": v.get("alternatives", [])}
         if value else None,
-        "suggested_correction": next(
-            ({"value": a.get("value"), "citations": a.get("citations", [])}
-             for a in v.get("alternatives", []) if a.get("source") in ("verifier", "adjudicator")), None),
+        "suggested_correction": _suggestion(v, field_definition),
         "prior_period": _prior_period(row, value),
         "published": _published(run_store, run_id, item),
         "confidence": {

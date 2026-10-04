@@ -135,7 +135,9 @@ async def _record(
     provenance = ProvenanceInfo(
         provider="anthropic", extractor_model=settings.llm_model,
         extractor_prompt_version=_prompt_version(extractor_agent._SYSTEM_PROMPT),
-        verifier_model=settings.llm_verifier_model, verifier_prompt_version=_prompt_version(verifier_agent._SYSTEM_PROMPT),
+        # a high-risk field is blind-verified: the verifier client runs the extractor's prompt (field_graph._verify)
+        verifier_model=settings.llm_verifier_model,
+        verifier_prompt_version=_prompt_version((extractor_agent if spec.high_risk else verifier_agent)._SYSTEM_PROMPT),
         schema_version=f"{schema.schema_id}:v{schema.version}", field_version=spec.version,
     )
     h = input_hash(spec, route_documents(spec, [doc]), planned, input_settings(settings))
@@ -232,7 +234,7 @@ def reviewer_stats(run_store: RunStore, settings: Settings) -> list[ReviewerStat
             final = s.effective if s.state in FINAL_STATES else None
             for i, row in enumerate(s.rows):
                 uid = row.get("user_id")
-                if not uid:  # a legacy row names no person
+                if not uid or uid == "system":  # a legacy row names no person; a system row is no reviewer
                     continue
                 c = n[uid]
                 c["name"] = row.get("reviewer") or c["name"]

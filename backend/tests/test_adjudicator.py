@@ -117,7 +117,8 @@ async def test_unsettled_or_uncited_goes_to_review(fake_llm, adjudication):
     assert f.value == 383.285  # the extractor's value stays
     assert f.method == "extracted"
     assert ReasonCode.ADJUDICATOR_UNRESOLVED in f.review_reasons
-    assert {(a.source, a.value) for a in f.alternatives} == {("extractor", 383.285), ("verifier", 390000.0)}
+    offered = {("adjudicator", adjudication.value)} if adjudication.value is not None else set()
+    assert {(a.source, a.value) for a in f.alternatives} == {("extractor", 383.285), ("verifier", 390000.0), *offered}
 
 
 async def test_adjudicator_usage_counted_in_cost(fake_llm):

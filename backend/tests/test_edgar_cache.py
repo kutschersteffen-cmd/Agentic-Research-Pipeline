@@ -304,3 +304,33 @@ async def test_edgar_lost_blob_is_archived_again(tmp_path, monkeypatch):
     blob.unlink()
     (doc,) = await source.fetch(COMPANY)
     assert blob.read_bytes() == f"bytes of {doc.source_url}".encode()
+
+
+async def test_edgar_document_reads_us_number_convention(tmp_path, monkeypatch):
+    from arp.extraction.aggregator import build_extracted_fields
+    from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
+    from arp.extraction.verifier_agent import VerifierOutput
+    from arp.schemas.common import Citation
+    from arp.schemas.datapoints import FieldDefinition
+    from arp.schemas.review import ReasonCode
+
+    cache_dir = tmp_path / "cache"
+    store = DocumentContentStore(tmp_path / "store")
+    source = EdgarDocumentSource(user_agent="test-agent test@example.com", cache_dir=cache_dir, content_store=store)
+    _write_submissions_cache(cache_dir, "0000320193", _SUBMISSIONS)
+    content_key = hashlib.sha256(f"edgar:{_ACCESSION}/{_PRIMARY_DOC}".encode()).hexdigest()
+    text = "Total net sales were $383,285 million."
+    store.store(content_key, key_kind="edgar_accession", parser_version=edgar_module._edgar_parser_version(),
+                source_suffix=".htm", byte_size=100, text=text, page_breaks=[])
+    monkeypatch.setattr(edgar_module.httpx, "AsyncClient", _FailingClient)
+    [doc] = await source.fetch(CompanyRef(company_id="apple", name="Apple Inc.", cik="320193"))
+    assert (doc.language, doc.decimal) == ("en", "point")
+
+    field = FieldDefinition(field_id="rev", name="Revenue", description="d", data_type="currency_amount",
+                            extraction_instructions="x", unit="USD")
+    cit = Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=text)
+    draft = ExtractionDraft(values=[PeriodValue(value=383285.0, raw_value_text="$383,285 million", citations=[cit])],
+                            confidence=0.9)
+    [f] = build_extracted_fields(field, draft, VerifierOutput(agrees=True, confidence=0.9, notes=""),
+                                 {doc.doc_id: doc}, fuzzy_threshold=0.9, confidence_review_threshold=0.6)
+    assert ReasonCode.NUMBER_LOCALE_AMBIGUOUS not in f.review_reasons

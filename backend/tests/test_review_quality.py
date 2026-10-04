@@ -308,3 +308,32 @@ def test_known_answer_item_never_grows_the_gold_set(qenv):
     record_confirmed_correction(_bundle("Scope 1 1,100", run_id, key), {"value": 1100}, settings)
     assert not (settings.review_quality_dir / "extraction_cases.json").exists()
     assert _perturb(0) == 1 and _perturb(0.0) == 1 and _perturb(2.5) == 25 and _perturb(True) is False
+
+
+def test_system_rows_are_not_a_reviewer(qenv):
+    from arp.orchestration.reground import _reopen
+
+    rs, _, settings = qenv
+    rs.save_manifest(RunManifest(run_id="ext1", run_type="extraction"))
+    _row(rs, "ext1", "A", ALICE, "approve", "first")
+    _reopen(rs, "ext1", "A", "old", "new")  # a system span_moved escalate
+    assert [s.name for s in reviewer_stats(rs, settings)] == ["Alice Reviewer"]
+
+
+@pytest.mark.parametrize("high_risk", [False, True])
+def test_seeded_provenance_matches_the_risk_class(qenv, high_risk):
+    import random
+
+    from arp.extraction import extractor_agent, verifier_agent
+    from arp.review.quality import _record
+
+    _, _, settings = qenv
+    case = next(c for c in load_cases() if c.expected_value is not None)
+    spec = case.field.model_copy(update={"high_risk": high_risk})
+    schema = DataPointSchema(name="s", fields=[spec])
+    record = asyncio.run(_record(CompanyRef(company_id="c1", name="Co"), case, case.expected_value, schema, spec,
+                                 settings, random.Random(1)))
+    prompt = (extractor_agent if high_risk else verifier_agent)._SYSTEM_PROMPT
+    for f in record.fields:
+        assert f.provenance.verifier_prompt_version == hashlib.sha256(prompt.encode()).hexdigest()[:12]
+        assert f.provenance.adjudicator_model is None  # no third call ran

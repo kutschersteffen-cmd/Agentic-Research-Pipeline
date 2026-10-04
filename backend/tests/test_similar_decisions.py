@@ -9,6 +9,7 @@ from arp.config import Settings
 from arp.orchestration.review_queue import append_decision
 from arp.review.context import build_context, similar_decisions
 from arp.schemas.common import RunManifest
+from arp.schemas.datapoints import DataPointSchema, FieldDefinition
 from arp.schemas.review import ReviewDecision
 from arp.storage.run_store import RunStore
 
@@ -74,27 +75,37 @@ def test_similar_endpoint_and_404(tmp_path):
         app.dependency_overrides.pop(current_user, None)
 
 
-def test_context_suggested_correction_from_verifier_alternative(tmp_path):
+def _context_with(tmp_path, alternatives, schema_fields=None):
     rs = RunStore(tmp_path / "runs")
     rs.save_manifest(RunManifest(run_id="ext1", run_type="extraction"))
-    cited = [{"doc_id": "d1", "doc_type": "annual_report", "quote": "110", "grounded": False}]
-    field = _field("2024-12-31", alternatives=[
-        {"value": 95, "source": "extractor", "citations": []},
-        {"value": 110, "source": "verifier", "citations": cited},
-        {"value": 120, "source": "adjudicator", "citations": []},
-    ])
+    if schema_fields:
+        (rs.run_dir("ext1") / "schema.json").write_text(
+            DataPointSchema(schema_id="s1", name="s", fields=schema_fields).model_dump_json())
+    field = _field("2024-12-31", alternatives=alternatives)
     key = f"{ISSUER}:f1:2024-12-31"
     rs.append_jsonl(rs.review_queue_path("ext1"), {"item_key": key, "issuer_key": ISSUER, "company_id": "C1",
                                                    "field_id": "f1", "period_end": "2024-12-31", "field": field})
-    rs.append_jsonl(rs.results_path("ext1"), {"company_id": "C1", "issuer_key": ISSUER, "fields": [field]})
+    rs.append_jsonl(rs.results_path("ext1"), {"company_id": "C1", "issuer_key": ISSUER, "schema_id": "s1",
+                                              "fields": [field]})
     settings = Settings(schema_registry_dir=tmp_path / "reg")
-    ctx = build_context(rs, "ext1", key, CAROL, settings=settings, content_store=None)
-    assert ctx["suggested_correction"] == {"value": 110, "citations": cited}
-    field["alternatives"] = field["alternatives"][:1]
-    rs.results_path("ext1").unlink()
-    rs.review_queue_path("ext1").unlink()
-    rs.append_jsonl(rs.review_queue_path("ext1"), {"item_key": key, "issuer_key": ISSUER, "company_id": "C1",
-                                                   "field_id": "f1", "period_end": "2024-12-31", "field": field})
-    assert build_context(rs, "ext1", key, CAROL, settings=settings, content_store=None)["suggested_correction"] is None
+    return build_context(rs, "ext1", key, CAROL, settings=settings, content_store=None)["suggested_correction"]
+
+
+def test_suggested_correction_carries_the_printed_number(tmp_path):
+    cited = [{"doc_id": "d1", "doc_type": "annual_report", "quote": "110", "grounded": False}]
+    alts = [
+        {"value": 95, "raw_value_text": "95", "source": "extractor", "citations": []},
+        {"value": 110, "source": "verifier", "citations": cited},  # a bare number: its scale is unknown
+        {"value": 120, "raw_value_text": "$120 million", "source": "adjudicator", "citations": cited},
+    ]
+    assert _context_with(tmp_path / "a", alts) == {"value": "$120 million", "citations": cited}
+    assert _context_with(tmp_path / "b", alts[:2]) is None  # numeric with no printed text: no prefill
+
+
+def test_suggested_correction_text_field_takes_the_value(tmp_path):
+    spec = FieldDefinition(field_id="f1", name="f1", description="d", data_type="string", extraction_instructions="x")
+    alts = [{"value": "Deloitte", "source": "verifier", "citations": []}]
+    assert _context_with(tmp_path, alts, [spec]) == {"value": "Deloitte", "citations": []}
+
 
 

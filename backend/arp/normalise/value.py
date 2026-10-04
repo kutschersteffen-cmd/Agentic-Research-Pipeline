@@ -159,7 +159,7 @@ def typed_value(
     m = PRINTED.search(text) if field.data_type in NUMERIC and text else None
     if m and parse_number(m[0], decimal)[1]:
         reasons.append(ReasonCode.NUMBER_LOCALE_AMBIGUOUS)
-        notes.append(f"{m[0]!r} is a thousands group or a decimal; read as a decimal point")
+        notes.append(f"{m[0]!r} is a thousands group or a decimal; read under the point convention")
     numeric = isinstance(value, (int, float)) and not isinstance(value, bool)
     if state == ValueState.FOUND and numeric and value == 0:
         state = ValueState.ZERO

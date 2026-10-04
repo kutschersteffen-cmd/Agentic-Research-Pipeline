@@ -18,6 +18,7 @@ _JUNK = re.compile(rf"[^\d.,\-−'{_SPACES}]")
 _SEP = re.compile(rf"['{_SPACES}]")
 _GROUPED = {",": re.compile(r"\d{1,3}(,\d{3})+"), ".": re.compile(r"\d{1,3}(\.\d{3})+")}
 _WORD = re.compile(r"[^\W\d_]+")
+_NUMBER = re.compile(r"\d[\d.,]*\d")
 
 
 @lru_cache(maxsize=1)
@@ -62,6 +63,19 @@ def context_decimal(numbers: list[str]) -> Decimal | None:
     if not top or (len(top) == 2 and top[0][1] == top[1][1]):
         return None
     return top[0][0]
+
+
+def citation_decimal(citations, documents_by_id: dict) -> Decimal | None:
+    """The decimal mark a value reads with: the one its cited table's own numbers prove (grounded
+    citations carry table_ref), else the cited documents' shared decimal (None if they disagree or are unknown)."""
+    docs = {d.decimal if (d := documents_by_id.get(c.doc_id)) else None for c in citations}
+    shared = docs.pop() if len(docs) == 1 else None
+    for c in citations:
+        doc = documents_by_id.get(c.doc_id) if c.table_ref else None
+        t = next((t for t in doc.table_spans if t.table_id == c.table_ref.table_id), None) if doc else None
+        if t:
+            return context_decimal(_NUMBER.findall(doc.full_text[t.char_start : t.char_end])) or shared
+    return shared
 
 
 def parse_number(text: str, decimal: Decimal | None = None) -> tuple[float | None, bool]:

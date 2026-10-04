@@ -293,3 +293,8 @@ def test_document_decimal_resolves_ambiguity():
 def test_disagreeing_or_unknown_document_decimals_flag():
     assert ReasonCode.NUMBER_LOCALE_AMBIGUOUS in _locale_run("1,234", ["point", "comma"]).review_reasons
     assert ReasonCode.NUMBER_LOCALE_AMBIGUOUS in _locale_run("1,234", [None]).review_reasons
+
+
+def test_ambiguity_note_names_the_point_convention():
+    f = _locale_run("1,234", [None])
+    assert "'1,234' is a thousands group or a decimal; read under the point convention" in f.verifier_notes

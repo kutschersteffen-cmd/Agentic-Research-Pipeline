@@ -137,15 +137,52 @@ def test_reground_if_parser_changed_first_run_regrounds(world):
 
 def test_unavailable_is_retried_and_holds_the_version_file(world):
     run_store, _, new_parser, settings, blobs, texts = world
-    new_parser("Preface.\n" + OLD_TEXT)
-    blobs._path(KEY).unlink()
+    path = run_store.results_path("ext1")
+    path.write_text(path.read_text().replace("report.txt", "filing.bin"))
     kw = {"settings": settings, "blob_store": blobs, "content_store": texts}
     assert reground_if_parser_changed(run_store, **kw).unavailable == 1
     assert not (settings.publish_state_dir / "parser_version.txt").exists()
-    blobs.put(KEY, ORIGINAL)
+    path.write_text(path.read_text().replace("filing.bin", "report.txt"))
+    new_parser("Preface.\n" + OLD_TEXT)
     report = reground_if_parser_changed(run_store, **kw)
     assert (report.moved, report.unavailable) == (1, 0)
     assert (settings.publish_state_dir / "parser_version.txt").read_text() == "new"
+
+
+def test_missing_original_settles_once(world):
+    run_store, _, new_parser, settings, blobs, texts = world
+    new_parser("Preface.\n" + OLD_TEXT)
+    blobs._path(KEY).unlink()
+    kw = {"settings": settings, "blob_store": blobs, "content_store": texts}
+    report = reground_if_parser_changed(run_store, **kw)
+    assert (report.checked, report.unavailable, report.queued) == (1, 0, 0)
+    assert (settings.publish_state_dir / "parser_version.txt").read_text() == "new"
+    assert reground_runs(run_store, **kw).checked == 0  # settled: not retried
+    assert [r["outcome"] for r in _rows(run_store, "regrounds.jsonl")] == ["original_missing"]
+
+
+def test_trial_run_skipped(world):
+    run_store, run, new_parser, *_ = world
+    run_store.save_manifest(RunManifest(run_id="ext1", run_type="extraction", params={"trial": True}))
+    new_parser("Preface.\n" + OLD_TEXT)
+    assert run() == RegroundReport()
+    assert _rows(run_store, "regrounds.jsonl") == []
+
+
+def test_auto_accepted_item_with_moved_span_is_escalated_and_not_published(world):
+    from arp.orchestration.review_queue import item_states
+    from arp.publish.candidates import run_candidates
+
+    run_store, run, new_parser, *_ = world
+    path = run_store.results_path("ext1")
+    path.write_text(path.read_text().replace('"period_end"', '"route": "auto_accept", "period_end"', 1))
+    assert [c.item_key for c in run_candidates(run_store, "ext1")[0]] == [ITEM]
+    new_parser("Preface.\n" + OLD_TEXT)
+    assert run().queued == 1
+    cands, skips = run_candidates(run_store, "ext1")
+    assert cands == [] and (ITEM, "not_final") in [(s.item_key, s.reason) for s in skips]
+    s = item_states(run_store, "ext1", cosign_required={"edit"})[ITEM]
+    assert s.escalated and s.rows[0]["reason_code"] == "span_moved"
 
 
 def test_edgar_citation_skipped(world):

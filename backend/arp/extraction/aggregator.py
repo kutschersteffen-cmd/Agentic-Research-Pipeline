@@ -1,36 +1,27 @@
 from __future__ import annotations
 
-import re
 from dataclasses import replace
 
 from arp.extraction.adjudicator import AdjudicatorOutput
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.verifier_agent import VerifierOutput
 from arp.grounding import ground_citations
-from arp.normalise.locale import Decimal, context_decimal
+from arp.normalise.locale import Decimal, citation_decimal
 from arp.normalise.value import NUMERIC, typed_value
 from arp.schemas.common import DocumentChunk, SourceDocument
 from arp.schemas.datapoints import Alternative, ExtractedField, FieldDefinition, ValueState
 from arp.schemas.review import ReasonCode
 
-_NUMBER = re.compile(r"\d[\d.,]*\d")
 
-
-def _table_decimal(
+def _decimal(
     pv: PeriodValue, documents_by_id: dict[str, SourceDocument], fuzzy_threshold: float,
-    passages: dict[str, DocumentChunk] | None, fallback: Decimal | None,
+    passages: dict[str, DocumentChunk] | None,
 ) -> Decimal | None:
-    """A value cited inside a table reads with the decimal mark that table's own
-    numbers prove; `fallback` (the documents' decimal) when they prove none."""
-    if not any(d.table_spans for c in pv.citations if (d := documents_by_id.get(c.doc_id))):
-        return fallback
-    # ponytail: grounds these citations a second time (only for documents with tables); hoist if it shows in profiles.
-    for c in ground_citations(pv.citations, documents_by_id, fuzzy_threshold, passages=passages):
-        if c.table_ref:
-            doc = documents_by_id[c.doc_id]
-            t = next(t for t in doc.table_spans if t.table_id == c.table_ref.table_id)
-            return context_decimal(_NUMBER.findall(doc.full_text[t.char_start : t.char_end])) or fallback
-    return fallback
+    cits = pv.citations
+    if any(d.table_spans for c in cits if (d := documents_by_id.get(c.doc_id))):
+        # ponytail: grounds these citations a second time (only for documents with tables); hoist if it shows in profiles.
+        cits = ground_citations(cits, documents_by_id, fuzzy_threshold, passages=passages)
+    return citation_decimal(cits, documents_by_id)
 
 
 def _taken(tv, v, what: str):
@@ -75,13 +66,9 @@ def build_extracted_fields(
         values = [PeriodValue(state=ValueState.NOT_FOUND)]
 
     planned = set(planned_periods or ())
-    decimals = {
-        d.decimal if (d := documents_by_id.get(c.doc_id)) else None for pv in values for c in pv.citations
-    }
-    decimal = decimals.pop() if len(decimals) == 1 else None  # disagreeing or unknown -> flag ambiguity
 
     def _typed(pv: PeriodValue):
-        dec = _table_decimal(pv, documents_by_id, fuzzy_threshold, passages, decimal)
+        dec = _decimal(pv, documents_by_id, fuzzy_threshold, passages)  # disagreeing or unknown -> flag ambiguity
         return typed_value(field, pv, fiscal_year_end=fiscal_year_end, planned=planned, decimal=dec)
 
     typed = [(pv, _typed(pv)) for pv in values]
@@ -135,6 +122,10 @@ def build_extracted_fields(
             ))
         if correction and (settled or adj_unresolved or uncited):
             alternatives.append(Alternative(value=verifier.corrected_value, source="verifier", citations=cited))
+        if adj_unresolved and adj.value is not None:  # its figure, uncited or ungrounded, is a reviewer's suggestion
+            alternatives.append(Alternative(
+                value=adj.value, raw_value_text=adj.raw_value_text, source="adjudicator", citations=adj_cited,
+            ))
         if settled:
             # Typed like an extracted value (same period, the adjudicator's figure,
             # unit and citations), so its canonical value is computed and checked.

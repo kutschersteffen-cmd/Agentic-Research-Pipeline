@@ -7,6 +7,7 @@ files are never rewritten: the outcome lives in runs/<id>/regrounds.jsonl."""
 
 from __future__ import annotations
 
+import logging
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,8 +19,11 @@ from arp.schemas.common import Citation
 from arp.schemas.review import DecisionReason, ReviewDecision, field_item_key, period_key
 from arp.storage.run_store import RunStore
 
+logger = logging.getLogger(__name__)
+
 FLAGGED = ("offset_moved", "not_grounded")
-SETTLED = ("ok", *FLAGGED)  # anything else (original missing, text unavailable) is retried on the next run
+LINEAGE = ("original_missing", "hash_mismatch")  # re-parsing cannot fix these: logged once, never retried
+SETTLED = ("ok", *FLAGGED, *LINEAGE)  # only text_unavailable is retried on the next run
 COSIGN_REQUIRED = {"edit"}  # extraction's legacy co-sign rule (review/items.py LEGACY_COSIGN)
 
 
@@ -39,10 +43,11 @@ def _is_edgar(version: str) -> bool:
 
 
 def _reopen(run_store: RunStore, run_id: str, key: str, old: str, new: str) -> None:
-    """A decided item goes back to review: a system first-step escalate starts a new round."""
+    """A decided or never-decided item goes back to review: a system first-step escalate starts a
+    new round, so an auto-accepted value is no longer publishable nor bulk-acceptable."""
     with run_store.lock(run_id):
         state = item_states(run_store, run_id, cosign_required=COSIGN_REQUIRED).get(key)
-        if state is not None and state.state in FINAL_STATES:
+        if state is None or state.state in FINAL_STATES:
             append_decision(run_store, run_id, ReviewDecision(
                 item_key=key, step="first", decision="escalate", reason_code=DecisionReason.SPAN_MOVED,
                 reviewer="system", user_id="system", role="system", snapshot_id="",
@@ -93,6 +98,9 @@ def reground_runs(run_store: RunStore, *, settings, blob_store, content_store, r
     report = RegroundReport()
     ids = run_ids if run_ids is not None else [m.run_id for m in run_store.list_runs("extraction")]
     for run_id in ids:
+        manifest = run_store.load_manifest(run_id)
+        if manifest is not None and manifest.params.get("trial"):
+            continue  # known-answer runs have text but no stored original, and never publish
         log = run_store.run_dir(run_id) / "regrounds.jsonl"
         # ponytail: no run lock while re-parsing (can take minutes); two concurrent re-grounds can duplicate rows
         done = [r for r in run_store.read_jsonl(log) if r["outcome"] in SETTLED]
@@ -117,6 +125,8 @@ def reground_runs(run_store: RunStore, *, settings, blob_store, content_store, r
                     report.moved += outcome == "offset_moved"
                     report.lost += outcome == "not_grounded"
                     report.unavailable += outcome not in SETTLED
+                    if outcome in LINEAGE:
+                        logger.warning("Re-grounding %s/%s: %s; not retried", run_id, c.doc_id, outcome)
                     if outcome in FLAGGED and f.get("route") != "hold" and (key, version) not in queued:  # held: approver only
                         reasons = [*f.get("review_reasons", []), "span_moved"]
                         queue_for_review(run_store, run_id, key, {

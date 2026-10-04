@@ -169,3 +169,26 @@ def test_fact_for_tags_annual_full_year_only():
     facts = {"facts": {"us-gaap": {"Revenues": {"units": {"USD": rows}}}}}
     assert XbrlFactSource.fact_for_tags(facts, ["us-gaap:Missing", "us-gaap:Revenues"], fiscal_year=2024).value == 3
     assert XbrlFactSource.fact_for_tags(facts, ["us-gaap:Revenues"], fiscal_year=2023) is None
+
+
+async def test_tagged_value_is_refused_by_publish_not_dropped(tmp_path, fake_llm):
+    """Pinned limitation: an XBRL citation has no stored original (content_key), so the gate
+    refuses a tagged candidate with no_grounded_citation until an XBRL lineage rule exists."""
+    from arp.publish.candidates import run_candidates
+    from arp.publish.release import split_by_gate
+    from arp.schemas.common import RunManifest
+    from arp.storage.run_store import RunStore
+
+    field = _field(["us-gaap:Revenues"])
+    qualities = {(field.field_id, field.version): FieldQuality(field_id=field.field_id, version=field.version, first_audit_passed=True)}
+    (f,), _, _ = await _run(tmp_path, fake_llm, field, _facts(2024, "2024-12-31"), qualities=qualities)
+    assert (f.method, f.route) == ("tagged", "auto_accept")
+    rs = RunStore(tmp_path / "pub-runs")
+    rs.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
+    rs.append_jsonl(rs.results_path("r1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
+                                            "fields": [f.model_dump(mode="json")]})
+    cands, _ = run_candidates(rs, "r1")
+    [c] = cands
+    assert (c.state, c.citation) == ("auto_accepted", None)
+    passed, blocked = split_by_gate(cands, blob_store=None, withdrawn_docs=set())
+    assert passed == {} and blocked == [{"doc_id": None, "reason": "no_grounded_citation", "item_keys": [c.item_key]}]
