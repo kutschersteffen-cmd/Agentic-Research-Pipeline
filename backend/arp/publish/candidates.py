@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from arp.orchestration.review_queue import effective_decisions, latest_decisions
+from arp.orchestration.review_queue import effective_decisions, item_states, latest_decisions
 from arp.publish.facts import FactCandidate
 from arp.schemas.common import Citation
 from arp.schemas.review import field_item_key, period_key
@@ -66,7 +66,7 @@ def run_candidates(run_store, run_id: str) -> tuple[list[FactCandidate], list[Sk
                 continue  # only the restatement branch may publish this key
             d = decisions.get(key)
             if d is None:
-                if key in in_review:
+                if key in in_review or f.get("route") == "review":
                     skips.append(Skip(key, "not_final"))
                 elif f.get("route") == "hold":
                     skips.append(Skip(key, "held"))
@@ -86,9 +86,13 @@ def run_candidates(run_store, run_id: str) -> tuple[list[FactCandidate], list[Sk
             else:
                 skips.append(Skip(key, "not_final"))
 
+    states = item_states(run_store, run_id, cosign_required={"edit"})
     for key, c in rst.items():
         d = decisions.get(c["candidate_id"])
         kind = d.get("decision") if d else None
+        s = states.get(c["candidate_id"])
+        if kind != "reject" and not (d and d.get("step") and (s.state == "second_done" or d["step"] == "resolution")):
+            kind = None  # a restatement publishes only after the workbench's second review or a resolution
         if kind not in _STATE or key not in rows_by_key:
             skips.append(Skip(key, "rejected" if kind == "reject" else "restatement_pending"))
             continue

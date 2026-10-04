@@ -330,6 +330,20 @@ def test_submit_review_rejects_unknown_decision(tmp_path):
         submit_review(RunStore(tmp_path / "runs"), "r1", item_key="k", decision="maybe", edited_value=None)
 
 
+def test_legacy_review_routes_refuse_workbench_runs_and_keys(env):
+    rs, c = env[0], client(CAROL)
+    for url, key in [
+        ("/api/financials/runs/ext1/review", KEY), ("/api/financials/runs/ext1/review", "rst_1"),
+        ("/api/financials/runs/idn1/review", "C1"), ("/api/voting/runs/ext1/review", KEY),
+    ]:
+        r = c.post(url, json={"item_key": key, "decision": "approve", "reviewer": "X"})
+        assert r.status_code == 400, (url, key)
+    assert rs.read_jsonl(rs.review_decisions_path("ext1")) == rs.read_jsonl(rs.review_decisions_path("idn1")) == []
+    for key in ("isic:C1", "held:C1:d1", "rst_1"):
+        assert c.post("/api/themes/runs/thm1/review", json={"item_key": key, "decision": "approve"}).status_code == 400
+    assert c.post("/api/themes/runs/thm1/review", json={"item_key": "C1:a1", "decision": "approve"}).status_code == 200
+
+
 def test_get_item(env):
     rs = env[0]
     item = get_item(rs, "ext1", HELD, ALICE)

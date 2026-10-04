@@ -16,6 +16,9 @@ from arp.storage.run_store import RunStore
 
 
 VALID_DECISIONS = {"approve", "edit", "reject", "escalate"}
+# Decided only through the review workbench (arp/review/decide.py), which enforces second reviews.
+WORKBENCH_RUN_TYPES = {"extraction", "identity"}
+WORKBENCH_KEY_PREFIXES = ("isic:", "held:", "rst_")
 
 
 class ReviewDecisionRequest(BaseModel):
@@ -59,5 +62,10 @@ def submit_review(
 ) -> dict:
     if decision not in VALID_DECISIONS:
         raise ValueError(f"decision must be one of {sorted(VALID_DECISIONS)}")
+    if item_key.startswith(WORKBENCH_KEY_PREFIXES):
+        raise ValueError("decide this item through the review workbench")
+    manifest = run_store.load_manifest(run_id)  # no manifest: today's behaviour
+    if manifest is not None and manifest.run_type in WORKBENCH_RUN_TYPES:
+        raise ValueError(f"decide {manifest.run_type} items through the review workbench")
     record_review_decision(run_store, run_id, item_key, decision, reviewer, edited_value, comment, principal=principal)
     return {"status": "recorded"}

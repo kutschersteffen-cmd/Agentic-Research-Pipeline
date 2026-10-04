@@ -42,10 +42,10 @@ def _decide(rs, key, decision="approve", step="first", second=False, value=None,
         corrected_value=None if value is None else {"value": value}, correction_citation=citation))
 
 
-def _rst(rs):
+def _rst(rs, doc_ids=("d2",)):
     rs.append_jsonl(rs.restatements_path("r1"), {
         "candidate_id": "rst_1", "item_key": OLD, "issuer_key": "ISS", "field_id": "f1", "period_end": "2023-12-31",
-        "previous_value": 7, "previous_run_id": "r0", "new_value": 8, "run_id": "r1", "doc_ids": ["d2"]})
+        "previous_value": 7, "previous_run_id": "r0", "new_value": 8, "run_id": "r1", "doc_ids": list(doc_ids)})
 
 
 def test_trial_run_never_published(rs):
@@ -136,3 +136,51 @@ def test_no_value_and_no_period_skipped(rs):
 def test_row_without_issuer_key_skipped(rs):
     _run(rs, [_field(route="auto_accept")], issuer_key="")
     assert run_candidates(rs, "r1") == ([], [Skip("c1", "no_issuer_key")])
+
+
+def test_field_awaiting_review_is_not_final(rs):
+    _run(rs, [_field(route="review")])
+    assert run_candidates(rs, "r1") == ([], [Skip(KEY, "not_final")])
+
+
+def test_legacy_no_step_approve_on_restatement_stays_pending(rs):
+    _run(rs, [_field(period="2023-12-31", value=8, cit=CIT2)])
+    _rst(rs)
+    record_review_decision(rs, "r1", "rst_1", "approve", "Mallory", None)
+    assert run_candidates(rs, "r1") == ([], [Skip(OLD, "restatement_pending")])
+
+
+def test_first_step_restatement_without_second_stays_pending(rs):
+    _run(rs, [_field(period="2023-12-31", value=8, cit=CIT2)])
+    _rst(rs)
+    _decide(rs, "rst_1", "approve")  # step first, second_required False: final, but not a second review
+    assert run_candidates(rs, "r1") == ([], [Skip(OLD, "restatement_pending")])
+
+
+@pytest.mark.parametrize("citation,doc", [(CORR, "d9"), (None, "d7")])
+def test_corrected_restatement_published(rs, citation, doc):
+    _run(rs, [_field(period="2023-12-31", value=8, cit=CIT2)])
+    _rst(rs, doc_ids=("d7",))
+    _decide(rs, "rst_1", "correct", second=True, value=9, citation=citation)
+    _decide(rs, "rst_1", "correct", step="second", value=9, citation=citation, who="u_bob")
+    [c], skips = run_candidates(rs, "r1")
+    assert skips == [] and (c.value, c.state, c.restated, c.restated_by_doc_id) == (9, "edited", True, doc)
+    assert (c.citation.doc_id if c.citation else None) == (citation and citation["doc_id"])
+
+
+def test_resolved_restatement_published(rs):
+    _run(rs, [_field(period="2023-12-31", value=8, cit=CIT2)])
+    _rst(rs)
+    _decide(rs, "rst_1", "approve", second=True)
+    _decide(rs, "rst_1", "reject", step="second", who="u_bob")
+    assert run_candidates(rs, "r1")[1] == [Skip(OLD, "restatement_pending")]  # disagreed
+    _decide(rs, "rst_1", "approve", step="resolution", who="u_carol")
+    [c], _ = run_candidates(rs, "r1")
+    assert c.restated and c.value == 8
+
+
+def test_rejected_restatement_not_published(rs):
+    _run(rs, [_field(period="2023-12-31", value=8, cit=CIT2)])
+    _rst(rs)
+    _decide(rs, "rst_1", "reject")
+    assert run_candidates(rs, "r1") == ([], [Skip(OLD, "rejected")])
