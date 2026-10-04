@@ -7,11 +7,14 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from arp.api.deps import get_llm_client, get_superset_client
+from arp.api.auth import Principal, current_user
+from arp.api.deps import get_llm_client, get_superset_client, settings_dep
 from arp.bi import service
 from arp.bi.service import BIError, DashboardNotFound, DesignResult, NotAnARPDashboard
 from arp.bi.superset_client import SupersetClient, SupersetError
+from arp.config import Settings
 from arp.llm.base import LLMClient
+from arp.portfolio import qa_audit
 
 logger = logging.getLogger(__name__)
 
@@ -70,11 +73,25 @@ async def ask(
     req: AskRequest,
     llm: LLMClient = Depends(get_llm_client),
     client: SupersetClient = Depends(get_superset_client),
+    settings: Settings = Depends(settings_dep),
+    principal: Principal = Depends(current_user),
 ) -> DesignResult:
+    result, error = None, None
     try:
-        return await service.ask_chart(req.question, llm, client)
+        result = await service.ask_chart(req.question, llm, client)
+        return result
     except (BIError, SupersetError, httpx.HTTPError) as e:
+        error = f"{type(e).__name__}: {e}"
         raise _bad_gateway(e) from e
+    except Exception as e:
+        error = f"{type(e).__name__}: {e}"
+        raise
+    finally:
+        text = (result.url or result.clarification_needed or "; ".join(result.rejected)) if result else None
+        qa_audit.record_answer(
+            settings, endpoint="bi.ask", principal=principal, question=req.question,
+            answer_text=text, vintage={"slug": result.slug, "dashboard_id": result.dashboard_id} if result else {}, error=error,
+        )
 
 
 @router.post("/embed-token", response_model=EmbedToken)

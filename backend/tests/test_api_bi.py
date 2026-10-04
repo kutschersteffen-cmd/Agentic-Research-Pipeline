@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from arp.api import deps
+from arp.api.auth import current_user
 from arp.api.deps import get_llm_client, get_superset_client
 from arp.api.routers import bi as bi_router
 from arp.bi.planner import PlannerRefusal
 from arp.bi.superset_client import SupersetError
 from arp.config import Settings
+from tests.conftest import PRINCIPAL
 from tests.test_bi_service import PLAN, FakeClient, FakeLLM
 
 SECRET_BODY = '{"message": "boom", "password": "hunter2"}'
@@ -32,6 +37,8 @@ def _app(llm, superset) -> TestClient:
     app.include_router(bi_router.router)
     app.dependency_overrides[get_llm_client] = lambda: llm
     app.dependency_overrides[get_superset_client] = lambda: superset
+    app.dependency_overrides[current_user] = lambda: PRINCIPAL
+    app.dependency_overrides[deps.settings_dep] = lambda: Settings(portfolios_dir=Path(tempfile.mkdtemp()))  # ask writes an audit row
     return TestClient(app)
 
 

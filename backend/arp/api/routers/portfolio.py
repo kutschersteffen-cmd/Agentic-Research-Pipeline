@@ -10,7 +10,7 @@ from arp.api.deps import get_llm_client, get_portfolio_store, settings_dep
 from arp.api.routers.universe import save_universe
 from arp.config import Settings
 from arp.llm.base import LLMClient
-from arp.portfolio import aggregation, analytics, datapoint_mapping, governance, qa_agent
+from arp.portfolio import aggregation, analytics, datapoint_mapping, governance, qa_agent, qa_audit
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
 from arp.portfolio.news.classifier import classify_article
@@ -233,13 +233,33 @@ async def ask(
     req: AskRequest,
     store: PortfolioStore = Depends(get_portfolio_store),
     llm: LLMClient = Depends(get_llm_client),
+    settings: Settings = Depends(settings_dep),
+    principal: Principal = Depends(current_user),
 ) -> qa_agent.QAAnswer:
     """Answers a plain-language portfolio question. The LLM only drafts the
     query (see qa_agent.py); the returned `result`/`spec` always show the
-    real, deterministically computed figures behind `answer_text`."""
-    securities, companies = portfolio_directories(store)
-    answer, _usage = await qa_agent.answer_question(req.question, llm, store, securities, companies)
-    return answer
+    real, deterministically computed figures behind `answer_text`. Every
+    call -- answered, unresolvable or failed -- leaves an audit row."""
+    answer, error = None, None
+    try:
+        securities, companies = portfolio_directories(store)
+        answer, _usage = await qa_agent.answer_question(req.question, llm, store, securities, companies)
+        return answer
+    except Exception as exc:
+        error = f"{type(exc).__name__}: {exc}"
+        raise
+    finally:
+        qa_audit.record_answer(
+            settings, endpoint="portfolio.ask", principal=principal, question=req.question,
+            answer_text=answer.answer_text if answer else None, vintage=answer.vintage if answer else {}, error=error,
+        )
+
+
+@router.get("/qa-audit")
+def qa_audit_log(
+    limit: int = 200, settings: Settings = Depends(settings_dep), _: Principal = Depends(require_role("approver"))
+) -> list[dict]:
+    return qa_audit.list_audit(settings, limit=limit)
 
 
 @router.get("/news")

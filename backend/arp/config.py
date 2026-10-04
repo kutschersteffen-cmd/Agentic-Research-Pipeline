@@ -69,6 +69,7 @@ class Settings(BaseSettings):
     identifier_map_path: Path = REPO_ROOT / "data" / "identifier_map.jsonl"
     taxonomies_dir: Path = Field(default=REPO_ROOT / "taxonomies")
     portfolios_dir: Path = Field(default=REPO_ROOT / "portfolios")
+    qa_audit_path: Path | None = Field(default=None, description="Q&A audit log; defaults to portfolios_dir/qa_audit.jsonl.")
     projects_dir: Path = Field(default=REPO_ROOT / "projects")
     documents_dir: Path = Field(default=REPO_ROOT / "data" / "documents")
     snapshot_store_dir: Path = REPO_ROOT / "data" / "snapshot_store"

@@ -50,6 +50,7 @@ class QAAnswer(BaseModel):
     spec: AnalyticSpec | None = None
     result: AggregationResult | None = None
     answer_text: str = ""
+    vintage: dict = {}  # holdings_as_of (+ observation_dates when a data point was used)
 
 
 def _company_directory(companies: dict[str, CompanyRef]) -> str:
@@ -89,7 +90,7 @@ async def answer_question(
     if not isinstance(result, AggregationResult):
         raise ValueError("qa_agent answers point-in-time questions only; got a date_range trend spec")
 
-    return QAAnswer(question=question, resolvable=True, spec=spec, result=result, answer_text=_template_answer(spec, result)), usage
+    return QAAnswer(question=question, resolvable=True, spec=spec, result=result, answer_text=_template_answer(spec, result), vintage={"holdings_as_of": result.as_of}), usage
 
 
 def _template_answer(spec: AnalyticSpec, result: AggregationResult) -> str:
