@@ -1,5 +1,8 @@
 from datetime import date
 
+import pytest
+from pydantic import ValidationError
+
 from arp.config import Settings
 from arp.emerging_themes.scheduler import EmergingThemesScheduler
 from arp.orchestration.interval_scheduler import calendar_due
@@ -30,6 +33,23 @@ def test_month_end_and_quarter_end_rules():
     assert calendar_due(date(2026, 4, 30), rule="quarter_end", **kw) is None
     for d in ("2026-03-31", "2026-06-30", "2026-09-30", "2026-12-31"):
         assert calendar_due(date.fromisoformat(d), rule="quarter_end", **kw) == d
+
+
+def test_rules_catch_up_a_missed_period_end():
+    kw = {"dates": [], "rule": "month_end"}
+    assert calendar_due(date(2026, 5, 2), last_fire="2026-03-31", **kw) == "2026-04-30"
+    assert calendar_due(date(2026, 5, 2), last_fire="2026-04-30", **kw) is None
+    assert calendar_due(date(2026, 5, 2), last_fire=None, **kw) is None
+    kw = {"dates": [], "rule": "quarter_end"}
+    assert calendar_due(date(2026, 7, 3), last_fire="2026-03-31", **kw) == "2026-06-30"
+    assert calendar_due(date(2026, 1, 3), last_fire="2025-09-30", **kw) == "2025-12-31"
+
+
+def test_bad_calendar_date_is_rejected_and_normalised():
+    for cls in (EmergingThemesScheduleConfig, PortfolioMonitoringScheduleConfig):
+        with pytest.raises(ValidationError):
+            cls(calendar_dates=["2026-13-01"])
+        assert cls(calendar_dates=["20261105"]).calendar_dates == ["2026-11-05"]
 
 
 async def test_interval_mode_unchanged_without_calendar(tmp_path):

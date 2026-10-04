@@ -21,8 +21,15 @@ def calendar_due(
     """ISO date to fire for, or None. A listed date fires on the day or the next tick
     (once: only dates after `last_fire` count); a rule fires on its day."""
     cands = [d for d in dates if d <= today.isoformat()]
-    if rule and today.day == monthrange(today.year, today.month)[1] and (rule == "month_end" or today.month % 3 == 0):
-        cands.append(today.isoformat())
+    if rule:  # most recent period end <= today
+        y, m = today.year, today.month
+        if today.day != monthrange(y, m)[1]:
+            y, m = (y, m - 1) if m > 1 else (y - 1, 12)
+        while rule == "quarter_end" and m % 3:
+            y, m = (y, m - 1) if m > 1 else (y - 1, 12)
+        end = date(y, m, monthrange(y, m)[1]).isoformat()
+        if last_fire is not None or end == today.isoformat():  # a new config never fires for a past period
+            cands.append(end)
     cands = [d for d in cands if last_fire is None or d > last_fire]
     return max(cands) if cands else None
 
