@@ -160,9 +160,9 @@ def decide(
 
 def _decide_locked(
     run_store: RunStore, run_id: str, item_key: str, req: ItemDecisionRequest, principal: Principal, *,
-    settings: Settings, content_store: DocumentContentStore | None, reasons: list[str] | None = None,
+    settings: Settings, content_store: DocumentContentStore | None, extra_reasons: tuple[str, ...] = (),
 ) -> dict:
-    """One decision; the caller holds the run lock. `reasons`: the second-review reasons, fixed by the caller."""
+    """One decision; the caller holds the run lock. `extra_reasons`: second-review reasons the caller adds."""
     item = get_item(run_store, run_id, item_key, principal)
     if item is None:
         raise DecisionError(404, "Review item not found")
@@ -186,7 +186,8 @@ def _decide_locked(
             req.correction_citation, bundle, content_store=content_store, data_type=data_type,
             corrected_value=req.corrected_value, fuzzy_threshold=settings.grounding_fuzzy_threshold,
         )
-    if reasons is None and step == "first" and kind != "other":  # a failure report keeps the legacy single decision
+    reasons: list[str] = []
+    if step == "first" and kind != "other":  # a failure report keeps the legacy single decision
         prior = None
         if kind in ("value", "restatement_candidate"):
             key = item.payload["item_key"] if kind == "restatement_candidate" else item_key
@@ -197,7 +198,7 @@ def _decide_locked(
             corrected_value=req.corrected_value, prior=prior, sample_rate=settings.second_review_sample_rate,
             changes_final=s.state in FINAL_STATES and not agrees(s.effective, req.model_dump()),
         )
-    reasons = reasons or []
+    reasons += [r for r in extra_reasons if r not in reasons]
     corrected = req.corrected_value
     if kind == "security" and req.decision == "correct":
         corrected = {"value": normalise_lei(str(corrected["value"]))}  # a case-only difference is agreement
@@ -241,22 +242,27 @@ def bulk_accept(
     settings: Settings, content_store: DocumentContentStore | None,
 ) -> dict:
     """Approves low-risk pending value items in one call (E61), or none: every item is checked
-    before anything is written. A sample, never empty, goes to a second reviewer."""
+    before anything is written. The usual second-review rules apply, and a sample, never empty,
+    is also sent to a second reviewer. An item's etag does not depend on other items' decisions."""
     keys = [it.item_key for it in req.items]
+    if len(set(keys)) != len(keys):
+        raise DecisionError(409, "an item is listed twice; nothing was accepted")
     with run_store.lock(req.run_id):
         # ponytail: each item's context is built twice (check, then decide); share it if 200-item calls get slow
         for it in req.items:
-            why = "is listed twice" if keys.count(it.item_key) > 1 else _bulk_refusal(
-                run_store, req.run_id, it, principal, settings=settings, content_store=content_store)
+            why = _bulk_refusal(run_store, req.run_id, it, principal, settings=settings, content_store=content_store)
             if why:
                 raise DecisionError(409, f"{it.item_key} {why}; nothing was accepted")
         rate = settings.bulk_accept_sample_rate
         sample = {k for k in keys if sampled(k, rate)} or {min(keys, key=lambda k: sha256(k.encode()).hexdigest())}
         approve = {"decision": "approve", "reason_code": "confirmed"}
+        second = []
         for it in req.items:
-            _decide_locked(
+            out = _decide_locked(
                 run_store, req.run_id, it.item_key, ItemDecisionRequest(**approve, context_etag=it.context_etag),
                 principal, settings=settings, content_store=content_store,
-                reasons=["bulk_sample"] if it.item_key in sample else [],
+                extra_reasons=("bulk_sample",) if it.item_key in sample else (),
             )
-    return {"accepted": len(keys), "second_review": [k for k in keys if k in sample]}
+            if out["second_reasons"]:
+                second.append(it.item_key)
+    return {"accepted": len(keys), "second_review": second}
