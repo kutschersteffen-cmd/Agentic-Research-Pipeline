@@ -22,12 +22,13 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.review_queue import append_decision
 from arp.publish.candidates import run_candidates
 from arp.retrieval.content_store_factory import content_store_for
-from arp.review.quality import reviewer_stats, seed_known_answers
+from arp.review.quality import _perturb, record_confirmed_correction, reviewer_stats, seed_known_answers
 from arp.schemas.common import Citation, CompanyRef, DocType, RunManifest, SourceDocument
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.review import ReviewDecision
 from arp.storage.run_store import RunStore
-from tests.test_review_decide import ALICE, BOB, CAROL, CORRECT, decide, env  # noqa: F401 - env is a fixture
+from tests.test_review_context import _schema
+from tests.test_review_decide import ALICE, BOB, CAROL, CORRECT, client, ctx, decide, env  # noqa: F401 - env is a fixture
 
 ANALYST = Principal(user_id="u_ann", name="Ann Analyst", role="analyst")
 BANNED = ("known", "gold", "case_", "perturb")
@@ -152,6 +153,30 @@ def test_known_answer_item_indistinguishable_in_api(qenv):
             _no_tells(s)
     assert any(i["payload"]["field"]["value"] is not None and i["payload"]["field"]["grounded"] for i in seeded_items)
 
+    def first_decision(item):
+        base = f"/api/review/runs/{item['run_id']}/items/{item['item_key']}"
+        etag = c.get(f"{base}/context").json()["etag"]
+        r = c.post(f"{base}/decision", json={"decision": "approve", "reason_code": "confirmed", "context_etag": etag})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    real_decision, seeded_decision = first_decision(real_item), first_decision(seeded_items[0])
+    assert real_decision.keys() == seeded_decision.keys()
+    _no_tells(real_decision)
+    _no_tells(seeded_decision)
+
+
+def test_seeded_run_manifest_params_look_like_a_real_trial_run(qenv):
+    rs, store, settings = qenv
+    seeded = seed_known_answers(rs, settings, count=2, seed=5)
+    real = _real_run(rs, store, settings, load_run_schema(rs, seeded).fields[0])
+    sp, rp = rs.load_manifest(seeded).params, rs.load_manifest(real).params
+    assert sp.keys() == rp.keys()
+    for s in _strings(sp):
+        assert not any(w in s.lower() for w in (*BANNED, "trial extraction")), s
+    listed = _client(ANALYST).get("/api/runs").json()
+    _no_tells(listed)
+
 
 def _row(rs, run_id, key, who, decision, step, value=None, second_required=False):
     append_decision(rs, run_id, ReviewDecision(
@@ -235,3 +260,51 @@ def test_cli_seed_known_answers_default_count(qenv, monkeypatch):
     result = CliRunner().invoke(golden_set_app, ["seed-known-answers", "--seed", "1"])
     assert result.exit_code == 0, result.output
     assert len((settings.review_quality_dir / "known.jsonl").read_text().splitlines()) == 1  # no open items: at least 1
+
+
+def test_blind_second_review_gold_case_uses_server_side_citation(env, monkeypatch):  # noqa: F811
+    rs, _, settings = env
+    (rs.run_dir("ext1") / "schema.json").write_text(_schema(high_risk=True).model_dump_json())
+    seen = {}
+
+    def spy(bundle, corrected_value, settings, *, citation=None):
+        seen.update(bundle=bundle, citation=citation)
+        record_confirmed_correction(bundle, corrected_value, settings, citation=citation)
+
+    monkeypatch.setattr("arp.review.decide.record_confirmed_correction", spy)
+    assert decide(ALICE, CORRECT).json()["state"] == "first_done"
+    assert ctx(client(BOB))["blind"] is True
+    assert decide(BOB, CORRECT).json()["state"] == "second_done"
+    assert seen["bundle"]["blind"] is True and seen["bundle"]["decisions"] == []
+    assert seen["citation"]["span_text"] == "Scope 1  1,234  1,100"
+    [case] = load_cases(settings.review_quality_dir / "extraction_cases.json")
+    assert "1,100" in case.document_text
+
+
+def _bundle(page_text, run_id="ext1", item_key="K"):
+    return {
+        "item": {"run_id": run_id, "item_key": item_key, "payload": {"name": "Acme"}},
+        "field_definition": _schema().fields[0].model_dump(mode="json"),
+        "evidence": [{"doc_type": "sustainability_report", "page_text": page_text}],
+        "decisions": [],
+    }
+
+
+def test_gold_case_text_from_citation_and_never_without_the_number(qenv):
+    _, _, settings = qenv
+    gold = settings.review_quality_dir / "extraction_cases.json"
+    record_confirmed_correction(_bundle("Scope 1 1,234 on page 3"), {"value": 1100}, settings)
+    assert not gold.exists()  # the number is nowhere in the text: no case that would always fail
+    cit = {"doc_id": "d1", "doc_type": "sustainability_report", "span_text": "Scope 1 restated 1,100"}
+    record_confirmed_correction(_bundle("Scope 1 1,234 on page 3"), {"value": 1100}, settings, citation=cit)
+    [case] = load_cases(gold)
+    assert "1,100" in case.document_text and case.expected_value == 1100
+
+
+def test_known_answer_item_never_grows_the_gold_set(qenv):
+    rs, _, settings = qenv
+    run_id = seed_known_answers(rs, settings, count=2, seed=2)
+    key = json.loads((settings.review_quality_dir / "known.jsonl").read_text().splitlines()[0])["item_key"]
+    record_confirmed_correction(_bundle("Scope 1 1,100", run_id, key), {"value": 1100}, settings)
+    assert not (settings.review_quality_dir / "extraction_cases.json").exists()
+    assert _perturb(0) == 1 and _perturb(0.0) == 1 and _perturb(2.5) == 25 and _perturb(True) is False

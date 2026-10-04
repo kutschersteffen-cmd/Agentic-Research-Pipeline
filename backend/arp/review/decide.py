@@ -203,7 +203,9 @@ def decide(
         state = _state(run_store, run_id, item_key).state
         if step == "second" and state == "second_done" and s.first.get("decision") == "correct":
             try:  # E56: the gold set grows; the decision is already written, so this never fails it
-                record_confirmed_correction(bundle, s.first["corrected_value"], settings)
+                record_confirmed_correction(
+                    bundle, s.first["corrected_value"], settings, citation=s.first.get("correction_citation"),
+                )
             except Exception:  # noqa: BLE001
                 logger.exception("Gold case not recorded for %s/%s", run_id, item_key)
         return {"state": state, "snapshot_id": snapshot_id, "second_reasons": reasons}

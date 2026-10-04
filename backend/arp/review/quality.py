@@ -9,6 +9,8 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
+import math
 import random
 import re
 from collections import defaultdict
@@ -16,7 +18,7 @@ from dataclasses import dataclass
 from itertools import takewhile
 from pathlib import Path
 
-from arp.checks.numeric import parse_number
+from arp.checks.numeric import candidates, parse_number
 from arp.checks.runner import CheckContext, check_record
 from arp.config import Settings
 from arp.extraction import extractor_agent, verifier_agent
@@ -50,6 +52,7 @@ from arp.storage.locks import KeyedLock
 from arp.storage.run_store import RunStore
 from arp.storage.schema_registry import SchemaRegistry
 
+logger = logging.getLogger(__name__)
 KNOWN = "known.jsonl"
 GOLD = "extraction_cases.json"
 _LOCKS = KeyedLock(lock_path=lambda d: Path(d) / ".lock")
@@ -88,7 +91,7 @@ def _perturb(value):
     if isinstance(value, bool):
         return not value
     if isinstance(value, (int, float)):
-        return round(value * 10, 6)  # a scale slip, the commonest wrong extraction
+        return round(value * 10, 6) if value else 1  # a scale slip, the commonest wrong extraction; 0 * 10 is still 0
     return None  # a text value: claim "not disclosed"
 
 
@@ -178,7 +181,8 @@ def seed_known_answers(run_store: RunStore, settings: Settings, *, count: int, s
         by_name.setdefault(case.field.name, case.field)
     companies = [CompanyRef(company_id=new_id("co"), name=case.company_name) for case, _ in plan]
     run_id = create_extraction_run(
-        DataPointSchema(name="Trial extraction", fields=list(by_name.values())), companies, settings, run_store, trial=True,
+        DataPointSchema(name=f"{plan[0][0].field.name} extraction", fields=list(by_name.values())), companies, settings,
+        run_store, trial=True,
     )
     schema = load_run_schema(run_store, run_id)
     specs = {f.name: f for f in schema.fields}
@@ -259,26 +263,34 @@ def reviewer_stats(run_store: RunStore, settings: Settings) -> list[ReviewerStat
     ), key=lambda s: s.name)
 
 
-def record_confirmed_correction(bundle: dict, corrected_value: dict, settings: Settings) -> None:
-    """Appends the confirmed correction as a gold case to the deployment's own set (never the bundled one)."""
+def record_confirmed_correction(
+    bundle: dict, corrected_value: dict, settings: Settings, *, citation: dict | None = None,
+) -> None:
+    """Appends the confirmed correction as a gold case to the deployment's own set (never the bundled one).
+    `citation`: the first decision's grounded correction citation, from the server-side row (a blind
+    bundle hides it). Skipped for a known-answer item, and when the text does not state the number."""
     spec = bundle.get("field_definition")
-    pages = list(dict.fromkeys(e["page_text"] for e in bundle.get("evidence", []) if e.get("page_text")))
-    cited = next((d["correction_citation"].get("span_text") for d in reversed(bundle.get("decisions", []))
-                  if d.get("decision") == "correct" and d.get("correction_citation")), None)
-    # ponytail: a blind view hides the first decision's citation; evidence pages only then
-    if cited and not any(cited in p for p in pages):
-        pages.append(cited)
-    if spec is None or not pages:  # not a field item, or nothing to check an answer against
+    item = bundle["item"]
+    if spec is None or (item["run_id"], item["item_key"]) in _known(settings):  # not a field item, or a copy of a gold case
         return
-    item, evidence = bundle["item"], bundle.get("evidence") or [{}]
-    doc_type = evidence[0].get("doc_type")
+    pages = list(dict.fromkeys(e["page_text"] for e in bundle.get("evidence", []) if e.get("page_text")))
+    cited = (citation or {}).get("span_text")
+    if cited and not any(cited in p for p in pages):
+        pages.insert(0, cited)
     value = corrected_value.get("value")
+    want = parse_number(str(value)) if value is not None and not isinstance(value, bool) else None
+    text = "\n\n".join(pages)
+    if not text or (want is not None and not any(math.isclose(abs(want), abs(n), rel_tol=1e-9) for n in candidates(text))):
+        logger.warning("No gold case for %s/%s: the text does not state the corrected value", item["run_id"], item["item_key"])
+        return
+    evidence = bundle.get("evidence") or [{"doc_type": (citation or {}).get("doc_type")}]
+    doc_type = evidence[0].get("doc_type")
     case = GoldenSetCase(
         case_id=f"review:{item['run_id']}:{item['item_key']}",
         description="A correction confirmed by a second reviewer.",
         company_name=item["payload"].get("name") or "",
         field=FieldDefinition.model_validate(spec),
-        document_text="\n\n".join(pages),
+        document_text=text,
         doc_type=doc_type if doc_type in {t.value for t in DocType} else DocType.OTHER,
         expected_value=value,
         expect_not_disclosed=value is None,
