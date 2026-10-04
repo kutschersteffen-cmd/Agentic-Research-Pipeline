@@ -26,6 +26,7 @@ class FieldState(TypedDict):
     fuzzy_threshold: float
     schema_version: str
     fiscal_year_end: str | None
+    planned_periods: list[str] | None
     confidence_review_threshold: float
     evidence: list[DocumentChunk]
     draft: ExtractionDraft | None
@@ -80,7 +81,9 @@ async def _finalize_no_evidence(state: FieldState) -> dict:
 
 
 async def _extract(state: FieldState) -> dict:
-    draft, usage = await extract_field(state["company_name"], state["field"], state["evidence"], state["llm"])
+    draft, usage = await extract_field(
+        state["company_name"], state["field"], state["evidence"], state["llm"], state["planned_periods"]
+    )
     return {"draft": draft, "usages": state["usages"] + [usage], "extractor_usage": usage}
 
 
@@ -101,6 +104,7 @@ async def _aggregate(state: FieldState) -> dict:
         state["confidence_review_threshold"],
         passages={c.chunk_id: c for c in state["evidence"]},
         fiscal_year_end=state["fiscal_year_end"],
+        planned_periods=state["planned_periods"],
     )
     extractor_usage = state["extractor_usage"]
     verifier_usage = state["verifier_usage"]
@@ -143,6 +147,7 @@ async def extract_one_field(
     confidence_review_threshold: float,
     schema_version: str = "",
     fiscal_year_end: str | None = None,
+    planned_periods: list[str] | None = None,
 ) -> tuple[list[ExtractedField], bool, list[LLMUsage]]:
     """Runs one field's evidence-gather -> extract -> independent-verify ->
     programmatic-grounding-check -> aggregate flow as a LangGraph graph.
@@ -172,6 +177,7 @@ async def extract_one_field(
         "confidence_review_threshold": confidence_review_threshold,
         "schema_version": schema_version,
         "fiscal_year_end": fiscal_year_end,
+        "planned_periods": planned_periods,
         "evidence": [],
         "draft": None,
         "verifier": None,

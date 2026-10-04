@@ -63,6 +63,16 @@ class MatchStatus(StrEnum):
     MISMATCH = "mismatch"
 
 
+class PeriodPlan(BaseModel):
+    current: str | None = None
+    comparatives: list[str] = Field(default_factory=list)  # ISO period ends, latest first
+    missing: list[str] = Field(default_factory=list)  # planned periods not yet recorded
+
+    @property
+    def planned(self) -> list[str]:
+        return [p for p in (self.current, *self.comparatives) if p]
+
+
 class SourceDocument(BaseModel):
     doc_id: str = Field(default_factory=lambda: new_id("doc"))
     company_id: str
@@ -82,6 +92,7 @@ class SourceDocument(BaseModel):
     parser_version: str | None = None
     covered_entity: str | None = None
     match_status: MatchStatus | None = None  # None = not checked (legacy)
+    period_plan: PeriodPlan | None = None
     page_breaks: list[int] = Field(
         default_factory=list,
         description=(

@@ -15,6 +15,7 @@ from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.planning.applicability import plan_fields
 from arp.planning.entity_check import confirm_entity
+from arp.planning.periods import plan_periods, union_planned
 from arp.schemas.common import CompanyRef, MatchStatus, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, ExtractionRecord, FieldStatus
 from arp.schemas.issuer import issuer_key
@@ -64,6 +65,11 @@ async def _extract_company(
     ]
     usages: list[LLMUsage] = []
     to_extract, fields = plan_fields(schema, company)
+    key, scheme = issuer_key(company)
+    recorded = history.recorded_periods(key) if history else set()
+    for d in kept:
+        d.period_plan = plan_periods(d, fiscal_year_end=company.fiscal_year_end, recorded=recorded)
+    planned_periods = union_planned(kept)
 
     for field in to_extract:
         extracted, needs_review, field_usages = await extract_one_field(
@@ -78,12 +84,12 @@ async def _extract_company(
             confidence_review_threshold=settings.confidence_review_threshold,
             schema_version=f"{schema.schema_id}:v{schema.version}",
             fiscal_year_end=company.fiscal_year_end,
+            planned_periods=planned_periods,
         )
         usages.extend(field_usages)
 
         fields.extend(extracted)
 
-    key, scheme = issuer_key(company)
     fields = await check_record(
         schema,
         fields,
