@@ -13,6 +13,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
+from arp.planning.applicability import plan_fields
 from arp.planning.entity_check import confirm_entity
 from arp.schemas.common import CompanyRef, MatchStatus, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, ExtractionRecord, FieldStatus
@@ -62,9 +63,9 @@ async def _extract_company(
         if d.match_status == MatchStatus.MISMATCH
     ]
     usages: list[LLMUsage] = []
-    fields = []
+    to_extract, fields = plan_fields(schema, company)
 
-    for field in schema.fields:
+    for field in to_extract:
         extracted, needs_review, field_usages = await extract_one_field(
             company.name,
             field,

@@ -70,6 +70,14 @@ class CheckConfig(BaseModel):
     prior_change_max: float | None = Field(default=0.5, description="Relative jump vs. prior value that warns.")
 
 
+class ApplicabilityRules(BaseModel):
+    """A field applies only to companies matching every non-empty list; unknown company attributes never exclude."""
+
+    sector_codes: list[str] = Field(default_factory=list, description="ISIC Rev.4 code prefixes, e.g. '10'..'33'.")
+    countries: list[str] = Field(default_factory=list, description="ISO 3166-1 alpha-2 codes.")
+    regimes: list[str] = Field(default_factory=list, description="Reporting regimes, e.g. 'CSRD', 'SEC'.")
+
+
 class FieldDefinition(BaseModel):
     field_id: str = Field(default_factory=lambda: new_id("fld"))
     name: str
@@ -93,6 +101,7 @@ class FieldDefinition(BaseModel):
     effective_from: str | None = Field(default=None, description="ISO date the definition took effect.")
     status: FieldStatus = FieldStatus.DRAFT
     check_config: CheckConfig = Field(default_factory=CheckConfig)
+    applicability_rules: ApplicabilityRules | None = None
 
 
 class DataPointSchema(BaseModel):
@@ -135,6 +144,7 @@ class ExtractedField(BaseModel):
     fx_rate: float | None = None
     fx_rate_ref: str | None = None
     checks: list[CheckResult] = Field(default_factory=list)
+    route_reasons: list[str] = Field(default_factory=list)
 
     @model_validator(mode="before")
     @classmethod
