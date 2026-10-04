@@ -70,10 +70,11 @@ def build_extracted_fields(
             # raw/unit text no longer describes the value, so nothing is
             # converted from it.
             v = verifier.corrected_value
-            alternatives.append(Alternative(
-                value=tv.value, raw_value_text=pv.raw_value_text, source="extractor",
-                citations=ground_citations(pv.citations, documents_by_id, fuzzy_threshold, passages=passages),
-            ))
+            if tv.value_state != ValueState.NOT_FOUND:  # nothing claimed, nothing to keep
+                alternatives.append(Alternative(
+                    value=tv.value, raw_value_text=pv.raw_value_text, source="extractor",
+                    citations=ground_citations(pv.citations, documents_by_id, fuzzy_threshold, passages=passages),
+                ))
             zero = isinstance(v, (int, float)) and not isinstance(v, bool) and v == 0
             state = ValueState.NOT_FOUND if v is None else ValueState.ZERO if zero else ValueState.FOUND
             tv = replace(
