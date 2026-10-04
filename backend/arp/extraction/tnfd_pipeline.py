@@ -55,7 +55,12 @@ def create_tnfd_extraction_run(
 ) -> str:
     job_manager = JobManager(run_store)
     manifest = job_manager.create_run(
-        "tnfd", {"as_of": as_of}, len(companies), model=settings.llm_model, verifier_model=settings.llm_verifier_model
+        "tnfd",
+        {"as_of": as_of},
+        len(companies),
+        model=settings.llm_model,
+        verifier_model=settings.llm_verifier_model,
+        companies=companies,
     )
     return manifest.run_id
 

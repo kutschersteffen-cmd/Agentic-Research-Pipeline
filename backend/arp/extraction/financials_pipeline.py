@@ -106,7 +106,12 @@ async def _extract_company_financials(
 def create_financials_extraction_run(companies: list[CompanyRef], settings: Settings, run_store: RunStore) -> str:
     job_manager = JobManager(run_store)
     manifest = job_manager.create_run(
-        "financials", {}, len(companies), model=settings.llm_model, verifier_model=settings.llm_verifier_model
+        "financials",
+        {},
+        len(companies),
+        model=settings.llm_model,
+        verifier_model=settings.llm_verifier_model,
+        companies=companies,
     )
     return manifest.run_id
 

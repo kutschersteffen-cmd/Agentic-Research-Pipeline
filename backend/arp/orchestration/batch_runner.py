@@ -32,24 +32,30 @@ class ReviewRequired(Exception):
         self.report = report
 
 
-def read_done_keys(results_path: Path) -> set[str]:
-    if not results_path.exists():
-        return set()
+def read_done_keys(results_path: Path, errors_path: Path | None = None) -> set[str]:
+    """Keys of items not to run again: every result row, plus (given
+    `errors_path`) every item a worker stopped for review -- a person
+    decides those, so a resume must not redo them."""
     import json
 
     done: set[str] = set()
-    with results_path.open() as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            key = row.get(_KEY_FIELD)
-            if key:
-                done.add(key)
+    for path, field in ((results_path, _KEY_FIELD), (errors_path, "key")):
+        if path is None or not path.exists():
+            continue
+        with path.open() as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if field == "key" and not row.get("review"):
+                    continue
+                key = row.get(field)
+                if key:
+                    done.add(key)
     return done
 
 
@@ -89,7 +95,7 @@ async def run_batch(
 
     results_path.parent.mkdir(parents=True, exist_ok=True)
     errors_path.parent.mkdir(parents=True, exist_ok=True)
-    already_done = read_done_keys(results_path) if resume else set()
+    already_done = read_done_keys(results_path, errors_path) if resume else set()
 
     sem = asyncio.Semaphore(concurrency)
     write_lock = asyncio.Lock()

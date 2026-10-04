@@ -148,6 +148,7 @@ def create_theme_run(
         len(companies),
         model=settings.llm_model,
         verifier_model=settings.llm_verifier_model,
+        companies=companies,
     )
     run_dir = run_store.run_dir(manifest.run_id)
     (run_dir / "theme.json").write_text(theme.model_dump_json(indent=2))

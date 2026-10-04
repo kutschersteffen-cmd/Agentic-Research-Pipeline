@@ -50,7 +50,12 @@ async def _assess_company(
 def create_transition_plan_run(companies: list[CompanyRef], settings: Settings, run_store: RunStore) -> str:
     job_manager = JobManager(run_store)
     manifest = job_manager.create_run(
-        "transition_plan", {}, len(companies), model=settings.llm_model, verifier_model=settings.llm_verifier_model
+        "transition_plan",
+        {},
+        len(companies),
+        model=settings.llm_model,
+        verifier_model=settings.llm_verifier_model,
+        companies=companies,
     )
     return manifest.run_id
 

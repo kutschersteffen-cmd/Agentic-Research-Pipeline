@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from arp.schemas.common import JobStatus, RunManifest, new_id
+import json
+
+from arp.schemas.common import CompanyRef, JobStatus, RunManifest, new_id
+from arp.storage.atomic_io import atomic_write_text
 from arp.storage.run_store import RunStore
 
 
@@ -22,6 +25,7 @@ class JobManager:
         company_count: int,
         model: str | None = None,
         verifier_model: str | None = None,
+        companies: list[CompanyRef] | None = None,
     ) -> RunManifest:
         manifest = RunManifest(
             run_id=new_id(run_type),
@@ -33,6 +37,13 @@ class JobManager:
             verifier_model=verifier_model,
         )
         self.store.save_manifest(manifest)
+        if companies is not None:
+            # What a resume re-runs over: see RunStore.load_companies.
+            atomic_write_text(
+                self.store.companies_path(manifest.run_id),
+                json.dumps([c.model_dump(mode="json") for c in companies], indent=2),
+                prefix=".companies_",
+            )
         return manifest
 
     def record_progress(

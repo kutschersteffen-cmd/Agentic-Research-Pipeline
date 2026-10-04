@@ -229,6 +229,7 @@ def create_extraction_run(
         len(companies),
         model=settings.llm_model,
         verifier_model=settings.llm_verifier_model,
+        companies=companies,
     )
     (run_store.run_dir(manifest.run_id) / "schema.json").write_text(registered.model_dump_json(indent=2))
     return manifest.run_id

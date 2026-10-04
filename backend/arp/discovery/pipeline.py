@@ -67,7 +67,7 @@ def create_discovery_run(
     params = DiscoveryRunParams(
         universe_source=f"{len(companies)} companies", doc_types=doc_types or [], triggered_by=triggered_by
     )
-    manifest = job_manager.create_run("discovery", params.model_dump(mode="json"), len(companies))
+    manifest = job_manager.create_run("discovery", params.model_dump(mode="json"), len(companies), companies=companies)
     return manifest.run_id
 
 
