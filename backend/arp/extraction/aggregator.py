@@ -92,13 +92,22 @@ def build_extracted_fields(
         claimed = tv.value_state != ValueState.NOT_FOUND
         # The verifier's corrected_value is for values[0] as it saw them (draft
         # order); the stable sort keeps that entry first in its period group.
-        if pv is values[0] and not verifier.agrees:
-            # VerifierOutput carries no citations of its own -- pv.citations
-            # supported the value the verifier just rejected, so they can't
-            # back verifier.corrected_value. A real corrected value with
-            # nothing behind it is explicitly not grounded. The rejected
-            # raw/unit text no longer describes the value, so nothing is
-            # converted from it.
+        correction = pv is values[0] and not verifier.agrees
+        cited = (
+            ground_citations(verifier.citations, documents_by_id, fuzzy_threshold, passages=passages)
+            if correction else []
+        )
+        uncited = correction and not any(c.grounded for c in cited)
+        if uncited:
+            # E38: a correction with no grounded citation never becomes the value;
+            # the extractor's value stays and the correction waits for review.
+            alternatives.append(Alternative(value=verifier.corrected_value, source="verifier", citations=cited))
+            final_citations = ground_citations(pv.citations, documents_by_id, fuzzy_threshold, passages=passages)
+        elif correction:
+            # pv.citations supported the value the verifier just rejected, so
+            # the verifier's own grounded citations back the correction. The
+            # rejected raw/unit text no longer describes the value, so nothing
+            # is converted from it.
             v = verifier.corrected_value
             if tv.value_state != ValueState.NOT_FOUND:  # nothing claimed, nothing to keep
                 alternatives.append(Alternative(
@@ -112,7 +121,7 @@ def build_extracted_fields(
                 fx_rate=None, fx_rate_ref=None, reasons=[],
                 notes=["No canonical value is computed for the verifier's correction."] if v is not None else [],
             )
-            final_citations = []
+            final_citations = cited
         else:
             final_citations = ground_citations(pv.citations, documents_by_id, fuzzy_threshold, passages=passages)
         for d in dupes.get(key, []):
@@ -132,6 +141,8 @@ def build_extracted_fields(
             notes_parts.append(f"Verifier disagreed with the extractor: {verifier.notes}")
         elif verifier.notes:
             notes_parts.append(verifier.notes)
+        if uncited:
+            notes_parts.append("The verifier's correction has no grounded citation; the extractor's value is kept.")
         if has_value and not all_grounded:
             if final_citations:
                 notes_parts.append("One or more citations failed the programmatic grounding check.")
@@ -147,6 +158,7 @@ def build_extracted_fields(
             for code, applies in (
                 (ReasonCode.NOT_GROUNDED, has_value and not all_grounded),
                 (ReasonCode.VERIFIER_DISAGREES, not verifier.agrees),
+                (ReasonCode.VERIFIER_CORRECTION_UNCITED, uncited),
                 (ReasonCode.CONFLICT, conflict),
                 (ReasonCode.LOW_CONFIDENCE, claimed and final_confidence < confidence_review_threshold),
             )

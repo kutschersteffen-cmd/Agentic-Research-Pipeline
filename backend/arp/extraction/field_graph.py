@@ -7,7 +7,7 @@ from arp.config import Settings
 from arp.extraction.aggregator import build_extracted_fields, no_evidence_field
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue, extract_field
 from arp.extraction.graph_shape import build_extract_verify_graph
-from arp.extraction.verifier_agent import VerifierOutput, verify_extraction
+from arp.extraction.verifier_agent import VerifierOutput, blind_verify, verify_extraction
 from arp.ingestion.parsing import chunk_document
 from arp.ingestion.xbrl import XbrlFact, XbrlFactSource
 from arp.llm.base import LLMClient, LLMUsage
@@ -157,9 +157,15 @@ async def _extract(state: FieldState) -> dict:
 
 
 async def _verify(state: FieldState) -> dict:
-    verifier, usage = await verify_extraction(
-        state["company_name"], state["field"], state["evidence"], state["draft"], state["verifier_llm"]
-    )
+    if state["field"].high_risk:  # E38: re-extract without seeing the draft
+        verifier, usage = await blind_verify(
+            state["company_name"], state["field"], state["evidence"], state["draft"], state["verifier_llm"],
+            state["planned_periods"], state["fiscal_year_end"],
+        )
+    else:
+        verifier, usage = await verify_extraction(
+            state["company_name"], state["field"], state["evidence"], state["draft"], state["verifier_llm"]
+        )
     return {"verifier": verifier, "usages": state["usages"] + [usage], "verifier_usage": usage}
 
 

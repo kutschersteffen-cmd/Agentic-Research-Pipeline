@@ -104,7 +104,8 @@ async def test_extract_company_verifier_disagreement_flags_review(tmp_path, fake
     )
     # verifier catches that 80M was fiscal 2024, not the most recent year requested
     verifier = VerifierOutput(
-        agrees=False, corrected_value=120.0, confidence=0.85, notes="80M was FY2024; instructions require latest FY (2025 guidance = 120M)."
+        agrees=False, corrected_value=120.0, confidence=0.85, notes="80M was FY2024; instructions require latest FY (2025 guidance = 120M).",
+        citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote="fiscal 2025 guidance is $120 million")],
     )
 
     llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [verifier]})
@@ -256,7 +257,7 @@ async def test_pipeline_queues_one_row_per_flagged_field(tmp_path, fake_llm):
     key, scheme = issuer_key(company)
     flagged = [f.field_id for f in schema.fields[1:]]
     assert [r["item_key"] for r in rows] == [f"{key}:{fid}:unspecified" for fid in flagged]
-    assert rows[0]["reason_codes"] == ["verifier_disagrees"]
+    assert rows[0]["reason_codes"] == ["verifier_disagrees", "verifier_correction_uncited"]
     assert rows[0]["issuer_key"] == key and rows[0]["issuer_scheme"] == scheme
     assert rows[0]["field"]["field_id"] == flagged[0] and rows[0]["company_id"] == "c1"
     assert run_store.load_manifest(run_id).review_count == 2
@@ -504,7 +505,7 @@ async def _run_trial(tmp_path, doc, llm):
 async def test_queue_row_carries_route_reasons(tmp_path, fake_llm):
     doc, llm = _trial_run_one_field(tmp_path, fake_llm, VerifierOutput(agrees=False, confidence=0.9, notes="wrong"))
     (q,) = await _run_trial(tmp_path, doc, llm)
-    assert q["reason_codes"] == ["verifier_disagrees"]
+    assert q["reason_codes"] == ["verifier_disagrees", "verifier_correction_uncited"]
     assert q["route_reasons"][0] == "unreleased_version" and "verifier_disagrees" in q["route_reasons"]
     assert q["field"]["route"] == "review"
 

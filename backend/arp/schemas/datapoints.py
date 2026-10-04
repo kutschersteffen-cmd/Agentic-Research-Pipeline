@@ -144,11 +144,12 @@ class DataPointSchema(BaseModel):
 
 
 class Alternative(BaseModel):
-    """A value the extractor or a duplicate reading offered but the row did not keep."""
+    """A value the extractor, a duplicate reading, the verifier, an adjudicator
+    or a tagged fact offered but the row did not keep."""
 
     value: str | float | bool | None = None
     raw_value_text: str | None = None
-    source: Literal["extractor", "duplicate"]
+    source: Literal["extractor", "duplicate", "verifier", "adjudicator", "tagged"]
     citations: list[Citation] = Field(default_factory=list)
 
 

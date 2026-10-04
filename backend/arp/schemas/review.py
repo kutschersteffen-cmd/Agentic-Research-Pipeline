@@ -17,6 +17,8 @@ class ReasonCode(StrEnum):
     MATCH_AMBIGUOUS = "match_ambiguous"
     NOT_APPLICABLE_BY_RULE = "not_applicable_by_rule"
     NUMBER_LOCALE_AMBIGUOUS = "number_locale_ambiguous"
+    VERIFIER_CORRECTION_UNCITED = "verifier_correction_uncited"
+    ADJUDICATOR_UNRESOLVED = "adjudicator_unresolved"
 
 
 class DecisionKind(StrEnum):
