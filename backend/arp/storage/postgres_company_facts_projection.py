@@ -177,23 +177,28 @@ def resolve_extraction_fact(
         outcomes.append({"approve": "approved", "edit": "edited", "correct": "edited"}.get(decision.get("decision"), "rejected"))
         reviewer = decision.get("reviewer") or reviewer
         if decision.get("decision") in ("edit", "correct") and decision.get("edited_value"):
-            edit = decision["edited_value"]
-            merged = {**f, **edit, "field_id": f["field_id"]}
-            if decision.get("decision") == "correct" and decision.get("correction_citation"):
-                merged["citations"] = [decision["correction_citation"]]  # the correction's own grounded source
-                merged["grounded"] = True
-            if edit.get("value") is not None and "value_state" not in edit:  # a supplied value is no longer not_found
-                merged["value_state"] = "zero" if _is_zero(edit["value"]) else "found"
-            if "value" in edit:  # never leave the old conversion beside an edited value
-                if not ({"canonical_value", "canonical_unit"} & edit.keys()):
-                    merged["canonical_value"] = merged["canonical_unit"] = None
-                for k in ("fx_rate", "fx_rate_ref", "scale_applied"):
-                    if k not in edit:
-                        merged[k] = None
-            value["fields"][i] = merged
+            value["fields"][i] = merge_correction(f, decision)
     order = ("pending_review", "held", "rejected", "edited", "approved", "auto_accepted")
     status = next((st for st in order if st in outcomes), "auto_approved")
     return value, status, None if status in ("pending_review", "held", "auto_accepted", "auto_approved") else reviewer
+
+
+def merge_correction(f: dict, decision: dict) -> dict:
+    """One field with an `edit`/`correct` decision's edited keys merged over it."""
+    edit = decision.get("edited_value") or {}
+    merged = {**f, **edit, "field_id": f["field_id"]}
+    if decision.get("decision") == "correct" and decision.get("correction_citation"):
+        merged["citations"] = [decision["correction_citation"]]  # the correction's own grounded source
+        merged["grounded"] = True
+    if edit.get("value") is not None and "value_state" not in edit:  # a supplied value is no longer not_found
+        merged["value_state"] = "zero" if _is_zero(edit["value"]) else "found"
+    if "value" in edit:  # never leave the old conversion beside an edited value
+        if not ({"canonical_value", "canonical_unit"} & edit.keys()):
+            merged["canonical_value"] = merged["canonical_unit"] = None
+        for k in ("fx_rate", "fx_rate_ref", "scale_applied"):
+            if k not in edit:
+                merged[k] = None
+    return merged
 
 
 def _is_zero(v) -> bool:
