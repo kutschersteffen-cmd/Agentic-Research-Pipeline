@@ -11,7 +11,7 @@ from arp.config import Settings, get_settings
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.publish.facts import ConcurrentPublish, PublishStore, public_release
 from arp.publish.release import WithdrawalError, publish_run, withdraw
-from arp.storage.document_blob_store import blob_store_for
+from arp.storage.document_blob_store import CaptureStoreError, blob_store_for
 
 publish_app = typer.Typer(help="Publish reviewed facts, withdraw releases, backfill old runs.")
 CHECKPOINT = "published_facts"
@@ -43,6 +43,9 @@ def _publish(store, run_store, run_id, principal, settings):
             f"run {run_id}: another publish changed these facts first; retry. "
             "Earlier documents of this run may already be published.", err=True,
         )
+        raise typer.Exit(1) from None
+    except CaptureStoreError as exc:
+        typer.echo(str(exc), err=True)
         raise typer.Exit(1) from None
 
 
@@ -80,20 +83,19 @@ def withdraw_cmd(release_id: str = typer.Option(..., "--release-id"), reason: st
 
 
 @publish_app.command("backfill")
-def backfill(full: bool = typer.Option(False, "--full", help="Every run, not only those changed since the last backfill.")) -> None:
-    """Publishes old extraction runs as the system (E17). Incremental through a checkpoint."""
+def backfill(full: bool = typer.Option(False, "--full", help="Accepted for compatibility: every pass is full.")) -> None:
+    """Publishes every non-trial extraction run as the system, oldest first (E17).
+
+    Re-runs every run each pass: review decisions and restatements do not touch the manifest,
+    so a manifest-time filter would miss runs that became publishable later. Re-publishing is
+    idempotent (a reconfirm). The checkpoint records when the last full pass completed."""
     from arp.schemas.common import now_iso
-    from arp.storage.postgres_checkpoints import get_checkpoint, set_checkpoint
+    from arp.storage.postgres_checkpoints import set_checkpoint
 
     settings = get_settings()
     store, run_store = _store(settings), _run_store()
-    since = None if full else get_checkpoint(settings.postgres_dsn, CHECKPOINT)
-    started_at = now_iso()  # recorded before reading, as the reindex commands do
-    runs = sorted(
-        (m for m in run_store.list_runs("extraction")
-         if not m.params.get("trial") and (since is None or m.updated_at > since)),
-        key=lambda m: m.created_at,
-    )
+    started_at = now_iso()
+    runs = sorted((m for m in run_store.list_runs("extraction") if not m.params.get("trial")), key=lambda m: m.created_at)
     releases = reconfirmed = blocked = skipped = 0
     for m in runs:
         result = _publish(store, run_store, m.run_id, None, settings)

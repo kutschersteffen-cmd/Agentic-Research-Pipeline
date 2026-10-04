@@ -104,7 +104,7 @@ class Release(BaseModel):
 
 
 def public_release(r: Release) -> dict:
-    return r.model_dump(mode="json", exclude={"published_by", "withdrawn_by"})
+    return r.model_dump(mode="json", exclude={"published_by", "withdrawn_by", "storage_uri"})
 
 
 class FactEvent(BaseModel):

@@ -37,6 +37,10 @@ class WithdrawalError(ValueError):
     pass
 
 
+class AlreadyWithdrawn(WithdrawalError):
+    pass
+
+
 def _event(event_type: str, fact: Fact, now: str) -> FactEvent:
     return FactEvent(
         event_type=event_type, fact_id=fact.fact_id, issuer_key=fact.issuer_key, field_id=fact.field_id,
@@ -126,7 +130,7 @@ def plan_withdrawal(
     if not reason.strip():
         raise WithdrawalError("a withdrawal needs a reason")
     if release.withdrawn_at:
-        raise WithdrawalError("release already withdrawn")
+        raise AlreadyWithdrawn("release already withdrawn")
     closes: list[Fact] = []
     restores: list[Fact] = []
     events: list[FactEvent] = []

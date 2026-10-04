@@ -9,7 +9,7 @@ from arp.api.auth import Principal, require_role
 from arp.api.deps import blob_store_dep, get_document_content_store, get_run_store, publish_store_dep
 from arp.publish.facts import ConcurrentPublish, PublishStore, public_release, ts_now
 from arp.publish.reader import as_of_bound, facts_as_of, read_events
-from arp.publish.release import WithdrawalError, publish_run, withdraw
+from arp.publish.release import AlreadyWithdrawn, WithdrawalError, publish_run, withdraw
 from arp.storage.run_store import RunStore
 
 router = APIRouter(prefix="/api/publish", tags=["publish"])
@@ -65,9 +65,10 @@ def withdraw_release(
         restored = withdraw(store, release_id, reason=req.reason, principal=principal)
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from None
+    except (AlreadyWithdrawn, ConcurrentPublish) as exc:
+        raise HTTPException(409, str(exc) if isinstance(exc, AlreadyWithdrawn) else CONCURRENT) from None
     except WithdrawalError as exc:
-        raise HTTPException(409 if "already withdrawn" in str(exc) else 422, str(exc)) from None
-    except ConcurrentPublish:
+        raise HTTPException(422, str(exc)) from None
         raise HTTPException(409, CONCURRENT) from None
     return {"restored": [f.model_dump(mode="json") for f in restored]}
 
@@ -92,6 +93,7 @@ def lineage(fact_id: str, store: PublishStore = Depends(publish_store_dep)) -> d
     found = store.lineage(fact_id)
     if found is None:
         raise HTTPException(404, f"unknown fact {fact_id}")
+    found.pop("storage_uri")  # a server path; clients use content_key / doc_id
     return found
 
 
