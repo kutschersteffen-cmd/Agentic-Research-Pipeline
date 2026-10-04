@@ -234,9 +234,10 @@ class PgDocumentRegistry:
 
 
 def copy_sqlite_registry(store_dir: Path, dsn: str) -> int:
-    """One-time backfill: upserts every SQLite registry row into Postgres,
-    keeping its first/last_seen_at, storage_uri and identity columns.
-    Idempotent. Returns the number of rows read."""
+    """Backfill: copies SQLite registry rows not yet in Postgres, keeping
+    their first/last_seen_at, storage_uri and identity columns; never
+    overwrites a Postgres row (it may be newer, written after cutover).
+    Idempotent. Returns the number of rows copied."""
     from sqlalchemy.dialects.postgresql import insert
     from sqlalchemy.orm import Session
 
@@ -245,14 +246,42 @@ def copy_sqlite_registry(store_dir: Path, dsn: str) -> int:
 
     _ensure_schema_once(dsn)
     refs = DocumentContentStore(store_dir).list_all_documents()  # SQLite DocumentRegistry.list_all
+    copied = 0
     with Session(get_engine(dsn)) as session:
         for ref in refs:
-            values = {f: getattr(ref, f) for f in _FIELDS}
-            stmt = insert(M).values(**values)
-            session.execute(
-                stmt.on_conflict_do_update(
-                    index_elements=[M.doc_id], set_={k: stmt.excluded[k] for k in values if k != "doc_id"}
-                )
-            )
+            stmt = insert(M).values(**{f: getattr(ref, f) for f in _FIELDS})
+            stmt = stmt.on_conflict_do_nothing(index_elements=[M.doc_id]).returning(M.doc_id)
+            copied += session.execute(stmt).first() is not None
         session.commit()
-    return len(refs)
+    return copied
+
+
+@cache
+def warn_if_unmigrated(dsn: str, sqlite_db: Path) -> None:
+    """Logs an ERROR (once per process) when the Postgres registry is empty
+    but the SQLite one in `sqlite_db` has rows: a deployment switched to
+    embeddings_backend=postgres without running the one-time copy."""
+    import sqlite3
+    from contextlib import closing
+
+    from sqlalchemy import func, select
+    from sqlalchemy.orm import Session
+
+    from arp.storage.postgres_models import DocumentRegistryModel as M
+
+    try:
+        with closing(sqlite3.connect(sqlite_db)) as conn:
+            local = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
+    except sqlite3.Error:
+        return
+    if not local:
+        return
+    with Session(get_engine(dsn)) as session:
+        if session.scalar(select(func.count()).select_from(M)):
+            return
+    logger.error(
+        "The Postgres document registry is empty but %s has %d registered documents: they are invisible until "
+        "copied. Run `arp documents migrate-registry`.",
+        sqlite_db,
+        local,
+    )

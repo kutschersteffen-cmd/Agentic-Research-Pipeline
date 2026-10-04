@@ -108,7 +108,7 @@ def test_copy_sqlite_registry_is_idempotent(tmp_path):
     assert copy_sqlite_registry(tmp_path, DSN) == 2
     pg = PgDocumentRegistry(DSN, True, lambda keys: set())
     assert pg.list_all() == src.list_all_documents()
-    assert copy_sqlite_registry(tmp_path, DSN) == 2
+    assert copy_sqlite_registry(tmp_path, DSN) == 0
     assert pg.list_all() == src.list_all_documents()
 
 
@@ -126,3 +126,40 @@ def test_migrate_registry_refuses_without_postgres(monkeypatch, tmp_path):
         assert CliRunner().invoke(documents_app, ["migrate-registry"]).exit_code == 1
     finally:
         get_settings.cache_clear()
+
+
+def test_unmigrated_sqlite_registry_logs_error(tmp_path, caplog):
+    from arp.storage.postgres_document_registry import warn_if_unmigrated
+
+    _reg(DocumentContentStore(tmp_path))  # a SQLite-era registry row
+    warn_if_unmigrated.cache_clear()
+    with caplog.at_level("ERROR"):
+        content_store_for(Settings(embeddings_backend="postgres", postgres_dsn=DSN, document_store_dir=tmp_path))
+        content_store_for(Settings(embeddings_backend="postgres", postgres_dsn=DSN, document_store_dir=tmp_path))
+    errors = [r for r in caplog.records if "migrate-registry" in r.getMessage()]
+    assert len(errors) == 1 and errors[0].levelname == "ERROR"  # once per process
+
+    caplog.clear()
+    warn_if_unmigrated.cache_clear()
+    from arp.storage.postgres_document_registry import copy_sqlite_registry
+
+    copy_sqlite_registry(tmp_path, DSN)
+    with caplog.at_level("ERROR"):
+        content_store_for(Settings(embeddings_backend="postgres", postgres_dsn=DSN, document_store_dir=tmp_path))
+    assert not [r for r in caplog.records if "migrate-registry" in r.getMessage()]
+
+
+def test_copy_sqlite_registry_never_overwrites(tmp_path):
+    from arp.storage.postgres_document_registry import PgDocumentRegistry, copy_sqlite_registry
+
+    src = DocumentContentStore(tmp_path)
+    _reg(src, doc_id="doc_a", content_key="ka")
+    _reg(src, doc_id="doc_b", content_key="kb")
+    src.set_storage_uri("doc_a", "s3://old")
+    pg_store = DocumentContentStore(tmp_path / "pg", postgres_dsn=DSN)
+    _reg(pg_store, doc_id="doc_a", content_key="ka")
+    pg_store.set_storage_uri("doc_a", "s3://new")  # newer, written after cutover
+    copy_sqlite_registry(tmp_path, DSN)
+    pg = PgDocumentRegistry(DSN, True, lambda keys: set())
+    assert pg.resolve_document("doc_a").storage_uri == "s3://new"
+    assert pg.resolve_document("doc_b") is not None

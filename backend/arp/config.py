@@ -458,9 +458,10 @@ class Settings(BaseSettings):
     # table. All require postgres_dsn; all default off.
     document_registry_projection_enabled: bool = Field(
         default=False,
-        description="Mirrors DocumentRegistry (SQLite, always authoritative) into Postgres as a queryable "
-        "read-model (requires postgres_dsn) for relational joins against OpenSearch's doc_id hits. Additive only "
-        "-- SQLite stays the source of truth either way; see arp/storage/postgres_document_projection.py.",
+        description="Mirrors the document registry into Postgres as a queryable read-model (requires "
+        "postgres_dsn) for relational joins against OpenSearch's doc_id hits. Additive only -- the registry stays "
+        "the source of truth: SQLite by default, Postgres when embeddings_backend=postgres; see "
+        "arp/storage/postgres_document_projection.py.",
     )
     company_records_projection_enabled: bool = Field(
         default=False,

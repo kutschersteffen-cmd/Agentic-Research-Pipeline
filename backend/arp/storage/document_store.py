@@ -92,11 +92,13 @@ class DocumentContentStore:
         if postgres_dsn:
             # Registry and embeddings live in Postgres (embeddings_backend ==
             # "postgres"); parsed text stays here as a derived cache.
-            from arp.storage.postgres_document_registry import PgDocumentRegistry
+            from arp.storage.postgres_document_registry import PgDocumentRegistry, warn_if_unmigrated
             from arp.storage.postgres_embeddings import PgVectorEmbeddingsStore
 
             self._registry = PgDocumentRegistry(postgres_dsn, enabled, self._parsed_content.parsed_keys)
             self._embeddings = PgVectorEmbeddingsStore(postgres_dsn)
+            if enabled:
+                warn_if_unmigrated(postgres_dsn, self._db_path)
         else:
             self._registry = DocumentRegistry(self._connect, enabled)
             self._embeddings = ChunkEmbeddingsCache(self._connect, enabled)

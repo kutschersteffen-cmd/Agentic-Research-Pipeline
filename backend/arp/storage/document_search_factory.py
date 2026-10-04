@@ -2,8 +2,9 @@
 reader (default, DocumentContentStore) vs. a Postgres-backed one (opt-in,
 requires postgres_dsn + Settings.document_registry_projection_enabled) --
 mirrors portfolio_store_factory.py's exact shape. Read-only either way:
-DocumentRegistry (SQLite) stays the only writable copy regardless of
-which reader this returns.
+the authoritative registry (SQLite, or Postgres when embeddings_backend
+== "postgres", see content_store_for) stays the only writable copy
+regardless of which reader this returns.
 """
 
 from __future__ import annotations

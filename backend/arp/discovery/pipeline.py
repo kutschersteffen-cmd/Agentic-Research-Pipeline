@@ -10,6 +10,7 @@ from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient, r
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.orchestration.batch_runner import run_batch
 from arp.orchestration.job_manager import JobManager
+from arp.orchestration.jobs import hold_run
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.discovery import DiscoveryCompanyResult, DiscoveryRunParams
 from arp.storage.document_blob_store import blob_store_for
@@ -106,21 +107,22 @@ async def execute_discovery_run(
     def _on_error(company: CompanyRef, exc: Exception) -> None:
         job_manager.record_progress(run_id, failed_delta=1)
 
-    await run_batch(
-        companies,
-        item_key=lambda c: c.company_id,
-        worker=lambda c: _discover_for_company(
-            c, settings=settings, search_client=search_client, change_detector=change_detector, doc_types=doc_types
-        ),
-        results_path=run_store.results_path(run_id),
-        errors_path=run_store.errors_path(run_id),
-        concurrency=settings.max_concurrent_downloads,
-        result_to_json=lambda r: r.model_dump(mode="json"),
-        on_success=_on_success,
-        on_error=_on_error,
-    )
+    with hold_run(run_store, run_id):  # one worker per run; RunBusy if another holds it
+        await run_batch(
+            companies,
+            item_key=lambda c: c.company_id,
+            worker=lambda c: _discover_for_company(
+                c, settings=settings, search_client=search_client, change_detector=change_detector, doc_types=doc_types
+            ),
+            results_path=run_store.results_path(run_id),
+            errors_path=run_store.errors_path(run_id),
+            concurrency=settings.max_concurrent_downloads,
+            result_to_json=lambda r: r.model_dump(mode="json"),
+            on_success=_on_success,
+            on_error=_on_error,
+        )
 
-    job_manager.finish_run(run_id)
+        job_manager.finish_run(run_id)
     return run_id
 
 

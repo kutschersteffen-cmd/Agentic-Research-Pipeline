@@ -151,20 +151,67 @@ async def test_resume_theme_falls_back_to_companies_json(tmp_path, monkeypatch):
     assert seen == ["c1", "c2"]
 
 
+async def test_resume_theme_prefers_companies_json(tmp_path, monkeypatch):
+    settings = _settings(tmp_path)
+    store = RunStore(settings.runs_dir)
+    activity = ActivityDefinition(name="EV", in_scope_description="EVs.", out_of_scope_description="ICE.")
+    theme = ThemeDefinition(name="Electrification", description="", activities=[activity])
+    universe = tmp_path / "universe.json"  # edited since the run started
+    universe.write_text(json.dumps([{"company_id": "c9", "name": "Co 9"}]))
+    run_id = create_theme_run(theme, COMPANIES[:2], settings, store, universe_path=str(universe))
+    seen = []
+
+    async def _capture(run_id, theme, companies, **_kwargs):
+        seen.extend(c.company_id for c in companies)
+        return run_id
+
+    monkeypatch.setattr(research_pipeline, "execute_theme_run", _capture)
+    await _resume(run_id, settings, store)
+    assert seen == ["c1", "c2"]
+
+
 async def test_resume_resets_failed_and_retries(tmp_path, fake):
     settings = _settings(tmp_path)
     store = RunStore(settings.runs_dir)
     run_id = create_transition_plan_run(COMPANIES[:2], settings, store)
     store.append_jsonl(store.errors_path(run_id), {"key": "c1", "error": "boom"})
-    JobManager(store).record_progress(run_id, failed_delta=1, input_tokens_delta=7, cost_delta_usd=0.5)
+    # review_delta with no review_queue row, as discovery records it: resume keeps it.
+    JobManager(store).record_progress(run_id, failed_delta=1, review_delta=1, input_tokens_delta=7, cost_delta_usd=0.5)
     JobManager(store).finish_run(run_id)
     assert store.load_manifest(run_id).status == JobStatus.PARTIALLY_COMPLETED
 
     await _resume(run_id, settings, store)
     manifest = store.load_manifest(run_id)
     assert manifest.failed_count == 0 and manifest.completed_count == 2
+    assert manifest.review_count == 3  # the kept 1 plus the 2 new review items
     assert manifest.status == JobStatus.COMPLETED
     assert manifest.input_tokens == 7 and manifest.estimated_cost_usd == 0.5  # spent money is kept
+
+
+def _execute(run_id, settings, store):
+    return tp_pipeline.execute_transition_plan_run(
+        run_id, COMPANIES, llm=LLM, verifier_llm=LLM, registry=DocumentSourceRegistry([]), settings=settings, run_store=store
+    )
+
+
+async def test_plain_execute_holds_the_run(tmp_path, fake):
+    """A run started without a launcher (CLI, old theme resume, scheduler)
+    still holds the lease: a second execute or a resume is refused."""
+    settings = _settings(tmp_path)
+    store = RunStore(settings.runs_dir)
+    run_id = create_transition_plan_run(COMPANIES, settings, store)
+    fake.block_after = 1
+    task = asyncio.create_task(_execute(run_id, settings, store))
+    while not fake.calls:
+        await asyncio.sleep(0.01)
+    with pytest.raises(RunBusy):
+        await _execute(run_id, settings, store)
+    with pytest.raises(RunBusy):
+        await _resume(run_id, settings, store)
+    fake.release.set()
+    assert await task == run_id
+    assert all(fake.calls.count(c.company_id) == 1 for c in COMPANIES)
+    assert store.load_manifest(run_id).status == JobStatus.COMPLETED
 
 
 @pytest.fixture

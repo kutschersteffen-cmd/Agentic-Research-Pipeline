@@ -295,7 +295,7 @@ backend/.arp_cache/ (configurable)           SQLite DocumentContentStore — par
                                               the one non-file-based store in the system
 ```
 
-With `ARP_EMBEDDINGS_BACKEND=postgres` and `ARP_POSTGRES_DSN`, `content_store_for(settings)` keeps the document registry (`document_registry` table, incl. identity columns) and the chunk embeddings in Postgres; parsed text stays in SQLite as a derived cache. Existing registries are copied once with `arp documents migrate-registry` (idempotent; refuses unless that backend is selected).
+With `ARP_EMBEDDINGS_BACKEND=postgres` and `ARP_POSTGRES_DSN`, `content_store_for(settings)` keeps the document registry (`document_registry` table, incl. identity columns) and the chunk embeddings in Postgres; parsed text stays in SQLite as a derived cache. Existing registries are copied once with `arp documents migrate-registry` (copies rows not yet in Postgres, never overwrites; idempotent; refuses unless that backend is selected). Upgrade step: a deployment that already has SQLite registry rows must run it right after switching the backend on; until then the Postgres registry is empty or partial, and building the content store logs an ERROR (once per process) naming the command.
 
 ### Captured originals, intake and schema release
 
@@ -383,10 +383,10 @@ arp scale load | report
 
 `arp extract run --run-id R` (or `POST /api/runs/{run_id}/resume`, analyst or higher) continues a killed, failed, partly failed or cancelled run of any batch type: `theme`, `extraction`, `financials`, `tnfd`, `transition_plan`, `identity`, `discovery`.
 
-- Inputs come from what the run stored at creation: `runs/<id>/companies.json` (a theme run may instead have its `universe_path`), the manifest params, and the manifest's models.
+- Inputs come from what the run stored at creation: `runs/<id>/companies.json` (an older theme run without one falls back to its `universe_path`), the manifest params, and the manifest's models.
 - Items already in `results.jsonl`, and items stopped for review, are not run again. Plain failures are retried; their old `errors.jsonl` rows stay as history.
-- The counters are rebuilt from the files: completed = result rows, review = review-queue rows, failed = 0. Tokens and cost are kept.
-- One worker per run: a resume takes a lock on `runs/<id>/.worker` and is refused (`409` from the API, exit 1 from the CLI) while another worker holds it. The OS frees it if the worker dies.
+- The counters are rebuilt from the files: completed = result rows, failed = 0. The review count, tokens and cost are kept.
+- One worker per run: every batch run, however it was started (API, CLI, scheduler, launcher or resume), holds a lock on `runs/<id>/.worker` while its batch runs (`hold_run`, taken in `run_company_batch` and `execute_discovery_run`; re-entrant within one task). A second worker on the same run raises `RunBusy`; a resume is refused (`409` from the API, exit 1 from the CLI). The OS frees the lock if the worker dies.
 - Not resumable (start a new run instead): completed runs, runs created before inputs were stored, whole-pass jobs (`calibration`, `taxonomy_research`, `emerging_themes`, the barrier refresh) and `voting`.
 - Nothing resumes on its own at API startup.
 

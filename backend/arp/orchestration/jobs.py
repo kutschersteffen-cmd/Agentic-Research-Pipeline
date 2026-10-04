@@ -4,6 +4,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager, nullcontext
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Protocol
 
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
@@ -44,6 +45,27 @@ def run_lease(run_store: RunStore, run_id: str) -> Iterator[None]:
         yield  # closing the handle releases the lock
 
 
+_held: ContextVar[frozenset[str]] = ContextVar("held_runs", default=frozenset())
+
+
+@contextmanager
+def hold_run(run_store: RunStore, run_id: str) -> Iterator[None]:
+    """`run_lease`, re-entrant within one task context: a no-op if this
+    context already holds the run (a launcher or resume_run that then calls
+    the pipeline), else takes the lease and marks it held. Every batch run
+    goes through it (run_company_batch, execute_discovery_run), so a second
+    worker on the same run raises RunBusy however it was started."""
+    if run_id in _held.get():
+        yield
+        return
+    with run_lease(run_store, run_id):
+        token = _held.set(_held.get() | {run_id})
+        try:
+            yield
+        finally:
+            _held.reset(token)
+
+
 class JobLauncher(Protocol):
     def launch(self, run_id: str, job: Callable[[], Awaitable[None]], *, run_store: RunStore | None = None) -> None: ...
 
@@ -63,7 +85,7 @@ class LocalJobLauncher:
 
         async def _leased() -> None:
             try:
-                with run_lease(run_store or self._run_store(), run_id):
+                with hold_run(run_store or self._run_store(), run_id):
                     await job()
             except Exception:  # noqa: BLE001 - nobody awaits the task
                 logger.exception("Job for run %s failed", run_id)
@@ -139,13 +161,14 @@ async def resume_run(
         llm = llm or build_llm_client(run_settings)
         verifier_llm = verifier_llm or build_verifier_llm_client(run_settings)
 
-    with run_lease(run_store, run_id) if lease else nullcontext():
+    with hold_run(run_store, run_id) if lease else nullcontext():
         with run_store.lock(run_id):
             # Rebuilt from the files: failed items are retried, so they no longer
-            # count; tokens and cost stay, that money was spent.
+            # count; tokens and cost stay, that money was spent. review_count
+            # stays too: review-stopped items are never re-run, and discovery
+            # records review counts without review_queue rows.
             current = run_store.load_manifest(run_id)
             current.completed_count = len(read_done_keys(run_store.results_path(run_id)))
-            current.review_count = len(run_store.read_jsonl(run_store.review_queue_path(run_id)))
             current.failed_count = 0
             current.cancel_requested = False
             current.status = JobStatus.RUNNING

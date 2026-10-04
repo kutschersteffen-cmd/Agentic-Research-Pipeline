@@ -18,7 +18,10 @@ _SIMULATED_NOTE = (
     "`max_concurrent_llm_calls` stays at its default of 8. For real numbers run "
     "`arp scale load --live --universe <universe.csv> --schema <schema.json> --concurrency 4,8,16 --issuers 200`."
 )
-_LIVE_NOTE = "Live run: real LLM calls against the configured provider; the cost column is real spend."
+_LIVE_NOTE = (
+    "Live run: real LLM calls against the configured provider; the cost column is real spend. "
+    "Trial runs: every row routes to review and is never published."
+)
 
 
 def _write(reports: list[RunReport], note: str, out: Path | None) -> None:

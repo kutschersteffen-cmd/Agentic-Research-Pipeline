@@ -112,3 +112,32 @@ def test_creators_store_companies(tmp_path):
     ]
     for run_id in ids:
         assert store.load_companies(run_id) == COMPANIES
+
+
+def test_concurrent_discovery_execute_is_refused(tmp_path, monkeypatch):
+    import arp.discovery.pipeline as discovery
+
+    store = RunStore(tmp_path)
+    run_id = create_discovery_run(COMPANIES, None, "test", store)
+    started, release = asyncio.Event(), asyncio.Event()
+
+    async def _discover(company, **_kwargs):
+        started.set()
+        await release.wait()
+        raise RuntimeError("stub")
+
+    monkeypatch.setattr(discovery, "_discover_for_company", _discover)
+    settings = Settings(runs_dir=tmp_path)
+
+    def _execute():
+        return discovery.execute_discovery_run(run_id, COMPANIES, settings=settings, run_store=store, search_client=object())
+
+    async def go():
+        task = asyncio.create_task(_execute())
+        await started.wait()
+        with pytest.raises(RunBusy):
+            await _execute()
+        release.set()
+        await task
+
+    asyncio.run(go())
