@@ -163,6 +163,17 @@ class PublishStore:
 
         return Session(self.engine)
 
+    def referenced(self) -> tuple[set[str], set[str]]:
+        """Distinct source_run_id and citation content_key over every row: retention never deletes these."""
+        from sqlalchemy import select
+
+        from arp.storage.postgres_models import PublishedFactModel as M
+
+        with self.session() as s:
+            runs = set(s.scalars(select(M.source_run_id).distinct()))
+            keys = set(s.scalars(select(M.citation["content_key"].astext).distinct()))
+        return runs, {k for k in keys if k}
+
     def current(self, keys: Iterable[FactKey]) -> dict[FactKey, Fact]:
         from sqlalchemy import select, tuple_
 

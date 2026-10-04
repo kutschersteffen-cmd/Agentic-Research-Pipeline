@@ -441,6 +441,15 @@ class Settings(BaseSettings):
         description="Local store for each captured document's original bytes (<dir>/<key[:2]>/<key>). Used "
         "unless the object store is enabled.",
     )
+    retention_runs_days: int = Field(
+        default=3650, ge=365, description="Run files are deleted only once the newest of them is this old."
+    )
+    retention_decision_logs_days: int = Field(
+        default=3650, ge=365, description="Review decision/co-sign logs and snapshots/ files, each by its own age."
+    )
+    retention_originals_days: int = Field(
+        default=3650, ge=365, description="Stored originals in blob_store_dir, by file age."
+    )
 
     # Postgres read-model projections beyond Portfolio/Holdings (see
     # postgres_models.py's module docstring for the original narrower

@@ -355,10 +355,21 @@ arp publish run | withdraw | backfill
 arp holdings import | pull | template
 arp snapshots build | pull
 arp runs list | show | cancel
+arp retention cleanup [--apply]
 ```
 
 `arp identity review <run_id> <item_key> --decision approve|correct|reject|escalate [--reason R] [--website W] [--cik C] [--comment T]`: `--reason` is required unless approving (default `confirmed`); `correct` needs `--website` and/or `--cik` and a `--comment` naming the source.
 
 `arp publish run --run-id R` and `arp publish withdraw --release-id ID --reason T` need the approver role and `ARP_POSTGRES_DSN`; `arp publish backfill` publishes every non-trial extraction run as the system. `arp holdings import --file F --holder H --as-of YYYY-MM-DD [--kind index|portfolio] [--provider P] [--override-reason T]`, `arp holdings pull [--holder H --kind K --as-of D]` (no holder: every API holder missing last month) and `arp holdings template --kind K --format csv|xlsx --out F`. `arp snapshots build --as-of <month end>` and `arp snapshots pull --month YYYY-MM [--dataset D] [--base-url U] [--dest DIR]`.
+
+### Retention
+
+`ARP_RETENTION_RUNS_DAYS`, `ARP_RETENTION_DECISION_LOGS_DAYS` and `ARP_RETENTION_ORIGINALS_DAYS` default to 3,650 days and cannot be set below 365. Age is a file's own mtime (`lstat`; symlinks are never followed). `arp retention cleanup` is a dry run unless `--apply` is given; deletion re-checks the age and refuses to delete inside the period.
+
+- Decision logs (`review_decisions.jsonl`, `review_cosigns.jsonl`, anything under `snapshots/`) are each kept on their own period.
+- All other run files go together, only once the run's newest such file (ignoring `.lock` and `.worker`) is past the runs period. Sidecar lock files are deleted with the run.
+- Runs whose manifest status is `running` or `pending` are never touched.
+- Stored originals in `blob_store_dir` are deleted once past the originals period; emptied directories are removed.
+- Held, never deleted: any run id that is the `source_run_id` of a `published_facts` row, and any content key cited by one (needs `ARP_POSTGRES_DSN`; without it nothing is held).
 
 Full flag-level detail is in the project [`README.md`](../README.md); design rationale for every precision control is in [`METHODOLOGY.md`](METHODOLOGY.md).

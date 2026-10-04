@@ -21,6 +21,7 @@ from arp.cli.project import project_app
 from arp.cli.publish import publish_app
 from arp.cli.replication import replicate_app
 from arp.cli.reporting import reporting_app
+from arp.cli.retention import retention_app
 from arp.cli.revenue_catalogue import revenue_catalogue_app
 from arp.cli.runs import runs_app
 from arp.cli.snapshots import snapshots_app
@@ -62,3 +63,4 @@ app.add_typer(project_app, name="project")
 app.add_typer(publish_app, name="publish")
 app.add_typer(snapshots_app, name="snapshots")
 app.add_typer(holdings_app, name="holdings")
+app.add_typer(retention_app, name="retention")
