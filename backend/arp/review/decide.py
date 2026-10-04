@@ -3,6 +3,7 @@ correction citation, the second-reviewer rules, under the run lock and the conte
 
 from __future__ import annotations
 
+import logging
 import math
 from hashlib import sha256
 from typing import TYPE_CHECKING
@@ -24,6 +25,8 @@ from arp.storage.run_store import RunStore
 
 if TYPE_CHECKING:
     from arp.api.auth import Principal
+
+logger = logging.getLogger(__name__)
 
 _ALL = {"approve", "correct", "reject", "escalate"}
 ALLOWED = {
@@ -199,5 +202,8 @@ def decide(
         ))
         state = _state(run_store, run_id, item_key).state
         if step == "second" and state == "second_done" and s.first.get("decision") == "correct":
-            record_confirmed_correction(bundle, s.first["corrected_value"], settings)  # E56: the gold set grows
+            try:  # E56: the gold set grows; the decision is already written, so this never fails it
+                record_confirmed_correction(bundle, s.first["corrected_value"], settings)
+            except Exception:  # noqa: BLE001
+                logger.exception("Gold case not recorded for %s/%s", run_id, item_key)
         return {"state": state, "snapshot_id": snapshot_id, "second_reasons": reasons}
