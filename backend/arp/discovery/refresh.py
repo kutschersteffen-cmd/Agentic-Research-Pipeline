@@ -58,6 +58,7 @@ async def refresh_on_events(
     registry: DocumentSourceRegistry,
     launcher: JobLauncher | None = None,
     parent: tuple[str, str, str] | None = None,
+    company_hint: CompanyRef | None = None,
 ) -> list[str]:
     """Starts and launches the refresh runs for `events`; returns their run ids. `registry` is the
     document-source registry the runs extract from; schemas come from the schema registry.
@@ -92,7 +93,7 @@ async def refresh_on_events(
     run_ids: list[str] = []
     for event in events:
         sha = event.document.sha256 or event.document.url
-        company = universe.get(event.company_id) or CompanyRef(company_id=event.company_id, name=event.company_name)
+        company = universe.get(event.company_id) or company_hint or CompanyRef(company_id=event.company_id, name=event.company_name)
         for schema in schemas:
             key = (event.company_id, schema.schema_id, sha)
             if key in seen:
@@ -125,7 +126,7 @@ def refresh_hook(settings: Settings, run_store: RunStore | None = None, *, paren
     if not (settings.event_refresh_enabled and settings.event_refresh_schema_ids):
         return None
 
-    async def on_events(events: list[DocumentEvent]) -> None:
+    async def on_events(events: list[DocumentEvent], company: CompanyRef | None = None) -> None:
         from arp.api.deps import build_registry
         from arp.retrieval.content_store_factory import content_store_for
         from arp.storage.postgres_projection_config import ProjectionConfig
@@ -134,7 +135,7 @@ def refresh_hook(settings: Settings, run_store: RunStore | None = None, *, paren
         store = run_store or RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
         await refresh_on_events(
             events, settings=settings, run_store=store,
-            registry=build_registry(settings, content_store_for(settings)), parent=parent,
+            registry=build_registry(settings, content_store_for(settings)), parent=parent, company_hint=company,
         )
 
     return on_events

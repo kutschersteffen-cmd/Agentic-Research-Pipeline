@@ -41,3 +41,17 @@ async def test_answer_question_unresolvable_asks_for_clarification(tmp_path, fak
     assert answer.resolvable is False
     assert answer.clarification_needed == "Which company do you mean?"
     assert answer.result is None
+
+
+async def test_weighted_avg_vintage_holds_observation_dates(tmp_path, fake_llm):
+    from arp.schemas.portfolio import DataPointObservation
+
+    store, securities, companies = _setup(tmp_path)
+    for day in ("2025-12-01", "2025-12-15"):
+        store.append_observation(DataPointObservation(
+            company_id="bmw", field_id="f1", field_name="F1", value=1.0, source="internal_api", observed_at=day))
+    parsed = _ParsedQuestion(resolvable=True, metric="weighted_avg_datapoint", data_point_field_id="f1")
+
+    answer, _usage = await qa_agent.answer_question("avg f1?", fake_llm({"_ParsedQuestion": [parsed]}), store, securities, companies)
+
+    assert answer.vintage == {"holdings_as_of": "2026-01-01", "observation_dates": ["2025-12-15"]}

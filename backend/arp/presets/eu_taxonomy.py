@@ -20,6 +20,7 @@ def _common(k: str) -> str:
         f"Read the company's mandatory EU Taxonomy KPI tables (Article 8 Taxonomy Regulation, Disclosures Delegated Act "
         f"templates) for {KPIS[k]}. Report the figure exactly as the company prints it for each fiscal year disclosed; "
         "never compute or infer one. Use the company-wide total row, not a single activity. Percentages are 0-100."
+        + ' A "%" in a column header applies to the bare cells beneath it: report such a figure with unit "%".'
     )
 
 

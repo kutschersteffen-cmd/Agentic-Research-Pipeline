@@ -67,6 +67,7 @@ def test_unresolvable_and_error_still_audited(tmp_path):
     assert c.post("/api/portfolio/ask", json={"question": "a"}).status_code == 200
     assert c.post("/api/portfolio/ask", json={"question": "b"}).status_code == 500  # still raised
     ok, bad = _rows(s)
+    assert ok["resolvable"] is False and bad["resolvable"] is None
     assert ok["error"] is None and ok["answer_sha256"] == hashlib.sha256(b"").hexdigest()
     assert "boom" in bad["error"]
 
@@ -82,6 +83,14 @@ def test_vintage_holds_holdings_as_of(tmp_path):
     body = c.post("/api/portfolio/ask", json={"question": "a"}).json()
     assert body["vintage"] == {"holdings_as_of": "2026-01-01"}
     assert _rows(s)[0]["vintage"] == {"holdings_as_of": "2026-01-01"}
+
+
+def test_resolvable_recorded_and_limit_validated(tmp_path):
+    c, s = _app(tmp_path, _LLM(RESOLVABLE))
+    c.post("/api/portfolio/ask", json={"question": "a"})
+    assert _rows(s)[0]["resolvable"] is True
+    assert c.get("/api/portfolio/qa-audit?limit=0").status_code == 422
+    assert c.get("/api/portfolio/qa-audit?limit=1001").status_code == 422
 
 
 def test_audit_endpoint_approver_only_and_no_user_id(tmp_path):

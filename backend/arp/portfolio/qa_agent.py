@@ -3,7 +3,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from arp.llm.base import LLMClient, LLMUsage
-from arp.portfolio import analytics
+from arp.portfolio import analytics, datapoint_mapping
 from arp.portfolio.aggregation import DIMENSIONS
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import AggregationResult, AnalyticSpec, SecurityRef
@@ -90,7 +90,14 @@ async def answer_question(
     if not isinstance(result, AggregationResult):
         raise ValueError("qa_agent answers point-in-time questions only; got a date_range trend spec")
 
-    return QAAnswer(question=question, resolvable=True, spec=spec, result=result, answer_text=_template_answer(spec, result), vintage={"holdings_as_of": result.as_of}), usage
+    vintage: dict = {"holdings_as_of": result.as_of}
+    if spec.metric == "weighted_avg_datapoint":
+        # the dates of the observations the average used (same resolution as analytics.execute)
+        observations = (datapoint_mapping.resolve_field_value(store, cid, spec.data_point_field_id, result.as_of)
+                        for cid in {s.company_id for s in securities.values() if s.company_id})
+        vintage["observation_dates"] = sorted({o.observed_at[:10] for o in observations if o is not None
+                                               and isinstance(o.value, (int, float)) and not isinstance(o.value, bool)})
+    return QAAnswer(question=question, resolvable=True, spec=spec, result=result, answer_text=_template_answer(spec, result), vintage=vintage), usage
 
 
 def _template_answer(spec: AnalyticSpec, result: AggregationResult) -> str:

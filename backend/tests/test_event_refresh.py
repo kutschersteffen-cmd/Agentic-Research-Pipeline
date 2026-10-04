@@ -88,6 +88,17 @@ async def test_new_filing_triggers_one_run(tmp_path):
     assert (company.company_id, company.lei) == ("c1", LEI)  # the universe's richer CompanyRef
 
 
+async def test_refresh_without_universe_keeps_company_identifiers(tmp_path):
+    settings = _settings(tmp_path)
+    _schema(settings)
+    company = CompanyRef(company_id="c1", name="Beispiel AG", lei=LEI, cik="0000320193")
+
+    ids, store = await _refresh(settings, [_event()], _Launcher(), company_hint=company)
+
+    [got] = store.load_companies(ids[0])
+    assert (got.lei, got.cik) == (LEI, "0000320193")
+
+
 async def test_same_filing_twice_one_run(tmp_path):
     settings = _settings(tmp_path)
     _schema(settings)
@@ -145,8 +156,9 @@ async def test_change_detector_calls_on_events_and_survives_errors(tmp_path):
     events_path = tmp_path / "docs" / "_events.jsonl"
     seen = []
 
-    async def hook(events):
+    async def hook(events, company):
         seen.append((list(events), events_path.exists()))
+        assert company.company_id == "c1"
         raise RuntimeError("refresh broke")
 
     detector = ChangeDetector(tmp_path / "state", events_path, on_events=hook)

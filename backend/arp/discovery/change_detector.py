@@ -29,7 +29,7 @@ class ChangeDetector:
     wasn't seen before or whose hash changed. Events are:
       1. appended to a global rolling JSONL feed the UI/API can poll, and
       2. POSTed (best-effort) to a configured webhook URL, if any, and
-      3. handed to `on_events` (event-driven refresh, E20), if given; its
+      3. handed to `on_events(events, company)` (event-driven refresh, E20), if given; its
          errors are logged, never raised.
     """
 
@@ -38,7 +38,7 @@ class ChangeDetector:
         state_dir: Path,
         global_events_path: Path,
         webhook_url: str | None = None,
-        on_events: Callable[[list[DocumentEvent]], Awaitable[object]] | None = None,
+        on_events: Callable[[list[DocumentEvent], CompanyRef], Awaitable[object]] | None = None,
     ) -> None:
         self.state_dir = state_dir
         self.global_events_path = global_events_path
@@ -89,7 +89,7 @@ class ChangeDetector:
 
         if events and self.on_events is not None:
             try:
-                await self.on_events(events)
+                await self.on_events(events, company)
             except Exception:  # noqa: BLE001 - a refresh failure never fails discovery
                 logger.exception("on_events hook failed for %s", company.company_id)
 

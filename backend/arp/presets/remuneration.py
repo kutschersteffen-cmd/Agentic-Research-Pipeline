@@ -37,6 +37,7 @@ def _common(sc: str, p: str) -> str:
         f"{extra} Report what the company prints and never compute a weight. ESG means environmental, social or "
         "governance performance metrics in pay. Percentages are 0-100; multipliers are unit-less factors "
         "(0.9 = 90% of target payout), stated without any unit such as 'x' or the multiplication sign."
+        + ' A "%" in a column header applies to the bare cells beneath it: report such a figure with unit "%".'
     )
 
 

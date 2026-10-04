@@ -49,6 +49,7 @@ def _common(metric: str) -> str:
         "including amounts not aligned with or not covered by the EU Taxonomy, for EU, US and other firms alike. "
         f"Classify against {_TABLE_REF}. Count each amount in one category only. Report each fiscal year disclosed, in "
         "the reporting currency (never convert currencies): give the unit as the ISO 4217 code (USD, EUR, GBP, ...) with the scale word separate, for example 'EUR million'. Transition activities are never green."
+        + ' A "%" in a column header applies to the bare cells beneath it: report such a figure with unit "%".'
     )
 
 

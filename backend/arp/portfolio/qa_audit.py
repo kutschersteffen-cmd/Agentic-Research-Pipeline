@@ -21,12 +21,12 @@ def _path(settings: Settings):
 
 def record_answer(
     settings: Settings, *, endpoint: str, principal: Principal, question: str,
-    answer_text: str | None, vintage: dict, error: str | None = None,
+    answer_text: str | None, vintage: dict, error: str | None = None, resolvable: bool | None = None,
 ) -> None:
     row = {
         "at": now_iso(), "endpoint": endpoint, "user_id": principal.user_id, "user_name": principal.name,
         "question": question, "answer_sha256": hashlib.sha256((answer_text or "").encode()).hexdigest(),
-        "vintage": vintage, "error": error,
+        "vintage": vintage, "error": error, "resolvable": resolvable,
     }
     try:
         with _lock:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal, current_user, require_role
@@ -252,12 +252,13 @@ async def ask(
         qa_audit.record_answer(
             settings, endpoint="portfolio.ask", principal=principal, question=req.question,
             answer_text=answer.answer_text if answer else None, vintage=answer.vintage if answer else {}, error=error,
+            resolvable=answer.resolvable if answer else None,
         )
 
 
 @router.get("/qa-audit")
 def qa_audit_log(
-    limit: int = 200, settings: Settings = Depends(settings_dep), _: Principal = Depends(require_role("approver"))
+    limit: int = Query(200, ge=1, le=1000), settings: Settings = Depends(settings_dep), _: Principal = Depends(require_role("approver"))
 ) -> list[dict]:
     return qa_audit.list_audit(settings, limit=limit)
 
