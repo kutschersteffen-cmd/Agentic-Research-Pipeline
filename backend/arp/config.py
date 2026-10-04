@@ -71,6 +71,7 @@ class Settings(BaseSettings):
     portfolios_dir: Path = Field(default=REPO_ROOT / "portfolios")
     projects_dir: Path = Field(default=REPO_ROOT / "projects")
     documents_dir: Path = Field(default=REPO_ROOT / "data" / "documents")
+    snapshot_store_dir: Path = REPO_ROOT / "data" / "snapshot_store"
     max_upload_bytes: int = Field(default=100_000_000, description="Largest manual document upload accepted, in bytes.")
     cache_dir: Path = Field(default=REPO_ROOT / "backend" / ".cache")
     document_store_dir: Path = Field(
