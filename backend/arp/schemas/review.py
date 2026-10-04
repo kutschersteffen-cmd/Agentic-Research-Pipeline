@@ -121,3 +121,13 @@ class ItemDecisionRequest(BaseModel):
         if self.decision != "correct" and (self.corrected_value is not None or self.correction_citation is not None):
             raise ValueError("only correct takes corrected_value or correction_citation")
         return self
+
+
+class BulkItem(BaseModel):
+    item_key: str
+    context_etag: str = Field(min_length=1)
+
+
+class BulkAcceptRequest(BaseModel):
+    run_id: str
+    items: list[BulkItem] = Field(min_length=1, max_length=200)

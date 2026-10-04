@@ -7,7 +7,15 @@ from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal, current_user, require_role
 from arp.api.company_results import list_company_results
-from arp.api.deps import get_decision_store, get_llm_client, get_registry, get_run_store, get_xbrl_source, settings_dep
+from arp.api.deps import (
+    get_decision_store,
+    get_document_content_store,
+    get_llm_client,
+    get_registry,
+    get_run_store,
+    get_xbrl_source,
+    settings_dep,
+)
 from arp.api.routers.decision import template_for_run
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
@@ -19,10 +27,13 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.review_queue import effective_decisions, item_states, public_decision, record_cosign
 from arp.orchestration.step_tally import step_counts
 from arp.review.context import similar_decisions, visible_history
+from arp.review.decide import DecisionError, bulk_accept
 from arp.review.items import cosign_rule, get_item
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema, FieldQuality
+from arp.schemas.review import BulkAcceptRequest
 from arp.storage.decision_store import DecisionStore
+from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
 from arp.storage.schema_registry import SchemaRegistry
 from arp.universe import load_company_universe
@@ -390,6 +401,17 @@ def get_similar_decisions(
     if items is None:
         raise HTTPException(404, "Run or item not found")
     return {"items": items}
+
+
+@router.post("/items/bulk-accept", dependencies=[Depends(require_role("analyst"))])
+def bulk_accept_items(
+    req: BulkAcceptRequest, run_store: RunStore = Depends(get_run_store), principal: Principal = Depends(current_user),
+    settings: Settings = Depends(settings_dep), content_store: DocumentContentStore = Depends(get_document_content_store),
+) -> dict:
+    try:
+        return bulk_accept(run_store, req, principal, settings=settings, content_store=content_store)
+    except DecisionError as exc:
+        raise HTTPException(exc.status, exc.message) from None
 
 
 class CosignRequest(BaseModel):

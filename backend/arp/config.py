@@ -129,6 +129,9 @@ class Settings(BaseSettings):
     second_review_sample_rate: float = Field(
         default=0.1, ge=0.0, le=1.0, description="Share of approvals, chosen per item key, that also get a second review."
     )
+    bulk_accept_sample_rate: float = Field(
+        default=0.2, ge=0.0, le=1.0, description="Share of bulk-accepted items, chosen per item key, re-checked by a second reviewer."
+    )
     review_quality_dir: Path = Field(
         default=REPO_ROOT / "data" / "review_quality",
         description="Reviewer quality loop: known.jsonl (which items are known answers) and extraction_cases.json "

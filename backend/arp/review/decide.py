@@ -19,7 +19,7 @@ from arp.review.items import get_item
 from arp.review.quality import record_confirmed_correction
 from arp.schemas.common import Citation, SourceDocument
 from arp.schemas.issuer import lei_is_valid, normalise_lei
-from arp.schemas.review import ItemDecisionRequest, ReviewDecision
+from arp.schemas.review import BulkAcceptRequest, BulkItem, ItemDecisionRequest, ReviewDecision
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
 
@@ -155,57 +155,108 @@ def decide(
     settings: Settings, content_store: DocumentContentStore | None,
 ) -> dict:
     with run_store.lock(run_id):
-        item = get_item(run_store, run_id, item_key, principal)
-        if item is None:
-            raise DecisionError(404, "Review item not found")
-        kind = item.kind.value
-        if kind == "other" and item.run_type != "extraction":
-            raise DecisionError(400, "decide this item through its run's review endpoint")
-        _check_kind(kind, req, principal)
-        s = _state(run_store, run_id, item_key)
-        step = _step(s, req, principal)
-        bundle = build_context(run_store, run_id, item_key, principal, settings=settings, content_store=content_store)
-        if bundle["etag"] != req.context_etag:
-            raise DecisionError(409, "this item changed since you loaded it; reload")
-        field = bundle["field_definition"] or {}
-        current = (bundle["value"] or {}).get("value")
-        citation = None
-        if req.decision == "correct" and req.correction_citation is not None:
-            data_type = field.get("data_type")
-            if data_type is None and any(_is_number(v) for v in (current, req.corrected_value.get("value"))):
-                data_type = "number"  # no field definition (an old run): judge by the value itself
-            citation = ground_correction(
-                req.correction_citation, bundle, content_store=content_store, data_type=data_type,
-                corrected_value=req.corrected_value, fuzzy_threshold=settings.grounding_fuzzy_threshold,
+        return _decide_locked(run_store, run_id, item_key, req, principal, settings=settings, content_store=content_store)
+
+
+def _decide_locked(
+    run_store: RunStore, run_id: str, item_key: str, req: ItemDecisionRequest, principal: Principal, *,
+    settings: Settings, content_store: DocumentContentStore | None, reasons: list[str] | None = None,
+) -> dict:
+    """One decision; the caller holds the run lock. `reasons`: the second-review reasons, fixed by the caller."""
+    item = get_item(run_store, run_id, item_key, principal)
+    if item is None:
+        raise DecisionError(404, "Review item not found")
+    kind = item.kind.value
+    if kind == "other" and item.run_type != "extraction":
+        raise DecisionError(400, "decide this item through its run's review endpoint")
+    _check_kind(kind, req, principal)
+    s = _state(run_store, run_id, item_key)
+    step = _step(s, req, principal)
+    bundle = build_context(run_store, run_id, item_key, principal, settings=settings, content_store=content_store)
+    if bundle["etag"] != req.context_etag:
+        raise DecisionError(409, "this item changed since you loaded it; reload")
+    field = bundle["field_definition"] or {}
+    current = (bundle["value"] or {}).get("value")
+    citation = None
+    if req.decision == "correct" and req.correction_citation is not None:
+        data_type = field.get("data_type")
+        if data_type is None and any(_is_number(v) for v in (current, req.corrected_value.get("value"))):
+            data_type = "number"  # no field definition (an old run): judge by the value itself
+        citation = ground_correction(
+            req.correction_citation, bundle, content_store=content_store, data_type=data_type,
+            corrected_value=req.corrected_value, fuzzy_threshold=settings.grounding_fuzzy_threshold,
+        )
+    if reasons is None and step == "first" and kind != "other":  # a failure report keeps the legacy single decision
+        prior = None
+        if kind in ("value", "restatement_candidate"):
+            key = item.payload["item_key"] if kind == "restatement_candidate" else item_key
+            prior = RunHistory.load(run_store, exclude_run_id=run_id).last_decided(key)
+        reasons = second_review_reasons(
+            req.decision, kind=kind, item_key=item_key, high_risk=item.high_risk,
+            first_audit_passed=field.get("first_audit_passed"), current_value=current,
+            corrected_value=req.corrected_value, prior=prior, sample_rate=settings.second_review_sample_rate,
+            changes_final=s.state in FINAL_STATES and not agrees(s.effective, req.model_dump()),
+        )
+    reasons = reasons or []
+    corrected = req.corrected_value
+    if kind == "security" and req.decision == "correct":
+        corrected = {"value": normalise_lei(str(corrected["value"]))}  # a case-only difference is agreement
+    snapshot_id = write_snapshot(run_store, run_id, bundle)
+    append_decision(run_store, run_id, ReviewDecision(
+        item_key=item_key, decision=req.decision, reason_code=req.reason_code, reviewer=principal.name,
+        user_id=principal.user_id, role=principal.role, corrected_value=corrected,
+        correction_citation=citation, snapshot_id=snapshot_id, comment=req.comment, step=step,
+        second_required=bool(reasons), second_reasons=reasons,
+    ))
+    state = _state(run_store, run_id, item_key).state
+    if step == "second" and state == "second_done" and s.first.get("decision") == "correct":
+        try:  # E56: the gold set grows; the decision is already written, so this never fails it
+            record_confirmed_correction(
+                bundle, s.first["corrected_value"], settings, citation=s.first.get("correction_citation"),
             )
-        reasons: list[str] = []
-        if step == "first" and kind != "other":  # a failure report keeps the legacy single decision
-            prior = None
-            if kind in ("value", "restatement_candidate"):
-                key = item.payload["item_key"] if kind == "restatement_candidate" else item_key
-                prior = RunHistory.load(run_store, exclude_run_id=run_id).last_decided(key)
-            reasons = second_review_reasons(
-                req.decision, kind=kind, item_key=item_key, high_risk=item.high_risk,
-                first_audit_passed=field.get("first_audit_passed"), current_value=current,
-                corrected_value=req.corrected_value, prior=prior, sample_rate=settings.second_review_sample_rate,
-                changes_final=s.state in FINAL_STATES and not agrees(s.effective, req.model_dump()),
+        except Exception:  # noqa: BLE001
+            logger.exception("Gold case not recorded for %s/%s", run_id, item_key)
+    return {"state": state, "snapshot_id": snapshot_id, "second_reasons": reasons}
+
+
+def _bulk_refusal(run_store: RunStore, run_id: str, it: BulkItem, principal: Principal, *,
+                  settings: Settings, content_store: DocumentContentStore | None) -> str | None:
+    item = get_item(run_store, run_id, it.item_key, principal)
+    if item is None or item.kind.value != "value":
+        return "is not a value item"
+    if item.state != "pending" or item.escalated:
+        return "is not pending" if item.state != "pending" else "is escalated"
+    if item.high_risk:
+        return "is high-risk"
+    bundle = build_context(run_store, run_id, it.item_key, principal, settings=settings, content_store=content_store)
+    if bundle["failed_checks"]:
+        return "has a failing check"
+    if bundle["etag"] != it.context_etag:
+        return "changed since you loaded it; reload"
+    return None
+
+
+def bulk_accept(
+    run_store: RunStore, req: BulkAcceptRequest, principal: Principal, *,
+    settings: Settings, content_store: DocumentContentStore | None,
+) -> dict:
+    """Approves low-risk pending value items in one call (E61), or none: every item is checked
+    before anything is written. A sample, never empty, goes to a second reviewer."""
+    keys = [it.item_key for it in req.items]
+    with run_store.lock(req.run_id):
+        # ponytail: each item's context is built twice (check, then decide); share it if 200-item calls get slow
+        for it in req.items:
+            why = "is listed twice" if keys.count(it.item_key) > 1 else _bulk_refusal(
+                run_store, req.run_id, it, principal, settings=settings, content_store=content_store)
+            if why:
+                raise DecisionError(409, f"{it.item_key} {why}; nothing was accepted")
+        rate = settings.bulk_accept_sample_rate
+        sample = {k for k in keys if sampled(k, rate)} or {min(keys, key=lambda k: sha256(k.encode()).hexdigest())}
+        approve = {"decision": "approve", "reason_code": "confirmed"}
+        for it in req.items:
+            _decide_locked(
+                run_store, req.run_id, it.item_key, ItemDecisionRequest(**approve, context_etag=it.context_etag),
+                principal, settings=settings, content_store=content_store,
+                reasons=["bulk_sample"] if it.item_key in sample else [],
             )
-        corrected = req.corrected_value
-        if kind == "security" and req.decision == "correct":
-            corrected = {"value": normalise_lei(str(corrected["value"]))}  # a case-only difference is agreement
-        snapshot_id = write_snapshot(run_store, run_id, bundle)
-        append_decision(run_store, run_id, ReviewDecision(
-            item_key=item_key, decision=req.decision, reason_code=req.reason_code, reviewer=principal.name,
-            user_id=principal.user_id, role=principal.role, corrected_value=corrected,
-            correction_citation=citation, snapshot_id=snapshot_id, comment=req.comment, step=step,
-            second_required=bool(reasons), second_reasons=reasons,
-        ))
-        state = _state(run_store, run_id, item_key).state
-        if step == "second" and state == "second_done" and s.first.get("decision") == "correct":
-            try:  # E56: the gold set grows; the decision is already written, so this never fails it
-                record_confirmed_correction(
-                    bundle, s.first["corrected_value"], settings, citation=s.first.get("correction_citation"),
-                )
-            except Exception:  # noqa: BLE001
-                logger.exception("Gold case not recorded for %s/%s", run_id, item_key)
-        return {"state": state, "snapshot_id": snapshot_id, "second_reasons": reasons}
+    return {"accepted": len(keys), "second_review": [k for k in keys if k in sample]}
