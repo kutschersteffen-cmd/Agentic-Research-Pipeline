@@ -119,3 +119,13 @@ async def check_record(
 from arp.checks.numeric import check_caption_scale, check_number_in_span, check_row_label  # noqa: E402
 
 LAYERS[2] = [check_number_in_span, check_caption_scale, check_row_label]
+
+from arp.checks.plausibility import (  # noqa: E402
+    check_part_of_whole,
+    check_percentage,
+    check_range,
+    check_sign,
+    check_sum_identity,
+)
+
+LAYERS[3] = [check_range, check_sign, check_percentage, check_part_of_whole, check_sum_identity]
