@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isReleased, isZero, valueLabel, withEditedValue } from "../src/lib/fieldValue.ts";
+import { failedChecks, isReleased, isZero, routeLabel, valueLabel, withEditedValue } from "../src/lib/fieldValue.ts";
 import { isTrialRun } from "../src/lib/runs.ts";
 
 const f = (o: object) => ({ field_id: "x", field_name: "X", value: null, ...o }) as never;
@@ -47,4 +47,18 @@ test("isTrialRun reads manifest params.trial", () => {
   assert.equal(isTrialRun({ params: { trial: false } }), false);
   assert.equal(isTrialRun({ params: {} }), false);
   assert.equal(isTrialRun(null), false);
+});
+
+test("routeLabel by route; legacy shows nothing", () => {
+  assert.equal(routeLabel(f({ route: "auto_accept" })), "auto-accepted (system)");
+  assert.equal(routeLabel(f({ route: "review" })), "in review");
+  assert.equal(routeLabel(f({ route: "hold", route_reasons: ["entity_mismatch"] })), "held: entity_mismatch");
+  assert.equal(routeLabel(f({})), null);
+});
+
+test("failedChecks keeps warn and block failures only", () => {
+  const c = (check_id: string, outcome: string, severity: string) => ({ check_id, layer: 1, outcome, severity, detail: "d" });
+  const checks = [c("a", "fail", "warn"), c("b", "fail", "block"), c("c", "fail", "info"), c("d", "pass", "block")];
+  assert.deepEqual(failedChecks(f({ checks })).map((x) => x.check_id), ["a", "b"]);
+  assert.deepEqual(failedChecks(f({})), []);
 });

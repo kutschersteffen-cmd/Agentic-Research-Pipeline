@@ -6,7 +6,7 @@ import { CitationList } from "./CitationList";
 import type { ActiveSource } from "./SourcePanel";
 import type { BusinessSegment, CompanyFinancialsRecord, ExtractedField, ExtractionRecord, ReviewDecision, SpendSummary } from "../types";
 import { fieldItemKey } from "../lib/reviewKeys";
-import { valueLabel, withEditedValue } from "../lib/fieldValue";
+import { failedChecks, routeLabel, valueLabel, withEditedValue } from "../lib/fieldValue";
 import { TRIAL_TITLE } from "../lib/runs";
 import { activatable } from "../lib/activatable";
 import { ProposedTag } from "./ProposedTag";
@@ -78,6 +78,10 @@ export function FieldDetail({ field, onOpenSource }: { field: ExtractedField; on
         <p className="muted">≈ {field.canonical_value} {field.canonical_unit ?? ""}</p>
       )}
       {field.qualifiers?.map((q) => <span key={q} className="badge">{q}</span>)}
+      {routeLabel(field) && <p><span className={`badge ${field.route === "hold" ? "badge-high" : "badge-mid"}`}>{routeLabel(field)}</span></p>}
+      {failedChecks(field).map((c) => (
+        <p key={c.check_id}><span className={`badge ${c.severity === "block" ? "badge-high" : "badge-mid"}`}>{c.check_id}: {c.detail}</span></p>
+      ))}
       {field.fx_rate_ref && <p className="muted">FX: {field.fx_rate_ref}</p>}
       {field.verifier_notes && <p className="muted">{field.verifier_notes}</p>}
       <CitationList citations={field.citations} onOpenSource={onOpenSource} />
@@ -191,6 +195,9 @@ export function ExtractionResultsTable({
               {expanded === r.company_id && (
                 <tr>
                   <td colSpan={4} className="detail-cell">
+                    {r.held_documents?.map((h) => (
+                      <p key={h.doc_id} className="muted">Held: {h.title} (covers {h.covered_entity})</p>
+                    ))}
                     {shownFields(r).map((f) => {
                       const itemKey = fieldItemKey(r, f);
                       const d = reviewDecisions[itemKey];
@@ -198,14 +205,16 @@ export function ExtractionResultsTable({
                         <div key={`${f.field_id}:${f.period_end ?? ""}`}>
                           <FieldDetail field={editedText(d) === undefined ? f : withEditedValue(f, editedText(d)!)} onOpenSource={onOpenSource} />
                           <OriginTag decision={d} systemValue={valueLabel(f)} />
-                          <ReviewControls
-                            runId={runId}
-                            itemKey={itemKey}
-                            current={reviewDecisions[itemKey]}
-                            reviewer={reviewer}
-                            onDone={onReviewDone}
-                            cosignFn={api.cosignExtraction}
-                          />
+                          {f.route !== "hold" && (
+                            <ReviewControls
+                              runId={runId}
+                              itemKey={itemKey}
+                              current={reviewDecisions[itemKey]}
+                              reviewer={reviewer}
+                              onDone={onReviewDone}
+                              cosignFn={api.cosignExtraction}
+                            />
+                          )}
                         </div>
                       );
                     })}

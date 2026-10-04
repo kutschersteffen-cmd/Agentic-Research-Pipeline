@@ -64,12 +64,12 @@ function isCitationArray(v: unknown): v is Citation[] {
  * known field stays available, just tucked behind "Full record" instead of
  * dominating the card the way a top-level JSON.stringify dump used to. */
 export function ReviewItemFields({ item, onOpenSource }: { item: Record<string, unknown>; onOpenSource: (s: ActiveSource) => void }) {
-  const known = new Set(["item_key", "queued_at", "company_id", "name", "ticker", "confidence", "verdict", "citations", "field", "field_id", "issuer_key", "issuer_scheme", "schema_id", "run_id", "reason_codes", "adjudicator_rationale", "rationale", "failed_step_label", "error"]);
+  const known = new Set(["item_key", "queued_at", "company_id", "name", "ticker", "confidence", "verdict", "citations", "field", "field_id", "issuer_key", "issuer_scheme", "schema_id", "run_id", "reason_codes", "route_reasons", "adjudicator_rationale", "rationale", "failed_step_label", "error"]);
   // Per-field extraction rows carry the field itself; old rows keep these at top level.
   const field = (item.field ?? null) as { field_name?: string; value?: unknown; value_state?: ExtractedField["value_state"]; unit?: string | null; period_end?: string | null; citations?: unknown; confidence?: number } | null;
   const citations = item.citations ?? field?.citations;
   const confidence = typeof item.confidence === "number" ? item.confidence : field?.confidence;
-  const reasons = Array.isArray(item.reason_codes) ? (item.reason_codes as string[]) : [];
+  const reasons = [item.reason_codes, item.route_reasons].flatMap((v) => (Array.isArray(v) ? (v as string[]) : []));
   const rest = Object.fromEntries(Object.entries(item).filter(([k]) => !known.has(k)));
   const hasRest = Object.keys(rest).length > 0;
 
