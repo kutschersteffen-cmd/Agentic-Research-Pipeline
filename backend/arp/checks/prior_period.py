@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from arp.checks.plausibility import numeric_of
 from arp.checks.runner import threshold_ref
-from arp.extraction.history import RunHistory
+from arp.extraction.history import PriorValue, RunHistory
 from arp.schemas.common import new_id, now_iso
 from arp.schemas.datapoints import (
     CheckOutcome,
@@ -24,6 +24,7 @@ from arp.storage.run_store import RunStore
 
 _NA = CheckOutcome.NOT_APPLICABLE
 _LAST_DECIDED = "prior.last_decided"
+_REJECTED = "prior.rejected"
 
 
 def _result(check_id: str, outcome: CheckOutcome, detail: str = "", ref: str | None = None) -> list[CheckResult]:
@@ -52,16 +53,29 @@ def check_last_decided(spec: FieldDefinition, field: ExtractedField, ctx) -> lis
     prior = ctx.history.last_decided(field_item_key(ctx.issuer_key, field.field_id, period_key(field)))
     if prior is None:
         return _result(_LAST_DECIDED, _NA)
+    if _differs(prior, field):
+        return _result(_LAST_DECIDED, CheckOutcome.FAIL, f"was {prior.value} in run {prior.run_id}, now {field.value}")
+    return _result(_LAST_DECIDED, CheckOutcome.PASS)
+
+
+def check_last_rejected(spec: FieldDefinition, field: ExtractedField, ctx) -> list[CheckResult]:
+    """A value equal to one a reviewer rejected never auto-accepts, reused or re-extracted."""
+    if ctx.history is None or period_key(field) == "unspecified":
+        return _result(_REJECTED, _NA)
+    prior = ctx.history.last_rejected_value(field_item_key(ctx.issuer_key, field.field_id, period_key(field)))
+    if prior is None:
+        return _result(_REJECTED, _NA)
+    if _differs(prior, field):
+        return _result(_REJECTED, CheckOutcome.PASS)
+    return _result(_REJECTED, CheckOutcome.FAIL, f"value was rejected by a reviewer in run {prior.run_id}")
+
+
+def _differs(prior: PriorValue, field: ExtractedField) -> bool:
     old = prior.canonical_value
     if old is None and isinstance(prior.value, (int, float)) and not isinstance(prior.value, bool):
         old = float(prior.value)
     new = numeric_of(field)
-    differs = (
-        not math.isclose(new, old, rel_tol=1e-6) if new is not None and old is not None else str(prior.value) != str(field.value)
-    )
-    if differs:
-        return _result(_LAST_DECIDED, CheckOutcome.FAIL, f"was {prior.value} in run {prior.run_id}, now {field.value}")
-    return _result(_LAST_DECIDED, CheckOutcome.PASS)
+    return not math.isclose(new, old, rel_tol=1e-6) if new is not None and old is not None else str(prior.value) != str(field.value)
 
 
 class RestatementCandidate(BaseModel):

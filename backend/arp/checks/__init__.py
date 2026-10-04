@@ -10,8 +10,8 @@ from arp.checks.plausibility import (
     check_sign,
     check_sum_identity,
 )
-from arp.checks.prior_period import check_comparative_jump, check_last_decided
+from arp.checks.prior_period import check_comparative_jump, check_last_decided, check_last_rejected
 
 runner.LAYERS[2] = [check_number_in_span, check_caption_scale, check_row_label]
 runner.LAYERS[3] = [check_range, check_sign, check_percentage, check_part_of_whole, check_sum_identity]
-runner.LAYERS[4] = [check_comparative_jump, check_last_decided, check_entity, check_period]
+runner.LAYERS[4] = [check_comparative_jump, check_last_decided, check_last_rejected, check_entity, check_period]

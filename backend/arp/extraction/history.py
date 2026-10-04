@@ -21,6 +21,7 @@ class PriorValue:
 class RunHistory:
     def __init__(self) -> None:
         self._decided: dict[str, PriorValue] = {}
+        self._rejected: dict[str, PriorValue] = {}  # item_key -> value a human rejected, until a human approves/edits
         self._periods: dict[str, set[str]] = {}
         self._company_rows: dict[str, list[dict]] = {}
         self._company_run: dict[str, str] = {}
@@ -52,6 +53,11 @@ class RunHistory:
             }
             for f in row.get("fields", []):
                 key = field_item_key(issuer, f["field_id"], period_key(f))
+                kind = (decisions.get(key) or {}).get("decision")
+                if kind == "reject":
+                    self._rejected[key] = PriorValue(f.get("value"), f.get("canonical_value"), run_id, "human")
+                elif kind in ("approve", "edit"):
+                    self._rejected.pop(key, None)
                 prior = _decided_value(f, decisions.get(key), key in queued, run_id)
                 if prior is not None:
                     self._decided[key] = prior
@@ -59,6 +65,9 @@ class RunHistory:
 
     def last_decided(self, item_key: str) -> PriorValue | None:
         return self._decided.get(item_key)
+
+    def last_rejected_value(self, item_key: str) -> PriorValue | None:
+        return self._rejected.get(item_key)
 
     def last_rows(self, company_id: str, field_id: str) -> list[dict]:
         return [f for f in self._company_rows.get(company_id, []) if f["field_id"] == field_id]

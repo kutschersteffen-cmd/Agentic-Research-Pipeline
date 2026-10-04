@@ -1,4 +1,4 @@
-from arp.checks.prior_period import check_comparative_jump, check_last_decided, open_restatement_candidates
+from arp.checks.prior_period import check_comparative_jump, check_last_decided, check_last_rejected, open_restatement_candidates
 from arp.checks.runner import CheckContext
 from arp.extraction.history import RunHistory
 from arp.schemas.common import CompanyRef, RunManifest
@@ -132,3 +132,17 @@ def test_check_record_runs_last_decided_then_opens_candidate(tmp_path):
     spec, ctx = _ctx(store, rec.fields)
     rec.fields = asyncio.run(check_record(ctx.schema, rec.fields, ctx))
     assert open_restatement_candidates(store, "new", rec, ctx.history) == 1
+
+
+def test_rejected_value_fails_prior_rejected_until_a_human_approves(tmp_path):
+    store = RunStore(tmp_path)
+    _prior_run(store, "rej", 1000, FY24, decision="reject")
+    spec, ctx = _ctx(store, [])
+    (r,) = check_last_rejected(spec, _field(1000, FY24), ctx)
+    assert (r.check_id, r.layer, r.outcome, r.severity) == ("prior.rejected", 4, "fail", "warn")
+    assert r.detail == "value was rejected by a reviewer in run rej"
+    assert check_last_rejected(spec, _field(1200, FY24), ctx)[0].outcome == "pass"  # a different value is not blocked
+    assert check_last_rejected(spec, _field(1000, None), ctx)[0].outcome == "not_applicable"  # unspecified period
+    _prior_run(store, "ok", 1000, FY24, decision="approve", created="2024-02-01")
+    spec, ctx = _ctx(store, [])
+    assert check_last_rejected(spec, _field(1000, FY24), ctx)[0].outcome == "not_applicable"

@@ -98,6 +98,7 @@ async def _extract_company(
         "confidence_review_threshold": settings.confidence_review_threshold,
         "hybrid_retrieval_enabled": settings.hybrid_retrieval_enabled,
         "retrieval_backend": settings.retrieval_backend,
+        "xbrl_facts_enabled": settings.xbrl_facts_enabled,
     }
     # A cache refresh (set by "Restart from here") asks for fresh answers: never reuse then.
     reuse = history is not None and not (settings.llm_cache_refresh or settings.llm_verifier_cache_refresh)

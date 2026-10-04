@@ -150,6 +150,23 @@ async def test_prior_human_rejection_reextracts(tmp_path, fake_llm):
     record_review_decision(store, run1, item["item_key"], "reject", "reviewer", None)
     _, row2, llm2 = await _run_docs(tmp_path, [_doc()], fake_llm, _script(), audit=True)
     assert llm2.calls and row2["reused_from_run"] is None
+    # The model answers the same again: it must not auto-accept.
+    assert row2["value"] == 120.0 and row2["route"] == "review" and "check:prior.rejected" in row2["route_reasons"]
+
+
+async def test_rejection_in_a_stale_run_still_reviews_the_reused_value(tmp_path, fake_llm):
+    """Run 1 queues X, run 2 reuses X, a human then rejects X in run 1: run 3 reviews X."""
+    from arp.orchestration.review_queue import record_review_decision
+
+    run1, _, _ = await _run(tmp_path, _field(), _doc(), fake_llm, _script())
+    run2, row2, _ = await _run(tmp_path, _field(), _doc(), fake_llm, {})
+    assert row2["reused_from_run"] == run1
+    store = RunStore(tmp_path / "r")
+    (item,) = store.read_jsonl(store.review_queue_path(run1))
+    record_review_decision(store, run1, item["item_key"], "reject", "reviewer", None)
+    _, row3, llm3 = await _run_docs(tmp_path, [_doc()], fake_llm, {}, audit=True)
+    assert llm3.calls == [] and row3["reused_from_run"] == run2
+    assert row3["route"] == "review" and "check:prior.rejected" in row3["route_reasons"]
 
 
 async def test_trial_on_released_audited_field_queues_every_row(tmp_path, fake_llm):
