@@ -85,14 +85,13 @@ def build_extracted_fields(
             final_citations = []
         else:
             final_citations = ground_citations(pv.citations, documents_by_id, fuzzy_threshold, passages=passages)
-        alternatives += [
-            Alternative(
-                value=typed_value(field, d, fiscal_year_end=fiscal_year_end, planned=planned).value,
-                raw_value_text=d.raw_value_text, source="duplicate",
-                citations=ground_citations(d.citations, documents_by_id, fuzzy_threshold, passages=passages),
-            )
-            for d in dupes.get(key, [])
-        ]
+        for d in dupes.get(key, []):
+            dtv = typed_value(field, d, fiscal_year_end=fiscal_year_end, planned=planned)
+            if dtv.value_state != ValueState.NOT_FOUND:
+                alternatives.append(Alternative(
+                    value=dtv.value, raw_value_text=d.raw_value_text, source="duplicate",
+                    citations=ground_citations(d.citations, documents_by_id, fuzzy_threshold, passages=passages),
+                ))
         has_value = tv.value_state != ValueState.NOT_FOUND
         all_grounded = all(c.grounded for c in final_citations) if final_citations else not has_value
 

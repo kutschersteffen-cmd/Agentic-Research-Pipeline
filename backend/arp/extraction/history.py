@@ -26,7 +26,7 @@ class RunHistory:
         self._company_rows: dict[str, list[dict]] = {}
         self._company_run: dict[str, str] = {}
         self._company_rejected: dict[str, set[str]] = {}  # company -> field ids a human rejected in its last run
-        self._released: set[str] = set()  # content keys of held documents a human approved
+        self._released: set[tuple[str, str]] = set()  # (company_id, content_key) of held documents a human approved
 
     @classmethod
     def load(cls, run_store: RunStore, *, exclude_run_id: str | None = None) -> RunHistory:
@@ -52,12 +52,15 @@ class RunHistory:
             self._company_rejected[row.get("company_id", "")] = {
                 f["field_id"] for f in row.get("fields", []) if field_item_key(issuer, f["field_id"], period_key(f)) in rejected
             }
+            company = row.get("company_id", "")
             for d in row.get("held_documents", []):
                 ck = d.get("content_key")
-                if ck and (decisions.get(held_item_key(row.get("company_id", ""), d["doc_id"])) or {}).get("decision") == "approve":
-                    self._released.add(ck)
+                if not ck:
+                    continue  # legacy held dict: nothing to key a release on
+                if (decisions.get(held_item_key(company, d["doc_id"])) or {}).get("decision") == "approve":
+                    self._released.add((company, ck))
                 else:  # a later reject or new round withdraws an earlier release
-                    self._released.discard(ck)
+                    self._released.discard((company, ck))
             for f in row.get("fields", []):
                 key = field_item_key(issuer, f["field_id"], period_key(f))
                 kind = (decisions.get(key) or {}).get("decision")
@@ -70,7 +73,7 @@ class RunHistory:
                     self._decided[key] = prior
                     self._periods.setdefault(issuer, set()).add(period_key(f))
 
-    def released_documents(self) -> set[str]:
+    def released_documents(self) -> set[tuple[str, str]]:
         return set(self._released)
 
     def last_decided(self, item_key: str) -> PriorValue | None:

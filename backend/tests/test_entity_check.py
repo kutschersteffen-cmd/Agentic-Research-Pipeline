@@ -175,7 +175,7 @@ async def test_record_lists_kept_documents(tmp_path, fake_llm):
     assert "parser_version" in held
 
 
-def _release_history(tmp_path, sub, *, run_id="old", trial=False, decision="approve", second_required=False):
+def _release_history(tmp_path, sub, *, extra=None, run_id="old", trial=False, decision="approve", second_required=False):
     from arp.extraction.history import RunHistory
     from arp.orchestration.review_queue import append_decision
     from arp.schemas.common import RunManifest
@@ -209,7 +209,57 @@ async def test_released_document_not_held_next_run(tmp_path, fake_llm):
 
 def test_released_documents_ignores_unagreed_release(tmp_path):
     sub = _doc(content_key="ck_sub")
-    assert _release_history(tmp_path, sub).released_documents() == {"ck_sub"}
+    assert _release_history(tmp_path, sub).released_documents() == {("c1", "ck_sub")}
     assert _release_history(tmp_path, sub, second_required=True).released_documents() == set()  # first_done: not effective
     assert _release_history(tmp_path, sub, trial=True).released_documents() == set()
     assert _release_history(tmp_path, sub, decision="reject").released_documents() == set()
+
+
+def _two_runs(tmp_path, sub, second_decision):
+    """Run `old` releases the held doc; run `new` (later) holds it again and decides `second_decision`."""
+    from arp.extraction.history import RunHistory
+    from arp.orchestration.review_queue import append_decision
+    from arp.schemas.common import RunManifest
+    from arp.schemas.review import ReviewDecision, held_item_key
+    from arp.storage.run_store import RunStore
+
+    store = RunStore(tmp_path / "hist2")
+    for rid, created, dec in (("old", "2024-01-01", "approve"), ("new", "2024-02-01", second_decision)):
+        store.save_manifest(RunManifest(run_id=rid, run_type="extraction", created_at=created, params={}))
+        store.append_jsonl(store.results_path(rid), {
+            "company_id": "c1", "issuer_key": "k", "fields": [],
+            "held_documents": [{"doc_id": sub.doc_id, "content_key": sub.content_key}],
+        })
+        if dec:
+            append_decision(store, rid, ReviewDecision(
+                item_key=held_item_key("c1", sub.doc_id), decision=dec,
+                reason_code="confirmed" if dec == "approve" else "other",
+                reviewer="A", user_id="u1", role="approver", snapshot_id="s", step="first",
+            ))
+    return RunHistory.load(store)
+
+
+def test_later_reject_withdraws_release(tmp_path):
+    sub = _doc(content_key="ck_sub")
+    assert _two_runs(tmp_path, sub, "reject").released_documents() == set()
+    assert _two_runs(tmp_path, sub, None).released_documents() == set()  # re-held, undecided
+
+
+async def test_release_does_not_cross_companies(tmp_path, fake_llm):
+    sub, parent, schema, llm, settings = _held_setup(tmp_path, fake_llm)
+    history = _release_history(tmp_path, sub)  # released for c1
+    other = CompanyRef(company_id="c2", name="Acme Group plc")
+    result = await _extract_company(
+        other, schema, registry=DocumentSourceRegistry([_Src([sub, parent])]), llm=llm, settings=settings, history=history
+    )
+    assert [h["doc_id"] for h in result.record.held_documents] == [sub.doc_id]
+
+
+async def test_released_document_with_changed_content_is_held_again(tmp_path, fake_llm):
+    sub, parent, schema, llm, settings = _held_setup(tmp_path, fake_llm)
+    history = _release_history(tmp_path, sub)
+    sub.content_key = "ck_sub_v2"
+    result = await _extract_company(
+        ACME, schema, registry=DocumentSourceRegistry([_Src([sub, parent])]), llm=llm, settings=settings, history=history
+    )
+    assert [h["doc_id"] for h in result.record.held_documents] == [sub.doc_id]

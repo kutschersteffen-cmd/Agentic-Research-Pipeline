@@ -77,7 +77,7 @@ async def _extract_company(
     documents = [confirm_entity(d, company, identifier_map) for d in documents]
     released = history.released_documents() if history else set()
     for d in documents:
-        if d.content_key in released:  # a human released it from a held list
+        if (company.company_id, d.content_key) in released:  # a human released it from a held list
             d.match_status = MatchStatus.CONFIRMED
     documents_by_id = {d.doc_id: d for d in documents}  # all docs, held ones included
     kept = [d for d in documents if d.match_status != MatchStatus.MISMATCH]
