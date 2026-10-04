@@ -186,10 +186,13 @@ def decide(
                 corrected_value=req.corrected_value, prior=prior, sample_rate=settings.second_review_sample_rate,
                 changes_final=s.state in FINAL_STATES and not agrees(s.effective, req.model_dump()),
             )
+        corrected = req.corrected_value
+        if kind == "security" and req.decision == "correct":
+            corrected = {"value": normalise_lei(str(corrected["value"]))}  # a case-only difference is agreement
         snapshot_id = write_snapshot(run_store, run_id, bundle)
         append_decision(run_store, run_id, ReviewDecision(
             item_key=item_key, decision=req.decision, reason_code=req.reason_code, reviewer=principal.name,
-            user_id=principal.user_id, role=principal.role, corrected_value=req.corrected_value,
+            user_id=principal.user_id, role=principal.role, corrected_value=corrected,
             correction_citation=citation, snapshot_id=snapshot_id, comment=req.comment, step=step,
             second_required=bool(reasons), second_reasons=reasons,
         ))

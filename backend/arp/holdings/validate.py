@@ -15,6 +15,14 @@ NUMERIC = ("weight", "shares", "free_float", "price", "quantity", "market_value"
 WEIGHT_TOLERANCE = 0.5
 
 
+def iso_date(value) -> bool:
+    """Only the extended form: "20261031" and "2026-W44-6" parse too, but would split a month's storage."""
+    try:
+        return date.fromisoformat(value).isoformat() == value
+    except (TypeError, ValueError):
+        return False
+
+
 def isin_is_valid(isin: str) -> bool:
     """ISO 6166: letters map to 10-35, Luhn over the resulting digit string."""
     if len(isin) != 12 or not isin.isascii() or not isin.isalnum() or not isin[:2].isalpha() or not isin[-1].isdigit():
@@ -132,6 +140,8 @@ def validate(
     s = sum(r["weight"] for r in rows if r.get("weight") is not None)
     if "weight" in REQUIRED[kind] and any(r.get("weight") is not None for r in rows) and abs(s - 100) > WEIGHT_TOLERANCE:
         errors.append(RowError(None, "weight", f"weights sum to {s:g}%, not 100% ± {WEIGHT_TOLERANCE:g}"))
+    if not iso_date(as_of):
+        raise ValueError("as_of must be YYYY-MM-DD")
     if date.fromisoformat(as_of) > (today or datetime.now(UTC).date()):
         errors.append(RowError(None, None, "as-of date is in the future"))
     return Validated([] if errors else rows, errors)

@@ -41,10 +41,11 @@ def rows(kind="index", as_of="2026-10-31", weights=(60, 40)):
     return v
 
 
-def run(env, v=None, *, kind="index", holder="IX1", as_of="2026-10-31", source="file", reason=None, principal=PRINCIPAL):
+def run(env, v=None, *, kind="index", holder="IX1", as_of="2026-10-31", source="file", reason=None, principal=PRINCIPAL,
+        ref="f.csv"):
     store, rs, idmap = env
     return ingest(store, v or rows(kind, as_of), kind=kind, holder_id=holder, as_of=as_of, source=source,
-                  source_ref="f.csv", principal=principal, override_reason=reason, run_store=rs, idmap=idmap)
+                  source_ref=ref, principal=principal, override_reason=reason, run_store=rs, idmap=idmap)
 
 
 def held(env, isin, kind="index", holder="IX1", as_of="2026-10-31"):
@@ -107,8 +108,8 @@ def test_security_correction_needs_valid_lei(env):
     assert (r.json()["state"], r.json()["second_reasons"]) == ("first_done", ["correction"])
     assert decide(ALICE, rs, result.review_run_id, {**body, "corrected_value": {"value": LEI}}).status_code == 409
     assert isin_decisions(rs) == {}
-    r = decide(BOB, rs, result.review_run_id, {**body, "corrected_value": {"value": LEI}})
-    assert r.json()["state"] == "second_done", r.text
+    r = decide(BOB, rs, result.review_run_id, {**body, "corrected_value": {"value": LEI.lower()}})
+    assert r.json()["state"] == "second_done", r.text  # stored normalised: a case-only difference agrees
     assert isin_decisions(rs) == {ISIN: LEI}
     run(env, rows(weights=(50, 50)))
     assert (held(env, ISIN).issuer_key, held(env, ISIN).issuer_scheme) == (LEI, "LEI")
@@ -121,6 +122,9 @@ def test_override_without_reason_refused(env):
     with pytest.raises(IntakeError) as e:
         run(env, rows(weights=(50, 50)))
     assert e.value.status == 409
+    assert store.list_revisions("index", "IX1", "2026-10-31") == [1]
+    assert [h.weight_pct for h in store.load_snapshot("IX1", "2026-10-31", kind="index")] == [60, 40]
+    assert len(store._read_jsonl(store.holdings_audit_path())) == 1
     result = run(env, rows(weights=(50, 50)), reason="provider correction")
     assert result.revision == 2
     audit = store._read_jsonl(store.holdings_audit_path())[-1]
@@ -145,7 +149,7 @@ def test_api_pull_for_file_holder_refused(env):
 
 def test_same_rows_twice_unchanged(env):
     run(env)
-    assert run(env).status == "unchanged"
+    assert run(env, ref="renamed.csv").status == "unchanged"
     assert env[0].list_revisions("index", "IX1", "2026-10-31") == [1]
 
 
@@ -168,11 +172,40 @@ def test_holder_status_flags_stale(env):
     assert previous_month_end(date(2026, 3, 1)) == "2026-02-28"
 
 
-def test_non_iso_as_of_refused(env):
+@pytest.mark.parametrize("as_of", ["../x", "20261031", "2026-W44-6"])
+def test_non_iso_as_of_refused(env, as_of):
     with pytest.raises(IntakeError) as e:
-        run(env, rows(), as_of="../x")
+        run(env, rows(), as_of=as_of)
     assert e.value.status == 422
     assert env[0].list_holders() == []
+    with pytest.raises(ValueError):
+        validate([], kind="index", as_of=as_of)
+
+
+@pytest.mark.parametrize("as_of", ["2026-10-30", "20261030", "2026-W44-5"])
+def test_api_month_override_holds_for_any_spelling(env, as_of):
+    env[0].save_holder(HolderConfig(holder_id="IX1", kind="index", source="api"))
+    run(env, source="api")
+    with pytest.raises(IntakeError) as e:
+        run(env, rows(), as_of=as_of)
+    assert e.value.status in (409, 422)  # a compact spelling is refused outright, never written past the rule
+    assert env[0].list_snapshot_dates("IX1", kind="index") == ["2026-10-31"]
+
+
+def test_unsafe_holder_id_refused(env):
+    with pytest.raises(IntakeError) as e:
+        run(env, holder="../evil")
+    assert e.value.status == 422
+    assert env[0].list_holders() == []
+
+
+def test_open_isin_not_queued_twice(env):
+    first = run(env)
+    second = run(env, rows(weights=(50, 50)))
+    assert second.unresolved == [ISIN, ISIN2] and second.review_run_id is None
+    items = client(PRINCIPAL, env[1]).get("/api/review/items").json()["items"]
+    assert sorted(i["item_key"] for i in items) == [f"isin:{ISIN2}", f"isin:{ISIN}"]
+    assert {i["run_id"] for i in items} == {first.review_run_id}
 
 
 def test_rejected_file_writes_nothing(env):

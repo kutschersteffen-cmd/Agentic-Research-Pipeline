@@ -8,11 +8,12 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Literal
 
-from arp.holdings.validate import RowError, Validated
-from arp.orchestration.review_queue import effective_decisions, queue_for_review
+from arp.holdings.validate import RowError, Validated, iso_date
+from arp.orchestration.review_queue import FINAL_STATES, effective_decisions, item_states, queue_for_review
 from arp.schemas.common import JobStatus, RunManifest, new_id, now_iso
 from arp.schemas.issuer import ARP_NAMESPACE, lei_is_valid, normalise_lei
 from arp.schemas.portfolio import HolderConfig, Holding, Portfolio, SecurityRef, SecurityResolution
+from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
 if TYPE_CHECKING:
     from arp.api.auth import Principal
@@ -48,6 +49,18 @@ def isin_decisions(run_store) -> dict[str, str]:
     return out
 
 
+def open_isins(run_store) -> set[str]:
+    """ISINs with a queued item not yet final in any holdings run: never queued twice."""
+    out: set[str] = set()
+    for m in run_store.list_runs("holdings"):
+        states = item_states(run_store, m.run_id, cosign_required=set())
+        for q in run_store.read_jsonl(run_store.review_queue_path(m.run_id)):
+            s = states.get(q["item_key"])
+            if s is None or s.state not in FINAL_STATES:
+                out.add(q["item_key"].removeprefix("isin:"))
+    return out
+
+
 def resolve_issuer(isin: str, lei: str | None, *, idmap, decided: dict[str, str], on: str) -> tuple[str, str, bool]:
     if lei and lei_is_valid(lei):
         return lei, "LEI", False
@@ -72,12 +85,14 @@ def ingest(
     store, validated: Validated, *, kind, holder_id: str, as_of: str, source, source_ref: str | None,
     principal: Principal | None, override_reason: str | None, run_store, idmap,
 ) -> IntakeResult:
+    try:
+        safe_id(holder_id, label="holder_id")
+    except UnsafeIdentifierError as e:
+        raise IntakeError(422, str(e)) from None
     if validated.errors:
         raise IntakeError(422, "file rejected", validated.errors)
-    try:
-        date.fromisoformat(as_of)
-    except (TypeError, ValueError):
-        raise IntakeError(422, "as_of must be YYYY-MM-DD") from None
+    if not iso_date(as_of):
+        raise IntakeError(422, "as_of must be YYYY-MM-DD")
     holder = store.get_holder(kind, holder_id) or HolderConfig(holder_id=holder_id, kind=kind, source=source)
     _precedence(store, holder, kind, holder_id, as_of, source, override_reason)
 
@@ -114,21 +129,23 @@ def ingest(
     revisions = store.list_revisions(kind, holder_id, as_of)
     isins = [r["isin"] for r in unresolved]
     if revisions:
-        latest = [h.model_dump() for h in store.load_revision(kind, holder_id, as_of, revisions[-1])]
-        if latest == [h.model_dump() for h in holdings]:
+        latest = [h.model_dump(exclude={"source_ref"}) for h in store.load_revision(kind, holder_id, as_of, revisions[-1])]
+        if latest == [h.model_dump(exclude={"source_ref"}) for h in holdings]:
             return IntakeResult("unchanged", revisions[-1], len(holdings), isins, None)
     revision = len(revisions) + 1
     store.save_revision(kind, holder_id, as_of, revision, holdings)
     store.save_snapshot(holder_id, as_of, holdings, kind=kind)
 
     run_id = None
-    if unresolved:
+    already = open_isins(run_store) if unresolved else set()
+    to_queue = [r for r in unresolved if r["isin"] not in already]
+    if to_queue:
         run_id = new_id("hold")
         run_store.save_manifest(RunManifest(
             run_id=run_id, run_type="holdings", status=JobStatus.COMPLETED,
             params={"kind": kind, "holder_id": holder_id, "as_of": as_of, "revision": revision},
         ))
-        for r in unresolved:
+        for r in to_queue:
             queue_for_review(run_store, run_id, f"isin:{r['isin']}", {
                 "kind": "security", "isin": r["isin"], "name": r.get("name"), "holder_id": holder_id,
                 "holder_kind": kind, "as_of": as_of, "provisional_issuer_key": provisional_issuer_key(r["isin"]),
