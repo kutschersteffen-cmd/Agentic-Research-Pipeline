@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 def now_iso() -> str:
@@ -171,6 +171,12 @@ class Citation(BaseModel):
         default=None, description="passage_id of the evidence block the quote was copied from"
     )
     table_ref: TableRef | None = Field(default=None, description="Table cell the match lies in, set by grounding.")
+
+    @field_validator("table_ref", mode="before")
+    @classmethod
+    def _drop_legacy_table_ref(cls, v):
+        # Old rows and model drafts carry a free-text string here; grounding sets the real value.
+        return v if isinstance(v, (dict, TableRef)) else None
     parser_version: str | None = None
 
 

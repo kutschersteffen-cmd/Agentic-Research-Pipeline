@@ -62,7 +62,7 @@ def reground(fact: Fact, *, blob_store, content_store: DocumentContentStore | No
         text = parsed.full_text
         doc = SourceDocument(
             doc_id=c.doc_id, company_id=c.company_id or "", doc_type=c.doc_type, title=c.source_filename or c.doc_id,
-            full_text=text, page_breaks=parsed.page_breaks, table_spans=parsed.table_spans, content_key=c.content_key, parser_version=c.parser_version,
+            full_text=text, page_breaks=parsed.page_breaks, content_key=c.content_key, parser_version=c.parser_version,
         )
         probe = [Citation(doc_id=c.doc_id, doc_type=c.doc_type, quote=c.quote)]
         # The stored span first, so a quote that repeats earlier in the text still re-grounds where it was.

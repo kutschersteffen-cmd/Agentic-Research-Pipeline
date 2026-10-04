@@ -1,4 +1,7 @@
+import os
 from types import SimpleNamespace
+
+import pytest
 
 from arp.checks.numeric import check_caption_scale, check_row_label
 from arp.checks.runner import CheckContext
@@ -87,6 +90,14 @@ def test_chunk_document_emits_table_chunk():
 def test_old_citation_without_table_ref_still_loads():
     c = Citation.model_validate({"doc_id": "d1", "doc_type": "sustainability_report", "quote": "q", "table_ref": None})
     assert c.table_ref is None
+    for legacy in ("Table 3", 3):  # old rows / model drafts wrote free text here
+        c = Citation.model_validate({"doc_id": "d1", "doc_type": "sustainability_report", "quote": "q", "table_ref": legacy})
+        assert c.table_ref is None
+    draft = ExtractionDraft.model_validate_json(
+        '{"values": [{"value": 1, "citations": [{"doc_id": "d1", "doc_type": "sustainability_report",'
+        ' "quote": "q", "table_ref": "Table 3"}]}], "confidence": 0.9}'
+    )
+    assert draft.values[0].citations[0].table_ref is None
     assert SourceDocument.model_validate(
         {"company_id": "c", "doc_type": "sustainability_report", "title": "t", "full_text": "x"}
     ).table_spans == []
@@ -166,3 +177,21 @@ def test_table_spans_survive_the_parse_cache(tmp_path):
     hit = DocumentContentStore(tmp_path).get_or_compute("k", compute=lambda: 1 / 0, **kw)
     assert SourceDocument(company_id="c", doc_type=DocType.SUSTAINABILITY_REPORT, title="t", full_text=TEXT,
                           table_spans=hit.table_spans).table_spans == spans
+
+
+@pytest.mark.skipif(not os.environ.get("ARP_TEST_DOCLING_MODELS"),
+                    reason="ARP_TEST_DOCLING_MODELS not set -- needs Docling's layout/table models (Hugging Face Hub)")
+def test_real_pdf_table_is_located_in_the_page_markdown(tmp_path):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
+
+    path = tmp_path / "t.pdf"
+    grid = Table(_ROWS)
+    grid.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.5, "black")]))
+    SimpleDocTemplate(str(path), pagesize=A4).build([Paragraph(CAPTION, getSampleStyleSheet()["Normal"]), grid])
+
+    text, _breaks, (span,) = parse_file_to_text_with_pages(path)  # real converter: page markdown holds the table's
+    cells = {(c.row_label, c.col_label): text[c.char_start : c.char_end] for c in span.cells}
+    assert cells[("Revenue", "FY2024")] == "1,234.5" and cells[("EBIT", "FY2023")] == "150"
+    assert (span.caption, span.unit_note) == (CAPTION, "in EUR million")
