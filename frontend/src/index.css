@@ -783,6 +783,20 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   border-radius: var(--r-sm);
 }
 .source-panel-iframe { flex: 1; border: none; background: white; border-radius: var(--r-sm); margin-top: 6px; }
+.source-text {
+  flex: 1;
+  overflow: auto;
+  margin: 6px 0 0;
+  padding: 8px;
+  background: var(--well);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.source-line-hit { background: color-mix(in srgb, var(--mid) 15%, transparent); }
+.source-text mark { background: color-mix(in srgb, var(--mid) 40%, transparent); color: inherit; border-bottom: 2px solid var(--mid); }
 .citation-list { margin: 4px 0; padding-left: 18px; }
 .citation-list .link-button { margin: 0; padding: 0; }
 
