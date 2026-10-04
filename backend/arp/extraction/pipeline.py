@@ -100,6 +100,19 @@ def _published_values(settings: Settings, issuer_key_: str) -> dict[str, tuple[f
     return {x.item_key: (x.canonical_value, x.canonical_unit) for x in facts if x.canonical_value is not None}
 
 
+def input_settings(settings: Settings) -> dict:
+    """The settings that go into a field's input hash."""
+    return {
+        "llm_model": settings.llm_model,
+        "llm_verifier_model": settings.llm_verifier_model,
+        "grounding_fuzzy_threshold": settings.grounding_fuzzy_threshold,
+        "confidence_review_threshold": settings.confidence_review_threshold,
+        "hybrid_retrieval_enabled": settings.hybrid_retrieval_enabled,
+        "retrieval_backend": settings.retrieval_backend,
+        "xbrl_facts_enabled": settings.xbrl_facts_enabled,
+    }
+
+
 class ExtractionRecordResult:
     def __init__(self, record: ExtractionRecord, usage: LLMUsage, cost_usd: float) -> None:
         self.record = record
@@ -164,15 +177,7 @@ async def _extract_company(
     for d in kept:
         d.period_plan = plan_periods(d, fiscal_year_end=company.fiscal_year_end, recorded=recorded)
     planned_periods = union_planned(kept)
-    run_settings = {
-        "llm_model": settings.llm_model,
-        "llm_verifier_model": settings.llm_verifier_model,
-        "grounding_fuzzy_threshold": settings.grounding_fuzzy_threshold,
-        "confidence_review_threshold": settings.confidence_review_threshold,
-        "hybrid_retrieval_enabled": settings.hybrid_retrieval_enabled,
-        "retrieval_backend": settings.retrieval_backend,
-        "xbrl_facts_enabled": settings.xbrl_facts_enabled,
-    }
+    run_settings = input_settings(settings)
     # A cache refresh (set by "Restart from here") asks for fresh answers: never reuse then.
     reuse = history is not None and not (settings.llm_cache_refresh or settings.llm_verifier_cache_refresh)
 
@@ -314,6 +319,31 @@ def create_extraction_run(
     return manifest.run_id
 
 
+def review_items(company: CompanyRef, result: ExtractionRecordResult) -> list[tuple[str, dict]]:
+    rec = result.record
+    return [
+        (
+            field_item_key(rec.issuer_key, f.field_id, period_key(f)),
+            {
+                "item_key": field_item_key(rec.issuer_key, f.field_id, period_key(f)),
+                "issuer_key": rec.issuer_key,
+                "issuer_scheme": rec.issuer_scheme,
+                "company_id": rec.company_id,
+                "name": rec.name,
+                "schema_id": rec.schema_id,
+                "run_id": rec.run_id,
+                "field_id": f.field_id,
+                "period_end": f.period_end,
+                "field": f.model_dump(mode="json"),
+                "reason_codes": [str(r) for r in f.review_reasons],
+                "route_reasons": f.route_reasons,
+            },
+        )
+        for f in rec.fields
+        if f.route == "review" or (f.route is None and f.review_reasons)  # route None: legacy row
+    ]
+
+
 def load_run_schema(run_store: RunStore, run_id: str) -> DataPointSchema | None:
     path = run_store.run_dir(run_id) / "schema.json"
     return DataPointSchema.model_validate_json(path.read_text()) if path.exists() else None
@@ -338,30 +368,6 @@ async def execute_extraction_run(
     """
     schema = load_run_schema(run_store, run_id) or schema  # the registered snapshot
 
-    def _review_items(company: CompanyRef, result: ExtractionRecordResult) -> list[tuple[str, dict]]:
-        rec = result.record
-        return [
-            (
-                field_item_key(rec.issuer_key, f.field_id, period_key(f)),
-                {
-                    "item_key": field_item_key(rec.issuer_key, f.field_id, period_key(f)),
-                    "issuer_key": rec.issuer_key,
-                    "issuer_scheme": rec.issuer_scheme,
-                    "company_id": rec.company_id,
-                    "name": rec.name,
-                    "schema_id": rec.schema_id,
-                    "run_id": rec.run_id,
-                    "field_id": f.field_id,
-                    "period_end": f.period_end,
-                    "field": f.model_dump(mode="json"),
-                    "reason_codes": [str(r) for r in f.review_reasons],
-                    "route_reasons": f.route_reasons,
-                },
-            )
-            for f in rec.fields
-            if f.route == "review" or (f.route is None and f.review_reasons)  # route None: legacy row
-        ]
-
     history = RunHistory.load(run_store, exclude_run_id=run_id)
     registry_store = SchemaRegistry(settings.schema_registry_dir)
     qualities = {(f.field_id, f.version): registry_store.quality(f.field_id, f.version) for f in schema.fields}
@@ -385,7 +391,7 @@ async def execute_extraction_run(
         run_store=run_store,
         worker=_worker,
         result_to_json=lambda r: r.record.model_dump(mode="json"),
-        review_items=_review_items,
+        review_items=review_items,
         cost_usd=lambda r: r.cost_usd,
         concurrency=settings.max_concurrent_llm_calls,
     )

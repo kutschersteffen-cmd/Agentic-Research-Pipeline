@@ -11,6 +11,7 @@ from arp.config import Settings
 from arp.review.context import build_context, item_source, read_snapshot
 from arp.review.decide import DecisionError, decide
 from arp.review.items import list_open_items
+from arp.review.quality import reviewer_stats
 from arp.schemas.review import ItemDecisionRequest
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
@@ -29,6 +30,11 @@ def list_review_items(
 @router.get("/check-effectiveness", dependencies=[Depends(require_role("approver"))])
 def get_check_effectiveness(run_store: RunStore = Depends(get_run_store)) -> dict:
     return {"checks": [asdict(s) for s in effectiveness(run_store)]}
+
+
+@router.get("/quality", dependencies=[Depends(require_role("approver"))])
+def get_reviewer_quality(run_store: RunStore = Depends(get_run_store), settings: Settings = Depends(settings_dep)) -> dict:
+    return {"reviewers": [asdict(s) for s in reviewer_stats(run_store, settings)]}
 
 
 @router.get("/runs/{run_id}/items/{item_key}/context")

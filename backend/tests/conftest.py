@@ -22,6 +22,12 @@ def _disable_hybrid_retrieval_by_default(monkeypatch):
     monkeypatch.setenv("ARP_HYBRID_RETRIEVAL_ENABLED", "false")
 
 
+@pytest.fixture(autouse=True)
+def _review_quality_dir_in_tmp(monkeypatch, tmp_path):
+    """A confirmed correction appends to settings.review_quality_dir; never the repo's data/ in tests."""
+    monkeypatch.setenv("ARP_REVIEW_QUALITY_DIR", str(tmp_path / "review_quality"))
+
+
 class FakeLLMClient:
     """Deterministic stand-in for LLMClient in tests: returns pre-scripted
     responses keyed by the requested output_model's class name, in order.

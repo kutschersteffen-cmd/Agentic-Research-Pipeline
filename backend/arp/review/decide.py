@@ -15,6 +15,7 @@ from arp.grounding import ground_citations
 from arp.orchestration.review_queue import FINAL_STATES, agrees, append_decision, same_value
 from arp.review.context import _state, _text, build_context, write_snapshot
 from arp.review.items import get_item
+from arp.review.quality import record_confirmed_correction
 from arp.schemas.common import Citation, SourceDocument
 from arp.schemas.issuer import lei_is_valid, normalise_lei
 from arp.schemas.review import ItemDecisionRequest, ReviewDecision
@@ -196,4 +197,7 @@ def decide(
             correction_citation=citation, snapshot_id=snapshot_id, comment=req.comment, step=step,
             second_required=bool(reasons), second_reasons=reasons,
         ))
-        return {"state": _state(run_store, run_id, item_key).state, "snapshot_id": snapshot_id, "second_reasons": reasons}
+        state = _state(run_store, run_id, item_key).state
+        if step == "second" and state == "second_done" and s.first.get("decision") == "correct":
+            record_confirmed_correction(bundle, s.first["corrected_value"], settings)  # E56: the gold set grows
+        return {"state": state, "snapshot_id": snapshot_id, "second_reasons": reasons}
