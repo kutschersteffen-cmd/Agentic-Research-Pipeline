@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import re
+import zipfile
 from pathlib import Path
 from typing import Literal
 
@@ -37,6 +38,19 @@ def _cell(v):
 
 
 MAX_ROWS = 200_000
+MAX_UNZIPPED = 200_000_000
+MAX_RATIO, RATIO_MIN_SIZE = 100, 10_000_000
+MAX_CELL = 10_000
+
+
+def _check_zip(data: bytes) -> None:
+    """openpyxl inflates whatever the archive holds: a 300 KB file can expand to gigabytes."""
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        infos = z.infolist()
+    if sum(i.file_size for i in infos) > MAX_UNZIPPED or any(
+        i.file_size > RATIO_MIN_SIZE and i.file_size > MAX_RATIO * max(i.compress_size, 1) for i in infos
+    ):
+        raise ValueError("unreadable file: decompressed size too large")
 
 
 def _records(data: bytes, suffix: str, mapping: Mapping, max_rows: int):
@@ -45,6 +59,7 @@ def _records(data: bytes, suffix: str, mapping: Mapping, max_rows: int):
         reader = csv.DictReader(io.StringIO(text, newline=""), delimiter=sniff_delimiter(text))
         yield from ((i, {k: v for k, v in rec.items() if k is not None}) for i, rec in enumerate(reader, start=2))
         return
+    _check_zip(data)
     wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
     try:
         ws = wb[mapping.sheet] if mapping.sheet else wb.worksheets[0]
@@ -63,6 +78,8 @@ def read_rows(data: bytes, filename: str, mapping: Mapping, max_rows: int = MAX_
     try:
         for n, rec in _records(data, suffix, mapping, max_rows):
             rec = {k.strip(): _cell(v) for k, v in rec.items() if isinstance(k, str)}
+            if any(isinstance(v, str) and len(v) > MAX_CELL for v in rec.values()):
+                raise ValueError(f"row {n}: a cell is longer than {MAX_CELL} characters")
             if all(v is None or v == "" for v in rec.values()):
                 continue
             if len(rows) >= max_rows:

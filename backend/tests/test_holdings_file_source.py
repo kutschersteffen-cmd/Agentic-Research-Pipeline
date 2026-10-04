@@ -172,3 +172,20 @@ def test_bom_invalid_as_of_and_numeric_name():
         validate(rows, kind="index", as_of="not-a-date")
     r = [{"_row": 2, "isin": ISINS[0], "weight": 100, "name": 123.0}]
     assert _v(r).rows[0]["name"] == "123"
+
+
+def test_zip_bomb_xlsx_refused_before_inflating():
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("xl/sharedStrings.xml", b"\0" * 11_000_000)  # ~11 KB on disk, ratio ~1000:1
+    assert len(buf.getvalue()) < 100_000
+    with pytest.raises(ValueError, match="decompressed size too large"):
+        read_rows(buf.getvalue(), "positions.xlsx", DEFAULT)
+
+
+def test_cell_longer_than_cap_refused():
+    data = f"ISIN,Name,Weight (%)\n{ISINS[0]},{'x' * 10_001},100\n".encode()
+    with pytest.raises(ValueError, match="longer than"):
+        read_rows(data, "positions.csv", DEFAULT)

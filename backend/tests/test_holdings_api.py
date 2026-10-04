@@ -43,7 +43,8 @@ def month_rows(as_of, **kw):
     return [row(as_of, **kw), row(as_of, isin=ISIN2, weight=40.0)]
 
 
-def upstream(months: dict[str, list[dict]], fail: set[str] = frozenset()) -> SnapshotClient:
+def upstream(months: dict[str, list[dict]], fail: set[str] = frozenset(), body: bytes | None = None,
+             manifest: dict | None = None) -> SnapshotClient:
     """A fake ARP instance serving one revision per month with matching hashes."""
     def handler(request: httpx.Request) -> httpx.Response:
         parts = request.url.path.split("/")  # "", api, v1, snapshots, month, what
@@ -51,7 +52,9 @@ def upstream(months: dict[str, list[dict]], fail: set[str] = frozenset()) -> Sna
         if month in fail:
             return httpx.Response(500)
         rows = months[month]
-        data = "".join(json.dumps(r) + "\n" for r in rows).encode()
+        data = body if body is not None else "".join(json.dumps(r) + "\n" for r in rows).encode()
+        if what == "manifest" and manifest is not None:
+            return httpx.Response(200, json=manifest)
         if what == "manifest":
             m = SnapshotManifest(
                 snapshot_id=f"{month}.r1", month=month, revision=1, as_of=rows[0]["as_of"], frozen_at="t",
@@ -175,6 +178,7 @@ def test_put_holder_needs_approver_and_is_audited(env, tmp_path):
     assert r.status_code == 200 and r.json()["source"] == "file" and "user_id" not in r.text
     audit = env[0]._read_jsonl(env[0].holdings_audit_path())[-1]
     assert (audit["user_id"], audit["old_source"], audit["new_source"]) == (PRINCIPAL.user_id, "api", "file")
+    assert api(env, tmp_path).put(f"{URL}/holders/portfolio/P1", json={"source": "file"}).json()["name"] == "Fund"
 
 
 def test_holders_response_has_no_user_id(env, tmp_path):
@@ -211,3 +215,36 @@ def test_cli_import_xlsx(env, tmp_path, monkeypatch):
     assert env[0].list_revisions("portfolio", "P1", "2026-09-30") == [1]
     bad = CliRunner().invoke(cli.holdings_app, ["import", "--file", str(path), "--holder", "P1", "--as-of", "2026-13-01"])
     assert bad.exit_code == 1
+
+
+def _pull_api(env, tmp_path, monkeypatch, client):
+    from arp.api.routers import holdings as router
+
+    monkeypatch.setattr(router, "SnapshotClient", lambda *a, **k: client)
+    return api(env, tmp_path, holdings_api_url="https://up.example")
+
+
+class NoNetwork(SnapshotClient):
+    def __init__(self):
+        super().__init__("https://up.example", None)
+
+    def _get(self, *a, **k):
+        raise AssertionError("no network call expected")
+
+
+def test_pull_endpoint_refuses_bad_as_of_and_file_holder_before_network(env, tmp_path, monkeypatch):
+    c = _pull_api(env, tmp_path, monkeypatch, NoNetwork())
+    assert c.post(f"{URL}/holders/portfolio/P1/pull", params={"as_of": "20261031"}).status_code == 422
+    env[0].save_holder(HolderConfig(holder_id="P1", kind="portfolio", source="file"))
+    assert c.post(f"{URL}/holders/portfolio/P1/pull", params={"as_of": "2026-09-30"}).status_code == 409
+    holder = env[0].get_holder("portfolio", "P1")
+    assert holder.last_error is None and holder.last_pull_at is None
+
+
+def test_pull_endpoint_malformed_upstream_502(env, tmp_path, monkeypatch):
+    rows = {"2026-09": month_rows("2026-09-30")}
+    for client in (upstream(rows, body=b"[1, 2]\n"), upstream(rows, body=b"{not json\n"),
+                   upstream(rows, manifest={"snapshot_id": 5})):
+        r = _pull_api(env, tmp_path, monkeypatch, client).post(f"{URL}/holders/portfolio/P1/pull",
+                                                               params={"as_of": "2026-09-30"})
+        assert r.status_code == 502 and "upstream" in r.text, r.text

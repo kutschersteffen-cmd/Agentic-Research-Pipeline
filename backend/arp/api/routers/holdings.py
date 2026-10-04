@@ -9,6 +9,7 @@ from typing import Literal
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 from arp.api.auth import Principal, current_user, require_role
 from arp.api.deps import get_portfolio_store, get_run_store, settings_dep
@@ -19,7 +20,7 @@ from arp.holdings.intake import IntakeError, holder_status, ingest, previous_mon
 from arp.holdings.validate import validate
 from arp.schemas.common import now_iso
 from arp.schemas.portfolio import HolderConfig
-from arp.snapshots.client import SnapshotClient, SnapshotHashMismatch
+from arp.snapshots.client import SnapshotClient, SnapshotHashMismatch, SnapshotInvalid
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
 from arp.storage.safe_path import safe_id
@@ -54,14 +55,18 @@ async def upload(
     data = await file.read(settings.max_upload_bytes + 1)
     if len(data) > settings.max_upload_bytes:
         raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
-    try:
+
+    def intake():
         mapping = load_mapping(provider)
         raw = read_rows(data, file.filename or "", mapping)
         validated = validate(raw, kind=kind, as_of=as_of, decimal=mapping.decimal, weight_unit=mapping.weight_unit)
-        result = ingest(
+        return ingest(
             store, validated, kind=kind, holder_id=holder_id, as_of=as_of, source="file", source_ref=file_ref(data),
             principal=user, override_reason=override_reason, run_store=run_store, idmap=idmap,
         )
+
+    try:
+        result = await run_in_threadpool(intake)
     except IntakeError as e:
         raise _intake_error(e) from None
     except FileExistsError:
@@ -97,7 +102,7 @@ def put_holder(
 ) -> HolderConfig:
     safe_id(holder_id, label="holder_id")
     old = store.get_holder(kind, holder_id) or HolderConfig(holder_id=holder_id, kind=kind)
-    new = old.model_copy(update={"name": req.name, "source": req.source})
+    new = old.model_copy(update={"name": req.name or old.name, "source": req.source})
     store.save_holder(new)
     store.append_holdings_audit({
         "at": now_iso(), "kind": kind, "holder_id": holder_id, "action": "configure", "user_id": user.user_id,
@@ -129,8 +134,10 @@ def pull(
         raise _intake_error(e) from None
     except FileExistsError:
         raise HTTPException(409, "another write took this revision first; retry") from None
-    except (httpx.HTTPError, SnapshotHashMismatch) as e:
+    except httpx.HTTPError as e:
         raise HTTPException(502, f"upstream pull failed: {type(e).__name__}") from None
+    except (SnapshotHashMismatch, SnapshotInvalid) as e:
+        raise HTTPException(502, f"upstream pull failed: {e}") from None
     except ValueError as e:
         raise HTTPException(422, {"message": str(e), "errors": []}) from None
     finally:

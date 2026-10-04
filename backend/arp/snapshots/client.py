@@ -21,6 +21,10 @@ class SnapshotHashMismatch(RuntimeError):
     """A pulled file's sha256 differs from the manifest's."""
 
 
+class SnapshotInvalid(ValueError):
+    """The upstream served a manifest or dataset that does not parse as the contract says."""
+
+
 LOOPBACK = {"localhost", "127.0.0.1", "::1"}
 
 
@@ -47,7 +51,11 @@ class SnapshotClient:
         return r
 
     def manifest(self, month: str | None = None) -> SnapshotManifest:
-        return SnapshotManifest.model_validate(self._get(f"/{_month(month)}/manifest" if month else "/latest").json())
+        r = self._get(f"/{_month(month)}/manifest" if month else "/latest")
+        try:
+            return SnapshotManifest.model_validate_json(r.content)
+        except ValueError as exc:  # pydantic's ValidationError, JSON included
+            raise SnapshotInvalid(f"upstream manifest is invalid ({exc.__class__.__name__})") from None
 
     def _fetch(self, m: SnapshotManifest, entry: DatasetEntry, fmt: str) -> bytes:
         if fmt not in entry.files:
@@ -85,8 +93,16 @@ class SnapshotClient:
 
     def rows(self, month: str, dataset: str, *, major: int = CURRENT_MAJOR) -> tuple[SnapshotManifest, list[dict]]:
         m = self.manifest(month)
+        if m.month != month:
+            raise SnapshotInvalid(f"asked for {month}, got {m.snapshot_id}")
         data = self._fetch(m, self._entries(m, [dataset], major)[0], "jsonl")
-        return m, [json.loads(line) for line in data.decode().splitlines()]
+        try:
+            rows = [json.loads(line) for line in data.decode().splitlines()]
+        except ValueError:  # JSONDecodeError, UnicodeDecodeError
+            raise SnapshotInvalid(f"{m.snapshot_id} {dataset}: not valid JSONL") from None
+        if not all(isinstance(r, dict) for r in rows):
+            raise SnapshotInvalid(f"{m.snapshot_id} {dataset}: every JSONL line must be an object")
+        return m, rows
 
 
 def _month(month: str) -> str:

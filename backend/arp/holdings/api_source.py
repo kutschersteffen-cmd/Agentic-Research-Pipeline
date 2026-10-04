@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from arp.holdings.intake import IntakeResult, ingest, previous_month_end
-from arp.holdings.validate import validate
+from arp.holdings.intake import IntakeError, IntakeResult, ingest, previous_month_end
+from arp.holdings.validate import iso_date, validate
 from arp.schemas.common import now_iso
 from arp.schemas.portfolio import HolderConfig
 from arp.snapshots.client import SnapshotClient
@@ -17,7 +17,11 @@ def pull_holder(
     holder: HolderConfig, as_of: str, *, client: SnapshotClient, base_url: str, store, run_store, idmap,
     today: date | None = None,
 ) -> IntakeResult:
-    """On any error the holder is flagged and the previous month stays the readable one."""
+    """On any error past the request checks the holder is flagged; the previous month stays the readable one."""
+    if not iso_date(as_of):
+        raise IntakeError(422, "as_of must be YYYY-MM-DD")
+    if holder.source != "api":
+        raise IntakeError(409, "holder is configured for file intake")
     dataset = "index_holdings" if holder.kind == "index" else "portfolio_holdings"
     id_col = f"{holder.kind}_id"
     try:
