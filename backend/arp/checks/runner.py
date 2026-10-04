@@ -80,7 +80,7 @@ def check_format(spec: FieldDefinition, field: ExtractedField, ctx: CheckContext
     return out
 
 
-# Later tasks append checks to layers 2-4.
+# Layers 2-4 are registered in arp/checks/__init__.py (the check modules import this one).
 LAYERS: dict[int, list[Check]] = {1: [check_format], 2: [], 3: [], 4: []}
 
 
@@ -119,21 +119,3 @@ async def check_record(
         out.append(field.model_copy(update=update))
     return out
 
-
-from arp.checks.numeric import check_caption_scale, check_number_in_span, check_row_label  # noqa: E402
-
-LAYERS[2] = [check_number_in_span, check_caption_scale, check_row_label]
-
-from arp.checks.plausibility import (  # noqa: E402
-    check_part_of_whole,
-    check_percentage,
-    check_range,
-    check_sign,
-    check_sum_identity,
-)
-
-LAYERS[3] = [check_range, check_sign, check_percentage, check_part_of_whole, check_sum_identity]
-
-from arp.checks.prior_period import check_comparative_jump, check_last_decided  # noqa: E402
-
-LAYERS[4] = [check_comparative_jump, check_last_decided]

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 
-from arp.checks.runner import CheckContext, check_record  # isort: skip -- loads before prior_period (import cycle)
 from arp.checks.prior_period import open_restatement_candidates
+from arp.checks.runner import CheckContext, check_record
 from arp.config import Settings
 from arp.extraction.field_graph import extract_one_field
 from arp.extraction.history import RunHistory

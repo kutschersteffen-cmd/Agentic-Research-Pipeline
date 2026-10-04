@@ -119,3 +119,16 @@ def test_auto_accepted_row_is_system_decided(tmp_path):
     assert h.last_decided(f"{IK}:rev:{FY24}").decided_by == "system"
     assert h.recorded_periods(IK) == {FY23, FY24}
     assert [r["value"] for r in h.last_rows("c1", "rev")] == [900]
+
+
+def test_check_record_runs_last_decided_then_opens_candidate(tmp_path):
+    import asyncio
+
+    from arp.checks.runner import check_record
+
+    store = RunStore(tmp_path)
+    _prior_run(store, "old", 1000)
+    rec = _record(_field(1100, FY24), _field(1050, FY23))
+    spec, ctx = _ctx(store, rec.fields)
+    rec.fields = asyncio.run(check_record(ctx.schema, rec.fields, ctx))
+    assert open_restatement_candidates(store, "new", rec, ctx.history) == 1
