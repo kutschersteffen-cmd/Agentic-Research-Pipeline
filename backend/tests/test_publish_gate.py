@@ -100,3 +100,61 @@ def test_sample_deterministic_per_seed():
     assert ids != [f.fact_id for f in sample(facts, 20, seed="b")]
     assert len(sample(facts, 5, seed="a")) == 5
     assert len(sample(facts, 50, seed="a")) == 20
+
+
+def test_reground_repeated_quote_at_stored_offset_is_ok(tmp_path, blobs):
+    text = "x" * 400 + QUOTE + "y" * 400 + QUOTE + " end"
+    second = text.rindex(QUOTE)
+    store = DocumentContentStore(tmp_path / "docs2")
+    store.store(KEY, key_kind="file", parser_version="p1", source_suffix=".pdf", byte_size=1, text=text, page_breaks=[])
+    fact = _fact(char_start=second, char_end=second + len(QUOTE))
+    assert reground(fact, blob_store=blobs, content_store=store, fuzzy_threshold=0.92) == "ok"
+
+
+def test_edgar_citation_resolves_blob_through_registry(tmp_path):
+    edgar_key = hashlib.sha256(b"edgar:0000320193-24-000123/aapl-20240928.htm").hexdigest()
+    blobs = LocalBlobStore(tmp_path / "blobs")
+    texts = DocumentContentStore(tmp_path / "docs")
+    texts.store(edgar_key, key_kind="edgar_accession", parser_version="p1", source_suffix=".htm", byte_size=1, text=TEXT,
+                page_breaks=[])
+    doc_id = texts.register_document(doc_id="d_edgar", company_id="C1", doc_type="10-K", content_key=edgar_key,
+                                     title="10-K", local_path=None, source_url="https://sec.gov/x")
+    cit = _citation(doc_id=doc_id, doc_type="10-K", content_key=edgar_key)
+    assert lineage_error(cit, blobs, content_store=texts) == "original_missing"  # no mapping yet: fail closed
+
+    texts.set_storage_uri(doc_id, blobs.put(KEY, ORIGINAL))  # stored under sha256(raw bytes), as EDGAR ingestion does
+    assert lineage_error(cit, blobs) == "original_missing"  # without the registry there is no mapping
+    assert lineage_error(cit, blobs, content_store=texts) is None
+    fact = _fact(doc_id=doc_id, doc_type="10-K", content_key=edgar_key)
+    assert reground(fact, blob_store=blobs, content_store=texts, fuzzy_threshold=0.92) == "ok"
+
+
+class _RaisingStore:
+    def __init__(self, get=None):
+        self._get = get
+
+    def exists(self, key):
+        return True
+
+    def get(self, key):
+        if self._get is None:
+            raise OSError("boom")
+        return self._get
+
+
+class _RaisingTexts:
+    def resolve_document(self, doc_id):
+        raise RuntimeError("db gone")
+
+    def lookup(self, content_key, parser_version):
+        raise RuntimeError("db gone")
+
+
+def test_store_that_raises_or_returns_non_bytes_is_original_missing(blobs):
+    assert lineage_error(_citation(), _RaisingStore()) == "original_missing"
+    assert lineage_error(_citation(), _RaisingStore(get="not bytes")) == "original_missing"
+    assert reground(_fact(), blob_store=blobs, content_store=_RaisingTexts(), fuzzy_threshold=0.92) == "text_unavailable"
+
+
+def test_sample_negative_n_is_empty():
+    assert sample([_fact()], -1, seed="a") == []
