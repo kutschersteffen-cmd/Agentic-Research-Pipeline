@@ -9,6 +9,7 @@ from datetime import date
 from arp.decision.parsing import to_number
 from arp.extraction.extractor_agent import PeriodValue
 from arp.normalise import fx
+from arp.normalise.locale import Decimal, parse_number
 from arp.normalise.period import (
     Qualifier,
     ResolvedPeriod,
@@ -127,7 +128,8 @@ def _canonical(field: FieldDefinition, value: float, pv: PeriodValue, end: date 
 
 
 def typed_value(
-    field: FieldDefinition, pv: PeriodValue, *, fiscal_year_end: str | None, planned: set[str] | None = None
+    field: FieldDefinition, pv: PeriodValue, *, fiscal_year_end: str | None, planned: set[str] | None = None,
+    decimal: Decimal | None = None,
 ) -> TypedValue:
     period = resolve_period(pv.period_text, fiscal_year_end=fiscal_year_end)
     if period.end is None and planned and pv.planned_period_end in planned:
@@ -146,10 +148,13 @@ def typed_value(
     notes: list[str] = []
     if field.data_type in _NUMERIC and isinstance(value, str):
         # A numeric field returned as text ("1,234"): parse it, or say why not -- never skip silently.
-        if (parsed := to_number(value)) is None:
+        if (parsed := to_number(value, decimal=decimal)) is None:
             reasons.append(ReasonCode.CHECK_FAILED)
             notes.append(f"numeric field returned non-numeric text {value!r}")
         else:
+            if parse_number(value, decimal)[1]:
+                reasons.append(ReasonCode.NUMBER_LOCALE_AMBIGUOUS)
+                notes.append(f"{value!r} is a thousands group or a decimal; read as a decimal point")
             value = parsed
     numeric = isinstance(value, (int, float)) and not isinstance(value, bool)
     if state == ValueState.FOUND and numeric and value == 0:

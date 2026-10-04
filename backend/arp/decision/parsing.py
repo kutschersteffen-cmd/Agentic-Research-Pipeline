@@ -5,6 +5,8 @@ import io
 import re
 from pathlib import Path
 
+from arp.normalise.locale import Decimal, parse_number
+
 # A German-locale Excel export -- semicolon delimiters, comma decimals,
 # dotted thousands separators -- is the single most common real input to
 # this layer and the one most likely to be silently mis-parsed: "1.234,5"
@@ -101,20 +103,17 @@ def detect_decimal_comma(values: list[str]) -> bool:
     return comma > dot
 
 
-def to_number(value: object, decimal_comma: bool = False) -> float | None:
+_PLAIN_NUMBER_RE = re.compile(r"-?[\d.,]+")
+
+
+def to_number(value: object, decimal_comma: bool = False, *, decimal: Decimal | None = None) -> float | None:
     if is_blank(value):
         return None
-    s = str(value).strip().replace(" ", "").replace(" ", "")
-    s = s.rstrip("%")
-    if decimal_comma:
-        s = s.replace(".", "").replace(",", ".")
-    else:
-        s = s.replace(",", "") if re.match(r"^-?\d{1,3}(,\d{3})+(\.\d+)?$", s) else s.replace(",", ".")
-    try:
-        v = float(s)
-    except ValueError:
+    s = str(value).strip().replace(" ", "").replace("\u00a0", "").rstrip("%")
+    if not _PLAIN_NUMBER_RE.fullmatch(s):  # strict: column typing relies on "12 apples" not being a number
         return None
-    return v if v == v and v not in (float("inf"), float("-inf")) else None
+    v = parse_number(s, decimal or ("comma" if decimal_comma else None))[0]
+    return v if v is not None and v == v and v not in (float("inf"), float("-inf")) else None
 
 
 def to_bool(value: object) -> int | None:

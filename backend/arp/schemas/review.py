@@ -16,6 +16,7 @@ class ReasonCode(StrEnum):
     CHECK_FAILED = "check_failed"
     MATCH_AMBIGUOUS = "match_ambiguous"
     NOT_APPLICABLE_BY_RULE = "not_applicable_by_rule"
+    NUMBER_LOCALE_AMBIGUOUS = "number_locale_ambiguous"
 
 
 class DecisionKind(StrEnum):

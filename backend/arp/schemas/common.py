@@ -90,6 +90,8 @@ class SourceDocument(BaseModel):
     supersedes: str | None = None
     content_key: str | None = None
     parser_version: str | None = None
+    language: str | None = None
+    decimal: str | None = None
     covered_entity: str | None = None
     match_status: MatchStatus | None = None  # None = not checked (legacy)
     period_plan: PeriodPlan | None = None

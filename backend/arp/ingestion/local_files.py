@@ -14,6 +14,7 @@ from arp.ingestion.doc_identity import CORRECTION_MARKERS, assign_identity, publ
 from arp.ingestion.html_text import extract_html_text
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.intake import IntakeResult, IntakeState, append_intake, check_intake
+from arp.normalise.locale import decimal_for, detect_language
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
@@ -376,7 +377,10 @@ class LocalFileDocumentSource(DocumentSource):
                     return None
             if not extra["full_text"].strip():
                 return None
+            language = detect_language(extra["full_text"])
             doc = SourceDocument(
+                language=language,
+                decimal=decimal_for(language),
                 company_id=company.company_id,
                 doc_type=doc_type,
                 title=file_path.name,

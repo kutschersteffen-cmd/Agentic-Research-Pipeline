@@ -10,6 +10,7 @@ from __future__ import annotations
 import math
 import re
 
+from arp.normalise.locale import parse_number as _parse_number
 from arp.normalise.units import lookup_scale
 from arp.schemas.datapoints import (
     CheckOutcome,
@@ -31,26 +32,7 @@ _PAREN = re.compile(r"\(([^)]*)\)")
 
 
 def parse_number(text: str) -> float | None:
-    s = text.strip()
-    neg = s.startswith("(") and s.endswith(")")
-    s = re.sub(rf"[^\d.,\-−'{_SPACES}]", "", s)
-    s = re.sub(rf"['{_SPACES}]", "", s)
-    if s[:1] in "-−":
-        neg, s = True, s[1:]
-    if not s or not s[0].isdigit() or not s[-1].isdigit():
-        return None
-    if "," in s and "." in s:
-        dec = "," if s.rfind(",") > s.rfind(".") else "."
-        s = s.replace("," if dec == "." else ".", "").replace(dec, ".")
-    elif "," in s:
-        s = s.replace(",", "") if s.count(",") > 1 or re.fullmatch(r"\d+,\d{3}", s) else s.replace(",", ".")
-    elif s.count(".") > 1:
-        s = s.replace(".", "")
-    try:
-        v = float(s)
-    except ValueError:
-        return None
-    return -v if neg else v
+    return _parse_number(text)[0]
 
 
 def numbers_in(text: str) -> list[float]:

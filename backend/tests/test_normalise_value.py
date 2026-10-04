@@ -116,7 +116,7 @@ def test_numeric_string_is_parsed():
     tv = typed_value(_field(), pv, fiscal_year_end="12-31")
     assert tv.value == 1234.0
     assert tv.canonical_value == 1234.0
-    assert tv.reasons == []
+    assert tv.reasons == ["number_locale_ambiguous"]  # "1,234" with no known locale (E48)
     assert typed_value(_field(), PeriodValue(value="0", raw_value_text="0"), fiscal_year_end=None).value_state == ValueState.ZERO
 
 
