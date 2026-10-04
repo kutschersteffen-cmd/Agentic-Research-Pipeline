@@ -3,6 +3,7 @@ correction only replaces a value when it carries a grounded citation."""
 
 import pytest
 
+from arp.extraction.adjudicator import AdjudicatorOutput
 from arp.extraction.aggregator import build_extracted_fields
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.field_graph import extract_one_field
@@ -82,10 +83,11 @@ async def _run(field, extractor, verifier):
 )
 async def test_high_risk_field_verifies_blind(fake_llm, blind, expected):
     extractor = fake_llm({"ExtractionDraft": [_draft(383285.0)]})
-    verifier = fake_llm({"ExtractionDraft": [blind]})
+    unsettled = AdjudicatorOutput(settled=False, notes="cannot tell")
+    verifier = fake_llm({"ExtractionDraft": [blind], "AdjudicatorOutput": [unsettled]})
     (f,), _, _ = await _run(_field(True), extractor, verifier)
 
-    assert verifier.calls == ["ExtractionDraft"]  # a re-extraction, not the review prompt
+    assert verifier.calls == ["ExtractionDraft", "AdjudicatorOutput"]  # a re-extraction, not the review prompt
     assert repr(383285.0) not in verifier.prompts[0]
     assert "values[0]" not in verifier.prompts[0]
     assert ReasonCode.VERIFIER_DISAGREES in f.review_reasons

@@ -4,10 +4,11 @@ from datetime import date
 from typing import TypedDict
 
 from arp.config import Settings
+from arp.extraction.adjudicator import AdjudicatorOutput, adjudicate, disagreement
 from arp.extraction.aggregator import build_extracted_fields, no_evidence_field
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue, extract_field
 from arp.extraction.graph_shape import build_extract_verify_graph
-from arp.extraction.verifier_agent import VerifierOutput, blind_verify, verify_extraction
+from arp.extraction.verifier_agent import DisagreementType, VerifierOutput, blind_verify, verify_extraction
 from arp.ingestion.parsing import chunk_document
 from arp.ingestion.xbrl import XbrlFact, XbrlFactSource
 from arp.llm.base import LLMClient, LLMUsage
@@ -35,9 +36,11 @@ class FieldState(TypedDict):
     evidence: list[DocumentChunk]
     draft: ExtractionDraft | None
     verifier: VerifierOutput | None
+    adjudicator: AdjudicatorOutput | None
     usages: list[LLMUsage]
     extractor_usage: LLMUsage | None
     verifier_usage: LLMUsage | None
+    adjudicator_usage: LLMUsage | None
     extracted: list[ExtractedField]
     needs_review: bool
     xbrl_facts: dict | None
@@ -169,6 +172,20 @@ async def _verify(state: FieldState) -> dict:
     return {"verifier": verifier, "usages": state["usages"] + [usage], "verifier_usage": usage}
 
 
+async def _adjudicate(state: FieldState) -> dict:
+    """E40: a third call, on the verifier client."""
+    out, usage = await adjudicate(
+        state["company_name"], state["field"], state["evidence"], state["draft"], state["verifier"],
+        state["verifier_llm"],
+    )
+    return {"adjudicator": out, "usages": state["usages"] + [usage], "adjudicator_usage": usage}
+
+
+def _route_after_verify(state: FieldState) -> str:
+    """Only a typed disagreement reaches the adjudicator."""
+    return "aggregate" if disagreement(state["verifier"]) == DisagreementType.NONE else "adjudicate"
+
+
 async def _aggregate(state: FieldState) -> dict:
     extracted = build_extracted_fields(
         state["field"],
@@ -180,6 +197,7 @@ async def _aggregate(state: FieldState) -> dict:
         passages={c.chunk_id: c for c in state["evidence"]},
         fiscal_year_end=state["fiscal_year_end"],
         planned_periods=state["planned_periods"],
+        adjudicator=state["adjudicator"],
     )
     extractor_usage = state["extractor_usage"]
     verifier_usage = state["verifier_usage"]
@@ -189,6 +207,7 @@ async def _aggregate(state: FieldState) -> dict:
         extractor_prompt_version=extractor_usage.prompt_version if extractor_usage else None,
         verifier_model=verifier_usage.model if verifier_usage else None,
         verifier_prompt_version=verifier_usage.prompt_version if verifier_usage else None,
+        adjudicator_model=state["adjudicator_usage"].model if state["adjudicator_usage"] else None,
         schema_version=state["schema_version"],
         field_version=state["field"].version,
     )
@@ -208,6 +227,8 @@ _COMPILED_GRAPH = build_extract_verify_graph(
     aggregate=_aggregate,
     try_tagged=_try_tagged,
     route_after_tagged=_route_after_tagged,
+    adjudicate=_adjudicate,
+    route_after_verify=_route_after_verify,
 )
 
 
@@ -229,7 +250,7 @@ async def extract_one_field(
     cik: str | None = None,
 ) -> tuple[list[ExtractedField], bool, list[LLMUsage]]:
     """Runs one field's evidence-gather -> extract -> independent-verify ->
-    programmatic-grounding-check -> aggregate flow as a LangGraph graph.
+    adjudicate (typed disagreements only) -> programmatic-grounding-check -> aggregate flow as a LangGraph graph.
     Returns (extracted_fields, needs_review, usages): one field per
     reported period, latest first.
 
@@ -263,9 +284,11 @@ async def extract_one_field(
         "evidence": [],
         "draft": None,
         "verifier": None,
+        "adjudicator": None,
         "usages": [],
         "extractor_usage": None,
         "verifier_usage": None,
+        "adjudicator_usage": None,
         "extracted": [],
         "needs_review": False,
         "xbrl_facts": xbrl_facts,

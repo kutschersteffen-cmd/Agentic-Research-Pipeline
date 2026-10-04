@@ -64,9 +64,9 @@ def test_reasons_for_verifier_disagreement_and_conflict():
     draft = ExtractionDraft(value=1.0, citations=[], confidence=0.9, conflicting_sources=True)
     verifier = VerifierOutput(agrees=False, corrected_value=None, confidence=0.9, notes="no")
     field_result, _ = _build(draft, verifier)
-    assert field_result.review_reasons == [
-        ReasonCode.NOT_GROUNDED, ReasonCode.VERIFIER_DISAGREES, ReasonCode.VERIFIER_CORRECTION_UNCITED, ReasonCode.CONFLICT,
-    ]
+    # No value and no citation offered: a disagreement, not a rejected correction.
+    assert field_result.review_reasons == [ReasonCode.NOT_GROUNDED, ReasonCode.VERIFIER_DISAGREES, ReasonCode.CONFLICT]
+    assert field_result.alternatives == []
 
 
 def test_no_reasons_means_no_review():

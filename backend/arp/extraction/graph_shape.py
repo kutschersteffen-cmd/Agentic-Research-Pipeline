@@ -18,6 +18,8 @@ def build_extract_verify_graph(
     aggregate: Callable[[Any], Awaitable[dict]],
     try_tagged: Callable[[Any], Awaitable[dict]] | None = None,
     route_after_tagged: Callable[[Any], str] | None = None,
+    adjudicate: Callable[[Any], Awaitable[dict]] | None = None,
+    route_after_verify: Callable[[Any], str] | None = None,
 ) -> CompiledStateGraph:
     """The shared 5-node shape behind every extractor/verifier pipeline in
     this package: gather evidence, route on whether any was found, and
@@ -30,6 +32,9 @@ def build_extract_verify_graph(
     `try_tagged` (with `route_after_tagged`, returning "gather_evidence" or
     "end") is an optional entry ahead of evidence gathering: a value taken
     from structured data ends the item there. Left out, the shape is as before.
+
+    `adjudicate` (with `route_after_verify`, returning "adjudicate" or
+    "aggregate") is an optional third call between verify and aggregate.
     """
     graph = StateGraph(state_cls)
     graph.add_node("gather_evidence", gather_evidence)
@@ -49,6 +54,11 @@ def build_extract_verify_graph(
     )
     graph.add_edge("finalize_no_evidence", END)
     graph.add_edge("extract", "verify")
-    graph.add_edge("verify", "aggregate")
+    if adjudicate is None:
+        graph.add_edge("verify", "aggregate")
+    else:
+        graph.add_node("adjudicate", adjudicate)
+        graph.add_conditional_edges("verify", route_after_verify, {"adjudicate": "adjudicate", "aggregate": "aggregate"})
+        graph.add_edge("adjudicate", "aggregate")
     graph.add_edge("aggregate", END)
     return graph.compile()

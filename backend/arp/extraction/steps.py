@@ -67,6 +67,7 @@ STEP_INFO: dict[str, dict[str, str]] = {
     "extract": {"label": "Extract", "about": "The extractor model drafts the value, quoting the evidence it used."},
     "answer": {"label": "Answer", "about": "The extractor model answers the indicator Yes/No, quoting the evidence it used."},
     "verify": {"label": "Verify", "about": "A second model checks the draft against the same evidence."},
+    "adjudicate": {"label": "Adjudicate", "about": "Only when the verifier disagrees: the verifier model settles the value from the evidence; unsettled or uncited, the item goes to review."},
     "finalize_answer_error": {"label": "Answer failed", "about": "The model never returned a valid answer; recorded as failed and flagged for review."},
     "aggregate": {"label": "Ground & score", "about": "Every quote is re-matched against its source; ungrounded or low-confidence answers go to review."},
     "company": {"label": "Company record", "about": "The company's items are assembled into one record and saved to the run."},
@@ -76,7 +77,8 @@ STEP_INFO: dict[str, dict[str, str]] = {
 _REVIEW = ["grounding_fuzzy_threshold", "confidence_review_threshold"]
 PROFILES: dict[str, dict] = {
     "custom": {"item": "each field of each company", "settings": {
-        "try_tagged": ["xbrl_facts_enabled"], "gather_evidence": ["hybrid_retrieval_enabled"], "extract": ["llm_model"], "verify": ["llm_verifier_model"], "aggregate": _REVIEW}},
+        "try_tagged": ["xbrl_facts_enabled"], "gather_evidence": ["hybrid_retrieval_enabled"], "extract": ["llm_model"], "verify": ["llm_verifier_model"], "adjudicate": ["llm_verifier_model"],
+        "aggregate": _REVIEW}},
     "financials": {"item": "each company", "settings": {
         "gather_evidence": ["hybrid_retrieval_enabled", "xbrl_facts_enabled"], "extract": ["llm_model"], "verify": ["llm_verifier_model"], "aggregate": _REVIEW}},
     "tnfd": {"item": "each company", "settings": {
@@ -145,6 +147,6 @@ def restart_overrides(step: str) -> dict:
         return {"document_cache_enabled": False, "llm_cache_refresh": True}
     if step in ("extract", "answer"):
         return {"llm_cache_refresh": True}
-    if step == "verify":
+    if step in ("verify", "adjudicate"):
         return {"llm_verifier_cache_refresh": True}
     return {}

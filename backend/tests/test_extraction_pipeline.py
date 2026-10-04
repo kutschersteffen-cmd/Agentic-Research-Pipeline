@@ -1,4 +1,5 @@
 from arp.config import Settings
+from arp.extraction.adjudicator import AdjudicatorOutput
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.pipeline import _extract_company
 from arp.extraction.verifier_agent import VerifierOutput
@@ -16,6 +17,10 @@ class _FixedDocSource(DocumentSource):
 
     async def fetch(self, company, doc_types=None):
         return self._docs
+
+
+# E40: a disagreeing verifier now triggers a third call; these tests keep the extractor/verifier outcome.
+_UNSETTLED = AdjudicatorOutput(settled=False, notes="the evidence does not decide it")
 
 
 def _settings(tmp_path) -> Settings:
@@ -108,12 +113,12 @@ async def test_extract_company_verifier_disagreement_flags_review(tmp_path, fake
         citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote="fiscal 2025 guidance is $120 million")],
     )
 
-    llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [verifier]})
+    llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [verifier], "AdjudicatorOutput": [_UNSETTLED]})
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
 
     result = await _extract_company(company, schema, registry=registry, llm=llm, settings=_settings(tmp_path))
     field_result = result.record.fields[0]
-    assert field_result.value == 120.0  # verifier's correction wins
+    assert field_result.value == 120.0  # verifier's (cited) correction wins
     assert result.record.needs_review is True
 
 
@@ -243,6 +248,7 @@ async def test_pipeline_queues_one_row_per_flagged_field(tmp_path, fake_llm):
         {
             "ExtractionDraft": [_draft(1.0, "alphakw is 1 million"), _draft(2.0, "betakw is 2 million"), _draft(3.0, "gammakw is 3 million")],
             "VerifierOutput": [agree, disagree, disagree],
+            "AdjudicatorOutput": [_UNSETTLED, _UNSETTLED],
         }
     )
     settings = _settings(tmp_path)
@@ -257,7 +263,7 @@ async def test_pipeline_queues_one_row_per_flagged_field(tmp_path, fake_llm):
     key, scheme = issuer_key(company)
     flagged = [f.field_id for f in schema.fields[1:]]
     assert [r["item_key"] for r in rows] == [f"{key}:{fid}:unspecified" for fid in flagged]
-    assert rows[0]["reason_codes"] == ["verifier_disagrees", "verifier_correction_uncited"]
+    assert rows[0]["reason_codes"] == ["verifier_disagrees", "adjudicator_unresolved"]
     assert rows[0]["issuer_key"] == key and rows[0]["issuer_scheme"] == scheme
     assert rows[0]["field"]["field_id"] == flagged[0] and rows[0]["company_id"] == "c1"
     assert run_store.load_manifest(run_id).review_count == 2
@@ -350,7 +356,7 @@ async def test_review_key_uses_period_end(tmp_path, fake_llm):
         confidence=0.9,
     )
     disagree = VerifierOutput(agrees=False, corrected_value=None, confidence=0.9, notes="wrong")
-    llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [disagree, disagree]})
+    llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [disagree, disagree], "AdjudicatorOutput": [_UNSETTLED]})
     settings = _settings(tmp_path)
     run_store = RunStore(settings.runs_dir)
     run_id = create_extraction_run(schema, [company], settings, run_store, trial=True)
@@ -483,7 +489,7 @@ def _trial_run_one_field(tmp_path, fake_llm, verifier):
         )],
         confidence=0.95,
     )
-    return doc, fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [verifier]})
+    return doc, fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [verifier], "AdjudicatorOutput": [_UNSETTLED]})
 
 
 async def _run_trial(tmp_path, doc, llm):
@@ -505,7 +511,7 @@ async def _run_trial(tmp_path, doc, llm):
 async def test_queue_row_carries_route_reasons(tmp_path, fake_llm):
     doc, llm = _trial_run_one_field(tmp_path, fake_llm, VerifierOutput(agrees=False, confidence=0.9, notes="wrong"))
     (q,) = await _run_trial(tmp_path, doc, llm)
-    assert q["reason_codes"] == ["verifier_disagrees", "verifier_correction_uncited"]
+    assert q["reason_codes"] == ["verifier_disagrees", "adjudicator_unresolved"]
     assert q["route_reasons"][0] == "unreleased_version" and "verifier_disagrees" in q["route_reasons"]
     assert q["field"]["route"] == "review"
 
