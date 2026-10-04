@@ -44,6 +44,20 @@ def test_exact_number_in_span_passes():
 
 
 @pytest.mark.parametrize(
+    "q,value,raw",
+    [
+        ("Scope 1 4,210 tCO2e", 4210.0, "4,210"),
+        ("FY 2023 4.210,5 t", 4210.5, "4.210,5"),
+        ("Scope 1 4\u00a0210,5", 4210.5, "4 210,5"),
+        ("4,210 1,100", 4210.0, "4,210"),
+        ("Scope 1 emissions 2023 4,210", 4210.0, "4,210"),
+    ],
+)
+def test_in_span_value_adjacent_to_digit_tokens(q, value, raw):
+    assert _run(check_number_in_span, _spec(), q, q, value=value, raw=raw).outcome == "pass"
+
+
+@pytest.mark.parametrize(
     "text,expected",
     [
         ("1,234.5", 1234.5), ("4.210,5", 4210.5), ("4 210,5", 4210.5), ("(1,234)", -1234.0),

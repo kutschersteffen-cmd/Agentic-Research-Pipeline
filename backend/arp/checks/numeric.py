@@ -57,6 +57,21 @@ def numbers_in(text: str) -> list[float]:
     return [v for m in _NUM_RE.finditer(text) if (v := parse_number(m.group())) is not None]
 
 
+def _candidates(text: str) -> list[float]:
+    """Every parse of each match and of each run of its space-separated pieces ("1 4,210" -> 14210, 4210, 1)."""
+    out = []
+    for m in _NUM_RE.finditer(text):
+        g = m.group()
+        seps = [i for i, ch in enumerate(g) if ch in _SPACES]
+        cuts = [0, *[i + 1 for i in seps]]
+        ends = [*seps, len(g)]
+        for a in cuts:
+            for b in ends:
+                if b > a and (v := parse_number(g[a:b])) is not None:
+                    out.append(v)
+    return out
+
+
 def _line_scale(line: str) -> float | None:
     words = [m.group(1) for m in _IN_SCALE.finditer(line)]
     for p in _PAREN.finditer(line):
@@ -91,8 +106,10 @@ def check_number_in_span(spec: FieldDefinition, field: ExtractedField, ctx) -> l
         return _result(cid, Severity.BLOCK, na)
     expected = parse_number(field.raw_value_text or "")
     if expected is None:
-        expected = float(field.value)  # type: ignore[arg-type]
-    ok = any(math.isclose(abs(expected), abs(n), rel_tol=1e-9) for c in cits for n in numbers_in(c.span_text))
+        if isinstance(field.value, bool) or not isinstance(field.value, (int, float)):
+            return _result(cid, Severity.BLOCK, na)
+        expected = float(field.value)
+    ok = any(math.isclose(abs(expected), abs(n), rel_tol=1e-9) for c in cits for n in _candidates(c.span_text))
     return _result(cid, Severity.BLOCK, CheckOutcome.PASS if ok else CheckOutcome.FAIL,
                    "" if ok else f"value {expected:g} not in grounded span")
 
