@@ -453,9 +453,10 @@ class Settings(BaseSettings):
 
     # Postgres read-model projections beyond Portfolio/Holdings (see
     # postgres_models.py's module docstring for the original narrower
-    # scope). Each mirrors an existing file/SQLite store -- which stays
-    # authoritative and unmodified either way -- into a queryable Postgres
-    # table. All require postgres_dsn; all default off.
+    # scope). Each mirrors an existing store -- which stays authoritative
+    # and unmodified either way (for the document registry that is SQLite,
+    # or Postgres itself when embeddings_backend=postgres) -- into a
+    # queryable Postgres table. All require postgres_dsn; all default off.
     document_registry_projection_enabled: bool = Field(
         default=False,
         description="Mirrors the document registry into Postgres as a queryable read-model (requires "

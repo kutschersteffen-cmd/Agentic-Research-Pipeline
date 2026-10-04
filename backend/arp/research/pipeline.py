@@ -11,6 +11,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
+from arp.orchestration.jobs import hold_run
 from arp.research.indirect_exposure.company_mapper import resolve_company_isic
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.indirect_exposure.leontief import LeontiefModel
@@ -211,14 +212,17 @@ async def resume_theme_run(
             search_client=DuckDuckGoSearchClient(settings.discovery_user_agent),
         )
 
-    manifest.cancel_requested = False
-    manifest.status = JobStatus.RUNNING
-    run_store.save_manifest(manifest)
+    # Leased before touching the manifest, so a resume of a run another worker
+    # still drives raises RunBusy without clearing its cancel request.
+    with hold_run(run_store, run_id):
+        manifest.cancel_requested = False
+        manifest.status = JobStatus.RUNNING
+        run_store.save_manifest(manifest)
 
-    return await execute_theme_run(
-        run_id, theme, companies, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store,
-        indirect_model=indirect_model, revenue_resolver=revenue_resolver, rd_resolver=rd_resolver,
-    )
+        return await execute_theme_run(
+            run_id, theme, companies, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings,
+            run_store=run_store, indirect_model=indirect_model, revenue_resolver=revenue_resolver, rd_resolver=rd_resolver,
+        )
 
 
 async def execute_theme_run(
