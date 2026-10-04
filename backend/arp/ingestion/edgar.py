@@ -18,6 +18,7 @@ from arp.ingestion.html_text import extract_html_text
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.schemas.discovery import EdgarNameMatch
+from arp.storage.document_blob_store import CaptureStoreError
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
@@ -129,6 +130,8 @@ class EdgarDocumentSource(DocumentSource):
                 )
                 if self._content_store is not None and content_key is not None:
                     doc_id = derive_doc_id(company.company_id, doc_type.value, content_key)
+                    kwargs["content_key"] = content_key
+                    kwargs["parser_version"] = _edgar_parser_version()
                     kwargs["doc_id"] = self._content_store.register_document(
                         doc_id=doc_id,
                         company_id=company.company_id,
@@ -139,9 +142,27 @@ class EdgarDocumentSource(DocumentSource):
                         source_url=url,
                     )
                     if self._indexing_config is not None:
-                        self._index_and_archive(kwargs["doc_id"], company.company_id, doc_type, title, content_key, text, raw_bytes, url)
+                        try:
+                            if raw_bytes is None and not self._has_stored_blob(content_key):
+                                # Parse-cache hit, but an earlier store attempt failed: fetch and archive again.
+                                _, raw_bytes = await self._get_and_extract_text(client, url)
+                            self._index_and_archive(kwargs["doc_id"], company.company_id, doc_type, title, content_key, text, raw_bytes, url)
+                        except (CaptureStoreError, httpx.HTTPError) as exc:
+                            # Not collected: no verified copy of the original bytes.
+                            logger.warning("EDGAR filing %s not collected: %s", url, exc)
+                            continue
                 docs.append(SourceDocument(**kwargs))
             return docs
+
+    def _has_stored_blob(self, content_key: str) -> bool:
+        """The registry names a stored copy AND the blob store still has it (a lost blob is re-archived)."""
+        from arp.storage.document_blob_store import blob_store_for
+
+        ref = self._content_store.list_documents_by_content_keys([content_key]).get(content_key)
+        if not (ref and ref.storage_uri):
+            return False
+        # The blob key is the sha256 of the bytes, the last segment of file://... or s3://bucket/<sha>.
+        return blob_store_for(self._indexing_config).exists(ref.storage_uri.rsplit("/", 1)[-1])
 
     def _index_and_archive(
         self,
@@ -169,10 +190,11 @@ class EdgarDocumentSource(DocumentSource):
 
         storage_uri = None
         if raw_bytes is not None:
-            from arp.storage.document_blob_store import upload_document_if_enabled
+            from arp.storage.document_blob_store import blob_store_for, upload_or_fail
 
-            storage_uri = upload_document_if_enabled(self._indexing_config, content_key, raw_bytes)
-            if storage_uri is not None and self._content_store is not None:
+            # Blob key is the sha256 of the bytes; this source's content_key hashes the accession instead.
+            storage_uri = upload_or_fail(blob_store_for(self._indexing_config), hashlib.sha256(raw_bytes).hexdigest(), raw_bytes)
+            if self._content_store is not None:
                 self._content_store.set_storage_uri(doc_id, storage_uri)
 
         from arp.storage.document_registry import StoredDocumentRef

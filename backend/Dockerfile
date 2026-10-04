@@ -77,7 +77,7 @@ COPY --from=builder /app/backend ./backend
 # from it -- an empty directory at a mount point with no prior content
 # would otherwise be created owned by root, which the arp user can't write
 # to (see docs/CORPORATE_READINESS_PLAN.md Phase 1 notes).
-RUN mkdir -p /app/runs /app/taxonomies /app/portfolios /app/data/documents \
+RUN mkdir -p /app/runs /app/schemas /app/taxonomies /app/portfolios /app/data/documents /app/data/blobs \
         /app/engagements /app/ballots /app/backend/.cache \
         /app/backend/.discovery_state /app/backend/.document_store \
     && chown -R arp:arp /app

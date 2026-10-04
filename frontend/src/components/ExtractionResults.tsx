@@ -6,6 +6,8 @@ import { CitationList } from "./CitationList";
 import type { ActiveSource } from "./SourcePanel";
 import type { BusinessSegment, CompanyFinancialsRecord, ExtractedField, ExtractionRecord, ReviewDecision, SpendSummary } from "../types";
 import { fieldItemKey } from "../lib/reviewKeys";
+import { valueLabel, withEditedValue } from "../lib/fieldValue";
+import { TRIAL_TITLE } from "../lib/runs";
 import { activatable } from "../lib/activatable";
 import { ProposedTag } from "./ProposedTag";
 import { OriginTag } from "./ReviewTiles";
@@ -67,8 +69,16 @@ export function SegmentDetail({ segment, onOpenSource }: { segment: BusinessSegm
 export function FieldDetail({ field, onOpenSource }: { field: ExtractedField; onOpenSource: (s: ActiveSource) => void }) {
   return (
     <div className="field-detail">
-      <strong>{field.field_name}:</strong> {String(field.value ?? "not disclosed")}{" "}
+      <strong>{field.field_name}:</strong> {valueLabel(field)}{" "}
       <ConfidenceBadge value={field.confidence} /> <GroundedBadge grounded={field.grounded} />
+      {(field.period_end || field.period_start) && (
+        <p className="muted">Period: {field.period_start ? `${field.period_start} to ` : "to "}{field.period_end ?? "—"}{field.basis ? ` (${field.basis})` : ""}</p>
+      )}
+      {field.canonical_value != null && String(field.canonical_value) !== String(field.value) && (
+        <p className="muted">≈ {field.canonical_value} {field.canonical_unit ?? ""}</p>
+      )}
+      {field.qualifiers?.map((q) => <span key={q} className="badge">{q}</span>)}
+      {field.fx_rate_ref && <p className="muted">FX: {field.fx_rate_ref}</p>}
       {field.verifier_notes && <p className="muted">{field.verifier_notes}</p>}
       <CitationList citations={field.citations} onOpenSource={onOpenSource} />
     </div>
@@ -131,6 +141,8 @@ interface ExtractionResultsTableProps {
   onReviewDone: () => void;
   onOpenSource: (s: ActiveSource) => void;
   filter?: TileFilter;
+  /** The run was a trial (draft schema fields): mark its results as not final. */
+  trial?: boolean;
 }
 
 export function ExtractionResultsTable({
@@ -143,15 +155,21 @@ export function ExtractionResultsTable({
   onReviewDone,
   onOpenSource,
   filter = null,
+  trial = false,
 }: ExtractionResultsTableProps) {
   if (results.length === 0) return null;
   // Items are fields; a field is flagged when its record needs review.
   const shownFields = (r: ExtractionRecord) =>
-    r.fields.filter((f) => matchesTile(filter, r.needs_review, reviewDecisions[fieldItemKey(r, f.field_id)]));
+    r.fields.filter((f) => matchesTile(filter, r.needs_review, reviewDecisions[fieldItemKey(r, f)]));
   const shown = results.filter((r) => shownFields(r).length > 0);
   if (shown.length === 0) return NO_MATCH;
   return (
     <div className="table-wrap">
+      {trial && (
+        <p className="await-text">
+          <span className="badge badge-mid">trial</span> {TRIAL_TITLE}
+        </p>
+      )}
       <table className="data-table">
         <thead>
           <tr>
@@ -166,7 +184,7 @@ export function ExtractionResultsTable({
             <Fragment key={r.company_id}>
               <tr className="clickable-row" {...activatable(() => onToggleExpanded(r.company_id), expanded === r.company_id)}>
                 <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
-                <td>{r.fields.map((f) => `${f.field_name}=${editedText(reviewDecisions[fieldItemKey(r, f.field_id)]) ?? f.value ?? "—"}`).join(", ")}</td>
+                <td>{r.fields.map((f) => `${f.field_name}${f.period_end ? ` (${f.period_end})` : ""}=${editedText(reviewDecisions[fieldItemKey(r, f)]) ?? valueLabel(f)}`).join(", ")}</td>
                 <td><ConfidenceBadge value={r.overall_confidence} /></td>
                 <td>{r.needs_review ? <ProposedTag /> : ""}</td>
               </tr>
@@ -174,12 +192,12 @@ export function ExtractionResultsTable({
                 <tr>
                   <td colSpan={4} className="detail-cell">
                     {shownFields(r).map((f) => {
-                      const itemKey = fieldItemKey(r, f.field_id);
+                      const itemKey = fieldItemKey(r, f);
                       const d = reviewDecisions[itemKey];
                       return (
-                        <div key={f.field_id}>
-                          <FieldDetail field={editedText(d) === undefined ? f : { ...f, value: editedText(d)! }} onOpenSource={onOpenSource} />
-                          <OriginTag decision={d} systemValue={String(f.value ?? "—")} />
+                        <div key={`${f.field_id}:${f.period_end ?? ""}`}>
+                          <FieldDetail field={editedText(d) === undefined ? f : withEditedValue(f, editedText(d)!)} onOpenSource={onOpenSource} />
+                          <OriginTag decision={d} systemValue={valueLabel(f)} />
                           <ReviewControls
                             runId={runId}
                             itemKey={itemKey}

@@ -10,6 +10,7 @@ cache_dir, ttl) rather than a Settings instance.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -27,6 +28,7 @@ class IndexingConfig:
     object_store_live_upload_enabled: bool = False
     postgres_dsn: str | None = None
     document_registry_projection_enabled: bool = False
+    blob_store_dir: Path | None = None
 
     @classmethod
     def from_settings(cls, settings: Settings) -> IndexingConfig:
@@ -40,6 +42,7 @@ class IndexingConfig:
             object_store_live_upload_enabled=settings.object_store_live_upload_enabled,
             postgres_dsn=settings.postgres_dsn,
             document_registry_projection_enabled=settings.document_registry_projection_enabled,
+            blob_store_dir=settings.blob_store_dir,
         )
 
     @property

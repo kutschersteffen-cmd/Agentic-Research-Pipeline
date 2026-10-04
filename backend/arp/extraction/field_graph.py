@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TypedDict
 
 from arp.config import Settings
-from arp.extraction.aggregator import build_extracted_field, no_evidence_field
+from arp.extraction.aggregator import build_extracted_fields, no_evidence_field
 from arp.extraction.extractor_agent import ExtractionDraft, extract_field
 from arp.extraction.graph_shape import build_extract_verify_graph
 from arp.extraction.verifier_agent import VerifierOutput, verify_extraction
@@ -24,6 +24,8 @@ class FieldState(TypedDict):
     verifier_llm: LLMClient
     settings: Settings | None
     fuzzy_threshold: float
+    schema_version: str
+    fiscal_year_end: str | None
     confidence_review_threshold: float
     evidence: list[DocumentChunk]
     draft: ExtractionDraft | None
@@ -31,7 +33,7 @@ class FieldState(TypedDict):
     usages: list[LLMUsage]
     extractor_usage: LLMUsage | None
     verifier_usage: LLMUsage | None
-    extracted: ExtractedField | None
+    extracted: list[ExtractedField]
     needs_review: bool
 
 
@@ -74,7 +76,7 @@ def _route_after_evidence(state: FieldState) -> str:
 
 async def _finalize_no_evidence(state: FieldState) -> dict:
     extracted, needs_review = no_evidence_field(state["field"])
-    return {"extracted": extracted, "needs_review": needs_review}
+    return {"extracted": [extracted], "needs_review": needs_review}
 
 
 async def _extract(state: FieldState) -> dict:
@@ -90,13 +92,15 @@ async def _verify(state: FieldState) -> dict:
 
 
 async def _aggregate(state: FieldState) -> dict:
-    extracted, needs_review = build_extracted_field(
+    extracted = build_extracted_fields(
         state["field"],
         state["draft"],
         state["verifier"],
         state["documents_by_id"],
         state["fuzzy_threshold"],
         state["confidence_review_threshold"],
+        passages={c.chunk_id: c for c in state["evidence"]},
+        fiscal_year_end=state["fiscal_year_end"],
     )
     extractor_usage = state["extractor_usage"]
     verifier_usage = state["verifier_usage"]
@@ -106,9 +110,11 @@ async def _aggregate(state: FieldState) -> dict:
         extractor_prompt_version=extractor_usage.prompt_version if extractor_usage else None,
         verifier_model=verifier_usage.model if verifier_usage else None,
         verifier_prompt_version=verifier_usage.prompt_version if verifier_usage else None,
+        schema_version=state["schema_version"],
+        field_version=state["field"].version,
     )
-    extracted = extracted.model_copy(update={"provenance": provenance})
-    return {"extracted": extracted, "needs_review": needs_review}
+    extracted = [f.model_copy(update={"provenance": provenance}) for f in extracted]
+    return {"extracted": extracted, "needs_review": any(f.review_reasons for f in extracted)}
 
 
 # Compiled once and reused across every field invocation -- this graph runs
@@ -135,10 +141,13 @@ async def extract_one_field(
     settings: Settings | None = None,
     fuzzy_threshold: float,
     confidence_review_threshold: float,
-) -> tuple[ExtractedField, bool, list[LLMUsage]]:
+    schema_version: str = "",
+    fiscal_year_end: str | None = None,
+) -> tuple[list[ExtractedField], bool, list[LLMUsage]]:
     """Runs one field's evidence-gather -> extract -> independent-verify ->
     programmatic-grounding-check -> aggregate flow as a LangGraph graph.
-    Returns (extracted_field, needs_review, usages).
+    Returns (extracted_fields, needs_review, usages): one field per
+    reported period, latest first.
 
     `verifier_llm` is a second, deliberately different-model client for the
     verify step -- decorrelates errors an identical extractor/verifier model
@@ -161,13 +170,15 @@ async def extract_one_field(
         "settings": settings,
         "fuzzy_threshold": fuzzy_threshold,
         "confidence_review_threshold": confidence_review_threshold,
+        "schema_version": schema_version,
+        "fiscal_year_end": fiscal_year_end,
         "evidence": [],
         "draft": None,
         "verifier": None,
         "usages": [],
         "extractor_usage": None,
         "verifier_usage": None,
-        "extracted": None,
+        "extracted": [],
         "needs_review": False,
     }
     final_state = await run_graph(_COMPILED_GRAPH, initial)

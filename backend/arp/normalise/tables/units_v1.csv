@@ -1,0 +1,41 @@
+alias,canonical,factor,dimension,ambiguous
+t,t,1,mass,0
+tonne,t,1,mass,0
+tonnes,t,1,mass,0
+metric ton,t,1,mass,0
+kg,t,0.001,mass,0
+kt,t,1000,mass,0
+Mt,t,1000000,mass,0
+ton,t,1,mass,1
+tCO2e,tCO2e,1,emissions,0
+tCO2-e,tCO2e,1,emissions,0
+t CO2e,tCO2e,1,emissions,0
+tonnes CO2e,tCO2e,1,emissions,0
+tonnes of CO2 equivalent,tCO2e,1,emissions,0
+kgCO2e,tCO2e,0.001,emissions,0
+ktCO2e,tCO2e,1000,emissions,0
+MtCO2e,tCO2e,1000000,emissions,0
+kWh,MWh,0.001,energy,0
+MWh,MWh,1,energy,0
+GWh,MWh,1000,energy,0
+TWh,MWh,1000000,energy,0
+GJ,MWh,0.277778,energy,0
+TJ,MWh,277.778,energy,0
+%,%,1,percent,0
+percent,%,1,percent,0
+per cent,%,1,percent,0
+USD,USD,1,currency,0
+EUR,EUR,1,currency,0
+GBP,GBP,1,currency,0
+JPY,JPY,1,currency,0
+CHF,CHF,1,currency,0
+CAD,CAD,1,currency,0
+AUD,AUD,1,currency,0
+SEK,SEK,1,currency,0
+NOK,NOK,1,currency,0
+DKK,DKK,1,currency,0
+CNY,CNY,1,currency,0
+€,EUR,1,currency,0
+£,GBP,1,currency,0
+$,USD,1,currency,1
+¥,JPY,1,currency,1

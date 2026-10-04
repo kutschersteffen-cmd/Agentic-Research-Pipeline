@@ -58,9 +58,11 @@ services:
       # subnets come from 192.168.0.0/16, change the trusted range above to match.
     volumes:
       - arp_runs:/app/runs
+      - arp_schemas:/app/schemas
       - arp_taxonomies:/app/taxonomies
       - arp_portfolios:/app/portfolios
       - arp_documents:/app/data/documents
+      - arp_blobs:/app/data/blobs
       - arp_engagements:/app/engagements
       - arp_ballots:/app/ballots
       - arp_cache:/app/backend/.cache
@@ -190,9 +192,11 @@ services:
 
 volumes:
   arp_runs:
+  arp_schemas:
   arp_taxonomies:
   arp_portfolios:
   arp_documents:
+  arp_blobs:
   arp_engagements:
   arp_ballots:
   arp_cache:

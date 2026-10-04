@@ -19,6 +19,7 @@ export function ResultsTable(p: {
   onReviewed: () => void;
   onOpenSource: (s: ActiveSource) => void;
   filter?: keyof ReviewTileCounts | null;
+  trial?: boolean;
 }) {
   const { runId, expanded, onToggleExpanded, reviewer, onOpenSource, filter } = p;
   switch (p.mode) {
@@ -34,6 +35,7 @@ export function ResultsTable(p: {
           onReviewDone={p.onReviewed}
           onOpenSource={onOpenSource}
           filter={filter}
+          trial={p.trial}
         />
       );
     case "financials":

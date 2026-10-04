@@ -157,3 +157,29 @@ def test_restart_refuses_a_running_run_or_an_unknown_step(calls, tmp_path, monke
     with pytest.raises(HTTPException) as err:
         _restart(store, running, from_step="verify")
     assert err.value.status_code == 409
+
+
+def test_restart_of_a_pre_gate_custom_run_runs_as_trial(calls, tmp_path, monkeypatch):
+    # A start_request.json saved before the release gate has no `trial`: that run was ungated,
+    # so its restart runs as a trial rather than being refused for draft fields.
+    from arp.orchestration.job_manager import JobManager
+
+    monkeypatch.setattr(extraction, "get_registry", lambda: "registry")
+    store = RunStore(tmp_path)
+    run_id = JobManager(store).create_run("extraction", {}, 1).run_id
+    JobManager(store).finish_run(run_id)
+    saved = {
+        "profile": "custom",
+        "datapoint_schema": {"schema_id": "s", "name": "s", "fields": []},
+        "companies": [{"company_id": "c1", "name": "Acme"}],
+    }
+    (store.run_dir(run_id) / "start_request.json").write_text(json.dumps(saved))
+    _restart(store, run_id, from_step="extract")
+    (_, req, _), = calls
+    assert req.trial is True
+
+    calls.clear()  # a saved request that says trial=false stays gated
+    (store.run_dir(run_id) / "start_request.json").write_text(json.dumps({**saved, "trial": False}))
+    _restart(store, run_id, from_step="extract")
+    (_, req, _), = calls
+    assert req.trial is False

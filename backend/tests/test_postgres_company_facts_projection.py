@@ -168,3 +168,103 @@ def test_extraction_approve_plus_edit_is_edited_and_only_edited_field_changes():
     value, status, _ = resolve_extraction_fact("acme", row, decisions, {ka, kb})
     assert status == "edited"
     assert [f["value"] for f in value["fields"]] == [1, 7]
+
+
+def _two_period_row():
+    return {
+        "issuer_key": "ARP:x",
+        "fields": [
+            {"field_id": "a", "value": 10, "period_end": "2024-12-31"},
+            {"field_id": "a", "value": 7, "period_end": "2023-12-31"},
+        ],
+    }
+
+
+def test_projection_two_periods_same_field():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    k23 = "ARP:x:a:2023-12-31"
+    decisions = {k23: {"decision": "edit", "reviewer": "r", "edited_value": {"value": 8}}}
+    value, status, _ = resolve_extraction_fact("acme", _two_period_row(), decisions, {k23, "ARP:x:a:2024-12-31"})
+    assert status == "pending_review"  # FY2024 row is flagged but undecided
+    assert [f["value"] for f in value["fields"]] == [10, 8]
+    value, status, _ = resolve_extraction_fact("acme", _two_period_row(), decisions, {k23})
+    assert status == "edited" and [f["value"] for f in value["fields"]] == [10, 8]
+
+
+def test_projection_old_rows_without_period_unchanged():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    row = {"issuer_key": "ARP:x", "fields": [{"field_id": "a", "value": 1}]}
+    key = "ARP:x:a:unspecified"
+    value, status, _ = resolve_extraction_fact("acme", row, {key: {"decision": "edit", "edited_value": {"value": 3}}}, {key})
+    assert status == "edited" and value["fields"][0]["value"] == 3
+
+
+def test_edit_supplying_value_clears_not_found():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    row = {"issuer_key": "ARP:x", "fields": [{"field_id": "a", "value": None, "value_state": "not_found"}]}
+    key = "ARP:x:a:unspecified"
+    for edit, state in (({"value": 5}, "found"), ({"value": 0}, "zero"), ({"value": 5, "value_state": "not_applicable"}, "not_applicable")):
+        value, _, _ = resolve_extraction_fact("acme", row, {key: {"decision": "edit", "edited_value": edit}}, {key})
+        assert value["fields"][0]["value_state"] == state
+
+
+def test_edit_with_value_only_clears_stale_canonical():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    row = _extraction_row()
+    row["fields"][1].update(canonical_value=1000, canonical_unit="kg")
+    key_b = "ARP:x:b:unspecified"
+    edit = {key_b: {"decision": "edit", "edited_value": {"value": 5}}}
+    f = resolve_extraction_fact("acme", row, edit, {key_b})[0]["fields"][1]
+    assert (f["value"], f["canonical_value"], f["canonical_unit"]) == (5, None, None)
+    edit = {key_b: {"decision": "edit", "edited_value": {"value": 5, "canonical_value": 5, "canonical_unit": "kg"}}}
+    f = resolve_extraction_fact("acme", row, edit, {key_b})[0]["fields"][1]
+    assert (f["canonical_value"], f["canonical_unit"]) == (5, "kg")
+
+
+def _run_with_result(tmp_path, trial):
+    from arp.orchestration.job_manager import JobManager
+    from arp.storage.run_store import RunStore
+
+    store = RunStore(tmp_path)
+    run_id = JobManager(store).create_run("extraction", {"trial": trial}, 1).run_id
+    store.results_path(run_id).write_text('{"_key": "acme", "issuer_key": "ARP:x", "fields": []}\n')
+    return store, run_id
+
+
+def test_trial_run_is_not_projected_and_leaves_current_facts_alone(tmp_path, monkeypatch):
+    # No DB here: a run that gets past the trial gate reads its decisions next, so that read is the probe.
+    # (tests/test_postgres_projections_integration.py checks the current fact against a real Postgres.)
+    import pytest
+
+    from arp.storage import postgres_company_facts_projection as proj
+
+    class Reached(Exception):
+        pass
+
+    def reached(*a):
+        raise Reached
+
+    monkeypatch.setattr(proj, "latest_decisions", reached)
+    monkeypatch.setattr(proj, "get_engine", reached)
+    store, run_id = _run_with_result(tmp_path, trial=True)
+    assert proj.materialize_run("postgresql://unused", store, run_id) == 0  # nothing read, nothing written
+
+    store, run_id = _run_with_result(tmp_path / "b", trial=False)
+    with pytest.raises(Reached):  # a non-trial run still materialises
+        proj.materialize_run("postgresql://unused", store, run_id)
+
+
+def test_edit_value_clears_fx_and_scale_and_infers_zero_like_frontend():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    row = {"issuer_key": "ARP:x", "fields": [{"field_id": "a", "value": 9, "value_state": "found",
+                                              "fx_rate": 1.1, "fx_rate_ref": "fx_v1:EUR:2024", "scale_applied": 1000.0}]}
+    key = "ARP:x:a:unspecified"
+    for edited, state in ((5, "found"), ("0", "zero"), (0.0, "zero"), (False, "found")):
+        f = resolve_extraction_fact("acme", row, {key: {"decision": "edit", "edited_value": {"value": edited}}}, {key})[0]["fields"][0]
+        assert f["value_state"] == state
+        assert (f["fx_rate"], f["fx_rate_ref"], f["scale_applied"]) == (None, None, None)

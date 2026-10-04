@@ -142,12 +142,15 @@ def export_run_csv(run_id: str, run_store: RunStore = Depends(get_run_store)) ->
             writer.writerow(_theme_csv_row(m))
     elif manifest.run_type == "extraction":
         writer = csv.writer(buf)
-        writer.writerow(["company_id", "ticker", "name", "field_name", "value", "confidence", "grounded", "needs_review", "verifier_notes"])
+        writer.writerow(["company_id", "ticker", "name", "field_name", "value", "confidence", "grounded", "needs_review", "verifier_notes",
+             "value_state", "unit", "canonical_value", "canonical_unit", "period_start", "period_end", "basis"])
         for record in rows:
             for f in record.get("fields", []):
                 writer.writerow(
                     [record["company_id"], record.get("ticker"), record["name"], f["field_name"], f["value"],
-                     f["confidence"], f["grounded"], record["needs_review"], f.get("verifier_notes")]
+                     f["confidence"], f["grounded"], record["needs_review"], f.get("verifier_notes"),
+                     f.get("value_state"), f.get("unit"), f.get("canonical_value"), f.get("canonical_unit"),
+                     f.get("period_start"), f.get("period_end"), f.get("basis")]
                 )
     elif manifest.run_type == "financials":
         writer = csv.writer(buf)

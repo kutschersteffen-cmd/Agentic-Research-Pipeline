@@ -1,3 +1,5 @@
+import { valueLabel } from "../lib/fieldValue";
+import type { ExtractedField } from "../types";
 import { useEffect, useState } from "react";
 import { ConfidenceBadge, VerdictBadge } from "./ConfidenceBadge";
 import { CitationList } from "./CitationList";
@@ -64,7 +66,7 @@ function isCitationArray(v: unknown): v is Citation[] {
 export function ReviewItemFields({ item, onOpenSource }: { item: Record<string, unknown>; onOpenSource: (s: ActiveSource) => void }) {
   const known = new Set(["item_key", "queued_at", "company_id", "name", "ticker", "confidence", "verdict", "citations", "field", "field_id", "issuer_key", "issuer_scheme", "schema_id", "run_id", "reason_codes", "adjudicator_rationale", "rationale", "failed_step_label", "error"]);
   // Per-field extraction rows carry the field itself; old rows keep these at top level.
-  const field = (item.field ?? null) as { field_name?: string; value?: unknown; citations?: unknown; confidence?: number } | null;
+  const field = (item.field ?? null) as { field_name?: string; value?: unknown; value_state?: ExtractedField["value_state"]; unit?: string | null; period_end?: string | null; citations?: unknown; confidence?: number } | null;
   const citations = item.citations ?? field?.citations;
   const confidence = typeof item.confidence === "number" ? item.confidence : field?.confidence;
   const reasons = Array.isArray(item.reason_codes) ? (item.reason_codes as string[]) : [];
@@ -85,7 +87,8 @@ export function ReviewItemFields({ item, onOpenSource }: { item: Record<string, 
       </div>
       {field?.field_name && (
         <p>
-          {field.field_name}: <strong>{String(field.value ?? "—")}</strong>
+          {field.field_name}: <strong>{valueLabel(field as ExtractedField)}</strong>
+          {"period_end" in field && <span className="muted"> · {field.period_end ?? "period unspecified"}</span>}
         </p>
       )}
       {reasons.length > 0 && <p className="muted">Flagged: {reasons.map((c) => c.replaceAll("_", " ")).join(", ")}</p>}

@@ -7,10 +7,12 @@ from arp.discovery.change_detector import ChangeDetector
 from arp.discovery.crawler import CrawlConfig, HomepageUnreachableError, crawl_for_documents
 from arp.discovery.downloader import download_documents
 from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient, resolve_company_homepage
+from arp.ingestion.indexing_config import IndexingConfig
 from arp.orchestration.batch_runner import run_batch
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.discovery import DiscoveryCompanyResult, DiscoveryRunParams
+from arp.storage.document_blob_store import blob_store_for
 from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
@@ -43,7 +45,10 @@ async def _discover_for_company(
     if doc_types:
         candidates = [c for c in candidates if c.doc_type in doc_types]
 
-    downloaded = await download_documents(company, candidates, settings.documents_dir, settings.discovery_user_agent)
+    downloaded = await download_documents(
+        company, candidates, settings.documents_dir, settings.discovery_user_agent,
+        store=blob_store_for(IndexingConfig.from_settings(settings)), trigger="discovery",
+    )
     events = await change_detector.diff_and_record(company, downloaded)
 
     return DiscoveryCompanyResult(

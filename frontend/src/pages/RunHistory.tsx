@@ -1,4 +1,4 @@
-import { RUN_TYPE_LABEL, runTypeLabel, when } from "../lib/runs";
+import { isTrialRun, RUN_TYPE_LABEL, runTypeLabel, TRIAL_TITLE, when } from "../lib/runs";
 import { FileLink } from "../components/FileLink";
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
@@ -84,6 +84,7 @@ export function RunHistory({ onOpenReview }: Props = {}) {
                     <td>{runTypeLabel(runType)}</td>
                     <td>
                       <span className={`status-pill status-${r.status}`}>{r.status}</span>
+                      {isTrialRun(r) && <> <span className="badge badge-mid" title={TRIAL_TITLE}>trial</span></>}
                       {r.error && <div className="run-error">{r.error}</div>}
                     </td>
                     <td className="mono">

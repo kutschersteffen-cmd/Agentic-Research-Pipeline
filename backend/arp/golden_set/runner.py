@@ -59,7 +59,7 @@ async def run_golden_set(
             title=case.case_id,
             full_text=case.document_text,
         )
-        extracted, needs_review, _usages = await extract_one_field(
+        extracted_fields, needs_review, _usages = await extract_one_field(
             case.company_name,
             case.field,
             documents=[doc],
@@ -69,6 +69,7 @@ async def run_golden_set(
             fuzzy_threshold=fuzzy_threshold,
             confidence_review_threshold=confidence_review_threshold,
         )
+        extracted = extracted_fields[0]  # latest period
         if extracted.provenance:
             extractor_model = extractor_model or extracted.provenance.extractor_model
             verifier_model = verifier_model or extracted.provenance.verifier_model

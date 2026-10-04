@@ -1,5 +1,5 @@
 from arp.config import Settings
-from arp.extraction.extractor_agent import ExtractionDraft
+from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.pipeline import _extract_company
 from arp.extraction.verifier_agent import VerifierOutput
 from arp.ingestion.base import DocumentSource
@@ -22,6 +22,7 @@ def _settings(tmp_path) -> Settings:
     return Settings(
         anthropic_api_key="unused",
         runs_dir=tmp_path / "runs",
+        schema_registry_dir=tmp_path / "schemas",
         documents_dir=tmp_path / "docs",
         cache_dir=tmp_path / "cache",
         discovery_state_dir=tmp_path / "disc",
@@ -52,9 +53,13 @@ async def test_extract_company_grounded_value_not_flagged(tmp_path, fake_llm):
 
     quote = "invested $120 million in green capex"
     draft = ExtractionDraft(
-        value=120.0,
-        raw_value_text="$120 million in green capex",
-        citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=quote)],
+        values=[PeriodValue(
+            value=120.0,
+            raw_value_text="$120 million in green capex",
+            unit_text="USD million",
+            period_text="fiscal 2025",
+            citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=quote)],
+        )],
         confidence=0.9,
     )
     verifier = VerifierOutput(agrees=True, corrected_value=None, confidence=0.9, notes="Matches the cited text.")
@@ -66,6 +71,7 @@ async def test_extract_company_grounded_value_not_flagged(tmp_path, fake_llm):
     field_result = result.record.fields[0]
     assert field_result.value == 120.0
     assert field_result.grounded is True
+    assert (field_result.canonical_value, field_result.canonical_unit) == (120.0, "USD millions")
     assert result.record.needs_review is False
 
 
@@ -183,7 +189,7 @@ async def test_a_run_counts_the_items_through_each_step(tmp_path, fake_llm):
     companies = [CompanyRef(company_id="c1", name="Acme"), CompanyRef(company_id="c2", name="Shoe Co")]
 
     run_id = await run_extraction(
-        _schema(), companies, llm=llm, registry=DocumentSourceRegistry([_ByCompany()]), settings=settings, run_store=run_store
+        _schema(), companies, llm=llm, registry=DocumentSourceRegistry([_ByCompany()]), settings=settings, run_store=run_store, trial=True
     )
     view, live = step_counts(run_store, run_id)
     assert live is False
@@ -227,7 +233,7 @@ async def test_pipeline_queues_one_row_per_flagged_field(tmp_path, fake_llm):
     )
     settings = _settings(tmp_path)
     run_store = RunStore(settings.runs_dir)
-    run_id = create_extraction_run(schema, [company], settings, run_store)
+    run_id = create_extraction_run(schema, [company], settings, run_store, trial=True)
     await execute_extraction_run(
         run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
         settings=settings, run_store=run_store,
@@ -241,3 +247,139 @@ async def test_pipeline_queues_one_row_per_flagged_field(tmp_path, fake_llm):
     assert rows[0]["issuer_key"] == key and rows[0]["issuer_scheme"] == scheme
     assert rows[0]["field"]["field_id"] == flagged[0] and rows[0]["company_id"] == "c1"
     assert run_store.load_manifest(run_id).review_count == 2
+
+
+async def test_provenance_records_schema_version(tmp_path, fake_llm):
+    from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+    from arp.storage.run_store import RunStore
+
+    doc = SourceDocument(
+        company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG",
+        full_text="In fiscal 2025, we invested $120 million in green capex across our facilities.",
+    )
+    quote = "invested $120 million in green capex"
+    draft = ExtractionDraft(
+        value=120.0, raw_value_text="$120 million",
+        citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=quote)], confidence=0.9,
+    )
+    llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [VerifierOutput(agrees=True, confidence=0.9, notes="ok")]})
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
+    schema = _schema()
+    run_id = create_extraction_run(schema, [company], settings, run_store, trial=True)
+    await execute_extraction_run(
+        run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
+        settings=settings, run_store=run_store,
+    )
+    (row,) = run_store.read_jsonl(run_store.results_path(run_id))
+    prov = row["fields"][0]["provenance"]
+    assert prov["schema_version"] == f"{schema.schema_id}:v1" and prov["field_version"] == 1
+
+
+async def test_zero_and_not_found_end_to_end(tmp_path, fake_llm):
+    from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+    from arp.storage.run_store import RunStore
+
+    def _f(name, kw):
+        return FieldDefinition(
+            name=name, description=name, data_type=FieldDataType.NUMBER, extraction_instructions=name, seed_keywords=[kw]
+        )
+
+    schema = DataPointSchema(name="Two", fields=[_f("spills", "spills"), _f("fines", "fines")])
+    doc = SourceDocument(
+        company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG",
+        full_text="Spills: 0 incidents in FY2024. Regulatory fines are discussed in the legal section.",
+    )
+    company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME", fiscal_year_end="12-31")
+    zero = ExtractionDraft(
+        values=[PeriodValue(
+            value=0, state="zero", raw_value_text="0", period_text="FY2024",
+            citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote="Spills: 0 incidents in FY2024")],
+        )],
+        confidence=0.9,
+    )
+    agree = VerifierOutput(agrees=True, confidence=0.9, notes="ok")
+    llm = fake_llm({"ExtractionDraft": [zero, ExtractionDraft(values=[], confidence=0.9)], "VerifierOutput": [agree, agree]})
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    run_id = create_extraction_run(schema, [company], settings, run_store, trial=True)
+    await execute_extraction_run(
+        run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
+        settings=settings, run_store=run_store,
+    )
+    (row,) = run_store.read_jsonl(run_store.results_path(run_id))
+    assert [(f["value_state"], f["value"]) for f in row["fields"]] == [("zero", 0.0), ("not_found", None)]
+    assert row["fields"][0]["period_end"] == "2024-12-31" and row["fields"][0]["qualifiers"] == []
+    assert row["needs_review"] is False
+
+
+async def test_review_key_uses_period_end(tmp_path, fake_llm):
+    from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+    from arp.storage.run_store import RunStore
+
+    schema = _schema()
+    doc = SourceDocument(
+        company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG",
+        full_text="Green capex was 5 in FY2024 and 4 in some earlier time.",
+    )
+    company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME", fiscal_year_end="12-31")
+
+    def _pv(v, period, quote):
+        return PeriodValue(
+            value=v, raw_value_text=str(v), period_text=period,
+            citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=quote)],
+        )
+
+    draft = ExtractionDraft(
+        values=[_pv(5, "FY2024", "Green capex was 5 in FY2024"), _pv(4, "some earlier time", "4 in some earlier time")],
+        confidence=0.9,
+    )
+    disagree = VerifierOutput(agrees=False, corrected_value=None, confidence=0.9, notes="wrong")
+    llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [disagree, disagree]})
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    run_id = create_extraction_run(schema, [company], settings, run_store, trial=True)
+    await execute_extraction_run(
+        run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
+        settings=settings, run_store=run_store,
+    )
+    rows = run_store.read_jsonl(run_store.review_queue_path(run_id))
+    assert [(r["item_key"].rsplit(":", 1)[1], r["period_end"]) for r in rows] == [
+        ("2024-12-31", "2024-12-31"), ("unspecified", None)
+    ]
+
+
+async def test_field_graph_grounds_only_against_passages_shown_to_the_model(fake_llm, monkeypatch):
+    # The quote is in the document, but in a passage evidence selection did not show the model:
+    # through the real field_graph path it must not ground.
+    from arp.extraction import field_graph
+    from arp.schemas.common import DocumentChunk
+
+    shown_text = "In fiscal 2025, we invested $120 million in green capex."
+    hidden_text = "In fiscal 2024, we invested $999 million in green capex."
+    doc = SourceDocument(company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="r", full_text=f"{shown_text}\n\n{hidden_text}")
+    hidden_start = len(shown_text) + 2
+    chunks = [
+        DocumentChunk(doc_id=doc.doc_id, company_id="c1", doc_type=doc.doc_type, text=shown_text, char_start=0, char_end=len(shown_text)),
+        DocumentChunk(doc_id=doc.doc_id, company_id="c1", doc_type=doc.doc_type, text=hidden_text,
+                      char_start=hidden_start, char_end=len(doc.full_text)),
+    ]
+    monkeypatch.setattr(field_graph, "chunk_document", lambda d, keywords=None: chunks)
+    monkeypatch.setattr(field_graph, "select_relevant_chunks", lambda all_chunks, *a, **k: all_chunks[:1])
+
+    def _value(v, period, quote):
+        return PeriodValue(value=v, raw_value_text=f"${v} million", unit_text="USD million", period_text=period,
+                           citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=quote)])
+
+    draft = ExtractionDraft(values=[_value(120.0, "FY2025", "invested $120 million in green capex"),
+                                    _value(999.0, "FY2024", "invested $999 million in green capex")], confidence=0.9)
+    llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [VerifierOutput(agrees=True, confidence=0.9, notes="")]})
+    fields, _, _ = await field_graph.extract_one_field(
+        "Acme", _schema().fields[0], documents=[doc], documents_by_id={doc.doc_id: doc}, llm=llm,
+        fuzzy_threshold=0.9, confidence_review_threshold=0.6,
+    )
+    by_value = {f.value: f for f in fields}
+    assert by_value[120.0].grounded is True
+    assert by_value[999.0].grounded is False
+    assert by_value[999.0].citations[0].passage_id is None

@@ -248,7 +248,8 @@ class CompanyFactModel(Base):
     row still gets materialized so a caller can see a draft is pending
     review, but should treat its value as provisional), or
     "auto_approved" (never queued for review at all, i.e. implicitly
-    trusted, matching this system's existing behavior).
+    trusted, matching this system's existing behavior). Trial extraction
+    runs (draft schema fields) are not materialized here at all.
 
     `company_id` is a plain String, not an FK to `companies` -- see this
     module's docstring.

@@ -29,6 +29,7 @@ from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema
 from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
+from arp.storage.schema_registry import SchemaRegistry
 from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/extraction", tags=["extraction"])
@@ -49,8 +50,45 @@ async def draft_schema_endpoint(req: DraftSchemaRequest) -> DataPointSchema:
     return schema
 
 
+def _registry_for(settings: Settings = Depends(settings_dep)) -> SchemaRegistry:
+    return SchemaRegistry(settings.schema_registry_dir)
+
+
+@router.post("/schemas", response_model=DataPointSchema)
+def register_schema(
+    schema: DataPointSchema, registry: SchemaRegistry = Depends(_registry_for),
+    principal: Principal = Depends(require_role("analyst")),
+) -> DataPointSchema:
+    return registry.save(schema)
+
+
+@router.get("/schemas")
+def list_schemas(registry: SchemaRegistry = Depends(_registry_for)) -> list[dict]:
+    return registry.list_index()
+
+
+@router.get("/schemas/{schema_id}", response_model=DataPointSchema)
+def get_schema(schema_id: str, version: int | None = None, registry: SchemaRegistry = Depends(_registry_for)) -> DataPointSchema:
+    try:
+        return registry.get(schema_id, version)
+    except KeyError:
+        raise HTTPException(404, "Schema not found") from None
+
+
+@router.post("/schemas/{schema_id}/versions/{version}/release", response_model=DataPointSchema)
+def release_schema(
+    schema_id: str, version: int, registry: SchemaRegistry = Depends(_registry_for),
+    principal: Principal = Depends(require_role("approver")),
+) -> DataPointSchema:
+    try:
+        return registry.release(schema_id, version, released_by=principal.user_id)
+    except KeyError:
+        raise HTTPException(404, "Schema not found") from None
+
+
 class RunRequest(BaseModel):
     datapoint_schema: DataPointSchema
+    trial: bool = Field(default=False, description="Allow a schema with draft fields; the run is marked as a trial.")
     companies: list[CompanyRef] | None = None
     universe_path: str | None = None
     decision_framework_id: str | None = Field(default=None, description="Scoring template to score the results with.")
@@ -77,7 +115,7 @@ async def start_extraction_run(
         )
 
     def _create() -> str:
-        run_id = create_extraction_run(schema, companies, settings, run_store)
+        run_id = create_extraction_run(schema, companies, settings, run_store, trial=req.trial)
         if template is not None:
             attach_to_run(run_store, run_id, template, decision_store.get_audit(template.framework_id, template.version))
         return run_id
@@ -110,6 +148,7 @@ class StartRequest(BaseModel):
     decision_framework_id: str | None = Field(default=None, description="Decision Studio framework applied as the run's last step.")
     decision_framework_version: int | None = None
     step_settings: StepSettings | None = Field(default=None, description="Per-run step settings from the node editor.")
+    trial: bool = Field(default=False, description="custom: allow draft fields; the run is marked as a trial.")
 
 
 @router.post("/start")
@@ -146,7 +185,7 @@ async def _dispatch(req: StartRequest, settings: Settings, run_store: RunStore, 
     if req.profile == "custom":
         if req.datapoint_schema is None:
             raise HTTPException(400, "The custom profile needs `datapoint_schema`.")
-        started, run_type = await start_extraction_run(RunRequest(datapoint_schema=req.datapoint_schema, **common), **stores), "extraction"
+        started, run_type = await start_extraction_run(RunRequest(datapoint_schema=req.datapoint_schema, trial=req.trial, **common), **stores), "extraction"
     elif req.profile == "financials":
         started = await financials.start_financials_extraction_run(financials.RunRequest(**common), **stores, xbrl_source=xbrl_source)
         run_type = "financials"
@@ -259,6 +298,8 @@ async def restart_run(
     if saved is None:
         raise HTTPException(400, "This run was not started from the Extraction screen, so there is nothing to restart it from.")
     original = StartRequest.model_validate_json(saved)
+    if "trial" not in original.model_fields_set:  # saved before the release gate existed: it ran ungated
+        original = original.model_copy(update={"trial": True})
     if req.from_step not in {n["id"] for n in pipeline_shape(original.profile, settings)["nodes"]}:
         raise HTTPException(400, f"`{req.from_step}` is not a step of the {original.profile} pipeline.")
     companies = original.companies or []

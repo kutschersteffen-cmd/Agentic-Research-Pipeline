@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -49,6 +50,9 @@ class CompanyRef(BaseModel):
     isic_code: str | None = Field(
         default=None, description="ISIC Rev.4 industry code, if known (enables indirect/structural exposure scoring)."
     )
+    fiscal_year_end: str | None = Field(
+        default=None, pattern=r"^\d{2}-\d{2}$", description="Fiscal year end as MM-DD, e.g. 04-30."
+    )
 
 
 class SourceDocument(BaseModel):
@@ -62,6 +66,12 @@ class SourceDocument(BaseModel):
     fetched_at: str = Field(default_factory=now_iso)
     full_text: str = Field(repr=False)
     sha256: str | None = None
+    published_at: str | None = None
+    family_id: str | None = None
+    version: int | None = None
+    supersedes: str | None = None
+    content_key: str | None = None
+    parser_version: str | None = None
     page_breaks: list[int] = Field(
         default_factory=list,
         description=(
@@ -101,6 +111,17 @@ class Citation(BaseModel):
         default=None, description="Resolved from the cited SourceDocument by grounding, so a citation is self-contained for building a 'view source' link."
     )
     source_filename: str | None = Field(default=None, description="On-disk filename, resolved by grounding.")
+    content_key: str | None = Field(default=None, description="Content hash of the cited document, set by grounding.")
+    span_text: str | None = Field(default=None, description="Exact source text the quote matched, set by grounding.")
+    char_start: int | None = Field(default=None, description="Start offset of the match in the document text.")
+    char_end: int | None = Field(default=None, description="Exclusive end offset of the match in the document text.")
+    match_method: Literal["exact", "normalised", "fuzzy"] | None = None
+    match_score: float | None = None
+    passage_id: str | None = Field(
+        default=None, description="passage_id of the evidence block the quote was copied from"
+    )
+    table_ref: str | None = None
+    parser_version: str | None = None
 
 
 class ProvenanceInfo(BaseModel):
@@ -119,6 +140,8 @@ class ProvenanceInfo(BaseModel):
     verifier_model: str | None = None
     verifier_prompt_version: str | None = None
     provider: str = ""
+    schema_version: str = ""
+    field_version: int | None = None
 
 
 class RunManifest(BaseModel):

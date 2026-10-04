@@ -179,10 +179,15 @@ async def _document_mgmt(company: CompanyRef, candidates: list[CandidateDocument
     document the company now has on disk."""
     from arp.discovery.change_detector import ChangeDetector
     from arp.discovery.downloader import download_documents
+    from arp.ingestion.indexing_config import IndexingConfig
+    from arp.storage.document_blob_store import blob_store_for
 
     downloaded, changed = [], 0
     if candidates:
-        downloaded = await download_documents(company, candidates, settings.documents_dir, settings.discovery_user_agent)
+        downloaded = await download_documents(
+            company, candidates, settings.documents_dir, settings.discovery_user_agent,
+            store=blob_store_for(IndexingConfig.from_settings(settings)), trigger="extraction_pre_step",
+        )
         detector = ChangeDetector(
             state_dir=settings.discovery_state_dir,
             global_events_path=settings.documents_dir / "_events.jsonl",

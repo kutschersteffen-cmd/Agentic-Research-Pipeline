@@ -26,6 +26,11 @@ export function when(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
+/** An extraction run started on draft schema fields (manifest params.trial): its results are not final. */
+export const isTrialRun = (r: Pick<RunManifest, "params"> | null | undefined): boolean => r?.params?.trial === true;
+
+export const TRIAL_TITLE = "Trial run: the schema had draft fields, so these results are not final.";
+
 export function runTypeLabel(runType: string): string {
   return RUN_TYPE_LABEL[runType] ?? runType.replace(/_/g, " ");
 }

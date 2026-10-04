@@ -32,6 +32,7 @@ def extract_draft_schema(criteria_text: str, out: Path = typer.Option(...)) -> N
 def extract_run(
     schema_file: Path = typer.Option(..., "--schema"),
     universe: Path = typer.Option(...),
+    trial: bool = typer.Option(False, "--trial", help="Allow draft fields; the run is marked as a trial."),
 ) -> None:
     settings = get_settings()
     llm = build_llm_client(settings)
@@ -41,7 +42,7 @@ def extract_run(
     typer.echo(f"Extracting schema '{schema.name}' ({len(schema.fields)} fields) across {len(companies)} companies...")
     run_id = asyncio.run(
         run_extraction(
-            schema, companies, llm=llm, verifier_llm=verifier_llm, registry=_registry(), settings=settings, run_store=_run_store()
+            schema, companies, llm=llm, verifier_llm=verifier_llm, registry=_registry(), settings=settings, run_store=_run_store(), trial=trial
         )
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")

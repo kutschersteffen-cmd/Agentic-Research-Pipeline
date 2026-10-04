@@ -242,6 +242,19 @@ def test_a_changed_value_supersedes_rather_than_overwrites(tmp_path):
     assert current.confidence == 0.95
 
 
+def test_a_trial_run_leaves_the_current_fact_untouched(tmp_path):
+    from arp.storage.postgres_company_facts_projection import materialize_run
+    from arp.storage.postgres_models import CompanyFactModel
+
+    store = _completed_run(tmp_path, rows=[{"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.5}])
+    RunStore.append_jsonl(store.results_path("run_2"), {"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.9})
+    store.save_manifest(RunManifest(run_id="run_2", run_type="extraction", status=JobStatus.COMPLETED, params={"trial": True}))
+
+    assert materialize_run(DSN, store, "run_2") == 0
+    (fact,) = _rows(CompanyFactModel)
+    assert fact.is_current is True and fact.confidence == 0.5 and fact.source_run_id == "run_1"
+
+
 def test_a_reviewed_fact_records_the_decision_and_reviewer(tmp_path):
     from arp.orchestration import review_queue
     from arp.storage.postgres_company_facts_projection import materialize_run

@@ -218,6 +218,9 @@ Notably **no charting library, no CSS framework, no state-management library, no
 
 ```
 data/documents/<company_id>/<doc_type>/*     manual uploads + discovery-crawler downloads
+data/documents/_captures.jsonl, _intake.jsonl  download log; files intake did not accept
+data/blobs/<key[:2]>/<key>                   verified original bytes (blob_store_dir)
+schemas/                                     versioned data-point schemas (schema_registry_dir)
 runs/<run_id>/manifest.json                  run metadata: type, status, cost, progress
 runs/<run_id>/results.jsonl                  per-company results, appended as they complete
 runs/<run_id>/errors.jsonl                   per-company failures, isolated from the batch
@@ -232,6 +235,33 @@ backend/.arp_cache/ (configurable)           SQLite DocumentContentStore — par
                                               cache, document registry, chunk-embeddings cache;
                                               the one non-file-based store in the system
 ```
+
+### Captured originals, intake and schema release
+
+Settings (env prefix `ARP_`, see `backend/arp/config.py`):
+
+| Setting | Default | What it holds |
+|---|---|---|
+| `blob_store_dir` | `data/blobs` (`/app/data/blobs` in Docker, volume `arp_blobs`) | Each collected document's original bytes, at `<dir>/<sha256[:2]>/<sha256>`. Used unless the object store is enabled (`ARP_OBJECT_STORE_LIVE_UPLOAD_ENABLED` plus an endpoint), in which case the bytes go to the bucket instead. |
+| `schema_registry_dir` | `schemas/` | Versioned data-point schemas (`SchemaRegistry`); each extraction run also keeps the exact registered copy as `runs/<run_id>/schema.json`. |
+| `documents_dir` | `data/documents/` | Working copies by `<company_id>/<doc_type>/`, plus two append-only logs at its root. |
+
+- **Store or skip.** A document is collected only once its bytes are stored and read back with a matching sha256 (`upload_or_fail`). A store failure (disk, bucket, hash mismatch) means the document is *not collected* in that fetch and is retried next time; it never enters a run without a verified copy. A file already stored and still present in the store is not re-uploaded or re-read on later fetches. EDGAR filings are re-fetched and re-archived when the registry names a copy that is no longer in the store.
+- **`documents_dir/_captures.jsonl`** — one row per download attempt by the discovery crawler (`CaptureRecord`: URL chain, status, response headers minus cookies, `content_key`, `storage_uri`, rights tag, `fetched_at`, `collected`, `error`). The latest row for a content key supplies the document's `published_at` when its identity is first assigned.
+- **`documents_dir/_intake.jsonl`** — one row per local file intake did *not* accept: `quarantined` (empty, corrupt archive, unreadable PDF, intake error), `ocr_needed` (scanned PDF with no text layer) or `duplicate` (same bytes as another file, `duplicate_of`). These files stay on disk and are skipped by extraction. Accepted files are not logged.
+
+Schema routes (`/api/extraction`):
+
+| Route | Role | Notes |
+|---|---|---|
+| `POST /schemas/draft` | signed in | LLM draft from plain language; nothing is saved. |
+| `POST /schemas` | `analyst` | Saves a new version in the registry (fields start `draft`). |
+| `GET /schemas`, `GET /schemas/{schema_id}?version=` | signed in | Index, and one schema (latest version unless `version`). |
+| `POST /schemas/{schema_id}/versions/{version}/release` | `approver` | Sets the version's release flag, releases its draft fields, and records `released_by` (the approver's user id) and `released_at`. |
+
+**Trial runs.** An extraction run on a schema that is not released (any field still draft, or no release flag) is refused unless it is started as a trial. The Extraction screen sends `trial: true` automatically for an unreleased custom schema and says so before the start; on the CLI pass `arp extraction run --trial`. The flag is stored in the run manifest (`params.trial`); trial results are visible in the run views (a *trial* badge on the run in run lists and on its results) but are not projected to the Postgres company facts, so a trial never replaces a company's current fact. Restarting a custom run saved before this gate existed (its `start_request.json` has no `trial`) runs it as a trial.
+
+**Fiscal year end.** A universe file may carry a `fiscal_year_end` column (`MM-DD`, e.g. `03-31`). Period labels such as `FY2024`, `FY24`, `Fiscal 2024`, `2023/24` or `FY2023-24` resolve to that company's fiscal year (the year it ends in); without the column a calendar year is assumed and the value carries the `fiscal_year_end_assumed` qualifier.
 
 Every write to a shared file-backed record that could race a concurrent batch thread (run manifests, engagement records) goes through `storage/locks.py`'s `KeyedLock` — a per-key reentrant lock, so unrelated runs/companies never block each other but the same key's read-modify-write cycle can't interleave.
 

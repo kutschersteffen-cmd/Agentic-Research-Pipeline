@@ -22,22 +22,48 @@ CREATE TABLE IF NOT EXISTS documents (
     source_url     TEXT,
     storage_uri    TEXT,
     first_seen_at  TEXT NOT NULL,
-    last_seen_at   TEXT NOT NULL
+    last_seen_at   TEXT NOT NULL,
+    family_id      TEXT,
+    version        INTEGER,
+    supersedes     TEXT,
+    published_at   TEXT,
+    identity_confidence REAL,
+    identity_review INTEGER
 );
 CREATE INDEX IF NOT EXISTS ix_documents_company ON documents (company_id, doc_type);
 CREATE INDEX IF NOT EXISTS ix_documents_content ON documents (content_key);
 """
 
 
-def ensure_storage_uri_column(conn: sqlite3.Connection) -> None:
-    """Additive migration for databases created before storage_uri existed
-    -- `CREATE TABLE IF NOT EXISTS` in SCHEMA above only covers a fresh
-    database, so an existing `documents` table needs this explicit
-    ALTER TABLE instead. Idempotent: a no-op once the column exists."""
+_COLS = (
+    "doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri, "
+    "first_seen_at, last_seen_at, family_id, version, supersedes, published_at, "
+    "identity_confidence, identity_review"
+)
+_ADDED_COLUMNS = (
+    ("storage_uri", "TEXT"),
+    ("family_id", "TEXT"),
+    ("version", "INTEGER"),
+    ("supersedes", "TEXT"),
+    ("published_at", "TEXT"),
+    ("identity_confidence", "REAL"),
+    ("identity_review", "INTEGER"),
+)
+
+
+def ensure_columns(conn: sqlite3.Connection) -> None:
+    """Additive migration for databases created before a column existed --
+    `CREATE TABLE IF NOT EXISTS` in SCHEMA above only covers a fresh
+    database. Idempotent: adds only what is missing (old rows get NULL)."""
     cols = {row[1] for row in conn.execute("PRAGMA table_info(documents)").fetchall()}
-    if "storage_uri" not in cols:
-        conn.execute("ALTER TABLE documents ADD COLUMN storage_uri TEXT")
-        conn.commit()
+    for name, sql_type in _ADDED_COLUMNS:
+        if name not in cols:
+            conn.execute(f"ALTER TABLE documents ADD COLUMN {name} {sql_type}")
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_documents_family ON documents (family_id)")
+    conn.commit()
+
+
+ensure_storage_uri_column = ensure_columns  # old name, still referenced by tests
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +87,12 @@ class StoredDocumentRef:
     storage_uri: str | None = None
     first_seen_at: str | None = None
     last_seen_at: str | None = None
+    family_id: str | None = None
+    version: int | None = None
+    supersedes: str | None = None
+    published_at: str | None = None
+    identity_confidence: float | None = None
+    identity_review: int | None = None
 
 
 def derive_doc_id(company_id: str, doc_type: str, content_key: str) -> str:
@@ -159,7 +191,8 @@ class DocumentRegistry:
         try:
             row = conn.execute(
                 "SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri, "
-                "first_seen_at, last_seen_at "
+                "first_seen_at, last_seen_at, family_id, version, supersedes, published_at, "
+                "identity_confidence, identity_review "
                 "FROM documents WHERE doc_id=?",
                 (doc_id,),
             ).fetchone()
@@ -183,6 +216,42 @@ class DocumentRegistry:
         finally:
             conn.close()
 
+    def set_identity(
+        self,
+        doc_id: str,
+        *,
+        family_id: str,
+        version: int,
+        supersedes: str | None,
+        published_at: str | None,
+        confidence: float,
+        needs_review: bool,
+    ) -> None:
+        if not self.enabled:
+            return
+        conn = self._connect()
+        try:
+            conn.execute(
+                "UPDATE documents SET family_id=?, version=?, supersedes=?, published_at=?, "
+                "identity_confidence=?, identity_review=? WHERE doc_id=?",
+                (family_id, version, supersedes, published_at, confidence, int(needs_review), doc_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def list_family(self, family_id: str) -> list[StoredDocumentRef]:
+        if not self.enabled:
+            return []
+        conn = self._connect()
+        try:
+            rows = conn.execute(
+                f"SELECT {_COLS} FROM documents WHERE family_id=? ORDER BY version, doc_id", (family_id,)
+            ).fetchall()
+            return [StoredDocumentRef(*row) for row in rows]
+        finally:
+            conn.close()
+
     def list_by_content_keys(self, content_keys: list[str]) -> dict[str, StoredDocumentRef]:
         """Batch lookup for enriching a page of parsed_content rows with
         company_id/doc_type/title/local_path in one query instead of N --
@@ -200,7 +269,8 @@ class DocumentRegistry:
             placeholders = ",".join("?" for _ in content_keys)
             rows = conn.execute(
                 f"SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri, "
-                "first_seen_at, last_seen_at "
+                "first_seen_at, last_seen_at, family_id, version, supersedes, published_at, "
+                "identity_confidence, identity_review "
                 f"FROM documents WHERE content_key IN ({placeholders})",
                 content_keys,
             ).fetchall()
@@ -218,7 +288,8 @@ class DocumentRegistry:
         try:
             rows = conn.execute(
                 "SELECT doc_id, company_id, doc_type, content_key, title, local_path, source_url, storage_uri, "
-                "first_seen_at, last_seen_at "
+                "first_seen_at, last_seen_at, family_id, version, supersedes, published_at, "
+                "identity_confidence, identity_review "
                 "FROM documents ORDER BY doc_id"
             ).fetchall()
             return [StoredDocumentRef(*row) for row in rows]
