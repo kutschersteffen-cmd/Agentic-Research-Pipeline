@@ -2,6 +2,7 @@ from arp.checks import runner
 from arp.checks.cross_source import Reference, check_cross_source
 from arp.checks.runner import CheckContext, run_checks
 from arp.extraction.pipeline import build_references
+from arp.ingestion.xbrl import CompanyFactsSource
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import CheckConfig, DataPointSchema, ExtractedField, FieldDefinition
 
@@ -77,8 +78,9 @@ FACTS = {"facts": {"us-gaap": {"Revenues": {"units": {"USD": [
 ]}}}}}
 
 
-def _build(fields, specs, **kw):
-    args = dict(xbrl_facts=FACTS, cik="1", history=_History(), published={}, company_id="c1", issuer_key=IK, specs=specs)
+def _build(fields, specs, xbrl_facts=FACTS, **kw):
+    facts = CompanyFactsSource(xbrl_facts, "1") if xbrl_facts else None
+    args = dict(facts=facts, history=_History(), published={}, company_id="c1", issuer_key=IK, specs=specs)
     return build_references(fields, **{**args, **kw})
 
 

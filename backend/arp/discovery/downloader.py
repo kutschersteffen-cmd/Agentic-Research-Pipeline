@@ -41,6 +41,9 @@ _EXT_BY_CONTENT_TYPE = {
     "application/pdf": ".pdf",
     "text/html": ".html",
     "text/plain": ".txt",
+    "application/xhtml+xml": ".xhtml",
+    "application/zip": ".zip",
+    "application/x-zip-compressed": ".zip",
 }
 
 
@@ -115,7 +118,7 @@ async def download_documents(
             ext = _EXT_BY_CONTENT_TYPE.get(content_type)
             if ext is None:
                 url_ext = Path(urlparse(candidate.url).path).suffix.lower()
-                ext = url_ext if url_ext in (".pdf", ".html", ".htm", ".txt") else ".html"
+                ext = url_ext if url_ext in (".pdf", ".html", ".htm", ".txt", ".xhtml", ".zip") else ".html"
 
             dest_dir = documents_dir / safe_company_id / candidate.doc_type.value
             dest_dir.mkdir(parents=True, exist_ok=True)

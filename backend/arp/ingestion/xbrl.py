@@ -5,6 +5,7 @@ import logging
 import time
 from datetime import date
 from pathlib import Path
+from typing import Protocol
 
 import httpx
 from pydantic import BaseModel, Field
@@ -69,8 +70,15 @@ class XbrlFact(BaseModel):
     accession: str | None = None
     period_start: str | None = None
     period_end: str | None = None
+    cik: str | None = None  # set by CompanyFactsSource, so the fact can cite itself
 
-    def as_citation(self, cik: str) -> Citation:
+    def reported(self) -> tuple[float, str, str, str]:
+        """(value, raw text, unit text, decimal mark) to type the value from: plain digits and a
+        stated decimal point, the number as tagged, never a locale guess."""
+        return self.value, str(int(self.value)) if self.value.is_integer() else repr(self.value), self.unit, "point"
+
+    def as_citation(self, cik: str | None = None) -> Citation:
+        cik = cik or self.cik
         # The period's own end, not companyfacts' `fy` (the filing's year, which also
         # labels the comparatives a filing repeats); fractions (EPS, ratios) as tagged.
         value = f"{self.value:,.0f}" if self.value.is_integer() else f"{self.value:,}"
@@ -93,6 +101,34 @@ class XbrlFact(BaseModel):
             company_id=None,
             source_filename=None,
         )
+
+
+class FactSource(Protocol):
+    """Tagged facts for one company (E29): the SEC companyfacts JSON or an ESEF filing.
+    The returned fact cites itself (`fact.as_citation()`)."""
+
+    def fact_for_tags(self, tags: list[str], *, fiscal_year: int) -> XbrlFact | None: ...
+
+
+class CompanyFactsSource:
+    """FactSource over SEC's companyfacts JSON for one CIK."""
+
+    def __init__(self, facts_json: dict, cik: str) -> None:
+        self.facts_json, self.cik = facts_json, cik
+
+    def fact_for_tags(self, tags: list[str], *, fiscal_year: int) -> XbrlFact | None:
+        fact = XbrlFactSource.fact_for_tags(self.facts_json, tags, fiscal_year=fiscal_year)
+        return fact.model_copy(update={"cik": self.cik}) if fact else None
+
+
+class ChainedFactSource:
+    """The first source, in order, that has a fact for the tags and year."""
+
+    def __init__(self, sources: list[FactSource]) -> None:
+        self.sources = sources
+
+    def fact_for_tags(self, tags: list[str], *, fiscal_year: int) -> XbrlFact | None:
+        return next((f for s in self.sources if (f := s.fact_for_tags(tags, fiscal_year=fiscal_year))), None)
 
 
 class CompanyXbrlFacts(BaseModel):

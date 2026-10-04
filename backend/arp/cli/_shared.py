@@ -7,6 +7,7 @@ import typer
 from arp.api.auth import Principal, load_users
 from arp.config import Settings, get_settings
 from arp.ingestion.edgar import EdgarDocumentSource
+from arp.ingestion.esef import EsefDocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -66,6 +67,8 @@ def _registry() -> DocumentSourceRegistry:
                 submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
                 indexing_config=indexing_config,
             ),
+            *([EsefDocumentSource(settings.esef_index_url, settings.cache_dir, content_store=_document_content_store(),
+                                  indexing_config=indexing_config)] if settings.esef_enabled else []),
         ]
     )
 

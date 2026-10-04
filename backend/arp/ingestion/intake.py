@@ -11,7 +11,7 @@ from arp.storage.locks import KeyedLock
 INTAKE_LOG = "_intake.jsonl"
 MIN_TEXT_CHARS_PER_PAGE = 25
 TEXT_CHECK_PAGES = 5
-_ZIP_SUFFIXES = {".xlsx", ".xlsm", ".docx"}
+_ZIP_SUFFIXES = {".xlsx", ".xlsm", ".docx", ".zip"}
 
 _intake_locks = KeyedLock(lock_path=lambda log: Path(log + ".lock"))
 

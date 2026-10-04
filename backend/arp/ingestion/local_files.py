@@ -10,6 +10,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
+from arp.ingestion import esef
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.doc_identity import CORRECTION_MARKERS, assign_identity, published_at_for
 from arp.ingestion.html_text import extract_html_text
@@ -224,6 +225,8 @@ def parse_file_to_text_with_pages(path: Path) -> tuple[str, list[int], list[Tabl
         return _extract_pdf_text(path)
     if suffix in _HTML_SUFFIXES:
         return _extract_html_text(path), [], []
+    if suffix in esef.ESEF_SUFFIXES:  # iXBRL text with the same offsets the tagged facts cite
+        return esef.parse_file(path)[0], [], []
     if suffix in _TEXT_SUFFIXES:
         return path.read_text(errors="ignore"), [], []
     if suffix in _XLSX_SUFFIXES:

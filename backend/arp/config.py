@@ -176,6 +176,12 @@ class Settings(BaseSettings):
         "descriptions still always go through the LLM pipeline -- XBRL tagging isn't standardized enough for those.",
     )
     xbrl_facts_ttl_hours: float = Field(default=24.0 * 7, description="companyfacts cache TTL -- lower churn than the filings-list cache.")
+    esef_enabled: bool = Field(
+        default=False,
+        description="Fetch the latest ESEF (European iXBRL) annual report of each company with an LEI from esef_index_url. "
+        "Off by default: a network source. ESEF files already on disk (.xhtml, .zip) are read either way.",
+    )
+    esef_index_url: str = Field(default="https://filings.xbrl.org", description="filings.xbrl.org-style ESEF filing index.")
 
     # Indirect (input-output) exposure tier. Off by default -- requires an
     # ICIO-format industry x industry matrix; see docs/METHODOLOGY.md.
