@@ -22,6 +22,7 @@ from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.portfolio.monitoring.scheduler import PortfolioMonitoringScheduler
 from arp.projects.store import ProjectStore
 from arp.publish.facts import PublishStore
+from arp.publish.scheduler import PublishingScheduler
 from arp.reporting.scheduler import ReportScheduler
 from arp.stewardship.process import StreamStore
 from arp.storage.decision_store import DecisionStore
@@ -221,6 +222,11 @@ def get_calibration_scheduler() -> CalibrationAgentScheduler:
 @lru_cache
 def get_portfolio_monitoring_scheduler() -> PortfolioMonitoringScheduler:
     return PortfolioMonitoringScheduler(get_settings(), get_portfolio_store())
+
+
+@lru_cache
+def get_publishing_scheduler() -> PublishingScheduler:
+    return PublishingScheduler(get_settings(), get_portfolio_store(), get_run_store())
 
 
 @lru_cache

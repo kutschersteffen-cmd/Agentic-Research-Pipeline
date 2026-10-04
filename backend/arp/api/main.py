@@ -13,6 +13,7 @@ from arp.api.deps import (
     get_calibration_scheduler,
     get_emerging_themes_scheduler,
     get_portfolio_monitoring_scheduler,
+    get_publishing_scheduler,
     get_report_scheduler,
     get_scheduler,
     get_taxonomy_researcher_scheduler,
@@ -69,12 +70,14 @@ async def lifespan(app: FastAPI):
     emerging_themes_scheduler = get_emerging_themes_scheduler()
     portfolio_monitoring_scheduler = get_portfolio_monitoring_scheduler()
     report_scheduler = get_report_scheduler()
+    publishing_scheduler = get_publishing_scheduler()
     scheduler.start()
     taxonomy_researcher_scheduler.start()
     calibration_scheduler.start()
     emerging_themes_scheduler.start()
     portfolio_monitoring_scheduler.start()
     report_scheduler.start()
+    publishing_scheduler.start()
     try:
         yield
     finally:
@@ -84,6 +87,7 @@ async def lifespan(app: FastAPI):
         emerging_themes_scheduler.shutdown()
         portfolio_monitoring_scheduler.shutdown()
         report_scheduler.shutdown()
+        publishing_scheduler.shutdown()
 
 
 app = FastAPI(title="Agentic Research Pipeline", version="0.1.0", lifespan=lifespan)

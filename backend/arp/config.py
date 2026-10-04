@@ -76,6 +76,10 @@ class Settings(BaseSettings):
     holdings_api_url: str | None = None  # base URL of the ARP instance snapshots are pulled from
     holdings_api_token: str | None = None
     holdings_pull_day: int = Field(default=2, ge=1, le=28)
+    publishing_schedule_enabled: bool = Field(default=False)  # daily re-ground sample, pull, snapshot, corrections
+    publish_state_dir: Path = REPO_ROOT / "data" / "publish"
+    reground_sample_size: int = Field(default=20, ge=0)
+    snapshot_day: int = Field(default=1, ge=1, le=10)  # n-th business day of the month the snapshot is built
     max_upload_bytes: int = Field(default=100_000_000, description="Largest manual document upload accepted, in bytes.")
     cache_dir: Path = Field(default=REPO_ROOT / "backend" / ".cache")
     document_store_dir: Path = Field(
