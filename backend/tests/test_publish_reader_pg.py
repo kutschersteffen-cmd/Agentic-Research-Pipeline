@@ -85,3 +85,44 @@ def test_events_written_with_release_and_withdrawal_pg(store):
     assert [e.event_type for e in events_since(store, T2)] == ["withdrawn", "restored"]
     assert [e.event_id for e in read_events(store, after_id=events[1].event_id)] == [e.event_id for e in events[2:]]
     assert len(read_events(store, limit=1)) == 1
+
+
+def test_event_ids_follow_commit_order_pg(store):
+    """A publish holding its events uncommitted blocks the next one, so a cursor never skips an id."""
+    import threading
+
+    from sqlalchemy.orm import Session
+
+    flushed, go = threading.Event(), threading.Event()
+    local = threading.local()
+
+    class Slow(Session):
+        def commit(self):
+            if getattr(local, "slow", False):
+                self.flush()  # event id assigned, not yet visible
+                flushed.set()
+                assert go.wait(10)
+            super().commit()
+
+    store.session = lambda: Slow(store.engine)
+
+    def a():
+        local.slow = True
+        _publish(store, "rel_a", 1, T1, issuer="A")
+
+    ta = threading.Thread(target=a)
+    ta.start()
+    assert flushed.wait(10)
+    tb = threading.Thread(target=lambda: _publish(store, "rel_b", 2, T2, issuer="B"))
+    tb.start()
+    tb.join(0.5)
+    assert tb.is_alive()  # B waits for A's commit
+    assert read_events(store) == []
+    go.set()
+    ta.join(10)
+    tb.join(10)
+    events = read_events(store)
+    assert [e.release_id for e in events] == ["rel_a", "rel_b"]
+    ids = [e.event_id for e in events]
+    assert ids == list(range(ids[0], ids[0] + 2))
+    assert [e.release_id for e in read_events(store, after_id=ids[0])] == ["rel_b"]

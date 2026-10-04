@@ -49,7 +49,19 @@ def test_as_of_bound_normalises_offset():
     assert as_of_bound("2026-10-31") == "2026-10-31T23:59:59.999999+00:00"
 
 
-@pytest.mark.parametrize("bad", ["", "yesterday", "2026-13-01", None])
+@pytest.mark.parametrize("bad", ["", "yesterday", "2026-13-01", None, "20261031", "0001-01-01T00:00:00+05:00", "9999-12-31T23:59:59-05:00"])
 def test_bad_as_of_is_value_error(bad):
     with pytest.raises(ValueError, match="bad as_of"):
         as_of_bound(bad)
+
+
+def test_as_of_equal_to_valid_from_is_visible_and_equal_to_valid_to_is_not():
+    f = _v1("2026-10-01T09:00:00.000000+00:00", "2026-10-02T09:00:00.000000+00:00")
+    assert visible([f], "2026-10-01T09:00:00.000000+00:00") == [f]
+    assert visible([f], "2026-10-02T09:00:00.000000+00:00") == []
+
+
+def test_highest_version_wins_when_two_are_visible():
+    v1 = _v1("2026-10-01T09:00:00.000000+00:00")
+    v2 = plan_version(v1, _cand(2), release_id="rel_2", now="2026-10-02T09:00:00.000000+00:00").fact
+    assert visible([v2, v1], "2026-10-31") == [v2]

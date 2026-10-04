@@ -119,6 +119,9 @@ class FactEvent(BaseModel):
     at: str
 
 
+EVENT_LOCK = 7600076  # advisory-lock key serialising outbox writes
+
+
 class ConcurrentPublish(RuntimeError):
     """Another publish changed a fact first."""
 
@@ -199,10 +202,14 @@ class PublishStore:
             raise ConcurrentPublish(f"fact {fact.fact_id} was already closed")
 
     def _commit(self, s, events: list[FactEvent]) -> None:
+        from sqlalchemy import func, select
         from sqlalchemy.exc import IntegrityError
 
         from arp.storage.postgres_models import FactEventModel
 
+        # One global lock held to commit: event ids are then assigned in commit order, so a
+        # consumer's `event_id` cursor can never skip an event that commits late.
+        s.execute(select(func.pg_advisory_xact_lock(EVENT_LOCK)))
         s.add_all(FactEventModel(**e.model_dump(exclude={"event_id"})) for e in events)
         try:
             s.commit()

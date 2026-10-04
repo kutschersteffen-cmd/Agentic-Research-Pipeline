@@ -4,7 +4,10 @@ A fact is visible as of `b` when `valid_from <= b` and it was not closed by then
 null or `> b`). `valid_from` is the publication time, so a fact published after the as-of point
 is never shown. All timestamps are fixed-width UTC strings, so string comparison orders them.
 
-Outbox events (`fact_events`, ordered by `event_id`):
+`valid_from` and `valid_to` come from the publisher's clock (`ts_now`), not the reader's.
+
+Outbox events (`fact_events`, ordered by `event_id`). `read_events` by id is the delivery cursor
+(ids follow commit order, see `PublishStore._commit`); `events_since` is only a time filter:
 - `published` / `restated`: a new fact version; `release_id` is the publishing release.
 - `withdrawn`: the closed fact; `release_id` is the release being withdrawn.
 - `restored`: the copy of an earlier value that becomes current again; `release_id` is the
@@ -22,15 +25,18 @@ from arp.publish.facts import _fact as _fact_from_row
 
 
 def as_of_bound(as_of: str) -> str:
+    """A date `YYYY-MM-DD` (end of that day, UTC) or an ISO datetime (naive means UTC)."""
     try:
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}", as_of):
             return f"{date.fromisoformat(as_of).isoformat()}T23:59:59.999999+00:00"
+        if not re.match(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}", as_of):
+            raise ValueError(as_of)
         dt = datetime.fromisoformat(as_of)
-    except (ValueError, TypeError):
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        return dt.astimezone(UTC).isoformat(timespec="microseconds")
+    except (ValueError, TypeError, OverflowError):
         raise ValueError(f"bad as_of: {as_of!r}") from None
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
-    return dt.astimezone(UTC).isoformat(timespec="microseconds")
 
 
 def visible(facts: Iterable[Fact], as_of: str) -> list[Fact]:
