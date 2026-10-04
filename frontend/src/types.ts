@@ -218,6 +218,9 @@ export interface ExtractedField {
   confidence: number;
   grounded: boolean;
   verifier_notes?: string | null;
+  extractor_confidence?: number | null;
+  verifier_confidence?: number | null;
+  alternatives?: { value: unknown; raw_value_text: string | null; source: string; citations: Citation[] }[];
   conflicting_sources: boolean;
   value_state?: "found" | "not_found" | "not_applicable" | "zero";
   unit?: string | null;
@@ -401,15 +404,91 @@ export interface TransitionPlanAssessmentRecord {
 
 export interface ReviewDecision {
   item_key: string;
-  decision: "approve" | "edit" | "reject";
+  decision: "approve" | "edit" | "correct" | "reject" | "escalate";
   reviewer?: string | null;
   user_id?: string | null;
   role?: string | null;
+  reason_code?: string | null;
+  corrected_value?: { value?: unknown } | null;
+  correction_citation?: Citation | null;
+  snapshot_id?: string | null;
+  step?: string | null;
+  /** Set by the server on the review workbench: this decision is the signed-in person's. */
+  mine?: boolean;
   /** Extraction only: an `edit` counts once a second approver co-signs it. */
   cosigned?: boolean;
   edited_value?: { value?: unknown } | null;
   comment?: string | null;
   decided_at: string;
+}
+
+export type ReviewItemKind = "value" | "sector_code" | "identity" | "quarantined_document" | "restatement_candidate" | "other";
+export type ItemState = "pending" | "first_done" | "second_done" | "disagreed" | "final";
+
+export interface ReviewItem {
+  item_key: string;
+  kind: ReviewItemKind;
+  run_id: string;
+  run_type: ReviewableRunKind;
+  payload: Record<string, unknown>;
+  state: ItemState;
+  escalated: boolean;
+  high_risk: boolean;
+  decision: ReviewDecision | null;
+}
+
+export interface EvidenceSpan {
+  doc_id: string;
+  doc_type: string;
+  title: string | null;
+  company_id: string | null;
+  source_filename: string | null;
+  page: number | null;
+  quote: string;
+  char_start: number;
+  char_end: number;
+  page_start: number | null;
+  page_text: string | null;
+}
+
+export interface ItemSource {
+  doc_id: string;
+  doc_type: string;
+  title: string | null;
+  company_id: string | null;
+  source_filename: string | null;
+  page: number;
+  pages: number;
+  page_start: number;
+  page_text: string;
+}
+
+export interface ItemContext {
+  item: ReviewItem;
+  field_definition: Record<string, unknown> | null;
+  value: ExtractedField | null;
+  evidence: EvidenceSpan[];
+  documents: { doc_id: string; doc_type: string; title: string; pages?: number }[];
+  failed_checks: { check_id: string; severity: string; plain: string; detail: string }[];
+  route_reasons: string[];
+  conflict: { conflicting_sources: boolean; alternatives: { value: unknown; raw_value_text: string | null; source: string; citations: Citation[] }[] } | null;
+  prior_period: { value: unknown; period_end: string } | null;
+  published: { value: unknown; run_id: string; decided_by: string } | null;
+  confidence: { final: number; extractor: number | null; verifier: number | null; grounded: boolean; match_methods: string[]; auto_accept_min: number | null } | null;
+  state: ItemState;
+  escalated: boolean;
+  decisions: ReviewDecision[];
+  blind: boolean;
+  etag: string;
+}
+
+export interface ItemDecisionBody {
+  decision: "approve" | "correct" | "reject" | "escalate";
+  reason_code: string;
+  corrected_value: Record<string, unknown> | null;
+  correction_citation: { doc_id: string; doc_type: string; quote: string } | null;
+  comment: string | null;
+  context_etag: string;
 }
 
 /** One flagged extraction field in the review queue (old runs: one row per company). */

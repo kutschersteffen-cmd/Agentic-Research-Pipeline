@@ -86,6 +86,7 @@ import type {
   TransitionPlanIndicatorDef,
   TrendPoint,
 } from "../types";
+import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, ReviewItem } from "../types";
 import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
 import type { BIChartPlan, BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
@@ -202,6 +203,22 @@ export async function openFile(url: string, fallbackName: string): Promise<void>
 }
 
 export const api = {
+  listReviewItems: (runId?: string) =>
+    request<{ items: ReviewItem[] }>(`/api/review/items${runId ? `?run_id=${encodeURIComponent(runId)}` : ""}`),
+  getItemContext: (runId: string, itemKey: string) =>
+    request<ItemContext>(`/api/review/runs/${encodeURIComponent(runId)}/items/${encodeURIComponent(itemKey)}/context`),
+  getItemSource: (runId: string, itemKey: string, docId: string, page: number) =>
+    request<ItemSource>(
+      `/api/review/runs/${encodeURIComponent(runId)}/items/${encodeURIComponent(itemKey)}/source?doc_id=${encodeURIComponent(docId)}&page=${page}`,
+    ),
+  decideItem: (runId: string, itemKey: string, body: ItemDecisionBody) =>
+    request<{ state: ItemState; snapshot_id: string; second_reasons: string[] }>(
+      `/api/review/runs/${encodeURIComponent(runId)}/items/${encodeURIComponent(itemKey)}/decision`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  getSnapshot: (runId: string, snapshotId: string) =>
+    request<Record<string, unknown>>(`/api/review/runs/${encodeURIComponent(runId)}/snapshots/${encodeURIComponent(snapshotId)}`),
+
   base: API_BASE,
 
   getMe: () => request<Me>("/api/me"),

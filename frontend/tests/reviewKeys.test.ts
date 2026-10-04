@@ -41,3 +41,27 @@ test("flaggedReasons merges review and route reasons once each, in order", () =>
   );
   assert.deepEqual(flaggedReasons({}), []);
 });
+
+import { decideBlock, decisionChoices, needsCitation } from "../src/lib/reviewKeys.ts";
+
+test("decisionChoices and needsCitation by kind", () => {
+  assert.ok(!decisionChoices("quarantined_document").includes("correct"));
+  assert.deepEqual(decisionChoices("other"), []);
+  assert.equal(decisionChoices("value").length, 4);
+  assert.equal(needsCitation("identity"), false);
+  assert.equal(needsCitation("value"), true);
+});
+
+test("decideBlock", () => {
+  const analyst = { user_id: "u", name: "n", role: "analyst" as const };
+  const approver = { ...analyst, role: "approver" as const };
+  const base = { state: "pending" as const, escalated: false, decision: null };
+  assert.equal(decideBlock(base, null), "Sign in as an analyst or approver to decide.");
+  assert.equal(decideBlock(base, { ...analyst, role: "viewer" }), "Sign in as an analyst or approver to decide.");
+  const dec = (mine: boolean) => ({ item_key: "k", decision: "approve" as const, decided_at: "", mine });
+  assert.equal(decideBlock({ ...base, state: "first_done", decision: dec(true) }, analyst), "Waiting for a second reviewer.");
+  assert.equal(decideBlock({ ...base, state: "first_done", decision: dec(false) }, analyst), null);
+  assert.equal(decideBlock({ ...base, state: "disagreed" }, analyst), "Reviewers disagree; an approver decides.");
+  assert.equal(decideBlock({ ...base, state: "disagreed" }, approver), null);
+  assert.equal(decideBlock({ ...base, escalated: true }, analyst), "Escalated; an approver decides.");
+});

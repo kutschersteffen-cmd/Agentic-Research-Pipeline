@@ -312,3 +312,9 @@ test("restarts while stale are remembered as fresh; new staleness resets them", 
   assert.deepEqual(run(s, { type: "jobsChanged", jobIds: ["tnfd"] }).freshJobs, []);
   assert.deepEqual(run(initialFlow, ...twoRuns, { type: "extractRestarted", job: "tnfd", runId: "r9" }).freshJobs, []);
 });
+
+test("correct reads like edit", () => {
+  const d = { item_key: "k", decision: "correct", corrected_value: { value: 5 }, decided_at: "" } as ReviewDecision;
+  assert.equal(editedText(d), "5");
+  assert.equal(reviewCounts(0, [d], 0).edited, 1);
+});

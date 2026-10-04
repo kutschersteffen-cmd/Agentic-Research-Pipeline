@@ -1,3 +1,5 @@
+import type { ItemDecisionBody, ReviewDecision, ReviewItem, ReviewItemKind } from "../types";
+
 export interface Me {
   user_id: string;
   name: string;
@@ -26,3 +28,32 @@ export function canCosign(
 export const flaggedReasons = (item: { reason_codes?: unknown; route_reasons?: unknown }): string[] => [
   ...new Set([item.reason_codes, item.route_reasons].flatMap((v) => (Array.isArray(v) ? (v as string[]) : []))),
 ];
+
+export const ITEM_KIND_LABEL: Record<ReviewItemKind, string> = {
+  value: "Value",
+  sector_code: "Sector code",
+  identity: "Identity",
+  quarantined_document: "Held document",
+  restatement_candidate: "Restatement",
+  other: "Other",
+};
+
+export const DECISION_REASONS = [
+  "confirmed", "wrong_value", "wrong_unit_or_scale", "wrong_period", "wrong_entity", "not_disclosed", "bad_source", "needs_expert", "other",
+] as const;
+
+export const decisionChoices = (kind: ReviewItemKind): ItemDecisionBody["decision"][] =>
+  kind === "quarantined_document" ? ["approve", "reject", "escalate"]
+  : kind === "other" ? []
+  : ["approve", "correct", "reject", "escalate"];
+
+export const needsCitation = (kind: ReviewItemKind): boolean => kind === "value" || kind === "restatement_candidate";
+
+/** Why the signed-in person cannot decide this item, or null. */
+export function decideBlock(item: Pick<ReviewItem, "state" | "escalated"> & { decision: Pick<ReviewDecision, "mine"> | null }, me: Me | null): string | null {
+  if (!me || me.role === "viewer") return "Sign in as an analyst or approver to decide.";
+  if (item.state === "first_done" && item.decision?.mine) return "Waiting for a second reviewer.";
+  if (item.state === "disagreed" && me.role !== "approver") return "Reviewers disagree; an approver decides.";
+  if (item.escalated && me.role !== "approver") return "Escalated; an approver decides.";
+  return null;
+}
