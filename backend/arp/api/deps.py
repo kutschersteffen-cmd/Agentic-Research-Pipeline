@@ -41,7 +41,6 @@ from arp.storage.reporting_store import ReportingStore
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
-from arp.voting.ballot_casting import BallotPlatform, ManualInstructionBallotPlatform
 
 if TYPE_CHECKING:
     from opensearchpy import OpenSearch
@@ -254,11 +253,6 @@ def get_engagement_store() -> EngagementStore:
 @lru_cache
 def get_stream_store() -> StreamStore:
     return StreamStore(get_settings().stewardship_streams_dir)
-
-
-@lru_cache
-def get_ballot_platform() -> BallotPlatform:
-    return ManualInstructionBallotPlatform(get_settings().ballots_dir)
 
 
 @lru_cache

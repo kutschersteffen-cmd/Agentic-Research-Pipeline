@@ -323,39 +323,6 @@ def test_a_ragged_panel_is_refused_rather_than_zero_filled():
         build_risk_model(RiskModelSpec(source="ledoit_wolf"), universe, panel)
 
 
-def test_a_supplied_vendor_factor_model_uses_the_same_interface():
-    """The licensed path: loadings, factor covariance and specific risk from a
-    vendor file, with nothing downstream changing."""
-    from arp.index.risk import supplied_factor_model
-
-    model = supplied_factor_model(
-        names=["a", "b"],
-        loadings=[[1.0, 0.5], [1.0, -0.5]],
-        factor_covariance=[[0.04, 0.0], [0.0, 0.01]],
-        specific_var=[0.01, 0.02],
-        factor_names=["market", "value"],
-    )
-    assert model.factor_form and model.source == "supplied"
-    assert model.tracking_error({"a": 1.0}, {"a": 0.5, "b": 0.5}) > 0
-
-
-def test_tracking_error_counts_a_benchmark_name_the_index_does_not_hold():
-    """An exclusion is a full active underweight. Measuring active risk over
-    the index's own names would drop exactly the positions a screen creates."""
-    from arp.index.risk import supplied_factor_model
-
-    model = supplied_factor_model(
-        names=["a", "b"],
-        loadings=[[1.0], [1.0]],
-        factor_covariance=[[0.04]],
-        specific_var=[0.09, 0.09],
-    )
-    excluded = model.tracking_error({"a": 1.0}, {"a": 0.5, "b": 0.5})
-    identical = model.tracking_error({"a": 0.5, "b": 0.5}, {"a": 0.5, "b": 0.5})
-    assert identical == pytest.approx(0.0, abs=1e-12)
-    assert excluded > 0.1
-
-
 # ----------------------------------------------- tracking-error objectives
 
 

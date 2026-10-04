@@ -14,7 +14,7 @@ from arp.storage.jsonl_io import append_jsonl, read_jsonl
 if TYPE_CHECKING:
     from arp.config import Settings
     from arp.ingestion.registry import DocumentSourceRegistry
-    from arp.orchestration.jobs import JobLauncher
+    from arp.orchestration.jobs import LocalJobLauncher
     from arp.schemas.datapoints import DataPointSchema
     from arp.storage.run_store import RunStore
 
@@ -56,7 +56,7 @@ async def refresh_on_events(
     settings: Settings,
     run_store: RunStore,
     registry: DocumentSourceRegistry,
-    launcher: JobLauncher | None = None,
+    launcher: LocalJobLauncher | None = None,
     parent: tuple[str, str, str] | None = None,
     company_hint: CompanyRef | None = None,
 ) -> list[str]:

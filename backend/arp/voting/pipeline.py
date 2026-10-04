@@ -13,7 +13,7 @@ from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.voting import CompanyBallot, HumanVoteDecision, VotePosition, VoteRecord
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.run_store import RunStore
-from arp.voting.ballot_casting import BallotPlatform, CastVoteError, cast_vote
+from arp.voting.ballot_casting import CastVoteError, ManualInstructionBallotPlatform, cast_vote
 from arp.voting.ballot_graph import process_company_ballot
 from arp.voting.policy_agent import DEFAULT_POLICY_RULES, PolicyRule
 
@@ -170,7 +170,7 @@ def _human_decision_from_review_row(recommendation, row: dict) -> HumanVoteDecis
     )
 
 
-async def cast_approved_votes(run_id: str, run_store: RunStore, platform: BallotPlatform) -> list[VoteRecord]:
+async def cast_approved_votes(run_id: str, run_store: RunStore, platform: ManualInstructionBallotPlatform) -> list[VoteRecord]:
     """Ballot Casting Agent entry point: casts every vote in `run_id` that
     has a recorded human review decision and hasn't been cast yet.
 

@@ -106,12 +106,3 @@ _SPAN_CACHE = ChunkSpanCache()
 
 def get_span_cache() -> ChunkSpanCache:
     return _SPAN_CACHE
-
-
-def clear_span_cache() -> None:
-    """Test/debug escape hatch -- production code never needs this."""
-    _SPAN_CACHE.clear()
-
-
-def span_cache_stats() -> dict:
-    return _SPAN_CACHE.stats()

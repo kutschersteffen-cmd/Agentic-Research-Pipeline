@@ -81,7 +81,3 @@ _INDEX_CACHE = BM25IndexCache()
 
 def get_index_cache() -> BM25IndexCache:
     return _INDEX_CACHE
-
-
-def clear_index_cache() -> None:
-    _INDEX_CACHE.clear()

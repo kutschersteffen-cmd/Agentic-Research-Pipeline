@@ -7,7 +7,6 @@ from pydantic import BaseModel
 
 from arp.schemas.engagement import (
     ESCALATION_ORDER,
-    MILESTONE_ORDER,
     EngagementIssue,
     EscalationStage,
     IssueStatus,
@@ -44,16 +43,6 @@ _ACTION_BY_MILESTONE: dict[MilestoneStage, OrchestratorAction] = {
 }
 
 _TERMINAL_STATUSES = (IssueStatus.RESOLVED, IssueStatus.CLOSED)
-
-
-def next_milestone_stage(current: MilestoneStage) -> MilestoneStage | None:
-    idx = MILESTONE_ORDER.index(current)
-    return MILESTONE_ORDER[idx + 1] if idx + 1 < len(MILESTONE_ORDER) else None
-
-
-def next_escalation_stage(current: EscalationStage) -> EscalationStage | None:
-    idx = ESCALATION_ORDER.index(current)
-    return ESCALATION_ORDER[idx + 1] if idx + 1 < len(ESCALATION_ORDER) else None
 
 
 def escalation_index(stage: EscalationStage) -> int:

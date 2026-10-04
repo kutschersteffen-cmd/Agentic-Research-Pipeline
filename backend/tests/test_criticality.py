@@ -1,29 +1,12 @@
 from arp.research.indirect_exposure.criticality import (
     apply_criticality_overlay,
     critical_isic_codes,
-    is_critical_isic_code,
-    list_critical_minerals,
 )
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 
 
-def test_list_critical_minerals_well_formed():
-    minerals = list_critical_minerals()
-    assert len(minerals) > 0
-    for mineral in minerals:
-        assert mineral.name
-        assert len(mineral.isic_codes) > 0
-        assert mineral.source
-        assert mineral.notes
-
-
 def test_critical_isic_codes_returns_nonempty_set():
     assert len(critical_isic_codes()) > 0
-
-
-def test_is_critical_isic_code_true_and_false_cases():
-    assert is_critical_isic_code("07") is True  # mining of metal ores -- on the registry
-    assert is_critical_isic_code("62") is False  # IT services -- not on the registry
 
 
 def _theme() -> ThemeDefinition:

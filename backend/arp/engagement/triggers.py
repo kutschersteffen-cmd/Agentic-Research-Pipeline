@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-
 from pydantic import BaseModel
 
 from arp.engagement.orchestrator import is_stalled
@@ -17,22 +15,9 @@ class ControversySignal(BaseModel):
     detail: str = ""
 
 
-class ControversySource(ABC):
-    """Screens a company universe for ESG/controversy signals that should
-    open a new engagement issue. A real implementation wraps a paid data
-    provider API (MSCI, Sustainalytics, RepRisk, ...); the specific provider
-    is a house integration decision, not an architectural one (see
-    docs/ENGAGEMENT_VOTING_ARCHITECTURE.md #8)."""
-
-    name: str = "base"
-
-    @abstractmethod
-    async def screen(self, companies: list[CompanyRef]) -> list[ControversySignal]:
-        raise NotImplementedError
-
-
-class StaticControversySource(ControversySource):
-    """Returns a fixed, caller-supplied list of signals. Stands in for a
+class StaticControversySource:
+    """Screens a company universe for controversy signals that should open
+    a new engagement issue. Returns a fixed, caller-supplied list of signals. Stands in for a
     real provider in tests, demos, and for callers (like the API) that
     already have signals from elsewhere and just want them raised into the
     engagement queue through the same trigger path as everything else."""
@@ -48,7 +33,7 @@ class StaticControversySource(ControversySource):
 
 
 async def run_trigger_screen(
-    companies: list[CompanyRef], source: ControversySource, store: EngagementStore
+    companies: list[CompanyRef], source: StaticControversySource, store: EngagementStore
 ) -> list[TriggerEvent]:
     """Screens `companies` via `source` and opens a new engagement issue for
     every signal that doesn't already have a matching open issue for that

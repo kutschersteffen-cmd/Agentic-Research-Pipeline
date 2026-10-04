@@ -48,20 +48,6 @@ def divisor_for_level(total_market_cap: float, level: float) -> float:
     return total_market_cap / level
 
 
-def adjust_divisor(divisor_before: float, market_cap_before: float, market_cap_after: float) -> float:
-    """`D_after = D_before x (MC_after / MC_before)`.
-
-    Any event that changes market capitalisation without a corresponding
-    investor return -- a rebalance, a share-count change, a special dividend
-    -- must leave the index level unchanged. This single identity is the
-    whole divisor engine; the corporate-action table only decides which
-    events qualify.
-    """
-    if market_cap_before <= 0:
-        raise ValueError("market cap before an adjustment must be positive")
-    return divisor_before * (market_cap_after / market_cap_before)
-
-
 def level_series(
     shares: dict[str, float],
     price_panel: dict[str, dict[str, float]],

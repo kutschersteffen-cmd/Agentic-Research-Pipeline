@@ -86,7 +86,3 @@ def list_bundled_authority_sources(category: str | None = None) -> list[SourceCa
         for item in _BUNDLED_SOURCES
         if category is None or item["category"] == category
     ]
-
-
-def bundled_source_categories() -> list[str]:
-    return sorted({item["category"] for item in _BUNDLED_SOURCES})

@@ -15,7 +15,6 @@ class Settings(BaseSettings):
 
     # LLM
     anthropic_api_key: str | None = Field(default=None)
-    llm_provider: Literal["anthropic"] = "anthropic"
     llm_model: str = Field(default="claude-sonnet-5-5")
     llm_verifier_model: str = Field(
         default="claude-opus-5-5",

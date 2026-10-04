@@ -4,12 +4,9 @@ from arp.engagement.orchestrator import (
     OrchestratorAction,
     decide_next_action,
     is_stalled,
-    next_escalation_stage,
-    next_milestone_stage,
 )
 from arp.schemas.engagement import (
     EngagementIssue,
-    EscalationStage,
     IssueStatus,
     MilestoneStage,
     MilestoneTransition,
@@ -21,16 +18,6 @@ def _issue(**overrides) -> EngagementIssue:
     defaults = dict(theme="climate", source=TriggerSource.MANUAL)
     defaults.update(overrides)
     return EngagementIssue(**defaults)
-
-
-def test_next_milestone_stage_progresses_in_order():
-    assert next_milestone_stage(MilestoneStage.IDENTIFIED) == MilestoneStage.CONTACTED
-    assert next_milestone_stage(MilestoneStage.COMMITMENT_VERIFIED) is None
-
-
-def test_next_escalation_stage_progresses_in_order():
-    assert next_escalation_stage(EscalationStage.PRIVATE_ENGAGEMENT) == EscalationStage.JOINT_ENGAGEMENT
-    assert next_escalation_stage(EscalationStage.PUBLIC_STATEMENT) is None
 
 
 def test_decide_next_action_identified_dispatches_research():

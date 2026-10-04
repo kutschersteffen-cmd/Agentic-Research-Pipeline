@@ -121,12 +121,3 @@ def is_auto_applicable(finding: BarrierRefreshFinding) -> bool:
     need a human" count can never drift apart.
     """
     return not finding.needs_review
-
-
-def partition_findings(
-    findings: list[BarrierRefreshFinding],
-) -> tuple[list[BarrierRefreshFinding], list[BarrierRefreshFinding]]:
-    """Split into (auto-applicable, needs-human-review)."""
-    auto = [f for f in findings if is_auto_applicable(f)]
-    review = [f for f in findings if not is_auto_applicable(f)]
-    return auto, review

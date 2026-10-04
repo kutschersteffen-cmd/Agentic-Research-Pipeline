@@ -6,7 +6,6 @@ from math import fsum
 import pytest
 
 from arp.index.calc import (
-    adjust_divisor,
     divisor_for_level,
     drifted_weights,
     index_shares,
@@ -379,13 +378,6 @@ def test_index_shares_and_divisor_reproduce_the_level_exactly():
     realised = market_cap(shares, candidates)
     divisor = divisor_for_level(realised, 100.0)
     assert realised / divisor == pytest.approx(100.0, abs=1e-9)
-
-
-def test_divisor_adjustment_keeps_the_level_continuous():
-    before, after = 1_000_000.0, 1_250_000.0
-    divisor_before = divisor_for_level(before, 100.0)
-    divisor_after = adjust_divisor(divisor_before, before, after)
-    assert after / divisor_after == pytest.approx(before / divisor_before)
 
 
 def test_weights_drift_with_price_between_rebalances():

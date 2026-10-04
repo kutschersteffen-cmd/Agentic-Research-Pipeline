@@ -15,7 +15,7 @@ class SignalType(StrEnum):
     MOMENTUM = "momentum"
     VALUE = "value"
     """A cross-sectional sort on a fundamental characteristic (e.g.
-    book-to-market), read from a CharacteristicDataSource rather than
+    book-to-market), read from a CsvCharacteristicSource rather than
     computed from price history -- see StrategySpec.characteristic_name/
     characteristic_lag_months. Unrelated to WeightingScheme.VALUE
     ("value-weighted" = market-cap-weighted, the standard finance sense of
@@ -25,7 +25,7 @@ class SignalType(StrEnum):
     derived from news/earnings-call/transcript text (arp/replication/
     sentiment_scoring.py) -- mechanically identical to VALUE (same
     characteristic_name/characteristic_lag_months fields, same
-    CharacteristicDataSource plumbing), kept as its own SignalType only so
+    CsvCharacteristicSource plumbing), kept as its own SignalType only so
     a spec/report is self-describing about where the ranking signal came
     from, and so ReportedPerformance comparisons and docs can call out the
     hindsight-risk considerations specific to LLM-scored historical text
@@ -144,8 +144,8 @@ class StrategySpec(BaseModel):
         default=None,
         description="VALUE/TEXT_SENTIMENT (or any future characteristic-based signal_type) only: name of the "
         "fundamental/derived field the signal ranks on, e.g. 'book_to_market' or 'news_sentiment' -- must match a "
-        "column a CharacteristicDataSource can serve (arp/replication/characteristics_data.py). Purely a label "
-        "here; the actual data comes from whichever CharacteristicDataSource the caller supplies to run_replication.",
+        "column a CsvCharacteristicSource can serve (arp/replication/characteristics_data.py). Purely a label "
+        "here; the actual data comes from whichever CsvCharacteristicSource the caller supplies to run_replication.",
     )
     characteristic_lag_months: int = Field(
         default=0,
