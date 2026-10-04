@@ -66,6 +66,7 @@ class Settings(BaseSettings):
     )
     runs_dir: Path = Field(default=REPO_ROOT / "runs")
     schema_registry_dir: Path = REPO_ROOT / "schemas"
+    identifier_map_path: Path = REPO_ROOT / "data" / "identifier_map.jsonl"
     taxonomies_dir: Path = Field(default=REPO_ROOT / "taxonomies")
     portfolios_dir: Path = Field(default=REPO_ROOT / "portfolios")
     projects_dir: Path = Field(default=REPO_ROOT / "projects")

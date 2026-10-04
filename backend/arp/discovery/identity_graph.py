@@ -5,17 +5,25 @@ from typing import TypedDict
 from langgraph.graph import END, StateGraph
 
 from arp.discovery.identity_agents import adjudicate_identity, gather_signals
+from arp.discovery.match_rules import (
+    MatchRule,
+    RuleOutcome,
+    apply_identifier_rules,
+    apply_name_rules,
+    identifiers_of,
+)
 from arp.discovery.site_finder import WebSearchClient
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.llm.base import LLMClient, LLMUsage
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import (
-    EdgarNameMatch,
     IdentityAdjudication,
     IdentityResolutionResult,
     IdentitySignals,
     IdentityVerdict,
 )
+from arp.schemas.review import ReasonCode
+from arp.storage.identifier_map import IdentifierMapStore
 
 
 class IdentityState(TypedDict):
@@ -24,51 +32,102 @@ class IdentityState(TypedDict):
     edgar: EdgarDocumentSource
     search_client: WebSearchClient
     max_search_results: int
-    confidence_threshold: float
     signals: IdentitySignals | None
     adjudication: IdentityAdjudication | None
     usages: list[LLMUsage]
+    identifier_map: IdentifierMapStore | None
+    outcome: RuleOutcome | None
+    id_outcome: RuleOutcome | None
     result: IdentityResolutionResult | None
 
 
-def _route_after_check(state: IdentityState) -> str:
-    company = state["company"]
-    return "finalize_known" if (company.website or company.cik) else "gather_signals"
+def _route_after_rules(state: IdentityState) -> str:
+    return "finalize_rules" if state["outcome"] else "gather_signals"
 
 
-def _clean_edgar_match(company_name: str, signals: IdentitySignals) -> EdgarNameMatch | None:
-    """A real, unambiguous EDGAR hit -- exactly one match, and its title is
-    the same company name (case/whitespace aside), not merely a substring
-    or fuzzy-tier result. Only this tier is trusted with zero LLM
-    involvement; anything weaker (0 matches, 2+ matches, or a single
-    fuzzy/substring match) goes to the adjudicate step."""
-    if len(signals.edgar_matches) != 1:
-        return None
-    match = signals.edgar_matches[0]
-    return match if match.title.strip().lower() == company_name.strip().lower() else None
+def _route_after_name_rules(state: IdentityState) -> str:
+    # An identifier-resolved company never reaches the model; it is flagged instead.
+    return "finalize_rules" if (state["outcome"] or state["id_outcome"]) else "adjudicate"
 
 
 async def _check_known(state: IdentityState) -> dict:
     return {}
 
 
-async def _finalize_known(state: IdentityState) -> dict:
-    """website/cik already supplied in the input CompanyRef -- same
-    "already known, don't re-derive" discipline as match_graph.py's
-    _route_after_revenue skipping the qualitative debate when a hard
-    number is already resolved. Zero LLM calls."""
+async def _apply_rules(state: IdentityState) -> dict:
     company = state["company"]
-    result = IdentityResolutionResult(
-        company_id=company.company_id,
-        input_name=company.name,
-        verdict=IdentityVerdict.RESOLVED,
-        confidence=1.0,
-        resolved_website=company.website,
-        resolved_cik=company.cik,
-        signals=IdentitySignals(),
-        rationale="website/cik already supplied; identity resolution skipped.",
-        flagged_for_review=False,
+    outcome = apply_identifier_rules(company, state["identifier_map"])
+    # Resolved by identifier but nothing to crawl or look up by: find a CIK by name, then a human confirms.
+    lookup = (
+        outcome is not None
+        and outcome.rule in (MatchRule.EXACT_LEI, MatchRule.IDENTIFIER_MAP)
+        and not (company.website or company.cik)
     )
+    return {"id_outcome": outcome, "outcome": None if lookup else outcome}
+
+
+async def _finalize_rules(state: IdentityState) -> dict:
+    """Rule outcomes, zero LLM calls. Resolved rules pass; name-only and
+    ambiguous outcomes always go to a reviewer."""
+    company, outcome, id_outcome = state["company"], state["outcome"], state["id_outcome"]
+    if id_outcome is not None and outcome is not id_outcome:
+        # Identifier rule plus name lookup: the CIK (or its absence) needs a human.
+        name_cik = outcome.candidates[0] if outcome else None
+        return {
+            "result": IdentityResolutionResult(
+                company_id=company.company_id,
+                input_name=company.name,
+                match_rule=id_outcome.rule.value,
+                resolved_issuer_key=id_outcome.issuer_key,
+                identifiers=identifiers_of(company),
+                verdict=IdentityVerdict.UNCERTAIN,
+                confidence=0.5 if name_cik else 0.0,
+                resolved_cik=name_cik,
+                signals=state["signals"] or IdentitySignals(),
+                rationale=(
+                    f"Resolved by {id_outcome.rule.value}; CIK {name_cik} from a single exact EDGAR title match, needs review."
+                    if name_cik
+                    else f"Resolved by {id_outcome.rule.value}; no CIK or website found, needs review."
+                ),
+                flagged_for_review=True,
+                reason_codes=[ReasonCode.MATCH_AMBIGUOUS],
+            )
+        }
+    base = {
+        "company_id": company.company_id,
+        "input_name": company.name,
+        "match_rule": outcome.rule.value,
+        "resolved_issuer_key": outcome.issuer_key,
+        "identifiers": identifiers_of(company),
+    }
+    if outcome.resolved:
+        result = IdentityResolutionResult(
+            **base,
+            verdict=IdentityVerdict.RESOLVED,
+            confidence=1.0,
+            resolved_website=company.website,
+            resolved_cik=company.cik,
+            signals=IdentitySignals(),
+            rationale=f"Resolved by rule {outcome.rule.value}; no LLM call needed.",
+            flagged_for_review=False,
+        )
+    else:
+        name_only = outcome.rule == MatchRule.NAME_ONLY
+        result = IdentityResolutionResult(
+            **base,
+            verdict=IdentityVerdict.UNCERTAIN,
+            confidence=0.5 if name_only else 0.0,
+            resolved_website=company.website,
+            resolved_cik=outcome.candidates[0] if name_only else company.cik,
+            signals=state["signals"] or IdentitySignals(),
+            rationale=(
+                f"Single exact SEC EDGAR title match (CIK {outcome.candidates[0]}); name-only, needs review."
+                if name_only
+                else f"Identifier maps to several issuers: {', '.join(outcome.candidates)}."
+            ),
+            flagged_for_review=True,
+            reason_codes=[ReasonCode.MATCH_AMBIGUOUS],
+        )
     return {"result": result}
 
 
@@ -83,30 +142,8 @@ async def _gather_signals(state: IdentityState) -> dict:
     return {"signals": signals}
 
 
-def _route_after_signals(state: IdentityState) -> str:
-    match = _clean_edgar_match(state["company"].name, state["signals"])
-    return "finalize_clean_match" if match else "adjudicate"
-
-
-async def _finalize_clean_match(state: IdentityState) -> dict:
-    """A single, exact SEC EDGAR match -- resolved deterministically, zero
-    LLM calls. This is the case the whole gather_signals -> route split
-    exists for: the common case shouldn't pay for a judgment call that
-    isn't actually being made."""
-    company = state["company"]
-    match = _clean_edgar_match(company.name, state["signals"])
-    result = IdentityResolutionResult(
-        company_id=company.company_id,
-        input_name=company.name,
-        verdict=IdentityVerdict.RESOLVED,
-        confidence=1.0,
-        resolved_website=None,
-        resolved_cik=match.cik,
-        signals=state["signals"],
-        rationale=f"Exact, unambiguous SEC EDGAR match on company title (CIK {match.cik}); no LLM call needed.",
-        flagged_for_review=False,
-    )
-    return {"result": result}
+async def _apply_name_rules(state: IdentityState) -> dict:
+    return {"outcome": apply_name_rules(state["company"], state["signals"])}
 
 
 async def _adjudicate(state: IdentityState) -> dict:
@@ -151,9 +188,11 @@ async def _finalize(state: IdentityState) -> dict:
         resolved_cik=adjudication.resolved_cik,
         signals=state["signals"],
         rationale=adjudication.rationale,
-        flagged_for_review=(
-            adjudication.verdict != IdentityVerdict.RESOLVED or adjudication.confidence < state["confidence_threshold"]
-        ),
+        # The model's answer is a suggestion for the reviewer, never a decision.
+        flagged_for_review=True,
+        match_rule=MatchRule.AMBIGUOUS.value,
+        identifiers=identifiers_of(company),
+        reason_codes=[ReasonCode.MATCH_AMBIGUOUS],
     )
     return {"result": result}
 
@@ -161,21 +200,23 @@ async def _finalize(state: IdentityState) -> dict:
 def _build_graph():
     graph = StateGraph(IdentityState)
     graph.add_node("check_known", _check_known)
-    graph.add_node("finalize_known", _finalize_known)
+    graph.add_node("apply_rules", _apply_rules)
+    graph.add_node("finalize_rules", _finalize_rules)
     graph.add_node("gather_signals", _gather_signals)
-    graph.add_node("finalize_clean_match", _finalize_clean_match)
+    graph.add_node("apply_name_rules", _apply_name_rules)
     graph.add_node("adjudicate", _adjudicate)
     graph.add_node("finalize", _finalize)
 
     graph.set_entry_point("check_known")
+    graph.add_edge("check_known", "apply_rules")
     graph.add_conditional_edges(
-        "check_known", _route_after_check, {"finalize_known": "finalize_known", "gather_signals": "gather_signals"}
+        "apply_rules", _route_after_rules, {"finalize_rules": "finalize_rules", "gather_signals": "gather_signals"}
     )
-    graph.add_edge("finalize_known", END)
+    graph.add_edge("gather_signals", "apply_name_rules")
     graph.add_conditional_edges(
-        "gather_signals", _route_after_signals, {"finalize_clean_match": "finalize_clean_match", "adjudicate": "adjudicate"}
+        "apply_name_rules", _route_after_name_rules, {"finalize_rules": "finalize_rules", "adjudicate": "adjudicate"}
     )
-    graph.add_edge("finalize_clean_match", END)
+    graph.add_edge("finalize_rules", END)
     graph.add_edge("adjudicate", "finalize")
     graph.add_edge("finalize", END)
     return graph.compile()
@@ -192,12 +233,13 @@ async def resolve_company_identity(
     edgar: EdgarDocumentSource,
     search_client: WebSearchClient,
     max_search_results: int = 5,
-    confidence_threshold: float = 0.7,
+    confidence_threshold: float = 0.7,  # unused: adjudicated results are always flagged; kept for existing callers
+    identifier_map: IdentifierMapStore | None = None,
 ) -> tuple[IdentityResolutionResult, list[LLMUsage]]:
-    """Runs identity resolution for one company: zero LLM calls when
-    website/cik is already known, zero LLM calls when a direct SEC EDGAR
-    name lookup already finds exactly one unambiguous match, and exactly
-    one LLM call (adjudicate) otherwise.
+    """Runs identity resolution for one company: zero LLM calls for
+    identifier rules and exact EDGAR name matches (the latter always
+    flagged for review), exactly one LLM call (adjudicate, always flagged)
+    otherwise.
     """
     initial: IdentityState = {
         "company": company,
@@ -205,10 +247,12 @@ async def resolve_company_identity(
         "edgar": edgar,
         "search_client": search_client,
         "max_search_results": max_search_results,
-        "confidence_threshold": confidence_threshold,
         "signals": None,
         "adjudication": None,
         "usages": [],
+        "identifier_map": identifier_map,
+        "outcome": None,
+        "id_outcome": None,
         "result": None,
     }
     final_state = await _COMPILED_GRAPH.ainvoke(initial)

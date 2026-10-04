@@ -21,3 +21,8 @@ export function canCosign(
 ): boolean {
   return !!me && me.role === "approver" && decision.decision === "edit" && !decision.cosigned && decision.user_id !== me.user_id;
 }
+
+/** A queued item's flag reasons: its review reasons, then its route reasons, each once. */
+export const flaggedReasons = (item: { reason_codes?: unknown; route_reasons?: unknown }): string[] => [
+  ...new Set([item.reason_codes, item.route_reasons].flatMap((v) => (Array.isArray(v) ? (v as string[]) : []))),
+];

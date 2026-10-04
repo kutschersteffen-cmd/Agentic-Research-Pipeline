@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import re
 import uuid
+from typing import Literal
+
+from pydantic import BaseModel
 
 from arp.schemas.common import CompanyRef
 
@@ -23,3 +26,13 @@ def issuer_key(company: CompanyRef) -> tuple[str, str]:
     if lei_is_valid(lei):
         return lei, "LEI"
     return f"ARP:{uuid.uuid5(ARP_NAMESPACE, company.company_id)}", "ARP_PROVISIONAL"
+
+
+class IdentifierMap(BaseModel):
+    """One external identifier of an issuer; valid_to is exclusive (ISO dates)."""
+
+    issuer_key: str
+    scheme: Literal["LEI", "CIK", "ISIN"]
+    value: str
+    valid_from: str | None = None
+    valid_to: str | None = None

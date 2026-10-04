@@ -5,7 +5,7 @@ from datetime import date
 from pathlib import Path
 
 from arp.schemas.common import now_iso
-from arp.schemas.datapoints import DataPointSchema, FieldStatus
+from arp.schemas.datapoints import DataPointSchema, FieldQuality, FieldStatus
 from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import safe_id
@@ -120,3 +120,30 @@ class SchemaRegistry:
             )
             self._write(released)
             return released
+
+    def _quality_all(self) -> dict:
+        path = self.root / "field_quality.json"
+        return json.loads(read_text_utf8(path)) if path.exists() else {}
+
+    def quality(self, field_id: str, version: int) -> FieldQuality:
+        row = self._quality_all().get(f"{field_id}:v{int(version)}")
+        return FieldQuality.model_validate(row) if row else FieldQuality(field_id=field_id, version=int(version))
+
+    def record_first_audit(self, field_id: str, version: int, audited_by: str) -> FieldQuality:
+        with self._lock.acquire("registry"):
+            # Drafts are auditable (trial runs), but an unregistered field version is not.
+            if not any(
+                f.field_id == field_id and f.version == int(version)
+                for r in self.list_index()
+                for f in self.get(r["schema_id"], r["version"]).fields
+            ):
+                raise KeyError(f"{field_id} v{version}")
+            q = FieldQuality(
+                field_id=field_id, version=int(version), first_audit_passed=True,
+                audited_by=audited_by, audited_at=now_iso(),
+            )
+            rows = self._quality_all()
+            rows[f"{field_id}:v{int(version)}"] = q.model_dump(mode="json")
+            self.root.mkdir(parents=True, exist_ok=True)
+            atomic_write_text(self.root / "field_quality.json", json.dumps(rows, indent=2))
+            return q

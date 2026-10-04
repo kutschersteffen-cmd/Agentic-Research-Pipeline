@@ -48,6 +48,9 @@ class PeriodValue(BaseModel):
     raw_value_text: str | None = None
     unit_text: str | None = None
     period_text: str | None = None
+    planned_period_end: str | None = Field(
+        default=None, description="The planned period (ISO date from the list given) this value belongs to, if any."
+    )
     basis_text: str | None = None
     citations: list[Citation] = Field(default_factory=list)
 
@@ -70,7 +73,11 @@ class ExtractionDraft(BaseModel):
 
 
 async def extract_field(
-    company_name: str, field: FieldDefinition, chunks: list[DocumentChunk], llm: LLMClient
+    company_name: str,
+    field: FieldDefinition,
+    chunks: list[DocumentChunk],
+    llm: LLMClient,
+    planned_periods: list[str] | None = None,
 ) -> tuple[ExtractionDraft, LLMUsage]:
     prompt = (
         f"Company: {company_name}\n\n"
@@ -80,6 +87,14 @@ async def extract_field(
         + (f" ({field.unit})" if field.unit else "")
         + (f"\nAllowed values: {field.allowed_values}" if field.allowed_values else "")
         + f"\nExtraction instructions: {field.extraction_instructions}\n\n"
+        + (
+            "Report a value for each of these periods where disclosed (period end): "
+            f"{', '.join(planned_periods)}. Set planned_period_end to the one each value belongs to; "
+            "leave it empty if none fits.\n\n"
+            if planned_periods
+            else ""
+        )
+        +
         f"Evidence:\n{format_evidence(chunks)}"
     )
     return await llm.complete_structured(system=_SYSTEM_PROMPT, prompt=prompt, output_model=ExtractionDraft)

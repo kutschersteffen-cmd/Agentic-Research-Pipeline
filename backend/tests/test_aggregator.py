@@ -197,3 +197,30 @@ def test_two_unresolved_period_labels_are_both_kept_as_check_failed():
         assert ReasonCode.CHECK_FAILED in r.review_reasons
         assert ReasonCode.CONFLICT not in r.review_reasons
         assert f"period not resolved: {r.period_text}" in r.verifier_notes
+
+
+def _planned_pv(value, text, planned):
+    return PeriodValue(value=value, raw_value_text=str(value), period_text=text, planned_period_end=planned, citations=[])
+
+
+def test_planned_period_makes_unresolved_keys_unique():
+    draft = ExtractionDraft(
+        values=[_planned_pv(100, "current year", "2024-12-31"), _planned_pv(90, "prior year", "2023-12-31")], confidence=0.9
+    )
+    rows = _build_all(draft, VerifierOutput(agrees=True, confidence=0.9, notes=""), planned_periods=["2024-12-31", "2023-12-31"])
+    assert [r.period_end for r in rows] == ["2024-12-31", "2023-12-31"]
+    assert all("period not resolved" not in (r.verifier_notes or "") for r in rows)
+
+
+def test_planned_period_outside_plan_ignored():
+    draft = ExtractionDraft(
+        values=[_planned_pv(100, "current year", "2021-12-31"), _planned_pv(90, "prior year", "2023-12-31")], confidence=0.9
+    )
+    rows = _build_all(draft, VerifierOutput(agrees=True, confidence=0.9, notes=""), planned_periods=["2024-12-31"])
+    assert [r.period_end for r in rows] == [None, None]
+
+
+def test_resolved_period_wins_over_planned():
+    draft = ExtractionDraft(values=[_planned_pv(100, "FY2024", "2023-12-31")], confidence=0.9)
+    (row,) = _build_all(draft, VerifierOutput(agrees=True, confidence=0.9, notes=""), planned_periods=["2023-12-31"])
+    assert row.period_end == "2024-12-31"

@@ -45,14 +45,32 @@ class CompanyRef(BaseModel):
     website: str | None = Field(default=None, description="Known corporate/IR homepage, if supplied.")
     cik: str | None = Field(default=None, description="SEC CIK, if known (enables direct EDGAR lookup).")
     lei: str | None = None
+    isin: str | None = None
     country: str | None = None
     sector: str | None = None
     isic_code: str | None = Field(
         default=None, description="ISIC Rev.4 industry code, if known (enables indirect/structural exposure scoring)."
     )
+    regimes: list[str] = Field(default_factory=list, description="Reporting regimes the company is subject to, e.g. CSRD, SEC.")
     fiscal_year_end: str | None = Field(
         default=None, pattern=r"^\d{2}-\d{2}$", description="Fiscal year end as MM-DD, e.g. 04-30."
     )
+
+
+class MatchStatus(StrEnum):
+    CONFIRMED = "confirmed"
+    AMBIGUOUS = "ambiguous"
+    MISMATCH = "mismatch"
+
+
+class PeriodPlan(BaseModel):
+    current: str | None = None
+    comparatives: list[str] = Field(default_factory=list)  # ISO period ends, latest first
+    missing: list[str] = Field(default_factory=list)  # planned periods not yet recorded
+
+    @property
+    def planned(self) -> list[str]:
+        return [p for p in (self.current, *self.comparatives) if p]
 
 
 class SourceDocument(BaseModel):
@@ -72,6 +90,9 @@ class SourceDocument(BaseModel):
     supersedes: str | None = None
     content_key: str | None = None
     parser_version: str | None = None
+    covered_entity: str | None = None
+    match_status: MatchStatus | None = None  # None = not checked (legacy)
+    period_plan: PeriodPlan | None = None
     page_breaks: list[int] = Field(
         default_factory=list,
         description=(

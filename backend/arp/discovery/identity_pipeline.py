@@ -4,6 +4,7 @@ import logging
 
 from arp.config import Settings
 from arp.discovery.identity_graph import resolve_company_identity
+from arp.discovery.match_rules import needs_recheck
 from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.llm.base import LLMClient, LLMUsage
@@ -13,6 +14,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import latest_decisions
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import IdentityResolutionResult, IdentityVerdict
+from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,7 @@ async def execute_identity_run(
     run_store: RunStore,
     edgar: EdgarDocumentSource | None = None,
     search_client: WebSearchClient | None = None,
+    previous_run_id: str | None = None,
 ) -> str:
     """Resolves each company's real-world identity (website/CIK) via the
     propose -> resolve -> challenge -> adjudicate graph
@@ -57,7 +60,20 @@ async def execute_identity_run(
     edgar = edgar or EdgarDocumentSource(settings.edgar_user_agent, settings.cache_dir)
     search_client = search_client or DuckDuckGoSearchClient(settings.discovery_user_agent)
 
+    idmap = IdentifierMapStore(settings.identifier_map_path)
+    previous = (
+        {
+            r["company_id"]: IdentityResolutionResult.model_validate(r)
+            for r in run_store.read_jsonl(run_store.results_path(previous_run_id))
+        }
+        if previous_run_id
+        else {}
+    )
+
     async def _resolve_one(company: CompanyRef) -> IdentityResolutionOutcome:
+        old = previous.get(company.company_id)
+        if old is not None and not needs_recheck(old, company, idmap):
+            return IdentityResolutionOutcome(old, LLMUsage())
         result, usages = await resolve_company_identity(
             company,
             llm=llm,
@@ -65,6 +81,7 @@ async def execute_identity_run(
             search_client=search_client,
             max_search_results=settings.identity_resolution_max_search_results,
             confidence_threshold=settings.identity_resolution_confidence_threshold,
+            identifier_map=idmap,
         )
         return IdentityResolutionOutcome(result, combine_usage(*usages) if usages else LLMUsage())
 
@@ -135,5 +152,8 @@ def enriched_universe(run_store: RunStore, run_id: str) -> list[CompanyRef]:
 
         if not included or (not website and not cik):
             continue
-        companies.append(CompanyRef(company_id=result.company_id, name=result.input_name, website=website, cik=cik))
+        companies.append(CompanyRef(
+            company_id=result.company_id, name=result.input_name, website=website, cik=cik,
+            lei=result.identifiers.get("lei"), isin=result.identifiers.get("isin"),
+        ))
     return companies

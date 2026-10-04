@@ -56,7 +56,7 @@ def test_all_off_leaves_the_company_alone(tmp_path):
 
 def test_identity_fills_in_a_clear_match(tmp_path, monkeypatch):
     async def resolve(company, **kwargs):
-        return SimpleNamespace(verdict=IdentityVerdict.RESOLVED, flagged_for_review=False, resolved_website="https://acme.example", resolved_cik="0000123", confidence=0.95), []
+        return SimpleNamespace(verdict=IdentityVerdict.RESOLVED, flagged_for_review=False, match_rule="supplied", resolved_website="https://acme.example", resolved_cik="0000123", confidence=0.95), []
 
     monkeypatch.setattr(identity_graph, "resolve_company_identity", resolve)
     prepared, view = _prepare(tmp_path, _settings(tmp_path, identity=True))
@@ -94,7 +94,7 @@ def test_parse_index_counts_documents_and_chunks(tmp_path):
 
 def test_a_failing_step_stops_the_company_with_an_error_report(tmp_path, monkeypatch):
     async def resolve(company, **kwargs):
-        return SimpleNamespace(verdict=IdentityVerdict.RESOLVED, flagged_for_review=False, resolved_website="https://acme.example", resolved_cik="1", confidence=0.9), []
+        return SimpleNamespace(verdict=IdentityVerdict.RESOLVED, flagged_for_review=False, match_rule="supplied", resolved_website="https://acme.example", resolved_cik="1", confidence=0.9), []
 
     async def crawl(root, config):
         raise RuntimeError("crawler down")
@@ -122,7 +122,7 @@ def test_a_failing_step_stops_the_company_with_an_error_report(tmp_path, monkeyp
 )
 def test_finding_nothing_usable_counts_as_failing(tmp_path, monkeypatch, on, why):
     async def resolve(company, **kwargs):
-        return SimpleNamespace(verdict=IdentityVerdict.UNCERTAIN, flagged_for_review=True, resolved_website=None, resolved_cik=None, confidence=0.3, rationale="two candidates"), []
+        return SimpleNamespace(verdict=IdentityVerdict.UNCERTAIN, flagged_for_review=True, match_rule="ambiguous", resolved_website=None, resolved_cik=None, confidence=0.3, rationale="two candidates"), []
 
     async def crawl(root, config):
         return []
@@ -166,3 +166,43 @@ def test_a_stopped_company_goes_to_review_not_failed(tmp_path):
     assert store.read_jsonl(store.results_path(run_id)) == []
     (row,) = get_run_companies(run_id, run_store=store)["companies"]
     assert row["status"] == "review"
+
+
+def test_identity_name_only_edgar_match_passes_with_its_cik(tmp_path, monkeypatch):
+    """A single exact EDGAR title match is flagged for the identity review queue,
+    but it still lets the company continue: entity confirmation guards each document."""
+    from arp.discovery import site_finder
+    from arp.ingestion import edgar
+    from arp.schemas.discovery import EdgarNameMatch
+
+    class _Edgar:
+        def __init__(self, *args):
+            pass
+
+        async def search_by_name(self, name, limit=5):
+            return [EdgarNameMatch(ticker="ACME", cik="42", title="Acme Corp")] if name == "Acme Corp" else []
+
+    class _NoSearch:
+        def __init__(self, *args):
+            pass
+
+        async def search(self, query, max_results=5):
+            return []
+
+    monkeypatch.setattr(edgar, "EdgarDocumentSource", _Edgar)
+    monkeypatch.setattr(site_finder, "DuckDuckGoSearchClient", _NoSearch)
+    prepared, view = _prepare(tmp_path, _settings(tmp_path, identity=True))
+    assert not isinstance(prepared, PreStepFailed) and prepared.cik == "42"
+    assert view["details"]["identity"]["resolved"] is True and view["details"]["identity"]["flagged"] is True
+
+
+def test_identity_ambiguous_low_confidence_still_stops(tmp_path, monkeypatch):
+    async def resolve(company, **kwargs):
+        return SimpleNamespace(
+            verdict=IdentityVerdict.RESOLVED, flagged_for_review=True, match_rule="ambiguous",
+            resolved_website=None, resolved_cik="42", confidence=0.5, rationale="weak",
+        ), []
+
+    monkeypatch.setattr(identity_graph, "resolve_company_identity", resolve)
+    failed, _ = _prepare(tmp_path, _settings(tmp_path, identity=True))
+    assert isinstance(failed, PreStepFailed) and "identity unclear" in failed.report["error"]

@@ -21,6 +21,7 @@ def build_extracted_fields(
     *,
     passages: dict[str, DocumentChunk] | None = None,
     fiscal_year_end: str | None = None,
+    planned_periods: list[str] | None = None,
 ) -> list[ExtractedField]:
     """Merges the extractor draft and the independent verifier pass into one
     ExtractedField per reported period (latest period first), applying the
@@ -36,7 +37,8 @@ def build_extracted_fields(
         # The verifier says a value exists: keep that claim visible (ungrounded) for review.
         values = [PeriodValue(state=ValueState.NOT_FOUND)]
 
-    typed = [(pv, typed_value(field, pv, fiscal_year_end=fiscal_year_end)) for pv in values]
+    planned = set(planned_periods or ())
+    typed = [(pv, typed_value(field, pv, fiscal_year_end=fiscal_year_end, planned=planned)) for pv in values]
     typed.sort(key=lambda t: t[1].period_end or "", reverse=True)  # ISO dates sort as text; None ("") last
 
     kept: dict[str, list] = {}

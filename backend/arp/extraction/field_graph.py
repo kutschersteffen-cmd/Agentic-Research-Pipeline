@@ -10,6 +10,7 @@ from arp.extraction.verifier_agent import VerifierOutput, verify_extraction
 from arp.ingestion.parsing import chunk_document
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.step_tally import run_graph
+from arp.planning.doc_routing import route_documents, section_filter
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import DocumentChunk, ProvenanceInfo, SourceDocument
 from arp.schemas.datapoints import ExtractedField, FieldDefinition
@@ -26,6 +27,7 @@ class FieldState(TypedDict):
     fuzzy_threshold: float
     schema_version: str
     fiscal_year_end: str | None
+    planned_periods: list[str] | None
     confidence_review_threshold: float
     evidence: list[DocumentChunk]
     draft: ExtractionDraft | None
@@ -41,10 +43,9 @@ async def _gather_evidence(state: FieldState) -> dict:
     field = state["field"]
     settings = state["settings"]
     all_chunks: list[DocumentChunk] = []
-    for doc in state["documents"]:
-        if field.source_doc_types and doc.doc_type not in field.source_doc_types:
-            continue
+    for doc in route_documents(field, state["documents"]):
         all_chunks.extend(chunk_document(doc, keywords=field.seed_keywords))
+    all_chunks = section_filter(field, all_chunks)
 
     content_store = None
     if settings is not None and settings.hybrid_retrieval_enabled:
@@ -61,7 +62,7 @@ async def _gather_evidence(state: FieldState) -> dict:
     evidence = select_relevant_chunks(
         all_chunks,
         field.seed_keywords,
-        doc_type_filter=field.source_doc_types or None,
+        doc_type_filter=None if field.document_routing else field.source_doc_types or None,
         hybrid_retrieval_enabled=settings is not None and settings.hybrid_retrieval_enabled,
         content_store=content_store,
         retrieval_backend=settings.retrieval_backend if settings is not None else "bm25",
@@ -80,7 +81,9 @@ async def _finalize_no_evidence(state: FieldState) -> dict:
 
 
 async def _extract(state: FieldState) -> dict:
-    draft, usage = await extract_field(state["company_name"], state["field"], state["evidence"], state["llm"])
+    draft, usage = await extract_field(
+        state["company_name"], state["field"], state["evidence"], state["llm"], state["planned_periods"]
+    )
     return {"draft": draft, "usages": state["usages"] + [usage], "extractor_usage": usage}
 
 
@@ -101,6 +104,7 @@ async def _aggregate(state: FieldState) -> dict:
         state["confidence_review_threshold"],
         passages={c.chunk_id: c for c in state["evidence"]},
         fiscal_year_end=state["fiscal_year_end"],
+        planned_periods=state["planned_periods"],
     )
     extractor_usage = state["extractor_usage"]
     verifier_usage = state["verifier_usage"]
@@ -143,6 +147,7 @@ async def extract_one_field(
     confidence_review_threshold: float,
     schema_version: str = "",
     fiscal_year_end: str | None = None,
+    planned_periods: list[str] | None = None,
 ) -> tuple[list[ExtractedField], bool, list[LLMUsage]]:
     """Runs one field's evidence-gather -> extract -> independent-verify ->
     programmatic-grounding-check -> aggregate flow as a LangGraph graph.
@@ -172,6 +177,7 @@ async def extract_one_field(
         "confidence_review_threshold": confidence_review_threshold,
         "schema_version": schema_version,
         "fiscal_year_end": fiscal_year_end,
+        "planned_periods": planned_periods,
         "evidence": [],
         "draft": None,
         "verifier": None,

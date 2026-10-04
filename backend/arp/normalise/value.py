@@ -9,7 +9,14 @@ from datetime import date
 from arp.decision.parsing import to_number
 from arp.extraction.extractor_agent import PeriodValue
 from arp.normalise import fx
-from arp.normalise.period import Qualifier, detect_qualifiers, normalise_basis, reported_precision, resolve_period
+from arp.normalise.period import (
+    Qualifier,
+    ResolvedPeriod,
+    detect_qualifiers,
+    normalise_basis,
+    reported_precision,
+    resolve_period,
+)
 from arp.normalise.units import convert, lookup_scale, lookup_unit, split_unit
 from arp.schemas.datapoints import FieldDataType, FieldDefinition, ValueState
 from arp.schemas.review import ReasonCode
@@ -119,8 +126,13 @@ def _canonical(field: FieldDefinition, value: float, pv: PeriodValue, end: date 
     return c.value, field.unit, scale, rate
 
 
-def typed_value(field: FieldDefinition, pv: PeriodValue, *, fiscal_year_end: str | None) -> TypedValue:
+def typed_value(
+    field: FieldDefinition, pv: PeriodValue, *, fiscal_year_end: str | None, planned: set[str] | None = None
+) -> TypedValue:
     period = resolve_period(pv.period_text, fiscal_year_end=fiscal_year_end)
+    if period.end is None and planned and pv.planned_period_end in planned:
+        end = date.fromisoformat(pv.planned_period_end)
+        period = ResolvedPeriod(None, end)
     qualifiers = [str(q) for q in detect_qualifiers(pv.raw_value_text, pv.period_text, pv.basis_text)]
     if period.fye_assumed:
         qualifiers.append(str(Qualifier.FISCAL_YEAR_END_ASSUMED))

@@ -31,6 +31,65 @@ class FieldStatus(StrEnum):
     RETIRED = "retired"
 
 
+class CheckOutcome(StrEnum):
+    PASS = "pass"
+    FAIL = "fail"
+    NOT_APPLICABLE = "not_applicable"
+
+
+class Severity(StrEnum):
+    INFO = "info"
+    WARN = "warn"
+    BLOCK = "block"
+
+
+class RouteKind(StrEnum):
+    AUTO_ACCEPT = "auto_accept"
+    REVIEW = "review"
+    HOLD = "hold"
+
+
+class CheckResult(BaseModel):
+    check_id: str
+    layer: int = Field(ge=1, le=5)
+    outcome: CheckOutcome
+    severity: Severity = Severity.INFO
+    detail: str = ""
+    threshold_ref: str | None = None
+
+
+def is_blocking(r: CheckResult) -> bool:
+    return r.outcome == CheckOutcome.FAIL and r.severity == Severity.BLOCK
+
+
+def is_failing(r: CheckResult) -> bool:
+    return r.outcome == CheckOutcome.FAIL and r.severity in (Severity.WARN, Severity.BLOCK)
+
+
+class CheckConfig(BaseModel):
+    min_value: float | None = None
+    max_value: float | None = None
+    non_negative: bool = False
+    part_of: str | None = Field(default=None, description="field_id of the whole this field is part of.")
+    sum_of: list[str] = Field(default_factory=list, description="This field equals the sum of these field_ids.")
+    sum_tolerance: float = Field(default=0.01, description="Relative.")
+    prior_change_max: float | None = Field(default=0.5, description="Relative jump vs. prior value that warns.")
+
+
+class ApplicabilityRules(BaseModel):
+    """A field applies only to companies matching every non-empty list; unknown company attributes never exclude."""
+
+    sector_codes: list[str] = Field(default_factory=list, description="ISIC Rev.4 code prefixes, e.g. '10'..'33'.")
+    countries: list[str] = Field(default_factory=list, description="ISO 3166-1 alpha-2 codes.")
+    regimes: list[str] = Field(default_factory=list, description="Reporting regimes, e.g. 'CSRD', 'SEC'.")
+
+
+class DocumentRouting(BaseModel):
+    doc_types: list[DocType] = Field(default_factory=list, description="Document types in preference order.")
+    sections: list[str] = Field(default_factory=list, description="Section-heading substrings, case-insensitive.")
+    fallback: bool = True
+
+
 class FieldDefinition(BaseModel):
     field_id: str = Field(default_factory=lambda: new_id("fld"))
     name: str
@@ -53,6 +112,19 @@ class FieldDefinition(BaseModel):
     version: int = 1
     effective_from: str | None = Field(default=None, description="ISO date the definition took effect.")
     status: FieldStatus = FieldStatus.DRAFT
+    check_config: CheckConfig = Field(default_factory=CheckConfig)
+    applicability_rules: ApplicabilityRules | None = None
+    document_routing: DocumentRouting | None = None
+    auto_accept_min: float = Field(default=0.9, ge=0.0, le=1.0)
+    high_risk: bool = False
+
+
+class FieldQuality(BaseModel):
+    field_id: str
+    version: int
+    first_audit_passed: bool = False
+    audited_by: str | None = None
+    audited_at: str | None = None
 
 
 class DataPointSchema(BaseModel):
@@ -94,6 +166,11 @@ class ExtractedField(BaseModel):
     reported_precision: int | None = None
     fx_rate: float | None = None
     fx_rate_ref: str | None = None
+    checks: list[CheckResult] = Field(default_factory=list)
+    route_reasons: list[str] = Field(default_factory=list)
+    route: RouteKind | None = Field(default=None, description="Set by the pipeline only; None on rows written before routing.")
+    input_hash: str | None = None
+    reused_from_run: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -122,4 +199,5 @@ class ExtractionRecord(BaseModel):
     fields: list[ExtractedField] = Field(default_factory=list)
     overall_confidence: float = Field(ge=0.0, le=1.0, default=0.0)
     needs_review: bool = False
+    held_documents: list[dict] = Field(default_factory=list)
     generated_at: str = Field(default_factory=now_iso)

@@ -152,6 +152,10 @@ def resolve_extraction_fact(
     record's per-field decisions into that one fact: an edit replaces the
     field, any still-undecided flagged field keeps the fact pending_review,
     else any reject -> rejected, else any edit -> edited, else approved.
+    An undecided field's `route` (E68, set by the pipeline only) adds "held"
+    (ranked after pending_review) and "auto_accepted" (ranked last, reviewer
+    None): a human decision on that key always wins. Rows with no route and
+    no flagged field stay "auto_approved", as before routing existed.
     Runs queued at company_id alone (before per-field keys) resolve as before.
     Trial runs never get here: materialize_run skips them.
     """
@@ -159,7 +163,7 @@ def resolve_extraction_fact(
         return resolve_fact(item_key, row, decisions, queued_item_keys)
     keys = [field_item_key(row.get("issuer_key", ""), f["field_id"], period_key(f)) for f in row.get("fields", [])]
     flagged = {i for i, k in enumerate(keys) if k in decisions or k in queued_item_keys}
-    if not flagged:
+    if not flagged and not any(f.get("route") for f in row.get("fields", [])):
         return row, "auto_approved", None
     value = dict(row)
     value["fields"] = list(row["fields"])
@@ -167,7 +171,8 @@ def resolve_extraction_fact(
     for i, f in enumerate(value["fields"]):
         decision = decisions.get(keys[i])
         if decision is None:
-            outcomes.append("pending_review" if i in flagged else None)
+            routed = {"hold": "held", "auto_accept": "auto_accepted"}.get(f.get("route"))
+            outcomes.append(routed or ("pending_review" if i in flagged else None))
             continue
         outcomes.append({"approve": "approved", "edit": "edited"}.get(decision.get("decision"), "rejected"))
         reviewer = decision.get("reviewer") or reviewer
@@ -183,8 +188,9 @@ def resolve_extraction_fact(
                     if k not in edit:
                         merged[k] = None
             value["fields"][i] = merged
-    status = next(st for st in ("pending_review", "rejected", "edited", "approved") if st in outcomes)
-    return value, status, None if status == "pending_review" else reviewer
+    order = ("pending_review", "held", "rejected", "edited", "approved", "auto_accepted")
+    status = next((st for st in order if st in outcomes), "auto_approved")
+    return value, status, None if status in ("pending_review", "held", "auto_accepted", "auto_approved") else reviewer
 
 
 def _is_zero(v) -> bool:

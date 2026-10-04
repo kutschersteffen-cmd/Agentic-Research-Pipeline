@@ -231,6 +231,26 @@ export interface ExtractedField {
   fx_rate?: number | null;
   fx_rate_ref?: string | null;
   review_reasons?: string[] | null;
+  checks?: CheckResult[] | null;
+  /** Absent on legacy rows. */
+  route?: "auto_accept" | "review" | "hold" | null;
+  route_reasons?: string[] | null;
+}
+
+export interface CheckResult {
+  check_id: string;
+  layer: number;
+  outcome: "pass" | "fail" | "not_applicable";
+  severity: "info" | "warn" | "block";
+  detail: string;
+  threshold_ref?: string | null;
+}
+
+export interface HeldDocument {
+  doc_id: string;
+  title: string;
+  covered_entity: string;
+  match_status: "confirmed" | "ambiguous" | "mismatch";
 }
 
 export interface ExtractionRecord {
@@ -245,6 +265,7 @@ export interface ExtractionRecord {
   overall_confidence: number;
   needs_review: boolean;
   generated_at: string;
+  held_documents?: HeldDocument[] | null;
 }
 
 // --- Company Financials: business segments + CapEx + R&D, extracted

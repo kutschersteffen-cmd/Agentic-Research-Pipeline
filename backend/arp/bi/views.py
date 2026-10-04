@@ -84,7 +84,7 @@ _VIEWS = {
     """,
     # Every snapshot; junk dates (NULL after the safe cast) are left out.
     "holdings_history": _HOLDINGS_SELECT + " WHERE bi.safe_date(h.as_of_date) IS NOT NULL",
-    "company_facts": _FACT_SELECT.format(statuses="'approved', 'edited', 'auto_approved'"),
+    "company_facts": _FACT_SELECT.format(statuses="'approved', 'edited', 'auto_approved', 'auto_accepted'"),
     "company_facts_pending": _FACT_SELECT.format(statuses="'pending_review'"),
     "run_records": """
         SELECT run_id, run_type, company_id, needs_review, overall_confidence,
