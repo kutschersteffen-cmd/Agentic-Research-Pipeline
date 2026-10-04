@@ -12,6 +12,7 @@ from arp.extraction.pipeline import run_extraction
 from arp.extraction.schema_builder import draft_schema
 from arp.extraction.tnfd_pipeline import run_tnfd_extraction
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
+from arp.orchestration.jobs import NotResumable, RunBusy, resume_run
 from arp.schemas.datapoints import DataPointSchema
 from arp.universe import load_company_universe
 
@@ -30,11 +31,23 @@ def extract_draft_schema(criteria_text: str, out: Path = typer.Option(...)) -> N
 
 @extract_app.command("run")
 def extract_run(
-    schema_file: Path = typer.Option(..., "--schema"),
-    universe: Path = typer.Option(...),
+    schema_file: Path = typer.Option(None, "--schema"),
+    universe: Path = typer.Option(None),
     trial: bool = typer.Option(False, "--trial", help="Allow draft fields; the run is marked as a trial."),
+    run_id: str = typer.Option(None, "--run-id", help="Resume this run (any batch run type) instead of starting one."),
 ) -> None:
     settings = get_settings()
+    if run_id:
+        try:
+            asyncio.run(resume_run(run_id, settings=settings, run_store=_run_store(), registry=_registry()))
+        except (NotResumable, RunBusy) as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(1) from exc
+        typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
+        return
+    if schema_file is None or universe is None:
+        typer.echo("Pass --schema and --universe, or --run-id to resume a run.", err=True)
+        raise typer.Exit(1)
     llm = build_llm_client(settings)
     verifier_llm = build_verifier_llm_client(settings)
     schema = DataPointSchema.model_validate_json(schema_file.read_text())

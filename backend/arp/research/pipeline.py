@@ -179,12 +179,12 @@ async def resume_theme_run(
     if manifest.run_type != "theme":
         raise ValueError(f"Run {run_id} is a {manifest.run_type} run, not a theme run.")
     universe_path = manifest.params.get("universe_path")
-    if not universe_path:
-        raise ValueError(f"Run {run_id} has no stored universe_path -- it predates resume support and can't be reconstructed.")
+    companies = load_company_universe(universe_path) if universe_path else run_store.load_companies(run_id)
+    if companies is None:
+        raise ValueError(f"Run {run_id} has no stored universe_path or companies.json -- it predates resume support and can't be reconstructed.")
 
     run_dir = run_store.run_dir(run_id)
     theme = ThemeDefinition.model_validate_json((run_dir / "theme.json").read_text())
-    companies = load_company_universe(universe_path)
 
     indirect_model = resolve_indirect_exposure_model(
         settings,

@@ -490,6 +490,7 @@ async def test_resume_theme_run_unknown_universe_path_raises(tmp_path, fake_llm)
     store = RunStore(settings.runs_dir)
     theme, _activity = _theme()
     run_id = create_theme_run(theme, [CompanyRef(company_id="c1", name="Acme")], settings, store)  # no universe_path
+    store.companies_path(run_id).unlink()  # nor stored companies: a run from before either existed
 
     llm = fake_llm({})
     registry = DocumentSourceRegistry([_FixedDocSource([])])
