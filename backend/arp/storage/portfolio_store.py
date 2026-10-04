@@ -8,7 +8,9 @@ from pathlib import Path
 from arp.schemas.common import CompanyRef, now_iso
 from arp.schemas.portfolio import (
     DataPointObservation,
+    HolderConfig,
     Holding,
+    HoldingKind,
     NewsItem,
     NewsRiskFlag,
     Portfolio,
@@ -44,6 +46,10 @@ class PortfolioStore:
         portfolios/securities.json                          SecurityRef reference data
         portfolios/security_resolutions.json                  ISIN -> company_id resolutions
         portfolios/<portfolio_id>/snapshots/<as_of_date>.jsonl  Holding[] per snapshot
+        portfolios/holdings/index/<holder_id>/snapshots/<as_of_date>.jsonl  index Holding[]
+        portfolios/holdings/revisions/<kind>/<holder_id>/<as_of_date>.r<n>.jsonl  write-once revisions
+        portfolios/holdings/holders.json                      HolderConfig per "<kind>:<holder_id>"
+        portfolios/holdings/audit.jsonl                       holdings audit log (never served)
 
     The registry-style files above (`registry.json`, `securities.json`,
     `companies.json`, `security_resolutions.json`, `analytics.json`,
@@ -170,29 +176,35 @@ class PortfolioStore:
 
     # --- holdings snapshots ---
 
-    def snapshot_path(self, portfolio_id: str, as_of_date: str) -> Path:
-        return self.portfolios_dir / safe_id(portfolio_id, label="portfolio_id") / "snapshots" / f"{safe_id(as_of_date, label='as_of_date')}.jsonl"
+    def _snapshots_dir(self, holder_id: str, kind: HoldingKind) -> Path:
+        holder = safe_id(holder_id, label="holder_id")
+        if kind == "index":
+            return self.portfolios_dir / "holdings" / "index" / holder / "snapshots"
+        return self.portfolios_dir / holder / "snapshots"
 
-    def save_snapshot(self, portfolio_id: str, as_of_date: str, holdings: list[Holding]) -> None:
+    def snapshot_path(self, holder_id: str, as_of_date: str, *, kind: HoldingKind = "portfolio") -> Path:
+        return self._snapshots_dir(holder_id, kind) / f"{safe_id(as_of_date, label='as_of_date')}.jsonl"
+
+    def save_snapshot(self, holder_id: str, as_of_date: str, holdings: list[Holding], *, kind: HoldingKind = "portfolio") -> None:
         """Writes one snapshot file whole. Atomic (and locked) because a
         re-pull for a date already on disk is a deliberate overwrite: a
         reader must see the previous pull or the new one, never a file
         truncated to the first N holdings of the new one."""
-        path = self.snapshot_path(portfolio_id, as_of_date)
+        path = self.snapshot_path(holder_id, as_of_date, kind=kind)
         with self._lock(path):
             atomic_write_text(path, "".join(h.model_dump_json() + "\n" for h in holdings))
 
-    def load_snapshot(self, portfolio_id: str, as_of_date: str) -> list[Holding]:
-        return [Holding.model_validate(row) for row in self._read_jsonl(self.snapshot_path(portfolio_id, as_of_date))]
+    def load_snapshot(self, holder_id: str, as_of_date: str, *, kind: HoldingKind = "portfolio") -> list[Holding]:
+        return [Holding.model_validate(row) for row in self._read_jsonl(self.snapshot_path(holder_id, as_of_date, kind=kind))]
 
-    def list_snapshot_dates(self, portfolio_id: str) -> list[str]:
-        d = self.portfolios_dir / safe_id(portfolio_id, label="portfolio_id") / "snapshots"
+    def list_snapshot_dates(self, holder_id: str, *, kind: HoldingKind = "portfolio") -> list[str]:
+        d = self._snapshots_dir(holder_id, kind)
         if not d.exists():
             return []
         return sorted(p.stem for p in d.glob("*.jsonl"))
 
-    def latest_snapshot_date(self, portfolio_id: str) -> str | None:
-        dates = self.list_snapshot_dates(portfolio_id)
+    def latest_snapshot_date(self, holder_id: str, *, kind: HoldingKind = "portfolio") -> str | None:
+        dates = self.list_snapshot_dates(holder_id, kind=kind)
         return dates[-1] if dates else None
 
     def all_snapshot_dates(self) -> list[str]:
@@ -215,6 +227,50 @@ class PortfolioStore:
                 continue
             holdings.extend(self.load_snapshot(pid, candidate_dates[-1]))
         return holdings
+
+    # --- holdings revisions, holder registry, audit (E77) ---
+
+    def revision_path(self, kind: HoldingKind, holder_id: str, as_of_date: str, revision: int) -> Path:
+        holder = safe_id(holder_id, label="holder_id")
+        date = safe_id(as_of_date, label="as_of_date")
+        return self.portfolios_dir / "holdings" / "revisions" / safe_id(kind, label="kind") / holder / f"{date}.r{int(revision)}.jsonl"
+
+    def save_revision(self, kind: HoldingKind, holder_id: str, as_of_date: str, revision: int, holdings: list[Holding]) -> None:
+        """Write-once: a revision on disk is never replaced."""
+        path = self.revision_path(kind, holder_id, as_of_date, revision)
+        with self._lock(path):
+            if path.exists():
+                raise FileExistsError(path)
+            atomic_write_text(path, "".join(h.model_dump_json() + "\n" for h in holdings))
+
+    def load_revision(self, kind: HoldingKind, holder_id: str, as_of_date: str, revision: int) -> list[Holding]:
+        return [Holding.model_validate(row) for row in self._read_jsonl(self.revision_path(kind, holder_id, as_of_date, revision))]
+
+    def list_revisions(self, kind: HoldingKind, holder_id: str, as_of_date: str) -> list[int]:
+        d = self.revision_path(kind, holder_id, as_of_date, 0).parent
+        if not d.exists():
+            return []
+        prefix = f"{as_of_date}.r"
+        return sorted(int(p.stem[len(prefix):]) for p in d.glob(f"{as_of_date}.r*.jsonl") if p.stem[len(prefix):].isdigit())
+
+    def holders_path(self) -> Path:
+        return self.portfolios_dir / "holdings" / "holders.json"
+
+    def save_holder(self, cfg: HolderConfig) -> None:
+        self._put_json_entry(self.holders_path(), f"{cfg.kind}:{cfg.holder_id}", json.loads(cfg.model_dump_json()))
+
+    def get_holder(self, kind: HoldingKind, holder_id: str) -> HolderConfig | None:
+        row = self._read_json(self.holders_path()).get(f"{kind}:{holder_id}")
+        return HolderConfig.model_validate(row) if row else None
+
+    def list_holders(self) -> list[HolderConfig]:
+        return [HolderConfig.model_validate(v) for v in self._read_json(self.holders_path()).values()]
+
+    def holdings_audit_path(self) -> Path:
+        return self.portfolios_dir / "holdings" / "audit.jsonl"
+
+    def append_holdings_audit(self, row: dict) -> None:
+        self._append_jsonl(self.holdings_audit_path(), row)
 
     # --- data-point observation history ---
 

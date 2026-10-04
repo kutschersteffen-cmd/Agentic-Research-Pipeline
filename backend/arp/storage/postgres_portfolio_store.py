@@ -14,7 +14,9 @@ from __future__ import annotations
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import (
     DataPointObservation,
+    HolderConfig,
     Holding,
+    HoldingKind,
     NewsItem,
     NewsRiskFlag,
     Portfolio,
@@ -146,6 +148,36 @@ class PostgresPortfolioStore:
     def list_governance_events(self) -> list[dict]:
         return self._files.list_governance_events()
 
+    def revision_path(self, kind: HoldingKind, holder_id: str, as_of_date: str, revision: int):
+        return self._files.revision_path(kind, holder_id, as_of_date, revision)
+
+    def save_revision(self, kind: HoldingKind, holder_id: str, as_of_date: str, revision: int, holdings: list[Holding]) -> None:
+        self._files.save_revision(kind, holder_id, as_of_date, revision, holdings)
+
+    def load_revision(self, kind: HoldingKind, holder_id: str, as_of_date: str, revision: int) -> list[Holding]:
+        return self._files.load_revision(kind, holder_id, as_of_date, revision)
+
+    def list_revisions(self, kind: HoldingKind, holder_id: str, as_of_date: str) -> list[int]:
+        return self._files.list_revisions(kind, holder_id, as_of_date)
+
+    def holders_path(self):
+        return self._files.holders_path()
+
+    def save_holder(self, cfg: HolderConfig) -> None:
+        self._files.save_holder(cfg)
+
+    def get_holder(self, kind: HoldingKind, holder_id: str) -> HolderConfig | None:
+        return self._files.get_holder(kind, holder_id)
+
+    def list_holders(self) -> list[HolderConfig]:
+        return self._files.list_holders()
+
+    def holdings_audit_path(self):
+        return self._files.holdings_audit_path()
+
+    def append_holdings_audit(self, row: dict) -> None:
+        self._files.append_holdings_audit(row)
+
     # --- portfolios -----------------------------------------------------
 
     def save_portfolio(self, portfolio: Portfolio) -> None:
@@ -268,8 +300,8 @@ class PostgresPortfolioStore:
 
     # --- holdings snapshots -------------------------------------------------
 
-    def save_snapshot(self, portfolio_id: str, as_of_date: str, holdings: list[Holding]) -> None:
-        """Replaces any existing rows for this exact (portfolio_id,
+    def save_snapshot(self, holder_id: str, as_of_date: str, holdings: list[Holding], *, kind: HoldingKind = "portfolio") -> None:
+        """Replaces any existing rows for this exact (kind, holder_id,
         as_of_date) before inserting -- makes re-running an ingestion for
         the same date idempotent (matches PortfolioStore.save_snapshot's
         file-overwrite semantics) rather than accumulating duplicate rows.
@@ -281,23 +313,26 @@ class PostgresPortfolioStore:
         with self._session() as session:
             session.execute(
                 delete(HoldingModel).where(
-                    HoldingModel.portfolio_id == portfolio_id, HoldingModel.as_of_date == as_of_date
+                    HoldingModel.kind == kind, HoldingModel.portfolio_id == holder_id, HoldingModel.as_of_date == as_of_date
                 )
             )
             session.add_all(
                 [
                     HoldingModel(
-                        portfolio_id=h.portfolio_id, security_id=h.security_id, as_of_date=h.as_of_date,
-                        quantity=h.quantity, price=h.price, market_value=h.market_value,
-                        fx_rate_to_eur=h.fx_rate_to_eur, market_value_eur=h.market_value_eur, weight_pct=h.weight_pct,
+                        kind=h.kind, portfolio_id=h.holder_id, security_id=h.security_id, as_of_date=h.as_of_date,
+                        isin=h.isin, issuer_key=h.issuer_key, issuer_scheme=h.issuer_scheme, source=h.source,
+                        source_ref=h.source_ref, currency=h.currency, quantity=h.quantity, price=h.price,
+                        market_value=h.market_value, fx_rate_to_eur=h.fx_rate_to_eur,
+                        market_value_eur=h.market_value_eur, shares=h.shares, free_float=h.free_float,
+                        weight_pct=h.weight_pct,
                     )
                     for h in holdings
                 ]
             )
             session.commit()
 
-    def load_snapshot(self, portfolio_id: str, as_of_date: str) -> list[Holding]:
-        """One portfolio's holdings for *exactly* this date -- the
+    def load_snapshot(self, holder_id: str, as_of_date: str, *, kind: HoldingKind = "portfolio") -> list[Holding]:
+        """One holder's holdings for *exactly* this date -- the
         relational equivalent of reading that one snapshot file, so it
         returns nothing for a date never pulled. Deliberately not routed
         through load_holdings_as_of, whose contract is the different
@@ -309,12 +344,12 @@ class PostgresPortfolioStore:
         with self._session() as session:
             rows = session.scalars(
                 select(HoldingModel).where(
-                    HoldingModel.portfolio_id == portfolio_id, HoldingModel.as_of_date == as_of_date
+                    HoldingModel.kind == kind, HoldingModel.portfolio_id == holder_id, HoldingModel.as_of_date == as_of_date
                 )
             ).all()
             return [_holding_from_row(r) for r in rows]
 
-    def list_snapshot_dates(self, portfolio_id: str) -> list[str]:
+    def list_snapshot_dates(self, holder_id: str, *, kind: HoldingKind = "portfolio") -> list[str]:
         from sqlalchemy import select
 
         from arp.storage.postgres_models import HoldingModel
@@ -322,14 +357,14 @@ class PostgresPortfolioStore:
         with self._session() as session:
             rows = session.scalars(
                 select(HoldingModel.as_of_date)
-                .where(HoldingModel.portfolio_id == portfolio_id)
+                .where(HoldingModel.kind == kind, HoldingModel.portfolio_id == holder_id)
                 .distinct()
                 .order_by(HoldingModel.as_of_date)
             ).all()
             return list(rows)
 
-    def latest_snapshot_date(self, portfolio_id: str) -> str | None:
-        dates = self.list_snapshot_dates(portfolio_id)
+    def latest_snapshot_date(self, holder_id: str, *, kind: HoldingKind = "portfolio") -> str | None:
+        dates = self.list_snapshot_dates(holder_id, kind=kind)
         return dates[-1] if dates else None
 
     def all_snapshot_dates(self) -> list[str]:
@@ -338,7 +373,12 @@ class PostgresPortfolioStore:
         from arp.storage.postgres_models import HoldingModel
 
         with self._session() as session:
-            rows = session.scalars(select(HoldingModel.as_of_date).distinct().order_by(HoldingModel.as_of_date)).all()
+            rows = session.scalars(
+                select(HoldingModel.as_of_date)
+                .where(HoldingModel.kind == "portfolio")
+                .distinct()
+                .order_by(HoldingModel.as_of_date)
+            ).all()
             return list(rows)
 
     def _latest_snapshot_per_portfolio(self, as_of_date: str, portfolio_ids: list[str] | None):
@@ -368,7 +408,7 @@ class PostgresPortfolioStore:
                 HoldingModel.portfolio_id.label("portfolio_id"),
                 func.max(HoldingModel.as_of_date).label("as_of_date"),
             )
-            .where(HoldingModel.as_of_date <= as_of_date)
+            .where(HoldingModel.kind == "portfolio", HoldingModel.as_of_date <= as_of_date)
             .group_by(HoldingModel.portfolio_id)
         )
         if portfolio_ids:
@@ -382,7 +422,7 @@ class PostgresPortfolioStore:
         from arp.storage.postgres_models import HoldingModel
 
         latest = self._latest_snapshot_per_portfolio(as_of_date, portfolio_ids)
-        return latest, (HoldingModel.portfolio_id == latest.c.portfolio_id) & (
+        return latest, (HoldingModel.kind == "portfolio") & (HoldingModel.portfolio_id == latest.c.portfolio_id) & (
             HoldingModel.as_of_date == latest.c.as_of_date
         )
 
@@ -541,9 +581,11 @@ class PostgresPortfolioStore:
 
 def _holding_from_row(row) -> Holding:
     return Holding(
-        portfolio_id=row.portfolio_id, security_id=row.security_id, as_of_date=row.as_of_date,
-        quantity=row.quantity, price=row.price, market_value=row.market_value,
-        fx_rate_to_eur=row.fx_rate_to_eur, market_value_eur=row.market_value_eur, weight_pct=row.weight_pct,
+        holder_id=row.portfolio_id, kind=row.kind, security_id=row.security_id, as_of_date=row.as_of_date,
+        isin=row.isin, issuer_key=row.issuer_key, issuer_scheme=row.issuer_scheme, source=row.source,
+        source_ref=row.source_ref, currency=row.currency, quantity=row.quantity, price=row.price,
+        market_value=row.market_value, fx_rate_to_eur=row.fx_rate_to_eur, market_value_eur=row.market_value_eur,
+        shares=row.shares, free_float=row.free_float, weight_pct=row.weight_pct,
     )
 
 

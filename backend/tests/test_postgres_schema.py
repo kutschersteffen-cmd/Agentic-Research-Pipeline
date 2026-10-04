@@ -159,3 +159,36 @@ def test_the_projection_fk_step_is_idempotent_against_a_legacy_database(current_
     # not an error.
     _execute("DELETE FROM schema_migrations WHERE name = '0001_drop_projection_company_fks'")
     ensure_schema(DSN)
+
+
+def test_schema_step_0003_idempotent_pg(current_schema):
+    """E77: index holdings share `holdings` with portfolio holdings. The step
+    runs once, re-runs safely, lets an index row with no FX rate and no
+    portfolio in, and keeps the BI views portfolio-only."""
+    from arp.storage.postgres_schema import ensure_schema
+    from tests.postgres_helpers import reset_postgres_tables
+
+    _execute("DELETE FROM schema_migrations WHERE name = '0003_holdings_intake'")
+    assert ensure_schema(DSN)["steps_applied"] == ["0003_holdings_intake"]
+    _execute("DELETE FROM schema_migrations WHERE name = '0003_holdings_intake'")
+    assert ensure_schema(DSN)["steps_applied"] == ["0003_holdings_intake"]
+    assert ensure_schema(DSN)["steps_applied"] == []
+
+    reset_postgres_tables(DSN)
+    try:
+        _execute("INSERT INTO portfolios (portfolio_id, name, tags) VALUES ('X1', 'P', '{}')")
+        _execute("INSERT INTO securities (security_id, name, asset_class, currency) VALUES ('S1', 'S', 'equity', 'EUR')")
+        _execute(
+            "INSERT INTO holdings (portfolio_id, security_id, as_of_date, quantity, price, market_value,"
+            " fx_rate_to_eur, market_value_eur) VALUES ('X1', 'S1', '2026-10-31', 1, 10, 10, 1, 10)"
+        )
+        _execute(
+            "INSERT INTO holdings (kind, portfolio_id, security_id, as_of_date, weight_pct, fx_rate_to_eur)"
+            " VALUES ('index', 'X1', 'S1', '2026-10-31', 2.5, NULL),"
+            " ('index', 'IDX_ONLY', 'S1', '2026-10-31', 1.0, NULL)"
+        )
+        assert _execute("SELECT kind FROM holdings WHERE weight_pct IS NULL") == [("portfolio",)]
+        assert _execute("SELECT portfolio_id, market_value_eur FROM bi.holdings") == [("X1", 10.0)]
+        assert _execute("SELECT count(*) FROM bi.holdings_history") == [(1,)]
+    finally:
+        reset_postgres_tables(DSN)

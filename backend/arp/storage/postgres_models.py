@@ -115,19 +115,29 @@ class HoldingModel(Base):
 
     __tablename__ = "holdings"
     __table_args__ = (
-        UniqueConstraint("portfolio_id", "security_id", "as_of_date", name="uq_holdings_portfolio_security_date"),
+        UniqueConstraint("kind", "portfolio_id", "security_id", "as_of_date", name="uq_holdings_kind_holder_security_date"),
         Index("ix_holdings_as_of_date_portfolio", "as_of_date", "portfolio_id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    portfolio_id: Mapped[str] = mapped_column(ForeignKey("portfolios.portfolio_id"))
+    kind: Mapped[str] = mapped_column(String, default="portfolio", server_default="portfolio")
+    # Holds Holding.holder_id (an index or a portfolio), so no FK to portfolios.
+    portfolio_id: Mapped[str] = mapped_column(String)
     security_id: Mapped[str] = mapped_column(ForeignKey("securities.security_id"))
     as_of_date: Mapped[str] = mapped_column(String)
-    quantity: Mapped[float] = mapped_column(Float)
-    price: Mapped[float] = mapped_column(Float)
-    market_value: Mapped[float] = mapped_column(Float)
-    fx_rate_to_eur: Mapped[float] = mapped_column(Float, default=1.0)
-    market_value_eur: Mapped[float] = mapped_column(Float)
+    isin: Mapped[str | None] = mapped_column(String, nullable=True)
+    issuer_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    issuer_scheme: Mapped[str | None] = mapped_column(String, nullable=True)
+    source: Mapped[str | None] = mapped_column(String, nullable=True)
+    source_ref: Mapped[str | None] = mapped_column(String, nullable=True)
+    currency: Mapped[str | None] = mapped_column(String, nullable=True)
+    quantity: Mapped[float | None] = mapped_column(Float, nullable=True)
+    price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    market_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fx_rate_to_eur: Mapped[float | None] = mapped_column(Float, nullable=True, default=1.0)
+    market_value_eur: Mapped[float | None] = mapped_column(Float, nullable=True)
+    shares: Mapped[float | None] = mapped_column(Float, nullable=True)
+    free_float: Mapped[float | None] = mapped_column(Float, nullable=True)
     weight_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
