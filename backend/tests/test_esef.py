@@ -173,7 +173,17 @@ def test_source_off_by_default(tmp_path, monkeypatch):
     assert any(isinstance(s, EsefDocumentSource) for s in on.sources)
 
 
-async def test_esef_document_source_fetches_by_lei(tmp_path):
+@pytest.fixture
+def no_ssrf(monkeypatch):
+    from arp.ingestion import esef
+
+    async def noop(request):
+        return None
+
+    monkeypatch.setattr(esef, "ssrf_guard_request_hook", noop)
+
+
+async def test_esef_document_source_fetches_by_lei(tmp_path, no_ssrf):
     seen = []
 
     def handler(request):
@@ -218,3 +228,89 @@ def test_sec_companyfacts_wrapper_unchanged():
     assert wrapped.value == raw.value and wrapped.as_citation() == raw.as_citation("320193")
     assert CompanyFactsSource(facts, "1").fact_for_tags(["us-gaap:Revenues"], fiscal_year=2023) is None
     assert json.loads(raw.model_dump_json())["tag"] == "Revenues"
+
+
+def _index_source(tmp_path, package: bytes, **kw):
+    def handler(request):
+        if request.url.path.endswith("/filings"):
+            return httpx.Response(200, json={"data": [{"attributes": {"period_end": "2024-12-31", "package_url": "/p.zip"}}]})
+        return httpx.Response(200, content=package)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    return EsefDocumentSource("https://filings.example", tmp_path / "cache", client=client, **kw), client
+
+
+async def test_package_download_is_ssrf_guarded(tmp_path, monkeypatch):
+    from arp.ingestion import esef
+    from arp.net_safety import UnsafeURLError
+
+    guarded = []
+
+    async def refuse(request):
+        guarded.append(str(request.url))
+        raise UnsafeURLError("private address")
+
+    monkeypatch.setattr(esef, "ssrf_guard_request_hook", refuse)
+    source, client = _index_source(tmp_path, PACKAGE)
+    assert await source.fetch(COMPANY) == []
+    assert guarded == ["https://filings.example/p.zip"]
+    await client.aclose()
+
+
+async def test_package_over_size_cap_refused(tmp_path, no_ssrf):
+    source, client = _index_source(tmp_path, PACKAGE, max_package_bytes=len(PACKAGE) - 1)
+    assert await source.fetch(COMPANY) == []
+    source, client2 = _index_source(tmp_path, PACKAGE, max_package_bytes=len(PACKAGE))
+    assert len(await source.fetch(COMPANY)) == 1
+    await client.aclose(), await client2.aclose()
+
+
+async def test_malformed_package_is_logged_not_raised(tmp_path, no_ssrf):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("p/reports/r.xhtml", b"<html><body><p>unclosed")
+    source, client = _index_source(tmp_path, buf.getvalue())
+    assert await source.fetch(COMPANY) == []
+    deep = b"<html>" + b"<div>" * 100_000 + b"</div>" * 100_000 + b"</html>"
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("p/reports/r.xhtml", deep)
+    source, client2 = _index_source(tmp_path, buf.getvalue())
+    assert await source.fetch(COMPANY) == []
+    await client.aclose(), await client2.aclose()
+
+
+async def test_us_filer_with_esef_document_uses_sec_first(tmp_path, fake_llm):
+    class _Sec:
+        async def resolve_cik(self, cik, ticker):
+            return cik
+
+        async def fetch_company_facts(self, cik):
+            row = {"start": "{y}-01-01", "end": "{y}-12-31", "val": 0, "fy": 0, "fp": "FY", "form": "10-K", "filed": "x"}
+            rows = [{**row, "start": f"{y}-01-01", "end": f"{y}-12-31", "val": 7e9, "fy": y, "filed": f"{y + 1}-02-01"}
+                    for y in (2023, 2024)]
+            return {"facts": {"ifrs-full": {"Revenue": {"units": {"EUR": rows}}}}}
+
+    source, _, _ = _local_source(tmp_path)
+    us = CompanyRef(company_id="c1", name="Beispiel AG", cik="0000320193", lei=LEI)
+    result = await _extract_company(
+        us, DataPointSchema(name="Rev", fields=[_field()], release_flag=True), registry=DocumentSourceRegistry([source]),
+        llm=fake_llm({}), verifier_llm=fake_llm({}), settings=_settings(tmp_path), xbrl_source=_Sec(),
+    )
+    assert [(f.method, f.canonical_value) for f in result.record.fields] == [("tagged", 7000.0)] * 2
+    assert all(f.citations[0].doc_id.startswith("xbrl:") for f in result.record.fields)
+
+
+def test_intake_zip_bomb_quarantined_before_testzip(tmp_path, monkeypatch):
+    from arp.ingestion.intake import IntakeState, check_intake
+
+    path = tmp_path / "bomb.zip"
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("p/reports/bomb.xhtml", b"\0" * 20_000_000)
+    monkeypatch.setattr(zipfile.ZipFile, "testzip", lambda self: pytest.fail("decompressed a zip bomb"))
+    result = check_intake(path, "k", seen={})
+    assert result.state == IntakeState.QUARANTINED and "too large" in result.reason
+    good = tmp_path / "p.zip"
+    good.write_bytes(PACKAGE)
+    monkeypatch.undo()
+    assert check_intake(good, "k2", seen={}).state == IntakeState.ACCEPTED

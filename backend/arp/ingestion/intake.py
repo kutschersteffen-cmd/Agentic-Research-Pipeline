@@ -68,9 +68,15 @@ def check_intake(path: Path, content_key: str, *, seen: dict[str, str]) -> Intak
     elif suffix in _ZIP_SUFFIXES:
         try:
             ok = zipfile.is_zipfile(path)
+            if ok and suffix == ".zip":
+                from arp.holdings.file_source import _check_zip
+
+                _check_zip(path.read_bytes())  # before testzip() inflates every member
             if ok:
                 with zipfile.ZipFile(path) as z:
                     ok = z.testzip() is None
+        except ValueError as exc:  # the decompressed-size cap
+            return IntakeResult(IntakeState.QUARANTINED, str(exc))
         except Exception:  # noqa: BLE001
             ok = False
         if not ok:

@@ -24,6 +24,7 @@ from lxml import etree
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.xbrl import XbrlFact, _full_year
+from arp.net_safety import UnsafeURLError, ssrf_guard_request_hook
 from arp.normalise.locale import context_decimal, decimal_for, detect_language
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
 from arp.storage.document_blob_store import CaptureStoreError
@@ -33,6 +34,7 @@ from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 logger = logging.getLogger(__name__)
 
 ESEF_SUFFIXES = {".xhtml", ".zip"}
+MAX_PACKAGE_BYTES = 100_000_000  # compressed; real ESEF packages are a few MB to a few tens of MB
 _IX = "http://www.xbrl.org/2013/inlineXBRL"
 _XBRLI = "{http://www.xbrl.org/2003/instance}"
 _XSI_NIL = "{http://www.w3.org/2001/XMLSchema-instance}nil"
@@ -177,7 +179,7 @@ def _units(root) -> dict[str, str]:
 def parse_ixbrl(xhtml: bytes) -> tuple[str, list[EsefFact]]:
     """Visible text and the printed, non-dimensional ix:nonFraction facts in it, in document
     order, with `scale`, `sign` and `format` applied. `text[f.char_start:f.char_end] == f.printed`."""
-    parser = etree.XMLParser(resolve_entities=False, no_network=True, huge_tree=True)
+    parser = etree.XMLParser(resolve_entities=False, no_network=True)
     root = etree.fromstring(xhtml, parser=parser)
     text, spans = _visible_text(root)
     contexts, units = _contexts(root), _units(root)
@@ -264,6 +266,7 @@ class EsefFactSource:
         """Like XbrlFactSource.fact_for_tags: a full-year duration (or an instant) ending in
         `fiscal_year`, for the first tag that has one; of duplicates the most precise."""
         for tag in tags:
+            # ponytail: matched by the prefix the filing writes, not its namespace; resolve QNames if a filer renames ifrs-full
             hits = [f for f in self.facts if f.concept == tag and f.period_end[:4] == str(fiscal_year)
                     and _full_year({"start": f.period_start, "end": f.period_end})]
             if hits:
@@ -314,8 +317,10 @@ class EsefDocumentSource(DocumentSource):
         client: httpx.AsyncClient | None = None,
         content_store: DocumentContentStore | None = None,
         indexing_config: IndexingConfig | None = None,
+        max_package_bytes: int = MAX_PACKAGE_BYTES,
     ) -> None:
         self._index_url = index_url.rstrip("/")
+        self._max_bytes = max_package_bytes
         self._dir = cache_dir / "esef"
         self._client = client
         self._content_store = content_store
@@ -331,7 +336,9 @@ class EsefDocumentSource(DocumentSource):
             return []
         if self._client is not None:
             return await self._fetch(self._client, company)
-        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(
+            timeout=60.0, follow_redirects=True, event_hooks={"request": [ssrf_guard_request_hook]}
+        ) as client:
             return await self._fetch(client, company)
 
     async def _fetch(self, client: httpx.AsyncClient, company: CompanyRef) -> list[SourceDocument]:
@@ -345,10 +352,12 @@ class EsefDocumentSource(DocumentSource):
             return []
         latest = max(filings, key=lambda f: f.get("period_end") or "")
         url = urljoin(self._index_url + "/", latest["package_url"])
-        pkg = await client.get(url)
-        pkg.raise_for_status()
-        raw = pkg.content
-        text, facts = await asyncio.to_thread(parse_package, raw)
+        try:
+            raw = await self._download(client, url)
+            text, facts = await asyncio.to_thread(parse_package, raw)
+        except (UnsafeURLError, ValueError, zipfile.BadZipFile, etree.LxmlError, RecursionError) as exc:
+            logger.warning("ESEF package %s for %s refused: %s", url, company.company_id, exc)
+            return []
         if not text.strip():
             return []
         content_key = hashlib.sha256(raw).hexdigest()
@@ -384,6 +393,25 @@ class EsefDocumentSource(DocumentSource):
                     logger.warning("ESEF filing %s not collected: %s", url, exc)
                     return []
         return [SourceDocument(**kwargs)]
+
+    async def _download(self, client: httpx.AsyncClient, url: str) -> bytes:
+        """The package bytes, SSRF-guarded (an injected client may not carry the hook) and capped."""
+        request = client.build_request("GET", url)
+        await ssrf_guard_request_hook(request)
+        resp = await client.send(request, stream=True)
+        try:
+            resp.raise_for_status()
+            if int(resp.headers.get("content-length") or 0) > self._max_bytes:
+                raise ValueError(f"package larger than {self._max_bytes} bytes")
+            chunks, size = [], 0
+            async for chunk in resp.aiter_bytes():
+                size += len(chunk)
+                if size > self._max_bytes:
+                    raise ValueError(f"package larger than {self._max_bytes} bytes")
+                chunks.append(chunk)
+            return b"".join(chunks)
+        finally:
+            await resp.aclose()
 
     def _index_and_archive(
         self, doc_id: str, company_id: str, title: str, content_key: str, text: str, raw: bytes, url: str, path: Path

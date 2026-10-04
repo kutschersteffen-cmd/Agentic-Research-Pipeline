@@ -195,7 +195,7 @@ async def _extract_company(
             except httpx.HTTPError as exc:  # no facts: the tagged fields are extracted as before
                 logger.warning("XBRL facts unavailable for %s: %s", company.company_id, exc)
         esef = await asyncio.to_thread(esef_fact_sources, kept)
-        sources = esef + sec if (company.lei or not company.cik) else sec + esef
+        sources = esef + sec if not company.cik else sec + esef  # ESEF first for a non-US filer
         facts = ChainedFactSource(sources) if sources else None
 
     for field in to_extract:
