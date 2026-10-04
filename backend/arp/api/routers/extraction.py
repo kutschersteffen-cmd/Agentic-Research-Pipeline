@@ -28,6 +28,7 @@ from arp.orchestration.review_queue import effective_decisions, item_states, pub
 from arp.orchestration.step_tally import step_counts
 from arp.presets.green import green_summary
 from arp.presets.registry import PRESETS, install_preset
+from arp.presets.remuneration import remuneration_summary
 from arp.review.context import similar_decisions, visible_history
 from arp.review.decide import DecisionError, bulk_accept
 from arp.review.items import cosign_rule, get_item
@@ -395,6 +396,16 @@ def get_green_summary(
         eu = {r.get("company_id"): r.get("fields", []) for r in run_store.read_jsonl(run_store.results_path(eu_taxonomy_run_id))}
     return {"rows": [{"company_id": r.get("company_id"), "name": r.get("name"), **s.model_dump()}
                      for r in rows for s in green_summary(r.get("fields", []), eu.get(r.get("company_id")))]}
+
+
+@router.get("/runs/{run_id}/remuneration-summary")
+def get_remuneration_summary(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+    """Per company, plan (STI, LTI) and period of a sch_esg_remuneration run: mechanism, ESG weight or multiplier
+    range, the computed effective weight and its below-10% or 10%-or-above class."""
+    _manifest_or_404(run_store, run_id)
+    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    return {"rows": [{"company_id": r.get("company_id"), "name": r.get("name"), **s.model_dump()}
+                     for r in rows for s in remuneration_summary(r.get("fields", []))]}
 
 
 @router.get("/companies/{company_id}/results")
