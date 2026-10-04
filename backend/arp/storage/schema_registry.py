@@ -131,6 +131,13 @@ class SchemaRegistry:
 
     def record_first_audit(self, field_id: str, version: int, audited_by: str) -> FieldQuality:
         with self._lock.acquire("registry"):
+            # Drafts are auditable (trial runs), but an unregistered field version is not.
+            if not any(
+                f.field_id == field_id and f.version == int(version)
+                for r in self.list_index()
+                for f in self.get(r["schema_id"], r["version"]).fields
+            ):
+                raise KeyError(f"{field_id} v{version}")
             q = FieldQuality(
                 field_id=field_id, version=int(version), first_audit_passed=True,
                 audited_by=audited_by, audited_at=now_iso(),

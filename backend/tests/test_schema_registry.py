@@ -167,26 +167,49 @@ def test_schema_routes_register_list_get(settings, monkeypatch):
     assert c.get(f"/api/extraction/schemas/{s['schema_id']}", params={"version": 1}).json()["version"] == 1
 
 
+def _fid(reg) -> str:
+    return reg.save(_schema()).fields[0].field_id
+
+
 def test_new_field_quality_not_audited(tmp_path):
     q = SchemaRegistry(tmp_path).quality("f1", 1)
     assert (q.field_id, q.version, q.first_audit_passed, q.audited_by, q.audited_at) == ("f1", 1, False, None, None)
 
 
 def test_record_first_audit_persists(tmp_path):
-    SchemaRegistry(tmp_path).record_first_audit("f1", 1, "u1")
-    q = SchemaRegistry(tmp_path).quality("f1", 1)
+    reg = SchemaRegistry(tmp_path)
+    fid = _fid(reg)
+    reg.record_first_audit(fid, 1, "u1")
+    q = SchemaRegistry(tmp_path).quality(fid, 1)
     assert q.first_audit_passed is True and q.audited_by == "u1" and q.audited_at
 
 
 def test_new_version_starts_unaudited(tmp_path):
     reg = SchemaRegistry(tmp_path)
-    reg.record_first_audit("f1", 1, "u1")
-    assert reg.quality("f1", 2).first_audit_passed is False
+    fid = _fid(reg)
+    reg.record_first_audit(fid, 1, "u1")
+    assert reg.quality(fid, 2).first_audit_passed is False
+
+
+def test_first_audit_unknown_field_version_refused(tmp_path):
+    reg = SchemaRegistry(tmp_path)
+    fid = _fid(reg)
+    for args in ((fid, 2), ("nope", 1)):
+        with pytest.raises(KeyError):
+            reg.record_first_audit(*args, "u1")
+        assert reg.quality(*args).first_audit_passed is False
 
 
 def test_first_audit_route_requires_approver(settings, monkeypatch):
     store = RunStore(settings.runs_dir)
-    url = "/api/extraction/fields/f1/versions/1/first-audit"
+    reg = SchemaRegistry(settings.schema_registry_dir)
+    fid = _fid(reg)
+    url = f"/api/extraction/fields/{fid}/versions/1/first-audit"
     assert _client(settings, store, "analyst", monkeypatch).post(url).status_code == 403
+    assert reg.quality(fid, 1).first_audit_passed is False
     ok = _client(settings, store, "approver", monkeypatch).post(url)
-    assert ok.status_code == 200 and ok.json()["first_audit_passed"] is True and ok.json()["audited_by"] == "u"
+    assert ok.status_code == 200 and ok.json()["audited_by"] == "u"
+    assert reg.quality(fid, 1).first_audit_passed is True
+    missing = f"/api/extraction/fields/{fid}/versions/2/first-audit"
+    assert _client(settings, store, "approver", monkeypatch).post(missing).status_code == 404
+    assert reg.quality(fid, 2).first_audit_passed is False

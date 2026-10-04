@@ -91,7 +91,10 @@ def first_audit(
     field_id: str, version: int, registry: SchemaRegistry = Depends(_registry_for),
     principal: Principal = Depends(require_role("approver")),
 ) -> FieldQuality:
-    return registry.record_first_audit(field_id, version, audited_by=principal.user_id)
+    try:
+        return registry.record_first_audit(field_id, version, audited_by=principal.user_id)
+    except KeyError:
+        raise HTTPException(404, "Field version not found") from None
 
 
 class RunRequest(BaseModel):
