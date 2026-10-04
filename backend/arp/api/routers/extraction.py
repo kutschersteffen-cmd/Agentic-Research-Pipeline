@@ -26,6 +26,7 @@ from arp.extraction.steps import ExtractionProfile, StepSettings, pipeline_shape
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.review_queue import effective_decisions, item_states, public_decision, record_cosign
 from arp.orchestration.step_tally import step_counts
+from arp.presets.registry import PRESETS, install_preset
 from arp.review.context import similar_decisions, visible_history
 from arp.review.decide import DecisionError, bulk_accept
 from arp.review.items import cosign_rule, get_item
@@ -79,6 +80,23 @@ def get_schema(schema_id: str, version: int | None = None, registry: SchemaRegis
         return registry.get(schema_id, version)
     except KeyError:
         raise HTTPException(404, "Schema not found") from None
+
+
+@router.get("/presets")
+def list_presets() -> list[dict]:
+    return [{"preset_id": pid, "name": (s := build()).name, "field_count": len(s.fields)} for pid, build in PRESETS.items()]
+
+
+@router.post("/presets/{preset_id}/install")
+def install_preset_endpoint(
+    preset_id: str, registry: SchemaRegistry = Depends(_registry_for),
+    principal: Principal = Depends(require_role("analyst")),
+) -> dict:
+    try:
+        saved = install_preset(preset_id, registry)
+    except KeyError:
+        raise HTTPException(404, "Preset not found") from None
+    return {"schema_id": saved.schema_id, "version": saved.version}
 
 
 @router.post("/schemas/{schema_id}/versions/{version}/release", response_model=DataPointSchema)

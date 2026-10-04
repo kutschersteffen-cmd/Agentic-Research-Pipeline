@@ -15,8 +15,10 @@ from arp.extraction.schema_builder import draft_schema
 from arp.extraction.tnfd_pipeline import run_tnfd_extraction
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.orchestration.jobs import NotResumable, RunBusy, resume_run
+from arp.presets.registry import PRESETS, install_preset
 from arp.review.analytics import MONTH_PATTERN, monthly_totals
 from arp.schemas.datapoints import DataPointSchema
+from arp.storage.schema_registry import SchemaRegistry
 from arp.universe import load_company_universe
 
 extract_app = typer.Typer(help="Schema-driven data-point extraction.")
@@ -30,6 +32,27 @@ def extract_draft_schema(criteria_text: str, out: Path = typer.Option(...)) -> N
     out.write_text(schema.model_dump_json(indent=2))
     typer.echo(f"Wrote schema with {len(schema.fields)} fields to {out}")
 
+
+
+presets_app = typer.Typer(help="Built-in schema presets.")
+extract_app.add_typer(presets_app, name="presets")
+
+
+@presets_app.command("list")
+def presets_list() -> None:
+    for pid, build in PRESETS.items():
+        schema = build()
+        typer.echo(f"{pid}\t{schema.name}\t{len(schema.fields)} fields")
+
+
+@presets_app.command("install")
+def presets_install(preset_id: str) -> None:
+    try:
+        saved = install_preset(preset_id, SchemaRegistry(get_settings().schema_registry_dir))
+    except KeyError:
+        typer.echo(f"Unknown preset '{preset_id}'.", err=True)
+        raise typer.Exit(1) from None
+    typer.echo(f"Installed {saved.schema_id} v{saved.version}")
 
 
 @extract_app.command("run")
