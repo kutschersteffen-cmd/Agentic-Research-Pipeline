@@ -66,7 +66,7 @@ def check_part_of_whole(spec: FieldDefinition, field: ExtractedField, ctx) -> li
     cid, v, whole_id = "plausibility.part_of_whole", numeric_of(field), spec.check_config.part_of
     whole = _same_period(ctx, whole_id, field.period_end) if whole_id else None
     w = numeric_of(whole) if whole else None
-    if v is None or w is None:
+    if v is None or w is None or whole.canonical_unit != field.canonical_unit:
         return _result(cid, Severity.WARN, _NA)
     if v > w:
         return _result(cid, Severity.WARN, CheckOutcome.FAIL, f"part {v:g} exceeds whole {whole_id} {w:g}")

@@ -108,3 +108,15 @@ def test_other_period_not_compared():
     specs, f = _tri(100, 50, 120, s1=_field("s1", 100, period="2023-12-31"), s2=_field("s2", 50, period="2023-12-31"))
     r = _run(check_sum_identity, specs["total"], f["total"], [f["s1"], f["s2"]])
     assert r.outcome == "not_applicable"
+
+
+def test_part_of_whole_mismatched_units_not_applicable():
+    specs, f = _tri(200, 50, 150)
+    f["total"] = _field("total", 150, unit="MWh")
+    assert _run(check_part_of_whole, specs["s1"], f["s1"], [f["total"]]).outcome == "not_applicable"
+
+
+def test_percentage_boundaries_and_zero_sign_pass():
+    spec = _spec("p", FieldDataType.PERCENTAGE)
+    assert [_run(check_percentage, spec, _field("p", v)).outcome for v in (0, 100)] == ["pass", "pass"]
+    assert _run(check_sign, _spec("n", non_negative=True), _field("n", 0)).outcome == "pass"
