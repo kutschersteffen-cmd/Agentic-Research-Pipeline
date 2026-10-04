@@ -156,14 +156,26 @@ def _same_unit(a: dict, b: dict) -> bool:
     return a.get("canonical_unit") is not None and a.get("canonical_unit") == b.get("canonical_unit")
 
 
-def green_summary(fields: list[dict]) -> list[GreenSummaryRow]:
-    """Per metric and period: green total, aligned, share and green beyond the Taxonomy (never clipped)."""
+def _eu_aligned(eu: dict, m: str, p: str | None) -> dict | None:
+    """Reported aligned amount: aligned % x total amount, same period (turnover is revenue)."""
+    k = "turnover" if m == "revenue" else m
+    pct, amt = eu.get((f"eut_{k}_aligned_pct", p)), eu.get((f"eut_{k}_total_amount", p))
+    if pct is None or amt is None or amt.get("canonical_unit") is None:
+        return None
+    return {"canonical_value": _num(pct) / 100 * _num(amt), "canonical_unit": amt["canonical_unit"]}
+
+
+def green_summary(fields: list[dict], eu_taxonomy_fields: list[dict] | None = None) -> list[GreenSummaryRow]:
+    """Per metric and period: green total, aligned, share and green beyond the Taxonomy (never clipped).
+    The EU Taxonomy run's aligned amount fills in only where the green run has none."""
     by = {(f.get("field_id"), f.get("period_end")): f for f in fields if _num(f) is not None}
+    eu = {(f.get("field_id"), f.get("period_end")): f for f in eu_taxonomy_fields or [] if _num(f) is not None}
     rows = []
     for m in METRICS:
         gid, aid = f"green_{m}_total", f"green_{m}_eu_aligned"
         for p in sorted({p for fid, p in by if fid in (gid, aid)}, key=lambda p: p or ""):
             g, a, s, t = (by.get((fid, p)) for fid in (gid, aid, f"green_{m}_share_pct", f"{m}_total"))
+            a = a or _eu_aligned(eu, m, p)
             beyond = flag = None
             if g and a:
                 if not _same_unit(g, a):

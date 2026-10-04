@@ -381,13 +381,20 @@ def get_extraction_results(
 
 
 @router.get("/runs/{run_id}/green-summary")
-def get_green_summary(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+def get_green_summary(
+    run_id: str, eu_taxonomy_run_id: str | None = None, run_store: RunStore = Depends(get_run_store)
+) -> dict:
     """Per company, metric and period of a sch_green_lowcarbon run: green total, EU-aligned part,
-    share and green beyond the Taxonomy (negative values are flagged, never clipped)."""
+    share and green beyond the Taxonomy (negative values are flagged, never clipped). With
+    `eu_taxonomy_run_id` (a sch_eu_taxonomy run) the reported aligned amount fills in where the green run has none."""
     _manifest_or_404(run_store, run_id)
     rows = run_store.read_jsonl(run_store.results_path(run_id))
+    eu: dict = {}
+    if eu_taxonomy_run_id:
+        _manifest_or_404(run_store, eu_taxonomy_run_id)
+        eu = {r.get("company_id"): r.get("fields", []) for r in run_store.read_jsonl(run_store.results_path(eu_taxonomy_run_id))}
     return {"rows": [{"company_id": r.get("company_id"), "name": r.get("name"), **s.model_dump()}
-                     for r in rows for s in green_summary(r.get("fields", []))]}
+                     for r in rows for s in green_summary(r.get("fields", []), eu.get(r.get("company_id")))]}
 
 
 @router.get("/companies/{company_id}/results")
