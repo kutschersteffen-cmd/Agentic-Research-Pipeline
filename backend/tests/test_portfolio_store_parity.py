@@ -297,7 +297,10 @@ def test_sql_aggregation_agrees_with_a_python_sum_over_the_same_as_of(tmp_path):
 
 
 def _index_holding(holder_id: str, security_id: str, as_of_date: str, weight: float) -> Holding:
-    return Holding(holder_id=holder_id, kind="index", security_id=security_id, as_of_date=as_of_date, weight_pct=weight)
+    return Holding(
+        holder_id=holder_id, kind="index", security_id=security_id, as_of_date=as_of_date, weight_pct=weight,
+        fx_rate_to_eur=None,
+    )
 
 
 def test_index_holdings_beside_portfolio_holdings(store):
@@ -309,7 +312,7 @@ def test_index_holdings_beside_portfolio_holdings(store):
     [p] = store.load_snapshot("X1", "2026-10-31")
     [i] = store.load_snapshot("X1", "2026-10-31", kind="index")
     assert (p.kind, p.market_value_eur) == ("portfolio", 10.0)
-    assert (i.kind, i.weight_pct, i.market_value_eur) == ("index", 2.5, None)
+    assert (i.kind, i.weight_pct, i.market_value_eur, i.fx_rate_to_eur) == ("index", 2.5, None, None)
     assert store.list_snapshot_dates("X1", kind="index") == ["2026-10-31"]
     assert store.latest_snapshot_date("X1", kind="index") == "2026-10-31"
     assert [h.kind for h in store.load_holdings_as_of("2026-10-31")] == ["portfolio"]

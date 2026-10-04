@@ -149,3 +149,10 @@ def test_portfolio_holding_requires_market_value_eur():
         Holding(holder_id="p1", security_id="a", as_of_date="2026-01-01")
     h = Holding(holder_id="IDX1", kind="index", security_id="a", as_of_date="2026-01-01", fx_rate_to_eur=None)
     assert h.market_value_eur is None
+
+
+def test_fx_rate_filled_only_for_eur():
+    base = {"holder_id": "IDX1", "kind": "index", "security_id": "a", "as_of_date": "2026-01-01"}
+    assert Holding(**base, currency="EUR").fx_rate_to_eur == 1.0
+    assert Holding(**base, currency="USD").fx_rate_to_eur is None
+    assert Holding(**base).fx_rate_to_eur is None

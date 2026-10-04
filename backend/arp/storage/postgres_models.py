@@ -108,7 +108,8 @@ class SecurityResolutionModel(Base):
 
 
 class HoldingModel(Base):
-    """One position: one security, in one portfolio, as of one date.
+    """One position: one security, held by one index or portfolio
+    (`kind`; `portfolio_id` holds the holder id), as of one date.
     Immutable once written, matching arp/schemas/portfolio.py::Holding's
     own contract -- a correction is a new snapshot (new as_of_date or a
     superseding row), never an UPDATE of an existing one."""
@@ -134,7 +135,7 @@ class HoldingModel(Base):
     quantity: Mapped[float | None] = mapped_column(Float, nullable=True)
     price: Mapped[float | None] = mapped_column(Float, nullable=True)
     market_value: Mapped[float | None] = mapped_column(Float, nullable=True)
-    fx_rate_to_eur: Mapped[float | None] = mapped_column(Float, nullable=True, default=1.0)
+    fx_rate_to_eur: Mapped[float | None] = mapped_column(Float, nullable=True)
     market_value_eur: Mapped[float | None] = mapped_column(Float, nullable=True)
     shares: Mapped[float | None] = mapped_column(Float, nullable=True)
     free_float: Mapped[float | None] = mapped_column(Float, nullable=True)

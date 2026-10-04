@@ -68,7 +68,9 @@ class Holding(BaseModel):
     free_float: float | None = None
     weight_pct: float | None = Field(default=None, description="Of portfolio NAV / index weight, if supplied/derivable.")
     currency: str | None = None
-    fx_rate_to_eur: float | None = Field(default=1.0, description="As supplied by the custodian feed for this as_of_date.")
+    fx_rate_to_eur: float | None = Field(
+        default=None, description="As supplied by the feed for this as_of_date; 1.0 is filled in only for EUR rows."
+    )
 
     @property
     def portfolio_id(self) -> str:
@@ -76,6 +78,8 @@ class Holding(BaseModel):
 
     @model_validator(mode="after")
     def _portfolio_needs_eur_value(self) -> Holding:
+        if self.fx_rate_to_eur is None and self.currency == "EUR":
+            self.fx_rate_to_eur = 1.0
         if self.kind == "portfolio" and self.market_value_eur is None:
             raise ValueError("a portfolio holding needs market_value_eur")
         return self
