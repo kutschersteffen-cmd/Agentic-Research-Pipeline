@@ -13,6 +13,7 @@ from arp.cli.emerging_themes import emerging_themes_app
 from arp.cli.engagement import engagement_app
 from arp.cli.extraction import extract_app
 from arp.cli.golden_set import golden_set_app
+from arp.cli.holdings import holdings_app
 from arp.cli.identity import identity_app
 from arp.cli.index import index_app
 from arp.cli.portfolio import portfolio_app
@@ -60,3 +61,4 @@ app.add_typer(bi_app, name="bi")
 app.add_typer(project_app, name="project")
 app.add_typer(publish_app, name="publish")
 app.add_typer(snapshots_app, name="snapshots")
+app.add_typer(holdings_app, name="holdings")

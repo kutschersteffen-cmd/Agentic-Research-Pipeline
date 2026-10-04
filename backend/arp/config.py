@@ -75,6 +75,7 @@ class Settings(BaseSettings):
     snapshot_pull_dir: Path = REPO_ROOT / "data" / "snapshots"  # where `arp snapshots pull` writes
     holdings_api_url: str | None = None  # base URL of the ARP instance snapshots are pulled from
     holdings_api_token: str | None = None
+    holdings_pull_day: int = Field(default=2, ge=1, le=28)
     max_upload_bytes: int = Field(default=100_000_000, description="Largest manual document upload accepted, in bytes.")
     cache_dir: Path = Field(default=REPO_ROOT / "backend" / ".cache")
     document_store_dir: Path = Field(
