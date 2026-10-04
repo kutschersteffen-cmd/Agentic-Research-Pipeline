@@ -14,6 +14,7 @@ from arp.config import Settings
 from arp.holdings.api_source import pull_due
 from arp.holdings.intake import previous_month_end
 from arp.orchestration.interval_scheduler import IntervalScheduler
+from arp.orchestration.reground import reground_if_parser_changed
 from arp.publish.facts import ConcurrentPublish, Fact, PublishStore, ts_now
 from arp.publish.gate import reground, sample
 from arp.publish.reader import events_since, facts_as_of
@@ -184,6 +185,15 @@ class PublishingScheduler(IntervalScheduler):
             "snapshot": lambda: self._snapshot(today),
             "corrections": lambda: self._corrections(frozen),
         }
+        try:  # every tick; a no-op unless the parser version changed (E51)
+            report = await asyncio.to_thread(
+                reground_if_parser_changed, self.run_store, settings=self.settings
+            )
+            if report is not None:
+                config.last_results["parser_reground"] = {"status": "ok", "detail": str(report)}
+        except Exception as exc:  # noqa: BLE001 - never stops the other jobs
+            logger.exception("Parser re-ground failed")
+            config.last_results["parser_reground"] = {"status": "failed", "detail": str(exc)[:500]}
         for job in due:
             try:
                 status, detail = await asyncio.to_thread(jobs[job])

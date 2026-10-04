@@ -6,7 +6,7 @@ from pathlib import Path
 
 import typer
 
-from arp.cli._shared import _document_content_store, _registry
+from arp.cli._shared import _document_content_store, _registry, _run_store
 from arp.schemas.common import CompanyRef, DocType
 from arp.universe import load_company_universe
 
@@ -98,3 +98,25 @@ def documents_migrate_registry() -> None:
         typer.echo("migrate-registry needs ARP_EMBEDDINGS_BACKEND=postgres and ARP_POSTGRES_DSN.", err=True)
         raise typer.Exit(1)
     typer.echo(f"Copied {copy_sqlite_registry(settings.document_store_dir, settings.postgres_dsn)} registry rows.")
+
+
+@documents_app.command("reground")
+def documents_reground(
+    force: bool = typer.Option(False, "--force", help="Re-ground even if the parser version is unchanged."),
+) -> None:
+    """Re-grounds stored extraction citations parsed under an older parser
+    version; moved or lost spans go to review (E51). Without --force, only
+    when the parser version differs from the last recorded one."""
+    from arp.config import get_settings
+    from arp.ingestion.indexing_config import IndexingConfig
+    from arp.orchestration.reground import reground_if_parser_changed, reground_runs
+    from arp.storage.document_blob_store import blob_store_for
+
+    settings = get_settings()
+    stores = {"blob_store": blob_store_for(IndexingConfig.from_settings(settings)),
+              "content_store": _document_content_store()}
+    if force:
+        report = reground_runs(_run_store(), settings=settings, **stores)
+    else:
+        report = reground_if_parser_changed(_run_store(), settings=settings, **stores)
+    typer.echo("Parser version unchanged; nothing to re-ground." if report is None else str(report))
