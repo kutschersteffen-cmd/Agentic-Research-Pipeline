@@ -21,12 +21,14 @@ def test_docx_parses_to_markdown_with_heading_text_and_table(tmp_path):
     path = tmp_path / "strategy.docx"
     _write_docx(path)
 
-    text, page_breaks = parse_file_to_text_with_pages(path)
+    text, page_breaks, spans = parse_file_to_text_with_pages(path)
 
     assert "## Climate Transition Strategy" in text
     assert "company-wide net zero target for 2050" in text
     assert "| Scope 1" in text and "1,234" in text, "table rows keep their cells together"
     assert page_breaks == [], "a .docx has no fixed pages"
+    (cell,) = spans[0].cells  # real Docling table structure, located in the text
+    assert (cell.row_label, cell.col_label, text[cell.char_start : cell.char_end]) == ("Scope 1", "tCO2e", "1,234")
 
 
 def test_docx_in_the_documents_folder_is_fetched_and_citations_ground(tmp_path):

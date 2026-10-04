@@ -73,6 +73,32 @@ class PeriodPlan(BaseModel):
         return [p for p in (self.current, *self.comparatives) if p]
 
 
+class TableCell(BaseModel):
+    row_label: str | None = None
+    col_label: str | None = None
+    char_start: int
+    char_end: int
+
+
+class TableSpan(BaseModel):
+    """Where one parsed table lies in SourceDocument.full_text, with its data cells."""
+
+    table_id: str
+    char_start: int
+    char_end: int
+    caption: str | None = None
+    unit_note: str | None = None
+    cells: list[TableCell] = Field(default_factory=list)
+
+
+class TableRef(BaseModel):
+    table_id: str
+    row_label: str | None = None
+    col_label: str | None = None
+    caption: str | None = None
+    unit_note: str | None = None
+
+
 class SourceDocument(BaseModel):
     doc_id: str = Field(default_factory=lambda: new_id("doc"))
     company_id: str
@@ -102,6 +128,7 @@ class SourceDocument(BaseModel):
             "Empty for non-paginated formats (html/txt/xlsx) or non-local sources."
         ),
     )
+    table_spans: list[TableSpan] = Field(default_factory=list, description="Docling tables located in full_text.")
 
 
 class DocumentChunk(BaseModel):
@@ -143,7 +170,7 @@ class Citation(BaseModel):
     passage_id: str | None = Field(
         default=None, description="passage_id of the evidence block the quote was copied from"
     )
-    table_ref: str | None = None
+    table_ref: TableRef | None = Field(default=None, description="Table cell the match lies in, set by grounding.")
     parser_version: str | None = None
 
 

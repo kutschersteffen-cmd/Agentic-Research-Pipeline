@@ -1,8 +1,9 @@
 """Layer 2 checks: numbers against the cited span, caption scale, table row label (E35).
 
-Deferred: column-label checks and table-caption lookup through ``Citation.table_ref``.
-The parser gives no table structure (``table_ref`` is always None), so captions are
-read from the text before the span.
+A citation inside a parsed table carries ``Citation.table_ref``: its unit note or caption
+gives the scale and its row label is the row checked. Without one (no table structure, as
+for non-Docling formats), captions are read from the text before the span and the row is
+the span's text line. Deferred: column-label checks.
 """
 
 from __future__ import annotations
@@ -101,8 +102,13 @@ def check_caption_scale(spec: FieldDefinition, field: ExtractedField, ctx) -> li
     cits = _grounded(field)
     if spec.data_type == FieldDataType.PERCENTAGE or not cits or cits[0].char_start is None:
         return _result(cid, Severity.WARN, na)
-    doc = ctx.documents_by_id.get(cits[0].doc_id)
-    cap = caption_scale(doc.full_text, cits[0].char_start) if doc else None
+    ref = cits[0].table_ref
+    ref_text = ref and (ref.unit_note or ref.caption)
+    if ref_text and (factor := _line_scale(f"({ref_text})")) is not None:  # every word a candidate
+        cap = factor, ref_text
+    else:
+        doc = ctx.documents_by_id.get(cits[0].doc_id)
+        cap = caption_scale(doc.full_text, cits[0].char_start) if doc else None
     if cap is None:
         return _result(cid, Severity.WARN, na)
     factor, text = cap
@@ -120,9 +126,12 @@ def check_row_label(spec: FieldDefinition, field: ExtractedField, ctx) -> list[C
     if doc is None:
         return _result(cid, Severity.WARN, na)
     t, c = doc.full_text, cits[0]
-    line = t[t.rfind("\n", 0, c.char_start) + 1 : (t.find("\n", c.char_end) if t.find("\n", c.char_end) >= 0 else len(t))]
-    if len(numbers_in(line)) < 2:
-        return _result(cid, Severity.WARN, na)
+    if c.table_ref and c.table_ref.row_label:
+        line = c.table_ref.row_label
+    else:
+        line = t[t.rfind("\n", 0, c.char_start) + 1 : (t.find("\n", c.char_end) if t.find("\n", c.char_end) >= 0 else len(t))]
+        if len(numbers_in(line)) < 2:
+            return _result(cid, Severity.WARN, na)
     low = line.casefold()
     words = [k.casefold() for k in spec.seed_keywords] + [w.casefold() for w in re.findall(r"[^\W\d_]{4,}", spec.name)]
     if any(w in low for w in words):

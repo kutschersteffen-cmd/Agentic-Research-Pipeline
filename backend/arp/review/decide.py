@@ -86,7 +86,7 @@ def ground_correction(
         raise DecisionError(422, "source text unavailable")
     source = SourceDocument(
         doc_id=doc["doc_id"], company_id=doc.get("company_id") or "", doc_type=doc.get("doc_type") or citation.doc_type,
-        title=doc.get("title") or "", full_text=text.full_text, page_breaks=text.page_breaks,
+        title=doc.get("title") or "", full_text=text.full_text, page_breaks=text.page_breaks, table_spans=text.table_spans,
         content_key=doc["content_key"], parser_version=doc["parser_version"], local_path=doc.get("source_filename"),
     )
     [grounded] = ground_citations([citation], {source.doc_id: source}, fuzzy_threshold)

@@ -1,14 +1,35 @@
 from __future__ import annotations
 
+import re
 from dataclasses import replace
 
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.verifier_agent import VerifierOutput
 from arp.grounding import ground_citations
+from arp.normalise.locale import Decimal, context_decimal
 from arp.normalise.value import typed_value
 from arp.schemas.common import DocumentChunk, SourceDocument
 from arp.schemas.datapoints import Alternative, ExtractedField, FieldDefinition, ValueState
 from arp.schemas.review import ReasonCode
+
+_NUMBER = re.compile(r"\d[\d.,]*\d")
+
+
+def _table_decimal(
+    pv: PeriodValue, documents_by_id: dict[str, SourceDocument], fuzzy_threshold: float,
+    passages: dict[str, DocumentChunk] | None, fallback: Decimal | None,
+) -> Decimal | None:
+    """A value cited inside a table reads with the decimal mark that table's own
+    numbers prove; `fallback` (the documents' decimal) when they prove none."""
+    if not any(d.table_spans for c in pv.citations if (d := documents_by_id.get(c.doc_id))):
+        return fallback
+    # ponytail: grounds these citations a second time (only for documents with tables); hoist if it shows in profiles.
+    for c in ground_citations(pv.citations, documents_by_id, fuzzy_threshold, passages=passages):
+        if c.table_ref:
+            doc = documents_by_id[c.doc_id]
+            t = next(t for t in doc.table_spans if t.table_id == c.table_ref.table_id)
+            return context_decimal(_NUMBER.findall(doc.full_text[t.char_start : t.char_end])) or fallback
+    return fallback
 
 
 def build_extracted_fields(
@@ -42,7 +63,12 @@ def build_extracted_fields(
         d.decimal if (d := documents_by_id.get(c.doc_id)) else None for pv in values for c in pv.citations
     }
     decimal = decimals.pop() if len(decimals) == 1 else None  # disagreeing or unknown -> flag ambiguity
-    typed = [(pv, typed_value(field, pv, fiscal_year_end=fiscal_year_end, planned=planned, decimal=decimal)) for pv in values]
+
+    def _typed(pv: PeriodValue):
+        dec = _table_decimal(pv, documents_by_id, fuzzy_threshold, passages, decimal)
+        return typed_value(field, pv, fiscal_year_end=fiscal_year_end, planned=planned, decimal=dec)
+
+    typed = [(pv, _typed(pv)) for pv in values]
     typed.sort(key=lambda t: t[1].period_end or "", reverse=True)  # ISO dates sort as text; None ("") last
 
     kept: dict[str, list] = {}
@@ -90,7 +116,7 @@ def build_extracted_fields(
         else:
             final_citations = ground_citations(pv.citations, documents_by_id, fuzzy_threshold, passages=passages)
         for d in dupes.get(key, []):
-            dtv = typed_value(field, d, fiscal_year_end=fiscal_year_end, planned=planned, decimal=decimal)
+            dtv = _typed(d)
             if dtv.value_state != ValueState.NOT_FOUND:
                 alternatives.append(Alternative(
                     value=dtv.value, raw_value_text=d.raw_value_text, source="duplicate",

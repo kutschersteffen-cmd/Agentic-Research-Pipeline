@@ -5,7 +5,7 @@ import json
 import logging
 import sqlite3
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from arp.schemas.common import now_iso
@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS parsed_content (
     source_suffix   TEXT    NOT NULL,
     full_text       TEXT    NOT NULL,
     page_breaks     TEXT    NOT NULL DEFAULT '[]',
+    table_spans     TEXT    NOT NULL DEFAULT '[]',
     text_sha256     TEXT    NOT NULL,
     char_len        INTEGER NOT NULL,
     byte_size       INTEGER NOT NULL,
@@ -56,6 +57,14 @@ class ParsedContent:
     full_text: str
     page_breaks: list[int]
     text_sha256: str
+    table_spans: list = field(default_factory=list)  # TableSpan models or their dicts
+
+
+def ensure_columns(conn: sqlite3.Connection) -> None:
+    """Adds table_spans to a parsed_content table created before it existed."""
+    if "table_spans" not in {row[1] for row in conn.execute("PRAGMA table_info(parsed_content)")}:
+        conn.execute("ALTER TABLE parsed_content ADD COLUMN table_spans TEXT NOT NULL DEFAULT '[]'")
+        conn.commit()
 
 
 class ParsedContentCache:
@@ -117,14 +126,16 @@ class ParsedContentCache:
 
     def _lookup_parsed(self, conn: sqlite3.Connection, content_key: str, parser_version: str) -> ParsedContent | None:
         row = conn.execute(
-            "SELECT page_breaks, full_text, text_sha256 FROM parsed_content WHERE content_key=? AND parser_version=?",
+            "SELECT page_breaks, full_text, text_sha256, table_spans FROM parsed_content "
+            "WHERE content_key=? AND parser_version=?",
             (content_key, parser_version),
         ).fetchone()
         if row is None:
             return None
-        page_breaks_json, full_text, text_sha256 = row
+        page_breaks_json, full_text, text_sha256, table_spans_json = row
         try:
             page_breaks = json.loads(page_breaks_json)
+            table_spans = json.loads(table_spans_json)
         except json.JSONDecodeError:
             # Corrupt row -- treat as a miss (house convention, see
             # arp/llm/cache.py) and self-heal by deleting it, since unlike
@@ -136,7 +147,8 @@ class ParsedContentCache:
             )
             conn.commit()
             return None
-        return ParsedContent(content_key=content_key, full_text=full_text, page_breaks=page_breaks, text_sha256=text_sha256)
+        return ParsedContent(content_key=content_key, full_text=full_text, page_breaks=page_breaks,
+                             text_sha256=text_sha256, table_spans=table_spans)
 
     def lookup(self, content_key: str, parser_version: str) -> ParsedContent | None:
         """Read-only half of get_or_compute: checks the cache and returns
@@ -165,12 +177,15 @@ class ParsedContentCache:
         byte_size: int,
         text: str,
         page_breaks: list[int],
+        table_spans: list | None = None,
     ) -> ParsedContent:
         """Write-only half of get_or_compute, for a caller (see lookup())
         that already has text + page_breaks in hand from its own
         computation."""
         text_sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()
-        result = ParsedContent(content_key=content_key, full_text=text, page_breaks=page_breaks, text_sha256=text_sha256)
+        table_spans = table_spans or []
+        result = ParsedContent(content_key=content_key, full_text=text, page_breaks=page_breaks,
+                               text_sha256=text_sha256, table_spans=table_spans)
 
         if self.enabled and len(text) <= _MAX_CACHED_CHARS:
             conn = self._connect()
@@ -178,8 +193,8 @@ class ParsedContentCache:
                 conn.execute(
                     "INSERT INTO parsed_content "
                     "(content_key, key_kind, parser_version, source_suffix, full_text, page_breaks, text_sha256, "
-                    " char_len, byte_size, created_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                    " char_len, byte_size, created_at, table_spans) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
                     "ON CONFLICT(content_key, parser_version) DO NOTHING",
                     (
                         content_key,
@@ -192,6 +207,7 @@ class ParsedContentCache:
                         len(text),
                         byte_size,
                         now_iso(),
+                        json.dumps([s.model_dump() if hasattr(s, "model_dump") else s for s in table_spans]),
                     ),
                 )
                 conn.commit()
@@ -207,7 +223,7 @@ class ParsedContentCache:
         parser_version: str,
         source_suffix: str,
         byte_size: int,
-        compute: Callable[[], tuple[str, list[int]]],
+        compute: Callable[[], tuple],
     ) -> ParsedContent:
         """Generic content-addressed parse cache: given an already-known
         content_key (a local file's byte hash via content_key_for_file, or
@@ -220,7 +236,7 @@ class ParsedContentCache:
         cached = self.lookup(content_key, parser_version)
         if cached is not None:
             return cached
-        text, page_breaks = compute()
+        text, page_breaks, *rest = compute()  # (text, page_breaks[, table_spans])
         return self.store(
             content_key,
             key_kind=key_kind,
@@ -229,10 +245,11 @@ class ParsedContentCache:
             byte_size=byte_size,
             text=text,
             page_breaks=page_breaks,
+            table_spans=rest[0] if rest else None,
         )
 
     def get_or_parse(
-        self, path: Path, *, parser_version: str, parse: Callable[[Path], tuple[str, list[int]]]
+        self, path: Path, *, parser_version: str, parse: Callable[[Path], tuple]
     ) -> ParsedContent:
         """File-specific convenience wrapper over get_or_compute: derives
         the content_key from the file's bytes (via content_key_for_file)

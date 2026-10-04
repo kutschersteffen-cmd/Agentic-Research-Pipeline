@@ -85,6 +85,7 @@ class DocumentContentStore:
                 conn.executescript(_SCHEMA)
                 conn.commit()
                 document_registry.ensure_columns(conn)
+                parsed_content_cache.ensure_columns(conn)
             finally:
                 conn.close()
 

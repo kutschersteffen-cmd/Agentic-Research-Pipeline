@@ -17,6 +17,7 @@ class _FakeDoclingDocument:
     def __init__(self, page_texts: list[str]):
         self._page_texts = page_texts
         self.pages = {i + 1: object() for i in range(len(page_texts))}
+        self.tables = []
 
     def export_to_markdown(self, page_no: int) -> str:
         return self._page_texts[page_no - 1]
