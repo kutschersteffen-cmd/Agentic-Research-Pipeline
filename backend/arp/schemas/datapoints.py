@@ -43,6 +43,12 @@ class Severity(StrEnum):
     BLOCK = "block"
 
 
+class RouteKind(StrEnum):
+    AUTO_ACCEPT = "auto_accept"
+    REVIEW = "review"
+    HOLD = "hold"
+
+
 class CheckResult(BaseModel):
     check_id: str
     layer: int = Field(ge=1, le=5)
@@ -109,6 +115,8 @@ class FieldDefinition(BaseModel):
     check_config: CheckConfig = Field(default_factory=CheckConfig)
     applicability_rules: ApplicabilityRules | None = None
     document_routing: DocumentRouting | None = None
+    auto_accept_min: float = Field(default=0.9, ge=0.0, le=1.0)
+    high_risk: bool = False
 
 
 class FieldQuality(BaseModel):
@@ -160,6 +168,7 @@ class ExtractedField(BaseModel):
     fx_rate_ref: str | None = None
     checks: list[CheckResult] = Field(default_factory=list)
     route_reasons: list[str] = Field(default_factory=list)
+    route: RouteKind | None = Field(default=None, description="Set by the pipeline only; None on rows written before routing.")
     input_hash: str | None = None
     reused_from_run: str | None = None
 

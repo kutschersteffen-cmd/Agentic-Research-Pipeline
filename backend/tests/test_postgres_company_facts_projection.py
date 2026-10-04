@@ -268,3 +268,51 @@ def test_edit_value_clears_fx_and_scale_and_infers_zero_like_frontend():
         f = resolve_extraction_fact("acme", row, {key: {"decision": "edit", "edited_value": {"value": edited}}}, {key})[0]["fields"][0]
         assert f["value_state"] == state
         assert (f["fx_rate"], f["fx_rate_ref"], f["scale_applied"]) == (None, None, None)
+
+
+def _routed_row(route_a, route_b="auto_accept"):
+    row = _extraction_row()
+    row["fields"][0]["route"], row["fields"][1]["route"] = route_a, route_b
+    return row
+
+
+def test_auto_accepted_field_projects_as_auto_accepted():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    value, status, reviewer = resolve_extraction_fact("acme", _routed_row("auto_accept"), {}, set())
+    assert (status, reviewer) == ("auto_accepted", None)
+    assert value["fields"][0]["value"] == 1
+
+
+def test_human_named_system_is_not_auto_accepted():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    ka, kb = "ARP:x:a:unspecified", "ARP:x:b:unspecified"
+    decisions = {ka: {"decision": "approve", "reviewer": "system"}, kb: {"decision": "approve", "reviewer": "system"}}
+    _, status, reviewer = resolve_extraction_fact("acme", _routed_row("auto_accept"), decisions, set())
+    assert (status, reviewer) == ("approved", "system")
+
+
+def test_held_field_projects_as_held():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    _, status, reviewer = resolve_extraction_fact("acme", _routed_row("hold", "hold"), {}, set())
+    assert (status, reviewer) == ("held", None)
+    # a held field beside an auto-accepted one still holds the fact; a pending one outranks both
+    assert resolve_extraction_fact("acme", _routed_row("hold"), {}, set())[1] == "held"
+    kb = "ARP:x:b:unspecified"
+    assert resolve_extraction_fact("acme", _routed_row("hold", "review"), {}, {kb})[1] == "pending_review"
+
+
+def test_legacy_rows_without_route_unchanged():
+    from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
+
+    kb = "ARP:x:b:unspecified"
+    cases = [
+        ({}, set(), (_extraction_row(), "auto_approved", None)),
+        ({}, {kb}, (_extraction_row(), "pending_review", None)),
+        ({kb: {"decision": "approve", "reviewer": "r"}}, {kb}, (_extraction_row(), "approved", "r")),
+        ({kb: {"decision": "reject", "reviewer": "r"}}, {kb}, (_extraction_row(), "rejected", "r")),
+    ]
+    for decisions, queued, expected in cases:
+        assert resolve_extraction_fact("acme", _extraction_row(), decisions, queued) == expected

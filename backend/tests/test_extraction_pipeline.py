@@ -5,7 +5,7 @@ from arp.extraction.verifier_agent import VerifierOutput
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
-from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
+from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition, FieldQuality, FieldStatus
 
 
 class _FixedDocSource(DocumentSource):
@@ -41,6 +41,13 @@ def _schema() -> DataPointSchema:
     return DataPointSchema(name="Green Capex", fields=[field])
 
 
+def _released_audited(schema: DataPointSchema) -> tuple[DataPointSchema, dict]:
+    """A released schema plus a first audit for each field, so a clean value can auto-accept."""
+    fields = [f.model_copy(update={"status": FieldStatus.RELEASED}) for f in schema.fields]
+    qualities = {(f.field_id, f.version): FieldQuality(field_id=f.field_id, version=f.version, first_audit_passed=True) for f in fields}
+    return schema.model_copy(update={"fields": fields, "release_flag": True}), qualities
+
+
 async def test_extract_company_grounded_value_not_flagged(tmp_path, fake_llm):
     doc = SourceDocument(
         company_id="c1",
@@ -67,7 +74,10 @@ async def test_extract_company_grounded_value_not_flagged(tmp_path, fake_llm):
     llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [verifier]})
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
 
-    result = await _extract_company(company, schema, registry=registry, llm=llm, settings=_settings(tmp_path))
+    schema, qualities = _released_audited(schema)
+    result = await _extract_company(
+        company, schema, registry=registry, llm=llm, settings=_settings(tmp_path), qualities=qualities
+    )
     field_result = result.record.fields[0]
     assert field_result.value == 120.0
     assert field_result.grounded is True
@@ -114,7 +124,10 @@ async def test_extract_company_no_evidence_skips_llm_and_not_flagged(tmp_path, f
     llm = fake_llm({})
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
 
-    result = await _extract_company(company, schema, registry=registry, llm=llm, settings=_settings(tmp_path))
+    schema, qualities = _released_audited(schema)
+    result = await _extract_company(
+        company, schema, registry=registry, llm=llm, settings=_settings(tmp_path), qualities=qualities
+    )
     assert result.record.fields[0].value is None
     assert result.record.needs_review is False
     assert llm.calls == []
@@ -201,7 +214,7 @@ async def test_a_run_counts_the_items_through_each_step(tmp_path, fake_llm):
 
 
 async def test_pipeline_queues_one_row_per_flagged_field(tmp_path, fake_llm):
-    from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+    from arp.extraction.pipeline import execute_extraction_run
     from arp.schemas.issuer import issuer_key
     from arp.storage.run_store import RunStore
 
@@ -233,7 +246,7 @@ async def test_pipeline_queues_one_row_per_flagged_field(tmp_path, fake_llm):
     )
     settings = _settings(tmp_path)
     run_store = RunStore(settings.runs_dir)
-    run_id = create_extraction_run(schema, [company], settings, run_store, trial=True)
+    run_id = _released_run(schema, [company], settings, run_store)
     await execute_extraction_run(
         run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
         settings=settings, run_store=run_store,
@@ -278,7 +291,7 @@ async def test_provenance_records_schema_version(tmp_path, fake_llm):
 
 
 async def test_zero_and_not_found_end_to_end(tmp_path, fake_llm):
-    from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+    from arp.extraction.pipeline import execute_extraction_run
     from arp.storage.run_store import RunStore
 
     def _f(name, kw):
@@ -303,7 +316,7 @@ async def test_zero_and_not_found_end_to_end(tmp_path, fake_llm):
     llm = fake_llm({"ExtractionDraft": [zero, ExtractionDraft(values=[], confidence=0.9)], "VerifierOutput": [agree, agree]})
     settings = _settings(tmp_path)
     run_store = RunStore(settings.runs_dir)
-    run_id = create_extraction_run(schema, [company], settings, run_store, trial=True)
+    run_id = _released_run(schema, [company], settings, run_store)
     await execute_extraction_run(
         run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
         settings=settings, run_store=run_store,
@@ -383,3 +396,121 @@ async def test_field_graph_grounds_only_against_passages_shown_to_the_model(fake
     assert by_value[120.0].grounded is True
     assert by_value[999.0].grounded is False
     assert by_value[999.0].citations[0].passage_id is None
+
+
+def _released_run(schema, companies, settings, run_store):
+    """Registers, releases and first-audits every field, then creates a normal (non-trial) run."""
+    from arp.extraction.pipeline import create_extraction_run
+    from arp.storage.schema_registry import SchemaRegistry
+
+    reg = SchemaRegistry(settings.schema_registry_dir)
+    saved = reg.save(schema)
+    reg.release(saved.schema_id, saved.version)
+    for f in saved.fields:
+        reg.record_first_audit(f.field_id, f.version, "auditor")
+    return create_extraction_run(schema, companies, settings, run_store)
+
+
+async def test_auto_accepted_not_queued_and_marked_system(tmp_path, fake_llm):
+    from arp.extraction.pipeline import execute_extraction_run
+    from arp.storage.run_store import RunStore
+
+    doc = SourceDocument(
+        company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="Acme Corp Sustainability Report",
+        full_text="In fiscal 2025, we invested $120 million in green capex across our facilities.",
+    )
+    quote = "invested $120 million in green capex"
+    draft = ExtractionDraft(
+        values=[PeriodValue(
+            value=120.0, raw_value_text="$120 million", unit_text="USD million", period_text="fiscal 2025",
+            citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=quote)],
+        )],
+        confidence=0.95,
+    )
+    llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [VerifierOutput(agrees=True, confidence=0.95, notes="ok")]})
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME", fiscal_year_end="12-31")
+    schema = _schema()
+    run_id = _released_run(schema, [company], settings, run_store)
+    await execute_extraction_run(
+        run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
+        settings=settings, run_store=run_store,
+    )
+    (row,) = run_store.read_jsonl(run_store.results_path(run_id))
+    (f,) = row["fields"]
+    assert (f["route"], f["route_reasons"]) == ("auto_accept", [])
+    assert row["needs_review"] is False
+    assert run_store.read_jsonl(run_store.review_queue_path(run_id)) == []
+    assert not (run_store.run_dir(run_id) / "review_decisions.jsonl").exists()
+
+
+async def test_all_documents_held_fields_hold(tmp_path, fake_llm):
+    from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+    from arp.storage.run_store import RunStore
+
+    doc = SourceDocument(
+        company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="Acme Energy GmbH Sustainability Report 2025",
+        full_text="In fiscal 2025, we invested $120 million in green capex.",
+    )
+    llm = fake_llm({})
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
+    schema = _schema()
+    run_id = create_extraction_run(schema, [company], settings, run_store, trial=True)
+    await execute_extraction_run(
+        run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
+        settings=settings, run_store=run_store,
+    )
+    (row,) = run_store.read_jsonl(run_store.results_path(run_id))
+    assert [(f["route"], f["route_reasons"], f["value"]) for f in row["fields"]] == [("hold", ["entity_mismatch"], None)]
+    assert row["needs_review"] is False and row["held_documents"][0]["doc_id"] == doc.doc_id
+    assert run_store.read_jsonl(run_store.review_queue_path(run_id)) == []
+    assert llm.calls == []
+
+
+def _trial_run_one_field(tmp_path, fake_llm, verifier):
+    doc = SourceDocument(
+        company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG",
+        full_text="Acme Corp report. In fiscal 2025, we invested $120 million in green capex.",
+    )
+    draft = ExtractionDraft(
+        values=[PeriodValue(
+            value=120.0, raw_value_text="$120 million", unit_text="USD million",
+            citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote="invested $120 million in green capex")],
+        )],
+        confidence=0.95,
+    )
+    return doc, fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [verifier]})
+
+
+async def _run_trial(tmp_path, doc, llm):
+    from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+    from arp.storage.run_store import RunStore
+
+    settings = _settings(tmp_path)
+    run_store = RunStore(settings.runs_dir)
+    company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
+    schema = _schema()
+    run_id = create_extraction_run(schema, [company], settings, run_store, trial=True)
+    await execute_extraction_run(
+        run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
+        settings=settings, run_store=run_store,
+    )
+    return run_store.read_jsonl(run_store.review_queue_path(run_id))
+
+
+async def test_queue_row_carries_route_reasons(tmp_path, fake_llm):
+    doc, llm = _trial_run_one_field(tmp_path, fake_llm, VerifierOutput(agrees=False, confidence=0.9, notes="wrong"))
+    (q,) = await _run_trial(tmp_path, doc, llm)
+    assert q["reason_codes"] == ["verifier_disagrees"]
+    assert q["route_reasons"][0] == "unreleased_version" and "verifier_disagrees" in q["route_reasons"]
+    assert q["field"]["route"] == "review"
+
+
+async def test_trial_run_rows_are_reviewable(tmp_path, fake_llm):
+    doc, llm = _trial_run_one_field(tmp_path, fake_llm, VerifierOutput(agrees=True, confidence=0.95, notes="ok"))
+    (q,) = await _run_trial(tmp_path, doc, llm)
+    assert q["reason_codes"] == []
+    assert "unreleased_version" in q["route_reasons"] and q["field"]["route"] == "review"
