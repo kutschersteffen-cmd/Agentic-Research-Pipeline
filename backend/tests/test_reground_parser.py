@@ -119,21 +119,77 @@ def test_unparseable_original_is_text_unavailable(world):
     run_store.results_path("ext1").write_text(
         run_store.results_path("ext1").read_text().replace("report.txt", "filing.bin")
     )
-    assert run() == RegroundReport(checked=1, unchanged=0, moved=0, lost=0, queued=0)
+    assert run() == RegroundReport(checked=1, unchanged=0, moved=0, lost=0, queued=0, unavailable=1)
     assert [r["outcome"] for r in _rows(run_store, "regrounds.jsonl")] == ["text_unavailable"]
+    run()  # retried, not deduped
+    assert len(_rows(run_store, "regrounds.jsonl")) == 2
 
 
-def test_reground_if_parser_changed_first_run_records_only(world):
+def test_reground_if_parser_changed_first_run_regrounds(world):
     run_store, _, new_parser, settings, blobs, texts = world
     new_parser("Preface.\n" + OLD_TEXT)
     kw = {"settings": settings, "blob_store": blobs, "content_store": texts}
-    assert reground_if_parser_changed(run_store, **kw) is None
+    assert reground_if_parser_changed(run_store, **kw).moved == 1  # no state file: per-citation versions decide
     assert (settings.publish_state_dir / "parser_version.txt").read_text() == "new"
-    assert _rows(run_store, "regrounds.jsonl") == []
     assert reground_if_parser_changed(run_store, **kw) is None  # unchanged
-    (settings.publish_state_dir / "parser_version.txt").write_text("old")
-    assert reground_if_parser_changed(run_store, **kw).moved == 1
+    assert len(_rows(run_store, "regrounds.jsonl")) == 1
+
+
+def test_unavailable_is_retried_and_holds_the_version_file(world):
+    run_store, _, new_parser, settings, blobs, texts = world
+    new_parser("Preface.\n" + OLD_TEXT)
+    blobs._path(KEY).unlink()
+    kw = {"settings": settings, "blob_store": blobs, "content_store": texts}
+    assert reground_if_parser_changed(run_store, **kw).unavailable == 1
+    assert not (settings.publish_state_dir / "parser_version.txt").exists()
+    blobs.put(KEY, ORIGINAL)
+    report = reground_if_parser_changed(run_store, **kw)
+    assert (report.moved, report.unavailable) == (1, 0)
     assert (settings.publish_state_dir / "parser_version.txt").read_text() == "new"
+
+
+def test_edgar_citation_skipped(world):
+    run_store, run, *_ = world
+    path = run_store.results_path("ext1")
+    path.write_text(path.read_text().replace('"parser_version": "old"', '"parser_version": "logic=1|trafilatura=1.0"'))
+    assert run() == RegroundReport()
+    assert _rows(run_store, "regrounds.jsonl") == []
+
+
+def test_decided_item_reopened_for_review(world):
+    from arp.api.auth import Principal
+    from arp.orchestration.review_queue import append_decision, effective_decisions
+    from arp.review.items import list_open_items
+    from arp.schemas.review import DecisionReason, ReviewDecision
+
+    run_store, run, new_parser, *_ = world
+    queue_for = run_store.review_queue_path("ext1")
+    run_store.append_jsonl(queue_for, {"item_key": ITEM, "field_id": "f1", "field": {"field_id": "f1"}})
+    append_decision(run_store, "ext1", ReviewDecision(
+        item_key=ITEM, decision="approve", reason_code=DecisionReason.CONFIRMED, reviewer="Alice",
+        user_id="u_alice", role="analyst", snapshot_id="s", step="first",
+    ))
+    assert ITEM in effective_decisions(run_store, "ext1", cosign_required={"edit"})
+    new_parser("Preface.\n" + OLD_TEXT)
+    assert run().queued == 1
+    assert ITEM not in effective_decisions(run_store, "ext1", cosign_required={"edit"})
+    carol = Principal(user_id="u_carol", name="Carol", role="approver")
+    [item] = [i for i in list_open_items(run_store, carol) if i.item_key == ITEM]  # one, though queued twice
+    assert item.escalated and "span_moved" in item.payload["review_reasons"]
+    assert "user_id" not in (item.decision or {})
+    run()  # same version: no second system decision
+    decisions = run_store.read_jsonl(run_store.review_decisions_path("ext1"))
+    assert [d["reason_code"] for d in decisions] == ["confirmed", "span_moved"]
+
+
+def test_reviewers_cannot_submit_span_moved():
+    from pydantic import ValidationError
+
+    from arp.schemas.review import ItemDecisionRequest
+
+    with pytest.raises(ValidationError):
+        ItemDecisionRequest(decision="escalate", reason_code="span_moved", context_etag="e")
+    assert ItemDecisionRequest(decision="escalate", reason_code="needs_expert", context_etag="e")
 
 
 def test_gate_reground_still_works(world):
@@ -150,9 +206,15 @@ def test_daily_job_records_parser_version(world, tmp_path, monkeypatch):
     from arp.publish.scheduler import PublishingScheduleConfig, PublishingScheduler
     from arp.storage.portfolio_store import PortfolioStore
 
-    run_store, *_, settings, _, _ = world
+    run_store, _, new_parser, settings, _, _ = world
     monkeypatch.setattr(S, "due_jobs", lambda *a, **k: [])
-    sched = PublishingScheduler(settings.model_copy(update={"snapshot_store_dir": tmp_path / "snaps"}),
+    paths = {"snapshot_store_dir": tmp_path / "snaps", "blob_store_dir": tmp_path / "blobs",
+             "document_store_dir": tmp_path / "docs"}
+    new_parser("Preface.\n" + OLD_TEXT)
+    sched = PublishingScheduler(settings.model_copy(update=paths),
                                 PortfolioStore(tmp_path / "pf"), run_store)
-    asyncio.run(sched._run(PublishingScheduleConfig(enabled=True)))
+    config = PublishingScheduleConfig(enabled=True)
+    asyncio.run(sched._run(config))
+    assert config.last_results["parser_reground"]["status"] == "ok"
+    assert len(_rows(run_store, "regrounds.jsonl")) == 1
     assert (settings.publish_state_dir / "parser_version.txt").read_text() == "new"

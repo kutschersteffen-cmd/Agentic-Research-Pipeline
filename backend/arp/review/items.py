@@ -36,7 +36,8 @@ def run_items(
 ) -> list[ReviewItem]:
     """Every review item of one run, in any state. `unqueued`: (key, kind, payload) rows after the queue's."""
     run_id, run_type = manifest.run_id, manifest.run_type
-    rows = [(q["item_key"], _queue_kind(run_type, q), q) for q in run_store.read_jsonl(run_store.review_queue_path(run_id))]
+    queue = {q["item_key"]: q for q in run_store.read_jsonl(run_store.review_queue_path(run_id))}  # re-queued: last row wins
+    rows = [(k, _queue_kind(run_type, q), q) for k, q in queue.items()]
     if run_type == "extraction":
         for r in run_store.read_jsonl(run_store.results_path(run_id)):
             extra = {"company_id": r.get("company_id"), "name": r.get("name"), "issuer_key": r.get("issuer_key")}

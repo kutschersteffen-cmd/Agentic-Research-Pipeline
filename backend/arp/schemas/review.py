@@ -38,6 +38,7 @@ class DecisionReason(StrEnum):
     BAD_SOURCE = "bad_source"
     NEEDS_EXPERT = "needs_expert"
     OTHER = "other"
+    SPAN_MOVED = "span_moved"  # system only: a parser upgrade moved the cited span (E51)
 
 
 class ReviewDecision(BaseModel):
@@ -113,6 +114,8 @@ class ItemDecisionRequest(BaseModel):
     def _consistent(self) -> ItemDecisionRequest:
         if (self.decision == "approve") != (self.reason_code == DecisionReason.CONFIRMED):
             raise ValueError("approve requires reason 'confirmed'; every other decision forbids it")
+        if self.reason_code == DecisionReason.SPAN_MOVED:
+            raise ValueError("span_moved is set by the system only")
         if self.decision == "correct" and self.corrected_value is None:
             raise ValueError("correct requires corrected_value")
         if self.decision != "correct" and (self.corrected_value is not None or self.correction_citation is not None):

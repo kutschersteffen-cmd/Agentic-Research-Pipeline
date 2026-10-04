@@ -11,15 +11,16 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from arp.ingestion.edgar import _edgar_parser_version
 from arp.ingestion.local_files import parse_file_to_text_with_pages, parser_version
-from arp.orchestration.review_queue import queue_for_review
+from arp.orchestration.review_queue import FINAL_STATES, append_decision, item_states, queue_for_review
 from arp.publish.gate import blob_key, lineage_error, reground_match
 from arp.schemas.common import Citation
-from arp.schemas.review import field_item_key, period_key
+from arp.schemas.review import DecisionReason, ReviewDecision, field_item_key, period_key
 from arp.storage.run_store import RunStore
 
 FLAGGED = ("offset_moved", "not_grounded")
+SETTLED = ("ok", *FLAGGED)  # anything else (original missing, text unavailable) is retried on the next run
+COSIGN_REQUIRED = {"edit"}  # extraction's legacy co-sign rule (review/items.py LEGACY_COSIGN)
 
 
 @dataclass
@@ -29,6 +30,24 @@ class RegroundReport:
     moved: int = 0
     lost: int = 0
     queued: int = 0
+    unavailable: int = 0
+
+
+def _is_edgar(version: str) -> bool:
+    # EDGAR filings are stamped "logic=N|trafilatura=..." (edgar._edgar_parser_version) and never re-parse here
+    return "|trafilatura=" in version and "docling=" not in version
+
+
+def _reopen(run_store: RunStore, run_id: str, key: str, old: str, new: str) -> None:
+    """A decided item goes back to review: a system first-step escalate starts a new round."""
+    with run_store.lock(run_id):
+        state = item_states(run_store, run_id, cosign_required=COSIGN_REQUIRED).get(key)
+        if state is not None and state.state in FINAL_STATES:
+            append_decision(run_store, run_id, ReviewDecision(
+                item_key=key, step="first", decision="escalate", reason_code=DecisionReason.SPAN_MOVED,
+                reviewer="system", user_id="system", role="system", snapshot_id="",
+                comment=f"span_moved: parser {old}\u2192{new}",
+            ))
 
 
 def _span(c: Citation | None, version: str) -> dict:
@@ -71,13 +90,12 @@ def _outcome(c: Citation, version: str, *, blob_store, content_store, fuzzy_thre
 
 def reground_runs(run_store: RunStore, *, settings, blob_store, content_store, run_ids=None) -> RegroundReport:
     version = parser_version()
-    current = {version, _edgar_parser_version()}
     report = RegroundReport()
     ids = run_ids if run_ids is not None else [m.run_id for m in run_store.list_runs("extraction")]
     for run_id in ids:
         log = run_store.run_dir(run_id) / "regrounds.jsonl"
-        # ponytail: no run lock (re-parsing can take minutes); two concurrent re-grounds can duplicate rows
-        done = run_store.read_jsonl(log)
+        # ponytail: no run lock while re-parsing (can take minutes); two concurrent re-grounds can duplicate rows
+        done = [r for r in run_store.read_jsonl(log) if r["outcome"] in SETTLED]
         seen = {(r["item_key"], r["doc_id"], r["old"]["parser_version"], r["old"]["char_start"],
                  r["new"]["parser_version"]) for r in done}
         queued = {(r["item_key"], r["new"]["parser_version"]) for r in done if r["outcome"] in FLAGGED}
@@ -87,9 +105,10 @@ def reground_runs(run_store: RunStore, *, settings, blob_store, content_store, r
                 key = field_item_key(issuer, f["field_id"], period_key(f))
                 for raw in f.get("citations", []):
                     c = Citation.model_validate(raw)
-                    if not c.grounded or not c.parser_version or c.parser_version in current:
+                    old = c.parser_version
+                    if not c.grounded or not old or old == version or _is_edgar(old):
                         continue
-                    if (key, c.doc_id, c.parser_version, c.char_start, version) in seen:
+                    if (key, c.doc_id, old, c.char_start, version) in seen:
                         continue
                     outcome, g = _outcome(c, version, blob_store=blob_store, content_store=content_store,
                                           fuzzy_threshold=settings.grounding_fuzzy_threshold)
@@ -97,6 +116,7 @@ def reground_runs(run_store: RunStore, *, settings, blob_store, content_store, r
                     report.unchanged += outcome == "ok"
                     report.moved += outcome == "offset_moved"
                     report.lost += outcome == "not_grounded"
+                    report.unavailable += outcome not in SETTLED
                     if outcome in FLAGGED and f.get("route") != "hold" and (key, version) not in queued:  # held: approver only
                         reasons = [*f.get("review_reasons", []), "span_moved"]
                         queue_for_review(run_store, run_id, key, {
@@ -106,28 +126,28 @@ def reground_runs(run_store: RunStore, *, settings, blob_store, content_store, r
                             "period_end": f.get("period_end"), "field": f, "review_reasons": reasons,
                             "reason_codes": reasons, "route_reasons": f.get("route_reasons", []),
                         })
+                        _reopen(run_store, run_id, key, old, version)
                         queued.add((key, version))
                         report.queued += 1
                     run_store.append_jsonl(log, {
-                        "item_key": key, "doc_id": c.doc_id, "old": _span(c, c.parser_version),
+                        "item_key": key, "doc_id": c.doc_id, "old": _span(c, old),
                         "new": _span(g, version), "outcome": outcome,
                     })
-                    seen.add((key, c.doc_id, c.parser_version, c.char_start, version))
+                    if outcome in SETTLED:
+                        seen.add((key, c.doc_id, old, c.char_start, version))
     return report
 
 
 def reground_if_parser_changed(
     run_store: RunStore, *, settings, blob_store=None, content_store=None
 ) -> RegroundReport | None:
-    """Re-grounds every run when the parser version differs from the one recorded
-    in publish_state_dir/parser_version.txt. The first run only records it."""
+    """Re-grounds every run unless publish_state_dir/parser_version.txt already
+    holds the current parser version; records it once nothing was left unavailable."""
     path = Path(settings.publish_state_dir) / "parser_version.txt"
     version = parser_version()
-    if not path.exists() or path.read_text().strip() == version:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(version)
+    if path.exists() and path.read_text().strip() == version:
         return None
-    if blob_store is None or content_store is None:
+    if (blob_store is None or content_store is None) and run_store.list_runs("extraction"):
         from arp.ingestion.indexing_config import IndexingConfig
         from arp.retrieval.content_store_factory import content_store_for
         from arp.storage.document_blob_store import blob_store_for
@@ -135,5 +155,7 @@ def reground_if_parser_changed(
         blob_store = blob_store or blob_store_for(IndexingConfig.from_settings(settings))
         content_store = content_store or content_store_for(settings)
     report = reground_runs(run_store, settings=settings, blob_store=blob_store, content_store=content_store)
-    path.write_text(version)
+    if not report.unavailable:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(version)
     return report
