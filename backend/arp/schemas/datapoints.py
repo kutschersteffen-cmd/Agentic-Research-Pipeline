@@ -111,6 +111,14 @@ class FieldDefinition(BaseModel):
     document_routing: DocumentRouting | None = None
 
 
+class FieldQuality(BaseModel):
+    field_id: str
+    version: int
+    first_audit_passed: bool = False
+    audited_by: str | None = None
+    audited_at: str | None = None
+
+
 class DataPointSchema(BaseModel):
     schema_id: str = Field(default_factory=lambda: new_id("sch"))
     name: str

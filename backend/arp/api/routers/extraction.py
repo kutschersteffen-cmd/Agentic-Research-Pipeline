@@ -26,7 +26,7 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.review_queue import effective_decisions, record_cosign
 from arp.orchestration.step_tally import step_counts
 from arp.schemas.common import CompanyRef
-from arp.schemas.datapoints import DataPointSchema
+from arp.schemas.datapoints import DataPointSchema, FieldQuality
 from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
 from arp.storage.schema_registry import SchemaRegistry
@@ -84,6 +84,14 @@ def release_schema(
         return registry.release(schema_id, version, released_by=principal.user_id)
     except KeyError:
         raise HTTPException(404, "Schema not found") from None
+
+
+@router.post("/fields/{field_id}/versions/{version}/first-audit", response_model=FieldQuality)
+def first_audit(
+    field_id: str, version: int, registry: SchemaRegistry = Depends(_registry_for),
+    principal: Principal = Depends(require_role("approver")),
+) -> FieldQuality:
+    return registry.record_first_audit(field_id, version, audited_by=principal.user_id)
 
 
 class RunRequest(BaseModel):

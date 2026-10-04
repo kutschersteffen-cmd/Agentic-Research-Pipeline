@@ -165,3 +165,28 @@ def test_schema_routes_register_list_get(settings, monkeypatch):
     s = c.post("/api/extraction/schemas", json=_schema().model_dump(mode="json")).json()
     assert c.get("/api/extraction/schemas").json()[0]["schema_id"] == s["schema_id"]
     assert c.get(f"/api/extraction/schemas/{s['schema_id']}", params={"version": 1}).json()["version"] == 1
+
+
+def test_new_field_quality_not_audited(tmp_path):
+    q = SchemaRegistry(tmp_path).quality("f1", 1)
+    assert (q.field_id, q.version, q.first_audit_passed, q.audited_by, q.audited_at) == ("f1", 1, False, None, None)
+
+
+def test_record_first_audit_persists(tmp_path):
+    SchemaRegistry(tmp_path).record_first_audit("f1", 1, "u1")
+    q = SchemaRegistry(tmp_path).quality("f1", 1)
+    assert q.first_audit_passed is True and q.audited_by == "u1" and q.audited_at
+
+
+def test_new_version_starts_unaudited(tmp_path):
+    reg = SchemaRegistry(tmp_path)
+    reg.record_first_audit("f1", 1, "u1")
+    assert reg.quality("f1", 2).first_audit_passed is False
+
+
+def test_first_audit_route_requires_approver(settings, monkeypatch):
+    store = RunStore(settings.runs_dir)
+    url = "/api/extraction/fields/f1/versions/1/first-audit"
+    assert _client(settings, store, "analyst", monkeypatch).post(url).status_code == 403
+    ok = _client(settings, store, "approver", monkeypatch).post(url)
+    assert ok.status_code == 200 and ok.json()["first_audit_passed"] is True and ok.json()["audited_by"] == "u"
