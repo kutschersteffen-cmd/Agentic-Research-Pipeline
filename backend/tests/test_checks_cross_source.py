@@ -1,9 +1,7 @@
-
 from arp.checks import runner
 from arp.checks.cross_source import Reference, check_cross_source
 from arp.checks.runner import CheckContext, run_checks
 from arp.extraction.pipeline import build_references
-from arp.ingestion.xbrl import XbrlFactSource
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import CheckConfig, DataPointSchema, ExtractedField, FieldDefinition
 
@@ -100,8 +98,20 @@ def test_build_references_rules():
     assert refs == {KEY: [Reference(source="published", value=120.0, unit="USD")]}
 
 
-def test_fact_matches_what_xbrl_source_returns():
-    assert XbrlFactSource.fact_for_tags(FACTS, ["us-gaap:Revenues"], fiscal_year=2024).value == 103.0
+def test_tagged_reference_in_field_unit():
+    spec = _spec(tags=["us-gaap:Revenues"]).model_copy(update={"unit": "USD millions"})
+    facts = {"facts": {"us-gaap": {"Revenues": {"units": {"USD": [
+        {"form": "10-K", "fp": "FY", "fy": 2024, "val": 103e6, "end": END, "start": "2024-01-01", "filed": "2025-02-01"}
+    ]}}}}}
+    refs = _build([_field(100.0, unit="USD millions")], {"rev": spec}, history=None, xbrl_facts=facts)
+    assert refs == {KEY: [Reference(source="tagged", value=103.0, unit="USD millions")]}
+    f = _field(100.0, unit="USD millions")
+    assert check_cross_source(spec, f, _ctx(spec, f, refs))[0].outcome == "fail"
+    f = _field(103.0, unit="USD millions")
+    assert check_cross_source(spec, f, _ctx(spec, f, refs))[0].outcome == "pass"
+    # no conversion (needs FX): no reference
+    spec = spec.model_copy(update={"unit": "EUR millions"})
+    assert _build([_field(100.0)], {"rev": spec}, history=None, xbrl_facts=facts) == {}
 
 
 async def test_layer5_runs():

@@ -81,10 +81,10 @@ def _tagged_field(state: FieldState, fact: XbrlFact, period_end: str) -> Extract
     )
 
 
-_MAX_END_DRIFT_DAYS = 7
+MAX_END_DRIFT_DAYS = 7
 
 
-def _days_apart(a: str, b: str) -> int:
+def days_apart(a: str, b: str) -> int:
     return abs((date.fromisoformat(a) - date.fromisoformat(b)).days)
 
 
@@ -98,7 +98,7 @@ async def _try_tagged(state: FieldState) -> dict:
     found = {end: XbrlFactSource.fact_for_tags(facts, field.xbrl_tags, fiscal_year=int(end[:4])) for end in planned}
     # The fact must cover the planned period itself: 52/53-week drift (a few days) is the
     # same period; a September year end against a planned December end is not.
-    found = {end: f if f and f.period_end and _days_apart(f.period_end, end) <= _MAX_END_DRIFT_DAYS else None
+    found = {end: f if f and f.period_end and days_apart(f.period_end, end) <= MAX_END_DRIFT_DAYS else None
              for end, f in found.items()}
     # ponytail: all periods or none; take the tagged ones and extract only the rest if comparatives often lack facts
     if not all(found.values()):

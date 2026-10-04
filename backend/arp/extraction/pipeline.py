@@ -10,13 +10,14 @@ from arp.checks.prior_period import open_restatement_candidates
 from arp.checks.runner import CheckContext, check_record
 from arp.config import Settings
 from arp.extraction.aggregator import no_evidence_field
-from arp.extraction.field_graph import _MAX_END_DRIFT_DAYS, _days_apart, extract_one_field
+from arp.extraction.field_graph import MAX_END_DRIFT_DAYS, days_apart, extract_one_field
 from arp.extraction.history import RunHistory
 from arp.extraction.pre_steps import prepare_company
 from arp.extraction.routing import route
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient, LLMUsage
+from arp.normalise.units import convert
 from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
@@ -72,8 +73,13 @@ def build_references(
                 refs.append(Reference(source="text", value=prior[-1]["canonical_value"], unit=prior[-1].get("canonical_unit")))
         elif spec and spec.xbrl_tags and xbrl_facts and cik:
             fact = XbrlFactSource.fact_for_tags(xbrl_facts, spec.xbrl_tags, fiscal_year=int(f.period_end[:4]))
-            if fact and fact.period_end and _days_apart(fact.period_end, f.period_end) <= _MAX_END_DRIFT_DAYS:
-                refs.append(Reference(source="tagged", value=fact.value, unit=fact.unit))
+            if fact and fact.period_end and days_apart(fact.period_end, f.period_end) <= MAX_END_DRIFT_DAYS:
+                # In the field's own unit; a conversion that fails (FX, unknown unit) means no reference.
+                c = convert(fact.value, fact.unit, spec.unit) if spec.unit else None
+                if c is None:
+                    refs.append(Reference(source="tagged", value=fact.value, unit=fact.unit))
+                elif c.value is not None and not c.ambiguous:
+                    refs.append(Reference(source="tagged", value=c.value, unit=spec.unit))
         if key in published:
             refs.append(Reference(source="published", value=published[key][0], unit=published[key][1]))
     return {k: v for k, v in out.items() if v}
