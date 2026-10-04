@@ -300,7 +300,7 @@ function ItemDecision({
   }
 
   const correctedValue: Record<string, string> | null =
-    decision === "correct" ? Object.fromEntries(Object.entries(corrected).filter(([, v]) => v.trim() !== "")) : null;
+    decision === "correct" ? Object.fromEntries(Object.entries(corrected).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v !== "")) : null;
   const correctionReady =
     decision !== "correct" ||
     (kind === "identity"
@@ -344,6 +344,7 @@ function ItemDecision({
       setComment("");
       setCtx(null); // its etag is stale now
       setOpen(false);
+      setShowHistory(false);
     } catch (err) {
       const message = (err as Error).message;
       if (message.startsWith("409")) setStale(message);
@@ -362,7 +363,9 @@ function ItemDecision({
     <div className="review-controls">
       <ItemStatus item={item} />
       <div className="toolbar decision-bar">
-        {decisionChoices(kind).map((d) => (
+        {decisionChoices(kind)
+          .filter((d) => !(d === "escalate" && item.state === "disagreed"))
+          .map((d) => (
           <button
             key={d}
             className={d === "approve" ? undefined : d === "reject" ? "danger-outline" : "secondary"}
@@ -513,7 +516,7 @@ function ItemDecision({
         </div>
       )}
       {decision === "correct" && needsCitation(kind) && (
-        <p className="muted">{quote ? `Source: "${quote.quote}"` : "Open a source and select the text that shows the corrected value."}</p>
+        <p className="muted" aria-live="polite">{quote ? `Source: "${quote.quote}"` : "Open a source and select the text that shows the corrected value."}</p>
       )}
       {decision === "correct" && (kind === "identity" || kind === "sector_code") && (
         <p className="muted">A correction needs a comment naming its source.</p>

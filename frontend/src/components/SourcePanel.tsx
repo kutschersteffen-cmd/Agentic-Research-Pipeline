@@ -74,6 +74,7 @@ function TextView({ source, initial }: { source: ActiveSource; initial: SourceTe
   const [text, setText] = useState(initial);
   const [error, setError] = useState("");
   const markRef = useRef<HTMLElement>(null);
+  const preRef = useRef<HTMLPreElement>(null);
   const parts =
     text.char_start != null && text.char_end != null
       ? highlightParts(text.page_text, text.char_start - text.page_start, text.char_end - text.page_start)
@@ -89,8 +90,10 @@ function TextView({ source, initial }: { source: ActiveSource; initial: SourceTe
       .catch((err: Error) => setError(err.message));
   }
 
-  function onMouseUp() {
-    const quote = window.getSelection()?.toString().trim();
+  function onSelect() {
+    const sel = window.getSelection();
+    if (!sel || !preRef.current?.contains(sel.anchorNode)) return;
+    const quote = sel.toString().trim();
     if (quote && source.onSelectQuote) source.onSelectQuote({ doc_id: text.doc_id, doc_type: text.doc_type, quote });
   }
 
@@ -118,7 +121,14 @@ function TextView({ source, initial }: { source: ActiveSource; initial: SourceTe
       </div>
       {source.onSelectQuote && <p className="muted">Select text to use it as the correction's source.</p>}
       {error && <p className="error-text" role="alert">{error}</p>}
-      <pre className="source-text" onMouseUp={onMouseUp}>
+      <pre
+        ref={preRef}
+        className="source-text"
+        onMouseUp={onSelect}
+        onKeyUp={onSelect}
+        tabIndex={0}
+        aria-label={source.onSelectQuote ? "Source text: select text to cite it as the correction's source" : "Source text"}
+      >
         {parts ? (
           <>
             {parts.before}

@@ -78,9 +78,9 @@ export function FieldDetail({ field, onOpenSource }: { field: ExtractedField; on
         <p className="muted">≈ {field.canonical_value} {field.canonical_unit ?? ""}</p>
       )}
       {field.qualifiers?.map((q) => <span key={q} className="badge">{q}</span>)}
-      {routeLabel(field) && <p><span className={`badge ${field.route === "hold" ? "badge-high" : "badge-mid"}`}>{routeLabel(field)}</span></p>}
+      {routeLabel(field) && <p><span className={`badge ${field.route === "hold" ? "badge-low" : "badge-mid"}`}>{routeLabel(field)}</span></p>}
       {failedChecks(field).map((c) => (
-        <p key={c.check_id}><span className={`badge ${c.severity === "block" ? "badge-high" : "badge-mid"}`}>{c.check_id}: {c.detail}</span></p>
+        <p key={c.check_id}><span className={`badge ${c.severity === "block" ? "badge-low" : "badge-mid"}`}>{c.check_id}: {c.detail}</span></p>
       ))}
       {field.fx_rate_ref && <p className="muted">FX: {field.fx_rate_ref}</p>}
       {field.verifier_notes && <p className="muted">{field.verifier_notes}</p>}

@@ -53,7 +53,7 @@ export function CheckResults({ checks }: { checks: ItemContext["failed_checks"] 
     <ul className="citation-list">
       {checks.map((c, i) => (
         <li key={i} title={c.detail}>
-          <span className={c.severity === "block" ? "badge badge-high" : "badge badge-mid"}>{c.severity}</span> {c.plain}
+          <span className={c.severity === "block" ? "badge badge-low" : "badge badge-mid"}>{c.severity}</span> {c.plain}
         </li>
       ))}
     </ul>
