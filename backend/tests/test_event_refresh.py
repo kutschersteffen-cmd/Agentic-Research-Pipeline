@@ -1,6 +1,7 @@
 """E20: a new or updated filing starts one extraction run per issuer and configured released schema;
 plus E16 ESEF feed polling, which raises those document events from discovery."""
 
+import asyncio
 import json
 import logging
 from datetime import UTC, datetime, timedelta
@@ -9,15 +10,17 @@ from pathlib import Path
 import httpx
 import pytest
 
+from arp.cli._shared import _and_drain
 from arp.config import Settings
 from arp.discovery import refresh
-from arp.discovery.change_detector import ChangeDetector
+from arp.discovery.change_detector import ChangeDetector, poll_esef_filings
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
-from arp.discovery.refresh import refresh_on_events
+from arp.discovery.refresh import refresh_hook, refresh_on_events
 from arp.discovery.site_finder import WebSearchClient
 from arp.ingestion import esef
 from arp.ingestion.esef import EsefDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.orchestration import jobs
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition, FieldStatus
 from arp.schemas.discovery import DiscoveredDocument, DocumentEvent, DocumentEventType
@@ -40,7 +43,7 @@ def _settings(tmp_path, **kw) -> Settings:
     base = dict(
         anthropic_api_key="unused", runs_dir=tmp_path / "runs", schema_registry_dir=tmp_path / "schemas",
         documents_dir=tmp_path / "docs", cache_dir=tmp_path / "cache", discovery_state_dir=tmp_path / "disc",
-        event_refresh_state_dir=tmp_path / "refresh", event_refresh_enabled=True, event_refresh_schema_ids=["sch1"],
+        document_store_dir=tmp_path / "store", event_refresh_state_dir=tmp_path / "refresh", event_refresh_enabled=True, event_refresh_schema_ids=["sch1"],
     )
     return Settings(**{**base, **kw})
 
@@ -60,10 +63,10 @@ def _event(company_id="c1", sha="a" * 64, kind=DocumentEventType.NEW_DOCUMENT):
     return DocumentEvent(event_type=kind, company_id=company_id, company_name="Beispiel AG", document=doc)
 
 
-async def _refresh(settings, events, launcher):
+async def _refresh(settings, events, launcher, **kw):
     store = RunStore(settings.runs_dir)
     ids = await refresh_on_events(
-        events, settings=settings, run_store=store, registry=DocumentSourceRegistry([]), launcher=launcher
+        events, settings=settings, run_store=store, registry=DocumentSourceRegistry([]), launcher=launcher, **kw
     )
     return ids, store
 
@@ -216,3 +219,58 @@ async def test_esef_poll_off_by_default(tmp_path):
     row = await _discover(settings, _esef_source(tmp_path, calls))
 
     assert calls == [] and row["new_events"] == []
+
+
+async def test_parent_run_pair_skipped(tmp_path):
+    settings = _settings(tmp_path, event_refresh_schema_ids=["sch1", "sch2"], event_refresh_max_runs_per_day=1)
+    _schema(settings)
+    _schema(settings, "sch2")
+    launcher = _Launcher()
+
+    ids, store = await _refresh(settings, [_event()], launcher, parent=("c1", "sch1", "r-parent"))
+    again, _ = await _refresh(settings, [_event()], launcher)
+
+    # the parent's own pair is recorded, not run, and does not use up the daily cap
+    assert len(ids) == 1 and store.load_manifest(ids[0]).params["schema_id"] == "sch2" and again == []
+
+
+async def test_refresh_hook_passes_parent(tmp_path, monkeypatch):
+    seen = []
+
+    async def fake_refresh(events, **kw):
+        seen.append(kw["parent"])
+        return []
+
+    monkeypatch.setattr(refresh, "refresh_on_events", fake_refresh)
+    settings = _settings(tmp_path)
+    assert refresh_hook(_settings(tmp_path, event_refresh_enabled=False)) is None
+
+    await refresh_hook(settings, parent=("c1", "sch1", "r1"))([_event()])
+
+    assert seen == [("c1", "sch1", "r1")]
+
+
+async def test_esef_poll_error_never_raises(tmp_path):
+    class Broken:
+        async def fetch(self, company, doc_types=None):
+            raise RuntimeError("unexpected")
+
+    detector = ChangeDetector(tmp_path / "state", tmp_path / "events.jsonl")
+    assert await poll_esef_filings(CompanyRef(company_id="c1", name="B", lei=LEI), Broken(), detector) == []
+
+
+def test_cli_drain_finishes_launched_job(tmp_path, monkeypatch, capsys):
+    store = RunStore(tmp_path / "runs")
+    monkeypatch.setattr(jobs, "_launcher", jobs.LocalJobLauncher(lambda: store))
+    done = []
+
+    async def job():
+        await asyncio.sleep(0.01)
+        done.append(True)
+
+    async def command():
+        jobs.get_job_launcher().launch("r-refresh", job)
+        return "r-discovery"
+
+    assert asyncio.run(_and_drain(command())) == "r-discovery"
+    assert done == [True] and "r-refresh" in capsys.readouterr().out

@@ -69,6 +69,8 @@ def hold_run(run_store: RunStore, run_id: str) -> Iterator[None]:
 class JobLauncher(Protocol):
     def launch(self, run_id: str, job: Callable[[], Awaitable[None]], *, run_store: RunStore | None = None) -> None: ...
 
+    async def drain(self) -> list[str]: ...
+
 
 class LocalJobLauncher:
     """Runs a run's job as a background task in this process, under the
@@ -90,9 +92,21 @@ class LocalJobLauncher:
             except Exception:  # noqa: BLE001 - nobody awaits the task
                 logger.exception("Job for run %s failed", run_id)
 
-        task = asyncio.create_task(_leased())
+        task = asyncio.create_task(_leased(), name=run_id)
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
+
+    async def drain(self) -> list[str]:
+        """Waits for every launched job, including any launched meanwhile, so a
+        short-lived caller (a CLI `asyncio.run`) does not cancel them on exit.
+        Returns the run ids it waited for."""
+        drained: list[str] = []
+        while self._tasks:
+            tasks = list(self._tasks)
+            drained += [t.get_name() for t in tasks]
+            await asyncio.gather(*tasks, return_exceptions=True)
+            self._tasks.difference_update(tasks)
+        return drained
 
 
 _launcher: JobLauncher | None = None

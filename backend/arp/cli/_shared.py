@@ -26,6 +26,18 @@ from arp.storage.topic_store import TopicStateStore
 from arp.voting.ballot_casting import ManualInstructionBallotPlatform
 
 
+async def _and_drain(coro):
+    """Awaits `coro`, then every job it launched (event-driven refresh runs),
+    so `asyncio.run` returning does not cancel them; prints their run ids."""
+    from arp.orchestration.jobs import get_job_launcher
+
+    result = await coro
+    started = await get_job_launcher().drain()
+    if started:
+        typer.echo(f"Refresh runs started: {', '.join(started)}")
+    return result
+
+
 def _engagement_store() -> EngagementStore:
     settings = get_settings()
     return EngagementStore(settings.engagements_dir, projection_config=ProjectionConfig.from_settings(settings))

@@ -383,7 +383,9 @@ async def execute_extraction_run(
     trial = bool(manifest and manifest.params.get("trial"))
 
     async def _worker(company: CompanyRef) -> ExtractionRecordResult:
-        company = await prepare_company(company, settings=settings, llm=llm, registry=registry)
+        company = await prepare_company(
+            company, settings=settings, llm=llm, registry=registry, parent_run=(schema.schema_id, run_id)
+        )
         result = await _extract_company(
             company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings,
             history=history, identifier_map=identifier_map, qualities=qualities, trial=trial, xbrl_source=xbrl_source,

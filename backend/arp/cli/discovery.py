@@ -5,7 +5,7 @@ from pathlib import Path
 
 import typer
 
-from arp.cli._shared import _run_store
+from arp.cli._shared import _and_drain, _run_store
 from arp.config import get_settings
 from arp.discovery.pipeline import run_discovery
 from arp.discovery.scheduler import DiscoveryScheduler
@@ -27,7 +27,7 @@ def discover_run(
     typer.echo(f"Discovering documents for {len(companies)} companies...")
     run_store = _run_store()
     run_id = asyncio.run(
-        run_discovery(companies, settings=settings, run_store=run_store, doc_types=types, triggered_by="manual")
+        _and_drain(run_discovery(companies, settings=settings, run_store=run_store, doc_types=types, triggered_by="manual"))
     )
     rows = run_store.read_jsonl(run_store.results_path(run_id))
     unreachable = [r for r in rows if r.get("homepage_unreachable")]

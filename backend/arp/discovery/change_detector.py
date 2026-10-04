@@ -122,8 +122,8 @@ async def poll_esef_filings(
     like any discovered document, so a new or changed filing raises a DocumentEvent."""
     try:
         docs = await source.fetch(company, doc_types)
-    except (httpx.HTTPError, ValueError) as exc:  # unreachable index or a malformed JSON reply
-        logger.warning("ESEF filing index unavailable for %s: %s", company.company_id, exc)
+    except Exception as exc:  # noqa: BLE001 - a polling failure never discards the company's crawl result
+        logger.warning("ESEF filing poll failed for %s: %s", company.company_id, exc)
         return []
     found = [
         DiscoveredDocument(company_id=company.company_id, doc_type=d.doc_type, url=d.source_url,

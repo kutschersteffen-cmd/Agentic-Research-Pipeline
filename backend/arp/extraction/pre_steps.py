@@ -55,11 +55,13 @@ class _Unusable(Exception):
 
 
 async def prepare_company(
-    company: CompanyRef, *, settings: Settings, llm: LLMClient, registry: DocumentSourceRegistry
+    company: CompanyRef, *, settings: Settings, llm: LLMClient, registry: DocumentSourceRegistry,
+    parent_run: tuple[str, str] | None = None,
 ) -> CompanyRef:
     """Runs the enabled steps in order and returns the company as the
     extraction should see it (identity may fill in its website and CIK).
-    Raises PreStepFailed at the first step that fails."""
+    Raises PreStepFailed at the first step that fails. `parent_run` is the
+    calling run's (schema_id, run_id): event-driven refresh skips that pair."""
     candidates: list[CandidateDocumentLink] = []
     found: dict[str, dict] = {}
     if settings.pre_identity_enabled:
@@ -67,7 +69,7 @@ async def prepare_company(
     if settings.pre_content_search_enabled:
         company, candidates = await _run("content_search", _content_search(company, settings), company, found)
     if settings.pre_document_mgmt_enabled:
-        await _run("document_mgmt", _document_mgmt(company, candidates, settings), company, found)
+        await _run("document_mgmt", _document_mgmt(company, candidates, settings, parent_run), company, found)
     if settings.pre_parse_index_enabled:
         await _run("parse_index", _parse_index(company, registry), company, found)
     return company
@@ -185,7 +187,9 @@ async def _content_search(company: CompanyRef, settings: Settings):
     }
 
 
-async def _document_mgmt(company: CompanyRef, candidates: list[CandidateDocumentLink], settings: Settings):
+async def _document_mgmt(
+    company: CompanyRef, candidates: list[CandidateDocumentLink], settings: Settings, parent_run: tuple[str, str] | None = None
+):
     """Downloads what content search found (nothing to download when it is
     off), records new and changed documents, and takes stock of every
     document the company now has on disk."""
@@ -205,7 +209,7 @@ async def _document_mgmt(company: CompanyRef, candidates: list[CandidateDocument
             state_dir=settings.discovery_state_dir,
             global_events_path=settings.documents_dir / "_events.jsonl",
             webhook_url=settings.discovery_webhook_url,
-            on_events=refresh_hook(settings),
+            on_events=refresh_hook(settings, parent=(company.company_id, *parent_run) if parent_run else None),
         )
         changed = len(await detector.diff_and_record(company, downloaded))
     folder = Path(settings.documents_dir) / safe_id(company.company_id, label="company_id")

@@ -57,9 +57,12 @@ async def refresh_on_events(
     run_store: RunStore,
     registry: DocumentSourceRegistry,
     launcher: JobLauncher | None = None,
+    parent: tuple[str, str, str] | None = None,
 ) -> list[str]:
     """Starts and launches the refresh runs for `events`; returns their run ids. `registry` is the
-    document-source registry the runs extract from; schemas come from the schema registry."""
+    document-source registry the runs extract from; schemas come from the schema registry.
+    `parent` = (company_id, schema_id, run_id) of the extraction run whose Document management
+    step found the documents: that run already uses them, so its own pair is recorded, not run."""
     if not (settings.event_refresh_enabled and settings.event_refresh_schema_ids):
         return []
     events = [e for e in events if e.event_type in _REFRESH_TYPES]
@@ -82,9 +85,9 @@ async def refresh_on_events(
     # ponytail: no await between reading fired.jsonl and appending to it, so one event loop never
     # double-fires; a second process could. Lock the file if refresh runs in several workers.
     fired = read_jsonl(fired_path) if fired_path.exists() else []
-    seen = {(r["company_id"], r["schema_id"], r["sha256"]) for r in fired}
+    seen = {(r.get("company_id"), r.get("schema_id"), r.get("sha256")) for r in fired}
     today = datetime.now(UTC).date().isoformat()
-    runs_today = sum(1 for r in fired if r.get("fired_at", "")[:10] == today)
+    runs_today = sum(1 for r in fired if str(r.get("fired_at", ""))[:10] == today and not r.get("parent"))
 
     run_ids: list[str] = []
     for event in events:
@@ -93,6 +96,11 @@ async def refresh_on_events(
         for schema in schemas:
             key = (event.company_id, schema.schema_id, sha)
             if key in seen:
+                continue
+            if parent and (event.company_id, schema.schema_id) == parent[:2]:
+                seen.add(key)
+                append_jsonl(fired_path, {"company_id": key[0], "schema_id": key[1], "sha256": sha, "run_id": parent[2],
+                                          "parent": True, "fired_at": datetime.now(UTC).isoformat()})
                 continue
             if runs_today >= settings.event_refresh_max_runs_per_day:
                 logger.warning("Refresh: daily cap of %d runs reached; %s not refreshed",
@@ -112,8 +120,8 @@ async def refresh_on_events(
     return run_ids
 
 
-def refresh_hook(settings: Settings, run_store: RunStore | None = None):
-    """The ChangeDetector `on_events` callback when refresh is on, else None."""
+def refresh_hook(settings: Settings, run_store: RunStore | None = None, *, parent: tuple[str, str, str] | None = None):
+    """The ChangeDetector `on_events` callback when refresh is on, else None. `parent`: see refresh_on_events."""
     if not (settings.event_refresh_enabled and settings.event_refresh_schema_ids):
         return None
 
@@ -126,7 +134,7 @@ def refresh_hook(settings: Settings, run_store: RunStore | None = None):
         store = run_store or RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
         await refresh_on_events(
             events, settings=settings, run_store=store,
-            registry=build_registry(settings, content_store_for(settings)),
+            registry=build_registry(settings, content_store_for(settings)), parent=parent,
         )
 
     return on_events
