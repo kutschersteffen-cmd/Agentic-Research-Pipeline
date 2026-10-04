@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import asdict
+
 from fastapi import APIRouter, Depends, HTTPException, Response
 
-from arp.api.auth import Principal, current_user
+from arp.api.auth import Principal, current_user, require_role
 from arp.api.deps import get_document_content_store, get_run_store, settings_dep
+from arp.checks.effectiveness import effectiveness
 from arp.config import Settings
 from arp.review.context import build_context, item_source, read_snapshot
 from arp.review.decide import DecisionError, decide
@@ -21,6 +24,11 @@ def list_review_items(
     run_id: str | None = None, run_store: RunStore = Depends(get_run_store), principal: Principal = Depends(current_user),
 ) -> dict:
     return {"items": list_open_items(run_store, principal, run_id=run_id)}
+
+
+@router.get("/check-effectiveness", dependencies=[Depends(require_role("approver"))])
+def get_check_effectiveness(run_store: RunStore = Depends(get_run_store)) -> dict:
+    return {"checks": [asdict(s) for s in effectiveness(run_store)]}
 
 
 @router.get("/runs/{run_id}/items/{item_key}/context")

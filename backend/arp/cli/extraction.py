@@ -5,6 +5,7 @@ from pathlib import Path
 
 import typer
 
+from arp.checks.effectiveness import effectiveness
 from arp.cli._shared import _registry, _run_store, _xbrl_source
 from arp.config import get_settings
 from arp.extraction.financials_pipeline import run_financials_extraction
@@ -119,3 +120,15 @@ def extract_tnfd_run(
         )
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
+
+
+@extract_app.command("check-effectiveness")
+def extract_check_effectiveness() -> None:
+    """Per check and field version: how often a firing check led a reviewer to correct or reject the value."""
+    stats = effectiveness(_run_store())
+    typer.echo(f"{'check':<28}{'field':<28}{'ver':>4}{'fired':>7}{'decided':>9}{'hit%':>7}{'overturn%':>11}")
+    for s in stats:
+        typer.echo(
+            f"{s.check_id:<28}{s.field_id:<28}{s.field_version if s.field_version is not None else '-':>4}"
+            f"{s.fired:>7}{s.decided:>9}{s.hit_rate:>7.0%}{s.overturn_rate:>11.0%}"
+        )
