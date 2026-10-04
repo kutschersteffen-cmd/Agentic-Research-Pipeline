@@ -129,3 +129,9 @@ def test_lone_suffix_word_is_not_a_name():
 def test_no_identifiers_no_idmap_never_lei_mismatch():
     d = confirm_entity(_doc("Acme Group plc Report", text=f"LEI {LEI_B}"), ACME, None)
     assert d.match_status == MatchStatus.CONFIRMED
+
+
+def test_lowercase_connector_in_issuer_name_confirmed():
+    boa = CompanyRef(company_id="b", name="Bank of America Corporation")
+    for t in ("Bank of America Corporation Annual Report", "Annual Report Bank of America Corporation"):
+        assert confirm_entity(_doc(t), boa).match_status == MatchStatus.CONFIRMED

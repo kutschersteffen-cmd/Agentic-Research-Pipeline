@@ -58,6 +58,11 @@ def legal_name(text: str) -> str | None:
     return None
 
 
+def _same_name(found: str, want: str) -> bool:
+    got = normalise_entity_name(found)
+    return got == want or want.endswith(" " + got)
+
+
 def _issuer_lei(company: CompanyRef, idmap: IdentifierMapStore | None) -> str | None:
     lei = normalise_lei(company.lei or "")
     if lei_is_valid(lei):
@@ -92,11 +97,11 @@ def confirm_entity(
 
     name = legal_name(doc.title)
     if name:
-        same = normalise_entity_name(name) == want
+        same = _same_name(name, want)
         return done(MatchStatus.CONFIRMED if same else MatchStatus.MISMATCH, name)
 
     name = legal_name(doc.full_text[:2000])
     if name:
-        same = normalise_entity_name(name) == want
+        same = _same_name(name, want)
         return done(MatchStatus.CONFIRMED if same else MatchStatus.AMBIGUOUS, name)
     return done(MatchStatus.AMBIGUOUS, None)
