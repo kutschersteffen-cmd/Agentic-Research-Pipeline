@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import type { EvidenceSpan, ItemContext, ItemDecisionBody, ReviewDecision, ReviewItem } from "../types";
+import type { EvidenceSpan, ItemContext, ItemDecisionBody, ReviewDecision, ReviewItem, SimilarDecision } from "../types";
 import { SIGN_IN_REQUIRED, useMe } from "../lib/reviewer";
 import { DECISION_REASONS, agreeBody, decideBlock, decisionChoices, needsCitation, type Me } from "../lib/reviewKeys";
 import { CitationList } from "./CitationList";
@@ -217,6 +217,7 @@ function ItemDecision({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stale, setStale] = useState<string | null>(null);
+  const [similar, setSimilar] = useState<SimilarDecision[]>([]);
   const block = decideBlock(item, me);
   const kind = item.kind;
   const awaitingSecond = item.state === "first_done" && !block;
@@ -231,20 +232,35 @@ function ItemDecision({
     };
   }, [awaitingSecond, runId, itemKey]);
 
-  async function loadContext() {
+  async function loadContext(): Promise<ItemContext | null> {
     setError(null);
     setStale(null);
+    if (item.run_type === "extraction" && kind === "value") {
+      api.getSimilarDecisions(runId, itemKey).then((r) => setSimilar(r.items), () => setSimilar([]));
+    }
     try {
-      setCtx(await api.getItemContext(runId, itemKey));
+      const c = await api.getItemContext(runId, itemKey);
+      setCtx(c);
+      return c;
     } catch (err) {
       setError(`Could not load the item: ${(err as Error).message}`);
+      return null;
     }
+  }
+
+  /** Opening Correct starts from the verifier's or adjudicator's value, never over a typed one. */
+  function prefill(c: ItemContext | null) {
+    const v = c?.suggested_correction?.value;
+    if (v !== undefined && v !== null) setCorrected((cur) => (cur.value ? cur : { ...cur, value: String(v) }));
   }
 
   function choose(d: Decision) {
     setDecision(d);
     setReason(d === "approve" ? "confirmed" : "");
-    if (!ctx) void loadContext();
+    if (d === "correct") {
+      if (ctx) prefill(ctx);
+      else void loadContext().then(prefill);
+    } else if (!ctx) void loadContext();
   }
 
   function openSpan(s: EvidenceSpan) {
@@ -369,6 +385,7 @@ function ItemDecision({
           <button
             key={d}
             className={d === "approve" ? undefined : d === "reject" ? "danger-outline" : "secondary"}
+            data-decision={d}
             onClick={() => choose(d)}
             disabled={!!block || busy}
             aria-pressed={decision === d}
@@ -450,6 +467,18 @@ function ItemDecision({
             </p>
           )}
           {ctx.published && <p className="muted">Published: {shown(ctx.published.value)}</p>}
+          {similar.length > 0 && (
+            <div>
+              <p className="muted">Earlier decisions on this field, same document type:</p>
+              <ul>
+                {similar.map((h) => (
+                  <li key={`${h.run_id}/${h.item_key}`}>
+                    {h.period}: {shown(h.value)} <span className={decisionBadgeClass(h.decision.decision)}>{decisionLabel(h.decision)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {ctx.evidence.length > 0 && (
             <ul className="citation-list">
               {ctx.evidence.map((s, i) => (

@@ -18,7 +18,7 @@ from arp.extraction.steps import ExtractionProfile, StepSettings, pipeline_shape
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.review_queue import effective_decisions, item_states, public_decision, record_cosign
 from arp.orchestration.step_tally import step_counts
-from arp.review.context import visible_history
+from arp.review.context import similar_decisions, visible_history
 from arp.review.items import cosign_rule, get_item
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema, FieldQuality
@@ -380,6 +380,16 @@ def get_extraction_review_history(
     item = get_item(run_store, run_id, item_key, principal)
     high_risk = item is not None and item.high_risk
     return {"item_key": item_key, "history": visible_history(run_store, run_id, item_key, principal, high_risk=high_risk)}
+
+
+@router.get("/items/{item_key}/similar")
+def get_similar_decisions(
+    item_key: str, run_id: str, run_store: RunStore = Depends(get_run_store), principal: Principal = Depends(current_user),
+) -> dict:
+    items = similar_decisions(run_store, run_id=run_id, item_key=item_key)
+    if items is None:
+        raise HTTPException(404, "Run or item not found")
+    return {"items": items}
 
 
 class CosignRequest(BaseModel):
