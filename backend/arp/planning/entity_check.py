@@ -12,6 +12,12 @@ LEGAL_SUFFIXES = (
 )
 NOISE_WORDS = ("group", "holdings", "holding", "the", "company", "co")
 
+TITLE_STOP_WORDS = (
+    "report", "annual", "esg", "sustainability", "integrated", "independent", "assurance", "climate",
+    "impact", "responsibility", "corporate", "financial", "statements", "statement", "review", "form",
+    "and", "of", "the", "for",
+)
+
 _LEI_RE = re.compile(r"\b[A-Za-z0-9]{20}\b")
 
 
@@ -42,7 +48,10 @@ def legal_name(text: str) -> str | None:
         if w.strip(".,;:()").lower() not in LEGAL_SUFFIXES:
             continue
         start = i
-        while start > 0 and i - start < 5 and words[start - 1][:1].isupper():
+        while start > 0 and i - start < 5:
+            prev = words[start - 1]
+            if not prev[:1].isupper() or prev.lower() in TITLE_STOP_WORDS or any(c.isdigit() for c in prev):
+                break
             start -= 1
         if start < i:
             return " ".join(words[start : i + 1]).strip(".,;:()")

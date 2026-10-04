@@ -111,3 +111,21 @@ async def test_held_document_not_extracted(tmp_path, fake_llm):
     assert llm.prompts and all(sub.doc_id not in p for p in llm.prompts)
     assert any(parent.doc_id in p for p in llm.prompts)
     assert result.record.held_documents[0]["doc_id"] == sub.doc_id
+
+
+def test_issuer_own_report_titles_confirmed():
+    apple = CompanyRef(company_id="a", name="Apple Inc.")
+    for t in ("Annual Report Apple Inc", "Integrated Annual Report 2023 Apple Inc"):
+        assert confirm_entity(_doc(t), apple).match_status == MatchStatus.CONFIRMED
+    siemens = CompanyRef(company_id="s", name="Siemens AG")
+    assert confirm_entity(_doc("ESG Report Siemens AG"), siemens).match_status == MatchStatus.CONFIRMED
+
+
+def test_lone_suffix_word_is_not_a_name():
+    d = confirm_entity(_doc("Independent Limited Assurance Report"), ACME)
+    assert d.match_status == MatchStatus.AMBIGUOUS
+
+
+def test_no_identifiers_no_idmap_never_lei_mismatch():
+    d = confirm_entity(_doc("Acme Group plc Report", text=f"LEI {LEI_B}"), ACME, None)
+    assert d.match_status == MatchStatus.CONFIRMED
