@@ -26,6 +26,7 @@ from arp.extraction.steps import ExtractionProfile, StepSettings, pipeline_shape
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.review_queue import effective_decisions, item_states, public_decision, record_cosign
 from arp.orchestration.step_tally import step_counts
+from arp.presets.green import green_summary
 from arp.presets.registry import PRESETS, install_preset
 from arp.review.context import similar_decisions, visible_history
 from arp.review.decide import DecisionError, bulk_accept
@@ -377,6 +378,16 @@ def get_extraction_results(
 ) -> dict:
     rows = run_store.read_jsonl(run_store.results_path(run_id))
     return {"total": len(rows), "results": rows[offset : offset + limit]}
+
+
+@router.get("/runs/{run_id}/green-summary")
+def get_green_summary(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+    """Per company, metric and period of a sch_green_lowcarbon run: green total, EU-aligned part,
+    share and green beyond the Taxonomy (negative values are flagged, never clipped)."""
+    _manifest_or_404(run_store, run_id)
+    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    return {"rows": [{"company_id": r.get("company_id"), "name": r.get("name"), **s.model_dump()}
+                     for r in rows for s in green_summary(r.get("fields", []))]}
 
 
 @router.get("/companies/{company_id}/results")

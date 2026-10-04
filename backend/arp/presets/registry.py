@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from arp.presets.green import SCHEMA_ID as GREEN_SCHEMA_ID
+from arp.presets.green import build_green_schema
 from arp.schemas.datapoints import DataPointSchema
 from arp.storage.schema_registry import SchemaRegistry
 
-PRESETS: dict[str, Callable[[], DataPointSchema]] = {}
+PRESETS: dict[str, Callable[[], DataPointSchema]] = {GREEN_SCHEMA_ID: build_green_schema}
 
 
 def install_preset(preset_id: str, registry: SchemaRegistry) -> DataPointSchema:

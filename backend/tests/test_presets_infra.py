@@ -85,9 +85,8 @@ def _client(tmp_path, role):
 
 
 def test_presets_endpoint_and_install_requires_analyst(tmp_path, dummy):
-    assert _client(tmp_path, "viewer").get("/api/extraction/presets").json() == [
-        {"preset_id": "dummy", "name": "Dummy", "field_count": 1}
-    ]
+    listed = _client(tmp_path, "viewer").get("/api/extraction/presets").json()
+    assert {"preset_id": "dummy", "name": "Dummy", "field_count": 1} in listed
     url = "/api/extraction/presets/dummy/install"
     assert _client(tmp_path, "viewer").post(url).status_code == 403
     ok = _client(tmp_path, "analyst").post(url)
