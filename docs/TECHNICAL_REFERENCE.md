@@ -295,6 +295,8 @@ backend/.arp_cache/ (configurable)           SQLite DocumentContentStore — par
                                               the one non-file-based store in the system
 ```
 
+With `ARP_EMBEDDINGS_BACKEND=postgres` and `ARP_POSTGRES_DSN`, `content_store_for(settings)` keeps the document registry (`document_registry` table, incl. identity columns) and the chunk embeddings in Postgres; parsed text stays in SQLite as a derived cache. Existing registries are copied once with `arp documents migrate-registry` (idempotent; refuses unless that backend is selected).
+
 ### Captured originals, intake and schema release
 
 Settings (env prefix `ARP_`, see `backend/arp/config.py`):

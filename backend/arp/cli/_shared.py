@@ -11,6 +11,7 @@ from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.ingestion.xbrl import XbrlFactSource
+from arp.retrieval.content_store_factory import content_store_for
 from arp.schemas.taxonomy import TaxonomyRef
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
@@ -43,7 +44,7 @@ def _ballot_platform() -> ManualInstructionBallotPlatform:
 
 def _document_content_store() -> DocumentContentStore:
     settings = get_settings()
-    return DocumentContentStore(settings.document_store_dir, enabled=settings.document_cache_enabled)
+    return content_store_for(settings)
 
 
 

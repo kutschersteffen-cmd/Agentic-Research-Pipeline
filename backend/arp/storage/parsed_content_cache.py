@@ -297,6 +297,27 @@ class ParsedContentCache:
         finally:
             conn.close()
 
+    def parsed_keys(self, content_keys: list[str]) -> set[str]:
+        """The keys with any parsed_content row (any parser_version); ids are
+        batched under SQLite's variable limit."""
+        if not self.enabled or not content_keys:
+            return set()
+        found: set[str] = set()
+        conn = self._connect()
+        try:
+            for i in range(0, len(content_keys), 900):
+                batch = content_keys[i : i + 900]
+                placeholders = ",".join("?" for _ in batch)
+                found.update(
+                    r[0]
+                    for r in conn.execute(
+                        f"SELECT DISTINCT content_key FROM parsed_content WHERE content_key IN ({placeholders})", batch
+                    )
+                )
+            return found
+        finally:
+            conn.close()
+
     def stats(self, conn: sqlite3.Connection) -> dict:
         """Takes an already-open connection -- called by
         DocumentContentStore.stats() as part of one cross-cutting operator

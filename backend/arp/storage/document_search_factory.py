@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from arp.config import Settings
+from arp.retrieval.content_store_factory import content_store_for
 from arp.storage.document_store import DocumentContentStore
 
 if TYPE_CHECKING:
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
 
 
 def build_document_registry_reader(settings: Settings) -> DocumentContentStore | PostgresDocumentRegistryReader:
-    file_reader = DocumentContentStore(settings.document_store_dir, enabled=settings.document_cache_enabled)
+    file_reader = content_store_for(settings)
     if not settings.document_registry_projection_enabled or not settings.postgres_dsn:
         # Matches build_hybrid_content_store's own "optional secondary
         # backend, fall back rather than hard-fail" precedent -- this

@@ -114,14 +114,14 @@ class PublishingScheduler(IntervalScheduler):
 
     def _reground(self, today: date) -> tuple[str, str]:
         from arp.ingestion.indexing_config import IndexingConfig
+        from arp.retrieval.content_store_factory import content_store_for
         from arp.storage.document_blob_store import blob_store_for
-        from arp.storage.document_store import DocumentContentStore
 
         s = self.settings
         facts = self._facts()[0](ts_now())
         rows = reground_sample(
             facts, n=s.reground_sample_size, day=today.isoformat(),
-            blob_store=blob_store_for(IndexingConfig.from_settings(s)), content_store=DocumentContentStore(s.document_store_dir, enabled=s.document_cache_enabled),
+            blob_store=blob_store_for(IndexingConfig.from_settings(s)), content_store=content_store_for(s),
             fuzzy_threshold=s.grounding_fuzzy_threshold, log_path=s.publish_state_dir / "reground.jsonl",
         )
         bad = [r["fact_id"] for r in rows if r["result"] != "ok"]

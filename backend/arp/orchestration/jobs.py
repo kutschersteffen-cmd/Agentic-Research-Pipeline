@@ -167,14 +167,14 @@ async def resume_run(
             from arp.extraction.financials_pipeline import execute_financials_extraction_run
             from arp.ingestion.edgar import EdgarDocumentSource
             from arp.ingestion.xbrl import XbrlFactSource
-            from arp.storage.document_store import DocumentContentStore
+            from arp.retrieval.content_store_factory import content_store_for
 
             # Built as arp.api.deps.get_xbrl_source builds it; the pipeline
             # itself checks xbrl_facts_enabled.
             edgar = EdgarDocumentSource(
                 run_settings.edgar_user_agent,
                 run_settings.cache_dir,
-                content_store=DocumentContentStore(run_settings.document_store_dir, enabled=run_settings.document_cache_enabled),
+                content_store=content_store_for(run_settings),
                 submissions_ttl_hours=run_settings.edgar_submissions_ttl_hours,
             )
             xbrl_source = XbrlFactSource(edgar, run_settings.cache_dir, ttl_hours=run_settings.xbrl_facts_ttl_hours)
