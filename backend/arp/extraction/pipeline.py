@@ -13,10 +13,12 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
-from arp.schemas.common import CompanyRef, SourceDocument
+from arp.planning.entity_check import confirm_entity
+from arp.schemas.common import CompanyRef, MatchStatus, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, ExtractionRecord, FieldStatus
 from arp.schemas.issuer import issuer_key
 from arp.schemas.review import field_item_key, period_key
+from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
 from arp.storage.schema_registry import SchemaRegistry, UnreleasedFieldError
 
@@ -40,6 +42,7 @@ async def _extract_company(
     settings: Settings,
     documents: list[SourceDocument] | None = None,
     history: RunHistory | None = None,
+    identifier_map: IdentifierMapStore | None = None,
 ) -> ExtractionRecordResult:
     """`documents`, when supplied, skips the registry fetch -- for callers
     (like the revenue-exposure resolver) that already fetched a company's
@@ -50,7 +53,14 @@ async def _extract_company(
     separate model (see `extract_one_field`)."""
     if documents is None:
         documents = await registry.fetch_all(company)
-    documents_by_id = {d.doc_id: d for d in documents}
+    documents = [confirm_entity(d, company, identifier_map) for d in documents]
+    documents_by_id = {d.doc_id: d for d in documents}  # all docs, held ones included
+    kept = [d for d in documents if d.match_status != MatchStatus.MISMATCH]
+    held = [
+        {"doc_id": d.doc_id, "title": d.title, "covered_entity": d.covered_entity, "match_status": d.match_status.value}
+        for d in documents
+        if d.match_status == MatchStatus.MISMATCH
+    ]
     usages: list[LLMUsage] = []
     fields = []
 
@@ -58,7 +68,7 @@ async def _extract_company(
         extracted, needs_review, field_usages = await extract_one_field(
             company.name,
             field,
-            documents=documents,
+            documents=kept,
             documents_by_id=documents_by_id,
             llm=llm,
             verifier_llm=verifier_llm,
@@ -100,6 +110,7 @@ async def _extract_company(
         fields=fields,
         overall_confidence=overall_confidence,
         needs_review=any(f.review_reasons for f in fields),
+        held_documents=held,
     )
     # Cost is estimated per-call against the model that actually produced
     # each usage (extractor and verifier can now differ), then summed --
@@ -188,12 +199,13 @@ async def execute_extraction_run(
         ]
 
     history = RunHistory.load(run_store, exclude_run_id=run_id)
+    identifier_map = IdentifierMapStore(settings.identifier_map_path)
 
     async def _worker(company: CompanyRef) -> ExtractionRecordResult:
         company = await prepare_company(company, settings=settings, llm=llm, registry=registry)
         result = await _extract_company(
             company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings,
-            history=history,
+            history=history, identifier_map=identifier_map,
         )
         result.record.run_id = run_id
         open_restatement_candidates(run_store, run_id, result.record, history)

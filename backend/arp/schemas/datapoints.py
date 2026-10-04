@@ -163,4 +163,5 @@ class ExtractionRecord(BaseModel):
     fields: list[ExtractedField] = Field(default_factory=list)
     overall_confidence: float = Field(ge=0.0, le=1.0, default=0.0)
     needs_review: bool = False
+    held_documents: list[dict] = Field(default_factory=list)
     generated_at: str = Field(default_factory=now_iso)

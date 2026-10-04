@@ -56,6 +56,12 @@ class CompanyRef(BaseModel):
     )
 
 
+class MatchStatus(StrEnum):
+    CONFIRMED = "confirmed"
+    AMBIGUOUS = "ambiguous"
+    MISMATCH = "mismatch"
+
+
 class SourceDocument(BaseModel):
     doc_id: str = Field(default_factory=lambda: new_id("doc"))
     company_id: str
@@ -73,6 +79,8 @@ class SourceDocument(BaseModel):
     supersedes: str | None = None
     content_key: str | None = None
     parser_version: str | None = None
+    covered_entity: str | None = None
+    match_status: MatchStatus | None = None  # None = not checked (legacy)
     page_breaks: list[int] = Field(
         default_factory=list,
         description=(
