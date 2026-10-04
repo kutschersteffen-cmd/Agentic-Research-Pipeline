@@ -174,6 +174,7 @@ async def _verify(state: FieldState) -> dict:
 
 async def _adjudicate(state: FieldState) -> dict:
     """E40: a third call, on the verifier client."""
+    # ponytail: the verifier's model decides twice; add a separate adjudicator model setting if it rubber-stamps itself.
     out, usage = await adjudicate(
         state["company_name"], state["field"], state["evidence"], state["draft"], state["verifier"],
         state["verifier_llm"],

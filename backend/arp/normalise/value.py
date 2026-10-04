@@ -22,7 +22,7 @@ from arp.normalise.units import convert, lookup_scale, lookup_unit, split_unit
 from arp.schemas.datapoints import FieldDataType, FieldDefinition, ValueState
 from arp.schemas.review import ReasonCode
 
-_NUMERIC = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
+NUMERIC = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
 _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
 PRINTED = re.compile(r"\d[\d.,]*\d|\d")
 _RAW_SCALE = re.compile(r"\d[\d,]*(?:\.\d+)?\s*([A-Za-z']+)(?![\w²³])")
@@ -147,7 +147,7 @@ def typed_value(
         state = ValueState.NOT_FOUND
     reasons: list[ReasonCode] = []
     notes: list[str] = []
-    if field.data_type in _NUMERIC and isinstance(value, str):
+    if field.data_type in NUMERIC and isinstance(value, str):
         # A numeric field returned as text ("1,234"): parse it, or say why not -- never skip silently.
         if (parsed := to_number(value, decimal=decimal)) is None:
             reasons.append(ReasonCode.CHECK_FAILED)
@@ -156,7 +156,7 @@ def typed_value(
             value = parsed
     text = pv.value if isinstance(pv.value, str) else pv.raw_value_text
     # The string as printed: the typed float no longer shows whether "1,234" was 1234 or 1.234.
-    m = PRINTED.search(text) if field.data_type in _NUMERIC and text else None
+    m = PRINTED.search(text) if field.data_type in NUMERIC and text else None
     if m and parse_number(m[0], decimal)[1]:
         reasons.append(ReasonCode.NUMBER_LOCALE_AMBIGUOUS)
         notes.append(f"{m[0]!r} is a thousands group or a decimal; read as a decimal point")
@@ -165,7 +165,7 @@ def typed_value(
         state = ValueState.ZERO
 
     canonical = canonical_unit = scale = rate = None
-    if field.data_type in _NUMERIC and numeric:
+    if field.data_type in NUMERIC and numeric:
         try:
             canonical, canonical_unit, scale, rate = _canonical(field, float(value), pv, period.end)
         except _CheckFailed as e:

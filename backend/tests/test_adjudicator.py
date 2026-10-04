@@ -18,6 +18,7 @@ _FIELD = FieldDefinition(
     name="revenue_usd_m", description="Total revenue.", data_type=FieldDataType.CURRENCY_AMOUNT, unit="USD millions",
     extraction_instructions="Total revenue for the fiscal year.", seed_keywords=["revenues"],
 )
+_HIGH_RISK = _FIELD.model_copy(update={"high_risk": True})
 _GOOD = "Total revenues were $383,285 million"
 
 
@@ -84,14 +85,18 @@ async def test_typed_disagreement_calls_adjudicator_once(fake_llm, verifier_outp
     expected = DisagreementType.VALUE if verifier_output.disagreement_type == DisagreementType.NONE else \
         verifier_output.disagreement_type
     assert f"disagreement_type: {expected.value}" in prompt
+    assert "USD millions" in prompt and "currency_amount" in prompt  # the value is asked for in the field's unit
 
 
 async def test_settled_with_grounded_citation_sets_value(fake_llm):
-    settled = AdjudicatorOutput(settled=True, value=383285.0, citations=_cite(_GOOD) + _cite("not in the text"),
-                                notes="the table states millions")
+    settled = AdjudicatorOutput(settled=True, value=383285.0, unit_text="USD million",
+                                citations=_cite(_GOOD) + _cite("not in the text"), notes="the table states millions")
     (f,), _, _, _ = await _run(fake_llm, _verifier(), [settled])  # verifier's 390000 is uncited
     assert f.value == 383285.0
     assert f.method == "adjudicated"
+    # Typed like an extracted value: low risk with a computed canonical value may auto-accept.
+    assert (f.canonical_value, f.canonical_unit, f.scale_applied) == (383285.0, "USD millions", 1e6)
+    assert f.review_reasons == []
     assert [c.quote for c in f.citations] == [_GOOD] and f.grounded
     assert f.provenance.adjudicator_model == "second-model"
     assert sorted(a.source for a in f.alternatives) == ["extractor", "verifier"]
@@ -130,3 +135,21 @@ def test_no_correction_offered_is_not_a_rejected_correction():
     assert ReasonCode.VERIFIER_DISAGREES in f.review_reasons
     assert ReasonCode.VERIFIER_CORRECTION_UNCITED not in f.review_reasons
     assert f.alternatives == []
+
+
+def _settle(field, adjudication):
+    (f,) = build_extracted_fields(field, _DRAFT, _verifier(), {_DOC.doc_id: _DOC}, 0.92, 0.5, adjudicator=adjudication)
+    return f
+
+
+def test_high_risk_settled_still_routes_to_review():
+    f = _settle(_HIGH_RISK, AdjudicatorOutput(settled=True, value=383285.0, unit_text="USD million",
+                                              citations=_cite(_GOOD), notes="millions"))
+    assert f.method == "adjudicated" and f.canonical_value == 383285.0
+    assert ReasonCode.VERIFIER_DISAGREES in f.review_reasons
+
+
+def test_settled_numeric_without_canonical_value_routes_to_review():
+    f = _settle(_FIELD, AdjudicatorOutput(settled=True, value=383285.0, citations=_cite(_GOOD), notes="no unit given"))
+    assert f.method == "adjudicated" and f.canonical_value is None
+    assert ReasonCode.VERIFIER_DISAGREES in f.review_reasons

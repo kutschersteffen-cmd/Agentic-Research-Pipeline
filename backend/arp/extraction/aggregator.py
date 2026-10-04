@@ -8,7 +8,7 @@ from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.verifier_agent import VerifierOutput
 from arp.grounding import ground_citations
 from arp.normalise.locale import Decimal, context_decimal
-from arp.normalise.value import typed_value
+from arp.normalise.value import NUMERIC, typed_value
 from arp.schemas.common import DocumentChunk, SourceDocument
 from arp.schemas.datapoints import Alternative, ExtractedField, FieldDefinition, ValueState
 from arp.schemas.review import ReasonCode
@@ -102,9 +102,13 @@ def build_extracted_fields(
     out: list[ExtractedField] = []
     for key, (pv, tv, duplicated) in kept.items():
         alternatives: list[Alternative] = []
-        if unresolved and tv.period_end is None:
-            tv = replace(tv, reasons=[*tv.reasons, ReasonCode.CHECK_FAILED],
-                         notes=[*tv.notes, f"period not resolved: {tv.period_text or '(none)'}"])
+        def _placed(tv):
+            if unresolved and tv.period_end is None:
+                return replace(tv, reasons=[*tv.reasons, ReasonCode.CHECK_FAILED],
+                               notes=[*tv.notes, f"period not resolved: {tv.period_text or '(none)'}"])
+            return tv
+
+        tv = _placed(tv)
         claimed = tv.value_state != ValueState.NOT_FOUND
         first = pv is values[0]
         # The verifier's corrected_value is for values[0] as it saw them (draft
@@ -132,8 +136,14 @@ def build_extracted_fields(
         if correction and (settled or adj_unresolved or uncited):
             alternatives.append(Alternative(value=verifier.corrected_value, source="verifier", citations=cited))
         if settled:
-            tv = _taken(tv, adj.value, "adjudicated value")
+            # Typed like an extracted value (same period, the adjudicator's figure,
+            # unit and citations), so its canonical value is computed and checked.
             final_citations = [c for c in adj_cited if c.grounded]
+            pv = pv.model_copy(update={
+                "value": adj.value, "state": ValueState.NOT_FOUND if adj.value is None else ValueState.FOUND,
+                "raw_value_text": adj.raw_value_text, "unit_text": adj.unit_text, "citations": final_citations,
+            })
+            tv = _placed(_typed(pv))
         elif cited_correction:
             # pv.citations supported the value the verifier just rejected, so
             # the verifier's own grounded citations back the correction.
@@ -174,11 +184,14 @@ def build_extracted_fields(
         notes_parts.extend(tv.notes)
 
         conflict = bool(draft.conflicting_sources) or duplicated
+        # A settled disagreement leaves review only on a low-risk field whose value
+        # converted to the field's unit (an off-scale figure fails that conversion).
+        auto_accept = not field.high_risk and (field.data_type not in NUMERIC or tv.canonical_value is not None)
         reasons = [
             code
             for code, applies in (
                 (ReasonCode.NOT_GROUNDED, has_value and not all_grounded),
-                (ReasonCode.VERIFIER_DISAGREES, not verifier.agrees and not settled),
+                (ReasonCode.VERIFIER_DISAGREES, not verifier.agrees and not (settled and auto_accept)),
                 (ReasonCode.VERIFIER_CORRECTION_UNCITED, uncited),
                 (ReasonCode.ADJUDICATOR_UNRESOLVED, adj_unresolved),
                 (ReasonCode.CONFLICT, conflict),

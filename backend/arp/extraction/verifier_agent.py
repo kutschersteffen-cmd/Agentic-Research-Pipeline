@@ -52,7 +52,7 @@ class VerifierOutput(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
 
 
-def _format_values(draft: ExtractionDraft) -> str:
+def format_values(draft: ExtractionDraft) -> str:
     if not draft.values:
         return "(none: the extractor reports the data point as not disclosed)"
     return "\n".join(
@@ -76,7 +76,7 @@ async def verify_extraction(
         f"Description: {field.description}\n"
         f"Extraction instructions: {field.extraction_instructions}\n\n"
         f"Evidence:\n{format_evidence(chunks)}\n\n"
-        f"Extracted values to verify (values[0] first):\n{_format_values(draft)}\n"
+        f"Extracted values to verify (values[0] first):\n{format_values(draft)}\n"
         f"Extractor's stated confidence: {draft.confidence}"
     )
     return await llm.complete_structured(system=_SYSTEM_PROMPT, prompt=prompt, output_model=VerifierOutput)
