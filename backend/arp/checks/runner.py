@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import date
+from typing import TYPE_CHECKING
 
 from arp.schemas.common import CompanyRef, SourceDocument
 from arp.schemas.datapoints import (
@@ -19,6 +20,9 @@ from arp.schemas.datapoints import (
 )
 from arp.schemas.review import ReasonCode
 
+if TYPE_CHECKING:
+    from arp.extraction.history import RunHistory
+
 _NUMERIC = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
 
 
@@ -29,7 +33,7 @@ class CheckContext:
     schema: DataPointSchema
     documents_by_id: dict[str, SourceDocument]
     record_fields: list[ExtractedField]
-    history: RunHistory | None = None  # noqa: F821 -- defined in a later task
+    history: RunHistory | None = None
 
 
 Check = Callable[[FieldDefinition, ExtractedField, CheckContext], list[CheckResult]]
@@ -129,3 +133,7 @@ from arp.checks.plausibility import (  # noqa: E402
 )
 
 LAYERS[3] = [check_range, check_sign, check_percentage, check_part_of_whole, check_sum_identity]
+
+from arp.checks.prior_period import check_comparative_jump, check_last_decided  # noqa: E402
+
+LAYERS[4] = [check_comparative_jump, check_last_decided]

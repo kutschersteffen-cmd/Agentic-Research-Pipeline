@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import logging
 
-from arp.checks.runner import CheckContext, check_record
+from arp.checks.runner import CheckContext, check_record  # isort: skip -- loads before prior_period (import cycle)
+from arp.checks.prior_period import open_restatement_candidates
 from arp.config import Settings
 from arp.extraction.field_graph import extract_one_field
+from arp.extraction.history import RunHistory
 from arp.extraction.pre_steps import prepare_company
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
@@ -37,7 +39,7 @@ async def _extract_company(
     verifier_llm: LLMClient | None = None,
     settings: Settings,
     documents: list[SourceDocument] | None = None,
-    history: RunHistory | None = None,  # noqa: F821 -- defined in a later task
+    history: RunHistory | None = None,
 ) -> ExtractionRecordResult:
     """`documents`, when supplied, skips the registry fetch -- for callers
     (like the revenue-exposure resolver) that already fetched a company's
@@ -185,12 +187,16 @@ async def execute_extraction_run(
             if f.review_reasons
         ]
 
+    history = RunHistory.load(run_store, exclude_run_id=run_id)
+
     async def _worker(company: CompanyRef) -> ExtractionRecordResult:
         company = await prepare_company(company, settings=settings, llm=llm, registry=registry)
         result = await _extract_company(
-            company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings
+            company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings,
+            history=history,
         )
         result.record.run_id = run_id
+        open_restatement_candidates(run_store, run_id, result.record, history)
         return result
 
     await run_company_batch(
