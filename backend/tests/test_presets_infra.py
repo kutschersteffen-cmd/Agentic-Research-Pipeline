@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from arp.api.auth import Principal, current_user
 from arp.api.deps import settings_dep
 from arp.api.routers import extraction as extraction_router
-from arp.checks.plausibility import check_less_or_equal, check_sum_to_target
+from arp.checks.plausibility import check_less_or_equal, check_sum_identity, check_sum_to_target
 from arp.config import Settings
 from arp.presets import registry as presets
 from arp.schemas.datapoints import DataPointSchema, FieldDataType
@@ -14,7 +14,7 @@ from tests.test_checks_plausibility import _field, _run, _spec
 
 
 def test_le_of_warns_when_exceeding():
-    spec, elig = _spec("aligned", le_of="eligible"), _spec("eligible")
+    spec, elig = _spec("aligned", le_of=["eligible"]), _spec("eligible")
     r = _run(check_less_or_equal, spec, _field("aligned", 40), [_field("eligible", 30)], [elig])
     assert (r.check_id, r.outcome, r.severity) == ("le_of", "fail", "warn")
     r = _run(check_less_or_equal, spec, _field("aligned", 30), [_field("eligible", 40)], [elig])
@@ -22,22 +22,34 @@ def test_le_of_warns_when_exceeding():
 
 
 def test_le_of_not_applicable_on_other_period():
-    spec = _spec("aligned", le_of="eligible")
+    spec = _spec("aligned", le_of=["eligible"])
     r = _run(check_less_or_equal, spec, _field("aligned", 40), [_field("eligible", 30, period="2023-12-31")])
     assert r.outcome == "not_applicable"
 
 
-def _sum(a, b, c, **cfg):
-    spec = _spec("t", sum_target=100, sum_of=["a", "b", "c"], **cfg)
-    others = [_field("a", a), _field("b", b), _field("c", c)]
-    return _run(check_sum_to_target, spec, _field("t", 0), others)
+def _sum(a, b, own, **cfg):
+    spec = _spec("t", sum_target=100, sum_of=["a", "b"], **cfg)
+    return _run(check_sum_to_target, spec, _field("t", own), [_field("a", a), _field("b", b)])
+
+
+def test_le_of_each_sibling():
+    spec = _spec("x", le_of=["p", "q"])
+    others = [_field("p", 50), _field("q", 20)]
+    r = _run(check_less_or_equal, spec, _field("x", 30), others)
+    assert r.outcome == "fail" and "q" in r.detail
 
 
 def test_sum_to_target_100():
     assert _sum(60, 30, 10).outcome == "pass"
-    r = _sum(60, 30, 20)
+    r = _sum(60, 30, 0)
     assert (r.check_id, r.outcome, r.severity) == ("sum_target", "fail", "warn")
     assert _sum(60, 30, 10.5, sum_tolerance=0.01).outcome == "pass"
+
+
+def test_sum_identity_skipped_with_sum_target():
+    spec = _spec("t", sum_target=100, sum_of=["a", "b"])
+    r = _run(check_sum_identity, spec, _field("t", 10), [_field("a", 60), _field("b", 30)])
+    assert r.outcome == "not_applicable"
 
 
 def test_sum_to_target_not_applicable_without_target_or_part():

@@ -74,8 +74,8 @@ class CheckConfig(BaseModel):
     part_of: str | None = Field(default=None, description="field_id of the whole this field is part of.")
     sum_of: list[str] = Field(default_factory=list, description="This field equals the sum of these field_ids.")
     sum_tolerance: float = Field(default=0.01, description="Relative.")
-    le_of: str | None = Field(default=None, description="field_id this field must not exceed (same period and unit).")
-    sum_target: float | None = Field(default=None, description="The `sum_of` parts must add up to this (tolerance relative to it).")
+    le_of: list[str] = Field(default_factory=list, description="field_ids this field must not exceed (same period and unit).")
+    sum_target: float | None = Field(default=None, description="The `sum_of` parts plus this field add up to this (tolerance relative to it).")
     prior_change_max: float | None = Field(default=0.5, description="Relative jump vs. prior value that warns.")
     cross_source_tolerance: float = Field(default=0.01, description="Relative difference vs. another source that warns.")
 
