@@ -6,7 +6,9 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_document_content_store, get_run_store, settings_dep
 from arp.config import Settings
 from arp.review.context import build_context, item_source, read_snapshot
+from arp.review.decide import DecisionError, decide
 from arp.review.items import list_open_items
+from arp.schemas.review import ItemDecisionRequest
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError
@@ -41,6 +43,18 @@ def get_item_source(
     if source is None:
         raise HTTPException(404, "Source page not found")
     return source
+
+
+@router.post("/runs/{run_id}/items/{item_key}/decision")
+def post_item_decision(
+    run_id: str, item_key: str, req: ItemDecisionRequest, run_store: RunStore = Depends(get_run_store),
+    principal: Principal = Depends(current_user), settings: Settings = Depends(settings_dep),
+    content_store: DocumentContentStore = Depends(get_document_content_store),
+) -> dict:
+    try:
+        return decide(run_store, run_id, item_key, req, principal, settings=settings, content_store=content_store)
+    except DecisionError as exc:
+        raise HTTPException(exc.status, exc.message) from None
 
 
 @router.get("/runs/{run_id}/snapshots/{snapshot_id}")

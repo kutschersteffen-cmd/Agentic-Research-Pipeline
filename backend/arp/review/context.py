@@ -213,8 +213,28 @@ def build_context(
         "decisions": decisions,
         "blind": blind,
     }
-    raw = json.dumps(bundle, sort_keys=True, separators=(",", ":"), default=str)
-    return bundle | {"etag": hashlib.sha256(raw.encode()).hexdigest()[:16]}
+    return bundle | {"etag": _etag(bundle)}
+
+
+def _without(d: dict | None, keys: tuple[str, ...]) -> dict | None:
+    return d and {k: v for k, v in d.items() if k not in keys}
+
+
+def _no_mine(bundle: dict) -> dict:
+    return bundle | {
+        "item": bundle["item"] | {"decision": _without(bundle["item"]["decision"], ("mine",))},
+        "decisions": [_without(d, ("mine",)) for d in bundle["decisions"]],
+    }
+
+
+def _etag(bundle: dict) -> str:
+    """Same for every reviewer and whether or not the source text is cached: leaves out
+    `mine` and the fields read from the text cache."""
+    b = _no_mine(bundle)
+    b["documents"] = [_without(d, ("pages",)) for d in b["documents"]]
+    b["evidence"] = [_without(e, ("page", "page_start", "page_text")) for e in b["evidence"]]
+    raw = json.dumps(b, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
 def item_source(
@@ -242,7 +262,7 @@ def write_snapshot(run_store: RunStore, run_id: str, bundle: dict) -> str:
     snapshot_id = new_id("snap")
     path = run_store.snapshot_path(run_id, snapshot_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_text(path, json.dumps(bundle, sort_keys=True))
+    atomic_write_text(path, json.dumps(_no_mine(bundle), sort_keys=True))
     return snapshot_id
 
 

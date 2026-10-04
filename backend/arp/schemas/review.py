@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from arp.schemas.common import Citation, now_iso
 
@@ -93,3 +93,24 @@ class ReviewItem(BaseModel):
     escalated: bool = False
     high_risk: bool = False
     decision: dict | None = None  # a public_decision; None when blind or undecided
+
+
+class ItemDecisionRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")  # an old client's `reviewer` is ignored
+
+    decision: Literal["approve", "correct", "reject", "escalate"]
+    reason_code: DecisionReason
+    corrected_value: dict | None = None
+    correction_citation: Citation | None = None
+    comment: str | None = None
+    context_etag: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _consistent(self) -> ItemDecisionRequest:
+        if (self.decision == "approve") != (self.reason_code == DecisionReason.CONFIRMED):
+            raise ValueError("approve requires reason 'confirmed'; every other decision forbids it")
+        if self.decision == "correct" and self.corrected_value is None:
+            raise ValueError("correct requires corrected_value")
+        if self.decision != "correct" and (self.corrected_value is not None or self.correction_citation is not None):
+            raise ValueError("only correct takes corrected_value or correction_citation")
+        return self

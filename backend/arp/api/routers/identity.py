@@ -3,9 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from arp.api.auth import Principal, current_user
 from arp.api.deps import get_edgar_source, get_run_store, get_web_search_client, settings_dep
-from arp.api.review_endpoints import ReviewDecisionRequest, get_review_queue, submit_review
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
 from arp.discovery.identity_pipeline import create_identity_run, enriched_universe, execute_identity_run
@@ -68,25 +66,6 @@ def get_identity_results(
 ) -> dict:
     rows = run_store.read_jsonl(run_store.results_path(run_id))
     return {"total": len(rows), "results": rows[offset : offset + limit]}
-
-
-@router.get("/runs/{run_id}/review-queue")
-def get_identity_review_queue(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    return get_review_queue(run_store, run_id)
-
-
-@router.post("/runs/{run_id}/review")
-def submit_identity_review(
-    run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store),
-    principal: Principal = Depends(current_user),
-) -> dict:
-    """decision='edit' with edited_value={"resolved_website": ..., "resolved_cik": ...}
-    is how a reviewer corrects an uncertain/unresolved match -- picked up
-    by GET .../enriched-universe below."""
-    return submit_review(
-        run_store, run_id, item_key=req.item_key, decision=req.decision, principal=principal,
-        edited_value=req.edited_value, comment=req.comment,
-    )
 
 
 @router.get("/runs/{run_id}/enriched-universe")

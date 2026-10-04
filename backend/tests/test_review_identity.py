@@ -6,9 +6,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from arp.api.auth import Principal
-from arp.api.deps import get_run_store, get_stream_store
+from arp.api.deps import get_stream_store
 from arp.api.review_endpoints import submit_review
-from arp.api.routers import extraction as extraction_router
 from arp.api.routers import stewardship as stewardship_router
 from arp.cli._shared import cli_principal
 from arp.config import Settings
@@ -27,33 +26,6 @@ def test_decision_row_records_user_id_and_role(run_store):
     record_review_decision(run_store, "r1", "k", "approve", "ignored", None, principal=PRINCIPAL)
     row = latest_decisions(run_store, "r1")["k"]
     assert (row["user_id"], row["role"], row["reviewer"]) == ("u_test", "approver", "Test")
-
-
-def test_spoofed_reviewer_body_is_ignored(run_store):
-    app = FastAPI()
-    app.include_router(extraction_router.router)
-    app.dependency_overrides[get_run_store] = lambda: run_store
-    from arp.api.auth import current_user
-
-    app.dependency_overrides[current_user] = lambda: PRINCIPAL
-    with TestClient(app) as c:
-        r = c.post("/api/extraction/runs/r1/review", json={"item_key": "k", "decision": "approve", "reviewer": "Mallory"})
-    assert r.status_code == 200
-    row = latest_decisions(run_store, "r1")["k"]
-    assert row["user_id"] == "u_test" and row["reviewer"] == "Test"
-
-
-def test_unknown_decision_is_400(run_store):
-    from arp.api.main import app
-
-    app.dependency_overrides[get_run_store] = lambda: run_store
-    try:
-        r = TestClient(app).post("/api/extraction/runs/r1/review", json={"item_key": "k", "decision": "maybe"})
-    finally:
-        app.dependency_overrides.pop(get_run_store, None)
-    assert r.status_code == 400
-    with pytest.raises(ValueError):
-        submit_review(run_store, "r1", item_key="k", decision="maybe", edited_value=None)
 
 
 def test_escalate_is_accepted(run_store):

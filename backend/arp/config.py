@@ -117,6 +117,9 @@ class Settings(BaseSettings):
     confidence_review_threshold: float = Field(
         default=0.6, description="Extractions/matches below this confidence are routed to the review queue."
     )
+    second_review_sample_rate: float = Field(
+        default=0.1, ge=0.0, le=1.0, description="Share of approvals, chosen per item key, that also get a second review."
+    )
     require_ratified_taxonomy: bool = Field(
         default=False,
         description="Human curation gate for theme runs (spec Step 0d): when true, POST /api/themes/runs refuses "

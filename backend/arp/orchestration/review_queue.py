@@ -152,6 +152,8 @@ def item_state(rows: list[dict], *, cosigned_at: set[str], cosign_required: set[
     for row in rows:
         step, decision = row.get("step"), row.get("decision")
         if step == "second":
+            if s.state != "first_done":  # a stray second review changes nothing
+                continue
             ok = s.first is not None and agrees(s.first, row)
             s.state, s.effective, s.second = ("second_done", s.first, row) if ok else ("disagreed", None, row)
         elif step == "resolution":

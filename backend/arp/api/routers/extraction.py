@@ -8,11 +8,6 @@ from pydantic import BaseModel, Field
 from arp.api.auth import Principal, current_user, require_role
 from arp.api.company_results import list_company_results
 from arp.api.deps import get_decision_store, get_llm_client, get_registry, get_run_store, get_xbrl_source, settings_dep
-from arp.api.review_endpoints import (
-    ReviewDecisionRequest,
-    get_review_queue,
-    submit_review,
-)
 from arp.api.routers.decision import template_for_run
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
@@ -361,11 +356,6 @@ def get_extraction_results_for_company(company_id: str, run_store: RunStore = De
     return {"results": list_company_results(run_store, "extraction", company_id)}
 
 
-@router.get("/runs/{run_id}/review-queue")
-def get_extraction_review_queue(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    return get_review_queue(run_store, run_id)
-
-
 @router.get("/runs/{run_id}/review-decisions")
 def get_extraction_review_decisions(
     run_id: str, run_store: RunStore = Depends(get_run_store), principal: Principal = Depends(current_user),
@@ -388,17 +378,6 @@ def get_extraction_review_history(
     item = get_item(run_store, run_id, item_key, principal)
     high_risk = item is not None and item.high_risk
     return {"item_key": item_key, "history": visible_history(run_store, run_id, item_key, principal, high_risk=high_risk)}
-
-
-@router.post("/runs/{run_id}/review")
-def submit_extraction_review(
-    run_id: str, req: ReviewDecisionRequest, run_store: RunStore = Depends(get_run_store),
-    principal: Principal = Depends(current_user),
-) -> dict:
-    return submit_review(
-        run_store, run_id, item_key=req.item_key, decision=req.decision, principal=principal,
-        edited_value=req.edited_value, comment=req.comment,
-    )
 
 
 class CosignRequest(BaseModel):
