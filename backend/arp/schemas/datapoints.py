@@ -118,6 +118,9 @@ class FieldDefinition(BaseModel):
     document_routing: DocumentRouting | None = None
     auto_accept_min: float = Field(default=0.9, ge=0.0, le=1.0)
     high_risk: bool = False
+    xbrl_tags: list[str] = Field(
+        default_factory=list, description="XBRL concepts, e.g. 'us-gaap:Revenues', tried in order before any model call."
+    )
 
 
 class FieldQuality(BaseModel):
@@ -184,6 +187,7 @@ class ExtractedField(BaseModel):
     route: RouteKind | None = Field(default=None, description="Set by the pipeline only; None on rows written before routing.")
     input_hash: str | None = None
     reused_from_run: str | None = None
+    method: Literal["extracted", "tagged", "adjudicated"] = "extracted"
 
     @model_validator(mode="before")
     @classmethod

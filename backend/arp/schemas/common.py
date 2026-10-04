@@ -195,6 +195,7 @@ class ProvenanceInfo(BaseModel):
     extractor_prompt_version: str | None = None
     verifier_model: str | None = None
     verifier_prompt_version: str | None = None
+    adjudicator_model: str | None = None
     provider: str = ""
     schema_version: str = ""
     field_version: int | None = None

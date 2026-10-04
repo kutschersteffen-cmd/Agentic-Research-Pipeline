@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+import httpx
+
 from arp.checks.prior_period import open_restatement_candidates
 from arp.checks.runner import CheckContext, check_record
 from arp.config import Settings
@@ -12,6 +14,7 @@ from arp.extraction.history import RunHistory
 from arp.extraction.pre_steps import prepare_company
 from arp.extraction.routing import route
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
@@ -59,6 +62,7 @@ async def _extract_company(
     identifier_map: IdentifierMapStore | None = None,
     qualities: dict[tuple[str, int], FieldQuality] | None = None,
     trial: bool = False,
+    xbrl_source: XbrlFactSource | None = None,
 ) -> ExtractionRecordResult:
     """`documents`, when supplied, skips the registry fetch -- for callers
     (like the revenue-exposure resolver) that already fetched a company's
@@ -71,7 +75,10 @@ async def _extract_company(
     `qualities` maps (field_id, version) to its first-audit record; a missing
     entry is unaudited, so that field's values route to review.
 
-    `trial` routes every non-held row to review."""
+    `trial` routes every non-held row to review.
+
+    `xbrl_source` (with settings.xbrl_facts_enabled): the company's XBRL facts
+    are fetched once and fields with `xbrl_tags` take their tagged values first."""
     if documents is None:
         documents = await registry.fetch_all(company)
     documents = [confirm_entity(d, company, identifier_map) for d in documents]
@@ -111,6 +118,14 @@ async def _extract_company(
     # A cache refresh (set by "Restart from here") asks for fresh answers: never reuse then.
     reuse = history is not None and not (settings.llm_cache_refresh or settings.llm_verifier_cache_refresh)
 
+    xbrl_facts = cik = None
+    if xbrl_source is not None and settings.xbrl_facts_enabled and any(f.xbrl_tags for f in to_extract):
+        try:
+            cik = await xbrl_source.resolve_cik(company.cik, company.ticker)
+            xbrl_facts = await xbrl_source.fetch_company_facts(cik) if cik else None
+        except httpx.HTTPError as exc:  # no facts: the tagged fields are extracted as before
+            logger.warning("XBRL facts unavailable for %s: %s", company.company_id, exc)
+
     for field in to_extract:
         h = input_hash(field, route_documents(field, kept), planned_periods, run_settings)
         prior = history.last_rows(company.company_id, field.field_id) if reuse and h else []
@@ -143,6 +158,8 @@ async def _extract_company(
             schema_version=f"{schema.schema_id}:v{schema.version}",
             fiscal_year_end=company.fiscal_year_end,
             planned_periods=planned_periods,
+            xbrl_facts=xbrl_facts,
+            cik=cik,
         )
         usages.extend(field_usages)
 
@@ -250,6 +267,7 @@ async def execute_extraction_run(
     registry: DocumentSourceRegistry,
     settings: Settings,
     run_store: RunStore,
+    xbrl_source: XbrlFactSource | None = None,
 ) -> str:
     """Orchestrates schema-driven extraction (extractor -> independent
     verifier -> programmatic grounding check -> aggregation) across the
@@ -293,7 +311,7 @@ async def execute_extraction_run(
         company = await prepare_company(company, settings=settings, llm=llm, registry=registry)
         result = await _extract_company(
             company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings,
-            history=history, identifier_map=identifier_map, qualities=qualities, trial=trial,
+            history=history, identifier_map=identifier_map, qualities=qualities, trial=trial, xbrl_source=xbrl_source,
         )
         result.record.run_id = run_id
         open_restatement_candidates(run_store, run_id, result.record, history)
@@ -322,10 +340,12 @@ async def run_extraction(
     settings: Settings,
     run_store: RunStore,
     trial: bool = False,
+    xbrl_source: XbrlFactSource | None = None,
 ) -> str:
     """Convenience wrapper (create + execute in one call) for synchronous
     callers such as the CLI, where blocking until completion is expected."""
     run_id = create_extraction_run(schema, companies, settings, run_store, trial=trial)
     return await execute_extraction_run(
-        run_id, schema, companies, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store
+        run_id, schema, companies, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store,
+        xbrl_source=xbrl_source,
     )

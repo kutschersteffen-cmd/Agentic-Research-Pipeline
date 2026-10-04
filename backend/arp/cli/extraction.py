@@ -55,7 +55,8 @@ def extract_run(
     typer.echo(f"Extracting schema '{schema.name}' ({len(schema.fields)} fields) across {len(companies)} companies...")
     run_id = asyncio.run(
         run_extraction(
-            schema, companies, llm=llm, verifier_llm=verifier_llm, registry=_registry(), settings=settings, run_store=_run_store(), trial=trial
+            schema, companies, llm=llm, verifier_llm=verifier_llm, registry=_registry(), settings=settings, run_store=_run_store(), trial=trial,
+            xbrl_source=_xbrl_source() if settings.xbrl_facts_enabled else None,
         )
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")

@@ -108,6 +108,7 @@ async def start_extraction_run(
     run_store: RunStore = Depends(get_run_store),
     registry: DocumentSourceRegistry = Depends(get_registry),
     decision_store: DecisionStore = Depends(get_decision_store),
+    xbrl_source=Depends(get_xbrl_source),
 ) -> dict:
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
     if not companies:
@@ -136,6 +137,7 @@ async def start_extraction_run(
             registry=registry,
             settings=settings,
             run_store=run_store,
+            xbrl_source=xbrl_source,
         )
 
     run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings)
@@ -191,7 +193,7 @@ async def _dispatch(req: StartRequest, settings: Settings, run_store: RunStore, 
     if req.profile == "custom":
         if req.datapoint_schema is None:
             raise HTTPException(400, "The custom profile needs `datapoint_schema`.")
-        started, run_type = await start_extraction_run(RunRequest(datapoint_schema=req.datapoint_schema, trial=req.trial, **common), **stores), "extraction"
+        started, run_type = await start_extraction_run(RunRequest(datapoint_schema=req.datapoint_schema, trial=req.trial, **common), **stores, xbrl_source=xbrl_source), "extraction"
     elif req.profile == "financials":
         started = await financials.start_financials_extraction_run(financials.RunRequest(**common), **stores, xbrl_source=xbrl_source)
         run_type = "financials"

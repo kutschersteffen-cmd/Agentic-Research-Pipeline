@@ -206,11 +206,11 @@ async def test_a_run_counts_the_items_through_each_step(tmp_path, fake_llm):
     )
     view, live = step_counts(run_store, run_id)
     assert live is False
-    assert view["counts"] == {"gather_evidence": 2, "extract": 1, "verify": 1, "aggregate": 1, "finalize_no_evidence": 1}
+    assert view["counts"] == {"try_tagged": 2, "gather_evidence": 2, "extract": 1, "verify": 1, "aggregate": 1, "finalize_no_evidence": 1}
     assert set(view["seconds"]) == set(view["counts"])
     # Per company: the one without evidence never reached the extractor.
-    assert step_counts(run_store, run_id, "c2")[0]["counts"] == {"gather_evidence": 1, "finalize_no_evidence": 1}
-    assert step_counts(run_store, run_id, "c1")[0]["counts"] == {"gather_evidence": 1, "extract": 1, "verify": 1, "aggregate": 1}
+    assert step_counts(run_store, run_id, "c2")[0]["counts"] == {"try_tagged": 1, "gather_evidence": 1, "finalize_no_evidence": 1}
+    assert step_counts(run_store, run_id, "c1")[0]["counts"] == {"try_tagged": 1, "gather_evidence": 1, "extract": 1, "verify": 1, "aggregate": 1}
 
 
 async def test_pipeline_queues_one_row_per_flagged_field(tmp_path, fake_llm):

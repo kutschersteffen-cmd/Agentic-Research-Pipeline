@@ -132,6 +132,22 @@ def check_resumable(run_store: RunStore, run_id: str) -> RunManifest:
     return manifest
 
 
+def _xbrl_source(settings: Settings):
+    """Built as arp.api.deps.get_xbrl_source builds it; the pipelines
+    themselves check xbrl_facts_enabled."""
+    from arp.ingestion.edgar import EdgarDocumentSource
+    from arp.ingestion.xbrl import XbrlFactSource
+    from arp.retrieval.content_store_factory import content_store_for
+
+    edgar = EdgarDocumentSource(
+        settings.edgar_user_agent,
+        settings.cache_dir,
+        content_store=content_store_for(settings),
+        submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
+    )
+    return XbrlFactSource(edgar, settings.cache_dir, ttl_hours=settings.xbrl_facts_ttl_hours)
+
+
 async def resume_run(
     run_id: str,
     *,
@@ -185,23 +201,13 @@ async def resume_run(
             from arp.extraction.pipeline import execute_extraction_run, load_run_schema
 
             schema = load_run_schema(run_store, run_id)
-            return await execute_extraction_run(run_id, schema, companies, **llms, **common)
+            return await execute_extraction_run(run_id, schema, companies, **llms, **common, xbrl_source=_xbrl_source(run_settings))
         if run_type == "financials":
             from arp.extraction.financials_pipeline import execute_financials_extraction_run
-            from arp.ingestion.edgar import EdgarDocumentSource
-            from arp.ingestion.xbrl import XbrlFactSource
-            from arp.retrieval.content_store_factory import content_store_for
 
-            # Built as arp.api.deps.get_xbrl_source builds it; the pipeline
-            # itself checks xbrl_facts_enabled.
-            edgar = EdgarDocumentSource(
-                run_settings.edgar_user_agent,
-                run_settings.cache_dir,
-                content_store=content_store_for(run_settings),
-                submissions_ttl_hours=run_settings.edgar_submissions_ttl_hours,
+            return await execute_financials_extraction_run(
+                run_id, companies, **llms, **common, xbrl_source=_xbrl_source(run_settings)
             )
-            xbrl_source = XbrlFactSource(edgar, run_settings.cache_dir, ttl_hours=run_settings.xbrl_facts_ttl_hours)
-            return await execute_financials_extraction_run(run_id, companies, **llms, **common, xbrl_source=xbrl_source)
         if run_type == "tnfd":
             from arp.extraction.tnfd_pipeline import execute_tnfd_extraction_run
 

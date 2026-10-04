@@ -21,7 +21,8 @@ def test_shape_matches_the_graph_that_runs(profile):
     # Every node that exposes settings is a real node, so a renamed graph node fails here.
     assert set(PROFILES[profile]["settings"]) <= ids
     assert all(k in SETTING_INFO for n in shape["nodes"] for k in n["settings"])
-    assert {(e["source"], e["target"]) for e in shape["edges"]} >= {("item", "gather_evidence"), ("company", "rules")}
+    entry = "try_tagged" if profile == "custom" else "gather_evidence"  # custom tries tagged XBRL values first (E29)
+    assert {(e["source"], e["target"]) for e in shape["edges"]} >= {("item", entry), ("company", "rules")}
     assert set(shape["defaults"]) == set(StepSettings.model_fields)
 
 
