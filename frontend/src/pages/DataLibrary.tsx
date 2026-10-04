@@ -13,6 +13,7 @@ import type {
   CompanyFinancialsRecord,
   ExtractionRecord,
   ReviewDecision,
+  ReviewStates,
   RunManifest,
 } from "../types";
 import { activatable } from "../lib/activatable";
@@ -62,6 +63,7 @@ function RunResultsView() {
 
   const [extractionResults, setExtractionResults] = useState<ExtractionRecord[]>([]);
   const [extractionReviewDecisions, setExtractionReviewDecisions] = useState<Record<string, ReviewDecision>>({});
+  const [extractionStates, setExtractionStates] = useState<ReviewStates>({});
   const [financialsResults, setFinancialsResults] = useState<CompanyFinancialsRecord[]>([]);
   const [financialsReviewDecisions, setFinancialsReviewDecisions] = useState<Record<string, ReviewDecision>>({});
 
@@ -83,8 +85,9 @@ function RunResultsView() {
       if (kind === "extraction") {
         const res = (await api.getExtractionResults(id)) as { results: ExtractionRecord[] };
         setExtractionResults(res.results);
-        const decisionsRes = (await api.getExtractionReviewDecisions(id)) as { decisions: Record<string, ReviewDecision> };
+        const decisionsRes = (await api.getExtractionReviewDecisions(id)) as { decisions: Record<string, ReviewDecision>; states: ReviewStates };
         setExtractionReviewDecisions(decisionsRes.decisions);
+        setExtractionStates(decisionsRes.states);
       } else {
         const res = (await api.getFinancialsResults(id)) as { results: CompanyFinancialsRecord[] };
         setFinancialsResults(res.results);
@@ -146,6 +149,7 @@ function RunResultsView() {
                 expanded={expanded}
                 onToggleExpanded={(companyId) => setExpanded(expanded === companyId ? null : companyId)}
                 reviewDecisions={extractionReviewDecisions}
+                states={extractionStates}
                 reviewer={reviewer}
                 onReviewDone={() => loadResults()}
                 onOpenSource={setActiveSource}

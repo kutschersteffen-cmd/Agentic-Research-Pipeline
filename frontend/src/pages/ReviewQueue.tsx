@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
-import type { ReviewDecision, ReviewableRunKind, RunManifest } from "../types";
+import type { ReviewDecision, ReviewableRunKind } from "../types";
 import { useMe } from "../lib/reviewer";
 import { SignedInAs } from "../components/SignedInAs";
 import { useCardKeys } from "../lib/cardKeys";
-import { QUEUE_FNS, REVIEW_KIND_LABEL, ReviewItems, keyOf, type QueueItem } from "../components/RunReviewList";
+import { REVIEW_KIND_LABEL, ReviewItems, applyDecision, fromReviewItem, keyOf, type QueueItem } from "../components/RunReviewList";
 
 interface Props {
   pendingReview?: { kind: ReviewableRunKind; runId: string } | null;
@@ -17,7 +17,6 @@ interface Props {
  * to that run. */
 export function ReviewQueue({ pendingReview }: Props = {}) {
   const [items, setItems] = useState<QueueItem[] | null>(null);
-  const [runs, setRuns] = useState<RunManifest[]>([]);
   const [filter, setFilter] = useState(pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "");
   const [error, setError] = useState<string | null>(null);
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
@@ -32,24 +31,11 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
     setItems(null);
     setDecided({});
     try {
-      const all = ((await api.listRuns()) as { runs: RunManifest[] }).runs;
-      const flagged = all.filter(
-        (r) =>
-          r.run_type in QUEUE_FNS &&
-          (r.review_count > 0 || (pendingReview?.runId === r.run_id && pendingReview.kind === r.run_type)),
-      );
-      setRuns(flagged);
-      const results = await Promise.allSettled(
-        flagged.map(async (r) => {
-          const kind = r.run_type as ReviewableRunKind;
-          const res = (await QUEUE_FNS[kind](r.run_id)) as { pending: Record<string, unknown>[] };
-          return res.pending.map((item) => ({ kind, runId: r.run_id, item }));
-        }),
-      );
-      const failed = results.filter((x) => x.status === "rejected").length;
-      if (failed) setError(`${failed} run${failed === 1 ? "" : "s"} could not be loaded; their items are missing below.`);
-      const loaded = results.flatMap((x) => (x.status === "fulfilled" ? x.value : []));
-      const conf = (q: QueueItem) => (typeof q.item.confidence === "number" ? q.item.confidence : 1);
+      const loaded = (await api.listReviewItems()).items.map(fromReviewItem);
+      const conf = (q: QueueItem) => {
+        const c = q.item.confidence ?? (q.item.field as { confidence?: unknown } | undefined)?.confidence;
+        return typeof c === "number" ? c : 1;
+      };
       setItems(loaded.sort((a, b) => conf(a) - conf(b)));
     } catch (err) {
       setError(`Flagged items could not be loaded: ${(err as Error).message}.`);
@@ -63,7 +49,9 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
   }, []);
 
   const shown = (items ?? []).filter((q) => !filter || `${q.kind}/${q.runId}` === filter);
-  const countFor = (r: RunManifest) => (items ?? []).filter((q) => q.runId === r.run_id && !decided[keyOf(q)]).length;
+  // The run filter: each run with open items, plus a run opened from elsewhere.
+  const runs = [...new Set([...(items ?? []).map((q) => `${q.kind}/${q.runId}`), ...(pendingReview ? [`${pendingReview.kind}/${pendingReview.runId}`] : [])])];
+  const countFor = (run: string) => (items ?? []).filter((q) => `${q.kind}/${q.runId}` === run && !decided[keyOf(q)]).length;
   const open = shown.filter((q) => !decided[keyOf(q)]).length;
 
   return (
@@ -77,8 +65,8 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
           <select value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="">All runs ({items ? items.length - Object.keys(decided).length : "…"} items)</option>
             {runs.map((r) => (
-              <option key={r.run_id} value={`${r.run_type}/${r.run_id}`}>
-                {REVIEW_KIND_LABEL[r.run_type as ReviewableRunKind]}: {r.run_id} ({countFor(r)})
+              <option key={r} value={r}>
+                {REVIEW_KIND_LABEL[r.slice(0, r.indexOf("/")) as ReviewableRunKind]}: {r.slice(r.indexOf("/") + 1)} ({countFor(r)})
               </option>
             ))}
           </select>
@@ -102,7 +90,7 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
                 decided={decided}
                 reviewer={reviewer}
                 onOpenSource={setActiveSource}
-                onDecided={(k, recorded) => setDecided((prev) => ({ ...prev, [k]: recorded }))}
+                onDecided={(q, recorded) => void applyDecision(q, recorded, setItems, setDecided)}
               />
             </section>
           </div>

@@ -36,7 +36,7 @@ export function OriginTag({ decision, systemValue }: { decision?: ReviewDecision
   if (valueOrigin(decision) === "system" || !decision) return <span className="origin-tag">System</span>;
   return (
     <span className="origin-tag origin-tag-edited">
-      Edited by {decision.reviewer ?? "unknown"}, {when(decision.decided_at)}
+      Edited by {decision.reviewer ?? decision.role ?? "unknown"}, {when(decision.decided_at)}
       {systemValue !== undefined && (
         <details>
           <summary>was: {systemValue}</summary>

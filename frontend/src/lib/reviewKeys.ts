@@ -16,14 +16,6 @@ export const fieldItemKey = (
   f: { field_id: string; period_end?: string | null },
 ): string => (r.issuer_key ? `${r.issuer_key}:${f.field_id}:${f.period_end ?? "unspecified"}` : `${r.company_id}:${f.field_id}`);
 
-/** An override counts once a different approver co-signs it. */
-export function canCosign(
-  decision: { decision: string; user_id?: string | null; cosigned?: boolean },
-  me: Me | null,
-): boolean {
-  return !!me && me.role === "approver" && decision.decision === "edit" && !decision.cosigned && decision.user_id !== me.user_id;
-}
-
 /** A queued item's flag reasons: its review reasons, then its route reasons, each once. */
 export const flaggedReasons = (item: { reason_codes?: unknown; route_reasons?: unknown }): string[] => [
   ...new Set([item.reason_codes, item.route_reasons].flatMap((v) => (Array.isArray(v) ? (v as string[]) : []))),

@@ -4,7 +4,7 @@ import { ConfidenceBadge, GroundedBadge } from "./ConfidenceBadge";
 import { ReviewControls } from "./ReviewControls";
 import { CitationList } from "./CitationList";
 import type { ActiveSource } from "./SourcePanel";
-import type { BusinessSegment, CompanyFinancialsRecord, ExtractedField, ExtractionRecord, ReviewDecision, SpendSummary } from "../types";
+import type { BusinessSegment, CompanyFinancialsRecord, ExtractedField, ExtractionRecord, ReviewDecision, ReviewStates, SpendSummary } from "../types";
 import { fieldItemKey } from "../lib/reviewKeys";
 import { failedChecks, routeLabel, valueLabel, withEditedValue } from "../lib/fieldValue";
 import { TRIAL_TITLE } from "../lib/runs";
@@ -141,6 +141,8 @@ interface ExtractionResultsTableProps {
   expanded: string | null;
   onToggleExpanded: (companyId: string) => void;
   reviewDecisions: Record<string, ReviewDecision>;
+  /** Every decided field's review state, from the same `review-decisions` response. */
+  states: ReviewStates;
   reviewer: string;
   onReviewDone: () => void;
   onOpenSource: (s: ActiveSource) => void;
@@ -155,6 +157,7 @@ export function ExtractionResultsTable({
   expanded,
   onToggleExpanded,
   reviewDecisions,
+  states,
   reviewer,
   onReviewDone,
   onOpenSource,
@@ -209,10 +212,15 @@ export function ExtractionResultsTable({
                             <ReviewControls
                               runId={runId}
                               itemKey={itemKey}
-                              current={reviewDecisions[itemKey]}
                               reviewer={reviewer}
                               onDone={onReviewDone}
-                              cosignFn={api.cosignExtraction}
+                              item={{
+                                kind: "value",
+                                state: states[itemKey]?.state ?? "pending",
+                                escalated: states[itemKey]?.escalated ?? false,
+                                decision: d ?? null,
+                              }}
+                              onOpenSource={onOpenSource}
                             />
                           )}
                         </div>

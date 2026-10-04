@@ -1,15 +1,15 @@
 import { valueLabel } from "../lib/fieldValue";
 import type { ExtractedField } from "../types";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { ConfidenceBadge, VerdictBadge } from "./ConfidenceBadge";
 import { CitationList } from "./CitationList";
 import type { ActiveSource } from "./SourcePanel";
 import { ReviewControls, decisionBadgeClass, decisionLabel } from "./ReviewControls";
 import { api } from "../api/client";
 import { focusNextCard, useCardKeys } from "../lib/cardKeys";
-import { flaggedReasons } from "../lib/reviewKeys";
-import type { ReviewTileCounts } from "../lib/stagedFlow";
-import type { Citation, ReviewDecision, ReviewableRunKind } from "../types";
+import { ITEM_KIND_LABEL, flaggedReasons } from "../lib/reviewKeys";
+import { matchesTile, type ReviewTileCounts } from "../lib/stagedFlow";
+import type { Citation, ReviewDecision, ReviewItem, ReviewableRunKind } from "../types";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const REVIEW_KIND_LABEL: Record<ReviewableRunKind, string> = {
@@ -22,21 +22,9 @@ export const REVIEW_KIND_LABEL: Record<ReviewableRunKind, string> = {
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const QUEUE_FNS: Record<ReviewableRunKind, (runId: string) => Promise<unknown>> = {
-  theme: api.getThemeReviewQueue,
-  extraction: api.getExtractionReviewQueue,
-  financials: api.getFinancialsReviewQueue,
-  identity: api.getIdentityReviewQueue,
-  transition_plan: api.getTransitionPlanReviewQueue,
-  tnfd: api.getTnfdReviewQueue,
-};
-
-// eslint-disable-next-line react-refresh/only-export-components
-export const SUBMIT_FNS: Record<ReviewableRunKind, (runId: string, body: unknown) => Promise<unknown>> = {
+export const SUBMIT_FNS: Partial<Record<ReviewableRunKind, (runId: string, body: unknown) => Promise<unknown>>> = {
   theme: api.submitThemeReview,
-  extraction: api.submitExtractionReview,
   financials: api.submitFinancialsReview,
-  identity: api.submitIdentityReview,
   transition_plan: api.submitTransitionPlanReview,
   tnfd: api.submitTnfdReview,
 };
@@ -44,7 +32,6 @@ export const SUBMIT_FNS: Record<ReviewableRunKind, (runId: string, body: unknown
 // Kinds without a per-item history endpoint get no History button.
 // eslint-disable-next-line react-refresh/only-export-components
 export const HISTORY_FNS: Partial<Record<ReviewableRunKind, (runId: string, itemKey: string) => Promise<unknown>>> = {
-  extraction: api.getExtractionReviewHistory,
   financials: api.getFinancialsReviewHistory,
   transition_plan: api.getTransitionPlanReviewHistory,
   tnfd: api.getTnfdReviewHistory,
@@ -121,10 +108,35 @@ export interface QueueItem {
   kind: ReviewableRunKind;
   runId: string;
   item: Record<string, unknown>;
+  review: ReviewItem;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const keyOf = (q: QueueItem) => `${q.runId}/${q.item.item_key as string}`;
+export const fromReviewItem = (r: ReviewItem): QueueItem => ({ kind: r.run_type, runId: r.run_id, item: { ...r.payload, item_key: r.item_key }, review: r });
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const keyOf = (q: QueueItem) => `${q.runId}/${q.review.item_key}`;
+
+/** After a decision: legacy kinds are final at once. A workbench item reloads its run's open
+ * items so its status line updates (first done, disagreed); gone from the list means final. */
+// eslint-disable-next-line react-refresh/only-export-components
+export async function applyDecision(
+  q: QueueItem,
+  recorded: ReviewDecision,
+  setItems: Dispatch<SetStateAction<QueueItem[] | null>>,
+  setDecided: Dispatch<SetStateAction<Record<string, ReviewDecision>>>,
+) {
+  const k = keyOf(q);
+  const decide = () => setDecided((prev) => ({ ...prev, [k]: recorded }));
+  if (q.review.kind === "other") return decide();
+  try {
+    const fresh = new Map((await api.listReviewItems(q.runId)).items.map((r) => [`${r.run_id}/${r.item_key}`, fromReviewItem(r)]));
+    setItems((prev) => prev && prev.map((x) => fresh.get(keyOf(x)) ?? x));
+    if (!fresh.has(k)) decide();
+  } catch {
+    decide();
+  }
+}
 
 /** The review cards themselves: decided items stay in place, collapsed, and
  * "Change" reopens one. Decision state is owned by the caller. */
@@ -139,7 +151,7 @@ export function ReviewItems({
   decided: Record<string, ReviewDecision>;
   reviewer: string;
   onOpenSource: (s: ActiveSource) => void;
-  onDecided: (key: string, recorded: ReviewDecision) => void;
+  onDecided: (q: QueueItem, recorded: ReviewDecision) => void;
 }) {
   const [reopened, setReopened] = useState<string | null>(null);
   return (
@@ -152,10 +164,12 @@ export function ReviewItems({
             <div className="review-item review-item-decided" key={k} tabIndex={-1}>
               <strong>{(q.item.name as string | undefined) ?? readableKey(q.item.item_key as string)}</strong>
               <span className="muted">
-                {REVIEW_KIND_LABEL[q.kind]} · <span className="mono">{q.runId}</span>
+                {REVIEW_KIND_LABEL[q.kind]} · {ITEM_KIND_LABEL[q.review.kind]} · <span className="mono">{q.runId}</span>
               </span>
               <span className={decisionBadgeClass(d.decision)}>
-                {decisionLabel(d)} by {d.reviewer}
+                {decisionLabel(d)}
+                {d.role ? ` by ${d.role}` : ""}
+                {d.mine ? " (you)" : ""}
               </span>
               <button className="link-button" onClick={() => setReopened(k)}>
                 Change
@@ -166,7 +180,7 @@ export function ReviewItems({
         return (
           <div className="review-item proposed" key={k} tabIndex={-1} data-review-key={k}>
             <p className="muted review-item-source">
-              {REVIEW_KIND_LABEL[q.kind]} · {q.runId}
+              {REVIEW_KIND_LABEL[q.kind]} · {ITEM_KIND_LABEL[q.review.kind]} · {q.runId}
             </p>
             <ReviewItemFields item={q.item} onOpenSource={onOpenSource} />
             {d && (
@@ -174,20 +188,25 @@ export function ReviewItems({
                 Keep the current decision
               </button>
             )}
-            <ReviewControls
-              runId={q.runId}
-              itemKey={q.item.item_key as string}
-              current={d}
-              reviewer={reviewer}
-              submitFn={SUBMIT_FNS[q.kind]}
-              historyFn={HISTORY_FNS[q.kind] ?? null}
-              cosignFn={q.kind === "extraction" ? api.cosignExtraction : undefined}
-              onDone={(recorded) => {
-                focusNextCard(document.querySelector<HTMLElement>(`[data-review-key="${CSS.escape(k)}"]`), ".review-item");
-                onDecided(k, recorded);
-                setReopened(null);
-              }}
-            />
+            {q.review.kind !== "other" || SUBMIT_FNS[q.kind] ? (
+              <ReviewControls
+                runId={q.runId}
+                itemKey={q.review.item_key}
+                current={d}
+                reviewer={reviewer}
+                submitFn={SUBMIT_FNS[q.kind]}
+                historyFn={HISTORY_FNS[q.kind] ?? null}
+                item={q.review.kind === "other" ? undefined : q.review}
+                onOpenSource={onOpenSource}
+                onDone={(recorded) => {
+                  focusNextCard(document.querySelector<HTMLElement>(`[data-review-key="${CSS.escape(k)}"]`), ".review-item");
+                  onDecided(q, recorded);
+                  setReopened(null);
+                }}
+              />
+            ) : (
+              <p className="muted">Nothing to decide here.</p>
+            )}
           </div>
         );
       })}
@@ -195,20 +214,16 @@ export function ReviewItems({
   );
 }
 
-const FILTER_DECISION = { approved: "approve", edited: "edit", rejected: "reject" } as const;
-
 /** One run's flagged items with their review controls. `filter` narrows the
  * list to a status tile; `onCounts` reports the pending count and the
  * decisions made so a parent can render tiles. */
 export function RunReviewList({
-  kind,
   runId,
   reviewer,
   onOpenSource,
   filter = null,
   onCounts,
 }: {
-  kind: ReviewableRunKind;
   runId: string;
   reviewer: string;
   onOpenSource: (s: ActiveSource) => void;
@@ -225,8 +240,9 @@ export function RunReviewList({
     setItems(null);
     setDecided({});
     setError(null);
-    (QUEUE_FNS[kind](runId) as Promise<{ pending: Record<string, unknown>[] }>)
-      .then((res) => live && setItems(res.pending.map((item) => ({ kind, runId, item }))))
+    api
+      .listReviewItems(runId)
+      .then((res) => live && setItems(res.items.map(fromReviewItem)))
       .catch((err: Error) => {
         if (!live) return;
         setError(`Flagged items could not be loaded: ${err.message}.`);
@@ -235,7 +251,7 @@ export function RunReviewList({
     return () => {
       live = false;
     };
-  }, [kind, runId]);
+  }, [runId]);
 
   useEffect(() => {
     if (items === null) return;
@@ -243,12 +259,7 @@ export function RunReviewList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, decided]);
 
-  const shown = (items ?? []).filter((q) => {
-    const d = decided[keyOf(q)];
-    if (filter === null || filter === "flagged") return true;
-    if (filter === "pending") return !d;
-    return d?.decision === FILTER_DECISION[filter];
-  });
+  const shown = (items ?? []).filter((q) => matchesTile(filter, true, decided[keyOf(q)]));
 
   return (
     <div>
@@ -260,7 +271,7 @@ export function RunReviewList({
         decided={decided}
         reviewer={reviewer}
         onOpenSource={onOpenSource}
-        onDecided={(k, recorded) => setDecided((prev) => ({ ...prev, [k]: recorded }))}
+        onDecided={(q, recorded) => void applyDecision(q, recorded, setItems, setDecided)}
       />
     </div>
   );

@@ -406,7 +406,6 @@ export interface ReviewDecision {
   item_key: string;
   decision: "approve" | "edit" | "correct" | "reject" | "escalate";
   reviewer?: string | null;
-  user_id?: string | null;
   role?: string | null;
   reason_code?: string | null;
   corrected_value?: { value?: unknown } | null;
@@ -415,8 +414,6 @@ export interface ReviewDecision {
   step?: string | null;
   /** Set by the server on the review workbench: this decision is the signed-in person's. */
   mine?: boolean;
-  /** Extraction only: an `edit` counts once a second approver co-signs it. */
-  cosigned?: boolean;
   edited_value?: { value?: unknown } | null;
   comment?: string | null;
   decided_at: string;
@@ -436,6 +433,9 @@ export interface ReviewItem {
   high_risk: boolean;
   decision: ReviewDecision | null;
 }
+
+/** Extraction `review-decisions`: every decided key's review state. */
+export type ReviewStates = Record<string, { state: ItemState; escalated: boolean }>;
 
 export interface EvidenceSpan {
   doc_id: string;

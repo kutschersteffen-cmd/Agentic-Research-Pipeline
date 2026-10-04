@@ -2,7 +2,7 @@ import { useState } from "react";
 import { api } from "../api/client";
 import type { EvidenceSpan, ItemContext, ItemDecisionBody, ReviewDecision, ReviewItem } from "../types";
 import { SIGN_IN_REQUIRED, useMe } from "../lib/reviewer";
-import { DECISION_REASONS, canCosign, decideBlock, decisionChoices, needsCitation, type Me } from "../lib/reviewKeys";
+import { DECISION_REASONS, decideBlock, decisionChoices, needsCitation, type Me } from "../lib/reviewKeys";
 import { CitationList } from "./CitationList";
 import { CheckResults } from "./ReviewTiles";
 import type { ActiveSource } from "./SourcePanel";
@@ -34,9 +34,8 @@ export function ReviewControls({
   itemKey,
   current,
   onDone,
-  submitFn = api.submitExtractionReview,
-  historyFn = api.getExtractionReviewHistory,
-  cosignFn,
+  submitFn,
+  historyFn = null,
   item,
   onOpenSource,
 }: {
@@ -46,13 +45,10 @@ export function ReviewControls({
   reviewer?: string;
   /** Called with the decision just recorded. */
   onDone: (recorded: ReviewDecision) => void;
-  /** Defaults to the scalar Data-Point Extraction Engine's endpoints; pass
-   * the segments/spend equivalents when reusing this component elsewhere. */
+  /** The legacy kind's own decision endpoint; required unless `item` is passed. */
   submitFn?: (runId: string, body: unknown) => Promise<unknown>;
   /** null: this run kind keeps no per-item history endpoint, so no History button. */
   historyFn?: ((runId: string, itemKey: string) => Promise<unknown>) | null;
-  /** Only runs whose overrides need a second approver (extraction) pass this. */
-  cosignFn?: (runId: string, itemKey: string) => Promise<unknown>;
   /** Review workbench item: decide it through the item decision endpoint, with its context bundle. */
   item?: Pick<ReviewItem, "kind" | "state" | "escalated" | "decision">;
   onOpenSource?: (s: ActiveSource) => void;
@@ -69,6 +65,7 @@ export function ReviewControls({
   if (item) return <ItemDecision runId={runId} itemKey={itemKey} item={item} me={me} onDone={onDone} onOpenSource={onOpenSource} />;
 
   async function submit(decision: "approve" | "edit" | "reject") {
+    if (!submitFn) return;
     if (!signedIn) {
       setError(SIGN_IN_REQUIRED);
       return;
@@ -88,22 +85,7 @@ export function ReviewControls({
       setShowOverrideInput(false);
       setHistory(null);
       announce(`${decision === "approve" ? "Approved" : decision === "edit" ? "Overridden" : "Rejected"}; recorded against ${signedIn}.`);
-      onDone({ ...recorded, reviewer: signedIn, user_id: me?.user_id, role: me?.role, cosigned: false, decided_at: new Date().toISOString() });
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function cosign() {
-    if (!cosignFn || !current) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await cosignFn(runId, itemKey);
-      announce("Co-signed.");
-      onDone({ ...current, cosigned: true });
+      onDone({ ...recorded, reviewer: signedIn, role: me?.role, mine: true, decided_at: new Date().toISOString() });
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -134,16 +116,6 @@ export function ReviewControls({
         </span>
       ) : (
         <ProposedTag />
-      )}
-      {cosignFn && current?.decision === "edit" && !current.cosigned && (
-        <span className="muted">
-          Awaiting second sign-off{" "}
-          {canCosign(current, me) && (
-            <button className="secondary" onClick={cosign} disabled={busy}>
-              Co-sign
-            </button>
-          )}
-        </span>
       )}
       <DecisionBar
         onApprove={() => submit("approve")}

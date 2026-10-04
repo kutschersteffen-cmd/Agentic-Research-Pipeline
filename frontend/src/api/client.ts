@@ -244,7 +244,6 @@ export const api = {
   startThemeRun: (body: unknown) => request<{ run_id: string; company_count: number }>("/api/themes/runs", { method: "POST", body: JSON.stringify(body) }),
   getThemeResults: (runId: string, offset = 0, limit = 500) =>
     request(`/api/themes/runs/${runId}/results?offset=${offset}&limit=${limit}`),
-  getThemeReviewQueue: (runId: string) => request(`/api/themes/runs/${runId}/review-queue`),
   submitThemeReview: (runId: string, body: unknown) =>
     request(`/api/themes/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
 
@@ -253,14 +252,7 @@ export const api = {
     request("/api/extraction/schemas/draft", { method: "POST", body: JSON.stringify({ criteria_text: criteriaText }) }),
   getExtractionResults: (runId: string, offset = 0, limit = 500) =>
     request(`/api/extraction/runs/${runId}/results?offset=${offset}&limit=${limit}`),
-  getExtractionReviewQueue: (runId: string) => request(`/api/extraction/runs/${runId}/review-queue`),
-  submitExtractionReview: (runId: string, body: unknown) =>
-    request(`/api/extraction/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
-  cosignExtraction: (runId: string, itemKey: string) =>
-    request(`/api/extraction/runs/${runId}/cosign`, { method: "POST", body: JSON.stringify({ item_key: itemKey }) }),
   getExtractionReviewDecisions: (runId: string) => request(`/api/extraction/runs/${runId}/review-decisions`),
-  getExtractionReviewHistory: (runId: string, itemKey: string) =>
-    request(`/api/extraction/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
   getExtractionResultsForCompany: (companyId: string) =>
     request(`/api/extraction/companies/${encodeURIComponent(companyId)}/results`),
 
@@ -285,7 +277,6 @@ export const api = {
     request<{ total: number; results: TnfdRecord[] }>(`/api/tnfd/runs/${runId}/results?offset=${offset}&limit=${limit}`),
   getFinancialsResults: (runId: string, offset = 0, limit = 500) =>
     request(`/api/financials/runs/${runId}/results?offset=${offset}&limit=${limit}`),
-  getFinancialsReviewQueue: (runId: string) => request(`/api/financials/runs/${runId}/review-queue`),
   submitFinancialsReview: (runId: string, body: unknown) =>
     request(`/api/financials/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
   getFinancialsReviewDecisions: (runId: string) => request(`/api/financials/runs/${runId}/review-decisions`),
@@ -300,8 +291,6 @@ export const api = {
     request<{ total: number; results: TransitionPlanAssessmentRecord[] }>(
       `/api/transition-plan/runs/${runId}/results?offset=${offset}&limit=${limit}`,
     ),
-  getTransitionPlanReviewQueue: (runId: string) => request(`/api/transition-plan/runs/${runId}/review-queue`),
-  getTnfdReviewQueue: (runId: string) => request(`/api/tnfd/runs/${runId}/review-queue`),
   getTnfdReviewHistory: (runId: string, itemKey: string) =>
     request(`/api/tnfd/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
   submitTnfdReview: (runId: string, body: unknown) =>
@@ -404,9 +393,6 @@ export const api = {
     request<{ run_id: string; company_count: number }>("/api/identity/runs", { method: "POST", body: JSON.stringify(body) }),
   getIdentityResults: (runId: string, offset = 0, limit = 500) =>
     request(`/api/identity/runs/${runId}/results?offset=${offset}&limit=${limit}`),
-  getIdentityReviewQueue: (runId: string) => request(`/api/identity/runs/${runId}/review-queue`),
-  submitIdentityReview: (runId: string, body: unknown) =>
-    request(`/api/identity/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
   getEnrichedUniverse: (runId: string) =>
     request<{ companies: Record<string, unknown>[] }>(`/api/identity/runs/${runId}/enriched-universe`),
 

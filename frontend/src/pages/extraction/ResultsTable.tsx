@@ -3,7 +3,7 @@ import type { ActiveSource } from "../../components/SourcePanel";
 import { TnfdResultsTable } from "../../components/TnfdResults";
 import { TransitionPlanResultsTable } from "../../components/TransitionPlanResults";
 import type { ReviewTileCounts } from "../../lib/stagedFlow";
-import type { CompanyFinancialsRecord, ExtractionProfile, ExtractionRecord, ReviewDecision, TnfdRecord, TransitionPlanAssessmentRecord } from "../../types";
+import type { CompanyFinancialsRecord, ExtractionProfile, ExtractionRecord, ReviewDecision, ReviewStates, TnfdRecord, TransitionPlanAssessmentRecord } from "../../types";
 
 type Decisions = Record<string, ReviewDecision>;
 
@@ -13,6 +13,7 @@ export function ResultsTable(p: {
   runId: string;
   results: { custom: ExtractionRecord[]; financials: CompanyFinancialsRecord[]; tnfd: TnfdRecord[]; transition_plan: TransitionPlanAssessmentRecord[] };
   decisions: { custom: Decisions; financials: Decisions; transition_plan: Decisions };
+  states: ReviewStates;
   expanded: string | null;
   onToggleExpanded: (companyId: string) => void;
   reviewer: string;
@@ -31,6 +32,7 @@ export function ResultsTable(p: {
           expanded={expanded}
           onToggleExpanded={onToggleExpanded}
           reviewDecisions={p.decisions.custom}
+          states={p.states}
           reviewer={reviewer}
           onReviewDone={p.onReviewed}
           onOpenSource={onOpenSource}
