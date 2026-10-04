@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -32,7 +32,7 @@ class PublishingScheduleConfig(BaseModel):
 
 
 def _today() -> date:
-    return date.today()
+    return datetime.now(UTC).date()
 
 
 def first_business_day_after(month_end: date, n: int = 1) -> date:
@@ -105,7 +105,7 @@ class PublishingScheduler(IntervalScheduler):
         store = PublishStore(s.postgres_dsn)
         return lambda a: facts_as_of(store, a), lambda a: events_since(store, a)
 
-    def _reground(self, today: date) -> str:
+    def _reground(self, today: date) -> tuple[str, str]:
         from arp.ingestion.indexing_config import IndexingConfig
         from arp.storage.document_blob_store import blob_store_for
         from arp.storage.document_store import DocumentContentStore
@@ -117,8 +117,10 @@ class PublishingScheduler(IntervalScheduler):
             blob_store=blob_store_for(IndexingConfig.from_settings(s)), content_store=DocumentContentStore(s.document_store_dir, enabled=s.document_cache_enabled),
             fuzzy_threshold=s.grounding_fuzzy_threshold, log_path=s.publish_state_dir / "reground.jsonl",
         )
-        bad = sum(r["result"] != "ok" for r in rows)
-        return f"{len(rows)} sampled, {bad} not ok"
+        bad = [r["fact_id"] for r in rows if r["result"] != "ok"]
+        if bad:
+            return "drift", f"{len(bad)} of {len(rows)} not ok: {', '.join(bad[:5])}"
+        return "ok", f"{len(rows)} sampled, 0 not ok"
 
     def _pull(self, today: date) -> tuple[str, str]:
         from arp.snapshots.client import SnapshotClient
@@ -141,14 +143,24 @@ class PublishingScheduler(IntervalScheduler):
             return "skipped", "another run froze this month"
         return "ok", m.snapshot_id
 
-    def _corrections(self, month: str) -> tuple[str, str]:
+    def _corrections(self, months: list[str]) -> tuple[str, str]:
         facts, events = self._facts()
-        try:
-            m = build_correction(month, root=self.settings.snapshot_store_dir, portfolio_store=self.portfolio_store,
-                                 facts_as_of=facts, events_since=events)
-        except (SnapshotFrozen, ConcurrentPublish):
-            return "skipped", "another run froze this revision"
-        return "ok", m.snapshot_id if m else "nothing to correct"
+        built, failed = [], []
+        # ponytail: the last 24 frozen months only; older snapshots stop receiving corrections
+        for month in reversed(months[-24:]):
+            try:
+                m = build_correction(month, root=self.settings.snapshot_store_dir,
+                                     portfolio_store=self.portfolio_store, facts_as_of=facts, events_since=events)
+            except (SnapshotFrozen, ConcurrentPublish):
+                continue  # another run froze this revision
+            except Exception as exc:  # noqa: BLE001 - one month failing never stops the others
+                logger.exception("Correction of %s failed", month)
+                failed.append(f"{month}: {str(exc)[:200]}")
+                continue
+            if m:
+                built.append(m.snapshot_id)
+        detail = f"built {', '.join(built) or 'nothing'}" + (f"; failed {'; '.join(failed)}" if failed else "")
+        return ("failed" if failed else "ok"), detail
 
     async def _run(self, config: PublishingScheduleConfig) -> None:
         today = _today()
@@ -158,10 +170,10 @@ class PublishingScheduler(IntervalScheduler):
         due = due_jobs(today, config, settings=self.settings, latest_frozen_month=latest,
                        holders=self.portfolio_store.list_holders())
         jobs = {
-            "reground": lambda: ("ok", self._reground(today)),
+            "reground": lambda: self._reground(today),
             "pull": lambda: self._pull(today),
             "snapshot": lambda: self._snapshot(today),
-            "corrections": lambda: self._corrections(latest),
+            "corrections": lambda: self._corrections(frozen),
         }
         for job in due:
             try:
@@ -170,6 +182,6 @@ class PublishingScheduler(IntervalScheduler):
                 logger.exception("Publishing job %s failed", job)
                 status, detail = "failed", str(exc)[:500]
             config.last_results[job] = {"status": status, "detail": detail}
-            if job == "reground" and status == "ok":
+            if job == "reground" and status in ("ok", "drift"):
                 config.last_reground_day = today.isoformat()
         config.last_run_at = ts_now()

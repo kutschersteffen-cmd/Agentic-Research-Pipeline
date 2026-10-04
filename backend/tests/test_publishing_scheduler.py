@@ -112,3 +112,80 @@ def test_scheduler_run_builds_snapshot(tmp_path, monkeypatch):
     assert config.last_results["snapshot"]["status"] == "ok"
     assert read_manifest(tmp_path / "snaps", "2026-10", 1) is not None
     assert config.last_run_at
+
+
+# --- _run behaviour ---------------------------------------------------------------------------------
+
+import pytest  # noqa: E402
+
+from arp.publish.facts import ConcurrentPublish  # noqa: E402
+from arp.snapshots.build import SnapshotFrozen, build_snapshot  # noqa: E402
+from tests.test_snapshots_build import World  # noqa: E402
+
+
+@pytest.fixture
+def sched(tmp_path, monkeypatch):
+    settings = Settings(postgres_dsn="postgresql://unused", holdings_api_url=None, snapshot_store_dir=tmp_path / "snaps",
+                        publish_state_dir=tmp_path / "state")
+    monkeypatch.setattr(S, "_today", lambda: date(2026, 11, 2))
+    return PublishingScheduler(settings, PortfolioStore(tmp_path / "pf"), RunStore(tmp_path / "runs"))
+
+
+def _run(sched):
+    c = PublishingScheduleConfig(enabled=True)
+    asyncio.run(sched._run(c))
+    return c
+
+
+def test_run_isolates_failing_job(sched, monkeypatch):
+    def boom(_today):
+        raise RuntimeError("blob store down")
+
+    monkeypatch.setattr(sched, "_reground", boom)
+    monkeypatch.setattr(sched, "_snapshot", lambda t: ("ok", "2026-10.r1"))
+    c = _run(sched)
+    assert c.last_results["reground"] == {"status": "failed", "detail": "blob store down"}
+    assert c.last_results["snapshot"]["status"] == "ok"
+    assert c.last_reground_day is None  # a failed sample retries next tick
+
+
+def test_reground_drift_recorded_and_day_set(sched, monkeypatch):
+    monkeypatch.setattr(sched, "_reground", lambda t: ("drift", "1 of 2 not ok: a"))
+    monkeypatch.setattr(sched, "_snapshot", lambda t: ("ok", "x"))
+    c = _run(sched)
+    assert c.last_results["reground"]["status"] == "drift" and c.last_reground_day == "2026-11-02"
+
+
+def test_frozen_snapshot_is_skipped_not_failed(sched, monkeypatch):
+    monkeypatch.setattr(sched, "_reground", lambda t: ("ok", ""))
+
+    def frozen(*a, **k):
+        raise SnapshotFrozen("r1 frozen")
+
+    monkeypatch.setattr(S, "build_snapshot", frozen)
+    assert _run(sched).last_results["snapshot"]["status"] == "skipped"
+    monkeypatch.setattr(S, "build_snapshot", lambda *a, **k: (_ for _ in ()).throw(ConcurrentPublish("x")))
+    assert _run(sched).last_results["snapshot"]["status"] == "skipped"
+
+
+def test_corrections_cover_every_frozen_month(sched, tmp_path, monkeypatch):
+    world = World()
+    ticks = iter(range(1000))
+    monkeypatch.setattr(B, "ts_now", lambda: f"2026-11-02T08:{next(ticks) % 60:02d}:00.000000+00:00")
+    world.facts = [f.model_copy(update={"valid_from": "2026-08-01T00:00:00.000000+00:00"}) for f in world.facts]
+    store = sched.portfolio_store
+    idmap, rs = IdentifierMapStore(tmp_path / "id.jsonl"), sched.run_store
+    for as_of in ("2026-09-30", "2026-10-31"):
+        v = validate([{"_row": 2, "isin": "US0378331005", "weight": 100, "market_value": 6, "currency": "EUR"}],
+                     kind="index", as_of=as_of, today=date(2026, 11, 2))
+        ingest(store, v, kind="index", holder_id="IX1", as_of=as_of, source="file", source_ref="f.csv",
+               principal=None, override_reason=None, run_store=rs, idmap=idmap)
+        build_snapshot(as_of, root=sched.settings.snapshot_store_dir, portfolio_store=store,
+                       facts_as_of=world.facts_as_of)
+    world.restate("f1", 9.0)  # visible at both month ends
+    monkeypatch.setattr(sched, "_facts", lambda: (world.facts_as_of, world.events_since))
+    status, detail = sched._corrections(["2026-09", "2026-10"])
+    root = sched.settings.snapshot_store_dir
+    assert status == "ok", detail
+    assert read_manifest(root, "2026-09").revision == 2
+    assert read_manifest(root, "2026-10").revision == 2
