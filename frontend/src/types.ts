@@ -419,7 +419,7 @@ export interface ReviewDecision {
   decided_at: string;
 }
 
-export type ReviewItemKind = "value" | "sector_code" | "identity" | "quarantined_document" | "restatement_candidate" | "other";
+export type ReviewItemKind = "value" | "sector_code" | "identity" | "quarantined_document" | "restatement_candidate" | "security" | "other";
 export type ItemState = "pending" | "first_done" | "second_done" | "disagreed" | "final";
 
 export interface ReviewItem {
@@ -2968,4 +2968,29 @@ export interface ExportedDashboard {
   source: string;
   file: string;
   scoped: boolean;
+}
+
+export interface HolderStatus {
+  holder_id: string;
+  kind: "index" | "portfolio";
+  name: string;
+  source: "api" | "file";
+  as_of: string | null;
+  last_pull_at: string | null;
+  last_error: string | null;
+  expected_as_of: string;
+  stale: boolean;
+  age_days: number | null;
+}
+export interface RowError {
+  row: number | null;
+  column: string | null;
+  message: string;
+}
+export interface IntakeResult {
+  status: "written" | "unchanged";
+  revision: number;
+  rows: number;
+  unresolved: string[];
+  review_run_id: string | null;
 }

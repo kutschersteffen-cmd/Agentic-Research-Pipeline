@@ -295,6 +295,8 @@ function ItemDecision({
       ? !!(correctedValue?.resolved_website || correctedValue?.resolved_cik) && comment.trim() !== ""
       : kind === "sector_code"
         ? !!correctedValue?.isic_code && comment.trim() !== ""
+        : kind === "security"
+          ? !!correctedValue?.value && comment.trim() !== ""
         : !!correctedValue?.value && (!needsCitation(kind) || quote !== null));
   const canSubmit = !!ctx && !!decision && !!reason && correctionReady && !block && !busy;
   const agree = ctx && !block ? agreeBody(kind, item.state, ctx) : null;
@@ -505,6 +507,8 @@ function ItemDecision({
                 {input("resolved_website", "Website")}
                 {input("resolved_cik", "CIK")}
               </>
+            ) : kind === "security" ? (
+              input("value", "LEI")
             ) : (
               input("value", "Corrected value")
             ))}
@@ -516,7 +520,7 @@ function ItemDecision({
       {decision === "correct" && needsCitation(kind) && (
         <p className="muted" aria-live="polite">{quote ? `Source: "${quote.quote}"` : "Open a source and select the text that shows the corrected value."}</p>
       )}
-      {decision === "correct" && (kind === "identity" || kind === "sector_code") && (
+      {decision === "correct" && (kind === "identity" || kind === "sector_code" || kind === "security") && (
         <p className="muted">A correction needs a comment naming its source.</p>
       )}
       <CommentField value={comment} onChange={setComment} />
